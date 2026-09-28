@@ -157,9 +157,23 @@ public sealed class AdminStaleChangeIntegrationTests : IAsyncLifetime
         opened["Reason"] = "test reason";
         if (changeRole)
         {
-            var firstAction = target.GlobalRole == GlobalRole.Admin ? "RevokeAdmin" : "GrantAdmin";
-            await ConfirmAccount(secondClient, target.Id, firstAction);
-            await ConfirmAccount(secondClient, target.Id, firstAction == "GrantAdmin" ? "RevokeAdmin" : "GrantAdmin");
+            if (action == "Restore")
+            {
+                // GrantAdmin is intentionally available only for an active User. Restore the
+                // disabled target, make the role changes while it is active, then disable it
+                // again so the originally opened Restore form remains stale without changing
+                // the final state used by the fresh-action assertion below.
+                await ConfirmAccount(secondClient, target.Id, "Restore");
+                await ConfirmAccount(secondClient, target.Id, "GrantAdmin");
+                await ConfirmAccount(secondClient, target.Id, "RevokeAdmin");
+                await ConfirmAccount(secondClient, target.Id, "Disable");
+            }
+            else
+            {
+                var firstAction = target.GlobalRole == GlobalRole.Admin ? "RevokeAdmin" : "GrantAdmin";
+                await ConfirmAccount(secondClient, target.Id, firstAction);
+                await ConfirmAccount(secondClient, target.Id, firstAction == "GrantAdmin" ? "RevokeAdmin" : "GrantAdmin");
+            }
         }
         else
         {
@@ -254,7 +268,11 @@ public sealed class AdminStaleChangeIntegrationTests : IAsyncLifetime
         using (var forbidden = await PostAccount(adminClient, protectedId, action, forbiddenForm))
         {
             Assert.Equal(HttpStatusCode.OK, forbidden.StatusCode);
-            Assert.Contains("The account change could not be saved.", await forbidden.Content.ReadAsStringAsync(), StringComparison.Ordinal);
+            var page = await forbidden.Content.ReadAsStringAsync();
+            var expected = action is "Disable" or "Restore"
+                ? "You cannot disable or restore your own account."
+                : "Only the active Super Admin can perform this action.";
+            Assert.Contains(expected, page, StringComparison.Ordinal);
         }
         Assert.Equal(protectedBefore, await AccountState(protectedId));
         Assert.Equal(before, await AccountState(target.Id));
@@ -264,7 +282,14 @@ public sealed class AdminStaleChangeIntegrationTests : IAsyncLifetime
         using (var forbidden = await PostAccount(client, owner.Id, action, form))
         {
             Assert.Equal(HttpStatusCode.OK, forbidden.StatusCode);
-            Assert.Contains("The account change could not be saved.", await forbidden.Content.ReadAsStringAsync(), StringComparison.Ordinal);
+            var page = await forbidden.Content.ReadAsStringAsync();
+            var expected = action switch
+            {
+                "GrantAdmin" => "Only a User can be granted Admin access.",
+                "RevokeAdmin" => "Only an Admin can be revoked.",
+                _ => "You cannot disable or restore your own account."
+            };
+            Assert.Contains(expected, page, StringComparison.Ordinal);
         }
         Assert.Equal(ownerBefore, await AccountState(owner.Id));
         if (action is "Disable" or "Restore") await ConfirmAccount(adminClient, target.Id, action);

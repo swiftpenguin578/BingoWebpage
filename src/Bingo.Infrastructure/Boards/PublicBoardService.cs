@@ -6,6 +6,7 @@ using Bingo.Domain.Evidence;
 using Bingo.Domain.Signups;
 using Bingo.Infrastructure.Persistence;
 using Bingo.Infrastructure.Signups;
+using Bingo.Infrastructure.Teams;
 using Microsoft.EntityFrameworkCore;
 
 namespace Bingo.Infrastructure.Boards;
@@ -50,7 +51,14 @@ public sealed class PublicBoardService(ApplicationDbContext db, TimeProvider tim
         var publication = await db.ApprovalObjectivesAsync(board.Id, approvalId, cancellationToken);
         if (publication is null) return null;
         var publishedDrops = publication.Drops.ToDictionary(x => x.Id);
-        var teams = await db.Teams.AsNoTracking().Where(value => value.EventId == bingoEvent.Id && value.Active && value.FinalizedAt != null).OrderBy(value => value.Name).ToListAsync(cancellationToken);
+        var rosterPublication = await db.ActiveRosterPublicationAsync(bingoEvent.Id, cancellationToken);
+        if (rosterPublication is null) return null;
+        var rosterEntries = await db.DraftPublicationRosters.AsNoTracking()
+            .Where(value => value.DraftPublicationCycleId == rosterPublication.Id)
+            .ToListAsync(cancellationToken);
+        var rosterTeamIds = rosterEntries.Select(value => value.TeamId).Distinct().ToList();
+        var teams = await db.Teams.AsNoTracking().Where(value => value.EventId == bingoEvent.Id && value.Active && rosterTeamIds.Contains(value.Id))
+            .OrderBy(value => value.DraftPosition).ThenBy(value => value.Name).ToListAsync(cancellationToken);
         if (teams.Count == 0) return null;
 
         var frozenTileRows = await db.BoardApprovalTileSnapshots.AsNoTracking()
@@ -105,21 +113,20 @@ public sealed class PublicBoardService(ApplicationDbContext db, TimeProvider tim
                 .ToListAsync(cancellationToken))
             .GroupBy(value => value.TeamId)
             .ToDictionary(group => group.Key, group => group.ToList());
-        var rosterRows = await (from membership in db.TeamMemberships.AsNoTracking()
-                                join participant in db.EventParticipants.AsNoTracking() on membership.EventParticipantId equals participant.Id
-                                join player in db.PrimaryCharacters().AsNoTracking() on membership.EventParticipantId equals player.ParticipantId
-                                where teamIds.Contains(membership.TeamId) && membership.LeftAt == null && participant.SignupStatus == SignupStatus.Confirmed
-                                select new { membership.TeamId, PlayerId = player.ParticipantId, PlayerName = player.Name })
-            .ToListAsync(cancellationToken);
-        var playingAccountRows = await (from membership in db.TeamMemberships.AsNoTracking()
-                                        join assignment in db.EventParticipantCharacters.AsNoTracking() on membership.EventParticipantId equals assignment.EventParticipantId
+        var rosterRows = rosterEntries
+            .Where(value => teamIds.Contains(value.TeamId))
+            .Select(value => new { value.TeamId, PlayerId = value.EventParticipantId, PlayerName = value.PublicCharacterName })
+            .ToList();
+        var rosterParticipantIds = rosterRows.Select(value => value.PlayerId).Distinct().ToList();
+        var playingAccountRows = await (from entry in db.DraftPublicationRosters.AsNoTracking()
+                                        join assignment in db.EventParticipantCharacters.AsNoTracking() on entry.EventParticipantId equals assignment.EventParticipantId
                                         join character in db.OsrsCharacters.AsNoTracking() on assignment.OsrsCharacterId equals character.Id
-                                        where teamIds.Contains(membership.TeamId) && membership.LeftAt == null &&
+                                        where entry.DraftPublicationCycleId == rosterPublication.Id && teamIds.Contains(entry.TeamId) && rosterParticipantIds.Contains(entry.EventParticipantId) &&
                                               assignment.EventId == bingoEvent.Id && assignment.ReleasedAt == null &&
                                               assignment.EventRole == EventCharacterRole.Playing &&
                                               db.EventParticipants.Any(participant => participant.Id == assignment.EventParticipantId && participant.SignupStatus == SignupStatus.Confirmed)
-                                        orderby membership.TeamId, assignment.EventParticipantId, assignment.RegistrationOrder, assignment.Id
-                                        select new { membership.TeamId, assignment.EventParticipantId, character.DisplayName })
+                                        orderby entry.TeamId, assignment.EventParticipantId, assignment.RegistrationOrder, assignment.Id
+                                        select new { entry.TeamId, assignment.EventParticipantId, character.DisplayName })
             .ToListAsync(cancellationToken);
         var playingAccountNamesByParticipant = playingAccountRows
             .GroupBy(value => value.EventParticipantId)

@@ -235,6 +235,7 @@ const windowListeners = {};
 const window = {
   listeners: windowListeners,
   addEventListener(type, listener) { (windowListeners[type] ??= []).push(listener); },
+  removeEventListener(type, listener) { windowListeners[type] = (windowListeners[type] || []).filter(item => item !== listener); },
   matchMedia: () => ({ matches: false })
 };
 const guards = [];
@@ -273,7 +274,7 @@ image.value = "";
 assert.equal(guard.dirtyForms().length, 0, "clearing a named empty file restores the clean baseline");
 
 const cleanUnload = { preventDefault() { this.prevented = true; } };
-windowListeners.beforeunload.forEach(listener => listener(cleanUnload));
+(windowListeners.beforeunload || []).forEach(listener => listener(cleanUnload));
 assert.equal(cleanUnload.prevented, undefined, "clean editor does not trigger native beforeunload");
 
 tileName.value = "Draft tile";
@@ -311,6 +312,7 @@ image.value = { name: "tile.png", size: 10, type: "image/png", lastModified: 4 }
 const dynamicObjective = new Node("input", { name: "TileDraft.Requirements[1].Target", value: "2" });
 requirements.append(dynamicObjective);
 const dirtyUnload = { preventDefault() { this.prevented = true; } };
+document.dispatch("input", { target: tileName });
 windowListeners.beforeunload.forEach(listener => listener(dirtyUnload));
 assert.equal(dirtyUnload.prevented, true, "file and dynamic objective edits trigger native beforeunload");
 

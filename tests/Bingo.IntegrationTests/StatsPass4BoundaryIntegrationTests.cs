@@ -88,6 +88,7 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests
             else (await db.EventCompetitionSynchronizations.SingleAsync()).Reconfigure(43, "Replacement", f.Event.EventStartsAt, f.Event.EventEndsAt, "replacement", f.Clock.GetUtcNow());
             await db.SaveChangesAsync(); await tx.CommitAsync();
         }
+        if (change == "team") await PublishCurrentRosterAsync(f, retainPreviousEntries: true);
         var result = await ReadStatsAsync(f); Assert.False(result.Luck.Stale);
         if (change != "team") { Assert.Null(result.Luck.Result.Percentage); Assert.Null(result.Luck.CalculatedAt); }
         else { Assert.Equal(2, result.Luck.Teams.Count); Assert.Single(result.Luck.Teams.Single(x => x.Name == "Replacement team").Players); }
@@ -113,28 +114,34 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests
             var ev = await end.Events.SingleAsync();
             Assert.True((await new EventLifecycleService(end, null!, f.Clock).EndNowAsync(ev.Id, ev.Version, true, "Fixture end", new(f.Admin.Id, f.Admin.LoginName))).Succeeded);
         }
+        await using (var beforeCutoff = new ApplicationDbContext(options))
+        {
+            var readiness = (await new EventFinalizationService(beforeCutoff, new PublicBoardService(beforeCutoff, f.Clock), f.Clock).GetReadinessAsync(f.Event.Id))!;
+            Assert.Contains(readiness.Blockers, blocker => blocker.Key == "submission-window");
+        }
+        f.Clock.Advance(TimeSpan.FromHours(1));
+        var rawCompleted = live.Teams[0].Progress.BoardCompletedAt;
         var corrected = f.Event.ActualStartedAt.Value.AddMinutes(26);
         await using (var db = new ApplicationDbContext(options))
         {
             var service = new EventFinalizationService(db, new PublicBoardService(db, f.Clock), f.Clock);
             var ready = (await service.GetReadinessAsync(f.Event.Id))!;
-            await service.CorrectCompletionAsync(f.Event.Id, f.Team.Id, corrected, "Controlled official correction", f.Admin.Id, ready.EventVersion, ready.ReviewCycleId);
-            ready = (await service.GetReadinessAsync(f.Event.Id))!;
-            await service.AcknowledgeCompletionTimeAsync(f.Event.Id, f.Team.Id, f.Admin.Id, ready.EventVersion, ready.ReviewCycleId, ready.Blockers.Single(x => x.IsCompletionTimeAcknowledgement).Key);
-            ready = (await service.GetReadinessAsync(f.Event.Id))!; Assert.True(ready.CanFinalize);
+            await Assert.ThrowsAsync<InvalidOperationException>(() => service.CorrectCompletionAsync(
+                f.Event.Id, f.Team.Id, corrected, "Retired official correction", f.Admin.Id,
+                ready.EventVersion, ready.ReviewCycleId));
+            Assert.True(ready.CanFinalize, string.Join("; ", ready.Blockers.Select(x => x.Description)));
             await service.FinalizeAsync(f.Event.Id, new(f.Admin.Id, f.Admin.LoginName), ready.EventVersion);
         }
-        var final = await ReadStatsAsync(f); Assert.Equal(corrected, final.Teams[0].OfficialCompletion!.CompletedAt);
-        Assert.Equal(corrected, final.Teams[0].Progress.BoardCompletedAt); Assert.Equal(corrected, final.Milestones.Single(x => x.Id == "board").At);
+        var final = await ReadStatsAsync(f); Assert.Equal(rawCompleted, final.Teams[0].OfficialCompletion!.CompletedAt);
+        Assert.Equal(rawCompleted, final.Teams[0].Progress.BoardCompletedAt); Assert.Equal(rawCompleted, final.Milestones.Single(x => x.Id == "board").At);
         Assert.True(final.OfficialResult!.IsOfficial); Assert.Equal(final.EvidenceRevision, final.Luck.EvidenceRevision);
         Assert.Null(final.Luck.CalculatedAt); Assert.Null(final.Luck.Result.Percentage); // the old Live batch expired before this lifecycle transition
-        await using (var db = new ApplicationDbContext(options)) await new EventFinalizationService(db, new PublicBoardService(db, f.Clock), f.Clock).ArchiveAsync(f.Event.Id, true, new(f.Admin.Id, f.Admin.LoginName));
-        var archived = await ReadStatsAsync(f); Assert.Equal(EventState.Archived, archived.State); Assert.Equal(corrected, archived.Teams[0].OfficialCompletion!.CompletedAt);
+        var archived = await ReadStatsAsync(f); Assert.Equal(EventState.Archived, archived.State); Assert.Equal(rawCompleted, archived.Teams[0].OfficialCompletion!.CompletedAt);
         Assert.Equal(prices, JsonSerializer.Serialize(archived.Drops.Select(x => new { x.Item, x.ValueGp, x.PriceHour }))); Assert.Equal(rates, JsonSerializer.Serialize(archived.Luck.Sources));
         await using (var db = new ApplicationDbContext(options)) await new EventFinalizationService(db, new PublicBoardService(db, f.Clock), f.Clock).UnfinalizeAsync(f.Event.Id, "Legitimate fixture reopening", true, new(f.Admin.Id, f.Admin.LoginName));
         var reopened = await ReadStatsAsync(f); Assert.Equal(EventState.AwaitingFinalReview, reopened.State); Assert.Null(reopened.OfficialResult);
         Assert.Equal(live.Teams[0].Progress.BoardCompletedAt, reopened.Teams[0].Progress.BoardCompletedAt);
-        await using var retained = new ApplicationDbContext(options); Assert.Equal(corrected, (await retained.OfficialPlacements.SingleAsync()).BoardCompletedAt);
+        await using var retained = new ApplicationDbContext(options); Assert.Equal(rawCompleted, (await retained.OfficialPlacements.SingleAsync()).BoardCompletedAt);
     }
 
     [Fact]
@@ -197,6 +204,7 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests
             (await db.TeamMemberships.SingleAsync(x => x.EventParticipantId == f.Players[1].Id)).Leave(f.Clock.GetUtcNow(), "Fixture roster");
             db.Add(new TeamMembership(Guid.NewGuid(), team.Id, f.Players[1].Id, TeamMembershipRole.Participant, f.Clock.GetUtcNow(), null, "Fixture roster")); await db.SaveChangesAsync();
         }
+        await PublishCurrentRosterAsync(f);
         for (var tile = 0; tile < 4; tile++) await ApproveStatsAsync(f, await PendingStatsAsync(f, tile, 0, tile + 1));
         await ApproveStatsAsync(f, await PendingStatsAsync(f, 0, 1, 5));
         var live = await ReadStatsAsync(f); Assert.Equal(2, live.Teams.Count);

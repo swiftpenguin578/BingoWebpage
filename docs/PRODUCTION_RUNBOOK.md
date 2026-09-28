@@ -222,6 +222,54 @@ explicit full restore above; old code never writes against an uncertain schema.
 The original deployment failure status is preserved even when diagnostics or
 receipt writing fail.
 
+## Event-banner retirement (prepared procedure; not executed here)
+
+BNR-01 retires the event-banner feature and its schema without assuming that a
+production database or object store is empty. The migration identity is
+`20260926233834_RetireEventBanners`. It must be rehearsed against disposable
+PostgreSQL containers and a disposable object-store fixture before any
+production decision. This task prepared and tested the procedure only; it did
+not inspect, mutate, clean, or migrate production.
+
+1. Take and verify the ordinary database/object-store backup and record the
+   deployed release, migration history, and the exact target migration. Do not
+   run a destructive SQL shortcut or drop either legacy banner table. The
+   application release may run with the legacy tables still present because it
+   no longer reads or writes them.
+2. Apply the migration once. Its non-transactional bootstrap creates the
+   temporary `event_banner_retirement_keys` ledger and copies the exact
+   `(event_id, storage_key)` pairs from both `event_banner_assets` and
+   `event_banner_cleanups`. On a populated database, the guarded migration is
+   expected to stop while any ledger row is `pending`; the failed migration
+   history entry is not a successful cleanup signal, and the ledger remains
+   available for recovery.
+3. For each ledger row, inspect exactly the recorded object key in object
+   storage and cross-check every active storage-reference source, including
+   `evidence_assets`, `team_image_assets`, `board_tile_image_assets`, catalogue
+   image references, and any other unrelated object inventory. A key is marked
+   `deleted` only after the exact banner-only object deletion succeeds. Mark it
+   `missing` only after an exact object-store absence is confirmed. If any
+   evidence, team, tile, catalogue, or other non-banner reference shares the
+   key, do not delete the object and mark it `shared-retained` instead. A failed
+   object-store operation increments `attempt_count`, records
+   `last_attempted_at` and a safe `last_failure`, and leaves the row `pending`.
+4. Retry failed rows from the ledger; never rediscover keys from the source
+   tables and never widen a deletion to a prefix, event folder, filename, or
+   bucket listing. The ledger check constraint permits only `pending`,
+   `deleted`, `missing`, and `shared-retained`, and completed statuses require
+   `completed_at`.
+5. Re-run the same migration only after every row has a completed status. The
+   successful transaction drops the banner foreign key, event reference,
+   legacy asset/outbox tables, and temporary ledger together. If the guard
+   fails again, the source schema and exact ledger references remain available
+   for another retry. Verify the applied migration, absence of the retired
+   schema, and unchanged evidence/team/tile/catalogue rows afterward.
+
+`Down` is a disposable schema-shape rehearsal only. It recreates empty legacy
+banner tables and the nullable event column; it cannot restore deleted object
+bytes or claim production rollback. Production execution remains a separately
+approved operator action.
+
 ## Evidence integrity
 
 With the host-side R2 credentials configured, run:
@@ -231,7 +279,7 @@ sudo /usr/local/sbin/bingo-verify-evidence
 ```
 
 The script queries only database-stored object keys and SHA-256 values from
-the evidence/banner/team/board asset tables, downloads each object through the
+the evidence/team/board asset tables, downloads each object through the
 configured S3-compatible endpoint, hashes it locally, and fails on any
 mismatch. It never deletes objects or prints credentials/personal data.
 Integrity detection is not deletion recovery. The separate decision about an

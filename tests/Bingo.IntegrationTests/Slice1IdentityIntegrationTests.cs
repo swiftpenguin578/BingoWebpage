@@ -50,7 +50,7 @@ using Testcontainers.PostgreSql;
 
 namespace Bingo.IntegrationTests;
 
-public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
+public sealed partial class Slice1IdentityIntegrationTests : IAsyncLifetime
 {
     private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine")
         .WithDatabase("bingo_slice1_identity_tests")
@@ -558,11 +558,9 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
         var team = new Bingo.Domain.Teams.Team(Guid.NewGuid(), ev.Id, "Emergency team", "emergency-team", Bingo.Domain.Teams.TeamFormationType.Preformed, null, false);
         db.AddRange(admin, ev, team); await db.SaveChangesAsync();
         var service = new EmergencyCredentialService(db, time);
-        var account = await service.CreateAsync(admin.Id, "slice1-created-emergency", ev.Id, team.Id, CancellationToken.None);
-        var access = await db.AccountEventAccesses.SingleAsync(item => item.AccountId == account.Id);
-        Assert.Equal(ev.EventStartsAt, access.ActiveFrom);
-        Assert.Equal(ev.SubmissionCutoffAt, access.CorrectionOnlyFrom);
-        Assert.Single(await db.AuditEntries.Where(item => item.Action == "account.emergency_created" && item.TargetId == account.Id.ToString()).ToListAsync());
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.CreateAsync(admin.Id, "slice1-created-emergency", ev.Id, team.Id, CancellationToken.None));
+        Assert.Empty(await db.AccountEventAccesses.ToListAsync());
+        Assert.Empty(await db.AuditEntries.ToListAsync());
         var expired = Event(time.GetUtcNow(), time.GetUtcNow()); var expiredTeam = new Bingo.Domain.Teams.Team(Guid.NewGuid(), expired.Id, "Expired emergency team", "expired-emergency-team", Bingo.Domain.Teams.TeamFormationType.Preformed, null, false);
         db.AddRange(expired, expiredTeam); await db.SaveChangesAsync();
         await Assert.ThrowsAsync<InvalidOperationException>(() => service.CreateAsync(admin.Id, "slice1-cutoff-emergency", expired.Id, expiredTeam.Id, CancellationToken.None));
@@ -635,16 +633,15 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
         var adminInbox = await shell.GetNotificationsAsync(authentication.CreatePrincipal(admin), CancellationToken.None);
         var ownerInbox = await shell.GetNotificationsAsync(authentication.CreatePrincipal(owner), CancellationToken.None);
         var userInbox = await shell.GetNotificationsAsync(authentication.CreatePrincipal(user), CancellationToken.None);
-        var emergencyInbox = await shell.GetNotificationsAsync(authentication.CreatePrincipal(emergency), CancellationToken.None);
+        Assert.Throws<InvalidOperationException>(() => authentication.CreatePrincipal(emergency));
 
         Assert.Equal(adminInbox.OverviewUrl, ownerInbox.OverviewUrl);
         Assert.Equal("/notifications", ownerInbox.OverviewUrl);
         Assert.Equal(0, userInbox.Count);
-        Assert.Equal(0, emergencyInbox.Count);
     }
 
     [Fact]
-    public async Task CaptainMoveRevokesThePreviousEmergencyScopeInsideTheMoveTransaction()
+    public async Task CaptainMovePreservesRetiredEmergencyScopeHistory()
     {
         await using var db = new ApplicationDbContext(options);
         var admin = Website("slice1-move-admin", GlobalRole.Admin); var ev = Event(time.GetUtcNow().AddHours(2), time.GetUtcNow().AddDays(1));
@@ -662,7 +659,7 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
 
         Assert.IsType<RedirectToPageResult>(await page.OnPostMoveMemberAsync(ev.Id, membership.Id, target.Id, CancellationToken.None));
         db.ChangeTracker.Clear();
-        Assert.False((await db.AccountEventAccesses.SingleAsync(item => item.Id == access.Id)).Enabled);
+        Assert.True((await db.AccountEventAccesses.SingleAsync(item => item.Id == access.Id)).Enabled);
         var retired = await db.TeamMemberships.SingleAsync(item => item.Id == membership.Id);
         Assert.NotNull(retired.LeftAt);
         var replacement = await db.TeamMemberships.SingleAsync(item => item.EventParticipantId == participant.Id && item.LeftAt == null);
@@ -743,29 +740,28 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
         var results = await Task.WhenAll(
             AddAsync(firstEventId, firstTeamId, "first external member"),
             AddAsync(secondEventId, secondTeamId, "second external member"));
-        Assert.All(results, result => Assert.IsType<RedirectToPageResult>(result));
+        // External-member creation is a retired Draft handler.  The compatibility
+        // surface must remain fail-closed and must not recreate the old roster path.
+        Assert.All(results, result => Assert.IsType<NotFoundResult>(result));
 
         await using var verification = new ApplicationDbContext(options);
-        var character = await verification.OsrsCharacters.SingleAsync(item => item.NormalizedName == "CONCURRENT EXTERNAL");
+        Assert.False(await verification.OsrsCharacters.AnyAsync(item => item.NormalizedName == "CONCURRENT EXTERNAL"));
         var participants = await verification.EventParticipants
             .Where(item => item.EventId == firstEventId || item.EventId == secondEventId)
             .OrderBy(item => item.EventId)
             .ToListAsync();
-        Assert.Equal(2, participants.Count);
-        Assert.All(participants, participant =>
-        {
-            Assert.Equal(Bingo.Domain.Signups.SignupSource.AdminCreated, participant.Source);
-            Assert.Equal(Bingo.Domain.Signups.SignupStatus.Confirmed, participant.SignupStatus);
-        });
-        var firstParticipantId = participants.Single(participant => participant.EventId == firstEventId).Id;
-        var secondParticipantId = participants.Single(participant => participant.EventId == secondEventId).Id;
-        Assert.Equal(2, await verification.EventParticipantCharacters.CountAsync(item =>
-            (item.EventId == firstEventId || item.EventId == secondEventId) && item.OsrsCharacterId == character.Id && item.ReleasedAt == null));
-        Assert.Equal(firstTeamId, await verification.TeamMemberships.Where(item => item.EventParticipantId == firstParticipantId && item.LeftAt == null).Select(item => item.TeamId).SingleAsync());
-        Assert.Equal(secondTeamId, await verification.TeamMemberships.Where(item => item.EventParticipantId == secondParticipantId && item.LeftAt == null).Select(item => item.TeamId).SingleAsync());
-        Assert.Equal(2, await verification.AuditEntries.CountAsync(item =>
-            item.Action == "team.member_added" && item.ActorAccountId == adminId &&
-            (item.TargetId == firstTeamId.ToString() || item.TargetId == secondTeamId.ToString())));
+        Assert.Empty(participants);
+        Assert.Empty(await verification.EventParticipantCharacters
+            .Where(item => item.EventId == firstEventId || item.EventId == secondEventId)
+            .ToListAsync());
+        Assert.Empty(await verification.TeamMemberships
+            .Where(item => item.TeamId == firstTeamId || item.TeamId == secondTeamId)
+            .ToListAsync());
+        Assert.Empty(await verification.AuditEntries
+            .Where(item => item.EventId == firstEventId || item.EventId == secondEventId ||
+                           item.TargetId == firstEventId.ToString() || item.TargetId == secondEventId.ToString() ||
+                           item.TargetId == firstTeamId.ToString() || item.TargetId == secondTeamId.ToString())
+            .ToListAsync());
     }
 
     [Fact]
@@ -800,8 +796,8 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
         Assert.Equal(0, await db.AuditEntries.CountAsync());
 
         var duplicateMember = Page();
-        Assert.IsType<RedirectToPageResult>(await duplicateMember.OnPostAddExternalMemberAsync(ev.Id, team.Id, "Reserved", 5m, null, CancellationToken.None));
-        Assert.Contains("could not be added", duplicateMember.TempData["StatusMessage"]?.ToString());
+        Assert.IsType<NotFoundResult>(await duplicateMember.OnPostAddExternalMemberAsync(ev.Id, team.Id, "Reserved", 5m, null, CancellationToken.None));
+        Assert.Null(duplicateMember.TempData["StatusMessage"]);
         Assert.Equal(1, await db.EventParticipants.CountAsync());
         Assert.Equal(1, await db.EventParticipantCharacters.CountAsync());
         Assert.Equal(0, await db.TeamMemberships.CountAsync());
@@ -852,37 +848,16 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
         await using var db = new ApplicationDbContext(options);
         var admin = Website("slice1-emergency-admin", GlobalRole.Admin);
         var emergency = Account.CreateEmergency(Guid.NewGuid(), "slice1-emergency", "SLICE1-EMERGENCY", time.GetUtcNow());
-        var emergencyEvent = Event(time.GetUtcNow(), time.GetUtcNow().AddHours(1));
-        emergencyEvent.OpenSignups();
-        emergencyEvent.CloseSignups();
-        emergencyEvent.StartEvent(time.GetUtcNow());
-        var eventId = emergencyEvent.Id;
-        var teamId = Guid.NewGuid();
-        var access = new AccountEventAccess(Guid.NewGuid(), emergency.Id, eventId, teamId, null, null, null, time.GetUtcNow().AddDays(1));
-        db.AddRange(admin, emergency, emergencyEvent, new Team(teamId, eventId, "Emergency scope team", "emergency-scope-team", TeamFormationType.Drafted, null, true));
-        db.AccountEventAccesses.Add(access);
-        await db.SaveChangesAsync();
+        emergency.Enable(); emergency.SetPassword(passwords.HashPassword(emergency, "emergency-password"), false, time.GetUtcNow());
+        db.AddRange(admin, emergency); await db.SaveChangesAsync();
         var identities = new AccountIdentityService(db, passwords, time);
         var administration = new AccountAdministrationService(db, passwords, time);
-
+        await Assert.ThrowsAsync<InvalidOperationException>(() => identities.GenerateEmergencyCredentialLinkAsync(admin.Id, emergency.Id, CancellationToken.None));
         await Assert.ThrowsAsync<InvalidOperationException>(() => administration.SetEmergencyEnabledAsync(admin.Id, emergency.Id, true, CancellationToken.None));
-        var setup = await identities.GenerateEmergencyCredentialLinkAsync(admin.Id, emergency.Id, CancellationToken.None);
-        await identities.ConsumeResetAsync(setup, "emergency-password", CancellationToken.None);
-        await administration.SetEmergencyEnabledAsync(admin.Id, emergency.Id, true, CancellationToken.None);
-
         var authentication = new AccountAuthenticationService(db, passwords, time);
-        var authenticated = await authentication.ValidateCredentialsAsync(emergency.LoginName, "emergency-password", CancellationToken.None);
-        var scopedAccess = await authentication.GetEmergencyAccessAsync(emergency.Id, CancellationToken.None);
-        var principal = authentication.CreatePrincipal(authenticated!, emergencyAccess: scopedAccess);
-        Assert.True(emergency.Active);
-        Assert.True(access.Enabled);
-        Assert.Equal(eventId.ToString(), principal.FindFirstValue(Bingo.Application.Access.AccountClaims.EventId));
-        Assert.Equal(teamId.ToString(), principal.FindFirstValue(Bingo.Application.Access.AccountClaims.TeamId));
-
-        var reset = await identities.GenerateEmergencyCredentialLinkAsync(admin.Id, emergency.Id, CancellationToken.None);
-        await identities.ConsumeResetAsync(reset, "replacement-password", CancellationToken.None);
         Assert.Null(await authentication.ValidateCredentialsAsync(emergency.LoginName, "emergency-password", CancellationToken.None));
-        Assert.NotNull(await authentication.ValidateCredentialsAsync(emergency.LoginName, "replacement-password", CancellationToken.None));
+        Assert.Throws<InvalidOperationException>(() => authentication.CreatePrincipal(emergency));
+        Assert.Empty(await db.AuditEntries.ToListAsync());
     }
 
     [Fact]
@@ -900,7 +875,9 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
             seed.AccountEventAccesses.Add(new AccountEventAccess(Guid.NewGuid(), emergency.Id, ev.Id, team.Id, null, ev.EventStartsAt, ev.SubmissionCutoffAt, null));
             await seed.SaveChangesAsync();
             emergencyId = emergency.Id;
-            setupToken = await new AccountIdentityService(seed, passwords, time).GenerateEmergencyCredentialLinkAsync(admin.Id, emergency.Id, CancellationToken.None);
+            setupToken = "retained-http-emergency-token";
+            seed.PasswordCredentialTokens.Add(new(Guid.NewGuid(), emergency.Id, PasswordCredentialTokenPurpose.EmergencySetup, AccountIdentityService.Hash(setupToken), time.GetUtcNow().AddHours(1), time.GetUtcNow(), admin.Id));
+            await seed.SaveChangesAsync();
         }
 
         using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString()));
@@ -927,16 +904,12 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
             ["Input.ConfirmPassword"] = "long-enough-password",
             ["__RequestVerificationToken"] = setupRequestToken
         }));
-        Assert.Equal(HttpStatusCode.Redirect, completed.StatusCode);
-        Assert.Equal("/Account/Login", completed.Headers.Location?.ToString());
-        using var login = await client.GetAsync("/Account/Login");
-        var loginContent = WebUtility.HtmlDecode(await login.Content.ReadAsStringAsync());
-        Assert.Contains("Opsætningen af nødkontoen er fuldført. En administrator skal stadig aktivere den, før den kan bruges.", loginContent, StringComparison.Ordinal);
-        Assert.Contains("app-toast-success", loginContent, StringComparison.Ordinal);
+        Assert.Equal(HttpStatusCode.OK, completed.StatusCode);
+        Assert.Contains("Dette link er ikke længere gyldigt.", WebUtility.HtmlDecode(await completed.Content.ReadAsStringAsync()), StringComparison.Ordinal);
 
         await using var verify = new ApplicationDbContext(options);
-        Assert.NotNull(await verify.Accounts.Where(account => account.Id == emergencyId).Select(account => account.PasswordHash).SingleAsync());
-        Assert.NotNull(await verify.PasswordCredentialTokens.Where(token => token.AccountId == emergencyId && token.Purpose == PasswordCredentialTokenPurpose.EmergencySetup).Select(token => token.UsedAt).SingleAsync());
+        Assert.Null(await verify.Accounts.Where(account => account.Id == emergencyId).Select(account => account.PasswordHash).SingleAsync());
+        Assert.Null(await verify.PasswordCredentialTokens.Where(token => token.AccountId == emergencyId && token.Purpose == PasswordCredentialTokenPurpose.EmergencySetup).Select(token => token.UsedAt).SingleAsync());
     }
 
     [Fact]
@@ -1035,7 +1008,7 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task EmergencyCredentialLifecycleRequiresReopeningBeforeAuditedReenableAndDisablesAgainWhenItCloses()
+    public async Task RetirementPreservesEmergencyHistoryAcrossCutoffAndReopening()
     {
         var now = DateTimeOffset.UtcNow;
         var clock = new MutableTimeProvider(now);
@@ -1062,13 +1035,13 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
         await lifecycle.ApplyAsync(CancellationToken.None);
         db.ChangeTracker.Clear();
         var disabled = await db.AccountEventAccesses.SingleAsync(x => x.Id == access.Id);
-        Assert.False(disabled.Enabled);
-        Assert.True(disabled.CutoffDisabled);
-        Assert.False((await db.Accounts.SingleAsync(x => x.Id == emergency.Id)).Active);
-        Assert.Single(await db.AuditEntries.Where(x => x.Action == "account.emergency_cutoff_disabled" && x.TargetId == emergency.Id.ToString()).ToListAsync());
+        Assert.True(disabled.Enabled);
+        Assert.False(disabled.CutoffDisabled);
+        Assert.True((await db.Accounts.SingleAsync(x => x.Id == emergency.Id)).Active);
+        Assert.Empty(await db.AuditEntries.Where(x => x.Action == "account.emergency_cutoff_disabled" && x.TargetId == emergency.Id.ToString()).ToListAsync());
 
         await lifecycle.ApplyAsync(CancellationToken.None);
-        Assert.Single(await db.AuditEntries.Where(x => x.Action == "account.emergency_cutoff_disabled" && x.TargetId == emergency.Id.ToString()).ToListAsync());
+        Assert.Empty(await db.AuditEntries.Where(x => x.Action == "account.emergency_cutoff_disabled" && x.TargetId == emergency.Id.ToString()).ToListAsync());
 
         var administration = new AccountAdministrationService(db, passwords, clock);
         await Assert.ThrowsAsync<InvalidOperationException>(() => administration.SetEmergencyEnabledAsync(admin.Id, emergency.Id, true, CancellationToken.None));
@@ -1082,7 +1055,7 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
             StateReason = "Focused lifecycle reopening test."
         };
         Assert.IsType<RedirectToPageResult>(await reopen.OnPostReopenSubmissionsAsync(ev.Id, CancellationToken.None));
-        await administration.SetEmergencyEnabledAsync(admin.Id, emergency.Id, true, CancellationToken.None);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => administration.SetEmergencyEnabledAsync(admin.Id, emergency.Id, true, CancellationToken.None));
         db.ChangeTracker.Clear();
         Assert.True((await db.Accounts.SingleAsync(x => x.Id == emergency.Id)).Active);
         Assert.True((await db.AccountEventAccesses.SingleAsync(x => x.Id == access.Id)).Enabled);
@@ -1090,11 +1063,11 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
         clock.Set(clock.GetUtcNow().AddMinutes(5));
         await lifecycle.ApplyAsync(CancellationToken.None);
         db.ChangeTracker.Clear();
-        Assert.False((await db.Accounts.SingleAsync(x => x.Id == emergency.Id)).Active);
-        Assert.False((await db.AccountEventAccesses.SingleAsync(x => x.Id == access.Id)).Enabled);
-        Assert.Contains(await db.AuditEntries.ToListAsync(), x => x.Action == "account.emergency_enabled");
+        Assert.True((await db.Accounts.SingleAsync(x => x.Id == emergency.Id)).Active);
+        Assert.True((await db.AccountEventAccesses.SingleAsync(x => x.Id == access.Id)).Enabled);
+        Assert.DoesNotContain(await db.AuditEntries.ToListAsync(), x => x.Action == "account.emergency_enabled");
         Assert.Contains(await db.AuditEntries.ToListAsync(), x => x.Action == "event.submissions_reopened");
-        Assert.Equal(2, await db.AuditEntries.CountAsync(x => x.Action == "account.emergency_cutoff_disabled" && x.TargetId == emergency.Id.ToString()));
+        Assert.Equal(0, await db.AuditEntries.CountAsync(x => x.Action == "account.emergency_cutoff_disabled" && x.TargetId == emergency.Id.ToString()));
     }
 
     [Fact]
@@ -1254,7 +1227,7 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task DevelopmentSeededEmergencyCredentialFollowsCutoffLifecycle()
+    public async Task DevelopmentSeededEmergencyCredentialRemainsHistoricalAtCutoff()
     {
         var seededAt = DateTimeOffset.UtcNow;
         var clock = new MutableTimeProvider(seededAt);
@@ -1369,16 +1342,7 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
             await finalization.UnfinalizeAsync(test84ForReopen.Id, "Focused re-finalization parity check.", true, actor);
             var readiness = await finalization.GetReadinessAsync(test84ForReopen.Id) ?? throw new InvalidOperationException("TEST 84 readiness was not available after unfinalizing.");
             Assert.Equal(EventState.AwaitingFinalReview, readiness.State);
-            foreach (var teamId in readiness.Placements.Where(item => item.BoardComplete).Select(item => item.TeamId).ToList())
-            {
-                await finalization.AcknowledgeCompletionTimeAsync(test84ForReopen.Id, teamId, admin.Id, readiness.EventVersion, readiness.ReviewCycleId, expectedInspectionKey: readiness.Blockers.Single(x => x.TeamId == teamId && x.IsCompletionTimeAcknowledgement).Key);
-                readiness = await finalization.GetReadinessAsync(test84ForReopen.Id) ?? throw new InvalidOperationException("TEST 84 readiness was not available after acknowledging completion.");
-            }
-            foreach (var tie in readiness.Blockers.Where(item => item.CanOverride && !item.IsCompletionTimeAcknowledgement).ToList())
-            {
-                await finalization.ResolveBlockerAsync(test84ForReopen.Id, tie.Key, "Focused parity fixture tie acknowledgement.", true, admin.Id, readiness.EventVersion, readiness.ReviewCycleId);
-                readiness = await finalization.GetReadinessAsync(test84ForReopen.Id) ?? throw new InvalidOperationException("TEST 84 readiness was not available after resolving the tie.");
-            }
+            Assert.Empty(readiness.Blockers);
             Assert.True(readiness.CanFinalize);
             await finalization.FinalizeAsync(test84ForReopen.Id, actor, readiness.EventVersion);
         }
@@ -1397,8 +1361,6 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
         Assert.Equal(2, await db.EventFinalizations.CountAsync(item => item.EventId == test84ForReopen.Id));
         Assert.NotNull(await db.EventFinalizations.Where(item => item.EventId == test84ForReopen.Id && item.Version == 1).Select(item => item.UnfinalizedAt).SingleAsync());
         Assert.Single(await db.EventFinalizations.Where(item => item.EventId == test84ForReopen.Id && item.Version == 2 && item.UnfinalizedAt == null).ToListAsync());
-        await finalization.ArchiveAsync(test84ForReopen.Id, true, actor);
-
         var historyAssetId = await (from asset in db.EvidenceAssets
                                     join submission in db.Submissions on asset.SubmissionId equals submission.Id
                                     where submission.EventId == test84ForReopen.Id && submission.Status == Bingo.Domain.Evidence.SubmissionStatus.Rejected
@@ -1464,33 +1426,12 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
         await AssertEvidenceFixtureOwnersAsync();
 
         db.ChangeTracker.Clear();
-        var test62BeforeReopen = await db.Events.SingleAsync(item => item.Slug == "test-62-board-publication-setup");
-        var draftBeforeReopen = await db.DraftSessions.SingleAsync(item => item.EventId == test62BeforeReopen.Id);
-        var activeCycleBeforeReopen = await db.DraftPublicationCycles.SingleAsync(item => item.DraftSessionId == draftBeforeReopen.Id && item.SupersededAt == null);
-        var frozenRosterCount = await db.DraftPublicationRosters.CountAsync(item => item.DraftPublicationCycleId == activeCycleBeforeReopen.Id);
-        var reopenContext = new DefaultHttpContext
-        {
-            User = new ClaimsPrincipal(new ClaimsIdentity(
-                [new Claim(ClaimTypes.NameIdentifier, admin.Id.ToString()), new Claim(ClaimTypes.Name, admin.LoginName)], "test"))
-        };
-        var reopenPage = new DraftModel(
-            db, clock, new AuditWriter(db, clock), new NoopCollaborationNotifier(), null!,
-            new Bingo.Infrastructure.Signups.EventParticipantCharacterService(db, clock))
-        {
-            PageContext = new PageContext(new ActionContext(reopenContext, new RouteData(), new PageActionDescriptor())),
-            TempData = new TempDataDictionary(reopenContext, new DictionaryTempDataProvider())
-        };
-        Assert.IsType<RedirectToPageResult>(await reopenPage.OnPostReopenAsync(
-            test62BeforeReopen.Id, true, "Seed publication correction check.", CancellationToken.None));
-        db.ChangeTracker.Clear();
-        var test62AfterReopen = await db.Events.SingleAsync(item => item.Id == test62BeforeReopen.Id);
-        var draftAfterReopen = await db.DraftSessions.SingleAsync(item => item.Id == draftBeforeReopen.Id);
-        Assert.False(test62AfterReopen.TeamRostersPublished);
-        Assert.Equal(DraftState.Running, draftAfterReopen.State);
-        Assert.NotNull(await db.DraftPublicationCycles.Where(item => item.Id == activeCycleBeforeReopen.Id).Select(item => item.SupersededAt).SingleAsync());
-        Assert.Empty(await db.DraftPublicationCycles.Where(item => item.DraftSessionId == draftBeforeReopen.Id && item.SupersededAt == null).ToListAsync());
-        Assert.Equal(frozenRosterCount, await db.DraftPublicationRosters.CountAsync(item => item.DraftPublicationCycleId == activeCycleBeforeReopen.Id));
-        Assert.Single(await db.AuditEntries.Where(item => item.TargetId == draftBeforeReopen.Id.ToString() && item.Action == "draft.reopened").ToListAsync());
+        var test62Finalized = await db.Events.SingleAsync(item => item.Slug == "test-62-board-publication-setup");
+        var draftForFinalizedFixture = await db.DraftSessions.SingleAsync(item => item.EventId == test62Finalized.Id);
+        Assert.Equal(DraftState.Finalized, draftForFinalizedFixture.State);
+        var activeCycleForFinalizedFixture = await db.DraftPublicationCycles.SingleAsync(item => item.DraftSessionId == draftForFinalizedFixture.Id && item.SupersededAt == null);
+        Assert.NotEmpty(await db.DraftPublicationRosters.Where(item => item.DraftPublicationCycleId == activeCycleForFinalizedFixture.Id).ToListAsync());
+        Assert.Empty(await db.AuditEntries.Where(item => item.TargetId == draftForFinalizedFixture.Id.ToString() && item.Action == "draft.reopened").ToListAsync());
 
         db.ChangeTracker.Clear();
         var liveFixtureBeforeRepeat = await db.Events.SingleAsync(item => item.Slug == "test-15-dkl-live");
@@ -1620,15 +1561,15 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
         clock.Set(cutoff.AddMicroseconds(-1)); await lifecycle.ApplyAsync(CancellationToken.None);
         Assert.True((await db.AccountEventAccesses.SingleAsync(item => item.Id == access.Id)).Enabled);
         clock.Set(cutoff); await lifecycle.ApplyAsync(CancellationToken.None); db.ChangeTracker.Clear();
-        Assert.False((await db.Accounts.SingleAsync(item => item.Id == access.AccountId)).Active);
-        Assert.False((await db.AccountEventAccesses.SingleAsync(item => item.Id == access.Id)).Enabled);
-        Assert.Single(await db.AuditEntries.Where(item => item.Action == "account.emergency_cutoff_disabled" && item.TargetId == access.AccountId.ToString()).ToListAsync());
+        Assert.True((await db.Accounts.SingleAsync(item => item.Id == access.AccountId)).Active);
+        Assert.True((await db.AccountEventAccesses.SingleAsync(item => item.Id == access.Id)).Enabled);
+        Assert.Empty(await db.AuditEntries.Where(item => item.Action == "account.emergency_cutoff_disabled" && item.TargetId == access.AccountId.ToString()).ToListAsync());
         await lifecycle.ApplyAsync(CancellationToken.None);
-        Assert.Single(await db.AuditEntries.Where(item => item.Action == "account.emergency_cutoff_disabled" && item.TargetId == access.AccountId.ToString()).ToListAsync());
+        Assert.Empty(await db.AuditEntries.Where(item => item.Action == "account.emergency_cutoff_disabled" && item.TargetId == access.AccountId.ToString()).ToListAsync());
         await Assert.ThrowsAsync<InvalidOperationException>(() => new AccountAdministrationService(db, passwords, clock).SetEmergencyEnabledAsync(admin.Id, access.AccountId, true, CancellationToken.None));
         await lifecycle.ApplyAsync(CancellationToken.None); db.ChangeTracker.Clear();
-        Assert.False((await db.Accounts.SingleAsync(item => item.Id == access.AccountId)).Active);
-        Assert.False((await db.AccountEventAccesses.SingleAsync(item => item.Id == access.Id)).Enabled);
+        Assert.True((await db.Accounts.SingleAsync(item => item.Id == access.AccountId)).Active);
+        Assert.True((await db.AccountEventAccesses.SingleAsync(item => item.Id == access.Id)).Enabled);
     }
 
     [Fact]
@@ -1884,8 +1825,8 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
 
         var ownerSession = authentication.CreatePrincipal(owner);
         var destinationSession = authentication.CreatePrincipal(destination);
-        await Assert.ThrowsAsync<InvalidOperationException>(() => administration.TransferOwnershipAsync(owner.Id, "wrong-password", destination.LoginName, CancellationToken.None));
-        await Assert.ThrowsAsync<InvalidOperationException>(() => administration.TransferOwnershipAsync(owner.Id, "long-test-password", "not-the-destination", CancellationToken.None));
+        await Assert.ThrowsAsync<AccountActionException>(() => administration.TransferOwnershipAsync(owner.Id, "wrong-password", destination.LoginName, CancellationToken.None));
+        await Assert.ThrowsAsync<AccountActionException>(() => administration.TransferOwnershipAsync(owner.Id, "long-test-password", "not-the-destination", CancellationToken.None));
         Assert.Equal(GlobalRole.SuperAdmin, owner.GlobalRole);
         Assert.Equal(GlobalRole.User, destination.GlobalRole);
 

@@ -564,7 +564,7 @@ current uses, permitted variants, and forbidden legacy residue.
 | Rows/panels/callouts | `.event-overview-section`, `.event-overview-row`, `.event-confirmation-box`, and `.information-callout` CSS; Manage/Board references | Operational row, tonal panel, compact confirmation, and informational note | Unnamed nested boxes, legacy card wrappers, or decorative dividers without owner |
 | Information rail | No shared markup owner; Manage `.event-overview-dates-panel`, Identity `.identity-event-information-rail`, and Schedule `.schedule-event-information-rail` are canonical patterns | Detail/form only on wide desktop; page-local content may differ | Adding it to full-width/table pages or relocating it below constrained forms |
 | Route dialogs | Questions uses `_AdminLayout.cshtml` + `signup-questions-overlay.js`; Participant uses the dialog section of `event-manage.js`; both use `admin-editor-guard.js` for dirty/pending/failure safeguards. Accounts/Catalogue retain their existing owners | Questions/Participant share the accepted modal policy at every width with fullscreen at <=900; explicit routes/reload/recovery remain. Other owners retain their current behavior until authorized rollout | A second page shell, opaque host surface, generalized overlay framework, or new route-dialog variant |
-| Compact/nested confirmations | `event-confirmation-box`; Questions/Participant use compact inline markup and `admin-editor-guard.js` for unsaved-discard mechanics | Compact inline confirmation inside an editor, neutral Cancel before semantic action, body-size consequences; no additional dim layer | Stacked dim layers, typed-reason prompts where handler does not support them, or loose destructive copy |
+| Admin confirmations | ADM-02 establishes the shared confirmation owner using existing dialog/guard/toast components; current `event-confirmation-box` and inline owners are migration sources | One centered consequence-specific confirmation, dimmed backdrop, Cancel before semantic action; editor hands off and resumes preserved state | Product-action native confirms, inline/`details` confirmations, stacked dialogs, duplicate prompts, unsupported reason fields |
 | Backdrop/focus/scroll/history | Admin route CSS plus `site.js`, `signup-questions-overlay.js`, `account-manage-dialog.js`, and `catalogue-admin.js`; public Board retains its evidence viewer and submission drawer but no team-board popup | Modal/drawer backdrop, body-scroll lock, trigger focus restore where applicable, route history, bounded overlay content scroll | A page-local duplicate modal policy, lost focus, background scrolling, or realtime interrupting an active submission/result |
 | Toasts | `_TransientToast.cshtml`, `.app-toast` CSS, and `site.js` transient-toast layer | Success, warning, error, information; live region, dismiss button, timeout pause, reduced motion | Inline duplicate toast systems, non-announced mutation feedback, or toast-only authorization/validation |
 | Removable-object X | `.action-remove-x` for self-evident removable objects, using the standard inline two-stroke crossed-line SVG; shared close glyph path is `.admin-route-dialog-close` | Muted neutral Board-style default and neutral hover treatment for banner/evidence/objective removal, with accessible label and focus state | Pink/red default, bare unlabeled font/text `×`, oversized invisible target without focus, or using X for non-removal actions |
@@ -626,34 +626,41 @@ Preserve that composition while checking these details against the shared system
 the implementer/planner may use a targeted render where a concrete visual
 uncertainty warrants it. This does not add duplicate reviewer visual inspection.
 
-### Admin popup and confirmation contract — accepted 2026-09-07
+### Admin popup and confirmation contract — target updated 2026-09-26
+
+The approved Admin simplification contract supersedes earlier inline/page-specific
+confirmation requirements. It does not revoke prior visual acceptance or claim
+the new primitive/pages are implemented or manually accepted. ADM-02 establishes
+one accessible centered shared confirmation; owning tickets migrate their actions.
+Editor placement remains independent, and later visual redesign is out of scope.
 
 Ordinary Admin popups inherit the shared Admin type family and size hierarchy:
 popup title, smaller section headings, normal body/label/input/button sizes and
-smaller muted help. Inline confirmation headings use emphasized body text; warning
+smaller muted help. Confirmation headings use emphasized body text; warning
 copy must not dominate the item heading or inherit public/page-introduction sizing.
 Use semantic shared Admin styling; do not invent a page-local typography scale.
 
-Use a compact inline confirmation beside the affected object inside an existing
-editor popup. On ordinary pages, destructive actions may use a small confirmation
-dialog. These contexts share Cancel-before-destructive button order, accessible
-focus, concise consequence-specific wording and danger styling. Use Delete for
-permanent deletion and Remove for unlinking. A non-account question must not show
-account-removal consequences. Escape cancels the topmost confirmation first and
-returns focus to its trigger; do not stack editor modals.
-
-While an inline action confirmation is open, hide its initiating action button so
-the action appears only once, beside Cancel. Restore the trigger before returning
-focus on Cancel/Escape; switching or dismissing confirmations must not leave a
-trigger hidden. Preserve typed values, discard recovery and pending-request guards.
-This general rule is accepted 2026-09-08; the current correction covers Questions,
-Participant Manage, Accounts Create/Manage and Catalogue Add/Edit only.
+Use one centered shared confirmation with a dimmed backdrop, meaningful focus
+entry/return, Escape cancellation, keyboard support and responsive layout. Cancel
+precedes the semantic action. Wording describes the actual consequence; use Delete
+for permanent deletion and Remove for unlinking. An editor hands interaction to
+the confirmation and resumes with values preserved; never stack active dialogs.
+Preserve pending-request guards and submit-once behavior. No ordinary-save
+confirmation. The only typed product confirmation is **Fetch WOM data now**;
+reasons appear only where the owning action requires them. Schedule changes after
+public reliance use one old → new consequence confirmation, except Draft-time-only
+edits; manual Open/Close/Reopen has one consequence modal without a prepare/warning/
+proposed-close acknowledgement ladder. Server readiness is always rechecked.
+Approval of evidence and a private Board is one click; the owning contracts define
+destructive/publication/reopen confirmation and reason requirements.
 
 Unchanged editors dismiss without confirmation. Closing actual unsaved changes
-requires a compact discard choice that preserves edits when cancelled. Close,
+requires the shared discard choice that preserves edits when cancelled. Close,
 Cancel, Escape, Back and outside-click paths must not bypass this protection or
-leave URL/focus/scroll state inconsistent. Reload/navigation away may use native
-browser unsaved-change protection. While a save is pending, keep the editor present
+leave URL/focus/scroll state inconsistent. Native `beforeunload` protection is
+allowed only for genuinely unsaved browser-level exit/tab-close/reload; clear it
+after save/discard and avoid duplicate prompts. In-application confirmations use
+the shared system. No autosave is introduced. While a save is pending, keep the editor present
 until it settles; prevent duplicate submissions. Failures retain values and usable
 localized retry controls. Replacing content after any action must not silently
 discard edits in another form in the same editor.
@@ -679,7 +686,7 @@ typography rules with real shared ownership where appropriate. This does not cla
 other Admin popups conform or authorize their rollout. Participant-specific authority
 and lifecycle actions remain explicit and protected.
 
-Accounts Create/Manage adopts this same shared guard, inline-confirmation and
+Accounts Create/Manage adopts this same shared guard, shared-confirmation and
 all-width modal contract for the 2026-09-08 behavior rollout. Its existing compact
 composition and account-specific action/secret disclosure semantics remain intact.
 The general Accounts narrow standalone switch is superseded; deliberate standalone
@@ -687,9 +694,10 @@ routes still provide direct navigation and recovery. Independent rollout review 
 source-only by user decision; changed client behavior receives one targeted browser
 check and the user provides final visual acceptance.
 
-Catalogue Add/Edit adopts the same all-width modal/shared guard/inline confirmation
+Catalogue Add/Edit adopts the same all-width modal/shared guard/shared confirmation
 and parent-freshness contract for the user-approved 2026-09-08 rollout. Preserve the
-specialized activity/drop layout, typed-delete and duplicate-item decisions. Revealed
+specialized activity/drop layout and duplicate-item decisions. The former typed-delete
+requirement is superseded by the sole WOM typed-confirmation exception. Revealed
 confirmations must scroll into view, with ordinary Admin body typography and no
 second modal layer. Explicit standalone routes remain usable.
 

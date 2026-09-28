@@ -57,7 +57,7 @@
                     <article class="public-teams-directory__team">
                         <header>
                             <span class="public-teams-directory__team-number">@((index + 1).ToString("00"))</span>
-                            <div><h3>@team.Name</h3><p>@team.FormationType</p></div>
+                            <div><h3>@team.Name</h3><p>@(team.IncludedInDraft ? T["Included in website draft"] : T["Manual roster"])</p></div>
                         </header>
                         <ul>
                             @if (team.Members.Count == 0)

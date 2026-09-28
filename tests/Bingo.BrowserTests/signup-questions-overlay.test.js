@@ -35,6 +35,15 @@ class Element {
   getAttribute(name) { return this.attributes[name] ?? null; }
   removeAttribute(name) { delete this.attributes[name]; }
   replaceChildren(...children) { this.children = children; this.childNodes = children; children.forEach((child) => { child.parentElement = this; }); }
+  replaceWith(replacement) {
+    const parent = this.parentElement;
+    if (!parent) return;
+    const index = parent.children.indexOf(this);
+    if (index < 0) return;
+    parent.children[index] = replacement;
+    parent.childNodes = parent.children;
+    replacement.parentElement = parent;
+  }
 }
 
 class DialogElement extends Element {
@@ -61,7 +70,6 @@ trigger.dataset.signupQuestionsTrigger = "true";
 dialog.selectors = { "[data-signup-questions-content]": [content], "[data-signup-questions-close]": [closeButton] };
 content.querySelector = (selector) => {
   if (selector === "[data-signup-questions-editor]") return content.children[0] ?? null;
-  if (selector === "details.signup-question-remove[open]") return content.children[0]?.querySelector(selector) ?? null;
   return content.children[0]?.querySelector(selector) ?? null;
 };
 
@@ -69,32 +77,48 @@ const editor = new Element();
 const editorCloseButton = new Element();
 const mutationForm = new Element();
 mutationForm.entries = [["Input.Label", ""]];
+const destructiveForm = new Element();
+destructiveForm.entries = [["questionId", "question-1"], ["confirmed", "true"], ["expectedAnswerCount", "1"], ["expectedEventRegistrationReleaseCount", "0"], ["expectedQuestionVersion", "4"]];
+destructiveForm.method = "post";
+destructiveForm.action = "/Admin/Events/Questions/test?handler=Deactivate";
+destructiveForm.dataset.signupQuestionConfirmation = "true";
+destructiveForm.dataset.signupQuestionConfirmationTitle = "Delete question?";
+destructiveForm.dataset.signupQuestionConfirmationDescription = "This deletes the question and its answers.";
+destructiveForm.dataset.signupQuestionConfirmationImpact = "Current impact: 1 saved answer, 0 event registrations released, question version 4.";
+destructiveForm.dataset.signupQuestionConfirmationAction = "Delete question";
+const destructiveInputs = Object.fromEntries(destructiveForm.entries.filter(([name]) => name !== "confirmed").map(([name, value]) => {
+  const input = new Element({ tagName: "input" });
+  input.value = value;
+  return [name, input];
+}));
+destructiveForm.selectors = Object.fromEntries(Object.entries(destructiveInputs).map(([name, input]) => [`input[name='${name}']`, [input]]));
+const destructiveButton = new Element();
+destructiveButton.parentElement = destructiveForm;
+const freshDestructiveForm = new Element();
+freshDestructiveForm.dataset.signupQuestionConfirmation = "true";
+freshDestructiveForm.dataset.signupQuestionConfirmationTitle = "Delete question after reload?";
+freshDestructiveForm.dataset.signupQuestionConfirmationDescription = "The question changed on the server.";
+freshDestructiveForm.dataset.signupQuestionConfirmationImpact = "Current impact: 2 saved answers, 1 event registration released, question version 5.";
+freshDestructiveForm.dataset.signupQuestionConfirmationAction = "Delete question again";
+const freshInputs = Object.fromEntries([["questionId", "question-1"], ["expectedAnswerCount", "2"], ["expectedEventRegistrationReleaseCount", "1"], ["expectedQuestionVersion", "5"]].map(([name, value]) => {
+  const input = new Element({ tagName: "input" });
+  input.value = value;
+  return [name, input];
+}));
+freshDestructiveForm.selectors = Object.fromEntries(Object.entries(freshInputs).map(([name, input]) => [`input[name='${name}']`, [input]]));
 const otherForm = new Element();
-otherForm.entries = [["Settings.NewSignupCode", ""]];
+otherForm.entries = [["Input.Label", ""]];
 const discard = new Element();
 discard.hidden = true;
 const keep = new Element();
 const discardConfirm = new Element();
 discard.selectors = { "[data-signup-questions-keep]": [keep] };
-const codeToggle = new Element();
-const codeControl = new Element();
-const codeInput = new Element();
-codeInput.dataset.hasSignupCode = "false";
 const failure = new Element();
 failure.hidden = true;
 mutationForm.method = "post";
 mutationForm.action = "/Admin/Events/Questions/test?handler=Add";
-const confirmationSummary = new Element();
-const confirmation = new DetailsElement(confirmationSummary);
-const cancelRemoval = new Element();
-cancelRemoval.parentElement = confirmation;
-confirmation.parentElement = editor;
-confirmationSummary.addEventListener("click", () => confirmation.setAttribute("open", ""));
-editor.selectors = { "[data-signup-questions-close]": [editorCloseButton], form: [mutationForm, otherForm], "[data-signup-code-toggle]": [codeToggle], "[data-signup-code-control]": [codeControl], "[data-signup-code-input]": [codeInput], "[data-signup-questions-discard]": [discard], "[data-signup-questions-keep]": [keep], "[data-signup-questions-discard-confirm]": [discardConfirm], "[data-signup-questions-feedback]": [failure] };
+editor.selectors = { "[data-signup-questions-close]": [editorCloseButton], form: [mutationForm, destructiveForm, otherForm], "[data-signup-questions-discard]": [discard], "[data-signup-questions-keep]": [keep], "[data-signup-questions-discard-confirm]": [discardConfirm], "[data-signup-questions-feedback]": [failure] };
 editor.querySelectorAll = (selector) => {
-  if (selector === "details.signup-question-remove") return [confirmation];
-  if (selector === "details.signup-question-remove[open]") return confirmation.open ? [confirmation] : [];
-  if (selector === "[data-signup-question-cancel-removal]") return [cancelRemoval];
   return editor.selectors?.[selector] ?? [];
 };
 editor.dataset.signupQuestionCount = "4";
@@ -107,11 +131,25 @@ const questionSummary = new Element();
 questionSummary.dataset.signupQuestionSummary = "{0} active questions configured.";
 questionSummary.textContent = "4 active questions configured.";
 let validationError = false;
-const parsedDocument = { querySelectorAll() { return validationError ? [{ textContent: "Question is required." }] : []; }, querySelector(selector) {
+let staleImpactResponse = false;
+const parsedDocument = { querySelectorAll(selector) {
+  if (selector === "form[data-signup-question-confirmation='true']") return staleImpactResponse ? [freshDestructiveForm] : [];
+  if (staleImpactResponse && selector.includes("app-toast-error")) return [{ textContent: "Reload this question before confirming: it currently has 2 saved answer(s)." }];
+  return validationError ? [{ textContent: "Question is required." }] : [];
+}, querySelector(selector) {
   if (selector === "[data-signup-questions-editor]") return editor;
   if (selector === "#app-notice-region") return notice;
   return null;
 } };
+const confirmationDialog = new Element();
+const confirmationTitle = new Element();
+const confirmationDescription = new Element();
+const confirmationAction = new Element();
+confirmationDialog.selectors = {
+  "#admin-confirmation-title": [confirmationTitle],
+  "#admin-confirmation-description": [confirmationDescription],
+  "[data-admin-confirmation-action]": [confirmationAction]
+};
 const bodyClasses = new Set();
 const body = new Element();
 body.classList = { add: (name) => bodyClasses.add(name), remove: (name) => bodyClasses.delete(name) };
@@ -126,6 +164,7 @@ const document = {
     if (selector === "[data-signup-questions-trigger='true']") return trigger;
     if (selector === "#app-notice-region") return noticeRegion;
     if (selector === "[data-signup-question-summary]") return questionSummary;
+    if (selector === "[data-admin-confirmation]") return confirmationDialog;
     return null;
   },
   querySelectorAll(selector) { return selector === "[data-signup-questions-trigger='true']" ? [trigger] : []; },
@@ -150,9 +189,51 @@ const window = {
   },
   listeners: {},
   addEventListener(type, listener) { (this.listeners[type] ??= []).push(listener); },
+  removeEventListener(type, listener) { this.listeners[type] = (this.listeners[type] || []).filter(item => item !== listener); },
   setTimeout(callback) { callback(); },
   pendingFetches: [],
-  fetch: () => new Promise((resolve) => window.pendingFetches.push(resolve))
+  submittedBodies: [],
+  fetch: (_url, options = {}) => {
+    if (options.body) window.submittedBodies.push(options.body.entries);
+    return new Promise((resolve) => window.pendingFetches.push(resolve));
+  }
+};
+
+let pendingSharedConfirmation = null;
+window.adminConfirmation = {
+  active: false,
+  pending: false,
+  open(options) {
+    this.active = true;
+    this.options = { onConfirm: async () => true, ...options };
+    this.editorWasOpen = dialog.open;
+    if (this.editorWasOpen) dialog.close();
+    return new Promise((resolve) => { pendingSharedConfirmation = { resolve }; });
+  },
+  cancel() {
+    if (!this.active || this.pending) return false;
+    this.active = false;
+    if (this.editorWasOpen) dialog.showModal();
+    pendingSharedConfirmation?.resolve(false);
+    pendingSharedConfirmation = null;
+    return true;
+  },
+  discard(options = {}) {
+    return this.open(options);
+  },
+  async confirm() {
+    if (!this.active) return false;
+    this.pending = true;
+    const result = await this.options.onConfirm();
+    this.pending = false;
+    if (result === true || result?.succeeded === true) {
+      this.active = false;
+      if (this.editorWasOpen) dialog.showModal();
+      pendingSharedConfirmation?.resolve(true);
+      pendingSharedConfirmation = null;
+    }
+    return result;
+  }
 };
 
 vm.runInNewContext(fs.readFileSync("src/Bingo.Web/wwwroot/js/admin-editor-guard.js", "utf8") + "\n" + fs.readFileSync("src/Bingo.Web/wwwroot/js/signup-questions-overlay.js", "utf8"), {
@@ -167,7 +248,7 @@ vm.runInNewContext(fs.readFileSync("src/Bingo.Web/wwwroot/js/admin-editor-guard.
   HTMLFormElement: Element,
   DOMParser: class { parseFromString() { return parsedDocument; } },
   URL,
-  FormData: class { constructor(form) { this.entries = form.entries || []; } [Symbol.iterator]() { return this.entries[Symbol.iterator](); } },
+  FormData: class { constructor(form) { this.entries = (form.entries || []).map(([name, value]) => [name, form.querySelector(`input[name='${name}']`)?.value ?? value]); } [Symbol.iterator]() { return this.entries[Symbol.iterator](); } },
   setTimeout: window.setTimeout
 });
 
@@ -190,19 +271,6 @@ async function run() {
   assert.equal(dialog.getAttribute("aria-describedby"), "signup-questions-dialog-description");
   assert.equal(bodyClasses.has("admin-route-dialog-open"), true);
 
-  assert.equal(codeControl.hidden, true, "disabled code settings hide their input");
-  codeToggle.checked = true;
-  codeToggle.dispatch("change");
-  assert.equal(codeControl.hidden, false);
-  assert.equal(codeInput.required, true, "enabling without a stored code requires one");
-  assert.equal(window.pendingFetches.length, 0, "toggling does not autosave");
-  codeInput.dataset.hasSignupCode = "true";
-  codeToggle.dispatch("change");
-  assert.equal(codeInput.required, false, "an existing code may be retained with a blank replacement");
-  codeToggle.checked = false;
-  codeToggle.dispatch("change");
-  assert.equal(codeControl.hidden, true);
-  assert.equal(codeInput.required, false);
   const beforeResize = url.href;
   window.innerWidth = 800;
   (window.listeners.resize || []).forEach((listener) => listener());
@@ -243,55 +311,87 @@ async function run() {
   assert.equal(mutationForm.entries[0][1], "Unsaved question", "validation does not reset submitted input");
   validationError = false;
   dialog.dispatch("cancel");
-  assert.equal(discard.hidden, false, "dirty Escape asks before discarding");
-  keep.dispatch("click");
+  assert.equal(window.adminConfirmation.active, true, "dirty Escape opens the shared discard confirmation");
+  window.adminConfirmation.cancel();
+  await new Promise((resolve) => setImmediate(resolve));
   assert.equal(dialog.open, true);
   assert.equal(mutationForm.entries[0][1], "Unsaved question");
   window.history.back();
-  assert.equal(discard.hidden, false, "dirty Back asks before discarding");
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(window.adminConfirmation.active, true, "dirty Back opens the shared discard confirmation");
   assert.match(url.search, /signupQuestions=1/);
-  keep.dispatch("click");
+  window.adminConfirmation.cancel();
+  await new Promise((resolve) => setImmediate(resolve));
   otherForm.entries[0][1] = "Other unsaved value";
   mutationForm.dispatch("submit");
   assert.equal(window.pendingFetches.length, 0, "another dirty form prevents silent replacement");
-  assert.equal(discard.hidden, false);
-  keep.dispatch("click");
+  assert.equal(window.adminConfirmation.active, true, "another dirty form uses the shared discard confirmation");
+  window.adminConfirmation.cancel();
+  await new Promise((resolve) => setImmediate(resolve));
   assert.equal(otherForm.entries[0][1], "Other unsaved value");
   mutationForm.dispatch("submit");
-  discardConfirm.dispatch("click");
+  const discardAttempt = window.adminConfirmation.confirm();
+  await discardAttempt;
+  await new Promise((resolve) => setImmediate(resolve));
   assert.equal(window.pendingFetches.length, 1, "explicit discard authorizes the queued write");
   window.pendingFetches.shift()({ ok: true, text: async () => "<saved />" });
   await new Promise((resolve) => setImmediate(resolve));
 
-  const historyBeforeConfirmation = historyBackCalls;
-  confirmationSummary.dispatch("click");
-  assert.equal(confirmation.open, true, "the remove confirmation opens from its summary");
-  const escape = confirmationSummary.dispatch("keydown", { key: "Escape" });
-  assert.equal(escape.defaultPrevented, true, "confirmation Escape is consumed locally");
-  assert.equal(escape.propagationStopped, true, "confirmation Escape does not reach the outer dialog");
-  assert.equal(confirmation.open, false, "confirmation Escape closes only the confirmation");
-  assert.equal(confirmationSummary.focused, true, "confirmation Escape restores summary focus");
-  assert.equal(confirmationSummary.focusOptions?.preventScroll, true);
-  assert.equal(historyBackCalls, historyBeforeConfirmation, "confirmation Escape does not navigate history");
+  destructiveForm.dispatch("submit", { submitter: destructiveButton });
+  assert.equal(window.adminConfirmation.active, true, "destructive question actions use the shared confirmation");
+  assert.equal(window.adminConfirmation.options.title, "Delete question?");
+  assert.match(window.adminConfirmation.options.description, /Current impact: 1 saved answer/);
+  assert.equal(window.adminConfirmation.options.actionLabel, "Delete question");
+  assert.equal(window.pendingFetches.length, 0, "opening confirmation does not mutate");
+  assert.equal(window.adminConfirmation.cancel(), true, "Cancel closes the shared confirmation");
+  assert.equal(window.pendingFetches.length, 0, "Cancel never submits the destructive form");
 
-  confirmationSummary.dispatch("click");
-  dialog.dispatch("cancel");
-  assert.equal(confirmation.open, false, "outer cancel closes an open confirmation first");
-  assert.equal(historyBackCalls, historyBeforeConfirmation, "outer cancel does not navigate while confirmation is open");
+  staleImpactResponse = true;
+  destructiveForm.dispatch("submit", { submitter: destructiveButton });
+  const staleAttempt = window.adminConfirmation.confirm();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(window.pendingFetches.length, 1, "stale impact confirmation sends one server request");
+  const staleBody = window.submittedBodies[window.submittedBodies.length - 1];
+  assert.equal(staleBody.find(([name]) => name === "expectedAnswerCount")[1], "1", "stale request carries the originally confirmed answer count");
+  window.pendingFetches.shift()({ ok: true, text: async () => "<questions-editor stale />" });
+  const staleResult = await staleAttempt;
+  assert.equal(staleResult.succeeded, false, "stale server impact is not treated as a successful mutation");
+  assert.equal(window.adminConfirmation.active, true, "stale impact keeps the shared confirmation recoverable");
+  assert.equal(destructiveInputs.expectedAnswerCount.value, "2", "stale response refreshes the answer count in the submitted form");
+  assert.equal(destructiveInputs.expectedEventRegistrationReleaseCount.value, "1", "stale response refreshes the release count in the submitted form");
+  assert.equal(destructiveInputs.expectedQuestionVersion.value, "5", "stale response refreshes the question version in the submitted form");
+  assert.equal(confirmationTitle.textContent, "Delete question after reload?", "stale response refreshes the modal title");
+  assert.match(confirmationDescription.textContent, /2 saved answers/);
+  assert.equal(confirmationAction.textContent, "Delete question again", "stale response refreshes the modal action");
 
-  confirmationSummary.dispatch("click");
-  cancelRemoval.dispatch("click");
-  assert.equal(confirmation.open, false, "explicit Cancel closes the confirmation");
-  assert.equal(confirmationSummary.focused, true, "explicit Cancel restores summary focus");
+  staleImpactResponse = false;
+  const staleRetry = window.adminConfirmation.confirm();
+  await new Promise((resolve) => setImmediate(resolve));
+  const refreshedBody = window.submittedBodies[window.submittedBodies.length - 1];
+  assert.equal(refreshedBody.find(([name]) => name === "expectedAnswerCount")[1], "2", "retry submits the refreshed answer count");
+  assert.equal(refreshedBody.find(([name]) => name === "expectedEventRegistrationReleaseCount")[1], "1", "retry submits the refreshed release count");
+  assert.equal(refreshedBody.find(([name]) => name === "expectedQuestionVersion")[1], "5", "retry submits the refreshed question version");
+  window.pendingFetches.shift()({ ok: true, text: async () => "<questions-editor saved />" });
+  assert.equal(await staleRetry, true, "retry after stale impact resolves the shared confirmation");
+  assert.equal(window.adminConfirmation.active, false, "successful stale-impact retry closes the shared confirmation");
 
-  confirmationSummary.dispatch("click");
-  dialog.dispatch("click", { target: dialog });
-  assert.equal(confirmation.open, false, "the first backdrop activation closes only the confirmation");
-  assert.equal(dialog.open, true, "the first backdrop activation leaves Questions open");
-  assert.equal(historyBackCalls, historyBeforeConfirmation, "the first backdrop activation does not navigate history");
-  dialog.dispatch("click", { target: dialog });
-  assert.equal(historyBackCalls, historyBeforeConfirmation + 1, "the second backdrop activation closes through history");
-  assert.equal(dialog.open, false, "the second backdrop activation closes Questions");
+  destructiveForm.dispatch("submit", { submitter: destructiveButton });
+  const firstAttempt = window.adminConfirmation.confirm();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(window.pendingFetches.length, 1, "confirmed action submits once");
+  assert.equal(window.adminConfirmation.cancel(), false, "pending confirmation cannot be dismissed");
+  window.pendingFetches.shift()({ ok: false });
+  const failed = await firstAttempt;
+  assert.equal(failed.succeeded, false, "transport failure keeps the shared confirmation recoverable");
+  assert.equal(window.adminConfirmation.active, true, "failed destructive action remains open for retry");
+
+  const retry = window.adminConfirmation.confirm();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(window.pendingFetches.length, 1, "retry submits one request");
+  window.pendingFetches.shift()({ ok: true, text: async () => "<questions-editor saved />" });
+  assert.equal(await retry, true, "successful retry resolves the shared confirmation");
+  assert.equal(window.adminConfirmation.active, false, "successful retry closes the shared confirmation");
+  assert.equal(dialog.open, true, "successful destructive action leaves the Questions editor available");
 
   editorCloseButton.dispatch("click");
   assert.equal(dialog.open, false);
@@ -329,8 +429,9 @@ async function run() {
   (window.listeners.resize || []).forEach((listener) => listener());
   assert.equal(dialog.open, true, "narrowing retains an active dirty editor");
   editorCloseButton.dispatch("click");
-  assert.equal(discard.hidden, false);
-  discardConfirm.dispatch("click");
+  assert.equal(window.adminConfirmation.active, true, "narrowing discard uses the shared confirmation");
+  await window.adminConfirmation.confirm();
+  await new Promise((resolve) => setImmediate(resolve));
   assert.equal(dialog.open, false, "confirmed discard completes close after narrowing");
   assert.equal(content.children.length, 0);
   assert.equal(bodyClasses.has("admin-route-dialog-open"), false);

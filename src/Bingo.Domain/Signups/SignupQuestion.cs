@@ -40,8 +40,13 @@ public sealed class SignupQuestion
 
     public void Deactivate(Guid? actorId = null, DateTimeOffset? now = null, string? reason = null)
     {
-        if (SystemField is SignupSystemField.PrimaryRegularAccount or SignupSystemField.CaptainVolunteer or SignupSystemField.CoCaptainName) throw new InvalidOperationException("Standard signup questions cannot be disabled.");
+        if (SystemField is SignupSystemField.PrimaryRegularAccount or SignupSystemField.CaptainVolunteer) throw new InvalidOperationException("Required standard signup questions cannot be disabled.");
         Active = false; DisabledAt = (now ?? DateTimeOffset.UtcNow).ToUniversalTime(); DisabledByAccountId = actorId; DisabledReason = reason?.Trim(); Version++;
+    }
+    public void EnableCoCaptain()
+    {
+        if (SystemField != SignupSystemField.CoCaptainName) throw new InvalidOperationException("Only the co-captain field can be enabled here.");
+        Active = true; DisabledAt = null; DisabledByAccountId = null; DisabledReason = null; Version++;
     }
     public void Delete(Guid actorId, DateTimeOffset now)
     {

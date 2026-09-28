@@ -47,6 +47,18 @@ public sealed class EventQuarantineIntegrationTests : IAsyncLifetime
     public Task DisposeAsync() => database.DisposeAsync().AsTask();
 
     [Fact]
+    public async Task MissingQuarantineInputsHaveStableFieldErrorsWithoutMutation()
+    {
+        await using var db = new ApplicationDbContext(options);
+        var result = await new EventQuarantineService(db, new FixedClock(now)).HideAsync(Guid.NewGuid(), 0, null, " ", new LifecycleActor(Guid.NewGuid(), "Admin"));
+        Assert.Equal(EventQuarantineOutcome.Forbidden, result.Outcome);
+        Assert.Empty(result.FieldErrors);
+        Assert.Null(result.Hidden);
+        Assert.Null(result.Version);
+        Assert.Empty(await db.AuditEntries.ToListAsync());
+    }
+
+    [Fact]
     public async Task OnlyActiveSuperAdminCanQuarantineAndStaleRestoreIsRejectedWithoutChangingHistory()
     {
         var superAdmin = Account.CreateWebsite(Guid.NewGuid(), "quarantine-super", "QUARANTINE-SUPER", now);
@@ -70,6 +82,7 @@ public sealed class EventQuarantineIntegrationTests : IAsyncLifetime
             var unauthorized = new EventQuarantineService(unauthorizedDb, new FixedClock(now));
             var result = await unauthorized.HideAsync(item.Id, item.Version, item.Name, "unauthorized", new LifecycleActor(ordinaryAdmin.Id, ordinaryAdmin.LoginName));
             Assert.False(result.Succeeded);
+            Assert.Equal(EventQuarantineOutcome.Forbidden, result.Outcome);
         }
 
         long hiddenVersion;
@@ -79,10 +92,13 @@ public sealed class EventQuarantineIntegrationTests : IAsyncLifetime
             var mutation = new EventQuarantineService(mutationDb, new FixedClock(now), notifier);
             var result = await mutation.HideAsync(item.Id, item.Version, item.Name, "post-live retention", new LifecycleActor(superAdmin.Id, superAdmin.LoginName));
             Assert.True(result.Succeeded, result.Error);
+            Assert.Equal(EventQuarantineOutcome.Applied, result.Outcome);
+            Assert.True(result.Hidden);
             Assert.Equal(1, notifier.EventsControlChanges);
 
             var hidden = await mutationDb.Events.SingleAsync(x => x.Id == item.Id);
             hiddenVersion = hidden.Version;
+            Assert.Equal(hiddenVersion, result.Version);
             Assert.Equal(EventState.AwaitingFinalReview, hidden.State);
             Assert.Equal(item.ActualEndedAt, hidden.ActualEndedAt);
             Assert.True(hidden.IsHidden);
@@ -101,6 +117,7 @@ public sealed class EventQuarantineIntegrationTests : IAsyncLifetime
             var stale = new EventQuarantineService(staleDb, new FixedClock(now.AddMinutes(1)));
             var result = await stale.RestoreAsync(item.Id, item.Version, item.Name, "stale restore", new LifecycleActor(superAdmin.Id, superAdmin.LoginName));
             Assert.False(result.Succeeded);
+            Assert.Equal(EventQuarantineOutcome.Stale, result.Outcome);
             Assert.True(await staleDb.Events.Where(x => x.Id == item.Id).Select(x => x.IsHidden).SingleAsync());
         }
 
@@ -109,6 +126,7 @@ public sealed class EventQuarantineIntegrationTests : IAsyncLifetime
             var restore = new EventQuarantineService(restoreDb, new FixedClock(now.AddMinutes(2)));
             var result = await restore.RestoreAsync(item.Id, hiddenVersion, item.Name, "approved restore", new LifecycleActor(superAdmin.Id, superAdmin.LoginName));
             Assert.True(result.Succeeded, result.Error);
+            Assert.False(result.Hidden);
 
             var restored = await restoreDb.Events.SingleAsync(x => x.Id == item.Id);
             Assert.False(restored.IsHidden);
@@ -184,9 +202,39 @@ public sealed class EventQuarantineIntegrationTests : IAsyncLifetime
         }
         await AssertUnchangedAsync(item.Id, EventState.Finalized);
 
+        using (var omittedConfirmationResponse = await superClient.PostAsync($"{path}?handler=Hide", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["EventVersion"] = eventVersion,
+            ["EventNameConfirmation"] = item.Name,
+            ["QuarantineReason"] = "Omitted confirmation must fail closed",
+            ["__RequestVerificationToken"] = confirmationToken
+        })))
+        {
+            Assert.Equal(HttpStatusCode.Redirect, omittedConfirmationResponse.StatusCode);
+            Assert.Equal(path, omittedConfirmationResponse.Headers.Location!.OriginalString);
+        }
+        var omittedConfirmationPage = await superClient.GetStringAsync(path);
+        Assert.Contains("Confirm that you want to hide this event.", omittedConfirmationPage, StringComparison.Ordinal);
+        await AssertUnchangedAsync(item.Id, EventState.Finalized);
+
+        using (var falseConfirmationResponse = await superClient.PostAsync($"{path}?handler=Hide", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["EventVersion"] = eventVersion,
+            ["ConfirmDestructiveAction"] = "false",
+            ["EventNameConfirmation"] = item.Name,
+            ["QuarantineReason"] = "False confirmation must fail closed",
+            ["__RequestVerificationToken"] = AntiforgeryToken(omittedConfirmationPage)
+        })))
+        {
+            Assert.Equal(HttpStatusCode.Redirect, falseConfirmationResponse.StatusCode);
+            Assert.Equal(path, falseConfirmationResponse.Headers.Location!.OriginalString);
+        }
+        await AssertUnchangedAsync(item.Id, EventState.Finalized);
+
         using (var blankReasonResponse = await superClient.PostAsync($"{path}?handler=Hide", new FormUrlEncodedContent(new Dictionary<string, string>
         {
             ["EventVersion"] = eventVersion,
+            ["ConfirmDestructiveAction"] = "true",
             ["EventNameConfirmation"] = item.Name,
             ["QuarantineReason"] = "",
             ["__RequestVerificationToken"] = confirmationToken
@@ -196,7 +244,7 @@ public sealed class EventQuarantineIntegrationTests : IAsyncLifetime
             Assert.Equal(path, blankReasonResponse.Headers.Location!.OriginalString);
         }
         var blankReasonPage = await superClient.GetStringAsync(path);
-        Assert.Contains("An exact event-name confirmation and reason are required.", blankReasonPage, StringComparison.Ordinal);
+        Assert.Contains("Enter a reason for hiding the event.", blankReasonPage, StringComparison.Ordinal);
         Assert.DoesNotContain("This event is read-only in its current lifecycle state.", blankReasonPage, StringComparison.Ordinal);
         await AssertUnchangedAsync(item.Id, EventState.Finalized);
 
@@ -205,6 +253,7 @@ public sealed class EventQuarantineIntegrationTests : IAsyncLifetime
         using (var ordinaryResponse = await ordinaryClient.PostAsync($"{path}?handler=Hide", new FormUrlEncodedContent(new Dictionary<string, string>
         {
             ["EventVersion"] = eventVersion,
+            ["ConfirmDestructiveAction"] = "true",
             ["EventNameConfirmation"] = item.Name,
             ["QuarantineReason"] = "Ordinary admin attempt",
             ["__RequestVerificationToken"] = AntiforgeryToken(ordinaryManage)
@@ -220,6 +269,7 @@ public sealed class EventQuarantineIntegrationTests : IAsyncLifetime
         using (var validResponse = await superClient.PostAsync($"{path}?handler=Hide", new FormUrlEncodedContent(new Dictionary<string, string>
         {
             ["EventVersion"] = eventVersion,
+            ["ConfirmDestructiveAction"] = "true",
             ["EventNameConfirmation"] = item.Name,
             ["QuarantineReason"] = "Finalized event quarantine",
             ["__RequestVerificationToken"] = AntiforgeryToken(await superClient.GetStringAsync(path))
@@ -258,19 +308,33 @@ public sealed class EventQuarantineIntegrationTests : IAsyncLifetime
         await AssertHiddenAsync(item.Id);
 
         var hiddenRedirectPath = $"{path}?hidden=True";
-        using (var blankRestoreResponse = await superClient.PostAsync($"{hiddenPath}&handler=RestoreHidden", new FormUrlEncodedContent(new Dictionary<string, string>
+        using (var omittedRestoreResponse = await superClient.PostAsync($"{hiddenPath}&handler=RestoreHidden", new FormUrlEncodedContent(new Dictionary<string, string>
         {
             ["EventVersion"] = hiddenVersion,
             ["EventNameConfirmation"] = item.Name,
-            ["QuarantineReason"] = "",
+            ["QuarantineReason"] = "Omitted confirmation must fail closed",
             ["__RequestVerificationToken"] = hiddenToken
         })))
         {
-            Assert.Equal(HttpStatusCode.Redirect, blankRestoreResponse.StatusCode);
-            Assert.Equal(hiddenRedirectPath, blankRestoreResponse.Headers.Location!.OriginalString);
+            Assert.Equal(HttpStatusCode.Redirect, omittedRestoreResponse.StatusCode);
+            Assert.Equal(hiddenRedirectPath, omittedRestoreResponse.Headers.Location!.OriginalString);
         }
-        var blankRestorePage = await superClient.GetStringAsync(hiddenPath);
-        Assert.Contains("An exact event-name confirmation and reason are required.", blankRestorePage, StringComparison.Ordinal);
+        var omittedRestorePage = await superClient.GetStringAsync(hiddenPath);
+        Assert.Contains("Confirm that you want to restore this event.", omittedRestorePage, StringComparison.Ordinal);
+        await AssertHiddenAsync(item.Id);
+
+        using (var falseRestoreResponse = await superClient.PostAsync($"{hiddenPath}&handler=RestoreHidden", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["EventVersion"] = hiddenVersion,
+            ["ConfirmDestructiveAction"] = "false",
+            ["EventNameConfirmation"] = item.Name,
+            ["QuarantineReason"] = "False confirmation must fail closed",
+            ["__RequestVerificationToken"] = AntiforgeryToken(omittedRestorePage)
+        })))
+        {
+            Assert.Equal(HttpStatusCode.Redirect, falseRestoreResponse.StatusCode);
+            Assert.Equal(hiddenRedirectPath, falseRestoreResponse.Headers.Location!.OriginalString);
+        }
         await AssertHiddenAsync(item.Id);
 
         using (var ordinaryRestoreResponse = await ordinaryClient.GetAsync(hiddenPath))
@@ -282,6 +346,7 @@ public sealed class EventQuarantineIntegrationTests : IAsyncLifetime
         using (var validRestoreResponse = await superClient.PostAsync($"{hiddenPath}&handler=RestoreHidden", new FormUrlEncodedContent(new Dictionary<string, string>
         {
             ["EventVersion"] = InputValue(restoreManage, "EventVersion"),
+            ["ConfirmDestructiveAction"] = "true",
             ["EventNameConfirmation"] = item.Name,
             ["QuarantineReason"] = "Restore finalized event",
             ["__RequestVerificationToken"] = AntiforgeryToken(restoreManage)
@@ -349,8 +414,10 @@ public sealed class EventQuarantineIntegrationTests : IAsyncLifetime
         {
             setup.AddRange(superAdmin, ordinaryAdmin, item, emergency, access);
             await setup.SaveChangesAsync();
-            link = await new AccountIdentityService(setup, new PasswordHasher<Account>(), new FixedClock(now))
-                .GenerateEmergencyCredentialLinkAsync(ordinaryAdmin.Id, emergency.Id, CancellationToken.None);
+            link = "retained-hidden-emergency-token";
+            setup.PasswordCredentialTokens.Add(new(Guid.NewGuid(), emergency.Id, PasswordCredentialTokenPurpose.EmergencySetup, AccountIdentityService.Hash(link), now.AddHours(1), now, ordinaryAdmin.Id));
+            setup.AuditEntries.Add(new Bingo.Domain.Auditing.AuditEntry(Guid.NewGuid(), now, ordinaryAdmin.Id, ordinaryAdmin.LoginName, "account.emergency_credential_link_created", "account", emergency.Id.ToString(), "Retained fixture history", item.Id));
+            await setup.SaveChangesAsync();
             linkAuditId = await setup.AuditEntries.Where(entry => entry.Action == "account.emergency_credential_link_created")
                 .Select(entry => entry.Id).SingleAsync();
             Assert.Equal(item.Id, await setup.AuditEntries.Where(entry => entry.Id == linkAuditId).Select(entry => entry.EventId).SingleAsync());

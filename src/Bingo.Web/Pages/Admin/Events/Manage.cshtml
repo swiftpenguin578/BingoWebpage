@@ -1,6 +1,7 @@
 @page "{id:guid}"
 @model Bingo.Web.Pages.Admin.Events.ManageModel
 @using Bingo.Domain.Events
+@using Bingo.Domain.Integrations.WiseOldMan
 @using Bingo.Domain.Signups
 @using Bingo.Web.UI
 @{
@@ -21,7 +22,13 @@
     var signupUrl = Url.Page("/Events/Signup", null, new { slug = eventView.Slug }, Request.Scheme, Request.Host.Value);
     var signupTableUrl = Url.Page("/Events/Signups", null, new { slug = eventView.Slug }, Request.Scheme, Request.Host.Value);
     var publicBoardUrl = Url.Page("/Events/Board", null, new { slug = eventView.Slug }, Request.Scheme, Request.Host.Value);
-    var signupWarningAcknowledgementRequired = eventView.State != EventState.SignupOpen && Model.SignupReadiness?.Warnings.Count > 0 && !Model.SignupWarningAcknowledged;
+    var signupCloseForConfirmation = Model.SignupReadiness?.CloseDecision.ProposedClose ?? eventView.SignupClosesAt ?? eventView.StartsAt;
+    var signupWarningSummary = Model.SignupReadiness?.Warnings.Count > 0
+        ? $" Warnings: {string.Join(" ", Model.SignupReadiness.Warnings.Select(warning => T[warning.Description].Value))}"
+        : string.Empty;
+    var signupConfirmationDescription = eventView.State == EventState.SignupOpen
+        ? T["Close signups now? Players already on the list are not affected."].Value
+        : $"{T["Open signups now after rechecking readiness."].Value} Signup close: {Model.EventDate(signupCloseForConfirmation)}.{signupWarningSummary}";
     var showPublicBoard = eventView.FirstPublicAt is not null && eventView.BoardPublished;
     var boardTileSummary = eventView.ConfiguredBoardTileCount is { } configuredTiles && eventView.ExpectedBoardCellCount is { } expectedTiles
         ? $"{configuredTiles} / {expectedTiles}"
@@ -59,12 +66,11 @@
             </div>
             <div class="event-danger-zone-form">
                 <h2>@T["Restore event"]</h2>
-                <p>@T["Restore clears only the hiding metadata. Confirm the exact event name and enter a reason."]</p>
-                <form method="post" asp-page-handler="RestoreHidden" asp-route-hidden="true" class="form-stack">
+                <p>@T["Restore clears only the hiding metadata. Confirm the action to return this event to ordinary workspaces."]</p>
+                <form method="post" asp-page-handler="RestoreHidden" asp-route-hidden="true" class="form-stack" data-lifecycle-confirm data-confirm-title="@T["Restore event"]" data-confirm-description="@T["Restore this event and return it to ordinary workspaces?"]" data-confirm-action="@T["Restore event"]" data-confirm-field="ConfirmDestructiveAction" data-confirm-danger="true">
                     <input asp-for="EventVersion" type="hidden" />
                     <input type="hidden" name="hidden" value="true" />
-                    <div class="event-create-field"><label asp-for="EventNameConfirmation">@T["Type the exact event name"]</label><input asp-for="EventNameConfirmation" class="form-control" autocomplete="off" required /></div>
-                    <div class="event-create-field"><label asp-for="QuarantineReason">@T["Reason for restoring"]</label><textarea asp-for="QuarantineReason" class="form-control" rows="3" required></textarea></div>
+                    <input type="hidden" name="ConfirmDestructiveAction" value="false" data-confirm-field-value />
                     <button class="btn event-create-cancel action-danger-outline" type="submit">@T["Restore event"]</button>
                 </form>
             </div>
@@ -108,7 +114,7 @@ else
                         }
                         else
                         {
-                            <strong>@(eventView.ActualTeamCount > 0 ? eventView.ActualTeamCount : eventView.ExpectedTeamCount ?? 0) <small>@T["Teams"]</small></strong>
+                            <strong>@eventView.ActualTeamCount <small>@T["Teams"]</small></strong>
                         }
                         <span class="event-overview-metric-context @peopleDotClass"><span class="event-overview-metric-dot" aria-hidden="true"></span>@peopleContext</span>
                     </div>
@@ -204,7 +210,7 @@ else
                     </div>
                 }
                 <div class="event-overview-date-row @(Model.CompetitionIntegration?.Configured == true ? "is-green" : "is-yellow")">
-                    <div class="event-overview-date-copy"><dt>@T["Wise Old Man sync"]</dt><dd><span class="event-overview-status-text @(Model.CompetitionIntegration?.Configured == true ? "is-green" : "is-yellow")">@(Model.CompetitionIntegration?.Configured == true ? T["Enabled"] : T["Not configured"])</span></dd></div>
+                    <div class="event-overview-date-copy"><dt>@T["Wise Old Man sync"]</dt><dd><span class="event-overview-status-text @(Model.CompetitionIntegration?.Configured == true ? "is-green" : "is-yellow")">@(Model.CompetitionIntegration?.Configured == true ? T["Enabled"] : T["Not configured"])</span> <a asp-page="WiseOldMan" asp-route-id="@eventView.Id">@T["Open WOM workspace"]</a></dd></div>
                 </div>
             </dl>
             <div class="event-public-pages" aria-labelledby="event-public-pages-heading">
@@ -256,61 +262,12 @@ else
                             else { <p class="event-control-status event-control-supporting is-yellow"><strong>@T["No automatic signup opening scheduled."]</strong></p> }
                         </div>
                         <div class="event-admin-event-actions">
-                            @if (Model.ConfirmationAction == "signup")
-                            {
-                                <p class="event-control-status event-control-supporting is-yellow">@T["Confirmation required"]</p>
-                            }
-                            else
-                            {
-                                <form method="post" asp-page-handler="PrepareSignupConfirmation" data-update-targets="@partialUpdateTargets"><button id="manage-signup-confirm-trigger" class="btn event-create-cancel" type="submit" disabled="@(signupAndPlayersLocked ? "disabled" : null)">@(eventView.State == EventState.SignupOpen ? T["Close now"] : eventView.State == EventState.SignupClosed ? T["Reopen now"] : T["Open now"])</button></form>
-                            }
-                            @if (Model.ConfirmationAction == "signup")
-                            {
-                                @if (signupWarningAcknowledgementRequired)
-                                {
-                                    <section class="admin-signup-warning-ack" data-confirmation-box tabindex="-1" aria-labelledby="manage-warning-heading">
-                                        <div class="event-control-copy">
-                                            <h3 id="manage-warning-heading">@T["Review signup warnings"]</h3>
-                                            <p>@T["Acknowledge these active signup warnings before continuing."]</p>
-                                        </div>
-                                        <ul class="admin-signup-warning-list" aria-label="@T["Signup warnings"]">
-                                            @foreach (var warning in Model.SignupReadiness!.Warnings)
-                                            {
-                                                <li>@T[warning.Description]</li>
-                                            }
-                                        </ul>
-                                        <form method="post" asp-page-handler="ConfirmSignup" class="event-confirmation-form" data-update-targets="@partialUpdateTargets">
-                                            <input asp-for="EventVersion" type="hidden" />
-                                            @foreach (var warning in Model.SignupReadiness!.Warnings)
-                                            {
-                                                <input type="hidden" name="SignupWarningCodes" value="@warning.Code" />
-                                            }
-                                            <div class="event-confirmation-actions">
-                                                <a class="admin-button-secondary" href="@manageUrl#manage-signup-confirm-trigger">@T["Cancel"]</a>
-                                                <button class="admin-button-secondary" type="submit" name="AcknowledgeSignupWarnings" value="true">@T["Confirm warnings"]</button>
-                                            </div>
-                                        </form>
-                                    </section>
-                                }
-                                @if (!signupWarningAcknowledgementRequired)
-                                {
-                                    <div class="event-confirmation-box" data-confirmation-box tabindex="-1">
-                                        <p>@(eventView.State == EventState.SignupOpen ? T["Close signups now? Players already on the list are not affected."] : T["Review the signup consequences below before continuing."])</p>
-                                    @if (Model.SignupCloseRequiresAcceptance)
-                                    {
-                                        <p class="event-confirmation-supporting"><strong>@T["Proposed signup close:"]</strong> @Model.EventDate(Model.SignupReadiness!.CloseDecision.ProposedClose) @eventView.Timezone</p>
-                                    }
-                                    <form method="post" asp-page-handler="ConfirmSignup" class="event-confirmation-form" data-update-targets="@partialUpdateTargets">
-                                        <input asp-for="EventVersion" type="hidden" />
-                                        <div class="event-confirmation-actions">
-                                            <a class="btn event-create-cancel" href="@manageUrl#manage-signup-confirm-trigger">@T["Cancel"]</a>
-                                            @if (Model.SignupCloseRequiresAcceptance && !Model.SignupCloseAcknowledged) { <button class="btn event-create-cancel" type="submit" name="AcceptProposedClose" value="true">@T["Accept proposed close"]</button> }
-                                            @if ((eventView.State == EventState.SignupOpen || Model.SignupReadiness?.Warnings.Count == 0 || Model.SignupWarningAcknowledged) && (!Model.SignupCloseRequiresAcceptance || Model.SignupCloseAcknowledged)) { <button class="btn event-create-cancel" type="submit">@T["Confirm"]</button> }
-                                        </div>
-                                    </form>
-                                    </div>
-                                }
-                            }
+                            @{ var signupHandler = eventView.State == EventState.SignupOpen ? "CloseSignup" : eventView.State == EventState.SignupClosed ? "ReopenSignup" : "OpenSignup"; var signupAction = eventView.State == EventState.SignupOpen ? T["Close signups"] : eventView.State == EventState.SignupClosed ? T["Reopen signups"] : T["Open signups"]; }
+                            <form method="post" asp-page-handler="@signupHandler" data-lifecycle-confirm data-confirm-title="@signupAction" data-confirm-description="@signupConfirmationDescription" data-confirm-action="@signupAction" data-confirm-field="ConfirmSignupAction" data-update-targets="@partialUpdateTargets">
+                                <input asp-for="EventVersion" type="hidden" />
+                                <input type="hidden" name="ConfirmSignupAction" value="false" data-confirm-field-value />
+                                <button class="btn event-create-cancel" type="submit" disabled="@(signupAndPlayersLocked ? "disabled" : null)">@signupAction</button>
+                            </form>
                         </div>
                     </section>
 
@@ -338,26 +295,21 @@ else
                         @if (showStartControl)
                         {
                             @if (Model.StartReadiness?.Blockers.Count > 0) { <p class="event-control-status is-yellow">@T["{0} blockers remain.", Model.StartReadiness.Blockers.Count] <a href="#readiness">@T["Review readiness"]</a></p> }
-                            @if (Model.ConfirmationAction == "start")
-                            {
-                                <div class="event-confirmation-box" data-confirmation-box tabindex="-1"><p>@T["Starting now changes the event to Live and preserves the configured schedule."]</p><form method="post" asp-page-handler="StartEvent" class="event-confirmation-form" data-update-targets="@partialUpdateTargets"><input asp-for="EventVersion" type="hidden" /><div class="event-create-field"><label asp-for="StartReason">@T["Reason (required before the configured start)"]</label><input asp-for="StartReason" class="form-control" /></div><div class="event-confirmation-actions"><a class="btn event-create-cancel" href="@manageUrl#manage-start-confirm-trigger">@T["Cancel"]</a><button class="btn event-create-cancel" type="submit" name="ConfirmStartEvent" value="true">@T["Confirm start"]</button></div></form></div>
-                            }
-                            else
-                            {
-                                <form method="post" asp-page-handler="PrepareStartConfirmation" data-update-targets="@partialUpdateTargets"><button id="manage-start-confirm-trigger" class="btn event-create-cancel" type="submit">@T["Start event now"]</button></form>
-                            }
+                            <form method="post" asp-page-handler="StartEvent" data-lifecycle-confirm data-confirm-title="@T["Start event"]" data-confirm-description="@T["Start the event now? Server readiness will be checked again before the transition."]" data-confirm-action="@T["Start event"]" data-confirm-field="ConfirmStartEvent" data-update-targets="@partialUpdateTargets">
+                                <input asp-for="EventVersion" type="hidden" />
+                                <input type="hidden" name="ConfirmStartEvent" value="false" data-confirm-field-value />
+                                <button class="btn event-create-cancel" type="submit">@T["Start event now"]</button>
+                            </form>
                         }
                         @if (showLiveControls)
                         {
                             <a class="btn event-create-cancel" asp-page="/Admin/Review/Index" asp-route-eventId="@eventView.Id">@T["Review submissions"]</a>
-                            @if (Model.ConfirmationAction == "end")
-                            {
-                                <div class="event-confirmation-box" data-confirmation-box tabindex="-1"><p>@T["Ending now moves the event to final review; the configured end remains recorded."]</p><form method="post" asp-page-handler="EndEvent" class="event-confirmation-form" data-update-targets="@partialUpdateTargets"><input asp-for="EventVersion" type="hidden" /><div class="event-create-field"><label asp-for="EndReason">@T["Reason (required before the configured end)"]</label><input asp-for="EndReason" class="form-control" /></div><div class="event-confirmation-actions"><a class="btn event-create-cancel" href="@manageUrl#manage-end-confirm-trigger">@T["Cancel"]</a><button class="btn event-create-cancel" type="submit" name="ConfirmEndEvent" value="true">@T["Confirm end"]</button></div></form></div>
-                            }
-                            else
-                            {
-                                <form method="post" asp-page-handler="PrepareEndConfirmation" data-update-targets="@partialUpdateTargets"><button id="manage-end-confirm-trigger" class="btn event-create-cancel" type="submit">@T["End event"]</button></form>
-                            }
+                            <form method="post" asp-page-handler="EndEvent" data-lifecycle-confirm data-confirm-title="@T["End event"]" data-confirm-description="@T["End the Live event now and move it to final review? A reason is recorded in the lifecycle history."]" data-confirm-action="@T["End event"]" data-confirm-field="ConfirmEndEvent" data-confirm-reason-field="EndReason" data-confirm-require-reason="true" data-update-targets="@partialUpdateTargets">
+                                <input asp-for="EventVersion" type="hidden" />
+                                <input type="hidden" name="ConfirmEndEvent" value="false" data-confirm-field-value />
+                                <input type="hidden" name="EndReason" data-confirm-reason-value />
+                                <button class="btn event-create-cancel" type="submit">@T["End event"]</button>
+                            </form>
                         }
                         @if (showFinalReviewControls)
                         {
@@ -384,14 +336,13 @@ else
                                 <p>@(Model.ResumeRequiresReplacement ? T["The retained end is missing or expired. Choose a future replacement end to return this event to live play."] : T["The retained future end will be reused. Confirm it and provide a reason to return this event to live play."])</p>
                             </div>
                             <div class="event-admin-event-actions">
-                                @if (Model.ConfirmationAction == "resume")
-                                {
-                                    <div class="event-confirmation-box" data-confirmation-box tabindex="-1"><p>@T["The prior end remains in immutable history. Confirm the retained or replacement end to resume live play."]</p><form method="post" asp-page-handler="ResumeEvent" class="form-stack event-confirmation-form" data-update-targets="@partialUpdateTargets"><input asp-for="EventVersion" type="hidden" /><div class="event-create-field"><label asp-for="ReplacementEventEndsAtLocal"><span>@T["Replacement event end"]</span></label><input asp-for="ReplacementEventEndsAtLocal" type="text" class="form-control" data-event-manage-datetime-picker data-time-label="@T["Time"]" required="@(Model.ResumeRequiresReplacement ? "required" : null)" /></div><div class="event-create-field"><label asp-for="ResumeReason"><span>@T["Reason (required)"]</span></label><textarea asp-for="ResumeReason" class="form-control" rows="3" required></textarea></div><div class="event-confirmation-actions"><a class="btn event-create-cancel" href="@manageUrl#manage-resume-confirm-trigger">@T["Cancel"]</a><button class="btn event-create-cancel" type="submit" name="ConfirmResumeEvent" value="true">@T["Confirm resume"]</button></div></form></div>
-                                }
-                                else
-                                {
-                                    <form method="post" asp-page-handler="PrepareResumeConfirmation" data-update-targets="@partialUpdateTargets"><button id="manage-resume-confirm-trigger" class="btn event-create-cancel" type="submit">@T["Resume event"]</button></form>
-                                }
+                                <form method="post" asp-page-handler="ResumeEvent" class="form-stack" data-lifecycle-confirm data-confirm-title="@T["Resume event"]" data-confirm-description="@T["Resume prospective Live play while preserving the prior end in immutable history?"]" data-confirm-action="@T["Resume event"]" data-confirm-field="ConfirmResumeEvent" data-confirm-reason-field="ResumeReason" data-confirm-require-reason="true" data-update-targets="@partialUpdateTargets">
+                                    <input asp-for="EventVersion" type="hidden" />
+                                    <input type="hidden" name="ConfirmResumeEvent" value="false" data-confirm-field-value />
+                                    <input type="hidden" name="ResumeReason" data-confirm-reason-value />
+                                    <div class="event-create-field"><label asp-for="ReplacementEventEndsAtLocal"><span>@T["Replacement event end"]</span></label><input asp-for="ReplacementEventEndsAtLocal" type="text" class="form-control" data-event-manage-datetime-picker data-time-label="@T["Time"]" required="@(Model.ResumeRequiresReplacement ? "required" : null)" /></div>
+                                    <button class="btn event-create-cancel" type="submit">@T["Resume event"]</button>
+                                </form>
                             </div>
                         </section>
                     }
@@ -401,7 +352,7 @@ else
                 @if (showAllControlStages || eventView.State == EventState.Live && Model.StartReadiness?.Blockers.Any(item => item.Code == "TEAM_ACCESS_MISSING") == true)
                 {
                     <section class="event-admin-control-group">
-                        <div><h3>@T["Captain access needs attention"]</h3><p>@T["The event remains Live. Assign a usable Captain or explicitly enable team-scoped emergency access."]</p></div>
+                        <div><h3>@T["Captain access needs attention"]</h3><p>@T["The event remains Live. Assign a usable Captain through the team roster."]</p></div>
                         <p class="event-control-status">@T["{0} access checks need attention.", Math.Max(1, Model.StartReadiness?.Blockers.Count(item => item.Code == "TEAM_ACCESS_MISSING") ?? 0)] <a asp-page="Draft" asp-route-id="@eventView.Id">@T["Review teams and draft"]</a></p>
                     </section>
                 }
@@ -445,100 +396,6 @@ else
                 {
                     <section class="event-admin-control-group"><div><h3>@T["Event cancelled"]</h3><p>@T["This event is terminal and no scheduled or ordinary event action can reactivate it."]</p></div><p class="event-control-status"><strong>@T["Private Admin reason:"]</strong> @(Model.PrivateCancellationReason ?? T["Visual preview cancellation reason."].Value)</p></section>
                 }
-                    @{ var integration = Model.CompetitionIntegration; var managed = Model.CompetitionManagement; var integrationEditable = showAllControlStages || eventView.State is EventState.Draft or EventState.SignupOpen or EventState.SignupClosed or EventState.Live; var managedEditable = showAllControlStages || eventView.State is EventState.Draft or EventState.SignupOpen or EventState.SignupClosed; var integrationStatusClass = integration is null || !integration.Configured || !string.IsNullOrWhiteSpace(integration.LastError) ? "event-wom-status-danger" : integration.Complete == true ? "event-wom-status-success" : integration.RetryDueAt is not null ? "event-wom-status-warning" : "event-wom-status-info"; var hasRequestBudget = integration?.RequestStatus.ObservedRemaining is not null || integration?.RequestStatus.ObservedLimit is not null || integration?.RequestStatus.ResetAt is not null; }
-                <section class="event-admin-control-group event-wom-section" aria-labelledby="competition-integration-heading">
-                    <div class="event-wom-header">
-                        <h3 id="competition-integration-heading">@T["Wise Old Man competition"]</h3>
-                        <p>@T["Link a competition to sync EHB activity."]</p>
-                    @if (integration is null || !integration.Configured)
-                    {
-                        <p class="event-control-status event-wom-status"><strong>@T["Status:"]</strong> <span class="event-wom-status-value @integrationStatusClass">@T["Not configured."]</span></p>
-                    }
-                    else
-                    {
-                        <p class="event-control-status event-wom-status"><strong>@T["Status:"]</strong> <span class="event-wom-status-value @integrationStatusClass"><strong>@integration.CompetitionTitle</strong> · @integration.CompetitionId · @(integration.Complete == true ? T["Complete"] : integration.Complete == false && integration.MissingAccounts.Count > 0 ? T["Partial"] : integration.Complete == false ? T["Incomplete"] : T["Waiting"])@(integration.LastSuccessfulAt is { } synced ? $" · {DateTimePresentation.Format(synced, "dd MMM yyyy, HH:mm", provider: CultureInfo.CurrentCulture)}" : string.Empty)@(integration.RetryDueAt is not null ? $" · {T["Retry scheduled"]}" : string.Empty)@(integration.MissingAccounts.Count > 0 ? $" · {T["{0} accounts missing", integration.MissingAccounts.Count]}: {string.Join(", ", integration.MissingAccounts)}" : string.Empty)@(!string.IsNullOrWhiteSpace(integration.LastError) ? $" · {integration.LastError}" : string.Empty)</span></p>
-                    }
-                    </div>
-                    <div class="event-control-static">
-                    @if (integrationEditable && managed?.Enabled != true)
-                    {
-                        <form method="post" asp-page-handler="Competition" class="form-stack event-wom-form">
-                            <input asp-for="EventVersion" type="hidden" />
-                            <div class="event-create-field"><label asp-for="CompetitionId">@T["Competition ID"]</label><input asp-for="CompetitionId" class="form-control" inputmode="numeric" /></div>
-                            @if (showAllControlStages || eventView.State is EventState.Draft or EventState.SignupOpen or EventState.SignupClosed)
-                            {
-                                <div class="event-wom-schedule-field"><div class="event-create-field"><label asp-for="SynchronizeCompetitionSchedule">@T["Schedule handling"]</label><div class="event-wom-select-wrap"><select asp-for="SynchronizeCompetitionSchedule" class="form-select"><option value="false">@T["Keep current schedule"]</option><option value="true">@T["Use competition dates"]</option></select><svg class="event-wom-select-chevron" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 9 6 6 6-6" /></svg></div></div></div>
-                                <div class="event-create-field"><label><input asp-for="ConfirmCompetitionSchedule" /> @T["Review and confirm these schedule changes."]</label></div>
-                            }
-                            <button class="btn admin-button-secondary" type="submit">@T["Link competition"]</button>
-                        </form>
-                        @if (integration?.Configured == true && eventView.State is EventState.Draft or EventState.SignupOpen or EventState.SignupClosed)
-                        {
-                            <form method="post" asp-page-handler="ClearCompetition" class="form-stack">
-                                <input asp-for="EventVersion" type="hidden" />
-                                <button class="btn event-create-cancel" type="submit">@T["Clear competition"]</button>
-                            </form>
-                        }
-                        @if ((showAllControlStages || eventView.State == EventState.Live) && integration?.Configured == true)
-                        {
-                            <form method="post" asp-page-handler="RefreshCompetition"><button class="btn event-create-cancel" type="submit">@T["Refresh cached activity"]</button></form>
-                            @if (Model.ShowDevelopmentCompetitionControl)
-                            {
-                                <form method="post" asp-page-handler="MakeDevelopmentCompetitionDue" class="form-stack"><button class="btn event-create-cancel" type="submit">@T["Make next refresh due (Development TEST 15)"]</button></form>
-                            }
-                        }
-                    }
-                        @if (managed is not null)
-                        {
-                            <div class="event-wom-managed">
-                                <h4>@T["Managed WOM competition"]</h4>
-                                <p class="event-control-status event-wom-status"><strong>@T["Status:"]</strong> <span class="event-wom-status-value @(managed.Status is "Active" ? "event-wom-status-success" : managed.Status is "Pending" or "Unknown" ? "event-wom-status-warning" : managed.Status is "NotManaged" or "Deleted" ? "event-wom-status-info" : "event-wom-status-danger")">@T[managed.Status]@(managed.CompetitionId is { } managedId ? $" · {managedId}" : string.Empty)@(managed.LastOperationType is { } operationType ? $" · {operationType}" : string.Empty)@(managed.PendingAt is { } pendingAt ? $" · {T["retry pending"]} {DateTimePresentation.Format(pendingAt, "dd MMM yyyy, HH:mm", provider: CultureInfo.CurrentCulture)}" : string.Empty)</span></p>
-                                @if (!string.IsNullOrWhiteSpace(managed.LastError))
-                                {
-                                    <p class="event-control-status event-wom-status-danger">@Model.LocalizeManagedError(managed.LastErrorCode, managed.LastError, "The managed WOM operation needs Admin attention.")</p>
-                                }
-                                @if (managed.Preview is { } preview)
-                                {
-                                    <p><small>@T["Preview uses every confirmed participant's unreleased Playing assignment."]</small></p>
-                                    @if (preview.Errors.Count > 0)
-                                    {
-                                        <ul class="event-wom-preview-errors">@foreach (var error in preview.Errors) { <li>@Model.LocalizeManagedError(null, error, error)</li> }</ul>
-                                    }
-                                    <ul class="event-wom-preview-teams">
-                                    @foreach (var team in preview.Teams)
-                                    {
-                                        <li><strong>@team.Name</strong> · @(team.Empty ? T["Empty"] : T["{0} participant(s)", team.Participants.Count])</li>
-                                    }
-                                    </ul>
-                                }
-                                @if (managedEditable && managed.Preview?.Valid == true
-                                    && (managed.Status == "NotManaged"
-                                        || (managed.LastOperationType == "Create"
-                                            && (managed.Status == "Failed" || managed.Status == "Cancelled"))))
-                                {
-                                    <form method="post" asp-page-handler="CreateManagedCompetition" class="form-stack">
-                                        <input asp-for="EventVersion" type="hidden" />
-                                        <button class="btn admin-button-secondary" type="submit">@T["Create managed WOM competition"]</button>
-                                    </form>
-                                }
-                                @if (managedEditable && managed.CompetitionId is { } deleteId && managed.Status is not "Deleted")
-                                {
-                                    <form method="post" asp-page-handler="DeleteManagedCompetition" class="form-stack event-wom-delete-form">
-                                        <input asp-for="EventVersion" type="hidden" />
-                                        <input asp-for="ManagedCompetitionDeleteId" type="hidden" value="@deleteId" />
-                                        <label><input asp-for="ConfirmManagedCompetitionDelete" /> @T["I confirm deletion of this exact managed WOM competition."]</label>
-                                        <button class="btn event-create-cancel action-danger-outline" type="submit">@T["Delete managed WOM competition"]</button>
-                                    </form>
-                                }
-                            </div>
-                        }
-                    @if (hasRequestBudget)
-                    {
-                        <p class="event-wom-budget"><small>@T["Request budget:"] @(integration?.RequestStatus.ObservedRemaining?.ToString() ?? "—") @T["remaining"]@(integration?.RequestStatus.ObservedLimit is { } limit ? $" {T["of {0}", limit]}" : string.Empty)@(integration?.RequestStatus.ResetAt is { } reset ? $" · {T["reset"]} {DateTimePresentation.Format(reset, "dd MMM yyyy, HH:mm", provider: CultureInfo.CurrentCulture)}" : string.Empty)</small></p>
-                    }
-                    </div>
-                </section>
-
     @if (User.IsInRole("SuperAdmin") && eventView.State is (EventState.AwaitingFinalReview or EventState.Finalized or EventState.Archived))
                 {
                     <section class="event-danger-zone-container event-danger-zone" aria-labelledby="event-quarantine-heading">
@@ -546,10 +403,10 @@ else
                             <h2 id="event-quarantine-heading">@T["Event quarantine"]</h2>
                             <p>@T["Hide this post-live event from every ordinary public, participant, Admin, notification, evidence, and realtime surface. The lifecycle and all retained history stay unchanged."]</p>
                         </div>
-                        <form method="post" asp-page-handler="Hide" class="form-stack event-danger-zone-form">
+                        <form method="post" asp-page-handler="Hide" class="form-stack event-danger-zone-form" data-lifecycle-confirm data-confirm-title="@T["Hide event"]" data-confirm-description="@T["Quarantine this post-live event while retaining its lifecycle and history. Record why it is being hidden."]" data-confirm-action="@T["Hide event"]" data-confirm-danger="true" data-confirm-field="ConfirmDestructiveAction" data-confirm-reason-field="QuarantineReason" data-confirm-require-reason="true">
                             <input asp-for="EventVersion" type="hidden" />
-                            <div class="event-create-field"><label asp-for="EventNameConfirmation">@T["Type the exact event name"]</label><input asp-for="EventNameConfirmation" class="form-control" autocomplete="off" required /></div>
-                            <div class="event-create-field"><label asp-for="QuarantineReason">@T["Reason for hiding"]</label><textarea asp-for="QuarantineReason" class="form-control" rows="3" required></textarea></div>
+                            <input type="hidden" name="ConfirmDestructiveAction" value="false" data-confirm-field-value />
+                            <input type="hidden" name="QuarantineReason" data-confirm-reason-value />
                             <button class="btn event-create-cancel action-danger-outline" type="submit">@T["Hide event"]</button>
                         </form>
                     </section>
@@ -562,14 +419,13 @@ else
                             <h2 id="event-danger-heading"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="1.7" /><path d="M12 8v4m0 4h.01" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.7" /></svg>@T["Danger zone — destructive lifecycle actions"]</h2>
                             <p>@(Model.CanDiscard ? T["Remove disposable setup and preserve only the event tombstone and audit history."] : T["Preserve all event history and stop every scheduled lifecycle action."])</p>
                         </div>
-                        @if (Model.ConfirmationAction == "destructive")
-                        {
-                            <div class="event-danger-zone-form" data-confirmation-box tabindex="-1"><p>@(Model.CanDiscard ? T["Discarding removes this empty setup permanently."] : T["Cancelling preserves history but stops the event permanently."])</p>@if (Model.CanDiscard) { <form method="post" asp-page-handler="Discard" class="form-stack" data-update-targets="@partialUpdateTargets"><input asp-for="EventVersion" type="hidden" /><div class="event-confirmation-actions"><a class="btn event-create-cancel" href="@manageUrl#manage-destructive-confirm-trigger">@T["Cancel"]</a><button class="btn event-create-cancel action-danger-outline" type="submit" name="ConfirmDestructiveAction" value="true"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.7" /><path d="m4.9 4.9 14.2 14.2" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.7" /></svg>@T["Confirm discard"]</button></div></form> } else { <form method="post" asp-page-handler="Cancel" class="form-stack" data-update-targets="@partialUpdateTargets"><input asp-for="EventVersion" type="hidden" /><div class="event-create-field"><label asp-for="CancellationReason">@T["Cancellation reason"]</label><textarea asp-for="CancellationReason" class="form-control" rows="2" required></textarea></div><div class="event-confirmation-actions"><a class="btn event-create-cancel" href="@manageUrl#manage-destructive-confirm-trigger">@T["Cancel"]</a><button class="btn event-create-cancel action-danger-outline" type="submit" name="ConfirmDestructiveAction" value="true"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.7" /><path d="m4.9 4.9 14.2 14.2" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.7" /></svg>@T["Confirm cancellation"]</button></div></form> }</div>
-                        }
-                        else
-                        {
-                            <form method="post" asp-page-handler="PrepareDestructiveConfirmation" data-update-targets="@partialUpdateTargets"><button id="manage-destructive-confirm-trigger" class="btn event-create-cancel action-danger-outline" type="submit"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.7" /><path d="m4.9 4.9 14.2 14.2" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.7" /></svg>@(Model.CanDiscard ? T["Discard event"] : T["Cancel event"])</button></form>
-                        }
+                        @{ var destructiveHandler = Model.CanDiscard ? "Discard" : "Cancel"; var destructiveTitle = Model.CanDiscard ? T["Delete event"] : T["Cancel event"]; var destructiveDescription = Model.CanDiscard ? T["Delete this empty setup permanently?"] : T["Cancel this event and preserve its history?"]; }
+                        <form method="post" asp-page-handler="@destructiveHandler" class="form-stack event-danger-zone-form" data-lifecycle-confirm data-confirm-title="@destructiveTitle" data-confirm-description="@destructiveDescription" data-confirm-action="@destructiveTitle" data-confirm-danger="true" data-confirm-field="ConfirmDestructiveAction" data-confirm-reason-field="CancellationReason" data-confirm-require-reason="@(Model.CanDiscard ? "false" : "true")" data-update-targets="@partialUpdateTargets">
+                            <input asp-for="EventVersion" type="hidden" />
+                            <input type="hidden" name="ConfirmDestructiveAction" value="false" data-confirm-field-value />
+                            @if (!Model.CanDiscard) { <input type="hidden" name="CancellationReason" data-confirm-reason-value /> }
+                            <button class="btn event-create-cancel action-danger-outline" type="submit"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.7" /><path d="m4.9 4.9 14.2 14.2" fill="none" stroke="currentColor" stroke-width="1.7" /></svg>@destructiveTitle</button>
+                        </form>
                     </section>
                 }
             </article>

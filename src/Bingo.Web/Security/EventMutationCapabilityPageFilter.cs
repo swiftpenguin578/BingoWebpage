@@ -40,6 +40,28 @@ public sealed class EventMutationCapabilityPageFilter(ApplicationDbContext db, I
             await next();
             return;
         }
+        // Keep the dedicated Wise Old Man workspace behind its operation-specific
+        // lifecycle matrix even when an unknown POST handler leaves HandlerMethod
+        // unset. Otherwise a forged handler name could bypass the route boundary
+        // and reach the page model without any mutation capability decision.
+        if (IsWiseOldManPath(path) && HttpMethods.IsPost(context.HttpContext.Request.Method))
+        {
+            if (context.HandlerMethod is null || !AllowsWiseOldManMutation(eventView.State, context.HandlerMethod.Name ?? string.Empty))
+            {
+                if (context.HandlerInstance is PageModel page)
+                    page.TempData["StatusMessage"] = text["This event is read-only in its current lifecycle state."].Value;
+                context.Result = new RedirectResult($"/Admin/Events/Manage/{eventId}");
+                return;
+            }
+
+            // Wise Old Man operations have narrower operation-specific guards
+            // in their application services than the generic event capability
+            // matrix. The route gate limits the lifecycle states; services
+            // remain authoritative for version, provenance, credentials,
+            // roster, cooldown and remote-write checks.
+            await next();
+            return;
+        }
         if (context.HandlerMethod is null)
         {
             await next();
@@ -50,7 +72,7 @@ public sealed class EventMutationCapabilityPageFilter(ApplicationDbContext db, I
             var retainedArtworkRead = path.EndsWith("/Board.cshtml", StringComparison.OrdinalIgnoreCase) &&
                 string.Equals(context.HandlerMethod.Name, "TileImage", StringComparison.Ordinal) &&
                 context.HandlerArguments.TryGetValue("approvalId", out var approvalId) && approvalId is Guid;
-            if (IsTerminalReadOnlyRoute(path, eventView.State) && !retainedArtworkRead)
+            if (IsTerminalReadOnlyRoute(path, eventView.State) && !retainedArtworkRead && !IsWiseOldManPath(path))
             {
                 context.Result = new RedirectResult($"/Admin/Events/Manage/{eventId}");
                 return;
@@ -107,6 +129,17 @@ public sealed class EventMutationCapabilityPageFilter(ApplicationDbContext db, I
         !path.EndsWith("/Participants.cshtml", StringComparison.OrdinalIgnoreCase) &&
         !path.EndsWith("/Participant.cshtml", StringComparison.OrdinalIgnoreCase);
 
+    private static bool IsWiseOldManPath(string path) =>
+        path.EndsWith("/WiseOldMan.cshtml", StringComparison.OrdinalIgnoreCase);
+
+    private static bool AllowsWiseOldManMutation(EventState state, string method) => method switch
+    {
+        "FetchCompetition" or "MakeDevelopmentCompetitionDue" => state == EventState.Live,
+        "Competition" or "DisconnectCompetition" or "CreateManagedCompetition" or "AdoptCompetitionCredential" or "DeleteManagedCompetition"
+            => state is EventState.Draft or EventState.SignupOpen or EventState.SignupClosed or EventState.Live,
+        _ => false
+    };
+
     private static bool TryEventId(PageHandlerExecutingContext context, out Guid eventId)
     {
         if (context.RouteData.Values.TryGetValue("id", out var route) && Guid.TryParse(route?.ToString(), out eventId)) return true;
@@ -132,16 +165,15 @@ public sealed class EventMutationCapabilityPageFilter(ApplicationDbContext db, I
         var name = method ?? string.Empty;
         if (path.EndsWith("/Finalize.cshtml", StringComparison.OrdinalIgnoreCase))
         {
-            if (name.Contains("Resolve", StringComparison.Ordinal) || name.Contains("CorrectCompletion", StringComparison.Ordinal)) { capability = EventCapability.ReviewEvidence; return true; }
-            capability = default; return false; // Finalize/Archive/Unfinalize own transactional guards.
+            capability = default; return false; // Publish/reopen own transactional guards.
         }
         if (path.EndsWith("/Manage.cshtml", StringComparison.OrdinalIgnoreCase))
         {
-            if (name.Contains("StartEvent", StringComparison.Ordinal) || name.Contains("EndEvent", StringComparison.Ordinal) || name.Contains("PrepareEndConfirmation", StringComparison.Ordinal) || name.Contains("Discard", StringComparison.Ordinal) || name.Contains("Cancel", StringComparison.Ordinal)) { capability = default; return false; }
+            if (name.Contains("StartEvent", StringComparison.Ordinal) || name.Contains("EndEvent", StringComparison.Ordinal) || name.Contains("Discard", StringComparison.Ordinal) || name.Contains("Cancel", StringComparison.Ordinal)) { capability = default; return false; }
             if (name.Contains("Competition", StringComparison.Ordinal) &&
                 !name.Contains("RefreshCompetition", StringComparison.Ordinal) &&
                 !name.Contains("MakeDevelopmentCompetitionDue", StringComparison.Ordinal)) { capability = default; return false; }
-            capability = name.Contains("ResumeEvent", StringComparison.Ordinal) || name.Contains("PrepareResumeConfirmation", StringComparison.Ordinal) ? EventCapability.ResumeEvent
+            capability = name.Contains("ResumeEvent", StringComparison.Ordinal) ? EventCapability.ResumeEvent
                 : name.Contains("ReopenSubmissions", StringComparison.Ordinal) ? EventCapability.ReviewEvidence
                 : name.Contains("EvidenceCode", StringComparison.Ordinal) ? EventCapability.ConfigureEvidenceCodes
                 : name.Contains("RefreshCompetition", StringComparison.Ordinal) || name.Contains("MakeDevelopmentCompetitionDue", StringComparison.Ordinal) ? EventCapability.CompetitionSynchronization

@@ -88,10 +88,6 @@
     const subscribe = async () => {
         if (boardRoot) {
             await connection.invoke('WatchBoard', boardRoot.dataset.adminBoardEvent);
-            if (boardRoot.dataset.canEdit === 'true') {
-                await connection.invoke('RenewBoardEditing', boardRoot.dataset.adminBoardEvent);
-                boardRoot.scheduleExpiryReload?.(new Date(Date.now() + 300000).toISOString());
-            }
         }
         if (draftRoot) {
             await connection.invoke('WatchDraft', draftRoot.dataset.adminDraftEvent);
@@ -109,9 +105,9 @@
         }, 120000);
     }
     if (boardRoot?.dataset.canEdit === 'true') {
-        let lastBoardRenewal = Date.now();
+        let lastBoardRenewal = 0;
         const renewForActivity = () => {
-            if (Date.now() - lastBoardRenewal < 60000 || connection.state !== signalR.HubConnectionState.Connected) return;
+            if (connection.state !== signalR.HubConnectionState.Connected || (lastBoardRenewal !== 0 && Date.now() - lastBoardRenewal < 60000)) return;
             lastBoardRenewal = Date.now();
             connection.invoke('RenewBoardEditing', boardRoot.dataset.adminBoardEvent)
                 .then(() => boardRoot.scheduleExpiryReload?.(new Date(Date.now() + 300000).toISOString()))

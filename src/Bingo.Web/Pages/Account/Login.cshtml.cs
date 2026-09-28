@@ -68,12 +68,9 @@ public sealed partial class LoginModel(
         }
         throttles.Clear(normalized);
 
-        var emergencyAccess = account.AccountType == Bingo.Domain.Access.AccountType.EmergencyCaptain
-            ? await authenticationService.GetEmergencyAccessAsync(account.Id, cancellationToken)
-            : null;
         await HttpContext.SignInAsync(
             CookieAuthenticationDefaults.AuthenticationScheme,
-            authenticationService.CreatePrincipal(account, emergencyAccess: emergencyAccess),
+            authenticationService.CreatePrincipal(account),
             ChangePasswordModel.CreatePasswordSessionProperties(Input.RememberMe, DateTimeOffset.UtcNow));
         if (account.MustChangePassword)
         {
@@ -82,7 +79,7 @@ public sealed partial class LoginModel(
 
         TempData["StatusMessage"] = text["Signed in successfully."].Value;
         TempData[Bingo.Web.UI.UiMessage.TypeKey] = Bingo.Web.UI.UiMessageType.Success.ToString();
-        return LocalRedirect(Url.IsLocalUrl(ReturnUrl) ? ReturnUrl : account.AccountType == Bingo.Domain.Access.AccountType.EmergencyCaptain ? "/Submissions" : "/");
+        return LocalRedirect(Url.IsLocalUrl(ReturnUrl) ? ReturnUrl : "/");
     }
 
     public sealed class LoginInput

@@ -11,7 +11,13 @@ const danishResources = fs.readFileSync(path.join(__dirname, "../../src/Bingo.We
 assert.match(draftHandler, /if \(string\.IsNullOrWhiteSpace\(name\)\) \{ SetStatus\(Localize\("A team name is required\."\), UiMessageType\.Error\);/, "Blank Add team names use a dedicated validation message");
 assert.match(danishResources, /<data name="A team name is required\."[^>]*><value>Et holdnavn er påkrævet\.<\/value>/, "Blank Add team names are translated in Danish");
 assert.match(draftMarkup, /data-toast-host[\s\S]*data-draft-add-team-dialog/, "Add team opts its native dialog into the toast host owner");
+assert.match(draftMarkup, /name="includedInDraft"/, "Add team controls website-draft inclusion directly");
+assert.match(draftMarkup, /name="includedInDraft" type="hidden" value="false"/, "Cleared inclusion checkboxes post an explicit false value");
+assert.doesNotMatch(draftMarkup, /name="formationType"/, "Add team no longer posts the legacy formation type");
+assert.doesNotMatch(draftMarkup, /RosterCsv|ExternalMember|external-team-dialog/, "Legacy external and CSV roster controls are not reachable from Draft markup");
+assert.doesNotMatch(eventManage, /PreviewRosterCsv/, "Legacy CSV client handling is removed");
 assert.match(draftMarkup, /data-draft-add-team-cancel[\s\S]*data-draft-add-team-confirm/, "Finalized Add confirmation keeps Cancel before Add");
+assert.match(draftMarkup, /data-draft-add-team-form data-native-submit/, "Setup Add form opts out of enhanced POST interception");
 assert.match(siteScript, /dialog\.admin-route-dialog\[open\], dialog\[data-toast-host\]\[open\]/, "Toast host follows the Add native dialog");
 assert.match(adminStyles, /draft-page #add-team :is\([^\n]+\)\[hidden\] \{ display: none !important; \}/, "Add hidden controls beat generic grid and inline-flex display rules");
 assert.match(adminStyles, /#add-team \.draft-confirmation\[open\] > \.event-confirmation-box \{ position: static;/, "Finalized Add confirmation remains inline");
@@ -19,13 +25,16 @@ assert.match(eventManage, /sessionStorage\.setItem\("bingo:pending-toast", JSON\
 assert.match(eventManage, /form\.reset\(\)[\s\S]*guard\.initialize\(\)[\s\S]*closeNow\(\)/, "Discard resets the form and guard baseline before closing");
 
 class Node {
-  constructor(tagName, { id = "", className = "", dataset = {}, name = "", value = "", textContent = "" } = {}) {
+  constructor(tagName, { id = "", className = "", dataset = {}, name = "", value = "", textContent = "", type = "" } = {}) {
     this.tagName = tagName.toUpperCase();
     this.id = id;
     this.className = className;
     this.dataset = { ...dataset };
     this.name = name;
     this.value = value;
+    this.type = type;
+    this.checked = false;
+    this.defaultChecked = false;
     this.defaultValue = value;
     this.textContent = textContent;
     this.children = [];
@@ -45,12 +54,13 @@ class Node {
 
   append(...children) { children.flat().filter(Boolean).forEach(child => { child.parentElement = this; this.children.push(child); }); }
   replaceChildren(...children) { this.children.forEach(child => { child.parentElement = null; }); this.children = []; this.append(...children); }
-  reset() { this.querySelectorAll("input, select, textarea").forEach(control => { control.value = control.defaultValue ?? ""; }); }
+  reset() { this.querySelectorAll("input, select, textarea").forEach(control => { control.value = control.defaultValue ?? ""; if (control.type === "checkbox") control.checked = control.defaultChecked; }); }
   addEventListener(type, listener) { (this.listeners[type] ??= []).push(listener); }
   dispatch(type, properties = {}) {
     if (type === "click" && !this.disabled) this.focus();
     const event = { type, target: this, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; }, stopPropagation() { this.propagationStopped = true; }, ...properties };
     for (const listener of this.listeners[type] ?? []) listener(event);
+    if (!event.propagationStopped) global.document?.dispatchBubbledEvent?.(event);
     return event;
   }
   setAttribute(name, value) {
@@ -59,6 +69,7 @@ class Node {
     if (name === "class") this.className = String(value);
     if (name === "name") this.name = String(value);
     if (name === "value") this.value = String(value);
+    if (name === "type") this.type = String(value);
     if (name === "href") this.href = String(value);
     if (name === "action") this.action = String(value);
     if (name === "method") this.method = String(value);
@@ -108,10 +119,12 @@ class Node {
     return !open || this.open;
   }
   cloneNode(deep) {
-    const copy = new Node(this.tagName, { id: this.id, className: this.className, dataset: { ...this.dataset }, name: this.name, value: this.value, textContent: this.textContent });
+    const copy = new Node(this.tagName, { id: this.id, className: this.className, dataset: { ...this.dataset }, name: this.name, value: this.value, textContent: this.textContent, type: this.type });
     copy.hidden = this.hidden;
     copy.open = this.open;
     copy.disabled = this.disabled;
+    copy.checked = this.checked;
+    copy.defaultChecked = this.defaultChecked;
     copy.attributes = { ...this.attributes };
     if (deep) copy.append(...this.children.map(child => child.cloneNode(true)));
     return copy;
@@ -130,7 +143,7 @@ class FormDataMock {
   constructor(form) {
     this.items = [];
     form?.querySelectorAll("input, select, textarea").forEach(control => {
-      if (control.name && !control.disabled) this.items.push([control.name, String(control.value)]);
+      if (control.name && !control.disabled && (control.type !== "checkbox" || control.checked)) this.items.push([control.name, String(control.value)]);
     });
   }
   append(name, value) { this.items.push([name, String(value)]); }
@@ -148,10 +161,10 @@ const makeNotice = (type, message) => {
   return host;
 };
 
-const makeAddPage = () => {
+const makeAddPage = ({ finalized = true } = {}) => {
   const page = new Node("section", { className: "draft-page" });
   const trigger = new Node("button", { dataset: { draftDialogOpen: "add-team" } });
-  const dialog = new Dialog("dialog", { id: "add-team", className: "tile-dialog team-roster-dialog external-team-dialog", dataset: { draftAddTeamDialog: "" } });
+  const dialog = new Dialog("dialog", { id: "add-team", className: "tile-dialog team-roster-dialog", dataset: { draftAddTeamDialog: "" } });
   const close = new Node("button", { dataset: { draftAddTeamClose: "" } });
   const discard = new Node("div", { dataset: { draftAddTeamDiscard: "" } });
   discard.hidden = true;
@@ -160,22 +173,27 @@ const makeAddPage = () => {
   discard.append(keep, discardConfirm);
   const feedback = new Node("p", { dataset: { draftAddTeamFeedback: "" } });
   feedback.hidden = true;
-  const form = new Form("form", { dataset: { draftAddTeamForm: "" } });
+  const form = new Form("form", { dataset: { draftAddTeamForm: "", ...(finalized ? {} : { nativeSubmit: "" }) } });
   form.action = "https://example.test/Admin/Events/Draft/event-1?handler=AddTeam";
   const name = new Input("input", { name: "name" });
-  const formation = new Select("select", { name: "formationType", value: "Preformed" });
+  const includedInDraft = new Input("input", { name: "includedInDraft", value: "true", type: "checkbox" });
+  includedInDraft.checked = true;
+  includedInDraft.defaultChecked = true;
   const affiliation = new Input("input", { name: "affiliation" });
-  const confirmation = new Node("details", { dataset: { draftAddTeamConfirmation: "" } });
-  const review = new Node("summary", { dataset: { draftAddTeamReview: "" } });
-  const confirmButton = new Node("button", { dataset: { draftAddTeamConfirm: "" } });
-  const cancel = new Node("button", { dataset: { draftAddTeamCancel: "" } });
-  const confirmationField = new Input("input", { name: "confirmed", value: "true", dataset: { draftAddTeamConfirmed: "" } });
-  confirmationField.disabled = true;
-  confirmation.append(review, confirmationField, confirmButton, cancel);
-  form.append(name, formation, affiliation, confirmation);
+  const confirmation = finalized ? new Node("details", { dataset: { draftAddTeamConfirmation: "" } }) : null;
+  const review = finalized ? new Node("summary", { dataset: { draftAddTeamReview: "" } }) : null;
+  const confirmButton = finalized ? new Node("button", { dataset: { draftAddTeamConfirm: "" } }) : null;
+  const cancel = finalized ? new Node("button", { dataset: { draftAddTeamCancel: "" } }) : null;
+  const confirmationField = finalized ? new Input("input", { name: "confirmed", value: "true", dataset: { draftAddTeamConfirmed: "" } }) : null;
+  const submitButton = new Node("button", { type: "submit" });
+  if (confirmation) {
+    confirmationField.disabled = true;
+    confirmation.append(review, confirmationField, confirmButton, cancel);
+  }
+  form.append(name, includedInDraft, affiliation, confirmation, finalized ? null : submitButton);
   dialog.append(close, discard, feedback, form);
   page.append(trigger, dialog);
-  return { page, trigger, dialog, close, discard, keep, discardConfirm, feedback, form, name, formation, affiliation, confirmation, review, confirmButton, cancel, confirmationField };
+  return { page, trigger, dialog, close, discard, keep, discardConfirm, feedback, form, name, includedInDraft, affiliation, confirmation, review, confirmButton, cancel, confirmationField, submitButton };
 };
 
 const makeRosterPage = () => {
@@ -203,6 +221,7 @@ const body = new Node("body", { dataset: { adminPostError: "The change could not
 body.append(makeNotice("information", ""), initial.page, roster.page);
 const requested = [];
 const toastCalls = [];
+let globalEnhancedPostCount = 0;
 const windowListeners = {};
 let outcome = "error";
 let pendingResolve;
@@ -271,17 +290,30 @@ global.window = {
 };
 global.history = history;
 global.sessionStorage = { getItem: key => stored.get(key) ?? null, setItem: (key, value) => stored.set(key, String(value)), removeItem: key => stored.delete(key) };
+const documentListeners = {};
 global.document = {
   body,
   activeElement: null,
-  addEventListener() {},
-  dispatchEvent() {},
+  addEventListener(type, listener) { (documentListeners[type] ??= []).push(listener); },
+  removeEventListener(type, listener) { documentListeners[type] = (documentListeners[type] || []).filter(item => item !== listener); },
+  dispatchBubbledEvent(event) { for (const listener of documentListeners[event.type] ?? []) listener(event); },
+  dispatchEvent(event) { for (const listener of documentListeners[event.type] ?? []) listener(event); },
   getElementById: id => body.querySelector(`#${id}`),
   querySelector: selector => body.querySelector(selector),
   querySelectorAll: selector => body.querySelectorAll(selector),
   createElement: tag => tag === "dialog" ? new Dialog() : tag === "form" ? new Form("form") : new Node(tag),
   importNode: node => node.cloneNode(true)
 };
+
+// Keep the shared enhanced POST boundary in this focused harness. Native forms
+// opt out by presence of data-native-submit; locally handled forms stop the
+// event before this document listener can see it.
+document.addEventListener("submit", event => {
+  const form = event.target;
+  if (!(form instanceof HTMLFormElement) || event.defaultPrevented || form.dataset.nativeSubmit !== undefined) return;
+  globalEnhancedPostCount++;
+  event.preventDefault();
+});
 
 require("../../src/Bingo.Web/wwwroot/js/admin-editor-guard.js");
 require("../../src/Bingo.Web/wwwroot/js/event-manage.js");
@@ -319,7 +351,7 @@ const submitWithConfirmation = async () => {
   assert.equal(body.classList.contains("admin-route-dialog-open"), true, "Roster synchronization preserves the Add team scroll lock");
 
   initial.name.value = "typed team";
-  initial.formation.value = "Drafted";
+  initial.includedInDraft.checked = false;
   initial.affiliation.value = "Clan";
   initial.feedback.textContent = "Old failure";
   initial.feedback.hidden = false;
@@ -333,11 +365,11 @@ const submitWithConfirmation = async () => {
   assert.equal(initial.dialog.open, false, "Confirmed discard closes the modal");
   assert.equal(initial.trigger.focused, true, "Confirmed discard restores trigger focus");
   assert.equal(initial.name.value, "", "Confirmed discard resets the team name");
-  assert.equal(initial.formation.value, "Preformed", "Confirmed discard resets the formation");
+  assert.equal(initial.includedInDraft.checked, true, "Confirmed discard resets draft inclusion");
   assert.equal(initial.affiliation.value, "", "Confirmed discard resets the affiliation");
   assert.equal(initial.feedback.hidden, true, "Confirmed discard clears failure feedback");
   const afterDiscardUnload = { preventDefault() { this.prevented = true; } };
-  windowListeners.beforeunload.forEach(listener => listener(afterDiscardUnload));
+  (windowListeners.beforeunload || []).forEach(listener => listener(afterDiscardUnload));
   assert.equal(afterDiscardUnload.prevented, undefined, "Discarded values do not trigger a navigation prompt");
 
   initial.trigger.dispatch("click");
@@ -366,6 +398,7 @@ const submitWithConfirmation = async () => {
   assert.equal(initial.dialog.open, true, "Failed Add keeps the modal open");
   assert.equal(initial.name.value, "failed team", "Failed Add retains typed input");
   assert.equal(initial.feedback.hidden, false, "Failed Add exposes retry feedback");
+  assert.equal(globalEnhancedPostCount, 0, "Locally handled finalized Add never reaches the shared enhanced POST handler");
   assert.equal(toastCalls.at(-1).message, "A team with that name already exists for this event.", "Failed Add shows the rendered server message");
   assert.equal(toastCalls.at(-1).type, "error", "Failed Add shows the rendered error severity");
   assert.equal(initial.confirmationField.disabled, true, "Failed Add requires a fresh visible confirmation");
@@ -393,9 +426,26 @@ const submitWithConfirmation = async () => {
   assert.deepEqual(JSON.parse(sessionStorage.getItem("bingo:pending-toast")), { message: "Night Owls created.", type: "success" }, "Successful Add hands the rendered server notice to the existing pending-toast owner");
   assert.equal(document.querySelector("#app-notice-region").querySelectorAll(".app-toast-success").length, 0, "Reload mock does not invent a success toast");
   const beforeUnload = { preventDefault() { this.prevented = true; } };
-  windowListeners.beforeunload.forEach(listener => listener(beforeUnload));
+  (windowListeners.beforeunload || []).forEach(listener => listener(beforeUnload));
   assert.equal(beforeUnload.prevented, undefined, "Completed Add does not trigger an unsaved-change prompt");
   initial.form.dispatch("submit", { submitter: initial.confirmButton });
   await flush();
   assert.equal(requested.filter(request => request.method === "POST").length, 3, "Completed Add cannot be resubmitted");
+
+  // A zero-team setup workspace keeps the native Add form transport. This
+  // exercises the path used before the first DraftSession exists; finalized
+  // corrections above still use the confirmation/AJAX flow.
+  const setup = makeAddPage({ finalized: false });
+  document.dispatchEvent({ type: "bingo:content-will-update", detail: {} });
+  body.replaceChildren(makeNotice("information", ""), setup.page);
+  document.dispatchEvent({ type: "bingo:content-updated", detail: {} });
+  setup.trigger.dispatch("click");
+  assert.equal(setup.dialog.open, true, "Setup Add team opens the same native modal");
+  setup.name.value = "first setup team";
+  const nativeSubmit = setup.form.dispatch("submit", { submitter: setup.submitButton });
+  assert.equal(nativeSubmit.defaultPrevented, false, "Setup Add team leaves the ordinary POST unblocked");
+  assert.equal(globalEnhancedPostCount, 0, "Native setup Add opts out of the shared enhanced POST handler");
+  assert.equal(requested.filter(request => request.method === "POST").length, 3, "Setup Add team does not depend on the finalized AJAX response path");
+  const duplicateSubmit = setup.form.dispatch("submit", { submitter: setup.submitButton });
+  assert.equal(duplicateSubmit.defaultPrevented, true, "Setup Add team blocks duplicate native submissions after navigation starts");
 })().catch(error => { console.error(error); process.exitCode = 1; });

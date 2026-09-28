@@ -1169,6 +1169,21 @@ namespace Bingo.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(4000)")
                         .HasColumnName("description_snapshot");
 
+                    b.Property<DateTimeOffset?>("EstimateCalculatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("estimate_calculated_at");
+
+                    b.Property<string>("EstimateCatalogueFingerprint")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("estimate_catalogue_fingerprint");
+
+                    b.Property<bool>("EstimateNeedsVerification")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("estimate_needs_verification");
+
                     b.Property<decimal>("EstimatedEhbSnapshot")
                         .HasPrecision(12, 4)
                         .HasColumnType("numeric(12,4)")
@@ -1202,6 +1217,8 @@ namespace Bingo.Infrastructure.Persistence.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("ActiveImageAssetId");
+
+                    b.HasIndex("BoardId", "EstimateNeedsVerification");
 
                     b.HasIndex("BoardId", "RowIndex", "ColumnIndex")
                         .IsUnique();
@@ -1845,10 +1862,6 @@ namespace Bingo.Infrastructure.Persistence.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("archived_at");
 
-                    b.Property<Guid?>("BannerAssetId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("banner_asset_id");
-
                     b.Property<bool>("BoardPublished")
                         .HasColumnType("boolean")
                         .HasColumnName("board_published");
@@ -2070,8 +2083,6 @@ namespace Bingo.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("BannerAssetId");
-
                     b.HasIndex("HiddenAt");
 
                     b.HasIndex("HiddenByAccountId");
@@ -2085,114 +2096,6 @@ namespace Bingo.Infrastructure.Persistence.Migrations
 
                             t.HasCheckConstraint("ck_events_stats_luck_invalidation", "stats_luck_invalidated_at_revision >= 0 AND stats_luck_invalidated_at_revision <= stats_evidence_revision");
                         });
-                });
-
-            modelBuilder.Entity("Bingo.Domain.Events.EventBannerAsset", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<long>("ByteSize")
-                        .HasColumnType("bigint")
-                        .HasColumnName("byte_size");
-
-                    b.Property<string>("Checksum")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)")
-                        .HasColumnName("checksum");
-
-                    b.Property<Guid>("EventId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("event_id");
-
-                    b.Property<int>("Height")
-                        .HasColumnType("integer")
-                        .HasColumnName("height");
-
-                    b.Property<string>("MediaType")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("media_type");
-
-                    b.Property<string>("OriginalFilename")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)")
-                        .HasColumnName("original_filename");
-
-                    b.Property<DateTimeOffset?>("ReplacedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("replaced_at");
-
-                    b.Property<string>("StorageKey")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)")
-                        .HasColumnName("storage_key");
-
-                    b.Property<DateTimeOffset>("UploadedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("uploaded_at");
-
-                    b.Property<Guid>("UploadedByAccountId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("uploaded_by_account_id");
-
-                    b.Property<int>("Width")
-                        .HasColumnType("integer")
-                        .HasColumnName("width");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("EventId", "ReplacedAt");
-
-                    b.ToTable("event_banner_assets", (string)null);
-                });
-
-            modelBuilder.Entity("Bingo.Domain.Events.EventBannerCleanup", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<int>("AttemptCount")
-                        .HasColumnType("integer")
-                        .HasColumnName("attempt_count");
-
-                    b.Property<Guid>("EventId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("event_id");
-
-                    b.Property<DateTimeOffset?>("LastAttemptedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("last_attempted_at");
-
-                    b.Property<string>("LastFailure")
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)")
-                        .HasColumnName("last_failure");
-
-                    b.Property<DateTimeOffset>("QueuedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("queued_at");
-
-                    b.Property<string>("StorageKey")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)")
-                        .HasColumnName("storage_key");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("EventId", "StorageKey")
-                        .IsUnique();
-
-                    b.ToTable("event_banner_cleanups", (string)null);
                 });
 
             modelBuilder.Entity("Bingo.Domain.Events.EventFinalizationSnapshot", b =>
@@ -3395,6 +3298,20 @@ namespace Bingo.Infrastructure.Persistence.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
+                    b.Property<string>("CredentialStatus")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("credential_status");
+
+                    b.Property<DateTimeOffset?>("CredentialUpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("credential_updated_at");
+
+                    b.Property<DateTimeOffset?>("CredentialValidatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("credential_validated_at");
+
                     b.Property<DateTimeOffset?>("DeletedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("deleted_at");
@@ -3457,6 +3374,12 @@ namespace Bingo.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(4000)")
                         .HasColumnName("protected_verification_code");
 
+                    b.Property<string>("Provenance")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("provenance");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(30)
@@ -3470,6 +3393,12 @@ namespace Bingo.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
+
+                    b.Property<string>("WriteCapability")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("write_capability");
 
                     b.HasKey("Id");
 
@@ -3702,6 +3631,12 @@ namespace Bingo.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset?>("NormalDueAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("normal_due_at");
+
+                    b.Property<string>("Provenance")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("provenance");
 
                     b.Property<int>("RetryCount")
                         .HasColumnType("integer")
@@ -4057,6 +3992,10 @@ namespace Bingo.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("recorded_by_account_id");
 
+                    b.Property<long>("Sequence")
+                        .HasColumnType("bigint")
+                        .HasColumnName("sequence");
+
                     b.HasKey("Id");
 
                     b.HasIndex("EventParticipantId")
@@ -4359,6 +4298,12 @@ namespace Bingo.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("draft_session_id");
 
+                    b.Property<string>("PublicationMethod")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("publication_method");
+
                     b.Property<DateTimeOffset>("PublishedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("published_at");
@@ -4576,10 +4521,7 @@ namespace Bingo.Infrastructure.Persistence.Migrations
                     b.HasIndex("EventId", "Slug")
                         .IsUnique();
 
-                    b.ToTable("teams", null, t =>
-                        {
-                            t.HasCheckConstraint("ck_teams_formation_draft", "(formation_type = 'Drafted' AND included_in_draft) OR (formation_type = 'Preformed' AND NOT included_in_draft)");
-                        });
+                    b.ToTable("teams", (string)null);
                 });
 
             modelBuilder.Entity("Bingo.Domain.Teams.TeamFocusMarker", b =>
@@ -5012,24 +4954,10 @@ namespace Bingo.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("Bingo.Domain.Events.BingoEvent", b =>
                 {
-                    b.HasOne("Bingo.Domain.Events.EventBannerAsset", null)
-                        .WithMany()
-                        .HasForeignKey("BannerAssetId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
                     b.HasOne("Bingo.Domain.Access.Account", null)
                         .WithMany()
                         .HasForeignKey("HiddenByAccountId")
                         .OnDelete(DeleteBehavior.Restrict);
-                });
-
-            modelBuilder.Entity("Bingo.Domain.Events.EventBannerCleanup", b =>
-                {
-                    b.HasOne("Bingo.Domain.Events.BingoEvent", null)
-                        .WithMany()
-                        .HasForeignKey("EventId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
                 });
 
             modelBuilder.Entity("Bingo.Domain.Events.EventFinalizationSnapshot", b =>

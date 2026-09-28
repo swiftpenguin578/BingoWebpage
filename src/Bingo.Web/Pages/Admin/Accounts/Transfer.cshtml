@@ -7,16 +7,12 @@
 
 <section class="admin-account-route-page" aria-labelledby="transfer-ownership-heading">
     <header class="admin-account-route-heading"><div><h1 id="transfer-ownership-heading">@T["Transfer ownership"]</h1><p>@T["Choose an existing active website account. The former owner remains an Admin after the transaction."]</p></div></header>
-    <details class="admin-destructive-confirmation admin-account-transfer-confirmation" open>
-        <summary class="action-danger-outline"><strong>@T["Transfer Super Admin ownership"]</strong><span>@T["This changes the sole owner and cannot be undone from this form."]</span></summary>
-        <div class="event-confirmation-box">
-            <p><strong>@T["Confirm ownership transfer"]</strong><span class="event-confirmation-supporting">@T["The selected account becomes Super Admin; your account remains an Admin. The service validates the transaction and destination again on submit."]</span></p>
-            <form method="post" class="event-confirmation-form">
+            <form method="post" class="event-confirmation-form" data-account-transfer data-confirm-title="@T["Confirm ownership transfer"]" data-confirm-description="@T["The selected account becomes Super Admin; your account remains an Admin. Both accounts must sign in again."]" data-confirm-action="@T["Transfer ownership"]">
                 <div asp-validation-summary="ModelOnly" class="validation-summary"></div>
-                <div class="admin-field"><label asp-for="Input.DestinationUsername"></label><select asp-for="Input.DestinationUsername" class="form-select"><option value="">@T["Choose an eligible active website account"]</option>@foreach (var destination in Model.Destinations) { <option value="@destination.Username">@destination.Username</option> }</select><span asp-validation-for="Input.DestinationUsername" class="field-error"></span></div>
+                <div class="admin-field"><label asp-for="Input.DestinationId"></label><select asp-for="Input.DestinationId" class="form-select" required><option value="">@T["Choose an eligible active website account"]</option>@foreach (var destination in Model.Destinations) { <option value="@destination.Id" data-authorization-version="@destination.AuthorizationVersion">@destination.Username</option> }</select><span asp-validation-for="Input.DestinationId" class="field-error"></span></div>
+                <input asp-for="Input.ExpectedAuthorizationVersion" type="hidden" />
                 <div class="admin-field"><label asp-for="Input.CurrentPassword"></label><input asp-for="Input.CurrentPassword" class="form-control" autocomplete="current-password" /><span asp-validation-for="Input.CurrentPassword" class="field-error"></span></div>
                 <div class="event-confirmation-actions"><a class="admin-button-secondary" asp-page="Index">@T["Cancel"]</a><button class="action-danger-outline" type="submit">@T["Transfer ownership"]</button></div>
             </form>
-        </div>
-    </details>
 </section>
+@section Scripts { <script src="~/js/account-transfer.js" asp-append-version="true"></script> }

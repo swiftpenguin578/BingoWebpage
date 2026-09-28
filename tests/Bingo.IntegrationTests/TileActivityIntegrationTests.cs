@@ -72,6 +72,7 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests
             setup.Add(new TeamMembership(Guid.NewGuid(), otherTeam.Id, f.Players[1].Id, TeamMembershipRole.Participant, f.Clock.GetUtcNow(), null, "Controlled team split"));
             await setup.SaveChangesAsync();
         }
+        await PublishCurrentRosterAsync(f);
         await ApproveStatsAsync(f, await PendingStatsAsync(f, 0, 0, 10));
         await ApproveStatsAsync(f, await PendingStatsAsync(f, 0, 1, 11));
         await ApproveStatsAsync(f, await PendingStatsAsync(f, 0, 1, 12));

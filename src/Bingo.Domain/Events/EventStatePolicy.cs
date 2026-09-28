@@ -11,7 +11,7 @@ public static class EventStatePolicy
         (EventState.SignupClosed, EventState.Live) => true,
         (EventState.Live, EventState.AwaitingFinalReview) => true,
         (EventState.AwaitingFinalReview, EventState.Live) => true,
-        (EventState.AwaitingFinalReview, EventState.Finalized) => true,
+        (EventState.AwaitingFinalReview, EventState.Archived) => true,
         (EventState.Finalized, EventState.Archived) => true,
         (EventState.Finalized, EventState.AwaitingFinalReview) => true,
         (EventState.Archived, EventState.AwaitingFinalReview) => true,
@@ -24,6 +24,7 @@ public static class EventStatePolicy
     public static bool Allows(EventState state, EventCapability capability) => capability switch
     {
         EventCapability.ConfigureIdentityOrSchedule => state is EventState.Draft or EventState.SignupOpen or EventState.SignupClosed,
+        EventCapability.ConfigureIdentity => state is EventState.Draft or EventState.SignupOpen or EventState.SignupClosed or EventState.Live or EventState.AwaitingFinalReview,
         EventCapability.ConfigureSignup => state is EventState.Draft or EventState.SignupOpen or EventState.SignupClosed,
         EventCapability.ParticipantSignup => state == EventState.SignupOpen,
         EventCapability.ReopenSignup => state == EventState.SignupClosed,
@@ -44,6 +45,7 @@ public static class EventStatePolicy
 public enum EventCapability
 {
     ConfigureIdentityOrSchedule,
+    ConfigureIdentity,
     ConfigureSignup,
     ParticipantSignup,
     ReopenSignup,

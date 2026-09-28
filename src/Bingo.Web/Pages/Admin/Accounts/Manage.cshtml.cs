@@ -15,6 +15,10 @@ namespace Bingo.Web.Pages.Admin.Accounts;
 [Authorize(Policy = AuthorizationPolicies.Admin)]
 public sealed class ManageModel(ApplicationDbContext db, AccountAdministrationService administration, AccountIdentityService identities, IStringLocalizer<SharedResource>? text = null) : PageModel
 {
+    public override void OnPageHandlerExecuting(Microsoft.AspNetCore.Mvc.Filters.PageHandlerExecutingContext context)
+    {
+        if (context.HandlerMethod is null) context.Result = NotFound();
+    }
     public AccountDetails? AccountView { get; private set; }
     [BindProperty, StringLength(500)] public string Reason { get; set; } = string.Empty;
     [BindProperty] public long ExpectedAuthorizationVersion { get; set; }
@@ -30,39 +34,39 @@ public sealed class ManageModel(ApplicationDbContext db, AccountAdministrationSe
     public Task<IActionResult> OnPostRevokeAdminAsync(Guid id, [FromForm] bool overlay, CancellationToken ct) { Overlay = ResolveSubmittedOverlay(overlay); return Mutate(id, x => administration.RevokeAdminAsync(User.GetAccountId()!.Value, id, ExpectedAuthorizationVersion, x), Localize("Admin access revoked."), ct); }
     public Task<IActionResult> OnPostDisableAsync(Guid id, [FromForm] bool overlay, CancellationToken ct) { Overlay = ResolveSubmittedOverlay(overlay); return Mutate(id, x => administration.DisableAsync(User.GetAccountId()!.Value, id, Reason, ExpectedAuthorizationVersion, x), Localize("Account disabled."), ct); }
     public Task<IActionResult> OnPostRestoreAsync(Guid id, [FromForm] bool overlay, CancellationToken ct) { Overlay = ResolveSubmittedOverlay(overlay); return Mutate(id, x => administration.RestoreAsync(User.GetAccountId()!.Value, id, ExpectedAuthorizationVersion, x), Localize("Account restored."), ct); }
-    public Task<IActionResult> OnPostEnableEmergencyAsync(Guid id, [FromForm] bool overlay, CancellationToken ct) { Overlay = ResolveSubmittedOverlay(overlay); return Mutate(id, x => administration.SetEmergencyEnabledAsync(User.GetAccountId()!.Value, id, true, x), Localize("Emergency credential enabled."), ct); }
-    public Task<IActionResult> OnPostDisableEmergencyAsync(Guid id, [FromForm] bool overlay, CancellationToken ct) { Overlay = ResolveSubmittedOverlay(overlay); return Mutate(id, x => administration.SetEmergencyEnabledAsync(User.GetAccountId()!.Value, id, false, x), Localize("Emergency credential disabled."), ct); }
-    public async Task<IActionResult> OnPostGenerateResetLinkAsync(Guid id, [FromForm] bool overlay, CancellationToken ct) { Overlay = ResolveSubmittedOverlay(overlay); return await GenerateLink(id, false, ct); }
-    public async Task<IActionResult> OnPostGenerateEmergencyLinkAsync(Guid id, [FromForm] bool overlay, CancellationToken ct) { Overlay = ResolveSubmittedOverlay(overlay); return await GenerateLink(id, true, ct); }
+    public async Task<IActionResult> OnPostGenerateResetLinkAsync(Guid id, [FromForm] bool overlay, CancellationToken ct) { Overlay = ResolveSubmittedOverlay(overlay); return await GenerateLink(id, ct); }
 
-    private async Task<IActionResult> GenerateLink(Guid id, bool emergency, CancellationToken ct)
+    private async Task<IActionResult> GenerateLink(Guid id, CancellationToken ct)
     {
         try
         {
-            var token = emergency
-                ? await identities.GenerateEmergencyCredentialLinkAsync(User.GetAccountId()!.Value, id, ct)
-                : await identities.GenerateResetLinkAsync(User.GetAccountId()!.Value, id, ct);
+            if (!await Load(id, ct)) return NotFound();
+            var token = await identities.GenerateResetLinkAsync(User.GetAccountId()!.Value, id, ct);
             TempData["CredentialLink"] = Url.Page("/Account/ResetPassword", pageHandler: null, values: new { token }, protocol: Request.Scheme);
             TempData["CredentialLinkTargetId"] = id.ToString();
-            TempData["CredentialLinkPurpose"] = emergency ? "emergency" : "reset";
-            TempData["StatusMessage"] = emergency
-                ? Localize("Generated a one-time setup or reset link. It expires after 60 minutes.")
-                : Localize("Generated a one-time reset link. It expires after 60 minutes.");
+            TempData["CredentialLinkPurpose"] = "reset";
+            TempData["StatusMessage"] = Localize("Generated a one-time reset link. It expires after 60 minutes.");
             TempData[Bingo.Web.UI.UiMessage.TypeKey] = Bingo.Web.UI.UiMessageType.Success.ToString();
             return RedirectToPage(new { id, overlay = IsOverlay ? "1" : null });
+        }
+        catch (AccountActionException exception)
+        {
+            ModelState.AddModelError(string.Empty, Localize(exception.Message));
+            return await Load(id, ct) ? Page() : NotFound();
         }
         catch (InvalidOperationException)
         {
             ModelState.AddModelError(string.Empty, Localize("The account link could not be generated."));
-            await Load(id, ct);
-            return Page();
+            return await Load(id, ct) ? Page() : NotFound();
         }
     }
 
     private async Task<IActionResult> Mutate(Guid id, Func<CancellationToken, Task> action, string message, CancellationToken ct)
     {
+        if (!ModelState.IsValid) return await Load(id, ct) ? Page() : NotFound();
         try
         {
+            if (!await Load(id, ct)) return NotFound();
             await action(ct);
             TempData["StatusMessage"] = message;
             TempData[Bingo.Web.UI.UiMessage.TypeKey] = Bingo.Web.UI.UiMessageType.Success.ToString();
@@ -76,30 +80,24 @@ public sealed class ManageModel(ApplicationDbContext db, AccountAdministrationSe
         {
             AccountChangeStale = true;
             ModelState.AddModelError(string.Empty, Localize("This record was changed by another administrator. Current values are shown; review them before trying again."));
-            await Load(id, ct);
-            return Page();
+            return await Load(id, ct) ? Page() : NotFound();
+        }
+        catch (AccountActionException exception)
+        {
+            ModelState.AddModelError(string.Empty, Localize(exception.Message));
+            return await Load(id, ct) ? Page() : NotFound();
         }
         catch (InvalidOperationException)
         {
             ModelState.AddModelError(string.Empty, Localize("The account change could not be saved."));
-            await Load(id, ct);
-            return Page();
+            return await Load(id, ct) ? Page() : NotFound();
         }
     }
 
     private async Task<bool> Load(Guid id, CancellationToken ct)
     {
         var account = await db.Accounts.AsNoTracking().SingleOrDefaultAsync(x => x.Id == id, ct);
-        if (account is null) return false;
-        if (account.AccountType == AccountType.EmergencyCaptain && await (from access in db.AccountEventAccesses.AsNoTracking()
-                                                                          join bingoEvent in db.Events.AsNoTracking() on access.EventId equals bingoEvent.Id
-                                                                          where access.AccountId == id && bingoEvent.HiddenAt != null
-                                                                          select access.Id).AnyAsync(ct)) return false;
-        var scope = await (from access in db.AccountEventAccesses.AsNoTracking()
-                           join bingoEvent in db.Events.AsNoTracking() on access.EventId equals bingoEvent.Id
-                           join team in db.Teams.AsNoTracking() on access.TeamId equals team.Id
-                           where access.AccountId == id && bingoEvent.HiddenAt == null
-                           select new EmergencyScope(bingoEvent.Name, team.Name, access.Enabled, access.CutoffDisabled)).SingleOrDefaultAsync(ct);
+        if (account is null || account.AccountType != AccountType.WebsiteAccount) return false;
         var characters = await (from link in db.AccountOsrsCharacters.AsNoTracking()
                                 join character in db.OsrsCharacters.AsNoTracking() on link.OsrsCharacterId equals character.Id
                                 where link.AccountId == id
@@ -115,8 +113,8 @@ public sealed class ManageModel(ApplicationDbContext db, AccountAdministrationSe
                                  where participantIds.Contains(membership.EventParticipantId)
                                  select new { membership.EventParticipantId, TeamName = team.Name, membership.Role, membership.JoinedAt, membership.LeftAt }).ToListAsync(ct);
         var roles = participation.Select(p => new EventRoleView(p.EventName, p.EventTimezone, p.SignupStatus.ToString(), memberships.Where(m => m.EventParticipantId == p.Id).Select(m => new TeamRoleView(m.TeamName, m.Role, m.JoinedAt, m.LeftAt)).ToList())).ToList();
-        var disableHistory = await db.AuditEntries.AsNoTracking().Where(x => x.TargetType == "account" && x.TargetId == id.ToString() && (x.Action == "account.disabled" || x.Action == "account.restored")).OrderByDescending(x => x.OccurredAt).Select(x => new DisableHistoryView(x.Action == "account.disabled" ? "Disabled" : "Restored", x.OccurredAt, x.ActorUsername)).ToListAsync(ct);
-        AccountView = new AccountDetails(account.Id, account.AuthorizationVersion, account.LoginName, account.AccountType, account.GlobalRole, account.Active, account.DiscordUserId is not null, account.DiscordDisplayName, account.LastLoginAt, account.DisabledAt, account.PasswordHash is not null, scope, characters, roles, disableHistory);
+        var disableHistory = await db.AuditEntries.AsNoTracking().Where(x => x.TargetType == "account" && x.TargetId == id.ToString() && (x.Action == "account.disabled" || x.Action == "account.restored")).OrderByDescending(x => x.OccurredAt).Select(x => new DisableHistoryView(x.Action == "account.disabled" ? "Disabled" : "Restored", x.OccurredAt, x.ActorUsername, x.Action == "account.disabled" ? x.Details : null)).ToListAsync(ct);
+        AccountView = new AccountDetails(account.Id, account.AuthorizationVersion, account.LoginName, account.AccountType, account.GlobalRole, account.Active, account.DiscordUserId is not null, account.DiscordDisplayName, account.LastLoginAt, account.DisabledAt, account.PasswordHash is not null, characters, roles, disableHistory);
         return true;
     }
 
@@ -130,10 +128,9 @@ public sealed class ManageModel(ApplicationDbContext db, AccountAdministrationSe
 
     private string Localize(string key, params object[] arguments) => text?[key, arguments].Value ?? string.Format(System.Globalization.CultureInfo.CurrentCulture, key, arguments);
 
-    public sealed record AccountDetails(Guid Id, long AuthorizationVersion, string Username, AccountType AccountType, GlobalRole? Role, bool Active, bool DiscordLinked, string? DiscordDisplayName, DateTimeOffset? LastLoginAt, DateTimeOffset? DisabledAt, bool HasPassword, EmergencyScope? Scope, IReadOnlyList<CharacterView> Characters, IReadOnlyList<EventRoleView> EventRoles, IReadOnlyList<DisableHistoryView> DisableHistory);
-    public sealed record EmergencyScope(string EventName, string TeamName, bool Enabled, bool CutoffDisabled);
+    public sealed record AccountDetails(Guid Id, long AuthorizationVersion, string Username, AccountType AccountType, GlobalRole? Role, bool Active, bool DiscordLinked, string? DiscordDisplayName, DateTimeOffset? LastLoginAt, DateTimeOffset? DisabledAt, bool HasPassword, IReadOnlyList<CharacterView> Characters, IReadOnlyList<EventRoleView> EventRoles, IReadOnlyList<DisableHistoryView> DisableHistory);
     public sealed record CharacterView(string DisplayName, bool Active, bool Preferred) { public string NormalizedName => AccountAuthenticationService.NormalizeUsername(DisplayName); }
     public sealed record EventRoleView(string EventName, string Timezone, string ParticipationState, IReadOnlyList<TeamRoleView> TeamRoles);
     public sealed record TeamRoleView(string TeamName, TeamMembershipRole Role, DateTimeOffset JoinedAt, DateTimeOffset? LeftAt);
-    public sealed record DisableHistoryView(string State, DateTimeOffset OccurredAt, string ActorName);
+    public sealed record DisableHistoryView(string State, DateTimeOffset OccurredAt, string ActorName, string? Reason);
 }

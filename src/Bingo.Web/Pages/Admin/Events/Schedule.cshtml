@@ -9,16 +9,30 @@
     var signupUrl = Url.Page("/Events/Signup", null, new { slug = Model.EventSlug }, Request.Scheme, Request.Host.Value);
     var signupTableUrl = Url.Page("/Events/Signups", null, new { slug = Model.EventSlug }, Request.Scheme, Request.Host.Value);
     var publicBoardUrl = Url.Page("/Events/Board", null, new { slug = Model.EventSlug }, Request.Scheme, Request.Host.Value);
-    var hasSignupWarning = Model.Input.ScheduledSignupOpeningEnabled && Model.Readiness?.Warnings.Count > 0;
-    var showCombinedReview = Model.ChangePreview.Count > 0 || hasSignupWarning;
 }
 
 <section class="schedule-editor-page" data-schedule-editor>
     <div class="schedule-editor-layout">
         <main class="schedule-editor-main">
-            <form method="post" class="schedule-editor-form">
+            <form method="post" class="schedule-editor-form" data-schedule-form data-participants-rely="@(Model.ParticipantsRelyOnSchedule || Model.EventState == EventState.Live ? "true" : "false")" data-live="@(Model.EventState == EventState.Live ? "true" : "false")"
+                  data-schedule-title="@T["Save schedule changes?"]" data-schedule-live-title="@T["Change the Live event end?"]"
+                  data-schedule-description-prefix="@T["This changes"]" data-schedule-description-suffix="@T["Existing participants will see the new schedule."]" data-schedule-action="@T["Save schedule"]">
                 <div asp-validation-summary="ModelOnly" class="validation-summary app-notice notice-error"></div>
                 <input asp-for="Input.Version" type="hidden" />
+                <input asp-for="Input.ConfirmChanges" type="hidden" value="false" data-schedule-confirm />
+                <input asp-for="Input.EventEndReason" type="hidden" data-schedule-end-reason />
+                @if (Model.Readiness?.Warnings is { Count: > 0 })
+                {
+                    <section class="schedule-editor-warning" aria-labelledby="signup-warning-heading">
+                        <h2 id="signup-warning-heading">@T["Signup warnings"]</h2>
+                        <ul class="admin-signup-warning-list" aria-label="@T["Signup warnings"]">
+                            @foreach (var warning in Model.Readiness.Warnings)
+                            {
+                                <li>@T[warning.Description]</li>
+                            }
+                        </ul>
+                    </section>
+                }
                 <section class="schedule-editor-panel">
             <div class="event-schedule-groups">
                 <section class="event-schedule-group" aria-labelledby="signup-window-heading">
@@ -34,11 +48,8 @@
                                     <label class="event-datetime-part"><span>@T["Date"]</span><span class="event-datetime-input"><input type="date" data-datetime-date aria-label="@T["Signup opens date"]" /><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><path d="M8 2v4" /><path d="M16 2v4" /><rect width="18" height="18" x="3" y="4" rx="2" /><path d="M3 10h18" /></svg></span></label>
                                     <label class="event-datetime-part"><span>@T["Time"]</span><span class="event-datetime-input"><input type="time" step="300" data-datetime-time aria-label="@T["Signup opens time"]" /><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg></span></label>
                                 </div>
-                                <input asp-for="Input.SignupOpensLocal" type="datetime-local" step="300" class="form-control event-datetime-canonical" data-datetime-canonical />
+                                <input asp-for="Input.SignupOpensLocal" type="datetime-local" step="300" class="form-control event-datetime-canonical" data-datetime-canonical data-schedule-boundary="Signup opens" />
                                 <span asp-validation-for="Input.SignupOpensLocal" class="field-error"></span>
-                            </div>
-                            <div class="admin-field full-field">
-                                <label><input asp-for="Input.ScheduledSignupOpeningEnabled" /> @T["Open signup automatically at this time"]</label>
                             </div>
                         }
                         else
@@ -53,7 +64,7 @@
                                 <label class="event-datetime-part"><span>@T["Date"]</span><span class="event-datetime-input"><input type="date" data-datetime-date aria-label="@T["Signup closes date"]" /><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><path d="M8 2v4" /><path d="M16 2v4" /><rect width="18" height="18" x="3" y="4" rx="2" /><path d="M3 10h18" /></svg></span></label>
                                 <label class="event-datetime-part"><span>@T["Time"]</span><span class="event-datetime-input"><input type="time" step="300" data-datetime-time aria-label="@T["Signup closes time"]" /><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg></span></label>
                             </div>
-                            <input asp-for="Input.SignupClosesLocal" type="datetime-local" step="300" class="form-control event-datetime-canonical" data-datetime-canonical />
+                            <input asp-for="Input.SignupClosesLocal" type="datetime-local" step="300" class="form-control event-datetime-canonical" data-datetime-canonical data-schedule-boundary="Signup closes" />
                             <span asp-validation-for="Input.SignupClosesLocal" class="field-error"></span>
                         </div>
                         }
@@ -83,7 +94,7 @@
                                     <label class="event-datetime-part"><span>@T["Date"]</span><span class="event-datetime-input"><input type="date" data-datetime-date aria-label="@T["Event starts date"]" disabled="@(!Model.CanEditEventStart)" /><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><path d="M8 2v4" /><path d="M16 2v4" /><rect width="18" height="18" x="3" y="4" rx="2" /><path d="M3 10h18" /></svg></span></label>
                                 <label class="event-datetime-part"><span>@T["Time"]</span><span class="event-datetime-input"><input type="time" step="300" data-datetime-time aria-label="@T["Event starts time"]" disabled="@(!Model.CanEditEventStart)" /><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg></span></label>
                             </div>
-                            <input asp-for="Input.EventStartsLocal" type="datetime-local" step="300" class="form-control event-datetime-canonical" data-datetime-canonical disabled="@(!Model.CanEditEventStart)" />
+                            <input asp-for="Input.EventStartsLocal" type="datetime-local" step="300" class="form-control event-datetime-canonical" data-datetime-canonical data-schedule-boundary="Event starts" disabled="@(!Model.CanEditEventStart)" />
                             <span asp-validation-for="Input.EventStartsLocal" class="field-error"></span>
                         </div>
                         <div class="admin-field event-create-field event-datetime-field" data-datetime-control>
@@ -92,7 +103,7 @@
                                     <label class="event-datetime-part"><span>@T["Date"]</span><span class="event-datetime-input"><input type="date" data-datetime-date aria-label="@T["Event ends date"]" disabled="@(!Model.CanEditEventEnd)" /><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><path d="M8 2v4" /><path d="M16 2v4" /><rect width="18" height="18" x="3" y="4" rx="2" /><path d="M3 10h18" /></svg></span></label>
                                 <label class="event-datetime-part"><span>@T["Time"]</span><span class="event-datetime-input"><input type="time" step="300" data-datetime-time aria-label="@T["Event ends time"]" disabled="@(!Model.CanEditEventEnd)" /><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg></span></label>
                             </div>
-                            <input asp-for="Input.EventEndsLocal" type="datetime-local" step="300" class="form-control event-datetime-canonical" data-datetime-canonical disabled="@(!Model.CanEditEventEnd)" />
+                            <input asp-for="Input.EventEndsLocal" type="datetime-local" step="300" class="form-control event-datetime-canonical" data-datetime-canonical data-schedule-boundary="Event ends" disabled="@(!Model.CanEditEventEnd)" />
                             <span asp-validation-for="Input.EventEndsLocal" class="field-error"></span>
                         </div>
                     </div>
@@ -103,54 +114,17 @@
                                     <label class="event-datetime-part"><span>@T["Date"]</span><span class="event-datetime-input"><input type="date" data-datetime-date aria-label="@T["Draft date"]" disabled="@(!Model.CanEditDraftTime)" /><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><path d="M8 2v4" /><path d="M16 2v4" /><rect width="18" height="18" x="3" y="4" rx="2" /><path d="M3 10h18" /></svg></span></label>
                                 <label class="event-datetime-part"><span>@T["Time"]</span><span class="event-datetime-input"><input type="time" step="300" data-datetime-time aria-label="@T["Draft time"]" disabled="@(!Model.CanEditDraftTime)" /><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg></span></label>
                             </div>
-                            <input asp-for="Input.DraftLocal" type="datetime-local" step="300" class="form-control event-datetime-canonical" data-datetime-canonical disabled="@(!Model.CanEditDraftTime)" />
+                            <input asp-for="Input.DraftLocal" type="datetime-local" step="300" class="form-control event-datetime-canonical" data-datetime-canonical data-schedule-boundary="Draft time" disabled="@(!Model.CanEditDraftTime)" />
                             <span asp-validation-for="Input.DraftLocal" class="field-error"></span>
                         </div>
                     </div>
                 </section>
 
-                <section class="event-schedule-group schedule-capacity-warning-component" aria-labelledby="registration-capacity-heading">
-                    <div class="event-schedule-group-heading">
-                        <div><h3 id="registration-capacity-heading">@T["Registration capacity"]</h3><p>@T["Set the maximum number of players for this event."]</p></div>
-                    </div>
-                    <div class="schedule-capacity-warning-grid">
-                        <div class="admin-field schedule-capacity-label">
-                            <label asp-for="Input.ParticipantCap">@T["Maximum players"]</label>
-                        </div>
-                        <div class="admin-field schedule-capacity-control">
-                            <input asp-for="Input.ParticipantCap" class="form-control" min="1" max="10000" disabled="@(!Model.CanEditCapacity)" />
-                            <span asp-validation-for="Input.ParticipantCap" class="field-error"></span>
-                        </div>
-                    </div>
-                </section>
-
-                @if (showCombinedReview)
-                {
-                    <section class="event-schedule-group" aria-labelledby="schedule-preview-heading">
-                        <div class="event-schedule-group-heading">
-                            <div><h3 id="schedule-preview-heading">@T["Review schedule changes"]</h3><p>@T["Review these changes and warnings before saving the schedule."]</p></div>
-                        </div>
-                        @if (Model.ChangePreview.Count > 0) { <dl class="event-create-summary admin-field">@foreach (var value in Model.ChangePreview) { <div class="form-control"><span>@T[value.Label]</span><strong>@value.New</strong><small>@T["Previously: {0}", value.Current]</small></div> }</dl> }
-                        @if (hasSignupWarning) { <ul class="admin-signup-warning-list" aria-label="@T["Signup warnings"]">@foreach (var warning in Model.Readiness!.Warnings) { <li>@T[warning.Description]</li> }</ul> }
-                        @if (Model.EventState == Bingo.Domain.Events.EventState.Live && Model.ChangePreview.Any(value => value.Label == "Event ends"))
-                        {
-                            <div class="admin-field"><label asp-for="Input.EventEndReason">@T["Reason for changing the Live event end"]</label><textarea asp-for="Input.EventEndReason" class="form-control" rows="3"></textarea><span asp-validation-for="Input.EventEndReason" class="field-error"></span></div>
-                        }
-                        <div class="admin-field"><span class="field-label"><span asp-validation-for="Input.ConfirmChanges" class="field-error"></span></span></div>
-                    </section>
-                }
             </div>
 
             <div class="schedule-editor-actions">
                 <a class="admin-button-secondary event-create-cancel" asp-page="Manage" asp-route-id="@Model.EventId">@T["Cancel"]</a>
-                @if (showCombinedReview)
-                {
-                    <button class="admin-button-primary" type="submit" name="Input.ConfirmChanges" value="true">@T["Confirm and save schedule"]</button>
-                }
-                else
-                {
-                    <button class="admin-button-secondary" type="submit">@T["Save schedule"]</button>
-                }
+                <button class="admin-button-secondary" type="submit">@T["Save schedule"]</button>
             </div>
 
                 </section>
@@ -194,5 +168,48 @@
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
     <script src="~/js/event-create-datetime.js" asp-append-version="true"></script>
-    <script>window.bingoEventDateTime.initializeControls(document.querySelector("[data-schedule-editor]"), window.flatpickr);</script>
+    <script>
+        window.bingoEventDateTime.initializeControls(document.querySelector("[data-schedule-editor]"), window.flatpickr);
+        (() => {
+            const form = document.querySelector("[data-schedule-form]");
+            if (!form || !window.adminConfirmation) return;
+            let submitting = false;
+            form.addEventListener("submit", async event => {
+                if (submitting || form.dataset.participantsRely !== "true") return;
+                const changed = [...form.querySelectorAll("[data-schedule-boundary]:not([disabled])")]
+                    .filter(field => field.value !== field.defaultValue)
+                    .map(field => ({
+                        label: field.dataset.scheduleBoundary,
+                        oldValue: field.defaultValue,
+                        newValue: field.value
+                    }));
+                const consequenceChanges = changed.filter(change => change.label !== "Draft time");
+                if (consequenceChanges.length === 0) return;
+                event.preventDefault();
+                const isLive = form.dataset.live === "true";
+                const format = value => window.bingoEventDateTime?.format(value) || value || "—";
+                const changes = consequenceChanges
+                    .map(change => `${change.label}: ${format(change.oldValue)} → ${format(change.newValue)}`)
+                    .join("; ");
+                const result = await window.adminConfirmation.open({
+                    title: isLive ? form.dataset.scheduleLiveTitle : form.dataset.scheduleTitle,
+                    description: `${form.dataset.scheduleDescriptionPrefix} ${changes}; ${form.dataset.scheduleDescriptionSuffix}`,
+                    actionLabel: form.dataset.scheduleAction,
+                    requireReason: isLive && consequenceChanges.some(change => change.label === "Event ends"),
+                    onConfirm: ({ reason }) => {
+                        if (isLive && consequenceChanges.some(change => change.label === "Event ends")) {
+                            const reasonField = form.querySelector("[data-schedule-end-reason]");
+                            if (reasonField) reasonField.value = reason;
+                        }
+                        const confirmation = form.querySelector("[data-schedule-confirm]");
+                        if (confirmation) confirmation.value = "true";
+                        submitting = true;
+                        HTMLFormElement.prototype.submit.call(form);
+                        return true;
+                    }
+                });
+                if (result !== true) submitting = false;
+            });
+        })();
+    </script>
 }

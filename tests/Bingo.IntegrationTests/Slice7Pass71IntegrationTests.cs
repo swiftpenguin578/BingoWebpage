@@ -31,6 +31,7 @@ namespace Bingo.IntegrationTests;
 public sealed class Slice7Pass71IntegrationTests : IAsyncLifetime
 {
     private const string PreviousMigration = "20260730183704_AddPublishedBoardCorrectionFlag";
+    private const string ImmediateSwitchOrderPreviousMigration = "20260922214708_AddTileCompletionFactsAndCurrentScoreReachedAt";
     private const string Slice7FoundationMigration = "20260730212304_AddSlice7LiveAccountAndTeamFocusFoundation";
     private const string FocusConstraintCorrectionMigration = "20260731170051_RemoveTeamFocusEventTeamAlternateKey";
     private const string FocusNormalizationMigration = "20260731180603_NormalizeCompletedTileFocusMarkers";
@@ -385,12 +386,12 @@ public sealed class Slice7Pass71IntegrationTests : IAsyncLifetime
     [Fact]
     public async Task EventStartActivatesConfirmedPrimaryExactlyOnceAndExcludesInformationalAssignments()
     {
-        var fixture = await SeedFixtureAsync(includeInformational: true);
+        var fixture = await SeedFixtureAsync(includeInformational: true, administrator: true, publishRoster: true);
         await using (var start = new ApplicationDbContext(options))
         {
             var lifecycle = new EventLifecycleService(start, new NoopSignupLifecycleService(), new FixedTimeProvider(now));
             var item = await start.Events.SingleAsync(x => x.Id == fixture.EventId);
-            var result = await lifecycle.StartNowAsync(item.Id, item.Version, true, null, new(Guid.NewGuid(), "test-admin"));
+            var result = await lifecycle.StartNowAsync(item.Id, item.Version, true, null, new(fixture.OwnerId, "test-admin"));
             Assert.True(result.Succeeded, result.Error);
         }
 
@@ -398,7 +399,7 @@ public sealed class Slice7Pass71IntegrationTests : IAsyncLifetime
         {
             var lifecycle = new EventLifecycleService(retry, new NoopSignupLifecycleService(), new FixedTimeProvider(now));
             var item = await retry.Events.SingleAsync(x => x.Id == fixture.EventId);
-            var result = await lifecycle.StartNowAsync(item.Id, item.Version, true, null, new(Guid.NewGuid(), "test-admin"));
+            var result = await lifecycle.StartNowAsync(item.Id, item.Version, true, null, new(fixture.OwnerId, "test-admin"));
             Assert.False(result.Succeeded);
             Assert.Contains("pre-live state", result.Error, StringComparison.Ordinal);
         }
@@ -414,7 +415,7 @@ public sealed class Slice7Pass71IntegrationTests : IAsyncLifetime
     [Fact]
     public async Task WebsiteEventStartUsesBuiltInPrimaryWhenAnotherPlayingAssignmentIsOlder()
     {
-        var fixture = await SeedFixtureAsync(includeInformational: false, secondPlaying: true, secondaryPlayingFirst: true, source: SignupSource.Website);
+        var fixture = await SeedFixtureAsync(includeInformational: false, secondPlaying: true, secondaryPlayingFirst: true, source: SignupSource.Website, administrator: true, publishRoster: true);
         await using (var start = new ApplicationDbContext(options))
         {
             var lifecycle = new EventLifecycleService(start, new NoopSignupLifecycleService(), new FixedTimeProvider(now));
@@ -431,12 +432,12 @@ public sealed class Slice7Pass71IntegrationTests : IAsyncLifetime
     [Fact]
     public async Task EventStartFailsClosedWhenAConfirmedParticipantLacksPlayingAuthority()
     {
-        var fixture = await SeedFixtureAsync(includeInformational: false, omitPrimary: true);
+        var fixture = await SeedFixtureAsync(includeInformational: false, omitPrimary: true, administrator: true);
         await using var db = new ApplicationDbContext(options);
         var lifecycle = new EventLifecycleService(db, new NoopSignupLifecycleService(), new FixedTimeProvider(now));
         var item = await db.Events.SingleAsync(x => x.Id == fixture.EventId);
         var readiness = await lifecycle.GetStartReadinessAsync(item.Id);
-        var result = await lifecycle.StartNowAsync(item.Id, item.Version, true, null, new(Guid.NewGuid(), "test-admin"));
+        var result = await lifecycle.StartNowAsync(item.Id, item.Version, true, null, new(fixture.OwnerId, "test-admin"));
 
         Assert.False(result.Succeeded);
         Assert.Contains("Playing assignment", result.Error, StringComparison.Ordinal);
@@ -448,8 +449,8 @@ public sealed class Slice7Pass71IntegrationTests : IAsyncLifetime
     [Fact]
     public async Task WebsiteEventStartFailsClosedForMissingOrAmbiguousPrimaryWithoutResidue()
     {
-        var missing = await SeedFixtureAsync(includeInformational: false, source: SignupSource.Website, omitPrimary: true);
-        var ambiguous = await SeedFixtureAsync(includeInformational: false, source: SignupSource.Website);
+        var missing = await SeedFixtureAsync(includeInformational: false, source: SignupSource.Website, omitPrimary: true, administrator: true);
+        var ambiguous = await SeedFixtureAsync(includeInformational: false, source: SignupSource.Website, administrator: true);
         await using (var setup = new ApplicationDbContext(options))
         {
             var secondary = new OsrsCharacter(Guid.NewGuid(), "Ambiguous", "AMBIGUOUS", now);
@@ -483,12 +484,12 @@ public sealed class Slice7Pass71IntegrationTests : IAsyncLifetime
     [Fact]
     public async Task ActiveCharacterResolutionUsesLatestTransitionAtUtcInstant()
     {
-        var fixture = await SeedFixtureAsync(includeInformational: false, secondPlaying: true);
+        var fixture = await SeedFixtureAsync(includeInformational: false, secondPlaying: true, administrator: true, publishRoster: true);
         await using (var start = new ApplicationDbContext(options))
         {
             var lifecycle = new EventLifecycleService(start, new NoopSignupLifecycleService(), new FixedTimeProvider(now));
             var item = await start.Events.SingleAsync(x => x.Id == fixture.EventId);
-            var result = await lifecycle.StartNowAsync(item.Id, item.Version, true, null, new(Guid.NewGuid(), "test-admin"));
+            var result = await lifecycle.StartNowAsync(item.Id, item.Version, true, null, new(fixture.OwnerId, "test-admin"));
             Assert.True(result.Succeeded, result.Error);
         }
 
@@ -512,9 +513,9 @@ public sealed class Slice7Pass71IntegrationTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task LiveParticipantSwapUsesNextWholeMinuteAndBlocksPendingRetry()
+    public async Task LiveParticipantSwapIsImmediateAndRejectsStaleRetryAtDatabasePrecision()
     {
-        var fixture = await SeedFixtureAsync(includeInformational: false, secondPlaying: true, includeTeam: true);
+        var fixture = await SeedFixtureAsync(includeInformational: false, secondPlaying: true, includeTeam: true, administrator: true, publishRoster: true);
         await using (var start = new ApplicationDbContext(options))
         {
             var lifecycle = new EventLifecycleService(start, new NoopSignupLifecycleService(), new FixedTimeProvider(now));
@@ -523,14 +524,15 @@ public sealed class Slice7Pass71IntegrationTests : IAsyncLifetime
             Assert.True(result.Succeeded, result.Error);
         }
 
-        var requestTime = now.AddSeconds(12);
+        var requestTime = now.AddSeconds(12).AddTicks(17);
+        var persistedTime = requestTime.AddTicks(-7);
         await using (var swap = new ApplicationDbContext(options))
         {
             var service = new ParticipantLiveService(swap, new FixedTimeProvider(requestTime));
             var result = await service.SwapAsync(new(fixture.EventId, fixture.ParticipantId, fixture.PrimaryCharacterId,
                 fixture.SecondPlayingCharacterId!.Value, fixture.OwnerId, "owner"));
             Assert.True(result.Succeeded, result.Error);
-            Assert.Equal(now.AddMinutes(1), result.EffectiveAtUtc);
+            Assert.Equal(persistedTime, result.EffectiveAtUtc);
         }
 
         await using (var retry = new ApplicationDbContext(options))
@@ -539,18 +541,46 @@ public sealed class Slice7Pass71IntegrationTests : IAsyncLifetime
             var result = await service.SwapAsync(new(fixture.EventId, fixture.ParticipantId, fixture.PrimaryCharacterId,
                 fixture.SecondPlayingCharacterId!.Value, fixture.OwnerId, "owner"));
             Assert.False(result.Succeeded);
-            Assert.Contains("pending", result.Error, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("changed", result.Error, StringComparison.OrdinalIgnoreCase);
         }
 
         await using var verify = new ApplicationDbContext(options);
-        Assert.Equal(fixture.PrimaryCharacterId, (await verify.ActiveCharacterAtAsync(fixture.EventId, fixture.ParticipantId, requestTime))!.OsrsCharacterId);
+        Assert.Equal(fixture.SecondPlayingCharacterId, (await verify.ActiveCharacterAtAsync(fixture.EventId, fixture.ParticipantId, persistedTime))!.OsrsCharacterId);
         Assert.Equal(fixture.SecondPlayingCharacterId, (await verify.ActiveCharacterAtAsync(fixture.EventId, fixture.ParticipantId, now.AddMinutes(1)))!.OsrsCharacterId);
+        var saved = await verify.EventParticipantCharacterSwaps.SingleAsync(x => x.PreviousOsrsCharacterId != null && x.EventParticipantId == fixture.ParticipantId);
+        Assert.Equal(persistedTime, saved.EffectiveAtUtc);
+        Assert.Equal(persistedTime, saved.RecordedAtUtc);
+    }
+
+    [Fact]
+    public async Task ImmediateSwitchMigrationPreservesLegacyUuidTieOrderAndFutureRows()
+    {
+        var fixture = await SeedFixtureAsync(includeInformational: false, secondPlaying: true, includeTeam: true, administrator: true);
+        await using var db = new ApplicationDbContext(options);
+        var lowId = Guid.Parse("00000000-0000-0000-0000-000000000001");
+        var highId = Guid.Parse("ffffffff-ffff-ffff-ffff-ffffffffffff");
+        var instant = now.AddTicks(19);
+        db.AddRange(
+            new EventParticipantCharacterSwap(lowId, fixture.EventId, fixture.ParticipantId, fixture.SecondPlayingCharacterId, fixture.PrimaryCharacterId, instant, instant, fixture.OwnerId, "low tie"),
+            new EventParticipantCharacterSwap(highId, fixture.EventId, fixture.ParticipantId, fixture.PrimaryCharacterId, fixture.SecondPlayingCharacterId!.Value, instant, instant, fixture.OwnerId, "high tie"),
+            new EventParticipantCharacterSwap(Guid.NewGuid(), fixture.EventId, fixture.ParticipantId, fixture.SecondPlayingCharacterId, fixture.PrimaryCharacterId, now.AddMinutes(1), now, fixture.OwnerId, "pending"));
+        await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
+        var before = await db.EventParticipantCharacterSwaps.AsNoTracking().OrderBy(x => x.Id).ToListAsync();
+        await db.GetService<IMigrator>().MigrateAsync(ImmediateSwitchOrderPreviousMigration);
+        await db.Database.MigrateAsync();
+        var after = await db.EventParticipantCharacterSwaps.AsNoTracking().OrderBy(x => x.Id).ToListAsync();
+        Assert.Equal(before.Select(x => (x.Id, x.EffectiveAtUtc, x.RecordedAtUtc, x.NextOsrsCharacterId, x.Reason)),
+            after.Select(x => (x.Id, x.EffectiveAtUtc, x.RecordedAtUtc, x.NextOsrsCharacterId, x.Reason)));
+        Assert.Equal(highId, (await db.ActiveCharacterAtAsync(fixture.EventId, fixture.ParticipantId, now.AddTicks(10)))!.TransitionId);
+        Assert.Equal(new long[] { 1, 2, 3 }, after.OrderBy(x => x.Sequence).Select(x => x.Sequence));
+        Assert.Equal(fixture.PrimaryCharacterId, (await db.ActiveCharacterAtAsync(fixture.EventId, fixture.ParticipantId, now.AddMinutes(1)))!.OsrsCharacterId);
     }
 
     [Fact]
     public async Task LiveParticipantSwapProjectionAndMutationRejectAtOrAfterConfiguredEnd()
     {
-        var fixture = await SeedFixtureAsync(includeInformational: false, secondPlaying: true, includeTeam: true);
+        var fixture = await SeedFixtureAsync(includeInformational: false, secondPlaying: true, includeTeam: true, administrator: true, publishRoster: true);
         await using (var start = new ApplicationDbContext(options))
         {
             var lifecycle = new EventLifecycleService(start, new NoopSignupLifecycleService(), new FixedTimeProvider(now));
@@ -582,7 +612,7 @@ public sealed class Slice7Pass71IntegrationTests : IAsyncLifetime
     [Fact]
     public async Task TeamFocusIsPrivateRoleAwareOptimisticAndReadOnlyAfterEventEnd()
     {
-        var fixture = await SeedFixtureAsync(includeInformational: false, includeTeam: true);
+        var fixture = await SeedFixtureAsync(includeInformational: false, includeTeam: true, administrator: true, publishRoster: true);
         var outsiderId = Guid.NewGuid();
         var superAdminId = Guid.NewGuid();
         var emergencyId = Guid.NewGuid();
@@ -625,12 +655,10 @@ public sealed class Slice7Pass71IntegrationTests : IAsyncLifetime
             Assert.True(ownerContext.CanMutate);
 
             var emergencyContext = await service.GetContextAsync(fixture.EventId, fixture.TeamId, emergencyId, false);
-            Assert.NotNull(emergencyContext);
-            Assert.True(emergencyContext!.IsVisible);
-            Assert.True(emergencyContext.CanMutate);
+            Assert.Null(emergencyContext);
             var emergencyFocus = await service.SetFocusAsync(new(
                 fixture.EventId, fixture.TeamId, TeamFocusTargetKind.Column, null, null, 0, true, 0, emergencyId));
-            Assert.True(emergencyFocus.Succeeded, emergencyFocus.Error);
+            Assert.False(emergencyFocus.Succeeded);
 
             var focused = await service.SetFocusAsync(new(
                 fixture.EventId, fixture.TeamId, TeamFocusTargetKind.Row, null, 0, null, true, 0, fixture.OwnerId));
@@ -689,7 +717,9 @@ public sealed class Slice7Pass71IntegrationTests : IAsyncLifetime
         bool includeTeam = false,
         bool omitPrimary = false,
         bool secondaryPlayingFirst = false,
-        SignupSource source = SignupSource.AdminCreated)
+        SignupSource source = SignupSource.AdminCreated,
+        bool administrator = false,
+        bool publishRoster = false)
     {
         var eventId = Guid.NewGuid();
         var participantId = Guid.NewGuid();
@@ -706,6 +736,7 @@ public sealed class Slice7Pass71IntegrationTests : IAsyncLifetime
         await using var db = new ApplicationDbContext(options);
         var adminLogin = $"slice-7-admin-{eventId:N}";
         var admin = Account.CreateWebsite(adminId, adminLogin, adminLogin.ToUpperInvariant(), now);
+        if (administrator) admin.SetGlobalRole(GlobalRole.Admin);
         var item = new BingoEvent(eventId, "Slice 7 event", $"slice-7-{eventId:N}", "UTC", adminId, now);
         item.UpdateIdentity(item.Name, item.Slug, "A public event description.", "UTC");
         item.ConfigureSchedule(now.AddHours(-2), now.AddHours(-1), null, now, now.AddHours(1), 20);
@@ -738,8 +769,22 @@ public sealed class Slice7Pass71IntegrationTests : IAsyncLifetime
 
         var board = new Board(Guid.NewGuid(), eventId, "Published board", 1, 1);
         var draft = new DraftSession(Guid.NewGuid(), eventId, 1);
-        draft.Start(now.AddDays(-2));
-        draft.Finalize(now.AddDays(-1));
+        if (publishRoster)
+        {
+            draft.FinalizeDirect(now.AddDays(-1));
+        }
+        else
+        {
+            draft.Start(now.AddDays(-2));
+            draft.Finalize(now.AddDays(-1));
+        }
+        var rosterTeam = includeTeam || publishRoster
+            ? new Team(teamId, eventId, "Focus team", "focus-team", includeTeam ? TeamFormationType.Preformed : TeamFormationType.Drafted, null, includeTeam ? false : true)
+            : null;
+        if (publishRoster) rosterTeam!.Finalize(now.AddDays(-1));
+        var rosterMembership = rosterTeam is null
+            ? null
+            : new TeamMembership(Guid.NewGuid(), teamId, participantId, includeTeam ? TeamMembershipRole.Captain : TeamMembershipRole.Participant, now.AddDays(-2), null, "test");
         db.AddRange(admin, item, form, primaryQuestion, informationalQuestion, secondaryQuestion, participant, primary, informational);
         db.EventParticipantCharacters.AddRange(assignments);
         if (!includeInformational)
@@ -747,10 +792,17 @@ public sealed class Slice7Pass71IntegrationTests : IAsyncLifetime
         db.Boards.Add(board);
         db.DraftSessions.Add(draft);
         await BoardApprovalFixture.PublishAsync(db, board, now);
-        if (includeTeam)
+        if (rosterTeam is not null)
         {
-            db.Teams.Add(new Team(teamId, eventId, "Focus team", "focus-team", TeamFormationType.Preformed, null, false));
-            db.TeamMemberships.Add(new TeamMembership(Guid.NewGuid(), teamId, participantId, TeamMembershipRole.Captain, now, null, "test"));
+            db.Teams.Add(rosterTeam);
+            db.TeamMemberships.Add(rosterMembership!);
+        }
+        if (publishRoster)
+        {
+            var publication = new DraftPublicationCycle(Guid.NewGuid(), draft.Id, 1, now.AddDays(-1), adminId, DraftPublicationMethod.DirectRoster);
+            var roster = new DraftPublicationRoster(Guid.NewGuid(), publication.Id, teamId, participantId, rosterMembership!.Role, null, primary.DisplayName);
+            item.SetDraftRosterPublication(true);
+            db.AddRange(publication, roster);
         }
         await db.SaveChangesAsync();
         return new(eventId, participantId, teamId, board.Id, primaryCharacterId, informationalCharacterId, secondPlayingCharacterId, adminId, primaryQuestionId);
@@ -806,7 +858,7 @@ public sealed class Slice7Pass71IntegrationTests : IAsyncLifetime
         public Task<Bingo.Application.Events.SignupLifecycleResult> SaveScheduleAsync(Guid eventId, long version, Bingo.Application.Events.EventScheduleValues values, bool confirmChanges, LifecycleActor actor, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<Bingo.Application.Events.SignupLifecycleResult> SaveScheduleAsync(Guid eventId, long version, Bingo.Application.Events.EventScheduleValues values, bool confirmChanges, LifecycleActor actor, string? reason, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<Bingo.Application.Events.SignupLifecycleResult> OpenAsync(Guid eventId, long version, IReadOnlyCollection<string> acknowledgedWarningCodes, bool acceptProposedClose, LifecycleActor actor, CancellationToken ct = default) => throw new NotSupportedException();
-        public Task<Bingo.Application.Events.SignupLifecycleResult> CloseAsync(Guid eventId, long version, LifecycleActor actor, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<Bingo.Application.Events.SignupLifecycleResult> CloseAsync(Guid eventId, long version, bool confirmed, LifecycleActor actor, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<Bingo.Application.Events.SignupLifecycleResult> ReopenAsync(Guid eventId, long version, IReadOnlyCollection<string> acknowledgedWarningCodes, bool acceptProposedClose, LifecycleActor actor, CancellationToken ct = default) => throw new NotSupportedException();
         public Task ProcessDueSignupAsync(CancellationToken ct = default) => Task.CompletedTask;
     }

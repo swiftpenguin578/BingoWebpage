@@ -157,6 +157,15 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests
                 TeamMembershipRole.Participant, now.AddHours(-2), null, "Boss leaderboard fixture"));
             setup.Add(new TeamMembership(Guid.NewGuid(), zeroTeam.Id, partialParticipant.Id,
                 TeamMembershipRole.Participant, now.AddHours(-2), null, "Boss leaderboard fixture"));
+            var firstParticipantId = await setup.EventParticipants.Where(value => value.EventId == f.Event.Id)
+                .OrderBy(value => value.SignupSequence).Select(value => value.Id).FirstAsync();
+            var draft = new DraftSession(Guid.NewGuid(), f.Event.Id, 1);
+            draft.FinalizeDirect(now.AddHours(-2));
+            var draftPublication = new DraftPublicationCycle(Guid.NewGuid(), draft.Id, 1, now.AddHours(-2), f.Admin.Id, DraftPublicationMethod.DirectRoster);
+            setup.AddRange(draft, draftPublication,
+                new DraftPublicationRoster(Guid.NewGuid(), draftPublication.Id, team.Id, firstParticipantId, TeamMembershipRole.Participant, null, f.Characters[0].DisplayName),
+                new DraftPublicationRoster(Guid.NewGuid(), draftPublication.Id, team.Id, secondParticipant.Id, TeamMembershipRole.Participant, null, secondCharacters[0].DisplayName),
+                new DraftPublicationRoster(Guid.NewGuid(), draftPublication.Id, zeroTeam.Id, partialParticipant.Id, TeamMembershipRole.Participant, null, partialCharacters[0].DisplayName));
             await setup.SaveChangesAsync();
         }
         f.AdditionalCharacters.AddRange(secondCharacters); f.AdditionalCharacters.AddRange(partialCharacters);
@@ -619,7 +628,7 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests
         var clock = new TestClock(new DateTimeOffset(2026, 9, 15, 12, 0, 0, TimeSpan.Zero)); var now = clock.GetUtcNow();
         var admin = Account.CreateWebsite(Guid.NewGuid(), "MetricAdmin", "METRICADMIN", now); admin.SetGlobalRole(GlobalRole.Admin);
         var ev = new BingoEvent(Guid.NewGuid(), "Synthetic metric event", "metric-event", "", "UTC", now.AddHours(-3), now.AddHours(-2), now.AddHours(-1), now.AddHours(6), now.AddHours(6), 10, admin.Id, now);
-        ev.OpenSignups(now.AddHours(-3)); ev.CloseSignups(now.AddHours(-2)); ev.StartEvent(now.AddHours(-1));
+        ev.OpenSignups(now.AddHours(-3)); ev.CloseSignups(now.AddHours(-2)); ev.SetDraftRosterPublication(true); ev.StartEvent(now.AddHours(-1));
         var participant = new EventParticipant(Guid.NewGuid(), ev.Id, SignupStatus.Confirmed, 1, now.AddHours(-3), SignupSource.Website);
         var names = new[] { "Fixture One", "Fixture Two", "Fixture Alt" };
         var characters = names.Select(name => new OsrsCharacter(Guid.NewGuid(), name, name.ToUpperInvariant(), now)).ToArray();

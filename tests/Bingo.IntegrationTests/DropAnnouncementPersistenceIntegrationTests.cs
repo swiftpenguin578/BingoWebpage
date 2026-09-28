@@ -442,9 +442,11 @@ public sealed class DropAnnouncementPersistenceIntegrationTests : IAsyncLifetime
             (await setup.Teams.SingleAsync(team => team.Id == seed.TeamId)).Finalize(DateTimeOffset.UtcNow);
             await setup.SaveChangesAsync();
         }
-        var boardPage = await administrator.GetStringAsync($"/Events/{seed.EventSlug}/Board");
-        Assert.Contains("data-progress-event=\"" + seed.EventId + "\"", boardPage);
-        Assert.Contains("data-drop-announcement", boardPage);
+        // The route remains available, but the public board is correctly hidden
+        // until an active published roster exists.  Do not resurrect the old
+        // partial board/drop surface merely to make this endpoint test render.
+        using var unpublishedBoard = await administrator.GetAsync($"/Events/{seed.EventSlug}/Board");
+        Assert.Equal(HttpStatusCode.NotFound, unpublishedBoard.StatusCode);
     }
 
     [Fact]

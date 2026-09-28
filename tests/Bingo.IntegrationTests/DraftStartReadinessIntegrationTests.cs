@@ -1,18 +1,25 @@
 using System.Globalization;
 using System.Net;
+using System.Security.Claims;
 using System.Text.RegularExpressions;
+using Bingo.Application.Access;
 using Bingo.Application.Events;
 using Bingo.Application.Evidence;
 using Bingo.Domain.Access;
+using Bingo.Domain.Auditing;
 using Bingo.Domain.Boards;
 using Bingo.Domain.Events;
 using Bingo.Domain.Signups;
 using Bingo.Domain.Teams;
 using Bingo.Infrastructure.Events;
+using Bingo.Infrastructure.Evidence;
 using Bingo.Infrastructure.Persistence;
+using Bingo.Infrastructure.Teams;
 using Bingo.Web;
 using Bingo.Web.Events;
 using Bingo.Web.Security;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -20,6 +27,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 using Testcontainers.PostgreSql;
 
 namespace Bingo.IntegrationTests;
@@ -44,291 +52,180 @@ public sealed class DraftStartReadinessIntegrationTests : IAsyncLifetime
 
     [Theory]
     [InlineData("scheduled")]
-    [InlineData("early")]
-    [InlineData("postponed")]
-    public async Task AdminSetupEnableAndActualStartUnlockEmergencyOnlyTeamWithoutEarlyEvidence(string mode)
+    [InlineData("manual")]
+    public async Task LiveStartDoesNotRequireCaptainOrEmergencyCredentials(string mode)
     {
         var setup = await SeedAsync();
-        await using var factory = Factory();
-        using var admin = Client(factory);
-        using var ordinary = Client(factory);
-        using var emergency = Client(factory);
-        await LoginAsync(admin, "readiness-admin");
-        await LoginAsync(ordinary, "readiness-user");
-        var createPath = $"/Admin/Accounts/Create?eventId={setup.EventId}&teamId={setup.TeamId}";
-        var createHtml = await admin.GetStringAsync(createPath);
-        Assert.Contains("Input.Username", createHtml);
-        using (var denied = await PostAsync(ordinary, "/Admin/Accounts/Create", "/Account/Settings", new()
-        {
-            ["Input.Username"] = "unauthorized-emergency",
-            ["Input.EventId"] = setup.EventId.ToString(),
-            ["Input.TeamId"] = setup.TeamId.ToString()
-        })) Assert.Equal(HttpStatusCode.Redirect, denied.StatusCode);
-        using (var created = await PostAsync(admin, createPath, createPath, new()
-        {
-            ["Input.Username"] = "readiness-emergency",
-            ["Input.EventId"] = setup.EventId.ToString(),
-            ["Input.TeamId"] = setup.TeamId.ToString()
-        })) Assert.Equal(HttpStatusCode.Redirect, created.StatusCode);
-        Guid credentialId;
-        await using (var db = new ApplicationDbContext(options))
-        {
-            Assert.False(await db.Accounts.AnyAsync(x => x.LoginName == "unauthorized-emergency"));
-            var credential = await db.Accounts.SingleAsync(x => x.LoginName == "readiness-emergency");
-            credentialId = credential.Id;
-            Assert.False(credential.Active);
-            Assert.Null(credential.PasswordHash);
-            var access = await db.AccountEventAccesses.SingleAsync(x => x.AccountId == credential.Id);
-            Assert.False(access.Enabled);
-            Assert.Equal(setup.ScheduledStart, access.ActiveFrom);
-        }
-        var manage = $"/Admin/Accounts/Manage/{credentialId}";
-        // A forged enable request cannot bypass initial setup.
-        using (var unset = await PostAsync(admin, manage + "?handler=EnableEmergency", manage, new()))
-            Assert.Equal(HttpStatusCode.OK, unset.StatusCode);
-        await AssertCredentialAsync(credentialId, false);
-        using (var denied = await PostAsync(ordinary, manage + "?handler=EnableEmergency", "/Account/Settings", new()))
-            Assert.Equal(HttpStatusCode.Redirect, denied.StatusCode);
-        await AssertCredentialAsync(credentialId, false);
-        using (var link = await PostAsync(admin, manage + "?handler=GenerateEmergencyLink", manage, new()))
-            Assert.Equal(HttpStatusCode.Redirect, link.StatusCode);
-        var revealed = await admin.GetStringAsync(manage);
-        var resetPath = Regex.Match(revealed, @"/Account/ResetPassword/[A-F0-9]+").Value;
-        Assert.NotEmpty(resetPath);
-        using (var completed = await PostAsync(emergency, resetPath, resetPath, new()
-        {
-            ["Input.Password"] = Password,
-            ["Input.ConfirmPassword"] = Password
-        })) Assert.Equal(HttpStatusCode.Redirect, completed.StatusCode);
-        await AssertCredentialAsync(credentialId, false);
-        Assert.False(await TryLoginAsync(emergency, "readiness-emergency"));
-        if (mode == "postponed")
-        {
-            clock.Set(setup.ScheduledStart);
-            await ProcessDueAsync(factory);
-            await using var blocked = new ApplicationDbContext(options);
-            Assert.Null((await blocked.Events.SingleAsync()).ActualStartedAt);
-            var attempt = await blocked.ScheduledEventStartAttempts.SingleAsync();
-            Assert.False(attempt.Started);
-            Assert.Null(attempt.ResolvedAt);
-            clock.Set(setup.ScheduledStart.AddMinutes(5));
-        }
-        var grantTime = clock.GetUtcNow();
-        using (var enabled = await PostAsync(admin, manage + "?handler=EnableEmergency", manage, new()))
-            Assert.Equal(HttpStatusCode.Redirect, enabled.StatusCode);
-        await AssertCredentialAsync(credentialId, true);
-        await using (var db = new ApplicationDbContext(options))
-        {
-            var access = await db.AccountEventAccesses.SingleAsync();
-            Assert.Equal(grantTime, access.ActiveFrom);
-            Assert.Equal(AccountAccessMode.Disabled, access.GetAccessMode(grantTime.AddTicks(-1)));
-            Assert.Equal(AccountAccessMode.Full, access.GetAccessMode(grantTime));
-            Assert.Single(await db.AuditEntries.Where(x => x.Action == "account.emergency_enabled").ToListAsync());
-        }
-        await LoginAsync(emergency, "readiness-emergency");
-        var drawer = Drawer(setup);
-        var prestart = await SubmitAsync(emergency, setup, drawer);
-        Assert.DoesNotContain("\"success\":true", prestart);
-        Assert.Contains("We could not complete that request", prestart, StringComparison.Ordinal);
-        using (var scope = factory.Services.CreateScope())
-        {
-            var failure = await Assert.ThrowsAsync<InvalidOperationException>(() => scope.ServiceProvider.GetRequiredService<ISubmissionService>().CreateAsync(
-                new(credentialId, setup.EventId, setup.TeamId, setup.TileId, setup.RequirementId, null, setup.ParticipantId, 1, null, "proof.png", new MemoryStream([1, 2, 3]))));
-            Assert.Equal("New submissions are not currently open.", failure.Message);
-        }
-        await using (var db = new ApplicationDbContext(options)) Assert.Empty(await db.Submissions.ToListAsync());
-        Assert.Equal(0, storage.Writes);
-        using (var scope = factory.Services.CreateScope())
-        {
-            var readiness = await scope.ServiceProvider.GetRequiredService<IEventLifecycleService>().GetStartReadinessAsync(setup.EventId);
-            Assert.NotNull(readiness);
-            Assert.True(readiness.CanProceed, string.Join(";", readiness.Blockers));
-        }
-        var eventManage = $"/Admin/Events/Manage/{setup.EventId}";
-        if (mode == "scheduled")
-        {
-            clock.Set(setup.ScheduledStart);
-            await ProcessDueAsync(factory);
-        }
-        else
-        {
-            // Neither an ordinary actor nor a stale event version may start the ready event.
-            using (var unauthorized = await PostAsync(ordinary, eventManage + "?handler=StartEvent", "/Account/Settings", new() { ["ConfirmStartEvent"] = "true" }))
-                Assert.Equal(HttpStatusCode.Redirect, unauthorized.StatusCode);
-            var version = await VersionAsync();
-            using (var stale = await PostAsync(admin, eventManage + "?handler=StartEvent", eventManage, new()
-            {
-                ["EventVersion"] = (version - 1).ToString(CultureInfo.InvariantCulture),
-                ["ConfirmStartEvent"] = "true",
-                ["StartReason"] = "Authorized early start"
-            })) Assert.Equal(HttpStatusCode.OK, stale.StatusCode);
-            await using (var unchanged = new ApplicationDbContext(options)) Assert.Null((await unchanged.Events.SingleAsync()).ActualStartedAt);
-            if (mode == "early")
-            {
-                using var missingReason = await PostAsync(admin, eventManage + "?handler=StartEvent", eventManage, new()
-                {
-                    ["EventVersion"] = version.ToString(CultureInfo.InvariantCulture),
-                    ["ConfirmStartEvent"] = "true"
-                });
-                Assert.Equal(HttpStatusCode.OK, missingReason.StatusCode);
-            }
-            using var started = await PostAsync(admin, eventManage + "?handler=StartEvent", eventManage, new()
-            {
-                ["EventVersion"] = version.ToString(CultureInfo.InvariantCulture),
-                ["ConfirmStartEvent"] = "true",
-                ["StartReason"] = mode == "early" ? "Authorized early start" : ""
-            });
-            Assert.Equal(HttpStatusCode.Redirect, started.StatusCode);
-        }
-        await using (var db = new ApplicationDbContext(options))
-        {
-            var item = await db.Events.SingleAsync();
-            Assert.Equal(EventState.Live, item.State);
-            Assert.Equal(clock.GetUtcNow(), item.ActualStartedAt);
-            Assert.Equal(setup.ScheduledStart, item.EventStartsAt);
-            Assert.Single(await db.EventStateTransitions.Where(x => x.ToState == EventState.Live).ToListAsync());
-            if (mode == "early") Assert.True(item.ActualStartedAt < item.EventStartsAt);
-            if (mode == "postponed") Assert.NotNull((await db.ScheduledEventStartAttempts.SingleAsync()).ResolvedAt);
-        }
-        var submitted = await SubmitAsync(emergency, setup, drawer);
-        Assert.Contains("\"success\":true", submitted);
-        await using (var db = new ApplicationDbContext(options))
-        {
-            var row = await db.Submissions.SingleAsync();
-            Assert.Equal(setup.ParticipantId, row.CreditedParticipantId);
-            Assert.Equal(credentialId, row.SubmittedByAccountId);
-        }
-        Assert.Equal(1, storage.Writes);
-        if (mode != "early") return;
-        // Existing sessions lose access immediately on disable; re-enabling does not revive the old cookie.
-        using (var disabled = await PostAsync(admin, manage + "?handler=DisableEmergency", manage, new())) Assert.Equal(HttpStatusCode.Redirect, disabled.StatusCode);
-        using (var denied = await emergency.GetAsync(drawer)) Assert.Equal(HttpStatusCode.Redirect, denied.StatusCode);
-        using (var enabled = await PostAsync(admin, manage + "?handler=EnableEmergency", manage, new())) Assert.Equal(HttpStatusCode.Redirect, enabled.StatusCode);
-        await LoginAsync(emergency, "readiness-emergency");
-        clock.Set(setup.Cutoff);
-        await ProcessDueAsync(factory);
-        await AssertCredentialAsync(credentialId, false);
-        using (var denied = await emergency.GetAsync(drawer)) Assert.Equal(HttpStatusCode.Redirect, denied.StatusCode);
-        using (var denied = await PostAsync(admin, manage + "?handler=EnableEmergency", manage, new())) Assert.Equal(HttpStatusCode.OK, denied.StatusCode);
-        await AssertCredentialAsync(credentialId, false);
-        using (var reopened = await PostAsync(admin, eventManage + "?handler=ReopenSubmissions", eventManage, new()
-        {
-            ["EventVersion"] = (await VersionAsync()).ToString(CultureInfo.InvariantCulture),
-            ["ReopenUntil"] = clock.GetUtcNow().AddMinutes(10).ToString("O", CultureInfo.InvariantCulture),
-            ["StateReason"] = "Controlled reopen check"
-        })) Assert.Equal(HttpStatusCode.Redirect, reopened.StatusCode);
-        await AssertCredentialAsync(credentialId, false);
-        using (var enabled = await PostAsync(admin, manage + "?handler=EnableEmergency", manage, new())) Assert.Equal(HttpStatusCode.Redirect, enabled.StatusCode);
-        await LoginAsync(emergency, "readiness-emergency");
-        Assert.Contains("\"success\":true", await SubmitAsync(emergency, setup, drawer));
-        clock.Set(clock.GetUtcNow().AddMinutes(10));
-        await ProcessDueAsync(factory);
-        await AssertCredentialAsync(credentialId, false);
-        await using var history = new ApplicationDbContext(options);
-        Assert.Equal(2, await history.Submissions.CountAsync());
-        Assert.Equal(2, await history.AuditEntries.CountAsync(x => x.Action == "account.emergency_cutoff_disabled"));
-        Assert.True((await history.AccountEventAccesses.SingleAsync()).CutoffDisabled);
-    }
-
-    [Theory]
-    [InlineData("unset")]
-    [InlineData("password-change")]
-    [InlineData("disabled-account")]
-    [InlineData("disabled-access")]
-    [InlineData("expired")]
-    [InlineData("future-grant")]
-    [InlineData("wrong-event")]
-    [InlineData("wrong-team")]
-    public async Task ReadinessAndStartRejectUnusableEmergencyAccess(string fault)
-    {
-        var setup = await SeedAsync();
-        await using (var db = new ApplicationDbContext(options))
-        {
-            var account = Account.CreateEmergency(Guid.NewGuid(), "unusable", "UNUSABLE", clock.GetUtcNow());
-            if (fault != "unset") account.SetPassword(new PasswordHasher<Account>().HashPassword(account, Password), fault == "password-change", clock.GetUtcNow(), false);
-            if (fault != "disabled-account") account.Enable();
-            var access = new AccountEventAccess(Guid.NewGuid(), account.Id, fault == "wrong-event" ? Guid.NewGuid() : setup.EventId,
-                fault == "wrong-team" ? Guid.NewGuid() : setup.TeamId, null, fault == "future-grant" ? setup.ScheduledStart : clock.GetUtcNow(), null,
-                fault == "expired" ? clock.GetUtcNow() : null);
-            if (fault != "disabled-access") access.Enable();
-            db.AddRange(account, access);
-            await db.SaveChangesAsync();
-        }
         await using var factory = Factory();
         using var scope = factory.Services.CreateScope();
         var lifecycle = scope.ServiceProvider.GetRequiredService<IEventLifecycleService>();
         var readiness = await lifecycle.GetStartReadinessAsync(setup.EventId);
-        Assert.Contains(readiness!.Blockers, x => x.Code == "TEAM_ACCESS_MISSING");
-        var result = await lifecycle.StartNowAsync(setup.EventId, await VersionAsync(), true, "Controlled early start", new(setup.AdminId, "readiness-admin"));
-        Assert.False(result.Succeeded);
+        Assert.True(readiness!.CanProceed, string.Join(", ", readiness.Blockers.Select(x => x.Code)));
+        if (mode == "scheduled") { clock.Set(setup.ScheduledStart); await lifecycle.ProcessDueAsync(); }
+        else Assert.True((await lifecycle.StartNowAsync(setup.EventId, await VersionAsync(), true, "Controlled early start", new(setup.AdminId, "readiness-admin"))).Succeeded);
         await using var verify = new ApplicationDbContext(options);
-        Assert.Null((await verify.Events.SingleAsync()).ActualStartedAt);
-        Assert.Empty(await verify.EventStateTransitions.ToListAsync());
-        Assert.Empty(await verify.AuditEntries.Where(x => x.Action == "event.started").ToListAsync());
+        Assert.Equal(clock.GetUtcNow(), (await verify.Events.SingleAsync()).ActualStartedAt);
+        Assert.Null(scope.ServiceProvider.GetService<EmergencyCredentialLifecycleService>());
+        Assert.Null(scope.ServiceProvider.GetService<EmergencyCredentialService>());
+        Assert.Null(scope.ServiceProvider.GetService<CaptainAccountProvisioner>());
     }
 
     [Theory]
-    [InlineData("draft-unfinished")]
-    [InlineData("end-passed")]
-    [InlineData("cancelled")]
-    [InlineData("expired")]
-    [InlineData("wrong-team")]
-    [InlineData("disabled-admin")]
-    public async Task PrestartEnableDenialsPreserveCredentialAndAuditAtomically(string fault)
+    [InlineData(DraftPublicationMethod.WebsiteDraft)]
+    [InlineData(DraftPublicationMethod.DirectRoster)]
+    public async Task LiveStartReadinessAcceptsEveryApprovedPublicationMethod(DraftPublicationMethod method)
     {
-        var setup = await SeedAsync(finalize: fault != "draft-unfinished");
-        Guid accountId;
+        var setup = await SeedAsync(publicationMethod: method);
+        await using var factory = Factory();
+        using var scope = factory.Services.CreateScope();
+        var lifecycle = scope.ServiceProvider.GetRequiredService<IEventLifecycleService>();
+
+        var readiness = await lifecycle.GetStartReadinessAsync(setup.EventId);
+        Assert.True(readiness!.CanProceed, string.Join(", ", readiness.Blockers.Select(x => x.Code)));
+        await using var db = new ApplicationDbContext(options);
+        Assert.Equal(method, await db.DraftPublicationCycles.Select(x => x.PublicationMethod).SingleAsync());
+    }
+
+    [Theory]
+    [InlineData(PasswordCredentialTokenPurpose.EmergencySetup)]
+    [InlineData(PasswordCredentialTokenPurpose.EmergencyReset)]
+    [InlineData(PasswordCredentialTokenPurpose.Reset)]
+    public async Task RetainedTokensCannotChangeEmergencyPasswords(PasswordCredentialTokenPurpose purpose)
+    {
+        var setup = await SeedAsync();
+        var emergency = await SeedEmergencyAsync(setup);
+        const string raw = "retained-unconsumed-emergency-token";
+        await using (var seed = new ApplicationDbContext(options))
+        {
+            seed.PasswordCredentialTokens.Add(new(Guid.NewGuid(), emergency.Id, purpose, AccountIdentityService.Hash(raw), clock.GetUtcNow().AddHours(1), clock.GetUtcNow(), setup.AdminId));
+            await seed.SaveChangesAsync();
+        }
         await using (var db = new ApplicationDbContext(options))
         {
-            var account = Account.CreateEmergency(Guid.NewGuid(), "denied", "DENIED", clock.GetUtcNow());
-            account.SetPassword(new PasswordHasher<Account>().HashPassword(account, Password), false, clock.GetUtcNow(), false);
-            accountId = account.Id;
-            var access = new AccountEventAccess(Guid.NewGuid(), account.Id, setup.EventId, fault == "wrong-team" ? Guid.NewGuid() : setup.TeamId, null,
-                setup.ScheduledStart, null, fault == "expired" ? clock.GetUtcNow() : null);
-            db.AddRange(account, access);
-            if (fault == "disabled-admin") (await db.Accounts.SingleAsync(x => x.Id == setup.AdminId)).Disable(clock.GetUtcNow(), null, "test");
-            await db.SaveChangesAsync();
-            if (fault == "cancelled") await db.Database.ExecuteSqlInterpolatedAsync($"UPDATE events SET state = 'Cancelled' WHERE id = {setup.EventId}");
+            var identities = new AccountIdentityService(db, new PasswordHasher<Account>(), clock);
+            await Assert.ThrowsAsync<InvalidOperationException>(() => identities.ConsumeResetAsync(raw, "replacement-password", CancellationToken.None));
         }
-        if (fault == "end-passed") clock.Set(setup.Cutoff);
-        await using (var db = new ApplicationDbContext(options))
-            await Assert.ThrowsAsync<InvalidOperationException>(() => new AccountAdministrationService(db, new PasswordHasher<Account>(), clock).SetEmergencyEnabledAsync(setup.AdminId, accountId, true, CancellationToken.None));
-        await AssertCredentialAsync(accountId, false);
         await using var verify = new ApplicationDbContext(options);
-        Assert.Equal(setup.ScheduledStart, (await verify.AccountEventAccesses.SingleAsync()).ActiveFrom);
+        var persisted = await verify.Accounts.SingleAsync(x => x.Id == emergency.Id);
+        Assert.Equal(emergency.PasswordHash, persisted.PasswordHash);
+        Assert.Equal(emergency.PasswordVersion, persisted.PasswordVersion);
+        Assert.Null((await verify.PasswordCredentialTokens.SingleAsync()).UsedAt);
         Assert.Empty(await verify.AuditEntries.ToListAsync());
     }
 
     [Fact]
-    public async Task FailedEnableAuditRollsBackAccountAndGrantTogether()
+    public async Task ExistingCookieLoginAndRemovedAdminRoutesFailClosed()
     {
         var setup = await SeedAsync();
-        Guid accountId;
-        await using (var db = new ApplicationDbContext(options))
+        var emergency = await SeedEmergencyAsync(setup);
+        await using var factory = Factory();
+        using var admin = Client(factory);
+        await LoginAsync(admin, "readiness-admin");
+        using (var removed = await admin.GetAsync("/Admin/Accounts/Create")) Assert.Equal(HttpStatusCode.NotFound, removed.StatusCode);
+        using (var removed = await PostAsync(admin, "/Admin/Accounts/Create", "/Admin/Accounts", new())) Assert.Equal(HttpStatusCode.NotFound, removed.StatusCode);
+        using (var removed = await admin.GetAsync($"/Admin/Accounts/Manage/{emergency.Id}")) Assert.Equal(HttpStatusCode.NotFound, removed.StatusCode);
+        foreach (var handler in new[] { "EnableEmergency", "DisableEmergency", "GenerateEmergencyLink", "GenerateResetLink", "Disable", "Restore" })
         {
-            var account = Account.CreateEmergency(Guid.NewGuid(), "rollback", "ROLLBACK", clock.GetUtcNow());
-            account.SetPassword(new PasswordHasher<Account>().HashPassword(account, Password), false, clock.GetUtcNow(), false);
-            accountId = account.Id;
-            db.AddRange(account, new AccountEventAccess(Guid.NewGuid(), account.Id, setup.EventId, setup.TeamId, null, setup.ScheduledStart, null, null));
-            await db.SaveChangesAsync();
-            await db.Database.ExecuteSqlRawAsync("""
-                CREATE FUNCTION reject_enable_audit() RETURNS trigger LANGUAGE plpgsql AS $$
-                BEGIN
-                    IF NEW.action = 'account.emergency_enabled' THEN RAISE EXCEPTION 'Injected enable audit failure'; END IF;
-                    RETURN NEW;
-                END $$;
-                CREATE TRIGGER reject_enable_audit BEFORE INSERT ON audit_entries FOR EACH ROW EXECUTE FUNCTION reject_enable_audit();
-                """);
+            using var response = await PostAsync(admin, $"/Admin/Accounts/Manage/{emergency.Id}?handler={handler}", "/Admin/Accounts", new());
+            Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         }
-        await using (var db = new ApplicationDbContext(options))
-            await Assert.ThrowsAsync<DbUpdateException>(() => new AccountAdministrationService(db, new PasswordHasher<Account>(), clock).SetEmergencyEnabledAsync(setup.AdminId, accountId, true, CancellationToken.None));
-        await AssertCredentialAsync(accountId, false);
+        using var legacy = Client(factory);
+        Assert.False(await TryLoginAsync(legacy, emergency.LoginName));
+        var cookie = factory.Services.GetRequiredService<IOptionsMonitor<CookieAuthenticationOptions>>().Get(CookieAuthenticationDefaults.AuthenticationScheme);
+        var principal = new ClaimsPrincipal(new ClaimsIdentity(new[] {
+            new Claim(ClaimTypes.NameIdentifier, emergency.Id.ToString()), new Claim(ClaimTypes.Name, emergency.LoginName),
+            new Claim(ClaimTypes.Role, "Captain"), new Claim(AccountClaims.AccountType, AccountType.EmergencyCaptain.ToString()),
+            new Claim(AccountClaims.AuthenticationMethod, "password"), new Claim(AccountClaims.AuthorizationVersion, emergency.AuthorizationVersion.ToString(CultureInfo.InvariantCulture)),
+            new Claim(AccountClaims.PasswordVersion, emergency.PasswordVersion.ToString(CultureInfo.InvariantCulture)), new Claim(AccountClaims.EventId, setup.EventId.ToString()), new Claim(AccountClaims.TeamId, setup.TeamId.ToString())
+        }, CookieAuthenticationDefaults.AuthenticationScheme));
+        var ticket = new AuthenticationTicket(principal, new AuthenticationProperties { IssuedUtc = DateTimeOffset.UtcNow, ExpiresUtc = DateTimeOffset.UtcNow.AddHours(1) }, CookieAuthenticationDefaults.AuthenticationScheme);
+        legacy.DefaultRequestHeaders.Add("Cookie", $"{cookie.Cookie.Name}={cookie.TicketDataFormat.Protect(ticket)}");
+        using var rejected = await legacy.GetAsync($"/Submissions?eventId={setup.EventId}&teamId={setup.TeamId}");
+        Assert.Equal(HttpStatusCode.Redirect, rejected.StatusCode);
+        Assert.Contains("accessChanged=true", rejected.Headers.Location!.ToString());
         await using var verify = new ApplicationDbContext(options);
-        Assert.Equal(setup.ScheduledStart, (await verify.AccountEventAccesses.SingleAsync()).ActiveFrom);
-        Assert.Empty(await verify.AuditEntries.ToListAsync());
+        Assert.True((await verify.Accounts.SingleAsync(x => x.Id == emergency.Id)).Active);
+        Assert.True((await verify.AccountEventAccesses.SingleAsync()).Enabled);
+        Assert.Empty(await verify.AuditEntries.Where(x => x.Action.StartsWith("account.emergency")).ToListAsync());
     }
 
-    private async Task<Setup> SeedAsync(bool finalize = true)
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task DirectEmergencyCommandsAndTeamAuthorityRemainUnavailable(bool hidden)
+    {
+        var setup = await SeedAsync();
+        var emergency = await SeedEmergencyAsync(setup);
+        await using var db = new ApplicationDbContext(options);
+        if (hidden) await db.Database.ExecuteSqlInterpolatedAsync($"UPDATE events SET hidden_at = {clock.GetUtcNow()}, hidden_by_account_id = {setup.AdminId}, hidden_reason = 'Retirement fixture' WHERE id = {setup.EventId}");
+        var identities = new AccountIdentityService(db, new PasswordHasher<Account>(), clock);
+        var administration = new AccountAdministrationService(db, new PasswordHasher<Account>(), clock);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => new EmergencyCredentialService(db, clock).CreateAsync(setup.AdminId, "new-emergency", setup.EventId, setup.TeamId, CancellationToken.None));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => administration.SetEmergencyEnabledAsync(setup.AdminId, emergency.Id, true, CancellationToken.None));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => administration.SetEmergencyEnabledAsync(setup.AdminId, emergency.Id, false, CancellationToken.None));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => administration.RestoreAsync(setup.AdminId, emergency.Id, emergency.AuthorizationVersion, CancellationToken.None));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => identities.GenerateEmergencyCredentialLinkAsync(setup.AdminId, emergency.Id, CancellationToken.None));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => identities.GenerateResetLinkAsync(setup.AdminId, emergency.Id, CancellationToken.None));
+        var authority = new EvidenceAuthority(db);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => authority.GetCurrentTeamCandidatesAsync(new(EvidenceActorKind.EmergencyCaptain, emergency.Id, setup.EventId, setup.TeamId, Guid.Empty)));
+        foreach (var teamId in new[] { setup.TeamId, Guid.NewGuid() })
+        {
+            await Assert.ThrowsAsync<InvalidOperationException>(() => authority.AuthorizeAsync(emergency.Id, setup.EventId, teamId, setup.ParticipantId, clock.GetUtcNow()));
+            Assert.Null(await new TeamFocusService(db, clock).GetContextAsync(setup.EventId, teamId, emergency.Id, false));
+            Assert.False((await new TeamFocusService(db, clock).SetFocusAsync(new(setup.EventId, teamId, TeamFocusTargetKind.Row, null, 0, null, true, 0, emergency.Id))).Succeeded);
+        }
+        await new EmergencyCredentialLifecycleService(db, clock).ApplyAsync(CancellationToken.None);
+        Assert.Empty(await db.PasswordCredentialTokens.ToListAsync());
+        Assert.Empty(await db.AuditEntries.ToListAsync());
+        Assert.True((await db.AccountEventAccesses.SingleAsync()).Enabled);
+    }
+
+    [Theory]
+    [InlineData(TeamMembershipRole.Captain)]
+    [InlineData(TeamMembershipRole.CoCaptain)]
+    public async Task WebsiteLeadershipRetainsMembershipBasedEvidenceAndFocus(TeamMembershipRole role)
+    {
+        var setup = await SeedAsync();
+        await using var db = new ApplicationDbContext(options);
+        var account = await db.Accounts.SingleAsync(x => x.LoginName == "readiness-user");
+        (await db.EventParticipants.SingleAsync()).AssignOwner(account);
+        var member = await db.TeamMemberships.SingleAsync();
+        member.ChangeRole(role);
+        var item = await db.Events.SingleAsync();
+        item.StartEvent(clock.GetUtcNow());
+        await db.SaveChangesAsync();
+        var authority = new EvidenceAuthority(db);
+        var actor = await authority.AuthorizeAsync(account.Id, setup.EventId, setup.TeamId, setup.ParticipantId, clock.GetUtcNow());
+        Assert.Equal(EvidenceActorKind.Captain, actor.Kind);
+        var principal = new AccountAuthenticationService(db, new PasswordHasher<Account>(), clock).CreatePrincipal(account);
+        var requirements = new Microsoft.AspNetCore.Authorization.IAuthorizationRequirement[] { new AccountAccessRequirement(AccountAccessMode.Full), new TeamScopeRequirement() };
+        var allowed = new Microsoft.AspNetCore.Authorization.AuthorizationHandlerContext(requirements, principal, new TeamScope(setup.EventId, setup.TeamId));
+        var denied = new Microsoft.AspNetCore.Authorization.AuthorizationHandlerContext(requirements, principal, new TeamScope(setup.EventId, Guid.NewGuid()));
+        var handler = new AccountAuthorizationHandler(db, clock);
+        await handler.HandleAsync(allowed);
+        await handler.HandleAsync(denied);
+        Assert.True(allowed.HasSucceeded);
+        Assert.False(denied.HasSucceeded);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => authority.AuthorizeAsync(account.Id, setup.EventId, Guid.NewGuid(), setup.ParticipantId, clock.GetUtcNow()));
+        var focus = new TeamFocusService(db, clock);
+        Assert.True((await focus.GetContextAsync(setup.EventId, setup.TeamId, account.Id, false))!.CanMutate);
+        Assert.True((await focus.SetFocusAsync(new(setup.EventId, setup.TeamId, TeamFocusTargetKind.Row, null, 0, null, true, 0, account.Id))).Succeeded);
+        await db.Database.ExecuteSqlInterpolatedAsync($"UPDATE events SET hidden_at = {clock.GetUtcNow()}, hidden_by_account_id = {setup.AdminId}, hidden_reason = 'Retirement fixture' WHERE id = {setup.EventId}");
+        await Assert.ThrowsAsync<InvalidOperationException>(() => authority.ResolveActorAsync(account.Id, setup.EventId, setup.TeamId, clock.GetUtcNow()));
+        Assert.Null(await focus.GetContextAsync(setup.EventId, setup.TeamId, account.Id, false));
+    }
+
+    private async Task<Account> SeedEmergencyAsync(Setup setup)
+    {
+        await using var db = new ApplicationDbContext(options);
+        var account = Account.CreateEmergency(Guid.NewGuid(), "retained-emergency", "RETAINED-EMERGENCY", clock.GetUtcNow());
+        account.SetPassword(new PasswordHasher<Account>().HashPassword(account, Password), false, clock.GetUtcNow(), false);
+        account.Enable();
+        var access = new AccountEventAccess(Guid.NewGuid(), account.Id, setup.EventId, setup.TeamId, null, clock.GetUtcNow().AddHours(-1), null, null);
+        access.Enable(); db.AddRange(account, access); await db.SaveChangesAsync(); return account;
+    }
+
+    private async Task<Setup> SeedAsync(bool finalize = true, DraftPublicationMethod publicationMethod = DraftPublicationMethod.HistoricalUnknown)
     {
         var now = clock.GetUtcNow();
         await using var db = new ApplicationDbContext(options);
@@ -352,10 +249,14 @@ public sealed class DraftStartReadinessIntegrationTests : IAsyncLifetime
         var character = new OsrsCharacter(Guid.NewGuid(), "External One", "EXTERNAL ONE", now);
         var assignment = new EventParticipantCharacter(Guid.NewGuid(), item.Id, participant.Id, character.Id, 0, now.AddHours(-2), admin.Id, null, EventCharacterRole.Playing, 10, EhbSource.Manual, null);
         var membership = new TeamMembership(Guid.NewGuid(), team.Id, participant.Id, TeamMembershipRole.Captain, now.AddHours(-2), null, "Unowned preformed Captain");
+        var publication = finalize ? new DraftPublicationCycle(Guid.NewGuid(), draft.Id, 1, now.AddMinutes(-5), admin.Id, publicationMethod) : null;
+        var publishedRoster = publication is null ? null : new DraftPublicationRoster(Guid.NewGuid(), publication.Id, team.Id, participant.Id, TeamMembershipRole.Captain, null, character.DisplayName);
         var board = new Board(Guid.NewGuid(), item.Id, "Readiness board", 1, 1);
         var tile = new BoardTile(Guid.NewGuid(), board.Id, Guid.NewGuid(), 0, 0, "Objective", "Complete it", "Proof", 1);
         var requirement = new BoardRequirementSnapshot(Guid.NewGuid(), tile.Id, 0, 10, true, false, "Runs", true, 1);
         db.AddRange(admin, ordinary, item, team, draft, participant, character, assignment, membership, board, tile, requirement);
+        if (publication is not null) db.Add(publication);
+        if (publishedRoster is not null) db.Add(publishedRoster);
         await BoardApprovalFixture.PublishAsync(db, board, now, [tile], [requirement]);
         return new(item.Id, team.Id, participant.Id, admin.Id, tile.Id, requirement.Id, item.EventStartsAt!.Value, item.SubmissionCutoffAt!.Value);
     }
@@ -374,7 +275,6 @@ public sealed class DraftStartReadinessIntegrationTests : IAsyncLifetime
     {
         using var scope = factory.Services.CreateScope();
         await scope.ServiceProvider.GetRequiredService<IEventLifecycleService>().ProcessDueAsync();
-        await scope.ServiceProvider.GetRequiredService<EmergencyCredentialLifecycleService>().ApplyAsync(CancellationToken.None);
     }
     private async Task AssertCredentialAsync(Guid id, bool enabled)
     {

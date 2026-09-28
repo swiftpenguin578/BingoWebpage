@@ -16,7 +16,12 @@ public sealed class TeamMembership
     public Guid? ReplacesMembershipId { get; private set; }
     public long Version { get; private set; } = 1;
     public string? AssignmentReason { get; private set; }
-    public void ChangeRole(TeamMembershipRole role) => Role = role;
+    public void ChangeRole(TeamMembershipRole role)
+    {
+        if (Role == role) return;
+        Role = role;
+        Version++;
+    }
     public void Leave(DateTimeOffset now, string reason) { LeftAt = now.ToUniversalTime(); AssignmentReason = reason; }
     public void SetSource(TeamMembershipSource source, Guid? replacesMembershipId = null) { Source = source; ReplacesMembershipId = replacesMembershipId; }
     public void AdvanceVersion() => Version++;

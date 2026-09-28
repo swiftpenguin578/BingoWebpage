@@ -55,33 +55,39 @@ public sealed partial class Slice3ScheduledLifecycleIntegrationTests : IAsyncLif
     [Fact]
     public async Task ManualSignupConfirmationDoesNotReuseAcknowledgementForNewTextWarnings()
     {
-        var admin = Account.CreateWebsite(Guid.NewGuid(), "warning-admin", "WARNING-ADMIN", now);
-        admin.SetGlobalRole(GlobalRole.Admin);
         var eventId = Guid.NewGuid();
+        var admin = Account.CreateWebsite(Guid.NewGuid(), "retired-confirmation-admin", "RETIRED CONFIRMATION ADMIN", now);
+        admin.SetGlobalRole(GlobalRole.Admin);
+
         await using var db = new ApplicationDbContext(options);
-        var item = ReadyDraft(db, eventId, "warning-scope", now.AddHours(1), now.AddHours(2), now.AddDays(3));
+        var item = ReadyDraft(db, eventId, "retired-confirmation", now.AddHours(1), now.AddHours(2), now.AddDays(3));
         item.ConfigureSchedule(item.SignupOpensAt, null, null, item.EventStartsAt, item.EventEndsAt, item.ParticipantCap);
         item.ConfigureSignup(false, false, null);
         db.AddRange(admin, item);
         await db.SaveChangesAsync();
+
+        var stateBefore = await db.Events.AsNoTracking().Where(value => value.Id == eventId)
+            .Select(value => new { value.State, value.Version })
+            .SingleAsync();
         var page = Manage(db, admin, new MutableTimeProvider(now));
-        page.EventVersion = item.Version;
-        page.SignupWarningCodes = ["WAITING_LIST_DISABLED"];
-        page.Request.Form = new FormCollection(new Dictionary<string, Microsoft.Extensions.Primitives.StringValues> { ["AcknowledgeSignupWarnings"] = "true" });
-        Assert.IsType<RedirectToPageResult>(await page.OnPostConfirmSignupAsync(eventId, CancellationToken.None));
-        Assert.Equal("WAITING_LIST_DISABLED", page.TempData.Peek($"ManageSignupConfirmation:{eventId}:warnings"));
-        var form = await db.SignupForms.SingleAsync(form => form.EventId == eventId);
-        db.SignupQuestions.Add(new SignupQuestion(Guid.NewGuid(), form.Id, eventId, "new_text", "New public question", SignupQuestionType.Text, false, 2, null));
-        await db.SaveChangesAsync();
-        page.Request.Form = new FormCollection(new Dictionary<string, Microsoft.Extensions.Primitives.StringValues> { ["AcceptProposedClose"] = "true" });
-        Assert.IsType<RedirectToPageResult>(await page.OnPostConfirmSignupAsync(eventId, CancellationToken.None));
-        Assert.Equal(EventState.Draft, (await db.Events.AsNoTracking().SingleAsync(item => item.Id == eventId)).State);
-        Assert.Empty(await db.EventStateTransitions.ToListAsync());
-        page.SignupWarningCodes = ["WAITING_LIST_DISABLED", "PUBLIC_FREE_TEXT"];
-        page.Request.Form = new FormCollection(new Dictionary<string, Microsoft.Extensions.Primitives.StringValues> { ["AcknowledgeSignupWarnings"] = "true" });
-        Assert.IsType<RedirectToPageResult>(await page.OnPostConfirmSignupAsync(eventId, CancellationToken.None));
-        Assert.Equal(EventState.SignupOpen, (await db.Events.AsNoTracking().SingleAsync(item => item.Id == eventId)).State);
-        Assert.Single(await db.EventStateTransitions.ToListAsync());
+        page.EventVersion = stateBefore.Version;
+        page.Request.Form = new FormCollection(new Dictionary<string, Microsoft.Extensions.Primitives.StringValues>
+        {
+            ["AcknowledgeSignupWarnings"] = "true",
+            ["AcceptProposedClose"] = "true"
+        });
+
+        var rejected = await page.OnPostConfirmSignupAsync(eventId, CancellationToken.None);
+        var badRequest = Assert.IsType<BadRequestObjectResult>(rejected);
+        Assert.Contains("retired", badRequest.Value?.ToString(), StringComparison.OrdinalIgnoreCase);
+
+        var stateAfter = await db.Events.AsNoTracking().Where(value => value.Id == eventId)
+            .Select(value => new { value.State, value.Version })
+            .SingleAsync();
+        Assert.Equal(stateBefore.State, stateAfter.State);
+        Assert.Equal(stateBefore.Version, stateAfter.Version);
+        Assert.Empty(await db.EventStateTransitions.Where(value => value.EventId == eventId).ToListAsync());
+        Assert.Empty(await db.AuditEntries.Where(value => value.EventId == eventId).ToListAsync());
     }
 
     [Fact]
@@ -138,8 +144,8 @@ public sealed partial class Slice3ScheduledLifecycleIntegrationTests : IAsyncLif
         {
             var failed = new BingoEvent(failedId, "Failed opening", "failed-opening", "UTC", Guid.NewGuid(), now);
             failed.UpdateIdentity("Failed opening", "failed-opening", "Public event description", "UTC");
-            failed.ConfigureSchedule(clock.GetUtcNow(), now.AddDays(2), null, now.AddDays(3), now.AddDays(4), 20);
-            failed.ConfigureSignup(false, false, null);
+            failed.ConfigureSchedule(clock.GetUtcNow(), now.AddDays(2), null, now.AddDays(3), null, 20);
+            failed.ConfigureSignup(true, false, null);
             failed.ConfigureScheduledSignupOpening(true, []);
             AddReadySignupForm(setup, failedId);
             setup.AddRange(admin, failed);
@@ -155,7 +161,7 @@ public sealed partial class Slice3ScheduledLifecycleIntegrationTests : IAsyncLif
         {
             Assert.Equal(EventState.Draft, (await verify.Events.SingleAsync(x => x.Id == failedId)).State);
             var attempt = Assert.Single(await verify.ScheduledSignupOpeningAttempts.Where(x => x.EventId == failedId).ToListAsync());
-            Assert.Contains("UNACKNOWLEDGED_WAITING_LIST_DISABLED", attempt.Blockers);
+            Assert.Contains("EVENT_END_REQUIRED", attempt.Blockers);
             Assert.Single(await verify.PersonalNotifications.Where(x => x.RecipientAccountId == admin.Id && x.Title == "Scheduled signup opening failed").ToListAsync());
             Assert.Single(await verify.AuditEntries.Where(x => x.EventId == failedId && x.Action == "event.signup_opening_failed").ToListAsync());
         }
@@ -165,6 +171,9 @@ public sealed partial class Slice3ScheduledLifecycleIntegrationTests : IAsyncLif
     public async Task LateScheduledEndUsesEffectiveInstantAndResumeThenSecondEndPreservesHistory()
     {
         var eventId = Guid.NewGuid();
+        var actor = new LifecycleActor(Guid.NewGuid(), "scheduled-end-admin");
+        var admin = Account.CreateWebsite(actor.Id, actor.Username, actor.Username.ToUpperInvariant(), now);
+        admin.SetGlobalRole(GlobalRole.Admin);
         var scheduledEnd = now.AddHours(-1);
         await using (var setup = new ApplicationDbContext(options))
         {
@@ -172,7 +181,7 @@ public sealed partial class Slice3ScheduledLifecycleIntegrationTests : IAsyncLif
             item.OpenSignups(now.AddDays(-3));
             item.CloseSignups(now.AddDays(-2));
             item.StartEvent(now.AddDays(-2).AddMinutes(1));
-            setup.Events.Add(item);
+            setup.AddRange(admin, item);
             await setup.SaveChangesAsync();
         }
 
@@ -192,14 +201,14 @@ public sealed partial class Slice3ScheduledLifecycleIntegrationTests : IAsyncLif
 
         await using (var resume = new ApplicationDbContext(options))
         {
-            var result = await Services(resume, clock).ResumePrematureEndAsync(eventId, scheduledVersion, true, "The first end was premature.", now.AddHours(2), new LifecycleActor(Guid.NewGuid(), "admin"));
+            var result = await Services(resume, clock).ResumePrematureEndAsync(eventId, scheduledVersion, true, "The first end was premature.", now.AddHours(2), actor);
             Assert.True(result.Succeeded, result.Error);
         }
 
         var liveVersion = await VersionAsync(eventId);
         await using (var repeated = new ApplicationDbContext(options))
         {
-            var result = await Services(repeated, clock).ResumePrematureEndAsync(eventId, liveVersion, true, "Repeated request.", now.AddHours(3), new LifecycleActor(Guid.NewGuid(), "admin"));
+            var result = await Services(repeated, clock).ResumePrematureEndAsync(eventId, liveVersion, true, "Repeated request.", now.AddHours(3), actor);
             Assert.False(result.Succeeded);
             Assert.Contains("final review", result.Error, StringComparison.OrdinalIgnoreCase);
         }
@@ -207,7 +216,7 @@ public sealed partial class Slice3ScheduledLifecycleIntegrationTests : IAsyncLif
         clock.Set(now.AddHours(3));
         await using (var secondEnd = new ApplicationDbContext(options))
         {
-            var result = await Services(secondEnd, clock).EndNowAsync(eventId, await VersionAsync(eventId), true, null, new LifecycleActor(Guid.NewGuid(), "admin"));
+            var result = await Services(secondEnd, clock).EndNowAsync(eventId, await VersionAsync(eventId), true, null, actor);
             Assert.True(result.Succeeded, result.Error);
         }
 
@@ -215,7 +224,13 @@ public sealed partial class Slice3ScheduledLifecycleIntegrationTests : IAsyncLif
         var itemAfterSecondEnd = await verify.Events.SingleAsync(x => x.Id == eventId);
         Assert.Equal(EventState.AwaitingFinalReview, itemAfterSecondEnd.State);
         Assert.Equal(now.AddHours(3), itemAfterSecondEnd.ActualEndedAt);
-        Assert.Equal(now.AddHours(2).AddMinutes(30), itemAfterSecondEnd.SubmissionsClosedAt);
+        Assert.Equal(now.AddHours(3).AddMinutes(30), itemAfterSecondEnd.SubmissionCutoffAt);
+        Assert.Null(itemAfterSecondEnd.SubmissionsClosedAt);
+        clock.Set(now.AddHours(3).AddMinutes(30));
+        await using (var closure = new ApplicationDbContext(options))
+            await Services(closure, clock).ProcessDueAsync();
+        await using var afterCutoff = new ApplicationDbContext(options);
+        Assert.Equal(now.AddHours(3).AddMinutes(30), (await afterCutoff.Events.SingleAsync(x => x.Id == eventId)).SubmissionsClosedAt);
         var transitions = await verify.EventStateTransitions.Where(x => x.EventId == eventId).OrderBy(x => x.PerformedAt).ToListAsync();
         Assert.Equal(3, transitions.Count);
         Assert.Equal((EventState.Live, EventState.AwaitingFinalReview), (transitions[0].FromState, transitions[0].ToState));
@@ -231,6 +246,7 @@ public sealed partial class Slice3ScheduledLifecycleIntegrationTests : IAsyncLif
     public async Task ResumeReusesRetainedFutureEndAndRedrivesCutoff()
     {
         var eventId = Guid.NewGuid();
+        var actor = new LifecycleActor(Guid.NewGuid(), "admin");
         await using (var setup = new ApplicationDbContext(options))
         {
             var item = ReadyDraft(setup, eventId, "retained-resume", now.AddHours(-3), now.AddHours(-2), now.AddDays(1));
@@ -238,13 +254,16 @@ public sealed partial class Slice3ScheduledLifecycleIntegrationTests : IAsyncLif
             item.CloseSignups(now.AddHours(-2));
             item.StartEvent(now.AddHours(-1));
             item.EndEvent(now.AddMinutes(-30));
+            var admin = Account.CreateWebsite(actor.Id, actor.Username, actor.Username.ToUpperInvariant(), now);
+            admin.SetGlobalRole(GlobalRole.Admin);
+            setup.Accounts.Add(admin);
             setup.Events.Add(item);
             await setup.SaveChangesAsync();
         }
 
         await using var db = new ApplicationDbContext(options);
         var before = await db.Events.AsNoTracking().SingleAsync(x => x.Id == eventId);
-        var resumed = await Services(db, new MutableTimeProvider(now)).ResumePrematureEndAsync(eventId, before.Version, true, "Resume with the retained end.", null, new LifecycleActor(Guid.NewGuid(), "admin"));
+        var resumed = await Services(db, new MutableTimeProvider(now)).ResumePrematureEndAsync(eventId, before.Version, true, "Resume with the retained end.", null, actor);
         Assert.True(resumed.Succeeded, resumed.Error);
         var after = await db.Events.AsNoTracking().SingleAsync(x => x.Id == eventId);
         Assert.Equal(before.EventEndsAt, after.EventEndsAt);
@@ -256,6 +275,7 @@ public sealed partial class Slice3ScheduledLifecycleIntegrationTests : IAsyncLif
     public async Task ResumeRequiresReplacementAfterConfiguredEndExpires()
     {
         var eventId = Guid.NewGuid();
+        var actor = new LifecycleActor(Guid.NewGuid(), "admin");
         await using (var setup = new ApplicationDbContext(options))
         {
             var item = ReadyDraft(setup, eventId, "expired-resume", now.AddHours(-4), now.AddHours(-3), now.AddHours(-1));
@@ -263,6 +283,9 @@ public sealed partial class Slice3ScheduledLifecycleIntegrationTests : IAsyncLif
             item.CloseSignups(now.AddHours(-3));
             item.StartEvent(now.AddHours(-2));
             item.EndEvent(now.AddMinutes(-30));
+            var admin = Account.CreateWebsite(actor.Id, actor.Username, actor.Username.ToUpperInvariant(), now);
+            admin.SetGlobalRole(GlobalRole.Admin);
+            setup.Accounts.Add(admin);
             setup.Events.Add(item);
             await setup.SaveChangesAsync();
         }
@@ -270,10 +293,10 @@ public sealed partial class Slice3ScheduledLifecycleIntegrationTests : IAsyncLif
         var clock = new MutableTimeProvider(now);
         await using var db = new ApplicationDbContext(options);
         var before = await db.Events.AsNoTracking().SingleAsync(x => x.Id == eventId);
-        var missing = await Services(db, clock).ResumePrematureEndAsync(eventId, before.Version, true, "Need a replacement end.", null, new LifecycleActor(Guid.NewGuid(), "admin"));
+        var missing = await Services(db, clock).ResumePrematureEndAsync(eventId, before.Version, true, "Need a replacement end.", null, actor);
         Assert.False(missing.Succeeded);
         Assert.Contains("expired", missing.Error, StringComparison.OrdinalIgnoreCase);
-        var replacement = await Services(db, clock).ResumePrematureEndAsync(eventId, before.Version, true, "Set a replacement end.", now.AddHours(2), new LifecycleActor(Guid.NewGuid(), "admin"));
+        var replacement = await Services(db, clock).ResumePrematureEndAsync(eventId, before.Version, true, "Set a replacement end.", now.AddHours(2), actor);
         Assert.True(replacement.Succeeded, replacement.Error);
         var after = await db.Events.AsNoTracking().SingleAsync(x => x.Id == eventId);
         Assert.Equal(now.AddHours(2), after.EventEndsAt);
@@ -290,6 +313,9 @@ public sealed partial class Slice3ScheduledLifecycleIntegrationTests : IAsyncLif
             var item = ReadyDraft(setup, eventId, "end-passed-start", now.AddHours(-3), now.AddHours(-2), now.AddHours(-1));
             item.OpenSignups(now.AddHours(-3));
             item.CloseSignups(now.AddHours(-2));
+            var admin = Account.CreateWebsite(actor.Id, actor.Username, actor.Username.ToUpperInvariant(), now);
+            admin.SetGlobalRole(GlobalRole.Admin);
+            setup.Accounts.Add(admin);
             setup.Events.Add(item);
             await setup.SaveChangesAsync();
             await AddReadyBoardAndDraftAsync(setup, eventId);
@@ -597,66 +623,146 @@ public sealed partial class Slice3ScheduledLifecycleIntegrationTests : IAsyncLif
     }
 
     [Fact]
-    public async Task ManualEarlyStartNeedsReasonAndSingletonCurrentStateBlocksWithoutMutation()
+    public async Task ManualStartUsesConfirmationOnlyAndRejectedAttemptsRemainNoOp()
     {
         var firstId = Guid.NewGuid();
         var secondId = Guid.NewGuid();
+        var unreadyId = Guid.NewGuid();
+        var unauthorizedActor = new LifecycleActor(Guid.NewGuid(), "unauthorized-early-start");
+        var actor = new LifecycleActor(Guid.NewGuid(), "untrusted-early-start-caller");
+        var admin = Account.CreateWebsite(actor.Id, "canonical-early-start-admin", "CANONICAL-EARLY-START-ADMIN", now);
+        admin.SetGlobalRole(GlobalRole.Admin);
         await using (var setup = new ApplicationDbContext(options))
         {
-            var first = ReadyDraft(setup, firstId, "early-start", now.AddHours(-1), now.AddDays(1), now.AddDays(2));
+            var first = ReadyDraft(setup, firstId, "early-start", now.AddHours(-2), now.AddHours(1), now.AddDays(2));
             first.OpenSignups(now.AddHours(-2));
             first.CloseSignups(now.AddHours(-1));
-            var second = ReadyDraft(setup, secondId, "second-current", now.AddHours(-1), now.AddDays(3), now.AddDays(4));
+            var second = ReadyDraft(setup, secondId, "second-current", now.AddHours(-2), now.AddHours(-1), now.AddDays(4));
             second.OpenSignups(now.AddHours(-2));
             second.CloseSignups(now.AddHours(-1));
-            setup.Events.AddRange(first, second);
+            var unready = ReadyDraft(setup, unreadyId, "unready-start", now.AddHours(-2), now.AddHours(-1), now.AddDays(6));
+            unready.OpenSignups(now.AddHours(-2));
+            unready.CloseSignups(now.AddHours(-1));
+            setup.AddRange(admin, first, second, unready);
             await setup.SaveChangesAsync();
             await AddReadyBoardAndDraftAsync(setup, firstId);
             await AddReadyBoardAndDraftAsync(setup, secondId);
+            await AddReadyPublishedRosterAsync(setup, firstId, actor.Id);
+            await AddReadyPublishedRosterAsync(setup, secondId, actor.Id);
             await setup.SaveChangesAsync();
         }
 
-        var actor = new LifecycleActor(Guid.NewGuid(), "admin");
         var clock = new MutableTimeProvider(now);
         await using (var db = new ApplicationDbContext(options))
         {
             var service = Services(db, clock);
             var first = await db.Events.AsNoTracking().SingleAsync(x => x.Id == firstId);
-            Assert.False((await service.StartNowAsync(firstId, first.Version, true, null, actor)).Succeeded);
-            Assert.True((await service.StartNowAsync(firstId, first.Version, true, "Approved early start.", actor)).Succeeded);
+
+            var unauthorized = await service.StartNowAsync(firstId, first.Version, true, null, unauthorizedActor);
+            Assert.False(unauthorized.Succeeded);
+            Assert.Contains("active website administrator", unauthorized.Error, StringComparison.Ordinal);
+
+            var confirmationMissing = await service.StartNowAsync(firstId, first.Version, false, null, actor);
+            Assert.False(confirmationMissing.Succeeded);
+            Assert.Contains("Confirm", confirmationMissing.Error, StringComparison.Ordinal);
+
+            var unready = await db.Events.AsNoTracking().SingleAsync(x => x.Id == unreadyId);
+            var unreadyResult = await service.StartNowAsync(unreadyId, unready.Version, true, null, actor);
+            Assert.False(unreadyResult.Succeeded);
+            Assert.Contains(unreadyResult.Blockers!, blocker => blocker.Code == "DRAFT_NOT_FINALIZED");
+            Assert.Contains(unreadyResult.Blockers!, blocker => blocker.Code == "BOARD_NOT_PUBLISHED");
+
+            var second = await db.Events.AsNoTracking().SingleAsync(x => x.Id == secondId);
+            var stale = await service.StartNowAsync(secondId, second.Version - 1, true, null, actor);
+            Assert.False(stale.Succeeded);
+            Assert.Contains("changed while it was being started", stale.Error, StringComparison.Ordinal);
+
+            var started = await service.StartNowAsync(firstId, first.Version, true, null, actor);
+            Assert.True(started.Succeeded, started.Error);
         }
+
         await using (var db = new ApplicationDbContext(options))
         {
             var service = Services(db, clock);
+            var first = await db.Events.AsNoTracking().SingleAsync(x => x.Id == firstId);
+            var repeated = await service.StartNowAsync(firstId, first.Version, true, null, actor);
+            Assert.False(repeated.Succeeded);
+
             var second = await db.Events.AsNoTracking().SingleAsync(x => x.Id == secondId);
-            var blocked = await service.StartNowAsync(secondId, second.Version, true, "Approved early start.", actor);
+            var blocked = await service.StartNowAsync(secondId, second.Version, true, null, actor);
             Assert.False(blocked.Succeeded);
-            Assert.Contains("early-start", blocked.Error);
+            Assert.Contains("early-start", blocked.Error, StringComparison.Ordinal);
         }
-        await using (var verify = new ApplicationDbContext(options))
-        {
-            Assert.Equal(EventState.SignupClosed, (await verify.Events.SingleAsync(x => x.Id == secondId)).State);
-            Assert.Empty(await verify.EventStateTransitions.Where(x => x.EventId == secondId && x.ToState == EventState.Live).ToListAsync());
-            Assert.Empty(await verify.AuditEntries.Where(x => x.EventId == secondId && x.Action.Contains("started")).ToListAsync());
-        }
+
+        await using var verify = new ApplicationDbContext(options);
+        var startedEvent = await verify.Events.SingleAsync(x => x.Id == firstId);
+        Assert.Equal(EventState.Live, startedEvent.State);
+        Assert.Equal(now, startedEvent.ActualStartedAt);
+        Assert.True(now < startedEvent.EventStartsAt!.Value);
+        Assert.Equal(now.AddHours(1), startedEvent.EventStartsAt);
+        Assert.Equal(now.AddDays(2), startedEvent.EventEndsAt);
+        Assert.Equal(now.AddDays(2).AddMinutes(30), startedEvent.SubmissionCutoffAt);
+
+        var transition = Assert.Single(await verify.EventStateTransitions.Where(x => x.EventId == firstId && x.ToState == EventState.Live).ToListAsync());
+        Assert.Equal(EventState.SignupClosed, transition.FromState);
+        Assert.Equal(actor.Id, transition.PerformedByAccountId);
+        Assert.Equal(now, transition.PerformedAt);
+        Assert.Equal(now, transition.EffectiveAt);
+        Assert.Null(transition.Reason);
+
+        var audit = Assert.Single(await verify.AuditEntries.Where(x => x.EventId == firstId && x.Action == "event.started").ToListAsync());
+        Assert.Equal(actor.Id, audit.ActorAccountId);
+        Assert.Equal(admin.LoginName, audit.ActorUsername);
+        Assert.NotEqual(actor.Username, audit.ActorUsername);
+        Assert.Equal(now, audit.OccurredAt);
+        Assert.Null(audit.Details);
+
+        var assignment = await verify.EventParticipantCharacters.SingleAsync(x => x.EventId == firstId && x.EventRole == EventCharacterRole.Playing);
+        var activation = Assert.Single(await verify.EventParticipantCharacterSwaps.Where(x => x.EventId == firstId).ToListAsync());
+        Assert.Equal(assignment.EventParticipantId, activation.EventParticipantId);
+        Assert.Null(activation.PreviousOsrsCharacterId);
+        Assert.Equal(assignment.OsrsCharacterId, activation.NextOsrsCharacterId);
+        Assert.Equal(now, activation.EffectiveAtUtc);
+        Assert.Equal(now, activation.RecordedAtUtc);
+        Assert.Null(activation.RecordedByAccountId);
+        Assert.Null(activation.Reason);
+
+        Assert.Single(await verify.EventStateTransitions.Where(x => x.EventId == firstId).ToListAsync());
+        Assert.Single(await verify.AuditEntries.Where(x => x.EventId == firstId && x.Action == "event.started").ToListAsync());
+        Assert.Single(await verify.EventParticipantCharacterSwaps.Where(x => x.EventId == firstId).ToListAsync());
+
+        var secondEvent = await verify.Events.SingleAsync(x => x.Id == secondId);
+        Assert.Equal(EventState.SignupClosed, secondEvent.State);
+        Assert.Empty(await verify.EventStateTransitions.Where(x => x.EventId == secondId).ToListAsync());
+        Assert.Empty(await verify.AuditEntries.Where(x => x.EventId == secondId && x.Action.Contains("started")).ToListAsync());
+        Assert.Empty(await verify.EventParticipantCharacterSwaps.Where(x => x.EventId == secondId).ToListAsync());
+
+        var unreadyEvent = await verify.Events.SingleAsync(x => x.Id == unreadyId);
+        Assert.Equal(EventState.SignupClosed, unreadyEvent.State);
+        Assert.Empty(await verify.EventStateTransitions.Where(x => x.EventId == unreadyId).ToListAsync());
+        Assert.Empty(await verify.AuditEntries.Where(x => x.EventId == unreadyId).ToListAsync());
+        Assert.Empty(await verify.EventParticipantCharacterSwaps.Where(x => x.EventId == unreadyId).ToListAsync());
     }
 
     [Fact]
     public async Task ConcurrentWorkerAndManualCommandsProduceOneOpeningClosingStartAndCurrentWinner()
     {
+        var actor = new LifecycleActor(Guid.NewGuid(), "lifecycle-race-admin");
+        var admin = Account.CreateWebsite(actor.Id, actor.Username, actor.Username.ToUpperInvariant(), now);
+        admin.SetGlobalRole(GlobalRole.Admin);
         var openingId = Guid.NewGuid();
         await using (var setup = new ApplicationDbContext(options))
         {
             var item = ReadyDraft(setup, openingId, "opening-race", now, now.AddHours(1), now.AddDays(1));
             item.ConfigureScheduledSignupOpening(true, []);
-            setup.Events.Add(item);
+            setup.AddRange(admin, item);
             await setup.SaveChangesAsync();
         }
         var clock = new MutableTimeProvider(now);
         var openingVersion = await VersionAsync(openingId);
         await Task.WhenAll(
             RunDueInNewContext(clock),
-            RunManualOpenInNewContext(openingId, openingVersion, clock));
+            RunManualOpenInNewContext(openingId, openingVersion, clock, actor));
         await using (var verify = new ApplicationDbContext(options))
         {
             Assert.Equal(EventState.SignupOpen, (await verify.Events.SingleAsync(x => x.Id == openingId)).State);
@@ -667,7 +773,7 @@ public sealed partial class Slice3ScheduledLifecycleIntegrationTests : IAsyncLif
         var closingVersion = await VersionAsync(openingId);
         await Task.WhenAll(
             RunDueInNewContext(clock),
-            RunManualCloseInNewContext(openingId, closingVersion, clock));
+            RunManualCloseInNewContext(openingId, closingVersion, clock, actor));
         await using (var verify = new ApplicationDbContext(options))
         {
             Assert.Equal(EventState.SignupClosed, (await verify.Events.SingleAsync(x => x.Id == openingId)).State);
@@ -686,14 +792,15 @@ public sealed partial class Slice3ScheduledLifecycleIntegrationTests : IAsyncLif
                 setup.Events.Add(item);
                 await setup.SaveChangesAsync();
                 await AddReadyBoardAndDraftAsync(setup, pair.Item1);
+                await AddReadyPublishedRosterAsync(setup, pair.Item1, actor.Id);
             }
             await setup.SaveChangesAsync();
         }
         var firstVersion = await VersionAsync(firstId);
         var secondVersion = await VersionAsync(secondId);
         await Task.WhenAll(
-            RunManualStartInNewContext(firstId, firstVersion, clock),
-            RunManualStartInNewContext(secondId, secondVersion, clock));
+            RunManualStartInNewContext(firstId, firstVersion, clock, actor),
+            RunManualStartInNewContext(secondId, secondVersion, clock, actor));
         await using (var verify = new ApplicationDbContext(options))
         {
             Assert.Equal(1, await verify.Events.CountAsync(x => (x.Id == firstId || x.Id == secondId) && x.State == EventState.Live));
@@ -703,7 +810,7 @@ public sealed partial class Slice3ScheduledLifecycleIntegrationTests : IAsyncLif
     }
 
     [Fact]
-    public async Task ScheduledStartPersistenceFailureRollsBackAttemptAuditNotificationAndState()
+    public async Task ScheduledStartReadinessBlockerPersistsAttemptAuditNotificationWithoutStarting()
     {
         var eventId = Guid.NewGuid();
         var admin = Account.CreateWebsite(Guid.NewGuid(), "Rollback Admin", "ROLLBACK ADMIN", now);
@@ -726,10 +833,15 @@ public sealed partial class Slice3ScheduledLifecycleIntegrationTests : IAsyncLif
 
         await using var verify = new ApplicationDbContext(options);
         Assert.Equal(EventState.SignupClosed, (await verify.Events.SingleAsync(x => x.Id == eventId)).State);
-        Assert.Empty(await verify.ScheduledEventStartAttempts.Where(x => x.EventId == eventId).ToListAsync());
-        Assert.Empty(await verify.EventStateTransitions.Where(x => x.EventId == eventId && x.ToState == EventState.Live).ToListAsync());
-        Assert.Empty(await verify.AuditEntries.Where(x => x.EventId == eventId && x.Action == "event.start_postponed").ToListAsync());
-        Assert.Empty(await verify.PersonalNotifications.Where(x => x.RecipientAccountId == admin.Id).ToListAsync());
+        var attempt = Assert.Single(await verify.ScheduledEventStartAttempts.Where(x => x.EventId == eventId).ToListAsync());
+        Assert.False(attempt.Started);
+        Assert.Contains("DRAFT_NOT_FINALIZED", attempt.Blockers);
+        Assert.Empty(await verify.EventStateTransitions.Where(x => x.EventId == eventId).ToListAsync());
+        Assert.Empty(await verify.AuditEntries.Where(x => x.EventId == eventId && x.Action == "event.started_automatically").ToListAsync());
+        var audit = Assert.Single(await verify.AuditEntries.Where(x => x.EventId == eventId && x.Action == "event.start_postponed").ToListAsync());
+        Assert.Contains("DRAFT_NOT_FINALIZED", audit.Details ?? string.Empty, StringComparison.Ordinal);
+        var notification = Assert.Single(await verify.PersonalNotifications.Where(x => x.EventId == eventId && x.RecipientAccountId == admin.Id && x.Title == "Automatic start postponed").ToListAsync());
+        Assert.Contains("Finalize the team draft", notification.Detail, StringComparison.Ordinal);
     }
 
     private async Task<long> VersionAsync(Guid eventId)
@@ -744,24 +856,24 @@ public sealed partial class Slice3ScheduledLifecycleIntegrationTests : IAsyncLif
         await Services(db, clock).ProcessDueAsync();
     }
 
-    private async Task RunManualOpenInNewContext(Guid eventId, long version, TimeProvider clock)
+    private async Task RunManualOpenInNewContext(Guid eventId, long version, TimeProvider clock, LifecycleActor actor)
     {
         await using var db = new ApplicationDbContext(options);
         var readiness = new EventReadinessEvaluator(db, configuration);
-        await new EventSignupLifecycleService(db, readiness, clock).OpenAsync(eventId, version, [], false, new LifecycleActor(Guid.NewGuid(), "manual-admin"));
+        await new EventSignupLifecycleService(db, readiness, clock).OpenAsync(eventId, version, [], true, actor);
     }
 
-    private async Task RunManualCloseInNewContext(Guid eventId, long version, TimeProvider clock)
+    private async Task RunManualCloseInNewContext(Guid eventId, long version, TimeProvider clock, LifecycleActor actor)
     {
         await using var db = new ApplicationDbContext(options);
         var readiness = new EventReadinessEvaluator(db, configuration);
-        await new EventSignupLifecycleService(db, readiness, clock).CloseAsync(eventId, version, new LifecycleActor(Guid.NewGuid(), "manual-admin"));
+        await new EventSignupLifecycleService(db, readiness, clock).CloseAsync(eventId, version, true, actor);
     }
 
-    private async Task RunManualStartInNewContext(Guid eventId, long version, TimeProvider clock)
+    private async Task RunManualStartInNewContext(Guid eventId, long version, TimeProvider clock, LifecycleActor? actor = null)
     {
         await using var db = new ApplicationDbContext(options);
-        await Services(db, clock).StartNowAsync(eventId, version, true, null, new LifecycleActor(Guid.NewGuid(), "manual-admin"));
+        await Services(db, clock).StartNowAsync(eventId, version, true, null, actor ?? new LifecycleActor(Guid.NewGuid(), "manual-admin"));
     }
 
     private EventLifecycleService Services(ApplicationDbContext db, TimeProvider clock)
@@ -935,6 +1047,26 @@ public sealed partial class Slice3ScheduledLifecycleIntegrationTests : IAsyncLif
         db.Boards.Add(board);
         db.DraftSessions.Add(draft);
         await BoardApprovalFixture.PublishAsync(db, board, now);
+    }
+
+    private async Task AddReadyPublishedRosterAsync(ApplicationDbContext db, Guid eventId, Guid actorId)
+    {
+        var item = await db.Events.SingleAsync(x => x.Id == eventId);
+        var draft = await db.DraftSessions.SingleAsync(x => x.EventId == eventId);
+        var primaryQuestion = await db.SignupQuestions.SingleAsync(x => x.EventId == eventId && x.SystemField == SignupSystemField.PrimaryRegularAccount);
+        var team = new Team(Guid.NewGuid(), eventId, "Ready team", $"ready-team-{eventId:N}", TeamFormationType.Drafted, null, true, now);
+        team.Finalize(now);
+        var participant = new EventParticipant(Guid.NewGuid(), eventId, SignupStatus.Confirmed, 1, now.AddHours(-2), SignupSource.AdminCreated);
+        var character = new OsrsCharacter(Guid.NewGuid(), "Ready player", $"READY {eventId:N}", now);
+        var assignment = new EventParticipantCharacter(
+            Guid.NewGuid(), eventId, participant.Id, character.Id, 0, now.AddHours(-2), actorId,
+            primaryQuestion.Id, EventCharacterRole.Playing, 1, EhbSource.Manual, null);
+        var membership = new TeamMembership(Guid.NewGuid(), team.Id, participant.Id, TeamMembershipRole.Participant, now.AddHours(-2), null, "Scheduled lifecycle fixture");
+        var publication = new DraftPublicationCycle(Guid.NewGuid(), draft.Id, 1, now.AddHours(-1), actorId);
+        var roster = new DraftPublicationRoster(Guid.NewGuid(), publication.Id, team.Id, participant.Id, TeamMembershipRole.Participant, 1, character.DisplayName);
+        item.SetDraftRosterPublication(true);
+        db.AddRange(team, participant, character, assignment, membership, publication, roster);
+        await db.SaveChangesAsync();
     }
 
     private sealed class MutableTimeProvider(DateTimeOffset value) : TimeProvider

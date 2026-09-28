@@ -2,7 +2,9 @@ using Bingo.Domain.Access;
 using Bingo.Domain.Boards;
 using Bingo.Domain.Events;
 using Bingo.Domain.Signups;
+using Bingo.Domain.Teams;
 using Bingo.Infrastructure.Persistence;
+using Bingo.Infrastructure.Teams;
 using Bingo.Web.Events;
 using Bingo.Web.Security;
 using Microsoft.AspNetCore.Authorization;
@@ -28,7 +30,11 @@ public sealed class MyEventsModel(ApplicationDbContext db, IStringLocalizer<Shar
                           join item in db.Events.AsNoTracking() on participant.EventId equals item.Id
                           where participant.AccountId == accountId && item.HiddenAt == null
                           orderby item.EventStartsAt descending, participant.SignedUpAt descending
-                          select new EventRow(item.Id, item.Name, item.Slug, item.State, item.FirstPublicAt, item.ActualSignupOpenedAt, item.DraftLocked, item.TeamRostersPublished, item.DraftResultsPublished, item.BoardPublished, item.ResultsPublished, db.DraftPublicationCycles.Any(cycle => cycle.SupersededAt == null && db.DraftSessions.Any(draft => draft.Id == cycle.DraftSessionId && draft.EventId == item.Id)), db.Boards.Any(board => board.EventId == item.Id && board.State == BoardState.Published), participant.Id, participant.SignupStatus, participant.SignedUpAt,
+                          select new EventRow(item.Id, item.Name, item.Slug, item.State, item.FirstPublicAt, item.ActualSignupOpenedAt, item.DraftLocked, item.TeamRostersPublished, item.DraftResultsPublished, item.BoardPublished, item.ResultsPublished,
+                              db.DraftPublicationCycles.Any(cycle => cycle.SupersededAt == null &&
+                                  db.DraftSessions.Any(draft => draft.Id == cycle.DraftSessionId && draft.EventId == item.Id && draft.State == DraftState.Finalized) &&
+                                  db.DraftPublicationRosters.Any(roster => roster.DraftPublicationCycleId == cycle.Id)),
+                              db.Boards.Any(board => board.EventId == item.Id && board.State == BoardState.Published), participant.Id, participant.SignupStatus, participant.SignedUpAt,
                               db.TeamMemberships.Where(membership => membership.EventParticipantId == participant.Id && membership.LeftAt == null)
                                   .Join(db.Teams, membership => membership.TeamId, team => team.Id, (_, team) => team.Slug).FirstOrDefault())).ToListAsync(ct);
         Current = rows.Where(x => x.State is EventState.Draft or EventState.SignupOpen or EventState.SignupClosed or EventState.Live or EventState.AwaitingFinalReview).ToList();
@@ -76,7 +82,7 @@ public sealed class MyEventsModel(ApplicationDbContext db, IStringLocalizer<Shar
 
     public sealed record EventRow(Guid EventId, string Name, string Slug, EventState State, DateTimeOffset? FirstPublicAt, DateTimeOffset? ActualSignupOpenedAt, bool DraftLocked, bool TeamRostersPublished, bool DraftResultsPublished, bool BoardPublished, bool ResultsPublished, bool RosterExists, bool PublishedBoardExists, Guid ParticipantId, SignupStatus Status, DateTimeOffset SignedUpAt, string? TeamSlug)
     {
-        private EventDestination Destination => EventDestinationPolicy.Decide(new EventRouteState(State, FirstPublicAt, ActualSignupOpenedAt is not null || State is EventState.SignupOpen or EventState.SignupClosed || DraftLocked, RosterExists || TeamRostersPublished || DraftResultsPublished, BoardPublished || PublishedBoardExists, ResultsPublished), false);
+        private EventDestination Destination => EventDestinationPolicy.Decide(new EventRouteState(State, FirstPublicAt, ActualSignupOpenedAt is not null || State is EventState.SignupOpen or EventState.SignupClosed || DraftLocked, RosterExists, BoardPublished || PublishedBoardExists, ResultsPublished), false);
         public string DestinationPage => Destination switch
         {
             EventDestination.SignupTable => "/Events/Confirmation",
@@ -86,6 +92,6 @@ public sealed class MyEventsModel(ApplicationDbContext db, IStringLocalizer<Shar
             _ => "/Events/Confirmation"
         };
         public bool IsConfirmation => Destination == EventDestination.SignupTable && State is EventState.Draft or EventState.SignupOpen or EventState.SignupClosed;
-        public EventDisplayPhase DisplayPhase => EventDisplayPhaseProjection.From(new(State, RosterExists || TeamRostersPublished || DraftResultsPublished, BoardPublished || PublishedBoardExists));
+        public EventDisplayPhase DisplayPhase => EventDisplayPhaseProjection.From(new(State, RosterExists, BoardPublished || PublishedBoardExists));
     }
 }

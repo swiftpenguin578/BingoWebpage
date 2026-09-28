@@ -23,6 +23,25 @@ public sealed class DraftSession
     public void Pause() { if (State != DraftState.Running) throw new InvalidOperationException("Only a running draft can be paused."); State = DraftState.Paused; }
     public void Resume() { if (State != DraftState.Paused) throw new InvalidOperationException("Only a paused draft can resume."); State = DraftState.Running; }
     public void Finalize(DateTimeOffset now) { if (State is not (DraftState.Running or DraftState.Paused)) throw new InvalidOperationException("Start the draft before finalizing it."); State = DraftState.Finalized; FinalizedAt = now.ToUniversalTime(); }
+    public void FinalizeWebsiteDraft(DateTimeOffset now)
+    {
+        if (State != DraftState.Running) throw new InvalidOperationException("Only a running draft can be finalized.");
+        State = DraftState.Finalized;
+        FinalizedAt = now.ToUniversalTime();
+        ControllerAccountId = null;
+        ControllerLeaseExpiresAt = null;
+        ControlVersion++;
+    }
+    /// <summary>Finalizes a manually assembled roster without inventing a draft run or pick ledger.</summary>
+    public void FinalizeDirect(DateTimeOffset now)
+    {
+        if (State != DraftState.Setup) throw new InvalidOperationException("A direct roster can only be finalized from setup.");
+        State = DraftState.Finalized;
+        FinalizedAt = now.ToUniversalTime();
+        ControllerAccountId = null;
+        ControllerLeaseExpiresAt = null;
+        ControlVersion++;
+    }
     public void Reopen(DateTimeOffset now)
     {
         if (State != DraftState.Finalized) throw new InvalidOperationException("Only a finalized draft can be reopened.");
@@ -37,7 +56,6 @@ public sealed class DraftSession
         if (State is not (DraftState.Running or DraftState.Paused)) throw new InvalidOperationException("Only an active private draft can return to setup.");
         State = DraftState.Setup;
         LockedAt = null;
-        FirstPickRecordedAt = null;
         ControllerAccountId = null;
         ControllerLeaseExpiresAt = null;
         ControlVersion++;

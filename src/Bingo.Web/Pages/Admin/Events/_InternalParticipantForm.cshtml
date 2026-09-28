@@ -12,7 +12,7 @@
 
 <div class="admin-dialog-page participant-add-dialog-page event-overview-section" aria-labelledby="participant-add-dialog-title" aria-describedby="participant-add-dialog-description" data-wom-validation-cancelled="@(Model.WomValidationConfirmationCancelled ? "true" : null)">
     <div class="event-overview-section-heading admin-dialog-component-heading">
-        <div><h2 id="participant-add-dialog-title">@T["Add participant"]</h2><p id="participant-add-dialog-description">@T["Use the active signup form. An owner is optional; external roster members are managed in Teams / Draft, not here."]</p></div>
+        <div><h2 id="participant-add-dialog-title">@T["Add participant"]</h2><p id="participant-add-dialog-description">@T["Use the active signup form and select an existing active website account. Historical roster members are managed in Teams / Draft."]</p></div>
         <button type="button" class="admin-route-dialog-close" data-participant-add-close aria-label="@T["Close add participant"]"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 6 12 12" /><path d="m18 6-12 12" /></svg></button>
     </div>
     <div class="event-confirmation-box participant-add-editor-discard" data-participant-add-discard role="alertdialog" aria-labelledby="participant-add-discard-title" aria-describedby="participant-add-discard-description" hidden>
@@ -24,9 +24,9 @@
         <input type="hidden" asp-for="InternalParticipant.WomValidationConfirmationToken" />
         <input type="hidden" name="ParticipantSearch" value="@Model.ParticipantSearch" /><input type="hidden" name="ParticipantStatus" value="@Model.ParticipantStatus" /><input type="hidden" name="ParticipantPayment" value="@Model.ParticipantPayment" /><input type="hidden" name="ParticipantDiscord" value="@Model.ParticipantDiscord" /><input type="hidden" name="ParticipantCaptain" value="@Model.ParticipantCaptain" /><input type="hidden" name="ParticipantSource" value="@Model.ParticipantSource" /><input type="hidden" name="ParticipantTeamId" value="@Model.ParticipantTeamId" /><input type="hidden" name="sort" value="@Model.Sort" /><input type="hidden" name="direction" value="@Model.Direction" />
         <section class="event-overview-row admin-dialog-form-section" aria-labelledby="participant-owner-heading">
-            <div class="admin-dialog-section-heading"><div><h4 id="participant-owner-heading">@T["Owner and identity"]</h4><p>@T["Link the signup to an existing website account when one is known."]</p></div></div>
+            <div class="admin-dialog-section-heading"><div><h4 id="participant-owner-heading">@T["Owner and identity"]</h4><p>@T["Every new participant must use an existing active website account."]</p></div></div>
             <div class="admin-field event-create-field" data-owner-account-picker>
-                <label for="internal-owner-account-search">@T["Website owner account (optional)"]</label>
+                <label for="internal-owner-account-search">@T["Website owner account"]</label>
                 <input id="internal-owner-account-search" class="form-control" type="search" autocomplete="off" maxlength="100" role="combobox" aria-autocomplete="list" aria-controls="internal-owner-account-results" aria-expanded="false" data-owner-account-search />
                 <input asp-for="InternalParticipant.OwnerAccountId" type="hidden" data-owner-account-id />
                 <div id="internal-owner-account-results" role="listbox" data-owner-account-results hidden></div>

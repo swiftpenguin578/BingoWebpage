@@ -18,15 +18,25 @@ public sealed class AccountAuthorizationHandler(ApplicationDbContext dbContext, 
         }
 
         var account = await dbContext.Accounts.AsNoTracking().SingleOrDefaultAsync(account => account.Id == accountId);
-        if (account is null)
+        if (account is null || !account.Active || account.AccountType != AccountType.WebsiteAccount)
         {
             return;
         }
 
-        var access = await dbContext.AccountEventAccesses.AsNoTracking().SingleOrDefaultAsync(x => x.AccountId == accountId);
-        var accessMode = access?.GetAccessMode(timeProvider.GetUtcNow()) ?? AccountAccessMode.Disabled;
-        if (access is not null && !await dbContext.Events.AsNoTracking().AnyAsync(x => x.Id == access.EventId && x.HiddenAt == null))
-            accessMode = AccountAccessMode.Disabled;
+        var scope = context.Resource as TeamScope;
+        if (scope is null && Guid.TryParse(context.User.FindFirstValue(AccountClaims.EventId), out var eventId) &&
+            Guid.TryParse(context.User.FindFirstValue(AccountClaims.TeamId), out var teamId)) scope = new TeamScope(eventId, teamId);
+        if (scope is null) return;
+        var member = await (from participant in dbContext.EventParticipants.AsNoTracking()
+                            join membership in dbContext.TeamMemberships.AsNoTracking() on participant.Id equals membership.EventParticipantId
+                            join team in dbContext.Teams.AsNoTracking() on membership.TeamId equals team.Id
+                            join item in dbContext.Events.AsNoTracking() on participant.EventId equals item.Id
+                            where participant.AccountId == accountId && participant.EventId == scope.EventId &&
+                                  team.EventId == scope.EventId && team.Id == scope.TeamId && team.Active && membership.LeftAt == null &&
+                                  (membership.Role == Bingo.Domain.Teams.TeamMembershipRole.Captain || membership.Role == Bingo.Domain.Teams.TeamMembershipRole.CoCaptain) && item.HiddenAt == null
+                            select item).SingleOrDefaultAsync();
+        if (member is null) return;
+        var accessMode = member.AcceptsNewSubmissions(timeProvider.GetUtcNow()) ? AccountAccessMode.Full : AccountAccessMode.Disabled;
         foreach (var requirement in context.PendingRequirements.ToArray())
         {
             switch (requirement)
@@ -34,7 +44,7 @@ public sealed class AccountAuthorizationHandler(ApplicationDbContext dbContext, 
                 case AccountAccessRequirement accessRequirement when Satisfies(accessMode, accessRequirement.MinimumMode):
                     context.Succeed(requirement);
                     break;
-                case TeamScopeRequirement when MatchesTeamScope(account, access, context.Resource):
+                case TeamScopeRequirement when accessMode != AccountAccessMode.Disabled:
                     context.Succeed(requirement);
                     break;
             }
@@ -45,9 +55,5 @@ public sealed class AccountAuthorizationHandler(ApplicationDbContext dbContext, 
         actual != AccountAccessMode.Disabled &&
         (required == AccountAccessMode.CorrectionOnly || actual == AccountAccessMode.Full);
 
-    private static bool MatchesTeamScope(Account account, AccountEventAccess? access, object? resource) =>
-        account.AccountType == AccountType.EmergencyCaptain &&
-        resource is TeamScope scope &&
-        access?.EventId == scope.EventId &&
-        access.TeamId == scope.TeamId;
+
 }

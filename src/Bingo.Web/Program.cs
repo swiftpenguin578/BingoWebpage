@@ -100,15 +100,11 @@ builder.Services.AddScoped<MyAccountsService>();
 builder.Services.AddSingleton<ISignupLookupTokenService, SignupLookupTokenService>();
 builder.Services.AddSingleton<DiscordOnboardingStateService>();
 builder.Services.AddScoped<AccountAdministrationService>();
-builder.Services.AddScoped<EmergencyCredentialService>();
-builder.Services.AddScoped<EmergencyCredentialLifecycleService>();
 builder.Services.AddSingleton<DiscordLinkStateService>();
 builder.Services.AddSingleton<LoginThrottleService>();
-builder.Services.AddScoped<CaptainAccountProvisioner>();
 builder.Services.AddScoped<AccountCookieEvents>();
 builder.Services.AddScoped<DevelopmentAdminBootstrapper>();
 builder.Services.AddScoped<OperatorRecoveryService>();
-builder.Services.AddScoped<Bingo.Web.Teams.PreformedRosterCsvImportService>();
 builder.Services.Configure<WiseOldManOptions>(builder.Configuration.GetSection(WiseOldManOptions.SectionName));
 var wiseOldManHttpClient = builder.Services.AddHttpClient("WiseOldMan", (serviceProvider, client) =>
 {

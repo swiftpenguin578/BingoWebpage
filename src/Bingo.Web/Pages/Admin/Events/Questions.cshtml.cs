@@ -1,14 +1,11 @@
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
 using Bingo.Application.Access;
-using Bingo.Application.Auditing;
-using Bingo.Application.Security;
 using Bingo.Application.Signups;
 using Bingo.Domain.Auditing;
 using Bingo.Domain.Events;
 using Bingo.Domain.Signups;
 using Bingo.Infrastructure.Persistence;
-using Bingo.Infrastructure.Security;
 using Bingo.Web.Events;
 using Bingo.Web.Security;
 using Bingo.Web.UI;
@@ -21,17 +18,15 @@ using Microsoft.Extensions.Localization;
 namespace Bingo.Web.Pages.Admin.Events;
 
 [Authorize(Policy = AuthorizationPolicies.Admin)]
-public sealed class QuestionsModel(ApplicationDbContext dbContext, IAuditWriter auditWriter, ISecretHasher hasher, TimeProvider timeProvider, ISignupService signupService, IStringLocalizer<SharedResource>? text = null) : PageModel
+public sealed class QuestionsModel(ApplicationDbContext dbContext, TimeProvider timeProvider, ISignupService signupService, IStringLocalizer<SharedResource>? text = null) : PageModel
 {
     public IReadOnlyList<SignupQuestion> Questions { get; private set; } = [];
+    public SignupQuestion? CoCaptainQuestion { get; private set; }
+    public IReadOnlyDictionary<Guid, SignupQuestionImpact> QuestionImpacts { get; private set; } = new Dictionary<Guid, SignupQuestionImpact>();
 
     public QuestionInput Input { get; set; } = new();
-    public SignupSettingsInput Settings { get; set; } = new();
-
     public bool CanEdit { get; private set; }
-    public bool CanEditSettings { get; private set; }
     public bool HasFirstResponse { get; private set; }
-    public bool HasSignupCode { get; private set; }
     [BindProperty] public bool Overlay { get; set; }
     public bool IsOverlay => Overlay || string.Equals(Request.Query["overlay"], "1", StringComparison.Ordinal);
     public string EventName { get; private set; } = string.Empty;
@@ -53,14 +48,19 @@ public sealed class QuestionsModel(ApplicationDbContext dbContext, IAuditWriter 
             return RedirectToQuestions(id, overlay);
         }
 
+        if (input.Type == SignupQuestionType.Account)
+        {
+            SetStatus(Localize("Account fields are managed in the Playing and Alt account sections."), UiMessageType.Error);
+            return RedirectToQuestions(id, overlay);
+        }
+
         var options = input.Type == SignupQuestionType.SingleChoice ? NormalizeChoices(input.Options) : null;
         if (input.Type == SignupQuestionType.SingleChoice && options is null)
         {
             ModelState.AddModelError("Input.Options", Localize("Add at least one choice."));
         }
-        if (input.Type == SignupQuestionType.Account && input.AccountRole is null) ModelState.AddModelError("Input.AccountRole", Localize("Choose Regular account or Alt account."));
         var form = await dbContext.SignupForms.SingleAsync(item => item.EventId == id, ct);
-        if (input.Type == SignupQuestionType.Account || form.FirstResponseAt is not null) input.Required = false;
+        if (form.FirstResponseAt is not null) input.Required = false;
 
         if (!ModelState.IsValid)
         {
@@ -68,6 +68,15 @@ public sealed class QuestionsModel(ApplicationDbContext dbContext, IAuditWriter 
             return Page();
         }
 
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, ct);
+        var lockedEvent = await LockEditableEventAsync(id, ct);
+        if (lockedEvent is null || !CanEditSignupQuestions(lockedEvent.State, lockedEvent.DraftLocked))
+        {
+            SetLockedStatus();
+            return RedirectToQuestions(id, overlay);
+        }
+        form = await dbContext.SignupForms.SingleAsync(item => item.EventId == id, ct);
+        if (form.FirstResponseAt is not null) input.Required = false;
         var position = (await dbContext.SignupQuestions
             .Where(question => question.EventId == id)
             .MaxAsync(question => (int?)question.Position, ct) ?? 0) + 1;
@@ -82,10 +91,9 @@ public sealed class QuestionsModel(ApplicationDbContext dbContext, IAuditWriter 
             input.Required,
             position,
             options,
-            accountAnswerRole: input.Type == SignupQuestionType.Account ? input.AccountRole : null,
+            accountAnswerRole: null,
             helpText: input.HelpText);
 
-        await using var transaction = await dbContext.Database.BeginTransactionAsync(ct);
         dbContext.SignupQuestions.Add(question);
         await CompleteMutationAsync(id, "signup_question.created", question.Id.ToString(), null, Snapshot(question), ct);
         await transaction.CommitAsync(ct);
@@ -94,11 +102,176 @@ public sealed class QuestionsModel(ApplicationDbContext dbContext, IAuditWriter 
         return RedirectToQuestions(id, overlay);
     }
 
-    public async Task<IActionResult> OnPostDeactivateAsync(Guid id, Guid questionId, [FromForm] bool overlay, CancellationToken ct)
+    public async Task<IActionResult> OnPostAddAccountAsync(
+        Guid id,
+        [FromForm] EventCharacterRole role,
+        [FromForm] bool overlay,
+        CancellationToken ct)
     {
         overlay = ResolveSubmittedOverlay(overlay);
-        var result = await signupService.DeleteQuestionAsync(id, questionId, User.GetAccountId()!.Value, User.Identity!.Name!, ct);
-        SetStatus(Localize(result.Succeeded ? "Question removed." : result.Error!), result.Succeeded ? UiMessageType.Success : UiMessageType.Error);
+        if (role is not (EventCharacterRole.Playing or EventCharacterRole.Informational))
+        {
+            SetStatus(Localize("Choose a valid account section."), UiMessageType.Error);
+            return RedirectToQuestions(id, overlay);
+        }
+        if (!await CanEditAsync(id, ct))
+        {
+            SetLockedStatus();
+            return RedirectToQuestions(id, overlay);
+        }
+
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, ct);
+        var lockedEvent = await LockEditableEventAsync(id, ct);
+        if (lockedEvent is null || !CanEditSignupQuestions(lockedEvent.State, lockedEvent.DraftLocked))
+        {
+            SetLockedStatus();
+            return RedirectToQuestions(id, overlay);
+        }
+
+        var form = await dbContext.SignupForms.SingleAsync(item => item.EventId == id, ct);
+        var position = (await dbContext.SignupQuestions
+            .Where(question => question.EventId == id)
+            .MaxAsync(question => (int?)question.Position, ct) ?? 0) + 1;
+        var label = role == EventCharacterRole.Playing ? "Playing account" : "Alt account";
+        var key = await CreateUniqueKeyAsync(id, label, ct);
+        var question = new SignupQuestion(
+            Guid.NewGuid(),
+            form.Id,
+            id,
+            key,
+            label,
+            SignupQuestionType.Account,
+            false,
+            position,
+            options: null,
+            accountAnswerRole: role,
+            helpText: null);
+
+        dbContext.SignupQuestions.Add(question);
+        await CompleteMutationAsync(id, "signup_question.account_added", question.Id.ToString(), null, Snapshot(question), ct);
+        await transaction.CommitAsync(ct);
+        SetStatus(Localize("Account field added."), UiMessageType.Success);
+        return RedirectToQuestions(id, overlay);
+    }
+
+    public async Task<IActionResult> OnPostEditAccountAsync(
+        Guid id,
+        Guid questionId,
+        [Bind(Prefix = "Account")] AccountPresentationInput account,
+        [FromForm] bool overlay,
+        CancellationToken ct)
+    {
+        overlay = ResolveSubmittedOverlay(overlay);
+        if (!await CanEditAsync(id, ct))
+        {
+            SetLockedStatus();
+            return RedirectToQuestions(id, overlay);
+        }
+        if (!ModelState.IsValid)
+        {
+            SetStatus(Localize("Enter a question label."), UiMessageType.Error);
+            return RedirectToQuestions(id, overlay);
+        }
+
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, ct);
+        var lockedEvent = await LockEditableEventAsync(id, ct);
+        if (lockedEvent is null || !CanEditSignupQuestions(lockedEvent.State, lockedEvent.DraftLocked))
+        {
+            SetLockedStatus();
+            return RedirectToQuestions(id, overlay);
+        }
+        var question = await dbContext.SignupQuestions.SingleOrDefaultAsync(item =>
+            item.Id == questionId
+            && item.EventId == id
+            && item.Active
+            && item.SystemField == SignupSystemField.None
+            && item.Type == SignupQuestionType.Account
+            && (item.AccountAnswerRole == null || item.AccountAnswerRole == EventCharacterRole.Playing || item.AccountAnswerRole == EventCharacterRole.Informational), ct);
+        if (question is null)
+        {
+            SetStatus(Localize("That account field cannot be edited."), UiMessageType.Error);
+            return RedirectToQuestions(id, overlay);
+        }
+
+        var before = Snapshot(question);
+        question.UpdatePresentation(account.Label, question.HelpText);
+        await CompleteMutationAsync(id, "signup_question.account_edited", question.Id.ToString(), before, Snapshot(question), ct);
+        await transaction.CommitAsync(ct);
+        SetStatus(Localize("Account field saved."), UiMessageType.Success);
+        return RedirectToQuestions(id, overlay);
+    }
+
+    public async Task<IActionResult> OnPostDeactivateAsync(
+        Guid id,
+        Guid questionId,
+        [FromForm] bool overlay,
+        [FromForm] bool confirmed,
+        [FromForm] int? expectedAnswerCount,
+        [FromForm] int? expectedEventRegistrationReleaseCount,
+        [FromForm] int? expectedQuestionVersion,
+        CancellationToken ct)
+    {
+        overlay = ResolveSubmittedOverlay(overlay);
+        var actorId = User.GetAccountId();
+        if (actorId is null)
+        {
+            SetStatus(Localize("Admin access is required."), UiMessageType.Error);
+            return RedirectToQuestions(id, overlay);
+        }
+        var result = await signupService.ApplyQuestionMutationAsync(new SignupQuestionMutationRequest(
+            id,
+            questionId,
+            actorId.Value,
+            User.Identity?.Name ?? string.Empty,
+            SignupQuestionMutationKind.DeleteQuestion,
+            confirmed,
+            expectedAnswerCount ?? -1,
+            expectedEventRegistrationReleaseCount ?? -1,
+            expectedQuestionVersion ?? -1), ct);
+        SetStatus(result.Succeeded ? Localize("Question removed.") : Localize(result.Error ?? "The question could not be removed."), result.Succeeded ? UiMessageType.Success : UiMessageType.Error);
+        return RedirectToQuestions(id, overlay);
+    }
+
+    public async Task<IActionResult> OnPostCoCaptainAsync(
+        Guid id,
+        Guid questionId,
+        [FromForm] bool enabled,
+        [FromForm] bool overlay,
+        [FromForm] bool confirmed,
+        [FromForm] int? expectedAnswerCount,
+        [FromForm] int? expectedEventRegistrationReleaseCount,
+        [FromForm] int? expectedQuestionVersion,
+        CancellationToken ct)
+    {
+        overlay = ResolveSubmittedOverlay(overlay);
+        var actorId = User.GetAccountId();
+        if (actorId is null)
+        {
+            SetStatus(Localize("Admin access is required."), UiMessageType.Error);
+            return RedirectToQuestions(id, overlay);
+        }
+        SignupAdministrationResult result;
+        if (enabled)
+        {
+            result = await signupService.EnableCoCaptainAsync(id, questionId, actorId.Value, User.Identity?.Name ?? string.Empty, ct);
+        }
+        else
+        {
+            result = await signupService.ApplyQuestionMutationAsync(new SignupQuestionMutationRequest(
+                id,
+                questionId,
+                actorId.Value,
+                User.Identity?.Name ?? string.Empty,
+                SignupQuestionMutationKind.DisableCoCaptain,
+                confirmed,
+                expectedAnswerCount ?? -1,
+                expectedEventRegistrationReleaseCount ?? -1,
+                expectedQuestionVersion ?? -1), ct);
+        }
+        SetStatus(result.Succeeded
+            ? Localize(enabled ? "Co-captain field enabled." : "Co-captain field disabled.")
+            : Localize(result.Error ?? "The co-captain field could not be changed."),
+            result.Succeeded ? UiMessageType.Success : UiMessageType.Error);
         return RedirectToQuestions(id, overlay);
     }
 
@@ -106,12 +279,23 @@ public sealed class QuestionsModel(ApplicationDbContext dbContext, IAuditWriter 
     {
         overlay = ResolveSubmittedOverlay(overlay);
         if (!await CanEditAsync(id, ct)) { SetLockedStatus(); return RedirectToQuestions(id, overlay); }
-        await using var transaction = await dbContext.Database.BeginTransactionAsync(ct);
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, ct);
+        var lockedEvent = await LockEditableEventAsync(id, ct);
+        if (lockedEvent is null || !CanEditSignupQuestions(lockedEvent.State, lockedEvent.DraftLocked))
+        {
+            SetLockedStatus();
+            return RedirectToQuestions(id, overlay);
+        }
         var questions = await dbContext.SignupQuestions.Where(x => x.EventId == id && x.Active).OrderBy(x => x.Position).ToListAsync(ct);
-        var index = questions.FindIndex(x => x.Id == questionId);
-        if (index < 0 || questions[index].SystemField != SignupSystemField.None) { SetStatus(Localize("That question cannot be reordered."), UiMessageType.Error); return RedirectToQuestions(id, overlay); }
-        var otherIndex = index + (up ? -1 : 1); if (otherIndex < 0 || otherIndex >= questions.Count || questions[otherIndex].SystemField != SignupSystemField.None) { SetStatus(Localize("That question cannot be reordered."), UiMessageType.Error); return RedirectToQuestions(id, overlay); }
-        var question = questions[index]; var other = questions[otherIndex]; var position = question.Position; question.MoveTo(other.Position); other.MoveTo(position);
+        var customQuestions = questions.Where(x => x.SystemField == SignupSystemField.None && x.Type != SignupQuestionType.Account).ToList();
+        var index = customQuestions.FindIndex(x => x.Id == questionId);
+        var otherIndex = index + (up ? -1 : 1);
+        if (index < 0 || otherIndex < 0 || otherIndex >= customQuestions.Count)
+        {
+            SetStatus(Localize("That question cannot be reordered."), UiMessageType.Error);
+            return RedirectToQuestions(id, overlay);
+        }
+        var question = customQuestions[index]; var other = customQuestions[otherIndex]; var position = question.Position; question.MoveTo(other.Position); other.MoveTo(position);
         await CompleteMutationAsync(id, "signup_question.reordered", question.Id.ToString(), new { from = position }, new { to = question.Position }, ct); await transaction.CommitAsync(ct);
         SetStatus(Localize("Question order saved."), UiMessageType.Success); return RedirectToQuestions(id, overlay);
     }
@@ -119,23 +303,36 @@ public sealed class QuestionsModel(ApplicationDbContext dbContext, IAuditWriter 
     public async Task<IActionResult> OnPostEditAsync(Guid id, Guid questionId, [Bind(Prefix = "Edit")] EditQuestionInput edit, [FromForm] bool overlay, CancellationToken ct)
     {
         overlay = ResolveSubmittedOverlay(overlay);
-        var form = await dbContext.SignupForms.SingleAsync(x => x.EventId == id, ct);
         if (!await CanEditAsync(id, ct)) { SetLockedStatus(); return RedirectToQuestions(id, overlay); }
-        var question = await dbContext.SignupQuestions.SingleOrDefaultAsync(x => x.Id == questionId && x.EventId == id, ct);
-        if (question is null || question.SystemField != SignupSystemField.None) return NotFound();
+
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, ct);
+        var lockedEvent = await LockEditableEventAsync(id, ct);
+        if (lockedEvent is null || !CanEditSignupQuestions(lockedEvent.State, lockedEvent.DraftLocked))
+        {
+            SetLockedStatus();
+            return RedirectToQuestions(id, overlay);
+        }
+
+        var form = await dbContext.SignupForms.SingleAsync(x => x.EventId == id, ct);
+        var question = await dbContext.SignupQuestions.SingleOrDefaultAsync(x => x.Id == questionId && x.EventId == id && x.Active, ct);
+        if (question is null || question.SystemField != SignupSystemField.None || question.Type == SignupQuestionType.Account)
+        {
+            SetStatus(Localize("That question cannot be edited."), UiMessageType.Error);
+            return RedirectToQuestions(id, overlay);
+        }
+
         if (form.FirstResponseAt is not null)
         {
             if (HasStructuralEditInput())
             {
-                SetStatus(Localize("Answer format is locked after the first response. Use replacement for a new optional question."), UiMessageType.Error);
+                SetStatus(Localize("Answer format is locked after the first response. Delete the old question with confirmation, then add a new optional question."), UiMessageType.Error);
                 return RedirectToQuestions(id, overlay);
             }
             if (TryGetEditValidationError(out var error)) { SetStatus(error, UiMessageType.Error); return RedirectToQuestions(id, overlay); }
-            await using var presentationTransaction = await dbContext.Database.BeginTransactionAsync(ct);
             var presentationBefore = Snapshot(question);
             question.UpdatePresentation(edit.Label, edit.HelpText);
             await CompleteMutationAsync(id, "signup_question.edited", question.Id.ToString(), presentationBefore, Snapshot(question), ct);
-            await presentationTransaction.CommitAsync(ct);
+            await transaction.CommitAsync(ct);
             SetStatus(Localize("Question saved."), UiMessageType.Success);
             return RedirectToQuestions(id, overlay);
         }
@@ -145,10 +342,14 @@ public sealed class QuestionsModel(ApplicationDbContext dbContext, IAuditWriter 
         var type = edit.Type!.Value;
         var options = type == SignupQuestionType.SingleChoice ? NormalizeChoices(edit.Options) : null;
         if (type == SignupQuestionType.SingleChoice && options is null) { SetStatus(Localize("Add unique nonblank choices."), UiMessageType.Error); return RedirectToQuestions(id, overlay); }
-        if (type == SignupQuestionType.Account && edit.AccountRole is null) { SetStatus(Localize("Choose an account role."), UiMessageType.Error); return RedirectToQuestions(id, overlay); }
-        await using var transaction = await dbContext.Database.BeginTransactionAsync(ct);
+        if (type == SignupQuestionType.Account) { SetStatus(Localize("Account fields are managed in the Playing and Alt account sections."), UiMessageType.Error); return RedirectToQuestions(id, overlay); }
+        if (form.FirstResponseAt is not null)
+        {
+            SetStatus(Localize("Answer format is locked after the first response. Delete the old question with confirmation, then add a new optional question."), UiMessageType.Error);
+            return RedirectToQuestions(id, overlay);
+        }
         var before = Snapshot(question);
-        question.UpdateDefinition(edit.Label, edit.HelpText, type, type == SignupQuestionType.Account ? false : edit.Required == true, options, type == SignupQuestionType.Account ? edit.AccountRole : null);
+        question.UpdateDefinition(edit.Label, edit.HelpText, type, edit.Required == true, options, null);
         await CompleteMutationAsync(id, "signup_question.edited", question.Id.ToString(), before, Snapshot(question), ct); await transaction.CommitAsync(ct);
         SetStatus(Localize("Question saved."), UiMessageType.Success); return RedirectToQuestions(id, overlay);
     }
@@ -156,24 +357,7 @@ public sealed class QuestionsModel(ApplicationDbContext dbContext, IAuditWriter 
     public async Task<IActionResult> OnPostReplaceAsync(Guid id, Guid questionId, [Bind(Prefix = "Replacement")] QuestionInput replacementInput, [FromForm] bool overlay, CancellationToken ct)
     {
         overlay = ResolveSubmittedOverlay(overlay);
-        if (!await CanEditAsync(id, ct)) { SetLockedStatus(); return RedirectToQuestions(id, overlay); }
-        var form = await dbContext.SignupForms.SingleAsync(x => x.EventId == id, ct);
-        var original = await dbContext.SignupQuestions.SingleOrDefaultAsync(x => x.Id == questionId && x.EventId == id && x.Active, ct);
-        if (original is null || original.SystemField != SignupSystemField.None) { SetStatus(Localize("That question cannot be replaced."), UiMessageType.Error); return RedirectToQuestions(id, overlay); }
-        if (form.FirstResponseAt is null) { SetStatus(Localize("Use ordinary editing until the first response is received."), UiMessageType.Error); return RedirectToQuestions(id, overlay); }
-        var options = replacementInput.Type == SignupQuestionType.SingleChoice ? NormalizeChoices(replacementInput.Options) : null;
-        if (!ModelState.IsValid || string.IsNullOrWhiteSpace(replacementInput.Label)) { SetStatus(Localize("Enter a question label."), UiMessageType.Error); return RedirectToQuestions(id, overlay); }
-        if (replacementInput.Type == SignupQuestionType.SingleChoice && options is null) { SetStatus(Localize("Add unique nonblank choices."), UiMessageType.Error); return RedirectToQuestions(id, overlay); }
-        if (replacementInput.Type == SignupQuestionType.Account && replacementInput.AccountRole is null) { SetStatus(Localize("Choose an account role."), UiMessageType.Error); return RedirectToQuestions(id, overlay); }
-        var replacement = new SignupQuestion(Guid.NewGuid(), form.Id, id, await CreateUniqueKeyAsync(id, replacementInput.Label, ct), replacementInput.Label, replacementInput.Type, false, original.Position, options, accountAnswerRole: replacementInput.Type == SignupQuestionType.Account ? replacementInput.AccountRole : null, helpText: replacementInput.HelpText);
-        await using var transaction = await dbContext.Database.BeginTransactionAsync(ct);
-        var before = Snapshot(original);
-        original.Deactivate(User.GetAccountId(), timeProvider.GetUtcNow(), "structural replacement");
-        original.ReplaceWith(replacement.Id);
-        dbContext.SignupQuestions.Add(replacement);
-        await CompleteMutationAsync(id, "signup_question.replaced", original.Id.ToString(), before, new { original = Snapshot(original), replacement = Snapshot(replacement) }, ct);
-        await transaction.CommitAsync(ct);
-        SetStatus(Localize("Question replaced. Existing answers remain with the original question."), UiMessageType.Success);
+        SetStatus(Localize("Format replacement is not a separate workflow. Delete the old question with its current impact confirmation, then add a new optional question."), UiMessageType.Error);
         return RedirectToQuestions(id, overlay);
     }
 
@@ -187,45 +371,6 @@ public sealed class QuestionsModel(ApplicationDbContext dbContext, IAuditWriter 
 
     private static object Snapshot(SignupQuestion question) => new { question.Id, question.Key, question.Label, question.HelpText, Type = question.Type.ToString(), question.Required, question.Position, question.Options, AccountRole = question.AccountAnswerRole?.ToString(), question.Active, question.ReplacedBySignupQuestionId };
 
-    public async Task<IActionResult> OnPostSignupCodeAsync(Guid id, [Bind(Prefix = "Settings")] SignupSettingsInput settings, [FromForm] bool overlay, CancellationToken ct)
-    {
-        overlay = ResolveSubmittedOverlay(overlay);
-        var bingoEvent = await dbContext.Events.SingleOrDefaultAsync(item => item.Id == id, ct);
-        if (bingoEvent is null) return NotFound();
-        if (bingoEvent.DraftLocked || bingoEvent.State is not (EventState.Draft or EventState.SignupOpen or EventState.SignupClosed))
-        {
-            SetStatus(Localize("Signup settings are locked because the draft has started or this event has moved on."), UiMessageType.Error);
-            return RedirectToQuestions(id, overlay);
-        }
-        try
-        {
-            var form = await dbContext.SignupForms.SingleAsync(item => item.EventId == id, ct);
-            if (settings.RequireSignupCode && !form.RequireSignupCode && string.IsNullOrWhiteSpace(settings.NewSignupCode))
-            {
-                SetStatus(Localize("Enter a new signup code or turn code protection off."), UiMessageType.Error);
-                return RedirectToQuestions(id, overlay);
-            }
-            var before = new { form.RequireSignupCode, HasSignupCode = form.SignupCodeHash is not null, EventRequiresSignupCode = bingoEvent.RequireSignupCode, EventHasSignupCode = bingoEvent.SignupCodeHash is not null };
-            var hash = !settings.RequireSignupCode ? null : string.IsNullOrWhiteSpace(settings.NewSignupCode) ? form.SignupCodeHash : hasher.Hash(settings.NewSignupCode);
-            bingoEvent.ConfigureSignup(bingoEvent.WaitingListEnabled, settings.RequireSignupCode, hash);
-            form.ConfigureSignupCode(settings.RequireSignupCode, hash);
-            form.AdvanceVersion();
-            await auditWriter.WriteAsync(User.GetAccountId(), User.Identity!.Name!, "event.signup_code_changed", "event", id.ToString(),
-                JsonSerializer.Serialize(new
-                {
-                    before,
-                    after = new { form.RequireSignupCode, HasSignupCode = form.SignupCodeHash is not null, EventRequiresSignupCode = bingoEvent.RequireSignupCode, EventHasSignupCode = bingoEvent.SignupCodeHash is not null },
-                    codeReplaced = settings.RequireSignupCode && !string.IsNullOrWhiteSpace(settings.NewSignupCode)
-                }), id, ct);
-            SetStatus(Localize("Signup-code protection saved."), UiMessageType.Success);
-        }
-        catch (InvalidOperationException)
-        {
-            SetStatus(Localize("The signup-code setting could not be changed in this event state."), UiMessageType.Error);
-        }
-        return RedirectToQuestions(id, overlay);
-    }
-
     private async Task<bool> LoadAsync(Guid id, CancellationToken ct)
     {
         var bingoEvent = await dbContext.Events
@@ -237,28 +382,57 @@ public sealed class QuestionsModel(ApplicationDbContext dbContext, IAuditWriter 
 
         EventName = bingoEvent.Name;
         CanEdit = CanEditSignupQuestions(bingoEvent.State, bingoEvent.DraftLocked);
-        CanEditSettings = !bingoEvent.DraftLocked && bingoEvent.State is (EventState.Draft or EventState.SignupOpen or EventState.SignupClosed);
-        var form = await dbContext.SignupForms.AsNoTracking().Where(item => item.EventId == id).Select(item => new { item.RequireSignupCode, item.FirstResponseAt, HasSignupCode = item.SignupCodeHash != null }).SingleAsync(ct);
+        var form = await dbContext.SignupForms.AsNoTracking().Where(item => item.EventId == id).Select(item => new { item.FirstResponseAt }).SingleAsync(ct);
         HasFirstResponse = form.FirstResponseAt is not null;
-        HasSignupCode = form.HasSignupCode;
-        Settings = new SignupSettingsInput { RequireSignupCode = form.RequireSignupCode };
-        Questions = await dbContext.SignupQuestions
+        var allQuestions = await dbContext.SignupQuestions
             .AsNoTracking()
-            .Where(question => question.EventId == id && question.Active)
+            .Where(question => question.EventId == id)
             .OrderBy(question => question.Position)
             .ToListAsync(ct);
+        Questions = allQuestions.Where(question => question.Active).ToList();
+        CoCaptainQuestion = allQuestions.SingleOrDefault(question => question.SystemField == SignupSystemField.CoCaptainName);
+        var impactedQuestions = allQuestions.Where(question => question.Active && (question.SystemField == SignupSystemField.None || question.SystemField == SignupSystemField.CoCaptainName)).ToList();
+        var impactedIds = impactedQuestions.Select(question => question.Id).ToList();
+        if (impactedIds.Count == 0)
+        {
+            QuestionImpacts = new Dictionary<Guid, SignupQuestionImpact>();
+        }
+        else
+        {
+            var answerCounts = await dbContext.SignupAnswers.AsNoTracking()
+                .Where(answer => impactedIds.Contains(answer.SignupQuestionId))
+                .GroupBy(answer => answer.SignupQuestionId)
+                .Select(group => new { group.Key, Count = group.Count() })
+                .ToDictionaryAsync(item => item.Key, item => item.Count, ct);
+            var releaseCounts = await dbContext.EventParticipantCharacters.AsNoTracking()
+                .Where(assignment => assignment.EventId == id && assignment.SignupQuestionId != null && impactedIds.Contains(assignment.SignupQuestionId.Value) && assignment.ReleasedAt == null)
+                .GroupBy(assignment => assignment.SignupQuestionId!.Value)
+                .Select(group => new { Key = group.Key, Count = group.Count() })
+                .ToDictionaryAsync(item => item.Key, item => item.Count, ct);
+            QuestionImpacts = impactedQuestions.ToDictionary(
+                question => question.Id,
+                question => new SignupQuestionImpact(
+                    question.Id,
+                    answerCounts.GetValueOrDefault(question.Id),
+                    releaseCounts.GetValueOrDefault(question.Id),
+                    question.Version));
+        }
         return true;
     }
 
     private Task<bool> CanEditAsync(Guid id, CancellationToken ct) =>
         dbContext.Events.AnyAsync(
             item => item.Id == id
+                && item.HiddenAt == null
                 && !item.DraftLocked
-                && (item.State == EventState.Draft || item.State == EventState.SignupClosed),
+                && (item.State == EventState.Draft || item.State == EventState.SignupOpen || item.State == EventState.SignupClosed),
             ct);
 
+    private Task<BingoEvent?> LockEditableEventAsync(Guid id, CancellationToken ct) =>
+        dbContext.Events.FromSqlInterpolated($"SELECT * FROM events WHERE id = {id} AND hidden_at IS NULL FOR UPDATE").SingleOrDefaultAsync(ct);
+
     private static bool CanEditSignupQuestions(EventState state, bool draftLocked) =>
-        !draftLocked && state is EventState.Draft or EventState.SignupClosed;
+        !draftLocked && state is (EventState.Draft or EventState.SignupOpen or EventState.SignupClosed);
 
     private async Task<string> CreateUniqueKeyAsync(Guid id, string label, CancellationToken ct)
     {
@@ -307,7 +481,7 @@ public sealed class QuestionsModel(ApplicationDbContext dbContext, IAuditWriter 
 
     private void SetLockedStatus() =>
         SetStatus(
-            Localize("Signup questions can only be changed while signups are closed and before the draft starts."),
+            Localize("Signup questions can only be changed before the draft starts."),
             UiMessageType.Error);
 
     private RedirectToPageResult RedirectToQuestions(Guid id, bool? overlay = null) =>
@@ -358,6 +532,11 @@ public sealed class QuestionsModel(ApplicationDbContext dbContext, IAuditWriter 
         [Display(Name = "Account role")] public EventCharacterRole? AccountRole { get; set; }
     }
 
+    public sealed class AccountPresentationInput
+    {
+        [Required, StringLength(300)] public string Label { get; set; } = string.Empty;
+    }
+
     public sealed class EditQuestionInput
     {
         [Required, StringLength(300)] public string Label { get; set; } = string.Empty;
@@ -368,9 +547,4 @@ public sealed class QuestionsModel(ApplicationDbContext dbContext, IAuditWriter 
         public EventCharacterRole? AccountRole { get; set; }
     }
 
-    public sealed class SignupSettingsInput
-    {
-        [Display(Name = "Require signup code")] public bool RequireSignupCode { get; set; }
-        [StringLength(100), Display(Name = "New signup code")] public string? NewSignupCode { get; set; }
-    }
 }

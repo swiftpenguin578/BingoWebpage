@@ -11,6 +11,7 @@ using Bingo.Domain.Teams;
 using Bingo.Infrastructure.Boards;
 using Bingo.Infrastructure.Persistence;
 using Bingo.Infrastructure.Signups;
+using Bingo.Infrastructure.Teams;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 
@@ -61,18 +62,38 @@ public sealed class EventLifecycleService(
 
     public async Task<EventStartResult> StartNowAsync(Guid eventId, long version, bool confirmed, string? reason, LifecycleActor actor, CancellationToken ct = default)
     {
+        var preAuthorizedActor = await EventMutationAuthorization.GetActiveActorAsync(db, actor, ct);
+        if (preAuthorizedActor is null)
+            return new(false, EventMutationAuthorization.UnauthorizedMessage);
+        actor = preAuthorizedActor;
         if (!confirmed) return new(false, "Confirm that you want to start the event.");
-        var prepared = await prices.PrepareStartAsync(ct);
+
+        PreparedEventItemPrices prepared;
+        try
+        {
+            prepared = await prices.PrepareStartAsync(ct);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return new(false, ex.Message);
+        }
+
         await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
         try
         {
+            var authorizedActor = await EventMutationAuthorization.GetAuthorizedActorAsync(db, actor, ct);
+            if (authorizedActor is null)
+            {
+                await tx.RollbackAsync(ct);
+                return new(false, EventMutationAuthorization.UnauthorizedMessage);
+            }
+            actor = authorizedActor;
+
             await LockCurrentBoundaryAsync(ct);
             var item = await db.Events.FromSqlInterpolated($"SELECT * FROM events WHERE id = {eventId} AND hidden_at IS NULL FOR UPDATE")
                 .SingleOrDefaultAsync(ct) ?? throw new InvalidOperationException("Event not found.");
             if (item.Version != version) throw new DbUpdateConcurrencyException();
             var now = time.GetUtcNow();
-            if (item.EventStartsAt is { } scheduledFor && now < scheduledFor && string.IsNullOrWhiteSpace(reason))
-                return new(false, "Enter a reason when starting the event before its configured start.");
             var blockers = await EvaluateStartAsync(item, ct);
             if (blockers.Count > 0) return new(false, string.Join(" ", blockers.Select(x => x.Description)), blockers);
             var from = item.State;
@@ -96,10 +117,18 @@ public sealed class EventLifecycleService(
 
     public async Task<EventStartResult> EndNowAsync(Guid eventId, long version, bool confirmed, string? reason, LifecycleActor actor, CancellationToken ct = default)
     {
-        if (!confirmed) return new(false, "Confirm that you want to end the event.");
         await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
         try
         {
+            var authorizedActor = await EventMutationAuthorization.GetAuthorizedActorAsync(db, actor, ct);
+            if (authorizedActor is null)
+            {
+                await tx.RollbackAsync(ct);
+                return new(false, EventMutationAuthorization.UnauthorizedMessage);
+            }
+            actor = authorizedActor;
+            if (!confirmed) return new(false, "Confirm that you want to end the event.");
+
             await LockCurrentBoundaryAsync(ct);
             var item = await EventAsync(eventId, version, ct);
             var now = time.GetUtcNow();
@@ -121,11 +150,19 @@ public sealed class EventLifecycleService(
 
     public async Task<EventStartResult> ResumePrematureEndAsync(Guid eventId, long version, bool confirmed, string? reason, DateTimeOffset? replacementEventEndsAt, LifecycleActor actor, CancellationToken ct = default)
     {
-        if (!confirmed) return new(false, "Confirm that you want to resume the event.");
-        if (string.IsNullOrWhiteSpace(reason)) return new(false, "Enter a reason for resuming the event.");
         await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
         try
         {
+            var authorizedActor = await EventMutationAuthorization.GetAuthorizedActorAsync(db, actor, ct);
+            if (authorizedActor is null)
+            {
+                await tx.RollbackAsync(ct);
+                return new(false, EventMutationAuthorization.UnauthorizedMessage);
+            }
+            actor = authorizedActor;
+            if (!confirmed) return new(false, "Confirm that you want to resume the event.");
+            if (string.IsNullOrWhiteSpace(reason)) return new(false, "Enter a reason for resuming the event.");
+
             await LockCurrentBoundaryAsync(ct);
             var item = await EventAsync(eventId, version, ct);
             var now = time.GetUtcNow();
@@ -260,7 +297,7 @@ public sealed class EventLifecycleService(
             blockers.Add(new("SCHEDULE_INVALID", "Configure a valid event start and end.", $"/Admin/Events/Schedule/{item.Id}"));
         else if (item.EventEndsAt <= now)
             blockers.Add(new("EVENT_END_PASSED", "The configured event end has passed; cancel this event or replace its schedule before starting it.", $"/Admin/Events/Manage/{item.Id}"));
-        if (!await db.DraftSessions.AsNoTracking().AnyAsync(x => x.EventId == item.Id && x.State == DraftState.Finalized, ct))
+        if (!await db.ActiveRosterPublications(item.Id).AnyAsync(ct))
             blockers.Add(new("DRAFT_NOT_FINALIZED", "Finalize the team draft before starting.", $"/Admin/Events/Draft/{item.Id}"));
         if (!await db.Boards.AsNoTracking().AnyAsync(x => x.EventId == item.Id && x.State == BoardState.Published, ct))
             blockers.Add(new("BOARD_NOT_PUBLISHED", "Publish the board before starting.", $"/Admin/Events/Board/{item.Id}"));
@@ -287,23 +324,6 @@ public sealed class EventLifecycleService(
         foreach (var participantId in confirmedParticipantIds.Except(primaryParticipantIds))
             blockers.Add(new("PARTICIPANT_PLAYING_ASSIGNMENT_INVALID", "Every confirmed participant needs an unambiguous current Playing assignment before the event can start.", $"/Admin/Events/Participant/{item.Id}/Participants/{participantId}"));
 
-        var activeTeams = await db.Teams.AsNoTracking().Where(x => x.EventId == item.Id && x.Active).Select(x => new { x.Id, x.Name }).ToListAsync(ct);
-        var activeTeamIds = activeTeams.Select(team => team.Id).ToArray();
-        var captainTeams = await (from membership in db.TeamMemberships.AsNoTracking()
-                                  join participant in db.EventParticipants.AsNoTracking() on membership.EventParticipantId equals participant.Id
-                                  join account in db.Accounts.AsNoTracking() on participant.AccountId equals account.Id
-                                  where membership.LeftAt == null && membership.Role == TeamMembershipRole.Captain && activeTeamIds.Contains(membership.TeamId) &&
-                                        participant.EventId == item.Id && account.Active && account.AccountType == AccountType.WebsiteAccount
-                                  select membership.TeamId).Distinct().ToListAsync(ct);
-        var emergencyTeams = await (from access in db.AccountEventAccesses.AsNoTracking()
-                                    join account in db.Accounts.AsNoTracking() on access.AccountId equals account.Id
-                                    where access.EventId == item.Id && access.Enabled && account.Active && account.PasswordHash != null && !account.MustChangePassword && account.AccountType == AccountType.EmergencyCaptain
-                                        && (access.ActiveFrom == null || access.ActiveFrom <= now) && (access.ExpiresAt == null || access.ExpiresAt > now)
-                                        && activeTeamIds.Contains(access.TeamId)
-                                    select access.TeamId).Distinct().ToListAsync(ct);
-        foreach (var team in activeTeams.Where(x => !captainTeams.Contains(x.Id) && !emergencyTeams.Contains(x.Id)))
-            blockers.Add(new("TEAM_ACCESS_MISSING", $"{team.Name} needs a current Captain or enabled emergency credential.", $"/Admin/Events/Draft/{item.Id}"));
-
         var developmentMode = string.Equals(Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT"), "Development", StringComparison.OrdinalIgnoreCase);
         var current = await db.Events.AsNoTracking()
             .Where(x => x.Id != item.Id && x.HiddenAt == null && CurrentStates.Contains(x.State) && !(developmentMode && x.IsDevelopmentFixture))
@@ -318,8 +338,15 @@ public sealed class EventLifecycleService(
     private async Task AppendInitialActivationsAsync(Guid eventId, DateTimeOffset effectiveAtUtc, CancellationToken ct)
     {
         var candidates = await db.PrimaryCharacters().AsNoTracking()
-            .Where(x => x.EventId == eventId && db.EventParticipants.Any(participant =>
-                participant.Id == x.ParticipantId && participant.SignupStatus == SignupStatus.Confirmed))
+            .Where(x => x.EventId == eventId &&
+                        db.EventParticipants.Any(participant =>
+                            participant.Id == x.ParticipantId && participant.SignupStatus == SignupStatus.Confirmed) &&
+                        db.TeamMemberships.Any(membership =>
+                            membership.EventParticipantId == x.ParticipantId && membership.LeftAt == null &&
+                            db.Teams.Any(team => team.Id == membership.TeamId && team.EventId == eventId && team.Active)) &&
+                        db.DraftPublicationRosters.Any(roster =>
+                            roster.EventParticipantId == x.ParticipantId &&
+                            db.ActiveRosterPublications(eventId).Any(cycle => cycle.Id == roster.DraftPublicationCycleId)))
             .Select(x => new { x.ParticipantId, x.OsrsCharacterId })
             .ToListAsync(ct);
         var participantIds = candidates.Select(x => x.ParticipantId).ToArray();

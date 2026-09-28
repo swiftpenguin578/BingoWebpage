@@ -23,7 +23,7 @@ public sealed partial class IndexModel
         if (string.IsNullOrWhiteSpace(itemName) || itemName.Length > 200) return BadRequest();
         if (catalogueApi is null) return new JsonResult(new { error = Localize("The API is temporarily unavailable.") });
         var result = await catalogueApi.GetItemsAsync(ct);
-        if (!result.Available) return new JsonResult(new { error = Localize("The API is temporarily unavailable.") });
+        if (!result.Available) return new JsonResult(new { error = Localize(ProviderFailure(result.Error, "The API is temporarily unavailable.")) });
         var matches = result.Data!.Where(x => string.Equals(x.Name, itemName.Trim(), StringComparison.OrdinalIgnoreCase)).Take(2).ToArray();
         return new JsonResult(matches.Length == 1
             ? new { id = (int?)matches[0].Id, name = (string?)matches[0].Name, error = (string?)null }
@@ -91,14 +91,14 @@ public sealed partial class IndexModel
                     missingHourlyPrice = true;
                     messageType = UiMessageType.Information;
                     message = prices.Available ? "Mapping verified. No hourly price is available."
-                        : "Mapping verified. The price API is temporarily unavailable; retry later.";
+                        : ProviderFailure(prices.Error, "Mapping verified. The price API is temporarily unavailable; retry later.");
                 }
             }
             else
             {
                 messageType = match is null ? UiMessageType.Information : UiMessageType.Success; message = match is not null ? "Mapping verified. Your selected catalogue value was kept."
                 : mapping.Available ? "Settings saved. This ID is not in the tradeable item mapping; review the exact variant or untradeable classification."
-                : "Settings saved. The API is temporarily unavailable; retry validation later.";
+                : ProviderFailure(mapping.Error, "Settings saved. The API is temporarily unavailable; retry validation later.");
             }
         }
         var feedback = Localize(message);

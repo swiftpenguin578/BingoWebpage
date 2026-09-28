@@ -146,14 +146,27 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests : IAsy
             now.AddHours(-2), now.AddHours(-1), now.AddHours(-1), now.AddHours(4), now.AddHours(4), 20, admin.Id, now);
         eventItem.OpenSignups(now.AddHours(-2));
         eventItem.CloseSignups(now.AddHours(-1));
+        eventItem.SetDraftRosterPublication(true);
         var board = new Board(Guid.NewGuid(), eventItem.Id, "Initial Live board", 1, 1);
         var draft = new DraftSession(Guid.NewGuid(), eventItem.Id, 1);
         draft.Start(now.AddHours(-2));
         draft.Finalize(now.AddHours(-1));
+        var team = new Team(Guid.NewGuid(), eventItem.Id, "Initial Live team", "initial-live-team", TeamFormationType.Drafted, null, true);
+        team.Finalize(now.AddHours(-1));
+        var participant = new EventParticipant(Guid.NewGuid(), eventItem.Id, SignupStatus.Confirmed, 1, now.AddHours(-2), SignupSource.AdminCreated);
+        var character = new OsrsCharacter(Guid.NewGuid(), "Initial Live player", "INITIAL LIVE PLAYER", now);
+        var assignment = new EventParticipantCharacter(Guid.NewGuid(), eventItem.Id, participant.Id, character.Id, 0,
+            now.AddHours(-1), admin.Id, null, EventCharacterRole.Playing, 0, EhbSource.Manual, null);
+        var membership = new TeamMembership(Guid.NewGuid(), team.Id, participant.Id, TeamMembershipRole.Participant,
+            now.AddHours(-1), null, "Initial Live fixture");
+        var publication = new DraftPublicationCycle(Guid.NewGuid(), draft.Id, 1, now.AddHours(-1), admin.Id);
+        var roster = new DraftPublicationRoster(Guid.NewGuid(), publication.Id, team.Id, participant.Id,
+            TeamMembershipRole.Participant, null, character.DisplayName);
         var state = new EventCompetitionSynchronization(Guid.NewGuid(), eventItem.Id, 1, 49, "Initial Live competition", eventItem.EventStartsAt, eventItem.EventEndsAt, "", now);
         await using (var setup = new ApplicationDbContext(options))
         {
-            setup.AddRange(admin, eventItem, board, draft, state);
+            setup.AddRange(admin, eventItem, board, draft, state, team, participant, character, assignment,
+                membership, publication, roster);
             await BoardApprovalFixture.PublishAsync(setup, board, now);
             await setup.SaveChangesAsync();
         }
@@ -308,7 +321,7 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests : IAsy
         await using (var configureDb = new ApplicationDbContext(options))
         {
             var configured = await new EventCompetitionSynchronizationService(configureDb, fake, new FixedStatus(), clock)
-                .ConfigureAsync(eventItem.Id, eventItem.Version, replacement.Id, false, actor);
+                .ConfigureAsync(eventItem.Id, eventItem.Version, replacement.Id, true, actor);
             Assert.True(configured.Succeeded, configured.Error);
             var invalidated = await configureDb.EventCompetitionSynchronizations.SingleAsync(x => x.EventId == eventItem.Id);
             Assert.Equal(replacement.Id, invalidated.CompetitionId);
@@ -360,14 +373,6 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests : IAsy
                 .ConfigureAsync(eventItem.Id, currentVersion, null, false, actor, false, true, "Previously accepted clear reason");
             Assert.False(failed.Succeeded);
             Assert.Contains("cannot be cleared", failed.Error, StringComparison.OrdinalIgnoreCase);
-        }
-
-        await using (var scheduleDb = new ApplicationDbContext(options))
-        {
-            var failed = await new EventCompetitionSynchronizationService(scheduleDb, fake, new FixedStatus(), clock)
-                .ConfigureAsync(eventItem.Id, currentVersion, replacement.Id, true, actor);
-            Assert.False(failed.Succeeded);
-            Assert.Contains("schedule", failed.Error, StringComparison.OrdinalIgnoreCase);
         }
 
         await using var verify = new ApplicationDbContext(options);
@@ -516,7 +521,7 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests : IAsy
     [Theory]
     [InlineData(DraftState.Running)]
     [InlineData(DraftState.Paused)]
-    public async Task WiseOldManScheduleSynchronizationRejectsRunningOrPausedDraftStatesWithoutResidue(DraftState draftState)
+    public async Task WiseOldManScheduleSynchronizationRejectsMismatchedProviderWindowBeforeDraftStateMutation(DraftState draftState)
     {
         var rawNow = DateTimeOffset.UtcNow;
         var now = rawNow.AddTicks(-(rawNow.Ticks % TimeSpan.TicksPerMicrosecond));
@@ -524,7 +529,7 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests : IAsy
         var admin = Account.CreateWebsite(Guid.NewGuid(), "locked-schedule-admin", "LOCKED-SCHEDULE-ADMIN", now);
         admin.SetGlobalRole(GlobalRole.Admin);
         var eventItem = new BingoEvent(Guid.NewGuid(), "Locked schedule", $"locked-schedule-{Guid.NewGuid():N}", "", "UTC",
-            now.AddHours(-2), now.AddHours(-1), null, now.AddDays(1), now.AddDays(2), 20, admin.Id, now);
+            now.AddHours(-2), now.AddHours(-1), now.AddDays(1), now.AddDays(2), null, 20, admin.Id, now);
         eventItem.OpenSignups(now.AddHours(-2));
         eventItem.CloseSignups(now.AddHours(-1));
         eventItem.SetDraftLocked(true);
@@ -548,7 +553,7 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests : IAsy
             var result = await new EventCompetitionSynchronizationService(db, fake, new FixedStatus(), clock)
                 .ConfigureAsync(eventItem.Id, eventItem.Version, competition.Id, true, new(admin.Id, admin.LoginName));
             Assert.False(result.Succeeded);
-            Assert.Contains("schedule is locked", result.Error, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("within five minutes", result.Error, StringComparison.OrdinalIgnoreCase);
         }
 
         await using var verify = new ApplicationDbContext(options);
@@ -564,7 +569,7 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests : IAsy
     }
 
     [Fact]
-    public async Task WiseOldManScheduleSynchronizationUsesTheFinalizedDraftEventWindowMutation()
+    public async Task WiseOldManScheduleSynchronizationRetainsTheFinalizedWebsiteEventWindow()
     {
         var clock = new TestClock(DateTimeOffset.UtcNow);
         var now = clock.GetUtcNow();
@@ -572,10 +577,8 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests : IAsy
         admin.SetGlobalRole(GlobalRole.Admin);
         var originalStart = now.AddDays(1);
         var originalEnd = now.AddDays(2);
-        var replacementStart = now.AddDays(3);
-        var replacementEnd = now.AddDays(4);
         var eventItem = new BingoEvent(Guid.NewGuid(), "Finalized schedule", $"finalized-schedule-{Guid.NewGuid():N}", "", "UTC",
-            now.AddHours(-2), now.AddHours(-1), null, originalStart, originalEnd, 20, admin.Id, now);
+            now.AddHours(-2), now.AddHours(-1), originalStart, originalEnd, null, 20, admin.Id, now);
         eventItem.OpenSignups(now.AddHours(-2));
         eventItem.CloseSignups(now.AddHours(-1));
         eventItem.SetDraftLocked(true);
@@ -588,7 +591,7 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests : IAsy
             await setup.SaveChangesAsync();
         }
 
-        var competition = new WiseOldManCompetition(204, "Finalized schedule competition", replacementStart, replacementEnd, now, []);
+        var competition = new WiseOldManCompetition(204, "Finalized schedule competition", originalStart, originalEnd, now, []);
         var fake = new FakeCompetitionClient([new(WiseOldManCompetitionStatus.Success, competition)]);
         var actor = new LifecycleActor(admin.Id, admin.LoginName);
         await using (var db = new ApplicationDbContext(options))
@@ -598,8 +601,8 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests : IAsy
             Assert.True(result.Succeeded, result.Error);
         }
 
-        var expectedStart = replacementStart.AddTicks(-(replacementStart.Ticks % TimeSpan.TicksPerMicrosecond));
-        var expectedEnd = replacementEnd.AddTicks(-(replacementEnd.Ticks % TimeSpan.TicksPerMicrosecond));
+        var expectedStart = originalStart.AddTicks(-(originalStart.Ticks % TimeSpan.TicksPerMicrosecond));
+        var expectedEnd = originalEnd.AddTicks(-(originalEnd.Ticks % TimeSpan.TicksPerMicrosecond));
         await using var verify = new ApplicationDbContext(options);
         var saved = await verify.Events.AsNoTracking().SingleAsync(x => x.Id == eventItem.Id);
         Assert.Equal(EventState.SignupClosed, saved.State);
@@ -622,14 +625,14 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests : IAsy
         var clearedEvent = await clearDb.Events.SingleAsync(x => x.Id == eventItem.Id);
         Assert.Equal(expectedStart, clearedEvent.EventStartsAt);
         Assert.Equal(expectedEnd, clearedEvent.EventEndsAt);
-        Assert.Equal(1, await verify.AuditEntries.CountAsync(x => x.EventId == eventItem.Id && x.Action == "event.schedule_updated"));
+        Assert.Equal(0, await verify.AuditEntries.CountAsync(x => x.EventId == eventItem.Id && x.Action == "event.schedule_updated"));
         Assert.Equal(1, await verify.AuditEntries.CountAsync(x => x.EventId == eventItem.Id && x.Action == "event.competition_linked"));
     }
 
     [Theory]
     [InlineData(EventState.SignupOpen)]
     [InlineData(EventState.SignupClosed)]
-    public async Task CompetitionScheduleSynchronizationRejectsPastChangedBoundariesWithoutResidue(EventState state)
+    public async Task CompetitionScheduleSynchronizationRejectsMismatchedProviderWindowWithoutResidue(EventState state)
     {
         var clock = new TestClock(DateTimeOffset.UtcNow);
         var now = clock.GetUtcNow();
@@ -657,7 +660,7 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests : IAsy
             var result = await new EventCompetitionSynchronizationService(db, fake, new FixedStatus(), clock)
                 .ConfigureAsync(eventItem.Id, version, competition.Id, true, actor);
             Assert.False(result.Succeeded);
-            Assert.Contains("future", result.Error, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("within five minutes", result.Error, StringComparison.OrdinalIgnoreCase);
         }
 
         await using var verify = new ApplicationDbContext(options);
@@ -671,7 +674,7 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests : IAsy
     }
 
     [Fact]
-    public async Task CompetitionScheduleSynchronizationRejectsOperationalOverlapWithoutResidue()
+    public async Task CompetitionScheduleSynchronizationRejectsMismatchedProviderWindowBeforeOverlapWithoutResidue()
     {
         var clock = new TestClock(DateTimeOffset.UtcNow);
         var now = clock.GetUtcNow();
@@ -702,7 +705,7 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests : IAsy
             var result = await new EventCompetitionSynchronizationService(db, fake, new FixedStatus(), clock)
                 .ConfigureAsync(target.Id, version, competition.Id, true, actor);
             Assert.False(result.Succeeded);
-            Assert.Contains("overlaps", result.Error, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("within five minutes", result.Error, StringComparison.OrdinalIgnoreCase);
         }
 
         await using var verify = new ApplicationDbContext(options);
@@ -715,7 +718,7 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests : IAsy
     }
 
     [Fact]
-    public async Task CompetitionScheduleSynchronizationRequiresAndAcceptsPublicScheduleConfirmation()
+    public async Task CompetitionScheduleSynchronizationLinksMatchingWindowWithoutRetiredScheduleConfirmation()
     {
         var clock = new TestClock(DateTimeOffset.UtcNow);
         var now = clock.GetUtcNow();
@@ -735,51 +738,30 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests : IAsy
             await setup.SaveChangesAsync();
         }
 
-        var competition = new WiseOldManCompetition(203, "Public replacement", now.AddDays(3), now.AddDays(4), now, []);
+        var competition = new WiseOldManCompetition(203, "Public replacement", eventStart, eventEnd, now, []);
         var fake = new FakeCompetitionClient([new(WiseOldManCompetitionStatus.Success, competition)]);
         var actor = new LifecycleActor(admin.Id, admin.LoginName);
         await using (var db = new ApplicationDbContext(options))
         {
             var result = await new EventCompetitionSynchronizationService(db, fake, new FixedStatus(), clock)
                 .ConfigureAsync(eventItem.Id, version, competition.Id, true, actor);
-            Assert.False(result.Succeeded);
-            Assert.Contains("confirm", result.Error, StringComparison.OrdinalIgnoreCase);
+            Assert.True(result.Succeeded, result.Error);
         }
 
-        await using (var rejectedVerify = new ApplicationDbContext(options))
-        {
-            var saved = await rejectedVerify.Events.AsNoTracking().SingleAsync(x => x.Id == eventItem.Id);
-            Assert.Equal(eventStart.AddTicks(-(eventStart.Ticks % TimeSpan.TicksPerMicrosecond)), saved.EventStartsAt);
-            Assert.Equal(eventEnd.AddTicks(-(eventEnd.Ticks % TimeSpan.TicksPerMicrosecond)), saved.EventEndsAt);
-            Assert.Equal(version, saved.Version);
-            Assert.Empty(await rejectedVerify.EventCompetitionSynchronizations.Where(x => x.EventId == eventItem.Id).ToListAsync());
-            Assert.Empty(await rejectedVerify.AuditEntries.Where(x => x.EventId == eventItem.Id).ToListAsync());
-        }
-
-        await using (var confirmedDb = new ApplicationDbContext(options))
-        {
-            var confirmed = await new EventCompetitionSynchronizationService(confirmedDb, fake, new FixedStatus(), clock)
-                .ConfigureAsync(eventItem.Id, version, competition.Id, true, actor, confirmScheduleChanges: true);
-            Assert.True(confirmed.Succeeded, confirmed.Error);
-        }
-
-        var expectedStart = competition.StartsAt.AddTicks(-(competition.StartsAt.Ticks % TimeSpan.TicksPerMicrosecond));
-        var expectedEnd = competition.EndsAt.AddTicks(-(competition.EndsAt.Ticks % TimeSpan.TicksPerMicrosecond));
         await using var verify = new ApplicationDbContext(options);
-        var savedAfterConfirmation = await verify.Events.AsNoTracking().SingleAsync(x => x.Id == eventItem.Id);
-        Assert.Equal(expectedStart, savedAfterConfirmation.EventStartsAt);
-        Assert.Equal(expectedEnd, savedAfterConfirmation.EventEndsAt);
-        Assert.Equal(expectedEnd.AddMinutes(30), savedAfterConfirmation.SubmissionCutoffAt);
-        Assert.Equal(version + 1, savedAfterConfirmation.Version);
+        var savedAfterLink = await verify.Events.AsNoTracking().SingleAsync(x => x.Id == eventItem.Id);
+        Assert.Equal(eventStart.AddTicks(-(eventStart.Ticks % TimeSpan.TicksPerMicrosecond)), savedAfterLink.EventStartsAt);
+        Assert.Equal(eventEnd.AddTicks(-(eventEnd.Ticks % TimeSpan.TicksPerMicrosecond)), savedAfterLink.EventEndsAt);
+        Assert.Equal(version + 1, savedAfterLink.Version);
         var state = await verify.EventCompetitionSynchronizations.AsNoTracking().SingleAsync(x => x.EventId == eventItem.Id);
         Assert.Equal(competition.Id, state.CompetitionId);
-        Assert.Equal(1, await verify.AuditEntries.CountAsync(x => x.EventId == eventItem.Id && x.Action == "event.schedule_updated"));
+        Assert.Equal(0, await verify.AuditEntries.CountAsync(x => x.EventId == eventItem.Id && x.Action == "event.schedule_updated"));
         Assert.Equal(1, await verify.AuditEntries.CountAsync(x => x.EventId == eventItem.Id && x.Action == "event.competition_linked"));
-        Assert.Equal(2, fake.Calls);
+        Assert.Equal(1, fake.Calls);
     }
 
     [Fact]
-    public async Task PreLiveCompetitionReplacementValidatesTheRequestedCompetitionWindow()
+    public async Task PreLiveCompetitionLinkRetainsTheWebsiteOwnedEventWindow()
     {
         var clock = new TestClock(DateTimeOffset.UtcNow);
         var now = clock.GetUtcNow();
@@ -787,10 +769,8 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests : IAsy
         admin.SetGlobalRole(GlobalRole.Admin);
         var originalStart = now.AddDays(1);
         var originalEnd = now.AddDays(2);
-        var replacementStart = now.AddDays(3);
-        var replacementEnd = now.AddDays(4);
         var eventItem = new BingoEvent(Guid.NewGuid(), "Pre-live replacement", $"prelive-replacement-{Guid.NewGuid():N}", "", "UTC",
-            now.AddHours(-2), now.AddHours(1), null, originalStart, originalEnd, 20, admin.Id, now);
+            now.AddHours(-2), now.AddHours(1), originalStart, originalEnd, null, 20, admin.Id, now);
         eventItem.OpenSignups(now.AddHours(-2));
         var prior = new EventCompetitionSynchronization(Guid.NewGuid(), eventItem.Id, 1, 205, "Prior competition",
             originalStart, originalEnd, "prior-fingerprint", now);
@@ -800,7 +780,7 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests : IAsy
             await setup.SaveChangesAsync();
         }
 
-        var replacement = new WiseOldManCompetition(206, "Requested replacement", replacementStart, replacementEnd, now, []);
+        var replacement = new WiseOldManCompetition(206, "Requested replacement", originalStart, originalEnd, now, []);
         var fake = new FakeCompetitionClient([new(WiseOldManCompetitionStatus.Success, replacement)]);
         var actor = new LifecycleActor(admin.Id, admin.LoginName);
         await using (var db = new ApplicationDbContext(options))
@@ -810,8 +790,8 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests : IAsy
             Assert.True(result.Succeeded, result.Error);
         }
 
-        var expectedStart = replacementStart.AddTicks(-(replacementStart.Ticks % TimeSpan.TicksPerMicrosecond));
-        var expectedEnd = replacementEnd.AddTicks(-(replacementEnd.Ticks % TimeSpan.TicksPerMicrosecond));
+        var expectedStart = originalStart.AddTicks(-(originalStart.Ticks % TimeSpan.TicksPerMicrosecond));
+        var expectedEnd = originalEnd.AddTicks(-(originalEnd.Ticks % TimeSpan.TicksPerMicrosecond));
         await using var verify = new ApplicationDbContext(options);
         var saved = await verify.Events.AsNoTracking().SingleAsync(x => x.Id == eventItem.Id);
         Assert.Equal(expectedStart, saved.EventStartsAt);
@@ -844,7 +824,9 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests : IAsy
         item.ConfigureSchedule(now.AddHours(1), now.AddHours(2), null, now.AddDays(1), now.AddDays(2), 20);
         var state = new EventCompetitionSynchronization(Guid.NewGuid(), item.Id, 1, 99, "Linked competition", item.EventStartsAt, item.EventEndsAt, "", now);
         await using var db = new ApplicationDbContext(options);
-        db.AddRange(item, state);
+        var admin = Account.CreateWebsite(actor.Id, actor.Username, actor.Username.ToUpperInvariant(), now);
+        admin.SetGlobalRole(GlobalRole.Admin);
+        db.AddRange(admin, item, state);
         await db.SaveChangesAsync();
         var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>()).Build();
         var service = new EventSignupLifecycleService(db, new EventReadinessEvaluator(db, configuration), new TestClock(now));
@@ -868,7 +850,9 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests : IAsy
         var state = new EventCompetitionSynchronization(Guid.NewGuid(), item.Id, 1, 99, "Managed competition", item.EventStartsAt, item.EventEndsAt, "", now);
         var management = new EventCompetitionManagement(Guid.NewGuid(), item.Id, state.Id, 99, "Managed competition", item.EventStartsAt!.Value, item.EventEndsAt!.Value, "protected", "local", now);
         await using var db = new ApplicationDbContext(options);
-        db.AddRange(item, state, management);
+        var admin = Account.CreateWebsite(actor.Id, actor.Username, actor.Username.ToUpperInvariant(), now);
+        admin.SetGlobalRole(GlobalRole.Admin);
+        db.AddRange(admin, item, state, management);
         await db.SaveChangesAsync();
         var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>()).Build();
         var service = new EventSignupLifecycleService(db, new EventReadinessEvaluator(db, configuration), new TestClock(now));

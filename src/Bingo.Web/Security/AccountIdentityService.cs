@@ -92,10 +92,11 @@ public sealed class AccountIdentityService(ApplicationDbContext db, IPasswordHas
     public async Task<string> GenerateResetLinkAsync(Guid actorId, Guid targetId, CancellationToken ct)
     {
         await using var tx = await db.Database.BeginTransactionAsync(ct);
-        await db.Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock(hashtextextended({targetId.ToString()}, 0))", ct);
-        var actor = await db.Accounts.SingleAsync(x => x.Id == actorId, ct); var target = await db.Accounts.SingleAsync(x => x.Id == targetId, ct);
-        if (actor.GlobalRole != GlobalRole.SuperAdmin && (actor.GlobalRole != GlobalRole.Admin || target.GlobalRole != GlobalRole.User)) throw new InvalidOperationException("You cannot reset this account.");
-        if (target.GlobalRole == GlobalRole.SuperAdmin) throw new InvalidOperationException("Super Admin reset requires operator recovery.");
+        var (actor, target) = await LoadPairForUpdateAsync(actorId, targetId, ct);
+        if (!actor.Active || actor.AccountType != AccountType.WebsiteAccount || target.AccountType != AccountType.WebsiteAccount || !target.Active)
+            throw new InvalidOperationException("This account is not available.");
+        if (actor.GlobalRole != GlobalRole.SuperAdmin && (actor.GlobalRole != GlobalRole.Admin || target.GlobalRole != GlobalRole.User)) throw new AccountActionException("You do not have permission to reset this account.");
+        if (target.GlobalRole == GlobalRole.SuperAdmin) throw new AccountActionException("Super Admin password recovery requires linked Discord sign-in or operator recovery.");
         var now = time.GetUtcNow(); var purpose = PasswordCredentialTokenPurpose.Reset;
         foreach (var token in await db.PasswordCredentialTokens.Where(x => x.AccountId == targetId && x.Purpose == purpose && x.UsedAt == null && x.SupersededAt == null).ToListAsync(ct)) token.Supersede(now);
         var raw = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
@@ -103,44 +104,32 @@ public sealed class AccountIdentityService(ApplicationDbContext db, IPasswordHas
         db.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), now, actor.Id, actor.LoginName, "account.reset_link_created", "account", target.Id.ToString(), "One-time password-reset link created."));
         await db.SaveChangesAsync(ct); await tx.CommitAsync(ct); return raw;
     }
-    public async Task<string> GenerateEmergencyCredentialLinkAsync(Guid actorId, Guid targetId, CancellationToken ct)
+    private async Task<(Account Actor, Account Target)> LoadPairForUpdateAsync(Guid actorId, Guid targetId, CancellationToken ct)
     {
-        await using var tx = await db.Database.BeginTransactionAsync(ct);
-        await db.Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock(hashtextextended({targetId.ToString()}, 0))", ct);
-        var actor = await db.Accounts.SingleAsync(x => x.Id == actorId, ct);
-        var target = await db.Accounts.SingleAsync(x => x.Id == targetId, ct);
-        if (actor.GlobalRole is not (GlobalRole.Admin or GlobalRole.SuperAdmin) || target.AccountType != AccountType.EmergencyCaptain)
-            throw new InvalidOperationException("Only an administrator can create an emergency credential link.");
-        var eventId = await db.AccountEventAccesses.Where(access => access.AccountId == targetId).Select(access => (Guid?)access.EventId).SingleOrDefaultAsync(ct);
-        if (eventId is null || await db.Events.AnyAsync(bingoEvent => bingoEvent.Id == eventId && bingoEvent.HiddenAt != null, ct))
-            throw new InvalidOperationException("This emergency credential is not available.");
-
-        var now = time.GetUtcNow();
-        var purpose = target.PasswordHash is null ? PasswordCredentialTokenPurpose.EmergencySetup : PasswordCredentialTokenPurpose.EmergencyReset;
-        foreach (var token in await db.PasswordCredentialTokens.Where(x => x.AccountId == targetId && x.UsedAt == null && x.SupersededAt == null).ToListAsync(ct)) token.Supersede(now);
-        var raw = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
-        db.PasswordCredentialTokens.Add(new PasswordCredentialToken(Guid.NewGuid(), targetId, purpose, Hash(raw), now.AddMinutes(60), now, actorId));
-        db.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), now, actor.Id, actor.LoginName, "account.emergency_credential_link_created", "account", target.Id.ToString(), "One-time emergency credential link created.", eventId));
-        await db.SaveChangesAsync(ct);
-        await tx.CommitAsync(ct);
-        return raw;
+        // Match AccountAdministrationService's ordered row locks. Reset authorization
+        // must observe the actor and target after any concurrent role/state mutation,
+        // not a stale tracked snapshot protected only by a target advisory lock.
+        var accounts = await db.Accounts
+            .FromSqlInterpolated($"SELECT * FROM accounts WHERE id = {actorId} OR id = {targetId} ORDER BY id FOR UPDATE")
+            .ToListAsync(ct);
+        foreach (var account in accounts) await db.Entry(account).ReloadAsync(ct);
+        var actor = accounts.SingleOrDefault(x => x.Id == actorId) ?? throw new InvalidOperationException("This account is not available.");
+        var target = accounts.SingleOrDefault(x => x.Id == targetId) ?? throw new InvalidOperationException("This account is not available.");
+        return (actor, target);
     }
+    // Retained call boundary fails closed for integrations still holding a legacy command.
+    public Task<string> GenerateEmergencyCredentialLinkAsync(Guid actorId, Guid targetId, CancellationToken ct) =>
+        throw new InvalidOperationException("This account is not available.");
     public async Task<PasswordCredentialTokenPurpose> ConsumeResetAsync(string rawToken, string password, CancellationToken ct)
     {
         ValidatePassword(password); var now = time.GetUtcNow(); await using var tx = await db.Database.BeginTransactionAsync(ct);
         var token = await db.PasswordCredentialTokens.FromSqlInterpolated($"SELECT * FROM password_credential_tokens WHERE \"TokenHash\" = {Hash(rawToken)} FOR UPDATE").SingleOrDefaultAsync(ct) ?? throw new InvalidOperationException("This link is no longer valid.");
         if (!token.IsUsable(now)) throw new InvalidOperationException("This link is no longer valid.");
         var account = await db.Accounts.SingleAsync(x => x.Id == token.AccountId, ct);
+        if (account.AccountType != AccountType.WebsiteAccount || token.Purpose is PasswordCredentialTokenPurpose.EmergencySetup or PasswordCredentialTokenPurpose.EmergencyReset)
+            throw new InvalidOperationException("This link is no longer valid.");
         if (token.Purpose == PasswordCredentialTokenPurpose.OwnerRecovery && (!account.Active || account.GlobalRole != GlobalRole.SuperAdmin))
             throw new InvalidOperationException("This link is no longer valid.");
-        var isEmergency = token.Purpose is PasswordCredentialTokenPurpose.EmergencySetup or PasswordCredentialTokenPurpose.EmergencyReset;
-        Guid? eventId = null;
-        if (isEmergency)
-        {
-            eventId = await db.AccountEventAccesses.Where(access => access.AccountId == account.Id).Select(access => (Guid?)access.EventId).SingleOrDefaultAsync(ct);
-            if (eventId is null || await db.Events.AnyAsync(bingoEvent => bingoEvent.Id == eventId && bingoEvent.HiddenAt != null, ct))
-                throw new InvalidOperationException("This link is no longer valid.");
-        }
         account.SetPassword(passwords.HashPassword(account, password), false, now); token.Use(now);
         var isOwnerRecovery = token.Purpose == PasswordCredentialTokenPurpose.OwnerRecovery;
         db.AuditEntries.Add(new AuditEntry(
@@ -154,12 +143,13 @@ public sealed class AccountIdentityService(ApplicationDbContext db, IPasswordHas
             isOwnerRecovery
                 ? "Operator-only owner password reset completed through a single-use credential link."
                 : "Password reset completed through a single-use credential link.",
-            eventId));
+            eventId: null));
         await db.SaveChangesAsync(ct); await tx.CommitAsync(ct); return token.Purpose;
     }
-    public async Task ChangePasswordAsync(Account account, string password, CancellationToken ct) { ValidatePassword(password); var now = time.GetUtcNow(); account.SetPassword(passwords.HashPassword(account, password), false, now); db.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), now, account.Id, account.LoginName, "account.password_changed", "account", account.Id.ToString(), "Password changed.")); await db.SaveChangesAsync(ct); }
-    public async Task SetDiscordAsync(Account account, string discordUserId, string? displayName, string action, CancellationToken ct) { if (await db.Accounts.AnyAsync(x => x.Id != account.Id && x.DiscordUserId == discordUserId, ct)) throw new InvalidOperationException("That Discord account is already linked."); var before = account.DiscordUserId; var now = time.GetUtcNow(); account.SetDiscordIdentity(discordUserId, displayName); db.AccountDiscordIdentityTransitions.Add(new AccountDiscordIdentityTransition(Guid.NewGuid(), account.Id, action, before, discordUserId, now)); db.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), now, account.Id, account.LoginName, $"account.discord_{action}", "account", account.Id.ToString(), $"Discord identity {action}.", beforeState: before is null ? "null" : "{\"discordLinked\":true}", afterState: "{\"discordLinked\":true}")); try { await db.SaveChangesAsync(ct); } catch (DbUpdateException exception) when (IsExpectedIdentityCollision(exception)) { throw new InvalidOperationException("That Discord account is already linked."); } }
-    public async Task RemoveDiscordAsync(Account account, CancellationToken ct) { var before = account.DiscordUserId; if (before is null) return; var now = time.GetUtcNow(); account.RemoveDiscordIdentity(); db.AccountDiscordIdentityTransitions.Add(new AccountDiscordIdentityTransition(Guid.NewGuid(), account.Id, "unlinked", before, null, now)); db.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), now, account.Id, account.LoginName, "account.discord_unlinked", "account", account.Id.ToString(), "Discord identity unlinked.", beforeState: "{\"discordLinked\":true}", afterState: "{\"discordLinked\":false}")); await db.SaveChangesAsync(ct); }
+    public async Task ChangePasswordAsync(Account account, string password, CancellationToken ct) { RequireWebsite(account); ValidatePassword(password); var now = time.GetUtcNow(); account.SetPassword(passwords.HashPassword(account, password), false, now); db.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), now, account.Id, account.LoginName, "account.password_changed", "account", account.Id.ToString(), "Password changed.")); await db.SaveChangesAsync(ct); }
+    public async Task SetDiscordAsync(Account account, string discordUserId, string? displayName, string action, CancellationToken ct) { RequireWebsite(account); if (await db.Accounts.AnyAsync(x => x.Id != account.Id && x.DiscordUserId == discordUserId, ct)) throw new InvalidOperationException("That Discord account is already linked."); var before = account.DiscordUserId; var now = time.GetUtcNow(); account.SetDiscordIdentity(discordUserId, displayName); db.AccountDiscordIdentityTransitions.Add(new AccountDiscordIdentityTransition(Guid.NewGuid(), account.Id, action, before, discordUserId, now)); db.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), now, account.Id, account.LoginName, $"account.discord_{action}", "account", account.Id.ToString(), $"Discord identity {action}.", beforeState: before is null ? "null" : "{\"discordLinked\":true}", afterState: "{\"discordLinked\":true}")); try { await db.SaveChangesAsync(ct); } catch (DbUpdateException exception) when (IsExpectedIdentityCollision(exception)) { throw new InvalidOperationException("That Discord account is already linked."); } }
+    public async Task RemoveDiscordAsync(Account account, CancellationToken ct) { RequireWebsite(account); var before = account.DiscordUserId; if (before is null) return; var now = time.GetUtcNow(); account.RemoveDiscordIdentity(); db.AccountDiscordIdentityTransitions.Add(new AccountDiscordIdentityTransition(Guid.NewGuid(), account.Id, "unlinked", before, null, now)); db.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), now, account.Id, account.LoginName, "account.discord_unlinked", "account", account.Id.ToString(), "Discord identity unlinked.", beforeState: "{\"discordLinked\":true}", afterState: "{\"discordLinked\":false}")); await db.SaveChangesAsync(ct); }
+    private static void RequireWebsite(Account account) { if (!account.Active || account.AccountType != AccountType.WebsiteAccount) throw new InvalidOperationException("This account is not available."); }
     public static void ValidatePassword(string password) { if (password.Length is < 10 or > 200) throw new InvalidOperationException("Passwords must be between 10 and 200 characters."); }
     public static string NormalizeOsrsCharacterName(string name) => name.Trim().ToUpperInvariant();
     public static string Hash(string raw) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(raw)));

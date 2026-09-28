@@ -2161,7 +2161,7 @@ public sealed class DevelopmentScenarioSeeder(
                 board_requirement_drop_snapshots, board_requirement_boss_snapshots, board_requirement_snapshots,
                 board_tile_image_assets, board_tiles, template_requirement_drops, template_requirement_bosses, tile_template_requirements,
                 tile_templates, boards, signup_answers, event_participant_characters, signup_questions, signup_forms, event_participants,
-                scheduled_signup_opening_attempts, scheduled_event_start_attempts, event_state_transitions, event_banner_cleanups, events, audit_entries, personal_notifications,
+                scheduled_signup_opening_attempts, scheduled_event_start_attempts, event_state_transitions, events, audit_entries, personal_notifications,
                 account_event_accesses, password_credential_tokens, account_discord_identity_transitions,
                 waiting_list_promotion_follow_ups,
                 tile_completion_facts,

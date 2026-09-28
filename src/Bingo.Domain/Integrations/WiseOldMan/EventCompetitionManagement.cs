@@ -43,7 +43,9 @@ public sealed class EventCompetitionManagement
         DateTimeOffset endsAt,
         string protectedVerificationCode,
         string localFingerprint,
-        DateTimeOffset now)
+        DateTimeOffset now,
+        EventCompetitionProvenance provenance = EventCompetitionProvenance.WebsiteCreated,
+        EventCompetitionCredentialStatus credentialStatus = EventCompetitionCredentialStatus.Valid)
     {
         Id = id;
         EventId = eventId;
@@ -53,6 +55,11 @@ public sealed class EventCompetitionManagement
         CompetitionStartsAt = startsAt.ToUniversalTime();
         CompetitionEndsAt = endsAt.ToUniversalTime();
         ProtectedVerificationCode = protectedVerificationCode;
+        Provenance = provenance;
+        WriteCapability = string.IsNullOrWhiteSpace(protectedVerificationCode)
+            ? EventCompetitionWriteCapability.ReadOnly
+            : EventCompetitionWriteCapability.Writable;
+        CredentialStatus = credentialStatus;
         LastAppliedLocalFingerprint = localFingerprint;
         ManagementVersion = 1;
         Status = EventCompetitionManagementStatus.Active;
@@ -68,6 +75,11 @@ public sealed class EventCompetitionManagement
     public DateTimeOffset CompetitionStartsAt { get; private set; }
     public DateTimeOffset CompetitionEndsAt { get; private set; }
     public string ProtectedVerificationCode { get; private set; } = string.Empty;
+    public EventCompetitionProvenance Provenance { get; private set; }
+    public EventCompetitionWriteCapability WriteCapability { get; private set; }
+    public EventCompetitionCredentialStatus CredentialStatus { get; private set; }
+    public DateTimeOffset? CredentialUpdatedAt { get; private set; }
+    public DateTimeOffset? CredentialValidatedAt { get; private set; }
     public string ManagedFieldScope { get; private set; } = "title,schedule,teams,participants";
     public EventCompetitionManagementStatus Status { get; private set; }
     public string LastAppliedLocalFingerprint { get; private set; } = string.Empty;
@@ -83,6 +95,11 @@ public sealed class EventCompetitionManagement
     public DateTimeOffset UpdatedAt { get; private set; }
     public DateTimeOffset? DeletedAt { get; private set; }
     public DateTimeOffset? ActualStartedAt { get; private set; }
+
+    public bool CanWrite => WriteCapability == EventCompetitionWriteCapability.Writable
+        && CredentialStatus is EventCompetitionCredentialStatus.Unverified or EventCompetitionCredentialStatus.Valid;
+
+    public bool CanDelete => Provenance == EventCompetitionProvenance.WebsiteCreated && CanWrite;
 
     public void ObserveActualStart(DateTimeOffset? actualStartedAt, DateTimeOffset now)
     {
@@ -131,6 +148,46 @@ public sealed class EventCompetitionManagement
     public void ReplaceProtectedCredential(string protectedVerificationCode, DateTimeOffset now)
     {
         ProtectedVerificationCode = protectedVerificationCode;
+        WriteCapability = string.IsNullOrWhiteSpace(protectedVerificationCode)
+            ? EventCompetitionWriteCapability.ReadOnly
+            : EventCompetitionWriteCapability.Writable;
+        CredentialStatus = string.IsNullOrWhiteSpace(protectedVerificationCode)
+            ? EventCompetitionCredentialStatus.Unavailable
+            : EventCompetitionCredentialStatus.Unverified;
+        CredentialUpdatedAt = now.ToUniversalTime();
+        CredentialValidatedAt = null;
+        UpdatedAt = now.ToUniversalTime();
+    }
+
+    public void AdoptProtectedCredential(string protectedVerificationCode, DateTimeOffset now)
+        => ReplaceProtectedCredential(protectedVerificationCode, now);
+
+    public void MarkCredentialValid(DateTimeOffset now)
+    {
+        WriteCapability = EventCompetitionWriteCapability.Writable;
+        CredentialStatus = EventCompetitionCredentialStatus.Valid;
+        CredentialValidatedAt = now.ToUniversalTime();
+        CredentialUpdatedAt ??= now.ToUniversalTime();
+        UpdatedAt = now.ToUniversalTime();
+    }
+
+    public void MarkCredentialInvalid(DateTimeOffset now)
+    {
+        CredentialStatus = EventCompetitionCredentialStatus.Invalid;
+        CredentialValidatedAt = now.ToUniversalTime();
+        UpdatedAt = now.ToUniversalTime();
+    }
+
+    public void MarkCredentialRevoked(DateTimeOffset now)
+    {
+        CredentialStatus = EventCompetitionCredentialStatus.Revoked;
+        CredentialValidatedAt = now.ToUniversalTime();
+        UpdatedAt = now.ToUniversalTime();
+    }
+
+    public void MarkCredentialUnavailable(DateTimeOffset now)
+    {
+        CredentialStatus = EventCompetitionCredentialStatus.Unavailable;
         UpdatedAt = now.ToUniversalTime();
     }
 
@@ -172,6 +229,13 @@ public sealed class EventCompetitionManagement
         LastErrorCode = null;
         LastError = null;
         UpdatedAt = now.ToUniversalTime();
+    }
+
+    public void RebindWebsiteCreatedConnection(Guid synchronizationId, long competitionId)
+    {
+        SynchronizationId = synchronizationId;
+        CompetitionId = competitionId;
+        Provenance = EventCompetitionProvenance.WebsiteCreated;
     }
 }
 

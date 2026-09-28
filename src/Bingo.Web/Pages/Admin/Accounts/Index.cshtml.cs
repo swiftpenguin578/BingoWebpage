@@ -14,25 +14,18 @@ public sealed class IndexModel(ApplicationDbContext db) : PageModel
     private const int PageSize = 25;
 
     public IReadOnlyList<WebsiteAccountRow> WebsiteAccounts { get; private set; } = [];
-    public IReadOnlyList<EmergencyCredentialRow> EmergencyCredentials { get; private set; } = [];
     public bool WebsiteHasNextPage { get; private set; }
-    public bool EmergencyHasNextPage { get; private set; }
 
     [BindProperty(SupportsGet = true)] public string? WebsiteSearch { get; set; }
     [BindProperty(SupportsGet = true)] public GlobalRole? WebsiteRole { get; set; }
     [BindProperty(SupportsGet = true)] public int WebsitePage { get; set; } = 1;
 
-    [BindProperty(SupportsGet = true)] public string? EmergencySearch { get; set; }
-    [BindProperty(SupportsGet = true)] public int EmergencyPage { get; set; } = 1;
 
     public async Task OnGetAsync(CancellationToken ct)
     {
         WebsiteSearch = Sanitize(WebsiteSearch);
-        EmergencySearch = Sanitize(EmergencySearch);
         WebsitePage = Math.Max(1, WebsitePage);
-        EmergencyPage = Math.Max(1, EmergencyPage);
         await LoadWebsiteAsync(ct);
-        await LoadEmergencyAsync(ct);
     }
 
     private async Task LoadWebsiteAsync(CancellationToken ct)
@@ -65,21 +58,6 @@ public sealed class IndexModel(ApplicationDbContext db) : PageModel
         WebsiteAccounts = WebsiteAccounts.Select(x => x with { EventRoleSummary = summaries[x.Id] }).ToList();
     }
 
-    private async Task LoadEmergencyAsync(CancellationToken ct)
-    {
-        var query = from account in db.Accounts.AsNoTracking()
-                    join access in db.AccountEventAccesses.AsNoTracking() on account.Id equals access.AccountId
-                    join bingoEvent in db.Events.AsNoTracking() on access.EventId equals bingoEvent.Id
-                    join team in db.Teams.AsNoTracking() on access.TeamId equals team.Id
-                    where account.AccountType == AccountType.EmergencyCaptain && bingoEvent.HiddenAt == null
-                    select new { account, access, EventName = bingoEvent.Name, TeamName = team.Name };
-        if (EmergencySearch is { Length: > 0 }) { var normalized = EmergencySearch.ToUpperInvariant(); query = query.Where(x => x.account.NormalizedLoginName.Contains(normalized)); }
-        var rows = await query.OrderBy(x => x.account.LoginName).ThenBy(x => x.account.Id).Skip((EmergencyPage - 1) * PageSize).Take(PageSize + 1)
-            .Select(x => new EmergencyCredentialRow(x.account.Id, x.account.LoginName, x.EventName, x.TeamName, x.account.PasswordHash != null, x.account.Active && x.access.Enabled, x.access.CutoffDisabled, x.account.LastLoginAt)).ToListAsync(ct);
-        EmergencyHasNextPage = rows.Count > PageSize;
-        EmergencyCredentials = rows.Take(PageSize).ToList();
-    }
-
     private static string BuildSummary(Guid accountId, IEnumerable<Participation> participants, IEnumerable<CurrentRole> roles)
     {
         var items = participants.Where(x => x.AccountId == accountId).Select(x =>
@@ -92,7 +70,6 @@ public sealed class IndexModel(ApplicationDbContext db) : PageModel
 
     private static string? Sanitize(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim()[..Math.Min(100, value.Trim().Length)];
     public sealed record WebsiteAccountRow(Guid Id, string Username, GlobalRole Role, bool Active, bool DiscordLinked, string? DiscordDisplayName, DateTimeOffset? LastLoginAt, string EventRoleSummary);
-    public sealed record EmergencyCredentialRow(Guid Id, string Username, string EventName, string TeamName, bool SetupComplete, bool Enabled, bool CutoffDisabled, DateTimeOffset? LastLoginAt);
     private sealed record Participation(Guid Id, Guid AccountId, string EventName);
     private sealed record CurrentRole(Guid EventParticipantId, string TeamName, Bingo.Domain.Teams.TeamMembershipRole Role);
 }

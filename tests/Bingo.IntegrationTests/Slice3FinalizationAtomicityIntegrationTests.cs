@@ -45,7 +45,9 @@ public sealed class Slice3FinalizationAtomicityIntegrationTests : IAsyncLifetime
         var teamId = Guid.NewGuid();
         await using (var setup = new ApplicationDbContext(options))
         {
-            setup.Events.Add(AwaitingReview(eventId, actorId));
+            var admin = Account.CreateWebsite(actorId, "Finalization Admin", "FINALIZATION ADMIN", now);
+            admin.SetGlobalRole(GlobalRole.Admin);
+            setup.AddRange(admin, AwaitingReview(eventId, actorId));
             setup.EventStateTransitions.Add(new EventStateTransition(Guid.NewGuid(), eventId, EventState.Live, EventState.AwaitingFinalReview, actorId, now.AddHours(-2), "Event ended", effectiveAt: now.AddHours(-2)));
             await setup.SaveChangesAsync();
         }
@@ -80,20 +82,20 @@ public sealed class Slice3FinalizationAtomicityIntegrationTests : IAsyncLifetime
         await using (var verify = new ApplicationDbContext(options))
         {
             var item = await verify.Events.SingleAsync(value => value.Id == eventId);
-            Assert.Equal(EventState.Finalized, item.State);
+            Assert.Equal(EventState.Archived, item.State);
             Assert.True(item.ResultsPublished);
             var snapshot = Assert.Single(await verify.EventFinalizations.Where(value => value.EventId == eventId).ToListAsync());
             var placement = Assert.Single(await verify.OfficialPlacements.Where(value => value.FinalizationId == snapshot.Id).ToListAsync());
             Assert.Equal(teamId, placement.TeamId);
-            Assert.Single(await verify.EventStateTransitions.Where(value => value.EventId == eventId && value.FromState == EventState.AwaitingFinalReview && value.ToState == EventState.Finalized).ToListAsync());
-            Assert.Single(await verify.AuditEntries.Where(value => value.EventId == eventId && value.Action == "event.finalized").ToListAsync());
+            Assert.Single(await verify.EventStateTransitions.Where(value => value.EventId == eventId && value.FromState == EventState.AwaitingFinalReview && value.ToState == EventState.Archived).ToListAsync());
+            Assert.Single(await verify.AuditEntries.Where(value => value.EventId == eventId && value.Action == "event.results_published").ToListAsync());
         }
 
         Assert.IsType<RedirectToPageResult>(await FinalizeInNewContext(eventId, actorId, teamId));
         await using var repeated = new ApplicationDbContext(options);
         Assert.Single(await repeated.EventFinalizations.Where(value => value.EventId == eventId).ToListAsync());
-        Assert.Single(await repeated.EventStateTransitions.Where(value => value.EventId == eventId && value.ToState == EventState.Finalized).ToListAsync());
-        Assert.Single(await repeated.AuditEntries.Where(value => value.EventId == eventId && value.Action == "event.finalized").ToListAsync());
+        Assert.Single(await repeated.EventStateTransitions.Where(value => value.EventId == eventId && value.ToState == EventState.Archived).ToListAsync());
+        Assert.Single(await repeated.AuditEntries.Where(value => value.EventId == eventId && value.Action == "event.results_published").ToListAsync());
     }
 
     [Fact]
@@ -139,10 +141,15 @@ public sealed class Slice3FinalizationAtomicityIntegrationTests : IAsyncLifetime
         {
             var page = FinalizeHandler(db, actorId, teamId, finalization: service);
             page.Reason = "Event-local correction coverage.";
-            Assert.IsType<RedirectToPageResult>(await page.OnPostCorrectCompletionAsync(eventId, teamId, correctedAtLocal, CancellationToken.None));
+            var retired = Assert.IsType<BadRequestObjectResult>(await page.OnPostCorrectCompletionAsync(eventId, teamId, correctedAtLocal, CancellationToken.None));
+            Assert.Equal("This final-review action is retired. Resolve the underlying records and publish official results.", retired.Value);
         }
 
-        Assert.Equal(new DateTimeOffset(2026, month, 15, 12, 0, 0, TimeSpan.Zero), service.CorrectedAt);
+        Assert.Null(service.CorrectedAt);
+        await using var verify = new ApplicationDbContext(options);
+        Assert.Equal(EventState.Draft, await verify.Events.Where(x => x.Id == eventId).Select(x => x.State).SingleAsync());
+        Assert.Empty(await verify.TeamCompletionCorrections.Where(x => x.EventId == eventId).ToListAsync());
+        Assert.Empty(await verify.AuditEntries.Where(x => x.EventId == eventId).ToListAsync());
     }
 
     [Theory]
@@ -164,15 +171,20 @@ public sealed class Slice3FinalizationAtomicityIntegrationTests : IAsyncLifetime
         await using (var db = new ApplicationDbContext(options))
         {
             var page = FinalizeHandler(db, actorId, teamId, finalization: service);
-            Assert.IsType<RedirectToPageResult>(await page.OnPostCorrectCompletionAsync(eventId, teamId, correctedAtLocal, CancellationToken.None));
-            Assert.Contains(expectedMessage, page.TempData["StatusMessage"]?.ToString());
+            var retired = Assert.IsType<BadRequestObjectResult>(await page.OnPostCorrectCompletionAsync(eventId, teamId, correctedAtLocal, CancellationToken.None));
+            Assert.Equal("This final-review action is retired. Resolve the underlying records and publish official results.", retired.Value);
+            Assert.DoesNotContain(expectedMessage, retired.Value?.ToString() ?? string.Empty, StringComparison.OrdinalIgnoreCase);
         }
 
         Assert.Null(service.CorrectedAt);
+        await using var verify = new ApplicationDbContext(options);
+        Assert.Equal(EventState.Draft, await verify.Events.Where(x => x.Id == eventId).Select(x => x.State).SingleAsync());
+        Assert.Empty(await verify.TeamCompletionCorrections.Where(x => x.EventId == eventId).ToListAsync());
+        Assert.Empty(await verify.AuditEntries.Where(x => x.EventId == eventId).ToListAsync());
     }
 
     [Fact]
-    public async Task ReviewAcknowledgementRollsBackWithoutAuditWhenAuditSaveFails()
+    public async Task RetiredCompletionInspectionRejectsWithoutAuditOrWrites()
     {
         var eventId = Guid.NewGuid();
         var actorId = Guid.NewGuid();
@@ -190,33 +202,20 @@ public sealed class Slice3FinalizationAtomicityIntegrationTests : IAsyncLifetime
         await using (var failing = new ApplicationDbContext(failingOptions))
         {
             var service = new EventFinalizationService(failing, new ReadyBoard(teamId, completed: true), new FixedClock(now));
-            var cycleId = await failing.EventStateTransitions.Where(x => x.EventId == eventId && x.ToState == EventState.AwaitingFinalReview).Select(x => x.Id).SingleAsync();
-            var readiness = (await service.GetReadinessAsync(eventId))!;
-            var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => service.AcknowledgeCompletionTimeAsync(eventId, teamId, actorId, 1, cycleId, expectedInspectionKey: readiness.Blockers.Single(x => x.TeamId == teamId).Key));
-            Assert.Equal("Simulated review audit failure.", exception.Message);
+            var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => service.AcknowledgeCompletionTimeAsync(eventId, teamId, actorId, 1, Guid.NewGuid(), expectedInspectionKey: "retired"));
+            Assert.Contains("retired", exception.Message, StringComparison.OrdinalIgnoreCase);
         }
 
         await using (var verify = new ApplicationDbContext(options))
         {
             Assert.Empty(await verify.FinalReviewResolutions.Where(x => x.EventId == eventId).ToListAsync());
+            Assert.Empty(await verify.TeamCompletionCorrections.Where(x => x.EventId == eventId).ToListAsync());
             Assert.Empty(await verify.AuditEntries.Where(x => x.EventId == eventId && x.Action == "event.completion_time_inspected").ToListAsync());
         }
-
-        await using (var success = new ApplicationDbContext(options))
-        {
-            var service = new EventFinalizationService(success, new ReadyBoard(teamId, completed: true), new FixedClock(now));
-            var cycleId = await success.EventStateTransitions.Where(x => x.EventId == eventId && x.ToState == EventState.AwaitingFinalReview).Select(x => x.Id).SingleAsync();
-            var readiness = (await service.GetReadinessAsync(eventId))!;
-            await service.AcknowledgeCompletionTimeAsync(eventId, teamId, actorId, 1, cycleId, expectedInspectionKey: readiness.Blockers.Single(x => x.TeamId == teamId).Key);
-        }
-
-        await using var committed = new ApplicationDbContext(options);
-        Assert.Single(await committed.FinalReviewResolutions.Where(x => x.EventId == eventId && x.TeamId == teamId).ToListAsync());
-        Assert.Single(await committed.AuditEntries.Where(x => x.EventId == eventId && x.Action == "event.completion_time_inspected").ToListAsync());
     }
 
     [Fact]
-    public async Task FinalReviewMutationsRequireCurrentVersionAndCycleAndSerializeWithoutResidue()
+    public async Task RetiredFinalReviewMutationsRejectWithoutVersionOrAuditResidue()
     {
         var eventId = Guid.NewGuid();
         var actorId = Guid.NewGuid();
@@ -230,94 +229,19 @@ public sealed class Slice3FinalizationAtomicityIntegrationTests : IAsyncLifetime
             await setup.SaveChangesAsync();
         }
 
-        Guid cycleOne;
-        long versionOne;
-        string inspectionKeyOne;
-        await using (var read = new ApplicationDbContext(options))
-        {
-            var readiness = await new EventFinalizationService(read, new ReadyBoard(teamId, completed: true), new FixedClock(now)).GetReadinessAsync(eventId);
-            cycleOne = readiness!.ReviewCycleId;
-            versionOne = readiness.EventVersion;
-            inspectionKeyOne = readiness.Blockers.Single(x => x.TeamId == teamId).Key;
-        }
-
-        await using (var missingTokens = new ApplicationDbContext(options))
-            await Assert.ThrowsAsync<InvalidOperationException>(() => new EventFinalizationService(missingTokens, new ReadyBoard(teamId, completed: true), new FixedClock(now)).AcknowledgeCompletionTimeAsync(eventId, teamId, actorId, null, null));
-
-        await using (var first = new ApplicationDbContext(options))
-        {
-            var service = new EventFinalizationService(first, new ReadyBoard(teamId, completed: true), new FixedClock(now));
-            await service.AcknowledgeCompletionTimeAsync(eventId, teamId, actorId, versionOne, cycleOne, expectedInspectionKey: inspectionKeyOne);
-        }
-        await using (var afterFirst = new ApplicationDbContext(options))
-        {
-            Assert.Equal(versionOne + 1, await afterFirst.Events.Where(x => x.Id == eventId).Select(x => x.Version).SingleAsync());
-            Assert.Single(await afterFirst.FinalReviewResolutions.Where(x => x.EventId == eventId && x.ReviewCycleId == cycleOne).ToListAsync());
-            Assert.Single(await afterFirst.AuditEntries.Where(x => x.EventId == eventId && x.Action == "event.completion_time_inspected").ToListAsync());
-        }
-
-        await using (var retry = new ApplicationDbContext(options))
-            await new EventFinalizationService(retry, new ReadyBoard(teamId, completed: true), new FixedClock(now)).AcknowledgeCompletionTimeAsync(eventId, teamId, actorId, versionOne, cycleOne, expectedInspectionKey: inspectionKeyOne);
-
-        await using (var stale = new ApplicationDbContext(options))
-        {
-            var service = new EventFinalizationService(stale, new ReadyBoard(teamId, completed: true), new FixedClock(now));
-            await Assert.ThrowsAsync<InvalidOperationException>(() => service.CorrectCompletionAsync(eventId, teamId, now.AddHours(-2).AddMinutes(-30), "stale correction", actorId, versionOne, cycleOne));
-        }
-        await using (var noStaleResidue = new ApplicationDbContext(options))
-            Assert.Empty(await noStaleResidue.TeamCompletionCorrections.Where(x => x.EventId == eventId).ToListAsync());
-
-        Guid cycleTwo;
-        long versionTwo;
-        await using (var reenter = new ApplicationDbContext(options))
-        {
-            var item = await reenter.Events.SingleAsync(x => x.Id == eventId);
-            var resumedAt = now.AddMinutes(1);
-            item.ResumePrematureEnd(now.AddHours(1), resumedAt);
-            reenter.EventStateTransitions.Add(new EventStateTransition(Guid.NewGuid(), eventId, EventState.AwaitingFinalReview, EventState.Live, actorId, resumedAt, "Resumed", effectiveAt: resumedAt));
-            var endedAt = now.AddMinutes(2);
-            item.EndEvent(endedAt);
-            var transition = new EventStateTransition(Guid.NewGuid(), eventId, EventState.Live, EventState.AwaitingFinalReview, actorId, endedAt, "Ended again", effectiveAt: endedAt);
-            reenter.EventStateTransitions.Add(transition);
-            await reenter.SaveChangesAsync();
-            cycleTwo = transition.Id;
-            versionTwo = item.Version;
-        }
-
-        await using (var priorCycle = new ApplicationDbContext(options))
-        {
-            var service = new EventFinalizationService(priorCycle, new ReadyBoard(teamId, completed: true), new FixedClock(now));
-            await Assert.ThrowsAsync<InvalidOperationException>(() => service.AcknowledgeCompletionTimeAsync(eventId, teamId, actorId, versionTwo, cycleOne));
-        }
-        await using (var noPriorResidue = new ApplicationDbContext(options))
-            Assert.Single(await noPriorResidue.FinalReviewResolutions.Where(x => x.EventId == eventId && x.ReviewCycleId == cycleOne).ToListAsync());
-
-        var concurrent = await Task.WhenAll(
-            AcknowledgeInNewContext(eventId, teamId, actorId, versionTwo, cycleTwo),
-            AcknowledgeInNewContext(eventId, teamId, actorId, versionTwo, cycleTwo));
-        Assert.InRange(concurrent.Count(result => result is null), 1, 2);
-        foreach (var loser in concurrent.Where(result => result is not null))
-            Assert.Contains("Reload the current final-review cycle", loser!.Message, StringComparison.Ordinal);
-        await using var verify = new ApplicationDbContext(options);
-        Assert.Equal(versionTwo + 1, await verify.Events.Where(x => x.Id == eventId).Select(x => x.Version).SingleAsync());
-        Assert.Single(await verify.FinalReviewResolutions.Where(x => x.EventId == eventId && x.ReviewCycleId == cycleTwo).ToListAsync());
-        Assert.Single(await verify.AuditEntries.Where(x => x.EventId == eventId && x.Action == "event.completion_time_inspected" && x.Details!.Contains(cycleTwo.ToString())).ToListAsync());
-    }
-
-    private async Task<Exception?> AcknowledgeInNewContext(Guid eventId, Guid teamId, Guid actorId, long expectedVersion, Guid expectedReviewCycleId)
-    {
         await using var db = new ApplicationDbContext(options);
-        try
-        {
-            var service = new EventFinalizationService(db, new ReadyBoard(teamId, completed: true), new FixedClock(now));
-            var readiness = (await service.GetReadinessAsync(eventId))!;
-            await service.AcknowledgeCompletionTimeAsync(eventId, teamId, actorId, expectedVersion, expectedReviewCycleId, expectedInspectionKey: readiness.Blockers.Single(x => x.TeamId == teamId).Key);
-            return null;
-        }
-        catch (Exception exception)
-        {
-            return exception;
-        }
+        var service = new EventFinalizationService(db, new ReadyBoard(teamId, completed: true), new FixedClock(now));
+        var beforeVersion = await db.Events.Where(x => x.Id == eventId).Select(x => x.Version).SingleAsync();
+        var acknowledge = await Assert.ThrowsAsync<InvalidOperationException>(() => service.AcknowledgeCompletionTimeAsync(eventId, teamId, actorId));
+        var correct = await Assert.ThrowsAsync<InvalidOperationException>(() => service.CorrectCompletionAsync(eventId, teamId, now, "retired", actorId));
+        var resolve = await Assert.ThrowsAsync<InvalidOperationException>(() => service.ResolveBlockerAsync(eventId, "retired", "retired", true, actorId));
+        Assert.Contains("retired", acknowledge.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("retired", correct.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("retired", resolve.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(beforeVersion, await db.Events.Where(x => x.Id == eventId).Select(x => x.Version).SingleAsync());
+        Assert.Empty(await db.FinalReviewResolutions.Where(x => x.EventId == eventId).ToListAsync());
+        Assert.Empty(await db.TeamCompletionCorrections.Where(x => x.EventId == eventId).ToListAsync());
+        Assert.Empty(await db.AuditEntries.Where(x => x.EventId == eventId).ToListAsync());
     }
 
     private async Task<IActionResult> FinalizeInNewContext(Guid eventId, Guid actorId, Guid teamId)
@@ -366,11 +290,17 @@ public sealed class Slice3FinalizationAtomicityIntegrationTests : IAsyncLifetime
     private async Task AssertNoFinalizationAsync(Guid eventId)
     {
         await using var verify = new ApplicationDbContext(options);
-        Assert.Equal(EventState.AwaitingFinalReview, (await verify.Events.SingleAsync(value => value.Id == eventId)).State);
+        var eventItem = await verify.Events.SingleAsync(value => value.Id == eventId);
+        Assert.Equal(EventState.AwaitingFinalReview, eventItem.State);
+        Assert.False(eventItem.ResultsPublished);
+        Assert.Null(eventItem.FinalizedAt);
+        Assert.Null(eventItem.ArchivedAt);
         Assert.Empty(await verify.EventFinalizations.Where(value => value.EventId == eventId).ToListAsync());
         Assert.Empty(await verify.OfficialPlacements.Where(value => value.EventId == eventId).ToListAsync());
         Assert.Empty(await verify.EventStateTransitions.Where(value => value.EventId == eventId && value.ToState == EventState.Finalized).ToListAsync());
-        Assert.Empty(await verify.AuditEntries.Where(value => value.EventId == eventId && value.Action == "event.finalized").ToListAsync());
+        Assert.Empty(await verify.EventStateTransitions.Where(value => value.EventId == eventId && value.ToState == EventState.Archived).ToListAsync());
+        Assert.Empty(await verify.AuditEntries.Where(value => value.EventId == eventId && value.Action == "event.results_published").ToListAsync());
+        Assert.Empty(await verify.PersonalNotifications.Where(value => value.EventId == eventId && value.Title == "event.results_published").ToListAsync());
     }
 
     private sealed class ReadyBoard(Guid teamId, bool completed = false) : IPublicBoardService
@@ -397,7 +327,7 @@ public sealed class Slice3FinalizationAtomicityIntegrationTests : IAsyncLifetime
     private sealed class ThrowOnFinalizationAudit : SaveChangesInterceptor
     {
         public override ValueTask<InterceptionResult<int>> SavingChangesAsync(DbContextEventData eventData, InterceptionResult<int> result, CancellationToken cancellationToken = default) =>
-            eventData.Context!.ChangeTracker.Entries<AuditEntry>().Any(entry => entry.State == EntityState.Added && entry.Entity.Action == "event.finalized")
+            eventData.Context!.ChangeTracker.Entries<AuditEntry>().Any(entry => entry.State == EntityState.Added && entry.Entity.Action == "event.results_published")
                 ? ValueTask.FromException<InterceptionResult<int>>(new InvalidOperationException("Simulated finalization audit failure."))
                 : ValueTask.FromResult(result);
     }

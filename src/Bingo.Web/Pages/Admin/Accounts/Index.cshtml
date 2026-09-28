@@ -3,7 +3,7 @@
 @using Bingo.Domain.Access
 @{
     ViewData["Title"] = T["Accounts / Roles"];
-    ViewData["AdminPageDescription"] = T["Manage website roles and team-scoped emergency access."];
+    ViewData["AdminPageDescription"] = T["Manage website accounts and roles."];
     string RoleLabel(GlobalRole role) => role switch
     {
         GlobalRole.SuperAdmin => T["Super Admin"].Value,
@@ -37,15 +37,12 @@
                     </div>
                 </div>
                 <button class="visually-hidden" type="submit">@T["Search accounts"]</button>
-                <input type="hidden" name="EmergencySearch" value="@Model.EmergencySearch" />
-                <input type="hidden" name="EmergencyPage" value="@Model.EmergencyPage" />
             </form>
             <div class="admin-accounts-actions">
                 @if (User.IsInRole(nameof(GlobalRole.SuperAdmin)))
                 {
                     <a class="admin-button-secondary" asp-page="Transfer">@T["Transfer ownership"]</a>
                 }
-                <a class="admin-button-create" data-account-create-trigger="true" asp-page="Create"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M5 12h14" /><path d="M12 5v14" /></svg><span>@T["Create emergency credential"]</span></a>
             </div>
         </div>
         <div class="admin-accounts-table-wrap">
@@ -90,67 +87,11 @@
             </div>
         </div>
         <div class="admin-accounts-pager">
-            @if (Model.WebsitePage > 1) { <a class="admin-button-secondary" asp-route-WebsiteSearch="@Model.WebsiteSearch" asp-route-WebsiteRole="@Model.WebsiteRole" asp-route-WebsitePage="@(Model.WebsitePage - 1)" asp-route-EmergencySearch="@Model.EmergencySearch" asp-route-EmergencyPage="@Model.EmergencyPage">@T["Previous website accounts"]</a> }
-            @if (Model.WebsiteHasNextPage) { <a class="admin-button-secondary" asp-route-WebsiteSearch="@Model.WebsiteSearch" asp-route-WebsiteRole="@Model.WebsiteRole" asp-route-WebsitePage="@(Model.WebsitePage + 1)" asp-route-EmergencySearch="@Model.EmergencySearch" asp-route-EmergencyPage="@Model.EmergencyPage">@T["Next website accounts"]</a> }
+            @if (Model.WebsitePage > 1) { <a class="admin-button-secondary" asp-route-WebsiteSearch="@Model.WebsiteSearch" asp-route-WebsiteRole="@Model.WebsiteRole" asp-route-WebsitePage="@(Model.WebsitePage - 1)">@T["Previous website accounts"]</a> }
+            @if (Model.WebsiteHasNextPage) { <a class="admin-button-secondary" asp-route-WebsiteSearch="@Model.WebsiteSearch" asp-route-WebsiteRole="@Model.WebsiteRole" asp-route-WebsitePage="@(Model.WebsitePage + 1)">@T["Next website accounts"]</a> }
         </div>
     </section>
 
-    <section class="admin-accounts-section" data-admin-account-section="emergency" aria-labelledby="emergency-credentials-heading">
-        <div class="admin-events-directory-controls">
-            <form class="admin-events-toolbar" method="get" asp-page="./Index" data-admin-account-filter="emergency">
-                <div class="admin-search-field">
-                    <label class="visually-hidden" for="emergency-account-search">@T["Search login username"]</label>
-                    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
-                    <input id="emergency-account-search" class="admin-search-field-input form-control" type="search" name="EmergencySearch" value="@Model.EmergencySearch" placeholder="@T["Search login username…"]" />
-                    <button class="admin-search-clear" type="button" data-admin-search-clear aria-label="@T["Clear emergency credential search"]" hidden="@(string.IsNullOrWhiteSpace(Model.EmergencySearch) ? "hidden" : null)"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 6 12 12" /><path d="m18 6-12 12" /></svg></button>
-                </div>
-                <button class="visually-hidden" type="submit">@T["Search emergency credentials"]</button>
-                <input type="hidden" name="WebsiteSearch" value="@Model.WebsiteSearch" />
-                <input type="hidden" name="WebsiteRole" value="@Model.WebsiteRole" />
-                <input type="hidden" name="WebsitePage" value="@Model.WebsitePage" />
-            </form>
-        </div>
-        <div class="admin-accounts-table-wrap">
-            <header class="admin-accounts-section-heading">
-                <div><h2 id="emergency-credentials-heading">@T["Emergency credentials"]</h2><p>@T["Team-scoped fallback logins, distinct from normal website roles."]</p></div>
-            </header>
-            <div class="admin-events-table-scroll">
-                <table class="event-table admin-accounts-table admin-accounts-emergency-table">
-                    <colgroup>
-                        <col class="admin-accounts-col-login-username" />
-                        <col class="admin-accounts-col-event" />
-                        <col class="admin-accounts-col-team" />
-                        <col class="admin-accounts-col-setup" />
-                        <col class="admin-accounts-col-state" />
-                        <col class="admin-accounts-col-cutoff" />
-                        <col class="admin-accounts-col-last-login" />
-                        <col class="admin-accounts-col-actions" />
-                    </colgroup>
-                    <thead><tr><th><span class="admin-accounts-table-header-label">@T["Login username"]</span></th><th><span class="admin-accounts-table-header-label">@T["Event"]</span></th><th><span class="admin-accounts-table-header-label">@T["Team"]</span></th><th><span class="admin-accounts-table-header-label">@T["Setup"]</span></th><th><span class="admin-accounts-table-header-label">@T["State"]</span></th><th><span class="admin-accounts-table-header-label">@T["Cutoff"]</span></th><th><span class="admin-accounts-table-header-label">@T["Last login"]</span></th><th><span class="admin-accounts-table-header-label">@T["Actions"]</span></th></tr></thead>
-                    <tbody>
-                    @foreach (var account in Model.EmergencyCredentials)
-                    {
-                        <tr>
-                            <td data-label="Login username"><strong>@account.Username</strong></td>
-                            <td data-label="Event"><span class="admin-account-value admin-account-ellipsis" title="@account.EventName">@account.EventName</span></td>
-                            <td data-label="Team"><span class="admin-account-value">@account.TeamName</span></td>
-                            <td data-label="Setup"><span class="admin-status-pill @(account.SetupComplete ? "is-green" : "is-yellow")">@(account.SetupComplete ? T["Complete"] : T["Pending"])</span></td>
-                            <td data-label="State"><span class="admin-status-pill @(account.Enabled ? "is-green" : "is-muted")">@(account.Enabled ? T["Enabled"] : T["Disabled"])</span></td>
-                            <td data-label="Cutoff"><span class="admin-status-pill @(account.CutoffDisabled ? "is-muted" : "is-green")">@(account.CutoffDisabled ? T["Disabled at cutoff"] : T["Open"])</span></td>
-                            <td data-label="Last login"><span class="admin-account-support">@(account.LastLoginAt is { } ? DateTimePresentation.Format(account.LastLoginAt.Value, "dd MMM yyyy, HH:mm", provider: CultureInfo.CurrentCulture) : T["Never"].Value)</span></td>
-                            <td class="event-row-action" data-label="Actions"><a class="event-overview-row-action" data-account-manage-trigger="true" asp-page="Manage" asp-route-id="@account.Id">@T["Manage"]</a></td>
-                        </tr>
-                    }
-                    @if (!Model.EmergencyCredentials.Any()) { <tr><td class="admin-accounts-empty" colspan="8">@T["No emergency credentials match this search."]</td></tr> }
-                    </tbody>
-                </table>
-            </div>
-        </div>
-        <div class="admin-accounts-pager">
-            @if (Model.EmergencyPage > 1) { <a class="admin-button-secondary" asp-route-WebsiteSearch="@Model.WebsiteSearch" asp-route-WebsiteRole="@Model.WebsiteRole" asp-route-WebsitePage="@Model.WebsitePage" asp-route-EmergencySearch="@Model.EmergencySearch" asp-route-EmergencyPage="@(Model.EmergencyPage - 1)">@T["Previous emergency credentials"]</a> }
-            @if (Model.EmergencyHasNextPage) { <a class="admin-button-secondary" asp-route-WebsiteSearch="@Model.WebsiteSearch" asp-route-WebsiteRole="@Model.WebsiteRole" asp-route-WebsitePage="@Model.WebsitePage" asp-route-EmergencySearch="@Model.EmergencySearch" asp-route-EmergencyPage="@(Model.EmergencyPage + 1)">@T["Next emergency credentials"]</a> }
-        </div>
-    </section>
 </section>
 
 @section Scripts {

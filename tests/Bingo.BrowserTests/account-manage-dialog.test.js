@@ -159,13 +159,15 @@ const manageRoot = (redirect = false) => {
   page.setAttribute("data-account-status-message", "Generated a one-time setup or reset link. It expires after 60 minutes.");
   page.append(new Node("button", { dataset: { accountDialogClose: "true" } }));
   page.append(new Node("input", { name: "__RequestVerificationToken", value: "manage-token" }));
-  page.append(new Node("button", { dataset: { accountFinalAction: "true", accountHandler: "GenerateResetLink", accountConfirmationTitle: "Generate a reset link?", accountConfirmationSupport: "The link is shown once and expires after 60 minutes.", accountConfirmationLabel: "Generate reset link", accountConfirmationStyle: "secondary" } }));
+  const resetForm = new Form("form");
+  resetForm.action = "/Admin/Accounts/Manage/emergency-1?handler=GenerateResetLink";
+  resetForm.append(new Node("button", { textContent: "Generate reset link" }));
+  page.append(resetForm);
   const disableForm = new Form("form");
+  disableForm.action = "/Admin/Accounts/Manage/emergency-1?handler=Disable";
   disableForm.append(new Node("input", { name: "ExpectedAuthorizationVersion", value: "7", type: "hidden" }));
   disableForm.append(new Node("button", { dataset: { accountFinalAction: "true", accountHandler: "Disable", accountConfirmationTitle: "Disable this account?", accountConfirmationSupport: "Existing authorization and sessions will be protected by the account state change.", accountConfirmationLabel: "Disable account", accountConfirmationStyle: "danger", accountConfirmationReason: "true", accountConfirmationReasonLabel: "Disable reason" } }));
   page.append(disableForm);
-  page.append(new Node("button", { dataset: { accountEmergencyAction: "true", accountHandler: "GenerateEmergencyLink", accountConfirmationTitle: "Generate a setup or reset link?", accountConfirmationSupport: "The link is shown once and expires after 60 minutes.", accountConfirmationLabel: "Generate link", accountConfirmationStyle: "secondary" } }));
-  page.append(new Node("button", { dataset: { accountEmergencyAction: "true", accountHandler: "DisableEmergency", accountConfirmationTitle: "Disable this emergency credential?", accountConfirmationSupport: "The assigned team will no longer be able to use this fallback login.", accountConfirmationLabel: "Disable credential", accountConfirmationStyle: "danger" } }));
   return addGuard(page);
 };
 
@@ -234,7 +236,8 @@ global.window = {
   showBingoToast(message, type) { toastCalls.push({ message, type }); },
   history,
   setTimeout: callback => callback(),
-  addEventListener(type, listener) { (windowListeners[type] ??= []).push(listener); }
+  addEventListener(type, listener) { (windowListeners[type] ??= []).push(listener); },
+  removeEventListener(type, listener) { windowListeners[type] = (windowListeners[type] || []).filter(item => item !== listener); }
 };
 global.history = history;
 global.document = {
@@ -329,81 +332,35 @@ const nested = () => (lastConfirmation = body.querySelector(".admin-account-inli
   window.setTimeout = callback => callback();
 
   const liveManageTrigger = main.querySelector("[data-account-manage-trigger]");
+  window.adminConfirmation = { active: false, open(options) { this.options = options; this.active = true; return Promise.resolve(false); }, cancel() { this.active = false; } };
   liveManageTrigger.dispatch("click");
   await flush();
-  const emergency = outer().querySelector("[data-account-emergency-action]");
-  const triggerClass = emergency.className;
-  emergency.dispatch("click");
-  assert.equal(nested().hidden, false, "Emergency action reveals an inline confirmation");
-  assert.equal(emergency.hidden, true, "active action trigger is hidden");
-  assert.deepEqual(nested().scrollOptions, { block: "nearest", behavior: "instant" }, "revealed confirmation is brought into view without animation");
-  assert.equal(outer().open, true, "The Manage dialog remains open behind confirmation");
-  assert.equal(emergency.className, triggerClass, "Opening confirmation does not alter the closed trigger class");
-  nested().dispatch("keydown", { key: "Escape" });
-  assert.equal(nested().hidden, true, "nested Escape closes only confirmation");
-  assert.equal(outer().open, true);
-  assert.equal(emergency.focused, true, "nested close restores trigger focus");
-  assert.equal(emergency.hidden, false, "Escape restores the trigger");
-
-  emergency.dispatch("click");
-  nested().dispatch("click", { target: nested() });
-  assert.equal(nested().hidden, true, "nested backdrop closes only confirmation");
-  emergency.dispatch("click");
-  nested().querySelector("[data-account-confirmation-cancel]").dispatch("click");
-  assert.equal(nested().hidden, true, "Cancel closes only confirmation");
-
-  emergency.dispatch("click");
-  const confirmationForm = nested().querySelector("form");
-  const confirmationSubmit = confirmationForm.dispatch("submit");
+  const beforeReset = requested.length;
+  outer().querySelectorAll("form")[0].dispatch("submit");
   await flush();
-  assert.equal(confirmationSubmit.defaultPrevented, true, "Emergency confirm uses fetch instead of navigation");
-  assert.equal(requested.at(-2).method, "POST");
-  assert.match(requested.at(-2).url, /handler=GenerateEmergencyLink/);
-  assert.equal([...requested.at(-2).body].some(([name, value]) => name === "overlay" && value === "1"), true, "Emergency confirm posts overlay=1");
-  assert.equal(nested().hidden, true);
-  assert.equal(outer().open, true, "rendered Manage response stays in the outer dialog");
-  assert.equal(outer().querySelector("[data-account-dialog-page]").getAttribute("data-account-dialog-overlay"), "true", "only the overlay component is inserted after mutation");
+  assert.equal(window.adminConfirmation.active, false, "ordinary reset has no confirmation");
+  assert.equal(requested[beforeReset].method, "POST");
+  assert.match(requested[beforeReset].url, /handler=GenerateResetLink/);
+  assert.equal(outer().open, true, "reset response remains in Manage");
 
-  const reset = outer().querySelector("[data-account-final-action]");
-  reset.dispatch("click");
-  assert.equal(nested().hidden, false, "website reset action uses the shared inline confirmation");
-  assert.equal(nested().querySelector("[data-account-confirmation-submit]").textContent, "Generate reset link");
-  nested().querySelector("form").dispatch("submit");
-  await flush();
-  assert.equal(nested().hidden, true, "website reset confirmation closes after the rendered response");
-  assert.equal(outer().open, true, "website reset response stays in the outer dialog");
-  assert.deepEqual(toastCalls.at(-1), { message: "Generated a one-time setup or reset link. It expires after 60 minutes.", type: "success" }, "enhanced link success uses the shared toast once after replacement");
-
-  const websiteDisable = outer().querySelectorAll("[data-account-final-action]")[1];
-  websiteDisable.dispatch("click");
-  assert.equal(nested().hidden, false, "website disable action uses the shared inline confirmation");
-  assert.equal(nested().querySelector("textarea").required, true, "website disable confirmation keeps the required reason field");
-  assert.equal(nested().querySelector("textarea").name, "Reason");
-  assert.equal(nested().querySelector("input[name='ExpectedAuthorizationVersion']").value, "7", "the confirmation retains the target freshness from its originating form");
-  const reason = nested().querySelector("textarea");
-  reason.value = "Retained reason";
-  outer().querySelector("[data-account-dialog-close]").dispatch("click");
-  assert.equal(nested().hidden, true, "discard decision temporarily hides action confirmation");
-  assert.equal(websiteDisable.hidden, false, "discard restores the suspended trigger");
-  outer().querySelector("[data-account-editor-keep]").dispatch("click");
-  assert.equal(nested().hidden, false, "cancelling discard restores the reason form visibly");
-  assert.equal(nested().querySelector("textarea"), reason, "cancel retains the original confirmation form");
-  assert.equal(reason.value, "Retained reason");
-  assert.equal(websiteDisable.hidden, true, "discard Cancel hides the restored action trigger");
-  reason.value = "";
-
-  nested().querySelector("[data-account-confirmation-cancel]").dispatch("click");
-  assert.equal(nested().hidden, true, "website disable Cancel closes only the confirmation");
-  assert.equal(websiteDisable.hidden, false, "Cancel restores the trigger");
-
-  const disable = outer().querySelectorAll("[data-account-emergency-action]")[1];
+  const disable = outer().querySelector("[data-account-final-action]");
   disable.dispatch("click");
-  nested().querySelector("form").dispatch("submit");
+  const confirmation = window.adminConfirmation.options;
+  assert.equal(confirmation.title, "Disable this account?");
+  assert.equal(confirmation.requireReason, true);
+  assert.equal(confirmation.danger, true);
+  const beforeDisable = requested.length;
+  const outcome = await confirmation.onConfirm({ reason: "Support request" });
   await flush();
-  assert.equal(outer().open, false, "redirect to Index closes the outer dialog");
+  assert.equal(outcome, true);
+  assert.equal(requested[beforeDisable].method, "POST");
+  assert.match(requested[beforeDisable].url, /handler=Disable/);
+  assert.equal([...requested[beforeDisable].body].some(([name, value]) => name === "ExpectedAuthorizationVersion" && value === "7"), true);
+  assert.equal([...requested[beforeDisable].body].some(([name, value]) => name === "Reason" && value === "Support request"), true);
   assert.equal(assigned.at(-1), "https://example.test/Admin/Accounts/Index");
 
   const standaloneCreate = createRoot();
+  delete window.adminConfirmation;
   standaloneCreate.dataset.accountDialogOverlay = "false";
   main.replaceChildren(standaloneCreate);
   history.replaceState({}, "", "https://example.test/Admin/Accounts/Create?eventId=event-1");

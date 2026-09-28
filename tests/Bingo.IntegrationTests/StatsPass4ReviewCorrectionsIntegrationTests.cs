@@ -173,10 +173,20 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests
         {
             var service = new EventFinalizationService(db, new PublicBoardService(db, f.Clock), f.Clock);
             var ready = (await service.GetReadinessAsync(f.Event.Id))!;
-            await service.CorrectCompletionAsync(f.Event.Id, f.Team.Id, f.Event.ActualStartedAt!.Value.AddMinutes(5), "Controlled correction", f.Admin.Id, ready.EventVersion, ready.ReviewCycleId);
+            await Assert.ThrowsAsync<InvalidOperationException>(() => service.CorrectCompletionAsync(
+                f.Event.Id, f.Team.Id, f.Event.ActualStartedAt!.Value.AddMinutes(5), "Retired completion correction", f.Admin.Id,
+                ready.EventVersion, ready.ReviewCycleId));
+            Assert.True(ready.CanFinalize, string.Join("; ", ready.Blockers.Select(x => x.Description)));
+            await service.FinalizeAsync(f.Event.Id, new(f.Admin.Id, f.Admin.LoginName), ready.EventVersion);
         }
-        var corrected = await ReadStatsAsync(f); Assert.Equal(original.State, corrected.State); Assert.Equal(original.EndedAt, corrected.EndedAt);
-        Assert.Equal(original.EvidenceRevision + 1, corrected.EvidenceRevision); Assert.Null(corrected.Luck.CalculatedAt); Assert.Null(corrected.Luck.Result.Percentage);
+        var finalized = await ReadStatsAsync(f);
+        Assert.Equal(EventState.Archived, finalized.State); Assert.Equal(original.EndedAt, finalized.EndedAt);
+        Assert.Equal(original.EvidenceRevision + 1, finalized.EvidenceRevision);
+        Assert.Equal(finalized.EvidenceRevision, finalized.Luck.EvidenceRevision);
+        Assert.Null(finalized.Luck.CalculatedAt); Assert.Null(finalized.Luck.Result.Percentage);
+        Assert.Equal(original.Teams.Single().Progress.BoardCompletedAt, finalized.Teams.Single().OfficialCompletion!.CompletedAt);
+        Assert.Equal(original.Teams.Single().Progress.BoardCompletedAt, finalized.Teams.Single().Progress.BoardCompletedAt);
+        Assert.NotNull(finalized.OfficialResult);
     }
 
     [Theory]

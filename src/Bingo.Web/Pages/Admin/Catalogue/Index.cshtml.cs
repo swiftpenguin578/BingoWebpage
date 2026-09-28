@@ -6,6 +6,7 @@ using Bingo.Application.Access;
 using Bingo.Application.Catalogue;
 using Bingo.Domain.Auditing;
 using Bingo.Domain.Catalogue;
+using Bingo.Infrastructure.Boards;
 using Bingo.Infrastructure.Persistence;
 using Bingo.Web.Events;
 using Bingo.Web.Security;
@@ -39,6 +40,8 @@ public sealed partial class IndexModel(ApplicationDbContext dbContext, TimeProvi
     public Task OnGetAsync(CancellationToken ct) => LoadAsync(ct);
     public async Task<IActionResult> OnPostBossAsync(CancellationToken ct)
     {
+        if (HasOperatorFields("Boss.ExternalIdentifier", "Boss.DataSource", "Boss.Notes")
+            || Boss.ExternalIdentifier is not null || Boss.DataSource is not null || Boss.Notes is not null) return OperatorFieldsUnavailable();
         ModelState.Clear();
         if (!TryValidateModel(Boss, nameof(Boss)))
         {
@@ -64,12 +67,21 @@ public sealed partial class IndexModel(ApplicationDbContext dbContext, TimeProvi
     }
     public async Task<IActionResult> OnPostBossDropAsync(CancellationToken ct)
     {
+        if (HasOperatorFields("BossDrop.NumericProbability", "BossDrop.ProbabilityScope", "BossDrop.ConditionalOnParent", "BossDrop.ParentProbability", "BossDrop.AssumedParticipants", "BossDrop.RollsPerCompletion", "BossDrop.RollGroup", "BossDrop.Condition", "BossDrop.DataSource")
+            || BossDrop.NumericProbability is not null || BossDrop.ProbabilityScope != DropProbabilityScope.Participant || BossDrop.ConditionalOnParent || BossDrop.ParentProbability is not null
+            || BossDrop.AssumedParticipants != 1 || BossDrop.RollsPerCompletion != 1 || BossDrop.RollGroup != "default" || BossDrop.Condition is not null || BossDrop.DataSource is not null) return OperatorFieldsUnavailable();
         // Preserve binding failures for the optional numeric API inputs before validating this form.
         if ((ModelState.TryGetValue("BossDrop.InitialWikiItemId", out var idState) && idState.Errors.Count > 0)
             || (ModelState.TryGetValue("BossDrop.InitialValueGp", out var valueState) && valueState.Errors.Count > 0)) return BadRequest();
         ModelState.Clear();
         if (!TryValidateModel(BossDrop, nameof(BossDrop))) { SetStatus(string.Join(" ", ModelState.Values.SelectMany(x => x.Errors).Select(x => x.ErrorMessage)), UiMessageType.Error); return CataloguePage(); }
         var boss = await dbContext.BossActivities.SingleOrDefaultAsync(x => x.Id == BossDrop.BossActivityId, ct); if (boss is null) return NotFound();
+        var parsedRate = DropRateParser.TryParse(BossDrop.DisplayRate);
+        if (parsedRate is null)
+        {
+            SetStatus(Localize("Enter a valid drop rate, for example 1/100."), UiMessageType.Error);
+            return CataloguePage();
+        }
         var itemName = BossDrop.ItemName.Trim(); var normalizedName = itemName.ToUpperInvariant(); var item = await dbContext.CatalogueItems.SingleOrDefaultAsync(x => x.NormalizedName == normalizedName, ct);
         ApiItem? fetchedItem = null;
         ApiHourlyPrices? initialPrices = null;
@@ -84,7 +96,7 @@ public sealed partial class IndexModel(ApplicationDbContext dbContext, TimeProvi
             fetchedItem = matches?.Length == 1 ? matches[0] : null;
             initialMappingStatus = !mapping.Available ? ApiMappingStatus.TemporarilyUnavailable
                 : fetchedItem is null ? ApiMappingStatus.Unsupported : ApiMappingStatus.Verified;
-            if (!mapping.Available) fetchFailure = "The item mapping API is temporarily unavailable.";
+            if (!mapping.Available) fetchFailure = ProviderFailure(mapping.Error, "The item mapping API is temporarily unavailable.");
             else if (fetchedItem is null) fetchFailure = BossDrop.InitialWikiItemId is not null
                 ? "The item ID is not in the tradeable item mapping."
                 : "No unique exact-name item match was found.";
@@ -92,7 +104,7 @@ public sealed partial class IndexModel(ApplicationDbContext dbContext, TimeProvi
             {
                 var prices = await catalogueApi!.GetHourlyPricesAsync(ct);
                 initialPrices = prices.Data;
-                if (!prices.Available) fetchFailure = "The price API is temporarily unavailable.";
+                if (!prices.Available) fetchFailure = ProviderFailure(prices.Error, "The price API is temporarily unavailable.");
                 else if (initialPrices!.Values.GetValueOrDefault(fetchedItem.Id) is null)
                     fetchFailure = "No hourly price is available for the matched item.";
             }
@@ -118,30 +130,41 @@ public sealed partial class IndexModel(ApplicationDbContext dbContext, TimeProvi
                 item.RecordMapping(initialMappingStatus, initialMappingCheckedAt, fetchedItem?.Name, fetchedItem?.Icon);
             dbContext.CatalogueItems.Add(item);
         }
-        else { item.SetActive(true); if (!string.IsNullOrWhiteSpace(BossDrop.ImageUrl)) item.Update(item.Name, item.NormalizedName, item.ExternalIdentifier, item.Notes, OsrsWikiImageUrl.Normalize(BossDrop.ImageUrl)); }
+        var itemBefore = State(item);
         var existing = await dbContext.SourceDrops.SingleOrDefaultAsync(x => x.BossActivityId == boss.Id && x.ItemId == item.Id, ct);
         if (existing?.Active == true) { SetStatus(Localize("{0} is already listed for {1}.", item.Name, boss.Name), UiMessageType.Warning); return CataloguePage(); }
-        var parsedRate = DropRateParser.TryParse(BossDrop.DisplayRate); var rolls = parsedRate?.ExplicitMultipleRolls == true && BossDrop.RollsPerCompletion == 1 ? parsedRate.RollsPerCompletion : BossDrop.RollsPerCompletion; var probability = BossDrop.NumericProbability ?? parsedRate?.ProbabilityPerRoll; var effectiveProbability = SourceDrop.CalculateProbabilityPerCompletion(probability, rolls); var now = timeProvider.GetUtcNow(); decimal? calculatedEhb = boss.EfficientCompletionsPerHour is > 0 && effectiveProbability is > 0 ? 1 / (boss.EfficientCompletionsPerHour.Value * effectiveProbability.Value) : null;
+        var dropBefore = existing is null ? null : State(existing);
+        var rolls = existing?.RollsPerCompletion ?? parsedRate.RollsPerCompletion;
+        if (existing is not null && parsedRate.ExplicitMultipleRolls && parsedRate.RollsPerCompletion != rolls)
+        {
+            SetStatus(Localize("Enter a valid drop rate. Changes to reward rolls require an operator."), UiMessageType.Error);
+            return CataloguePage();
+        }
+        var probability = parsedRate.ProbabilityPerRoll; var effectiveProbability = SourceDrop.CalculateProbabilityPerCompletion(probability, rolls); var now = timeProvider.GetUtcNow(); decimal? calculatedEhb = boss.EfficientCompletionsPerHour is > 0 && effectiveProbability is > 0 ? 1 / (boss.EfficientCompletionsPerHour.Value * effectiveProbability.Value) : null;
         if (existing is null) { existing = new SourceDrop(Guid.NewGuid(), boss.Id, item.Id, BossDrop.DisplayRate.Trim(), probability, calculatedEhb, now); dbContext.SourceDrops.Add(existing); }
-        existing.Update(BossDrop.DisplayRate.Trim(), probability, Clean(BossDrop.Condition), calculatedEhb, Clean(BossDrop.DataSource), now); existing.SetActive(true);
-        existing.SetRateMechanics(DropProbabilityScope.Participant, false, null, 1, rolls, BossDrop.RollGroup);
+        existing.Update(BossDrop.DisplayRate.Trim(), probability, existing.RateConditionNote, calculatedEhb, existing.DataSource, now); existing.SetActive(true);
+        existing.SetRateMechanics(existing.ProbabilityScope, existing.ConditionalOnParent, existing.ParentProbability, existing.AssumedParticipants, rolls, existing.RollGroup);
+        item.SetActive(true);
+        if (!string.IsNullOrWhiteSpace(BossDrop.ImageUrl)) item.Update(item.Name, item.NormalizedName, item.ExternalIdentifier, item.Notes, OsrsWikiImageUrl.Normalize(BossDrop.ImageUrl));
         BossId = boss.Id;
         var message = Localize("Added {0} to {1}.", item.Name, boss.Name);
         if (fetchFailure is not null)
             message += " " + Localize(fetchFailure) + " " + Localize("The entered manual value ({0} GP) was used and stays fixed during bulk refreshes. Review the mapping and choose API hourly average, then validate again to use API pricing.", item.CatalogueValueGp!);
-        return await SaveAsync("catalogue.drop_created", "source_drop", existing.Id, $"{boss.Name}: {item.Name}", "{}", () => State(new { Drop = existing, Item = item }), message, ct,
+        var before = dropBefore is null ? "{}" : $"{{\"Drop\":{dropBefore},\"Item\":{itemBefore}}}";
+        return await SaveAsync(dropBefore is null ? "catalogue.drop_created" : "catalogue.drop_updated", "source_drop", existing.Id, $"{boss.Name}: {item.Name}", before, () => State(new { Drop = existing, Item = item }), message, ct,
             fetchFailure is null ? UiMessageType.Success : UiMessageType.Information);
     }
     public async Task<IActionResult> OnPostToggleBossAsync(Guid recordId, long expectedVersion, CancellationToken ct) { var entity = await dbContext.BossActivities.SingleAsync(x => x.Id == recordId, ct); if (entity.Version != expectedVersion) return Stale(); var before = State(entity); entity.SetActive(!entity.Active); return await SaveAsync("catalogue.boss_toggled", "boss_activity", entity.Id, entity.Name, before, State(entity), $"{entity.Name} {(entity.Active ? "reactivated" : "deactivated")}.", ct); }
     public async Task<IActionResult> OnPostToggleDropAsync(Guid recordId, long expectedVersion, CancellationToken ct) { DropId = recordId; var entity = await dbContext.SourceDrops.SingleAsync(x => x.Id == recordId, ct); if (entity.Version != expectedVersion) return Stale(); var itemName = await dbContext.CatalogueItems.Where(x => x.Id == entity.ItemId).Select(x => x.Name).SingleAsync(ct); var before = State(entity); entity.SetActive(!entity.Active); return await SaveAsync("catalogue.drop_toggled", "source_drop", entity.Id, itemName, before, State(entity), $"{itemName} {(entity.Active ? "reactivated" : "deactivated")}.", ct); }
     public async Task<IActionResult> OnPostUpdateBossAsync(Guid recordId, long expectedVersion, string name, string category, decimal? efficientRate, string? dataSource, string? imageUrl, CancellationToken ct)
     {
+        if (HasOperatorFields("dataSource") || dataSource is not null) return OperatorFieldsUnavailable();
         if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(category)) return BadRequest();
         var entity = await dbContext.BossActivities.SingleAsync(x => x.Id == recordId, ct);
         if (entity.Version != expectedVersion) return Stale(); var before = State(entity); var cleanName = name.Trim();
         var otherNames = await dbContext.BossActivities.Where(x => x.Id != recordId).Select(x => x.Name).ToListAsync(ct);
         if (otherNames.Any(x => string.Equals(x, cleanName, StringComparison.OrdinalIgnoreCase))) { SetStatus(Localize("A boss or activity named {0} already exists.", cleanName), UiMessageType.Warning); return CataloguePage(); }
-        entity.Update(cleanName, category.Trim(), efficientRate, entity.ExternalIdentifier, Clean(dataSource), entity.Notes, timeProvider.GetUtcNow(), OsrsWikiImageUrl.Normalize(imageUrl));
+        entity.Update(cleanName, category.Trim(), efficientRate, entity.ExternalIdentifier, entity.DataSource, entity.Notes, timeProvider.GetUtcNow(), OsrsWikiImageUrl.Normalize(imageUrl));
         var drops = await dbContext.SourceDrops.Where(x => x.BossActivityId == recordId).ToListAsync(ct);
         foreach (var drop in drops)
         {
@@ -152,10 +175,16 @@ public sealed partial class IndexModel(ApplicationDbContext dbContext, TimeProvi
     }
     public async Task<IActionResult> OnPostUpdateDropAsync(Guid recordId, long expectedVersion, long expectedItemVersion, string itemName, string displayRate, string originalDisplayRate, decimal? numericProbability, decimal? originalNumericProbability, DropProbabilityScope probabilityScope, bool conditionalOnParent, decimal? parentProbability, int assumedParticipants, int rollsPerCompletion, string? rollGroup, string? dataSource, string? imageUrl, bool useExistingItem, CancellationToken ct)
     {
+        if (HasOperatorFields("numericProbability", "probabilityScope", "conditionalOnParent", "parentProbability", "assumedParticipants", "rollsPerCompletion", "rollGroup", "dataSource")) return OperatorFieldsUnavailable();
         DropId = recordId;
         if (string.IsNullOrWhiteSpace(itemName) || string.IsNullOrWhiteSpace(displayRate) || numericProbability is <= 0 or > 1) return BadRequest();
         var entity = await dbContext.SourceDrops.SingleAsync(x => x.Id == recordId, ct);
         if (entity.Version != expectedVersion) return Stale();
+        if ((numericProbability is not null && numericProbability != entity.NumericProbability)
+            || (probabilityScope != default && probabilityScope != entity.ProbabilityScope)
+            || (conditionalOnParent && !entity.ConditionalOnParent) || (parentProbability is not null && parentProbability != entity.ParentProbability)
+            || (assumedParticipants > 0 && assumedParticipants != entity.AssumedParticipants) || (rollsPerCompletion > 0 && rollsPerCompletion != entity.RollsPerCompletion)
+            || (rollGroup is not null && rollGroup != entity.RollGroup) || (dataSource is not null && dataSource != entity.DataSource)) return OperatorFieldsUnavailable();
         var item = await dbContext.CatalogueItems.SingleAsync(x => x.Id == entity.ItemId, ct);
         if (item.Version != expectedItemVersion) return Stale();
         var cleanItemName = itemName.Trim();
@@ -174,20 +203,18 @@ public sealed partial class IndexModel(ApplicationDbContext dbContext, TimeProvi
         var affectedItems = matchingItem is null ? new[] { item } : new[] { item, matchingItem };
         var before = State(new { Drop = entity, Items = affectedItems });
         var cleanDisplayRate = displayRate.Trim();
-        var displayRateChanged = !string.Equals(cleanDisplayRate, originalDisplayRate.Trim(), StringComparison.Ordinal);
-        var numericProbabilityChanged = numericProbability != originalNumericProbability;
-        var parsedRate = DropRateParser.TryParse(cleanDisplayRate); var parsedProbability = parsedRate?.ProbabilityPerRoll;
-        var probability = numericProbabilityChanged
-            ? numericProbability
-            : displayRateChanged && parsedProbability is > 0
-                ? parsedProbability
-                : numericProbability ?? parsedProbability;
-        if (parsedRate?.ExplicitMultipleRolls == true && rollsPerCompletion == 1) rollsPerCompletion = parsedRate.RollsPerCompletion;
-        if (rollsPerCompletion < 1) return BadRequest();
+        var displayRateChanged = !string.Equals(cleanDisplayRate, entity.DisplayRate, StringComparison.Ordinal);
+        var parsedRate = DropRateParser.TryParse(cleanDisplayRate);
+        if (displayRateChanged && (parsedRate is null || parsedRate.ExplicitMultipleRolls && parsedRate.RollsPerCompletion != entity.RollsPerCompletion))
+        {
+            SetStatus(Localize("Enter a valid drop rate. Changes to reward rolls require an operator."), UiMessageType.Error);
+            return CataloguePage();
+        }
+        var probability = displayRateChanged ? parsedRate!.ProbabilityPerRoll : entity.NumericProbability;
+        rollsPerCompletion = entity.RollsPerCompletion;
         var effectiveProbability = SourceDrop.CalculateProbabilityPerCompletion(probability, rollsPerCompletion);
         var bossRate = await dbContext.BossActivities.Where(x => x.Id == entity.BossActivityId).Select(x => x.EfficientCompletionsPerHour).SingleAsync(ct); decimal? calculatedEhb = bossRate is > 0 && effectiveProbability is > 0 ? 1 / (bossRate.Value * effectiveProbability.Value) : null;
-        entity.Update(cleanDisplayRate, probability, entity.RateConditionNote, calculatedEhb, Clean(dataSource), timeProvider.GetUtcNow());
-        entity.SetRateMechanics(DropProbabilityScope.Participant, false, null, 1, rollsPerCompletion, rollGroup);
+        entity.Update(cleanDisplayRate, probability, entity.RateConditionNote, calculatedEhb, entity.DataSource, timeProvider.GetUtcNow());
         if (matchingItem is null)
         {
             item.Update(cleanItemName, normalizedItemName, item.ExternalIdentifier, item.Notes, OsrsWikiImageUrl.Normalize(imageUrl));
@@ -197,8 +224,7 @@ public sealed partial class IndexModel(ApplicationDbContext dbContext, TimeProvi
             entity.ChangeItem(matchingItem.Id);
             matchingItem.SetActive(true);
             if (!string.IsNullOrWhiteSpace(imageUrl)) matchingItem.Update(matchingItem.Name, matchingItem.NormalizedName, matchingItem.ExternalIdentifier, matchingItem.Notes, OsrsWikiImageUrl.Normalize(imageUrl));
-            if (!await dbContext.SourceDrops.AnyAsync(x => x.Id != entity.Id && x.ItemId == item.Id, ct)
-                && !await dbContext.EventItemPrices.AnyAsync(x => x.ItemId == item.Id, ct)) dbContext.CatalogueItems.Remove(item);
+            // Retain the previous shared identity and its price/history metadata.
         }
         // Enlist even unchanged shared metadata in the optimistic write check. A
         // concurrent item edit must also reject a form that only changes the drop.
@@ -208,11 +234,44 @@ public sealed partial class IndexModel(ApplicationDbContext dbContext, TimeProvi
         return await SaveAsync("catalogue.drop_updated", "source_drop", entity.Id, entity.DisplayRate, before,
             () => State(new { Drop = entity, Items = retainedItems }), "Drop details updated.", ct);
     }
-    public async Task<IActionResult> OnPostDeleteAsync(string recordType, Guid recordId, long expectedVersion, string confirmation, CancellationToken ct)
+    public async Task<IActionResult> OnGetDeletionImpactAsync(string recordType, Guid recordId, long expectedVersion, CancellationToken ct)
     {
         if (!User.IsInRole("SuperAdmin")) return Forbid();
-        if (!string.Equals(confirmation, "DELETE", StringComparison.Ordinal)) { SetStatus(Localize("Type DELETE to permanently remove an unused catalogue record."), UiMessageType.Warning); return CataloguePage(); }
-        await using var transaction = await dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
+        string? name;
+        long? version;
+        if (recordType == "boss")
+        {
+            var boss = await dbContext.BossActivities.AsNoTracking().SingleOrDefaultAsync(x => x.Id == recordId, ct);
+            name = boss?.Name; version = boss?.Version;
+        }
+        else if (recordType == "drop")
+        {
+            var drop = await (
+                from d in dbContext.SourceDrops.AsNoTracking()
+                join i in dbContext.CatalogueItems on d.ItemId equals i.Id
+                where d.Id == recordId
+                select new { i.Name, d.Version }).SingleOrDefaultAsync(ct);
+            name = drop?.Name; version = drop?.Version;
+        }
+        else return BadRequest();
+        if (version is null || version != expectedVersion)
+            return new JsonResult(new { canDelete = false, message = Localize("This record was changed by another administrator. Current values are shown; review them before saving.") });
+        var referenced = recordType == "boss" ? await BossHasReferencesAsync(recordId, ct) : await DropHasReferencesAsync(recordId, ct);
+        return new JsonResult(new
+        {
+            canDelete = !referenced,
+            title = Localize("Delete {0} permanently?", name!),
+            message = Localize(referenced ? "This record is referenced and cannot be permanently deleted. Deactivate it instead."
+                : "No dependencies were found. This permanently deletes the unused catalogue record. Shared items, prices and Audit history are retained. This cannot be undone.")
+        });
+    }
+    public async Task<IActionResult> OnPostDeleteAsync(string recordType, Guid recordId, long expectedVersion, bool confirmed, CancellationToken ct)
+    {
+        if (!User.IsInRole("SuperAdmin")) return Forbid();
+        if (!confirmed) { SetStatus(Localize("Review the deletion impact and confirm before deleting this record."), UiMessageType.Warning); return CataloguePage(); }
+        // Acquire the record lock before dependency reads. READ COMMITTED makes
+        // references committed while waiting visible to the subsequent recheck.
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
         try
         {
             var prepared = recordType switch
@@ -245,12 +304,9 @@ public sealed partial class IndexModel(ApplicationDbContext dbContext, TimeProvi
     }
     private async Task<DeletePreparation> PrepareBossDeletionAsync(Guid id, long version, CancellationToken ct)
     {
-        var entity = await dbContext.BossActivities.SingleOrDefaultAsync(x => x.Id == id, ct);
+        var entity = await dbContext.BossActivities.FromSqlInterpolated($"SELECT * FROM boss_activities WHERE id = {id} FOR UPDATE").SingleOrDefaultAsync(ct);
         if (entity is null || entity.Version != version) return new(DeletePreparationStatus.Stale, null);
-        var referenced = await dbContext.SourceDrops.AnyAsync(x => x.BossActivityId == id, ct)
-            || await dbContext.TemplateRequirementBosses.AnyAsync(x => x.BossActivityId == id, ct)
-            || await dbContext.BoardRequirementBossSnapshots.AnyAsync(x => x.BossActivityId == id, ct)
-            || await dbContext.BoardApprovalRequirementBossSnapshots.AnyAsync(x => x.BossActivityId == id, ct);
+        var referenced = await BossHasReferencesAsync(id, ct);
         if (referenced) return new(DeletePreparationStatus.Referenced, null);
         var candidate = new DeleteCandidate("catalogue.boss_deleted", "boss_activity", id, entity.Name, State(entity));
         dbContext.BossActivities.Remove(entity);
@@ -258,16 +314,32 @@ public sealed partial class IndexModel(ApplicationDbContext dbContext, TimeProvi
     }
     private async Task<DeletePreparation> PrepareDropDeletionAsync(Guid id, long version, CancellationToken ct)
     {
-        var entity = await dbContext.SourceDrops.SingleOrDefaultAsync(x => x.Id == id, ct);
+        var entity = await dbContext.SourceDrops.FromSqlInterpolated($"SELECT * FROM source_drops WHERE id = {id} FOR UPDATE").SingleOrDefaultAsync(ct);
         if (entity is null || entity.Version != version) return new(DeletePreparationStatus.Stale, null);
-        var referenced = await dbContext.TemplateRequirementDrops.AnyAsync(x => x.SourceDropId == id, ct)
-            || await dbContext.BoardRequirementDropSnapshots.AnyAsync(x => x.SourceDropId == id, ct)
-            || await dbContext.BoardApprovalRequirementDropSnapshots.AnyAsync(x => x.SourceDropId == id, ct);
+        var referenced = await DropHasReferencesAsync(id, ct);
         if (referenced) return new(DeletePreparationStatus.Referenced, null);
         var candidate = new DeleteCandidate("catalogue.drop_deleted", "source_drop", id, entity.DisplayRate, State(entity));
         dbContext.SourceDrops.Remove(entity);
         return new(DeletePreparationStatus.Ready, candidate);
     }
+    private async Task<bool> BossHasReferencesAsync(Guid id, CancellationToken ct) =>
+        await dbContext.SourceDrops.AnyAsync(x => x.BossActivityId == id, ct)
+        || await dbContext.TemplateRequirementBosses.AnyAsync(x => x.BossActivityId == id, ct)
+        || await dbContext.BoardRequirementBossSnapshots.AnyAsync(x => x.BossActivityId == id, ct)
+        || await dbContext.BoardApprovalRequirementBossSnapshots.AnyAsync(x => x.BossActivityId == id, ct)
+        || await dbContext.EventLuckOutcomeBases.AnyAsync(x => x.BossActivityId == id, ct);
+    private async Task<bool> DropHasReferencesAsync(Guid id, CancellationToken ct) =>
+        await dbContext.TemplateRequirementDrops.AnyAsync(x => x.SourceDropId == id, ct)
+        || await dbContext.BoardRequirementDropSnapshots.AnyAsync(x => x.SourceDropId == id, ct)
+        || await dbContext.BoardApprovalRequirementDropSnapshots.AnyAsync(x => x.SourceDropId == id, ct)
+        || await dbContext.EventLuckOutcomeBases.AnyAsync(x => x.SourceDropId == id, ct);
+    private bool HasOperatorFields(params string[] names) => Request.HasFormContentType && names.Any(name => Request.Form.ContainsKey(name));
+    private RedirectToPageResult OperatorFieldsUnavailable()
+    {
+        SetStatus(Localize("These operator-managed fields cannot be changed here. Your changes were not saved. Reload the current editor; ask an operator to change the retained mechanics or source metadata."), UiMessageType.Warning);
+        return CataloguePage();
+    }
+    private static string ProviderFailure(string? error, string fallback) => error == "The price API is temporarily limiting requests. Retry validation later." ? error : fallback;
     private async Task LoadAsync(CancellationToken ct)
     {
         ApiItems = await dbContext.CatalogueItems.AsNoTracking().ToDictionaryAsync(x => x.Id, ct);
@@ -289,6 +361,20 @@ public sealed partial class IndexModel(ApplicationDbContext dbContext, TimeProvi
         await using var transaction = await dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
         try
         {
+            var catalogueChanges = BoardEstimateService.CatalogueChangeSet.Capture(dbContext);
+            // A new source-drop connection must serialize with activity deletion.
+            var parentIds = dbContext.ChangeTracker.Entries<SourceDrop>().Where(x => x.State == EntityState.Added)
+                .Select(x => x.Entity.BossActivityId).Distinct().ToArray();
+            if (parentIds.Length > 0)
+            {
+                var parents = await dbContext.BossActivities.FromSqlInterpolated($"SELECT * FROM boss_activities WHERE id = ANY({parentIds}) ORDER BY id FOR SHARE")
+                    .AsNoTracking().ToListAsync(ct);
+                if (parents.Count != parentIds.Length) throw new DbUpdateConcurrencyException("The selected activity is no longer available.");
+            }
+            await dbContext.SaveChangesAsync(ct);
+            // Working estimate refreshes are derived cache maintenance. They
+            // intentionally remain outside the user mutation's Audit owner.
+            await BoardEstimateService.RefreshDependentDraftTilesAsync(dbContext, catalogueChanges, timeProvider.GetUtcNow(), ct);
             await dbContext.SaveChangesAsync(ct);
             dbContext.AuditEntries.Add(CreateAudit(action, type, id, details, before, after()));
             await dbContext.SaveChangesAsync(ct);

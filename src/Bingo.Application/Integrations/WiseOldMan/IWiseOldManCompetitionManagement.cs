@@ -23,6 +23,35 @@ public interface IWiseOldManCompetitionManagementClient
         DateTimeOffset dispatchDeadline,
         Func<CancellationToken, Task<bool>> recheckEligibility,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Optional provider-supported, non-destructive credential validation. WOM
+    /// currently has no dedicated endpoint, so the default is explicitly
+    /// unsupported and callers must not synthesize a write to validate a code.
+    /// </summary>
+    Task<WiseOldManCredentialValidationResult> ValidateCredentialAsync(
+        long competitionId,
+        string verificationCode,
+        CancellationToken cancellationToken = default)
+        => Task.FromResult(new WiseOldManCredentialValidationResult(WiseOldManCredentialValidationStatus.Unsupported));
+}
+
+public enum WiseOldManCredentialValidationStatus
+{
+    Unsupported,
+    Valid,
+    Invalid,
+    Revoked,
+    Unavailable
+}
+
+public sealed record WiseOldManCredentialValidationResult(
+    WiseOldManCredentialValidationStatus Status,
+    DateTimeOffset? RetryAt = null,
+    string? ErrorCode = null,
+    string? Message = null)
+{
+    public bool Succeeded => Status == WiseOldManCredentialValidationStatus.Valid;
 }
 
 public sealed record WiseOldManCompetitionWritePayload(

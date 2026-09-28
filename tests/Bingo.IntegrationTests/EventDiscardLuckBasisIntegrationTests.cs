@@ -14,7 +14,10 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests
     [InlineData(true)]
     public async Task ApprovedEmptyEventDiscardsLuckBasesButProtectedParticipantKeepsHistory(bool protectedHistory)
     {
-        var (actor, _, boss, drops, eventId) = await PriceBoardFixtureAsync();
+        // This legacy discard proof needs an otherwise empty event. The shared
+        // price-board fixture also serves start/readiness tests and therefore
+        // carries a finalized participant history by default.
+        var (actor, _, boss, drops, eventId) = await PriceBoardFixtureAsync(includeParticipant: false);
         await CreatePriceBoardTileAsync(eventId, actor.Id, boss.Id, drops);
         await ApprovePriceBoardAsync(eventId, actor.Id);
         Guid approvalId;

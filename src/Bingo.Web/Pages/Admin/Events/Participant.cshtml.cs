@@ -7,6 +7,7 @@ using Bingo.Domain.Signups;
 using Bingo.Domain.Teams;
 using Bingo.Infrastructure.Persistence;
 using Bingo.Infrastructure.Signups;
+using Bingo.Infrastructure.Teams;
 using Bingo.Web.Security;
 using Bingo.Web.UI;
 using Microsoft.AspNetCore.Authorization;
@@ -29,9 +30,6 @@ public sealed class ParticipantModel(
     [BindProperty, StringLength(2000)] public string? AdminNote { get; set; }
     [BindProperty] public string? ExpectedAdminNote { get; set; }
     [BindProperty] public bool ConfirmLifecycleAction { get; set; }
-    [BindProperty] public bool ConfirmOwnershipTransfer { get; set; }
-    [BindProperty] public Guid? DestinationOwnerAccountId { get; set; }
-    [BindProperty] public Guid? ExpectedOwnerAccountId { get; set; }
     [BindProperty, StringLength(4000)] public string? PrivateWithdrawalNote { get; set; }
     [BindProperty] public long? ExpectedMembershipVersion { get; set; }
     [BindProperty] public Guid? ReplacementWaitingParticipantId { get; set; }
@@ -45,7 +43,6 @@ public sealed class ParticipantModel(
     public bool WithdrawalFailed { get; private set; }
     public bool CanEditParticipant { get; private set; }
     public bool CanEditPrivateMetadata { get; private set; }
-    public bool CanTransferOwnership { get; private set; }
     public bool CanFillVacancy { get; private set; }
     [BindProperty] public Guid? VacancyMembershipId { get; set; }
     [BindProperty] public long? VacancyMembershipVersion { get; set; }
@@ -104,15 +101,6 @@ public sealed class ParticipantModel(
         return RedirectToParticipant(id, participantId);
     }
 
-    public async Task<IActionResult> OnPostTransferOwnershipAsync(Guid id, Guid participantId, [FromForm] bool overlay, CancellationToken ct)
-    {
-        Overlay = ResolveSubmittedOverlay(overlay);
-        var actorId = User.GetAccountId(); if (actorId is null) return Forbid();
-        var result = signupService is null ? new ParticipantOwnershipTransferResult(false, "Participant ownership transfer is not available.") : await signupService.TransferParticipantOwnershipAsync(new ParticipantOwnershipTransferRequest(id, participantId, actorId.Value, User.Identity?.Name ?? "Admin", DestinationOwnerAccountId, ExpectedOwnerAccountId, ConfirmOwnershipTransfer), ct);
-        SetStatus(result.Succeeded ? Localize("Participant ownership transferred.") : result.Error ?? Localize("Participant ownership could not be transferred."), result.Succeeded ? UiMessageType.Success : UiMessageType.Error);
-        return RedirectToParticipant(id, participantId, "ownership");
-    }
-
     public async Task<IActionResult> OnPostAdminNoteAsync(Guid id, Guid participantId, [FromForm] bool overlay, CancellationToken ct)
     {
         Overlay = ResolveSubmittedOverlay(overlay);
@@ -135,7 +123,29 @@ public sealed class ParticipantModel(
     {
         Overlay = ResolveSubmittedOverlay(overlay);
         if (!ConfirmLifecycleAction) { SetStatus(Localize("Confirm the withdrawal before continuing."), UiMessageType.Error); return RedirectToParticipant(id, participantId); }
-        var result = signupService is null ? new ParticipantLifecycleResult(false, "Participant lifecycle is not available.") : await signupService.WithdrawAsync(id, participantId, User.GetAccountId(), User.Identity?.Name ?? "Admin", true, PrivateWithdrawalNote, ExpectedMembershipVersion, ct);
+        var actorId = User.GetAccountId();
+        if (actorId is null) return Forbid();
+        var phase = await dbContext.Events.AsNoTracking().SingleOrDefaultAsync(x => x.Id == id && x.HiddenAt == null, ct);
+        var phaseDraft = await dbContext.DraftSessions.AsNoTracking().SingleOrDefaultAsync(x => x.EventId == id, ct);
+        var finalized = phase?.CanCorrectFinalizedRoster(phaseDraft?.State, (timeProvider ?? TimeProvider.System).GetUtcNow()) == true
+            && await dbContext.ActiveRosterPublications(id).AnyAsync(ct);
+        if (finalized)
+        {
+            var rosterResult = signupService is null
+                ? new FinalizedRosterMutationResult(false, "Finalized roster changes are not available.")
+                : await signupService.RemoveFinalizedRosterParticipantAsync(new FinalizedRosterRemoveRequest(
+                    id, participantId, actorId.Value, User.Identity?.Name ?? "Admin", Confirmed: true, ExpectedMembershipVersion: ExpectedMembershipVersion), ct);
+            if (!rosterResult.Succeeded)
+            {
+                if (!await LoadAsync(id, participantId, true, ct)) return NotFound();
+                WithdrawalFailed = true;
+                ModelState.AddModelError(string.Empty, Localize(rosterResult.Error ?? "Participant could not be removed from the finalized roster."));
+                return Page();
+            }
+            SetStatus(FinalizedRosterMutationMessage(rosterResult), FinalizedRosterWomMessageType(rosterResult.WomSyncStatus));
+            return RedirectToParticipant(id, participantId);
+        }
+        var result = signupService is null ? new ParticipantLifecycleResult(false, "Participant lifecycle is not available.") : await signupService.WithdrawAsync(id, participantId, actorId, User.Identity?.Name ?? "Admin", true, PrivateWithdrawalNote, ExpectedMembershipVersion, ct);
         if (!result.Succeeded)
         {
             // Keep the submitted optional note available when a pre-Live correction fails.
@@ -156,6 +166,11 @@ public sealed class ParticipantModel(
         Overlay = ResolveSubmittedOverlay(overlay);
         var actorId = User.GetAccountId();
         if (actorId is null || VacancyMembershipId is null) return Forbid();
+        if (ReplacementWaitingParticipantId is null && string.IsNullOrWhiteSpace(InternalReplacement.OwnerUsername))
+        {
+            SetStatus(Localize("Select an active website account for the internal replacement."), UiMessageType.Error);
+            return RedirectToParticipant(id, participantId);
+        }
         Guid? ownerId = null;
         if (!string.IsNullOrWhiteSpace(InternalReplacement.OwnerUsername))
         {
@@ -241,7 +256,7 @@ public sealed class ParticipantModel(
 
         var draft = await dbContext.DraftSessions.AsNoTracking().SingleOrDefaultAsync(x => x.EventId == id, ct);
         CanCorrectPreLiveRoster = bingoEvent.CanCorrectFinalizedRoster(draft?.State, (timeProvider ?? TimeProvider.System).GetUtcNow()) &&
-            await dbContext.DraftPublicationCycles.AnyAsync(x => x.DraftSessionId == draft!.Id && x.SupersededAt == null, ct);
+            await dbContext.ActiveRosterPublications(id).AnyAsync(ct);
 
         EventId = id;
         if (TempData.Peek("WomValidationConfirmationToken") is string pendingValidation)
@@ -301,22 +316,12 @@ public sealed class ParticipantModel(
         if (vacancy is not null && TeamName is null) TeamName = $"{vacancy.TeamName} (vacancy)";
         VacancyMembershipId = vacancy?.Id;
         VacancyMembershipVersion = vacancy?.Version;
-        CanFillVacancy = (bingoEvent.State == EventState.Live || CanCorrectPreLiveRoster) && participant.SignupStatus == SignupStatus.Withdrawn && vacancy is not null;
-        if (CanFillVacancy)
-        {
-            WaitingReplacementCandidates = await (from candidate in dbContext.EventParticipants.AsNoTracking()
-                                                  join primary in dbContext.AdminPrimaryCharacters().AsNoTracking() on candidate.Id equals primary.ParticipantId into primaries
-                                                  from primary in primaries.DefaultIfEmpty()
-                                                  where candidate.EventId == id && candidate.SignupStatus == SignupStatus.WaitingList
-                                                  orderby candidate.SignedUpAt, candidate.SignupSequence
-                                                  select new ReplacementCandidate(candidate.Id, primary == null ? "Participant" : primary.Name, candidate.SignupSequence)).ToListAsync(ct);
-        }
-        if (bingoEvent.State is EventState.Live or EventState.AwaitingFinalReview || CanCorrectPreLiveRoster)
-        {
-            var followUp = await dbContext.WaitingListPromotionFollowUps.AsNoTracking()
-                .SingleOrDefaultAsync(x => x.EventId == id && x.PromotedParticipantId == participantId, ct);
-            if (followUp is not null) PromotionFollowUp = new PromotionFollowUpView(followUp.Id, followUp.CompletedAt, followUp.CompletedByAccountId);
-        }
+        // Vacancy filling and waiting-list promotion were retired with Live
+        // replacements. Historical membership rows remain readable above, but
+        // this page never offers a replacement action for them.
+        CanFillVacancy = false;
+        WaitingReplacementCandidates = [];
+        PromotionFollowUp = null;
 
         var questions = await dbContext.SignupQuestions.AsNoTracking()
             .Where(question => question.EventId == id && question.DisabledReason != SignupQuestion.DeletedReason)
@@ -357,15 +362,16 @@ public sealed class ParticipantModel(
             if (captain is not null) Input.CustomAnswers[captain.Id] = participant.CaptainVolunteer ? "true" : "false";
             AdminNote = participant.AdminNotes;
             ExpectedAdminNote = participant.AdminNotes;
-            ExpectedOwnerAccountId = participant.AccountId;
         }
 
-        CanAdminLiveWithdraw = (bingoEvent.State == EventState.Live || CanCorrectPreLiveRoster) && participant.SignupStatus == SignupStatus.Confirmed && await dbContext.TeamMemberships.AnyAsync(x => x.EventParticipantId == participantId && x.LeftAt == null, ct);
-        CanEditParticipant = !bingoEvent.DraftLocked && bingoEvent.State is (EventState.SignupOpen or EventState.SignupClosed);
+        CanAdminLiveWithdraw = CanCorrectPreLiveRoster && participant.SignupStatus == SignupStatus.Confirmed && await dbContext.TeamMemberships.AnyAsync(x => x.EventParticipantId == participantId && x.LeftAt == null, ct);
+        CanEditParticipant = participant.SignupStatus is (SignupStatus.Confirmed or SignupStatus.WaitingList)
+            && !bingoEvent.DraftLocked && bingoEvent.State is (EventState.Draft or EventState.SignupOpen or EventState.SignupClosed);
         CanEditPrivateMetadata = bingoEvent.State is EventState.Draft or EventState.SignupOpen or EventState.SignupClosed or EventState.Live or EventState.AwaitingFinalReview or EventState.Finalized or EventState.Archived or EventState.Cancelled;
-        CanTransferOwnership = bingoEvent.State is EventState.Draft or EventState.SignupOpen or EventState.SignupClosed or EventState.Live or EventState.AwaitingFinalReview;
         CanAdminWithdraw = (CanEditParticipant && participant.SignupStatus is (SignupStatus.Confirmed or SignupStatus.WaitingList)) || CanAdminLiveWithdraw;
-        CanAdminRestore = CanEditParticipant && participant.SignupStatus == SignupStatus.Withdrawn;
+        CanAdminRestore = !bingoEvent.DraftLocked
+            && bingoEvent.State is (EventState.Draft or EventState.SignupOpen or EventState.SignupClosed)
+            && participant.SignupStatus == SignupStatus.Withdrawn;
         return true;
     }
 
@@ -379,6 +385,28 @@ public sealed class ParticipantModel(
     }
 
     private string Localize(string key, params object[] arguments) => text?[key, arguments].Value ?? string.Format(CultureInfo.CurrentCulture, key, arguments);
+    private string FinalizedRosterMutationMessage(FinalizedRosterMutationResult result)
+    {
+        if (!result.Succeeded) return result.Error ?? Localize("The finalized roster could not be changed.");
+        var team = string.IsNullOrWhiteSpace(result.TeamName) ? Localize("the selected team") : result.TeamName;
+        var count = result.CurrentTeamMemberCount is { } memberCount ? $" ({memberCount} current member{(memberCount == 1 ? "" : "s")})" : string.Empty;
+        var shortage = result.TeamIsShort && result.TargetTeamSize is { } target
+            ? Localize(" The team remains short ({0}/{1}).", result.CurrentTeamMemberCount.GetValueOrDefault(), target)
+            : string.Empty;
+        var provider = result.WomSyncStatus switch
+        {
+            "NotManaged" or "Unchanged" => Localize(" WOM does not require an update."),
+            "Failed" or "Conflict" or "Unknown" => Localize(" WOM synchronization failed ({0}): {1}. Retry the synchronization after resolving the reported issue.", result.WomSyncStatus, result.WomSyncError ?? Localize("the provider is unavailable")),
+            "Pending" or "Sending" or "Retry" => Localize(" WOM synchronization is {0}; the local roster is saved and the worker will retry.{1}", result.WomSyncStatus.ToLowerInvariant(), string.IsNullOrWhiteSpace(result.WomSyncError) ? string.Empty : Localize(" Reason: {0}", result.WomSyncError)),
+            null => string.Empty,
+            "Queued" or "Succeeded" or "Success" => Localize(" WOM synchronization is queued."),
+            _ => Localize(" WOM synchronization is {0} and still needs attention.{1}", result.WomSyncStatus.ToLowerInvariant(), string.IsNullOrWhiteSpace(result.WomSyncError) ? string.Empty : Localize(" Reason: {0}", result.WomSyncError))
+        };
+        return Localize("Participant removed locally from {0}{1}.{2}{3}", team, count, shortage, provider);
+    }
+    private static UiMessageType FinalizedRosterWomMessageType(string? status) => status is null or "NotManaged" or "Unchanged" or "Queued" or "Succeeded" or "Success"
+        ? UiMessageType.Success
+        : status is "Pending" or "Sending" or "Retry" ? UiMessageType.Warning : UiMessageType.Error;
     private void SetStatus(string message, UiMessageType type)
     {
         TempData["StatusMessage"] = message;

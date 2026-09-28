@@ -314,13 +314,13 @@
     } catch { parentRefreshFailed = true; return false; }
   }
 
-  async function submitEditor(form, submitter) {
+  async function submitEditor(form, submitter, completedResponse = null) {
     if (guard.pending || staleEditor || completedWithoutEditor) return;
     const data = new FormData(form);
     if (submitter?.name) data.set(submitter.name, submitter.value);
     const finish = guard.begin(form);
     try {
-      const response = await window.fetch(form.action || currentUrl().href, { method: "POST", body: data, credentials: "same-origin", headers: { "X-Requested-With": "XMLHttpRequest" } });
+      const response = completedResponse || await window.fetch(form.action || currentUrl().href, { method: "POST", body: data, credentials: "same-origin", headers: { "X-Requested-With": "XMLHttpRequest" } });
       if (!response.ok) throw new Error("Catalogue save failed.");
       const html = await response.text();
       const parsed = new DOMParser().parseFromString(html, "text/html");
@@ -481,11 +481,14 @@
   }
 
   function sync() {
-    if (restoringHistory && hasOverlay()) { restoringHistory = false; return; }
+    if (restoringHistory && hasOverlay()) {
+      restoringHistory = false;
+      if (!guard.pending && guard.dirtyForms().length) guard.confirmDiscard(closeNow);
+      return;
+    }
     if (!hasOverlay() && dialog?.open && !closing && (guard.pending || guard.dirtyForms().length)) {
       restoringHistory = true;
       history.forward();
-      if (!guard.pending) guard.confirmDiscard(closeNow);
       return;
     }
     if (hasOverlay()) { if (!dialog?.open) prepareAndShow(); }
@@ -552,7 +555,7 @@
   directRoute = editor instanceof HTMLElement && !recordsPage;
   if (recordsPage) initializeWorkspace(document);
   window.addEventListener("popstate", sync);
-  window.addEventListener("beforeunload", event => { if (guard.pending || guard.dirtyForms().length) { event.preventDefault(); event.returnValue = ""; } });
+  window.watchAdminUnsavedChanges(() => guard.dirtyForms().length > 0);
 
   if (directRoute && hasOverlay()) {
     const sourceUrl = currentUrl();
@@ -567,6 +570,57 @@
     prepareAndShow();
   } else if (hasOverlay()) sync();
   else if (editor instanceof HTMLElement) { directRoute = false; bindEditor(); }
+  let deletionBusy = false;
+  async function confirmCatalogueDeletion(button) {
+    if (deletionBusy || guard.pending || staleEditor || completedWithoutEditor) return;
+    if (!window.adminConfirmation) { showFailure(); return; }
+    deletionBusy = true;
+    const form = button.closest("form");
+    const values = new FormData(form);
+    const url = new URL(form.action);
+    url.searchParams.set("handler", "DeletionImpact");
+    for (const key of ["recordType", "recordId", "expectedVersion"]) url.searchParams.set(key, values.get(key));
+    let completedResponse = null;
+    try {
+      button.disabled = true;
+      const response = await window.fetch(url, { credentials: "same-origin" });
+      if (!response.ok) throw new Error();
+      const impact = await response.json();
+      button.disabled = false;
+      if (!button.isConnected) return;
+      if (!impact.canDelete) { showFailure(impact.message, "warning"); return; }
+      const accepted = await window.adminConfirmation.open({
+        title: impact.title, description: impact.message, actionLabel: button.textContent.trim(), danger: true, opener: button,
+        onConfirm: async () => {
+          // Capture FormData before the shared dialog disables its controls so
+          // the antiforgery token and version remain in the mutation body.
+          const body = new FormData(form);
+          body.set("confirmed", "true");
+          const finish = guard.begin(form);
+          try {
+            const saved = await window.fetch(form.action, { method: "POST", body, credentials: "same-origin", headers: { "X-Requested-With": "XMLHttpRequest" } });
+            if (!saved.ok) return { succeeded: false, message: adminText("signupQuestionsSaveError") };
+            const result = new DOMParser().parseFromString(await saved.clone().text(), "text/html").querySelector("[data-catalogue-page]");
+            if (!result) return { succeeded: false, message: adminText("signupQuestionsSaveError") };
+            const type = result.dataset.catalogueStatusType?.toLowerCase();
+            if (type !== "success") return { succeeded: false, message: result.dataset.catalogueStatusMessage || adminText("signupQuestionsSaveError") };
+            completedResponse = saved;
+            return true;
+          } finally { finish(); }
+        }
+      });
+      // Resume the editor before its established refresh/close path consumes the
+      // successful response. No second POST and no stacked editor/confirmation.
+      if (accepted && completedResponse) await submitEditor(form, null, completedResponse);
+    } catch { showFailure(); }
+    finally { deletionBusy = false; if (button.isConnected) button.disabled = false; }
+  }
+  document.addEventListener("click", event => {
+    const button = event.target.closest?.("[data-catalogue-delete]");
+    if (!button) return;
+    event.preventDefault();
+    guarded(() => { void confirmCatalogueDeletion(button); }, button.closest("form"));
+  });
   document.addEventListener("click", async event => {
     const button = event.target.closest?.("[data-catalogue-api-suggest]");
     if (!button || button.disabled) return;
@@ -584,6 +638,7 @@
       if (!button.isConnected || input.value !== original) return;
       if (result.id) { input.value = String(result.id); input.dispatchEvent(new Event("input", { bubbles: true })); }
       feedback.textContent = result.error || result.name;
+      if (result.error) form.querySelector("[data-catalogue-mapping-recovery]")?.setAttribute("open", "");
     } catch { feedback.textContent = feedback.dataset.unavailable; }
     finally { button.disabled = false; }
   });

@@ -1,4 +1,5 @@
 using Bingo.Application.Integrations.WiseOldMan;
+using Bingo.Domain.Integrations.WiseOldMan;
 
 namespace Bingo.Application.Events;
 
@@ -38,13 +39,19 @@ public sealed record EventCompetitionManagementView(
     string? LastOperationType,
     string? CredentialState,
     bool RosterLocked,
-    EventCompetitionManagementPreview? Preview = null);
+    EventCompetitionManagementPreview? Preview = null,
+    EventCompetitionProvenance Provenance = EventCompetitionProvenance.Unknown,
+    EventCompetitionWriteCapability WriteCapability = EventCompetitionWriteCapability.Unknown,
+    bool CanWrite = false,
+    bool CanDelete = false);
 
 public interface IEventCompetitionManagementService
 {
     Task<EventCompetitionManagementPreview?> PreviewAsync(Guid eventId, CancellationToken cancellationToken = default);
     Task<EventCompetitionManagementView?> GetAsync(Guid eventId, CancellationToken cancellationToken = default);
     Task<EventCompetitionManagementResult> CreateAsync(Guid eventId, long expectedEventVersion, LifecycleActor actor, CancellationToken cancellationToken = default);
+    Task<EventCompetitionManagementResult> AdoptCredentialAsync(Guid eventId, long expectedEventVersion, string verificationCode, LifecycleActor actor, CancellationToken cancellationToken = default);
+    Task<EventCompetitionManagementResult> ReplaceCredentialAsync(Guid eventId, long expectedEventVersion, string verificationCode, LifecycleActor actor, CancellationToken cancellationToken = default);
     Task<EventCompetitionManagementResult> QueueUpdateAsync(Guid eventId, CancellationToken cancellationToken = default);
     Task<EventCompetitionManagementResult> DeleteAsync(Guid eventId, long expectedEventVersion, long targetCompetitionId, bool confirmed, LifecycleActor actor, CancellationToken cancellationToken = default);
     Task ProcessDueAsync(CancellationToken cancellationToken = default);
@@ -56,7 +63,8 @@ public sealed record EventCompetitionManagementResult(
     Guid? OperationId = null,
     string? Status = null,
     DateTimeOffset? RetryAt = null,
-    string? ErrorCode = null)
+    string? ErrorCode = null,
+    IReadOnlyList<string>? AffectedParticipants = null)
 {
     public bool Pending => Status is "Pending" or "Sending" or "Unknown" or "Retry";
 }

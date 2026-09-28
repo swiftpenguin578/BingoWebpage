@@ -7,9 +7,6 @@
   let directory = document.querySelector(".admin-accounts-page");
   let dialog = null;
   let content = null;
-  let confirmationDialog = null;
-  let confirmationForm = null;
-  let confirmationOpener = null;
   let opener = null;
   let closing = false;
   let loadId = 0;
@@ -20,22 +17,9 @@
   let parentUrl = null;
   let parentScroll = 0;
   let restoringHistory = false;
-  let suspendedConfirmation = null;
-  let suspendedOpener = null;
   const guard = window.createAdminEditorGuard({
     editor: () => content, prefix: "account-editor", saveError: () => adminText("adminAccountActionError"),
-    closeConfirmation: () => {
-      suspendedOpener = confirmationOpener;
-      suspendedConfirmation = hasConfirmation() ? confirmationDialog : content?.querySelector("details.admin-account-action-confirmation[open]");
-      closeConfirmation(false);
-    },
-    restoreConfirmation: () => {
-      if (suspendedConfirmation && suspendedConfirmation === confirmationDialog) confirmationDialog.hidden = false;
-      else if (suspendedConfirmation) suspendedConfirmation.open = true;
-      confirmationOpener = suspendedOpener;
-      if (confirmationOpener && hasConfirmation()) confirmationOpener.hidden = true;
-      suspendedConfirmation = null;
-    }
+    closeConfirmation: () => window.adminConfirmation?.cancel()
   });
   const guarded = (action, form) => {
     if (guard.pending || (parentRefreshFailed && content?.querySelector("[data-account-create-page]"))) return;
@@ -49,7 +33,7 @@
     url.searchParams.set("overlay", "1");
     return url.href;
   };
-  const hasConfirmation = () => confirmationDialog instanceof HTMLElement && !confirmationDialog.hidden;
+  const hasConfirmation = () => window.adminConfirmation?.active === true;
 
   const build = () => {
     if (!(dialog instanceof HTMLDialogElement) && hasOverlay()) {
@@ -84,110 +68,12 @@
       });
     }
 
-    if (confirmationDialog instanceof HTMLElement) return;
-    confirmationDialog = document.createElement("div");
-    confirmationDialog.hidden = true;
-    confirmationDialog.setAttribute("role", "group");
-    confirmationDialog.id = "admin-account-confirmation-dialog";
-    confirmationDialog.className = "event-confirmation-box admin-account-inline-confirmation";
-    confirmationDialog.setAttribute("aria-labelledby", "admin-account-confirmation-title");
-    confirmationDialog.setAttribute("aria-describedby", "admin-account-confirmation-support");
-
-    const surface = document.createElement("div");
-    surface.className = "admin-account-confirmation-surface";
-    const heading = document.createElement("div");
-    heading.className = "admin-account-confirmation-heading";
-    const title = document.createElement("h2");
-    title.id = "admin-account-confirmation-title";
-    const close = document.createElement("button");
-    close.type = "button";
-    close.className = "admin-route-dialog-close";
-    close.setAttribute("aria-label", adminText("adminCloseConfirmation"));
-    close.dataset.accountConfirmationClose = "true";
-    close.innerHTML = "<svg aria-hidden=\"true\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\"><path d=\"m6 6 12 12\" /><path d=\"m18 6-12 12\" /></svg>";
-    heading.append(title, close);
-
-    const support = document.createElement("p");
-    support.id = "admin-account-confirmation-support";
-    const form = document.createElement("form");
-    form.method = "post";
-    const actions = document.createElement("div");
-    actions.className = "admin-account-confirmation-actions";
-    const cancel = document.createElement("button");
-    cancel.type = "button";
-    cancel.className = "admin-button-secondary";
-    cancel.textContent = adminText("adminCancel");
-    cancel.dataset.accountConfirmationCancel = "true";
-    const confirm = document.createElement("button");
-    confirm.type = "submit";
-    confirm.dataset.accountConfirmationSubmit = "true";
-    actions.append(cancel, confirm);
-    form.append(actions);
-    surface.append(heading, support, form);
-    confirmationDialog.append(surface);
-
-
-    close.addEventListener("click", (event) => { event.preventDefault(); closeConfirmation(); });
-    cancel.addEventListener("click", (event) => { event.preventDefault(); closeConfirmation(); });
-    confirmationDialog.addEventListener("cancel", (event) => { event.preventDefault(); closeConfirmation(); });
-    confirmationDialog.addEventListener("keydown", (event) => {
-      if (event.key !== "Escape") return;
-      event.preventDefault();
-      event.stopPropagation();
-      closeConfirmation();
-    });
-    confirmationDialog.addEventListener("click", (event) => {
-      if (event.target === confirmationDialog) closeConfirmation();
-    });
-    form.addEventListener("submit", submitConfirmation);
-    confirmationForm = form;
   };
 
-  const closeDetailsConfirmation = (confirmation) => {
-    confirmation.removeAttribute("open");
-    confirmation.open = false;
-    confirmation.querySelector("summary")?.focus({ preventScroll: true });
-  };
-
-  function closeConfirmation(restoreFocus = true) {
-    const trigger = confirmationOpener;
-    if (guard.pending) return;
-    if (confirmationDialog) confirmationDialog.hidden = true;
-    if (trigger) trigger.hidden = false;
-    content?.querySelectorAll("details.admin-account-action-confirmation").forEach(item => { item.open = false; });
-    confirmationForm?.removeAttribute("aria-busy");
-    confirmationOpener = null;
-    if (restoreFocus && trigger instanceof HTMLElement && document.body.contains(trigger)) trigger.focus({ preventScroll: true });
-  }
-
-  const bindConfirmation = (confirmation) => {
-    if (!(confirmation instanceof HTMLDetailsElement) || confirmation.dataset.accountConfirmationBound === "true") return;
-    confirmation.dataset.accountConfirmationBound = "true";
-    confirmation.addEventListener("toggle", () => {
-      if (!confirmation.open) return;
-      if (guard.pending) { confirmation.open = false; return; }
-      if (hasConfirmation() || guard.dirtyForms(confirmation.querySelector("form")).length) {
-        confirmation.open = false;
-        guarded(() => { closeConfirmation(false); confirmation.open = true; guard.initialize(); }, confirmation.querySelector("form"));
-        return;
-      }
-      content.querySelectorAll("details.admin-account-action-confirmation").forEach(item => { if (item !== confirmation) item.open = false; });
-      window.setTimeout(() => confirmation.querySelector("[data-account-confirmation-cancel]")?.focus({ preventScroll: true }), 0);
-    });
-    confirmation.addEventListener("keydown", (event) => {
-      if (event.key !== "Escape" || !confirmation.open) return;
-      if (guard.pending) { event.preventDefault(); event.stopPropagation(); return; }
-      event.preventDefault();
-      event.stopPropagation();
-      closeDetailsConfirmation(confirmation);
-    });
-    confirmation.addEventListener("click", (event) => {
-      if (event.target === confirmation && confirmation.open) closeDetailsConfirmation(confirmation);
-    });
-  };
+  const closeConfirmation = () => window.adminConfirmation?.cancel();
 
   const focusAccountContent = (kind) => {
-    const target = content.querySelector("[data-account-emergency-action]") || content.querySelector("[data-account-dialog-close], [data-account-manage-close], input, select, textarea, button, a");
+    const target = content.querySelector("[data-account-dialog-close], [data-account-manage-close], input, select, textarea, button, a");
     target?.focus({ preventScroll: true });
   };
 
@@ -257,10 +143,10 @@
     if (message) window.showBingoToast?.(message, "success");
   };
 
-  const bindEmergencyActions = () => {
-    content.querySelectorAll("[data-account-emergency-action], [data-account-final-action]").forEach((trigger) => {
-      if (!(trigger instanceof HTMLElement) || trigger.dataset.accountEmergencyBound === "true") return;
-      trigger.dataset.accountEmergencyBound = "true";
+  const bindAccountActions = () => {
+    content.querySelectorAll("[data-account-final-action]").forEach((trigger) => {
+      if (!(trigger instanceof HTMLElement) || trigger.dataset.accountActionBound === "true") return;
+      trigger.dataset.accountActionBound = "true";
       trigger.addEventListener("click", (event) => {
         event.preventDefault();
         guarded(() => openConfirmation(trigger));
@@ -391,28 +277,21 @@
       cancel.addEventListener("click", (event) => {
         event.preventDefault();
         if (guard.pending || guard.cancelDiscard()) return;
-        const confirmation = cancel.closest("details");
-        if (confirmation instanceof HTMLDetailsElement) closeDetailsConfirmation(confirmation);
-        else if (hasConfirmation()) closeConfirmation();
+        if (hasConfirmation()) closeConfirmation();
         else closeWithHistory();
       });
     });
-    content.querySelectorAll("details.admin-account-action-confirmation").forEach(bindConfirmation);
-    bindEmergencyActions();
+    bindAccountActions();
     bindCreateForms();
     if (content.querySelector("[data-account-manage-page]")) content.querySelectorAll("form").forEach(form => {
       form.addEventListener("submit", event => { event.preventDefault(); guarded(() => submitManage(form), form); });
     });
   }
 
-  function submitConfirmation(event) {
-    event.preventDefault();
-    guarded(() => submitManage(confirmationForm), confirmationForm);
-  }
-
-  async function submitManage(form) {
+  async function submitManage(form, sharedConfirmation = false) {
     if (guard.pending) return;
-    if (!dialog?.open) { guard.initialize(); form.submit(); return; }
+    if (!dialog?.open && !sharedConfirmation) { guard.initialize(); form.submit(); return; }
+    if (!hasOverlay()) { guard.initialize(); form.submit(); return true; }
     const action = new URL(form.action || currentUrl(), window.location.href);
     action.searchParams.set("overlay", "1");
     const data = new FormData(form);
@@ -430,78 +309,54 @@
           focusAccountContent("manage");
           hideInlineValidation();
         }
+        if (sharedConfirmation) return { succeeded: false, message: validationMessage(html) };
         guard.showFailure(validationMessage(html));
         return;
       }
       if (!replaceContent(html)) {
         finish();
         finishRedirect(response.url || action.href);
-        return;
+        return true;
       }
       history.replaceState(history.state, "", response.url || action.href);
       await refreshDirectory();
       finish();
       closeConfirmation(false);
-      focusAccountContent("manage");
-      showResponseFeedback(html);
-      if (parentRefreshFailed) guard.showFailure(adminText("adminAccountParentRefreshError"));
+      const reportSuccess = () => {
+        focusAccountContent("manage");
+        showResponseFeedback(html);
+        if (parentRefreshFailed) guard.showFailure(adminText("adminAccountParentRefreshError"));
+      };
+      // The shared dialog resumes the editor after onConfirm resolves. Emit its
+      // feedback in that resumed editor, not in the dialog being dismissed.
+      if (sharedConfirmation) window.setTimeout(reportSuccess, 0);
+      else reportSuccess();
+      return true;
     } catch {
+      if (sharedConfirmation) return { succeeded: false, message: adminText("adminAccountActionError") };
       guard.showFailure(adminText("adminAccountActionError"));
     } finally { finish(); }
   }
 
   function openConfirmation(trigger) {
-    closeConfirmation(false);
-    build();
-    confirmationOpener = trigger;
-    const title = confirmationDialog.querySelector("#admin-account-confirmation-title");
-    const support = confirmationDialog.querySelector("#admin-account-confirmation-support");
-    const confirm = confirmationDialog.querySelector("[data-account-confirmation-submit]");
-    const form = confirmationForm;
-    if (!(title instanceof HTMLElement) || !(support instanceof HTMLElement) || !(confirm instanceof HTMLElement) || !(form instanceof HTMLFormElement)) return;
-    title.textContent = trigger.dataset.accountConfirmationTitle || adminText("adminAccountConfirmTitle");
-    support.textContent = trigger.dataset.accountConfirmationSupport || adminText("adminAccountConfirmSupport");
-    confirm.textContent = trigger.dataset.accountConfirmationLabel || adminText("adminConfirm");
-    confirm.className = trigger.dataset.accountConfirmationStyle === "danger" ? "action-danger-outline" : "admin-button-secondary";
-    const action = new URL(currentUrl(), window.location.href);
-    action.search = "";
-    action.searchParams.set("handler", trigger.dataset.accountHandler || "");
-    form.action = action.href;
-    const actions = form.querySelector(".admin-account-confirmation-actions");
-    form.replaceChildren();
-    const token = content.querySelector("input[name='__RequestVerificationToken']");
-    if (token instanceof HTMLInputElement) form.append(document.importNode(token, true));
-    const overlay = document.createElement("input");
-    overlay.type = "hidden";
-    overlay.name = "overlay";
-    overlay.value = hasOverlay() ? "1" : "0";
-    form.append(overlay);
-    const freshness = trigger.closest("form")?.querySelector("input[name='ExpectedAuthorizationVersion']");
-    if (freshness instanceof HTMLInputElement) form.append(document.importNode(freshness, true));
-    if (trigger.dataset.accountConfirmationReason === "true") {
-      const field = document.createElement("div");
-      field.className = "admin-field";
-      const label = document.createElement("label");
-      label.htmlFor = "admin-account-confirmation-reason";
-      label.textContent = trigger.dataset.accountConfirmationReasonLabel || adminText("adminReason");
-      const reason = document.createElement("textarea");
-      reason.id = label.htmlFor;
-      reason.name = "Reason";
-      reason.className = "form-control";
-      reason.required = true;
-      reason.maxLength = 500;
-      field.append(label, reason);
-      form.append(field);
-    }
-    form.append(actions);
-    // Keep the confirmation beside its action, outside any enclosing form.
-    const host = trigger.closest("form") || trigger;
-    host.parentElement.append(confirmationDialog);
-    confirmationDialog.hidden = false;
-    trigger.hidden = true;
-    guard.initialize();
-    confirmationDialog.scrollIntoView({ block: "nearest", behavior: "instant" });
-    window.setTimeout(() => confirmationDialog.querySelector("[data-account-confirmation-cancel]")?.focus({ preventScroll: true }), 0);
+    const form = trigger.closest("form");
+    if (!(form instanceof HTMLFormElement)) return;
+    window.adminConfirmation.open({
+      title: trigger.dataset.accountConfirmationTitle,
+      description: trigger.dataset.accountConfirmationSupport,
+      actionLabel: trigger.dataset.accountConfirmationLabel,
+      danger: trigger.dataset.accountConfirmationStyle === "danger",
+      requireReason: trigger.dataset.accountConfirmationReason === "true",
+      opener: trigger,
+      onConfirm: ({ reason }) => {
+        if (trigger.dataset.accountConfirmationReason === "true") {
+          let field = form.querySelector("[name='Reason']");
+          if (!field) { field = document.createElement("input"); field.type = "hidden"; field.name = "Reason"; form.append(field); }
+          field.value = reason;
+        }
+        return submitManage(form, true);
+      }
+    });
   }
 
   const hide = (restoreFocus = true, deferFocus = false) => {
@@ -646,11 +501,14 @@
   };
 
   const sync = () => {
-    if (restoringHistory && hasOverlay()) { restoringHistory = false; return; }
-    if (!hasOverlay() && dialog?.open && !closing && (guard.pending || guard.dirtyForms().length)) {
+    if (restoringHistory && hasOverlay()) {
+      restoringHistory = false;
+      if (!guard.pending && guard.dirtyForms().length) guard.confirmDiscard(closeNow);
+      return;
+    }
+    if (!hasOverlay() && (dialog?.open || hasConfirmation()) && !closing && (guard.pending || guard.dirtyForms().length)) {
       restoringHistory = true;
       history.forward();
-      if (!guard.pending) guard.confirmDiscard(closeNow);
       return;
     }
     if (hasOverlay()) {
@@ -679,9 +537,7 @@
   const standalone = main.querySelector("[data-account-dialog-page]");
   if (!hasOverlay() && standalone instanceof HTMLElement) {
     content = standalone;
-    bindEmergencyActions();
-    content.querySelectorAll("details.admin-account-action-confirmation").forEach(bindConfirmation);
-    content.querySelectorAll("[data-account-confirmation-cancel]").forEach(cancel => cancel.addEventListener("click", event => { event.preventDefault(); closeDetailsConfirmation(cancel.closest("details")); }));
+    bindAccountActions();
     content.querySelectorAll("form").forEach(form => {
       const selection = form.classList.contains("admin-account-option-form") ? form.querySelector("select[name='eventId']") : null;
       if (selection) selection.value = content.querySelector("input[name='Input.EventId']")?.value || selection.value;
@@ -706,8 +562,6 @@
   });
 
   window.addEventListener("popstate", sync);
-  window.addEventListener("beforeunload", event => {
-    if (guard.pending || guard.dirtyForms().length) { event.preventDefault(); event.returnValue = ""; }
-  });
+  window.watchAdminUnsavedChanges(() => guard.dirtyForms().length > 0);
   if (hasOverlay()) sync();
 })();

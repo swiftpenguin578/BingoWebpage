@@ -13,20 +13,10 @@ public sealed class EvidenceAuthority(ApplicationDbContext db) : IEvidenceAuthor
 {
     public async Task<EvidenceActorScope> ResolveActorAsync(Guid actorAccountId, Guid? eventId, Guid? teamId, DateTimeOffset now, CancellationToken cancellationToken = default)
     {
-        var account = await db.Accounts.AsNoTracking().SingleOrDefaultAsync(x => x.Id == actorAccountId && x.Active, cancellationToken)
+        var account = await db.Accounts.AsNoTracking().SingleOrDefaultAsync(x => x.Id == actorAccountId && x.Active && x.AccountType == AccountType.WebsiteAccount, cancellationToken)
             ?? throw new InvalidOperationException("The submitting account is not active.");
         if (eventId is Guid visibleEventId && !await db.Events.AsNoTracking().AnyAsync(x => x.Id == visibleEventId && x.HiddenAt == null, cancellationToken))
             throw new InvalidOperationException("The event was not found.");
-        if (account.AccountType == AccountType.EmergencyCaptain)
-        {
-            if (eventId is not Guid emergencyEventId || teamId is not Guid emergencyTeamId)
-                throw new InvalidOperationException("Emergency evidence access requires an event and team scope.");
-            var access = await db.AccountEventAccesses.AsNoTracking().SingleOrDefaultAsync(x => x.AccountId == actorAccountId && x.EventId == emergencyEventId && x.TeamId == emergencyTeamId, cancellationToken);
-            if (access?.GetAccessMode(now) == AccountAccessMode.Full)
-                return new(EvidenceActorKind.EmergencyCaptain, actorAccountId, emergencyEventId, emergencyTeamId, Guid.Empty);
-            throw new InvalidOperationException("This emergency evidence access is disabled, expired, or outside its team scope.");
-        }
-
         var memberships = from participant in db.EventParticipants.AsNoTracking()
                           join membership in db.TeamMemberships.AsNoTracking() on participant.Id equals membership.EventParticipantId
                           join team in db.Teams.AsNoTracking() on membership.TeamId equals team.Id
@@ -52,12 +42,13 @@ public sealed class EvidenceAuthority(ApplicationDbContext db) : IEvidenceAuthor
     public async Task<EvidenceActorScope> AuthorizeAsync(Guid actorAccountId, Guid eventId, Guid teamId, Guid creditedParticipantId, DateTimeOffset now, CancellationToken cancellationToken = default)
     {
         var scope = await ResolveActorAsync(actorAccountId, eventId, teamId, now, cancellationToken);
-        if (scope.Kind == EvidenceActorKind.Administrator) return scope with { CreditedParticipantId = creditedParticipantId };
+        if (scope.Kind == EvidenceActorKind.Administrator)
+            throw new InvalidOperationException("Administrators have no submission authority without a current participant or team-leader role.");
         if (scope.Kind == EvidenceActorKind.Participant && scope.CreditedParticipantId != creditedParticipantId)
             throw new InvalidOperationException("Participants may submit evidence only for themselves.");
-        if (scope.Kind is EvidenceActorKind.Captain or EvidenceActorKind.EmergencyCaptain &&
-            !await IsEligibleTeamCreditAsync(teamId, creditedParticipantId, now, cancellationToken))
-            throw new InvalidOperationException("The credited player is not eligible for this team at the evidence time.");
+        if (scope.Kind is EvidenceActorKind.Captain &&
+            !await db.TeamMemberships.AsNoTracking().AnyAsync(x => x.TeamId == teamId && x.EventParticipantId == creditedParticipantId && x.LeftAt == null, cancellationToken))
+            throw new InvalidOperationException("Choose a current member of your team.");
         return scope with { CreditedParticipantId = creditedParticipantId };
     }
 
@@ -71,6 +62,7 @@ public sealed class EvidenceAuthority(ApplicationDbContext db) : IEvidenceAuthor
 
     public async Task<bool> CanViewPrivateEvidenceAsync(Guid actorAccountId, Guid eventId, Guid teamId, Guid creditedParticipantId, DateTimeOffset now, Guid? submissionId = null, CancellationToken cancellationToken = default)
     {
+        if (!await db.Accounts.AsNoTracking().AnyAsync(x => x.Id == actorAccountId && x.Active && x.AccountType == AccountType.WebsiteAccount, cancellationToken)) return false;
         try
         {
             _ = await ResolveActorAsync(actorAccountId, eventId, teamId, now, cancellationToken);
@@ -94,11 +86,13 @@ public sealed class EvidenceAuthority(ApplicationDbContext db) : IEvidenceAuthor
 
     public async Task<IReadOnlyList<EvidenceCandidate>> GetCurrentTeamCandidatesAsync(EvidenceActorScope scope, CancellationToken cancellationToken = default)
     {
+        if (scope.Kind is EvidenceActorKind.EmergencyCaptain or EvidenceActorKind.Administrator)
+            throw new InvalidOperationException("This account is not available.");
         var candidates = from participant in db.EventParticipants.AsNoTracking()
                          join membership in db.TeamMemberships.AsNoTracking() on participant.Id equals membership.EventParticipantId
                          join character in db.PrimaryCharacters().AsNoTracking() on participant.Id equals character.ParticipantId
                          where participant.EventId == scope.EventId && membership.TeamId == scope.TeamId &&
-                               (membership.LeftAt == null || (participant.SignupStatus == Bingo.Domain.Signups.SignupStatus.Withdrawn && participant.WithdrawnAt >= DateTimeOffset.UtcNow))
+                               membership.LeftAt == null
                          select new { participant.Id, character.Name };
         if (scope.Kind == EvidenceActorKind.Participant) candidates = candidates.Where(x => x.Id == scope.CreditedParticipantId);
         return (await candidates.OrderBy(x => x.Name).ToListAsync(cancellationToken)).Select(x => new EvidenceCandidate(x.Id, x.Name)).ToList();
@@ -128,16 +122,4 @@ public sealed class EvidenceAuthority(ApplicationDbContext db) : IEvidenceAuthor
         return new(character.Id, character.DisplayName);
     }
 
-    private async Task<bool> IsEligibleTeamCreditAsync(Guid teamId, Guid participantId, DateTimeOffset submittedAt, CancellationToken cancellationToken)
-    {
-        if (await db.TeamMemberships.AsNoTracking().AnyAsync(x => x.TeamId == teamId && x.EventParticipantId == participantId && x.LeftAt == null, cancellationToken))
-            return true;
-
-        return await (from participant in db.EventParticipants.AsNoTracking()
-                      join membership in db.TeamMemberships.AsNoTracking() on participant.Id equals membership.EventParticipantId
-                      where membership.TeamId == teamId && membership.EventParticipantId == participantId && membership.LeftAt != null &&
-                            participant.SignupStatus == Bingo.Domain.Signups.SignupStatus.Withdrawn && participant.WithdrawnAt != null &&
-                            submittedAt.ToUniversalTime() <= participant.WithdrawnAt.Value
-                      select participant.Id).AnyAsync(cancellationToken);
-    }
 }

@@ -70,7 +70,6 @@ public static class DependencyInjection
         services.AddScoped<IEventCompetitionManagementService, EventCompetitionManagementService>();
         services.AddScoped<IEventCompetitionUpdateAllService, EventCompetitionUpdateAllService>();
         services.AddScoped<IEventCompetitionActivityProjection, CachedEventCompetitionActivityProjection>();
-        services.AddScoped<IEventBannerCleanupService, EventBannerCleanupService>();
         services.AddScoped<ITeamCaptainAuthorityService, TeamCaptainAuthorityService>();
         services.AddScoped<ITeamFocusService, TeamFocusService>();
 

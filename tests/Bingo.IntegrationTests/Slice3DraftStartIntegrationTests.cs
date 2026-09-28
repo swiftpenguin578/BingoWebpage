@@ -48,7 +48,12 @@ public sealed class Slice3DraftStartIntegrationTests : IAsyncLifetime
         var closedAt = now.AddHours(-1);
         await using (var setup = new ApplicationDbContext(options))
         {
-            var seededItem = SeedDraftSetup(setup, eventId, "closed-draft-start", EventState.SignupClosed, adminId, closedAt);
+            var admin = Account.CreateWebsite(adminId, "draft-admin", "DRAFT-ADMIN", now);
+            admin.SetGlobalRole(GlobalRole.Admin);
+            var firstOwner = Account.CreateWebsite(Guid.NewGuid(), "draft-captain-one", "DRAFT-CAPTAIN-ONE", now);
+            var secondOwner = Account.CreateWebsite(Guid.NewGuid(), "draft-captain-two", "DRAFT-CAPTAIN-TWO", now);
+            setup.Add(admin);
+            var seededItem = SeedDraftSetup(setup, eventId, "closed-draft-start", EventState.SignupClosed, adminId, closedAt, firstOwner, secondOwner);
             setup.EventStateTransitions.Add(new EventStateTransition(Guid.NewGuid(), eventId, EventState.SignupOpen, EventState.SignupClosed, adminId, closedAt, "Signup closed before draft."));
             await setup.SaveChangesAsync();
             Assert.Equal(closedAt, seededItem.ActualSignupClosedAt);
@@ -120,7 +125,15 @@ public sealed class Slice3DraftStartIntegrationTests : IAsyncLifetime
         Assert.Equal(0, notifier.DraftChanges);
     }
 
-    private BingoEvent SeedDraftSetup(ApplicationDbContext db, Guid eventId, string slug, EventState state, Guid adminId, DateTimeOffset closedAt)
+    private BingoEvent SeedDraftSetup(
+        ApplicationDbContext db,
+        Guid eventId,
+        string slug,
+        EventState state,
+        Guid adminId,
+        DateTimeOffset closedAt,
+        Account? firstOwner = null,
+        Account? secondOwner = null)
     {
         var item = new BingoEvent(eventId, slug, slug, "UTC", adminId, now.AddDays(-2));
         item.ConfigureSchedule(now.AddDays(-2), closedAt, null, now.AddDays(1), now.AddDays(2), 20);
@@ -144,8 +157,15 @@ public sealed class Slice3DraftStartIntegrationTests : IAsyncLifetime
         secondTeam.SetDraftPosition(2);
         var firstParticipant = new EventParticipant(Guid.NewGuid(), eventId, SignupStatus.Confirmed, 1, now, SignupSource.Website);
         var secondParticipant = new EventParticipant(Guid.NewGuid(), eventId, SignupStatus.Confirmed, 2, now, SignupSource.Website);
+        if (firstOwner is not null)
+        {
+            firstParticipant.AssignOwner(firstOwner);
+        }
+        if (secondOwner is not null) secondParticipant.AssignOwner(secondOwner);
         var firstCharacter = new OsrsCharacter(Guid.NewGuid(), $"{slug} one", $"{slug.ToUpperInvariant()} ONE", now);
         var secondCharacter = new OsrsCharacter(Guid.NewGuid(), $"{slug} two", $"{slug.ToUpperInvariant()} TWO", now);
+        if (firstOwner is not null) db.Add(firstOwner);
+        if (secondOwner is not null) db.Add(secondOwner);
         db.AddRange(
             item,
             form,

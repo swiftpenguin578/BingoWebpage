@@ -5,6 +5,12 @@ namespace Bingo.Application.Signups;
 
 public interface ISignupService
 {
+    Task<SignupAdministrationResult> ApplyQuestionMutationAsync(SignupQuestionMutationRequest request, CancellationToken cancellationToken = default)
+        => Task.FromException<SignupAdministrationResult>(new NotSupportedException("Signup question mutation is not available."));
+
+    Task<SignupAdministrationResult> EnableCoCaptainAsync(Guid eventId, Guid questionId, Guid actorAccountId, string actorName, CancellationToken cancellationToken = default)
+        => Task.FromException<SignupAdministrationResult>(new NotSupportedException("Co-captain configuration is not available."));
+
     Task<SignupAdministrationResult> DeleteQuestionAsync(Guid eventId, Guid questionId, Guid actorAccountId, string actorName, CancellationToken cancellationToken = default)
         => Task.FromException<SignupAdministrationResult>(new NotSupportedException("Signup question deletion is not available."));
 
@@ -38,6 +44,17 @@ public interface ISignupService
     Task<ParticipantLifecycleResult> RejoinAsync(Guid eventId, Guid participantId, Guid accountId, string actorName, string? womValidationConfirmationToken, CancellationToken cancellationToken = default)
         => RejoinAsync(eventId, participantId, accountId, actorName, cancellationToken);
 
+    /// <summary>Self-service rejoin may require the current admission code; Admin restore never does.</summary>
+    Task<ParticipantLifecycleResult> RejoinAsync(
+        Guid eventId,
+        Guid participantId,
+        Guid accountId,
+        string actorName,
+        string? signupCode,
+        string? womValidationConfirmationToken,
+        CancellationToken cancellationToken = default)
+        => RejoinAsync(eventId, participantId, accountId, actorName, womValidationConfirmationToken, cancellationToken);
+
     Task<ParticipantLifecycleResult> RestoreAsync(Guid eventId, Guid participantId, Guid adminAccountId, string adminName, CancellationToken cancellationToken = default)
         => Task.FromException<ParticipantLifecycleResult>(new NotSupportedException("Participant lifecycle is not available."));
 
@@ -65,12 +82,66 @@ public interface ISignupService
     Task<LiveParticipantResult> ReplaceVacancyAsync(LiveReplacementRequest request, CancellationToken cancellationToken = default)
         => Task.FromException<LiveParticipantResult>(new NotSupportedException("Live participant replacement is not available."));
 
+    /// <summary>
+    /// Adds one participant to an already-finalized roster while the event is
+    /// still pre-Live. The operation is deliberately separate from signup
+    /// admission and from the retired vacancy/replacement workflow.
+    /// </summary>
+    Task<FinalizedRosterMutationResult> AddFinalizedRosterParticipantAsync(
+        FinalizedRosterAddRequest request,
+        CancellationToken cancellationToken = default)
+        => Task.FromException<FinalizedRosterMutationResult>(new NotSupportedException("Finalized-roster additions are not available."));
+
+    /// <summary>Removes one current finalized-roster membership before first Live.</summary>
+    Task<FinalizedRosterMutationResult> RemoveFinalizedRosterParticipantAsync(
+        FinalizedRosterRemoveRequest request,
+        CancellationToken cancellationToken = default)
+        => Task.FromException<FinalizedRosterMutationResult>(new NotSupportedException("Finalized-roster removals are not available."));
+
+    // Short aliases keep the application boundary readable for route-backed
+    // callers while the explicit names above remain the canonical contract.
+    Task<FinalizedRosterMutationResult> AddRosterMemberAsync(
+        FinalizedRosterAddRequest request,
+        CancellationToken cancellationToken = default)
+        => AddFinalizedRosterParticipantAsync(request, cancellationToken);
+
+    Task<FinalizedRosterMutationResult> RemoveRosterMemberAsync(
+        FinalizedRosterRemoveRequest request,
+        CancellationToken cancellationToken = default)
+        => RemoveFinalizedRosterParticipantAsync(request, cancellationToken);
+
     Task<PromotionFollowUpResult> CompletePromotionFollowUpAsync(Guid eventId, Guid followUpId, Guid adminAccountId, string adminName, CancellationToken cancellationToken = default)
         => Task.FromException<PromotionFollowUpResult>(new NotSupportedException("Promotion follow-up is not available."));
 }
 
 public sealed record ParticipantLifecycleResult(bool Succeeded, string? Error, SignupStatus? Status = null, int? WaitingPosition = null, bool Changed = false, string? WomValidationConfirmationToken = null);
-public sealed record SignupAdministrationResult(bool Succeeded, string? Error = null, int PromotedParticipants = 0, int? EffectiveParticipantCap = null);
+public sealed record SignupAdministrationResult(
+    bool Succeeded,
+    string? Error = null,
+    int PromotedParticipants = 0,
+    int? EffectiveParticipantCap = null,
+    SignupQuestionImpact? Impact = null,
+    bool RequiresConfirmation = false);
+public enum SignupQuestionMutationKind
+{
+    DeleteQuestion,
+    DisableCoCaptain
+}
+public sealed record SignupQuestionMutationRequest(
+    Guid EventId,
+    Guid QuestionId,
+    Guid ActorAccountId,
+    string ActorName,
+    SignupQuestionMutationKind Operation,
+    bool Confirmed,
+    int ExpectedAnswerCount,
+    int ExpectedEventRegistrationReleaseCount,
+    int ExpectedQuestionVersion);
+public sealed record SignupQuestionImpact(
+    Guid QuestionId,
+    int AnswerCount,
+    int EventRegistrationReleaseCount,
+    int QuestionVersion);
 public sealed record ParticipantPaymentResult(bool Succeeded, string? Error, bool Changed = false);
 public sealed record AdminAccountAnswer(string? CharacterName, decimal? Ehb);
 public sealed record AdminParticipantChangeRequest(
@@ -106,3 +177,36 @@ public sealed record LiveParticipantResult(
     Guid? FollowUpId = null,
     string? WomValidationConfirmationToken = null);
 public sealed record PromotionFollowUpResult(bool Succeeded, string? Error = null, bool Changed = false);
+
+public sealed record FinalizedRosterAddRequest(
+    Guid EventId,
+    Guid TeamId,
+    Guid ActorAccountId,
+    string ActorName,
+    Guid? WebsiteAccountId = null,
+    Guid? ParticipantId = null,
+    TeamMembershipRole Role = TeamMembershipRole.Participant,
+    long? ExpectedTeamVersion = null,
+    Guid? PlayingCharacterId = null,
+    decimal? PlayingEhb = null);
+
+public sealed record FinalizedRosterRemoveRequest(
+    Guid EventId,
+    Guid ParticipantId,
+    Guid ActorAccountId,
+    string ActorName,
+    bool Confirmed = false,
+    long? ExpectedMembershipVersion = null);
+
+public sealed record FinalizedRosterMutationResult(
+    bool Succeeded,
+    string? Error = null,
+    bool Changed = false,
+    Guid? ParticipantId = null,
+    Guid? MembershipId = null,
+    string? TeamName = null,
+    int? CurrentTeamMemberCount = null,
+    string? WomSyncStatus = null,
+    string? WomSyncError = null,
+    int? TargetTeamSize = null,
+    bool TeamIsShort = false);

@@ -2,6 +2,7 @@ using Bingo.Application.Signups;
 using Bingo.Domain.Events;
 using Bingo.Domain.Teams;
 using Bingo.Infrastructure.Persistence;
+using Bingo.Infrastructure.Teams;
 using Bingo.Web.Security;
 using Bingo.Web.Teams;
 using Bingo.Web.UI;
@@ -47,15 +48,12 @@ public sealed class TeamsModel(ApplicationDbContext db, TimeProvider time, IPart
                 .FirstOrDefaultAsync(ct);
         }
 
-        var cycle = await (from publication in db.DraftPublicationCycles.AsNoTracking()
-                           join draft in db.DraftSessions.AsNoTracking() on publication.DraftSessionId equals draft.Id
-                           where draft.EventId == ev.Id && publication.SupersededAt == null
-                           select publication).SingleOrDefaultAsync(ct);
+        var cycle = await db.ActiveRosterPublicationAsync(ev.Id, ct);
         if (cycle is null) return NotFound();
         var rosterEntries = await db.DraftPublicationRosters.AsNoTracking().Where(x => x.DraftPublicationCycleId == cycle.Id).ToListAsync(ct);
         var teamIds = rosterEntries.Select(x => x.TeamId).Distinct().ToList();
         var teams = await db.Teams.AsNoTracking()
-            .Where(x => x.EventId == ev.Id && (teamIds.Contains(x.Id) || x.Active && x.FinalizedAt != null))
+            .Where(x => x.EventId == ev.Id && teamIds.Contains(x.Id))
             .OrderBy(x => x.DraftPosition).ThenBy(x => x.Name).ToListAsync(ct);
         if (teams.Count == 0) return NotFound();
         var displayedTeamIds = teams.Select(x => x.Id).ToHashSet();
@@ -70,7 +68,7 @@ public sealed class TeamsModel(ApplicationDbContext db, TimeProvider time, IPart
                 t.Name,
                 t.AffiliationName,
                 t.DraftPosition,
-                t.FormationType,
+                t.IncludedInDraft,
                 rosterEntries.Where(m => m.TeamId == t.Id)
                     .OrderBy(m => m.Role switch { TeamMembershipRole.Captain => 0, TeamMembershipRole.CoCaptain => 1, _ => 2 })
                     .ThenBy(m => m.EffectivePickNumber.HasValue ? 0 : 1)
@@ -109,7 +107,7 @@ public sealed class TeamsModel(ApplicationDbContext db, TimeProvider time, IPart
     [NonHandler]
     public Task<IActionResult> OnGetAsync(string slug, CancellationToken ct) => OnGetAsync(slug, null, ct);
 
-    public sealed record TeamView(string Name, string? Affiliation, int? DraftPosition, TeamFormationType FormationType, IReadOnlyList<MemberView> Members);
+    public sealed record TeamView(string Name, string? Affiliation, int? DraftPosition, bool IncludedInDraft, IReadOnlyList<MemberView> Members);
 
     public sealed record MemberView(string Name, TeamMembershipRole Role);
     public sealed record PickView(int PickNumber, string PlayerName, string TeamName);

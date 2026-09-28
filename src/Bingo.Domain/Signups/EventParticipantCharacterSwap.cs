@@ -13,7 +13,8 @@ public sealed class EventParticipantCharacterSwap
         DateTimeOffset effectiveAtUtc,
         DateTimeOffset recordedAtUtc,
         Guid? recordedByAccountId,
-        string? reason)
+        string? reason,
+        long sequence = 0)
     {
         if (previousOsrsCharacterId == nextOsrsCharacterId)
             throw new ArgumentException("A character transition must change the active character.", nameof(nextOsrsCharacterId));
@@ -29,6 +30,7 @@ public sealed class EventParticipantCharacterSwap
         RecordedAtUtc = recordedAtUtc.ToUniversalTime();
         RecordedByAccountId = recordedByAccountId;
         Reason = string.IsNullOrWhiteSpace(reason) ? null : reason.Trim();
+        Sequence = sequence;
     }
 
     public Guid Id { get; private set; }
@@ -40,4 +42,5 @@ public sealed class EventParticipantCharacterSwap
     public DateTimeOffset RecordedAtUtc { get; private set; }
     public Guid? RecordedByAccountId { get; private set; }
     public string? Reason { get; private set; }
+    public long Sequence { get; private set; }
 }

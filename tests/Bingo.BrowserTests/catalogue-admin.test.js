@@ -162,7 +162,8 @@ global.window = {
   location: { href: entries[0].url, reload() { this.reloads = (this.reloads || 0) + 1; }, replace(value) { this.replaced = new URL(value, this.href).href; setUrl(this.replaced); } },
   fetch: async url => { requestedUrls.push(String(url)); const isEditor = String(url).includes("bossId"); return { ok: !(failedDirectEntry && isEditor), text: async () => isEditor ? "editor" : "workspace" }; },
   setTimeout: callback => callback(),
-  addEventListener(type, listener) { (windowListeners[type] ??= []).push(listener); }
+  addEventListener(type, listener) { (windowListeners[type] ??= []).push(listener); },
+  removeEventListener(type, listener) { windowListeners[type] = (windowListeners[type] || []).filter(item => item !== listener); }
 };
 global.location = { get pathname() { return new URL(window.location.href).pathname; } };
 global.history = history;

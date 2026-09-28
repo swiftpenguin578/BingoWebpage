@@ -31,6 +31,8 @@
     initializeOverviewLifecycleConfirmations(root);
     initializeCopyLinks(root);
     initializeDatePickers(root);
+    initializeSignupCodeSettings(root);
+    initializeRosterCharacterPicker(root);
     initializeDraftAddTeamDialog(root);
     initializeDraftInteractions(root);
     synchronizeRosterRoleDisplays(root);
@@ -43,6 +45,7 @@
       button.addEventListener("click", () => button.closest("details")?.removeAttribute("open"));
     });
     root.querySelectorAll(".event-participants-page").forEach((page) => {
+      initializeCapacityPromotionPreview(page);
       initializeParticipantWorkspace(page);
       initializeParticipantAddDialog(page);
     });
@@ -113,6 +116,97 @@
         return left.localeCompare(right, undefined, { numeric: true, sensitivity: "base" });
       }
     });
+  }
+
+  function initializeSignupCodeSettings(root) {
+    const forms = [];
+    if (root.matches?.("#signup-code-settings-form")) forms.push(root);
+    root.querySelectorAll?.("#signup-code-settings-form").forEach(form => forms.push(form));
+    forms.forEach(form => {
+      if (!(form instanceof HTMLFormElement) || form.dataset.signupCodeReady === "true") return;
+      const toggle = form.querySelector("[data-signup-code-toggle]");
+      const control = form.querySelector("[data-signup-code-control]");
+      const input = form.querySelector("[data-signup-code-input]");
+      if (!(toggle instanceof HTMLInputElement) || !(control instanceof HTMLElement) || !(input instanceof HTMLInputElement)) return;
+      form.dataset.signupCodeReady = "true";
+
+      const update = () => {
+        const enabled = toggle.checked;
+        const hasExistingCode = input.dataset.hasSignupCode === "true";
+        control.hidden = !enabled;
+        input.disabled = !enabled;
+        input.required = enabled && !hasExistingCode;
+      };
+      toggle.addEventListener("change", update);
+      update();
+    });
+  }
+
+  function initializeRosterCharacterPicker(root) {
+    const forms = [];
+    root.querySelectorAll?.("form").forEach(form => {
+      if (form.querySelector("[data-roster-account-select]")) forms.push(form);
+    });
+    forms.forEach(form => {
+      if (!(form instanceof HTMLFormElement) || form.dataset.rosterCharacterReady === "true") return;
+      const account = form.querySelector("[data-roster-account-select]");
+      const character = form.querySelector("[data-roster-character-select]");
+      const ehb = form.querySelector("[data-roster-ehb]");
+      if (!(account instanceof HTMLSelectElement) || !(character instanceof HTMLSelectElement) || !(ehb instanceof HTMLInputElement)) return;
+      form.dataset.rosterCharacterReady = "true";
+
+      const updateCharacters = () => {
+        const ownerId = account.value;
+        const options = [...character.options];
+        options.forEach(option => {
+          const available = !option.value || option.dataset.ownerAccount === ownerId;
+          option.hidden = !available;
+          option.disabled = !available;
+        });
+        if (!ownerId || !options.some(option => option.value && !option.disabled && option.selected)) character.value = "";
+        character.disabled = !ownerId || !options.some(option => option.value && !option.disabled);
+        ehb.disabled = !ownerId;
+        if (!ownerId) ehb.value = "";
+        updateEhbFromCharacter();
+      };
+      const updateEhbFromCharacter = () => {
+        const selected = character.selectedOptions[0];
+        const saved = selected?.dataset.savedEhb;
+        if (saved && !ehb.value) ehb.value = saved;
+      };
+      account.addEventListener("change", updateCharacters);
+      character.addEventListener("change", updateEhbFromCharacter);
+      updateCharacters();
+    });
+  }
+
+  function initializeCapacityPromotionPreview(page) {
+    const form = page.querySelector("#signup-settings-form");
+    const input = form?.querySelector("#SignupAdministration_ParticipantCap");
+    const preview = form?.querySelector("[data-capacity-promotion-preview]");
+    if (!(form instanceof HTMLFormElement) || !(input instanceof HTMLInputElement) || !(preview instanceof HTMLElement)) return;
+    if (form.dataset.capacityPreviewReady === "true") return;
+    form.dataset.capacityPreviewReady = "true";
+
+    const update = () => {
+      const capacity = Number.parseInt(input.value, 10);
+      const confirmed = Number.parseInt(form.dataset.confirmed || "0", 10);
+      const waiting = Number.parseInt(form.dataset.waiting || "0", 10);
+      const current = Number.parseInt(form.dataset.currentCapacity || "0", 10);
+      const promotions = Number.isFinite(capacity) && capacity > current
+        ? Math.min(waiting, Math.max(0, capacity - confirmed))
+        : 0;
+      if (promotions <= 0) {
+        preview.hidden = true;
+        preview.textContent = "";
+        return;
+      }
+      const template = form.dataset.promotionTemplate || "Saving at capacity {0} will promote {1} waiting-list participant(s) in signup order.";
+      preview.textContent = template.replace("{0}", String(capacity)).replace("{1}", String(promotions));
+      preview.hidden = false;
+    };
+    input.addEventListener("input", update);
+    update();
   }
 
   function initializeWomValidationConfirmation(root) {
@@ -343,13 +437,20 @@
       const body = new FormData(form);
       if (submitter?.name) body.append(submitter.name, submitter.value);
       const finish = guard.begin(form);
+      let finished = false;
+      const navigateAfterSave = destination => {
+        finish();
+        finished = true;
+        guard.initialize();
+        window.location.assign(destination);
+      };
       try {
         const response = await window.fetch(submitter?.getAttribute("formaction") || form.action, {
           method: "POST", body, credentials: "same-origin", headers: { "X-Requested-With": "XMLHttpRequest" }
         });
         if (!response.ok) throw new Error();
         const navigation = response.headers.get("X-Bingo-Post-Navigation");
-        if (navigation) { window.location.assign(navigation); return; }
+        if (navigation) { navigateAfterSave(navigation); return; }
         const html = await response.text();
         const parsed = new DOMParser().parseFromString(html, "text/html");
         const nextEditor = parsed.querySelector("[data-participant-edit-page]");
@@ -363,7 +464,7 @@
         const errors = Array.from(parsed.querySelectorAll(".field-validation-error, .validation-summary-errors, .app-toast-error .app-toast-copy span, .app-toast-warning .app-toast-copy span")).map(error => error.textContent.trim()).filter(Boolean);
         if (errors.length) { guard.showFailure(errors.join(" ")); return; }
         if (!(nextEditor instanceof HTMLElement)) {
-          if (response.redirected && new URL(response.url).pathname !== currentUrl().pathname) { window.location.assign(response.url); return; }
+          if (response.redirected && new URL(response.url).pathname !== currentUrl().pathname) { navigateAfterSave(response.url); return; }
           throw new Error();
         }
         const scrollTop = content?.scrollTop;
@@ -380,7 +481,7 @@
         currentEditor()?.querySelector("[data-participant-edit-close]")?.focus({ preventScroll: true });
       } catch {
         guard.showFailure();
-      } finally { finish(); }
+      } finally { if (!finished) finish(); }
     };
 
     const closeParticipantConfirmation = (confirmation) => {
@@ -509,7 +610,7 @@
 
     const cleanup = () => {
       window.removeEventListener("popstate", sync);
-      window.removeEventListener("beforeunload", beforeUnload);
+      stopWatchingUnsaved();
       if (!dialog) return;
       const url = canonicalParticipantsUrl();
       history.replaceState(clearParticipantDialogState(history.state), "", url);
@@ -533,11 +634,14 @@
 
     const sync = () => {
       if (directRouteFallbackStarted) return;
-      if (restoringHistory && hasOverlay()) { restoringHistory = false; return; }
+      if (restoringHistory && hasOverlay()) {
+        restoringHistory = false;
+        if (!guard.pending && guard.dirtyForms().length) guard.confirmDiscard(closeNow);
+        return;
+      }
       if (!hasOverlay() && dialog?.open && !closing && (guard.pending || guard.dirtyForms().length)) {
         restoringHistory = true;
         history.forward();
-        if (!guard.pending) guard.confirmDiscard(closeNow);
         return;
       }
       if (hasOverlay()) { if (!dialog?.open) show(false); }
@@ -550,10 +654,7 @@
     }));
     bindTriggers();
     window.addEventListener("popstate", sync);
-    const beforeUnload = event => {
-      if (guard.pending || guard.dirtyForms().length) { event.preventDefault(); event.returnValue = ""; }
-    };
-    window.addEventListener("beforeunload", beforeUnload);
+    const stopWatchingUnsaved = window.watchAdminUnsavedChanges(() => guard.dirtyForms().length > 0);
 
     if (directRoute && !hasOverlay()) { bindEditor(); return; }
     if (directRoute) {
@@ -870,13 +971,11 @@
       opener = null;
     };
 
-    const beforeUnload = event => {
-      if (guard.pending || (!completedWithoutEditor && guard.dirtyForms().length)) { event.preventDefault(); event.returnValue = ""; }
-    };
+    const stopWatchingUnsaved = window.watchAdminUnsavedChanges(() => !completedWithoutEditor && guard.dirtyForms().length > 0);
 
     const cleanupBeforeUpdate = () => {
       window.removeEventListener("popstate", sync);
-      window.removeEventListener("beforeunload", beforeUnload);
+      stopWatchingUnsaved();
       participantAddDialogCleanup = null;
       const url = overlayUrl();
       url.searchParams.delete("addParticipant");
@@ -886,7 +985,7 @@
 
     const dispose = () => {
       window.removeEventListener("popstate", sync);
-      window.removeEventListener("beforeunload", beforeUnload);
+      stopWatchingUnsaved();
       participantAddDialogCleanup = null;
       if (dialog?.open) dialog.close();
       content?.replaceChildren();
@@ -924,12 +1023,12 @@
     const sync = () => {
       if (restoringHistory && hasOverlay()) {
         restoringHistory = false;
+        if (!guard.pending && !completedWithoutEditor && guard.dirtyForms().length) guard.confirmDiscard(closeNow);
         return;
       }
       if (!hasOverlay() && dialog?.open && !closing && (guard.pending || (!completedWithoutEditor && guard.dirtyForms().length))) {
         restoringHistory = true;
         history.forward();
-        if (!guard.pending) guard.confirmDiscard(closeNow);
         return;
       }
       if (hasOverlay()) {
@@ -950,7 +1049,6 @@
       show(true);
     });
     window.addEventListener("popstate", sync);
-    window.addEventListener("beforeunload", beforeUnload);
     participantAddDialogCleanup = cleanupBeforeUpdate;
 
     const replaceParentAfterSuccess = (parsed, destination) => {
@@ -1178,6 +1276,7 @@
     const cancelButton = confirmation?.querySelector("[data-draft-add-team-cancel]");
     const confirmationField = form.querySelector("[data-draft-add-team-confirmed]");
     const feedback = dialog.querySelector("[data-draft-add-team-feedback]");
+    const requiresConfirmation = confirmation instanceof HTMLElement;
     let opener = null;
     let suspendedConfirmation = null;
     let acceptedByClick = false;
@@ -1293,6 +1392,7 @@
           return;
         }
         completed = true;
+        guard.initialize();
         if (result.message) sessionStorage.setItem("bingo:pending-toast", JSON.stringify(result));
         window.location.reload();
       } catch {
@@ -1361,6 +1461,20 @@
       if (event.target === confirmation && confirmation.open && !guard.pending) closeConfirmation();
     });
     form.addEventListener("submit", event => {
+      // The setup workspace has no destructive confirmation and uses the
+      // ordinary page POST. Keep that first-team path native so a redirect
+      // renders the same workspace and server notice as the other setup forms.
+      // Finalized corrections continue through the guarded AJAX flow below.
+      if (!requiresConfirmation) {
+        if (guard.pending || completed) {
+          event.preventDefault();
+          event.stopPropagation();
+          return;
+        }
+        completed = true;
+        guard.initialize();
+        return;
+      }
       if (event.defaultPrevented) return;
       event.preventDefault();
       event.stopPropagation();
@@ -1376,12 +1490,9 @@
       submitAddTeam(event.submitter);
     });
 
-    const beforeUnload = event => {
-      if (!completed && (guard.pending || guard.dirtyForms().length)) { event.preventDefault(); event.returnValue = ""; }
-    };
-    window.addEventListener("beforeunload", beforeUnload);
+    const stopWatchingUnsaved = window.watchAdminUnsavedChanges(() => !completed && guard.dirtyForms().length > 0);
     draftAddTeamCleanup = () => {
-      window.removeEventListener("beforeunload", beforeUnload);
+      stopWatchingUnsaved();
       if (dialog.open) dialog.close();
       dialog.removeAttribute("open");
       if (!document.querySelector("dialog[open]")) document.body.classList.remove("admin-route-dialog-open");
@@ -1551,7 +1662,7 @@
       const classes = toast?.getAttribute("class") || "";
       const type = classes.match(/(?:^|\s)app-toast-(success|error|warning|information)(?:\s|$)/)?.[1] || null;
       const message = toast?.querySelector(".app-toast-copy span")?.textContent?.trim() || "";
-      const errors = [...parsed.querySelectorAll(".validation-summary-errors, .field-validation-error, .draft-csv-callout-error")]
+      const errors = [...parsed.querySelectorAll(".validation-summary-errors, .field-validation-error")]
         .map(error => error.textContent?.replace(/\s+/g, " ").trim() || "")
         .filter(Boolean);
       return { parsed, page: parsed.querySelector("[data-draft-page]"), type, message, errors };
@@ -1658,7 +1769,6 @@
       const body = new FormData(form);
       const action = new URL(submitter?.getAttribute("formaction") || form.action || window.location.href, window.location.href);
       if (submitter?.name) body.append(submitter.name, submitter.value);
-      const handler = action.searchParams.get("handler") || "";
       const finish = state.guard.begin(form);
       let finished = false;
       let saved = false;
@@ -1673,23 +1783,6 @@
         const html = await response.text();
         const result = parseRosterResponse(html);
         const destination = rosterDestination(response, action);
-        if (handler === "PreviewRosterCsv") {
-          const failure = result.type && result.type !== "success" ? result.message : result.errors[0];
-          if (failure) {
-            const message = failure || adminText("adminPostError");
-            showRosterToast(message, result.type && result.type !== "success" ? result.type : "error");
-            state.guard.showFailure(message);
-            return;
-          }
-          finish();
-          finished = true;
-          if (!replaceRosterPage(state, html, destination)) {
-            const message = adminText("adminPostError");
-            showRosterToast(message, "error");
-            state.guard.showFailure(message);
-          }
-          return;
-        }
         if (result.type !== "success") {
           const message = result.errors[0] || result.message || adminText("adminPostError");
           showRosterToast(message, result.type || "error");
@@ -1737,15 +1830,18 @@
           if (!restoringRosterHistory) {
             restoringRosterHistory = true;
             history.forward();
-            if (!state.guard.pending) state.guard.confirmDiscard(() => discardRosterAndClose(activeDialog));
           }
           return;
         }
         closeRosterDialog(activeDialog, { fromPopstate: true, restoreFocus: false });
       }
       if (routeDialog instanceof HTMLDialogElement) {
+        const restored = restoringRosterHistory;
         restoringRosterHistory = false;
         openRosterDialog(routeDialog);
+        const state = rosterStateFor(routeDialog);
+        if (restored && !state.guard.pending && state.guard.dirtyForms().length)
+          state.guard.confirmDiscard(() => discardRosterAndClose(routeDialog));
       }
       else if (!root.querySelector("dialog#add-team[data-draft-add-team-dialog][open]")) document.body.classList.remove("admin-route-dialog-open");
     };
@@ -1821,17 +1917,12 @@
       if (dialog) guardRosterNavigation(event, link, dialog);
     };
     document.addEventListener("click", draftRosterNavigation);
-    draftRosterBeforeUnload && window.removeEventListener("beforeunload", draftRosterBeforeUnload);
-    draftRosterBeforeUnload = event => {
-      if (rosterDialogs.some(dialog => {
+    draftRosterBeforeUnload?.();
+    draftRosterBeforeUnload = window.watchAdminUnsavedChanges(() =>
+      rosterDialogs.some(dialog => {
         const state = rosterStateFor(dialog);
-        return !state.completed && (state.guard.pending || state.guard.dirtyForms().length);
-      })) {
-        event.preventDefault();
-        event.returnValue = "";
-      }
-    };
-    window.addEventListener("beforeunload", draftRosterBeforeUnload);
+        return !state.completed && state.guard.dirtyForms().length > 0;
+      }));
     root.querySelectorAll(".draft-page [data-draft-roster-trigger]").forEach((trigger) => {
       if (trigger.dataset.draftRosterReady === "true") return;
       trigger.dataset.draftRosterReady = "true";

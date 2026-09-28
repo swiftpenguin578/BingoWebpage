@@ -283,6 +283,15 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests
             }
             await edit.SaveChangesAsync();
         }
+        // Directly inserted working requirements must pass through the same
+        // derived-cache boundary as an ordinary board edit before the overview
+        // is asserted. Approved snapshots remain created by the real approval
+        // path below.
+        await using (var refresh = new ApplicationDbContext(options))
+        {
+            await BoardEstimateService.RefreshTilesAsync(refresh, [fixture.Tile.Id], DateTimeOffset.UtcNow, CancellationToken.None);
+            await refresh.SaveChangesAsync();
+        }
         await using var factory = ApprovalBatchFactory();
         using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         await LoginAsync(client, fixture.Admin.LoginName);
@@ -612,8 +621,20 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests
         var now = DateTimeOffset.UtcNow;
         var team = new Bingo.Domain.Teams.Team(Guid.NewGuid(), fixture.Event.Id, "Batch team", "batch-team", Bingo.Domain.Teams.TeamFormationType.Preformed, null, false, now);
         team.Finalize(now);
+        var participant = new EventParticipant(Guid.NewGuid(), fixture.Event.Id, SignupStatus.Confirmed, 1, now, SignupSource.AdminCreated);
+        var character = new OsrsCharacter(Guid.NewGuid(), "Batch player", "BATCH PLAYER", now);
+        var assignment = new EventParticipantCharacter(Guid.NewGuid(), fixture.Event.Id, participant.Id, character.Id, 0, now,
+            fixture.Admin.Id, null, EventCharacterRole.Playing, 1m, EhbSource.Manual, null);
+        var membership = new TeamMembership(Guid.NewGuid(), team.Id, participant.Id, TeamMembershipRole.Participant, now, null, "public board fixture");
+        var draft = new DraftSession(Guid.NewGuid(), fixture.Event.Id, 1);
+        draft.FinalizeDirect(now);
+        var publication = new DraftPublicationCycle(Guid.NewGuid(), draft.Id, 1, now, fixture.Admin.Id, DraftPublicationMethod.DirectRoster);
+        var roster = new DraftPublicationRoster(Guid.NewGuid(), publication.Id, team.Id, participant.Id, TeamMembershipRole.Participant, null, character.DisplayName);
         await using var db = new ApplicationDbContext(options);
-        db.Teams.Add(team);
+        var bingoEvent = await db.Events.SingleAsync(value => value.Id == fixture.Event.Id);
+        bingoEvent.SetDraftRosterPublication(true);
+        bingoEvent.SetBoardPublication(true, now);
+        db.AddRange(team, participant, character, assignment, membership, draft, publication, roster);
         await db.SaveChangesAsync();
     }
     private async Task<ManualCompletionFixture> AddCompletionAsync(ApprovalBatchFixture fixture)

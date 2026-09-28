@@ -9,7 +9,8 @@ public sealed class EventCompetitionSynchronization
     public EventCompetitionSynchronization(
         Guid id, Guid eventId, int generation, long? competitionId, string? title,
         DateTimeOffset? competitionStartsAt, DateTimeOffset? competitionEndsAt,
-        string assignmentFingerprint, DateTimeOffset now)
+        string assignmentFingerprint, DateTimeOffset now,
+        EventCompetitionProvenance provenance = EventCompetitionProvenance.Unknown)
     {
         Id = id;
         EventId = eventId;
@@ -19,6 +20,7 @@ public sealed class EventCompetitionSynchronization
         CompetitionStartsAt = competitionStartsAt?.ToUniversalTime();
         CompetitionEndsAt = competitionEndsAt?.ToUniversalTime();
         AssignmentFingerprint = assignmentFingerprint;
+        Provenance = provenance;
         CycleStartedAt = now.ToUniversalTime();
         NormalDueAt = competitionId is null ? null : now.ToUniversalTime();
     }
@@ -30,6 +32,7 @@ public sealed class EventCompetitionSynchronization
     public string? CompetitionTitle { get; private set; }
     public DateTimeOffset? CompetitionStartsAt { get; private set; }
     public DateTimeOffset? CompetitionEndsAt { get; private set; }
+    public EventCompetitionProvenance Provenance { get; private set; }
     public DateTimeOffset? LastAttemptAt { get; private set; }
     public DateTimeOffset? LastSuccessfulAt { get; private set; }
     public DateTimeOffset? LastUpstreamUpdatedAt { get; private set; }
@@ -83,7 +86,8 @@ public sealed class EventCompetitionSynchronization
 
     public void Reconfigure(
         long? competitionId, string? title, DateTimeOffset? competitionStartsAt,
-        DateTimeOffset? competitionEndsAt, string assignmentFingerprint, DateTimeOffset now)
+        DateTimeOffset? competitionEndsAt, string assignmentFingerprint, DateTimeOffset now,
+        EventCompetitionProvenance? provenance = null)
     {
         Generation++;
         SourceRequestFingerprint = null; MetricActivityBatchId = null; LatestMetricsComplete = null; LastMetricAttemptAt = null;
@@ -91,6 +95,7 @@ public sealed class EventCompetitionSynchronization
         CompetitionTitle = title?.Trim();
         CompetitionStartsAt = competitionStartsAt?.ToUniversalTime();
         CompetitionEndsAt = competitionEndsAt?.ToUniversalTime();
+        if (provenance is { } source) Provenance = source;
         AssignmentFingerprint = assignmentFingerprint;
         LastAttemptAt = null;
         LastSuccessfulAt = null;
@@ -112,12 +117,14 @@ public sealed class EventCompetitionSynchronization
         string? title,
         DateTimeOffset? competitionStartsAt,
         DateTimeOffset? competitionEndsAt,
-        DateTimeOffset now)
+        DateTimeOffset now,
+        EventCompetitionProvenance? provenance = null)
     {
         CompetitionId = competitionId;
         CompetitionTitle = title?.Trim();
         CompetitionStartsAt = competitionStartsAt?.ToUniversalTime();
         CompetitionEndsAt = competitionEndsAt?.ToUniversalTime();
+        if (provenance is { } source) Provenance = source;
         CycleStartedAt ??= now.ToUniversalTime();
     }
 

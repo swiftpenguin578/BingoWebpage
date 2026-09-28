@@ -178,9 +178,19 @@ public sealed partial class C20ObjectiveIdentityIntegrationTests(C20Database fix
         using var admin = await ClientAsync(f.Admin);
         using var player = await ClientAsync(f.Owner);
         await StartCorrectionAsync(admin, f);
+        var afterCorrectionStart = await LeaseStateAsync(f);
         var version = await VersionAsync(f);
         await EditAsync(admin, f, name: "First correction");
+        var afterCommittedEdit = await LeaseStateAsync(f);
+        Assert.True(afterCommittedEdit.Version > afterCorrectionStart.Version);
+        Assert.True(afterCommittedEdit.LeaseExpiresAt > afterCorrectionStart.LeaseExpiresAt);
+        Assert.True(afterCommittedEdit.BoardAuditCount > afterCorrectionStart.BoardAuditCount);
         var before = await IntegrityAsync(f);
+        using (var view = await admin.GetAsync($"/Admin/Events/Board/{f.Event.Id}"))
+        {
+            Assert.Equal(HttpStatusCode.OK, view.StatusCode);
+            Assert.Equal(before, await IntegrityAsync(f));
+        }
         await EditAsync(admin, f, name: "Stale", version: version);
         Assert.Equal(before, await IntegrityAsync(f));
         await EditAsync(admin, f, requirementId: Guid.NewGuid());
@@ -195,6 +205,53 @@ public sealed partial class C20ObjectiveIdentityIntegrationTests(C20Database fix
         using var denied = await player.PostAsync($"/Admin/Events/Board/{f.Event.Id}?handler=EditTile", new FormUrlEncodedContent(unauthorizedFields));
         Assert.True(denied.StatusCode == HttpStatusCode.Forbidden || denied.StatusCode == HttpStatusCode.Redirect && denied.Headers.Location!.OriginalString.Contains("AccessDenied", StringComparison.Ordinal));
         Assert.Equal(before, await IntegrityAsync(f));
+    }
+
+    [Fact]
+    public async Task ExpiredPublishedCorrectionLeaseCanBeExplicitlyAcquiredBeforeEditing()
+    {
+        var f = await SeedAsync();
+        using var admin = await ClientAsync(f.Admin);
+        await StartCorrectionAsync(admin, f);
+
+        await using (var db = fixture.Db())
+        {
+            var board = await db.Boards.SingleAsync(x => x.Id == f.Board.Id);
+            db.Entry(board).Property(x => x.EditorAccountId).CurrentValue = f.Owner.Id;
+            db.Entry(board).Property(x => x.EditorLeaseExpiresAt).CurrentValue = DateTimeOffset.UtcNow.AddMinutes(-10);
+            await db.SaveChangesAsync();
+        }
+
+        var beforeView = await LeaseStateAsync(f);
+        using (var view = await admin.GetAsync($"/Admin/Events/Board/{f.Event.Id}"))
+        {
+            Assert.Equal(HttpStatusCode.OK, view.StatusCode);
+            var html = await view.Content.ReadAsStringAsync();
+            Assert.Contains("handler=AcquireEditing", html, StringComparison.Ordinal);
+            Assert.Contains("Acquire editing control", html, StringComparison.Ordinal);
+        }
+        Assert.Equal(beforeView, await LeaseStateAsync(f));
+
+        await PostBoardAsync(admin, f, "AcquireEditing", new());
+        var afterAcquire = await LeaseStateAsync(f);
+        Assert.True(afterAcquire.LeaseExpiresAt > DateTimeOffset.UtcNow);
+        await using (var db = fixture.Db())
+        {
+            var board = await db.Boards.AsNoTracking().SingleAsync(x => x.Id == f.Board.Id);
+            Assert.Equal(f.Admin.Id, board.EditorAccountId);
+            Assert.True(await db.AuditEntries.AnyAsync(x => x.TargetId == f.Board.Id.ToString() && x.Action == "board.editing_acquired"));
+        }
+
+        await EditAsync(admin, f, name: "Acquired published correction");
+        var afterEdit = await LeaseStateAsync(f);
+        Assert.True(afterEdit.Version > afterAcquire.Version);
+        Assert.True(afterEdit.LeaseExpiresAt > afterAcquire.LeaseExpiresAt);
+        await using (var db = fixture.Db())
+        {
+            var board = await db.Boards.AsNoTracking().SingleAsync(x => x.Id == f.Board.Id);
+            Assert.True(board.PublishedCorrectionInProgress);
+            Assert.Equal("Acquired published correction", (await db.BoardTiles.AsNoTracking().SingleAsync(x => x.Id == f.Tile.Id)).NameSnapshot);
+        }
     }
 
     private async Task<Fixture> SeedAsync(bool manual = false, bool automaticDescription = false, bool captain = false)
@@ -229,8 +286,14 @@ public sealed partial class C20ObjectiveIdentityIntegrationTests(C20Database fix
         var tile = new BoardTile(Guid.NewGuid(), board.Id, template.Id, 0, 0, template.Name, template.Description, "", 5m, descriptionIsAutomatic: automaticDescription);
         var requirement = new BoardRequirementSnapshot(Guid.NewGuid(), tile.Id, 1, 5, true, false, templateRequirement.Description, manual);
         var drop = new BoardRequirementDropSnapshot(Guid.NewGuid(), requirement.Id, source.Id, item.Id, boss.Name, item.Name, source.DisplayRate, source.NumericProbability, null, 1m);
+        var draft = new DraftSession(Guid.NewGuid(), ev.Id, 1);
+        draft.FinalizeDirect(now.AddHours(-2));
+        var publication = new DraftPublicationCycle(Guid.NewGuid(), draft.Id, 1, now.AddHours(-2), admin.Id, DraftPublicationMethod.DirectRoster);
+        var publishedRoster = new DraftPublicationRoster(Guid.NewGuid(), publication.Id, team.Id, participant.Id,
+            membership.Role, null, character.DisplayName);
         await using var db = fixture.Db();
-        db.AddRange(admin, owner, ev, team, participant, character, assignment, membership, boss, item, source, template, templateRequirement, board, tile, requirement);
+        db.AddRange(admin, owner, ev, team, participant, character, assignment, membership, draft, publication, publishedRoster,
+            boss, item, source, template, templateRequirement, board, tile, requirement);
         if (!manual) db.AddRange(drop, new TemplateRequirementBoss(Guid.NewGuid(), templateRequirement.Id, boss.Id), new TemplateRequirementDrop(Guid.NewGuid(), templateRequirement.Id, source.Id, null), new BoardRequirementBossSnapshot(Guid.NewGuid(), requirement.Id, boss.Id, boss.Name, 10m));
         await BoardApprovalFixture.PublishAsync(db, board, now.AddHours(-2), [tile], [requirement], manual ? [] : [drop]);
         var approvalReq = await db.BoardApprovalRequirementSnapshots.SingleAsync(x => x.BoardRequirementSnapshotId == requirement.Id);
@@ -289,6 +352,13 @@ public sealed partial class C20ObjectiveIdentityIntegrationTests(C20Database fix
         return fields;
     }
     private async Task<long> VersionAsync(Fixture f) { await using var db = fixture.Db(); return await db.Boards.Where(x => x.Id == f.Board.Id).Select(x => x.Version).SingleAsync(); }
+    private async Task<LeaseState> LeaseStateAsync(Fixture f)
+    {
+        await using var db = fixture.Db();
+        var board = await db.Boards.AsNoTracking().SingleAsync(x => x.Id == f.Board.Id);
+        return new(board.Version, board.EditorLeaseExpiresAt, board.EditControlVersion,
+            await db.AuditEntries.CountAsync(x => x.TargetId == f.Board.Id.ToString()));
+    }
     private static async Task<Guid> SubmitAsync(HttpClient player, Fixture f)
     {
         var path = $"/Captain/Submit/{f.Tile.Id}?handler=Drawer&eventId={f.Event.Id}&teamId={f.Team.Id}";
@@ -338,6 +408,7 @@ public sealed partial class C20ObjectiveIdentityIntegrationTests(C20Database fix
         });
     }
     private static string Token(string html) { var token = Regex.Match(html, "name=\"__RequestVerificationToken\" type=\"hidden\" value=\"([^\"]+)\"").Groups[1].Value; Assert.NotEmpty(token); return token; }
+    private sealed record LeaseState(long Version, DateTimeOffset? LeaseExpiresAt, long EditControlVersion, int BoardAuditCount);
     private sealed record Fixture(Account Admin, Account Owner, BingoEvent Event, Team Team, EventParticipant Participant, Board Board, BoardTile Tile, BoardRequirementSnapshot Requirement, BoardRequirementDropSnapshot Drop, BossActivity Boss, Guid ApprovalId);
 }
 

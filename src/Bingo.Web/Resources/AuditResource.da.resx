@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms</value></resheader>
+  <data name="Account disabled" xml:space="preserve"><value>Konto deaktiveret</value></data>
+  <data name="Account restored" xml:space="preserve"><value>Konto genaktiveret</value></data>
+  <data name="Username changed" xml:space="preserve"><value>Brugernavn ændret</value></data>
+  <data name="Account role changed" xml:space="preserve"><value>Kontorolle ændret</value></data>
+  <data name="Captain account created" xml:space="preserve"><value>Kaptajnkonto oprettet</value></data>
+  <data name="Captain account disabled" xml:space="preserve"><value>Kaptajnkonto deaktiveret</value></data>
+  <data name="Administrator access granted" xml:space="preserve"><value>Administratoradgang tildelt</value></data>
+  <data name="Administrator access revoked" xml:space="preserve"><value>Administratoradgang fjernet</value></data>
+  <data name="Discord identity linked" xml:space="preserve"><value>Discordidentitet tilknyttet</value></data>
+  <data name="Discord identity unlinked" xml:space="preserve"><value>Discordidentitet fjernet</value></data>
+  <data name="Event created" xml:space="preserve"><value>Begivenhed oprettet</value></data>
+  <data name="Event updated" xml:space="preserve"><value>Begivenhed opdateret</value></data>
+  <data name="Event hidden" xml:space="preserve"><value>Begivenhed skjult</value></data>
+  <data name="Event restored" xml:space="preserve"><value>Begivenhed gendannet</value></data>
+  <data name="Event started" xml:space="preserve"><value>Begivenhed startet</value></data>
+  <data name="Event ended" xml:space="preserve"><value>Begivenhed afsluttet</value></data>
+  <data name="Event resumed" xml:space="preserve"><value>Begivenhed genoptaget</value></data>
+  <data name="Event cancelled" xml:space="preserve"><value>Begivenhed annulleret</value></data>
+  <data name="Event reopened for final review" xml:space="preserve"><value>Begivenhed genåbnet til endelig gennemgang</value></data>
+  <data name="Final review blocker overridden" xml:space="preserve"><value>Blokering i endelig gennemgang tilsidesat</value></data>
+  <data name="Completion time corrected" xml:space="preserve"><value>Afslutningstid korrigeret</value></data>
+  <data name="Event started automatically" xml:space="preserve"><value>Begivenhed startet automatisk</value></data>
+  <data name="Event finalized" xml:space="preserve"><value>Begivenhed afsluttet</value></data>
+  <data name="Event identity and time zone changed" xml:space="preserve"><value>Begivenhedsidentitet og tidszone ændret</value></data>
+  <data name="Submissions reopened" xml:space="preserve"><value>Indsendelser genåbnet</value></data>
+  <data name="Signup code settings changed" xml:space="preserve"><value>Indstillinger for tilmeldingskode ændret</value></data>
+  <data name="Evidence code settings changed" xml:space="preserve"><value>Indstillinger for dokumentationskode ændret</value></data>
+  <data name="Evidence code created" xml:space="preserve"><value>Dokumentationskode oprettet</value></data>
+  <data name="Boss or activity added" xml:space="preserve"><value>Boss eller aktivitet tilføjet</value></data>
+  <data name="Boss or activity updated" xml:space="preserve"><value>Boss eller aktivitet opdateret</value></data>
+  <data name="Boss or activity deleted" xml:space="preserve"><value>Boss eller aktivitet slettet</value></data>
+  <data name="Boss or activity refreshed" xml:space="preserve"><value>Boss eller aktivitet opdateret fra API</value></data>
+  <data name="Boss or activity verified" xml:space="preserve"><value>Boss eller aktivitet verificeret</value></data>
+  <data name="Boss or activity availability changed" xml:space="preserve"><value>Tilgængelighed for boss eller aktivitet ændret</value></data>
+  <data name="Drop added" xml:space="preserve"><value>Drop tilføjet</value></data>
+  <data name="Drop updated" xml:space="preserve"><value>Drop opdateret</value></data>
+  <data name="Drop deleted" xml:space="preserve"><value>Drop slettet</value></data>
+  <data name="Drop availability changed" xml:space="preserve"><value>Tilgængelighed for drop ændret</value></data>
+  <data name="Item pricing updated" xml:space="preserve"><value>Genstandspris opdateret</value></data>
+  <data name="Item pricing refreshed" xml:space="preserve"><value>Genstandspris opdateret fra API</value></data>
+  <data name="Board published" xml:space="preserve"><value>Plade offentliggjort</value></data>
+  <data name="Board updated" xml:space="preserve"><value>Plade opdateret</value></data>
+  <data name="Team created" xml:space="preserve"><value>Hold oprettet</value></data>
+  <data name="Team member added" xml:space="preserve"><value>Holdmedlem tilføjet</value></data>
+  <data name="Team member removed" xml:space="preserve"><value>Holdmedlem fjernet</value></data>
+  <data name="Team member moved" xml:space="preserve"><value>Holdmedlem flyttet</value></data>
+  <data name="Draft finalized" xml:space="preserve"><value>Draft afsluttet</value></data>
+  <data name="Draft reopened" xml:space="preserve"><value>Draft genåbnet</value></data>
+  <data name="Draft cancelled" xml:space="preserve"><value>Draft annulleret</value></data>
+  <data name="Evidence submitted" xml:space="preserve"><value>Dokumentation indsendt</value></data>
+  <data name="Evidence changes requested" xml:space="preserve"><value>Ændringer til dokumentation anmodet</value></data>
+  <data name="Evidence withdrawn" xml:space="preserve"><value>Dokumentation trukket tilbage</value></data>
+  <data name="Evidence metadata corrected" xml:space="preserve"><value>Dokumentationsmetadata korrigeret</value></data>
+  <data name="Evidence screenshot replaced" xml:space="preserve"><value>Dokumentationsskærmbillede erstattet</value></data>
+  <data name="Evidence marked duplicate" xml:space="preserve"><value>Dokumentation markeret som duplikat</value></data>
+  <data name="Evidence hidden" xml:space="preserve"><value>Dokumentation skjult</value></data>
+  <data name="Evidence made visible" xml:space="preserve"><value>Dokumentation gjort synlig</value></data>
+  <data name="Evidence contribution recalculated" xml:space="preserve"><value>Dokumentationsbidrag genberegnet</value></data>
+  <data name="Historical linked evidence submitted" xml:space="preserve"><value>Historisk linket dokumentation indsendt</value></data>
+  <data name="Evidence approved" xml:space="preserve"><value>Dokumentation godkendt</value></data>
+  <data name="Evidence rejected" xml:space="preserve"><value>Dokumentation afvist</value></data>
+  <data name="Evidence approval reversed" xml:space="preserve"><value>Godkendelse af dokumentation tilbageført</value></data>
+  <data name="Account" xml:space="preserve"><value>Konto</value></data>
+  <data name="Event" xml:space="preserve"><value>Begivenhed</value></data>
+  <data name="Board" xml:space="preserve"><value>Plade</value></data>
+  <data name="Team" xml:space="preserve"><value>Hold</value></data>
+  <data name="Membership" xml:space="preserve"><value>Medlemskab</value></data>
+  <data name="Participant" xml:space="preserve"><value>Deltager</value></data>
+  <data name="Evidence" xml:space="preserve"><value>Dokumentation</value></data>
+  <data name="Draft" xml:space="preserve"><value>Draft</value></data>
+  <data name="Draft publication" xml:space="preserve"><value>Draftoffentliggørelse</value></data>
+  <data name="Boss or activity" xml:space="preserve"><value>Boss eller aktivitet</value></data>
+  <data name="Drop" xml:space="preserve"><value>Drop</value></data>
+  <data name="Item" xml:space="preserve"><value>Genstand</value></data>
+  <data name="Recorded target" xml:space="preserve"><value>Registreret mål</value></data>
+  <data name="Recorded administrative action" xml:space="preserve"><value>Registreret administrativ handling</value></data>
+  <data name="Sensitive details withheld" xml:space="preserve"><value>Følsomme oplysninger udeladt</value></data>
+  <data name="Historic details could not be interpreted." xml:space="preserve"><value>Historiske oplysninger kunne ikke fortolkes.</value></data>
+  <data name="Yes" xml:space="preserve"><value>Ja</value></data>
+  <data name="No" xml:space="preserve"><value>Nej</value></data>
+  <data name="Actor" xml:space="preserve"><value>Udført af</value></data>
+  <data name="Target" xml:space="preserve"><value>Mål</value></data>
+  <data name="Reason" xml:space="preserve"><value>Begrundelse</value></data>
+  <data name="Before" xml:space="preserve"><value>Før</value></data>
+  <data name="After" xml:space="preserve"><value>Efter</value></data>
+  <data name="Technical details" xml:space="preserve"><value>Tekniske oplysninger</value></data>
+  <data name="Action key" xml:space="preserve"><value>Handlingsnøgle</value></data>
+  <data name="Details" xml:space="preserve"><value>Oplysninger</value></data>
+  <data name="Name" xml:space="preserve"><value>Navn</value></data>
+  <data name="Active" xml:space="preserve"><value>Aktiv</value></data>
+  <data name="State" xml:space="preserve"><value>Status</value></data>
+  <data name="Version" xml:space="preserve"><value>Version</value></data>
+  <data name="Hidden At" xml:space="preserve"><value>Skjult den</value></data>
+  <data name="Hidden By Account Id" xml:space="preserve"><value>Skjult af konto</value></data>
+  <data name="Hidden Reason" xml:space="preserve"><value>Begrundelse for skjulning</value></data>
+  <data name="Account role" xml:space="preserve"><value>Kontorolle</value></data>
+  <data name="Status" xml:space="preserve"><value>Status</value></data>
+  <data name="Time zone" xml:space="preserve"><value>Tidszone</value></data>
+  <data name="Added" xml:space="preserve"><value>Tilføjet</value></data>
+  <data name="Deleted" xml:space="preserve"><value>Slettet</value></data>
+  <data name="Target identity" xml:space="preserve"><value>Målets identitet</value></data>
+</root>

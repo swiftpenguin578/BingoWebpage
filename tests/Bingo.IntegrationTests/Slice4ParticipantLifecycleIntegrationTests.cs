@@ -307,6 +307,7 @@ public sealed class Slice4ParticipantLifecycleIntegrationTests : IAsyncLifetime
         Assert.Equal(2, notices.Count);
         Assert.All(notices, x => Assert.DoesNotContain("private detail", x.Detail, StringComparison.OrdinalIgnoreCase));
         Assert.Equal(SignupStatus.Confirmed, await verify.EventParticipants.Where(x => x.Id == setup.ConfirmedParticipantId).Select(x => x.SignupStatus).SingleAsync());
+        Assert.Equal("private detail", await verify.EventParticipants.Where(x => x.Id == setup.ConfirmedParticipantId).Select(x => x.AdminNotes).SingleAsync());
     }
 
     [Fact]
@@ -323,6 +324,8 @@ public sealed class Slice4ParticipantLifecycleIntegrationTests : IAsyncLifetime
                 TempData = new TempDataDictionary(context, new DictionaryTempDataProvider())
             };
             Assert.IsType<RedirectToPageResult>(await participants.OnPostWithdrawAsync(manageSetup.EventId, manageSetup.ConfirmedParticipantId, CancellationToken.None));
+            Assert.Equal(SignupStatus.Confirmed, await db.EventParticipants.Where(x => x.Id == manageSetup.ConfirmedParticipantId).Select(x => x.SignupStatus).SingleAsync());
+            Assert.IsType<RedirectToPageResult>(await participants.OnPostWithdrawAsync(manageSetup.EventId, manageSetup.ConfirmedParticipantId, CancellationToken.None, true));
         }
         await using (var verify = new ApplicationDbContext(options))
         {
@@ -354,6 +357,186 @@ public sealed class Slice4ParticipantLifecycleIntegrationTests : IAsyncLifetime
             Assert.Contains(await verify.PersonalNotifications.ToListAsync(), x => x.RecipientAccountId == manageSetup.WaitingOwnerIds[0] && x.Title == "participant.withdrawn");
             Assert.Empty(await verify.EventParticipants.Where(x => x.EventId == manageSetup.EventId && x.SignupStatus == SignupStatus.WaitingList).ToListAsync());
         }
+    }
+
+    [Fact]
+    public async Task DraftAdminWithdrawalPromotesWaitingListAndRestoreUsesCurrentCapacityWithPrivateNote()
+    {
+        var now = DateTimeOffset.UtcNow;
+        await using var db = new ApplicationDbContext(options);
+        var admin = Website($"draft-admin-{Guid.NewGuid():N}", now, GlobalRole.Admin);
+        var firstOwner = Website($"draft-first-{Guid.NewGuid():N}", now);
+        var waitingOwner = Website($"draft-waiting-{Guid.NewGuid():N}", now);
+        var bingoEvent = new BingoEvent(Guid.NewGuid(), "Draft lifecycle", $"draft-lifecycle-{Guid.NewGuid():N}", "", "UTC", now.AddHours(1), now.AddDays(1), now.AddDays(2), now.AddDays(3), now.AddDays(3), 1, admin.Id, now);
+        var first = new EventParticipant(Guid.NewGuid(), bingoEvent.Id, SignupStatus.Confirmed, 1, now, SignupSource.Website, null); first.AssignOwner(firstOwner);
+        var waiting = new EventParticipant(Guid.NewGuid(), bingoEvent.Id, SignupStatus.WaitingList, 2, now.AddMinutes(1), SignupSource.Website, null); waiting.AssignOwner(waitingOwner);
+        var team = new Team(Guid.NewGuid(), bingoEvent.Id, "Included team", "included-team", TeamFormationType.Drafted, null, true, now);
+        var membership = new TeamMembership(Guid.NewGuid(), team.Id, first.Id, TeamMembershipRole.Captain, now, null, "Draft setup");
+        var firstCharacter = new OsrsCharacter(Guid.NewGuid(), "Draft first", $"DRAFT FIRST {Guid.NewGuid():N}", now);
+        var waitingCharacter = new OsrsCharacter(Guid.NewGuid(), "Draft waiting", $"DRAFT WAITING {Guid.NewGuid():N}", now);
+        db.AddRange(admin, firstOwner, waitingOwner, bingoEvent, first, waiting, team, membership, firstCharacter, waitingCharacter,
+            new EventParticipantCharacter(Guid.NewGuid(), bingoEvent.Id, first.Id, firstCharacter.Id, 0, now, firstOwner.Id, null, EventCharacterRole.Playing, 10, EhbSource.Manual, null),
+            new EventParticipantCharacter(Guid.NewGuid(), bingoEvent.Id, waiting.Id, waitingCharacter.Id, 0, now.AddMinutes(1), waitingOwner.Id, null, EventCharacterRole.Playing, 11, EhbSource.Manual, null));
+        await db.SaveChangesAsync();
+
+        var withdrawn = await Service(db).WithdrawAsync(bingoEvent.Id, first.Id, admin.Id, admin.LoginName, true, "Draft departure note");
+        Assert.True(withdrawn.Succeeded, withdrawn.Error);
+        Assert.Equal(SignupStatus.Confirmed, await db.EventParticipants.Where(x => x.Id == waiting.Id).Select(x => x.SignupStatus).SingleAsync());
+        Assert.Empty(await db.EventParticipantCharacters.Where(x => x.EventParticipantId == first.Id && x.ReleasedAt == null).ToListAsync());
+        Assert.Equal("Draft departure note", await db.EventParticipants.Where(x => x.Id == first.Id).Select(x => x.AdminNotes).SingleAsync());
+        Assert.NotNull(await db.TeamMemberships.Where(x => x.Id == membership.Id).Select(x => x.LeftAt).SingleAsync());
+        Assert.Equal(TeamMembershipRole.Participant, await db.TeamMemberships.Where(x => x.Id == membership.Id).Select(x => x.Role).SingleAsync());
+
+        var restored = await Service(db).RestoreAsync(bingoEvent.Id, first.Id, admin.Id, admin.LoginName);
+        Assert.True(restored.Succeeded, restored.Error);
+        await using var verify = new ApplicationDbContext(options);
+        Assert.Equal(SignupStatus.WaitingList, await verify.EventParticipants.Where(x => x.Id == first.Id).Select(x => x.SignupStatus).SingleAsync());
+        Assert.Single(await verify.EventParticipantCharacters.Where(x => x.EventParticipantId == first.Id && x.ReleasedAt == null).ToListAsync());
+        Assert.Equal("Draft departure note", await verify.EventParticipants.Where(x => x.Id == first.Id).Select(x => x.AdminNotes).SingleAsync());
+        Assert.Single(await verify.AuditEntries.Where(x => x.EventId == bingoEvent.Id && x.Action == "participant.admin_withdrawn").ToListAsync());
+        Assert.Single(await verify.AuditEntries.Where(x => x.EventId == bingoEvent.Id && x.Action == "participant.admin_restored").ToListAsync());
+        var ownerNotifications = await verify.PersonalNotifications.Where(x => x.RecipientAccountId == firstOwner.Id).ToListAsync();
+        Assert.Contains(ownerNotifications, x => x.Title == "participant.withdrawn");
+        Assert.Contains(ownerNotifications, x => x.Title == "participant.restored");
+    }
+
+    [Fact]
+    public async Task AdminAccountCorrectionNotifiesLinkedOwnerAndPreservesPrivateMetadata()
+    {
+        var now = DateTimeOffset.UtcNow;
+        await using var db = new ApplicationDbContext(options);
+        var admin = Website($"correction-admin-{Guid.NewGuid():N}", now, GlobalRole.Admin);
+        var owner = Website($"correction-owner-{Guid.NewGuid():N}", now);
+        var bingoEvent = new BingoEvent(Guid.NewGuid(), "Correction", $"correction-{Guid.NewGuid():N}", "", "UTC", now.AddHours(-1), now.AddDays(1), now.AddDays(2), now.AddDays(3), now.AddDays(3), 2, admin.Id, now);
+        bingoEvent.OpenSignups(now);
+        var form = new SignupForm(Guid.NewGuid(), bingoEvent.Id, now);
+        var regular = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, "regular", "Regular", SignupQuestionType.Account, true, 0, null, SignupSystemField.PrimaryRegularAccount, EventCharacterRole.Playing);
+        var oldCharacter = new OsrsCharacter(Guid.NewGuid(), "Correction old", $"CORRECTION OLD {Guid.NewGuid():N}", now);
+        var newCharacter = new OsrsCharacter(Guid.NewGuid(), "Correction new", $"CORRECTION NEW {Guid.NewGuid():N}", now);
+        var participant = new EventParticipant(Guid.NewGuid(), bingoEvent.Id, SignupStatus.Confirmed, 1, now, SignupSource.Website);
+        participant.AssignOwner(owner); participant.SetPaymentReceived(true); participant.SetAdminNotes("private correction note");
+        db.AddRange(admin, owner, bingoEvent, form, regular, oldCharacter, newCharacter, participant,
+            new EventParticipantCharacter(Guid.NewGuid(), bingoEvent.Id, participant.Id, oldCharacter.Id, 0, now, owner.Id, regular.Id, EventCharacterRole.Playing, 5, EhbSource.Manual, null));
+        await db.SaveChangesAsync();
+
+        var result = await Service(db).CorrectAdminParticipantAsync(new(
+            bingoEvent.Id, participant.Id, admin.Id, admin.LoginName, null,
+            new Dictionary<Guid, AdminAccountAnswer> { [regular.Id] = new(newCharacter.DisplayName, 7) },
+            new Dictionary<Guid, string>(), participant.ResponseVersion));
+        Assert.True(result.Succeeded, result.Error);
+
+        await using var verify = new ApplicationDbContext(options);
+        var notifications = await verify.PersonalNotifications.Where(x => x.EventId == bingoEvent.Id && x.RecipientAccountId == owner.Id).ToListAsync();
+        var notification = Assert.Single(notifications, x => x.Title == "participant.accounts_changed");
+        Assert.DoesNotContain(oldCharacter.DisplayName, notification.Detail, StringComparison.Ordinal);
+        Assert.DoesNotContain(newCharacter.DisplayName, notification.Detail, StringComparison.Ordinal);
+        var saved = await verify.EventParticipants.SingleAsync(x => x.Id == participant.Id);
+        Assert.True(saved.PaymentReceived);
+        Assert.Equal("private correction note", saved.AdminNotes);
+        Assert.Equal(7, await verify.EventParticipantCharacters.Where(x => x.EventParticipantId == participant.Id && x.ReleasedAt == null).Select(x => x.EhbSnapshot).SingleAsync());
+    }
+
+    [Fact]
+    public async Task SelfWithdrawalTerminatesActiveExternalRosterMembership()
+    {
+        var setup = await SeedAsync(capacity: 1, confirmed: 1, waiting: 0);
+        var now = DateTimeOffset.UtcNow;
+        Guid membershipId;
+        await using (var db = new ApplicationDbContext(options))
+        {
+            var team = new Team(Guid.NewGuid(), setup.EventId, "External roster", $"external-{Guid.NewGuid():N}", TeamFormationType.Preformed, null, false, now);
+            var membership = new TeamMembership(Guid.NewGuid(), team.Id, setup.ConfirmedParticipantId, TeamMembershipRole.Captain, now, null, "External roster setup");
+            membership.SetSource(TeamMembershipSource.PreformedManual);
+            db.AddRange(team, membership);
+            await db.SaveChangesAsync();
+            membershipId = membership.Id;
+        }
+
+        await using (var db = new ApplicationDbContext(options))
+        {
+            var result = await Service(db).WithdrawAsync(setup.EventId, setup.ConfirmedParticipantId, setup.ConfirmedOwnerId, "owner", false);
+            Assert.True(result.Succeeded, result.Error);
+        }
+
+        await using var verify = new ApplicationDbContext(options);
+        Assert.Equal(SignupStatus.Withdrawn, await verify.EventParticipants.Where(x => x.Id == setup.ConfirmedParticipantId).Select(x => x.SignupStatus).SingleAsync());
+        var membershipState = await verify.TeamMemberships.Where(x => x.Id == membershipId).Select(x => new { x.LeftAt, x.Role }).SingleAsync();
+        Assert.NotNull(membershipState.LeftAt);
+        Assert.Equal(TeamMembershipRole.Participant, membershipState.Role);
+        Assert.Single(await verify.TeamMembershipRoleTransitions.Where(x => x.TeamMembershipId == membershipId && x.ChangedByAccountId == setup.ConfirmedOwnerId).ToListAsync());
+        Assert.Empty(await verify.EventParticipantCharacters.Where(x => x.EventParticipantId == setup.ConfirmedParticipantId && x.ReleasedAt == null).ToListAsync());
+    }
+
+    [Fact]
+    public async Task AdminWithdrawalTerminatesActiveExternalRosterMembership()
+    {
+        var setup = await SeedAsync(capacity: 1, confirmed: 1, waiting: 0);
+        var now = DateTimeOffset.UtcNow;
+        Guid membershipId;
+        await using (var db = new ApplicationDbContext(options))
+        {
+            var team = new Team(Guid.NewGuid(), setup.EventId, "External admin roster", $"external-admin-{Guid.NewGuid():N}", TeamFormationType.Preformed, null, false, now);
+            var membership = new TeamMembership(Guid.NewGuid(), team.Id, setup.ConfirmedParticipantId, TeamMembershipRole.CoCaptain, now, null, "External admin roster setup");
+            membership.SetSource(TeamMembershipSource.PreformedManual);
+            db.AddRange(team, membership);
+            await db.SaveChangesAsync();
+            membershipId = membership.Id;
+        }
+
+        await using (var db = new ApplicationDbContext(options))
+        {
+            var result = await Service(db).WithdrawAsync(setup.EventId, setup.ConfirmedParticipantId, setup.EnabledAdminId, "admin", true);
+            Assert.True(result.Succeeded, result.Error);
+        }
+
+        await using var verify = new ApplicationDbContext(options);
+        var membershipState = await verify.TeamMemberships.Where(x => x.Id == membershipId).Select(x => new { x.LeftAt, x.Role }).SingleAsync();
+        Assert.NotNull(membershipState.LeftAt);
+        Assert.Equal(TeamMembershipRole.Participant, membershipState.Role);
+        Assert.Single(await verify.TeamMembershipRoleTransitions.Where(x => x.TeamMembershipId == membershipId && x.ChangedByAccountId == setup.EnabledAdminId).ToListAsync());
+    }
+
+    [Fact]
+    public async Task WithdrawnParticipantCorrectionCannotRecreateActiveReservation()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var admin = Website($"withdrawn-correction-admin-{Guid.NewGuid():N}", now, GlobalRole.Admin);
+        var owner = Website($"withdrawn-correction-owner-{Guid.NewGuid():N}", now);
+        var bingoEvent = new BingoEvent(Guid.NewGuid(), "Withdrawn correction", $"withdrawn-correction-{Guid.NewGuid():N}", "", "UTC", now.AddHours(-1), now.AddDays(1), now.AddDays(2), now.AddDays(3), now.AddDays(3), 2, admin.Id, now);
+        bingoEvent.OpenSignups(now);
+        var form = new SignupForm(Guid.NewGuid(), bingoEvent.Id, now);
+        var regular = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, "regular", "Regular", SignupQuestionType.Account, true, 0, null, SignupSystemField.PrimaryRegularAccount, EventCharacterRole.Playing);
+        var oldCharacter = new OsrsCharacter(Guid.NewGuid(), "Withdrawn old", $"WITHDRAWN OLD {Guid.NewGuid():N}", now);
+        var participant = new EventParticipant(Guid.NewGuid(), bingoEvent.Id, SignupStatus.Confirmed, 1, now, SignupSource.Website);
+        participant.AssignOwner(owner);
+        var assignment = new EventParticipantCharacter(Guid.NewGuid(), bingoEvent.Id, participant.Id, oldCharacter.Id, 0, now, owner.Id, regular.Id, EventCharacterRole.Playing, 5, EhbSource.Manual, null);
+        var answer = new SignupAnswer(Guid.NewGuid(), participant.Id, regular.Id, regular.Label, string.Empty, oldCharacter.Id);
+        await using (var db = new ApplicationDbContext(options))
+        {
+            db.AddRange(admin, owner, bingoEvent, form, regular, oldCharacter, participant, assignment, answer);
+            await db.SaveChangesAsync();
+        }
+
+        await using (var db = new ApplicationDbContext(options))
+        {
+            var withdrawn = await Service(db).WithdrawAsync(bingoEvent.Id, participant.Id, owner.Id, owner.LoginName, false);
+            Assert.True(withdrawn.Succeeded, withdrawn.Error);
+        }
+
+        await using (var db = new ApplicationDbContext(options))
+        {
+            var result = await Service(db).CorrectAdminParticipantAsync(new(
+                bingoEvent.Id, participant.Id, admin.Id, admin.LoginName, null,
+                new Dictionary<Guid, AdminAccountAnswer> { [regular.Id] = new(oldCharacter.DisplayName, 6) },
+                new Dictionary<Guid, string>(), participant.ResponseVersion));
+            Assert.False(result.Succeeded);
+            Assert.Contains("restored", result.Error, StringComparison.OrdinalIgnoreCase);
+        }
+
+        await using var verify = new ApplicationDbContext(options);
+        Assert.Equal(SignupStatus.Withdrawn, await verify.EventParticipants.Where(x => x.Id == participant.Id).Select(x => x.SignupStatus).SingleAsync());
+        Assert.Empty(await verify.EventParticipantCharacters.Where(x => x.EventParticipantId == participant.Id && x.ReleasedAt == null).ToListAsync());
+        Assert.Equal(oldCharacter.Id, await verify.SignupAnswers.Where(x => x.EventParticipantId == participant.Id && x.SignupQuestionId == regular.Id).Select(x => x.OsrsCharacterId).SingleAsync());
     }
 
     private async Task<Setup> SeedAsync(int capacity, int confirmed, int waiting)

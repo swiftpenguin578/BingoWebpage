@@ -49,7 +49,7 @@ assert.ok(participantsMarkup.includes("data-participant-add-route-trigger hidden
 assert.ok(participantsMarkup.indexOf("data-participant-add-route-trigger hidden") < participantsMarkup.indexOf('<section class="participant-add-route-page"'));
 assert.ok(participantForm.includes("data-participant-add-discard"));
 assert.ok(participantForm.includes("data-participant-add-feedback"));
-assert.ok(participantForm.includes('class="btn admin-button-create" type="submit">+ @T["Create participant"]'));
+assert.match(participantForm, /class="btn admin-button-create" type="submit"[^>]*>\+ @T\["Create participant"\]<\/button>/);
 assert.ok(siteCss.includes(".admin-shell-body .admin-button-create"));
 assert.ok(siteCss.includes("#participant-add-dialog { width: 100%; max-width: none; height: 100dvh;"));
 assert.ok(!siteCss.includes("participant-add-dialog-page .admin-dialog-page-actions .admin-button-primary"));

@@ -5,7 +5,7 @@ namespace Bingo.BrowserTests;
 public sealed class BoardEditingUiTests
 {
     [Fact]
-    public void BoardEditingLeaseUsesExplicitReleaseInsteadOfPageExitRequest()
+    public void BoardOpensInEditorWithoutExplicitReleaseAction()
     {
         var repositoryRoot = FindRepositoryRoot();
         var boardMarkup = File.ReadAllText(Path.Combine(
@@ -26,8 +26,25 @@ public sealed class BoardEditingUiTests
 
         Assert.Contains("id=\"create-tile-form\" data-native-submit", boardMarkup);
         Assert.Contains("asp-page-handler=\"TeamSize\" class=\"inline-stat-form\" data-auto-submit><input type=\"hidden\" name=\"BoardVersion\" value=\"@Model.BoardView.Version\" />", boardMarkup);
-        Assert.Contains("data-release-board-editing", boardMarkup);
+        Assert.DoesNotContain("data-release-board-editing", boardMarkup);
+        Assert.DoesNotContain("Finish editing", boardMarkup);
+        Assert.DoesNotContain("asp-page-handler=\"Unapprove\"", boardMarkup);
+        Assert.DoesNotContain("asp-page-handler=\"Create\"", boardMarkup);
+        Assert.Contains("Editing control renews while you work and expires after five minutes without board activity", boardMarkup);
         Assert.Contains("after five minutes without board activity", boardMarkup);
+        Assert.Contains("asp-page-handler=\"AcquireEditing\"", boardMarkup);
+        Assert.Contains("name=\"BoardVersion\" value=\"@Model.BoardView.Version\"", boardMarkup);
+        Assert.DoesNotContain("await connection.invoke('RenewBoardEditing', boardRoot.dataset.adminBoardEvent)", collaborationScript);
+        Assert.Contains("let lastBoardRenewal = 0;", collaborationScript);
+        Assert.Contains("lastBoardRenewal !== 0", collaborationScript);
+        var renewalStart = collaborationScript.IndexOf("let lastBoardRenewal = 0;", StringComparison.Ordinal);
+        var renewalEnd = collaborationScript.IndexOf("['pointerdown', 'keydown', 'input', 'dragstart']", renewalStart, StringComparison.Ordinal);
+        Assert.True(renewalStart >= 0 && renewalEnd > renewalStart);
+        var renewalBlock = collaborationScript[renewalStart..renewalEnd];
+        var guard = renewalBlock.IndexOf("lastBoardRenewal !== 0", StringComparison.Ordinal);
+        var timestamp = renewalBlock.IndexOf("lastBoardRenewal = Date.now();", StringComparison.Ordinal);
+        var invoke = renewalBlock.IndexOf("connection.invoke('RenewBoardEditing'", StringComparison.Ordinal);
+        Assert.True(guard >= 0 && timestamp > guard && invoke > timestamp);
         Assert.DoesNotContain("pagehide", collaborationScript);
         Assert.DoesNotContain("keepalive: true", collaborationScript);
     }

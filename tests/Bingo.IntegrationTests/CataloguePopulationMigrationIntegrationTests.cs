@@ -198,6 +198,7 @@ public sealed class CataloguePopulationMigrationIntegrationTests : IAsyncLifetim
 
         await using (var migrate = new ApplicationDbContext(options))
             await migrate.GetService<IMigrator>().MigrateAsync();
+        await PublishPreLiveRosterAsync(fixture);
 
         Guid apiItemId;
         Guid untradeableItemId;
@@ -264,6 +265,26 @@ public sealed class CataloguePopulationMigrationIntegrationTests : IAsyncLifetim
         Assert.Equal(EventItemPriceSource.CatalogueFallback, untradeablePrice.Source);
         Assert.Equal(CataloguePriceSource.Untradeable, untradeablePrice.FallbackCatalogueSource);
         Assert.Equal(EventPriceFallbackReason.NoMapping, untradeablePrice.FallbackReason);
+    }
+
+    private async Task PublishPreLiveRosterAsync(RetainedFixture fixture)
+    {
+        await using var db = new ApplicationDbContext(options);
+        var item = await db.Events.SingleAsync(value => value.Id == fixture.PreLiveEventId);
+        var draft = await db.DraftSessions.SingleAsync(value => value.EventId == fixture.PreLiveEventId);
+        var team = await db.Teams.SingleAsync(value => value.EventId == fixture.PreLiveEventId);
+        var characterName = await (
+            from assignment in db.EventParticipantCharacters
+            join character in db.OsrsCharacters on assignment.OsrsCharacterId equals character.Id
+            where assignment.EventParticipantId == fixture.PreLiveParticipantId && assignment.EventRole == EventCharacterRole.Playing
+            select character.DisplayName).SingleAsync();
+        var publication = new DraftPublicationCycle(
+            Guid.NewGuid(), draft.Id, 1, draft.FinalizedAt!.Value, fixture.PreLiveAccountId, DraftPublicationMethod.DirectRoster);
+        var roster = new DraftPublicationRoster(
+            Guid.NewGuid(), publication.Id, team.Id, fixture.PreLiveParticipantId, TeamMembershipRole.Participant,
+            null, characterName);
+        db.AddRange(publication, roster);
+        await db.SaveChangesAsync();
     }
 
     [Fact]
@@ -448,6 +469,7 @@ public sealed class CataloguePopulationMigrationIntegrationTests : IAsyncLifetim
         if (includePreLiveStartFixture)
         {
             preLiveAccount = Account.CreateWebsite(Guid.NewGuid(), "catalogue-migration-prelive", "CATALOGUE-MIGRATION-PRELIVE", now);
+            preLiveAccount.SetGlobalRole(GlobalRole.Admin);
             preLiveEvent = new BingoEvent(Guid.NewGuid(), "Retained pre-live event", "retained-pre-live-event", "UTC", preLiveAccount.Id, now);
             preLiveEvent.ConfigureSchedule(
                 now.AddDays(-2),
@@ -477,12 +499,17 @@ public sealed class CataloguePopulationMigrationIntegrationTests : IAsyncLifetim
                 Guid.NewGuid(), preLiveEvent.Id, preLiveParticipant.Id, character.Id, 0,
                 now.AddHours(-2), preLiveAccount.Id, primaryQuestion.Id, EventCharacterRole.Playing,
                 0m, EhbSource.Manual, null);
+            var team = new Team(Guid.NewGuid(), preLiveEvent.Id, "Retained pre-live team", "retained-pre-live-team", TeamFormationType.Drafted, null, true);
+            team.Finalize(now.AddHours(-2));
+            var membership = new TeamMembership(
+                Guid.NewGuid(), team.Id, preLiveParticipant.Id, TeamMembershipRole.Participant,
+                now.AddHours(-2), null, "Retained pre-live fixture");
             var board = new Board(Guid.NewGuid(), preLiveEvent.Id, "Published retained board", 1, 1);
             var draft = new DraftSession(Guid.NewGuid(), preLiveEvent.Id, 1);
-            draft.Start(now.AddHours(-3));
-            draft.Finalize(now.AddHours(-2));
+            draft.FinalizeDirect(now.AddHours(-2));
+            preLiveEvent.SetDraftRosterPublication(true);
             migrate.AddRange(preLiveAccount, preLiveEvent, form, primaryQuestion, captainQuestion,
-                preLiveParticipant, character, assignment, board, draft);
+                preLiveParticipant, character, assignment, team, membership, board, draft);
             await BoardApprovalFixture.PublishAsync(migrate, board, now);
         }
 

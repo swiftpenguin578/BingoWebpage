@@ -75,7 +75,7 @@ public sealed class CaptainAuthorityIntegrationTests : IAsyncLifetime
         item.OpenSignups(now.AddHours(-4));
         item.CloseSignups(now.AddHours(-3));
         item.StartEvent(now.AddHours(-2));
-        item.EndEvent(now.AddMinutes(-1));
+        item.EndEvent(uploadOpen ? now.AddMinutes(-1) : now.AddHours(-1));
         var team = new Team(Guid.NewGuid(), item.Id, "Awaiting team", $"awaiting-team-{Guid.NewGuid():N}", TeamFormationType.Drafted, null, true);
         var participant = new EventParticipant(Guid.NewGuid(), item.Id, SignupStatus.Confirmed, 1, now.AddHours(-4), SignupSource.Website); participant.AssignOwner(owner);
         var membership = new TeamMembership(Guid.NewGuid(), team.Id, participant.Id, TeamMembershipRole.Participant, now.AddHours(-2), null, "seed");
@@ -141,7 +141,7 @@ public sealed class CaptainAuthorityIntegrationTests : IAsyncLifetime
 
         var lifecycle = new EventLifecycleService(db, null!, TimeProvider.System);
         var blocked = await lifecycle.GetStartReadinessAsync(item.Id);
-        Assert.Contains(blocked!.Blockers, x => x.Code == "TEAM_ACCESS_MISSING" && x.Description.Contains("Preformed", StringComparison.Ordinal) && x.Route == $"/Admin/Events/Draft/{item.Id}");
+        Assert.DoesNotContain(blocked!.Blockers, x => x.Code == "TEAM_ACCESS_MISSING");
         Assert.DoesNotContain(blocked.Blockers, x => x.Route == $"/Admin/Events/Teams/{item.Id}");
 
         var emergency = Account.CreateEmergency(Guid.NewGuid(), "readiness-emergency", "READINESS-EMERGENCY", now); emergency.SetPassword(new PasswordHasher<Account>().HashPassword(emergency, "password"), false, now, false); emergency.Enable();
@@ -155,7 +155,7 @@ public sealed class CaptainAuthorityIntegrationTests : IAsyncLifetime
         var roles = new TeamCaptainAuthorityService(db, TimeProvider.System);
         Assert.True((await roles.ChangeRoleAsync(new(item.Id, captain.Id, TeamMembershipRole.Participant, admin.Id, admin.LoginName))).Succeeded);
         Assert.Equal(EventState.Live, await db.Events.Where(x => x.Id == item.Id).Select(x => x.State).SingleAsync());
-        Assert.Single((await lifecycle.GetStartReadinessAsync(item.Id))!.Blockers, x => x.Code == "TEAM_ACCESS_MISSING" && x.Description.StartsWith("Drafted needs", StringComparison.Ordinal) && x.Route == $"/Admin/Events/Draft/{item.Id}");
+        Assert.DoesNotContain((await lifecycle.GetStartReadinessAsync(item.Id))!.Blockers, x => x.Code == "TEAM_ACCESS_MISSING");
         Assert.True((await roles.ChangeRoleAsync(new(item.Id, captain.Id, TeamMembershipRole.Captain, admin.Id, admin.LoginName))).Succeeded);
         Assert.DoesNotContain((await lifecycle.GetStartReadinessAsync(item.Id))!.Blockers, x => x.Code == "TEAM_ACCESS_MISSING" && x.Description.StartsWith("Drafted needs", StringComparison.Ordinal));
 

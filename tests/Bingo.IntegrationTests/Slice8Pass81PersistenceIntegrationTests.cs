@@ -142,14 +142,30 @@ public sealed class Slice8Pass81PersistenceIntegrationTests : IAsyncLifetime
         var invalidTargetSubmissionId = Guid.NewGuid();
         var unsupportedSubmissionId = Guid.NewGuid();
         var unsupportedReviewId = Guid.NewGuid();
+        var futureSwapId = Guid.NewGuid();
+        var nonPlayingSwapId = Guid.NewGuid();
         await using (var current = new ApplicationDbContext(options))
         {
             current.OsrsCharacters.AddRange(futureCharacter, informationalCharacter);
             current.EventParticipantCharacters.Add(new EventParticipantCharacter(Guid.NewGuid(), seed.EventId, seed.UniqueParticipantId, futureCharacter.Id, 1, DateTimeOffset.UtcNow, null, null, EventCharacterRole.Playing, 1, EhbSource.Manual, null));
             current.EventParticipantCharacters.Add(new EventParticipantCharacter(Guid.NewGuid(), seed.EventId, seed.SwappedParticipantId, informationalCharacter.Id, 2, DateTimeOffset.UtcNow, null, null, EventCharacterRole.Informational, null, null, null));
-            current.EventParticipantCharacterSwaps.Add(new EventParticipantCharacterSwap(Guid.NewGuid(), seed.EventId, seed.UniqueParticipantId, seed.UniqueCharacterId, futureCharacter.Id, DateTimeOffset.UtcNow.AddHours(1), DateTimeOffset.UtcNow, seed.AccountId, "future-only test"));
-            current.EventParticipantCharacterSwaps.Add(new EventParticipantCharacterSwap(Guid.NewGuid(), seed.EventId, seed.SwappedParticipantId, seed.SwappedCharacterId, informationalCharacter.Id, DateTimeOffset.UtcNow.AddMinutes(-1), DateTimeOffset.UtcNow, seed.AccountId, "non-playing test"));
             await current.SaveChangesAsync();
+            // The fixture is deliberately held at the pre-sequence migration
+            // boundary. Insert these historical swaps using that boundary's
+            // columns; the migration under test adds and backfills sequence.
+            await current.Database.ExecuteSqlInterpolatedAsync($"""
+                INSERT INTO event_participant_character_swaps
+                    (id, event_id, event_participant_id, previous_osrs_character_id,
+                     next_osrs_character_id, effective_at_utc, recorded_at_utc,
+                     recorded_by_account_id, reason)
+                VALUES
+                    ({futureSwapId}, {seed.EventId}, {seed.UniqueParticipantId}, {seed.UniqueCharacterId},
+                     {futureCharacter.Id}, {DateTimeOffset.UtcNow.AddHours(1)}, {DateTimeOffset.UtcNow},
+                     {seed.AccountId}, {"future-only test"}),
+                    ({nonPlayingSwapId}, {seed.EventId}, {seed.SwappedParticipantId}, {seed.SwappedCharacterId},
+                     {informationalCharacter.Id}, {DateTimeOffset.UtcNow.AddMinutes(-1)}, {DateTimeOffset.UtcNow},
+                     {seed.AccountId}, {"non-playing test"});
+                """);
         }
         await InsertLegacySubmissionAsync(futureSubmissionId, seed.EventId, seed.UniqueParticipantId, seed.AccountId, DateTimeOffset.UtcNow);
         await InsertLegacySubmissionAsync(invalidTargetSubmissionId, seed.EventId, seed.SwappedParticipantId, seed.AccountId, DateTimeOffset.UtcNow);

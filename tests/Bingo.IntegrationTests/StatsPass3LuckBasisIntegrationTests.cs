@@ -48,14 +48,18 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests
                 Assert.True(x.ConditionalOnParent); Assert.Equal(.5m, x.ParentProbability);
             });
         }
-        await PublishPriceBoardAsync(eventId, actor.Id); await StartPriceBoardAsync(eventId);
+        await PublishPriceBoardAsync(eventId, actor.Id); await StartPriceBoardAsync(eventId, actor.Id);
         await using (var dtoCheck = new ApplicationDbContext(options))
         {
-            var team = new Team(Guid.NewGuid(), eventId, "DTO fixture team", "dto-team", TeamFormationType.Drafted, null, true);
-            team.Finalize(DateTimeOffset.UtcNow); dtoCheck.Add(team); await dtoCheck.SaveChangesAsync();
             var slug = await dtoCheck.Events.Where(x => x.Id == eventId).Select(x => x.Slug).SingleAsync();
+            var teamSlug = await (from roster in dtoCheck.DraftPublicationRosters
+                                  join cycle in dtoCheck.DraftPublicationCycles on roster.DraftPublicationCycleId equals cycle.Id
+                                  join draft in dtoCheck.DraftSessions on cycle.DraftSessionId equals draft.Id
+                                  join team in dtoCheck.Teams on roster.TeamId equals team.Id
+                                  where draft.EventId == eventId && cycle.SupersededAt == null
+                                  select team.Slug).SingleAsync();
             var tileId = await dtoCheck.BoardTiles.Select(x => x.Id).SingleAsync();
-            var dto = await new PublicBoardService(dtoCheck, TimeProvider.System).GetTileAsync(slug, team.Slug, tileId);
+            var dto = await new PublicBoardService(dtoCheck, TimeProvider.System).GetTileAsync(slug, teamSlug, tileId);
             Assert.NotNull(dto);
             Assert.All(dto.Requirements.SelectMany(x => x.EligibleDrops).Where(x => x.RollGroup == "personal-rewards"), x =>
             {

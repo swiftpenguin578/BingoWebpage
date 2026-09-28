@@ -38,7 +38,19 @@ public sealed class TeamAndDraftRulesTests
         Assert.Equal((larger, smaller, largerTeams, smallerTeams), (result.LargerSize, result.SmallerSize, result.LargerTeamCount, result.SmallerTeamCount));
     }
     [Fact]
-    public void PreformedTeamCannotReceiveDraftTurns() => Assert.Throws<InvalidOperationException>(() => new Team(Guid.NewGuid(), Guid.NewGuid(), "External", "external", TeamFormationType.Preformed, "Clan", true));
+    public void DraftParticipationUsesIncludedFlagAndIgnoresFormationAndAffiliation()
+    {
+        var team = new Team(Guid.NewGuid(), Guid.NewGuid(), "Ordinary", "ordinary", TeamFormationType.Preformed, "Clan", false);
+
+        team.SetIncludedInDraft(true);
+
+        Assert.True(team.IncludedInDraft);
+        Assert.Equal(TeamFormationType.Preformed, team.FormationType);
+        team.SetIncludedInDraft(false);
+
+        Assert.False(team.IncludedInDraft);
+        Assert.Null(team.DraftPosition);
+    }
 
     [Fact]
     public void LegacyTargetSizeIsNotPartOfTheDraftStateTransition()
@@ -74,6 +86,46 @@ public sealed class TeamAndDraftRulesTests
         Assert.Null(draft.FinalizedAt);
         Assert.Null(draft.ControllerAccountId);
         Assert.NotNull(draft.FirstPickRecordedAt);
+    }
+
+    [Fact]
+    public void DirectFinalizationStartsFromSetupWithoutSyntheticPickHistory()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var draft = new DraftSession(Guid.NewGuid(), Guid.NewGuid(), 1);
+        draft.AcquireControl(Guid.NewGuid(), now, TimeSpan.FromMinutes(5));
+
+        draft.FinalizeDirect(now.AddMinutes(1));
+
+        Assert.Equal(DraftState.Finalized, draft.State);
+        Assert.Null(draft.FirstPickRecordedAt);
+        Assert.Null(draft.ControllerAccountId);
+        Assert.Null(draft.ControllerLeaseExpiresAt);
+    }
+
+    [Fact]
+    public void WebsiteFinalizationRequiresRunningDraftAndReleasesController()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var draft = new DraftSession(Guid.NewGuid(), Guid.NewGuid(), 2);
+        draft.AcquireControl(Guid.NewGuid(), now, TimeSpan.FromMinutes(5));
+        draft.Start(now);
+        draft.RecordFirstPick(now);
+
+        draft.FinalizeWebsiteDraft(now.AddMinutes(1));
+
+        Assert.Equal(DraftState.Finalized, draft.State);
+        Assert.NotNull(draft.FirstPickRecordedAt);
+        Assert.Null(draft.ControllerAccountId);
+        Assert.Null(draft.ControllerLeaseExpiresAt);
+    }
+
+    [Fact]
+    public void PublicationWithoutProvenanceRetainsHistoricalUnknown()
+    {
+        var cycle = new DraftPublicationCycle(Guid.NewGuid(), Guid.NewGuid(), 1, DateTimeOffset.UtcNow, Guid.NewGuid());
+
+        Assert.Equal(DraftPublicationMethod.HistoricalUnknown, cycle.PublicationMethod);
     }
 
     [Fact]

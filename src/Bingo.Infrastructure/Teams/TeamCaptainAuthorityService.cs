@@ -84,11 +84,7 @@ public sealed class TeamCaptainAuthorityService(ApplicationDbContext db, TimePro
             : null;
         if (owner is not null)
         {
-            var rosterPublished = await (from cycle in db.DraftPublicationCycles
-                                         join draft in db.DraftSessions on cycle.DraftSessionId equals draft.Id
-                                         where draft.EventId == row.item.Id && cycle.SupersededAt == null &&
-                                               db.DraftPublicationRosters.Any(roster => roster.DraftPublicationCycleId == cycle.Id)
-                                         select cycle.Id).AnyAsync(ct);
+            var rosterPublished = await db.ActiveRosterPublications(row.item.Id).AnyAsync(ct);
             var route = rosterPublished
                 ? $"/Events/{Uri.EscapeDataString(row.item.Slug)}/Teams"
                 : owner.GlobalRole is GlobalRole.Admin or GlobalRole.SuperAdmin
@@ -122,7 +118,7 @@ public sealed class TeamCaptainAuthorityService(ApplicationDbContext db, TimePro
                       join team in db.Teams.AsNoTracking() on membership.TeamId equals team.Id
                       join account in db.Accounts.AsNoTracking() on participant.AccountId equals account.Id
                       where participant.EventId == eventId && participant.AccountId == accountId && account.Active && account.AccountType == AccountType.WebsiteAccount &&
-                            membership.LeftAt == null && team.Active && team.FormationType == TeamFormationType.Drafted &&
+                            membership.LeftAt == null && team.Active && team.IncludedInDraft &&
                             (membership.Role == TeamMembershipRole.Captain || membership.Role == TeamMembershipRole.CoCaptain)
                       select membership.Id).AnyAsync(ct);
     }

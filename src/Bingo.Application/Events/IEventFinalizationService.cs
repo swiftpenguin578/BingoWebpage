@@ -14,7 +14,14 @@ public interface IEventFinalizationService
 }
 
 public sealed record FinalReviewReadiness(Guid EventId, string EventName, EventState State, DateTimeOffset? EventStartsAt, DateTimeOffset? EventEndsAt, DateTimeOffset? SubmissionCutoff, bool SubmissionWindowOpen, IReadOnlyList<FinalReviewBlocker> Blockers, IReadOnlyList<ProvisionalPlacement> Placements, IReadOnlyList<FinalizationHistoryRow> History, Guid ReviewCycleId = default, long EventVersion = 0)
-{ public bool CanFinalize => State == EventState.AwaitingFinalReview && Blockers.All(x => x.Resolved); }
+{
+    /// <summary>
+    /// A blocker is an authoritative prerequisite, not a task an administrator
+    /// may acknowledge away. Exact competitive ties are therefore represented by
+    /// the calculated placements and do not create a blocker.
+    /// </summary>
+    public bool CanFinalize => State == EventState.AwaitingFinalReview && Blockers.Count == 0;
+}
 public sealed record FinalReviewBlocker(string Key, string Title, string Description, string? Link, bool CanOverride, bool Resolved, string? ResolutionReason, bool IsCompletionTimeAcknowledgement = false, Guid? TeamId = null);
 public sealed record ProvisionalPlacement(Guid TeamId, string TeamName, int Placement, bool BoardComplete, DateTimeOffset? CalculatedCompletedAt, DateTimeOffset? CorrectedCompletedAt, int CompletedLines, int CompletedTiles, decimal EhbTiebreak, DateTimeOffset? CurrentScoreReachedAt = null);
 public sealed record FinalizationHistoryRow(Guid Id, int Version, DateTimeOffset FinalizedAt, bool Active, DateTimeOffset? UnfinalizedAt, string? UnfinalizeReason, IReadOnlyList<OfficialPlacementRow> Placements);

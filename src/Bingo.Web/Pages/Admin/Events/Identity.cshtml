@@ -11,79 +11,83 @@
     var publicBoardUrl = Url.Page("/Events/Board", null, new { slug = Model.EventSlug }, Request.Scheme, Request.Host.Value);
 }
 
-<section class="identity-editor-page">
+<section class="identity-editor-page" data-identity-editor data-identity-save-error="@T["The identity update could not be confirmed. Check your connection and try again."]">
     <div class="identity-editor-layout">
         <main class="identity-editor-main">
-            <form method="post" enctype="multipart/form-data" class="identity-editor-form">
+            <form method="post" class="identity-editor-form">
                 <div asp-validation-summary="ModelOnly" class="validation-summary app-notice notice-error"></div>
                 <input asp-for="Input.Version" type="hidden" />
+                <input asp-for="Input.TimezoneConfirmationOriginal" type="hidden" />
+                <input asp-for="Input.TimezoneConfirmationProposed" type="hidden" />
 
-                <fieldset class="identity-editor-group identity-primary-group">
-                    <legend>@T["Public identity"]</legend>
-                    <p class="identity-group-description">@T["These details appear on the public signup page after signups open."]</p>
-                    <div class="identity-primary-fields">
-                        <div class="admin-field"><label asp-for="Input.Name">@T["Event name"]</label><input asp-for="Input.Name" class="form-control" maxlength="50" readonly="@(Model.EventState == EventState.Live ? "readonly" : null)" /><span asp-validation-for="Input.Name" class="field-error"></span></div>
-                        <div class="admin-field"><label asp-for="Input.Slug">@T["Event link"]</label><input asp-for="Input.Slug" class="form-control" readonly="@(Model.IsSlugLocked || Model.EventState == EventState.Live ? "readonly" : null)" /><span asp-validation-for="Input.Slug" class="field-error"></span>@if (Model.IsSlugLocked) { <small>@T["This public link is now permanent."]</small> }</div>
-                        <div class="admin-field identity-timezone-field"><label asp-for="Input.Timezone">@T["Timezone"]</label><select asp-for="Input.Timezone" class="form-select" disabled="@(Model.EventState == EventState.Live ? "disabled" : null)">@foreach (var timezone in Model.Timezones) { <option value="@timezone.Id">@timezone.Label</option> }</select><span asp-validation-for="Input.Timezone" class="field-error"></span><small>@T["All event times use this timezone."]</small></div>
-                        <div class="admin-field identity-description-field"><label asp-for="Input.Description">@T["Description"]</label><textarea asp-for="Input.Description" class="form-control" rows="5" readonly="@(Model.EventState == EventState.Live ? "readonly" : null)"></textarea><span asp-validation-for="Input.Description" class="field-error"></span></div>
-                    </div>
-                </fieldset>
-
-                <fieldset class="identity-editor-group identity-banner-group">
-                    <legend>@T["Event banner"]</legend>
-                    <p class="identity-group-description">@T["Optional artwork shown with the event presentation."]</p>
-                    <div class="admin-field identity-banner-field">
-                        <div class="evidence-drop compact-evidence-drop identity-banner-uploader @(Model.HasBanner ? "has-preview" : null)" tabindex="0" data-ready-template="@T["Ready: {0}"]">
-                            <div class="compact-evidence-empty" data-evidence-empty hidden="@(Model.HasBanner ? "hidden" : null)">
-                                <label class="identity-banner-empty" for="identity-banner-input">
-                                    <span class="compact-evidence-copy"><strong>@T["Choose a banner"]</strong><small>@T["PNG, JPEG or WebP. The banner is shown with the public event presentation."]</small></span>
-                                </label>
-                            </div>
-                            <div class="compact-evidence-preview" data-evidence-preview hidden="@(!Model.HasBanner ? "hidden" : null)">
-                                <label class="compact-evidence-preview-button identity-banner-preview-button" for="identity-banner-input">
-                                    <img src="@(Model.HasBanner ? Url.Page("Banner", new { id = Model.EventId }) : null)" alt="@T["Event banner preview"]" />
-                                </label>
-                                @if (Model.HasBanner)
-                                {
-                                    <button class="compact-evidence-remove action-remove-x" type="submit" form="identity-remove-banner-form" aria-label="@T["Remove current banner"]" disabled="@(Model.EventState == EventState.Live ? "disabled" : null)">×</button>
-                                }
-                                else
-                                {
-                                    <button class="compact-evidence-remove action-remove-x" type="button" data-evidence-remove aria-label="@T["Remove selected banner"]">×</button>
-                                }
-                            </div>
-                            <div class="evidence-input-actions identity-banner-file-input">
-                                <input id="identity-banner-input" asp-for="Input.Banner" class="form-control" accept="image/png,image/jpeg,image/webp" aria-describedby="identity-banner-help" disabled="@(Model.EventState == EventState.Live ? "disabled" : null)" />
-                            </div>
-                        </div>
-                        <span asp-validation-for="Input.Banner" class="field-error"></span>
-                        <small id="identity-banner-help">@T["Choose a PNG, JPEG, or WebP image. Existing banners can be replaced by selecting a new file."]</small>
-                    </div>
-                </fieldset>
-
-                @if (Model.TimezonePreview.Count > 0)
+                @if (Model.HasUnresolvableTimezone)
                 {
-                    <div class="event-confirmation-box identity-timezone-confirmation" data-confirmation-box tabindex="-1">
-                        <p><strong>@T["Confirm timezone change"]</strong><br />@T["Stored UTC instants will not move. Review how participants will see them."]</p>
-                        <div class="event-create-summary">@foreach (var preview in Model.TimezonePreview) { <div><span>@preview.Label</span><strong>@preview.Current</strong><small>@preview.New</small></div> }</div>
-                        <span asp-validation-for="Input.ConfirmTimezoneChange" class="field-error"></span>
-                        <div class="event-confirmation-actions"><button class="admin-button-secondary" type="submit" name="Input.ConfirmTimezoneChange" value="true">@T["Confirm timezone change"]</button><a class="admin-button-secondary" asp-page="Manage" asp-route-id="@RouteData.Values["id"]">@T["Cancel"]</a></div>
+                    <div class="app-notice notice-warning identity-timezone-warning" role="status">
+                        <strong>@T["Stored timezone unavailable"]</strong>
+                        <span>@T["The stored timezone ID {0} is retained. Dates below use an explicit UTC fallback until a supported timezone is selected.", Model.StoredTimezoneId]</span>
                     </div>
                 }
 
-                <div class="identity-editor-actions"><a class="admin-button-secondary" asp-page="Manage" asp-route-id="@RouteData.Values["id"]">@T["Cancel"]</a>@if (Model.EventState == EventState.Live) { <span class="admin-form-note">@T["Identity and timezone are read-only while the event is Live."]</span> } else { <button class="admin-button-secondary" type="submit">@T["Save identity"]</button> }</div>
+                <fieldset class="identity-editor-group identity-primary-group" disabled="@(!Model.CanEditIdentity ? "disabled" : null)">
+                    <legend>@T["Public identity"]</legend>
+                    <p class="identity-group-description">@T["Name, description, buy-in information and the permanent event link are managed here."]</p>
+                    <div class="identity-primary-fields">
+                        <div class="admin-field"><label asp-for="Input.Name">@T["Event name"]</label><input asp-for="Input.Name" class="form-control" maxlength="50" /><span asp-validation-for="Input.Name" class="field-error"></span></div>
+                        <div class="admin-field"><label>@T["Permanent event link"]</label><div class="form-control identity-permanent-slug" aria-readonly="true"><code>@Model.EventSlug</code></div><small>@T["This link is server-owned and remains stable when the name changes."]</small></div>
+                        <div class="admin-field identity-timezone-field">
+                            <label asp-for="Input.Timezone">@T["Timezone"]</label>
+                            <select asp-for="Input.Timezone" class="form-select" disabled="@(!Model.CanEditTimezone ? "disabled" : null)">
+                                @foreach (var timezone in Model.Timezones)
+                                {
+                                    <option value="@timezone.Id">@timezone.Label</option>
+                                }
+                            </select>
+                            <span asp-validation-for="Input.Timezone" class="field-error"></span>
+                            <small>@T["Stored UTC instants are preserved when this display timezone changes. It locks after the first Live transition."]</small>
+                        </div>
+                        <div class="admin-field identity-description-field"><label asp-for="Input.Description">@T["Description"]</label><textarea asp-for="Input.Description" class="form-control" rows="5"></textarea><span asp-validation-for="Input.Description" class="field-error"></span></div>
+                        <div class="admin-field identity-description-field"><label asp-for="Input.BuyInDescription">@T["Buy-in information"]</label><textarea asp-for="Input.BuyInDescription" class="form-control" rows="3"></textarea><span asp-validation-for="Input.BuyInDescription" class="field-error"></span></div>
+                    </div>
+                </fieldset>
+                @if (!Model.CanEditTimezone)
+                {
+                    <input type="hidden" name="Input.Timezone" value="@Model.Input.Timezone" />
+                }
+
+                @if (Model.TimezonePreview.Count > 0)
+                {
+                    <section class="identity-timezone-review" data-identity-timezone-preview data-title="@T["Confirm timezone change"]" data-action-label="@T["Confirm timezone change"]" aria-labelledby="identity-timezone-review-heading">
+                        <h2 id="identity-timezone-review-heading">@T["Review timezone change"]</h2>
+                        <p data-identity-timezone-consequence>@T["Stored UTC instants will not move. Participants will see the same moments in the new timezone, including each UTC offset."]</p>
+                        <ul class="identity-timezone-review-list">
+                            @foreach (var preview in Model.TimezonePreview)
+                            {
+                                <li data-identity-timezone-row><span>@T[preview.Label]</span><strong>@preview.Current</strong><small>@preview.New</small></li>
+                            }
+                        </ul>
+                        <span asp-validation-for="Input.ConfirmTimezoneChange" class="field-error"></span>
+                        <div class="identity-timezone-review-actions"><button class="admin-button-secondary" type="submit" name="Input.ConfirmTimezoneChange" value="true" data-identity-timezone-confirm>@T["Confirm timezone change"]</button><a class="admin-button-secondary" data-identity-timezone-cancel data-identity-cancel asp-page="Manage" asp-route-id="@RouteData.Values["id"]">@T["Cancel"]</a></div>
+                    </section>
+                }
+
+                <div class="identity-editor-actions">
+                    <a class="admin-button-secondary" data-identity-cancel asp-page="Manage" asp-route-id="@RouteData.Values["id"]">@T["Cancel"]</a>
+                    @if (Model.CanEditIdentity)
+                    {
+                        <button class="admin-button-secondary" type="submit" data-identity-save>@T["Save identity"]</button>
+                    }
+                    else
+                    {
+                        <span class="admin-form-note">@T["Identity editing is unavailable in this event state."]</span>
+                    }
+                </div>
             </form>
         </main>
 
         <aside class="event-overview-section event-overview-dates-panel identity-event-information-rail" aria-labelledby="event-information-heading">
-            <div class="event-overview-section-heading">
-                <div class="event-overview-heading-label"><h2 id="event-information-heading">@T["Event information"]</h2></div>
-            </div>
+            <div class="event-overview-section-heading"><div class="event-overview-heading-label"><h2 id="event-information-heading">@T["Event information"]</h2></div></div>
             <dl class="event-overview-dates">
-                <div class="event-overview-date-row event-overview-information-summary">
-                    <div class="event-overview-information-name"><dt class="visually-hidden">@T["Event name"]</dt><dd>@Model.EventName</dd></div>
-                    <div class="event-overview-information-status"><dt class="visually-hidden">@T["Status"]</dt><dd><span class="admin-status-pill @eventStatus.Modifier">@eventStatus.Label</span></dd></div>
-                </div>
+                <div class="event-overview-date-row event-overview-information-summary"><div class="event-overview-information-name"><dt class="visually-hidden">@T["Event name"]</dt><dd>@Model.EventName</dd></div><div class="event-overview-information-status"><dt class="visually-hidden">@T["Status"]</dt><dd><span class="admin-status-pill @eventStatus.Modifier">@eventStatus.Label</span></dd></div></div>
                 @foreach (var row in Model.EffectiveTimeline)
                 {
                     var timelineTone = row.Label switch
@@ -98,22 +102,18 @@
             </dl>
             <div class="event-public-pages" aria-labelledby="event-public-pages-heading">
                 <h3 id="event-public-pages-heading">@T["Public pages"]</h3>
-                <div class="event-public-page-row"><a href="@signupUrl">@T["Signup form"]</a><button type="button" class="icon-button event-copy-link" data-copy-url="@signupUrl" aria-label="@T["Copy signup form link"]"><svg viewBox="0 0 24 24" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" /><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" /></svg></button></div>
-                <div class="event-public-page-row"><a href="@signupTableUrl">@T["Public signup table"]</a><button type="button" class="icon-button event-copy-link" data-copy-url="@signupTableUrl" aria-label="@T["Copy public signup table link"]"><svg viewBox="0 0 24 24" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" /><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" /></svg></button></div>
+                <div class="event-public-page-row"><a href="@signupUrl">@T["Signup form"]</a><button type="button" class="icon-button event-copy-link" data-copy-url="@signupUrl" aria-label="@T["Copy signup form link"]">⧉</button></div>
+                <div class="event-public-page-row"><a href="@signupTableUrl">@T["Public signup table"]</a><button type="button" class="icon-button event-copy-link" data-copy-url="@signupTableUrl" aria-label="@T["Copy public signup table link"]">⧉</button></div>
                 @if (Model.ShowPublicBoard)
                 {
-                    <div class="event-public-page-row"><a href="@publicBoardUrl">@T["Public board"]</a><button type="button" class="icon-button event-copy-link" data-copy-url="@publicBoardUrl" aria-label="@T["Copy public board link"]"><svg viewBox="0 0 24 24" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" /><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0 2 2v8a2 2 0 0 0 2 2h2" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" /></svg></button></div>
+                    <div class="event-public-page-row"><a href="@publicBoardUrl">@T["Public board"]</a><button type="button" class="icon-button event-copy-link" data-copy-url="@publicBoardUrl" aria-label="@T["Copy public board link"]">⧉</button></div>
                 }
             </div>
         </aside>
     </div>
 </section>
 
-<form id="identity-remove-banner-form" method="post" asp-page-handler="RemoveBanner" class="identity-banner-remove-form">
-    <input asp-for="BannerVersion" type="hidden" />
-</form>
-
 @section Scripts {
-    <script src="~/js/captain-evidence-input.js" asp-append-version="true"></script>
     <script src="~/js/event-manage.js" asp-append-version="true"></script>
+    <script src="~/js/event-identity.js" asp-append-version="true"></script>
 }

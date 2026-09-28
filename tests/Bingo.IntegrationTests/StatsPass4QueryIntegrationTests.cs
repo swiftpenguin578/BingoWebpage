@@ -354,13 +354,17 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests
         var admin = Account.CreateWebsite(Guid.NewGuid(), "StatsAdmin", "STATSADMIN", now); admin.SetGlobalRole(GlobalRole.SuperAdmin);
         var actualStart = now.AddHours(-actualStartedHoursAgo);
         var ev = new BingoEvent(Guid.NewGuid(), "Synthetic Stats event", "stats-event", "", "UTC", actualStart.AddHours(-2), actualStart.AddHours(-1), actualStart, actualStart.AddHours(eventDurationHours), actualStart.AddHours(eventDurationHours), 20, admin.Id, now);
-        ev.OpenSignups(actualStart.AddHours(-2)); ev.CloseSignups(actualStart.AddHours(-1)); ev.SetBoardPublication(true, actualStart.AddHours(-1)); ev.MarkFirstPublic(actualStart.AddHours(-2)); ev.StartEvent(actualStart);
+        ev.OpenSignups(actualStart.AddHours(-2)); ev.CloseSignups(actualStart.AddHours(-1)); ev.SetDraftRosterPublication(true); ev.SetBoardPublication(true, actualStart.AddHours(-1)); ev.MarkFirstPublic(actualStart.AddHours(-2)); ev.StartEvent(actualStart);
         var team = new Team(Guid.NewGuid(), ev.Id, "Public team", "public-team", TeamFormationType.Drafted, null, true); team.Finalize(actualStart.AddHours(-1));
         var participants = Enumerable.Range(0, players).Select(i => new EventParticipant(Guid.NewGuid(), ev.Id, SignupStatus.Confirmed, i + 1, actualStart.AddHours(-2), SignupSource.Website)).ToArray();
         var chars = participants.Select((_, i) => new OsrsCharacter(Guid.NewGuid(), "Stats Player " + i, "STATS PLAYER " + i, now)).ToArray();
         var form = new SignupForm(Guid.NewGuid(), ev.Id, now.AddHours(-3));
         var primary = new SignupQuestion(Guid.NewGuid(), form.Id, ev.Id, "primary", "Primary account", SignupQuestionType.Account, true, 0, null, SignupSystemField.PrimaryRegularAccount, EventCharacterRole.Playing);
         var assignments = participants.Select((p, i) => new EventParticipantCharacter(Guid.NewGuid(), ev.Id, p.Id, chars[i].Id, 0, actualStart.AddHours(-1), null, primary.Id, EventCharacterRole.Playing, 0, EhbSource.Manual, null)).ToList();
+        var draft = new DraftSession(Guid.NewGuid(), ev.Id, 1); draft.FinalizeDirect(actualStart.AddHours(-1));
+        var publication = new DraftPublicationCycle(Guid.NewGuid(), draft.Id, 1, actualStart.AddHours(-1), admin.Id, DraftPublicationMethod.DirectRoster);
+        var publishedRoster = participants.Select((participant, index) => new DraftPublicationRoster(
+            Guid.NewGuid(), publication.Id, team.Id, participant.Id, TeamMembershipRole.Participant, null, chars[index].DisplayName)).ToArray();
         var regular = new OsrsCharacter(Guid.NewGuid(), "Regular two", "REGULAR TWO", now);
         if (extraRegular) assignments.Add(new(Guid.NewGuid(), ev.Id, participants[0].Id, regular.Id, 1, actualStart.AddHours(-1), null, null, EventCharacterRole.Playing, 0, EhbSource.Manual, null));
         var alt = new OsrsCharacter(Guid.NewGuid(), "Informational", "INFORMATIONAL", now);
@@ -374,7 +378,7 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests
         var drops = requirements.Take(2).SelectMany(req => sources.Select((source, i) => new BoardRequirementDropSnapshot(Guid.NewGuid(), req.Id, source.Id, items[i].Id, boss.Name, items[i].Name, source.DisplayRate, i == 0 ? .01m : .005m, null, 1, weight,
             DropProbabilityScope.Participant, false, null, 1, rolls))).ToArray();
         await using var db = new ApplicationDbContext(options);
-        db.AddRange(admin, ev, team, boss, board, regular, alt, form, primary); db.AddRange(participants); db.AddRange(chars); db.AddRange(assignments); db.AddRange(items); db.AddRange(sources); db.AddRange(tiles); db.AddRange(requirements); db.AddRange(drops);
+        db.AddRange(admin, ev, team, draft, publication, boss, board, regular, alt, form, primary); db.AddRange(participants); db.AddRange(chars); db.AddRange(assignments); db.AddRange(publishedRoster); db.AddRange(items); db.AddRange(sources); db.AddRange(tiles); db.AddRange(requirements); db.AddRange(drops);
         db.AddRange(participants.Select(p => new TeamMembership(Guid.NewGuid(), team.Id, p.Id, TeamMembershipRole.Participant, now.AddHours(-2), null, "Fixture")));
         await BoardApprovalFixture.PublishAsync(db, board, now.AddHours(-2), tiles, requirements, drops);
         // The common fixture helper predates personal rolls. Set fixture mechanics before first basis capture.
@@ -400,6 +404,26 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests
     { await using var db = new ApplicationDbContext(options); await new SubmissionService(db, null!, f.Clock).ApproveAsync(submission, f.Admin.Id); }
     private async Task ReverseStatsAsync(FullStatsFixture f, Guid submission)
     { await using var db = new ApplicationDbContext(options); await new SubmissionService(db, null!, f.Clock).ReverseAsync(submission, f.Admin.Id, "Synthetic reversal"); }
+    private async Task PublishCurrentRosterAsync(FullStatsFixture f, bool retainPreviousEntries = false)
+    {
+        await using var db = new ApplicationDbContext(options);
+        var draft = await db.DraftSessions.SingleAsync(x => x.EventId == f.Event.Id);
+        var current = await db.DraftPublicationCycles.SingleAsync(x => x.DraftSessionId == draft.Id && x.SupersededAt == null);
+        var previousEntries = retainPreviousEntries
+            ? await db.DraftPublicationRosters.Where(x => x.DraftPublicationCycleId == current.Id).ToListAsync()
+            : [];
+        current.Supersede(f.Clock.GetUtcNow(), f.Admin.Id, "Controlled fixture roster replacement");
+        var cycleNumber = await db.DraftPublicationCycles.Where(x => x.DraftSessionId == draft.Id).MaxAsync(x => x.CycleNumber) + 1;
+        var replacement = new DraftPublicationCycle(Guid.NewGuid(), draft.Id, cycleNumber, f.Clock.GetUtcNow(), f.Admin.Id, DraftPublicationMethod.DirectRoster);
+        db.Add(replacement);
+        var names = f.Players.Select((player, index) => (player.Id, Name: f.Characters[index].DisplayName)).ToDictionary(x => x.Id, x => x.Name);
+        var memberships = await db.TeamMemberships.Where(x => x.LeftAt == null && names.Keys.Contains(x.EventParticipantId)).ToListAsync();
+        foreach (var member in memberships)
+            db.Add(new DraftPublicationRoster(Guid.NewGuid(), replacement.Id, member.TeamId, member.EventParticipantId, member.Role, null, names[member.EventParticipantId]));
+        foreach (var entry in previousEntries.Where(entry => !memberships.Any(member => member.TeamId == entry.TeamId && member.EventParticipantId == entry.EventParticipantId)))
+            db.Add(new DraftPublicationRoster(Guid.NewGuid(), replacement.Id, entry.TeamId, entry.EventParticipantId, entry.Role, entry.EffectivePickNumber, entry.PublicCharacterName));
+        await db.SaveChangesAsync();
+    }
     private async Task<PublicEventStats> ReadStatsAsync(FullStatsFixture f)
     { await using var db = new ApplicationDbContext(options); return Assert.IsType<PublicEventStats>(await new PublicStatsService(db, f.Clock).GetAsync(f.Event.Slug)); }
     private Task SyncStatsAsync(FullStatsFixture f, int kills) => SyncStatsAsync(f, new WiseOldManMetricDelta(0, kills, kills));

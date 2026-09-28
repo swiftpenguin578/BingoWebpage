@@ -116,40 +116,29 @@
                         <p>@T["Approve the evidence and apply its eligible remaining contribution."]</p>
                     </div>
                     <div class="admin-review-decision-actions">
-                        <form method="post" asp-page-handler="Approve" asp-route-eventId="@Model.Details.EventId" asp-route-search="@Model.Search" asp-route-status="@queueStatus" class="admin-review-action-form" onsubmit="return confirm('@T["Approve evidence"]');">
+                        <form method="post" asp-page-handler="Approve" asp-route-eventId="@Model.Details.EventId" asp-route-search="@Model.Search" asp-route-status="@queueStatus" class="admin-review-action-form">
                             <input asp-for="Input.ExpectedVersion" type="hidden" />
                             <input asp-for="Search" type="hidden" />
                             <input asp-for="Status" type="hidden" />
                             <button class="admin-button-primary action-success-outline" type="submit">@T["Approve evidence"]</button>
                         </form>
-                        <button class="admin-button-secondary action-danger-outline" type="button" data-admin-reject-reveal aria-expanded="false" aria-controls="admin-review-reject-panel">@T["Reject evidence"]</button>
+                        <button class="admin-button-secondary action-danger-outline" type="button" data-admin-review-confirm data-admin-review-form="#admin-review-reject-form" data-admin-review-title="@T["Reject evidence"]" data-admin-review-description="@T["Reject this evidence and notify the submission owners. The decision and reason will be recorded in the audit history."]" data-admin-review-action="@T["Reject evidence"]">@T["Reject evidence"]</button>
                     </div>
-                    <form method="post" asp-page-handler="Reject" asp-route-eventId="@Model.Details.EventId" asp-route-search="@Model.Search" asp-route-status="@queueStatus" class="admin-review-reject-form" data-admin-review-reject-form data-confirm="@T["Reject evidence"]">
+                    <form id="admin-review-reject-form" method="post" asp-page-handler="Reject" asp-route-eventId="@Model.Details.EventId" asp-route-search="@Model.Search" asp-route-status="@queueStatus" class="admin-review-reject-form">
                         <input asp-for="Input.ExpectedVersion" type="hidden" />
+                        <input asp-for="Input.Reason" type="hidden" data-admin-review-reason />
                         <input asp-for="Search" type="hidden" />
                         <input asp-for="Status" type="hidden" />
-                        <div id="admin-review-reject-panel" class="admin-review-reject-panel" data-admin-reject-panel hidden>
-                            <label asp-for="Input.Reason">@T["Required rejection reason"]</label>
-                            <textarea asp-for="Input.Reason" required maxlength="4000" aria-describedby="admin-review-reject-hint"></textarea>
-                            <span id="admin-review-reject-hint" class="admin-review-form-hint">@T["Required for the audit record."]</span>
-                            <span asp-validation-for="Input.Reason" class="field-error"></span>
-                            <div class="admin-review-reject-actions">
-                                <button class="admin-button-secondary action-danger-outline" type="submit">@T["Reject evidence"]</button>
-                                <button class="admin-button-secondary" type="button" data-admin-reject-cancel>@T["Cancel"]</button>
-                            </div>
-                        </div>
                     </form>
                 }
                 @if (reversible)
                 {
-                    <form method="post" asp-page-handler="Reverse" asp-route-eventId="@Model.Details.EventId" asp-route-search="@Model.Search" asp-route-status="@queueStatus" class="admin-review-action-form" onsubmit="return confirm('@T["Reverse approval"]');">
+                    <form id="admin-review-reverse-form" method="post" asp-page-handler="Reverse" asp-route-eventId="@Model.Details.EventId" asp-route-search="@Model.Search" asp-route-status="@queueStatus" class="admin-review-action-form">
                         <input asp-for="Input.ExpectedVersion" type="hidden" />
+                        <input asp-for="Input.Reason" type="hidden" data-admin-review-reason />
                         <input asp-for="Search" type="hidden" />
                         <input asp-for="Status" type="hidden" />
-                        <label asp-for="Input.Reason">@T["Required reversal reason"]</label>
-                        <textarea asp-for="Input.Reason" required maxlength="4000"></textarea>
-                        <span asp-validation-for="Input.Reason" class="field-error"></span>
-                        <button class="admin-button-secondary action-danger-outline" type="submit">@T["Reverse approval"]</button>
+                        <button class="admin-button-secondary action-danger-outline" type="button" data-admin-review-confirm data-admin-review-form="#admin-review-reverse-form" data-admin-review-title="@T["Reverse approval"]" data-admin-review-description="@T["Reverse this approval, remove its contribution, and recalculate later progress and rankings. The decision and reason will be recorded in the audit history."]" data-admin-review-action="@T["Reverse approval"]">@T["Reverse approval"]</button>
                     </form>
                 }
                 @if (!reviewable && !reversible)
@@ -270,16 +259,16 @@
         </details>
         <details class="admin-review-surface admin-review-operational-section">
             <summary><strong>@T["Immutable review history"]</strong><small>@T["Every review decision and reason remains recorded."]</small></summary>
-            @if (Model.History.Count == 0)
+            @if (Model.AuditHistory.Count == 0)
             {
                 <p class="admin-review-empty-note">@T["No review actions have been recorded."]</p>
             }
             else
             {
                 <ul class="admin-review-operational-list admin-review-history-list">
-                    @foreach (var item in Model.History)
+                    @foreach (var item in Model.AuditHistory)
                     {
-                        <li><strong>@T[item.Action.ToString()]</strong><span>@DateTimePresentation.Format(item.At, "dd MMM yyyy, HH:mm", Model.EventTimezone, CultureInfo.CurrentCulture) · @item.Actor</span>@if (item.Note is not null) { <small>@item.Note</small> }</li>
+                        <li><span>@DateTimePresentation.Format(item.OccurredAt, "dd MMM yyyy, HH:mm", Model.EventTimezone, CultureInfo.CurrentCulture)</span><partial name="/Pages/Shared/_AuditEntry.cshtml" model="item" /></li>
                     }
                 </ul>
             }
@@ -292,31 +281,26 @@
     <script>
         (() => {
             const root = document.querySelector("[data-admin-review-detail]");
-            const form = root?.querySelector("[data-admin-review-reject-form]");
-            const panel = form?.querySelector("[data-admin-reject-panel]");
-            const reveal = root?.querySelector("[data-admin-reject-reveal]");
-            const cancel = form?.querySelector("[data-admin-reject-cancel]");
-            const reason = form?.querySelector("textarea[name='Input.Reason']");
-            if (!form || !panel || !reveal || !cancel || !reason) return;
-            const setOpen = open => {
-                panel.hidden = !open;
-                reveal.hidden = open;
-                reveal.setAttribute("aria-expanded", String(open));
-                if (!open) reason.setCustomValidity("");
-                (open ? reason : reveal).focus({ preventScroll: true });
-            };
-            reveal.addEventListener("click", () => setOpen(true));
-            cancel.addEventListener("click", () => setOpen(false));
-            form.addEventListener("submit", event => {
-                if (!reason.value.trim()) {
-                    event.preventDefault();
-                    setOpen(true);
-                    reason.setCustomValidity("@T["Required rejection reason"]");
-                    reason.reportValidity();
-                    reason.addEventListener("input", () => reason.setCustomValidity(""), { once: true });
-                    return;
-                }
-                if (!window.confirm(form.dataset.confirm ?? "")) event.preventDefault();
+            if (!root || !window.adminConfirmation) return;
+            root.querySelectorAll("[data-admin-review-confirm]").forEach(button => {
+                button.addEventListener("click", async () => {
+                    const form = document.querySelector(button.dataset.adminReviewForm || "");
+                    const reason = form?.querySelector("[data-admin-review-reason]");
+                    if (!form || !reason) return;
+                    await window.adminConfirmation.open({
+                        title: button.dataset.adminReviewTitle,
+                        description: button.dataset.adminReviewDescription,
+                        actionLabel: button.dataset.adminReviewAction,
+                        danger: true,
+                        requireReason: true,
+                        opener: button,
+                        onConfirm: ({ reason: value }) => {
+                            reason.value = value;
+                            form.requestSubmit();
+                            return true;
+                        }
+                    });
+                });
             });
         })();
     </script>

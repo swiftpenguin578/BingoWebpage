@@ -36,7 +36,7 @@ using Testcontainers.PostgreSql;
 
 namespace Bingo.IntegrationTests;
 
-public sealed class SubmissionWorkflowTests : IAsyncLifetime
+public sealed partial class SubmissionWorkflowTests : IAsyncLifetime
 {
     private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine")
         .WithDatabase("bingo_submission_tests").WithUsername("bingo").WithPassword("bingo_test_password").Build();
@@ -546,38 +546,14 @@ public sealed class SubmissionWorkflowTests : IAsyncLifetime
     public async Task EmergencyCredentialNeedsTheAuthoritativeReopenedWindowAndExplicitReenableForEverySubmissionMutation()
     {
         var setup = await SeedAsync(target: 3, allowHigherWeights: true);
-        var clock = new MutableTimeProvider(now.AddHours(5));
         await using var db = new ApplicationDbContext(options);
-        var captain = await db.Accounts.SingleAsync(account => account.Id == setup.CaptainId);
-        captain.SetPassword(new PasswordHasher<Account>().HashPassword(captain, "emergency-password"), false, now, incrementVersion: false);
-        var ev = await db.Events.SingleAsync(item => item.Id == setup.EventId);
-        await db.SaveChangesAsync();
-
-        var lifecycle = new EmergencyCredentialLifecycleService(db, clock);
-        await lifecycle.ApplyAsync(CancellationToken.None);
-        var administration = new AccountAdministrationService(db, new PasswordHasher<Account>(), clock);
-        await Assert.ThrowsAsync<InvalidOperationException>(() => administration.SetEmergencyEnabledAsync(setup.AdminId, setup.CaptainId, true, CancellationToken.None));
-        await Assert.ThrowsAsync<InvalidOperationException>(() => Service(db, clock).CreateAsync(Command(setup)));
-
-        ev.EndEvent();
-        ev.ReopenSubmissions(clock.GetUtcNow().AddMinutes(10), clock.GetUtcNow());
-        await db.SaveChangesAsync();
-        await Assert.ThrowsAsync<InvalidOperationException>(() => Service(db, clock).CreateAsync(Command(setup)));
-
-        await administration.SetEmergencyEnabledAsync(setup.AdminId, setup.CaptainId, true, CancellationToken.None);
-        var service = Service(db, clock);
-        var created = await service.CreateAsync(Command(setup));
-        await service.CorrectAsync(new CorrectSubmissionCommand(created.SubmissionId, setup.CaptainId, setup.TileId, setup.RequirementId, setup.DropId, setup.ParticipantId, 1, "corrected"));
-        await service.WithdrawAsync(created.SubmissionId, setup.CaptainId);
-
-        clock.Set(clock.GetUtcNow().AddMinutes(10));
-        await Assert.ThrowsAsync<InvalidOperationException>(() => service.CreateAsync(Command(setup)));
-        await lifecycle.ApplyAsync(CancellationToken.None);
-        await Assert.ThrowsAsync<InvalidOperationException>(() => service.CreateAsync(Command(setup)));
-        await Assert.ThrowsAsync<InvalidOperationException>(() => service.CorrectAsync(new CorrectSubmissionCommand(created.SubmissionId, setup.CaptainId, setup.TileId, setup.RequirementId, setup.DropId, setup.ParticipantId, 1, "closed")));
-        await Assert.ThrowsAsync<InvalidOperationException>(() => service.WithdrawAsync(created.SubmissionId, setup.CaptainId));
-        Assert.Equal(2, await db.AuditEntries.CountAsync(entry => entry.Action == "account.emergency_cutoff_disabled" && entry.TargetId == setup.CaptainId.ToString()));
-        Assert.Contains(await db.AuditEntries.ToListAsync(), entry => entry.Action == "account.emergency_enabled");
+        var emergency = Account.CreateEmergency(Guid.NewGuid(), "retired", "RETIRED", now); emergency.Enable();
+        var access = new AccountEventAccess(Guid.NewGuid(), emergency.Id, setup.EventId, setup.TeamId, null, null, null, null); access.Enable();
+        db.AddRange(emergency, access); await db.SaveChangesAsync();
+        var command = Command(setup) with { ActorAccountId = emergency.Id };
+        await Assert.ThrowsAsync<InvalidOperationException>(() => Service(db).CreateAsync(command));
+        Assert.Empty(await db.Submissions.ToListAsync());
+        Assert.Empty(await db.AuditEntries.ToListAsync());
     }
 
     [Theory]
@@ -601,30 +577,32 @@ public sealed class SubmissionWorkflowTests : IAsyncLifetime
         var pending = await service.CreateAsync(Command(setup));
         var rejected = await service.CreateAsync(Command(setup));
         await service.RejectAsync(rejected.SubmissionId, setup.AdminId, "Replace the incomplete screenshot.");
+        // The current publication boundary does not support a generic pending-review
+        // override. Decide the initial submission before publishing; a new pending
+        // submission is created and corrected only after the explicit reopen below.
+        await service.ApproveAsync(pending.SubmissionId, setup.AdminId);
         var ev = await db.Events.SingleAsync(value => value.Id == setup.EventId);
         var originalCutoff = ev.SubmissionCutoffAt;
         Assert.True(originalCutoff > now);
         ev.EndEvent(now);
+        var earlyCutoff = ev.SubmissionCutoffAt;
+        Assert.NotEqual(originalCutoff, earlyCutoff);
+        clock.Set(now.AddMinutes(31));
+        Assert.True(ev.CloseSubmissionsIfDue(clock.GetUtcNow()));
         db.EventStateTransitions.Add(new EventStateTransition(Guid.NewGuid(), ev.Id, EventState.Live,
             EventState.AwaitingFinalReview, setup.AdminId, now, "Early event end", effectiveAt: now));
         await db.SaveChangesAsync();
         var finals = new EventFinalizationService(db, new PublicBoardService(db, clock), clock);
         var readiness = (await finals.GetReadinessAsync(ev.Id))!;
         var firstCycle = readiness.ReviewCycleId;
-        Assert.True(readiness.SubmissionWindowOpen);
-        Assert.Contains(readiness.Blockers, value => value.Key == "submission-window");
-        Assert.All(readiness.Blockers, value => Assert.True(value.CanOverride));
-        foreach (var blocker in readiness.Blockers)
-        {
-            var current = (await finals.GetReadinessAsync(ev.Id))!;
-            await finals.ResolveBlockerAsync(ev.Id, blocker.Key, "Controlled early-finalization fixture", true,
-                setup.AdminId, current.EventVersion, current.ReviewCycleId);
-        }
+        Assert.False(readiness.SubmissionWindowOpen);
+        Assert.DoesNotContain(readiness.Blockers, value => value.Key == "submission-window");
+        Assert.Empty(readiness.Blockers);
         var actor = new LifecycleActor(setup.AdminId, "admin");
         await finals.FinalizeAsync(ev.Id, actor, ev.Version);
         var official = await db.EventFinalizations.SingleAsync(value => value.EventId == ev.Id);
         var originalInputs = official.CalculationInputsJson;
-        clock.Set(now.AddSeconds(1));
+        clock.Set(now.AddMinutes(32));
         await finals.UnfinalizeAsync(ev.Id, "Correct official results while uploads stay closed", true, actor, ev.Version);
         // Explicitly enabled emergency access must still obey the event's closed window.
         if (emergency)
@@ -635,7 +613,7 @@ public sealed class SubmissionWorkflowTests : IAsyncLifetime
         Assert.NotNull(ev.FinalizedAt);
         Assert.NotNull(ev.SubmissionsClosedAt);
         Assert.Null(ev.ReopenedSubmissionCutoffAt);
-        Assert.Equal(originalCutoff, ev.SubmissionCutoffAt);
+        Assert.Equal(earlyCutoff, ev.SubmissionCutoffAt);
         Assert.False(ev.AcceptsNewSubmissions(now));
         Assert.False(ev.AcceptsEmergencySubmissions(now));
         readiness = (await finals.GetReadinessAsync(ev.Id))!;
@@ -651,12 +629,6 @@ public sealed class SubmissionWorkflowTests : IAsyncLifetime
         var assets = await db.EvidenceAssets.OrderBy(value => value.Id).Select(value => value.Id).ToListAsync();
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => service.CreateAsync(Command(setup)));
-        await Assert.ThrowsAsync<InvalidOperationException>(() => service.CorrectAsync(new CorrectSubmissionCommand(
-            pending.SubmissionId, setup.CaptainId, setup.TileId, setup.RequirementId, setup.DropId,
-            setup.ParticipantId, 2, "Closed edit", OriginalFilename: "replacement.png", Evidence: new MemoryStream([4, 5, 6]))));
-        await Assert.ThrowsAsync<InvalidOperationException>(() => service.ResubmitAsync(new ResubmitSubmissionCommand(
-            rejected.SubmissionId, setup.CaptainId, setup.TileId, setup.RequirementId, setup.DropId,
-            "Closed resubmission", "replacement.png", new MemoryStream([4, 5, 6]))));
         await using (var verify = new ApplicationDbContext(options))
         {
             Assert.Equal(auditCount, await verify.AuditEntries.CountAsync());
@@ -667,21 +639,22 @@ public sealed class SubmissionWorkflowTests : IAsyncLifetime
         }
         Assert.Throws<InvalidOperationException>(() => ev.ReopenSubmissions(now, now));
         Assert.False(ev.AcceptsNewSubmissions(now));
-        ev.ReopenSubmissions(originalCutoff!.Value.AddMinutes(10), now);
+        ev.ReopenSubmissions(earlyCutoff!.Value.AddMinutes(10), clock.GetUtcNow());
         await db.SaveChangesAsync();
         db.ChangeTracker.Clear();
         readiness = (await finals.GetReadinessAsync(ev.Id))!;
         Assert.True(readiness.SubmissionWindowOpen);
         Assert.Contains(readiness.Blockers, value => value.Key == "submission-window");
-        await service.CreateAsync(Command(setup));
-        await service.CorrectAsync(new CorrectSubmissionCommand(pending.SubmissionId, setup.CaptainId,
+        var reopened = await service.CreateAsync(Command(setup));
+        await service.CorrectAsync(new CorrectSubmissionCommand(reopened.SubmissionId, setup.CaptainId,
             setup.TileId, setup.RequirementId, setup.DropId, setup.ParticipantId, 2, "Explicitly reopened edit"));
-        var child = await service.ResubmitAsync(new ResubmitSubmissionCommand(rejected.SubmissionId,
-            setup.CaptainId, setup.TileId, setup.RequirementId, setup.DropId, "Explicitly reopened resubmission",
-            "replacement.png", new MemoryStream([4, 5, 6])));
+        var attempt = await service.CreateAsync(Command(setup) with { CaptainNote = "Explicitly reopened ordinary attempt" });
         Assert.Equal(4, await db.Submissions.CountAsync());
         Assert.Equal(SubmissionStatus.Rejected, (await db.Submissions.SingleAsync(value => value.Id == rejected.SubmissionId)).Status);
-        Assert.Equal(rejected.SubmissionId, (await db.Submissions.SingleAsync(value => value.Id == child.SubmissionId)).ResubmissionOfSubmissionId);
+        Assert.Equal(SubmissionStatus.Approved, (await db.Submissions.SingleAsync(value => value.Id == pending.SubmissionId)).Status);
+        Assert.Equal(SubmissionStatus.Pending, (await db.Submissions.SingleAsync(value => value.Id == reopened.SubmissionId)).Status);
+        Assert.Null(await db.Submissions.Where(value => value.Id == attempt.SubmissionId).Select(value => value.ResubmissionOfSubmissionId).SingleAsync());
+        Assert.Contains(await db.AuditEntries.Where(value => value.TargetId == attempt.SubmissionId.ToString("D")).ToListAsync(), value => value.Action == "submission.created");
     }
 
     [Theory]
@@ -943,8 +916,8 @@ public sealed class SubmissionWorkflowTests : IAsyncLifetime
         await service.RejectAsync(submission.SubmissionId, setup.AdminId, "The screenshot does not establish the claimed drop.");
 
         var notifications = await db.PersonalNotifications.AsNoTracking().Where(x => x.Title == "evidence.rejected").ToListAsync();
-        Assert.Equal(2, notifications.Count);
-        Assert.Equal(new[] { participantAccount.Id, coCaptainAccount.Id }.OrderBy(x => x), notifications.Select(x => x.RecipientAccountId).OrderBy(x => x));
+        Assert.Equal(3, notifications.Count);
+        Assert.Equal(new[] { participantAccount.Id, coCaptainAccount.Id, setup.CaptainId }.OrderBy(x => x), notifications.Select(x => x.RecipientAccountId).OrderBy(x => x));
         Assert.Equal($"/Submissions/{submission.SubmissionId}", notifications.Single(x => x.RecipientAccountId == participantAccount.Id).Route);
         Assert.Equal($"/Submissions/{submission.SubmissionId}", notifications.Single(x => x.RecipientAccountId == coCaptainAccount.Id).Route);
         Assert.All(notifications, notification =>
@@ -954,7 +927,7 @@ public sealed class SubmissionWorkflowTests : IAsyncLifetime
             Assert.Contains("does not establish the claimed drop", notification.Detail, StringComparison.Ordinal);
         });
         await Assert.ThrowsAsync<InvalidOperationException>(() => service.RejectAsync(submission.SubmissionId, setup.AdminId, "A second decision is not allowed."));
-        Assert.Equal(2, await db.PersonalNotifications.CountAsync(x => x.Title == "evidence.rejected"));
+        Assert.Equal(3, await db.PersonalNotifications.CountAsync(x => x.Title == "evidence.rejected"));
     }
 
     [Fact]
@@ -1014,7 +987,7 @@ public sealed class SubmissionWorkflowTests : IAsyncLifetime
         AssertSnapshot(rejectionAudit.AfterState, captainNotePresent: false, reviewerNotePresent: true, status: SubmissionStatus.Rejected);
         Assert.Equal(rejectionReason, await db.Submissions.Where(x => x.Id == rejected.SubmissionId).Select(x => x.CurrentReviewerNote).SingleAsync());
 
-        var notification = Assert.Single(await db.PersonalNotifications.AsNoTracking().Where(x => x.Title == "evidence.rejected").ToListAsync());
+        var notification = Assert.Single(await db.PersonalNotifications.AsNoTracking().Where(x => x.Title == "evidence.rejected" && x.RecipientAccountId == setup.CaptainId).ToListAsync());
         Assert.True(notification.Detail.Length <= 1_000);
         using var notificationDocument = JsonDocument.Parse(notification.Detail);
         var notificationRoot = notificationDocument.RootElement;
@@ -1136,7 +1109,7 @@ public sealed class SubmissionWorkflowTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task ReversedSubmissionCanHaveOneReopenedLinkedChildAndKeepsInactivePredecessorContribution()
+    public async Task ReversedSubmissionCanHaveOneReopenedOrdinaryAttemptAndKeepsInactivePredecessorContribution()
     {
         var setup = await SeedAsync(target: 2, allowHigherWeights: true);
         var clock = new MutableTimeProvider(now);
@@ -1156,37 +1129,26 @@ public sealed class SubmissionWorkflowTests : IAsyncLifetime
         eventItem.EndEvent(now.AddMinutes(-1));
         await db.SaveChangesAsync();
         clock.Set(eventItem.SubmissionCutoffAt!.Value.AddMinutes(1));
-        await using var closedEvidence = new MemoryStream([8, 8, 8]);
-        await Assert.ThrowsAsync<InvalidOperationException>(() => service.ResubmitAsync(new ResubmitSubmissionCommand(
-            predecessor.SubmissionId, setup.CaptainId, setup.TileId, setup.RequirementId, setup.DropId,
-            "closed window", "closed.png", closedEvidence)));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.CreateAsync(Command(setup) with { CaptainNote = "closed window" }));
 
         eventItem.ReopenSubmissions(clock.GetUtcNow().AddHours(1), clock.GetUtcNow());
         await db.SaveChangesAsync();
         clock.Set(now.AddMinutes(1));
-        await using var evidence = new MemoryStream([9, 9, 9]);
-        var child = await service.ResubmitAsync(new ResubmitSubmissionCommand(
-            predecessor.SubmissionId, setup.CaptainId, setup.TileId, setup.RequirementId, setup.DropId,
-            "corrected evidence", "corrected.png", evidence));
-        Assert.Equal(SubmissionStatus.Pending, child.Status);
-        Assert.Equal(predecessor.SubmissionId, await db.Submissions.Where(x => x.Id == child.SubmissionId).Select(x => x.ResubmissionOfSubmissionId).SingleAsync());
-        Assert.Contains(await db.AuditEntries.Where(x => x.TargetId == child.SubmissionId.ToString("D")).ToListAsync(), x => x.Action == "submission.resubmitted");
-
-        await using var replayEvidence = new MemoryStream([7, 7, 7]);
-        await Assert.ThrowsAsync<InvalidOperationException>(() => service.ResubmitAsync(new ResubmitSubmissionCommand(
-            predecessor.SubmissionId, setup.CaptainId, setup.TileId, setup.RequirementId, setup.DropId,
-            "duplicate", "duplicate.png", replayEvidence)));
+        var attempt = await service.CreateAsync(Command(setup) with { CaptainNote = "corrected evidence" });
+        Assert.Equal(SubmissionStatus.Pending, attempt.Status);
+        Assert.Null(await db.Submissions.Where(x => x.Id == attempt.SubmissionId).Select(x => x.ResubmissionOfSubmissionId).SingleAsync());
+        Assert.Contains(await db.AuditEntries.Where(x => x.TargetId == attempt.SubmissionId.ToString("D")).ToListAsync(), x => x.Action == "submission.created");
         await Assert.ThrowsAsync<InvalidOperationException>(() => service.ApproveAsync(predecessor.SubmissionId, setup.AdminId));
-        var childSubmittedAt = await db.Submissions.Where(value => value.Id == child.SubmissionId).Select(value => value.SubmittedAt).SingleAsync();
+        var attemptSubmittedAt = await db.Submissions.Where(value => value.Id == attempt.SubmissionId).Select(value => value.SubmittedAt).SingleAsync();
         clock.Set(now.AddMinutes(2));
-        await service.ApproveAsync(child.SubmissionId, setup.AdminId);
-        Assert.True(await db.SubmissionContributions.AnyAsync(x => x.SubmissionId == child.SubmissionId && x.ReversedAt == null));
+        await service.ApproveAsync(attempt.SubmissionId, setup.AdminId);
+        Assert.True(await db.SubmissionContributions.AnyAsync(x => x.SubmissionId == attempt.SubmissionId && x.ReversedAt == null));
         Assert.True(await db.SubmissionContributions.AnyAsync(x => x.SubmissionId == predecessor.SubmissionId && x.ReversedAt != null));
         var board = await db.Boards.SingleAsync(value => value.EventId == setup.EventId);
         var fact = await db.TileCompletionFacts.SingleAsync(value => value.TeamId == setup.TeamId && value.BoardTileId == setup.TileId && value.ApprovalSnapshotId == board.ActiveApprovalSnapshotId);
         Assert.True(fact.IsComplete);
-        Assert.Equal(childSubmittedAt, fact.CompletedAt);
-        Assert.Contains(child.SubmissionId.ToString("D"), fact.QualifyingContributionsJson, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(attemptSubmittedAt, fact.CompletedAt);
+        Assert.Contains(attempt.SubmissionId.ToString("D"), fact.QualifyingContributionsJson, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain(predecessor.SubmissionId.ToString("D"), fact.QualifyingContributionsJson, StringComparison.OrdinalIgnoreCase);
     }
 
@@ -1548,7 +1510,7 @@ public sealed class SubmissionWorkflowTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task RejectedSubmissionCanCreateOneLinkedResubmissionWithImmutableCreditSnapshots()
+    public async Task RejectedSubmissionCanCreateRepeatedOrdinaryAttemptsWithImmutableCreditSnapshots()
     {
         var setup = await SeedAsync(target: 3, allowHigherWeights: true);
         await using var db = new ApplicationDbContext(options);
@@ -1557,29 +1519,26 @@ public sealed class SubmissionWorkflowTests : IAsyncLifetime
         await service.RejectAsync(predecessor.SubmissionId, setup.AdminId, "Show the full game message.");
         var original = await db.Submissions.SingleAsync(x => x.Id == predecessor.SubmissionId);
 
-        await using var evidence = new MemoryStream([4, 5, 6]);
-        var child = await service.ResubmitAsync(new ResubmitSubmissionCommand(
-            predecessor.SubmissionId, setup.CaptainId, setup.TileId, setup.RequirementId, setup.DropId,
-            "linked attempt", "resubmission.png", evidence));
+        var attempt = await service.CreateAsync(Command(setup) with { CaptainNote = "ordinary attempt" });
 
-        var savedChild = await db.Submissions.SingleAsync(x => x.Id == child.SubmissionId);
+        var savedAttempt = await db.Submissions.SingleAsync(x => x.Id == attempt.SubmissionId);
         Assert.Equal(SubmissionStatus.Rejected, await db.Submissions.Where(x => x.Id == predecessor.SubmissionId).Select(x => x.Status).SingleAsync());
-        Assert.Equal(predecessor.SubmissionId, savedChild.ResubmissionOfSubmissionId);
-        Assert.Equal(original.CreditedParticipantId, savedChild.CreditedParticipantId);
-        Assert.Equal(original.CreditedOsrsCharacterId, savedChild.CreditedOsrsCharacterId);
-        Assert.Equal(original.CreditedCharacterName, savedChild.CreditedCharacterName);
-        Assert.Single(await db.EvidenceAssets.Where(x => x.SubmissionId == child.SubmissionId && x.Active).ToListAsync());
-        Assert.Contains(await db.ReviewActions.Where(x => x.SubmissionId == child.SubmissionId).ToListAsync(), x => x.Action == ReviewActionType.Resubmit);
-        Assert.Contains(await db.AuditEntries.Where(x => x.TargetId == child.SubmissionId.ToString("D")).ToListAsync(), x => x.Action == "submission.resubmitted");
+        Assert.Null(savedAttempt.ResubmissionOfSubmissionId);
+        Assert.Equal(original.CreditedParticipantId, savedAttempt.CreditedParticipantId);
+        Assert.Equal(original.CreditedOsrsCharacterId, savedAttempt.CreditedOsrsCharacterId);
+        Assert.Equal(original.CreditedCharacterName, savedAttempt.CreditedCharacterName);
+        Assert.Single(await db.EvidenceAssets.Where(x => x.SubmissionId == attempt.SubmissionId && x.Active).ToListAsync());
+        Assert.Contains(await db.ReviewActions.Where(x => x.SubmissionId == attempt.SubmissionId).ToListAsync(), x => x.Action == ReviewActionType.Submitted);
+        Assert.Contains(await db.AuditEntries.Where(x => x.TargetId == attempt.SubmissionId.ToString("D")).ToListAsync(), x => x.Action == "submission.created");
 
-        await using var replayEvidence = new MemoryStream([7, 8, 9]);
-        await Assert.ThrowsAsync<InvalidOperationException>(() => service.ResubmitAsync(new ResubmitSubmissionCommand(
-            predecessor.SubmissionId, setup.CaptainId, setup.TileId, setup.RequirementId, setup.DropId,
-            "replay", "replay.png", replayEvidence)));
+        var repeated = await service.CreateAsync(Command(setup) with { CaptainNote = "repeated ordinary attempt" });
+        Assert.NotEqual(attempt.SubmissionId, repeated.SubmissionId);
+        Assert.Equal(SubmissionStatus.Pending, repeated.Status);
+        Assert.Null(await db.Submissions.Where(x => x.Id == repeated.SubmissionId).Select(x => x.ResubmissionOfSubmissionId).SingleAsync());
     }
 
     [Fact]
-    public async Task ParticipantAuthoritySeesOnlyItsOwnCandidateWhileEmergencyLeadershipSeesCurrentTeamCandidates()
+    public async Task ParticipantAuthoritySeesOnlyItsOwnCandidateWhileWebsiteLeadershipSeesCurrentTeamCandidates()
     {
         var setup = await SeedAsync(target: 3, allowHigherWeights: true);
         await using var db = new ApplicationDbContext(options);
@@ -1683,56 +1642,40 @@ public sealed class SubmissionWorkflowTests : IAsyncLifetime
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task LiveWithdrawalWinsConcurrentCreationWithoutALockCycleOrStoredEvidence(bool self)
+    public async Task LiveWithdrawalIsRetiredWithoutMutationAndDoesNotRevokeCurrentSubmissionAuthority(bool self)
     {
         var setup = await SeedAsync(3, true);
         var (actorId, membershipId) = await AddWebsiteCaptainAsync(setup, TeamMembershipRole.Captain, self);
         Guid participantId;
         await using (var fixture = new ApplicationDbContext(options))
-        {
-            var item = await fixture.Events.SingleAsync(x => x.Id == setup.EventId);
-            item.SetDraftLocked(true);
             participantId = await fixture.TeamMemberships.Where(x => x.Id == membershipId).Select(x => x.EventParticipantId).SingleAsync();
-            await fixture.SaveChangesAsync();
+
+        var before = await RetiredLiveWithdrawalStateAsync(setup.EventId, participantId, membershipId);
+        await using (var db = new ApplicationDbContext(options))
+        {
+            var result = await new SignupService(db, new SecretHasher(), new FixedTimeProvider(now)).WithdrawLiveAsync(
+                new(setup.EventId, participantId, setup.AdminId, "admin"));
+            Assert.False(result.Succeeded);
+            Assert.False(result.Changed);
+            Assert.Contains("Roster membership is fixed after the event first goes Live.", result.Error, StringComparison.Ordinal);
+            Assert.Null(result.MembershipId);
+            Assert.Null(result.ParticipantId);
+            Assert.Null(result.EffectiveAtUtc);
         }
-        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(15));
-        var gate = new PauseAfterEventLock();
-        var withdrawalOptions = new DbContextOptionsBuilder<ApplicationDbContext>(options).AddInterceptors(gate).Options;
-        await using var withdrawals = new ApplicationDbContext(withdrawalOptions);
-        var withdraw = new SignupService(withdrawals, new SecretHasher(), new FixedTimeProvider(now)).WithdrawLiveAsync(
-            new(setup.EventId, participantId, setup.AdminId, "admin"), timeout.Token);
-        await gate.EventLocked.Task.WaitAsync(timeout.Token);
+
+        // The retired command must not alter the participant, registration, current
+        // membership/role or any retained history, evidence, vacancy, replacement,
+        // or Wise Old Man operation before the still-authorized create is attempted.
+        Assert.Equal(before, await RetiredLiveWithdrawalStateAsync(setup.EventId, participantId, membershipId));
+
         var storage = new RecordingEvidenceStorage();
-        await using var submissions = new ApplicationDbContext(options);
-        await submissions.Database.OpenConnectionAsync(timeout.Token);
-        var create = Service(submissions, storage: storage).CreateAsync(Command(setup) with { ActorAccountId = actorId }, timeout.Token);
-        var blocked = false;
-        try
-        {
-            blocked = await WaitForDatabaseBlockAsync(create, submissions, withdrawals, timeout.Token);
-        }
-        finally
-        {
-            gate.Continue.TrySetResult();
-        }
-        var withdrawn = await withdraw.WaitAsync(timeout.Token);
-        var conflict = await Record.ExceptionAsync(() => create.WaitAsync(timeout.Token));
-        Assert.True(blocked, $"Creation must reach the event lock while actual live withdrawal holds it. Withdrawal: {withdrawn.Error}; creation: {conflict}");
-        Assert.True(withdrawn.Succeeded, withdrawn.Error);
-        Assert.True(withdrawn.Changed);
-        var postgres = Assert.IsType<PostgresException>(conflict?.GetBaseException());
-        Assert.Equal(PostgresErrorCodes.SerializationFailure, postgres.SqlState);
-        await using var verify = new ApplicationDbContext(options);
-        var membership = await verify.TeamMemberships.SingleAsync(x => x.Id == membershipId);
-        Assert.NotNull(membership.LeftAt);
-        Assert.Equal(TeamMembershipRole.Participant, membership.Role);
-        Assert.Equal(SignupStatus.Withdrawn, await verify.EventParticipants.Where(x => x.Id == participantId).Select(x => x.SignupStatus).SingleAsync());
-        Assert.Single(await verify.TeamMembershipRoleTransitions.Where(x => x.TeamMembershipId == membershipId).ToListAsync());
-        Assert.Single(await verify.AuditEntries.Where(x => x.Action == "participant.live_withdrawn").ToListAsync());
-        Assert.Empty(await verify.Submissions.ToListAsync());
-        Assert.Empty(await verify.EvidenceAssets.ToListAsync());
-        Assert.False(await verify.AuditEntries.AnyAsync(x => x.Action == "submission.created"));
-        Assert.Equal(0, storage.StoredCount);
+        await using var create = new ApplicationDbContext(options);
+        var submitted = await Service(create, storage: storage).CreateAsync(Command(setup) with { ActorAccountId = actorId });
+        Assert.Equal(SubmissionStatus.Pending, submitted.Status);
+        Assert.Equal(1, storage.StoredCount);
+        Assert.Single(await create.EvidenceAssets.Where(x => x.SubmissionId == submitted.SubmissionId && x.Active).ToListAsync());
+        Assert.Single(await create.ReviewActions.Where(x => x.SubmissionId == submitted.SubmissionId && x.Action == ReviewActionType.Submitted).ToListAsync());
+        Assert.Single(await create.AuditEntries.Where(x => x.EventId == setup.EventId && x.TargetId == submitted.SubmissionId.ToString("D") && x.Action == "submission.created").ToListAsync());
     }
 
     private async Task<bool> WaitForDatabaseBlockAsync(Task operation, ApplicationDbContext waiting, ApplicationDbContext blocking,
@@ -1754,23 +1697,6 @@ public sealed class SubmissionWorkflowTests : IAsyncLifetime
         return false;
     }
 
-    private sealed class PauseAfterEventLock : DbCommandInterceptor
-    {
-        public TaskCompletionSource EventLocked { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        public TaskCompletionSource Continue { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
-
-        public override async ValueTask<DbDataReader> ReaderExecutedAsync(DbCommand command, CommandExecutedEventData eventData,
-            DbDataReader result, CancellationToken cancellationToken = default)
-        {
-            if (command.CommandText.Contains("FROM events WHERE", StringComparison.Ordinal) && command.CommandText.Contains("FOR UPDATE", StringComparison.Ordinal))
-            {
-                EventLocked.TrySetResult();
-                await Continue.Task.WaitAsync(cancellationToken);
-            }
-            return result;
-        }
-    }
-
     private async Task<(Guid ActorId, Guid MembershipId)> AddWebsiteCaptainAsync(Setup setup, TeamMembershipRole role, bool self)
     {
         await using var db = new ApplicationDbContext(options);
@@ -1785,6 +1711,70 @@ public sealed class SubmissionWorkflowTests : IAsyncLifetime
         if (!self) db.AddRange(participant, membership);
         await db.SaveChangesAsync();
         return (actor.Id, membership.Id);
+    }
+
+    private async Task<string> RetiredLiveWithdrawalStateAsync(Guid eventId, Guid participantId, Guid membershipId)
+    {
+        await using var db = new ApplicationDbContext(options);
+        var state = new
+        {
+            Event = await db.Events.AsNoTracking().Where(x => x.Id == eventId)
+                .Select(x => new { x.State, x.DraftLocked, x.Version, x.BoardPublished, x.StatsEvidenceRevision, x.CancelledAt, x.CancelledByAccountId, x.CancellationReason })
+                .SingleAsync(),
+            Participants = await db.EventParticipants.AsNoTracking().Where(x => x.EventId == eventId).OrderBy(x => x.Id)
+                .Select(x => new { x.Id, x.AccountId, x.SignupStatus, x.SignupSequence, x.SignedUpAt, x.ConfirmedAt, x.WaitingListedAt, x.WithdrawnAt, x.WithdrawnByAccountId, x.StatusReason, x.FormVersion, x.ResponseVersion, x.Source })
+                .ToListAsync(),
+            Registrations = await db.EventParticipantCharacters.AsNoTracking().Where(x => x.EventParticipantId == participantId).OrderBy(x => x.Id)
+                .Select(x => new { x.Id, x.EventParticipantId, x.OsrsCharacterId, x.RegistrationOrder, x.RegisteredAt, x.RegisteredByAccountId, x.SignupQuestionId, x.EventRole, x.EhbSnapshot, x.EhbSource, x.EhbFetchedAt, x.ReleasedAt, x.ReleasedByAccountId, x.Version })
+                .ToListAsync(),
+            Memberships = await db.TeamMemberships.AsNoTracking().Where(x => db.Teams.Any(team => team.Id == x.TeamId && team.EventId == eventId)).OrderBy(x => x.Id)
+                .Select(x => new { x.Id, x.TeamId, x.EventParticipantId, x.Role, x.JoinedAt, x.LeftAt, x.AssignedByDraftPickId, x.Source, x.ReplacesMembershipId, x.Version, x.AssignmentReason })
+                .ToListAsync(),
+            PublishedRoster = await db.DraftPublicationRosters.AsNoTracking().Where(x => db.Teams.Any(team => team.Id == x.TeamId && team.EventId == eventId)).OrderBy(x => x.Id)
+                .Select(x => new { x.Id, x.DraftPublicationCycleId, x.TeamId, x.EventParticipantId, x.Role, x.EffectivePickNumber, x.PublicCharacterName })
+                .ToListAsync(),
+            RoleTransitions = await db.TeamMembershipRoleTransitions.AsNoTracking().Where(x => x.TeamMembershipId == membershipId).OrderBy(x => x.Id)
+                .Select(x => new { x.Id, x.TeamMembershipId, x.FromRole, x.ToRole, x.ChangedByAccountId, x.ChangedAt })
+                .ToListAsync(),
+            EventHistory = await db.EventStateTransitions.AsNoTracking().Where(x => x.EventId == eventId).OrderBy(x => x.Id)
+                .Select(x => new { x.Id, x.FromState, x.ToState, x.PerformedByAccountId, x.PerformedAt, x.EffectiveAt, x.Reason, x.Scheduled })
+                .ToListAsync(),
+            Submissions = await db.Submissions.AsNoTracking().Where(x => x.EventId == eventId).OrderBy(x => x.Id)
+                .Select(x => new { x.Id, x.Status, x.Version, x.CreditedParticipantId, x.CreditedOsrsCharacterId, x.SubmittedByAccountId, x.SubmittedAt, x.ReviewedAt, x.ResubmissionOfSubmissionId })
+                .ToListAsync(),
+            EvidenceAssets = await db.EvidenceAssets.AsNoTracking().Where(x => db.Submissions.Any(submission => submission.Id == x.SubmissionId && submission.EventId == eventId)).OrderBy(x => x.Id)
+                .Select(x => new { x.Id, x.SubmissionId, x.StorageKey, x.Active, x.UploadedAt, x.UploadedByAccountId, x.Role })
+                .ToListAsync(),
+            ReviewActions = await db.ReviewActions.AsNoTracking().Where(x => db.Submissions.Any(submission => submission.Id == x.SubmissionId && submission.EventId == eventId)).OrderBy(x => x.Id)
+                .Select(x => new { x.Id, x.SubmissionId, x.Action, x.PerformedByAccountId, x.PerformedAt, x.Note })
+                .ToListAsync(),
+            Contributions = await db.SubmissionContributions.AsNoTracking().Where(x => db.Submissions.Any(submission => submission.Id == x.SubmissionId && submission.EventId == eventId)).OrderBy(x => x.Id)
+                .Select(x => new { x.Id, x.SubmissionId, x.TeamId, x.RequirementId, x.DropSnapshotId, x.CreditedParticipantId, x.Amount, x.AppliedAt, x.ReversedAt })
+                .ToListAsync(),
+            Audits = await db.AuditEntries.AsNoTracking().Where(x => x.EventId == eventId).OrderBy(x => x.Id)
+                .Select(x => new { x.Id, x.OccurredAt, x.ActorAccountId, x.Action, x.TargetType, x.TargetId, x.Details, x.BeforeState, x.AfterState })
+                .ToListAsync(),
+            Notifications = await db.PersonalNotifications.AsNoTracking().Where(x => x.EventId == eventId).OrderBy(x => x.Id)
+                .Select(x => new { x.Id, x.RecipientAccountId, x.Title, x.Detail, x.Route, x.CreatedAt, x.ReadAt, x.EventId })
+                .ToListAsync(),
+            CharacterSwaps = await db.EventParticipantCharacterSwaps.AsNoTracking().Where(x => x.EventId == eventId).OrderBy(x => x.Id)
+                .Select(x => new { x.Id, x.EventParticipantId, x.PreviousOsrsCharacterId, x.NextOsrsCharacterId, x.EffectiveAtUtc, x.RecordedAtUtc, x.RecordedByAccountId, x.Reason, x.Sequence })
+                .ToListAsync(),
+            PromotionFollowUps = await db.WaitingListPromotionFollowUps.AsNoTracking().Where(x => x.EventId == eventId).OrderBy(x => x.Id)
+                .Select(x => new { x.Id, x.EndedMembershipId, x.ReplacementMembershipId, x.PromotedParticipantId, x.CreatedAt, x.CompletedByAccountId, x.CompletedAt })
+                .ToListAsync(),
+            Wom = new
+            {
+                Management = await db.EventCompetitionManagements.AsNoTracking().Where(x => x.EventId == eventId).OrderBy(x => x.Id).Select(x => x.Id).ToListAsync(),
+                Synchronization = await db.EventCompetitionSynchronizations.AsNoTracking().Where(x => x.EventId == eventId).OrderBy(x => x.Id).Select(x => x.Id).ToListAsync(),
+                Operations = await db.EventCompetitionManagementOperations.AsNoTracking().Where(x => x.EventId == eventId).OrderBy(x => x.Id).Select(x => x.Id).ToListAsync(),
+                UpdateAllSlots = await db.EventCompetitionUpdateAllSlots.AsNoTracking().Where(x => x.EventId == eventId).OrderBy(x => x.Id).Select(x => x.Id).ToListAsync(),
+                CharacterActivities = await db.EventCompetitionCharacterActivities.AsNoTracking().Where(x => x.EventId == eventId).OrderBy(x => x.Id).Select(x => x.Id).ToListAsync(),
+                CharacterMetrics = await db.EventCompetitionCharacterMetricActivities.AsNoTracking().Where(x => x.EventId == eventId).OrderBy(x => x.OsrsCharacterId).ThenBy(x => x.Metric)
+                    .Select(x => new { x.EventId, x.Generation, x.OsrsCharacterId, x.Metric, x.AssignmentFingerprint }).ToListAsync()
+            }
+        };
+        return JsonSerializer.Serialize(state);
     }
 
     private sealed class BeforeSubmissionTransaction(Func<Task> before) : DbTransactionInterceptor
@@ -1833,14 +1823,17 @@ public sealed class SubmissionWorkflowTests : IAsyncLifetime
         ev.OpenSignups();
         ev.MarkFirstPublic(now.AddDays(-8));
         ev.CloseSignups();
+        ev.SetDraftRosterPublication(true);
         ev.StartEvent(now.AddHours(-1));
         if (evidenceCode is not null) ev.SetEvidenceCodeEnabled(true);
         var team = new Team(teamId, eventId, "Team One", $"team-{teamId:N}", TeamFormationType.Drafted, null, true);
         var participant = new EventParticipant(participantId, eventId, SignupStatus.Confirmed, 1, now.AddDays(-5), SignupSource.Website);
         var form = new SignupForm(Guid.NewGuid(), eventId, now.AddDays(-5));
         var primaryQuestion = new SignupQuestion(Guid.NewGuid(), form.Id, eventId, "primary_regular_account", "Account", SignupQuestionType.Account, true, 0, null, SignupSystemField.PrimaryRegularAccount, EventCharacterRole.Playing);
-        var captain = Account.CreateEmergency(captainId, "captain", "CAPTAIN", now.AddDays(-10));
-        captain.Enable();
+        var captain = Account.CreateWebsite(captainId, "captain", "CAPTAIN", now.AddDays(-10));
+        var captainParticipant = new EventParticipant(Guid.NewGuid(), eventId, SignupStatus.Confirmed, 1000, now.AddDays(-5), SignupSource.Website);
+        captainParticipant.AssignOwner(captain);
+        var captainMembership = new TeamMembership(Guid.NewGuid(), teamId, captainParticipant.Id, TeamMembershipRole.Captain, now.AddDays(-4), null, null);
         var captainAccess = new AccountEventAccess(Guid.NewGuid(), captainId, eventId, teamId, participantId, now.AddDays(-1), now.AddHours(5), now.AddHours(30));
         captainAccess.Enable();
         var admin = Account.CreateWebsite(adminId, "admin", "ADMIN", now.AddDays(-10));
@@ -1867,7 +1860,13 @@ public sealed class SubmissionWorkflowTests : IAsyncLifetime
         }
         var character = new OsrsCharacter(Guid.NewGuid(), "Player One", "PLAYER ONE", now);
         var assignment = new EventParticipantCharacter(Guid.NewGuid(), eventId, participantId, character.Id, 0, now, adminId, primaryQuestion.Id, EventCharacterRole.Playing, 500, EhbSource.Manual, null);
-        db.AddRange(ev, form, primaryQuestion, team, participant, character, assignment, captain, admin, board, captainAccess,
+        var draft = new DraftSession(Guid.NewGuid(), eventId, 1);
+        draft.FinalizeDirect(now.AddDays(-1));
+        var publication = new DraftPublicationCycle(Guid.NewGuid(), draft.Id, 1, now.AddDays(-1), adminId, DraftPublicationMethod.DirectRoster);
+        var publishedRoster = new DraftPublicationRoster(Guid.NewGuid(), publication.Id, teamId, participantId,
+            TeamMembershipRole.Participant, null, character.DisplayName);
+        db.AddRange(ev, form, primaryQuestion, team, participant, character, assignment, captain, captainParticipant, captainMembership, admin, board, captainAccess,
+            draft, publication, publishedRoster,
             new TeamMembership(Guid.NewGuid(), teamId, participantId, TeamMembershipRole.Participant, now.AddDays(-4), null, null));
         db.AddRange(tiles);
         db.AddRange(requirements);

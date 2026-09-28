@@ -182,16 +182,19 @@ public sealed class Slice1MigrationRehearsalTests : IAsyncLifetime
             clock.Set(persistedCutoff);
             await lifecycle.ApplyAsync(CancellationToken.None);
             migrated.ChangeTracker.Clear();
-            Assert.False((await migrated.Accounts.SingleAsync(item => item.Id == captainId)).Active);
-            Assert.False((await migrated.AccountEventAccesses.SingleAsync(item => item.Id == access.Id)).Enabled);
-            Assert.Single(await migrated.AuditEntries.Where(item => item.Action == "account.emergency_cutoff_disabled" && item.TargetId == captainId.ToString()).ToListAsync());
+            // Emergency authority is retired. The compatibility worker is a
+            // deliberate no-op: retained rows and historical actor references
+            // are not mutated or given fabricated disable audit entries.
+            Assert.True((await migrated.Accounts.SingleAsync(item => item.Id == captainId)).Active);
+            Assert.True((await migrated.AccountEventAccesses.SingleAsync(item => item.Id == access.Id)).Enabled);
+            Assert.Empty(await migrated.AuditEntries.Where(item => item.Action == "account.emergency_cutoff_disabled" && item.TargetId == captainId.ToString()).ToListAsync());
             await lifecycle.ApplyAsync(CancellationToken.None);
-            Assert.Single(await migrated.AuditEntries.Where(item => item.Action == "account.emergency_cutoff_disabled" && item.TargetId == captainId.ToString()).ToListAsync());
+            Assert.Empty(await migrated.AuditEntries.Where(item => item.Action == "account.emergency_cutoff_disabled" && item.TargetId == captainId.ToString()).ToListAsync());
             await Assert.ThrowsAsync<InvalidOperationException>(() => new AccountAdministrationService(migrated, new PasswordHasher<Account>(), clock).SetEmergencyEnabledAsync(adminId, captainId, true, CancellationToken.None));
             await lifecycle.ApplyAsync(CancellationToken.None);
             migrated.ChangeTracker.Clear();
-            Assert.False((await migrated.Accounts.SingleAsync(item => item.Id == captainId)).Active);
-            Assert.False((await migrated.AccountEventAccesses.SingleAsync(item => item.Id == access.Id)).Enabled);
+            Assert.True((await migrated.Accounts.SingleAsync(item => item.Id == captainId)).Active);
+            Assert.True((await migrated.AccountEventAccesses.SingleAsync(item => item.Id == access.Id)).Enabled);
         }
 
         await using (var clean = new ApplicationDbContext(options))

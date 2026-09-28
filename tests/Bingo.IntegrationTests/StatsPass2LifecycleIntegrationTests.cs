@@ -2,8 +2,11 @@ using System.Data;
 using System.Text.Json;
 using Bingo.Application.Catalogue;
 using Bingo.Application.Events;
+using Bingo.Domain.Access;
 using Bingo.Domain.Catalogue;
 using Bingo.Domain.Events;
+using Bingo.Domain.Signups;
+using Bingo.Domain.Teams;
 using Bingo.Infrastructure.Events;
 using Bingo.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -24,7 +27,8 @@ public sealed partial class Slice3ScheduledLifecycleIntegrationTests
     public async Task StatsPass2StartUsesActualHourAndCommitsAllUsableCataloguePrices(bool scheduled, bool crossesHour)
     {
         var clock = new MutableTimeProvider(now.AddMinutes(59));
-        var (eventId, items) = await StartPriceFixtureAsync(scheduled);
+        var actor = new LifecycleActor(Guid.NewGuid(), "stats-pass2-admin");
+        var (eventId, items) = await StartPriceFixtureAsync(scheduled, actor);
         var requested = Bingo.Domain.Catalogue.CataloguePricing.LastCompletedHour(clock.GetUtcNow());
         await using var db = new ApplicationDbContext(options);
         var api = new StartPriceApi(hour =>
@@ -36,7 +40,7 @@ public sealed partial class Slice3ScheduledLifecycleIntegrationTests
         });
         var service = PriceLifecycle(db, clock, api);
         if (scheduled) await service.ProcessDueAsync();
-        else Assert.True((await service.StartNowAsync(eventId, await VersionAsync(eventId), true, "Early start", new(Guid.NewGuid(), "admin"))).Succeeded);
+        else Assert.True((await service.StartNowAsync(eventId, await VersionAsync(eventId), true, "Early start", actor)).Succeeded);
         await using var verify = new ApplicationDbContext(options);
         var saved = await verify.Events.SingleAsync(x => x.Id == eventId);
         var prices = await verify.EventItemPrices.Where(x => x.EventId == eventId).ToDictionaryAsync(x => x.ItemId);
@@ -60,12 +64,13 @@ public sealed partial class Slice3ScheduledLifecycleIntegrationTests
     [InlineData(true)]
     public async Task StatsPass2ProviderOutageDoesNotBlockManualOrScheduledStart(bool scheduled)
     {
-        var (eventId, items) = await StartPriceFixtureAsync(scheduled);
+        var actor = new LifecycleActor(Guid.NewGuid(), "stats-pass2-admin");
+        var (eventId, items) = await StartPriceFixtureAsync(scheduled, actor);
         await using var db = new ApplicationDbContext(options);
         var clock = new MutableTimeProvider(now);
         var service = PriceLifecycle(db, clock, new StartPriceApi(_ => Task.FromResult<ApiHourlyPrices?>(null)));
         if (scheduled) await service.ProcessDueAsync();
-        else Assert.True((await service.StartNowAsync(eventId, await VersionAsync(eventId), true, "Early start", new(Guid.NewGuid(), "admin"))).Succeeded);
+        else Assert.True((await service.StartNowAsync(eventId, await VersionAsync(eventId), true, "Early start", actor)).Succeeded);
         await using var verify = new ApplicationDbContext(options);
         Assert.Equal(EventState.Live, (await verify.Events.SingleAsync(x => x.Id == eventId)).State);
         Assert.Equal(4, await verify.EventItemPrices.CountAsync(x => x.EventId == eventId));
@@ -77,7 +82,8 @@ public sealed partial class Slice3ScheduledLifecycleIntegrationTests
     [Fact]
     public async Task StatsPass2ConcurrentAndRepeatedStartsHaveOnePriceSetAndOneTransition()
     {
-        var (eventId, _) = await StartPriceFixtureAsync(false);
+        var actor = new LifecycleActor(Guid.NewGuid(), "stats-pass2-admin");
+        var (eventId, _) = await StartPriceFixtureAsync(false, actor);
         var version = await VersionAsync(eventId);
         var entered = 0;
         var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -90,7 +96,7 @@ public sealed partial class Slice3ScheduledLifecycleIntegrationTests
         async Task<EventStartResult> Start()
         {
             await using var db = new ApplicationDbContext(options);
-            return await PriceLifecycle(db, new MutableTimeProvider(now), api).StartNowAsync(eventId, version, true, "Race", new(Guid.NewGuid(), "admin"));
+            return await PriceLifecycle(db, new MutableTimeProvider(now), api).StartNowAsync(eventId, version, true, "Race", actor);
         }
         var results = await Task.WhenAll(Start(), Start());
         Assert.Single(results, x => x.Succeeded);
@@ -106,13 +112,14 @@ public sealed partial class Slice3ScheduledLifecycleIntegrationTests
     [InlineData(true)]
     public async Task StatsPass2SnapshotFailureRollsBackStartAndRetryCanCommit(bool scheduled)
     {
-        var (eventId, _) = await StartPriceFixtureAsync(scheduled);
+        var actor = new LifecycleActor(Guid.NewGuid(), "stats-pass2-admin");
+        var (eventId, _) = await StartPriceFixtureAsync(scheduled, actor);
         var failingOptions = new DbContextOptionsBuilder<ApplicationDbContext>(options).AddInterceptors(new FailFirstPriceSave()).Options;
         await using var db = new ApplicationDbContext(failingOptions);
         var service = PriceLifecycle(db, new MutableTimeProvider(now), new StartPriceApi(_ => Task.FromResult<ApiHourlyPrices?>(null)));
         var version = await VersionAsync(eventId);
         if (scheduled) await service.ProcessDueAsync();
-        else Assert.False((await service.StartNowAsync(eventId, version, true, "Rollback", new(Guid.NewGuid(), "admin"))).Succeeded);
+        else Assert.False((await service.StartNowAsync(eventId, version, true, "Rollback", actor)).Succeeded);
         await using (var verify = new ApplicationDbContext(options))
         {
             var e = await verify.Events.SingleAsync(x => x.Id == eventId);
@@ -124,20 +131,42 @@ public sealed partial class Slice3ScheduledLifecycleIntegrationTests
             Assert.Empty(await verify.EventParticipantCharacterSwaps.Where(x => x.EventId == eventId).ToListAsync());
         }
         if (scheduled) await service.ProcessDueAsync();
-        else Assert.True((await service.StartNowAsync(eventId, version, true, "Retry", new(Guid.NewGuid(), "admin"))).Succeeded);
+        else Assert.True((await service.StartNowAsync(eventId, version, true, "Retry", actor)).Succeeded);
         await using var final = new ApplicationDbContext(options);
         Assert.Equal(EventState.Live, (await final.Events.SingleAsync(x => x.Id == eventId)).State);
         Assert.Equal(4, await final.EventItemPrices.CountAsync());
     }
 
     [Fact]
+    public async Task StatsPass2UnauthorizedManualStartDoesNotCallProvider()
+    {
+        var (eventId, _) = await StartPriceFixtureAsync(false);
+        var providerCalls = 0;
+        await using var db = new ApplicationDbContext(options);
+        var service = PriceLifecycle(db, new MutableTimeProvider(now), new StartPriceApi(_ =>
+        {
+            providerCalls++;
+            return Task.FromResult<ApiHourlyPrices?>(null);
+        }));
+        var result = await service.StartNowAsync(eventId, await VersionAsync(eventId), true, "Unauthorized attempt", new(Guid.NewGuid(), "missing-admin"));
+        Assert.False(result.Succeeded);
+        Assert.Contains("active website administrator", result.Error, StringComparison.Ordinal);
+        Assert.Equal(0, providerCalls);
+        await using var verify = new ApplicationDbContext(options);
+        var item = await verify.Events.SingleAsync(x => x.Id == eventId);
+        Assert.Equal(EventState.SignupClosed, item.State);
+        Assert.Null(item.ActualStartedAt);
+        Assert.Empty(await verify.EventItemPrices.Where(x => x.EventId == eventId).ToListAsync());
+    }
+
+    [Fact]
     public async Task StatsPass2CatalogueEditsAndResumePreserveEveryFrozenField()
     {
-        var (eventId, items) = await StartPriceFixtureAsync(false);
+        var actor = new LifecycleActor(Guid.NewGuid(), "stats-pass2-admin");
+        var (eventId, items) = await StartPriceFixtureAsync(false, actor);
         var clock = new MutableTimeProvider(now);
         await using var db = new ApplicationDbContext(options);
         var service = PriceLifecycle(db, clock, new StartPriceApi(_ => Task.FromResult<ApiHourlyPrices?>(null)));
-        var actor = new LifecycleActor(Guid.NewGuid(), "admin");
         Assert.True((await service.StartNowAsync(eventId, await VersionAsync(eventId), true, "Early", actor)).Succeeded);
         var before = JsonSerializer.Serialize(await db.EventItemPrices.AsNoTracking().OrderBy(x => x.ItemId).ToListAsync());
         await using (var edit = new ApplicationDbContext(options))
@@ -196,20 +225,21 @@ public sealed partial class Slice3ScheduledLifecycleIntegrationTests
     [InlineData(true)]
     public async Task StatsPass2RejectedStartCandidateUsesTrustedFallbackAndFlagsRollbackAtomically(bool scheduled)
     {
-        var (eventId, items) = await StartPriceFixtureAsync(scheduled);
+        var actor = new LifecycleActor(Guid.NewGuid(), "stats-pass2-admin");
+        var (eventId, items) = await StartPriceFixtureAsync(scheduled, actor);
         var failOptions = new DbContextOptionsBuilder<ApplicationDbContext>(options).AddInterceptors(new FailFirstPriceSave()).Options;
         await using var db = new ApplicationDbContext(failOptions);
         var service = PriceLifecycle(db, new MutableTimeProvider(now), new StartPriceApi(hour =>
             Task.FromResult<ApiHourlyPrices?>(new(hour, new Dictionary<int, long?> { [1] = 21, [2] = 1 }))));
         if (scheduled) await service.ProcessDueAsync();
-        else Assert.False((await service.StartNowAsync(eventId, await VersionAsync(eventId), true, "Reject rollback", new(Guid.NewGuid(), "admin"))).Succeeded);
+        else Assert.False((await service.StartNowAsync(eventId, await VersionAsync(eventId), true, "Reject rollback", actor)).Succeeded);
         await using (var verify = new ApplicationDbContext(options))
         {
             Assert.Null((await verify.CatalogueItems.SingleAsync(x => x.Id == items[0].Id)).RejectedPriceGp);
             Assert.Empty(await verify.AuditEntries.Where(x => x.EventId == eventId).ToListAsync());
         }
         if (scheduled) await service.ProcessDueAsync();
-        else Assert.True((await service.StartNowAsync(eventId, await VersionAsync(eventId), true, "Reject retry", new(Guid.NewGuid(), "admin"))).Succeeded);
+        else Assert.True((await service.StartNowAsync(eventId, await VersionAsync(eventId), true, "Reject retry", actor)).Succeeded);
         await using (var verify = new ApplicationDbContext(options))
         {
             var snapshot = await verify.EventItemPrices.SingleAsync(x => x.EventId == eventId && x.ItemId == items[0].Id);
@@ -221,13 +251,36 @@ public sealed partial class Slice3ScheduledLifecycleIntegrationTests
         }
     }
 
-    private async Task<(Guid EventId, CatalogueItem[] Items)> StartPriceFixtureAsync(bool scheduled)
+    private async Task<(Guid EventId, CatalogueItem[] Items)> StartPriceFixtureAsync(bool scheduled, LifecycleActor? adminActor = null)
     {
         var eventId = Guid.NewGuid();
         await using var db = new ApplicationDbContext(options);
         var e = ReadyDraft(db, eventId, $"start-price-{eventId:N}", now.AddDays(-2), scheduled ? now.AddHours(-3) : now.AddHours(2), now.AddDays(2));
         e.OpenSignups(now.AddDays(-2)); e.CloseSignups(now.AddDays(-1));
+        if (adminActor is not null)
+        {
+            var admin = Account.CreateWebsite(adminActor.Id, adminActor.Username, adminActor.Username.ToUpperInvariant(), now);
+            admin.SetGlobalRole(GlobalRole.Admin);
+            db.Accounts.Add(admin);
+        }
         db.Add(e); await db.SaveChangesAsync(); await AddReadyBoardAndDraftAsync(db, eventId);
+        if (adminActor is not null)
+        {
+            var draft = db.DraftSessions.Local.Single(x => x.EventId == eventId);
+            var primaryQuestion = db.SignupQuestions.Local.Single(x => x.EventId == eventId && x.SystemField == SignupSystemField.PrimaryRegularAccount);
+            var team = new Team(Guid.NewGuid(), eventId, "Price team", $"price-team-{eventId:N}", TeamFormationType.Drafted, null, true, now);
+            team.Finalize(now);
+            var participant = new EventParticipant(Guid.NewGuid(), eventId, SignupStatus.Confirmed, 1, now.AddHours(-2), SignupSource.AdminCreated);
+            var character = new OsrsCharacter(Guid.NewGuid(), "Price player", "PRICE PLAYER", now);
+            var assignment = new EventParticipantCharacter(Guid.NewGuid(), eventId, participant.Id, character.Id, 0, now.AddHours(-2), adminActor.Id,
+                primaryQuestion.Id, EventCharacterRole.Playing, 1, EhbSource.Manual, null);
+            var membership = new TeamMembership(Guid.NewGuid(), team.Id, participant.Id, TeamMembershipRole.Participant, now.AddHours(-2), null, "Price fixture");
+            var publication = new DraftPublicationCycle(Guid.NewGuid(), draft.Id, 1, now.AddHours(-1), adminActor.Id);
+            var roster = new DraftPublicationRoster(Guid.NewGuid(), publication.Id, team.Id, participant.Id, TeamMembershipRole.Participant, null, character.DisplayName);
+            e.SetDraftRosterPublication(true);
+            db.AddRange(team, participant, character, assignment, membership, publication, roster);
+            await db.SaveChangesAsync();
+        }
         var items = Enumerable.Range(1, 6).Select(i => new CatalogueItem(Guid.NewGuid(), $"Price {i}", $"PRICE {i}")).ToArray();
         for (var i = 0; i < items.Length; i++)
         {

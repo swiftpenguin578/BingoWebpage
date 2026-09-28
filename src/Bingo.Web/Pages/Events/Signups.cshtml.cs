@@ -3,6 +3,7 @@ using Bingo.Domain.Access;
 using Bingo.Domain.Events;
 using Bingo.Domain.Signups;
 using Bingo.Infrastructure.Persistence;
+using Bingo.Infrastructure.Teams;
 using Bingo.Web;
 using Bingo.Web.Events;
 using Bingo.Web.Security;
@@ -35,7 +36,7 @@ public sealed class SignupsModel(ApplicationDbContext db, ITeamCaptainAuthorityS
     {
         var item = await db.Events.AsNoTracking().SingleOrDefaultAsync(x => x.Slug == slug && x.HiddenAt == null, ct);
         if (item is null) return NotFound();
-        var rosterExists = await db.DraftPublicationCycles.AsNoTracking().AnyAsync(x => x.SupersededAt == null && db.DraftSessions.Any(d => d.Id == x.DraftSessionId && d.EventId == item.Id), ct);
+        var rosterExists = await db.ActiveRosterPublications(item.Id).AnyAsync(ct);
         var policy = EventDestinationPolicy.From(item, rosterExists);
         var administrator = await HasHistoricalTableAccessAsync(ct);
         var accountId = User.GetAccountId();
@@ -72,9 +73,10 @@ public sealed class SignupsModel(ApplicationDbContext db, ITeamCaptainAuthorityS
             _ => item.State.ToString()
         };
         ParticipantCap = item.ParticipantCap;
-        // Retained historical questions remain visible to administrators, but public
-        // projections must honour the same explicit board-visibility flag.
-        var questions = await db.SignupQuestions.AsNoTracking().Where(x => x.EventId == item.Id && x.DisabledReason != SignupQuestion.DeletedReason && (captainDraftAccess ? x.Active : x.PublicOnSignupBoard)).OrderBy(x => x.Position).ToListAsync(ct);
+        // This route is the active-only public signup-table projection for every user,
+        // including Admin and SuperAdmin. Inactive legacy answers remain on authorized
+        // private history routes; deleted, private, and co-captain answers never enter it.
+        var questions = await db.SignupQuestions.AsNoTracking().Where(x => x.EventId == item.Id && x.DisabledReason != SignupQuestion.DeletedReason && x.Active && x.SystemField != SignupSystemField.CoCaptainName && (captainDraftAccess || x.PublicOnSignupBoard)).OrderBy(x => x.Position).ToListAsync(ct);
         var accountQuestions = questions.Where(x => x.Type == SignupQuestionType.Account).ToList();
         var regularCount = accountQuestions.Count(x => x.AccountAnswerRole == EventCharacterRole.Playing);
         var altCount = accountQuestions.Count(x => x.AccountAnswerRole == EventCharacterRole.Informational);

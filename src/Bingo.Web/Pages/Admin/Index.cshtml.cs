@@ -1,6 +1,7 @@
 using Bingo.Application.Access;
 using Bingo.Application.Events;
 using Bingo.Application.Integrations.WiseOldMan;
+using Bingo.Domain.Auditing;
 using Bingo.Domain.Boards;
 using Bingo.Domain.Events;
 using Bingo.Domain.Evidence;
@@ -32,6 +33,14 @@ public sealed class IndexModel(ApplicationDbContext dbContext, IEventLifecycleSe
     public async Task OnGetAsync(CancellationToken cancellationToken)
     {
         var now = timeProvider.GetUtcNow();
+        var activeRosterEventIds =
+            from cycle in dbContext.DraftPublicationCycles.AsNoTracking()
+            join draft in dbContext.DraftSessions.AsNoTracking() on cycle.DraftSessionId equals draft.Id
+            where draft.State == DraftState.Finalized
+                  && cycle.SupersededAt == null
+                  && dbContext.DraftPublicationRosters.Any(roster => roster.DraftPublicationCycleId == cycle.Id)
+            select draft.EventId;
+
         var allEvents = await dbContext.Events.AsNoTracking().Where(item => item.HiddenAt == null && item.State != EventState.Discarded)
             .Select(item => new EventSummary(
                 item.Id,
@@ -47,9 +56,9 @@ public sealed class IndexModel(ApplicationDbContext dbContext, IEventLifecycleSe
                 dbContext.EventParticipants.Count(participant => participant.EventId == item.Id && participant.SignupStatus == SignupStatus.Confirmed),
                 dbContext.EventParticipants.Count(participant => participant.EventId == item.Id && participant.SignupStatus == SignupStatus.WaitingList),
                 dbContext.Submissions.Count(submission => submission.EventId == item.Id && submission.Status == SubmissionStatus.Pending),
-                dbContext.DraftSessions.Any(session => session.EventId == item.Id && session.State == DraftState.Finalized),
+                activeRosterEventIds.Contains(item.Id),
                 dbContext.Boards.Any(board => board.EventId == item.Id && board.State == BoardState.Published),
-                dbContext.ScheduledEventStartAttempts.Any(attempt => attempt.EventId == item.Id && attempt.ScheduledFor <= now && !attempt.Started && attempt.ResolvedAt == null),
+                dbContext.ScheduledEventStartAttempts.Any(attempt => attempt.EventId == item.Id && attempt.ScheduledFor == item.EventStartsAt && attempt.ScheduledFor <= now && !attempt.Started && attempt.ResolvedAt == null && (item.State == EventState.Draft || item.State == EventState.SignupOpen || item.State == EventState.SignupClosed)),
                 EventDisplayPhase.Lifecycle))
             .ToListAsync(cancellationToken);
 
@@ -113,9 +122,9 @@ public sealed class IndexModel(ApplicationDbContext dbContext, IEventLifecycleSe
         RecentAudits = await (from audit in dbContext.AuditEntries.AsNoTracking()
                               join bingoEvent in dbContext.Events.AsNoTracking() on audit.EventId equals bingoEvent.Id into events
                               from bingoEvent in events.DefaultIfEmpty()
-                              where audit.EventId == null || bingoEvent.HiddenAt == null
-                              orderby audit.OccurredAt descending
-                              select new AuditSummary(audit.OccurredAt, audit.ActorUsername, audit.Action, audit.Details, bingoEvent == null ? null : bingoEvent.Name))
+                              where audit.EventId == null || (bingoEvent != null && bingoEvent.HiddenAt == null)
+                              orderby audit.OccurredAt descending, audit.Id descending
+                              select new AuditSummary(audit, bingoEvent == null ? null : bingoEvent.Name))
             .Take(4)
             .ToListAsync(cancellationToken);
     }
@@ -240,5 +249,5 @@ public sealed class IndexModel(ApplicationDbContext dbContext, IEventLifecycleSe
     public sealed record PendingEvidenceSummary(Guid EventId, string EventName, string EventSlug, string Timezone, int Count, DateTimeOffset OldestSubmittedAt);
     public sealed record WiseOldManSummary(Guid EventId, string EventName, long CompetitionId, DateTimeOffset? LastSuccessfulAt, DateTimeOffset? NormalDueAt, DateTimeOffset? RetryDueAt, bool? Complete, IReadOnlyList<string> MissingAccounts, string? LastError);
     private sealed record PendingEvidenceAggregate(Guid EventId, int Count, DateTimeOffset OldestSubmittedAt);
-    public sealed record AuditSummary(DateTimeOffset OccurredAt, string ActorUsername, string Action, string? Details, string? EventName);
+    public sealed record AuditSummary(AuditEntry Entry, string? EventName);
 }

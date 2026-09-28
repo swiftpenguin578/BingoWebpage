@@ -1,5 +1,4 @@
 using System.Text;
-using System.Text.RegularExpressions;
 using Bingo.Domain.Access;
 using Bingo.Domain.Events;
 using Bingo.Domain.Signups;
@@ -112,9 +111,14 @@ public sealed class PreformedRosterCsvImportIntegrationTests : IAsyncLifetime
         var (actor, ev, team) = await SeedAsync(); await using var db = new ApplicationDbContext(options); using var cache = new MemoryCache(new MemoryCacheOptions()); var service = new PreformedRosterCsvImportService(db, new EventParticipantCharacterService(db, TimeProvider.System), cache, TimeProvider.System); const string csv = "Account,EHB\r\nReserved Main,1\r\nSecond Main,2\r\n"; await using var previewStream = new MemoryStream(Encoding.UTF8.GetBytes(csv)); var preview = await service.PreviewAsync(actor.Id, ev.Id, team.Id, previewStream, CancellationToken.None); var participant = new EventParticipant(Guid.NewGuid(), ev.Id, SignupStatus.Confirmed, 1, DateTimeOffset.UtcNow, SignupSource.AdminCreated); var character = new OsrsCharacter(Guid.NewGuid(), "Reserved Main", "RESERVED MAIN", DateTimeOffset.UtcNow); db.AddRange(participant, character, new EventParticipantCharacter(Guid.NewGuid(), ev.Id, participant.Id, character.Id, 0, DateTimeOffset.UtcNow, actor.Id, null, EventCharacterRole.Playing, 5m, EhbSource.AdminCorrection, null)); await db.SaveChangesAsync(); Assert.False((await service.ApplyAsync(actor.Id, actor.LoginName, ev.Id, team.Id, preview.Nonce!, CancellationToken.None)).Succeeded); Assert.Equal(1, await db.EventParticipants.CountAsync()); Assert.Equal(1, await db.OsrsCharacters.CountAsync()); Assert.Equal(1, await db.EventParticipantCharacters.CountAsync()); Assert.Equal(0, await db.TeamMemberships.CountAsync()); Assert.Equal(0, await db.AuditEntries.CountAsync());
     }
     [Fact]
-    public async Task PreformedTemplateHandlerAllowsOnlyPreformedTeamsAndMarkupKeepsCsvSurfaceBounded()
+    public async Task OperatorCsvTemplateRemainsAvailableWhileDraftRetiresTheCsvSurface()
     {
-        var markup = await File.ReadAllTextAsync(Path.Combine(FindRepositoryRoot(), "src", "Bingo.Web", "Pages", "Admin", "Events", "Draft.cshtml")); var csv = markup[markup.IndexOf("Import external roster CSV", StringComparison.Ordinal)..markup.IndexOf("Advanced correction", StringComparison.Ordinal)]; Assert.Equal("Account,EHB\r\n", Encoding.UTF8.GetString(PreformedRosterCsvImportService.Template())); Assert.Contains("TeamFormationType.Preformed", markup); Assert.Contains("Account,EHB", csv); Assert.True(Regex.Count(csv, "name=\\\"csv\\\"") == 1); Assert.DoesNotContain("Role<select", csv); Assert.DoesNotContain("Discord", csv); Assert.DoesNotContain("Image URL", csv); Assert.DoesNotContain("targetSize", csv);
+        var markup = await File.ReadAllTextAsync(Path.Combine(FindRepositoryRoot(), "src", "Bingo.Web", "Pages", "Admin", "Events", "Draft.cshtml"));
+        Assert.Equal("Account,EHB\r\n", Encoding.UTF8.GetString(PreformedRosterCsvImportService.Template()));
+        Assert.Contains("includedInDraft", markup);
+        Assert.DoesNotContain("Import external roster CSV", markup);
+        Assert.DoesNotContain("RosterCsv", markup);
+        Assert.DoesNotContain("TeamFormationType.Preformed", markup);
     }
     private async Task<(Account Actor, BingoEvent Event, Team Team)> SeedAsync()
     { var now = DateTimeOffset.UtcNow; await using var db = new ApplicationDbContext(options); var actor = Account.CreateWebsite(Guid.NewGuid(), "csv-admin-" + Guid.NewGuid(), "CSVADMIN" + Guid.NewGuid().ToString("N"), now); actor.SetGlobalRole(GlobalRole.Admin); var ev = new BingoEvent(Guid.NewGuid(), "CSV event " + Guid.NewGuid(), "csv-" + Guid.NewGuid().ToString("N"), "UTC", actor.Id, now); var team = new Team(Guid.NewGuid(), ev.Id, "Preformed", "preformed-" + Guid.NewGuid().ToString("N"), TeamFormationType.Preformed, null, false); db.AddRange(actor, ev, team); await db.SaveChangesAsync(); return (actor, ev, team); }

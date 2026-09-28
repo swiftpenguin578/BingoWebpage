@@ -24,12 +24,65 @@
     return url.href;
   };
   const closeOpenConfirmation = () => {
-    const confirmation = currentEditor()?.querySelector("details.signup-question-remove[open]");
-    if (!(confirmation instanceof HTMLDetailsElement)) return false;
-    confirmation.removeAttribute("open");
-    confirmation.open = false;
-    confirmation.querySelector("summary")?.focus({ preventScroll: true });
+    if (!window.adminConfirmation?.active) return false;
+    window.adminConfirmation.cancel();
     return true;
+  };
+
+  const destructiveConfirmationDetails = form => ({
+    title: form.dataset.signupQuestionConfirmationTitle || "",
+    description: [form.dataset.signupQuestionConfirmationDescription, form.dataset.signupQuestionConfirmationImpact]
+      .filter(Boolean)
+      .join(" "),
+    actionLabel: form.dataset.signupQuestionConfirmationAction || ""
+  });
+
+  const confirmationQuestionId = form => form?.querySelector("input[name='questionId']")?.value || "";
+  const findConfirmationForm = (root, questionId) => {
+    if (!root?.querySelectorAll || !questionId) return null;
+    return Array.from(root.querySelectorAll("form[data-signup-question-confirmation='true']"))
+      .find(candidate => confirmationQuestionId(candidate) === questionId) || null;
+  };
+  const refreshDestructiveConfirmation = (form, refreshedForm) => {
+    ["expectedAnswerCount", "expectedEventRegistrationReleaseCount", "expectedQuestionVersion"].forEach(name => {
+      const source = refreshedForm.querySelector(`input[name='${name}']`);
+      const target = form.querySelector(`input[name='${name}']`);
+      if (source instanceof HTMLInputElement && target instanceof HTMLInputElement) target.value = source.value;
+    });
+    ["signupQuestionConfirmationTitle", "signupQuestionConfirmationDescription", "signupQuestionConfirmationImpact", "signupQuestionConfirmationAction"].forEach(name => {
+      if (refreshedForm.dataset[name] !== undefined) form.dataset[name] = refreshedForm.dataset[name];
+    });
+    const details = destructiveConfirmationDetails(form);
+    const confirmation = document.querySelector("[data-admin-confirmation]");
+    if (confirmation instanceof HTMLElement) {
+      const title = confirmation.querySelector("#admin-confirmation-title");
+      const description = confirmation.querySelector("#admin-confirmation-description");
+      const action = confirmation.querySelector("[data-admin-confirmation-action]");
+      if (title instanceof HTMLElement) title.textContent = details.title;
+      if (description instanceof HTMLElement) description.textContent = details.description;
+      if (action instanceof HTMLElement) action.textContent = details.actionLabel;
+    }
+  };
+
+  const openDestructiveConfirmation = (form, submitter) => {
+    if (!window.adminConfirmation) {
+      showFailure(document.body.dataset.signupQuestionsConfirmationError || "");
+      return;
+    }
+    const details = destructiveConfirmationDetails(form);
+    const opener = submitter instanceof HTMLElement ? submitter : form.querySelector("button[type='submit']");
+    try {
+      window.adminConfirmation.open({
+        title: details.title,
+        description: details.description,
+        actionLabel: details.actionLabel,
+        danger: true,
+        opener,
+        onConfirm: () => submitForm(form, submitter)
+      }).catch(() => { showFailure(document.body.dataset.signupQuestionsConfirmationError || ""); });
+    } catch {
+      showFailure(document.body.dataset.signupQuestionsConfirmationError || "");
+    }
   };
 
   const bindTriggers = () => {
@@ -56,26 +109,6 @@
       details.addEventListener("toggle", syncEditForm);
       syncEditForm();
     });
-    editor.querySelectorAll("[data-signup-question-cancel-removal]").forEach((button) => {
-      if (button.dataset.signupQuestionsCancelReady === "true") return;
-      button.dataset.signupQuestionsCancelReady = "true";
-      button.addEventListener("click", closeOpenConfirmation);
-    });
-    editor.querySelectorAll("details.signup-question-remove").forEach((confirmation) => {
-      if (confirmation.dataset.signupQuestionsConfirmationReady === "true") return;
-      confirmation.dataset.signupQuestionsConfirmationReady = "true";
-      confirmation.addEventListener("toggle", () => {
-        if (!confirmation.open) return;
-        editor.querySelectorAll("details.signup-question-remove[open]").forEach((other) => { if (other !== confirmation) other.open = false; });
-        confirmation.querySelector("[data-signup-question-cancel-removal]")?.focus({ preventScroll: true });
-      });
-      confirmation.addEventListener("keydown", (event) => {
-        if (event.key !== "Escape" || !confirmation.open) return;
-        event.preventDefault();
-        event.stopPropagation();
-        closeOpenConfirmation();
-      });
-    });
     editor.querySelectorAll("form").forEach((form) => {
       if (form.dataset.signupQuestionsFormReady === "true") return;
       form.dataset.signupQuestionsFormReady = "true";
@@ -83,7 +116,10 @@
         if (event.defaultPrevented) return;
         event.preventDefault();
         if (guard.pending) return;
-        const submit = () => submitForm(form, event.submitter);
+        const submit = () => {
+          if (form.dataset.signupQuestionConfirmation === "true") openDestructiveConfirmation(form, event.submitter);
+          else void submitForm(form, event.submitter);
+        };
         if (dirtyForms(form).length) confirmDiscard(submit);
         else submit();
       });
@@ -92,27 +128,22 @@
     editor.querySelectorAll("[data-edit-question-type]").forEach((editType) => {
       if (editType.dataset.interactionsReady === "true") return;
       const editForm = editType.closest("form");
-      const editRole = editForm?.querySelector("[data-edit-account-role]");
       const editOptions = editForm?.querySelector("[data-edit-choice-options]");
-      if (!(editType instanceof HTMLSelectElement) || !(editRole instanceof HTMLElement) || !(editOptions instanceof HTMLElement)) return;
+      if (!(editType instanceof HTMLSelectElement) || !(editOptions instanceof HTMLElement)) return;
       editType.dataset.interactionsReady = "true";
-      const updateEdit = () => { editRole.hidden = editType.value !== "Account"; editOptions.hidden = editType.value !== "SingleChoice"; };
+      const updateEdit = () => { editOptions.hidden = editType.value !== "SingleChoice"; };
       editType.addEventListener("change", updateEdit);
       updateEdit();
     });
 
     const type = editor.querySelector("[data-question-type]");
     const options = editor.querySelector("[data-choice-options]");
-    const role = editor.querySelector("[data-account-role]");
     const required = editor.querySelector("[data-required-field]");
-    if (type instanceof HTMLSelectElement && options instanceof HTMLElement && role instanceof HTMLElement) {
+    if (type instanceof HTMLSelectElement && options instanceof HTMLElement) {
       const update = () => {
         options.hidden = type.value !== "SingleChoice";
-        role.hidden = type.value !== "Account";
         if (required instanceof HTMLElement) {
-          required.hidden = type.value === "Account";
-          const input = required.querySelector("input");
-          if (input instanceof HTMLInputElement && type.value === "Account") input.checked = false;
+          required.hidden = false;
         }
       };
       type.addEventListener("change", update);
@@ -182,7 +213,7 @@
   };
 
   const submitForm = async (form, submitter) => {
-    if (guard.pending) return;
+    if (guard.pending) return { succeeded: false, message: "" };
     const standaloneEditor = dialog.open ? null : currentEditor();
     const requestId = ++loadId;
     const options = { method: (form.method || "post").toUpperCase(), credentials: "same-origin", headers: { "X-Requested-With": "XMLHttpRequest" } };
@@ -193,17 +224,33 @@
       const response = await window.fetch(form.action || editorUrl(), options);
       if (!response.ok) throw new Error();
       const html = await response.text();
-      if (requestId !== loadId) return;
+      if (requestId !== loadId) return { succeeded: false, message: "" };
       const parsed = new DOMParser().parseFromString(html, "text/html");
       if (!parsed.querySelector("[data-signup-questions-editor]")) throw new Error();
       const errors = Array.from(parsed.querySelectorAll(".field-validation-error, .validation-summary-errors, .app-toast-error .app-toast-copy span, .app-toast-warning .app-toast-copy span")).map((error) => error.textContent.trim()).filter(Boolean);
-      if (errors.length || parsed.querySelector("[data-signup-questions-invalid='true']")) { showFailure(errors.join(" ")); return; }
+      const staleImpactMessage = errors.find(error => /reload this question before confirming/i.test(error));
+      if (staleImpactMessage) {
+        const refreshedForm = findConfirmationForm(parsed, confirmationQuestionId(form));
+        if (refreshedForm) refreshDestructiveConfirmation(form, refreshedForm);
+      }
+      if (errors.length || parsed.querySelector("[data-signup-questions-invalid='true']")) {
+        const message = errors.join(" ");
+        showFailure(message);
+        return { succeeded: false, message };
+      }
       replaceEditor(html, standaloneEditor);
       try { await refreshParticipants(); }
-        catch { showFailure(document.body.dataset.adminParentRefreshError); return; }
+        catch {
+          const message = document.body.dataset.adminParentRefreshError || "";
+          showFailure(message);
+          return { succeeded: false, message };
+        }
       currentEditor()?.querySelector("[data-signup-questions-close]")?.focus({ preventScroll: true });
+      return true;
     } catch {
-      showFailure();
+      const message = document.body.dataset.signupQuestionsSaveError || "";
+      showFailure(message);
+      return { succeeded: false, message };
     } finally {
       finish();
     }
@@ -306,11 +353,14 @@
   };
 
   const sync = () => {
-    if (restoringHistory && hasOverlay()) { restoringHistory = false; return; }
+    if (restoringHistory && hasOverlay()) {
+      restoringHistory = false;
+      if (!guard.pending && dirtyForms().length) confirmDiscard(closeNow);
+      return;
+    }
     if (!hasOverlay() && dialog.open && !closing && (guard.pending || dirtyForms().length)) {
       restoringHistory = true;
       history.forward();
-      if (!guard.pending) confirmDiscard(closeNow);
       return;
     }
     if (hasOverlay()) {
@@ -323,9 +373,7 @@
 
   const standalone = document.querySelector("[data-signup-questions-editor]");
   if (standalone instanceof HTMLElement) initializeEditor(standalone);
-  window.addEventListener("beforeunload", (event) => {
-    if (guard.pending || dirtyForms().length) { event.preventDefault(); event.returnValue = ""; }
-  });
+  window.watchAdminUnsavedChanges(() => dirtyForms().length > 0);
   bindTriggers();
   document.addEventListener("bingo:content-updated", bindTriggers);
   dialog.addEventListener("cancel", (event) => { event.preventDefault(); if (!guard.pending && !cancelDiscard() && !closeOpenConfirmation()) closeWithHistory(); });

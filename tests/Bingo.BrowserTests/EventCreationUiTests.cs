@@ -1,17 +1,22 @@
 using Bingo.Application.Events;
 using Bingo.Domain.Events;
 using Bingo.Web.Pages.Admin.Events;
+using Microsoft.AspNetCore.Mvc.Infrastructure;
+using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Bingo.BrowserTests;
 
 [Collection(BrowserTestGroup.Name)]
 public sealed class EventCreationUiTests
 {
+    private readonly BrowserTestApplicationFactory factory;
     private readonly HttpClient client;
 
     public EventCreationUiTests(BrowserTestApplicationFactory factory)
     {
+        this.factory = factory;
         client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
     }
 
@@ -31,8 +36,8 @@ public sealed class EventCreationUiTests
         Assert.Equal("/Account/Login", identity.Headers.Location?.AbsolutePath);
         Assert.Equal(System.Net.HttpStatusCode.Redirect, schedule.StatusCode);
         Assert.Equal("/Account/Login", schedule.Headers.Location?.AbsolutePath);
-        Assert.Equal(System.Net.HttpStatusCode.Redirect, banner.StatusCode);
-        Assert.Equal("/Account/Login", banner.Headers.Location?.AbsolutePath);
+        Assert.Equal(System.Net.HttpStatusCode.NotFound, banner.StatusCode);
+        Assert.Null(banner.Headers.Location);
         Assert.Equal(System.Net.HttpStatusCode.Redirect, participants.StatusCode);
         Assert.Equal("/Account/Login", participants.Headers.Location?.AbsolutePath);
         Assert.Equal(System.Net.HttpStatusCode.Redirect, participantsPost.StatusCode);
@@ -40,111 +45,109 @@ public sealed class EventCreationUiTests
     }
 
     [Fact]
-    public void CreationAndIdentityMarkupKeepTheGuidedAndNativeRouteBoundaries()
+    public void ScheduleEndUsesTheCanonicalDateTimeAdapterAndOneSharedConfirmation()
+    {
+        var repositoryRoot = FindRepositoryRoot();
+        var schedule = File.ReadAllText(Path.Combine(repositoryRoot, "src", "Bingo.Web", "Pages", "Admin", "Events", "Schedule.cshtml"));
+        var scheduleHandler = File.ReadAllText(Path.Combine(repositoryRoot, "src", "Bingo.Web", "Pages", "Admin", "Events", "Schedule.cshtml.cs"));
+
+        Assert.Contains("asp-for=\"Input.EventEndsLocal\" type=\"datetime-local\" step=\"300\" class=\"form-control event-datetime-canonical\" data-datetime-canonical", schedule);
+        Assert.Contains("data-schedule-boundary=\"Event ends\"", schedule);
+        Assert.Contains("window.bingoEventDateTime.initializeControls(document.querySelector(\"[data-schedule-editor]\"), window.flatpickr);", schedule);
+        Assert.Contains("window.adminConfirmation.open", schedule);
+        Assert.Contains("const isLive = form.dataset.live === \"true\";", schedule);
+        Assert.Contains("requireReason: isLive && consequenceChanges.some(change => change.label === \"Event ends\")", schedule);
+        Assert.Contains("HTMLFormElement.prototype.submit.call(form);", schedule);
+        Assert.Contains("schedules.SaveScheduleAsync(id, Input.Version, values, Input.ConfirmChanges", scheduleHandler);
+        Assert.Contains("Input.EventEndReason", scheduleHandler);
+    }
+
+    [Fact]
+    public void RetiredConfirmSignupHandlerIsAbsentFromTheManagePageHandlerDescriptor()
+    {
+        var repositoryRoot = FindRepositoryRoot();
+        var manageHandler = File.ReadAllText(Path.Combine(repositoryRoot, "src", "Bingo.Web", "Pages", "Admin", "Events", "Manage.cshtml.cs"));
+        Assert.Contains("BadRequest(Localize(\"The old signup confirmation handler is retired.", manageHandler);
+        Assert.DoesNotContain("signupLifecycle.CloseAsync(id, EventVersion, Actor, ct)", manageHandler);
+
+        var descriptor = factory.Services.GetRequiredService<IActionDescriptorCollectionProvider>()
+            .ActionDescriptors.Items.OfType<CompiledPageActionDescriptor>()
+            .Single(item => item.ViewEnginePath == "/Admin/Events/Manage");
+
+        Assert.DoesNotContain(descriptor.HandlerMethods, method => method.HttpMethod == "POST" && method.Name == "ConfirmSignup");
+    }
+
+    [Fact]
+    public void CreationAndIdentityMarkupKeepTheMinimalCreationAndNativeRouteBoundaries()
     {
         var repositoryRoot = FindRepositoryRoot();
         var creation = File.ReadAllText(Path.Combine(repositoryRoot, "src", "Bingo.Web", "Pages", "Admin", "Events", "Create.cshtml"));
         var createHandler = File.ReadAllText(Path.Combine(repositoryRoot, "src", "Bingo.Web", "Pages", "Admin", "Events", "Create.cshtml.cs"));
-        var creationScript = File.ReadAllText(Path.Combine(repositoryRoot, "src", "Bingo.Web", "wwwroot", "js", "event-create.js"));
-        var dateTimeScript = File.ReadAllText(Path.Combine(repositoryRoot, "src", "Bingo.Web", "wwwroot", "js", "event-create-datetime.js"));
-        var validationScript = File.ReadAllText(Path.Combine(repositoryRoot, "src", "Bingo.Web", "wwwroot", "js", "event-create-validation.js"));
         var identity = File.ReadAllText(Path.Combine(repositoryRoot, "src", "Bingo.Web", "Pages", "Admin", "Events", "Identity.cshtml"));
+        var identityScript = File.ReadAllText(Path.Combine(repositoryRoot, "src", "Bingo.Web", "wwwroot", "js", "event-identity.js"));
         var identityHandler = File.ReadAllText(Path.Combine(repositoryRoot, "src", "Bingo.Web", "Pages", "Admin", "Events", "Identity.cshtml.cs"));
         var manage = File.ReadAllText(Path.Combine(repositoryRoot, "src", "Bingo.Web", "Pages", "Admin", "Events", "Manage.cshtml"));
+        var lifecycleConfirmScript = File.ReadAllText(Path.Combine(repositoryRoot, "src", "Bingo.Web", "wwwroot", "js", "admin-lifecycle-confirm.js"));
         var manageHandler = File.ReadAllText(Path.Combine(repositoryRoot, "src", "Bingo.Web", "Pages", "Admin", "Events", "Manage.cshtml.cs"));
 
         foreach (var handler in new[] { createHandler, identityHandler, manageHandler })
             Assert.Contains("[Authorize(Policy = AuthorizationPolicies.Admin)]", handler);
 
         Assert.Contains("@page", creation);
-        Assert.Contains("<form method=\"post\" enctype=\"multipart/form-data\"", creation);
+        Assert.Contains("<form method=\"post\" class=\"event-create-form\">", creation);
         Assert.Contains("asp-validation-summary=\"ModelOnly\"", creation);
-        Assert.Contains("<nav class=\"event-create-steps\" aria-label=\"@T[\"Event setup steps\"]\">", creation);
-
-        var createPanels = new[]
-        {
-            (Index: 0, Id: "event-details-panel"),
-            (Index: 1, Id: "schedule-panel"),
-            (Index: 2, Id: "signup-panel"),
-            (Index: 3, Id: "planning-panel"),
-            (Index: 4, Id: "review-panel")
-        };
-
-        foreach (var panel in createPanels)
-        {
-            Assert.Contains($"data-create-step=\"{panel.Index}\" aria-controls=\"{panel.Id}\"", creation);
-            Assert.Contains($"id=\"{panel.Id}\" class=\"event-create-panel\" data-create-panel=\"{panel.Index}\"", creation);
-        }
-
-        Assert.Equal(5, Count(creation, "data-create-step=\""));
-        Assert.Equal(5, Count(creation, "data-create-panel=\""));
+        Assert.DoesNotContain("event-create-steps", creation);
+        Assert.DoesNotContain("data-create-panel", creation);
+        Assert.DoesNotContain("enctype=\"multipart/form-data\"", creation);
         Assert.Contains("asp-validation-for=\"Input.Name\"", creation);
-        Assert.Contains("aria-describedby=\"Input_Name-error\" data-val-required=\"Required\"", creation);
-        Assert.Contains("data-create-previous", creation);
-        Assert.Contains("data-create-next", creation);
-        Assert.Contains("data-create-submit hidden", creation);
-        Assert.Contains("<noscript><button", creation);
-
-        foreach (var field in new[]
-                 {
-                     "SignupOpensLocal",
-                     "SignupClosesLocal",
-                     "DraftLocal",
-                     "EventStartsLocal",
-                     "EventEndsLocal"
-                 })
-        {
-            Assert.Contains(
-                $"<input asp-for=\"Input.{field}\" type=\"datetime-local\" step=\"300\" class=\"form-control event-datetime-canonical\" data-datetime-canonical",
-                creation);
-        }
-
-        Assert.Equal(5, Count(creation, "data-datetime-control"));
-        Assert.Equal(5, Count(creation, "data-datetime-canonical"));
-        Assert.Equal(5, Count(creation, "data-datetime-date"));
-        Assert.Equal(5, Count(creation, "data-datetime-time"));
-        Assert.DoesNotContain("data-datetime-canonical tabindex=", creation);
-        Assert.DoesNotContain("data-datetime-canonical aria-hidden=", creation);
-
-        Assert.Contains("<script src=\"~/js/event-create-datetime.js\" asp-append-version=\"true\"></script>", creation);
-        Assert.Contains("<script src=\"~/js/event-create-validation.js\" asp-append-version=\"true\"></script>", creation);
-        Assert.Contains("<script src=\"~/js/event-create.js\" asp-append-version=\"true\"></script>", creation);
-        Assert.Contains("step.toggleAttribute(\"aria-current\", active)", creationScript);
-        Assert.Contains("window.bingoEventCreateValidation.navigateForward", creationScript);
-        Assert.Contains("window.bingoEventCreateValidation.validateCurrentStep", creationScript);
-        Assert.Contains("window.bingoEventCreateValidation.validateAndReveal", creationScript);
-        Assert.Contains("validator.settings.ignore = \":hidden:not([name])\";", validationScript);
-        Assert.Contains("invalid?.closest(\"[data-create-panel]\")", validationScript);
-        Assert.Contains("target.focus({ preventScroll: true })", validationScript);
-        Assert.Contains("canonical.value = date.value && time.value ? `${date.value}T${time.value}` : \"\";", dateTimeScript);
-        Assert.Contains("canonical.tabIndex = -1;", dateTimeScript);
-        Assert.Contains("canonical.setAttribute(\"aria-hidden\", \"true\");", dateTimeScript);
+        Assert.Contains("asp-for=\"Input.Timezone\"", creation);
+        Assert.Contains("Europe/Copenhagen", creation);
+        Assert.Contains("empty 5 × 5 board", creation);
+        Assert.DoesNotContain("Input.Slug", creation);
+        Assert.DoesNotContain("Input.Description", creation);
+        Assert.DoesNotContain("Input.Banner", creation);
+        Assert.DoesNotContain("SignupOpensLocal", creation);
 
         Assert.Contains("public async Task<IActionResult> OnPostAsync(CancellationToken ct)", createHandler);
-        Assert.Contains("if (!ModelState.IsValid) return Page();", createHandler);
-        Assert.Contains("BeginTransactionAsync(IsolationLevel.Serializable, ct)", createHandler);
-        Assert.Contains("item.ConfigureInitialSchedule(", createHandler);
+        Assert.Contains("ContainsRetiredWizardInputAsync", createHandler);
+        Assert.Contains("BeginTransactionAsync(IsolationLevel.ReadCommitted, ct)", createHandler);
         Assert.Contains("item.ConfigureSignup(", createHandler);
-        Assert.Contains("item.ConfigurePlanning(", createHandler);
+        Assert.Contains("new Board(Guid.NewGuid(), item.Id, \"Main board\", 5, 5)", createHandler);
+        Assert.Contains("DefaultQuestions(form.Id, item.Id)", createHandler);
+        Assert.Contains("IX_events_slug", createHandler);
+        Assert.DoesNotContain("ConfigureInitialSchedule(", createHandler);
+        Assert.DoesNotContain("ConfigurePlanning(", createHandler);
+        Assert.DoesNotContain("storage.", createHandler);
+        Assert.DoesNotContain("competitionClient.", createHandler);
         Assert.Contains("\"event.created\"", createHandler);
         Assert.Contains("return RedirectToPage(\"Manage\", new { id = item.Id });", createHandler);
 
         Assert.Contains("@page \"{id:guid}\"", identity);
-        Assert.Contains("<form method=\"post\" enctype=\"multipart/form-data\"", identity);
+        Assert.Contains("<form method=\"post\" class=\"identity-editor-form\">", identity);
         Assert.Contains("asp-validation-summary=\"ModelOnly\"", identity);
         Assert.Contains("<input asp-for=\"Input.Version\" type=\"hidden\" />", identity);
-
-        foreach (var field in new[] { "Name", "Slug", "Timezone", "Description", "Banner" })
-            Assert.Contains($"asp-for=\"Input.{field}\"", identity);
-
-        Assert.Contains("readonly=\"@(Model.IsSlugLocked || Model.EventState == EventState.Live ? \"readonly\" : null)\"", identity);
-        Assert.Contains("disabled=\"@(Model.EventState == EventState.Live ? \"disabled\" : null)\"", identity);
+        Assert.Contains("asp-for=\"Input.Name\"", identity);
+        Assert.Contains("Permanent event link", identity);
+        Assert.Contains("asp-for=\"Input.Timezone\"", identity);
+        Assert.Contains("asp-for=\"Input.Description\"", identity);
+        Assert.Contains("asp-for=\"Input.BuyInDescription\"", identity);
+        Assert.DoesNotContain("asp-for=\"Input.Slug\"", identity);
+        Assert.DoesNotContain("asp-for=\"Input.Banner\"", identity);
+        Assert.DoesNotContain("identity-remove-banner-form", identity);
+        Assert.Contains("data-identity-editor", identity);
+        Assert.Contains("data-identity-timezone-preview", identity);
+        Assert.Contains("data-identity-cancel", identity);
+        Assert.Contains("event-identity.js", identity);
+        Assert.Contains("window.adminConfirmation.open", identityScript);
+        Assert.Contains("guard?.initialize(form)", identityScript);
+        Assert.Contains("history.pushState", identityScript);
+        Assert.Contains("replaceEditorFromResponse", identityScript);
+        Assert.Contains("guard?.begin(submittedForm)", identityScript);
+        Assert.DoesNotContain("event-confirmation-box identity-timezone-confirmation", identity);
+        Assert.Contains("UTC fallback", identity);
+        Assert.Contains("disabled=\"@(!Model.CanEditTimezone ? \"disabled\" : null)\"", identity);
         Assert.Contains("asp-validation-for=\"Input.ConfirmTimezoneChange\"", identity);
         Assert.Contains("name=\"Input.ConfirmTimezoneChange\" value=\"true\"", identity);
-        Assert.Contains("accept=\"image/png,image/jpeg,image/webp\" aria-describedby=\"identity-banner-help\"", identity);
-        Assert.Contains("form=\"identity-remove-banner-form\" aria-label=\"@T[\"Remove current banner\"]\"", identity);
-        Assert.Contains("<form id=\"identity-remove-banner-form\" method=\"post\" asp-page-handler=\"RemoveBanner\"", identity);
-        Assert.Contains("<input asp-for=\"BannerVersion\" type=\"hidden\" />", identity);
 
         Assert.Contains("Url.Page(\"/Events/Signup\"", identity);
         Assert.Contains("Url.Page(\"/Events/Signups\"", identity);
@@ -154,14 +157,15 @@ public sealed class EventCreationUiTests
         Assert.Contains("aria-label=\"@T[\"Copy public signup table link\"]\"", identity);
         Assert.Contains("aria-label=\"@T[\"Copy public board link\"]\"", identity);
 
-        Assert.Contains("if (Input.Version != item.Version)", identityHandler);
-        Assert.Contains("item.FirstPublicAt is not null && !Input.ConfirmTimezoneChange", identityHandler);
-        Assert.Contains("if (item.State == EventState.Live)", identityHandler);
+        Assert.Contains("if (Input.Version != snapshot.Version)", identityHandler);
+        Assert.Contains("var requiresPreview = timezoneChanged && supportedTimezone && snapshot.FirstPublicAt is not null", identityHandler);
+        Assert.Contains("item.UpdateIdentity(name, item.Slug, description, buyInDescription, timezone)", identityHandler);
+        Assert.Contains("EventCapability.ConfigureIdentity", identityHandler);
         Assert.DoesNotContain("TimezoneReason", identity);
         Assert.DoesNotContain("TimezoneReason", identityHandler);
         Assert.Contains("catch (DbUpdateConcurrencyException)", identityHandler);
-        Assert.Contains("public async Task<IActionResult> OnPostRemoveBannerAsync", identityHandler);
-        Assert.Contains("if (BannerVersion != item.Version)", identityHandler);
+        Assert.DoesNotContain("OnPostRemoveBannerAsync", identityHandler);
+        Assert.Contains("HasRetiredBannerMutationAsync", identityHandler);
         Assert.Contains("\"event.identity_updated\"", identityHandler);
         Assert.Contains("return RedirectToPage(\"Manage\", new { id });", identityHandler);
 
@@ -169,18 +173,15 @@ public sealed class EventCreationUiTests
         Assert.Contains("aria-label=\"@T[\"Operational overview\"]\" data-manage-overview", manage);
         Assert.Contains("href=\"@blocker.Route\"", manage);
         Assert.Contains("data-update-targets=\"@partialUpdateTargets\"", manage);
-        Assert.Contains("data-confirmation-box tabindex=\"-1\"", manage);
-
-        foreach (var prepareHandler in new[]
-                 {
-                     "PrepareStartConfirmation",
-                     "PrepareEndConfirmation",
-                     "PrepareResumeConfirmation",
-                     "PrepareDestructiveConfirmation"
-                 })
-        {
-            Assert.Contains($"asp-page-handler=\"{prepareHandler}\"", manage);
-        }
+        Assert.Contains("<article class=\"panel event-admin-controls\">", manage);
+        Assert.Contains("<h2>@T[\"Event controls\"]</h2>", manage);
+        Assert.Contains("data-lifecycle-confirm", manage);
+        Assert.Contains("window.adminConfirmation?.open", lifecycleConfirmScript);
+        Assert.DoesNotContain("data-confirmation-box tabindex=\"-1\"", manage);
+        Assert.DoesNotContain("event-signup-primary", manage);
+        Assert.DoesNotContain("event-signup-toggle-form", manage);
+        Assert.DoesNotContain("event-wom-form", manage);
+        Assert.DoesNotContain("asp-page-handler=\"Prepare", manage);
 
         foreach (var confirmation in new[]
                  {
@@ -190,33 +191,50 @@ public sealed class EventCreationUiTests
                  })
         {
             Assert.Contains($"asp-page-handler=\"{confirmation.Handler}\"", manage);
-            Assert.Contains($"name=\"{confirmation.Name}\" value=\"true\"", manage);
+            Assert.Contains($"data-confirm-field=\"{confirmation.Name}\"", manage);
+            Assert.Contains($"name=\"{confirmation.Name}\" value=\"false\" data-confirm-field-value", manage);
         }
 
         Assert.Contains("asp-for=\"ReplacementEventEndsAtLocal\"", manage);
-        Assert.Contains("<textarea asp-for=\"ResumeReason\" class=\"form-control\" rows=\"3\" required>", manage);
+        Assert.Contains("data-confirm-reason-field=\"ResumeReason\"", manage);
+        Assert.Contains("name=\"ResumeReason\" data-confirm-reason-value", manage);
+        Assert.DoesNotContain("<textarea asp-for=\"ResumeReason\"", manage);
         Assert.Contains("aria-labelledby=\"resume-event-heading\"", manage);
         Assert.Contains("id=\"resume-event-heading\"", manage);
 
-        Assert.Contains("asp-page-handler=\"Discard\"", manage);
-        Assert.Contains("asp-page-handler=\"Cancel\"", manage);
-        Assert.Equal(2, Count(manage, "name=\"ConfirmDestructiveAction\" value=\"true\""));
-        Assert.Contains("<textarea asp-for=\"CancellationReason\" class=\"form-control\" rows=\"2\" required>", manage);
+        Assert.Contains("asp-page-handler=\"@destructiveHandler\"", manage);
+        Assert.Contains("var destructiveHandler = Model.CanDiscard ? \"Discard\" : \"Cancel\";", manage);
+        Assert.Equal(3, Count(manage, "name=\"ConfirmDestructiveAction\" value=\"false\" data-confirm-field-value"));
+        Assert.Contains("data-confirm-reason-field=\"CancellationReason\"", manage);
+        Assert.Contains("data-confirm-require-reason=\"@(Model.CanDiscard ? \"false\" : \"true\")\"", manage);
+        Assert.DoesNotContain("<textarea asp-for=\"CancellationReason\"", manage);
         Assert.Contains("aria-labelledby=\"event-danger-heading\"", manage);
         Assert.Contains("id=\"event-danger-heading\"", manage);
 
-        Assert.Contains("asp-page-handler=\"Competition\"", manage);
-        Assert.Contains("<input asp-for=\"EventVersion\" type=\"hidden\" />", manage);
-        Assert.Contains("asp-for=\"CompetitionId\"", manage);
-        Assert.Contains("<select asp-for=\"SynchronizeCompetitionSchedule\"", manage);
-        Assert.Contains("asp-for=\"ConfirmCompetitionSchedule\"", manage);
+        var hideFormStart = manage.IndexOf("asp-page-handler=\"Hide\"", StringComparison.Ordinal);
+        var hideFormEnd = manage.IndexOf("</form>", hideFormStart, StringComparison.Ordinal);
+        Assert.True(hideFormStart >= 0 && hideFormEnd > hideFormStart);
+        var hideForm = manage[hideFormStart..hideFormEnd];
+        Assert.Contains("data-lifecycle-confirm", hideForm);
+        Assert.Contains("data-confirm-field=\"ConfirmDestructiveAction\"", hideForm);
+        Assert.Contains("data-confirm-reason-field=\"QuarantineReason\"", hideForm);
+        Assert.Contains("data-confirm-require-reason=\"true\"", hideForm);
+        Assert.DoesNotContain("EventNameConfirmation", hideForm);
+
+        var restoreFormStart = manage.IndexOf("asp-page-handler=\"RestoreHidden\"", StringComparison.Ordinal);
+        var restoreFormEnd = manage.IndexOf("</form>", restoreFormStart, StringComparison.Ordinal);
+        Assert.True(restoreFormStart >= 0 && restoreFormEnd > restoreFormStart);
+        var restoreForm = manage[restoreFormStart..restoreFormEnd];
+        Assert.Contains("data-lifecycle-confirm", restoreForm);
+        Assert.Contains("data-confirm-field=\"ConfirmDestructiveAction\"", restoreForm);
+        Assert.DoesNotContain("data-confirm-require-reason=\"true\"", restoreForm);
+        Assert.DoesNotContain("EventNameConfirmation", manage);
 
         Assert.Contains("eventLifecycle.StartNowAsync(id, EventVersion, ConfirmStartEvent, StartReason, Actor, ct)", manageHandler);
         Assert.Contains("eventLifecycle.EndNowAsync(id, EventVersion, ConfirmEndEvent, EndReason, Actor, ct)", manageHandler);
         Assert.Contains("eventLifecycle.ResumePrematureEndAsync(id, EventVersion, ConfirmResumeEvent, ResumeReason, replacementEnd, Actor, ct)", manageHandler);
         Assert.Contains("destructiveLifecycle.DiscardAsync(id, EventVersion, ConfirmDestructiveAction, Actor, ct)", manageHandler);
         Assert.Contains("destructiveLifecycle.CancelAsync(id, EventVersion, ConfirmDestructiveAction, CancellationReason, Actor, ct)", manageHandler);
-        Assert.Contains("ConfigureAsync(id, EventVersion, CompetitionId, SynchronizeCompetitionSchedule, Actor, ConfirmCompetitionSchedule, ct)", manageHandler);
         Assert.Contains("private LifecycleActor Actor => new(User.GetAccountId()!.Value, User.Identity!.Name!);", manageHandler);
         Assert.Contains("OverviewBlockers = overviewBlockers.DistinctBy", manageHandler);
 
@@ -269,9 +287,9 @@ public sealed class EventCreationUiTests
         Assert.Contains("[FromForm] bool overlay", participantHandler);
         Assert.Contains("RedirectToParticipant", participantHandler);
         Assert.Contains("CanEditPrivateMetadata", participantHandler);
-        Assert.Contains("CanTransferOwnership", participantHandler);
-        Assert.Contains("ConfirmOwnershipTransfer", participant);
-        Assert.Contains("participant-ownership-confirmation", participant);
+        Assert.DoesNotContain("CanTransferOwnership", participantHandler);
+        Assert.DoesNotContain("ConfirmOwnershipTransfer", participant);
+        Assert.DoesNotContain("participant-ownership-confirmation", participant);
         Assert.Contains("participantEditOverlay", manageScript);
         Assert.Contains("participantEditBase", manageScript);
         Assert.Contains("initializeParticipantEditDialog", manageScript);
@@ -329,6 +347,8 @@ public sealed class EventCreationUiTests
         Assert.Contains("type=\"text\" placeholder=\"@T[\"Not answered\"]\" data-co-captain-input=\"true\" disabled=", participant);
         Assert.Contains("class=\"signup-sheet__input\" type=\"text\" value=\"@Model.Input.Answers.GetValueOrDefault(question.Id)\" data-co-captain-input", signup);
         Assert.Contains("InternalParticipant.OwnerAccountId", participantForm);
+        Assert.Contains("Every new participant must use an existing active website account.", participantForm);
+        Assert.DoesNotContain("owner is optional", participantForm, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("OwnerUsername", participantForm);
         Assert.Contains("OnGetSearchOwnerAccountsAsync", participantsHandler);
         Assert.Contains("item.Active && item.AccountType == AccountType.WebsiteAccount", participantsHandler);
@@ -362,11 +382,20 @@ public sealed class EventCreationUiTests
         Assert.DoesNotContain("window.innerWidth > 900", questionsScript);
         Assert.Contains("if (!dialog.open) dialog.showModal();", questionsScript);
         Assert.Contains("history.back()", questionsScript);
+        Assert.Contains("data-signup-question-confirmation=\"true\"", questions);
+        Assert.Contains("data-signup-question-confirmation-impact", questions);
+        Assert.DoesNotContain("signup-question-remove", questions);
+        Assert.Contains("window.adminConfirmation.open", questionsScript);
+        Assert.Contains("onConfirm: () => submitForm(form, submitter)", questionsScript);
         Assert.Contains("signup-questions-page-title", questions);
         Assert.Contains("aria-describedby=\"@(Model.IsOverlay ? \"signup-questions-dialog-description\" : null)\"", questions);
         Assert.Contains("aria-label=\"@T[\"Move {0} up\", question.Label]\"", questions);
         Assert.Contains("aria-label=\"@T[\"Move {0} down\", question.Label]\"", questions);
-        Assert.Contains("@T[\"Signup access\"]", questions);
+        Assert.DoesNotContain("@T[\"Signup access\"]", questions);
+        Assert.Contains("asp-page-handler=\"SignupCode\"", participants);
+        Assert.Contains("data-signup-code-toggle", participants);
+        Assert.Contains("OnPostSignupCodeAsync", participantsHandler);
+        Assert.Contains("catch (DbUpdateConcurrencyException)", participantsHandler);
         Assert.Contains(".admin-dialog-page-kicker { margin: 0; color: var(--admin-muted);", siteCss);
         Assert.DoesNotContain("class=\"step-kicker\"", questions);
         Assert.Contains("@if (!Model.IsOverlay)", questions);
@@ -402,37 +431,52 @@ public sealed class EventCreationUiTests
     }
 
     [Theory]
-    [InlineData("scheduled action", "scheduledBlockerCount == 0", "event-control-status", ".event-manage-page .event-admin-controls > .event-admin-control-group > .event-control-status")]
-    [InlineData("pre-live signup", "showSignupControls", "event-signup-group", ".event-manage-page .event-signup-group { display: grid; grid-template-columns: minmax(0, 1fr) auto;")]
-    [InlineData("signup-open schedule", "Automatic signup opening scheduled for:", "event-control-supporting", ".event-manage-page .event-signup-group")]
-    [InlineData("signup-closed start", "showStartControl", "PrepareStartConfirmation", ".event-manage-page .event-admin-event-actions")]
-    [InlineData("live controls", "showLiveControls", "PrepareEndConfirmation", ".event-manage-page .event-admin-event-actions")]
-    [InlineData("final review", "showFinalReviewControls", "ReopenSubmissions", ".event-manage-page .event-reopen-form > button")]
-    [InlineData("resume subsection", "event-control-subsection", "PrepareResumeConfirmation", ".event-manage-page .event-control-subsection")]
-    [InlineData("verification codes", "event-admin-code-group", "event-code-toggle-form", ".event-manage-page .event-code-toggle-form")]
-    [InlineData("terminal", "eventView.State == EventState.Cancelled", "Event cancelled", ".event-manage-page .event-admin-controls > .event-admin-control-group > .event-control-status")]
-    [InlineData("Wise Old Man", "integrationEditable", "event-wom-form", ".event-manage-page .event-wom-form")]
-    [InlineData("danger zone", "showDestructivePreLiveControl", "event-danger-zone-container", ".event-manage-page .event-danger-zone-form")]
-    public void ManageEventControlBranchesKeepRightOwnedActions(string branch, string branchMarker, string markupMarker, string cssMarker)
+    [InlineData("scheduled action", "Model.ScheduledAction is not null || showAllControlStages", "Scheduled lifecycle action", ".event-manage-page .event-admin-controls > .event-admin-control-group > .event-control-status", "@if (Model.ScheduledAction is not null || showAllControlStages)", "@if (showSignupControls)")]
+    [InlineData("pre-live signup", "showSignupControls", "event-signup-group", ".event-manage-page .event-signup-group { display: grid; grid-template-columns: minmax(0, 1fr) auto;", "@if (showSignupControls)", "@if (showStartControl || showLiveControls || showFinalReviewControls || showResultsControl)")]
+    [InlineData("signup-open schedule", "Automatic signup opening scheduled for:", "event-control-supporting", ".event-manage-page .event-signup-group", "@if (showSignupControls)", "@if (showStartControl || showLiveControls || showFinalReviewControls || showResultsControl)")]
+    [InlineData("signup-closed start", "showStartControl", "asp-page-handler=\"StartEvent\"", ".event-manage-page .event-admin-event-actions", "@if (showStartControl)", "@if (showLiveControls)")]
+    [InlineData("live controls", "showLiveControls", "asp-page-handler=\"EndEvent\"", ".event-manage-page .event-admin-event-actions", "@if (showLiveControls)", "@if (showFinalReviewControls)")]
+    [InlineData("final review", "showFinalReviewControls", "asp-page=\"Finalize\"", ".event-manage-page .event-reopen-form > button", "@if (showFinalReviewControls)", "@if (showResultsControl)")]
+    [InlineData("resume subsection", "event-control-subsection", "asp-page-handler=\"ResumeEvent\"", ".event-manage-page .event-control-subsection", "<section class=\"event-admin-control-group event-control-subsection\"", "</section>\n                    }")]
+    [InlineData("verification codes", "event-admin-code-group", "event-code-toggle-form", ".event-manage-page .event-code-toggle-form", "<section class=\"event-admin-control-group event-admin-code-group\">", "@if (showAllControlStages || eventView.State == EventState.Cancelled)")]
+    [InlineData("terminal", "eventView.State == EventState.Cancelled", "Event cancelled", ".event-manage-page .event-admin-controls > .event-admin-control-group > .event-control-status", "@if (showAllControlStages || eventView.State == EventState.Cancelled)", "@if (User.IsInRole(\"SuperAdmin\")")]
+    [InlineData("Wise Old Man", "Model.CompetitionIntegration?.Configured == true", "asp-page=\"WiseOldMan\"", ".event-overview-dates-panel", "<div class=\"event-overview-date-row @(Model.CompetitionIntegration?.Configured == true ?", "</div>\n            </dl>")]
+    [InlineData("danger zone", "showDestructivePreLiveControl", "event-danger-zone-container", ".event-manage-page .event-danger-zone-form", "@if (showDestructivePreLiveControl)", "</section>\n                }\n            </article>")]
+    public void ManageEventControlBranchesKeepRightOwnedActions(string branch, string branchMarker, string actionMarker, string cssMarker, string controlStartMarker, string controlEndMarker)
     {
         var repositoryRoot = FindRepositoryRoot();
         var manage = File.ReadAllText(Path.Combine(repositoryRoot, "src", "Bingo.Web", "Pages", "Admin", "Events", "Manage.cshtml"));
         var siteCss = BrowserTestFiles.ReadActiveStyles(repositoryRoot);
 
         Assert.True(manage.Contains(branchMarker, StringComparison.Ordinal), $"{branch}: missing branch marker");
-        Assert.Contains(markupMarker, manage);
         Assert.Contains(cssMarker, siteCss);
+
+        var controlStart = manage.IndexOf(controlStartMarker, StringComparison.Ordinal);
+        Assert.True(controlStart >= 0, $"{branch}: missing control start marker");
+        var controlEnd = manage.IndexOf(controlEndMarker, controlStart + controlStartMarker.Length, StringComparison.Ordinal);
+        Assert.True(controlEnd > controlStart, $"{branch}: missing control end marker");
+        var control = manage[controlStart..controlEnd];
+        Assert.Contains(branchMarker, control);
+        Assert.Contains(actionMarker, control);
+
+        Assert.Contains("<article class=\"panel event-admin-controls\">", manage);
         Assert.Contains("<h3>@T[\"Manual signup control\"]</h3>", manage);
         Assert.Contains("class=\"event-control-status event-control-supporting\"", manage);
         Assert.DoesNotContain("event-signup-primary", manage);
+        Assert.DoesNotContain("event-signup-toggle-form", manage);
+        Assert.DoesNotContain("event-wom-form", manage);
+        Assert.DoesNotContain("asp-page-handler=\"Prepare", manage);
         Assert.Contains(".event-manage-page .event-admin-controls .event-create-cancel { grid-column: auto; grid-row: auto;", siteCss);
         Assert.Contains(".event-manage-page .event-admin-event-actions { width: fit-content; max-width: 100%; justify-self: end; align-self: center; align-items: center; }", siteCss);
         Assert.Contains(".event-manage-page .event-evidence-actions { align-items: flex-start; }", siteCss);
-        Assert.Contains("                        </div>\n                    </section>\n\n                    @if (Model.SignupReadiness", manage);
-        Assert.DoesNotContain("                        }\n                    </section>\n\n                    @if (Model.SignupReadiness", manage);
-        var startActions = manage.IndexOf("@if (showStartControl)", StringComparison.Ordinal);
-        Assert.True(startActions >= 0);
-        Assert.True(manage.IndexOf("Model.StartReadiness?.Blockers.Count > 0", startActions, StringComparison.Ordinal) < manage.IndexOf("asp-page-handler=\"PrepareStartConfirmation\"", startActions, StringComparison.Ordinal));
+        Assert.Contains(".event-manage-page .event-admin-control-group { margin-top:", siteCss);
+        Assert.Contains("data-lifecycle-confirm", manage);
+
+        var lifecycleControls = manage.IndexOf("@if (showStartControl || showLiveControls || showFinalReviewControls || showResultsControl)", StringComparison.Ordinal);
+        Assert.True(lifecycleControls >= 0);
+        var startReadiness = manage.IndexOf("Model.StartReadiness?.Blockers.Count > 0", lifecycleControls, StringComparison.Ordinal);
+        var startAction = manage.IndexOf("asp-page-handler=\"StartEvent\"", lifecycleControls, StringComparison.Ordinal);
+        Assert.True(startReadiness >= 0 && startAction > startReadiness);
     }
 
     [Fact]
@@ -507,7 +551,6 @@ public sealed class EventCreationUiTests
     [InlineData("SIGNUP_CODE_UNUSABLE", "/Admin/Events/Questions/{0}", "Review signup form")]
     [InlineData("BOARD_NOT_PUBLISHED", "/Admin/Events/Board/{0}", "Review board")]
     [InlineData("DRAFT_NOT_FINALIZED", "/Admin/Events/Draft/{0}", "Review teams and draft")]
-    [InlineData("TEAM_ACCESS_MISSING", "/Admin/Events/Draft/{0}", "Review teams and draft")]
     [InlineData("CURRENT_EVENT_EXISTS", "/Admin/Events", "Review events")]
     [InlineData("EVENT_WINDOW_OVERLAP", "/Admin/Events", "Review events")]
     public void ManageBlockerMappingUsesTheRealResolutionRoute(string code, string routeTemplate, string label)

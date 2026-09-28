@@ -23,13 +23,13 @@
                     {
                         var dropIdsName = $"TileDraft.{prefix}.DropIds";
                         var dropWeightName = $"TileDraft.{prefix}.DropWeights[{drop.Id}]";
-                        <div class="eligible-drop-option"><label><input type="checkbox" name="@dropIdsName" value="@drop.Id" class="eligible-drop-checkbox" /> <span><span>@drop.ItemName</span><small>@drop.Rate</small></span></label><label class="drop-weight-field" hidden><span class="visually-hidden">@drop.ItemName contribution weight</span><input type="number" name="@dropWeightName" value="1" min="1" max="10000" class="form-control" aria-label="@drop.ItemName contribution weight" /></label></div>
+                        <div class="eligible-drop-option"><label><input type="checkbox" name="@dropIdsName" value="@drop.Id" class="eligible-drop-checkbox" /> <span><span>@drop.ItemName</span><small>@drop.Rate</small></span></label><label class="drop-count-field" hidden><span class="drop-count-label" data-count-label-prefix="@T["Counts as"]">@T["Counts as {0}", 1]</span><span class="visually-hidden">@T["How many times {0} counts", drop.ItemName]</span><input type="number" name="@dropWeightName" value="1" min="1" max="10000" class="form-control" aria-label="@T["How many times {0} counts", drop.ItemName]" /></label></div>
                     }
                 </section>
             }
             </div>
             <small class="missing-drop-help">@T["Missing a drop?"] <a href="/Admin/Catalogue" target="_blank">@T["Add it to the OSRS catalogue"]</a>, @T["then reopen this tile."]</small>
-            <div class="objective-counting-options"><div class="counting-options-heading">@T["Counting options"]</div><div class="counting-options-fields"><label class="check-row"><input type="checkbox" name="@($"TileDraft.{prefix}.DuplicatesAllowed")" value="true" checked /> @T["Allow repeated copies of the same eligible drop"]</label><label class="check-row"><input type="checkbox" class="individual-drop-weights-toggle" /> @T["Configure individual drop weights"]</label></div></div>
+            <div class="objective-counting-options"><div class="counting-options-heading">@T["Counting options"]</div><div class="counting-options-fields"><label class="check-row"><input type="checkbox" name="@($"TileDraft.{prefix}.DuplicatesAllowed")" value="true" checked /> @T["The same drop can count more than once"]</label><label class="check-row"><input type="checkbox" class="individual-drop-counts-toggle" /> @T["Some drops count as more than one"]</label></div></div>
         </section>
     </div>
 </fieldset>

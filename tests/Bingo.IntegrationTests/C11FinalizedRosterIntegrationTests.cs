@@ -5,6 +5,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using Bingo.Application.Events;
 using Bingo.Application.Evidence;
 using Bingo.Application.Integrations.WiseOldMan;
 using Bingo.Application.Signups;
@@ -48,7 +49,7 @@ public sealed class C11FinalizedRosterIntegrationTests : IAsyncLifetime
 
     public Task DisposeAsync() => database.DisposeAsync().AsTask();
     private ApplicationDbContext Db(params IInterceptor[] interceptors) => new(new DbContextOptionsBuilder<ApplicationDbContext>(options).AddInterceptors(interceptors).Options);
-    private SignupService Service(ApplicationDbContext db) => new(db, new SecretHasher(), clock, accountValidation: new SuccessfulWiseOldManAccountValidation());
+    private SignupService Service(ApplicationDbContext db, IEventCompetitionManagementService? competitionManagement = null) => new(db, new SecretHasher(), clock, accountValidation: new SuccessfulWiseOldManAccountValidation(), competitionManagement: competitionManagement);
 
     [Fact]
     public async Task HttpDepartureWaitingFillPreservesPublicationPicksNotesReservationsAndNotificationAccess()
@@ -57,12 +58,11 @@ public sealed class C11FinalizedRosterIntegrationTests : IAsyncLifetime
         await using var factory = Factory();
         using var admin = await LoginAsync(factory, "c11-admin");
         using var owner = await LoginAsync(factory, "c11-departed");
-        using var leader = await LoginAsync(factory, "c11-leader");
-        using var replacement = await LoginAsync(factory, "c11-waiting");
         using var publicClient = factory.CreateClient();
         var rosterBefore = await RowsAsync("draft_publication_rosters");
         var picksBefore = await RowsAsync("draft_picks");
         var assignmentsBefore = await RowsAsync("event_participant_characters");
+        var answersBefore = await RowsAsync("signup_answers", $"event_participant_id = '{seed.DepartedId}'");
         var route = ParticipantPath(seed, seed.DepartedId);
         Assert.Contains(route, await admin.GetStringAsync($"/Admin/Events/Participants/{seed.EventId}"));
         Assert.Contains(route, await admin.GetStringAsync($"/Admin/Events/Draft/{seed.EventId}"));
@@ -76,15 +76,20 @@ public sealed class C11FinalizedRosterIntegrationTests : IAsyncLifetime
         })) Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
         var vacancy = await admin.GetStringAsync(route);
         Assert.Contains("Departed C", vacancy);
-        Assert.Contains("(vacancy)", vacancy);
-        Assert.Contains("Fill open vacancy", vacancy);
-        Assert.Contains("Existing private note&#xA;C11 private departure detail", vacancy);
-        var search = await admin.GetStringAsync($"/Admin/Events/Participants/{seed.EventId}?ParticipantStatus=Withdrawn&ParticipantSearch=Departed%20C");
+        Assert.DoesNotContain("Fill open vacancy", vacancy);
+        Assert.Contains("Existing private note", vacancy);
+        Assert.DoesNotContain("C11 private departure detail", vacancy);
+        var search = await admin.GetStringAsync($"/Admin/Events/Participants/{seed.EventId}?ParticipantStatus=Confirmed&ParticipantSearch=Departed%20C");
+        Assert.Contains($"participant-row-{seed.DepartedId}", search);
         Assert.Contains(route, search);
+        Assert.Contains("Departed C", search);
+        var nonmatching = await admin.GetStringAsync($"/Admin/Events/Participants/{seed.EventId}?ParticipantStatus=Confirmed&ParticipantSearch=No%20such%20participant");
+        Assert.DoesNotContain($"participant-row-{seed.DepartedId}", nonmatching);
         Assert.Contains("Departed C", search);
         Assert.Contains("Departed C", await admin.GetStringAsync($"/Admin/Events/Draft/{seed.EventId}"));
         Assert.Equal(assignmentsBefore, await RowsAsync("event_participant_characters"));
         Assert.Equal(picksBefore, await RowsAsync("draft_picks"));
+        Assert.Equal(answersBefore, await RowsAsync("signup_answers", $"event_participant_id = '{seed.DepartedId}'"));
         await AssertOldRosterAsync(seed, rosterBefore);
         var published = await publicClient.GetStringAsync(TeamsPath(seed));
         Assert.DoesNotContain("Departed C", RosterSection(published));
@@ -94,19 +99,12 @@ public sealed class C11FinalizedRosterIntegrationTests : IAsyncLifetime
 
         await using (var db = Db())
         {
-            Assert.Equal(clock.Now, (await db.EventParticipants.SingleAsync(x => x.Id == seed.DepartedId)).WithdrawnAt);
+            Assert.Null((await db.EventParticipants.SingleAsync(x => x.Id == seed.DepartedId)).WithdrawnAt);
+            Assert.Equal(SignupStatus.Confirmed, (await db.EventParticipants.SingleAsync(x => x.Id == seed.DepartedId)).SignupStatus);
             Assert.Equal(clock.Now, (await db.TeamMemberships.SingleAsync(x => x.Id == seed.DepartedMembershipId)).LeftAt);
             Assert.Equal(SignupStatus.WaitingList, (await db.EventParticipants.SingleAsync(x => x.Id == seed.WaitingId)).SignupStatus);
             Assert.Empty(await db.EventParticipantCharacterSwaps.ToListAsync());
-            var own = Assert.Single(await db.PersonalNotifications.Where(x => x.RecipientAccountId == seed.DepartedOwnerId && x.Title == "participant.withdrawn").ToListAsync());
-            Assert.Equal(TeamsPath(seed), own.Route);
-            Assert.Empty(await db.PersonalNotifications.Where(x => x.RecipientAccountId == seed.DepartedOwnerId && x.Title == "participant.prelive_withdrawn").ToListAsync());
-            await FollowNoticeAsync(owner, own.Id, TeamsPath(seed));
-            var leadership = Assert.Single(await db.PersonalNotifications.Where(x => x.RecipientAccountId == seed.LeaderOwnerId && x.Title == "participant.prelive_withdrawn").ToListAsync());
-            await FollowNoticeAsync(leader, leadership.Id, TeamsPath(seed));
-            var action = Assert.Single(await db.PersonalNotifications.Where(x => x.RecipientAccountId == seed.AdminId && x.Title == "participant.prelive_withdrawn").ToListAsync());
-            await FollowNoticeAsync(admin, action.Id, route);
-            Assert.All(await db.PersonalNotifications.ToListAsync(), notice => Assert.DoesNotContain("private", notice.Detail, StringComparison.OrdinalIgnoreCase));
+            Assert.Empty(await db.PersonalNotifications.ToListAsync());
             await Assert.ThrowsAsync<InvalidOperationException>(() => new EvidenceAuthority(db).ResolveActorAsync(seed.DepartedOwnerId, seed.EventId, seed.TeamId, clock.Now));
         }
         using (var denied = await owner.GetAsync(route)) Assert.NotEqual(HttpStatusCode.OK, denied.StatusCode);
@@ -115,16 +113,17 @@ public sealed class C11FinalizedRosterIntegrationTests : IAsyncLifetime
             Assert.Equal(HttpStatusCode.Redirect, denied.StatusCode);
             Assert.Contains("/Account/AccessDenied", denied.Headers.Location!.OriginalString);
         }
-        var inbox = await admin.GetStringAsync("/Notifications");
-        Assert.Contains("Open vacancy", inbox);
-        Assert.Contains(route, inbox);
-        // Explicitly select the later of two waiting people; no automatic first-in-line promotion.
-        Assert.True(vacancy.IndexOf(seed.OtherWaitingId.ToString(), StringComparison.Ordinal) < vacancy.IndexOf(seed.WaitingId.ToString(), StringComparison.Ordinal));
-        using (var response = await PostAsync(admin, route, "FillVacancy", vacancy, new()
+        var draftPath = $"/Admin/Events/Draft/{seed.EventId}";
+        var draftPage = await admin.GetStringAsync(draftPath);
+        long teamVersion;
+        await using (var db = Db()) teamVersion = await db.Teams.Where(x => x.Id == seed.TeamId).Select(x => x.Version).SingleAsync();
+        using (var response = await PostAsync(admin, draftPath, "AddMember", draftPage, new()
         {
-            ["VacancyMembershipId"] = Input(vacancy, "VacancyMembershipId"),
-            ["VacancyMembershipVersion"] = Input(vacancy, "VacancyMembershipVersion"),
-            ["ReplacementWaitingParticipantId"] = seed.WaitingId.ToString()
+            ["teamId"] = seed.TeamId.ToString(),
+            ["participantId"] = seed.WaitingId.ToString(),
+            ["confirmed"] = "true",
+            ["expectedTeamVersion"] = teamVersion.ToString(CultureInfo.InvariantCulture),
+            ["rosterTeamId"] = seed.TeamId.ToString()
         })) Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
         published = await publicClient.GetStringAsync(TeamsPath(seed));
         Assert.Contains("Waiting C", RosterSection(published));
@@ -133,28 +132,19 @@ public sealed class C11FinalizedRosterIntegrationTests : IAsyncLifetime
         await AssertOldRosterAsync(seed, rosterBefore);
         Assert.Equal(picksBefore, await RowsAsync("draft_picks"));
         Assert.Equal(assignmentsBefore, await RowsAsync("event_participant_characters"));
-        Guid followUpId;
         await using (var db = Db())
         {
             var member = await db.TeamMemberships.SingleAsync(x => x.EventParticipantId == seed.WaitingId && x.LeftAt == null);
-            Assert.Equal(seed.DepartedMembershipId, member.ReplacesMembershipId);
+            Assert.Null(member.ReplacesMembershipId);
             Assert.Null(member.AssignedByDraftPickId);
             Assert.Equal(TeamMembershipRole.Participant, member.Role);
             Assert.Equal(clock.Now, member.JoinedAt);
             Assert.Empty(await db.EventParticipantCharacterSwaps.ToListAsync());
-            Assert.Equal(SignupStatus.WaitingList, (await db.EventParticipants.SingleAsync(x => x.Id == seed.OtherWaitingId)).SignupStatus);
-            followUpId = (await db.WaitingListPromotionFollowUps.SingleAsync()).Id;
-            var notice = Assert.Single(await db.PersonalNotifications.Where(x => x.RecipientAccountId == seed.WaitingOwnerId && x.Title == "participant.prelive_replaced").ToListAsync());
-            await FollowNoticeAsync(replacement, notice.Id, TeamsPath(seed));
+            Assert.Equal(SignupStatus.Confirmed, (await db.EventParticipants.SingleAsync(x => x.Id == seed.WaitingId)).SignupStatus);
+            Assert.Empty(await db.WaitingListPromotionFollowUps.ToListAsync());
+            Assert.Empty(await db.PersonalNotifications.ToListAsync());
         }
-        var followPath = ParticipantPath(seed, seed.WaitingId);
-        Assert.Contains(followPath, await admin.GetStringAsync("/Notifications"));
-        var followPage = await admin.GetStringAsync(followPath);
-        Assert.Contains("Mark follow-up complete", followPage);
-        using (var done = await PostAsync(admin, followPath, "CompletePromotionFollowUp", followPage, new() { ["followUpId"] = followUpId.ToString() }))
-            Assert.Equal(HttpStatusCode.Redirect, done.StatusCode);
         await using var final = Db();
-        Assert.NotNull((await final.WaitingListPromotionFollowUps.SingleAsync()).CompletedAt);
         Assert.Single(await final.DraftPublicationCycles.Where(x => x.SupersededAt == null).ToListAsync());
         Assert.Equal(3, await final.DraftPublicationCycles.CountAsync());
     }
@@ -169,7 +159,42 @@ public sealed class C11FinalizedRosterIntegrationTests : IAsyncLifetime
         await using var factory = Factory();
         using var admin = await LoginAsync(factory, "c11-admin");
         await WithdrawAsync(seed);
-        if (fillVacancy) Assert.True((await FillAsync(seed, seed.WaitingId)).Succeeded);
+        if (!fillVacancy)
+        {
+            var rosterBeforeStart = await RowsAsync("draft_publication_rosters");
+            var picksBeforeStart = await RowsAsync("draft_picks");
+            var notificationsBeforeStart = await RowsAsync("personal_notifications");
+            var startManagePath = $"/Admin/Events/Manage/{seed.EventId}";
+            var startManage = await admin.GetStringAsync(startManagePath);
+            using (var started = await PostAsync(admin, startManagePath, "StartEvent", startManage, new()
+            {
+                ["EventVersion"] = Input(startManage, "EventVersion"),
+                ["ConfirmStartEvent"] = "true",
+                ["StartReason"] = "Controlled early start"
+            })) Assert.Equal(HttpStatusCode.Redirect, started.StatusCode);
+
+            await using var verifyStart = Db();
+            var startedEvent = await verifyStart.Events.SingleAsync(x => x.Id == seed.EventId);
+            Assert.Equal(EventState.Live, startedEvent.State);
+            Assert.Equal(clock.Now, startedEvent.ActualStartedAt);
+            Assert.Equal(rosterBeforeStart, await RowsAsync("draft_publication_rosters"));
+            Assert.Equal(picksBeforeStart, await RowsAsync("draft_picks"));
+            Assert.Equal(notificationsBeforeStart, await RowsAsync("personal_notifications"));
+            Assert.Empty(await verifyStart.EventParticipantCharacterSwaps.Where(x => x.EventParticipantId == seed.DepartedId).ToListAsync());
+            var expectedLeader = await verifyStart.PrimaryCharacters().SingleAsync(x => x.ParticipantId == seed.LeaderId);
+            var leaderActivation = await verifyStart.EventParticipantCharacterSwaps
+                .SingleAsync(x => x.EventParticipantId == seed.LeaderId && x.PreviousOsrsCharacterId == null);
+            Assert.Equal(expectedLeader.OsrsCharacterId, leaderActivation.NextOsrsCharacterId);
+            Assert.Equal(clock.Now, leaderActivation.EffectiveAtUtc);
+            Assert.Equal(clock.Now, leaderActivation.RecordedAtUtc);
+            Assert.Single(await verifyStart.AuditEntries.Where(x => x.EventId == seed.EventId && x.Action == "event.started").ToListAsync());
+            return;
+        }
+        if (fillVacancy)
+        {
+            var added = await AddFinalizedAsync(seed, seed.TeamId, participantId: seed.WaitingId);
+            Assert.True(added.Succeeded, added.Error);
+        }
         var beforeRole = await RowsAsync("draft_publication_rosters");
         var currentBefore = await CurrentCycleAsync();
         var managePath = $"/Admin/Events/Manage/{seed.EventId}";
@@ -180,6 +205,20 @@ public sealed class C11FinalizedRosterIntegrationTests : IAsyncLifetime
             ["ConfirmStartEvent"] = "true",
             ["StartReason"] = "Controlled early start"
         })) Assert.True(blocked.IsSuccessStatusCode || blocked.StatusCode == HttpStatusCode.Redirect);
+        if (fillVacancy)
+        {
+            await using var validStart = Db();
+            var started = await validStart.Events.SingleAsync(x => x.Id == seed.EventId);
+            Assert.Equal(EventState.Live, started.State);
+            Assert.Equal(clock.Now, started.ActualStartedAt);
+            Assert.Equal(beforeRole, await RowsAsync("draft_publication_rosters"));
+            var waitingActivation = await validStart.EventParticipantCharacterSwaps
+                .SingleAsync(x => x.EventParticipantId == seed.WaitingId && x.PreviousOsrsCharacterId == null);
+            var waitingPrimary = await validStart.PrimaryCharacters().SingleAsync(x => x.ParticipantId == seed.WaitingId);
+            Assert.Equal(waitingPrimary.OsrsCharacterId, waitingActivation.NextOsrsCharacterId);
+            Assert.Empty(await validStart.EventParticipantCharacterSwaps.Where(x => x.EventParticipantId == seed.DepartedId).ToListAsync());
+            return;
+        }
         await using (var db = Db()) Assert.Null((await db.Events.SingleAsync(x => x.Id == seed.EventId)).ActualStartedAt);
         var targetId = fillVacancy ? seed.WaitingId : seed.LeaderId;
         var targetOwner = fillVacancy ? seed.WaitingOwnerId : seed.LeaderOwnerId;
@@ -242,37 +281,44 @@ public sealed class C11FinalizedRosterIntegrationTests : IAsyncLifetime
         await using var factory = Factory();
         using var admin = await LoginAsync(factory, "c11-admin");
         var path = ParticipantPath(seed, seed.DepartedId);
-        var page = await admin.GetStringAsync(path);
-        var form = new Dictionary<string, string>
+        Assert.DoesNotContain("Fill open vacancy", await admin.GetStringAsync(path));
+        var before = await StateHashAsync();
+        await using (var missingVersion = Db())
         {
-            ["VacancyMembershipId"] = Input(page, "VacancyMembershipId"),
-            ["VacancyMembershipVersion"] = Input(page, "VacancyMembershipVersion"),
-            [$"InternalReplacement.AccountAnswers[{seed.PrimaryQuestionId}].CharacterName"] = "Departed C",
-            [$"InternalReplacement.AccountAnswers[{seed.PrimaryQuestionId}].Ehb"] = "42",
-            [$"InternalReplacement.Answers[{seed.AnswerQuestionId}]"] = "internal private answer",
-            ["InternalReplacement.OwnerUsername"] = linked ? "c11-internal" : ""
-        };
-        var unchanged = await StateHashAsync();
-        using (var rejected = await PostAsync(admin, path, "FillVacancy", page, form)) Assert.Equal(HttpStatusCode.Redirect, rejected.StatusCode);
-        Assert.Equal(unchanged, await StateHashAsync());
-        Assert.Contains("reserved", await admin.GetStringAsync(path));
-        form[$"InternalReplacement.AccountAnswers[{seed.PrimaryQuestionId}].CharacterName"] = "Internal replacement";
-        form[$"InternalReplacement.AccountAnswers[{seed.PrimaryQuestionId}].Ehb"] = "-1";
-        using (var rejected = await PostAsync(admin, path, "FillVacancy", page, form)) Assert.Equal(HttpStatusCode.Redirect, rejected.StatusCode);
-        Assert.Equal(unchanged, await StateHashAsync());
-        form[$"InternalReplacement.AccountAnswers[{seed.PrimaryQuestionId}].Ehb"] = "42";
-        using (var added = await PostAsync(admin, path, "FillVacancy", page, form)) Assert.Equal(HttpStatusCode.Redirect, added.StatusCode);
-        await using var db = Db();
-        var member = await db.TeamMemberships.SingleAsync(x => x.ReplacesMembershipId == seed.DepartedMembershipId);
-        var participant = await db.EventParticipants.SingleAsync(x => x.Id == member.EventParticipantId);
-        Assert.Equal(SignupSource.AdminCreated, participant.Source);
-        Assert.Equal(linked ? seed.InternalOwnerId : (Guid?)null, participant.AccountId);
+            var rejected = await Service(missingVersion).AddFinalizedRosterParticipantAsync(new(seed.EventId, seed.TeamId, seed.AdminId, "c11-admin", linked ? seed.InternalOwnerId : null, linked ? null : seed.WaitingId));
+            Assert.False(rejected.Succeeded);
+            Assert.Contains("version is required", rejected.Error, StringComparison.OrdinalIgnoreCase);
+        }
+        Assert.Equal(before, await StateHashAsync());
+        Assert.False((await FillAsync(seed, seed.WaitingId)).Succeeded);
+        Assert.Equal(before, await StateHashAsync());
+
+        if (linked)
+        {
+            await using var db = Db();
+            var owner = await db.Accounts.SingleAsync(x => x.Id == seed.InternalOwnerId);
+            var character = new OsrsCharacter(Guid.NewGuid(), "Internal replacement", "INTERNAL REPLACEMENT", clock.Now);
+            db.AddRange(character, new AccountOsrsCharacter(Guid.NewGuid(), owner.Id, character.Id, owner.Id, true, 0, null, 42m, clock.Now));
+            await db.SaveChangesAsync();
+        }
+
+        var added = linked
+            ? await AddFinalizedAsync(seed, seed.TeamId, websiteAccountId: seed.InternalOwnerId)
+            : await AddFinalizedAsync(seed, seed.TeamId, participantId: seed.WaitingId);
+        Assert.True(added.Succeeded, added.Error);
+        await using var verify = Db();
+        var member = await verify.TeamMemberships.SingleAsync(x => x.Id == added.MembershipId);
+        var participant = await verify.EventParticipants.SingleAsync(x => x.Id == added.ParticipantId);
+        Assert.Equal(linked ? SignupSource.AdminCreated : SignupSource.Website, participant.Source);
+        Assert.Equal(linked ? seed.InternalOwnerId : seed.WaitingOwnerId, participant.AccountId);
         Assert.Null(member.AssignedByDraftPickId);
         Assert.Equal(TeamMembershipRole.Participant, member.Role);
-        Assert.Empty(await db.EventParticipantCharacterSwaps.ToListAsync());
-        Assert.Equal(3, await db.DraftPublicationCycles.CountAsync());
-        Assert.Contains("Internal replacement", RosterSection(await admin.GetStringAsync(TeamsPath(seed))));
-        Assert.DoesNotContain("internal private answer", await admin.GetStringAsync(TeamsPath(seed)));
+        Assert.Empty(await verify.EventParticipantCharacterSwaps.ToListAsync());
+        Assert.Equal(3, await verify.DraftPublicationCycles.CountAsync());
+        var publicPage = await admin.GetStringAsync(TeamsPath(seed));
+        Assert.Contains(linked ? "Internal replacement" : "Waiting C", RosterSection(publicPage));
+        Assert.DoesNotContain("internal private answer", publicPage);
+        Assert.Equal(2, await verify.DraftPicks.CountAsync());
     }
 
     [Fact]
@@ -284,50 +330,24 @@ public sealed class C11FinalizedRosterIntegrationTests : IAsyncLifetime
         using var admin = await LoginAsync(factory, "c11-admin");
         var path = ParticipantPath(seed, seed.DepartedId);
         var page = await admin.GetStringAsync(path);
-        var form = new Dictionary<string, string>
-        {
-            ["VacancyMembershipId"] = Input(page, "VacancyMembershipId"),
-            ["VacancyMembershipVersion"] = Input(page, "VacancyMembershipVersion"),
-            [$"InternalReplacement.AccountAnswers[{seed.PrimaryQuestionId}].CharacterName"] = "Internal outage replacement",
-            [$"InternalReplacement.AccountAnswers[{seed.PrimaryQuestionId}].Ehb"] = "42",
-            [$"InternalReplacement.Answers[{seed.AnswerQuestionId}]"] = "retained replacement answer"
-        };
         var unchanged = await StateHashAsync();
-
-        using var response = await PostAsync(admin, path, "FillVacancy", page, form);
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var html = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
-        Assert.Contains("data-wom-validation-confirmation", html);
-        Assert.Contains("Internal outage replacement", html);
-        Assert.Contains("Wise Old Man is unavailable", html);
-        Assert.Equal(form[$"InternalReplacement.AccountAnswers[{seed.PrimaryQuestionId}].CharacterName"], Input(html, $"InternalReplacement.AccountAnswers[{seed.PrimaryQuestionId}].CharacterName"));
-        Assert.Equal(form[$"InternalReplacement.AccountAnswers[{seed.PrimaryQuestionId}].Ehb"], Input(html, $"InternalReplacement.AccountAnswers[{seed.PrimaryQuestionId}].Ehb"));
-        Assert.Equal(form[$"InternalReplacement.Answers[{seed.AnswerQuestionId}]"], Input(html, $"InternalReplacement.Answers[{seed.AnswerQuestionId}]"));
-        Assert.Equal(form["VacancyMembershipId"], Input(html, "VacancyMembershipId"));
-        Assert.Equal(form["VacancyMembershipVersion"], Input(html, "VacancyMembershipVersion"));
-        var confirmationToken = Input(html, "InternalReplacement.WomValidationConfirmationToken");
-        Assert.NotEmpty(confirmationToken);
-        var cancelButton = Regex.Match(html, "<button(?=[^>]*data-wom-validation-cancel)[^>]*>").Value;
-        Assert.Contains("type=\"submit\"", cancelButton, StringComparison.Ordinal);
-        Assert.Contains("formaction=\"", cancelButton, StringComparison.Ordinal);
-        Assert.Contains("handler=CancelWomValidation", cancelButton, StringComparison.Ordinal);
-
-        var cancelFields = new Dictionary<string, string>(form)
+        Assert.DoesNotContain("Fill open vacancy", page);
+        using (var response = await PostAsync(admin, path, "FillVacancy", page, new()
         {
-            ["overlay"] = "false",
-            ["WomValidationConfirmationToken"] = Input(html, "WomValidationConfirmationToken"),
-            ["InternalReplacement.WomValidationConfirmationToken"] = confirmationToken
-        };
-        using var cancelled = await PostAsync(admin, path, "CancelWomValidation", html, cancelFields);
-        Assert.Equal(HttpStatusCode.OK, cancelled.StatusCode);
-        var cancelledHtml = WebUtility.HtmlDecode(await cancelled.Content.ReadAsStringAsync());
-        Assert.DoesNotContain("data-wom-validation-confirmation", cancelledHtml, StringComparison.Ordinal);
-        Assert.Equal(form[$"InternalReplacement.AccountAnswers[{seed.PrimaryQuestionId}].CharacterName"], Input(cancelledHtml, $"InternalReplacement.AccountAnswers[{seed.PrimaryQuestionId}].CharacterName"));
-        Assert.Equal(form[$"InternalReplacement.AccountAnswers[{seed.PrimaryQuestionId}].Ehb"], Input(cancelledHtml, $"InternalReplacement.AccountAnswers[{seed.PrimaryQuestionId}].Ehb"));
-        Assert.Equal(form[$"InternalReplacement.Answers[{seed.AnswerQuestionId}]"], Input(cancelledHtml, $"InternalReplacement.Answers[{seed.AnswerQuestionId}]"));
-        Assert.Empty(Input(cancelledHtml, "WomValidationConfirmationToken"));
-        Assert.Empty(Input(cancelledHtml, "InternalReplacement.WomValidationConfirmationToken"));
-        Assert.Equal(unchanged, await StateHashAsync());
+            ["VacancyMembershipId"] = seed.DepartedMembershipId.ToString(),
+            ["VacancyMembershipVersion"] = "1",
+            ["ReplacementWaitingParticipantId"] = seed.WaitingId.ToString()
+        }))
+        {
+            Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+            Assert.NotNull(response.Headers.Location);
+        }
+        await using (var db = Db())
+        {
+            var result = await Service(db).ReplaceVacancyAsync(new(seed.EventId, seed.DepartedMembershipId, seed.AdminId, "c11-admin", seed.WaitingId));
+            Assert.False(result.Succeeded);
+            Assert.Contains("replacements and vacancies are retired", result.Error, StringComparison.OrdinalIgnoreCase);
+        }
         Assert.Equal(unchanged, await StateHashAsync());
     }
 
@@ -335,18 +355,32 @@ public sealed class C11FinalizedRosterIntegrationTests : IAsyncLifetime
     public async Task ConcurrentFillsHaveOnlyOneWinner()
     {
         var seed = await SeedAsync();
-        await WithdrawAsync(seed);
-        var results = await Task.WhenAll(FillAsync(seed, seed.WaitingId), FillAsync(seed, seed.OtherWaitingId));
+        await RemoveFinalizedAsync(seed, seed.DepartedId);
+        long firstTeamVersion;
+        long secondTeamVersion;
+        await using (var db = Db())
+        {
+            firstTeamVersion = await db.Teams.Where(x => x.Id == seed.TeamId).Select(x => x.Version).SingleAsync();
+            secondTeamVersion = await db.Teams.Where(x => x.Id == seed.SecondTeamId).Select(x => x.Version).SingleAsync();
+        }
+        async Task<FinalizedRosterMutationResult> Add(Guid teamId, long version)
+        {
+            await using var db = Db();
+            return await Service(db).AddFinalizedRosterParticipantAsync(new(seed.EventId, teamId, seed.AdminId, "c11-admin", ParticipantId: seed.WaitingId, ExpectedTeamVersion: version));
+        }
+        var results = await Task.WhenAll(Add(seed.TeamId, firstTeamVersion), Add(seed.SecondTeamId, secondTeamVersion));
         Assert.Single(results, x => x.Succeeded);
         Assert.Single(results, x => !x.Succeeded);
         await using (var db = Db())
         {
-            Assert.Single(await db.TeamMemberships.Where(x => x.ReplacesMembershipId == seed.DepartedMembershipId).ToListAsync());
+            Assert.Single(await db.TeamMemberships.Where(x => x.EventParticipantId == seed.WaitingId && x.LeftAt == null).ToListAsync());
             Assert.Single(await db.DraftPublicationCycles.Where(x => x.SupersededAt == null).ToListAsync());
             Assert.Equal(3, await db.DraftPublicationCycles.CountAsync());
+            Assert.Empty(await db.WaitingListPromotionFollowUps.ToListAsync());
+            Assert.Empty(await db.PersonalNotifications.ToListAsync());
         }
         var snapshot = await StateHashAsync();
-        Assert.False((await FillAsync(seed, seed.WaitingId)).Succeeded);
+        Assert.False((await AddFinalizedAsync(seed, seed.TeamId, participantId: seed.WaitingId)).Succeeded);
         Assert.Equal(snapshot, await StateHashAsync());
     }
 
@@ -359,27 +393,43 @@ public sealed class C11FinalizedRosterIntegrationTests : IAsyncLifetime
     public async Task FailureAfterFlushRollsBackTheWholeCorrectionAndRetrySucceeds(string action, string fault)
     {
         var seed = await SeedAsync();
-        if (action != "withdraw") await WithdrawAsync(seed);
+        if (action != "withdraw") await RemoveFinalizedAsync(seed, seed.DepartedId);
+        if (action == "internal")
+        {
+            await using var setup = Db();
+            var owner = await setup.Accounts.SingleAsync(x => x.Id == seed.InternalOwnerId);
+            var character = new OsrsCharacter(Guid.NewGuid(), "C11 fault replacement", "C11 FAULT REPLACEMENT", clock.Now);
+            setup.AddRange(character, new AccountOsrsCharacter(Guid.NewGuid(), owner.Id, character.Id, owner.Id, true, 0, null, 42m, clock.Now));
+            await setup.SaveChangesAsync();
+        }
         var before = await StateHashAsync();
         var failure = new SaveFailure(fault);
         await using (var db = Db(failure))
         {
-            var result = action == "withdraw"
-                ? (await Service(db).WithdrawAsync(seed.EventId, seed.DepartedId, seed.AdminId, "c11-admin", true, "must roll back", 1)).Succeeded
-                : (await Service(db).ReplaceVacancyAsync(action == "waiting" ? new(seed.EventId, seed.DepartedMembershipId, seed.AdminId, "admin", seed.WaitingId)
-                    : new(seed.EventId, seed.DepartedMembershipId, seed.AdminId, "admin", InternalParticipant: Internal(seed)))).Succeeded;
-            Assert.False(result);
+            FinalizedRosterMutationResult result;
+            if (action == "withdraw")
+            {
+                var version = await db.TeamMemberships.Where(x => x.Id == seed.DepartedMembershipId).Select(x => x.Version).SingleAsync();
+                result = await Service(db).RemoveFinalizedRosterParticipantAsync(new(seed.EventId, seed.DepartedId, seed.AdminId, "c11-admin", true, version));
+            }
+            else
+            {
+                var teamVersion = await db.Teams.Where(x => x.Id == seed.TeamId).Select(x => x.Version).SingleAsync();
+                result = await Service(db).AddFinalizedRosterParticipantAsync(new(seed.EventId, seed.TeamId, seed.AdminId, "c11-admin",
+                    WebsiteAccountId: action == "internal" ? seed.InternalOwnerId : null,
+                    ParticipantId: action == "waiting" ? seed.WaitingId : null,
+                    ExpectedTeamVersion: teamVersion));
+            }
+            Assert.False(result.Succeeded, result.Error);
         }
         Assert.True(failure.Triggered);
         Assert.Equal(before, await StateHashAsync());
-        if (action == "withdraw") await WithdrawAsync(seed, "retry note");
-        else if (action == "waiting") Assert.True((await FillAsync(seed, seed.WaitingId)).Succeeded);
+        if (action == "withdraw")
+            Assert.True((await RemoveFinalizedAsync(seed, seed.DepartedId)).Succeeded);
+        else if (action == "waiting")
+            Assert.True((await AddFinalizedAsync(seed, seed.TeamId, participantId: seed.WaitingId)).Succeeded);
         else
-        {
-            await using var db = Db();
-            var retried = await Service(db).ReplaceVacancyAsync(new(seed.EventId, seed.DepartedMembershipId, seed.AdminId, "admin", InternalParticipant: Internal(seed)));
-            Assert.True(retried.Succeeded, retried.Error);
-        }
+            Assert.True((await AddFinalizedAsync(seed, seed.TeamId, websiteAccountId: seed.InternalOwnerId)).Succeeded);
     }
 
     [Fact]
@@ -390,28 +440,37 @@ public sealed class C11FinalizedRosterIntegrationTests : IAsyncLifetime
         using var admin = await LoginAsync(factory, "c11-admin");
         var path = ParticipantPath(seed, seed.DepartedId);
         var page = await admin.GetStringAsync(path);
-        var attempt = new string('x', 2000);
+        var attempt = new string('x', 2001);
         var before = await StateHashAsync();
-        using (var rejected = await PostAsync(admin, path, "Withdraw", page, new()
+        using (var rejected = await PostAsync(admin, path, "AdminNote", page, new()
         {
-            ["ConfirmLifecycleAction"] = "true",
-            ["ExpectedMembershipVersion"] = Input(page, "ExpectedMembershipVersion"),
-            ["PrivateWithdrawalNote"] = attempt
+            ["AdminNote"] = attempt,
+            ["ExpectedAdminNote"] = Input(page, "ExpectedAdminNote")
         }))
         {
-            Assert.Equal(HttpStatusCode.OK, rejected.StatusCode);
-            var html = await rejected.Content.ReadAsStringAsync();
-            Assert.Contains("must total 2,000", html);
-            Assert.Contains(attempt, html);
+            Assert.Equal(HttpStatusCode.Redirect, rejected.StatusCode);
         }
         Assert.Equal(before, await StateHashAsync());
-        await WithdrawAsync(seed, " \n ");
+        page = await admin.GetStringAsync(path);
+        using (var saved = await PostAsync(admin, path, "AdminNote", page, new()
+        {
+            ["AdminNote"] = "Stored replacement note",
+            ["ExpectedAdminNote"] = Input(page, "ExpectedAdminNote")
+        })) Assert.Equal(HttpStatusCode.Redirect, saved.StatusCode);
+        await using (var db = Db()) Assert.Equal("Stored replacement note", (await db.EventParticipants.SingleAsync(x => x.Id == seed.DepartedId)).AdminNotes);
+        page = await admin.GetStringAsync(path);
+        using (var blank = await PostAsync(admin, path, "AdminNote", page, new()
+        {
+            ["AdminNote"] = " \n ",
+            ["ExpectedAdminNote"] = Input(page, "ExpectedAdminNote")
+        })) Assert.Equal(HttpStatusCode.Redirect, blank.StatusCode);
         var after = await StateHashAsync();
         await using (var db = Db())
         {
-            var replay = await Service(db).WithdrawAsync(seed.EventId, seed.DepartedId, seed.AdminId, "admin", true, "must not append", 1);
+            var participant = await db.EventParticipants.SingleAsync(x => x.Id == seed.DepartedId);
+            Assert.Null(participant.AdminNotes);
+            var replay = await Service(db).SetAdminNotesAsync(seed.EventId, seed.DepartedId, seed.AdminId, "c11-admin", " \n ", null);
             Assert.True(replay.Succeeded); Assert.False(replay.Changed);
-            Assert.Equal("Existing private note", (await db.EventParticipants.SingleAsync(x => x.Id == seed.DepartedId)).AdminNotes);
         }
         Assert.Equal(after, await StateHashAsync());
     }
@@ -420,14 +479,20 @@ public sealed class C11FinalizedRosterIntegrationTests : IAsyncLifetime
     public async Task NoteEditOrderingUsesLatestLockedValueAndRejectsStaleOverwrite()
     {
         var seed = await SeedAsync();
-        await using var stale = Db();
-        await stale.EventParticipants.SingleAsync(x => x.Id == seed.DepartedId);
         await using (var editor = Db())
-            Assert.True((await Service(editor).SetAdminNotesAsync(seed.EventId, seed.DepartedId, seed.AdminId, "admin", "Fresh note", "Existing private note")).Succeeded);
-        Assert.True((await Service(stale).WithdrawAsync(seed.EventId, seed.DepartedId, seed.AdminId, "admin", true, "Departure", 1)).Succeeded);
+            Assert.True((await Service(editor).SetAdminNotesAsync(seed.EventId, seed.DepartedId, seed.AdminId, "c11-admin", "Fresh note", "Existing private note")).Succeeded);
+        await using (var stale = Db())
+        {
+            var result = await Service(stale).SetAdminNotesAsync(seed.EventId, seed.DepartedId, seed.AdminId, "c11-admin", "stale overwrite", "Existing private note");
+            Assert.False(result.Succeeded);
+            Assert.Contains("changed elsewhere", result.Error, StringComparison.OrdinalIgnoreCase);
+        }
         await using var verify = Db();
-        Assert.Equal("Fresh note\nDeparture", (await verify.EventParticipants.SingleAsync(x => x.Id == seed.DepartedId)).AdminNotes);
-        Assert.False((await Service(verify).SetAdminNotesAsync(seed.EventId, seed.DepartedId, seed.AdminId, "admin", "stale overwrite", "Fresh note")).Succeeded);
+        Assert.Equal("Fresh note", (await verify.EventParticipants.SingleAsync(x => x.Id == seed.DepartedId)).AdminNotes);
+        var removed = await RemoveFinalizedAsync(seed, seed.DepartedId);
+        Assert.True(removed.Succeeded, removed.Error);
+        await using var after = Db();
+        Assert.Equal("Fresh note", (await after.EventParticipants.SingleAsync(x => x.Id == seed.DepartedId)).AdminNotes);
     }
 
     [Theory]
@@ -557,10 +622,20 @@ public sealed class C11FinalizedRosterIntegrationTests : IAsyncLifetime
         await using (var db = Db())
         {
             var audit = Assert.Single(await db.AuditEntries.Where(x => x.Action == "team.role_roster_published").ToListAsync());
+            Assert.Equal(seed.AdminId, audit.ActorAccountId);
+            Assert.Equal("c11-admin", audit.ActorUsername);
+            Assert.Equal("draft_publication", audit.TargetType);
+            Assert.Equal(memberId.ToString(), audit.TargetId);
             Assert.Equal(seed.EventId, audit.EventId);
+            Assert.Contains("Superseded publication cycle", audit.Details);
+            Assert.Contains("Pre-Live Captain role correction", audit.Details);
+            Assert.Null(audit.BeforeState);
+            Assert.Null(audit.AfterState);
         }
-        const string actionRow = "<code class=\"admin-audit-action\">team.role_roster_published</code>";
-        Assert.Contains(actionRow, await admin.GetStringAsync($"/Admin/Audit?EventId={seed.EventId}"));
+        const string actionRow = "<dt>Action key</dt><dd><code>team.role_roster_published</code></dd>";
+        var auditPage = await admin.GetStringAsync($"/Admin/Audit?EventId={seed.EventId}");
+        Assert.Contains("team.role_roster_published", auditPage);
+        Assert.Contains(actionRow, auditPage);
         await using (var db = Db())
         {
             var item = await db.Events.SingleAsync(x => x.Id == seed.EventId);
@@ -569,7 +644,9 @@ public sealed class C11FinalizedRosterIntegrationTests : IAsyncLifetime
             item.Hide(seed.AdminId, clock.Now, item.Name, "Controlled audit visibility check");
             await db.SaveChangesAsync();
         }
-        Assert.DoesNotContain(actionRow, await admin.GetStringAsync("/Admin/Audit?Action=team.role_roster_published"));
+        var hiddenAuditPage = await admin.GetStringAsync("/Admin/Audit?Action=team.role_roster_published");
+        Assert.Contains("No audit entries found", hiddenAuditPage);
+        Assert.DoesNotContain(actionRow, hiddenAuditPage);
     }
 
     [Theory]
@@ -585,40 +662,37 @@ public sealed class C11FinalizedRosterIntegrationTests : IAsyncLifetime
             else db.Entry(participant).Property(x => x.AccountId).CurrentValue = null;
             await db.SaveChangesAsync();
         }
-        await WithdrawAsync(seed);
+        var removed = await RemoveFinalizedAsync(seed, seed.DepartedId);
+        Assert.True(removed.Succeeded, removed.Error);
         await using (var db = Db())
         {
             var notices = await db.PersonalNotifications.Where(x => x.RecipientAccountId == seed.DepartedOwnerId).ToListAsync();
-            if (adminOwner)
-            {
-                Assert.Single(notices, x => x.Title == "participant.withdrawn" && x.Route == TeamsPath(seed));
-                Assert.Single(notices, x => x.Title == "participant.prelive_withdrawn" && x.Route == ParticipantPath(seed, seed.DepartedId));
-            }
-            else Assert.Empty(notices);
+            Assert.Empty(notices);
+            Assert.Equal(SignupStatus.Confirmed, (await db.EventParticipants.SingleAsync(x => x.Id == seed.DepartedId)).SignupStatus);
         }
         List<Guid> remaining;
         await using (var db = Db()) remaining = await db.TeamMemberships.Where(x => x.LeftAt == null).Select(x => x.EventParticipantId).ToListAsync();
         foreach (var participant in remaining)
         {
-            await using var db = Db();
-            var result = await Service(db).WithdrawAsync(seed.EventId, participant, seed.AdminId, "admin", true);
+            var result = await RemoveFinalizedAsync(seed, participant);
             Assert.True(result.Succeeded, result.Error);
         }
-        await using var factory = Factory(); using var client = factory.CreateClient();
-        var page = await client.GetStringAsync(TeamsPath(seed));
-        Assert.Contains("C11 team one", page); Assert.Contains("C11 team two", page);
-        Assert.Equal(2, Regex.Count(RosterSection(page), "Open vacancy"));
-        Assert.Contains("Departed C", PickSection(page)); Assert.Contains("Second Captain", PickSection(page));
+        await using var factory = Factory(); using var client = factory.CreateClient(new() { AllowAutoRedirect = false });
+        using (var page = await client.GetAsync(TeamsPath(seed))) Assert.Equal(HttpStatusCode.NotFound, page.StatusCode);
         await using var final = Db();
         var cycle = await final.DraftPublicationCycles.SingleAsync(x => x.SupersededAt == null);
         Assert.Empty(await final.DraftPublicationRosters.Where(x => x.DraftPublicationCycleId == cycle.Id).ToListAsync());
         Assert.Equal(2, await final.DraftPicks.CountAsync());
+        Assert.Equal(4, await final.DraftPublicationCycles.CountAsync());
+        Assert.Equal(0, await final.PersonalNotifications.CountAsync());
     }
 
     [Fact]
     public async Task MutableCurrentNameCannotRewritePublishedPickAndOrdinaryReleasedWithdrawalStillHasIdentity()
     {
-        var seed = await SeedAsync(); await WithdrawAsync(seed);
+        var seed = await SeedAsync();
+        var removed = await RemoveFinalizedAsync(seed, seed.DepartedId);
+        Assert.True(removed.Succeeded, removed.Error);
         await using (var db = Db())
         {
             var character = await db.OsrsCharacters.SingleAsync(x => x.DisplayName == "Departed C");
@@ -630,11 +704,19 @@ public sealed class C11FinalizedRosterIntegrationTests : IAsyncLifetime
             await db.SaveChangesAsync();
         }
         await using var factory = Factory(); using var admin = await LoginAsync(factory, "c11-admin");
-        var search = await admin.GetStringAsync($"/Admin/Events/Participants/{seed.EventId}?ParticipantStatus=Withdrawn&ParticipantSearch=Current%20renamed");
-        Assert.Contains(ParticipantPath(seed, seed.DepartedId), search); Assert.Contains("Current renamed player", search);
+        var search = await admin.GetStringAsync($"/Admin/Events/Participants/{seed.EventId}?ParticipantStatus=Confirmed&ParticipantSearch=Current%20renamed%20player");
+        Assert.Contains($"participant-row-{seed.DepartedId}", search); Assert.Contains(ParticipantPath(seed, seed.DepartedId), search); Assert.Contains("Current renamed player", search);
+        var nonmatching = await admin.GetStringAsync($"/Admin/Events/Participants/{seed.EventId}?ParticipantStatus=Confirmed&ParticipantSearch=Departed%20C");
+        Assert.DoesNotContain($"participant-row-{seed.DepartedId}", nonmatching);
+        Assert.Contains("Current renamed player", await admin.GetStringAsync(ParticipantPath(seed, seed.DepartedId)));
+        var withdrawnSearch = await admin.GetStringAsync($"/Admin/Events/Participants/{seed.EventId}?ParticipantStatus=Withdrawn&ParticipantSearch=First%20waiting");
+        Assert.Contains(ParticipantPath(seed, seed.OtherWaitingId), withdrawnSearch);
         Assert.Contains("First waiting", await admin.GetStringAsync(ParticipantPath(seed, seed.OtherWaitingId)));
         var draft = await admin.GetStringAsync($"/Admin/Events/Draft/{seed.EventId}");
-        Assert.Contains("Departed C", draft); Assert.DoesNotContain("Current renamed player", draft);
+        var finalizedRoster = Regex.Match(draft, "<ol class=\"finalized-roster-list\">(?<roster>[\\s\\S]*?)</ol>").Groups["roster"].Value;
+        Assert.Contains("Leader", finalizedRoster);
+        Assert.DoesNotContain("Departed C", finalizedRoster);
+        Assert.DoesNotContain("Current renamed player", finalizedRoster);
         var published = await admin.GetStringAsync(TeamsPath(seed));
         Assert.Contains("Departed C", PickSection(published)); Assert.DoesNotContain("Current renamed player", PickSection(published));
     }
@@ -671,24 +753,27 @@ public sealed class C11FinalizedRosterIntegrationTests : IAsyncLifetime
     [Fact]
     public async Task TwoVacanciesCannotPromoteTheSameWaitingParticipant()
     {
-        var seed = await SeedAsync(); await WithdrawAsync(seed);
-        Guid otherVacancy;
+        var seed = await SeedAsync();
+        Assert.True((await RemoveFinalizedAsync(seed, seed.DepartedId)).Succeeded);
+        Assert.True((await RemoveFinalizedAsync(seed, seed.LeaderId)).Succeeded);
+        long firstTeamVersion;
+        long secondTeamVersion;
         await using (var db = Db())
         {
-            var result = await Service(db).WithdrawAsync(seed.EventId, seed.LeaderId, seed.AdminId, "admin", true);
-            Assert.True(result.Succeeded, result.Error);
-            otherVacancy = await db.TeamMemberships.Where(x => x.EventParticipantId == seed.LeaderId).Select(x => x.Id).SingleAsync();
+            firstTeamVersion = await db.Teams.Where(x => x.Id == seed.TeamId).Select(x => x.Version).SingleAsync();
+            secondTeamVersion = await db.Teams.Where(x => x.Id == seed.SecondTeamId).Select(x => x.Version).SingleAsync();
         }
-        async Task<LiveParticipantResult> Fill(Guid vacancy)
+        async Task<FinalizedRosterMutationResult> Add(Guid teamId, long version)
         {
             await using var db = Db();
-            return await Service(db).ReplaceVacancyAsync(new(seed.EventId, vacancy, seed.AdminId, "admin", seed.WaitingId));
+            return await Service(db).AddFinalizedRosterParticipantAsync(new(seed.EventId, teamId, seed.AdminId, "c11-admin", ParticipantId: seed.WaitingId, ExpectedTeamVersion: version));
         }
-        var results = await Task.WhenAll(Fill(seed.DepartedMembershipId), Fill(otherVacancy));
+        var results = await Task.WhenAll(Add(seed.TeamId, firstTeamVersion), Add(seed.SecondTeamId, secondTeamVersion));
         Assert.Single(results, x => x.Succeeded); Assert.Single(results, x => !x.Succeeded);
         await using var final = Db();
         Assert.Single(await final.TeamMemberships.Where(x => x.EventParticipantId == seed.WaitingId && x.LeftAt == null).ToListAsync());
-        Assert.Single(await final.WaitingListPromotionFollowUps.ToListAsync());
+        Assert.Empty(await final.WaitingListPromotionFollowUps.ToListAsync());
+        Assert.Empty(await final.PersonalNotifications.ToListAsync());
         Assert.Equal(4, await final.DraftPublicationCycles.CountAsync());
     }
 
@@ -737,12 +822,17 @@ public sealed class C11FinalizedRosterIntegrationTests : IAsyncLifetime
     {
         var seed = await SeedAsync();
         clock.Now = clock.Now.AddHours(2); // configured start missed, configured end still future
-        var addition = new string('x', 2000 - "Existing private note".Length - 1);
-        await WithdrawAsync(seed, addition);
+        var exact = new string('x', 2000);
+        await using (var notes = Db())
+        {
+            var result = await Service(notes).SetAdminNotesAsync(seed.EventId, seed.DepartedId, seed.AdminId, "c11-admin", exact, "Existing private note");
+            Assert.True(result.Succeeded, result.Error);
+        }
+        Assert.True((await RemoveFinalizedAsync(seed, seed.DepartedId)).Succeeded);
         await using var db = Db();
         Assert.Equal(2000, (await db.EventParticipants.SingleAsync(x => x.Id == seed.DepartedId)).AdminNotes!.Length);
         Assert.Null((await db.Events.SingleAsync(x => x.Id == seed.EventId)).ActualStartedAt);
-        Assert.True((await FillAsync(seed, seed.WaitingId)).Succeeded);
+        Assert.True((await AddFinalizedAsync(seed, seed.TeamId, participantId: seed.WaitingId)).Succeeded);
     }
 
     [Theory]
@@ -752,23 +842,28 @@ public sealed class C11FinalizedRosterIntegrationTests : IAsyncLifetime
     {
         var seed = await SeedAsync();
         await using (var db = Db()) { (await db.Events.SingleAsync(x => x.Id == seed.EventId)).StartEvent(clock.Now.AddHours(-1)); await db.SaveChangesAsync(); }
-        if (replacement) await WithdrawAsync(seed);
-        var requestInstant = clock.Now;
-        var barrier = new BeforeEventLock();
-        await using var context = Db(barrier);
-        var operation = replacement
-            ? Service(context).ReplaceVacancyAsync(new(seed.EventId, seed.DepartedMembershipId, seed.AdminId, "admin", seed.WaitingId))
-            : Service(context).WithdrawLiveAsync(new(seed.EventId, seed.DepartedId, seed.AdminId, "admin", 1));
-        try
+        var before = await StateHashAsync();
+        long membershipVersion;
+        await using (var db = Db())
+            membershipVersion = await db.TeamMemberships.Where(x => x.Id == seed.DepartedMembershipId).Select(x => x.Version).SingleAsync();
+        if (replacement)
         {
-            await barrier.Reached.Task.WaitAsync(TimeSpan.FromSeconds(20));
-            clock.Now = clock.Now.AddMinutes(2);
-            barrier.Release.TrySetResult();
-            var result = await operation;
-            Assert.True(result.Succeeded, result.Error);
-            Assert.Equal(new DateTimeOffset(requestInstant.Year, requestInstant.Month, requestInstant.Day, requestInstant.Hour, requestInstant.Minute, 0, TimeSpan.Zero).AddMinutes(1), result.EffectiveAtUtc);
+            await using var db = Db();
+            var withdrawn = await Service(db).WithdrawLiveAsync(new(seed.EventId, seed.DepartedId, seed.AdminId, "admin", membershipVersion));
+            Assert.False(withdrawn.Succeeded);
+            Assert.Contains("Roster membership is fixed after the event first goes Live.", withdrawn.Error, StringComparison.Ordinal);
+            var replaced = await Service(db).ReplaceVacancyAsync(new(seed.EventId, seed.DepartedMembershipId, seed.AdminId, "admin", seed.WaitingId));
+            Assert.False(replaced.Succeeded);
+            Assert.Contains("replacements and vacancies are retired", replaced.Error, StringComparison.OrdinalIgnoreCase);
         }
-        finally { barrier.Release.TrySetResult(); }
+        else
+        {
+            await using var db = Db();
+            var withdrawn = await Service(db).WithdrawLiveAsync(new(seed.EventId, seed.DepartedId, seed.AdminId, "admin", membershipVersion));
+            Assert.False(withdrawn.Succeeded);
+            Assert.Contains("Roster membership is fixed after the event first goes Live.", withdrawn.Error, StringComparison.Ordinal);
+        }
+        Assert.Equal(before, await StateHashAsync());
     }
 
     [Theory]
@@ -787,30 +882,570 @@ public sealed class C11FinalizedRosterIntegrationTests : IAsyncLifetime
         }
         await using var factory = Factory();
         using var admin = await LoginAsync(factory, "c11-admin");
-        await WithdrawAsync(seed);
-        Assert.True((await FillAsync(seed, seed.WaitingId)).Succeeded);
+        if (live)
+        {
+            var before = await StateHashAsync();
+            long membershipVersion;
+            await using (var db = Db())
+                membershipVersion = await db.TeamMemberships.Where(x => x.Id == seed.DepartedMembershipId).Select(x => x.Version).SingleAsync();
+            await using (var db = Db())
+            {
+                var withdrawn = await Service(db).WithdrawLiveAsync(new(seed.EventId, seed.DepartedId, seed.AdminId, "admin", membershipVersion));
+                Assert.False(withdrawn.Succeeded);
+                Assert.Contains("Roster membership is fixed after the event first goes Live.", withdrawn.Error, StringComparison.Ordinal);
+            }
+            await using (var db = Db())
+            {
+                var retiredReplacement = await Service(db).ReplaceVacancyAsync(new(seed.EventId, seed.DepartedMembershipId, seed.AdminId, "admin", seed.WaitingId));
+                Assert.False(retiredReplacement.Succeeded);
+                Assert.Contains("replacements and vacancies are retired", retiredReplacement.Error, StringComparison.OrdinalIgnoreCase);
+            }
+            Assert.Equal(before, await StateHashAsync());
+            var participantPage = await admin.GetStringAsync(ParticipantPath(seed, seed.DepartedId));
+            Assert.DoesNotContain("Fill open vacancy", participantPage, StringComparison.Ordinal);
+            var notifications = await admin.GetStringAsync("/Notifications");
+            Assert.DoesNotContain("Live participant withdrawn", notifications, StringComparison.Ordinal);
+            return;
+        }
+        var removed = await RemoveFinalizedAsync(seed, seed.DepartedId);
+        Assert.True(removed.Succeeded, removed.Error);
+        var added = await AddFinalizedAsync(seed, seed.TeamId, participantId: seed.WaitingId);
+        Assert.True(added.Succeeded, added.Error);
         await using var context = Db();
         var notices = await context.PersonalNotifications.Where(x => x.RecipientAccountId == seed.AdminId).OrderBy(x => x.CreatedAt).ToListAsync();
-        Assert.Equal(2, notices.Count);
-        var withdrawal = Assert.Single(notices, x => x.Detail.Contains("withdrew", StringComparison.Ordinal));
-        var replacement = Assert.Single(notices, x => x.Detail.Contains("joined", StringComparison.Ordinal));
+        Assert.Empty(notices);
         admin.DefaultRequestHeaders.AcceptLanguage.ParseAdd(culture);
         var html = WebUtility.HtmlDecode(await admin.GetStringAsync("/Notifications"));
-        string Title(Guid notice) => Regex.Match(html, $"<a\\b[^>]*href=\"/notifications\\?read={notice}\"[^>]*>\\s*<strong>([^<]*)</strong>").Groups[1].Value;
-        Assert.Equal((live, culture) switch
+        Assert.DoesNotContain("participant.withdrawn", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("participant.prelive_withdrawn", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("Replacement confirmed", html, StringComparison.Ordinal);
+        Assert.Contains("Waiting C", RosterSection(await admin.GetStringAsync(TeamsPath(seed))));
+    }
+
+    [Fact]
+    public async Task FinalizedRosterAddRequiresFreshTeamVersionReusesEligibleAccountsWithoutACap()
+    {
+        var seed = await SeedAsync();
+        await using (var db = Db())
         {
-            (true, "da") => "Live-deltager trukket",
-            (true, _) => "Live participant withdrawn",
-            (false, "da") => "Deltager trukket før eventstart",
-            _ => "Participant withdrawn before event start"
-        }, Title(withdrawal.Id));
-        Assert.Equal((live, culture) switch
+            var first = await db.Accounts.SingleAsync(x => x.Id == seed.InternalOwnerId);
+            var second = await db.Accounts.SingleAsync(x => x.Id == seed.OutsiderId);
+            var firstCharacter = new OsrsCharacter(Guid.NewGuid(), "Add reuse one", "ADD REUSE ONE", clock.Now);
+            var secondCharacter = new OsrsCharacter(Guid.NewGuid(), "Add reuse two", "ADD REUSE TWO", clock.Now);
+            db.AddRange(firstCharacter, secondCharacter,
+                new AccountOsrsCharacter(Guid.NewGuid(), first.Id, firstCharacter.Id, first.Id, true, 0, null, 44m, clock.Now),
+                new AccountOsrsCharacter(Guid.NewGuid(), second.Id, secondCharacter.Id, second.Id, true, 0, null, 45m, clock.Now));
+            await db.SaveChangesAsync();
+        }
+
+        long expectedTeamVersion;
+        await using (var db = Db()) expectedTeamVersion = await db.Teams.Where(x => x.Id == seed.TeamId).Select(x => x.Version).SingleAsync();
+        await using (var missing = Db())
         {
-            (true, "da") => "Live-erstatning bekræftet",
-            (true, _) => "Live replacement confirmed",
-            (false, "da") => "Erstatning bekræftet før eventstart",
-            _ => "Replacement confirmed before event start"
-        }, Title(replacement.Id));
+            var rejected = await Service(missing).AddFinalizedRosterParticipantAsync(new(seed.EventId, seed.TeamId, seed.AdminId, "admin", seed.InternalOwnerId));
+            Assert.False(rejected.Succeeded);
+            Assert.Contains("version is required", rejected.Error, StringComparison.OrdinalIgnoreCase);
+        }
+        await using (var changed = Db())
+        {
+            var team = await changed.Teams.SingleAsync(x => x.Id == seed.TeamId);
+            team.AdvanceVersion();
+            await changed.SaveChangesAsync();
+        }
+        await using (var stale = Db())
+        {
+            var rejected = await Service(stale).AddFinalizedRosterParticipantAsync(new(seed.EventId, seed.TeamId, seed.AdminId, "admin", seed.InternalOwnerId, ExpectedTeamVersion: expectedTeamVersion));
+            Assert.False(rejected.Succeeded);
+            Assert.Contains("changed elsewhere", rejected.Error, StringComparison.OrdinalIgnoreCase);
+        }
+        await using (var restore = Db())
+        {
+            var team = await restore.Teams.SingleAsync(x => x.Id == seed.TeamId);
+            expectedTeamVersion = team.Version;
+        }
+
+        FinalizedRosterMutationResult firstResult;
+        FinalizedRosterMutationResult secondResult;
+        await using (var db = Db())
+            firstResult = await Service(db).AddFinalizedRosterParticipantAsync(new(seed.EventId, seed.TeamId, seed.AdminId, "admin", seed.InternalOwnerId, ExpectedTeamVersion: expectedTeamVersion));
+        await using (var db = Db())
+            secondResult = await Service(db).AddFinalizedRosterParticipantAsync(new(seed.EventId, seed.TeamId, seed.AdminId, "admin", seed.OutsiderId, ExpectedTeamVersion: expectedTeamVersion));
+        Assert.True(firstResult.Succeeded, firstResult.Error);
+        Assert.True(secondResult.Succeeded, secondResult.Error);
+        Assert.Equal("NotManaged", firstResult.WomSyncStatus);
+        await using (var duplicate = Db())
+        {
+            var rejected = await Service(duplicate).AddFinalizedRosterParticipantAsync(new(seed.EventId, seed.TeamId, seed.AdminId, "admin", seed.InternalOwnerId, ExpectedTeamVersion: expectedTeamVersion));
+            Assert.False(rejected.Succeeded);
+            Assert.Contains("already on a current roster", rejected.Error, StringComparison.OrdinalIgnoreCase);
+        }
+        await using (var ownershipConflict = Db())
+        {
+            var rejected = await Service(ownershipConflict).AddFinalizedRosterParticipantAsync(new(seed.EventId, seed.TeamId, seed.AdminId, "admin", seed.OutsiderId, ParticipantId: seed.DepartedId, ExpectedTeamVersion: expectedTeamVersion));
+            Assert.False(rejected.Succeeded);
+            Assert.Contains("does not own", rejected.Error, StringComparison.OrdinalIgnoreCase);
+        }
+
+        await using var verify = Db();
+        Assert.Equal(4, await verify.TeamMemberships.CountAsync(x => x.TeamId == seed.TeamId && x.LeftAt == null));
+        Assert.Equal(5, await verify.EventParticipants.CountAsync(x => x.EventId == seed.EventId && x.SignupStatus == SignupStatus.Confirmed && verify.TeamMemberships.Any(m => m.EventParticipantId == x.Id && m.LeftAt == null)));
+        var addAudits = await verify.AuditEntries.Where(x => x.EventId == seed.EventId && x.Action == "roster.finalized_added").ToListAsync();
+        Assert.Equal(2, addAudits.Count);
+        Assert.Contains(addAudits, audit => audit.Details?.Contains(seed.InternalOwnerId.ToString(), StringComparison.Ordinal) == true);
+        Assert.Contains(addAudits, audit => audit.Details?.Contains("created-participant", StringComparison.Ordinal) == true);
+    }
+
+    [Fact]
+    public async Task FinalizedRosterAddRequiresAnAuthoritativeLinkedPlayingSelectionForReusedParticipants()
+    {
+        var seed = await SeedAsync();
+        Guid secondAlternativeId;
+        await using (var db = Db())
+        {
+            var participant = await db.EventParticipants.SingleAsync(x => x.Id == seed.OtherWaitingId);
+            var ownerId = participant.AccountId!.Value;
+            var current = await db.EventParticipantCharacters.SingleAsync(x => x.EventParticipantId == participant.Id && x.ReleasedAt == null && x.EventRole == EventCharacterRole.Playing && x.SignupQuestionId == seed.PrimaryQuestionId);
+            var currentLink = await db.AccountOsrsCharacters.SingleAsync(x => x.AccountId == ownerId && x.OsrsCharacterId == current.OsrsCharacterId && x.Active);
+            currentLink.Unlink(clock.Now);
+            var first = new OsrsCharacter(Guid.NewGuid(), "Reused choice one", "REUSED CHOICE ONE", clock.Now);
+            var second = new OsrsCharacter(Guid.NewGuid(), "Reused choice two", "REUSED CHOICE TWO", clock.Now);
+            db.AddRange(first, second,
+                new AccountOsrsCharacter(Guid.NewGuid(), ownerId, first.Id, ownerId, true, 0, null, 61m, clock.Now),
+                new AccountOsrsCharacter(Guid.NewGuid(), ownerId, second.Id, ownerId, false, 1, null, 62m, clock.Now));
+            await db.SaveChangesAsync();
+            secondAlternativeId = second.Id;
+        }
+
+        long teamVersion;
+        await using (var db = Db()) teamVersion = await db.Teams.Where(x => x.Id == seed.TeamId).Select(x => x.Version).SingleAsync();
+        var beforeRejected = await StateHashAsync();
+        await using (var ambiguous = Db())
+        {
+            var rejected = await Service(ambiguous).AddFinalizedRosterParticipantAsync(new(
+                seed.EventId, seed.TeamId, seed.AdminId, "admin", ParticipantId: seed.OtherWaitingId, ExpectedTeamVersion: teamVersion));
+            Assert.False(rejected.Succeeded);
+            Assert.Contains("Select which linked Playing account", rejected.Error, StringComparison.Ordinal);
+        }
+        Assert.Equal(beforeRejected, await StateHashAsync());
+
+        FinalizedRosterMutationResult added;
+        await using (var db = Db())
+            added = await Service(db).AddFinalizedRosterParticipantAsync(new(
+                seed.EventId, seed.TeamId, seed.AdminId, "admin", ParticipantId: seed.OtherWaitingId,
+                ExpectedTeamVersion: teamVersion, PlayingCharacterId: secondAlternativeId, PlayingEhb: 88.75m));
+        Assert.True(added.Succeeded, added.Error);
+
+        await using var verify = Db();
+        var assignment = await verify.EventParticipantCharacters.SingleAsync(x => x.EventParticipantId == seed.OtherWaitingId && x.ReleasedAt == null && x.EventRole == EventCharacterRole.Playing && x.SignupQuestionId == seed.PrimaryQuestionId);
+        Assert.Equal(secondAlternativeId, assignment.OsrsCharacterId);
+        Assert.Equal(88.75m, assignment.EhbSnapshot);
+        Assert.Equal(secondAlternativeId, await verify.SignupAnswers.Where(x => x.EventParticipantId == seed.OtherWaitingId && x.SignupQuestionId == seed.PrimaryQuestionId).Select(x => x.OsrsCharacterId).SingleAsync());
+        Assert.Equal(secondAlternativeId, await verify.DraftPublicationRosters
+            .Where(x => x.DraftPublicationCycleId == verify.DraftPublicationCycles.Where(c => c.DraftSessionId == verify.DraftSessions.Where(d => d.EventId == seed.EventId).Select(d => d.Id).Single() && c.SupersededAt == null).Select(c => c.Id).Single() && x.EventParticipantId == seed.OtherWaitingId)
+            .Join(verify.OsrsCharacters, x => x.PublicCharacterName, x => x.DisplayName, (_, character) => character.Id)
+            .SingleAsync());
+        Assert.Single(await verify.TeamMemberships.Where(x => x.EventParticipantId == seed.OtherWaitingId && x.LeftAt == null).ToListAsync());
+    }
+
+    [Fact]
+    public async Task FinalizedRosterReuseReconcilesPrimaryWithoutChangingOptionalPlayingAssignment()
+    {
+        var seed = await SeedAsync();
+        Guid primaryId;
+        Guid optionalAssignmentId;
+        Guid optionalCharacterId;
+        Guid optionalQuestionId;
+        decimal optionalEhb;
+        Guid optionalAnswerId;
+        await using (var db = Db())
+        {
+            var assignments = await db.EventParticipantCharacters
+                .Where(x => x.EventParticipantId == seed.WaitingId && x.ReleasedAt == null && x.EventRole == EventCharacterRole.Playing)
+                .OrderBy(x => x.RegistrationOrder)
+                .ToListAsync();
+            var primary = assignments.Single(x => x.SignupQuestionId == seed.PrimaryQuestionId);
+            var optional = assignments.Single(x => x.SignupQuestionId != seed.PrimaryQuestionId);
+            var optionalAnswer = await db.SignupAnswers.SingleAsync(x => x.EventParticipantId == seed.WaitingId && x.SignupQuestionId == optional.SignupQuestionId);
+            primaryId = primary.OsrsCharacterId;
+            optionalAssignmentId = optional.Id;
+            optionalCharacterId = optional.OsrsCharacterId;
+            optionalQuestionId = optional.SignupQuestionId!.Value;
+            optionalEhb = optional.EhbSnapshot!.Value;
+            optionalAnswerId = optionalAnswer.Id;
+        }
+
+        long teamVersion;
+        await using (var db = Db()) teamVersion = await db.Teams.Where(x => x.Id == seed.TeamId).Select(x => x.Version).SingleAsync();
+        FinalizedRosterMutationResult added;
+        await using (var db = Db())
+            added = await Service(db).AddFinalizedRosterParticipantAsync(new(
+                seed.EventId, seed.TeamId, seed.AdminId, "admin", ParticipantId: seed.WaitingId,
+                ExpectedTeamVersion: teamVersion, PlayingCharacterId: primaryId, PlayingEhb: 77.25m));
+        Assert.True(added.Succeeded, added.Error);
+
+        await using var verify = Db();
+        var primaryAfter = await verify.EventParticipantCharacters.SingleAsync(x => x.EventParticipantId == seed.WaitingId && x.ReleasedAt == null && x.SignupQuestionId == seed.PrimaryQuestionId);
+        var optionalAfter = await verify.EventParticipantCharacters.SingleAsync(x => x.Id == optionalAssignmentId);
+        var optionalAnswerAfter = await verify.SignupAnswers.SingleAsync(x => x.Id == optionalAnswerId);
+        Assert.Equal(primaryId, primaryAfter.OsrsCharacterId);
+        Assert.Equal(77.25m, primaryAfter.EhbSnapshot);
+        Assert.Equal(optionalCharacterId, optionalAfter.OsrsCharacterId);
+        Assert.Equal(optionalQuestionId, optionalAfter.SignupQuestionId);
+        Assert.Equal(optionalEhb, optionalAfter.EhbSnapshot);
+        Assert.Equal(optionalCharacterId, optionalAnswerAfter.OsrsCharacterId);
+        Assert.Equal(primaryId, await verify.DraftPublicationRosters
+            .Where(x => x.DraftPublicationCycleId == verify.DraftPublicationCycles.Where(c => c.DraftSessionId == verify.DraftSessions.Where(d => d.EventId == seed.EventId).Select(d => d.Id).Single() && c.SupersededAt == null).Select(c => c.Id).Single() && x.EventParticipantId == seed.WaitingId)
+            .Join(verify.OsrsCharacters, x => x.PublicCharacterName, x => x.DisplayName, (_, character) => character.Id)
+            .SingleAsync());
+    }
+
+    [Fact]
+    public async Task FinalizedRosterReuseCreatesMissingPrimaryAndUpdatesExistingAnswerWithoutChangingOptionalPlayingAssignment()
+    {
+        var seed = await SeedAsync();
+        Guid replacementId;
+        Guid oldPrimaryId;
+        Guid optionalAssignmentId;
+        Guid optionalCharacterId;
+        Guid optionalQuestionId;
+        decimal optionalEhb;
+        Guid optionalAnswerId;
+        await using (var db = Db())
+        {
+            var participant = await db.EventParticipants.SingleAsync(x => x.Id == seed.WaitingId);
+            var assignments = await db.EventParticipantCharacters
+                .Where(x => x.EventParticipantId == seed.WaitingId && x.ReleasedAt == null && x.EventRole == EventCharacterRole.Playing)
+                .OrderBy(x => x.RegistrationOrder)
+                .ToListAsync();
+            var primary = assignments.Single(x => x.SignupQuestionId == seed.PrimaryQuestionId);
+            var optional = assignments.Single(x => x.SignupQuestionId != seed.PrimaryQuestionId);
+            var optionalAnswer = await db.SignupAnswers.SingleAsync(x => x.EventParticipantId == seed.WaitingId && x.SignupQuestionId == optional.SignupQuestionId);
+            oldPrimaryId = primary.OsrsCharacterId;
+            primary.Release(participant.AccountId!.Value, clock.Now.AddMinutes(-1));
+            var replacement = new OsrsCharacter(Guid.NewGuid(), "Replacement primary", "REPLACEMENT PRIMARY", clock.Now);
+            db.AddRange(replacement, new AccountOsrsCharacter(Guid.NewGuid(), participant.AccountId.Value, replacement.Id, participant.AccountId.Value, false, 2, null, 73m, clock.Now));
+            optionalAssignmentId = optional.Id;
+            optionalCharacterId = optional.OsrsCharacterId;
+            optionalQuestionId = optional.SignupQuestionId!.Value;
+            optionalEhb = optional.EhbSnapshot!.Value;
+            optionalAnswerId = optionalAnswer.Id;
+            replacementId = replacement.Id;
+            await db.SaveChangesAsync();
+        }
+
+        long teamVersion;
+        await using (var db = Db()) teamVersion = await db.Teams.Where(x => x.Id == seed.TeamId).Select(x => x.Version).SingleAsync();
+        FinalizedRosterMutationResult added;
+        await using (var db = Db())
+            added = await Service(db).AddFinalizedRosterParticipantAsync(new(
+                seed.EventId, seed.TeamId, seed.AdminId, "admin", ParticipantId: seed.WaitingId,
+                ExpectedTeamVersion: teamVersion, PlayingCharacterId: replacementId, PlayingEhb: 86.5m));
+        Assert.True(added.Succeeded, added.Error);
+
+        await using var verify = Db();
+        var primaryAfter = await verify.EventParticipantCharacters.SingleAsync(x => x.EventParticipantId == seed.WaitingId && x.ReleasedAt == null && x.SignupQuestionId == seed.PrimaryQuestionId);
+        var primaryAnswer = await verify.SignupAnswers.SingleAsync(x => x.EventParticipantId == seed.WaitingId && x.SignupQuestionId == seed.PrimaryQuestionId);
+        var optionalAfter = await verify.EventParticipantCharacters.SingleAsync(x => x.Id == optionalAssignmentId);
+        var optionalAnswerAfter = await verify.SignupAnswers.SingleAsync(x => x.Id == optionalAnswerId);
+        Assert.Equal(replacementId, primaryAfter.OsrsCharacterId);
+        Assert.Equal(86.5m, primaryAfter.EhbSnapshot);
+        Assert.Equal(replacementId, primaryAnswer.OsrsCharacterId);
+        Assert.Equal(optionalCharacterId, optionalAfter.OsrsCharacterId);
+        Assert.Equal(optionalQuestionId, optionalAfter.SignupQuestionId);
+        Assert.Equal(optionalEhb, optionalAfter.EhbSnapshot);
+        Assert.Equal(optionalCharacterId, optionalAnswerAfter.OsrsCharacterId);
+        Assert.NotEqual(oldPrimaryId, primaryAnswer.OsrsCharacterId);
+        Assert.Equal(replacementId, await verify.DraftPublicationRosters
+            .Where(x => x.DraftPublicationCycleId == verify.DraftPublicationCycles.Where(c => c.DraftSessionId == verify.DraftSessions.Where(d => d.EventId == seed.EventId).Select(d => d.Id).Single() && c.SupersededAt == null).Select(c => c.Id).Single() && x.EventParticipantId == seed.WaitingId)
+            .Join(verify.OsrsCharacters, x => x.PublicCharacterName, x => x.DisplayName, (_, character) => character.Id)
+            .SingleAsync());
+    }
+
+    [Fact]
+    public async Task FinalizedRosterReuseRejectsDuplicatePrimaryAssignmentsWithoutWrites()
+    {
+        var seed = await SeedAsync();
+        Guid primaryId;
+        await using (var db = Db())
+        {
+            var participant = await db.EventParticipants.SingleAsync(x => x.Id == seed.OtherWaitingId);
+            var primary = await db.EventParticipantCharacters.SingleAsync(x => x.EventParticipantId == participant.Id && x.ReleasedAt == null && x.SignupQuestionId == seed.PrimaryQuestionId);
+            var duplicateCharacter = new OsrsCharacter(Guid.NewGuid(), "Duplicate primary", "DUPLICATE PRIMARY", clock.Now);
+            db.AddRange(duplicateCharacter, new EventParticipantCharacter(Guid.NewGuid(), seed.EventId, participant.Id, duplicateCharacter.Id, primary.RegistrationOrder + 1,
+                clock.Now, participant.AccountId, seed.PrimaryQuestionId, EventCharacterRole.Playing, 31m, EhbSource.Manual, null));
+            await db.SaveChangesAsync();
+            primaryId = primary.OsrsCharacterId;
+        }
+
+        long teamVersion;
+        await using (var db = Db()) teamVersion = await db.Teams.Where(x => x.Id == seed.TeamId).Select(x => x.Version).SingleAsync();
+        var before = await StateHashAsync();
+        await using (var omitted = Db())
+        {
+            var rejected = await Service(omitted).AddFinalizedRosterParticipantAsync(new(
+                seed.EventId, seed.TeamId, seed.AdminId, "admin", ParticipantId: seed.OtherWaitingId, ExpectedTeamVersion: teamVersion));
+            Assert.False(rejected.Succeeded);
+            Assert.Contains("multiple active primary", rejected.Error, StringComparison.OrdinalIgnoreCase);
+        }
+        Assert.Equal(before, await StateHashAsync());
+        await using (var explicitSelection = Db())
+        {
+            var rejected = await Service(explicitSelection).AddFinalizedRosterParticipantAsync(new(
+                seed.EventId, seed.TeamId, seed.AdminId, "admin", ParticipantId: seed.OtherWaitingId,
+                ExpectedTeamVersion: teamVersion, PlayingCharacterId: primaryId, PlayingEhb: 77.5m));
+            Assert.False(rejected.Succeeded);
+            Assert.Contains("multiple active primary", rejected.Error, StringComparison.OrdinalIgnoreCase);
+        }
+        Assert.Equal(before, await StateHashAsync());
+    }
+
+    [Theory]
+    [InlineData("missing")]
+    [InlineData("malformed")]
+    public async Task FinalizedRosterAddRejectsMissingOrMalformedPrimaryDefinitionWithoutWrites(string condition)
+    {
+        var seed = await SeedAsync();
+        await using (var db = Db())
+        {
+            var primary = await db.SignupQuestions.SingleAsync(x => x.Id == seed.PrimaryQuestionId);
+            if (condition == "missing")
+            {
+                db.Entry(primary).Property(x => x.Active).CurrentValue = false;
+                db.Entry(primary).Property(x => x.DisabledAt).CurrentValue = clock.Now;
+                db.Entry(primary).Property(x => x.DisabledReason).CurrentValue = "malformed fixture";
+            }
+            else
+            {
+                db.Entry(primary).Property(x => x.Type).CurrentValue = SignupQuestionType.Text;
+                db.Entry(primary).Property(x => x.AccountAnswerRole).CurrentValue = null;
+            }
+            await db.SaveChangesAsync();
+        }
+        long teamVersion;
+        await using (var db = Db()) teamVersion = await db.Teams.Where(x => x.Id == seed.TeamId).Select(x => x.Version).SingleAsync();
+        var before = await StateHashAsync();
+        await using var attempt = Db();
+        var rejected = await Service(attempt).AddFinalizedRosterParticipantAsync(new(
+            seed.EventId, seed.TeamId, seed.AdminId, "admin", ParticipantId: seed.OtherWaitingId, ExpectedTeamVersion: teamVersion));
+        Assert.False(rejected.Succeeded);
+        Assert.Contains("active required Playing account", rejected.Error, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(before, await StateHashAsync());
+    }
+
+    [Fact]
+    public async Task FinalizedRosterAddRejectsUnresolvableLegacyPlayingAssignmentWithoutWrites()
+    {
+        var seed = await SeedAsync();
+        await using (var db = Db())
+        {
+            var participant = await db.EventParticipants.SingleAsync(x => x.Id == seed.OtherWaitingId);
+            var legacyCharacter = new OsrsCharacter(Guid.NewGuid(), "Legacy unresolved", "LEGACY UNRESOLVED", clock.Now);
+            db.AddRange(legacyCharacter, new EventParticipantCharacter(Guid.NewGuid(), seed.EventId, participant.Id, legacyCharacter.Id, 1,
+                clock.Now, participant.AccountId, null, EventCharacterRole.Playing, 19m, EhbSource.Manual, null));
+            await db.SaveChangesAsync();
+        }
+        long teamVersion;
+        await using (var db = Db()) teamVersion = await db.Teams.Where(x => x.Id == seed.TeamId).Select(x => x.Version).SingleAsync();
+        var before = await StateHashAsync();
+        await using var attempt = Db();
+        var rejected = await Service(attempt).AddFinalizedRosterParticipantAsync(new(
+            seed.EventId, seed.TeamId, seed.AdminId, "admin", ParticipantId: seed.OtherWaitingId, ExpectedTeamVersion: teamVersion));
+        Assert.False(rejected.Succeeded);
+        Assert.Contains("unresolved active account assignment", rejected.Error, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(before, await StateHashAsync());
+    }
+
+    [Fact]
+    public async Task FinalizedRosterRemoveRequiresFreshMembershipVersionRetainsHistoryAndSupportsIndependentReAdd()
+    {
+        var seed = await SeedAsync();
+        string answersBefore;
+        string assignmentsBefore;
+        int picksBefore;
+        await using (var snapshot = Db())
+        {
+            answersBefore = await RowsAsync("signup_answers", $"event_participant_id = '{seed.DepartedId}'");
+            assignmentsBefore = await RowsAsync("event_participant_characters", $"event_participant_id = '{seed.DepartedId}'");
+            picksBefore = await snapshot.DraftPicks.CountAsync(x => x.DraftSessionId == snapshot.DraftSessions.Where(d => d.EventId == seed.EventId).Select(d => d.Id).Single());
+        }
+        long version;
+        await using (var db = Db()) version = await db.TeamMemberships.Where(x => x.Id == seed.DepartedMembershipId).Select(x => x.Version).SingleAsync();
+        await using (var missing = Db())
+        {
+            var rejected = await Service(missing).RemoveFinalizedRosterParticipantAsync(new(seed.EventId, seed.DepartedId, seed.AdminId, "admin", true));
+            Assert.False(rejected.Succeeded);
+            Assert.Contains("version is required", rejected.Error, StringComparison.OrdinalIgnoreCase);
+        }
+        await using (var changed = Db())
+        {
+            var member = await changed.TeamMemberships.SingleAsync(x => x.Id == seed.DepartedMembershipId);
+            member.AdvanceVersion();
+            await changed.SaveChangesAsync();
+        }
+        await using (var stale = Db())
+        {
+            var rejected = await Service(stale).RemoveFinalizedRosterParticipantAsync(new(seed.EventId, seed.DepartedId, seed.AdminId, "admin", true, version));
+            Assert.False(rejected.Succeeded);
+            Assert.Contains("changed elsewhere", rejected.Error, StringComparison.OrdinalIgnoreCase);
+        }
+
+        long currentVersion;
+        await using (var db = Db()) currentVersion = await db.TeamMemberships.Where(x => x.Id == seed.DepartedMembershipId).Select(x => x.Version).SingleAsync();
+        await using (var remove = Db())
+        {
+            var result = await Service(remove, new CompetitionManagementStub(new(true, Status: "Failed", Error: "provider unavailable"))).RemoveFinalizedRosterParticipantAsync(new(seed.EventId, seed.DepartedId, seed.AdminId, "admin", true, currentVersion));
+            Assert.True(result.Succeeded, result.Error);
+            Assert.Equal("Failed", result.WomSyncStatus);
+            Assert.Equal("provider unavailable", result.WomSyncError);
+        }
+        await using (var verify = Db())
+        {
+            var member = await verify.TeamMemberships.SingleAsync(x => x.Id == seed.DepartedMembershipId);
+            Assert.NotNull(member.LeftAt);
+            Assert.Equal(SignupStatus.Confirmed, await verify.EventParticipants.Where(x => x.Id == seed.DepartedId).Select(x => x.SignupStatus).SingleAsync());
+            Assert.Equal(answersBefore, await RowsAsync("signup_answers", $"event_participant_id = '{seed.DepartedId}'"));
+            Assert.Equal(assignmentsBefore, await RowsAsync("event_participant_characters", $"event_participant_id = '{seed.DepartedId}'"));
+            Assert.Equal(picksBefore, await verify.DraftPicks.CountAsync(x => x.DraftSessionId == verify.DraftSessions.Where(d => d.EventId == seed.EventId).Select(d => d.Id).Single()));
+            var activeCycle = await verify.DraftPublicationCycles.Where(x => x.DraftSessionId == verify.DraftSessions.Where(d => d.EventId == seed.EventId).Select(d => d.Id).Single() && x.SupersededAt == null).Select(x => x.Id).SingleAsync();
+            Assert.DoesNotContain(await verify.DraftPublicationRosters.Where(x => x.DraftPublicationCycleId == activeCycle).ToListAsync(), x => x.EventParticipantId == seed.DepartedId);
+        }
+        await using var publicFactory = Factory();
+        using var publicClient = publicFactory.CreateClient();
+        var currentPublic = await publicClient.GetStringAsync(TeamsPath(seed));
+        Assert.DoesNotContain("Departed C", RosterSection(currentPublic));
+        Assert.Contains("Departed C", PickSection(currentPublic));
+
+        long secondTeamVersion;
+        await using (var db = Db()) secondTeamVersion = await db.Teams.Where(x => x.Id == seed.SecondTeamId).Select(x => x.Version).SingleAsync();
+        await using (var changed = Db())
+        {
+            var team = await changed.Teams.SingleAsync(x => x.Id == seed.SecondTeamId);
+            team.AdvanceVersion();
+            await changed.SaveChangesAsync();
+        }
+        await using (var failedAdd = Db())
+        {
+            var rejected = await Service(failedAdd).AddFinalizedRosterParticipantAsync(new(seed.EventId, seed.SecondTeamId, seed.AdminId, "admin", ParticipantId: seed.DepartedId, ExpectedTeamVersion: secondTeamVersion));
+            Assert.False(rejected.Succeeded);
+            Assert.Contains("changed elsewhere", rejected.Error, StringComparison.OrdinalIgnoreCase);
+        }
+        await using (var db = Db()) secondTeamVersion = await db.Teams.Where(x => x.Id == seed.SecondTeamId).Select(x => x.Version).SingleAsync();
+        await using (var add = Db())
+        {
+            var result = await Service(add).AddFinalizedRosterParticipantAsync(new(seed.EventId, seed.SecondTeamId, seed.AdminId, "admin", ParticipantId: seed.DepartedId, ExpectedTeamVersion: secondTeamVersion));
+            Assert.True(result.Succeeded, result.Error);
+        }
+        await using var final = Db();
+        Assert.Equal(seed.SecondTeamId, await final.TeamMemberships.Where(x => x.EventParticipantId == seed.DepartedId && x.LeftAt == null).Select(x => x.TeamId).SingleAsync());
+        Assert.Equal(assignmentsBefore, await RowsAsync("event_participant_characters", $"event_participant_id = '{seed.DepartedId}'"));
+        Assert.Contains("reused-participant", (await final.AuditEntries.Where(x => x.Action == "roster.finalized_added").OrderBy(x => x.OccurredAt).ToListAsync()).Last().Details);
+        var readdedPublic = await publicClient.GetStringAsync(TeamsPath(seed));
+        Assert.Contains("Departed C", RosterSection(readdedPublic));
+    }
+
+    [Fact]
+    public async Task FinalizedWomProjectionUsesEveryCurrentPlayingAssignmentWithinPublishedMembershipBoundary()
+    {
+        var seed = await SeedAsync();
+        await using var factory = Factory();
+        using var scope = factory.Services.CreateScope();
+        var management = scope.ServiceProvider.GetRequiredService<IEventCompetitionManagementService>();
+        var preview = await management.PreviewAsync(seed.EventId);
+        Assert.NotNull(preview);
+        var firstTeam = Assert.Single(preview!.Teams, x => x.TeamId == seed.TeamId);
+        Assert.Contains("Departed C", firstTeam.Participants);
+        Assert.Contains("Departed B", firstTeam.Participants);
+        await using var db = Db();
+        Assert.Single(await db.DraftPublicationRosters.Where(x => x.DraftPublicationCycleId == seed.InitialCycleId && x.EventParticipantId == seed.DepartedId).ToListAsync());
+    }
+
+    [Fact]
+    public async Task FinalizedRosterCorrectionsRejectAfterTheEventFirstGoesLive()
+    {
+        var seed = await SeedAsync();
+        await using (var startedDb = Db())
+        {
+            var item = await startedDb.Events.SingleAsync(x => x.Id == seed.EventId);
+            item.StartEvent(clock.Now);
+            await startedDb.SaveChangesAsync();
+        }
+        await using var liveDb = Db();
+        var teamVersion = await liveDb.Teams.Where(x => x.Id == seed.TeamId).Select(x => x.Version).SingleAsync();
+        var add = await Service(liveDb).AddFinalizedRosterParticipantAsync(new(seed.EventId, seed.TeamId, seed.AdminId, "admin", ParticipantId: seed.DepartedId, ExpectedTeamVersion: teamVersion));
+        Assert.False(add.Succeeded);
+        var membershipVersion = await liveDb.TeamMemberships.Where(x => x.Id == seed.DepartedMembershipId).Select(x => x.Version).SingleAsync();
+        var remove = await Service(liveDb).RemoveFinalizedRosterParticipantAsync(new(seed.EventId, seed.DepartedId, seed.AdminId, "admin", true, membershipVersion));
+        Assert.False(remove.Succeeded);
+        Assert.Null((await liveDb.TeamMemberships.SingleAsync(x => x.Id == seed.DepartedMembershipId)).LeftAt);
+    }
+
+    [Fact]
+    public async Task FinalizedRosterAddLinearizesAgainstAConcurrentLiveStart()
+    {
+        var seed = await SeedAsync();
+        await using (var db = Db())
+        {
+            var owner = await db.Accounts.SingleAsync(x => x.Id == seed.InternalOwnerId);
+            var character = new OsrsCharacter(Guid.NewGuid(), "Live race add", "LIVE RACE ADD", clock.Now);
+            db.AddRange(character, new AccountOsrsCharacter(Guid.NewGuid(), owner.Id, character.Id, owner.Id, true, 0, null, 20m, clock.Now));
+            await db.SaveChangesAsync();
+        }
+        long teamVersion;
+        await using (var db = Db()) teamVersion = await db.Teams.Where(x => x.Id == seed.TeamId).Select(x => x.Version).SingleAsync();
+        var barrier = new BeforeEventLock();
+        await using var mutationDb = Db(barrier);
+        var mutation = Service(mutationDb).AddFinalizedRosterParticipantAsync(new(seed.EventId, seed.TeamId, seed.AdminId, "admin", seed.InternalOwnerId, ExpectedTeamVersion: teamVersion));
+        await barrier.Reached.Task.WaitAsync(TimeSpan.FromSeconds(20));
+        var start = StartLiveAsync(seed.EventId);
+        barrier.Release.TrySetResult();
+        var add = await mutation;
+        await start;
+        Assert.True(add.Succeeded, add.Error);
+        await using var verify = Db();
+        Assert.Equal(EventState.Live, await verify.Events.Where(x => x.Id == seed.EventId).Select(x => x.State).SingleAsync());
+        Assert.NotNull(await verify.TeamMemberships.Where(x => x.Id == add.MembershipId && x.LeftAt == null).SingleOrDefaultAsync());
+    }
+
+    [Fact]
+    public async Task PendingAddAndFailedRemoveKeepLocalRosterCommittedAndReturnProviderState()
+    {
+        var seed = await SeedAsync();
+        await using (var db = Db())
+        {
+            var owner = await db.Accounts.SingleAsync(x => x.Id == seed.InternalOwnerId);
+            var character = new OsrsCharacter(Guid.NewGuid(), "Pending add", "PENDING ADD", clock.Now);
+            db.AddRange(character, new AccountOsrsCharacter(Guid.NewGuid(), owner.Id, character.Id, owner.Id, true, 0, null, 20m, clock.Now));
+            await db.SaveChangesAsync();
+        }
+        long teamVersion;
+        await using (var db = Db()) teamVersion = await db.Teams.Where(x => x.Id == seed.TeamId).Select(x => x.Version).SingleAsync();
+        FinalizedRosterMutationResult add;
+        await using (var db = Db()) add = await Service(db, new CompetitionManagementStub(new(true, Status: "Pending", Error: "queued for worker"))).AddFinalizedRosterParticipantAsync(new(seed.EventId, seed.TeamId, seed.AdminId, "admin", seed.InternalOwnerId, ExpectedTeamVersion: teamVersion));
+        Assert.True(add.Succeeded, add.Error);
+        Assert.Equal("Pending", add.WomSyncStatus);
+        Assert.NotNull(add.MembershipId);
+        long membershipVersion;
+        await using (var db = Db()) membershipVersion = await db.TeamMemberships.Where(x => x.Id == add.MembershipId).Select(x => x.Version).SingleAsync();
+        await using (var db = Db())
+        {
+            var remove = await Service(db, new CompetitionManagementStub(new(false, Status: "Failed", Error: "provider failed"))).RemoveFinalizedRosterParticipantAsync(new(seed.EventId, add.ParticipantId!.Value, seed.AdminId, "admin", true, membershipVersion));
+            Assert.True(remove.Succeeded, remove.Error);
+            Assert.Equal("Failed", remove.WomSyncStatus);
+            Assert.Equal("provider failed", remove.WomSyncError);
+        }
+        await using var verify = Db();
+        Assert.NotNull(await verify.TeamMemberships.Where(x => x.Id == add.MembershipId).Select(x => x.LeftAt).SingleAsync());
+        Assert.Contains(await verify.AuditEntries.Where(x => x.EventId == seed.EventId && x.Action.EndsWith(".wom_sync")).ToListAsync(), x => x.Details?.Contains("provider failed", StringComparison.Ordinal) == true);
+    }
+
+    private async Task StartLiveAsync(Guid eventId)
+    {
+        await using var db = Db();
+        await using var transaction = await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable);
+        var item = await db.Events.FromSqlInterpolated($"SELECT * FROM events WHERE id = {eventId} AND hidden_at IS NULL FOR UPDATE").SingleAsync();
+        item.StartEvent(clock.Now);
+        await db.SaveChangesAsync();
+        await transaction.CommitAsync();
     }
 
     private WebApplicationFactory<Program> Factory(IInterceptor? interceptor = null, bool unavailablePlayerLookup = false) => new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
@@ -855,7 +1490,9 @@ public sealed class C11FinalizedRosterIntegrationTests : IAsyncLifetime
         {
             var participant = new EventParticipant(Guid.NewGuid(), item.Id, status, ++sequence, now.AddDays(-2).AddMinutes(sequence), SignupSource.Website);
             participant.AssignOwner(owner); db.EventParticipants.Add(participant);
-            var character = new OsrsCharacter(Guid.NewGuid(), name, name.ToUpperInvariant(), now.AddDays(-2)); db.OsrsCharacters.Add(character);
+            var character = new OsrsCharacter(Guid.NewGuid(), name, name.ToUpperInvariant(), now.AddDays(-2));
+            db.OsrsCharacters.Add(character);
+            db.AccountOsrsCharacters.Add(new AccountOsrsCharacter(Guid.NewGuid(), owner.Id, character.Id, owner.Id, true, 0, null, 25m, now));
             if (corrected)
             {
                 var old = new OsrsCharacter(Guid.NewGuid(), name.Replace(" C", " A"), name.Replace(" C", " A").ToUpperInvariant(), now.AddDays(-2));
@@ -917,6 +1554,18 @@ public sealed class C11FinalizedRosterIntegrationTests : IAsyncLifetime
         await using var db = Db();
         return await Service(db).ReplaceVacancyAsync(new(seed.EventId, seed.DepartedMembershipId, seed.AdminId, "admin", candidate));
     }
+    private async Task<FinalizedRosterMutationResult> AddFinalizedAsync(Seed seed, Guid teamId, Guid? participantId = null, Guid? websiteAccountId = null, IEventCompetitionManagementService? competitionManagement = null)
+    {
+        await using var db = Db();
+        var teamVersion = await db.Teams.Where(x => x.Id == teamId).Select(x => x.Version).SingleAsync();
+        return await Service(db, competitionManagement).AddFinalizedRosterParticipantAsync(new(seed.EventId, teamId, seed.AdminId, "c11-admin", websiteAccountId, participantId, ExpectedTeamVersion: teamVersion));
+    }
+    private async Task<FinalizedRosterMutationResult> RemoveFinalizedAsync(Seed seed, Guid participantId)
+    {
+        await using var db = Db();
+        var membershipVersion = await db.TeamMemberships.Where(x => x.EventParticipantId == participantId && x.LeftAt == null).Select(x => x.Version).SingleAsync();
+        return await Service(db).RemoveFinalizedRosterParticipantAsync(new(seed.EventId, participantId, seed.AdminId, "c11-admin", true, membershipVersion));
+    }
     private static AdminParticipantChangeRequest Internal(Seed seed) => new(seed.EventId, null, seed.AdminId, "admin", null,
         new Dictionary<Guid, AdminAccountAnswer> { [seed.PrimaryQuestionId] = new("Internal fixture", 35) }, new Dictionary<Guid, string> { [seed.AnswerQuestionId] = "fixture answer" });
     private async Task<Guid> CurrentCycleAsync() { await using var db = Db(); return await db.DraftPublicationCycles.Where(x => x.SupersededAt == null).Select(x => x.Id).SingleAsync(); }
@@ -974,6 +1623,17 @@ public sealed class C11FinalizedRosterIntegrationTests : IAsyncLifetime
     }
     private sealed record Seed(Guid EventId, string Slug, Guid AdminId, Guid DepartedOwnerId, Guid LeaderOwnerId, Guid WaitingOwnerId, Guid InternalOwnerId, Guid OutsiderId,
         Guid TeamId, Guid SecondTeamId, Guid DepartedId, Guid LeaderId, Guid WaitingId, Guid OtherWaitingId, Guid DepartedMembershipId, Guid PrimaryQuestionId, Guid AnswerQuestionId, Guid WaitingPrimaryId, Guid InitialCycleId);
+    private sealed class CompetitionManagementStub(EventCompetitionManagementResult result) : IEventCompetitionManagementService
+    {
+        public Task<EventCompetitionManagementPreview?> PreviewAsync(Guid eventId, CancellationToken cancellationToken = default) => Task.FromResult<EventCompetitionManagementPreview?>(null);
+        public Task<EventCompetitionManagementView?> GetAsync(Guid eventId, CancellationToken cancellationToken = default) => Task.FromResult<EventCompetitionManagementView?>(null);
+        public Task<EventCompetitionManagementResult> CreateAsync(Guid eventId, long expectedEventVersion, LifecycleActor actor, CancellationToken cancellationToken = default) => Task.FromResult(result);
+        public Task<EventCompetitionManagementResult> AdoptCredentialAsync(Guid eventId, long expectedEventVersion, string verificationCode, LifecycleActor actor, CancellationToken cancellationToken = default) => Task.FromResult(result);
+        public Task<EventCompetitionManagementResult> ReplaceCredentialAsync(Guid eventId, long expectedEventVersion, string verificationCode, LifecycleActor actor, CancellationToken cancellationToken = default) => Task.FromResult(result);
+        public Task<EventCompetitionManagementResult> QueueUpdateAsync(Guid eventId, CancellationToken cancellationToken = default) => Task.FromResult(result);
+        public Task<EventCompetitionManagementResult> DeleteAsync(Guid eventId, long expectedEventVersion, long targetCompetitionId, bool confirmed, LifecycleActor actor, CancellationToken cancellationToken = default) => Task.FromResult(result);
+        public Task ProcessDueAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+    }
     private sealed class MutableClock(DateTimeOffset now) : TimeProvider { public DateTimeOffset Now { get; set; } = now; public override DateTimeOffset GetUtcNow() => Now; }
     private sealed class UnusedStorage : IEvidenceStorage
     {
@@ -1008,8 +1668,8 @@ public sealed class C11FinalizedRosterIntegrationTests : IAsyncLifetime
             var hit = target switch
             {
                 "publication" => db.ChangeTracker.Entries<DraftPublicationCycle>().Any(x => x.State == EntityState.Added),
-                "audit" => db.ChangeTracker.Entries<AuditEntry>().Any(x => x.State == EntityState.Added && x.Entity.Action == "participant.admin_withdrawn"),
-                "notification" => db.ChangeTracker.Entries<PersonalNotification>().Any(x => x.State == EntityState.Added),
+                "audit" => db.ChangeTracker.Entries<AuditEntry>().Any(x => x.State == EntityState.Added && x.Entity.Action is "roster.finalized_removed" or "roster.finalized_added"),
+                "notification" => db.ChangeTracker.Entries<DraftPublicationRoster>().Any(x => x.State == EntityState.Added),
                 "role-audit" => db.ChangeTracker.Entries<AuditEntry>().Any(x => x.State == EntityState.Added && x.Entity.Action == "team.role_roster_published"),
                 _ => false
             };

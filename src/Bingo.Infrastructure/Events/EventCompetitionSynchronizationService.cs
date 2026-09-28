@@ -1,4 +1,5 @@
 using System.Data;
+using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -35,7 +36,9 @@ public sealed partial class EventCompetitionSynchronizationService(
             .OrderByDescending(x => x.Generation)
             .FirstOrDefaultAsync(cancellationToken);
         if (state is null) return new EventCompetitionView(0, null, null, null, null, null, null, null, null, [], null, null, null, null, 0, womStatus.GetStatus());
-        return ToView(state);
+        var management = await db.EventCompetitionManagements.AsNoTracking()
+            .SingleOrDefaultAsync(x => x.EventId == eventId && x.Status != EventCompetitionManagementStatus.Deleted, cancellationToken);
+        return ToView(state, management);
     }
 
     public Task<EventCompetitionConfigurationResult> ConfigureAsync(
@@ -45,11 +48,27 @@ public sealed partial class EventCompetitionSynchronizationService(
             confirmScheduleChanges, confirmCompetitionClear: false, competitionClearReason: null,
             cancellationToken: cancellationToken);
 
+    public Task<EventCompetitionConfigurationResult> ConfigureAsync(
+        Guid eventId,
+        long expectedEventVersion,
+        long? competitionId,
+        LifecycleActor actor,
+        bool confirmCompetitionClear = false,
+        string? competitionClearReason = null,
+        CancellationToken cancellationToken = default)
+        => ConfigureAsync(eventId, expectedEventVersion, competitionId, synchronizeSchedule: false, actor,
+            confirmScheduleChanges: false, confirmCompetitionClear, competitionClearReason, cancellationToken);
+
     public async Task<EventCompetitionConfigurationResult> ConfigureAsync(
         Guid eventId, long expectedEventVersion, long? competitionId, bool synchronizeSchedule,
         LifecycleActor actor, bool confirmScheduleChanges, bool confirmCompetitionClear,
         string? competitionClearReason, CancellationToken cancellationToken = default)
     {
+        // Kept as a source-compatible shim for older callers. Website-owned
+        // dates are authoritative; no provider date can be imported and the
+        // former Admin schedule toggle has no effect.
+        _ = synchronizeSchedule;
+        _ = confirmScheduleChanges;
         await RequireAdminAsync(actor, cancellationToken);
         if (await db.EventCompetitionManagements.AsNoTracking().AnyAsync(x => x.EventId == eventId && x.Status != EventCompetitionManagementStatus.Deleted, cancellationToken))
             return new(false, "This event has a managed WOM competition. Use managed competition controls for its title, schedule, roster, and deletion.");
@@ -85,49 +104,22 @@ public sealed partial class EventCompetitionSynchronizationService(
             var clearReason = competitionClearReason?.Trim();
             if (item.State == EventState.Live && competitionId is null)
                 return new(false, "A live event's competition cannot be cleared. Link a validated replacement with a matching event window.");
-            if (item.State == EventState.Live && synchronizeSchedule)
-                return new(false, "A live event cannot change its schedule through competition integration.");
-            if (item.State == EventState.Live && competition is not null && !ScheduleMatches(item, competition))
-                return new(false, "A live replacement competition must match the event window within five minutes.");
-            if (item.State != EventState.Live && competition is not null)
-            {
-                if (synchronizeSchedule)
-                {
-                    try
-                    {
-                        var scheduleValues = new EventScheduleValues(item.SignupOpensAt, item.SignupClosesAt, item.DraftAt,
-                            competition.StartsAt, competition.EndsAt, item.ParticipantCap, item.ScheduledSignupOpeningEnabled);
-                        var draftState = await db.DraftSessions.AsNoTracking()
-                            .Where(x => x.EventId == eventId)
-                            .Select(x => (DraftState?)x.State)
-                            .SingleOrDefaultAsync(cancellationToken);
-                        var validationError = await EventSignupLifecycleService.ValidateScheduleChangeAsync(
-                            db, item, scheduleValues, time.GetUtcNow(), draftState, confirmChanges: confirmScheduleChanges, reason: null, ct: cancellationToken, proposedCompetition: competition);
-                        if (validationError is not null) return new(false, validationError);
-                        if (draftState == DraftState.Finalized)
-                            item.ConfigureFinalizedDraftEventWindow(competition.StartsAt, competition.EndsAt);
-                        else
-                            item.ConfigureSchedule(item.SignupOpensAt, item.SignupClosesAt, item.DraftAt, competition.StartsAt, competition.EndsAt, item.ParticipantCap);
-                        db.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), time.GetUtcNow(), actor.Id, actor.Username,
-                            "event.schedule_updated", "event", eventId.ToString(), "Synchronized the event window to the validated Wise Old Man competition.", eventId));
-                    }
-                    catch (InvalidOperationException exception) { return new(false, exception.Message); }
-                }
-                else if (!ScheduleMatches(item, competition))
-                    return new(false, "The competition window must match the event window within five minutes, or explicitly synchronize the pre-live schedule.");
-            }
+            if (competition is not null && !ScheduleMatches(item, competition))
+                return new(false, DescribeScheduleMismatch(item, competition));
 
             var fingerprint = await AssignmentFingerprintAsync(eventId, cancellationToken);
             var state = await db.EventCompetitionSynchronizations.SingleOrDefaultAsync(x => x.EventId == eventId, cancellationToken);
             if (state is null)
             {
                 state = new EventCompetitionSynchronization(Guid.NewGuid(), eventId, 1, competitionId,
-                    competition?.Title, competition?.StartsAt, competition?.EndsAt, fingerprint, time.GetUtcNow());
+                    competition?.Title, competition?.StartsAt, competition?.EndsAt, fingerprint, time.GetUtcNow(),
+                    competitionId is null ? EventCompetitionProvenance.Unknown : EventCompetitionProvenance.External);
                 db.EventCompetitionSynchronizations.Add(state);
             }
             else
             {
-                state.Reconfigure(competitionId, competition?.Title, competition?.StartsAt, competition?.EndsAt, fingerprint, time.GetUtcNow());
+                state.Reconfigure(competitionId, competition?.Title, competition?.StartsAt, competition?.EndsAt, fingerprint, time.GetUtcNow(),
+                    competitionId is null ? EventCompetitionProvenance.Unknown : EventCompetitionProvenance.External);
             }
             item.AdvanceVersion();
             db.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), time.GetUtcNow(), actor.Id, actor.Username,
@@ -396,9 +388,21 @@ public sealed partial class EventCompetitionSynchronizationService(
         item.EventStartsAt is { } start && item.EventEndsAt is { } end &&
         Math.Abs((start - competition.StartsAt).TotalMinutes) <= 5 && Math.Abs((end - competition.EndsAt).TotalMinutes) <= 5;
 
-    private EventCompetitionView ToView(EventCompetitionSynchronization state) => new(state.Generation, state.CompetitionId, state.CompetitionTitle,
+    private static string DescribeScheduleMismatch(BingoEvent item, WiseOldManCompetition competition)
+    {
+        var websiteStart = item.EventStartsAt?.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture) ?? "unset";
+        var websiteEnd = item.EventEndsAt?.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture) ?? "unset";
+        var providerStart = competition.StartsAt.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture);
+        var providerEnd = competition.EndsAt.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture);
+        return $"The Wise Old Man competition window must match the website window within five minutes. Website: {websiteStart} to {websiteEnd}; Wise Old Man: {providerStart} to {providerEnd}.";
+    }
+
+    private EventCompetitionView ToView(EventCompetitionSynchronization state, EventCompetitionManagement? management = null) => new(state.Generation, state.CompetitionId, state.CompetitionTitle,
         state.CompetitionStartsAt, state.CompetitionEndsAt, state.LastAttemptAt, state.LastSuccessfulAt, state.LastUpstreamUpdatedAt,
-        state.LatestComplete, ParseMissing(state.MissingAccountsJson), state.LastErrorKind, state.LastError, state.NormalDueAt, state.RetryDueAt, state.RetryCount, womStatus.GetStatus());
+        state.LatestComplete, ParseMissing(state.MissingAccountsJson), state.LastErrorKind, state.LastError, state.NormalDueAt, state.RetryDueAt, state.RetryCount, womStatus.GetStatus(),
+        state.Provenance,
+        management?.WriteCapability ?? (state.CompetitionId is null ? EventCompetitionWriteCapability.Unknown : EventCompetitionWriteCapability.ReadOnly),
+        management?.CredentialStatus ?? EventCompetitionCredentialStatus.NotApplicable);
 
     private static List<string> ParseMissing(string? json)
     {

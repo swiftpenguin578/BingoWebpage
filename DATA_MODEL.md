@@ -6,6 +6,55 @@
 **Last updated:** 2026-08-31
 **Companion document:** `PRODUCT_REQUIREMENTS.md`
 
+## Approved Admin simplification data contract — 2026-09-26
+
+The [approved product target](PRODUCT_REQUIREMENTS.md#approved-admin-simplification-target--2026-09-26)
+supersedes conflicting future state/operation rules below. Remove future authority
+before deleting historical storage. Retain harmless enum values, columns and
+foreign keys for emergency actors, accountless participants, old formation types,
+departures/replacement links, legacy resubmission predecessors, review resolutions/manual
+corrections, legacy Finalized events and old planning fields. Historical records
+must stay readable without reactivating retired commands.
+
+New roster publication distinguishes direct manual assembly (0/1 included team)
+from an actual website draft (2+); never infer no-draft from absence of active
+picks alone or fabricate pick/Running history. Backfill only from reliable evidence,
+retaining historical unknown where necessary. Preserve original picks and prior
+publication versions. First actual Live permanently fixes membership/registration;
+disablement affects access only. New official publication creates Archived plus
+an immutable placement version atomically; exact equality of all competitive
+inputs alone permits shared rank. Old official versions, board approvals and
+evidence-attribution snapshots retain their saved identities/values.
+
+Immediate Playing switching preserves old transitions and submitted attribution;
+handle existing future-effective switches explicitly before rollout. Ordering and
+concurrency must survive PostgreSQL microsecond precision. WOM provenance and
+credential/write capability are separate; unknown provenance cannot gain delete
+permission. Existing external ID-only links remain read-only, and protected
+credentials never become output or Audit content.
+
+For unfinished/Live events, do not automatically resume Paused drafts, match
+accountless participants to names, cancel pending remote operations, enable disabled
+scheduled opening, rewrite finalized rosters or recalculate historical results.
+Each affected transition requires a deterministic rule with evidence or a controlled
+operator decision. `CURRENT_STATUS.md` owns PRE-01 category evidence/unknowns and
+bounded blockers. Future waiting-list enablement must not invoke legacy promote-all
+or silently expand capacity.
+
+Physical banner removal requires authoritative checks of database references,
+stored objects and cleanup state, then explicit retention/disposal treatment for
+meaningful assets. Complete required cleanup before deleting its mechanism; protect
+shared evidence/team/tile storage. Empty development data or absent visible banners
+is insufficient. PRE-01 performs no transformations.
+
+Only one migration owner at a time; migration/designer/snapshot move together.
+Retain historical migrations, rehearse from the verified deployed schema, check
+foreign keys/filtered uniqueness on PostgreSQL and respect timestamp precision.
+Use normal backup/deployment procedures, never reset-based rollout. Private inputs
+stay outside committed artifacts. Data findings must record source, observation
+time, release/schema identity where known, aggregate count/state category and
+limitations; source-code capability or old logs are not current production counts.
+
 ## 1. Purpose
 
 This document defines the logical data model, relationships, state transitions, calculations, and integrity rules for the OSRS community bingo platform. It intentionally avoids choosing a programming language, database product, framework, or hosting provider.
@@ -16,7 +65,7 @@ The model must support:
 - Hybrid-authenticated normal website accounts plus admin-created/imported/external roster records without inferred website ownership
 - Capacity limits and an ordered waiting list
 - Admin-operated snake drafts
-- Event-scoped captain and co-captain roles, with disabled-by-default emergency credentials
+- Event-scoped captain and co-captain membership roles; emergency identities/access remain historical only
 - Flexible bingo tile requirements
 - Screenshot evidence and reversible admin review
 - Live public boards and rankings
@@ -121,7 +170,6 @@ Required fields:
 Optional fields:
 
 - `description`
-- `banner_asset_id`
 - `first_public_at`
 - `signup_opens_at`
 - `signup_closes_at`
@@ -187,7 +235,7 @@ Duplicate event names are allowed. The slug is unique and may change until the e
 
 `first_public_at` records the first instant any event-owned public page is intentionally exposed and is never cleared. It is the authoritative slug-lock boundary.
 
-Description may be null while the event remains a private draft and is required before signup publication. `banner_asset_id` is optional in every state and references a managed decorative asset. Replacing or removing the banner does not change event history or competitive snapshots. Discard creates an `EventBannerCleanup` record before removing event-owned banner metadata: it retains the discarded event ID, event-scoped managed storage key, queued/last-attempt times, attempt count, and safe operational failure detail. The record is unique per event/key and can only represent a key under that event's managed storage namespace; it is removed only after deletion succeeds or the object is already absent.
+Description may be null while the event remains a private draft and is required before signup publication. Events have no event-level banner/artwork field or active banner asset relation. The BNR-01 retirement migration removes the legacy banner reference, asset table, and cleanup outbox only after its temporary exact-key ledger records every legacy object as deleted, missing, or shared-retained. That one-time cleanup does not rewrite event history, competitive snapshots, evidence, team images, board/tile artwork, catalogue data, or other storage references.
 
 Timezone defaults to `Europe/Copenhagen` and stores a supported canonical timezone ID. Changing timezone changes only how stored UTC instants are displayed; it never rewrites those instants. Before Live, identity and timezone changes may be saved where allowed with the owning Admin confirmation; once Live begins, identity and timezone are read-only.
 
@@ -198,7 +246,7 @@ effective_signup_opening_at = actual_signup_opened_at ?? signup_opens_at
 effective_signup_opening_at < signup_closes_at <= event_starts_at < event_ends_at <= submission_cutoff_at
 ```
 
-An unchanged stored timestamp remains valid. A changed or newly entered timestamp must be future, and a stored boundary at or before the authoritative current time cannot be changed or cleared. Signup opening and `scheduled_signup_opening_enabled` lock at the opening boundary; `SIGNUP_CLOSED` makes closing read-only and Reopen owns any replacement. Published start/end are non-nullable through Schedule. No additional ordering rule applies to optional `draft_at`. Normal `submission_cutoff_at` is rederived as `event_ends_at + 30 minutes` whenever event end changes. Schedule mutations of `SIGNUP_OPEN` or `SIGNUP_CLOSED` retain the event-window non-overlap invariant, and a linked competition's stored start/end must remain within five minutes of the proposed event interval.
+An unchanged stored timestamp remains valid. A changed or newly entered timestamp must be future, and a stored boundary at or before the authoritative current time cannot be changed or cleared. Signup opening and `scheduled_signup_opening_enabled` lock at the opening boundary; `SIGNUP_CLOSED` makes closing read-only and Reopen owns any replacement. Published start/end are non-nullable through Schedule. No additional ordering rule applies to optional `draft_at`. Normal `submission_cutoff_at` is rederived as `event_ends_at + 30 minutes` whenever event end changes. Schedule mutations with a complete event window on a private `DRAFT`, `SIGNUP_OPEN`, or `SIGNUP_CLOSED` retain the event-window non-overlap invariant, and a linked competition's stored start/end must remain within five minutes of the proposed event interval.
 
 For manual opening with no explicit closing time:
 
@@ -332,7 +380,7 @@ Fields:
 - `blocker_codes`
 - `resolved_at`, nullable
 
-When the scheduled instant arrives, the event may enter `LIVE` only if draft finalization, board publication, Captain/emergency-access readiness, and every other event-start invariant pass in the same transaction. A blocked attempt leaves the event pre-live, retains the original scheduled instant, creates the **Automatic start postponed** admin action/notification, and never backdates later eligibility. It is not automatically retried after blockers clear. The later manual start resolves the attempt/action, uses its actual transition time, and requires no written reason when `now >= scheduled_for`; an early manual start requires one.
+When the scheduled instant arrives, the event may enter `LIVE` only if draft finalization, board publication, and every other event-start invariant pass in the same transaction. A blocked attempt leaves the event pre-live, retains the original scheduled instant, creates the **Automatic start postponed** admin action/notification, and never backdates later eligibility. It is not automatically retried after blockers clear. The later manual start resolves the attempt/action, uses its actual transition time, and requires no written reason when `now >= scheduled_for`; an early manual start requires one.
 
 ### 5.3.2 ScheduledSignupOpeningAttempt
 
@@ -413,18 +461,19 @@ INFORMATIONAL
 
 The user-facing role names are **Regular account** for `PLAYING` and **Alt account** for `INFORMATIONAL`. The built-in primary OSRS account is a required public `ACCOUNT` question with role `PLAYING`; its compound answer requires EHB. Additional Account questions may create regular or alt assignments but are always optional at the question level. When an optional regular Account question is answered, its EHB child value becomes required. An alt Account answer has no EHB. A Yes/No support-alt question creates no OSRS-character assignment. The primary Account/EHB and captain-volunteer system questions cannot be removed.
 
-Every participant-facing answer is public on the unlisted signup table in version one. `public_on_signup_board` remains fixed/defaulted true so selective visibility can be added later without a destructive schema change. There are no admin-only custom signup questions or post-draft privacy mutations. Payment and Admin notes remain separate private data.
+Every active participant-facing answer is public on the unlisted signup table in version one. Inactive legacy questions and their retained answers remain available to authorized private/admin history views but are excluded from public signup-table projections. `public_on_signup_board` remains fixed/defaulted true for active participant-facing questions; it is not historical disclosure evidence and no disclosure-tracking field or backfill is introduced. Private fields and co-captain answers remain outside the public projection. There are no admin-only custom signup questions or post-draft privacy mutations. Payment and Admin notes remain separate private data.
 
-Before `first_response_at`, a custom question may be structurally edited or deleted while the form is private/closed. After it is set:
+Before draft start, custom questions may be added, edited, reordered, or deleted while signup is open or closed. Before `first_response_at`, an existing question's answer shape may change. After it is set:
 
 - new participant-facing questions must have `required = false`;
 - `type`, `account_answer_role`, `options`, stable `key`, and answer-shape constraints are immutable;
-- label, help text, and position may change while signup is closed and before draft start;
-- structural replacement disables the original question and retains its answers; explicit custom-question deletion removes every answer and excludes the question from ordinary signup/question views, even when it was never answered;
+- an optional question cannot become required;
+- label, help text, and position may change while signup is open or closed and before draft start;
+- changing a question's format is an explicit delete-then-create operation: deletion removes every answer permanently and releases only affected event assignments/reservations, then ordinary creation adds the new question; existing inactive legacy questions and retained answers remain authorized private history only and are excluded from every public signup-table projection;
 - deleting an optional Account question releases its current event assignments/reservations atomically without deleting assignment/audit history or global My accounts links; restoration must not reacquire assignments from deleted questions; the definition may remain an internal historical tombstone;
 - every change increments `SignupForm.version` and is audited.
 
-Draft start freezes ordinary question metadata. Structural replacement disables the original question and creates a new optional question with a new stable key; it never rewrites existing answers. Deletion uses an internal tombstone so assignment and audit references remain valid, but removes all answer rows and releases current optional assignments in the same transaction under the event lock; form and affected participant versions advance. Repeated deletion is harmless and cannot reinterpret a replacement or retained-conversion record. Upgrade repair of earlier deletion-only deactivations is limited to pre-draft Draft/SignupOpen/SignupClosed events and excludes system, replacement and retained-conversion/legacy questions. Already draft-locked or later event records are preserved unchanged; this correction does not rewrite competitive history.
+Draft start freezes ordinary question metadata. Delete-then-create gives the new question a new stable key; it never rewrites the deleted answers. Deletion uses an internal tombstone so assignment and audit references remain valid, but removes all answer rows and releases current optional assignments in the same transaction under the event lock; form and affected participant versions advance. Repeated deletion is harmless and cannot reinterpret a replacement or retained-conversion record. Upgrade repair of earlier deletion-only deactivations is limited to pre-draft Draft/SignupOpen/SignupClosed events and excludes system, replacement and retained-conversion/legacy questions. Already draft-locked or later event records are preserved unchanged; this correction does not rewrite competitive history.
 
 ### 6.3 EventParticipant
 
@@ -642,7 +691,7 @@ The label snapshot preserves meaning if the form question is later edited.
 
 An answer row is not guaranteed to exist for every active question and participant. Questions may be added after some players have signed up, optional questions may be left blank, and external roster members may not have a website signup at all. Team, roster, draft, and admin views must load answers with left-join/optional semantics and render missing values without throwing an exception.
 
-Answers to disabled questions remain queryable. Public signup-table projection retains participant-facing historical answers and renders later missing optional answers as **Not answered**. Website username, Discord identity, payment, Admin notes, security data, and audit data are never included in that projection.
+Answers to disabled questions remain queryable for authorized history. Public signup-table projection includes active participant-facing answers only and renders later missing optional answers as **Not answered**; inactive legacy answers, private fields, and co-captain answers are excluded. Website username, Discord identity, payment, Admin notes, security data, and audit data are never included in that projection.
 
 ### 6.9 Waiting-list calculation
 
@@ -754,7 +803,7 @@ Only an active membership may receive a current captain/co-captain role. Withdra
 
 Draft-start readiness requires every active `DRAFTED` team to have a current `CAPTAIN` membership. `CO_CAPTAIN` alone does not satisfy the gate. Every captain/co-captain assignment occupies a normal roster position used by the derived-size calculation.
 
-Event-start readiness requires every active team to have a current `CAPTAIN` membership with explicit active website-account ownership or an active team-scoped emergency captain access record. A co-captain alone does not satisfy the gate. This invariant is a start-transition blocker, not a live-event invariant; losing the final captain during live play creates an urgent unresolved warning.
+Live-start readiness does not require a current Captain or credential. Actual website-draft start and finalization retain their current-Captain requirements. Losing a current Captain during live play can still produce an unresolved support warning; that warning grants no fallback authority.
 
 ### 7.2.2 TeamFocusMarker
 
@@ -881,7 +930,7 @@ Fields:
 - `profile_osrs_character_id`, the character selected during onboarding
 - `onboarding_completed_at`
 - `login_username`, nullable and used only for emergency or legacy password credentials
-- `password_hash`, required for completed normal-account onboarding and enabled emergency credentials; nullable only while a disabled emergency credential awaits initial setup
+- `password_hash`, required for completed normal-account onboarding; retained emergency rows may have a password hash or null, neither grants authentication
 - `account_type`
 - `global_role`
 - `authorization_version`
@@ -929,7 +978,7 @@ Fields:
 - `used_at`, nullable
 - `superseded_at`, nullable
 
-Only hashes of cryptographically random setup/reset tokens are stored. A token is purpose-bound, single-use, expires 60 minutes after creation, and is valid only while unexpired and not superseded. Generating another setup/reset token for the account supersedes every unused prior token. Completion updates `password_hash`/`password_changed_at`, increments `password_version`, consumes the token, and records automatic actor/target/time history. Initial emergency setup leaves the credential disabled. It does not require a written reason.
+Only hashes of cryptographically random setup/reset tokens are stored. A token is purpose-bound, single-use, expires 60 minutes after creation, and is valid only while unexpired and not superseded. Generating another setup/reset token for the account supersedes every unused prior token. Completion updates `password_hash`/`password_changed_at`, increments `password_version`, consumes the token, and records automatic actor/target/time history. Retained emergency setup/reset tokens and any token targeting an emergency account are rejected without consuming the token or changing account history. It does not require a written reason.
 
 An enabled Admin may generate a link for a `USER`; only the Super Admin may generate one for an `ADMIN`. No in-product admin-generated reset is available for the current Super Admin.
 
@@ -963,16 +1012,7 @@ Fields:
 - `manually_disabled_at`
 - `re_enabled_at`
 
-An emergency captain account is an individual credential separately scoped to one event/team and disabled by default. Any enabled Admin may create multiple individual credentials for the same team. Its globally unique login username shares the normal login-identifier namespace. Initial password setup and later reset use the hashed 60-minute single-use token flow; the Admin never selects or sees the lasting password. Only an initialized credential may be explicitly enabled. Creation, setup/reset, enablement, use, and disablement are audited.
-
-Approved C38 policy (2026-09-14): finalized-draft pre-start emergency enablement is
-an explicit current grant. Its `active_from` must not retain a future scheduled-start
-floor that prevents usable access after an authorized early actual start; record the
-explicit enablement instant without retroactive eligibility. Actual event start and
-current lifecycle/role gates independently prohibit pre-start submission mutations.
-Do not bulk rewrite existing grants or disable/enable history. Cutoff disablement and
-explicit reopen/re-enable retain their established semantics.
-
+Retained emergency accounts and event/team access rows preserve historical foreign keys, actor identity, username reservation and past Audit. Their enabled/expiry/setup fields no longer grant authority. No provisioning, token consumption, enable/disable, expiry-worker mutation or identity conversion is performed.
 
 `expires_at` applies only to emergency or legacy password access, not to normal website-account captain/co-captain roles. Captain role history remains on `TeamMembershipRoleTransition`; lifecycle authorization determines whether that historical role can still mutate the event.
 
@@ -985,10 +1025,10 @@ CO_CAPTAIN
 
 Captain authorization requires all of:
 
-- Account is active
-- Event access is active
-- Current time is within access window, unless manually re-enabled without expiry
-- Submission team matches the access team
+- Account is an active normal website account
+- Participant ownership and current Captain/Co-captain membership match the event/team
+- Event is visible
+- Submission team matches the current membership
 - Event state and active upload window permit the requested submission mutation
 
 An admin identity transfer updates the event participant's owning `account_id` and any derived normal participant/captain access atomically. The destination `(event_id, account_id)` uniqueness constraint must succeed first. The transfer does not move `AccountOsrsCharacter` rows or merge `Account` records; it preserves all event-owned participant, assignment, team, evidence, and history rows.
@@ -1025,7 +1065,7 @@ Required notifications are written with their surrounding accepted mutation. Ret
 
 Waiting-list promotion notifies the linked participant when present and enabled administrators, with the participant confirmation or Admin management destination and no private custom-answer, payment, note, OAuth-secret, or other unnecessary account data. Payment changes, private-note changes, and ordinary non-account answer corrections create no participant notification.
 
-Vacancy and replacement notifications target enabled administrators and the remaining or newly linked current Captain/co-Captain recipients as applicable. Evidence rejection targets the linked credited participant and current linked Captain/co-Captains, includes only the necessary event/tile/drop/reason detail, and does not target ordinary team members. When the credited participant is unlinked, the current Captain/co-Captain recipients cover the notification.
+Vacancy and replacement notifications target enabled administrators and the remaining or newly linked current Captain/co-Captain recipients as applicable. Evidence rejection targets the credited participant and current Captain/co-Captains, includes only the necessary event/tile/drop/reason detail, and does not target ordinary team members. When the credited participant is unlinked, the current Captain/co-Captain recipients cover the notification.
 
 ### 8.4 Participant drop-announcement state
 
@@ -1286,16 +1326,18 @@ context; current ordinary submissions continue to use the active published contr
 
 ### 10.7 Board resizing
 
-Before publication, board dimensions may change. When shrinking, placed tiles are compacted toward the top-left in their existing row-major relative order.
+Before publication, board dimensions may change without relocating occupied tiles. Every occupied tile must fit within the proposed row and column bounds; resizing is blocked until any out-of-bounds tile is moved or removed.
 
 ```text
-new_capacity = new_rows × new_columns
-placed_tile_count = count(active board tiles)
+new_rows, new_columns ∈ [1, 8]
+for every active board tile:
+  0 ≤ tile.row_index < new_rows
+  0 ≤ tile.column_index < new_columns
 ```
 
-If `placed_tile_count <= new_capacity`, the system previews the compacted layout before applying it.
+If every occupied tile fits, the system applies the dimension change while preserving each tile's identity and coordinates.
 
-If `placed_tile_count > new_capacity`, resizing is blocked. A confirmation popup explains that `placed_tile_count - new_capacity` tiles must be removed before the smaller dimensions can be used.
+If any occupied tile falls outside the proposed bounds, resizing is blocked. The board dimensions, tile layout, approval/history and public snapshot remain unchanged; the tile must be moved or removed before the smaller dimensions can be used.
 
 After publication, resizing requires explicit confirmation, an audit reason, and recalculation of every team's board and line state.
 
@@ -1363,7 +1405,7 @@ Fields:
 - `submitted_at`
 - `submitter_note`
 - `status`
-- `resubmits_submission_id`, nullable self-reference to a rejected or reversed submission
+- `resubmits_submission_id`, nullable self-reference retained for legacy rejected/reversed history display; new ordinary attempts leave it null
 - `rejection_reason`, nullable and required when status is `REJECTED`
 - `expected_evidence_code`: Immutable snapshot of the code interval active at `submitted_at`; null when verification was disabled
 
@@ -1395,7 +1437,7 @@ Intervals may be scheduled in advance. Adding a code recalculates adjacent retir
 
 For an ordinary participant submission, `credited_event_participant_id` is the submitter's current event participant. For a captain/co-captain submission, the captain selects one current teammate. In both cases the create command resolves that participant's active character at `submitted_at` and snapshots it as `credited_osrs_character_id`; the submitter never selects a credited account. Pending submitter edits preserve both credited fields. Only a reasoned admin correction may change the credited playing account before approval/rejection.
 
-A submission created through **Resubmit** references exactly one Rejected or Reversed predecessor. It copies that predecessor's credited participant and playing-character snapshots even when the participant's active character has since changed, because the new evidence is correcting the same claimed drop rather than claiming a new one. Those two copied fields are submitter-read-only. Event/team and ordinary structured evidence values are prefilled, tile/requirement/drop/note remain editable under normal validation, and a new evidence asset is required. `resubmits_submission_id` is unique, preventing concurrent direct children; a child that is later rejected may itself be resubmitted to form an append-only chain. A Reversed predecessor remains inactive and cannot be directly re-approved.
+An ordinary later submission after rejection or reversal is an independent record. It resolves the credited participant and active playing-character snapshot through the same normal create rules, receives a new immutable server submission time and evidence asset, and is reviewed independently; it does not copy predecessor attribution or require a predecessor link. Existing `resubmission_of_submission_id` predecessor links and `ReviewActionType.Resubmit` values remain retained for historical display only. They do not authorize, limit, or form new linked children, and a Reversed predecessor remains inactive and cannot be directly re-approved.
 
 ### 11.2 EvidenceAsset
 
@@ -1460,7 +1502,7 @@ APPROVED → REVERSED
 
 An admin may correct a pending submission's tile/requirement, qualifying drop, or credited playing character with a required reason and complete revalidation. Credited participant is derived from the event-unique playing-character assignment and is never independently edited. Server submission time, calculated contribution, and submitted evidence asset are immutable to the reviewer. Snapshot weight is not manually editable; retargeting atomically replaces it with the selected destination requirement/drop's frozen authoritative weight. Correcting an approved submission requires reversal.
 
-A corrected attempt after rejection or reversal is a new `PENDING` submission rather than a transition or direct reapproval of the predecessor. It is accepted only while the active/reopened upload window permits new submissions and requires a new evidence asset. The predecessor must be `REJECTED` or `REVERSED`, visible to the submitter under the ordinary participant/captain scope, and have no existing direct resubmission. The command copies and locks the predecessor's credited participant/account snapshots, revalidates the editable structured values, and atomically claims the unique predecessor link. A repeated or racing request cannot create two corrected children. Approval of a child creates a new contribution; a reversed predecessor's contribution stays inactive.
+A later attempt after rejection or reversal is a new `PENDING` submission rather than a transition or direct reapproval of the predecessor. It is accepted only while the active/reopened upload window permits new submissions and requires a new evidence asset. The attempt follows ordinary participant/captain authorization and validation, resolves its own credited participant/account snapshots, and creates its own review history and contribution if approved. Existing predecessor links and `ReviewActionType.Resubmit` values remain display-only legacy history; no unique-child claim, predecessor copy, or linked-chain rule applies to new submissions. A reversed predecessor's contribution stays inactive.
 
 ### 11.5 Submission timing validity
 
@@ -1546,7 +1588,7 @@ per event, team, board tile, and approval snapshot. A completed row stores that
 tile time and JSON provenance for its qualifying requirement/contribution/
 submission identities and effective amounts. Approval and reversal/rebalance
 transactions reconcile affected rows from approved, non-reversed effective
-contributions; a linked correction child contributes its own immutable
+contributions; every later ordinary submission contributes its own immutable
 `SubmittedAt`. Reversal can update a still-complete tile's active-generation
 fact when its surviving threshold evidence changes. Replacement approval
 creates facts for the new generation without deleting prior-generation facts.
@@ -1804,7 +1846,7 @@ Submission visibility is derived from status and team access.
 
 - Complete evidence, metadata, prior evidence versions, review actions, and audit history
 
-There is no participant/captain evidence-privacy request, public-player hiding flag, or hidden-but-still-approved evidence state. If an approved screenshot must cease being public, an admin reverses approval with a reason; the corrected/redacted attempt is a new submission under the ordinary cutoff and resubmission rules.
+There is no participant/captain evidence-privacy request, public-player hiding flag, or hidden-but-still-approved evidence state. If an approved screenshot must cease being public, an admin reverses approval with a reason; the corrected/redacted attempt is an ordinary new submission under the normal cutoff. Any old predecessor link on historical data remains display-only.
 
 ## 17. Finalization and blockers
 
@@ -1851,7 +1893,7 @@ Finalization:
 
 Normal finalization requires strong confirmation but no reason. Every `PENDING` submission is a blocker. `APPROVED`, `REJECTED`, `WITHDRAWN`, and `REVERSED` submissions do not block solely because of status.
 
-At `submissions_closed_at`, every enabled emergency captain `AccountEventAccess` record for the event receives `manually_disabled_at` through the automatic cutoff actor/context. Normal website-account captain/co-captain roles are not deleted, expired, or rewritten. Reopening submissions does not clear emergency disablement.
+At `submissions_closed_at`, event authorization closes the mutation window. Retained emergency account/access state is not modified; emergency authority is retired regardless of stored flags. Normal website-account captain/co-captain roles are not deleted, expired, or rewritten. Reopening submissions never restores emergency authority.
 
 ### 17.3 Unfinalization
 
@@ -2044,7 +2086,7 @@ The data model is ready for architecture planning when it can represent and expl
 16. Recalculation after reversing approved evidence.
 17. Final-review blockers and admin-confirmed placements.
 18. Historical event snapshots that survive catalogue updates.
-19. Temporary emergency captain access and automatic submission-cutoff disablement without expiring website-account role history.
+19. Retained emergency actor/access history with no authentication or mutation authority; normal website membership role history remains preserved.
 20. Auditable corrections without destructive history deletion.
 21. Pre-formed internal or external teams added before or after a draft without altering draft history.
 22. A partially built private board that remains editable while event signups are open.

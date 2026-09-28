@@ -68,9 +68,6 @@
                     <thead>
                         <tr>
                             <th scope="col">@T["Time"]</th>
-                            <th scope="col">@T["Actor"]</th>
-                            <th scope="col">@T["Action"]</th>
-                            <th scope="col">@T["Target"]</th>
                             <th scope="col">@T["Details"]</th>
                         </tr>
                     </thead>
@@ -79,27 +76,8 @@
                     {
                         <tr>
                             <td data-label="Time">@DateTimePresentation.Format(entry.OccurredAt, "dd MMM yyyy, HH:mm", provider: CultureInfo.CurrentCulture)</td>
-                            <td data-label="Actor">@entry.ActorUsername</td>
-                            <td data-label="Action"><code class="admin-audit-action">@entry.Action</code></td>
-                            <td data-label="Target"><span class="admin-audit-target-type">@entry.TargetType</span><span class="admin-audit-target-id">@entry.TargetId</span></td>
                             <td data-label="Details">
-                                <span class="admin-audit-details-text">@entry.Details</span>
-                                @if (entry.BeforeState is not null || entry.AfterState is not null)
-                                {
-                                    <details class="admin-audit-change">
-                                        <summary>@T["Structured change"]</summary>
-                                        <dl>
-                                            <div>
-                                                <dt>@T["Before"]</dt>
-                                                <dd><code class="admin-audit-json">@(entry.BeforeState ?? "—")</code></dd>
-                                            </div>
-                                            <div>
-                                                <dt>@T["After"]</dt>
-                                                <dd><code class="admin-audit-json">@(entry.AfterState ?? "—")</code></dd>
-                                            </div>
-                                        </dl>
-                                    </details>
-                                }
+                                <partial name="_AuditEntry" model="entry" />
                             </td>
                         </tr>
                     }

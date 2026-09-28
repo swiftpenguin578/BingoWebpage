@@ -38,21 +38,21 @@ public sealed class EventLifecycleFoundationTests
     }
 
     [Fact]
-    public void IdentityCanBeEditedWhilePrivateButThePublicSlugIsLockedAfterPublication()
+    public void IdentityKeepsItsPermanentSlugAndAllowsContentEditsBeforeFirstLive()
     {
         var item = new BingoEvent(Guid.NewGuid(), "Original", "original", "Europe/Copenhagen", Guid.NewGuid(), Now);
 
-        item.UpdateIdentity("Renamed", "renamed", "An optional description", "UTC");
+        item.UpdateIdentity("Renamed", "original", "An optional description", "UTC");
         item.MarkFirstPublic(Now.AddHours(1));
 
         Assert.Equal("Renamed", item.Name);
-        Assert.Equal("renamed", item.Slug);
+        Assert.Equal("original", item.Slug);
         Assert.Equal("UTC", item.Timezone);
         Assert.Throws<InvalidOperationException>(() => item.UpdateIdentity("Renamed again", "another-link", "Updated description", "UTC"));
 
-        item.UpdateIdentity("Renamed again", "renamed", "Updated description", "Europe/London");
+        item.UpdateIdentity("Renamed again", "original", "Updated description", "Europe/London");
         Assert.Equal("Renamed again", item.Name);
-        Assert.Equal("renamed", item.Slug);
+        Assert.Equal("original", item.Slug);
         Assert.Equal("Europe/London", item.Timezone);
     }
 
@@ -99,16 +99,18 @@ public sealed class EventLifecycleFoundationTests
     }
 
     [Fact]
-    public void IdentityAndScheduleEditsAreSupportedBeforeLiveButRejectedDuringLive()
+    public void IdentityContentEditsRemainAvailableDuringLiveButTimezoneAndScheduleDoNot()
     {
         var item = new BingoEvent(Guid.NewGuid(), "Original", "original", "Europe/Copenhagen", Guid.NewGuid(), Now);
-        item.UpdateIdentity("Updated", "updated", "Description", "UTC");
+        item.UpdateIdentity("Updated", "original", "Description", "UTC");
         item.ConfigureSchedule(null, null, null, Now.AddDays(1), Now.AddDays(2), 10);
         item.OpenSignups(Now);
         item.CloseSignups(Now);
         item.StartEvent(Now);
 
-        Assert.Throws<InvalidOperationException>(() => item.UpdateIdentity("Live update", "updated", null, "UTC"));
+        item.UpdateIdentity("Live update", "original", null, "UTC");
+        Assert.Equal("Live update", item.Name);
+        Assert.Throws<InvalidOperationException>(() => item.UpdateIdentity("Timezone update", "original", null, "Europe/Copenhagen"));
         Assert.Throws<InvalidOperationException>(() => item.ConfigureSchedule(null, null, null, Now.AddDays(3), Now.AddDays(4), 10));
     }
 
@@ -164,6 +166,7 @@ public sealed class EventLifecycleFoundationTests
                 var expected = capability switch
                 {
                     EventCapability.ConfigureIdentityOrSchedule or EventCapability.ConfigureSignup or EventCapability.CancelOrDiscard => state is EventState.Draft or EventState.SignupOpen or EventState.SignupClosed,
+                    EventCapability.ConfigureIdentity => state is EventState.Draft or EventState.SignupOpen or EventState.SignupClosed or EventState.Live or EventState.AwaitingFinalReview,
                     EventCapability.ParticipantSignup => state == EventState.SignupOpen,
                     EventCapability.ReopenSignup or EventCapability.StartEvent => state == EventState.SignupClosed,
                     EventCapability.ResumeEvent => state == EventState.AwaitingFinalReview,
@@ -322,7 +325,7 @@ public sealed class EventLifecycleFoundationTests
         Assert.False(item.AcceptsNewSubmissions(Now.AddDays(4).AddMinutes(1)));
         item.ReopenSubmissions(Now.AddDays(5), Now.AddDays(4));
         Assert.True(item.AcceptsNewSubmissions(Now.AddDays(4).AddMinutes(1)));
-        Assert.True(item.AcceptsEmergencySubmissions(Now.AddDays(4).AddMinutes(1)));
+        Assert.False(item.AcceptsEmergencySubmissions(Now.AddDays(4).AddMinutes(1)));
         Assert.True(item.CloseSubmissionsIfDue(Now.AddDays(5)));
         Assert.True(item.AcceptsNewSubmissions(Now.AddDays(5)));
         Assert.False(item.AcceptsEmergencySubmissions(Now.AddDays(5)));
@@ -342,7 +345,7 @@ public sealed class EventLifecycleFoundationTests
         item.StartEvent(Now.AddDays(2));
         item.EndEvent(Now.AddDays(3));
         var cutoff = item.SubmissionCutoffAt!.Value;
-        Assert.True(item.AcceptsEmergencySubmissions(cutoff.AddTicks(-1)));
+        Assert.False(item.AcceptsEmergencySubmissions(cutoff.AddTicks(-1)));
         Assert.True(item.CloseSubmissionsIfDue(cutoff));
         Assert.True(item.AcceptsNewSubmissions(cutoff));
         Assert.False(item.AcceptsEmergencySubmissions(cutoff));

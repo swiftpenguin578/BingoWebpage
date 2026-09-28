@@ -195,7 +195,7 @@
                         {
                             @if (question.SystemField == SignupSystemField.CaptainVolunteer)
                             {
-                                <label class="signup-sheet__check"><input type="checkbox" name="Input.Answers[@question.Id]" value="true" checked="@(Model.Input.Answers.GetValueOrDefault(question.Id) == "true" ? "checked" : null)" data-captain-volunteer-input /><span aria-hidden="true"></span>@T["I am willing to be a captain"]</label>
+                                <label class="signup-sheet__check"><input type="checkbox" name="Input.Answers[@question.Id]" value="true" checked="@(Model.Input.Answers.GetValueOrDefault(question.Id) == "true" ? "checked" : null)" data-captain-volunteer-input /><span aria-hidden="true"></span>@T["I am willing to be a captain"] <small>(@T["Yes or no required"])</small></label>
                             }
                             else if (question.SystemField == SignupSystemField.CoCaptainName)
                             {
@@ -231,7 +231,7 @@
                                     <span class="signup-sheet__error">@Html.ValidationMessage($"Input.Answers[{question.Id}]")</span>
                                 </div>
                             }
-                            @if (Model.EventView.RequireCode)
+                            @if (Model.EventView.RequireCode && !Model.IsEditing)
                             {
                                 <div class="signup-sheet__field"><label asp-for="Input.SignupCode">@T["Signup code"]</label><input asp-for="Input.SignupCode" class="signup-sheet__input" autocomplete="off" /><span class="signup-sheet__error" asp-validation-for="Input.SignupCode"></span></div>
                             }

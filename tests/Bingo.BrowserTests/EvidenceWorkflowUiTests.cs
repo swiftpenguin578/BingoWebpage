@@ -9,6 +9,7 @@ public sealed class EvidenceWorkflowUiTests
         var queue = File.ReadAllText(Path.Combine(repositoryRoot, "src", "Bingo.Web", "Pages", "Admin", "Review", "Index.cshtml"));
         var queueModel = File.ReadAllText(Path.Combine(repositoryRoot, "src", "Bingo.Web", "Pages", "Admin", "Review", "Index.cshtml.cs"));
         var detail = File.ReadAllText(Path.Combine(repositoryRoot, "src", "Bingo.Web", "Pages", "Admin", "Review", "Details.cshtml"));
+        var confirmation = File.ReadAllText(Path.Combine(repositoryRoot, "src", "Bingo.Web", "Pages", "Shared", "_AdminConfirmation.cshtml"));
         var styles = File.ReadAllText(Path.Combine(repositoryRoot, "src", "Bingo.Web", "wwwroot", "css", "site.transitional.application.css"));
 
         Assert.Contains("admin-review-queue-page", queue);
@@ -28,6 +29,8 @@ public sealed class EvidenceWorkflowUiTests
         Assert.Contains("No submissions match these filters", queue);
         Assert.Contains("After event end", queue);
         Assert.Contains("Details", queue);
+        Assert.DoesNotContain("Reverse approval", queue);
+        Assert.DoesNotContain("data-review-action=\"reverse\"", queue);
         Assert.Contains("asp-route-eventId", queue);
         Assert.Contains("asp-route-search", queue);
         Assert.Contains("asp-route-status", queue);
@@ -46,9 +49,11 @@ public sealed class EvidenceWorkflowUiTests
         Assert.Contains("admin-review-evidence-trigger", detail);
         Assert.Contains("<dialog id=\"evidence-lightbox\"", detail);
         Assert.Contains("Open original asset", detail);
-        Assert.Contains("data-admin-reject-reveal", detail);
-        Assert.Contains("data-admin-reject-panel", detail);
-        Assert.Contains("data-admin-reject-cancel", detail);
+        Assert.Contains("data-admin-review-confirm", detail);
+        Assert.Contains("window.adminConfirmation.open", detail);
+        Assert.Contains("maxlength=\"4000\"", confirmation);
+        Assert.DoesNotContain("window.confirm", detail);
+        Assert.DoesNotContain("data-admin-reject-reveal", detail);
         Assert.Contains("admin-review-secondary-grid", detail);
         Assert.Contains("Possible duplicate screenshot", detail);
         Assert.Contains("asp-page-handler=\"Approve\"", detail);
@@ -88,6 +93,7 @@ public sealed class EvidenceWorkflowUiTests
         var submissionDetail = File.ReadAllText(Path.Combine(repositoryRoot, "src", "Bingo.Web", "Pages", "Captain", "_SubmissionDetail.cshtml"));
         var upload = File.ReadAllText(Path.Combine(repositoryRoot, "src", "Bingo.Web", "Pages", "Captain", "_EvidenceUpload.cshtml"));
         var review = File.ReadAllText(Path.Combine(repositoryRoot, "src", "Bingo.Web", "Pages", "Admin", "Review", "Details.cshtml"));
+        var howTo = File.ReadAllText(Path.Combine(repositoryRoot, "src", "Bingo.Web", "Pages", "HowTo.cshtml"));
         var site = File.ReadAllText(Path.Combine(repositoryRoot, "src", "Bingo.Web", "wwwroot", "js", "site.js"));
         var teamBoardScript = File.ReadAllText(Path.Combine(repositoryRoot, "src", "Bingo.Web", "wwwroot", "js", "team-board-drawer.js"));
 
@@ -96,7 +102,9 @@ public sealed class EvidenceWorkflowUiTests
         Assert.Contains("data-submission-history-link", teamBoard);
         Assert.Contains("<partial name=\"_EvidenceUpload\" model=\"@(\"Input.Evidence\")\" />", forms);
         Assert.Contains("<partial name=\"/Pages/Captain/_SubmissionDetail.cshtml\" model=\"Model\" />", submission);
-        Assert.Contains("<partial name=\"/Pages/Captain/_EvidenceUpload.cshtml\" model=\"@(\"Resubmission.Evidence\")\" />", submissionDetail);
+        Assert.DoesNotContain("Resubmission.Evidence", submissionDetail);
+        Assert.Contains("every later attempt is a new ordinary submission", howTo);
+        Assert.DoesNotContain("linked resubmission", howTo);
         Assert.Contains("data-submission-drawer", teamBoardScript);
         Assert.Contains("window.history.pushState", teamBoardScript);
         Assert.Contains("Model.Details.SubmittedAt.UtcDateTime.ToString(\"yyyy-MM-dd HH:mm 'UTC'\")", review);

@@ -72,8 +72,6 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     public DbSet<EventStatsLuckCheckpoint> EventStatsLuckCheckpoints => Set<EventStatsLuckCheckpoint>();
     public DbSet<EventItemPrice> EventItemPrices => Set<EventItemPrice>();
     public DbSet<EventStateTransition> EventStateTransitions => Set<EventStateTransition>();
-    public DbSet<EventBannerAsset> EventBannerAssets => Set<EventBannerAsset>();
-    public DbSet<EventBannerCleanup> EventBannerCleanups => Set<EventBannerCleanup>();
     public DbSet<ScheduledEventStartAttempt> ScheduledEventStartAttempts => Set<ScheduledEventStartAttempt>();
     public DbSet<ScheduledSignupOpeningAttempt> ScheduledSignupOpeningAttempts => Set<ScheduledSignupOpeningAttempt>();
     public DbSet<EventFinalizationSnapshot> EventFinalizations => Set<EventFinalizationSnapshot>();

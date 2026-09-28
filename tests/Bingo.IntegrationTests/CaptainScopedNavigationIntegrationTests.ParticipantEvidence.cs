@@ -99,7 +99,7 @@ public sealed partial class CaptainScopedNavigationIntegrationTests
         static Guid[] DetailIds(string html) => Regex.Matches(html, "href=\"/Submissions/([0-9a-f-]{36})").Select(match => Guid.Parse(match.Groups[1].Value)).ToArray();
         var route = $"/Submissions?eventId={live.Id}&teamId={team.Id}";
         await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString()));
-        foreach (var actor in new[] { captain, coCaptain, member, emergency })
+        foreach (var actor in new[] { captain, coCaptain, member })
         {
             using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
             await LoginAsync(client, actor.LoginName);

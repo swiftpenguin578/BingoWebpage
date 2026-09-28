@@ -1127,8 +1127,6 @@
   <data name="Change only the authoritative selectors and record a written reason." xml:space="preserve"><value>Skift kun de autoritative valg, og skriv en begrundelse.</value></data>
   <data name="Change the search or state filter, or create a new event." xml:space="preserve"><value>Skift søge- eller tilstandsfilteret, eller opret et nyt event.</value></data>
   <data name="Change the search or state filter." xml:space="preserve"><value>Skift søge- eller tilstandsfilteret.</value></data>
-  <data name="Choose a PNG, JPEG, or WebP image. Existing banners can be replaced by selecting a new file." xml:space="preserve"><value>Vælg et PNG-, JPEG- eller WebP-billede. Eksisterende bannere kan erstattes ved at vælge en ny fil.</value></data>
-  <data name="Choose a banner" xml:space="preserve"><value>Vælg et banner</value></data>
   <data name="Choose a live or final-review event to load its submissions." xml:space="preserve"><value>Vælg et Live- eller final-review-event for at indlæse dets indsendelser.</value></data>
   <data name="Choose an event above to load its evidence submissions." xml:space="preserve"><value>Vælg et event ovenfor for at indlæse dets bevisindsendelser.</value></data>
   <data name="Open Review from an event workspace to load its evidence submissions." xml:space="preserve"><value>Åbn Review fra eventets arbejdsområde for at indlæse dets bevisindsendelser.</value></data>
@@ -1199,8 +1197,6 @@
   <data name="Ending now moves the event to final review; the configured end remains recorded." xml:space="preserve"><value>En afslutning nu flytter eventet til final review; den konfigurerede afslutning bevares.</value></data>
   <data name="Enter one choice per line, for example: Yes, No, Maybe. Players choose one answer." xml:space="preserve"><value>Angiv ét valg pr. linje, fx Ja, Nej, Måske. Spillerne vælger ét svar.</value></data>
   <data name="Estimates" xml:space="preserve"><value>Estimater</value></data>
-  <data name="Event banner" xml:space="preserve"><value>Eventbanner</value></data>
-  <data name="Event banner preview" xml:space="preserve"><value>Forhåndsvisning af eventbanner</value></data>
   <data name="Event basics" xml:space="preserve"><value>Grundlæggende eventoplysninger</value></data>
   <data name="Event controls" xml:space="preserve"><value>Eventkontroller</value></data>
   <data name="Event ends date" xml:space="preserve"><value>Eventets slutdato</value></data>
@@ -1297,7 +1293,6 @@
   <data name="Overview" xml:space="preserve"><value>Oversigt</value></data>
   <data name="Own the questions and form participants use to sign up." xml:space="preserve"><value>Administrér de spørgsmål og den formular, deltagerne bruger til tilmelding.</value></data>
   <data name="Owner and identity" xml:space="preserve"><value>Ejer og identitet</value></data>
-  <data name="PNG, JPEG or WebP. The banner is shown with the public event presentation." xml:space="preserve"><value>PNG, JPEG eller WebP. Banneret vises med den offentlige eventpræsentation.</value></data>
   <data name="Paid" xml:space="preserve"><value>Betalt</value></data>
   <data name="Participant administration is read-only" xml:space="preserve"><value>Deltageradministration er skrivebeskyttet</value></data>
   <data name="Participant-facing time preview" xml:space="preserve"><value>Tidsforhåndsvisning for deltagere</value></data>
@@ -1334,10 +1329,8 @@
   <data name="Recent Admin activity" xml:space="preserve"><value>Seneste Admin-aktivitet</value></data>
   <data name="Registration capacity" xml:space="preserve"><value>Tilmeldingskapacitet</value></data>
   <data name="Reject evidence" xml:space="preserve"><value>Afvis bevis</value></data>
-  <data name="Remove current banner" xml:space="preserve"><value>Fjern aktuelt banner</value></data>
   <data name="Remove disposable setup and preserve only the event tombstone and audit history." xml:space="preserve"><value>Fjern den midlertidige opsætning, og bevar kun eventets tombstone og audit-historik.</value></data>
   <data name="Remove participant" xml:space="preserve"><value>Fjern deltager</value></data>
-  <data name="Remove selected banner" xml:space="preserve"><value>Fjern valgt banner</value></data>
   <data name="Remove {0}?" xml:space="preserve"><value>Fjern {0}?</value></data>
   <data name="Reopen now" xml:space="preserve"><value>Genåbn nu</value></data>
   <data name="Reopen submissions" xml:space="preserve"><value>Genåbn indsendelser</value></data>
@@ -1699,8 +1692,6 @@
   <data name="Enter a reason for changing timezone after event start." xml:space="preserve"><value>Angiv en begrundelse for at ændre tidszonen efter eventstart.</value></data>
   <data name="The identity update could not be saved. Try again." xml:space="preserve"><value>Identitetsændringen kunne ikke gemmes. Prøv igen.</value></data>
   <data name="Event identity updated." xml:space="preserve"><value>Eventidentitet opdateret.</value></data>
-  <data name="The banner could not be removed in the event's current state." xml:space="preserve"><value>Banneret kunne ikke fjernes i eventens aktuelle tilstand.</value></data>
-  <data name="Event banner removed." xml:space="preserve"><value>Eventbanner fjernet.</value></data>
   <data name="Enter a valid event link." xml:space="preserve"><value>Angiv et gyldigt eventlink.</value></data>
   <data name="Enter an event code or turn this setting off." xml:space="preserve"><value>Angiv en eventkode, eller slå denne indstilling fra.</value></data>
   <data name="Competition validation is not configured." xml:space="preserve"><value>Validering af konkurrence er ikke konfigureret.</value></data>
@@ -2905,4 +2896,50 @@
   <data name="No boss activity players are available yet" xml:space="preserve"><value>Der er endnu ingen spillere med bossaktivitet.</value></data>
   <data name="Select the exact managed WOM competition before deleting it." xml:space="preserve"><value>Vælg den præcise administrerede WOM-konkurrence, før du sletter den.</value></data>
   <data name="The originating Admin is no longer enabled for this WOM operation." xml:space="preserve"><value>Den oprindelige Admin er ikke længere aktiveret til denne WOM-handling.</value></data>
+  <data name="Manage website accounts and roles." xml:space="preserve"><value>Administrer webstedskonti og roller.</value></data>
+  <data name="The event remains Live. Assign a usable Captain through the team roster." xml:space="preserve"><value>Eventet er stadig Live. Tildel en kaptajn med adgang via holdets spillerliste.</value></data>
+  <data name="This snapshots every placement as immutable history; website Captain roles are retained." xml:space="preserve"><value>Dette gemmer alle placeringer som uforanderlig historik; kaptajnroller på webstedet bevares.</value></data>
+  <data name="No Captain is assigned." xml:space="preserve"><value>Der er ikke tildelt en kaptajn.</value></data>
+  <data name="Restore this account before granting Admin access." xml:space="preserve"><value>Gendan denne konto, før du giver Admin-adgang.</value></data>
+  <data name="Only a User can be granted Admin access." xml:space="preserve"><value>Kun en User kan få Admin-adgang.</value></data>
+  <data name="Only an Admin can be revoked." xml:space="preserve"><value>Kun en Admin kan få fjernet Admin-adgang.</value></data>
+  <data name="The selected account is no longer available." xml:space="preserve"><value>Den valgte konto er ikke længere tilgængelig.</value></data>
+  <data name="Choose another active website account." xml:space="preserve"><value>Vælg en anden aktiv webstedskonto.</value></data>
+  <data name="The selected account is disabled. Restore it before transferring ownership." xml:space="preserve"><value>Den valgte konto er deaktiveret. Gendan den, før du overfører ejerskabet.</value></data>
+  <data name="A disable reason between 1 and 500 characters is required." xml:space="preserve"><value>Der kræves en begrundelse for deaktiveringen på mellem 1 og 500 tegn.</value></data>
+  <data name="This account is no longer available." xml:space="preserve"><value>Denne konto er ikke længere tilgængelig.</value></data>
+  <data name="Your account is disabled. Sign in again after access is restored." xml:space="preserve"><value>Din konto er deaktiveret. Log ind igen, når adgangen er gendannet.</value></data>
+  <data name="Only the active Super Admin can perform this action." xml:space="preserve"><value>Kun den aktive Super Admin kan udføre denne handling.</value></data>
+  <data name="You cannot disable or restore your own account." xml:space="preserve"><value>Du kan ikke deaktivere eller gendanne din egen konto.</value></data>
+  <data name="The Super Admin account is protected. Use ownership transfer or operator recovery." xml:space="preserve"><value>Super Admin-kontoen er beskyttet. Brug ejerskabsoverførsel eller gendannelse via en operatør.</value></data>
+  <data name="You do not have permission to manage this account." xml:space="preserve"><value>Du har ikke tilladelse til at administrere denne konto.</value></data>
+  <data name="You do not have permission to reset this account." xml:space="preserve"><value>Du har ikke tilladelse til at nulstille denne konto.</value></data>
+  <data name="Super Admin password recovery requires linked Discord sign-in or operator recovery." xml:space="preserve"><value>Gendannelse af Super Admin-adgangskoden kræver et tilknyttet Discord-login eller gendannelse via en operatør.</value></data>
+  <data name="The selected account becomes Super Admin; your account remains an Admin. Both accounts must sign in again." xml:space="preserve"><value>Den valgte konto bliver Super Admin; din konto forbliver en Admin. Begge konti skal logge ind igen.</value></data>
+  <data name="Playing account changed to {0}, active from {1}." xml:space="preserve"><value>Playing-kontoen er ændret til {0}, aktiv fra {1}.</value></data>
+  <data name="A previously scheduled account switch is still pending. Wait until it takes effect before switching again." xml:space="preserve"><value>Et tidligere planlagt kontoskift afventer stadig. Vent, til det træder i kraft, før du skifter igen.</value></data>
+  <data name="Choose a current member of your team." xml:space="preserve"><value>Vælg et nuværende medlem af dit hold.</value></data>
+  <data name="Administrators have no submission authority without a current participant or team-leader role." xml:space="preserve"><value>Administratorer har ingen indsendelsesret uden en aktuel deltager- eller holdlederrolle.</value></data>
+  <data name="The same drop can count more than once" xml:space="preserve"><value>Det samme drop kan tælle mere end én gang</value></data>
+  <data name="Some drops count as more than one" xml:space="preserve"><value>Nogle drops tæller som mere end én</value></data>
+  <data name="Counts as" xml:space="preserve"><value>Tæller som</value></data>
+  <data name="Counts as {0}" xml:space="preserve"><value>Tæller som {0}</value></data>
+  <data name="How many times {0} counts" xml:space="preserve"><value>Hvor mange gange {0} tæller</value></data>
+  <data name="Every selected drop count must be at least 1." xml:space="preserve"><value>Hvert valgt drop-tal skal være mindst 1.</value></data>
+  <data name="This tile cannot be removed because submitted evidence depends on it." xml:space="preserve"><value>Denne tile kan ikke fjernes, fordi indsendt dokumentation afhænger af den.</value></data>
+  <data name="Board editor unavailable" xml:space="preserve"><value>Board-editoren er ikke tilgængelig</value></data>
+  <data name="This event does not have an editable board in its current lifecycle state." xml:space="preserve"><value>Denne event har ikke et redigerbart Board i sin nuværende livscyklus.</value></data>
+  <data name="Editing control renews while you work and expires after five minutes without board activity." xml:space="preserve"><value>Redigeringsstyringen fornyes, mens du arbejder, og udløber efter fem minutter uden Board-aktivitet.</value></data>
+  <data name="Editing control is available." xml:space="preserve"><value>Redigeringsstyringen er ledig.</value></data>
+  <data name="Acquire editing control before making a change." xml:space="preserve"><value>Overtag redigeringsstyringen, før du foretager en ændring.</value></data>
+  <data name="Acquire editing control" xml:space="preserve"><value>Overtag redigeringsstyring</value></data>
+  <data name="Board editing control is being acquired." xml:space="preserve"><value>Redigeringsstyringen til Boardet hentes</value></data>
+  <data name="Reload this page before making a change." xml:space="preserve"><value>Genindlæs siden, før du foretager en ændring.</value></data>
+  <data name="Enter a valid drop rate, for example 1/100." xml:space="preserve"><value>Angiv en gyldig droprate, for eksempel 1/100.</value></data>
+  <data name="Enter a valid drop rate. Changes to reward rolls require an operator." xml:space="preserve"><value>Angiv en gyldig droprate. Ændringer af belønningsrul kræver en operatør.</value></data>
+  <data name="Correct a missing or incorrect mapping" xml:space="preserve"><value>Ret en manglende eller forkert tilknytning</value></data>
+  <data name="Price and mapping recovery" xml:space="preserve"><value>Pris og rettelse af tilknytning</value></data>
+  <data name="No dependencies were found. This permanently deletes the unused catalogue record. Shared items, prices and Audit history are retained. This cannot be undone." xml:space="preserve"><value>Der blev ikke fundet afhængigheder. Dette sletter den ubrugte katalogpost permanent. Fælles genstande, priser og revisionshistorik bevares. Handlingen kan ikke fortrydes.</value></data>
+  <data name="Review the deletion impact and confirm before deleting this record." xml:space="preserve"><value>Gennemgå konsekvensen af sletningen, og bekræft før du sletter posten.</value></data>
+  <data name="These operator-managed fields cannot be changed here. Your changes were not saved. Reload the current editor; ask an operator to change the retained mechanics or source metadata." xml:space="preserve"><value>Disse operatørstyrede felter kan ikke ændres her. Dine ændringer blev ikke gemt. Genindlæs editoren; bed en operatør om at ændre de bevarede mekanikker eller kildedata.</value></data>
 </root>

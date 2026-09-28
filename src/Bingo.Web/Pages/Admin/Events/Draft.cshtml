@@ -6,16 +6,16 @@
 @{
     ViewData["Title"] = T["Teams and draft"];
     ViewData["AdminPageDescription"] = T["Configure teams, participants, and run the event draft."];
-    var isActiveDraft = Model.Draft?.State is DraftState.Running or DraftState.Paused;
+    var isActiveDraft = Model.Draft?.State == DraftState.Running;
+    var isHistoricalPausedDraft = Model.Draft?.State == DraftState.Paused;
     var isPreDraft = Model.Draft?.State == DraftState.Setup;
     var isFinalizedDraft = Model.Draft?.State == DraftState.Finalized;
 }
 <section class="table-page draft-page @(Model.Draft is null ? "draft-page-setup" : null) @(isPreDraft ? "draft-page-predraft" : null) @(isFinalizedDraft ? "draft-page-finalized" : null) @(isActiveDraft ? "draft-page-live" : null)" data-draft-page>
-@if(Model.GeneratedCredentials.Count>0){<section class="event-overview-section generated-credentials"><div class="event-overview-section-heading"><h2>@T["Emergency captain setup links created"]</h2></div><p><strong>@T["Copy these now."]</strong> @T["Each link is single-use and expires in 60 minutes. Setup does not enable the credential."]</p><div class="admin-events-table-wrap"><div class="admin-events-table-scroll"><table class="event-table"><thead><tr><th>@T["Team"]</th><th>@T["Role"]</th><th>@T["Player"]</th><th>@T["Username"]</th><th>@T["Setup token"]</th></tr></thead><tbody>@foreach(var credential in Model.GeneratedCredentials){<tr><td>@credential.TeamName</td><td>@credential.Role</td><td>@credential.PlayerName</td><td><code>@credential.Username</code></td><td><code>@credential.SetupToken</code></td></tr>}</tbody></table></div></div></section>}
 
 @if (Model.Draft is null)
 {
-<section class="event-overview-section draft-team-setup"><div class="event-overview-section-heading"><h2>@T["Team setup"]</h2></div><p>@T["Create individual Drafted or Pre-formed teams. The draft distribution is calculated from confirmed participants and drafted teams."]</p><form method="post" asp-page-handler="AddTeam" class="form-stack"><label class="admin-field"><span class="field-label">@T["Name"]</span><input name="name" class="form-control" maxlength="30" required /></label><label class="admin-field"><span class="field-label">@T["Formation"]</span><select name="formationType" class="form-select"><option value="Drafted">@T["Drafted"]</option><option value="Preformed">@T["Pre-formed"]</option></select></label><label class="admin-field"><span class="field-label">@T["Affiliation / clan"]</span><input name="affiliation" class="form-control" /></label><button class="admin-button-create">＋ @T["Add team"]</button></form></section>
+<section class="event-overview-section draft-team-setup"><div class="event-overview-section-heading"><h2>@T["Team setup"]</h2></div><p>@T["Create ordinary teams and choose whether each participates in the website draft. Affiliation is descriptive."]</p><form method="post" asp-page-handler="AddTeam" class="form-stack"><label class="admin-field"><span class="field-label">@T["Name"]</span><input name="name" class="form-control" maxlength="30" required /></label><label class="admin-field"><span class="field-label"><input name="includedInDraft" type="checkbox" value="true" checked /><input name="includedInDraft" type="hidden" value="false" /> @T["Include in website draft"]</span></label><label class="admin-field"><span class="field-label">@T["Affiliation / clan"]</span><input name="affiliation" class="form-control" /></label><button class="admin-button-create">＋ @T["Add team"]</button></form></section>
 }
 else if (isActiveDraft)
 {
@@ -59,26 +59,15 @@ else if (isActiveDraft)
                     <button class="admin-button-primary" data-draft-scramble-submit>@T["Scramble teams"]</button>
                 </form>
             }
-            @if (Model.CanControlDraft && Model.DraftOrderReady && Model.Draft.State == DraftState.Running)
-            {
-                <form method="post" asp-page-handler="Pause" data-update-targets="#app-notice-region, .draft-live-shell"><button class="admin-button-secondary">@T["Pause"]</button></form>
-            }
-            @if (Model.CanControlDraft && Model.Draft.State == DraftState.Paused)
-            {
-                <form method="post" asp-page-handler="Resume" data-update-targets="#app-notice-region, .draft-live-shell"><button class="admin-button-primary">@T["Resume"]</button></form>
-            }
             @if (Model.CanControlDraft && Model.LatestPick is not null)
             {
-                <details class="admin-destructive-confirmation draft-confirmation">
-                    <summary class="admin-button-secondary">@T["Undo #{0}", Model.LatestPick.PickNumber]</summary>
-                    <div class="event-confirmation-box" role="alertdialog" aria-labelledby="undo-draft-heading"><p><strong id="undo-draft-heading">@T["Undo the latest pick?"]</strong><br /><span class="event-confirmation-supporting">@T["The pick remains in draft history and the player returns to the available pool."]</span></p><form method="post" asp-page-handler="Undo" data-update-targets="#app-notice-region, .draft-live-shell"><div class="event-confirmation-actions"><button class="admin-button-secondary action-danger-outline">@T["Undo pick"]</button><button type="button" class="admin-button-secondary" data-confirmation-cancel>@T["Cancel"]</button></div></form></div>
-                </details>
+                <form method="post" asp-page-handler="Undo" data-update-targets="#app-notice-region, .draft-live-shell"><button class="admin-button-secondary action-danger-outline">@T["Undo #{0}", Model.LatestPick.PickNumber]</button></form>
             }
             @if (Model.CanControlDraft)
             {
                 <details class="admin-destructive-confirmation draft-confirmation">
                     <summary class="admin-button-secondary action-danger-outline">@T["Cancel draft"]</summary>
-                    <div class="event-confirmation-box" role="alertdialog" aria-labelledby="cancel-draft-heading"><p><strong id="cancel-draft-heading">@T["Return this private draft to setup?"]</strong><br /><span class="event-confirmation-supporting">@T["All active picks will be undone and retained in draft history."]</span></p><form method="post" asp-page-handler="Cancel"><div class="event-confirmation-actions"><button class="admin-button-secondary action-danger-outline">@T["Cancel draft"]</button><button type="button" class="admin-button-secondary" data-confirmation-cancel>@T["Keep drafting"]</button></div></form></div>
+                    <div class="event-confirmation-box" role="alertdialog" aria-labelledby="cancel-draft-heading"><p><strong id="cancel-draft-heading">@T["Return this private draft to setup?"]</strong><br /><span class="event-confirmation-supporting">@T["Undo each active pick first. Cancellation never bulk-undoes picks or memberships."]</span></p><form method="post" asp-page-handler="Cancel"><div class="event-confirmation-actions"><button class="admin-button-secondary action-danger-outline">@T["Cancel draft"]</button><button type="button" class="admin-button-secondary" data-confirmation-cancel>@T["Keep drafting"]</button></div></form></div>
                 </details>
             }
             @if (Model.CanControlDraft)
@@ -115,7 +104,7 @@ else if (isActiveDraft)
                 <span>@T["{0} picked", Model.AssignedCount]</span>
             </header>
             <div class="draft-live-team-list" data-draft-team-grid>
-                @foreach (var team in Model.Teams.Where(x => x.FormationType == TeamFormationType.Drafted))
+                @foreach (var team in Model.Teams.Where(x => x.IncludedInDraft))
                 {
                     <article class="draft-live-team @(team.IsCurrent ? "current-team" : null)" data-team-id="@team.Id" data-draft-team="true" @(team.IsCurrent ? "aria-current=\"true\"" : null)>
                         <header>
@@ -189,17 +178,20 @@ else
 @if (isFinalizedDraft)
 {
     <section class="event-overview-section draft-publication-section">
-        <div class="event-overview-section-heading"><h2>@T["Finalized-only publication correction"]</h2></div>
+        <div class="event-overview-section-heading"><h2>@T["Published roster"]</h2></div>
         <div class="event-overview-row event-overview-row-blocked">
-            <div><span class="draft-publication-label">@T["Published roster"]</span><p>@T["The public roster is frozen for this publication cycle. Reopen only before the scheduled event start to correct the existing draft ledger."]</p></div>
-            <details class="admin-destructive-confirmation draft-confirmation draft-publication-form">
-                <summary class="action-danger-outline">@T["Reopen draft"]</summary>
-                <div class="event-confirmation-box" role="alertdialog" aria-labelledby="reopen-draft-heading"><p><strong id="reopen-draft-heading">@T["Withdraw the public roster and reopen this draft for correction?"]</strong><br /><span class="event-confirmation-supporting">@T["The existing publication remains in history. A reason is required for the audited correction."]</span></p><form method="post" asp-page-handler="Reopen"><input type="hidden" name="confirmed" value="true" /><label class="admin-field"><span class="field-label">@T["Admin reason"]</span><textarea name="reason" class="form-control" required maxlength="2000"></textarea></label><div class="event-confirmation-actions"><button class="action-danger-outline">@T["Confirm reopen"]</button><button type="button" class="admin-button-secondary" data-confirmation-cancel>@T["Cancel"]</button></div></form></div>
-            </details>
+            <div><span class="draft-publication-label">@T["Finalized roster"]</span><p>@T["The public roster and its publication history are frozen. Published rosters cannot be reopened or edited through the draft workspace."]</p></div>
         </div>
     </section>
 }
-@if (!isFinalizedDraft)
+@if (isHistoricalPausedDraft)
+{
+    <section class="event-overview-section draft-publication-section">
+        <div class="event-overview-section-heading"><h2>@T["Historical paused draft"]</h2></div>
+        <p>@T["This legacy paused draft is preserved as read-only history. It cannot be resumed, converted, or cancelled through the current workflow."]</p>
+    </section>
+}
+@if (!isFinalizedDraft && !isHistoricalPausedDraft)
 {
 <section class="event-overview-section draft-planning-section">
     <div class="event-overview-section-heading"><h2>@T["Draft readiness / planning"]</h2></div>
@@ -242,6 +234,15 @@ else
                     <div class="event-confirmation-box" role="alertdialog" aria-labelledby="takeover-setup-heading"><p><strong id="takeover-setup-heading">@T["Take control from the current administrator?"]</strong><br /><span class="event-confirmation-supporting">@T["They will immediately become read-only."]</span></p><form method="post" asp-page-handler="TakeControl"><input type="hidden" name="confirmed" value="true" /><div class="event-confirmation-actions"><button class="admin-button-primary">@T["Take over"]</button><button type="button" class="admin-button-secondary" data-confirmation-cancel>@T["Cancel"]</button></div></form></div>
                 </details>
             }
+            @if (Model.CanDirectFinalize)
+            {
+            <details class="admin-destructive-confirmation draft-confirmation draft-start-form">
+                <summary class="admin-button-primary">@T["Finalize manual roster"]</summary>
+                <div class="event-confirmation-box" role="alertdialog" aria-labelledby="finalize-direct-heading"><p><strong id="finalize-direct-heading">@T["Publish this manually assembled roster directly?"]</strong><br /><span class="event-confirmation-supporting">@T["No draft run, picks, Captain requirement, or synthetic history will be created."]</span></p><form method="post" asp-page-handler="Finalize"><input type="hidden" name="confirmed" value="true" /><div class="event-confirmation-actions"><button class="admin-button-primary">@T["Finalize and publish"]</button><button type="button" class="admin-button-secondary" data-confirmation-cancel>@T["Cancel"]</button></div></form></div>
+            </details>
+            }
+            else
+            {
             <details class="admin-destructive-confirmation draft-confirmation draft-start-form">
                 <summary class="admin-button-primary">@T["Start draft"]</summary>
                 <div class="event-confirmation-box" role="alertdialog" aria-labelledby="start-draft-heading"><p><strong id="start-draft-heading">@T["Open the draft workspace and lock this setup?"]</strong><br /><span class="event-confirmation-supporting">@T["The live workspace will open and the team order can then be scrambled."]</span></p><form method="post" asp-page-handler="Start">
@@ -255,18 +256,17 @@ else
                 }
                 </form></div>
             </details>
+            }
             </div>
         </div>
     }
     </div>
-    @if(Model.Draft.State == DraftState.Running && Model.CanControlDraft){<div class="draft-planning-area draft-planning-control"><div><span class="draft-planning-label">@T["Draft controls"]</span><p>@T["Pause the live draft while preserving the current order."]</p></div><form method="post" asp-page-handler="Pause"><button class="admin-button-secondary">@T["Pause draft"]</button></form></div>}
-    @if(Model.Draft.State == DraftState.Paused && Model.CanControlDraft){<div class="draft-planning-area draft-planning-control"><div><span class="draft-planning-label">@T["Draft controls"]</span><p>@T["Resume the live draft from the current turn."]</p></div><form method="post" asp-page-handler="Resume"><button class="admin-button-primary">@T["Resume draft"]</button></form></div>}
 </section>
 }
 
 <section class="event-overview-section draft-teams-section">
 <div class="event-overview-section-heading draft-team-section-heading">
-    <div><h2>@T["Teams"]</h2><small>@T["Pre-formed roster membership is managed here; Captain assignments are a later pass."]</small></div>
+    <div><h2>@T["Teams"]</h2><small>@T["Team inclusion is independent of affiliation; Captain assignments use the normal team authority service."]</small></div>
     @if (Model.Draft.State is DraftState.Setup or DraftState.Finalized)
     {
         <div class="team-heading-actions">
@@ -277,16 +277,16 @@ else
 <div class="team-grid" data-draft-team-grid>
 @foreach(var team in Model.Teams)
 {
-    <article class="team-card @(isFinalizedDraft ? "finalized-team-card" : null) @(team.IsCurrent ? "current-team" : "")" data-team-id="@team.Id" data-team-name="@team.Name" data-member-count="@team.Members.Count" data-draft-team="@(team.FormationType == TeamFormationType.Drafted ? "true" : "false")" @(team.IsCurrent ? "aria-current=\"true\"" : null)>
+    <article class="team-card @(isFinalizedDraft ? "finalized-team-card" : null) @(team.IsCurrent ? "current-team" : "")" data-team-id="@team.Id" data-team-name="@team.Name" data-member-count="@team.Members.Count" data-draft-team="@(team.IncludedInDraft ? "true" : "false")" @(team.IsCurrent ? "aria-current=\"true\"" : null)>
         @if (isFinalizedDraft)
         {
             <div class="finalized-team-heading">
                 <div>
                     <h3>@team.Name</h3>
-                    @if (team.FormationType == TeamFormationType.Preformed)
+                    @if (!team.IncludedInDraft)
                     {
                         <small>
-                            External team
+                            Manual roster
                             @if (!string.IsNullOrWhiteSpace(team.Affiliation))
                             {
                                 <text> · @team.Affiliation</text>
@@ -296,7 +296,7 @@ else
                 </div>
                 <div class="team-card-heading-actions">
                     @if(team.DraftPosition is not null){<span data-draft-rank>#@team.DraftPosition</span>}
-                    @if(team.FormationType==TeamFormationType.Preformed){<details class="admin-destructive-confirmation draft-confirmation"><summary class="action-remove-x" aria-label="@T["Remove @team.Name"]" title="@T["Remove external team"]"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 6 12 12" /><path d="m18 6-12 12" /></svg></summary><div class="event-confirmation-box" role="alertdialog" aria-labelledby="remove-final-external-@team.Id"><p><strong id="remove-final-external-@team.Id">@T["Remove the external team {0}?", team.Name]</strong></p><form method="post" asp-page-handler="RemoveExternalTeam"><input type="hidden" name="teamId" value="@team.Id" /><input type="hidden" name="confirmed" value="true" /><div class="event-confirmation-actions"><button class="admin-button-secondary action-danger-outline">@T["Remove team"]</button><button type="button" class="admin-button-secondary" data-confirmation-cancel>@T["Cancel"]</button></div></form></div></details>}
+                    @if(team.IncludedInDraft){<details class="admin-destructive-confirmation draft-confirmation"><summary class="action-remove-x" aria-label="@T["Remove @team.Name"]" title="@T["Remove draft team"]"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 6 12 12" /><path d="m18 6-12 12" /></svg></summary><div class="event-confirmation-box" role="alertdialog" aria-labelledby="remove-final-team-@team.Id"><p><strong id="remove-final-team-@team.Id">@T["Remove the included team {0}?", team.Name]</strong></p><form method="post" asp-page-handler="RemoveDraftTeam"><input type="hidden" name="teamId" value="@team.Id" /><input type="hidden" name="confirmed" value="true" /><div class="event-confirmation-actions"><button class="admin-button-secondary action-danger-outline">@T["Remove team"]</button><button type="button" class="admin-button-secondary" data-confirmation-cancel>@T["Cancel"]</button></div></form></div></details>}
                 </div>
             </div>
             <ol class="finalized-roster-list">
@@ -319,9 +319,9 @@ else
         }
         else
         {
-        <div class="team-card-summary"><div><h3>@team.Name</h3><small>@team.FormationType @if(!string.IsNullOrWhiteSpace(team.Affiliation)){<text> · @team.Affiliation</text>}</small></div><div class="team-card-heading-actions">@if(team.DraftPosition is not null){<span data-draft-rank>#@team.DraftPosition</span>}@if(Model.Draft.State==DraftState.Setup&&team.FormationType==TeamFormationType.Drafted){<details class="admin-destructive-confirmation draft-confirmation"><summary class="action-remove-x" aria-label="@T["Remove {0}", team.Name]" title="@T["Remove draft team"]"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 6 12 12" /><path d="m18 6-12 12" /></svg></summary><div class="event-confirmation-box" role="alertdialog" aria-labelledby="remove-draft-team-@team.Id"><p><strong id="remove-draft-team-@team.Id">@T["Remove {0} from the website draft?", team.Name]</strong></p><form method="post" asp-page-handler="RemoveDraftTeam"><input type="hidden" name="teamId" value="@team.Id" /><div class="event-confirmation-actions"><button class="admin-button-secondary action-danger-outline">@T["Remove team"]</button><button type="button" class="admin-button-secondary" data-confirmation-cancel>@T["Cancel"]</button></div></form></div></details>}else if(Model.Draft.State is DraftState.Setup or DraftState.Finalized && team.FormationType==TeamFormationType.Preformed){<details class="admin-destructive-confirmation draft-confirmation"><summary class="action-remove-x" aria-label="@T["Remove {0}", team.Name]" title="@T["Remove external team"]"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 6 12 12" /><path d="m18 6-12 12" /></svg></summary><div class="event-confirmation-box" role="alertdialog" aria-labelledby="remove-external-team-@team.Id"><p><strong id="remove-external-team-@team.Id">@T["Remove the external team {0}?", team.Name]</strong></p><form method="post" asp-page-handler="RemoveExternalTeam"><input type="hidden" name="teamId" value="@team.Id" />@if (isFinalizedDraft) { <input type="hidden" name="confirmed" value="true" /> }<div class="event-confirmation-actions"><button class="admin-button-secondary action-danger-outline">@T["Remove team"]</button><button type="button" class="admin-button-secondary" data-confirmation-cancel>@T["Cancel"]</button></div></form></div></details>}</div></div>
-        <ul>@foreach(var member in team.Members){var memberRoleLabel=member.Role switch { TeamMembershipRole.CoCaptain => T["Co-captain"].Value, TeamMembershipRole.Captain => T["Captain"].Value, _ => T["Participant"].Value };<li><span>@member.Name <small><span id="roster-role-@member.MembershipId">@memberRoleLabel</span>@if(team.FormationType == TeamFormationType.Drafted){<text> · @member.Ehb EHB</text>}</small></span></li>}</ul>
-        <div class="team-card-footer"><p>@if(team.FormationType == TeamFormationType.Drafted){<text>@team.TotalEhb.ToString("0.##") EHB · </text>}@T["{0} member(s)", team.Members.Count]</p><div class="dialog-actions"><a class="admin-button-secondary" asp-page="Draft" asp-route-id="@RouteData.Values["id"]" asp-route-rosterTeamId="@team.Id" data-draft-roster-trigger="team-@team.Id">@T["Edit / roster"]</a></div></div>
+        <div class="team-card-summary"><div><h3>@team.Name</h3><small>@(team.IncludedInDraft ? T["Included in website draft"] : T["Manual roster"]) @if(!string.IsNullOrWhiteSpace(team.Affiliation)){<text> · @team.Affiliation</text>}</small></div><div class="team-card-heading-actions">@if(team.DraftPosition is not null){<span data-draft-rank>#@team.DraftPosition</span>}@if(Model.Draft.State==DraftState.Setup&&team.IncludedInDraft){<details class="admin-destructive-confirmation draft-confirmation"><summary class="action-remove-x" aria-label="@T["Remove {0}", team.Name]" title="@T["Remove draft team"]"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 6 12 12" /><path d="m18 6-12 12" /></svg></summary><div class="event-confirmation-box" role="alertdialog" aria-labelledby="remove-draft-team-@team.Id"><p><strong id="remove-draft-team-@team.Id">@T["Remove {0} from the website draft?", team.Name]</strong></p><form method="post" asp-page-handler="RemoveDraftTeam"><input type="hidden" name="teamId" value="@team.Id" /><div class="event-confirmation-actions"><button class="admin-button-secondary action-danger-outline">@T["Remove team"]</button><button type="button" class="admin-button-secondary" data-confirmation-cancel>@T["Cancel"]</button></div></form></div></details>}</div></div>
+        <ul>@foreach(var member in team.Members){var memberRoleLabel=member.Role switch { TeamMembershipRole.CoCaptain => T["Co-captain"].Value, TeamMembershipRole.Captain => T["Captain"].Value, _ => T["Participant"].Value };<li><span>@member.Name <small><span id="roster-role-@member.MembershipId">@memberRoleLabel</span>@if(team.IncludedInDraft){<text> · @member.Ehb EHB</text>}</small></span></li>}</ul>
+        <div class="team-card-footer"><p>@if(team.IncludedInDraft){<text>@team.TotalEhb.ToString("0.##") EHB · </text>}@T["{0} member(s)", team.Members.Count]</p><div class="dialog-actions">@if (!isHistoricalPausedDraft){<a class="admin-button-secondary" asp-page="Draft" asp-route-id="@RouteData.Values["id"]" asp-route-rosterTeamId="@team.Id" data-draft-roster-trigger="team-@team.Id">@T["Edit / roster"]</a>}</div></div>
         }
     </article>
 }
@@ -419,12 +419,14 @@ else
  </div>
 
 
-<dialog id="add-team" class="tile-dialog team-roster-dialog external-team-dialog" data-preserve-post-dialog data-toast-host data-draft-add-team-dialog aria-labelledby="add-team-title">
+@if (!isHistoricalPausedDraft)
+{
+<dialog id="add-team" class="tile-dialog team-roster-dialog" data-preserve-post-dialog data-toast-host data-draft-add-team-dialog aria-labelledby="add-team-title">
     <header class="team-roster-dialog-header">
         <div><p class="eyebrow">@T["Team setup"]</p><h2 id="add-team-title">@T["Add team"]</h2></div>
         <button type="button" class="admin-route-dialog-close" aria-label="@T["Close add team dialog"]" data-draft-dialog-close data-draft-add-team-close><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><path d="m6 6 12 12M18 6 6 18" /></svg></button>
     </header>
-    <p class="external-team-dialog-intro">@T["Choose whether this is a website-drafted or pre-formed team. Pre-formed teams never receive draft turns."]</p>
+    <p class="team-roster-dialog-intro">@T["Add a team to the roster and choose whether it participates in the website draft."]</p>
     <div class="event-confirmation-box draft-add-team-discard" data-draft-add-team-discard role="alertdialog" aria-labelledby="add-team-discard-title" hidden>
         <p><strong id="add-team-discard-title">@T["Discard unsaved changes?"]</strong><br />@T["Continuing will discard unsaved changes in this editor."]</p>
         <div class="event-confirmation-actions"><button type="button" class="admin-button-secondary" data-draft-add-team-keep>@T["Cancel"]</button><button type="button" class="admin-button-secondary action-danger-outline" data-draft-add-team-discard-confirm>@T["Discard changes"]</button></div>
@@ -432,15 +434,15 @@ else
     <p data-draft-add-team-feedback role="alert" tabindex="-1" hidden></p>
     <section class="team-roster-section team-roster-form-section">
         <header><h3>@T["Team details"]</h3><small>@T["Only the team name is required."]</small></header>
-        <form method="post" asp-page-handler="AddTeam" class="form-stack" data-draft-add-team-form>
+        <form method="post" asp-page-handler="AddTeam" class="form-stack" data-draft-add-team-form data-native-submit>
             <label class="admin-field"><span class="field-label">@T["Team name"]</span><input name="name" class="form-control" required /></label>
-            <label class="admin-field"><span class="field-label">@T["Formation"]</span><select name="formationType" class="form-select"><option value="Drafted">@T["Drafted"]</option><option value="Preformed">@T["Pre-formed"]</option></select></label>
+            <label class="admin-setting-toggle"><input name="includedInDraft" type="checkbox" value="true" checked /><input name="includedInDraft" type="hidden" value="false" /><span class="admin-setting-toggle-copy"><strong>@T["Include in website draft"]</strong><small>@T["Clear this for a manual roster team. Existing affiliation remains descriptive only."]</small></span></label>
             <label class="admin-field"><span class="field-label">@T["Affiliation / clan"]</span><input name="affiliation" class="form-control" /></label>
             @if (isFinalizedDraft)
             {
                 <details class="admin-destructive-confirmation draft-confirmation" data-draft-add-team-confirmation>
                     <summary class="admin-button-create" data-draft-add-team-review>@T["Review add team"]</summary>
-                    <div class="event-confirmation-box" role="alertdialog" aria-labelledby="add-team-confirm-heading"><p><strong id="add-team-confirm-heading">@T["Add this pre-formed team to the published roster?"]</strong><br /><span class="event-confirmation-supporting">@T["The correction will be audited and the roster will be republished."]</span></p><input type="hidden" name="confirmed" value="true" data-draft-add-team-confirmed disabled /><div class="event-confirmation-actions"><button type="button" class="admin-button-secondary" data-confirmation-cancel data-draft-add-team-cancel>@T["Cancel"]</button><button type="submit" class="admin-button-primary" data-draft-add-team-confirm>＋ @T["Add team"]</button></div></div>
+                    <div class="event-confirmation-box" role="alertdialog" aria-labelledby="add-team-confirm-heading"><p><strong id="add-team-confirm-heading">@T["Add this team to the published roster?"]</strong><br /><span class="event-confirmation-supporting">@T["The correction will be audited and the roster will be republished."]</span></p><input type="hidden" name="confirmed" value="true" data-draft-add-team-confirmed disabled /><div class="event-confirmation-actions"><button type="button" class="admin-button-secondary" data-confirmation-cancel data-draft-add-team-cancel>@T["Cancel"]</button><button type="submit" class="admin-button-primary" data-draft-add-team-confirm>＋ @T["Add team"]</button></div></div>
                 </details>
             }
             else
@@ -451,9 +453,10 @@ else
     </section>
 </dialog>
 }
+}
 @if (Model.Draft is not null)
 {
-    foreach (var team in Model.Teams.Where(team => !isActiveDraft || Model.RosterTeamId == team.Id))
+    foreach (var team in Model.Teams.Where(team => !isActiveDraft || Model.RosterTeamId == team.Id).Where(_ => !isHistoricalPausedDraft))
     {
     <dialog id="team-@team.Id" class="tile-dialog team-roster-dialog" data-preserve-post-dialog data-toast-host @(Model.RosterTeamId == team.Id ? "open" : null) aria-labelledby="team-@team.Id-title">
         <header class="team-roster-dialog-header">
@@ -472,6 +475,7 @@ else
                 <input type="hidden" name="teamId" value="@team.Id" />
                 <input type="hidden" name="rosterTeamId" value="@team.Id" />
                 <label class="admin-field"><span class="field-label">@T["Name"]</span><input name="name" value="@team.Name" maxlength="30" class="form-control" required /></label>
+                <label class="admin-setting-toggle"><input name="includedInDraft" type="checkbox" value="true" checked="@(team.IncludedInDraft ? "checked" : null)" /><input name="includedInDraft" type="hidden" value="false" /><span class="admin-setting-toggle-copy"><strong>@T["Include in website draft"]</strong><small>@T["Change this only during team setup. Existing affiliation remains descriptive only."]</small></span></label>
                 <label class="admin-field"><span class="field-label">@T["Affiliation / clan"]</span><input name="affiliation" value="@team.Affiliation" class="form-control" /></label>
                 <input type="hidden" name="version" value="@team.Version" />
                 @if (!string.IsNullOrWhiteSpace(team.ImageUrl))
@@ -487,48 +491,22 @@ else
         <section class="team-roster-section team-roster-roles">
             <header><h3>@T["Roster"]</h3><small>@T["Assign Captain or Co-captain only to current members. Website authority requires that member's explicit website-account ownership."]</small></header>
                 <p class="team-readiness-status">
-                    @if (team.FormationType == TeamFormationType.Drafted)
+                    <span class="admin-status-pill @(team.HasUsableCaptain ? "is-green" : "is-danger")">@(team.HasUsableCaptain ? T["Ready"] : T["Attention"])</span>
+                    @if (team.HasUsableCaptain)
                     {
-                        <span class="admin-status-pill @(!team.HasCurrentCaptain || (!team.HasUsableCaptain && !team.HasEnabledEmergencyAccess) ? "is-danger" : team.HasUsableCaptain ? "is-green" : "is-yellow")">@(!team.HasCurrentCaptain || (!team.HasUsableCaptain && !team.HasEnabledEmergencyAccess) ? T["Attention"] : team.HasUsableCaptain ? T["Ready"] : T["Enabled"])</span>
-                        if (!team.HasCurrentCaptain)
-                        {
-                            <text>@T["A current Captain is required before the draft can start."]</text>
-                        }
-                        else if (team.HasUsableCaptain)
-                        {
-                            <text>@T["Captain access is ready."]</text>
-                        }
-                        else if (team.HasEnabledEmergencyAccess)
-                        {
-                            <text>@T["Emergency access is enabled."]</text>
-                        }
-                        else
-                        {
-                            <text>@T["A Captain is assigned, but website access is not ready."]</text>
-                            <a asp-page="/Admin/Accounts/Create" asp-route-eventId="@Model.EventId" asp-route-teamId="@team.Id">@T["Emergency credential"]</a>
-                        }
-                    }
-                    else if (team.HasUsableCaptain)
-                    {
-                        <span class="admin-status-pill is-green">@T["Ready"]</span>
                         <text>@T["Captain access is ready."]</text>
-                    }
-                    else if (team.HasEnabledEmergencyAccess)
-                    {
-                        <span class="admin-status-pill is-yellow">@T["Enabled"]</span>
-                        <text>@T["Emergency access is enabled."]</text>
                     }
                     else if (team.HasCurrentCaptain)
                     {
-                        <span class="admin-status-pill is-danger">@T["Attention"]</span>
                         <text>@T["A Captain is assigned, but website access is not ready."]</text>
-                        <a asp-page="/Admin/Accounts/Create" asp-route-eventId="@Model.EventId" asp-route-teamId="@team.Id">@T["Emergency credential"]</a>
+                    }
+                    else if (team.IncludedInDraft)
+                    {
+                        <text>@T["A current Captain is required before the draft can start."]</text>
                     }
                     else
                     {
-                        <span class="admin-status-pill is-danger">@T["Attention"]</span>
-                        <text>@T["Assign a Captain or enable emergency access."]</text>
-                        <a asp-page="/Admin/Accounts/Create" asp-route-eventId="@Model.EventId" asp-route-teamId="@team.Id">@T["Emergency credential"]</a>
+                        <text>@T["No Captain is assigned."]</text>
                     }
                 </p>
             @if (team.Members.Count == 0)
@@ -562,46 +540,23 @@ else
                     {
                         <span class="team-role-locked">@T["Role changes are frozen after the submission window closes."]</span>
                     }
-                    @if (isPreDraft || (team.FormationType == TeamFormationType.Preformed && member.External))
+                    @if (isPreDraft || !team.IncludedInDraft)
                     {
                         <details class="admin-destructive-confirmation draft-confirmation team-role-remove-form">
                             <summary class="action-remove-x" aria-label="@T["Remove {0} from roster", member.Name]" title="@T["Remove from roster"]"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 6 12 12" /><path d="m18 6-12 12" /></svg></summary>
-                            <div class="event-confirmation-box" role="alertdialog" aria-labelledby="remove-member-@member.MembershipId"><p><strong id="remove-member-@member.MembershipId">@T["Remove {0} from this roster?", member.Name]</strong></p><form method="post" asp-page-handler="RemoveMember" asp-route-rosterTeamId="@team.Id"><input type="hidden" name="membershipId" value="@member.MembershipId" /><input type="hidden" name="rosterTeamId" value="@team.Id" />@if (team.FormationType == TeamFormationType.Drafted) { <input type="hidden" name="reason" value="Removed from roster" /> }@if (isFinalizedDraft) { <input type="hidden" name="confirmed" value="true" /> }<div class="event-confirmation-actions"><button class="action-danger-outline">@T["Remove member"]</button><button type="button" class="admin-button-secondary" data-confirmation-cancel>@T["Cancel"]</button></div></form></div>
+                            <div class="event-confirmation-box" role="alertdialog" aria-labelledby="remove-member-@member.MembershipId"><p><strong id="remove-member-@member.MembershipId">@T["Remove {0} from this roster?", member.Name]</strong></p><form method="post" asp-page-handler="RemoveMember" asp-route-rosterTeamId="@team.Id"><input type="hidden" name="membershipId" value="@member.MembershipId" /><input type="hidden" name="rosterTeamId" value="@team.Id" />@if (isFinalizedDraft) { <input type="hidden" name="expectedMembershipVersion" value="@member.Version" /> }@if (team.IncludedInDraft) { <input type="hidden" name="reason" value="Removed from roster" /> }@if (isFinalizedDraft) { <input type="hidden" name="confirmed" value="true" /> }<div class="event-confirmation-actions"><button class="action-danger-outline">@T["Remove member"]</button><button type="button" class="admin-button-secondary" data-confirmation-cancel>@T["Cancel"]</button></div></form></div>
                         </details>
                     }
                 </div>
-                @if (team.FormationType == TeamFormationType.Preformed && Model.Teams.Any(x => x.Id != team.Id && x.FormationType == TeamFormationType.Preformed))
+                @if (!isFinalizedDraft && !team.IncludedInDraft && Model.Teams.Any(x => x.Id != team.Id && !x.IncludedInDraft))
                 {
-                    @if (isFinalizedDraft)
-                    {
-                        <details class="team-member-move draft-confirmation">
-                            <summary>@T["Review move for {0}", member.Name]</summary>
-                            <div class="event-confirmation-box" role="alertdialog" aria-labelledby="move-finalized-@member.MembershipId-heading">
-                                <p><strong id="move-finalized-@member.MembershipId-heading">@T["Move {0} to another pre-formed team?", member.Name]</strong><br /><span class="event-confirmation-supporting">@T["This published roster correction will replace the current membership and republish the roster history."]</span></p>
-                                <form method="post" asp-page-handler="MoveMember" asp-route-rosterTeamId="@team.Id" class="team-member-move-form">
-                                    <input type="hidden" name="membershipId" value="@member.MembershipId" />
-                                    <input type="hidden" name="rosterTeamId" value="@team.Id" />
-                                    <label class="admin-field"><span class="field-label visually-hidden">@T["Move {0} to another pre-formed team", member.Name]</span><select name="targetTeamId" class="form-select" aria-label="@T["Move {0} to another pre-formed team", member.Name]">
-                                        @foreach (var target in Model.Teams.Where(x => x.Id != team.Id && x.FormationType == TeamFormationType.Preformed))
-                                        {
-                                            <option value="@target.Id">@target.Name</option>
-                                        }
-                                    </select></label>
-                                    <input type="hidden" name="confirmed" value="true" />
-                                    <div class="event-confirmation-actions"><button class="action-danger-outline">@T["Confirm move"]</button><button type="button" class="admin-button-secondary" data-confirmation-cancel>@T["Cancel"]</button></div>
-                                </form>
-                            </div>
-                        </details>
-                    }
-                    else
-                    {
                         <details class="team-member-move">
-                            <summary>@T["Move {0} to another pre-formed team", member.Name]</summary>
+                            <summary>@T["Move {0} to another manual roster team", member.Name]</summary>
                             <form method="post" asp-page-handler="MoveMember" asp-route-rosterTeamId="@team.Id" class="team-member-move-form">
                                 <input type="hidden" name="membershipId" value="@member.MembershipId" />
                                 <input type="hidden" name="rosterTeamId" value="@team.Id" />
-                                <label class="admin-field"><span class="field-label visually-hidden">@T["Move {0} to another pre-formed team", member.Name]</span><select name="targetTeamId" class="form-select" aria-label="@T["Move {0} to another pre-formed team", member.Name]">
-                                    @foreach (var target in Model.Teams.Where(x => x.Id != team.Id && x.FormationType == TeamFormationType.Preformed))
+                                <label class="admin-field"><span class="field-label visually-hidden">@T["Move {0} to another manual roster team", member.Name]</span><select name="targetTeamId" class="form-select" aria-label="@T["Move {0} to another manual roster team", member.Name]">
+                                    @foreach (var target in Model.Teams.Where(x => x.Id != team.Id && !x.IncludedInDraft))
                                     {
                                         <option value="@target.Id">@target.Name</option>
                                     }
@@ -609,81 +564,35 @@ else
                                 <button class="admin-button-secondary">@T["Move player"]</button>
                             </form>
                         </details>
-                    }
                 }
             }
         </section>
 
-        @if (team.FormationType == TeamFormationType.Preformed)
+        @if (Model.CanCorrectPreLiveRoster)
         {
-            <details class="team-roster-section @(isFinalizedDraft ? "draft-confirmation" : null)">
-                <summary><span><span>@(isFinalizedDraft ? T["Review external player correction"] : T["Add external player"])</span><small>@T["Add someone drafted outside the website"]</small></span></summary>
-                @if (isFinalizedDraft)
-                {
-                    <div class="event-confirmation-box" role="alertdialog" aria-labelledby="add-external-finalized-@team.Id-heading">
-                        <p><strong id="add-external-finalized-@team.Id-heading">@T["Add this external player to the published roster?"]</strong><br /><span class="event-confirmation-supporting">@T["This published roster correction will republish the affected roster history."]</span></p>
-                        <form method="post" asp-page-handler="AddExternalMember" asp-route-rosterTeamId="@team.Id" class="form-stack team-add-player-form">
-                            <input type="hidden" name="teamId" value="@team.Id" />
-                            <input type="hidden" name="rosterTeamId" value="@team.Id" />
-                            <label class="admin-field"><span class="field-label">@T["In-game name"]</span><input name="name" value="@(Model.RosterTeamId == team.Id ? Model.PendingExternalMemberName : null)" class="form-control" required /></label>
-                            <label class="admin-field"><span class="field-label">@T["Primary EHB"]</span><input name="ehb" value="@(Model.RosterTeamId == team.Id ? Model.PendingExternalMemberEhb?.ToString(CultureInfo.InvariantCulture) : null)" type="number" min="0" step="0.01" class="form-control" required /></label>
-                            <label class="admin-field"><span class="field-label">@T["Additional OSRS accounts (one per line)"]</span><textarea name="additionalAccounts" class="form-control">@(Model.RosterTeamId == team.Id ? Model.PendingExternalMemberAdditionalAccounts : null)</textarea></label>
-                            <label class="admin-field"><span class="field-label">@T["Role"]</span><select name="role" class="form-select"><option value="Participant" selected="@(Model.RosterTeamId != team.Id || Model.PendingExternalMemberRole == TeamMembershipRole.Participant ? "selected" : null)">@T["Participant"]</option><option value="Captain" selected="@(Model.RosterTeamId == team.Id && Model.PendingExternalMemberRole == TeamMembershipRole.Captain ? "selected" : null)">@T["Captain"]</option><option value="CoCaptain" selected="@(Model.RosterTeamId == team.Id && Model.PendingExternalMemberRole == TeamMembershipRole.CoCaptain ? "selected" : null)">@T["Co-captain"]</option></select></label>
-                            <input type="hidden" name="confirmed" value="true" />
-                            <input type="hidden" name="womValidationConfirmationToken" value="@Model.WomValidationConfirmationToken" />
-                            <div class="event-confirmation-actions"><button class="action-danger-outline">@T["Confirm add player"]</button><button type="button" class="admin-button-secondary" data-confirmation-cancel>@T["Cancel"]</button></div>
-                        </form>
-                    </div>
-                }
-                else
-                {
-                    <form method="post" asp-page-handler="AddExternalMember" asp-route-rosterTeamId="@team.Id" class="form-stack team-add-player-form">
-                        <input type="hidden" name="teamId" value="@team.Id" />
-                        <input type="hidden" name="rosterTeamId" value="@team.Id" />
-                        <label class="admin-field"><span class="field-label">@T["In-game name"]</span><input name="name" value="@(Model.RosterTeamId == team.Id ? Model.PendingExternalMemberName : null)" class="form-control" required /></label>
-                        <label class="admin-field"><span class="field-label">@T["Primary EHB"]</span><input name="ehb" value="@(Model.RosterTeamId == team.Id ? Model.PendingExternalMemberEhb?.ToString(CultureInfo.InvariantCulture) : null)" type="number" min="0" step="0.01" class="form-control" required /></label>
-                        <label class="admin-field"><span class="field-label">@T["Additional OSRS accounts (one per line)"]</span><textarea name="additionalAccounts" class="form-control">@(Model.RosterTeamId == team.Id ? Model.PendingExternalMemberAdditionalAccounts : null)</textarea></label>
-                        <label class="admin-field"><span class="field-label">@T["Role"]</span><select name="role" class="form-select"><option value="Participant" selected="@(Model.RosterTeamId != team.Id || Model.PendingExternalMemberRole == TeamMembershipRole.Participant ? "selected" : null)">@T["Participant"]</option><option value="Captain" selected="@(Model.RosterTeamId == team.Id && Model.PendingExternalMemberRole == TeamMembershipRole.Captain ? "selected" : null)">@T["Captain"]</option><option value="CoCaptain" selected="@(Model.RosterTeamId == team.Id && Model.PendingExternalMemberRole == TeamMembershipRole.CoCaptain ? "selected" : null)">@T["Co-captain"]</option></select></label>
-                        <input type="hidden" name="womValidationConfirmationToken" value="@Model.WomValidationConfirmationToken" />
-                        <div class="dialog-actions"><button class="admin-button-primary">@T["Add player"]</button></div>
-                    </form>
-                }
-            </details>
-            @if (Model.Draft.State == DraftState.Setup)
-            {
-            <details class="team-roster-section team-roster-advanced" @(Model.CsvPreview is not null ? "open" : null)>
-                <summary><span><span>@T["Import external roster CSV"]</span><small>@T["Uses the same unowned Pre-formed roster records as manual entry"]</small></span></summary>
-                <p>@T["One row per member: Account,EHB, followed only by optional additional Account columns. Captain roles are assigned separately."]</p>
-                <a class="admin-button-secondary" asp-page-handler="RosterCsvTemplate" asp-route-id="@RouteData.Values["id"]" asp-route-teamId="@team.Id">@T["Download CSV template"]</a>
-                <form method="post" enctype="multipart/form-data" asp-page-handler="PreviewRosterCsv" asp-route-rosterTeamId="@team.Id" class="form-stack team-add-player-form">
+            <details class="team-roster-section team-roster-finalized-correction">
+                <summary><span><span>@T["Add participant to finalized roster"]</span><small>@T["Reuse an existing website account and its eligible Playing account"]</small></span></summary>
+                <p>@T["This adds one current member before the event has ever gone Live. No signup cap or vacancy replacement is used; the published roster and WOM state are updated independently."]</p>
+                <form method="post" asp-page-handler="AddMember" asp-route-rosterTeamId="@team.Id" class="form-stack team-add-player-form">
                     <input type="hidden" name="teamId" value="@team.Id" />
                     <input type="hidden" name="rosterTeamId" value="@team.Id" />
-                    <label class="admin-field"><span class="field-label">@T["Roster CSV"]</span><input name="csv" type="file" accept="text/csv,.csv" class="form-control" required />@if (Model.CsvFileError) { <span class="field-error" role="alert">@T["Choose a CSV file to preview."]</span> }</label>
-                    <div class="dialog-actions"><button class="admin-button-secondary">@T["Preview import"]</button></div>
+                    <input type="hidden" name="confirmed" value="true" />
+                    <input type="hidden" name="expectedTeamVersion" value="@team.Version" />
+                    <label class="admin-field"><span class="field-label">@T["Website account"]</span><select name="accountId" class="form-select" required data-roster-account-select><option value="">@T["Choose website account"]</option>@foreach (var account in Model.RosterWebsiteAccounts) { <option value="@account.Id">@account.LoginName</option> }</select></label>
+                    <label class="admin-field"><span class="field-label">@T["Playing account"]</span><select name="playingCharacterId" class="form-select" required data-roster-character-select disabled><option value="">@T["Choose Playing account"]</option>@foreach (var account in Model.RosterWebsiteAccounts) { foreach (var character in account.Characters) { <option value="@character.Id" data-owner-account="@account.Id" data-saved-ehb="@(character.SavedEhb?.ToString(CultureInfo.InvariantCulture) ?? string.Empty)">@character.DisplayName</option> } }</select></label>
+                    <label class="admin-field"><span class="field-label">@T["Playing EHB"]</span><input name="playingEhb" type="number" min="0" max="100000" step="0.01" class="form-control" required data-roster-ehb disabled /><small>@T["Enter the EHB used for this roster correction."]</small></label>
+                    <div class="dialog-actions"><button class="admin-button-primary">@T["Add to finalized roster"]</button></div>
                 </form>
-                @if (Model.CsvPreview is not null)
-                {
-                    if (Model.CsvPreview.IsValid)
-                    {
-                        <section class="information-callout draft-csv-callout" role="status" aria-live="polite"><div class="information-callout-heading"><strong>@T["Ready to import {0} members.", Model.CsvPreview.Rows.Count]</strong></div><ul>@foreach (var row in Model.CsvPreview.Rows) { <li>@T["Row {0}: {1} ({2} EHB)", row.Number, string.Join(", ", row.Accounts), row.Ehb]</li> }</ul></section>
-                        <form method="post" asp-page-handler="ApplyRosterCsv" asp-route-rosterTeamId="@team.Id" class="form-stack team-add-player-form">
-                            <input type="hidden" name="teamId" value="@team.Id" /><input type="hidden" name="rosterTeamId" value="@team.Id" /><input type="hidden" name="previewToken" value="@Model.CsvPreview.Nonce" />
-                            <p>@T["The validated preview above will be imported."]</p>
-                            <div class="dialog-actions"><button class="admin-button-primary">@T["Apply roster import"]</button></div>
-                        </form>
-                    }
-                    else
-                    {
-                        <section class="information-callout draft-csv-callout draft-csv-callout-error" role="alert" aria-live="assertive"><div class="information-callout-heading"><strong>@T["CSV preview needs correction."]</strong></div><ul>@foreach (var error in Model.CsvPreview.Errors) { <li>@(Model.CsvFileError ? error.Message : T["Row {0}: {1}", error.Number, T[error.Message].Value])</li> }</ul></section>
-                    }
-                }
             </details>
-            }
+        }
+
+        @if (!team.IncludedInDraft)
+        {
             @if (Model.Draft.State == DraftState.Setup)
             {
                 <details class="team-roster-section team-roster-advanced">
-                    <summary><span><span>@T["Advanced correction"]</span><small>@T["Use a website signup in this pre-formed team"]</small></span></summary>
-                    <p>@T["Website signups normally join website-drafted teams. Use this only to correct an unusual roster."]</p>
+                    <summary><span><span>@T["Advanced correction"]</span><small>@T["Use a website signup in this manual roster team"]</small></span></summary>
+                    <p>@T["Website signups normally join teams included in the website draft. Use this only to correct an unusual roster."]</p>
                     <form method="post" asp-page-handler="AddMember" asp-route-rosterTeamId="@team.Id" class="form-stack team-add-player-form">
                         <input type="hidden" name="teamId" value="@team.Id" />
                         <input type="hidden" name="rosterTeamId" value="@team.Id" />

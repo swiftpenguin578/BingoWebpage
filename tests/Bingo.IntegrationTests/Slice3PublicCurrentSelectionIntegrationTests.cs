@@ -125,11 +125,13 @@ public sealed class Slice3PublicCurrentSelectionIntegrationTests : IAsyncLifetim
         item.OpenSignups(now.AddDays(-2));
         item.CloseSignups(now.AddDays(-1));
         item.MarkFirstPublic(now.AddDays(-1));
+        item.SetDraftRosterPublication(true);
         var participant = new EventParticipant(Guid.NewGuid(), eventId, SignupStatus.Confirmed, 1, now.AddDays(-2), SignupSource.Website);
         var team = new Team(Guid.NewGuid(), eventId, "Navigation team", "navigation-team", TeamFormationType.Drafted, null, true);
         team.Finalize(now.AddDays(-1));
         var draft = new DraftSession(Guid.NewGuid(), eventId, 1);
-        var cycle = new DraftPublicationCycle(Guid.NewGuid(), draft.Id, 1, now.AddDays(-1), actorId);
+        draft.FinalizeDirect(now.AddDays(-1));
+        var cycle = new DraftPublicationCycle(Guid.NewGuid(), draft.Id, 1, now.AddDays(-1), actorId, DraftPublicationMethod.DirectRoster);
         var roster = new DraftPublicationRoster(Guid.NewGuid(), cycle.Id, team.Id, participant.Id, TeamMembershipRole.Participant, 1, "Navigation player");
         var board = new Board(Guid.NewGuid(), eventId, "Navigation board", 1, 1);
 
@@ -202,8 +204,12 @@ public sealed class Slice3PublicCurrentSelectionIntegrationTests : IAsyncLifetim
         if (rosterPublished)
         {
             var draft = new DraftSession(Guid.NewGuid(), eventId, 1);
+            draft.FinalizeDirect(now);
+            item.SetDraftRosterPublication(true);
             db.Add(draft);
-            db.Add(new DraftPublicationCycle(Guid.NewGuid(), draft.Id, 1, now, Guid.NewGuid()));
+            var cycle = new DraftPublicationCycle(Guid.NewGuid(), draft.Id, 1, now, item.CreatedByAccountId, DraftPublicationMethod.DirectRoster);
+            db.Add(cycle);
+            db.Add(new DraftPublicationRoster(Guid.NewGuid(), cycle.Id, Guid.NewGuid(), Guid.NewGuid(), TeamMembershipRole.Participant, null, "Published player"));
         }
 
         if (boardPublished)

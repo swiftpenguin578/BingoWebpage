@@ -22,7 +22,7 @@ public sealed class AccountsUiTests
     }
 
     [Fact]
-    public void AccountsMarkupKeepsTheTwoDatasetsAndDirectSafetyBoundaries()
+    public void AccountsMarkupKeepsWebsiteAdministrationAndRetiresEmergencyControls()
     {
         var root = FindRepositoryRoot();
         var accounts = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "Pages", "Admin", "Accounts", "Index.cshtml"));
@@ -38,32 +38,25 @@ public sealed class AccountsUiTests
         var manageDialogScript = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "wwwroot", "js", "account-manage-dialog.js"));
 
         Assert.Contains("admin-accounts-page", accounts);
-        Assert.Equal(2, accounts.Split("data-admin-account-section=", StringSplitOptions.None).Length - 1);
-        Assert.Equal(2, accounts.Split("class=\"admin-events-directory-controls\"", StringSplitOptions.None).Length - 1);
+        Assert.Equal(1, accounts.Split("data-admin-account-section=", StringSplitOptions.None).Length - 1);
+        Assert.Equal(1, accounts.Split("class=\"admin-events-directory-controls\"", StringSplitOptions.None).Length - 1);
         var accountToolbarForms = accounts.Split("<form class=\"admin-events-toolbar\" method=\"get\" asp-page=\"./Index\"", StringSplitOptions.None);
-        Assert.Equal(3, accountToolbarForms.Length);
+        Assert.Equal(2, accountToolbarForms.Length);
         Assert.Contains("<button class=\"visually-hidden\" type=\"submit\">@T[\"Search accounts\"]</button>", accountToolbarForms[1]);
-        Assert.Contains("<button class=\"visually-hidden\" type=\"submit\">@T[\"Search emergency credentials\"]</button>", accountToolbarForms[2]);
         Assert.Contains("name=\"WebsiteSearch\"", accounts);
         Assert.Contains("name=\"WebsiteRole\"", accounts);
         Assert.Contains("Search accounts", accounts);
         Assert.Equal(1, accounts.Split("<button class=\"visually-hidden\" type=\"submit\">@T[\"Search accounts\"]</button>", StringSplitOptions.None).Length - 1);
-        Assert.Equal(1, accounts.Split("<button class=\"visually-hidden\" type=\"submit\">@T[\"Search emergency credentials\"]</button>", StringSplitOptions.None).Length - 1);
         Assert.Contains("Any role", accounts);
-        Assert.Contains("Create emergency credential", accounts);
         Assert.Contains("Transfer ownership", accounts);
         Assert.Contains("Current event roles", accounts);
-        Assert.Contains("Login username", accounts);
-        Assert.Contains("Disabled at cutoff", accounts);
-        Assert.Equal(2, accounts.Split("class=\"admin-accounts-section-heading\"", StringSplitOptions.None).Length - 1);
-        Assert.Equal(2, accounts.Split("class=\"admin-accounts-table-wrap\"", StringSplitOptions.None).Length - 1);
-        Assert.Equal(15, accounts.Split("class=\"admin-accounts-table-header-label\"", StringSplitOptions.None).Length - 1);
+        Assert.Equal(1, accounts.Split("class=\"admin-accounts-section-heading\"", StringSplitOptions.None).Length - 1);
+        Assert.Equal(1, accounts.Split("class=\"admin-accounts-table-wrap\"", StringSplitOptions.None).Length - 1);
+        Assert.Equal(7, accounts.Split("class=\"admin-accounts-table-header-label\"", StringSplitOptions.None).Length - 1);
         Assert.Contains("admin-accounts-website-table", accounts);
-        Assert.Contains("admin-accounts-emergency-table", accounts);
         Assert.Contains("admin-accounts-col-event-roles", accounts);
         Assert.Contains("admin-accounts-col-last-login", accounts);
         Assert.Contains("title=\"@account.EventRoleSummary\"", accounts);
-        Assert.Contains("title=\"@account.EventName\"", accounts);
         Assert.Contains("new WebsiteAccountRow(x.Id, x.PublicUsername!, x.GlobalRole!.Value, x.Active, x.DiscordUserId != null, x.DiscordDisplayName, x.LastLoginAt, \"\")", model);
         Assert.Contains("WebsiteAccountRow(Guid Id, string Username, GlobalRole Role, bool Active, bool DiscordLinked, string? DiscordDisplayName, DateTimeOffset? LastLoginAt, string EventRoleSummary)", model);
         Assert.Contains("@if (account.DiscordLinked && !string.IsNullOrWhiteSpace(account.DiscordDisplayName))", accounts);
@@ -72,14 +65,12 @@ public sealed class AccountsUiTests
         Assert.Contains(".admin-accounts-table .admin-account-discord-name { display: block; margin-top: 0.15rem; color: var(--admin-muted); font-size: 0.625rem; font-weight: 400; line-height: 1.35; overflow-wrap: anywhere; }", styles);
         Assert.Contains(".admin-accounts-table .admin-account-discord-status.is-linked { color: var(--admin-text); }", styles);
         Assert.Contains(".admin-accounts-table .admin-account-discord-status.is-unlinked { color: var(--admin-status-orange); }", styles);
-        Assert.Equal(2, accounts.Split("event-overview-row-action", StringSplitOptions.None).Length - 1);
-        Assert.Equal(2, accounts.Split("data-account-manage-trigger=\"true\"", StringSplitOptions.None).Length - 1);
-        Assert.Contains("data-account-create-trigger=\"true\"", accounts);
-        Assert.Equal(1, accounts.Split("data-account-create-trigger=\"true\"", StringSplitOptions.None).Length - 1);
+        Assert.Equal(1, accounts.Split("event-overview-row-action", StringSplitOptions.None).Length - 1);
+        Assert.Equal(1, accounts.Split("data-account-manage-trigger=\"true\"", StringSplitOptions.None).Length - 1);
         Assert.DoesNotContain("data-account-dialog-trigger", accounts);
         Assert.Contains("data-account-manage-trigger", manageDialogScript);
         Assert.Contains("data-account-create-trigger", manageDialogScript);
-        Assert.Equal(2, accounts.Split("asp-page=\"Manage\" asp-route-id=", StringSplitOptions.None).Length - 1);
+        Assert.Equal(1, accounts.Split("asp-page=\"Manage\" asp-route-id=", StringSplitOptions.None).Length - 1);
         Assert.Equal(1, accounts.Split("account-manage-dialog.js", StringSplitOptions.None).Length - 1);
         Assert.DoesNotContain("data-account-manage-trigger", create);
         Assert.DoesNotContain("data-account-manage-trigger", transfer);
@@ -94,22 +85,11 @@ public sealed class AccountsUiTests
         Assert.DoesNotContain("EmergencyCutoff", model);
         Assert.DoesNotContain("PasswordHash", accounts);
 
-        Assert.Contains("Input.EventId", create);
-        Assert.Contains("Input.TeamId", create);
-        var teamSelect = create.IndexOf("<select asp-for=\"Input.TeamId\"", StringComparison.Ordinal);
-        var teamError = create.IndexOf("<span asp-validation-for=\"Input.TeamId\"", teamSelect, StringComparison.Ordinal);
-        Assert.True(teamSelect >= 0 && teamError > teamSelect);
-        Assert.Contains("Choose an event above to load its active teams.", create);
-        Assert.Contains("admin-button-create", create);
-        Assert.Contains("admin-button-secondary", create);
-        Assert.DoesNotContain("Layout = \"_AdminOverlayLayout\"", create);
-        Assert.Contains("Model.IsOverlay", create);
-        Assert.Contains("data-account-dialog-kind=\"create\"", create);
-        Assert.Contains("data-account-create-trigger", accounts);
-        Assert.Contains("name=\"overlay\"", create);
-        Assert.Contains("public bool IsOverlay => Overlay || string.Equals(Request.Query[\"overlay\"], \"1\"", createModel);
-        Assert.Contains("ResolveSubmittedOverlay", createModel);
-        Assert.Contains("admin-destructive-confirmation", manage);
+        Assert.Contains("OnGet() => NotFound()", createModel);
+        Assert.Contains("OnPost() => NotFound()", createModel);
+        Assert.DoesNotContain("Create emergency credential", accounts);
+        Assert.DoesNotContain("data-account-emergency-action", manage);
+        Assert.DoesNotContain("admin-destructive-confirmation", manage);
         Assert.Contains("item.Role != GlobalRole.SuperAdmin", manage);
         Assert.Contains("GenerateResetLink", manage);
         Assert.Contains("Disable reason", manage);
@@ -128,7 +108,6 @@ public sealed class AccountsUiTests
         Assert.Contains("ResolveSubmittedOverlay", manageModel);
         Assert.Contains("public bool IsOverlay => Overlay || string.Equals(Request.Query[\"overlay\"], \"1\"", manageModel);
         Assert.Contains("is-website-account", manage);
-        Assert.Contains("is-emergency-credential", manage);
         Assert.Contains("admin-account-characters-panel", manage);
         Assert.Contains("admin-account-character-row", manage);
         Assert.Contains("ParticipationStateClass(role.ParticipationState)", manage);
@@ -136,9 +115,10 @@ public sealed class AccountsUiTests
         Assert.Contains("\"WaitingList\" => \"is-orange\"", manage);
         Assert.Contains("\"Withdrawn\" => \"is-danger\"", manage);
         Assert.Contains("_ => \"is-muted\"", manage);
-        Assert.Contains("account-manage-dialog.js", create);
         Assert.DoesNotContain("account-manage-dialog.js", transfer);
-        Assert.Contains("<select asp-for=\"Input.DestinationUsername\"", transfer);
+        Assert.Contains("<select asp-for=\"Input.DestinationId\"", transfer);
+        Assert.Contains("data-account-transfer", transfer);
+        Assert.Contains("account-transfer.js", transfer);
         Assert.Contains("GlobalRole != GlobalRole.SuperAdmin", transferModel);
         Assert.Contains("TransferOwnershipAsync", transferModel);
         Assert.Contains("former owner remains an Admin", transfer);
@@ -160,14 +140,6 @@ public sealed class AccountsUiTests
         Assert.Contains("@media (max-width: 1100px)", styles);
         Assert.Contains(".admin-shell-body .admin-accounts-page,", styles);
         Assert.Contains("padding: 0.65rem 1rem; color: var(--admin-text);", styles);
-        Assert.Contains(".admin-accounts-emergency-table .admin-accounts-col-login-username { width: 16%; }", styles);
-        Assert.Contains(".admin-accounts-emergency-table .admin-accounts-col-event { width: 22%; }", styles);
-        Assert.Contains(".admin-accounts-emergency-table .admin-accounts-col-team { width: 14%; }", styles);
-        Assert.Contains(".admin-accounts-emergency-table .admin-accounts-col-setup { width: 9%; }", styles);
-        Assert.Contains(".admin-accounts-emergency-table .admin-accounts-col-state { width: 10%; }", styles);
-        Assert.Contains(".admin-accounts-emergency-table .admin-accounts-col-cutoff { width: 12%; }", styles);
-        Assert.Contains(".admin-accounts-emergency-table .admin-accounts-col-last-login { width: 8%; }", styles);
-        Assert.Contains(".admin-accounts-emergency-table .admin-accounts-col-actions { width: 9%; }", styles);
         var accountHeaderStart = styles.IndexOf(".admin-accounts-table th {", StringComparison.Ordinal);
         var accountHeaderEnd = styles.IndexOf('}', accountHeaderStart);
         Assert.True(accountHeaderStart >= 0 && accountHeaderEnd > accountHeaderStart);
@@ -203,7 +175,6 @@ public sealed class AccountsUiTests
         Assert.Contains("input.focus({ preventScroll: true });", script);
         Assert.Contains("window.history.replaceState(window.history.state, \"\", `${target.pathname}${target.search}`);", script);
         Assert.Contains("website-account-search", accounts);
-        Assert.Contains("emergency-account-search", accounts);
         Assert.Contains("accountManageBound", manageDialogScript);
         Assert.Contains("bingo:account-directory-updated", manageDialogScript);
         Assert.DoesNotContain("window.innerWidth > 900", manageDialogScript);
@@ -225,9 +196,9 @@ public sealed class AccountsUiTests
         Assert.Contains("event.key !== \"Escape\"", manageDialogScript);
         Assert.Contains("data-account-confirmation-cancel", manageDialogScript);
         Assert.Contains("data-account-dialog-page", manageDialogScript);
-        Assert.Contains("data-account-emergency-action", manageDialogScript);
-        Assert.Contains("admin-account-confirmation-dialog", manageDialogScript);
-        Assert.Contains("data-account-confirmation-submit", manageDialogScript);
+        Assert.DoesNotContain("data-account-emergency-action", manageDialogScript);
+        Assert.Contains("window.adminConfirmation.open", manageDialogScript);
+        Assert.DoesNotContain("admin-account-inline-confirmation", manageDialogScript);
         Assert.DoesNotContain("createPostRequest", manageDialogScript);
         Assert.DoesNotContain("accountOptionBound", manageDialogScript);
         Assert.Contains("hydrateDirectory", manageDialogScript);
@@ -245,13 +216,6 @@ public sealed class AccountsUiTests
         Assert.Contains("--admin-text-soft: #c2c2be;", emergencyTokenStyles);
         Assert.Contains("--admin-muted: #969692;", emergencyTokenStyles);
         Assert.Contains("--admin-divider: #2b2b2b;", emergencyTokenStyles);
-        Assert.Contains("admin-account-emergency-actions", manage);
-        Assert.Equal(3, manage.Split("data-account-emergency-action=\"true\"", StringSplitOptions.None).Length - 1);
-        Assert.Contains("data-account-handler=\"GenerateEmergencyLink\"", manage);
-        Assert.Contains("data-account-handler=\"DisableEmergency\"", manage);
-        Assert.Contains("data-account-handler=\"EnableEmergency\"", manage);
-        Assert.Contains("class=\"admin-button-secondary\" data-account-emergency-action=\"true\"", manage);
-        Assert.Contains("class=\"action-danger-outline\" data-account-emergency-action=\"true\"", manage);
         Assert.DoesNotContain("admin-account-emergency-confirmation", manage);
         Assert.DoesNotContain("admin-account-emergency-confirmation", manageDialogScript);
         Assert.DoesNotContain("admin-account-emergency-confirmation", styles);
@@ -260,7 +224,6 @@ public sealed class AccountsUiTests
         Assert.DoesNotContain("Stop this fallback login.", manage);
         Assert.DoesNotContain("Allow the configured fallback login.", manage);
         Assert.DoesNotContain("<summary class=\"admin-button-create\"><strong>Enable emergency credential</strong>", manage);
-        Assert.Contains(".admin-account-emergency-actions { display: flex; flex-wrap: wrap; gap: 0.45rem;", styles);
         Assert.Contains(".admin-account-confirmation-dialog {", styles);
         Assert.Contains("background: var(--admin-surface-raised);", styles);
         Assert.Contains("border: 1px solid #2b2b2b;", styles);

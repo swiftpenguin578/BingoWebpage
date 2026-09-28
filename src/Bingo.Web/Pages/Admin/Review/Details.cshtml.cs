@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using Bingo.Application.Evidence;
+using Bingo.Domain.Auditing;
 using Bingo.Domain.Events;
 using Bingo.Domain.Evidence;
 using Bingo.Infrastructure.Boards;
@@ -16,25 +17,50 @@ namespace Bingo.Web.Pages.Admin.Review;
 
 public sealed class DetailsModel(ApplicationDbContext db, ISubmissionService service, IStringLocalizer<SharedResource>? text = null) : PageModel
 {
-    public DetailsView Details { get; private set; } = null!; public string EventTimezone { get; private set; } = DateTimePresentation.DefaultTimezoneId; public IReadOnlyList<AssetView> Assets { get; private set; } = []; public IReadOnlyList<ActionView> History { get; private set; } = []; public IReadOnlyList<ContextView> PriorApproved { get; private set; } = []; public IReadOnlyList<ChecksumMatch> ChecksumMatches { get; private set; } = []; public IReadOnlyList<Option> Characters { get; private set; } = []; public IReadOnlyList<RequirementOption> Requirements { get; private set; } = []; public IReadOnlyList<DropOption> Drops { get; private set; } = [];
+    private const int MaxReviewReasonLength = 4000;
+    private const string ReasonLengthError = "Reason must be 4000 characters or fewer.";
+    public DetailsView Details { get; private set; } = null!; public string EventTimezone { get; private set; } = DateTimePresentation.DefaultTimezoneId; public IReadOnlyList<AssetView> Assets { get; private set; } = []; public IReadOnlyList<AuditEntry> AuditHistory { get; private set; } = []; public IReadOnlyList<ContextView> PriorApproved { get; private set; } = []; public IReadOnlyList<ChecksumMatch> ChecksumMatches { get; private set; } = []; public IReadOnlyList<Option> Characters { get; private set; } = []; public IReadOnlyList<RequirementOption> Requirements { get; private set; } = []; public IReadOnlyList<DropOption> Drops { get; private set; } = [];
     public bool ReviewOpen { get; private set; }
     [BindProperty(SupportsGet = true)] public string Search { get; set; } = string.Empty;
     [BindProperty(SupportsGet = true)] public SubmissionStatus? Status { get; set; }
     [BindProperty] public ReviewInput Input { get; set; } = new();
     public async Task<IActionResult> OnGetAsync(Guid id, CancellationToken ct) { if (!await Load(id, ct)) return NotFound(); Input = new() { BoardTileId = Details.TileId, RequirementId = Details.RequirementId, DropSnapshotId = Details.DropId, CreditedOsrsCharacterId = Details.CharacterId, Reason = Details.Note, ExpectedVersion = Details.Version }; return Page(); }
-    public Task<IActionResult> OnPostApproveAsync(Guid id, CancellationToken ct) => Execute(id, async () => { var amount = await service.ApproveAsync(id, User.GetAccountId()!.Value, ct, Input.ExpectedVersion); TempData["StatusMessage"] = Localize("Approved with {0} contribution.", amount); }, ct);
-    public Task<IActionResult> OnPostRejectAsync(Guid id, CancellationToken ct) => Execute(id, () => service.RejectAsync(id, User.GetAccountId()!.Value, Input.Reason ?? string.Empty, ct, Input.ExpectedVersion), ct, "Submission rejected.");
-    public Task<IActionResult> OnPostReverseAsync(Guid id, CancellationToken ct) => Execute(id, () => service.ReverseAsync(id, User.GetAccountId()!.Value, Input.Reason ?? string.Empty, ct, Input.ExpectedVersion), ct, "Approval reversed and later contributions recalculated.");
-    public Task<IActionResult> OnPostEditAsync(Guid id, CancellationToken ct) => Execute(id, () => service.EditMetadataAsync(new(id, User.GetAccountId()!.Value, Input.BoardTileId, Input.RequirementId, Input.DropSnapshotId, Input.CreditedOsrsCharacterId, Input.Reason ?? string.Empty, Input.ExpectedVersion), ct), ct, "Metadata corrected.");
-    private async Task<IActionResult> Execute(Guid id, Func<Task> action, CancellationToken ct, string? success = null)
+    public Task<IActionResult> OnPostApproveAsync(Guid id, CancellationToken ct) => Execute(id, async () => { var amount = await service.ApproveAsync(id, User.GetAccountId()!.Value, ct, Input.ExpectedVersion); TempData["StatusMessage"] = Localize("Approved with {0} contribution.", amount); TempData[UiMessage.TypeKey] = UiMessageType.Success.ToString(); }, ct);
+    public Task<IActionResult> OnPostRejectAsync(Guid id, CancellationToken ct) => Execute(id, () => service.RejectAsync(id, User.GetAccountId()!.Value, Input.Reason ?? string.Empty, ct, Input.ExpectedVersion), ct, "Submission rejected.", requiresReason: true);
+    public Task<IActionResult> OnPostReverseAsync(Guid id, CancellationToken ct) => Execute(id, () => service.ReverseAsync(id, User.GetAccountId()!.Value, Input.Reason ?? string.Empty, ct, Input.ExpectedVersion), ct, "Approval reversed and later contributions recalculated.", requiresReason: true);
+    public Task<IActionResult> OnPostEditAsync(Guid id, CancellationToken ct) => Execute(id, () => service.EditMetadataAsync(new(id, User.GetAccountId()!.Value, Input.BoardTileId, Input.RequirementId, Input.DropSnapshotId, Input.CreditedOsrsCharacterId, Input.Reason ?? string.Empty, Input.ExpectedVersion), ct), ct, "Metadata corrected.", requiresReason: true);
+    private async Task<IActionResult> Execute(Guid id, Func<Task> action, CancellationToken ct, string? success = null, bool requiresReason = false)
     {
-        try { await action(); if (success is not null) TempData["StatusMessage"] = success; }
+        if (requiresReason && Input.Reason is { Length: > MaxReviewReasonLength })
+        {
+            TempData["StatusMessage"] = ReasonLengthError;
+            TempData[UiMessage.TypeKey] = UiMessageType.Error.ToString();
+            return await RedirectAfterPost(id, ct);
+        }
+        try
+        {
+            await action();
+            if (success is not null)
+            {
+                TempData["StatusMessage"] = success;
+                TempData[UiMessage.TypeKey] = UiMessageType.Success.ToString();
+            }
+        }
         catch (Exception ex) when (IsReviewPersistenceConflict(ex))
         {
             TempData["StatusMessage"] = "This review was not saved because the event or evidence changed in another request. Reload the submission, review the latest state, and try again.";
             TempData[UiMessage.TypeKey] = UiMessageType.Error.ToString();
         }
-        catch (Exception ex) when (ex is InvalidOperationException or ArgumentException) { TempData["StatusMessage"] = ex.Message; }
+        catch (Exception ex) when (ex is InvalidOperationException or ArgumentException)
+        {
+            TempData["StatusMessage"] = ex.Message;
+            TempData[UiMessage.TypeKey] = UiMessageType.Error.ToString();
+        }
+        return await RedirectAfterPost(id, ct);
+    }
+
+    private async Task<IActionResult> RedirectAfterPost(Guid id, CancellationToken ct)
+    {
         var eventId = await db.Submissions.AsNoTracking().Where(x => x.Id == id).Select(x => (Guid?)x.EventId).SingleOrDefaultAsync(ct);
         return RedirectToPage(new { id, eventId, search = Search, status = Status });
     }
@@ -68,10 +94,54 @@ public sealed class DetailsModel(ApplicationDbContext db, ISubmissionService ser
         Details = new(s.Id, s.EventId, s.TeamId, s.BoardTileId, s.RequirementId, s.DropSnapshotId, s.CreditedParticipantId, s.CreditedOsrsCharacterId, team.Name, tile.NameSnapshot, req.Description, drop?.BossName, drop?.ItemName, s.CreditedCharacterName, s.Status, s.ClaimedWeight, s.ApprovedContribution, s.SubmittedAt, s.CaptainNote, s.CurrentReviewerNote, s.ExpectedEvidenceCode, s.Version, minutesAfterEnd, effectiveEnd, eligibilityGap);
         Assets = await db.EvidenceAssets.AsNoTracking().Where(x => x.SubmissionId == id).OrderByDescending(x => x.UploadedAt).Select(x => new AssetView(x.Id, x.OriginalFilename, x.MediaType, x.ByteSize, x.PixelWidth, x.PixelHeight, x.Checksum, x.UploadedAt, x.Role, x.Active)).ToListAsync(ct);
         var activeChecksum = Assets.FirstOrDefault(x => x.Active)?.Checksum; if (activeChecksum is not null) ChecksumMatches = await (from asset in db.EvidenceAssets.AsNoTracking() join other in db.Submissions on asset.SubmissionId equals other.Id join otherTile in db.BoardTiles on other.BoardTileId equals otherTile.Id where asset.Checksum == activeChecksum && asset.Active && other.EventId == s.EventId && other.Id != s.Id orderby other.SubmittedAt descending select new ChecksumMatch(other.Id, otherTile.NameSnapshot, other.SubmittedAt, other.Status)).ToListAsync(ct);
-        History = await (from a in db.ReviewActions.AsNoTracking() join account in db.Accounts on a.PerformedByAccountId equals account.Id where a.SubmissionId == id orderby a.PerformedAt descending select new ActionView(a.Action, account.LoginName, a.PerformedAt, a.Note)).ToListAsync(ct); PriorApproved = await db.Submissions.AsNoTracking().Where(other => other.TeamId == s.TeamId && other.RequirementId == s.RequirementId && other.Status == SubmissionStatus.Approved && other.Id != s.Id).OrderByDescending(other => other.SubmittedAt).Select(other => new ContextView(other.Id, other.CreditedCharacterName, other.ApprovedContribution, other.SubmittedAt)).ToListAsync(ct);
+        AuditHistory = await LoadReviewHistoryAsync(id, s.EventId, ct); PriorApproved = await db.Submissions.AsNoTracking().Where(other => other.TeamId == s.TeamId && other.RequirementId == s.RequirementId && other.Status == SubmissionStatus.Approved && other.Id != s.Id).OrderByDescending(other => other.SubmittedAt).Select(other => new ContextView(other.Id, other.CreditedCharacterName, other.ApprovedContribution, other.SubmittedAt)).ToListAsync(ct);
         Characters = await (from assignment in db.EventParticipantCharacters.AsNoTracking() join membership in db.TeamMemberships.AsNoTracking() on assignment.EventParticipantId equals membership.EventParticipantId join character in db.OsrsCharacters.AsNoTracking() on assignment.OsrsCharacterId equals character.Id where assignment.EventId == s.EventId && membership.TeamId == s.TeamId && membership.LeftAt == null && assignment.EventRole == Bingo.Domain.Signups.EventCharacterRole.Playing && assignment.ReleasedAt == null orderby character.DisplayName select new Option(character.Id, character.DisplayName)).Distinct().ToListAsync(ct); var board = await db.Boards.AsNoTracking().SingleAsync(x => x.EventId == s.EventId, ct); var tiles = publication.Tiles; var tileMap = tiles.ToDictionary(x => x.Id); var tileIds = tiles.Select(x => x.Id).ToList(); var requirements = publication.Requirements.OrderBy(x => x.Position).ToList(); Requirements = requirements.Select(x => new RequirementOption(x.Id, x.BoardTileId, tileMap[x.BoardTileId].NameSnapshot, x.Description, x.ManualObjective, x.AllowHigherWeightings)).ToList(); var reqIds = requirements.Select(x => x.Id).ToList(); Drops = publication.Drops.OrderBy(x => x.BossName).ThenBy(x => x.ItemName).Select(x => new DropOption(x.Id, x.RequirementId, x.BossName, x.ItemName, x.DisplayRate)).ToList(); return true;
     }
-    public sealed class ReviewInput { [StringLength(4000)] public string? Reason { get; set; } public Guid BoardTileId { get; set; } public Guid RequirementId { get; set; } public Guid? DropSnapshotId { get; set; } public Guid CreditedOsrsCharacterId { get; set; } public int? ExpectedVersion { get; set; } }
+    private async Task<IReadOnlyList<AuditEntry>> LoadReviewHistoryAsync(Guid submissionId, Guid eventId, CancellationToken ct)
+    {
+        var targetId = submissionId.ToString("D");
+        var audits = await db.AuditEntries.AsNoTracking()
+            .Where(a => a.TargetType == "submission" && a.TargetId == targetId)
+            .ToListAsync(ct);
+        var actions = await db.ReviewActions.AsNoTracking()
+            .Where(a => a.SubmissionId == submissionId)
+            .OrderBy(a => a.PerformedAt).ThenBy(a => a.Id)
+            .ToListAsync(ct);
+        if (actions.Count == 0) return audits.OrderByDescending(a => a.OccurredAt).ThenByDescending(a => a.Id).ToList();
+
+        var actorIds = actions.Select(a => a.PerformedByAccountId).Distinct().ToList();
+        var actors = await db.Accounts.AsNoTracking().Where(a => actorIds.Contains(a.Id))
+            .ToDictionaryAsync(a => a.Id, a => a.LoginName, ct);
+        var consumedAuditIds = new HashSet<Guid>();
+        var history = new List<AuditEntry>(actions.Count + audits.Count);
+        foreach (var action in actions)
+        {
+            var matchingAudit = audits.FirstOrDefault(a => !consumedAuditIds.Contains(a.Id) && Matches(a, action, targetId));
+            if (matchingAudit is not null)
+            {
+                consumedAuditIds.Add(matchingAudit.Id);
+                history.Add(matchingAudit);
+                continue;
+            }
+
+            var actor = actors.GetValueOrDefault(action.PerformedByAccountId) ?? "Historical actor";
+            history.Add(AuditPresenter.FromReviewAction(action, actor, eventId));
+        }
+
+        history.AddRange(audits.Where(a => !consumedAuditIds.Contains(a.Id)));
+        return history.OrderByDescending(a => a.OccurredAt).ThenByDescending(a => a.Id).ToList();
+
+        static bool Matches(AuditEntry audit, ReviewAction action, string targetId)
+        {
+            var expectedAction = AuditPresenter.ActionKey(action.Action);
+            var actionMatches = string.Equals(audit.Action, expectedAction, StringComparison.Ordinal)
+                || action.Action == ReviewActionType.ReplaceEvidence && audit.Action == "submission.corrected";
+            return actionMatches && audit.TargetId == targetId && audit.ActorAccountId == action.PerformedByAccountId &&
+                   audit.OccurredAt == action.PerformedAt;
+        }
+    }
+
+    public sealed class ReviewInput { [StringLength(MaxReviewReasonLength)] public string? Reason { get; set; } public Guid BoardTileId { get; set; } public Guid RequirementId { get; set; } public Guid? DropSnapshotId { get; set; } public Guid CreditedOsrsCharacterId { get; set; } public int? ExpectedVersion { get; set; } }
     private async Task<EligibilityGapView?> FindEligibilityGapAsync(Guid eventId, DateTimeOffset submittedAt, CancellationToken ct)
     {
         var transitions = await db.EventStateTransitions.AsNoTracking().Where(x => x.EventId == eventId &&
@@ -90,5 +160,5 @@ public sealed class DetailsModel(ApplicationDbContext db, ISubmissionService ser
         return null;
     }
 
-    public sealed record DetailsView(Guid Id, Guid EventId, Guid TeamId, Guid TileId, Guid RequirementId, Guid? DropId, Guid PlayerId, Guid CharacterId, string Team, string Tile, string Requirement, string? Boss, string? Drop, string Player, SubmissionStatus Status, int Claimed, int Approved, DateTimeOffset SubmittedAt, string? CaptainNote, string? Note, string? ExpectedCode, int Version = 1, int? MinutesAfterEventEnd = null, DateTimeOffset? EventEndsAt = null, EligibilityGapView? EligibilityGap = null); public sealed record EligibilityGapView(DateTimeOffset StartedAt, DateTimeOffset ResumedAt); public sealed record AssetView(Guid Id, string Filename, string MediaType, long Bytes, int Width, int Height, string Checksum, DateTimeOffset UploadedAt, EvidenceAssetRole Role, bool Active); public sealed record ActionView(ReviewActionType Action, string Actor, DateTimeOffset At, string? Note); public sealed record ContextView(Guid Id, string Player, int Amount, DateTimeOffset SubmittedAt); public sealed record ChecksumMatch(Guid Id, string Tile, DateTimeOffset SubmittedAt, SubmissionStatus Status); [System.Diagnostics.CodeAnalysis.SuppressMessage("Naming", "CA1716:Identifiers should not match keywords")] public sealed record Option(Guid Id, string Label); public sealed record RequirementOption(Guid Id, Guid TileId, string Tile, string Description, bool Manual, bool Higher); public sealed record DropOption(Guid Id, Guid RequirementId, string Boss, string Item, string Rate);
+    public sealed record DetailsView(Guid Id, Guid EventId, Guid TeamId, Guid TileId, Guid RequirementId, Guid? DropId, Guid PlayerId, Guid CharacterId, string Team, string Tile, string Requirement, string? Boss, string? Drop, string Player, SubmissionStatus Status, int Claimed, int Approved, DateTimeOffset SubmittedAt, string? CaptainNote, string? Note, string? ExpectedCode, int Version = 1, int? MinutesAfterEventEnd = null, DateTimeOffset? EventEndsAt = null, EligibilityGapView? EligibilityGap = null); public sealed record EligibilityGapView(DateTimeOffset StartedAt, DateTimeOffset ResumedAt); public sealed record AssetView(Guid Id, string Filename, string MediaType, long Bytes, int Width, int Height, string Checksum, DateTimeOffset UploadedAt, EvidenceAssetRole Role, bool Active); public sealed record ContextView(Guid Id, string Player, int Amount, DateTimeOffset SubmittedAt); public sealed record ChecksumMatch(Guid Id, string Tile, DateTimeOffset SubmittedAt, SubmissionStatus Status); [System.Diagnostics.CodeAnalysis.SuppressMessage("Naming", "CA1716:Identifiers should not match keywords")] public sealed record Option(Guid Id, string Label); public sealed record RequirementOption(Guid Id, Guid TileId, string Tile, string Description, bool Manual, bool Higher); public sealed record DropOption(Guid Id, Guid RequirementId, string Boss, string Item, string Rate);
 }

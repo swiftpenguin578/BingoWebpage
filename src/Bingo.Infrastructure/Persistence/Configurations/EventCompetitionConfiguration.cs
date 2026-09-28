@@ -19,6 +19,7 @@ public sealed class EventCompetitionSynchronizationConfiguration : IEntityTypeCo
         builder.Property(x => x.CompetitionTitle).HasColumnName("competition_title").HasMaxLength(300);
         builder.Property(x => x.CompetitionStartsAt).HasColumnName("competition_starts_at");
         builder.Property(x => x.CompetitionEndsAt).HasColumnName("competition_ends_at");
+        builder.Property(x => x.Provenance).HasColumnName("provenance").HasConversion<string>().HasMaxLength(30);
         builder.Property(x => x.LastAttemptAt).HasColumnName("last_attempt_at");
         builder.Property(x => x.LastSuccessfulAt).HasColumnName("last_successful_at");
         builder.Property(x => x.LastUpstreamUpdatedAt).HasColumnName("last_upstream_updated_at");

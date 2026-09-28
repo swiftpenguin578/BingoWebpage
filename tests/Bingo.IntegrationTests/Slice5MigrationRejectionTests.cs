@@ -53,7 +53,8 @@ public sealed class Slice5MigrationRejectionTests : IAsyncLifetime
         var cycle = new DraftPublicationCycle(Guid.NewGuid(), draft.Id, 1, now.AddMinutes(1), account.Id);
         await InsertLegacyAccountAsync(retained, account, now);
         await retained.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO events (id, name, slug, description, timezone, state, signup_opens_at, signup_closes_at, event_starts_at, event_ends_at, submission_cutoff_at, participant_cap, waiting_list_enabled, require_signup_code, participant_list_published, draft_results_published, team_rosters_published, board_published, results_published, draft_locked, created_by_account_id, created_at) VALUES ({ev.Id}, {ev.Name}, {ev.Slug}, {""}, {ev.Timezone}, {"Draft"}, {now}, {now}, {now}, {now.AddDays(1)}, {now.AddDays(1)}, {20}, {false}, {false}, {false}, {false}, {false}, {false}, {false}, {false}, {account.Id}, {now})");
-        retained.AddRange(team, draft, participant, character, assignment, membership, cycle); await retained.SaveChangesAsync();
+        retained.AddRange(team, draft, participant, character, assignment, membership); await retained.SaveChangesAsync();
+        await InsertLegacyPublicationCycleAsync(retained, cycle);
         await retained.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO draft_publication_rosters (id, draft_publication_cycle_id, team_id, event_participant_id, role, effective_pick_number) VALUES ({Guid.NewGuid()}, {cycle.Id}, {team.Id}, {participant.Id}, {"Participant"}, {null})");
 
         await RetainedCatalogueMigrationTestSupport.PrepareAsync(retained);
@@ -70,7 +71,8 @@ public sealed class Slice5MigrationRejectionTests : IAsyncLifetime
         var team = new Team(Guid.NewGuid(), ev.Id, "Missing team", "missing-team", TeamFormationType.Preformed, null, false, now); var draft = new DraftSession(Guid.NewGuid(), ev.Id, 1); draft.Start(now); draft.Finalize(now); var participant = new EventParticipant(Guid.NewGuid(), ev.Id, SignupStatus.Confirmed, 1, now, SignupSource.AdminCreated); var membership = new TeamMembership(Guid.NewGuid(), team.Id, participant.Id, TeamMembershipRole.Participant, now, null, "missing"); var cycle = new DraftPublicationCycle(Guid.NewGuid(), draft.Id, 1, now, account.Id);
         await InsertLegacyAccountAsync(retained, account, now);
         await retained.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO events (id, name, slug, description, timezone, state, signup_opens_at, signup_closes_at, event_starts_at, event_ends_at, submission_cutoff_at, participant_cap, waiting_list_enabled, require_signup_code, participant_list_published, draft_results_published, team_rosters_published, board_published, results_published, draft_locked, created_by_account_id, created_at) VALUES ({ev.Id}, {ev.Name}, {ev.Slug}, {""}, {ev.Timezone}, {"Draft"}, {now}, {now}, {now}, {now.AddDays(1)}, {now.AddDays(1)}, {20}, {false}, {false}, {false}, {false}, {false}, {false}, {false}, {false}, {account.Id}, {now})");
-        retained.AddRange(team, draft, participant, membership, cycle); await retained.SaveChangesAsync();
+        retained.AddRange(team, draft, participant, membership); await retained.SaveChangesAsync();
+        await InsertLegacyPublicationCycleAsync(retained, cycle);
         await retained.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO draft_publication_rosters (id, draft_publication_cycle_id, team_id, event_participant_id, role, effective_pick_number) VALUES ({Guid.NewGuid()}, {cycle.Id}, {team.Id}, {participant.Id}, {"Participant"}, {null})");
 
         var exception = await Assert.ThrowsAsync<PostgresException>(() => retained.GetService<IMigrator>().MigrateAsync());
@@ -79,6 +81,9 @@ public sealed class Slice5MigrationRejectionTests : IAsyncLifetime
 
     private static Task<int> InsertLegacyAccountAsync(ApplicationDbContext db, Account account, DateTimeOffset now)
         => db.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO accounts (id, password_hash, must_change_password, account_type, active, authorization_version, login_name, normalized_login_name, global_role, public_username, normalized_public_username, password_version, version, created_at) VALUES ({account.Id}, {"hash"}, FALSE, {"WebsiteAccount"}, TRUE, 1, {account.LoginName}, {account.NormalizedLoginName}, {"Admin"}, {account.LoginName}, {account.NormalizedLoginName}, 1, 1, {now})");
+
+    private static Task<int> InsertLegacyPublicationCycleAsync(ApplicationDbContext db, DraftPublicationCycle cycle)
+        => db.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO draft_publication_cycles (id, draft_session_id, cycle_number, published_at, published_by_account_id) VALUES ({cycle.Id}, {cycle.DraftSessionId}, {cycle.CycleNumber}, {cycle.PublishedAt}, {cycle.PublishedByAccountId})");
 
     private static async Task<(Guid TeamOne, Guid TeamTwo)> SeedAsync(ApplicationDbContext db, string kind)
     {

@@ -75,7 +75,7 @@
             }
             else
             {
-                <form id="signup-settings-form" method="post" asp-page-handler="SignupAdministration" class="participant-settings-form" data-update-targets="@updateTargets">
+                <form id="signup-settings-form" method="post" asp-page-handler="SignupAdministration" class="participant-settings-form" data-update-targets="@updateTargets" data-confirmed="@eventView.Confirmed" data-waiting="@eventView.Waiting" data-current-capacity="@eventView.ParticipantCap" data-promotion-template="@T["Saving at capacity {0} will promote {1} waiting-list participant(s) in signup order."]">
                     <input asp-for="SignupAdministration.Version" type="hidden" />
                     <input type="hidden" name="ParticipantSearch" value="@Model.ParticipantSearch" /><input type="hidden" name="ParticipantStatus" value="@Model.ParticipantStatus" /><input type="hidden" name="sort" value="@Model.Sort" /><input type="hidden" name="direction" value="@Model.Direction" />
                     <div class="participant-capacity-fields">
@@ -87,25 +87,38 @@
                         <div class="participant-shared-row">
                             <strong id="waiting-list-enabled-heading" class="participant-shared-row-heading">@T["waiting list enabled"]</strong>
                             <label class="admin-setting-toggle participant-shared-row-content">
-                                <span class="admin-setting-toggle-marker"><input asp-for="SignupAdministration.WaitingListEnabled" aria-labelledby="waiting-list-enabled-heading" aria-describedby="waiting-list-enabled-support" /></span>
-                                <span id="waiting-list-enabled-support" class="admin-setting-toggle-copy"><small>@T["Keep accepting signups after capacity is reached."]</small></span>
+                                <span class="admin-setting-toggle-marker"><input type="checkbox" checked="checked" disabled aria-labelledby="waiting-list-enabled-heading" aria-describedby="waiting-list-enabled-support" /></span>
+                                <span id="waiting-list-enabled-support" class="admin-setting-toggle-copy"><small>@T["Keep accepting signups after capacity is reached."] @T["Waiting lists are always enabled while signups are open."]</small></span>
                             </label>
                         </div>
-                        @if (eventView.Waiting > 0)
-                        {
-                            <label class="admin-setting-toggle participant-waiting-confirm">
-                                <span class="admin-setting-toggle-marker"><input asp-for="SignupAdministration.ConfirmWaitingListDisablement" /></span>
-                                <span class="admin-setting-toggle-copy"><strong>@T["Confirm waiting-list disablement"]</strong><small>@T["If disabled, all {0} queued participants will be promoted in signup order; capacity will be raised to at least {1} if needed.", eventView.Waiting, eventView.Confirmed + eventView.Waiting]</small></span>
-                            </label>
-                        }
+                        <p class="participant-capacity-promotion-preview" data-capacity-promotion-preview hidden></p>
                     </div>
                 </form>
             }
-            @if (!eventView.DraftLocked && eventView.State is EventState.Draft or EventState.SignupOpen or EventState.SignupClosed)
+        @if (!eventView.DraftLocked && eventView.State is (EventState.Draft or EventState.SignupOpen or EventState.SignupClosed))
             {
                 <div class="participant-settings-actions">
                     <button class="admin-button-secondary" type="submit" form="signup-settings-form">@T["Save signup settings"]</button>
                 </div>
+            }
+        </section>
+
+        <section class="participant-settings-region participant-signup-code-region" aria-labelledby="signup-code-settings-heading">
+            <div class="participant-settings-heading">
+                <div><h2 id="signup-code-settings-heading">@T["Signup code"]</h2><p>@T["Protect the public signup form with a code."]</p></div>
+            </div>
+            @if (eventView.DraftLocked || eventView.State is not (EventState.Draft or EventState.SignupOpen or EventState.SignupClosed))
+            {
+                <p class="admin-muted-note">@T["Signup settings are locked because the draft has started or the event has moved on."]</p>
+            }
+            else
+            {
+                <form id="signup-code-settings-form" method="post" asp-page-handler="SignupCode" class="participant-settings-form" data-update-targets="@updateTargets">
+                    <input asp-for="SignupCode.Version" type="hidden" />
+                    <label class="signup-question-toggle admin-setting-toggle"><span class="admin-setting-toggle-marker"><input asp-for="SignupCode.RequireSignupCode" data-signup-code-toggle /></span><span class="admin-setting-toggle-copy"><span class="signup-question-toggle-label">@T["Require signup code"]</span></span></label>
+                    <div class="signup-code-control" data-signup-code-control hidden="@(!Model.SignupCode.RequireSignupCode)"><div class="admin-field"><label asp-for="SignupCode.NewSignupCode">@(eventView.HasSignupCode ? T["Replacement code"] : T["New signup code"])</label><input asp-for="SignupCode.NewSignupCode" class="form-control" autocomplete="off" data-signup-code-input data-has-signup-code="@(eventView.HasSignupCode ? "true" : "false")" required="@(Model.SignupCode.RequireSignupCode && !eventView.HasSignupCode)" aria-describedby="signup-code-help" /></div><small id="signup-code-help" class="signup-code-help">@(eventView.HasSignupCode ? T["Leave blank to keep the current code."] : T["Enter a code to require it at signup."])</small></div>
+                    <div class="participant-settings-actions"><button class="admin-button-secondary" type="submit">@T["Save code settings"]</button></div>
+                </form>
             }
         </section>
     </div>
@@ -133,7 +146,7 @@
                 </div>
             </div>
         </form>
-        @if (!eventView.DraftLocked && eventView.State is EventState.SignupOpen or EventState.SignupClosed)
+        @if (!eventView.DraftLocked && eventView.State is (EventState.Draft or EventState.SignupOpen or EventState.SignupClosed))
         {
             @if (Model.AddParticipant)
             {
@@ -216,7 +229,7 @@
                                             <div class="event-confirmation-box" role="alertdialog" aria-labelledby="remove-participant-@participant.Id-heading">
                                                 <p><strong id="remove-participant-@participant.Id-heading">@T["Remove {0}?", participant.Name]</strong><br />@T["This withdraws the signup and keeps its history."]</p>
                                                 <form method="post" asp-page-handler="Withdraw" class="event-confirmation-form" data-update-targets="@updateTargets">
-                                                    <input type="hidden" name="participantId" value="@participant.Id" /><input type="hidden" name="ParticipantSearch" value="@Model.ParticipantSearch" /><input type="hidden" name="ParticipantStatus" value="@Model.ParticipantStatus" /><input type="hidden" name="sort" value="@Model.Sort" /><input type="hidden" name="direction" value="@Model.Direction" />
+                                                    <input type="hidden" name="participantId" value="@participant.Id" /><input type="hidden" name="ConfirmLifecycleAction" value="true" /><input type="hidden" name="ParticipantSearch" value="@Model.ParticipantSearch" /><input type="hidden" name="ParticipantStatus" value="@Model.ParticipantStatus" /><input type="hidden" name="sort" value="@Model.Sort" /><input type="hidden" name="direction" value="@Model.Direction" />
                                                     <div class="event-confirmation-actions"><button class="admin-button-secondary action-danger-outline" type="submit">@T["Remove"]</button><a class="admin-button-secondary" asp-page="Participants" asp-route-id="@eventView.Id" asp-route-ParticipantSearch="@Model.ParticipantSearch" asp-route-ParticipantStatus="@Model.ParticipantStatus" asp-route-sort="@Model.Sort" asp-route-direction="@Model.Direction">@T["Cancel"]</a></div>
                                                 </form>
                                             </div>
