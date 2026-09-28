@@ -64,6 +64,23 @@ model tables. Their history is retained in Git, not as competing instructions.
 Task-specific user overrides take precedence only for their stated assignment;
 they do not silently become defaults for the next task.
 
+For the approved **Admin simplification** assignment only, the current 2026-09-26
+routing is Astra planner → persistent `gpt-5.6-sol` / `medium` coordinator →
+fresh `gpt-5.6-terra` / `medium` orchestrator per ticket or coherent package →
+`gpt-5.6-luna` / `max` implementer/remediator → independent `gpt-5.6-sol` / `high`
+reviewer. Any Astra/high implementer turn already in progress when this routing
+changed remains authorized to finish without interruption; apply Luna/max to new
+implementer turns after those current turns finish. Separate visible coordinator
+and orchestrator tasks, collaboration workers, required checks, same-worker
+remediation/recheck and scoped task-to-task callbacks are explicitly authorized.
+The coordinator owns dependency readiness, W6/W9 integration checkpoints and final
+reconciliation; each orchestrator owns its bounded implementation/review cycle.
+Use [the assigned execution contract](DELIVERY_PLAN.md#admin-simplification--approved-2026-09-26)
+and verified callback IDs in `CURRENT_STATUS.md`. Other assignments retain the
+defaults below. Commits, pushes, merges, deployment, production-data changes and
+manual acceptance remain separately authorized; proposed reviewer-model changes
+are not approved overrides.
+
 | Role | Model / reasoning | Owns |
 | --- | --- | --- |
 | Planner | Current user-selected planner | Scope, plan, consequential decisions, delivery reconciliation |

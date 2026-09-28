@@ -7,6 +7,49 @@ owned solely by [`UI_PAGE_MATRIX.md`](UI_PAGE_MATRIX.md).
 state, blockers, limitations, current work, and immediate ownership. Global UI
 rules and implementation ownership are defined by [`UI_SYSTEM.md`](UI_SYSTEM.md).
 
+## Admin simplification — approved 2026-09-26
+
+The approved [Admin simplification implementation plan](/Users/christopher/.codex/visualizations/2026/09/24/01a0d414-daca-72f3-bea0-d1e9e53a3b2f/ADMIN_SIMPLIFICATION_IMPLEMENTATION_PLAN.md)
+is the assigned scope, ticket/dependency and acceptance contract for this overhaul.
+Its sections 2–7 and 10 supersede conflicting older pass requirements only within
+that scope. Product, journey, data and confirmation decisions are promoted in
+`PRODUCT_REQUIREMENTS.md`, `FUNCTIONAL_CONTRACTS.md`, `DATA_MODEL.md` and
+`UI_SYSTEM.md`; they are approved targets, not claims of implementation or release.
+Unchanged safeguards, public composition and `UI_PAGE_MATRIX.md` approval records
+remain authoritative. Dashboard and later visual/public-page redesign are excluded.
+
+Reuse `admin-simplification` at the verified merged PR #11 baseline recorded in
+`CURRENT_STATUS.md`. PRE-01 changes documentation only: establish source identity,
+separate actual deployment evidence from merge/image-publication evidence, record
+read-only retained-data findings or category-specific unknowns, and reconcile
+authorities. No data transformation or feature/worker behavior is part of PRE-01.
+Unknown retained data blocks only its corresponding destructive migration or
+transition decision; it does not prohibit unrelated authorized implementation.
+An unavailable current deployment baseline remains an explicit rollout/rehearsal
+limitation, never an inferred successful promotion.
+
+The assignment-specific roles/models in `AGENTS.md` apply. Following the user's
+2026-09-26 routing update, new Admin simplification implementer turns use
+`gpt-5.6-luna` / `max`; any Astra/high implementer turn already in progress
+finishes under its existing assignment without interruption before this change
+takes effect. The persistent coordinator starts ready packages under the plan's
+waves, disjoint-file ownership and one-migration-owner rule. It serializes shared
+authority/status edits and unlocks dependents only after accepted prerequisite
+changes are available in their baseline. Fresh orchestrators retain the same
+implementer/reviewer through named remediation/recheck; no extra routine verifier
+or review layer is added.
+Each assignment carries exact planner/coordinator/orchestrator identities, renewed
+authorization, checkout/branch, relevant ticket, protected scope, evidence, checks
+and stop boundary. Orchestrators report accepted/needs-remediation/blocked to the
+coordinator through the explicit waking callback and use collaboration handoffs
+for workers. A status report is not manual acceptance or publication authority.
+
+PRE-01 uses scoped consistency/reference checks and `git diff --check`; no .NET
+suite is needed. Feature tickets use changed-risk checks and one independent
+stable-diff review. W6/W9 checkpoints and VER-01 retain the plan's integrated
+journeys and full release gates, including all CI Integration shards. Existing
+restrictions on packaging, promotion, deployment and production writes remain.
+
 ## Drop announcements and NEW tracking — approved behaviour, 2026-09-12
 
 Status: implementation authorized by the user after the single independent readiness
@@ -1092,10 +1135,13 @@ not change the recorded production launch.
 
 ## 3. Production readiness and release gates
 
-Production is live from PR #5 at source SHA
+Historical launch evidence (2026-09-01, not a current deployed-image check):
+production launched from PR #5 at source SHA
 `1f893133edc26455c41535807633225fdee36292` with immutable image digest
 `sha256:5de9882be6cd63e170b6d68fc1b869ea134e9b67f3bfab6a1b7eb042ed4c1a20`.
-CI, deployment, and focused production smoke passed. The remaining operational
+CI, deployment, and focused production smoke passed for that launch. See the
+active PRE-01 handoff in `CURRENT_STATUS.md` for later recorded release evidence
+and current verification limits. The remaining operational
 stage is the production Admin test event; it has not run. Launch-critical
 release work takes precedence over deferred UI polish.
 
@@ -1575,8 +1621,9 @@ cannot silently revise the baseline or settle an unresolved product decision.
 The current roles, models and routing are owned by
 [AGENTS.md](AGENTS.md#active-workflow-and-model-defaults--2026-09-24): planner defines
 the work; Terra/medium orchestrator manages it; Luna/max implements and checks;
-one independent Sol/high reviewer reviews the stable correction. Explicit user
-model overrides are assignment-scoped. Historical model/workflow assignments
+one independent Sol/high reviewer reviews the stable correction. The approved
+Admin simplification assignment uses the scoped coordinator/model override above
+and in `AGENTS.md`. Explicit user model overrides are assignment-scoped. Historical model/workflow assignments
 elsewhere do not override this current policy.
 
 The planner hands off and ends its turn. The orchestrator owns the entire authorized

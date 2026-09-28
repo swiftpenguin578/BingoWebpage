@@ -1,5 +1,1016 @@
 # Current project status
 
+## Final release correction pass — named failures resolved, 2026-09-29
+
+The authorized bounded correction pass on `admin-simplification` is technically
+complete and passed independent read-only review by `/root/release_correction_review`
+using `gpt-5.6-sol` / `high`, including confirmation of the final candidate metadata.
+The reviewed pre-packaging snapshot contained 272 paths: 222 tracked changed paths
+(including seven deletions) and 50 untracked paths, with 13,669 additions and 7,520
+deletions. Its correction identity is recorded in
+`/private/tmp/admin-release-gate-20260929/`:
+`candidate-manifest-correction.txt`, `tracked-diff-correction.sha256`, and
+`untracked-content-correction.sha256`; the final hashes are recorded in
+`ADMIN_RELEASE_VERIFICATION.md`. The user authorized the two local packaging
+commits; the first is `525d5d155eca3ea4956437f91599a1233a961087`.
+
+The four named .NET failures now pass in isolated Release/source-copy runs: the
+EventCreation test matches the shared optional-chaining lifecycle confirmation
+initializer; the C11 test scopes identity assertions to the active finalized
+roster while retaining the historical published pick check; the Slice3 test uses
+an adjacent, non-overlapping schedule boundary; and the Slice6 `missing` theory
+case passes against the controlled PostgreSQL fixture after the earlier startup
+timeout. TRX evidence is under
+`/private/tmp/admin-release-gate-20260929/correction-results/`.
+
+The three named Node failures also pass individually with the bundled runtime:
+`drop-announcement-reconciliation.test.js`, `participants-ui.test.js`, and
+`public-recent-drops.test.js`. The scoped formatter was applied only to the seven
+files identified by the prior gate; `dotnet format ... --verify-no-changes` and
+`git diff --check` pass. The one final isolated Release solution build passes with
+0 warnings and 0 errors; its log is
+`/private/tmp/admin-release-gate-20260929/final-release-build.log`.
+
+Per the user's restriction, the full solution suite was not rerun, so this status
+does not claim a full-suite pass. The earlier full-gate failure counts remain below
+as provenance, while the seven named cases have current focused evidence. No
+acceptance-database write, provider call, app restart, or browser walkthrough
+occurred; manual browser acceptance remains user-owned. Accepted deferrals remain
+1.3 Playing/Alt account UI for later, 1.4 saved signup-code display consideration
+without plaintext authorization, 6.8 remaining audit-layout polish, and WOM/FETCH
+testing and binding until the UI overhaul.
+
+## Final release verification — blocked baseline (superseded by correction pass), 2026-09-29
+
+The final dirty candidate on `admin-simplification` was verified without staging,
+commit, push, merge, deployment, app restart, acceptance-database write, provider
+call, or data repair. The candidate is base HEAD
+`22af254c893bb51e7820d84fc4154ff9af3bcc90` plus 269 paths: 219 tracked changed
+paths (including seven deletions) and 50 untracked paths. The tracked diff is
+13,587 additions / 7,494 deletions. Immutable candidate identities and the complete
+inventory are recorded in
+`/private/tmp/admin-release-gate-20260929/candidate-manifest.txt`; its final hash is
+recorded in `ADMIN_RELEASE_VERIFICATION.md`.
+
+The isolated Release solution build passed with **0 warnings / 0 errors** from the
+source copy under `/private/tmp/admin-release-gate-20260929/source-copy`; `git
+diff --check` passed. The required formatter verification did not pass: 92
+diagnostics (88 whitespace, two charset, two import-order) remain in seven candidate
+files; no autoformat was run. The one full solution test gate completed once with
+**1,563 total / 1,559 passed / 4 failed / 0 skipped**: Application 105/105,
+Browser 147/148, Domain 264/264, Integration 1,047/1,050. Evidence and hashes are
+in `ADMIN_RELEASE_VERIFICATION.md` and under
+`/private/tmp/admin-release-gate-20260929/`; the Integration TRX is
+`results-escalated/solution-escalated.trx`.
+
+The four failures are the Browser EventCreation markup contract, the C11 mutable-name
+projection assertion, the Slice3 stale schedule/audit assertion, and a PostgreSQL
+connection timeout in the Slice6 missing-price fixture during migration startup.
+The complete bundled-Node source test set separately reported 113 tests with
+108 passed, three failed and two skipped; its failures are the existing
+drop-announcement reconciliation, participants UI, and public recent-drops source
+contracts. Directly affected Node checks for draft team entry, review queue, schedule
+controls and signup questions passed 4/4. The controlled signup-code Chromium
+harness was blocked by Chrome `SIGABRT`/`EPERM` in this environment.
+
+Migration inventory is structurally complete for the six proposed migrations: each
+has its `.cs` and `.Designer.cs`, and the model snapshot is present. Ignored
+`TestResults/*.trx` and `bin/obj` outputs remain generated exclusions. No suspicious
+credential values were found in changed paths.
+
+Manual acceptance remains recorded for S1-S3 schedule/setup, 6.2 member addition,
+corrected 5.3 action placement, 7.2 reopening/republishing, 7.3 cancellation and
+7.4 deletion. The user deferred 1.3 account-control presentation, 1.4 saved-code
+display, 6.8 audit layout, and WOM/FETCH/provider acceptance. Initial 7.1 publication
+was not separately reported as passed. No page-wide UI approval or release readiness
+is inferred. **Current verdict: blocked for release packaging pending formatter
+and test-failure reconciliation.**
+
+## Admin simplification W11 — technical verification complete, 2026-09-28
+
+W11 work remained confined to
+`/Users/christopher/.codex/worktrees/735f/BingoWebpage` on
+`admin-simplification`, preserving all accepted W0–W10/CAT/BNR/W11 dirty work.
+No production or user-data access/mutation, migration application, packaging,
+staging, commit, push, merge, deployment, publication, or manual visual
+acceptance occurred.
+
+The final user-run solution-wide Release gate is **GREEN: 1,555/1,555 passed,
+0 failed, 0 skipped**. It comprises Application **105/105**, Browser
+**148/148**, Domain **264/264**, and Integration **1,038/1,038**. Artifacts are
+under `/private/tmp/ver01-final-solution-rerun2-20260928/`: Application TRX
+SHA-256 `8a7fab2a8d04d5208b435bb9b7fd19b0967bca6244fb3dd9a0d5f6c6d6151ec3`;
+Browser `0bf1aa388223ff775bcfb2b675cb46d64de23156c92b96bf57fabbe655b839e7`;
+Domain `ea533d1f3265de12aba630e68a6ec6f8775a9a2b65e9272a5136ef331b4dbc5b`;
+Integration `3e055eec587d8bdb9e3ae7dae327b69f7e5aebf2ec69cdf2461dda9d8b56e17c`;
+console `9ac010154146633bc6ca00b47457b24c302b813136bb4440e3981c36656d16fe`.
+
+The last non-Integration contract package changed only
+`EventCreationUiTests.cs` and `EventQuarantineRulesTests.cs`: Browser/Domain
+source contracts now reflect the accepted simplified Admin Manage ownership and
+shared confirmation composition, and Hide requires a reason while Restore has
+optional reason/shared confirmation without typed-name confirmation. Full
+Browser and Domain gates passed; fresh Sol/high review found one ownership-slice
+P2, the same Luna/max remediator corrected it, and the named recheck passed.
+Earlier W11 focused PostgreSQL/HTTP evidence, independent rechecks, and the
+historical failed manifests remain retained below as provenance, superseded as
+technical gate status by this final green solution run.
+
+**Status:** W11 technical verification is complete. Remaining boundaries are
+user/manual visual acceptance where applicable and any separately authorized
+packaging/release decision; neither is implied by this result.
+
+## Admin simplification W11 — VER-01 remediation consolidation, 2026-09-27
+
+W11 was coordinated by `/root`; Luna/max implementer/remediator was
+`/root/verifier_remediator`; the same independent Sol/high reviewer was
+`/root/independent_reviewer`. Work was confined to
+`/Users/christopher/.codex/worktrees/735f/BingoWebpage` on
+`admin-simplification`, base HEAD `22af254c893bb51e7820d84fc4154ff9af3bcc90`,
+preserving the accepted W0–W10 and other dirty/uncommitted changes. No
+production or user database access/mutation, package, staging, commit, push,
+merge, deployment, or publication occurred.
+
+**Named core remediation:** Human event mutations for signup lifecycle, event
+lifecycle, destructive lifecycle, and finalization now authorize an active
+WebsiteAccount Admin/SuperAdmin inside the mutation transaction while locking
+the account row, use the authoritative account LoginName for audit attribution,
+and reject nonexistent, disabled, User, or revoked actors without state/audit
+writes. Scheduled/system paths remain system-authorized. The generic
+`POST ?handler=State` route is retired fail-closed; Hide/Restore require the
+bound destructive confirmation; the legacy no-confirm signup Close overload was
+removed. Real PostgreSQL proofs cover negative/valid authorization,
+authoritative identity, revocation race, publication atomicity, quarantine
+confirmation, and the forged State pipeline boundary.
+
+**Held corrections:** Admin Accounts Manage reload/error branches now return
+NotFound for absent/non-WebsiteAccount targets instead of rendering a null
+AccountView; the retained EmergencyCaptain Disable and GenerateReset forged
+pipeline proof verifies 404/no mutation. Account My Events now uses an inline
+correlated finalized active-roster query over publication cycles, sessions, and
+rosters; the ordinary participant/public-history fixture was aligned with that
+accepted invariant without weakening privacy/history projection.
+
+Evidence: the focused named W11 gate passed **8/8**; the isolated My Events
+journey passed **1/1**. Web/solution Release builds passed with **0 warnings and
+0 errors**. Scoped formatter checks and `git diff --check` passed. The same
+independent reviewer completed the named recheck as **PASS**.
+
+**Package A/B completion:** Package A corrected valid human `StartNow` ordering:
+active-Admin preflight occurs before `PrepareStartAsync`, then the mutation
+transaction locks and reauthorizes the account before event/version/readiness,
+price capture, audit, and commit work, preserving revocation-race fail-closed
+behavior and scheduled/system authorization. Package B corrected the eight
+manifest-mapped stale authorization fixtures by binding their intended business
+actors to active WebsiteAccount Admins without weakening the original business
+assertions or removing separate unauthorized coverage. The direct StatsPass2
+proof gap was corrected in the fixture only: the four provider/no-residue cases
+use a readiness-valid Admin fixture, and the separate unauthorized StartNow
+guard proves zero provider calls and no residue.
+
+The Package A/B focused gate passed **15/15** with **0 failures / 0 skipped**;
+TRX `/private/tmp/verifier-remediation-focused.trx` (tracked dirty diff
+snapshot SHA-256 `40e77b92e1076bc178b71e0c4efbc82c64da74ec8783159379ea0a90dbbd921f7`).
+The Web Release build remained **0 warnings / 0 errors**, and `git diff --check`
+passed. After the reviewer identified the direct StatsPass2 proof gap, the
+same named recheck passed **7/7** (4 provider/no-residue cases, the unauthorized
+provider-call guard, and 2 authorization tests):
+`/private/tmp/verifier-stats-pass2-auth.trx`, SHA-256
+`52aee8f2432e9641d291141346dea5588219f2dad367bf51988481c0e3ca8549`.
+No full Integration rerun was performed for Package A/B; the remaining 291
+unchanged failures remain unchanged and unclassified.
+
+**Package C completion (test/fixture-only R1/R4/R5 remediation):** R1 added the
+minimal active finalized draft/publication fixtures and refreshed the moved-team
+publication in the collective-milestone case; R4 aligned the WOM fixture cases
+with the accepted website-owned event window and initial validation contract;
+R5 moved the two StatsPass4 workflows to current finalization/reopen authority,
+retaining the retired `CorrectCompletionAsync` guard, raw completion facts,
+official snapshots, archive/reopen history, and presentation assertions. The
+InitialLive scheduling fixture now includes a valid finalized active roster.
+No production source or `Slice10Pass103ActivityProjectionTests` behavior was
+changed.
+
+The exact final `Slice10Pass102CompetitionSynchronizationTests` class gate passed
+**145/145**, **0 failed / 0 skipped**, in 5m41s. TRX:
+`/private/tmp/verifier-package-c-slice102-final2-results/verifier-package-c-slice102-final2.trx`
+(SHA-256
+`3c68c56f860fa584a21b2fcde60448da745b63210acf38e6977939422abad22a`); console
+summary:
+`/private/tmp/verifier-package-c-slice102-final2-results/verifier-package-c-slice102-final2-console.log`.
+The sole prior class failure was independently focused at 1/1 before the final
+class gate. Integration and Web Release builds passed with **0 warnings / 0
+errors**; `git diff --check` and the scoped formatter passed. The same
+independent reviewer’s named recheck remains **PASS**.
+
+Package C did not rerun Slice103 or the full 1,035-test suite. The supplied
+`Slice10Pass103ActivityProjectionTests` failure remains an explicit outlier;
+the remaining non-Slice10 failure clusters and the other final-manifest cases
+were untouched and remain unclassified. The reported scoped owned-test diff
+hash (`51ff63737f7b36af5161d108812b75dfcb3d51ff6b5b4e50fc6113d520399ca1`)
+cannot be independently recomputed because no preserved patch artifact exists;
+this is a provenance limitation, not a code/test defect, and no stronger
+independent diff claim is made.
+
+The authoritative user-run final full Integration Release gate completed with a
+failed result: `/private/tmp/ver01-full-final-user.trx` (SHA-256
+`581201bc3307a2390f0f04024fedbac082089d5cc2bb4e115e65188788a7d930`) and its
+console log `/private/tmp/ver01-full-final-user-console.log` (SHA-256
+`89e93eb6f1c8042b88b4e26564eeebc0142d7e83ee5362d0bb2cb8ad884f7c3b`) report
+**1,035 total / 733 passed / 302 failed / 0 skipped / 34m33s**.
+
+The supplied final failure distribution is: `Slice10Pass102CompetitionSynchronizationTests`
+93; `C20ObjectiveIdentityIntegrationTests` 29; `C11FinalizedRosterIntegrationTests`
+27; `Slice3ScheduledLifecycleIntegrationTests` 22; `SubmissionWorkflowTests` 17;
+`C33FinalizationFreshnessTests` 16; `Slice6CatalogueAdministrationIntegrationTests`
+15; `Slice3ScheduleLifecycleIntegrationTests` 14; `Slice7Pass71IntegrationTests`
+9; `Slice3FinalizationAtomicityIntegrationTests` 7;
+`Slice4AuthenticatedSignupIntegrationTests` 7; `DraftOperationsIntegrationTests`
+6; `AdminStaleChangeIntegrationTests` 5; `EventSignupWarningRemediationIntegrationTests`
+4; `ParticipantFlowIntegrationTests` 4; `Slice3DestructiveLifecycleIntegrationTests`
+4; `Slice9Pass92LiveWithdrawalIntegrationTests` 4; `Slice1IdentityIntegrationTests`
+3; `AuditAtomicityBatchIntegrationTests` 2; `CaptainScopedNavigationIntegrationTests`
+2; `Slice3CreationIdentityPersistenceIntegrationTests` 2;
+`Slice3PublicCurrentSelectionIntegrationTests` 2; `Slice5MigrationRejectionTests`
+2; `CaptainAuthorityIntegrationTests` 1; `CataloguePopulationMigrationIntegrationTests`
+1; `DraftStartReadinessIntegrationTests` 1; `DropAnnouncementPersistenceIntegrationTests`
+1; `Slice10Pass103ActivityProjectionTests` 1; `Slice3DraftStartIntegrationTests` 1.
+
+Manifest drift against the preserved pre-core `/private/tmp/ver01-full-postfix.trx`
+(**1,032 / 737 / 295 / 0**) is exact: three new passing named tests
+(`EventMutationAuthorizationIntegrationTests` x2 and the retired generic State
+pipeline test); four prior failures now pass (`ExistingCookieLoginAndRemovedAdminRoutesFailClosed`,
+both named quarantine tests, and `PublicSignupTableAndMyEventsUseOnlyPublicProjectionAndStateAwareRoutes`);
+and eleven formerly passing tests now fail: C11 `StaleRolePostAfterWithdrawalOrActualStartCannotPublishOrChangeRoles(startInstead: True)`;
+DraftStart `LiveStartDoesNotRequireCaptainOrEmergencyCredentials(mode: "manual")`;
+Slice10 `SaveScheduleAllowsManagedWindowChangesBeyondFiveMinutesForAutomaticUpdate`
+and `ScheduleEditRejectsAMismatchWithTheLinkedCompetition`; Slice3
+`ScheduleHandlerLoadsMachineValuesAndPreservesUntouchedInstants`; Slice3Scheduled
+`BlockedScheduledStartNotifiesOnceAndManualResolutionPreservesAttemptHistory`,
+`ManualStartRejectsAnEventWhoseConfiguredEndHasPassed`,
+`ResumeRequiresReplacementAfterConfiguredEndExpires`, and
+`ResumeReusesRetainedFutureEndAndRedrivesCutoff`; and Slice7
+`EventStartFailsClosedWhenAConfirmedParticipantLacksPlayingAuthority` and
+`WebsiteEventStartFailsClosedForMissingOrAmbiguousPrimaryWithoutResidue`.
+Initial evidence indicates several of these are valid service-boundary
+authorization fixture failures, not a product regression by aggregate alone;
+there is no blanket classification, and all 302 require persisted evidence.
+
+### W11 manifest-drift evidence ledger
+
+The following ledger covers each formerly passing → failing manifest entry. The
+remaining 291 unchanged failures are not classified here. Contract references
+are to `FUNCTIONAL_CONTRACTS.md`; no source/test rerun was performed for this
+read-only classification.
+
+| # | Test identity | Actual result and stack | Actor fixture and call order | Contract and causal evidence | Disposition; owner; smallest discriminating reproof |
+|---|---|---|---|---|---|
+| 1 | `1e68bdf5-7e34-6a55-5222-4ea4d596f87b` / `e305c263-8dc5-4f4a-868c-efb7d8c1e2e8` — `Bingo.IntegrationTests.C11FinalizedRosterIntegrationTests.StaleRolePostAfterWithdrawalOrActualStartCannotPublishOrChangeRoles(startInstead: True)` | `Assert.Equal`: Expected `Found`, Actual `OK`; `C11FinalizedRosterIntegrationTests.cs:721,730`. | `SeedAsync` creates `c11-admin` with `GlobalRole.Admin`; two real password logins; pending ChangeRole holds the event-lock barrier, then Manage StartEvent posts confirmation/reason. | C11 stale/live role protection and `SYS-EVENT-START-01`. Valid auth reaches `EventLifecycleService.StartNowAsync:65-76`; `PrepareStartAsync` runs inside the transaction and throws “Prepare prices before opening the event transaction”, so Manage returns Page/200 instead of redirect. | **PRODUCT REGRESSION.** Owner `EventLifecycleService.cs` plus `C11FinalizedRosterIntegrationTests.cs`. Reprove valid Admin StartNow, then this barrier path: Live state, redirect, unchanged stale-role state/hash/audit. |
+| 2 | `13bed442-37f7-9b1b-d5ea-f87ee0c220ce` / `d4356895-06be-4a21-9875-f189cd426d77` — `Bingo.IntegrationTests.DraftStartReadinessIntegrationTests.LiveStartDoesNotRequireCaptainOrEmergencyCredentials(mode: "manual")` | `Assert.True`: Expected `True`, Actual `False`; `DraftStartReadinessIntegrationTests.cs:65,70`. | `SeedAsync` creates active `readiness-admin` and sets `GlobalRole.Admin`; readiness passes at line 63; direct confirmed/reasoned StartNow uses that actor. | `SYS-EVENT-START-01` and SEC-01 no Captain/emergency prerequisite. Auth passes, then the same in-transaction `PrepareStartAsync` exception returns failure; scheduled theory uses system preparation and passes. | **PRODUCT REGRESSION.** Owner `EventLifecycleService.cs` and `DraftStartReadinessIntegrationTests.cs`. Reprove manual theory with Live/actual-start/audit assertions; retain scheduled case. |
+| 3 | `00fa0f53-8c5e-ae77-2166-d2f5acf5a42c` / `817a65b6-91c0-494e-b0e9-08dac3da4d45` — `Bingo.IntegrationTests.Slice10Pass102CompetitionSynchronizationTests.SaveScheduleAllowsManagedWindowChangesBeyondFiveMinutesForAutomaticUpdate` | Unauthorized message “Only an active website administrator can perform this event action.”; `Slice10Pass102CompetitionSynchronizationTests.cs:879,881`. | Actor is a new random `Guid`/`managed-schedule-admin`; event, sync, and management rows are seeded, but no Account/role is seeded; direct SaveSchedule calls service auth first. | `ADM-EVENT-03`; `EventSignupLifecycleService.cs:98-107` correctly rejects before schedule/linked-window mutation. | **STALE FIXTURE.** Owner Slice10 test plus `EventSignupLifecycleService.cs`. Bind actor to active WebsiteAccount Admin, retain managed-window success/end assertion, and retain a separate nonexistent/User/disabled rejection. |
+| 4 | `bc1bbd14-4ab3-373c-54b6-46c5e0b1c13f` / `8585b6e9-8910-4054-8c9a-647afef47114` — `Bingo.IntegrationTests.Slice10Pass102CompetitionSynchronizationTests.ScheduleEditRejectsAMismatchWithTheLinkedCompetition` | `Assert.Contains` sees unauthorized text; expected `within five minutes`; `Slice10Pass102CompetitionSynchronizationTests.cs:856,858`. | Random `Guid`/`schedule-admin`; no Account/role; SaveSchedule exits at auth before linked-competition validation. | `ADM-EVENT-03` five-minute linked-competition guard is never reached because the intended Admin was not seeded. | **STALE FIXTURE.** Same owner/files. Seed active Admin, preserve exact five-minute rejection and unchanged end, plus separate unauthorized proof. |
+| 5 | `880fd6e0-f42b-7002-f35b-8906d71c4e2d` / `04fb8ead-b306-47cf-8bf1-8680d5d88cbb` — `Bingo.IntegrationTests.Slice3CreationIdentityPersistenceIntegrationTests.ScheduleHandlerLoadsMachineValuesAndPreservesUntouchedInstants` | Expected `RedirectToPageResult`, Actual `PageResult`; `Slice3CreationIdentityPersistenceIntegrationTests.cs:676,677`. | `SeedEventAsync` uses random actor with no Account; Schedule PageModel only installs matching claims; invalid post correctly Page, valid confirmed post calls SaveSchedule with that unseeded actor. | `ADM-EVENT-03`; SaveSchedule returns its unauthorized result, so `Schedule.cshtml.cs:89` reloads Page. | **STALE FIXTURE.** Owner Schedule test, `src/Bingo.Web/Pages/Admin/Events/Schedule.cshtml.cs`, and SaveSchedule service. Seed active Admin, retain invalid Page/machine-value checks and require redirect/persisted UTC values; keep forged-claim negative coverage. |
+| 6 | `2c1b5ea2-cc35-8aa1-3baa-223bf47365b3` / `473ce281-858f-49fc-a08b-425deffee017` — `Bingo.IntegrationTests.Slice3ScheduledLifecycleIntegrationTests.BlockedScheduledStartNotifiesOnceAndManualResolutionPreservesAttemptHistory` | Missing “The bingo is currently live.”; `Slice3ScheduledLifecycleIntegrationTests.cs:556`. | Fixture seeds active `Admin` role/password; real login, blocker correction, antiforgery-confirmed Manage StartEvent. | `SYS-EVENT-START-01` manual recovery after postponement. Valid auth reaches the same `PrepareStartAsync`-inside-transaction exception, so the enhanced response is a successful Page/200 without Live content. | **PRODUCT REGRESSION.** Owner `EventLifecycleService.cs` and Slice3Scheduled test. Reprove HTTP journey with Live state/message, one transition/audit, and retained attempt history. |
+| 7 | `fc9f844a-cb09-d35e-7747-e3220e23135b` / `78b5c907-d042-4801-a4d2-90ad604ade92` — `Bingo.IntegrationTests.Slice3ScheduledLifecycleIntegrationTests.ManualStartRejectsAnEventWhoseConfiguredEndHasPassed` | `ArgumentNullException`: `collection`; `Slice3ScheduledLifecycleIntegrationTests.cs:302,303`. | Actor is random `Guid`/`admin`; `ReadyDraft` owner is another random ID; no Account. Auth returns unauthorized with `Blockers=null`, then `Assert.Contains(result.Blockers!, EVENT_END_PASSED)` throws before end validation. | `SYS-EVENT-START-01` requires authorized Admin to receive `EVENT_END_PASSED`; core unauthorized fail-closed rule. | **STALE FIXTURE.** Owner Slice3Scheduled test/service. Seed active Admin, retain end-passed/no-mutation assertion, and add explicit random/User/disabled rejection without dereferencing null blockers. |
+| 8 | `6a31df7a-c55a-9b6c-753e-afcc665e1346` / `df5fd39c-7dd0-4039-92ee-a78d659da788` — `Bingo.IntegrationTests.Slice3ScheduledLifecycleIntegrationTests.ResumeRequiresReplacementAfterConfiguredEndExpires` | `Assert.Contains`: actual unauthorized text, expected `expired`; `Slice3ScheduledLifecycleIntegrationTests.cs:275,280`. | Both missing/replacement calls use random `Guid`/`admin`; no Account; auth exits before retained-end expiry/replacement checks. | `ADM-EVENT-ARCHIVE-01`/8.1 resume requires confirmation, reason, and future retained/replacement end. | **STALE FIXTURE.** Owner Slice3Scheduled test/service. Bind active Admin, retain expired/missing rejection and replacement success/cutoff, plus unauthorized proof. |
+| 9 | `8d33cef4-80b5-9d84-703e-4c6b35b671ab` / `436b109a-a988-444d-942f-a84e542eb375` — `Bingo.IntegrationTests.Slice3ScheduledLifecycleIntegrationTests.ResumeReusesRetainedFutureEndAndRedrivesCutoff` | Unauthorized message; `Slice3ScheduledLifecycleIntegrationTests.cs:248,252`. | Random `Guid`/`admin`, no Account; service exits before retained end/cutoff logic. | `ADM-EVENT-ARCHIVE-01`/8.1 retained future end must be reused and cutoff redriven atomically. | **STALE FIXTURE.** Owner Slice3Scheduled test/service. Bind active Admin, preserve retained-end/cutoff/audit assertions, plus unauthorized proof. |
+| 10 | `0164e69c-e2b4-abad-18ad-4996cba2259e` / `7cf719a1-398d-4606-b03b-8193355571c8` — `Bingo.IntegrationTests.Slice7Pass71IntegrationTests.EventStartFailsClosedWhenAConfirmedParticipantLacksPlayingAuthority` | `Assert.Contains`: actual unauthorized text, expected `Playing assignment`; `Slice7Pass71IntegrationTests.cs:442,445`. | SeedFixture creates a WebsiteAccount but leaves default `GlobalRole.User`; call passes a wholly random `Guid`/`test-admin`; readiness has the intended blocker but auth runs first. | `SYS-EVENT-START-01` readiness blocker and SEC-01; intended Admin actor was neither seeded nor used. | **STALE FIXTURE.** Owner Slice7 test/service. Use seeded active Admin for business blocker/no-residue assertions and retain random/User/disabled unauthorized coverage. |
+| 11 | `4f95210a-c1ba-939f-62c9-003dd39ec660` / `1cb4039c-02d0-427c-9367-f188385819e3` — `Bingo.IntegrationTests.Slice7Pass71IntegrationTests.WebsiteEventStartFailsClosedForMissingOrAmbiguousPrimaryWithoutResidue` | `Assert.Contains`: actual unauthorized text, expected `Playing assignment`; `Slice7Pass71IntegrationTests.cs:470` (both fixtures). | SeedFixture owner is default User (no `SetGlobalRole`); call uses `fixture.OwnerId`/`owner`, so no active Admin actor reaches missing/ambiguous-primary validation. | `SYS-EVENT-START-01` requires authorized Admin before the playing-assignment blocker; no product readiness conclusion is valid from this run. | **STALE FIXTURE.** Owner Slice7 test/service. Use active Admin for both fixtures, retain missing/ambiguous/no-residue assertions, and keep User unauthorized coverage. |
+
+The earlier initial post-stable socket-permission attempt remains historical:
+`/private/tmp/ver01-full-final.trx` and `/private/tmp/ver01-full-final-console.log`.
+The later escalated retry also remains historical; it reached test execution but
+was interrupted before final counters and produced no TRX, with console log
+`/private/tmp/ver01-full-final-escalated-console.log`.
+
+**Package C read-only Slice10 manifest ledger (2026-09-27):** The immutable
+`/private/tmp/ver01-full-final-user.trx` was keyed by testId + executionId +
+full name. Its 93 failed `Slice10Pass102CompetitionSynchronizationTests`
+members classify into R1 shared finalized-roster fixture drift (80), R2
+pre-Package-B authorization fixtures (2), R3 StartNow ordering regression
+already fixed by Package A (1), R4 accepted website-owned WOM contract
+mismatches (9), and R5 one retired manual-completion API expectation (1).
+The one failed `Slice10Pass103ActivityProjectionTests` member is preserved as
+an explicit UNCLASSIFIED outlier, not merged into R1. The complete membership,
+actual ErrorInfo/stack signatures, setup/call order, contract evidence,
+dispositions, protected-boundary risks, and smallest reproofs are persisted at
+`/private/tmp/ver01-slice10-package-c-ledger.md` (SHA-256
+`1fea8e028203fc3d1716b077a0ac8bbca97d492884824d14f01eea4672108126`). No
+source/test edits or reruns were performed; the other 291 unchanged failures
+remain unclassified, and W11 remains NEEDS REMEDIATION / NOT ACCEPTED.
+
+**Package D read-only ledger (2026-09-27):** Exactly 42 final-manifest
+failures were extracted by testId + executionId + full name: C11 roster 27,
+Slice9 live withdrawal 4, DraftOperations 6, ParticipantFlow 4, and
+CaptainAuthority 1. The complete membership, actual assertion/stack signatures,
+fixture/call-order evidence, ROS-01/PAR-01/DRF-01/LIF-01/ADM-02 contract
+mapping, individual dispositions, protected boundaries and ranked smallest
+reproof packages are persisted at `/private/tmp/ver01-package-d-ledger.md`
+(SHA-256 `646893f162f8dc56b531d6a7d93d9b9520dccc5ef9a661cd82139e25c91e4649`).
+The initial ledger itself made no source/test edits or reruns; its D1 StartNow
+row 1 was the historical Package A product regression, D1 row 2 and D7 semantic
+audit behavior remained unclassified pending reproof, and the other cases were
+individually mapped stale retired-flow or incomplete-fixture candidates—not a
+blanket legacy disposition.
+
+**Package D D1/D2 completion (2026-09-27):** The bounded remediation corrected
+StartNow initial playing-character eligibility to require both current active
+event/team membership and the authoritative active finalized publication row.
+The removed finalized participant remains historical and receives no new Live
+activation; a current published member still receives exactly one initial swap
+for the resolved `PrimaryCharacters` result at the actual start instant. D2
+retired post-Live withdrawal/replacement proofs were reconciled to the fixed
+roster contract and retain no-mutation, history, route, notification and audit
+boundaries. No D3-D10 source/test scope was changed.
+
+The exact D1/D2 manifest group passed **11/11**, **0 failed / 0 skipped**:
+`/private/tmp/ver01-d1-d2-final-fixed.trx` (SHA-256
+`411a72e7a295bc66e57d0a1df214fcc0f6c6f7934391d2bf78a7d138614f9a8f`), with
+console `/private/tmp/ver01-d1-d2-final-fixed-console.log` (SHA-256
+`dedb39622b1136b511887ba432b0c48fe2920489af274643630ca43d8b268328`). The
+additional positive D1 `fillVacancy:false` row passed **1/1**:
+`/private/tmp/ver01-d1-positive-start-row.trx` (SHA-256
+`cdf132107aab0f30ad0616363897f4a21fcd26ef84ec00230546a206d6ee5f44`). The
+same independent reviewer’s final named recheck is **PASS**. The analyzer-enabled
+solution Release build passed with **0 warnings / 0 errors**; scoped formatter
+verification and `git diff --check` passed. The remaining Package D clusters
+and the other final-manifest failures were untouched and remain unclassified;
+W11 remains **NEEDS REMEDIATION / NOT ACCEPTED**.
+
+**Package D3-D7 identity correction (2026-09-27):** Under explicit user
+authorization, `EventParticipantAuthorityQueries.AdminPrimaryCharacters` now
+uses the authoritative primary-account linkage for current Website signups;
+registration-order selection remains only a legacy/non-Website display fallback,
+while withdrawn/released historical fallback and readiness/evidence/public
+history authority remain protected. Finalized Admin Draft display reads the
+latest persisted publication name per participant, preserving frozen published
+identities after a mutable current-name change. The focused real PostgreSQL/HTTP
+proof passed **2/2** (0 failed / 0 skipped):
+`/private/tmp/ver01-d3-d7-admin-primary-final/ver01-d3-d7-admin-primary-final.trx`
+(SHA-256 `a126dcc96946002ef6f7f0e7ebeaf3f042d45ec1cc05278f73eb09e87d8db8d8`).
+The authorized D3-D7 method-group gate passed **25/25** (0 failed / 0 skipped):
+`/private/tmp/ver01-d3-d7-final2/ver01-d3-d7-final2.trx`
+(SHA-256 `bf3050ad17749e3e782a4c75d1ac6f57eb445e5a7ff22195a053bb7820d52e1a`).
+The Integration Release build passed with **0 warnings / 0 errors**; scoped
+formatter verification and `git diff --check` passed. The repository-wide
+formatter remains red only on unrelated pre-existing W11 files (migration
+whitespace/charset, Board/Participants formatting, and AdminActionProjection
+imports). The same independent reviewer’s named recheck is **PASS**. No full
+1,035-test rerun was performed; remaining W11 manifest clusters are untouched
+and unclassified. W11 remains **NEEDS REMEDIATION / NOT ACCEPTED**; the next
+action requires a new coordinator/planner-assigned package.
+
+**Package D8+D10 completion (fixture/workflow-only, 2026-09-27):** The D8
+role-notification fixtures now use the accepted Admin Draft finalization
+authority to persist a finalized DraftSession with an active publication cycle
+and roster before exercising User/Admin recipient routes. The board variant
+retains a forged `?handler=Reopen` **404/no-write** guard; the retired handler
+was not restored. D8 preserves outsider denial, private/public/history,
+notification, audit and frozen published-name assertions. D10 now advances the
+closed theory's actual end far enough that the persisted submission grace
+cutoff is genuinely closed, while retaining open-window success, stale-version,
+withdrawn-member, role-transition, audit and owner-notification assertions.
+No production source change was made.
+
+The exact four-case PostgreSQL gate passed **4/4**, **0 failed / 0 skipped**:
+`/private/tmp/ver01-d8-d10-exact4.trx` (SHA-256
+`b873a5683aa3a60171018f222a4d47b7652328dde793ffe1bd98e4eeeabfe67a`), with
+console `/private/tmp/ver01-d8-d10-exact4-console.log` (SHA-256
+`1cebc6e0d54a437d7b2b6ccf38fe0e3061b59fcbe5914bb8b74e96cd6c65d4d1`). D8
+representative proof passed **3/3** and D10 representative proof passed **2/2**.
+Web and Integration Release builds passed with **0 warnings / 0 errors**;
+scoped formatter verification and `git diff --check` passed. The same
+independent reviewer’s named recheck is **PASS**. The completed evidence ledger
+is `/private/tmp/ver01-package-d-ledger.md` (updated SHA-256
+`101a30f1e725eb0451b08c4217a025f1111bade25bba7f694bffc59d846f2b95`). The
+ledger’s earlier D9 classification informed the bounded test-only correction
+recorded below. It preserves the exact testId/executionId membership, messages,
+contracts, causal evidence, protection boundaries and ranked test-only proposal.
+**Package D9 completion (test-only fixture/workflow correction, 2026-09-27):**
+The six DraftOperations cases now preserve the current IncludedInDraft and
+active-owner contracts, genuine unowned-current-Captain attention, the current
+malformed AddMember no-write boundary, the retired AddExternalMember
+404/no-provider/no-write boundary, and finalized manual-roster
+source/provenance/removal/history protection. The exact six-case gate passed
+**6/6**, **0 failed / 0 skipped**; this result is recorded only in the Luna/max
+remediator transcript (no standalone TRX or console artifact was persisted).
+The Integration Release build passed with **0 warnings / 0 errors**; scoped
+formatter verification and `git diff --check` passed. The same independent
+Sol/high reviewer’s named source/diff recheck is **PASS**. No production source,
+database, package, staging, commit, push, merge, deployment or publication
+action occurred.
+
+**Package D complete:** D1/D2, D3-D7, D8/D10 and D9 are closed within their
+approved boundaries. W11 remains **NEEDS REMEDIATION / NOT ACCEPTED** pending a
+single fresh full **1,035-test** suite rebaseline and new final manifest. That
+rebaseline is the next W11 boundary; no further stale-package classification or
+remediation is authorized before it.
+
+## Admin simplification W10 — BRD-02 + WOM-02 technically accepted, 2026-09-27
+
+Integration checkout: `/Users/christopher/.codex/worktrees/735f/BingoWebpage`,
+branch `admin-simplification`, HEAD `22af254c893bb51e7820d84fc4154ff9af3bcc90`,
+with accepted W0–W9 and W10 changes uncommitted. Coordinator:
+`01a0dc89-e5a3-7902-8f90-c0bcdd55e2bb`; W10 orchestrator:
+`01a0dfab-4e83-7882-89ae-85753f0edec4` (local). Its collaboration roles were
+BRD implementer `/root/brd02` (`01a0dfab-d5c7-7e00-81b4-48bd9fe8c145`), WOM
+implementer `/root/wom02` (`01a0dfac-0e4c-7360-99b8-a71adddd9e8e`) and independent
+reviewer `/root/w10_final_review` (`01a0dfd0-3f82-7511-aa76-f36ad3f0cdec`); child
+callbacks are worker evidence, not package acceptance or coordinator-addressable
+orchestrator identities.
+
+**BRD-02 technically accepted:** Board overviews use stored estimates/status and
+defer full editor/catalogue data. Tile-local fingerprints and targeted
+invalidation/recalculation keep Draft working estimates current without recurring
+overview refreshes; invalid mappings remain visibly unresolved. Catalogue edits
+refresh only affected Draft/correction tiles and tracked deltas persist current
+board totals. Approved/public snapshots remain frozen; approval retains its
+authoritative freshness validation. Migration `20260926215725_AddBoardEstimateFreshness`
+is pending and was rehearsed only on disposable PostgreSQL; it marks unfinished
+Draft/correction rows verification-needed and does not rewrite approved estimates.
+
+**WOM-02 technically accepted:** `/Admin/Events/WiseOldMan/{id}` is the dedicated
+WOM workspace and Manage/Overview only summarizes and links. A/B/C provenance,
+capability, fetch, coverage and roster-readiness states are truthful; verification
+codes remain one-time/redacted. Fetch-now retains typed confirmation and cooldown;
+external connections are Disconnect-only while eligible website-created connections
+retain the pre-Live deletion confirmation. Terminal events permit WOM read-only
+inspection with an explanation while mutations remain blocked; forged/unknown WOM
+POST handlers redirect safely without mutation.
+
+Evidence: normal analyzer-enabled Web and Integration Release builds passed with
+0 warnings/0 errors; Infrastructure Release passed with 0 warnings/0 errors.
+Focused results: BoardRules 14/14; BRD migration rehearsal 1/1; Board
+freshness/approval 4/4; disposable PostgreSQL multi-tile catalogue/fingerprint/
+aggregate regression 1/1; WOM HTTP 4/4 and browser 4/4. `git diff --check`
+passed. The combined Sol/high review found four concrete defects (tile-local
+fingerprints, aggregate persistence, terminal WOM inspection and unknown-handler
+gating); the same Luna/max owners remediated them and the same reviewer rechecked
+all four as **ACCEPTED**.
+
+Limitations: selective BRD migration-backfill fixture assertion remains SQL/source
+verified rather than separately fixture-proven; Node was unavailable for additional
+Board JS harnesses. Broader DraftOperations/C11 legacy expectations and the RES
+real-PostgreSQL publication-lifecycle proof remain unrun. No BNR/W11 work,
+production migration/data action, staging, commit, push, merge, deployment or
+manual visual acceptance occurred. W11 dependency readiness: W10 technical gates
+are satisfied; the coordinator alone may authorize W11.
+
+## Admin simplification W9 — WOM-01 + ACT-01 technically accepted, 2026-09-26
+
+Integration checkout: `/Users/christopher/.codex/worktrees/735f/BingoWebpage`,
+branch `admin-simplification`, HEAD `22af254c893bb51e7820d84fc4154ff9af3bcc90`,
+with accepted W0–W8 and W9 changes uncommitted. Coordinator: `/root`.
+
+**WOM-01 + ACT-01 technically accepted:** WOM connections preserve independent
+provenance and capability: (A) website-created connections are protected,
+manageable and pre-Live deletable; (B) external ID-only connections are
+read/fetch-only, with local saves and no impossible remote queue; and (C)
+external connections with a protected code are manageable for schedule, roster
+and update-all operations but never remotely deletable. Five-minute date-tolerance
+linking returns both windows on mismatch, and provider dates do not overwrite
+website dates. Credentials are one-time protected inputs, never returned,
+prefilled, logged or audited; adoption/replacement never relabels provenance or
+escalates delete authority. Finalized direct/draft rosters and Live anchors and
+cooldowns remain authoritative. ACT projection preserves Admin control surfaces,
+safe capabilities/errors, provenance, history and audit without secret exposure.
+
+Migration `20260926201553_AddWiseOldManConnectionProvenance` is pending and was
+not applied. Historical provenance backfill was tested only with controlled
+disposable PostgreSQL and uses durable successful Create receipt evidence; no
+production or user data was touched. Direct user approval authorized only this
+migration/backfill/test work.
+
+Evidence: focused WOM 4/4; `ManagedCompetitionUiTests` 4/4; migration test 1/1;
+synchronization domain tests 6/6. Final Web Release and Integration Release
+builds both ran 2026-09-26 with 0 warnings/0 errors; `git diff --check` passed.
+Combined Sol/high review found four findings; the named recheck accepted all four.
+
+Limitations: broader `DraftOperations`/C11 legacy failures remain; RES real-
+PostgreSQL proof remains unrun; no BNR or W10 work was performed. No commit,
+push, merge, deployment, user-data action, production migration or manual UI
+acceptance occurred. Next action: coordinator may decide W10 only; no automatic
+dispatch.
+
+## Admin simplification W8 — ROS-01 technically accepted, 2026-09-26
+
+Integration checkout: `/Users/christopher/.codex/worktrees/735f/BingoWebpage`,
+branch `admin-simplification`, HEAD `22af254c893bb51e7820d84fc4154ff9af3bcc90`,
+with accepted W0–W7 and ROS-01 changes uncommitted. Coordinator:
+`01a0dc89-e5a3-7902-8f90-c0bcdd55e2bb`; W8 ROS orchestrator: `/root`.
+
+**ROS-01 technically accepted:** Finalized pre-Live rosters now use independent,
+authorized Add and Remove operations. They reuse eligible participant/account
+identity without ownership transfer or a final-size cap; reject duplicate active
+registrations, account conflicts and stale requests; and remain locked once the
+event has ever been Live. Removal preserves historical membership/replacement
+links and private history; no replacement/vacancy/promotion workflow or draft-pick
+rewrite is available. Current public roster and managed WOM payload projections
+retain roster-publication provenance while including every active Playing account.
+Local persistence truthfully reports pending/failed WOM synchronization, and the
+audit captures roster before/after, reuse/create disposition, owner and assignments.
+
+Focused PostgreSQL/HTTP ROS Add/Remove coverage passed, including reuse/conflict,
+unlimited Add, removal/re-add preservation, stale tokens, Live-start race, public
+roster, WOM payload and pending/failed sync; the final deterministic forged-Move
+finalization race tests passed 2/2 and the focused ROS Add/Remove set passed 6/6.
+The Web Release build passed with zero warnings/errors, the Integration Release
+compile passed with `-p:NoWarn=CS0618`, and `git diff --check` passed. Fresh
+Sol/high review found five blockers; Luna/max remediation closed four, then a final
+transactional forged-Move race. The same reviewer rechecked that correction as
+**ACCEPTED**. Scoped final SHA-256:
+`e455938924618d6adf13aea9826abcafc9c15c5bfd60cd49048c665f86078b38`.
+
+**W8 ROS integration checkpoint — PASS:** ROS-01 coexists with accepted W0–W7;
+no ROS migration, BNR work or W9 work entered its delta, and PAR/DRF/BRD/LIF/SGN
+public/private/history contracts remain preserved by the targeted inspection and
+review. No migration was applied and no production-data action, commit, push,
+merge, deployment or manual UI acceptance occurred. The unfiltered Integration
+build remains blocked by four pre-existing `CS0618 ArchiveAsync` errors; broader
+DraftOperations (9 failed/36 passed) and C11 (26 failed/23 passed) retain legacy
+vacancy/UI expectations. These are recorded limitations, not ROS passes. The
+retained RES real-PostgreSQL publication-lifecycle proof remains unrun. ROS-01 is
+technically satisfied for the W9 ROS dependency; next permitted action is the
+coordinator's authorized W9 decision, with no W9 work started here.
+
+## Admin simplification W7 — PAR-01 and RES-01 technically accepted, 2026-09-26
+
+Integration checkout: `/Users/christopher/.codex/worktrees/735f/BingoWebpage`,
+branch `admin-simplification`, HEAD `22af254c893bb51e7820d84fc4154ff9af3bcc90`,
+with accepted W0–W6 and W7 changes uncommitted. Coordinator:
+`01a0dc89-e5a3-7902-8f90-c0bcdd55e2bb`; W7 orchestrator: `/root`.
+
+**PAR-01 technically accepted:** Draft-state participant correction, confirmed
+withdrawal and restoration preserve ordinary queue/status behavior and private
+payment/notes. Withdrawal atomically terminates every active membership,
+demotes Captain/Co-captain roles with history, releases registrations and promotes
+the earliest eligible waiter. Withdrawn participants are read-only for signup
+correction; restore remains lifecycle-gated and uses current capacity/end queue.
+Focused real PostgreSQL lifecycle coverage passed 14/14; Web Release build passed
+with zero warnings/errors; `git diff --check` passed. Fresh Sol/high review found
+two defects (membership termination and withdrawn reservation recreation); the
+same Luna/max owner remediated them and the same reviewer rechecked both as
+accepted. Key SHA-256 values: `ec0484a224d2b5cb749b7954840712a1a80bdf8573effb5dddea63cc299feee9`
+(SignupService), `ec3517de3dd87f0be29656d0bb04a5ab26083563352afe449f699d31d8c59caf`
+(Participant handler), and `368130bd1f129e9e85cbadad50ec2b7b4fefe3dd21f87dbccad27353f326f7fe`
+(lifecycle tests).
+
+**RES-01 technically accepted:** Official publication writes an immutable placement
+snapshot and transitions directly to Archived atomically. The active Final Review
+surface retires overrides, completion correction/inspection, tie acknowledgement
+and ordinary Archive; exact equality across all competitive inputs alone permits a
+shared rank, with team name presentation-only. Reopen remains reasoned/confirmed
+and versioned; the controlled legacy Finalized path remains readable. Domain
+lifecycle/results tests passed 104/104 and calculator tests 15/15; Web Release
+build passed with zero warnings/errors before the final small policy assertion and
+`git diff --check` passed. Independent combined review accepted RES-01 and found no
+W8 behavior. Real PostgreSQL lifecycle proof remains unrun because the guarded
+MigrateAsync test edit was rejected; this is an unwaived limitation, not a pass.
+Finalization service SHA-256: `7be950185a771a88f9b8c430f2d03f52396afde31aafd2d873cbca85df035084`.
+
+**W7 integration checkpoint — PASS with recorded limitation:** PAR and RES coexist
+in the actual target; no W8 behavior was introduced by the W7 lanes. The combined
+selected-diff SHA-256 is `4271ac4a4224684329eead42e84dd2585c59cd88e4c43f4f5948e2a651a0775a`;
+final `git diff --check` passed. Manual/browser acceptance and migration application
+remain unrun. No production-data action, real publication, migration application,
+commit, push, merge or deployment occurred. W8 prerequisites are technically
+satisfied subject to the retained RES PostgreSQL-lifecycle limitation and the
+existing broader known failures.
+
+## Admin simplification W6 — SGN-02 and BRD-01 technically accepted, 2026-09-26
+
+Integration checkout: `/Users/christopher/.codex/worktrees/735f/BingoWebpage`,
+branch `admin-simplification`, HEAD `22af254c893bb51e7820d84fc4154ff9af3bcc90`,
+with accepted W0–W5 and W6 changes uncommitted. Persistent coordinator:
+`01a0dc89-e5a3-7902-8f90-c0bcdd55e2bb`; W6 orchestrator: `/root`;
+Luna/max owners: `/root/sgn02` and `/root/brd01`; independent Sol/high
+reviewer/rechecker: `/root/w6_review`.
+
+**SGN-02 technically accepted:** Capacity remains editable only before Draft and
+cannot go below confirmed registrations. Increasing it promotes the earliest
+eligible waiters transactionally; waiting remains available whenever signup is
+open, and legacy disabled-waiting settings do not trigger a bulk promotion.
+Admission-code configuration is authoritative and now administered from
+Participants/Signups. It is required for first signup and self-rejoin, but not
+editing, withdrawal, or Admin addition; rotation governs future admissions and
+ordinary disabling is preserved. Promotion previews are revalidated
+transactionally, audits omit secrets/hashes, and a successful rotation advances
+the event version so another pre-rendered code form receives normal stale-update
+recovery. Focused evidence passed: Domain 14/14, PostgreSQL participant lifecycle
+9/9, signup/rejoin HTTP 4/4, capacity-promotion 1/1, code/audit atomicity 4/4,
+signup UI 4/4; later remediation PostgreSQL/HTTP 6/6. Release builds passed with
+zero warnings/errors and `git diff --check` passed. Scoped evidence hashes:
+`0ccff8da89e1fbb3f76e33dbdc45f65f8192e794dcbbd183ba904661c9ce7c7e`,
+`1d113c493d7ad56a854a418b699814df1e7a3eb0faf0f5df5db1b3451a4bfae7`, and
+`f3f70a2044edc340c924bd299d54aa43d505b746546511f4d40fe081484068d3`.
+
+**BRD-01 technically accepted:** Board opens its editor, with missing-board
+creation restricted to eligible unfinished legacy events; lease/takeover is
+preserved and the Finish Editing/Create/Unapprove paths are retired. Approval
+validates and freezes a private snapshot; approved unpublished edits return to
+Draft while retaining the prior snapshot. Publication requires valid finalized
+website or direct roster readiness, and corrections retain the live public
+snapshot until replacement. Resize/removal protections, plain-language labels,
+image/snapshot behavior, and evidence/EHB/objective protections are retained.
+Post-finalization workload sizing now derives from the active frozen publication,
+not mutable memberships. Web and Browser project Release builds passed with zero
+warnings; focused frozen-roster PostgreSQL coverage passed 1/1; `git diff --check`
+passed. BRD scoped evidence hashes: `0c1e5d62e6113bd8013bb880d10988bb536bfbc52682ce78224471ad19118ba6`
+and remediation `add0707552a960c2363a099911d4b587b23a243312f3c8f7ffda5048e80fe9c4`.
+
+Fresh independent Sol/high review found three P2 defects (frozen-roster sizing,
+code-control placement, and code-rotation concurrency). The same owners remediated
+them, and the same reviewer rechecked every named finding as **ACCEPTED**. Node is
+unavailable, so JavaScript test execution was not run; BRD's initial focused
+VSTest was blocked by local socket permissions before the later elevated
+frozen-roster test passed. The pre-existing W0–W5 `EventCreationUiTests` failures
+and unrelated broader limitations remain unwaived and are not W6 passes. No
+migration, commit, push, merge, deployment, production-data action, migration
+application, or manual UI acceptance occurred.
+
+**W6 integration checkpoint — PASS:** A bounded real PostgreSQL/HTTP connection
+set exercised current-code normal-account signup, capacity/waiting promotion,
+direct and website finalized-roster publication readiness, frozen roster sizing,
+and correction/publication concurrency. The original run passed six journeys;
+the two Board publication failures were remediated and then passed 2/2. The same
+Sol/high reviewer accepted the behavior-source correction, confirming immutable
+approval history/evidence, active-publication readiness and transactional
+replacement. Bundled Node v24.19.0 passed Board-dialog and signup-overlay fixtures
+2/2; final `git diff --check` passed. The cancellation-race PostgreSQL test timed
+out while its container stream was being established, before its assertions; it is
+an unpassed environment limitation, not a claimed behavior pass. The focused
+`participants-ui` Node assertion remains a pre-existing W4 markup expectation
+mismatch, and the wider known W0–W5 failures remain unwaived. The sole active
+coordinator is `01a0dc89-e5a3-7902-8f90-c0bcdd55e2bb` (local); the former
+`01a0dc81-8aee-7172-b272-b28466d7d870` is historical only and must not receive
+callbacks. W7 is not started or unlocked by this checkpoint: the coordinator may
+decide PAR-01/RES-01 readiness using this accepted checkpoint and the recorded
+limitations.
+
+## Admin simplification W5 — SGN-01 and DRF-01 technically accepted, 2026-09-26
+
+Integration checkout: `/Users/christopher/.codex/worktrees/735f/BingoWebpage`,
+branch `admin-simplification`, HEAD `22af254c893bb51e7820d84fc4154ff9af3bcc90`,
+with authorized W0-W4 and active W5 changes uncommitted. Planner:
+`01a0d414-daca-72f3-bea0-d1e9e53a3b2f`; persistent coordinator:
+`01a0dc89-e5a3-7902-8f90-c0bcdd55e2bb`; W5 orchestrator: `/root`.
+Routine W5 approvals and rejection handoffs go through the coordinator; only
+substantive unresolved behavior, scope, safety or authority questions escalate to
+the planner. An automatic rejection never authorizes retry, splitting or bypass.
+
+**SGN-01:** Direct user authorization covered confirmed permanent deletion of the
+selected signup answers and release only of the affected event registrations.
+The implementation is source-reviewed and its same Sol/high reviewer rechecked
+all named corrections, including current-impact stale recovery. It preserves My
+Accounts, protected Playing/Captain fields, history and evidence; question deletion
+and co-captain disabling use the shared confirmation with current identity/count/
+version rechecks. Infrastructure, Web and Browser Release builds passed without
+warnings; focused domain tests passed 3/3; focused browser contracts and the
+Node fixture passed; formatter and diff checks passed. Evidence SHA-256 values:
+`5923de1444a5a23e0b6be86732762c15d8d65014e44a054420655d0b42b05ef9`,
+`60418c79e01eaab6877e8fea2e18535b30e4b7b3da1b3cc794d25753f04b2ca2`,
+`3f97fadd2866b4637a6e44e9e6d131eb00f581a64defcb30fea0b94f7082defe`, and
+fixture-only correction `faffdd4798a367910c12f19b1c7e5b8faf615bd9f8c07f072dd49316be3c9b19`.
+Real PostgreSQL proof reaches the deletion handler and persistence boundary. The
+original 405 was a test action-parser defect, corrected with handler-constrained
+form parsing and current impact/version fields. Direct user approval settled the
+public-history rule: inactive legacy answers remain retained privately but are hidden
+from all public projections; deleted/private/co-captain answers remain hidden; no
+disclosure tracking, backfill or history feature was added. The exact integrated
+five-file alignment in this assigned checkout was independently rechecked and
+accepted, SHA-256 `5bc4c580771b618cc3a81291b37e73e6fbcbcd08e61573a5d30e55ae553672da`.
+Narrowed PostgreSQL/HTTP deletion/privacy proof passed 3/3; Node fixture, Web
+Release build, scoped formatter and diff checks passed. A wider selection had two
+pre-existing failures (internal participant account selection and `/Account/MyEvents`
+HTTP 500), so later Admin/Super Admin runtime assertions remain unexecuted; they are
+not claimed as passed. Manual visual acceptance remains ungranted.
+
+**DRF-01:** The earlier finalization patch and rollback each received automatic
+rejection; their exact reasons are preserved in the evidence-only proposal. A later
+finalization implementation attempt was also rejected because the approval layer
+recognized only SGN authorization. The exact rejection was: “This patch materially
+changes an admin finalization endpoint to publish frozen rosters, finalize teams,
+lock the event, and transition drafts irreversibly; the trusted user approval shown
+is for SGN-01, not this DRF action.” No rejected finalization code was applied and
+no retry, split or bypass occurred. The applied but incomplete, unreviewed DRF
+scaffolding is `DraftPublicationMethod.cs`, `DraftPublicationCycle.cs`,
+`DraftSession.cs`, `TeamConfigurations.cs`, `DraftPublicationQueries.cs`, and
+controller/member/roster-validation helpers in `DraftModel.cshtml.cs`; finalization,
+UI retirement, consumer wiring, migration and focused checks remain incomplete.
+The proposal is `/Users/christopher/.codex/visualizations/2026/09/26/01a0dd9b-0857-7b62-b315-694d224f3a49/DRF-01-UNAPPLIED-PROPOSAL.md`, SHA-256
+`4ce7dcd7b4a6a9d2b6121abf1842c2b6ca0c408867455b23e93a9a0708f212c7`.
+The frozen checkpoint is
+`/Users/christopher/.codex/visualizations/2026/09/26/01a0dd9b-0857-7b62-b315-694d224f3a49/DRF-01-REJECTION-CHECKPOINT.md`,
+SHA-256 `bf08cc48540d4d237b77bd5727d0675e3477fc574ffe50f8c9d879d7046c3240`;
+the rejected patch itself was not recoverable as a file. A Release/no-restore
+build reached Web and unit projects then failed only at the two retained
+`OnPostPauseAsync`/`OnPostResumeAsync` calls (zero warnings); the current real
+Integration Release/no-restore build subsequently passed with zero warnings/errors.
+The direct W5 user approval was received and the same owner resumed. Fresh Sol/high
+review and named recheck then **technically accepted** DRF-01: active publication is
+authoritative; direct and website finalization preserve provenance/history; exact
+Playing authority and empty-team conditions block publication; and direct-finalize
+plus zero-pick-cancel rollback coverage is present. Focused PostgreSQL evidence
+passed 14/14, Board 1/1, selected regressions 7/7 and event-destination policy
+20/20; Release build, formatter, diff and EF model checks passed. The 11 full
+DraftOperations failures are unrelated shared-fixture failures and are not claimed
+as a pass. Browser/manual acceptance and migration application remain unrun.
+Remediation hash: `954f3f0bf9af7aca682ec7727dca9d52b741732153ce408fc66ea7002417f8e2`.
+Preserve
+HistoricalUnknown usability, readiness contracts, picks/undo/team-order/publication
+history and all accepted W0-W4/SGN work. SGN-02 and BRD-01 remain not ready, and
+PRE retained-data rollout decisions remain blocked. No commit, push, merge,
+deployment, production-data action or manual acceptance occurred.
+
+## Admin simplification W4 — EVD-02 technically accepted, 2026-09-26
+
+This is the latest EVD handoff; it does not supersede the active EVT work or the
+CAT-01 blocked application boundary. Integration checkout:
+`/Users/christopher/.codex/worktrees/735f/BingoWebpage`, branch
+`admin-simplification`, HEAD `22af254c893bb51e7820d84fc4154ff9af3bcc90`, with
+authorized W0/W1/SEC/CAT-subset/ACC/EVD-01/EVD-02 changes still uncommitted.
+Planner: `01a0d414-daca-72f3-bea0-d1e9e53a3b2f`; persistent coordinator:
+`01a0dc89-e5a3-7902-8f90-c0bcdd55e2bb`; EVD-02 orchestrator: `/root`;
+Luna/max implementer/remediator: `/root/evd02_implementer`; independent
+Sol/high reviewer/rechecker: `/root/evd02_reviewer`.
+
+**EVD-02 technically accepted:** Future evidence attempts are ordinary
+submissions—active special Resubmit/one-child creation is removed. Existing
+predecessor links and legacy review enum values remain readable historical data.
+Owners may correct permitted pending data, replace screenshots, or withdraw in
+the allowed window; original timestamps and evidence codes remain immutable.
+Admin approval is one click; Reject and Reverse collect a reason through the
+shared confirmation model, with one Reverse confirmation and contribution/progress
+recalculation. Pending metadata correction is reasoned and limited to allowed
+attribution/objective fields. Request Changes remains inactive. ReviewAction is
+authoritative: legacy ReviewAction-only history presents through the shared Audit
+presenter exactly once, while matching Audit entries are deduplicated. A
+4,000-character reason boundary is enforced before decision, audit, or notification
+mutation, and notification/refresh failures do not undo saved decisions. Detailed
+product, contract, data, and architecture owners now describe ordinary later
+attempts and display-only legacy compatibility rather than the retired linked-child
+workflow.
+
+**Evidence/review:** The implementation's focused PostgreSQL SubmissionWorkflow
+suite passed 70/70; linked-history route 1/1; Admin Review route 1/1; evidence UI
+2/2; legacy ReviewAction history/deduplication 4/4; and overlong
+Reject/Reverse/Edit no-mutation coverage 3/3. Release Web build passed with zero
+warnings/errors; scoped formatter and `git diff --check` passed. Fresh independent
+Sol/high review found three defects (legacy ReviewAction-only display, overlong
+reason validation, and stale detailed authorities); the same Luna/max implementer
+remediated them and the same reviewer rechecked all named findings and direct
+consequences as **ACCEPTED**. Scoped EVD diff SHA-256:
+`c46dd9c736123a96ca20ac98bf0693f7760157182bc8eb14c169e8468dd2a060`.
+
+**Limits/next action:** Manual visual acceptance remains ungranted. A
+warnings-as-errors CA1822 in EVT-owned
+`Pages/Admin/Events/Identity.cshtml.cs` is pre-existing/untouched and not an
+EVD failure. No commit, push, merge, deployment, production query/mutation, or
+manual acceptance occurred. EVD-02 is ready as the dependency for later RES-01;
+do not begin RES-01 without separate authorization.
+
+## Admin simplification W2 — SEC-01 accepted; CAT-01 partial/blocked, 2026-09-26
+
+This is the latest active handoff and supersedes earlier next-action wording below.
+Integration checkout: `/Users/christopher/.codex/worktrees/735f/BingoWebpage`, branch
+`admin-simplification`, unchanged HEAD
+`22af254c893bb51e7820d84fc4154ff9af3bcc90`; authorized W0/W1/W2 changes remain
+uncommitted. Planner: `01a0d414-daca-72f3-bea0-d1e9e53a3b2f`; coordinator:
+`01a0dc89-e5a3-7902-8f90-c0bcdd55e2bb` (local); W2 orchestrator:
+`01a0dcba-3f45-7852-844d-ede8fd8da1f3` (local), collaboration route `/root`.
+
+**Model-routing update (2026-09-26):** Because usage is draining faster than
+expected, new Admin simplification implementer turns use `gpt-5.6-luna` / `max`
+again. Any Astra/high implementer turn already in progress remains authorized to
+finish without interruption; this change takes effect after those current turns
+finish. The persistent coordinator is notified to propagate the routing to the
+orchestrator. Coordinator/orchestrator/reviewer routing remains persistent
+Sol/medium, fresh Terra/medium, independent Sol/high. This update changes future
+worker dispatch only; it does not change scope, evidence, review, acceptance or
+the SEC-01/CAT-01 status below.
+
+**SEC-01 technically accepted:** Emergency identities cannot authenticate, retain
+old-cookie authority, consume outstanding credential tokens, recover credentials,
+authorize team access, submit evidence or use Team Focus. Emergency creation,
+setup/reset/enable/disable routes and active lifecycle processing are retired;
+historical identities, access, tokens and actor references remain unchanged. Normal
+Captain/Co-captain membership authority remains. Live start no longer requires
+Captain-or-emergency credentials; actual website-draft start/finalization Captain
+requirements remain. Active product/contracts/data/architecture authorities reflect
+the implemented retirement. No direct-roster behavior for fewer than two teams was
+introduced.
+
+**CAT-01 reconciled implementation checkpoint (2026-09-27):** The user directly
+approved the narrow current-tree manual merge in this executing task (`I approve.`).
+The implementation now simplifies ordinary activity/drop fields, rejects retired
+operator inputs with recoverable no-save feedback, preserves stored metadata,
+mechanics, shared-item identity/history and W10 Board-estimate refresh ordering,
+retains cooldown-specific provider feedback and mapping/price recovery, and uses
+the existing ADM-02 impact-first confirmation for SuperAdmin deletion. Deletion
+preview is non-authoritative; the confirmed POST still enforces role,
+antiforgery, expected-version, fresh dependency checks, locks and audit. Only the
+seven CAT resource keys were added; current resource tail entries remain intact.
+No schema/migration, production-data mutation, commit, push, merge, deployment,
+BNR or W11 work was performed.
+
+**CAT evidence:** PostgreSQL/app-backed focused `FullyQualifiedName~Cat01`
+IntegrationTests passed 8/8 (the Release test compile required the repository's
+pre-existing `CS0618`/`xUnit2017` warning suppression). The normal Web Release
+build passed with 0 warnings/0 errors. The existing catalogue Node suite and
+bundled Node syntax checks passed. The focused intercepted Chromium confirmation
+fixture passed for impact identity, cancel/no POST, one pending confirmed POST,
+stale/failure recovery and success refresh; this does not claim a manual UI pass.
+Scoped Web and Integration formatter checks passed and `git diff --check` passed.
+The whole-solution formatter still reports unrelated accepted-tree whitespace/
+encoding/import and obsolete-call findings; those files were not changed for CAT.
+
+Additional regression evidence: the focused StatsPass1 catalogue mapping/price
+selection set passed 31/31. The broader
+`Slice6CatalogueAdministrationIntegrationTests` run completed 111 passed and 16
+failed; those failures are current-tree W10 Board publication/price-gate/ordering
+expectations plus the existing StatsPass1 HTTP home-GET 500 fixture, not CAT
+handlers. They remain W11 limitations and are not CAT passes or CAT remediation.
+
+**CAT-01 technically accepted:** A fresh independent `gpt-5.6-sol`/high reviewer
+accepted the current-tree implementation with no findings, independently reran
+the focused PostgreSQL CAT filter 8/8 and confirmed `git diff --check`. The review
+confirmed that no old proposal was replayed, metadata/history/roll mechanics and
+shared pricing remain protected, shared confirmation performs one recoverable
+confirmed POST, and W10 Board-estimate ordering remains intact. Manual acceptance
+remains ungranted. No production or deployed data action occurred.
+
+## Admin simplification W1 — ADM-01 + ADM-02 technically accepted, 2026-09-26
+
+The approved W1 foundations are implemented in
+`/Users/christopher/.codex/worktrees/735f/BingoWebpage` on
+`admin-simplification`, still at
+`22af254c893bb51e7820d84fc4154ff9af3bcc90` with uncommitted authorized W0/W1
+changes. Originating planner: `01a0d414-daca-72f3-bea0-d1e9e53a3b2f`; persistent
+coordinator callback: `01a0dc89-e5a3-7902-8f90-c0bcdd55e2bb` (local); W1 package
+orchestrator: `/root`; implementers/remediators: `/root/adm01_implementer` and
+`/root/adm02_implementer`; independent reviewer/rechecker:
+`/root/w1_reviewer`. No commit, push, merge, deployment, production-data action,
+schema change, or manual/visual acceptance occurred.
+
+**ADM-01 implemented:** Audit writing has explicit caller-owned staging versus
+deliberate `WriteAndSaveAsync` ownership, and standalone writes reject unrelated
+dirty tracking. Captain account/access/token mutations now stage Audit before one
+atomic save. The full Audit page and Recent Admin Activity share localized,
+human-readable presentation with safe unknown/malformed legacy fallback, redacted
+technical details, explicit severity, matching hidden-event filtering, and mapped
+reasons for producer-shaped rejection/reversal, lifecycle, and draft-reopen data.
+The touched quarantine result exposes stable outcome, field errors, and
+hidden/version consequence data. No history rewrite, migration, job, generic
+result framework, or secret/code payload was added.
+
+**ADM-02 implemented:** Both Admin layouts host one shared centered confirmation
+primitive with focus/return, Escape, dimmed/inert backdrop, responsive behavior,
+semantic Cancel-before-action order, reason/WOM typed-input support, editor
+handoff/resume, pending submit-once protection, and visible failure/toast recovery.
+Existing dirty route guards defer discard confirmation until their internal history
+restoration completes. Browser `beforeunload` remains only for genuinely unsaved
+browser exit and clears before successful participant navigation or save/discard.
+No page-specific product-action migration, persistence/worker change, or visual
+manual acceptance was performed. `UI_SYSTEM.md`'s PRE-01 confirmation contract
+already matched this implementation and required no refinement.
+
+**Executed evidence:** ADM-01 focused BrowserTests passed 18/18 initially and
+20/20 after named remediation; focused PostgreSQL IntegrationTests passed 42/42
+initially and the named `AccessAndAuditTests` selection passed 10/10 after
+remediation. ADM-02 real Chromium interaction coverage passed initially and after
+the named Back/history and successful-navigation corrections; nine focused existing
+JavaScript tests passed. `dotnet restore Bingo.slnx`, final Release solution build
+(zero warnings/errors), exact formatter verification, and `git diff --check`
+passed. The initial combined independent review found four concrete defects; the
+same reviewer independently rechecked all corrections and **accepted** them.
+
+**Acceptance/next action:** This is technical acceptance only. Manual visual
+acceptance remains outstanding by design; the user has not authorized packaging or
+publication. The persistent coordinator may treat ADM-01/ADM-02 as completed W1
+prerequisites and unlock only the next eligible planned work under the approved
+dependency/ownership rules. Existing retained-data rollout blocks remain unchanged.
+
+## Admin simplification PRE-01 — active handoff, 2026-09-26
+
+This entry supersedes earlier active-work/next-action wording for the current
+assignment; historical evidence below is retained. The user approved execution of
+the [Admin simplification plan](/Users/christopher/.codex/visualizations/2026/09/24/01a0d414-daca-72f3-bea0-d1e9e53a3b2f/ADMIN_SIMPLIFICATION_IMPLEMENTATION_PLAN.md),
+including separate visible package orchestrators, implementation/review subagents,
+required checks, same-team remediation/recheck and scoped callbacks containing
+paths, revisions, findings and evidence. Use the assignment override in `AGENTS.md`
+and [delivery contract](DELIVERY_PLAN.md#admin-simplification--approved-2026-09-26):
+persistent Sol/medium coordinator, fresh Terra/medium package orchestrators,
+Luna/max implementation/remediation for new turns after current Astra/high turns
+finish, independent Sol/high review. Already-started Astra/high turns remain
+authorized to complete without interruption. No commit/push/merge/deployment,
+production mutation or manual acceptance authority is inferred.
+
+**Ownership:** originating planner `01a0d414-daca-72f3-bea0-d1e9e53a3b2f`;
+coordinator callback `01a0dc89-e5a3-7902-8f90-c0bcdd55e2bb`, host `local`.
+PRE-01 orchestrator is the exact collaboration route `/root`; its visible task
+UUID is not exposed to this worker and is not guessed. Implementer/remediator:
+`/root/pre01_implementer`. Worker result goes to that orchestrator, which reports
+the bounded outcome to the coordinator. Independent Sol/high review accepted
+after one named scope remediation and recheck, with no residual blocking findings.
+
+**Verified local baseline:** `/Users/christopher/.codex/worktrees/735f/BingoWebpage`,
+branch `admin-simplification`; initial tree clean. `HEAD` and local `origin/main`
+both resolve to `22af254c893bb51e7820d84fc4154ff9af3bcc90` (Merge PR #11), tree
+`0ae2573fd37fc52357206a3cc71c02e8a3d22d0b`, matching the plan's verified merged
+baseline. This worker did not refresh the remote. The only working changes are
+PRE-01 documentation; no feature/worker behavior or data changed. The saved
+Documents checkout and other worktrees remain outside this assignment.
+
+### Release and access evidence
+
+The latest deployment record found in the active repository authorities is the
+2026-09-17 handoff below: source
+`68b16242a63497fe1b0677bc48c396d9dfb1fc79`, image digest
+`sha256:c532b9b0820df9910cb4358b5c91c874bedbcac7349e64981209bf1db620a14c`,
+deployment run `35252206190`, recorded successful with public health 200. This is
+historical recorded evidence, not a fresh runtime/deployment-receipt observation.
+The referenced `/private/tmp/bingo-http2-deploy-20260917/` and
+`/private/tmp/bingo-wiki-http2-fix-20260917/` exist, but the scoped file listing
+returned no evidence files. The older PR #5 release in `DELIVERY_PLAN.md` is
+historical launch evidence. Neither record proves the currently running image.
+
+Local Git confirms the recorded September 17 release is an ancestor of the current
+baseline. The intervening source history is the PR #11 feature/release candidate,
+publication-status record, formatting correction, timestamp fixture correction,
+CI sharding, full action-SHA correction and merge. No later source correction is
+present in the inspected baseline. Actual PR #11 image publication, promotion,
+deployment and production schema are **unverified** here; merge/tree identity is
+not their substitute.
+
+Read-only source checks covered `.github/workflows/ci.yml`,
+`.github/workflows/production-promotion.yml`, `docs/PRODUCTION_RUNBOOK.md`,
+`docs/PRODUCTION_TOPOLOGY.md` and the existing `ProductionPreflight` implementation.
+CI emits a candidate receipt; `promote` records a non-mutating promotion receipt;
+`deploy` additionally changes the host. The runbook locates actual root-only
+deployment receipts under `/var/lib/bingo/deployments/` and warns that
+`/etc/bingo/production.env` may name an older image. That environment value alone
+is therefore not acceptable runtime evidence. No local receipt was found by the
+scoped repository filename check. No credentials or secret configuration were
+read, and no remote production query/workflow dispatch was performed.
+
+The documented SSH route is the deployment workflow using Actions secrets, not
+an established read-only inventory session available to this worker. Existing
+`--production-preflight` validates migrations, storage/catalogue and owner readiness;
+it does not answer the retained-data categories below. No usable documented
+read-only aggregate inventory access was established. Obtain the actual running
+immutable image/source, matching successful deployment receipt/run and migration
+history through an authorized operator/read-only route before deployed-schema
+rehearsal or rollout. Do not invoke deployment to discover those facts.
+
+### Retained-data preflight: category-specific unknowns
+
+As of 2026-09-26, every count/state below is **unknown, not zero**. No authoritative
+production data/object listing was available or queried. The source column names
+the evidence required for the finding, not a claim that it was observed. Record
+observation time, release/schema identity, aggregate counts/state categories and
+limitations with each eventual result; never commit participant dumps or secrets.
+
+| Category / required source | Evidence status | Bounded treatment/block |
+| --- | --- | --- |
+| Banners: database asset references, stored banner objects and cleanup records | Production counts/references/cleanup states remain unknown; no production inventory was queried | **BNR-01 completion handoff — prepared only.** Parent/orchestrator: `/root` (this collaboration task). Implementer: `/root/bnr_implementer` (`gpt-5.6-luna`/max). Reviewer: `/root/bnr_reviewer` (`gpt-5.6-sol`/high). Migration `20260926233834_RetireEventBanners` uses an exact `(event_id, storage_key)` ledger and blocks schema removal until every key is deleted, missing, or shared-retained, including empty/whitespace keys. Passed: Release Infrastructure/Web/Browser builds; Domain 101/101; disposable PostgreSQL migration fixtures 2/2 including the P1 blank/whitespace fixture; HTTP deleted-banner route 1/1; required Node UI test; formatter; `git diff --check`. Reviewer initial P1, implementer remediation, and named reviewer recheck: **PASS**. Exact SHA-256: migration `65e6c60d459f805385cc86890a0d6ff2ece0426aff55a185ab5620362518bc5a`; migration designer `ca085939ab6819965e9412362e3cd61c630ec88b9779a645741d40796ebf2f76`; model snapshot `699f451748da614a6df491c1eb0030aac1aee07eb2b36b9aa5a916eaf9dac4d6`; fixture `dbc070dc458fab4bd3806c830521a5a2879f4813d9f020c0c61c96972906a9bf`. Limitations: unrelated W10/CAT Integration Release build errors and missing Playwright dependency. All production cleanup/inventory/migration/deploy actions and W11 remain unexecuted. |
+| Emergency accounts: account/access state and evidence/Audit references | Enabled/disabled identities and retained references unknown | SEC-01 may remove future authority while retaining references; no identity conversion/deletion or invented human disable history. Event-specific rollout must account for affected access. |
+| Accountless participants: participant ownership and retained membership/evidence references | Counts by unfinished/Live/terminal state unknown | TEM-01 can remove new accountless creation; do not infer ownership from names. Affected unfinished-event ownership/roster transition requires controlled treatment before rollout. |
+| Nonterminal Preformed events: formation/inclusion, roster and publication records | Counts and roster/draft states unknown | Preserve old formation values; no automatic roster normalization. Confirm each affected unfinished transition before removing its behavioral reliance. |
+| Paused drafts: session state, active/undone picks, controller/publication history | Paused count and pick/publication categories unknown | DRF-01 cannot silently resume or fabricate finalization; affected transition needs deterministic evidence/rule or operator decision. |
+| Legacy Finalized events: lifecycle, review cycle and official result versions | Counts and existing official-version categories unknown | RES-01 preserves saved results; any unfinished Finalized transition requires controlled treatment. No new-ranking recalculation of old versions. |
+| Future Playing swaps: future-effective transition records and attribution history | Pending counts/effective-state categories unknown | EVD-01 rollout must drain or explicitly handle pending transitions and preserve attribution/read order before immediate switching takes over. |
+| Any currently running event: actual lifecycle intervals, registrations/roster, draft/publication, upload/review and provider state | Existence/count/state and affected retired concepts unknown | No assertion that no event is running. Before rollout, identify affected event categories and choose a deterministic compatible transition or controlled operator decision; do not switch its authority/state blindly. First-Live history, roster, attribution and competitive snapshots remain protected. |
+
+The currently running-event treatment is therefore a **bounded rollout decision
+block**, not a decision to pause/alter an event, postpone all implementation, or
+assume grandfathering. Safe feature work can proceed after PRE-01 technical
+acceptance; only the affected destructive/transition work waits on evidence and
+its required decision. `DATA_MODEL.md` owns the preserved-data rules and
+`FUNCTIONAL_CONTRACTS.md` the atomic mutation-history standard. Historical domain
+history is sufficient where authoritative; findings distinguish source inference,
+operator-reported evidence and executed read-only observation.
+
+### PRE-01 delivery checkpoint
+
+Approved product/workflow/data/confirmation decisions are reconciled into the
+existing authorities: `AGENTS.md`, `DELIVERY_PLAN.md`, `PRODUCT_REQUIREMENTS.md`,
+`FUNCTIONAL_CONTRACTS.md`, `DATA_MODEL.md` and `UI_SYSTEM.md`. Legacy clauses are
+explicitly superseded for this assignment, not presented as implemented behavior.
+Unrelated history and page-approval records are preserved. No new inventory file.
+
+Implementer checks passed: branch/tree identity, scoped release/access source
+inspection, scoped document/reference consistency (linked authority files and plan
+exist; new target anchors resolve; no old confirmation-anchor references found)
+and `git diff --check`. No .NET tests, production queries, migrations or UI
+acceptance were run. The independently accepted corrected diff SHA-256 is
+`1e87630d4d737aa375718da32f15356290774045d2d395937629d89ea04b8e46`
+(before this status-only consolidation). No residual blocking review findings
+remain. Next permitted action: persistent coordinator
+`01a0dc89-e5a3-7902-8f90-c0bcdd55e2bb` may unlock eligible W1 packages using the
+accepted PRE-01 baseline. Affected destructive/transition decisions remain blocked
+on the evidence and decisions recorded above. Technical acceptance authorizes no
+commit, push, merge, deployment, production-data change or manual acceptance.
+
 ## Authorized: parallel Integration CI jobs — 2026-09-24
 
 The user approved a GitHub Actions matrix to address Integration runtime. Latest
