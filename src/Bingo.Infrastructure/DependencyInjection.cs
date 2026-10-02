@@ -1,6 +1,7 @@
 using Bingo.Application.Announcements;
 using Bingo.Application.Auditing;
 using Bingo.Application.Boards;
+using Bingo.Application.Dashboard;
 using Bingo.Application.Events;
 using Bingo.Application.Evidence;
 using Bingo.Application.Integrations.WiseOldMan;
@@ -10,6 +11,7 @@ using Bingo.Application.Teams;
 using Bingo.Infrastructure.Announcements;
 using Bingo.Infrastructure.Auditing;
 using Bingo.Infrastructure.Boards;
+using Bingo.Infrastructure.Dashboard;
 using Bingo.Infrastructure.Events;
 using Bingo.Infrastructure.Evidence;
 using Bingo.Infrastructure.Persistence;
@@ -59,6 +61,9 @@ public static class DependencyInjection
         services.AddScoped<IEvidenceAuthority, EvidenceAuthority>();
         services.AddScoped<IPublicBoardService, PublicBoardService>();
         services.AddScoped<Bingo.Application.Stats.IPublicStatsService, Bingo.Infrastructure.Stats.PublicStatsService>();
+        services.AddScoped<AdminDashboardService>();
+        services.AddScoped<IAdminDashboardService>(serviceProvider => serviceProvider.GetRequiredService<AdminDashboardService>());
+        services.AddScoped<ICommunityDashboardService>(serviceProvider => serviceProvider.GetRequiredService<AdminDashboardService>());
         services.AddScoped<IEventFinalizationService, EventFinalizationService>();
         services.AddScoped<IEventReadinessEvaluator, EventReadinessEvaluator>();
         services.AddScoped<IEventSignupLifecycleService, EventSignupLifecycleService>();
