@@ -20,7 +20,118 @@ When documents disagree, the authority above decides the concern in its own colu
 
 This contract deliberately omits detailed schema, formulas, infrastructure design, implementation history, planning method, status legends, and test inventories. Refer to the owning source for those details.
 
+## Dashboard read journey — approved, 2026-10-01
+
+Enabled Admins can obtain one read-only community Dashboard projection under
+existing authorization. Statistics/chart/history use the population and identity
+rules in PRODUCT_REQUIREMENTS, “Community Dashboard”. No saved state, provider
+sync or lifecycle mutation occurs. Consistent totals and breakdowns share one
+eligible population and clock; hidden events cannot leak through totals, returning
+history or navigation. A read failure is not a successful zero-valued result.
+
+Return values, availability/coverage, provisional state and stable event identity
+for headline metrics and latest contributions, participation cohorts, six-column
+sortable history, ended-event recap, current/upcoming card and community counts.
+The latest contribution can come from an ongoing event while the recap remains
+the latest ended event. Live and final-review statistics display Provisional;
+the event card retains the actual phase. No provisional winner substitutes for
+an active official snapshot, including after reopening final review.
+
+Later UI integration binds actual event Overview destinations, shared URL sort/
+Back/reload state, loading/error/retry, accessibility and localization. Retry is a
+safe read; outdated responses must not overwrite a newer result. Lost authority
+fails closed. Integration and manual acceptance remain deferred; prototype routing
+and fixture data are not application proof.
+
+### Dashboard application binding handoff — 2026-10-01
+
+The implemented read boundary is `IAdminDashboardService.GetAsync(Guid,
+CancellationToken)` with the compatibility alias `ICommunityDashboardService`.
+Infrastructure registers both interfaces and returns one `AdminDashboardResult`
+containing statistics, latest contributions/chart cohorts, ended recap, history,
+current card and community figures. Each result preserves stable EventId values,
+UTC dates, measured/unavailable metrics, EHB coverage and provisional state. The
+later page can bind `OverviewPath` as `/Admin/Events/Manage/{id}` and use the
+current-card, recap and history IDs without inventing route strings or changing
+the existing Admin Index callers.
+
+`DashboardHistoryOrdering.Sort` supports EventDate, Players,
+ApprovedSubmissions, WinnerBoard, Ehb and Winner. Every field is null-last in
+ascending and descending order, with EventId as the deterministic tie-break.
+Equal actual starts share a cohort; latest recap remains ended-only and official
+winner data remains snapshot-owned after reopening. Read failures, cancellation,
+authorization failures and provider exceptions propagate instead of becoming
+successful zero results.
+
+The backend proof is current in
+`/private/tmp/dashboard-backend-20261001/dashboard-ordering-fixed4.trx` (2/2)
+and `dashboard-b2-post-ordering.trx` (7/7). Imported-only approved-submission
+coverage and incompatible/missing historical EHB remain unavailable by contract;
+compatible stored bulk coverage, partial coverage and measured zero are typed.
+The named review-remediation evidence includes the earlier
+`dashboard-remediation-r1-r5-fixturefixed.trx` (9/9) and
+`dashboard-remediation-ordering.trx` (2/2), plus the latest bounded proof
+`dashboard-remediation-r2-r3-r1-r5.trx` (8/9 with one PostgreSQL
+initialization-only authentication failure), its isolated
+`dashboard-remediation-r5-queryshape-retry.trx` (1/1), and the affected
+`dashboard-remediation-r3-original-login-boundary.trx` (1/1). The latest cases
+verify interior Live departure, missing/inverted ended-boundary unavailability
+with no false 30-day fallback, the independent login window, weighted published
+drop plus importless AdminCreated-roster submission counting, reopened winner
+suppression, frozen denominators, fixed bulk query shape, no writes, failure
+propagation and a repeatable-read concurrent-change boundary. No HTTP route, UI
+binding, table, migration, job, cache, provider fetch or lifecycle write was
+added. UI behavior and manual acceptance remain deferred; the independent
+Dashboard source review is PASS after the same reviewer resolved R1–R5 and
+their direct consequences against the stable candidate and recorded evidence.
+It did not rerun tests; UI integration and manual acceptance remain deferred.
+
 ## 2. Cross-cutting journey contract
+
+### Participants backend follow-up — 2026-09-30
+
+The [approved Participants changes](PRODUCT_REQUIREMENTS.md#participants-backend-changes--approved-2026-09-30)
+refine ADM-PARTICIPANT-01 and pre-draft restore; they supersede conflicting clauses
+about ordinary corrections, questionnaire requirements, capacity and saved-account
+side effects only for these named operations. The new UI/HTTP binding is deferred.
+Existing forms/routes must remain compatible; do not weaken public self-signup
+validation or expose a new unprotected mutation merely to demonstrate a service.
+
+An enabled Admin acts on an accessible event in Draft/SignupOpen/SignupClosed
+before team-draft lock. At the application mutation boundary recheck actor,
+lifecycle, current participant/account identity, configuration, capacity and stale
+versions. Explicit capacity expansion is a distinct intent, never inferred from a
+normal request. A repeat or stale request cannot expand capacity twice. Placement,
+account reservations, payment, audit and required notifications commit atomically.
+Return the resulting participant ID, status, placement/capacity outcome and useful
+validation/conflict information for later UI binding without relying on success
+text parsing. Follow existing localization/outcome conventions.
+
+Confirm-selected, move-to-Waiting and override restore preserve everyone else's
+relative queue order. Moving to Waiting requires full capacity and another
+eligible waiting participant; end current team authority with history, enqueue the
+selected participant last and fill the place with the pre-existing next waiter.
+Do not clear their event account reservations as though they were withdrawn.
+Normal restore retains the existing reacquisition, sequencing and failure rules.
+
+Question-free Add resolves saved account IDs and stored EHB authoritatively for
+the chosen active website account, maps selections to configured Playing slots,
+defaults captain volunteering to No, and leaves unrelated questionnaire answers
+absent. It makes no external WOM request and does not accept forged link ownership,
+client EHB defaults, arbitrary extra slots or duplicate event assignments. Missing
+saved EHB/configuration handling must be made explicit during readiness; do not
+silently fabricate a zero or add an unapproved provider fallback.
+
+Primary switching and event-account correction preserve status, signup order,
+non-account answers, unrelated accounts and saved-account data. Reopening/reading
+must expose the selected primary and its EHB consistently to Participants, draft
+and other directly affected projections. Do not mutate historical/live account
+attribution or global shared character names to represent an event correction.
+
+The future UI confirms capacity expansion and membership loss before submitting,
+shows authoritative errors without discarding a draft, and displays the persisted
+result. Those presentation, route/history, animation and manual journeys belong to
+the later UI integration pass; backend completion does not approve them.
 
 ### Approved Admin simplification precedence — 2026-09-26
 
@@ -864,6 +975,54 @@ The version-one functional foundation described here defines the following outco
 - Notifications resolve to valid destinations and remain supplementary to the underlying event, roster, evidence, account, or lifecycle record.
 - Development reset provides explicit, bounded manual-acceptance journeys; production does not inherit the fixture exemption.
 - F-06 is resolved by the implemented source-controlled How To guide. F-04 is resolved by retaining Live identity/timezone read-only behavior; F-05 is resolved by documentation reconciliation. Wise Old Man remains optional/supplementary, manual signup EHB remains authoritative, and no lifecycle action depends on it.
+
+## Luck calculation, saved snapshots and final review — active 2026-10-01
+
+The public Stats and selected-tile journeys use one saved Luck snapshot. A
+successful normal WOM synchronization is the calculation boundary: after the
+provider response is accepted, the service captures the current approved,
+non-reversed evidence and calculates all scopes inside the existing event lock,
+transaction, lease, generation, source and assignment fences. Provider success
+does not assert that OSRS has caught up; the returned activity and upstream times
+remain authoritative.
+
+Reads project the saved snapshot only. They do not fetch, recalculate from current
+evidence, or rewrite timestamps. Approval, reversal and ordinary Live → final
+review → finalized → archived transitions retain a compatible prior snapshot and
+its quiet Last updated time. A genuinely changed event, roster, competition,
+source or assignment identity remains incompatible and cannot be presented as a
+current result. Privacy, public-board visibility and historical placement
+boundaries continue to apply.
+
+Luck is the fixed mid-rank percentile `100 × (P(X < received) + 0.5 × P(X = received))`
+on 0–100. The existing bounded distribution engine remains responsible for
+conditional probabilities, reward rolls, mutually exclusive outcomes, independent
+groups and numerical limits. KC difference is calculated per character and
+boss/activity metric as `r / lambda - k`, where `lambda` is the deduplicated
+expected eligible outcomes per kill, `r` is the approved eligible outcome count,
+and `k` is recorded KC. Each character/activity is subtracted once; roll groups,
+items and repeated tile placements never duplicate it. Team/player and tile/team/
+contributor projections retain separate aggregate and activity results.
+
+Partial provider responses retain a compatible prior complete snapshot as a whole;
+new boss data is never mixed with an old aggregate under one timestamp. With no
+compatible prior, independently complete scopes may be exposed while dependent
+aggregates remain unavailable. Missing, unranked, estimated, zero-recorded,
+unsupported and numerically bounded states remain distinct. A failed or skipped
+refresh retains the last good result and does not block publication.
+
+During AwaitingFinalReview, normal scheduling and manual-refresh limits remain in
+force. Before publish/archive, an eligible event may make one normal refresh under
+the same hourly/cooldown/lease rules and event-window authority. HTTP is outside
+the finalization transaction; after the attempt, event/evidence/finalization
+concurrency is revalidated. Duplicate publish/archive calls do not make duplicate
+fetches, and no post-archive refresh is queued.
+
+The only historical write exception is an explicit, bounded v1-to-v2 conversion.
+It is idempotent, uses only retained v1 observations/rates/attribution, preserves
+original calculation/fetch/upstream times, records conversion provenance, and
+leaves unsupported or malformed scopes unavailable. It never changes evidence,
+placements, event mechanics or provider data.
 
 
 ## Stats Pass 1 catalogue mapping and price contract — authorized 2026-09-15

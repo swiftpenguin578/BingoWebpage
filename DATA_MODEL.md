@@ -6,6 +6,106 @@
 **Last updated:** 2026-08-31
 **Companion document:** `PRODUCT_REQUIREMENTS.md`
 
+## Community Dashboard read projection — 2026-10-01
+
+The approved Dashboard backend adds no entity, column, table, migration or
+background job. `IAdminDashboardService` reads the existing PostgreSQL model in
+one repeatable-read snapshot after capturing one request clock and confirming an
+enabled Admin or Super Admin. The projection is read-only and no provider sync,
+lifecycle transition or cache write is part of the read.
+
+The source mapping is:
+
+- Visible statistics, chart, history and recap events come from the event
+  lifecycle and actual dates. Live, AwaitingFinalReview, Finalized and Archived
+  are eligible; HiddenAt, cancellation and discard exclude an event everywhere.
+  Live and AwaitingFinalReview are provisional. Missing authoritative actual dates
+  remain unavailable rather than borrowing CreatedAt.
+- People come from event-owned participants, team memberships and their valid
+  `[JoinedAt, LeftAt)` intervals. A pre-Live departure at or before the event
+  start, or a membership joined at or after the event end, is excluded. Live
+  eligibility requires `JoinedAt <= requestClock` and `LeftAt > actualStart`
+  (with `LeftAt == requestClock` still eligible); zero-length and reversed
+  intervals are rejected. Linked people are
+  deduplicated by `(EventId, WebsiteAccountId)` and unlinked people by
+  `(EventId, ParticipantId)`; character/name guesses and current signup status
+  are not identity sources. Disabled WebsiteAccounts remain historical people;
+  EmergencyCaptain accounts do not.
+- Approved submissions use distinct SubmissionId rows, active unreversed
+  authoritative contributions, published approval requirements and matching
+  event/team ownership. Reconstructed import contributions are excluded. A
+  normal real submission set can measure zero; imported-only coverage without a
+  later authoritative set is unavailable.
+- Winners use the latest active EventFinalizationSnapshot with
+  `UnfinalizedAt IS NULL` for Finalized/Archived events, retain snapshot TeamName
+  and preserve all placement-one ties. Reopened/provisional events do not borrow
+  an old official winner. Board completion divides the snapshot-approved tile
+  count by the immutable active published BoardApproval snapshot denominator,
+  never by working dimensions.
+- EHB uses compatible stored event/competition/generation/fingerprint activity
+  against the expected Playing character assignment set over retained membership
+  intervals. Deduplicated matching accounts can report Complete, Partial or
+  MeasuredZero. Missing or incompatible historical coverage reports Unavailable;
+  the current-roster projection is not called per history row and no WOM/provider
+  fetch or signup EHB substitution is permitted.
+- Community CreatedAt and stored LastLoginAt figures use the same captured clock;
+  strict date boundaries exclude null or future values. New accounts use the
+  interval after the latest actual ended event, or 30 days only when no ended
+  event exists. Login counts always use the independent 30-day interval. If an
+  eligible ended-state event exists but its actual boundary is missing or
+  inverted, `NewWebsiteAccounts` is unavailable and `Since` is null; that
+  unavailable boundary cannot create a 30-day ended-event fallback. An eligible
+  event with missing or inverted actual dates keeps related aggregate values
+  unavailable. The card chooses latest-start Live, then the earliest scheduled
+  preparation including overdue events, then an unscheduled setup fallback
+  ordered by stable ID.
+
+Application results expose typed dates, stable IDs and value/coverage metadata so
+later UI binding can preserve unavailable versus zero, provisional versus
+official, and real event destinations without adding persistence.
+
+## Participants data-contract refinement — 2026-09-30
+
+Apply the [approved Participants operations](PRODUCT_REQUIREMENTS.md#participants-backend-changes--approved-2026-09-30)
+without rewriting existing snapshots/history. These are implementation targets,
+not a claim of migration or rollout completion.
+
+- Selected confirmation, selected override restore and selected override Add
+  serialize on authoritative capacity/participant state. A full-event override
+  adds exactly one place and consumes it for that participant in the same
+  transaction. Ordinary capacity-increase promotion remains unchanged. Retried or
+  stale intent must not double-increment capacity or duplicate audit/notifications.
+- Moving Confirmed to Waiting retains current event-character reservations,
+  preserves other queue ordering, appends the moved participant to the queue and
+  promotes the next pre-existing eligible waiter atomically. Keep membership and
+  leadership history while ending current authority. No-waiter and open-place
+  requests fail without mutation.
+- Restoration keeps the participant identity and existing new signup/queue
+  sequencing. Default placement is capacity-driven; explicitly selected expansion
+  is the sole new full-event exception. Preserve reservation reacquisition checks.
+- Question-free Admin Add still uses an existing active website account, unique
+  event ownership, at least one Playing assignment, non-negative supported EHB,
+  configured slot limits and exactly one primary. Save selected payment atomically;
+  captain is false, while unrelated unanswered questions remain absent.
+- The first/protected Playing question is the existing primary authority. Prefer
+  reusing that representation by consistently mapping the selected primary into
+  it and preserving other account/value associations; confirm the concrete mapping
+  in readiness. Avoid a second competing primary flag or destructive migration.
+  Keep all directly affected read/draft consumers consistent. Do not alter Live
+  active-account switching or historical snapshot semantics.
+- Admin event-only corrections do not change AccountOsrsCharacter links/defaults
+  or rename a shared OsrsCharacter identity. Reassignment selects/resolves a
+  character for this event, retaining assignment history and event uniqueness.
+  This scopes the legacy saved-default update clause below: public self-signup and
+  explicit My accounts behavior are unchanged by this admin correction pass.
+- Global links remain non-exclusive. Event assignment conflicts, configured account
+  roles and existing numeric precision remain authoritative. Optional Alt accounts
+  are not Playing slots and do not supply EHB.
+
+No new tables, background jobs or dependencies are budgeted. Prefer existing
+entities/services; if a schema change proves necessary, return the concrete need
+and preserve migration/designer/snapshot and retained-data rollout requirements.
+
 ## Approved Admin simplification data contract — 2026-09-26
 
 The [approved product target](PRODUCT_REQUIREMENTS.md#approved-admin-simplification-target--2026-09-26)
@@ -2237,3 +2337,35 @@ owner-only saves. Existing `CatalogueItem` owns nullable artwork X/Y (0–100), 
 editor's percentages/degrees. All six are null for the original responsive fit, or all
 are present and bounded. Super Admin saves/reset use the existing item version and
 audit transaction; Cancel does not write. No additional preferences/artwork table.
+
+## Luck checkpoint v2 and retained-input conversion — active 2026-10-01
+
+The active Luck result is an `event_stats_luck_checkpoints` row containing one
+bounded v2 JSON payload per event. The payload identifies the fixed 0–100
+mid-rank percentile and the KC-difference algorithm, and carries the aggregate,
+team, player, tile, contributor and boss/activity results needed to project both
+Stats modes without read-time reconstruction. Each activity result retains its
+character identity, boss identity and metric, KC, received and expected counts,
+Luck, KC difference, availability and estimate/zero flags. The payload also keeps
+its source mechanics, attribution and calculation/provider provenance so a tile or
+activity view cannot reconstruct an old result from newer evidence or rates.
+
+New writes use `schema_version = 2`; the PostgreSQL check constraint accepts v1
+and v2 during rollout while retaining the 8 MiB object bound and restrictive event
+foreign key. Stale-writer guards reject a lower-version or older incompatible
+candidate. A v1 row is not relabelled: an explicit conversion reads only that row's
+retained observations, received totals, rates and coherent attribution, writes a
+v2 payload when a supported scope can be rebuilt, and records separate conversion
+and algorithm provenance. Original `calculated_at`, provider fetch and upstream
+times are preserved. Conversion is idempotent under the event lock; malformed,
+incomplete or un-attributable scopes remain unavailable with a diagnostic.
+
+Synchronization finalization captures and publishes a candidate only after the
+accepted provider batch, approved evidence, competition/generation, assignment,
+source and lifecycle identities pass the existing transaction and lease fences.
+Reads never write or rescore. Approval/reversal and normal lifecycle transitions
+retain a compatible prior whole snapshot, including its times. A partial new batch
+does not combine new boss/activity rows with an old aggregate; independently
+complete scopes may be emitted only when no compatible complete snapshot exists.
+An oversized candidate is discarded with a diagnostic and the previous snapshot is
+retained when available.

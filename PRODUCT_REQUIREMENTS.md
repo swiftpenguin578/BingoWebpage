@@ -6,6 +6,55 @@
 **Last updated:** 2026-08-31
 **Audience:** Community bingo organizers, reviewers, captains, and developers
 
+## Participants backend changes — approved 2026-09-30
+
+This bounded follow-up supersedes conflicting Participants rules below. The user
+has authorized backend implementation now, while the new reference UI, tokens and
+components are developed separately. UI integration and manual acceptance are
+explicitly deferred; automated behavior checks and independent review are required.
+
+- An enabled Admin can manage the pre-team-draft signup pool in event Draft,
+  SignupOpen or SignupClosed while the team draft is unlocked. Event Draft is not
+  team-draft start. Existing hidden/discarded, ownership, visibility and separate
+  external/direct-roster boundaries remain protected.
+- Explicitly confirm a selected waiter. If capacity is available, use it. When
+  full, explicit confirmation to add a place increases capacity by exactly one and
+  confirms only that participant. Ordinary capacity increases still promote the
+  queue normally; the selected-person operation is a distinct exception.
+- Move a confirmed participant to the queue's end only when full and another
+  eligible waiter exists; promote that pre-existing waiter and never immediately
+  re-promote the moved participant. End any current membership/leadership authority
+  with retained history. The future confirmation must disclose team removal.
+  Reject this operation when places remain or no eligible waiter exists.
+- Keep normal capacity-driven restore with a new end-of-queue sequence. Add an
+  explicitly confirmed full-event restore-and-add-one-place alternative for the
+  selected participant only. Do not permit forced Waiting while a place is open.
+- Admin Add uses an existing active website account and at least one of its active
+  saved Playing account links, up to configured event Playing slots. Select the
+  primary from those accounts, use stored EHB without WOM calls, select Paid/Unpaid
+  (default Unpaid), and commit placement/payment/accounts together. No signup code,
+  custom questionnaire, captain/co-captain or notes are required in this Add flow.
+  Captain volunteering defaults to No; other missing answers are not fabricated.
+  Placement uses normal capacity or the explicit full-event add-one-place override.
+- Before team-draft lock, allow changing which current Playing account is primary.
+  Exactly one supplies draft EHB; preserve each account's own EHB and all other
+  accounts. Additional accounts remain bounded by configured event account slots.
+- Admin event-account corrections affect event assignments/EHB only. Do not mutate
+  the member's saved account links, names, preferred order or saved EHB. Editing
+  an event account is not restricted to the saved-only selection used by Add.
+  Shared global character links remain allowed; event-local conflicts remain errors.
+- Captain answers stay boolean Yes/No. Pre-draft withdrawal still automatically
+  promotes the next eligible waiter; no suppress-promotion option is introduced.
+  Payment and private notes retain their broader existing administration window.
+- Preserve finalized pre-Live roster Add/Remove as a separate existing workflow and
+  the permanent first-Live membership/registration lock. Do not revive Live
+  withdrawal/replacements, ownership transfer, or accountless creation.
+- Toast Undo and general manual queue reordering are excluded. Display precision
+  differences in the reference do not authorize stored-EHB rounding changes.
+
+The implementation scope, checks and deferred UI boundary are in
+[the Participants backend pass](DELIVERY_PLAN.md#participants-backend-pass--approved-2026-09-30).
+
 ## Approved Admin simplification target — 2026-09-26
 
 For this assignment, the following approved decisions supersede conflicting
@@ -121,6 +170,32 @@ ticket/acceptance contract is linked from
   directory Needs attention; historical failures alone do not. Remove missing-
   Captain/vacancy/promotion-follow-up actions. Personal read state resolves no
   business condition. Dashboard redesign is excluded.
+
+## Community Dashboard — approved backend scope, 2026-10-01
+
+The Admin Dashboard presents community statistics between events. Its totals,
+participation chart and history include accessible non-hidden Live, final-review,
+finalized and archived events; cancelled/discarded events are excluded. Live and
+final-review figures are Provisional and may change. The latest-event recap uses
+only the latest ended event; official winners require the active official
+finalization, with shared first place preserved. The compact event card selects
+Live, then the next scheduled preparation event, then unscheduled setup.
+
+People count once per qualifying event participation, despite multiple game
+accounts or team moves. Website identity determines unique/returning people;
+imported/unlinked records count event participation without invented identity.
+Disabled website accounts retain their historical participation and count in
+registered totals; emergency credentials do not. Returning means an earlier
+actual-start cohort, not just the previous displayed event.
+
+Approved submissions exclude reconstructed imported contributions. EHB is stored
+period gain with truthful availability/account coverage, not signup EHB; loading
+Dashboard never requests provider synchronization. Unknown is distinct from zero.
+Community new-account figures use the latest actual event end, or the last 30 days
+without an ended event; login figures use stored LastLoginAt and one request clock.
+
+This authorizes backend preparation under DELIVERY_PLAN.md, not production UI
+replacement. Earlier Dashboard exclusions apply to their earlier assignments.
 
 ## 1. Product summary
 
@@ -1718,3 +1793,52 @@ No application code should begin until the following planning work is reviewed:
 3. Define the detailed data model and calculation rules using representative tiles from the upcoming bingo.
 4. Define the technical architecture, hosting, authentication, storage, backup, and deployment approach.
 5. Divide version one into implementation milestones with tests and acceptance checks.
+
+## Luck percentile and KC comparison — approved implementation, 2026-10-01
+
+This section supersedes the earlier signed, expectation-neutral Luck wording in
+section 15.1 and the bounded-score detail in that section's tile contract. The
+existing Stats container remains the presentation owner. Luck is a literal
+mid-rank percentile on a fixed 0–100 scale:
+
+`100 × (P(X < received) + 0.5 × P(X = received))`.
+
+The calculation keeps the existing bounded binomial distributions, conditional
+probabilities, reward rolls, mutual-exclusion roll groups, independent group
+convolution and numerical work limits. It does not recenter around the expected
+count. A deterministic sole outcome has rank 50; no-activity, missing, impossible
+and numerically unsupported observations remain unavailable rather than showing a
+fabricated percentile.
+
+The existing Stats Luck container defaults to Luck % and has an in-container
+toggle for KC difference. KC difference is calculated independently for every
+playing character and boss/activity metric, then summed for the requested
+player/team scope. For one deduplicated component, `lambda` is the expected
+eligible item outcomes per kill, `r` is the approved eligible outcome count and
+`k` is the recorded KC:
+
+`KC difference = r / lambda - k`.
+
+Each character/activity KC is subtracted once. Independent roll groups contribute
+their expected outcomes; they are not collapsed to a probability of at least one
+drop. Repeated board placements and repeated eligible outcomes do not duplicate
+KC. Missing activity, unsupported or zero lambda, invalid mechanics and mixed
+unresolved attribution are unavailable. Overall totals sum character/activity
+balances; they do not adjust for kill speed or boss difficulty. The UI explains
+this with: “KC totals don’t account for differences in boss kill speed.”
+
+Both modes are projections of the same saved calculation snapshot. Approval and
+reversal retain a compatible prior result and its original calculation/fetch and
+upstream times; they do not recalculate, clear or routinely warn on an existing
+result. A successful normal WOM fetch calculates from that returned activity and
+the current approved evidence inside the existing synchronization transaction.
+Reads do not fetch, rescore or publish. Final review may make one ordinary,
+provider-limited refresh attempt before publish/archive; a skip or failure keeps
+the prior result and does not block publication. A changed finalization/evidence
+state is revalidated before publish.
+
+Historical conversion is a bounded, explicit, idempotent exception. It rebuilds
+supported v2 values only from each v1 checkpoint's retained observations, rates
+and coherent attribution, preserving original times and recording conversion
+provenance separately. It never fetches, applies newer evidence or rewrites
+official placements. Missing legacy activity/boss/tile inputs remain unavailable.

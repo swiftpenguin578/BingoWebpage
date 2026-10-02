@@ -7,6 +7,1194 @@ owned solely by [`UI_PAGE_MATRIX.md`](UI_PAGE_MATRIX.md).
 state, blockers, limitations, current work, and immediate ownership. Global UI
 rules and implementation ownership are defined by [`UI_SYSTEM.md`](UI_SYSTEM.md).
 
+## Luck percentile and KC comparison — approved implementation, 2026-10-01
+
+**Status:** technically complete and independently reviewed **PASS** after the
+explicitly approved changed Sol 6.1/high recovery. All L0–L6 technical requirements
+and remaining named findings are resolved. Manual visual acceptance is deferred.
+Controlled test fixtures and migration source were used; real provider/user-database
+operations, packaging and deployment were not performed or authorized.
+
+**Source baseline:** inspected `codex/participants-functionality` in
+`/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage`, including
+its existing uncommitted Participants/Dashboard work. The 573d checkout is stale.
+The execution checkout is this same active worktree and branch; do not use stale
+573d or Claude's design-reference checkout. Preserve all uncommitted Participants,
+Dashboard and documentation work. Recheck only changed or missing dependencies.
+
+### Assignment and ownership
+
+Planner: `UI Planner`, app chat `01a0ec9a-76e3-7252-9850-3f260c612e59`
+(host `local`). Recovery orchestrator: native `/root`, app chat
+`01a0f855-c75f-7a13-8202-6cea96ae60d1` (host `local`), separately authorized
+by the user after the prior `/root/luck_redesign` dispatch hit its native thread
+limit. Previous Luna implementation/remediation stopped with three review gaps.
+The user explicitly approved new implementer `/root/luck_sol_recovery`, exact
+`gpt-6.1-sol` / high, for one changed bounded recovery. The four-file correction
+and focused checks completed; same independent reviewer `/root/luck_independent_review`
+(Sol 6.1/high) returned PASS on the three findings/direct consequences. The other
+22 reviewed candidate files remain unchanged. Prior Luna is idle and no further
+worker/review layer or scope was added. Orchestrator retains its approved Sol 6.1/high
+setting and final scoped planner callback. Evidence/identities are in CURRENT_STATUS;
+manual visual acceptance stays deferred.
+Follow DELIVERY_PLAN section 4.2.1; no extra coordinator or routine verifier.
+
+### Agreed outcome and boundaries
+
+- Luck becomes 0–100%: `100 * (P(X < received) + 0.5 * P(X = received))`.
+  Do not recenter expectation at 50 or replace the distribution with an expected-drop
+  ratio. Preserve frozen personal probabilities, conditional probabilities, reward
+  rolls, mutual exclusion, independent roll groups and numerical safety limits.
+- Stats keeps its existing Luck container, team/player views, comparison and search.
+  Default mode is **Luck %**; an in-container toggle selects **KC difference**.
+  No additional container, boss selector or EHB mode. KC totals deliberately do not
+  adjust for kill speed/difficulty. Tooltip: "KC totals don’t account for differences
+  in boss kill speed." This limitation is accepted, not a blocker.
+- Tile views expose one overall Luck result and each relevant boss/activity's own KC
+  and Luck; contributor rows must also use the matching activity result. Never repeat
+  the overall percentage as if it were each boss's percentage.
+- Both modes come from the same saved snapshot. Evidence approval/reversal does not
+  recalculate, clear or routinely warn about an existing result. Quiet **Last updated**
+  metadata is sufficient. Upstream delay and up to an hour of normal age are accepted.
+- Successful normal WOM fetches calculate Luck using the returned activity and current
+  approved evidence. Continue normal/manual refresh eligibility through final review;
+  stop ordinary refreshing once results are published. Attempt a final normal refresh
+  during publish/archive, respecting the existing hourly limit. Failure or a rate-limit
+  skip retains the prior result and does not block publication; report actual refresh
+  failure through the existing operation feedback. No separate Luck refresh mechanism.
+- Convert supported historical checkpoints once from their own retained inputs, never
+  by relabelling signed scores or mixing in newer evidence/rates. This is the agreed
+  bounded migration exception to fetch-only calculation.
+- No broad public or Admin visual redesign, altered drop-credit rules, new external
+  service, generic cache framework, or changes to official scores/winners/evidence.
+
+### Source findings and relevant owners
+
+1. `src/Bingo.Domain/Events/LuckScoreCalculator.cs` already builds bounded binomial
+   distributions and convolutions, computes a mid-rank, then normalizes around the
+   expected-count rank into -100..100. Replace the final normalization only.
+2. `src/Bingo.Infrastructure/Stats/PublicStatsService.Luck.cs` reads/rescores checkpoint
+   JSON, falls back to current evidence plus cached activity, and writes checkpoints.
+   Approval/reversal in `SubmissionService`, lifecycle/finalization and WOM sync call
+   `RefreshCheckpointAsync`. All non-fetch recalculation paths need removal, not just
+   evidence callbacks. Evidence revisions remain for other consumers/concurrency.
+3. `PublicStatsService.Tile.cs` retains tile-specific received totals and per-metric KC,
+   but its metric DTO lacks its own Luck result. Preserve tile-attributed evidence;
+   event-wide source counts must not leak into a selected tile's observed count.
+4. `EventCompetitionSynchronizationService` and `.MetricCache.cs` own normal hourly
+   fetches, leases, generation/source/assignment fencing and metric availability.
+   Manual eligibility, due processing, lease acquisition and lease finalization all
+   currently require Live. Extend the relevant gates consistently for final review.
+5. `EventStatsLuckCheckpoint` is one JSONB row per event with schema version 1, an 8 MiB
+   limit, evidence/batch/generation/fingerprints and calculation/provider times.
+   PostgreSQL currently constrains `schema_version = 1`; changing the version needs
+   an EF migration, designer and model snapshot. No second snapshot table is planned.
+6. `BoardPublicationQueries.Luck.cs` and `EventLuckOutcomeBasis` retain first-approved
+   event mechanics and first validated metric binding. Global catalogue edits do not
+   rewrite them. Existing tests/constraints protect this deliberate historical rule.
+7. `IPublicStatsService.cs`, Stats Razor/JSON, `stats-adapter.js`, `stats-page.js`, Stats
+   CSS and `_TileActivity.cshtml` consume Luck. `PublicBoardService.GetTileAsync` feeds
+   the tile/sidebar projection. Migrate these active consumers and shared previews;
+   no second transport endpoint is needed. Official placement data is a separate
+   owner; do not rewrite official history as part of derived Luck conversion.
+
+### Calculation and projection contract
+
+**Percentile:** remove expected-rank interpolation and signed scaling; return
+`100 * MidRank(distribution, received)` with a bounded numerical clamp. A deterministic
+distribution's only possible outcome has rank 50, but no-activity/missing-data UI
+states remain unavailable rather than displaying a fabricated 50. Impossible observations
+and excessive computation remain unavailable. Use at most one decimal consistently
+in percentage presentation; retain unrounded values for sorting/calculation.
+
+**KC difference:** calculate per character and boss/activity metric, then sum those
+balances for each player/team. For a component scope let `lambda` be the expected
+number of eligible item outcomes per kill: sum `rolls * effective personal probability`
+over deduplicated eligible outcomes, respecting the retained mechanics. Let `r` be
+the approved eligible outcome count and `k` the corresponding recorded KC:
+
+`KC difference = r / lambda - k`.
+
+This defines the comparison for the combined eligible drop set, consistent with the
+existing count-based Luck model. It does not assign a separate inverse-rarity reward
+to each item. Independent groups may yield multiple outcomes per kill; do not replace
+lambda with the probability of at least one drop. Subtract each character/activity's
+KC once, never once per item, roll group or duplicated tile placement. For multiple
+characters/rates calculate each balance first, then sum; never divide pooled drops
+by an unrelated average rate. Lambda zero/unsupported, missing activity or invalid
+inputs cannot yield a number. One drop at 90 KC with rate 1/100 gives +10; one at 120
+gives -20; two at 120 gives +80; zero at 120 gives -120. This is an event-total balance,
+not a measured dry streak since the last drop. Show signed KC with at most one decimal;
+normalize rounded negative zero. Overall sums count all kills equally, as agreed.
+
+**Results:** extend existing DTOs with KC difference and explicit activity breakdowns
+keyed by boss identity AND metric, each containing KC, received/expected counts, Luck,
+availability and estimate flags. Retain a distinct aggregate result at event/team/player
+and tile/team/contributor scopes. Store inputs needed for tile-specific activity counts
+and migration; do not rely on current evidence to reconstruct an old breakdown.
+All values in a displayed snapshot share batch/evidence/algorithm provenance.
+
+### Snapshot publication, retention and partial data
+
+- Use the existing successful synchronization finalization transaction and event lock.
+  After checking the lease, competition, generation, source set and assignments, capture
+  approved evidence and calculate/persist with that accepted activity batch. Preserve
+  atomic rollback, cancellation handling and stale-writer fencing.
+- Reads only project saved results; remove fresh-evidence/cached-KC fallback and routine
+  read-time rescoring. A failed fetch cannot overwrite a good checkpoint or its times.
+- A successful HTTP response may still be partial. Prefer retaining a prior compatible
+  complete snapshot as a whole over publishing a degraded replacement. Do not mix new
+  boss results with an old aggregate under one timestamp. Without a complete prior
+  snapshot, a successful batch may expose independently complete scopes while dependent
+  aggregates remain unavailable. Never discard an existing calculable scope merely
+  because a later partial response cannot calculate it; retain the prior whole snapshot.
+- Missing/unranked/estimated/zero activity keep honest distinct states. Missing required
+  activity blocks the affected aggregate, not independently complete scopes. Numerical
+  limits may block a percentile without blocking a sound KC balance from the same inputs.
+- Separate snapshot compatibility from ordinary age/evidence changes. Reversal is no
+  longer a presentation invalidator. Normal Live -> review -> archived transitions keep
+  saved Luck. Preserve privacy, public visibility and invalidation for genuinely different
+  competition/assignment/source identities; never label another roster's result as current.
+- If a candidate exceeds the payload bound, retain the previous snapshot or return
+  unavailable when none exists; record a diagnostic. No truncation or read-time calculation
+  escape hatch. No new tables solely to bypass the bound without measured need.
+- WOM success is not a claim that OSRS has caught up. Preserve upstream/fetch times;
+  do not fabricate a drop-time cutoff from submission/approval timestamps.
+
+### Final review and publish/archive boundary
+
+Reuse existing WOM scheduling/manual fetch and provider limits during AwaitingFinalReview.
+Keep website-owned competition dates, including manual-end/resume history, authoritative.
+The fetch must describe the correct event window, not post-event activity accidentally
+included by a provider schedule mismatch. Validate this at the existing integration boundary.
+
+Before committing publish/archive, attempt a normal refresh only when eligible under
+the hourly/retry/lease limits. Do not hold a database transaction open across HTTP. After
+the attempt, revalidate existing event/evidence/finalization concurrency tokens; a changed
+event must not be finalized using a stale reviewed state. If a fetch is skipped or fails,
+publication can proceed with the last snapshot and its real timestamp. Do not enqueue
+an unbounded post-archive refresh, bypass provider limits or make Luck a publication gate.
+Repeated archive/publish calls must not fetch twice. Existing authorized reopen/unfinalize
+flows re-enable refresh only when they actually return the event to an eligible phase.
+
+### Versioning, historical conversion and catalogue policy
+
+Use a version-2 checkpoint contract that unambiguously identifies percentile semantics
+and KC balances. Expand the DB constraint to support safe legacy reading/conversion;
+never flip version 1 to 2 without actually rebuilding supported results. New writes
+produce version 2. Update stale-writer guards so old versions cannot overwrite new ones.
+
+Provide a bounded, idempotent explicit conversion step for historical version-1 payloads.
+Only use their retained observations, received totals, rates and coherent attribution.
+Preserve original calculation/fetch/upstream times; record conversion/algorithm provenance
+separately. Convert whatever scopes have complete retained inputs; leave missing legacy
+tile/boss attribution unavailable. Do not guess from current publication/evidence. Malformed
+or incomplete legacy payloads remain safely unavailable with diagnostics. No public-read
+writes, mass provider fetch, changed evidence/placements or invented historical checkpoints.
+
+Global catalogue rate/mapping edits affect future event bases, not immutable past bases.
+Relevant changes to an event's eligible outcome set or legitimate first metric binding
+change its source fingerprint, invalidate incompatible presentation, and require a matching
+normal fetch. This is distinct from approval/reversal retention. No new mechanism for
+rewriting frozen event mechanics is included.
+
+### UI semantics and shared guidance
+
+Keep the existing public composition. Luck uses a fixed 0–100 scale; remove plus signs,
+negative tests and the zero-as-expected centre. KC difference uses signed values and a
+zero-centred scale appropriate to that mode. Sort and select extremes using the active
+mode's unrounded value; preserve search, pinning, team drill-down and unavailable rows.
+Use neutral snapshot age rather than routine stale/error wording. Preserve meaningful
+provider failure/estimate/missing information without exposing private diagnostics.
+
+One shared localized explanation should serve Stats and tile help: Luck compares approved
+drops with modeled outcomes at the same recorded activity and retained rates. Higher
+percentages mean luckier outcomes; expectation is not forced to the midpoint. KC mode
+explains the rate-equivalent balance and the agreed short kill-speed tooltip. No technical
+distribution terminology in ordinary UI. Single-boss tiles should not duplicate identical
+aggregate/boss rows unnecessarily. User supplies visual acceptance of the necessary changes.
+
+### Tickets, dependencies and focused proof
+
+| Ticket | Owned result | Acceptance/checks |
+| --- | --- | --- |
+| L0 — readiness/authority | Confirm changed source and exact final-review/finalization/migration wiring; promote these approved decisions into product/functional/data/UI authorities | One bounded readiness review; no reopening agreed product decisions or broad audit |
+| L1 — calculation/contracts | Percentile, KC balance, explicit activity results and reusable bounded distribution work | Deterministic independently enumerated PMFs; no/one/expected/lucky/unlucky counts; no recentering; deterministic/impossible/bounds; mutually exclusive, independent and conditional cases |
+| L2 — projections | Event/team/player and tile/contributor aggregate + boss results | Real catalogue DKS ring fixture: Prime Seers, Rex Berserker + Warrior, Supreme Archers; per-boss truth, aggregate not average, exact tile attribution; KC de-duplication across outcomes/rolls/placements and mixed rates |
+| L3 — snapshot/versioning | Fetch-only atomic publication, compatibility/retention, schema migration and retained-input conversion | Real PostgreSQL approval/reversal retained until fetch; success/failure/partial/no-prior; stale writers, source change in flight, rollback, schema constraint, idempotent legacy conversion and payload limits |
+| L4 — lifecycle refresh | Final-review eligibility and bounded final fetch attempt | Hourly/cooldown/lease gates, manual-end event window, concurrent evidence/finalization, failed/skipped final fetch, no duplicate fetch and no post-publication scheduled refresh |
+| L5 — presentation | Both Stats modes and correct boss/contributor display | Focused adapter/render tests: fixed percentile vs signed KC geometry, mode sorting/pinning, formatting/rounding, same timestamp, unavailable states, reduced motion and localization; user visual acceptance |
+| L6 — delivery reconciliation | Fresh independent stable-diff review, named remediation/recheck and recorded status | Scoped build/format/diff plus relevant existing suites; distinguish implemented, executed, reviewed and manually accepted; no packaging without authority |
+
+L0 precedes implementation. L1 establishes the shared contract. L2 and L3 may overlap
+only with disjoint source ownership and a stable agreed DTO; coordinate their shared
+Stats files rather than concurrent conflicting edits. L4 depends on L3's snapshot
+boundary. L5 uses the stable contract; L6 follows the complete candidate. Use existing
+workflow roles, an independent reviewer, and no extra coordinator/verifier chain.
+
+Use the cheapest meaningful level: calculator tests for math, projection tests for
+grouping and real PostgreSQL for persistence/concurrency. Timestamp fixtures must use
+deterministic UTC/microsecond precision and exercise non-microsecond round trips where
+fingerprints rely on storage. Retain current numerical work guards; reuse prepared
+components/distributions where safe rather than rebuilding a full tile per rendered row.
+Measure representative multi-account/multi-boss payload and calculation sizes before
+adding further caching. No property-only/framework tests or repeated full regression runs.
+
+### Execution disposition — reviewed technical completion, 2026-10-01
+
+L0 authority reconciliation, L1 math, L2 projections, L3 snapshot/version/conversion,
+L4 lifecycle/operation feedback and discriminating window proof, and L5 presentation/
+affected tests are implemented and executed at their relevant boundaries. L6 source,
+recorded evidence and stable identity review passed. Recovery PG 5/5, complete Node
+67 passed / 0 failed / 2 existing optional skips, Release compilation, scoped formatter
+and diff checks pass; prior cleared proof is retained. User manual visual acceptance
+was granted on 2026-10-02 after populated demo inspection and is recorded in
+UI_PAGE_MATRIX. Exact final identity/evidence and next owner are in CURRENT_STATUS.
+
+### Remaining risks and stop boundary
+
+No outstanding product decisions from this discussion. Readiness must validate the
+legacy data sufficient for each converted scope, the archive/provider window boundary,
+and existing catalogue independence assumptions. Raise a concrete unsupported mechanic
+or required scope expansion rather than silently broadening the probability engine.
+Player/team roster histories and rate changes must not accidentally change observation
+ownership. Percentiles remain a model of approved eligible drops, not all unseen gameplay.
+
+This section records future approved behavior. Older signed-score, reversal-invalidation,
+read-time-rescore and Live-only Luck descriptions document the current implementation;
+they must be reconciled in their owning authorities under L0 before code changes. Until
+then, this queued plan is the explicit target, not a claim that production already follows it.
+**Next permitted action:** approval is recorded and the user resumed consolidation
+on 2026-10-02. Complete owned disposable-demo cleanup and the pending Identity/
+Teams reference reviews, reconcile their results, then package completed work
+under the agreed consolidation scope. Do not start unrelated AU/RC implementation,
+merge or deploy. CURRENT_STATUS records active owners and exact checkpoint.
+
+
+## Admin functionality queue — recorded 1 October 2026
+
+The user requested ordered tickets for application work after Luck, with more
+added as later UI pages are reviewed. **This is queue/planning authorization;
+no ticket below is dispatched or implemented by recording it.** Luck keeps its
+current assignment. At the next implementation handoff, confirm the ticket and
+checkout and promote approved behaviour into the existing authority sections.
+Use this section as the execution owner; the reference's
+`docs/references/admin-ui/FUNCTIONALITY_CHANGES.md` links here and maps pages.
+Do not create a competing general ticket inventory or automatically expand scope.
+
+Baseline: `codex/participants-functionality` in
+`/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage`.
+Preserve all Participants, Dashboard and Luck work. Recheck only changed relevant
+sources at dispatch. AU tickets own the application; the separately authorized
+RC tickets below own bounded reference corrections. Claude owns visual design and
+canvas synchronization. No canvas/reference redesign, live provider calls, user-database
+mutation, staging, commit, push or deployment is authorized by this queue.
+
+### Queue and delivery state
+
+Work one ticket at a time after Luck reaches its completion boundary. AU01/AU02
+are source-confirmed defects, not yet executed reproductions. Other tickets are
+verified integration gaps; this is not permission to rebuild already working
+services. Shared files/dependencies can inform sequence without merging tickets
+into a broad pass.
+
+| Order / ID | Application outcome | Depends on | Implementation | Executed proof | Independent review | UI integration / manual acceptance |
+| --- | --- | --- | --- | --- | --- | --- |
+| AU01 | Restore cannot produce two visible current events | Luck complete; confirm restore rejection contract at handoff | Queued | Not run | Not run | Deferred |
+| AU02 | Enforce signup-code length at the server boundary | Luck complete | Queued | Not run | Not run | Existing route; new UI deferred |
+| AU03 | Duplicate-safe event creation and uncertain-outcome lookup | Luck complete | Queued | Not run | Not run | Deferred |
+| AU04 | Events directory ordering, retained counts and attention projection | Dashboard backend available | Queued | Not run | Not run | Deferred |
+| AU05 | Signup setup stale-edit protection and settings version responses | Existing signup services | Queued | Not run | Not run | Deferred |
+| AU06 | Duplicate-safe question/account-field creation | AU05 version contract | Queued | Not run | Not run | Deferred |
+| AU07 | Explicit required-to-optional outcome when first response arrives | AU05/AU06 result contract | Queued | Not run | Not run | Deferred |
+| AU08 | Identity field-level conflict handling | Existing Identity concurrency/timezone rules | Queued | Not run | Not run | Deferred |
+| AU09 | Identity uncertain-save readback | AU08 result/field contract | Queued | Not run | Not run | Deferred |
+| AU10 | Schedule instant preservation, field errors and uncertain readback | Existing versioned schedule save/read | Queued | Not run | Source comparison complete; implementation review pending | Deferred |
+| AU11 | Tile-local manual EHB override for every objective type | Existing calculation/approval/evidence boundaries | Queued | Not run | Not run | Deferred |
+| AU12 | Credited EHB before score time in placement order | Historical-rule compatibility resolved at handoff; AU11 values reused | Queued | Not run | Not run | Deferred |
+| AU13 | Board planning team-size estimate editable after draft finalization | Existing board statistics/settings boundary | Queued | Not run | Not run | Deferred |
+| AU14 | Teams: authoritative uncertain-action readback | Resolve minimal transport contract using existing commands/IDs | Queued; contract at handoff | Not run | Source gap mapped | Deferred |
+
+For each ticket retain owner/model, changed-source identity, exact check/evidence
+paths, unresolved limitations and next owner when work starts. Replace Queued with
+In progress / Blocked / Implemented as warranted; keep Executed and Reviewed
+separate. Record failures/skips/deferred acceptance honestly. Do not delete a
+completed ticket or label the page complete because its backend passed review.
+Applicable focused proof and one fresh independent review precede technical
+completion; reuse the same implementer/reviewer for named remediation/rechecks.
+Use AGENTS.md model/routing policy and explicit assignment overrides; do not infer
+a new override from an earlier ticket. Manual acceptance belongs to UI_PAGE_MATRIX.
+
+### AU01 — Restore exclusivity
+
+Source finding: Overview B1, `/private/tmp/overview-source-review-20261001/`.
+Starting owners: `EventQuarantineService`, `BingoEvent.Restore`, shared current-event
+boundary used by event Start/Resume. Hiding current A, starting B, then restoring A
+currently permits two visible current events.
+
+Target: when restoring would conflict with another visible current event, reject
+without changing hidden metadata; do not implicitly hide/end B. Reuse the existing
+shared boundary/lock and definition of current event. Preserve SuperAdmin authority,
+auditing, history and restoration of non-conflicting archived events. Confirm this
+proposed rejection contract at implementation handoff; no new lifecycle policy is
+silently settled by the source finding.
+
+Proof: real PostgreSQL sequential reproduction and concurrent Restore versus
+Start/Resume, one successful non-conflicting restore, rejected state unchanged,
+and actual authorized transport recovery where affected. No global lifecycle audit.
+
+### AU02 — Signup-code server validation
+
+Source finding: Signup setup B1,
+`/private/tmp/signup-setup-source-review-20261001/review.md`.
+Starting owner: `Participants.OnPostSignupCodeAsync`; its StringLength(100)
+annotation is not enforced by the handler before hashing/persistence.
+
+Reject an overlong submitted code before mutation and return usable validation.
+Preserve enabled+blank retaining the existing hash, enable-without-hash requiring
+input, disable clearing the hash, authorization, phase restrictions and version
+checks. Do not reject unrelated form fields by blindly applying whole-page
+ModelState, expose the stored code or change hashing policy.
+
+Proof: actual authenticated POST boundary with 100/101-character input and the
+retain/clear cases; rejected input leaves hash/version/audit unchanged. Use
+controlled fixtures, never real codes in evidence.
+
+### AU03 — Event creation retries
+
+Starting owners: Admin Events `Create.cshtml.cs`, existing event creation service,
+Events E03 reference. Preserve name/timezone validation, private draft creation,
+permissions and existing atomic operation.
+
+Give one logical create request a durable authorized identity. Concurrent/repeated
+retries must create at most one event and return the same result. Support Check
+again after an uncertain response without guessing by name; same-name events
+remain legal. Define handling of the same key with different input and ensure
+another actor cannot obtain unauthorized outcome data. Choose the smallest
+persistence mechanism with a concrete need; include full migration artifacts if
+required. No generic operation-receipt framework.
+
+Proof: PostgreSQL duplicate/concurrent retries, lost-response readback, different
+payload/key and unauthorized lookup, actual request validation. UI stays deferred.
+
+### AU04 — Events directory data
+
+Starting owners: Admin Events `Index.cshtml.cs`, `SharedShellService`, completed
+Dashboard mappings. Implement approved directory read semantics: Live first,
+preparation by date with unscheduled last, past newest across phases; stable ties;
+retained participation for Live/past, nullable capacity and honest imported coverage.
+Attention displays failure priority followed by review work, plus other issue
+categories; ordinary setup is not an error/attention count. Preserve the shared
+inbox's existing units and Hidden/SuperAdmin boundary. The mock WOM failure is
+illustrative, not authorization for a new failure subsystem.
+
+Expose authoritative filters/sorts and query results needed for the reference;
+reuse existing reads/mappings rather than recalculate Dashboard independently.
+Proof: focused query/authorization tests for phases, null/ties, historical people,
+attention categories and hidden access. UI URL/navigation/table changes remain
+in the page integration pass.
+
+### AU05 — Signup setup versions and stale edits
+
+Starting owners: `Questions.cshtml.cs`, signup mutation services/contracts,
+capacity/code handlers. Add explicit client-baseline checks to question/account
+add, custom edit, account rename, move and co-captain enable where currently absent.
+Reuse existing delete/disable question-version and impact-count checks.
+
+Settings saves return authoritative values/new event version while retaining
+separate capacity/code transactions. An unrelated card refresh must not erase the
+immutable baseline of another uncertain operation; support the required result
+contract, with actual client state binding deferred. Preserve FirstResponseAt locks,
+phase/role guards, targeted assignment release and queue promotion. Do not introduce
+whole-page atomic saving or rebuild already loaded answer/impact counts.
+
+Proof: stale sequential clients and controlled concurrent edits at real PostgreSQL
+boundaries; correct result versions, no rejected side effects, existing delete/
+disable impacts retained. Frontend cross-card uncertain recovery belongs to binding.
+
+### AU06 — Question/account-field add retries
+
+Starting owners: question/account add handlers/services. Depend on AU05's contract;
+reuse AU03's approach only if it fits without introducing an unnecessary framework.
+Return created question/field ID and reconcile retries by request identity, not
+label/type matching. Preserve drafts while a result remains ambiguous. Same labels
+from another admin must not stand in for this request. Retain protected primary/
+captain fields, first-response restrictions and separate system/account types.
+
+Proof: real PostgreSQL duplicate/concurrent/lost-response adds, same-label unrelated
+creation, actor ownership and changed-input retry handling. No new profile accounts:
+this ticket creates event form fields, not players' globally saved accounts.
+
+### AU07 — First-response normalization feedback
+
+Current add silently makes a requested required question optional after the first
+response. Preserve that existing rule and no backfill, but return an explicit
+outcome plus the authoritative optional definition when normalization occurs.
+The reference already explains it; a rejection alternative would need a deliberate
+contract choice, not an incidental change during implementation.
+
+Proof: a first response arrives between rendering/editing and add; only an optional
+question persists, the result explains it, retries retain the same definition.
+Also verify ordinary pre-response required creation remains supported.
+
+### AU08 — Identity conflicts
+
+Starting owners: existing Identity transport/service and timezone-review contract.
+Provide safe field-level comparison/merge for stale clients: preserve intended
+edits, retain another admin's untouched-field updates, and require resolution for
+conflicting edits. Keep schedule-only timezone conflicts separately stale and
+require a fresh review of their consequences. Do not change permanent slug ownership,
+50-code-point name limit, UTF-16 description/buy-in limits or existing phase locks.
+
+Proof: disjoint and same-field concurrent edits, schedule-only conflict, stale
+resolution retry and unchanged values against PostgreSQL/actual transport as
+appropriate. UI Use theirs interactions remain for integration.
+
+### AU09 — Identity readback
+
+Use existing authorized current-state reads to support Check again after an
+uncertain save. Compare the relevant full intended values and report whether the
+event now has them, without claiming this request saved them. No new Identity
+request receipts are required. Preserve editing drafts and truthful ambiguity on
+read failure or different values; do not blindly resubmit the mutation.
+
+Proof: applied/lost-response, unapplied, another-admin matching/different update,
+authorization and read failure. UI wording is Up to date, not proof of Saved.
+
+### AU10 — Schedule preservation and integration gaps, source-reviewed
+
+Sol 6.1/high source comparison completed with changes required; evidence:
+`/private/tmp/schedule-source-review-20261001/review.md`. No execution or production
+fix is claimed. Preserve existing atomic serializable/versioned authorized save,
+audit, timezone/DST/five-minute rules, overlap/WOM checks and lifecycle exceptions.
+
+- Preserve each unchanged field's original UTC instant. Schedule.cshtml.cs currently
+  reparses editable fields through minute-only text, losing seconds/subseconds and
+  rejecting untouched valid instants displayed in a repeated DST hour. A fix must
+  preserve precision without accepting changed ambiguous/nonexistent local times.
+- Parsing already supplies field ModelState errors; lifecycle validation returns
+  one Error string. Add suitable field mappings there, retaining overlap as a form
+  error, rather than replacing all validation.
+- Reuse authorized reads for uncertain-save reconciliation against an immutable
+  submitted full schedule: exact instants, automatic-opening state, version and
+  current phase/editability. Preserve unknown outcomes after read failure; matching
+  state means Up to date, not proof this request saved it. No receipt system needed.
+
+Focused eventual proof: unrelated edit preserving exact seconds/microseconds and
+untouched ambiguous-history values; changed DST errors; applied/lost-response,
+unapplied, competing matching/different precise instants, authorization/read failure,
+stale schedule, per-field mapping and PostgreSQL precision. Use deterministic
+microsecond-aligned persisted expectations plus nonaligned input round trips.
+Picker binding, stay-on-Schedule, confirmation table and navigation remain UI work.
+The app already has one confirmation, not a confirmation ladder to remove.
+Reconcile stale FUNCTIONAL_CONTRACTS 4.4 with approved pre-Live start/end editing
+through draft and overdue repairs. Existing scheduler behaviour remains unchanged.
+600ms Saving is a proposed reference setting, not an exact approved constant.
+
+### AU11 — Tile-local EHB override for every objective type
+
+Approved by the user during Board planning on 1 October. Allow an optional manual
+TOTAL tile EHB override for catalogue/drop tiles as well as the existing entered
+estimate for manual/non-drop challenges. No override uses normal calculated EHB;
+manual challenges still require their entered estimate. Keep the calculated
+baseline available for comparison and resetting a calculated tile. This setting
+belongs to the event tile; do not change catalogue rates or other events.
+
+The effective value feeds existing board/line estimates, credited proportional
+partial progress, player contribution statistics and the EHB ranking input. A
+separate points model is deferred. Preserve probability/KC/Luck mechanics; changing
+an effort estimate must not modify actual drop rates or observed activity. Trace
+and validate existing allocation code before choosing the smallest override path.
+
+Preserve authorization, editing lease/version, validation and immutable approval
+snapshots. Competitive edits invalidate unpublished approval as today. Any submitted
+evidence continues to lock affected tile scoring, regardless of evidence status;
+no override can rewrite published evidence, archived values or official results.
+Starting owners: Board page model/editor data, TileTemplate/BoardTile, EhbCalculator,
+BoardEstimateService, approval snapshots and proportional contribution allocation.
+Promote this accepted exception to existing Board/product/data authorities before
+implementation. Do not revive reusable template workflows or catalogue overrides.
+
+Acceptance/proof: automatic fallback, set/change/reset on calculated tiles, required
+manual estimate, invalid values, multiple objectives and weighted/partial allocation
+with no double-counting, line/board/player totals, approval round trip, stale editor,
+submitted-evidence rejection and isolated event/catalogue/history preservation.
+Use executable boundary checks and PostgreSQL where persistence/concurrency matters.
+New editor controls and manual visual acceptance remain deferred. No code started.
+
+### AU12 — EHB before current-score completion time
+
+Approved placement direction: full-board finishers still lead and earlier full-
+board completion wins; otherwise compare completed lines (rows plus columns),
+completed tiles, highest credited EHB, then earliest current-score completion time.
+Preserve credited partial progress, exact shared ranks and existing rank numbering.
+No separate points, discretionary tie-break, altered evidence timestamps or name/ID
+ordering used to split a genuine tie. Use one consistent ranking rule across public
+provisional standings and finalization; retain existing immutable official results.
+
+Starting owners: PublicProgressCalculator Rank/SameRank and its actual consumers,
+finalization/official snapshots, public standings/copy and existing rule authorities.
+Before implementation establish the smallest explicit applicability boundary so
+existing historical results and historical reads do not silently acquire the new
+ordering. If the repository has no sufficient rule-version/event boundary, bring
+that concrete decision to the planner; recording this ticket does not authorize a
+migration that retroactively re-ranks events. No separate points infrastructure.
+
+Acceptance/proof: higher EHB beats earlier score time after equal lines/tiles;
+board completion, full-board finish time, lines and tiles retain precedence; equal
+EHB falls back to score time; exact ties/null times deterministic and truthful;
+partial progress still contributes; provisional/final placement parity; earlier
+immutable official versions and historical events unchanged. Preserve PostgreSQL
+microsecond timestamp precision at persisted ranking boundaries. No code started.
+
+### AU13 — Retain editable planning team-size estimate
+
+Approved: keep expected players per team manually adjustable after draft
+finalization. Remove the per-actual-team EHB-per-player breakdown from the new UI;
+retain the overall planning statistics and the manually selected estimate rather
+than replacing it with finalized roster sizes. No additional explanatory label or
+warning was requested. Existing sensible field labels may remain.
+
+Starting owners: Board OnPostTeamSize, Board statistics projections and current
+expected-size storage. Remove only the draft-finalized restriction on this planning
+setting where applicable; preserve event/board authorization, terminal/history,
+editing and concurrency boundaries. Do not broaden all Board editing phases.
+Changing this estimate affects planning per-player/per-day values only, never team
+membership, draft distribution, competitive tile EHB, credited stats or ranking.
+Avoid adding a parallel estimate store if existing storage serves this purpose.
+
+Acceptance/proof: set/update before and after draft finalization; persistence and
+reloaded projections use the selected value; existing bounds/permission/version
+checks remain; finalized rosters, published competitive snapshots and scoring are
+unchanged. Include unequal actual team sizes to prove no silent actual-roster
+substitution. New UI binding and manual acceptance deferred; no code started.
+
+### AU14 — Teams uncertain-action reconciliation, recorded 2 October 2026
+
+The completed-reference comparison confirms existing in-place Pick/Undo/Scramble,
+control renewal, participant/search data, distribution and readiness services.
+Do not rebuild them. The remaining transport gap is safe authoritative readback
+for timed-out actions. At handoff choose the smallest contract retaining immutable
+pick/team identities and intended fields; current state must not be claimed as
+proof a particular request succeeded or as permission for blind retry. No generic
+receipt framework is authorized by this ticket. Preserve authorization, current
+controller, latest-pick rules, transaction/version checks and membership history.
+
+Focused proof must distinguish a reused pick number after Undo/re-pick, a competing
+admin picking to another team, a redraw yielding the same order, inclusion-only
+team edits and readback failures. Bind existing roster synchronization statuses;
+queued or failed WOM work must not be described as completed. Reconcile the
+HasUsableCaptain projection with existing command eligibility during integration;
+no new lifecycle permission or algorithm is approved. All changes remain queued.
+Evidence: `/private/tmp/admin-consolidation-review-20261002/teams-review.md`.
+
+### Deferred UI binding and reference ownership
+
+The following remain implementation work when the new UI is connected, not more
+backend rewrites: Participants/Dashboard binding; Events modal/filter/history;
+Identity stay-on-page/conflict/readback; Overview composition/readiness/control
+and evidence-code recovery binding; Signup setup route/tabs combining existing
+separate handlers and retiring old capacity ownership. Reuse per-row answer/impact
+counts and rename the multiline Text label without adding a new field type.
+
+Teams / Draft has no newly agreed backend feature in this design pass. Track as
+UI integration: remove the standalone participant table and affiliation/image
+controls without deleting retained data; searchable roster assignment over existing
+participants, click-to-pick through the existing endpoint, compact active workspace
+and automatic compact sidebar. Preserve snake/Undo, admin control ownership,
+manual rosters and finalized corrections. No captain-operated shared draft, new
+Pause/Resume, CSV or new draft mechanics. Completion source comparison can raise
+concrete transport/data gaps; do not invent tickets speculatively.
+
+The shared saving/spinning state should retain a brief minimum display duration
+so fast requests do not flash. Use the approved prototype timing as a baseline,
+possibly slightly shorter during integration; no exact duration is locked. Actual
+success still requires confirmed completion, failures are truthful, and reduced
+motion is respected. Share the timing rule; do not copy mock request delays into
+backend work or change unrelated exit-animation timing.
+
+The user authorized Codex to make bounded reference behaviour/wording corrections
+on 1 October, reserving Claude usage for visual design and subsequent artifact
+synchronization. RC01/RC02 below supersede the earlier Claude correction prompts;
+do not send those stale prompts for duplicate implementation. Their source reviews
+are not application implementation or executed browser proof. Identity's named
+reference corrections still need their bounded recheck. Track future page findings
+here under stable new AU identifiers,
+separating existing capability, approved backend gap, proposed product decision
+and UI binding. Toast Undo and general manual queue reordering remain deferred/
+unapproved; do not add them to implementation just because prototypes contain them.
+
+
+
+### Reference corrections — Codex ownership, approved 1 October 2026
+
+These are separate from AU application tickets and the active Luck assignment.
+Implementation is authorized within the named findings, but no worker is dispatched
+by this planning update. Use the existing role/model policy and supported capacity;
+do not silently change models or create another visible chat. Work one page at a
+time using a Luna implementer and independent Sol 6.1/high named recheck, reusing
+compatible workers/evidence. No broad extraction/review pass.
+
+Reference edit checkout: `/Users/christopher/Documents/BingoWebpage`, current
+`feature/boss-artwork` branch; confirm status and preserve all existing exports.
+Application behaviour baseline remains the separate `participants-functionality`
+checkout. Reference mocks must not be installed as production functionality.
+
+| ID | Scope | Implementation / checks | Independent review | Canvas sync |
+| --- | --- | --- | --- | --- |
+| RC01 | Overview R1–R4 and cancelled-Stats README fact | Queued; not started | Named recheck pending | Claude, after verified correction |
+| RC02 | Signup setup R1–R4 and matching README statements | Queued; not started | Named recheck pending | Claude, after verified correction |
+| RC03 | Schedule R1–R4, direct Overview picker consumers and README | Queued; not started | Named recheck pending | Claude, after verified correction |
+| RC04 | Teams uncertain-action/team-save recovery and truthful WOM outcomes | Queued; not started | Named recheck pending | Claude, after verified correction |
+
+**RC01:** correct public-link destination copy against actual Signups/Teams handlers;
+make evidence-code failure/stale/uncertain mocks truthful and reconcile before
+retry; suppress Restore after failed hidden-event reads; separate manual from
+scheduled opening eligibility. Correct cancelled-event Stats documentation without
+adding a new link. Preserve current lifecycle rules and approved At-a-glance spacing.
+Source evidence: `/private/tmp/overview-source-review-20261001/`.
+
+**RC02:** compare the complete intended question definition including ordered
+choices; never resolve an uncertain add by another admin's same-label question;
+retain the uncertain settings request's own comparison baseline across other-card
+saves; protect unsaved inline renames when another rename/add starts; describe
+promotion as waiting-list order. Preserve separate card saves and reuse existing
+confirmation/recovery controls. Source evidence:
+`/private/tmp/signup-setup-source-review-20261001/review.md`.
+
+**RC03:** retain unchanged exact schedule instants and immutable full submitted
+values for readback (including opening flag); preserve retained overdue enabled
+opening validation exception; use shared DST-safe conversion in Overview reopen,
+resume and evidence-code consumers; constrain picker to short viewport height with
+reachable overflow/footer. Extend uncertain readback mock with read failure that
+retains uncertainty. Correct unconditional automatic-close README requirement and
+outdated claim of an existing confirmation ladder. Evidence/source lines:
+`/private/tmp/schedule-source-review-20261001/review.md`; 15 files stable, source-only.
+R4 permits necessary bounded shared CSS height/overflow changes, not redesign.
+Focused checks reproduce seconds/subsecond and repeated-hour preservation, exact
+readback conflicts/read failure, retained overdue opening, skipped/repeated local
+Overview dates, short viewport footer reachability and nested-dialog keyboard use.
+Related application precision defect is AU10, not a reference fix to claim as done.
+
+**RC04:** fix the three functional findings from the stable Teams reference review.
+Use immutable pick identity for Undo and its readback, with current membership
+checked; avoid attributing another admin's pick or a changed order to this request.
+A matching unchanged redraw cannot prove failure. Remove unjustified safe-retry
+claims. Existing-team readback must match its ID and every intended field including
+draft inclusion; new-team recovery must not identify creation by name alone.
+Roster success states must distinguish local republishing from actual WOM
+NotManaged/Unchanged/Pending/Sending/Retry/Failed/Conflict/Unknown results.
+Preserve approved composition, scramble motion and current interaction model.
+Reproduce the named timeout-without-save scenarios and readback failures, then
+reuse the same reviewer for the named recheck. Evidence:
+`/private/tmp/admin-consolidation-review-20261002/teams-review.md`.
+
+The review's fourth finding (forced `busyMinQuick=250`) is a pending presentation
+choice, not an automatic removal requirement. The user likes brief visible saving
+feedback and asked for slightly shorter draft feedback. Preserve it for now;
+reconcile prototype latency versus a production presentation minimum at integration.
+No new delay standard or removal is approved by the reviewer alone.
+
+Identity's named correction recheck returned SOURCE PASS on 2 October 2026; no
+remaining named reference defect. Twelve files were stable; no browser/runtime
+checks were executed by the reviewer. AU08/AU09 and application UI binding remain
+queued. Evidence: `/private/tmp/admin-consolidation-review-20261002/identity-review.md`.
+
+For all: preserve approved layout, typography, colours, spacing, components and
+animation feel. Expect JavaScript/state, markup/copy and documentation changes;
+no cosmetic CSS redesign. A necessary directly related shared fix needs focused
+consumer checks, not a whole-site pass. Do not fold in AU01/AU02 backend fixes,
+new product choices or unrelated improvements. Run focused executable reference
+checks that reproduce the named failures/recovery paths and a scoped diff/style
+check. Independent reviewer rechecks named findings and direct consequences;
+user visual acceptance remains separate if any visual state materially changes.
+
+At completion record changed files, checks/evidence, reviewer outcome and exact
+file hashes. Mark repository corrected/reviewed and canvas awaiting sync separately.
+For this bounded sync the verified repository files are authoritative: Claude copies
+them to matching artboards and shared files without redesign or overwriting with
+older canvas content, then verifies parity. This is not blanket reassignment of
+visual design authority. Keep completed RC records; append future bounded reference
+correction tickets rather than spending Claude usage on behavioural bug fixes.
+
+## Dashboard backend pass — approved, 2026-10-01
+
+**Status:** backend technically complete, focused proof recorded and independent
+Sol 6.1/high R1–R5 recheck PASS on 1 October. UI integration remains deferred.
+Approved reference requirements are D01–D10 in
+`/Users/christopher/Documents/BingoWebpage/docs/references/admin-ui/FUNCTIONALITY_CHANGES.md`.
+This plan defines backend preparation; it does not apply the reference UI.
+Earlier Dashboard exclusions belong to their earlier passes and do not exclude
+this explicitly requested planning pass.
+
+**Baseline:** the completed, independently reviewed Participants candidate in
+`/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage`,
+branch `codex/participants-functionality`, including its uncommitted changes.
+Do not start from the stale 573d checkout or the design-reference checkout.
+Confirm checkout/ownership at dispatch; do not commit, copy away or replace
+Participants work merely to establish a Dashboard branch.
+
+### Outcome and boundary
+
+Provide one authorized, read-only application result for the community Dashboard:
+historical totals, latest-event additions, participation breakdown, latest recap,
+sortable event history, current/upcoming card and community account figures.
+All related figures must derive from the same eligible events and people sets.
+Return stable event IDs and typed dates, values and availability/provisional
+metadata so later UI binding can supply real Overview links and honest states.
+
+Statistics/chart/history include Live, AwaitingFinalReview, Finalized and Archived;
+exclude hidden/quarantined, cancelled and discarded events throughout. Live and
+AwaitingFinalReview are labelled **Provisional** only in those statistics (no
+extra Live badge required). The latest-event recap is ended-only: final review,
+finalized or archived. Current/upcoming card may show the actual Live phase.
+Website account figures remain a separate community population. Headline label
+is Events; later UI binding can indicate current/provisional counts.
+
+This pass does not replace Admin Index markup or its existing callers, introduce
+a transport endpoint, change routing, install the canvas runtime, implement
+animations, edit Claude's reference, or perform manual visual acceptance.
+Read failures must remain failures rather than fabricated zero results; the later
+UI binds loading, retry, localization and navigation to this boundary.
+
+### Approved definitions — 2026-10-01
+
+User decisions supersede the earlier ended-only population:
+
+1. Retain disabled website accounts in registered totals and historical unique/
+   returning people; emergency credentials are excluded. Login counts use the
+   same website population and stored LastLoginAt. Disabling access must not
+   erase participation. Unlinked people count once per event but never become
+   invented website identities; expose unlinked coverage separately where needed.
+2. Select the compact card deterministically: Live first, then the earliest
+   scheduled future/preparation event, then an unscheduled setup fallback.
+   Multiple Live events choose latest actual start; remaining ties use stable ID.
+   Do not change lifecycle state or silently make overdue schedules look future.
+3. Latest ended recap uses actual end descending, then actual start and stable ID.
+   Latest contribution/chart chronology uses actual start; ongoing history sorts
+   before ended history by default, then latest actual start, while ended history
+   uses actual end descending. These deterministic display ties are technical
+   ordering, never competitive tiebreaks. Returning classification uses strictly earlier
+   actual start (equal starts share a cohort, not an arbitrary ID advantage).
+   New accounts means CreatedAt after the latest actual end through one request
+   clock; without an ended event use the last 30 days. Missing authoritative
+   dates remain unavailable instead of borrowing unrelated creation dates.
+
+Existing requirements remain: count qualifying historical team participation once
+per person per event, preserve pre-Live departure exclusion (Live eligibility ends at the shared request clock), imported history is
+unlinked, approved submissions exclude reconstructed import contributions, and
+zero differs from unavailable. Current official placement snapshots own winners;
+provisional/reopened review cannot borrow an old official winner. Preserve shared
+first place rather than inventing a winner tiebreak. EHB means stored period gain
+with account coverage, never signup EHB and never a Dashboard-triggered WOM fetch.
+
+### Readiness and source mapping
+
+One bounded independent Sol 6.1/high read-only readiness review resolves actual
+source mappings. The orchestrator records technical resolutions; the implementer
+reconciles affected DATA_MODEL/source mapping under the approved behavior already
+recorded in PRODUCT_REQUIREMENTS and FUNCTIONAL_CONTRACTS. Readiness is not an
+implementation review or permission to change product scope.
+Reuse D01–D10 and this inspection; no repeat whole-project audit.
+
+Known sources: Account has WebsiteAccount/EmergencyCaptain, CreatedAt, LastLoginAt
+and disabled state; EventParticipant.AccountId is nullable; TeamMembership retains
+JoinedAt/LeftAt; BingoEvent retains actual lifecycle dates; finalization snapshots
+have explicit active/unfinalized versions and placement snapshots. Historical
+import constructs CsvImport participants without AccountId and membership starting
+at the historical event start. These facts are source evidence, not production
+data inspection.
+
+Readiness must settle:
+- Membership interval eligibility, distinct participant/account handling,
+  unlinked platform records and any historical import special cases. Account
+  transfers and multiple game accounts must not inflate people.
+- Approved submission eligibility/source exclusions, active finalization and
+  frozen board denominator, ties and retained names after current data changes.
+- EHB mapping: CachedEventCompetitionActivityProjection reads persisted data,
+  but its current-roster calculations must not be assumed to represent departed
+  historical participants. Identify compatible stored/frozen coverage; expose
+  unavailable data instead of rebuilding or fetching it. If a required historical
+  source does not exist, report the exact limitation before adding persistence.
+- One consistent read snapshot and request clock, enabled Admin authorization,
+  hidden-event exclusion and supported event destinations.
+- Actual enum/date fallbacks and proposed card/cohort edge cases. Surface any
+  product contradiction rather than deciding it inside query implementation.
+
+### Execution slices and journey coverage
+
+Owner for each backend slice: one implementer under one orchestrator, sequentially.
+Readiness and final independent review are separate roles. Independent review uses
+Sol 6.1/high per user preference; exact dispatch identities/models are recorded
+at dispatch. Implementation uses gpt-5.6-luna/max. Orchestrator gpt-6.1-sol/high is explicitly user-approved for this assignment
+(1 October substitution for unavailable gpt-5.6-terra/medium). No routine
+extra verifier. Planner /root; app task 01a0ec9a-76e3-7252-9850-3f260c612e59.
+Orchestrator must own waits, wake each next worker, and report completion/blockers
+to /root through collaboration; do not rely on an app-thread callback.
+
+Companion assignment, user-authorized 1 October: perform a read-only functional
+completion comparison of the finished Events reference against this application's
+actual capabilities. This is not browser inspection or Events implementation.
+A Sol 6.1/high reviewer reads Events.dc.html, shared behavior and README in
+the Documents reference folder and maps E01–E04 to actual application sources.
+Return concrete supported/gap/intentional-prototype distinctions, small behavior
+deviations, source locations, and proposed register updates to /root through this
+orchestrator. Protect Claude's files. No production edits, new tests, browser
+inspection or broad UI redesign for this comparison. Root owns final product
+decisions and the shared functionality-register reconciliation. This read-only
+assignment may overlap Dashboard readiness within available slots.
+
+
+| Slice / entry | Action and result | Proof and later reachable step |
+| --- | --- | --- |
+| B1, enabled Admin opening Dashboard, no/imported/mixed Live and ended history | Read eligible history, shared people sets, headline totals, latest additions and chart cohorts; no persisted mutation | Real PostgreSQL fixtures: zero vs unavailable, multi-account/team moves, departed membership, hidden/cancelled/discarded exclusion, linked/unlinked counts and equal-start cohorts; later chart/history open real event |
+| B2, same read with provisional/official/reopened history | Add recap, current official winner(s), frozen board completion and optional covered EHB; produce six stable null-last history sorts | Persisted finalization/reopen and retained snapshot fixtures, approved vs reconstructed/reversed submissions, partial/missing/measured-zero EHB, board ratio/ties; later recap/history link Overview |
+| B2, current/upcoming and community data | Select card, phase/relevant date and signup counts; website total/new/logged-in counts using one clock | Multiple Live/scheduled/unscheduled candidates, no candidates, disabled/emergency accounts, null logins, zero denominator and precise timestamp boundaries; later card opens selected event |
+| Cross-cutting, unauthorized/disabled actor or failed read | Reject unauthorized access and propagate recoverable read failure; repeated reads do not write or synchronize | Exercise real authorization/application and PostgreSQL boundary, deterministic fixtures, cancellation/failure with no fake successful zeros, consistency under relevant concurrent change; later UI handles retry/lost access |
+
+Use existing fixture conventions and controlled databases, never user-owned data.
+Timestamp tests use explicit UTC microsecond-aligned instants and non-aligned input
+with PostgreSQL round-trip proof wherever comparison/normalization is affected.
+Do not prove historical correctness solely with in-memory grouping tests.
+
+### Complexity budget and completion
+
+Budget: one focused application read contract/result family and Infrastructure
+query implementation if no existing appropriate boundary can own these global
+statistics; ordinary DI registration and focused tests. No new tables, migrations,
+background jobs, external API calls, analytics framework, cache infrastructure,
+policies, UI pages or HTTP routes. Reuse existing authorization and authoritative
+snapshot/cache semantics without invoking write-capable lifecycle/sync operations.
+Avoid per-row lookup growth; inspect query shape with the focused integration proof.
+
+Complete B1 first as an executable checkpoint, then B2 and focused checks. Run
+applicable build/format/diff checks once on the stable candidate and one fresh
+Sol 6.1/high independent review; named findings return to the same implementer
+and reviewer. No broad browser suite or unrelated backend regression expansion.
+
+Completion requires implemented result contract, passing relevant executable
+proof, independent review, reconciled authorities and a concise UI-binding
+handoff identifying source/coverage limitations. Update D01–D09 separately with
+actual implemented/executed/reviewed evidence; do not mark D10 integrated.
+Record commands/results and deferred manual journeys in existing status/checklist
+owners. Stop before UI binding, manual acceptance, packaging, push or deployment.
+
+### Completion and UI-binding handoff — 2026-10-01
+
+B1 and B2 are implemented in the six Dashboard-owned source/test files listed
+in `CURRENT_STATUS.md`. The application contract is
+`IAdminDashboardService` (with the compatibility alias
+`ICommunityDashboardService`); Infrastructure registers both interfaces and
+performs one no-tracking, repeatable-read projection. The result carries stable
+event IDs, typed UTC dates, measured/unavailable values, EHB coverage and
+provisional flags. The later Admin Dashboard UI can bind event links from
+`OverviewPath` (`/Admin/Events/Manage/{id}`), the current card, recap, chart and
+history without adding a route or changing the existing Admin Index callers.
+
+The current executable evidence is retained under
+`/private/tmp/dashboard-backend-20261001/`:
+
+- Application Release build: `dotnet build tests/Bingo.Application.Tests/Bingo.Application.Tests.csproj --configuration Release --no-restore`, passed with 0 warnings/errors.
+- Ordering proof: `dashboard-ordering-fixed4.trx`, **2/2 passed**, from the focused `DashboardHistoryOrderingTests` run. All six history fields use null-last ordering in both directions and stable EventId ties.
+- Integration Release build: `dotnet build tests/Bingo.IntegrationTests/Bingo.IntegrationTests.csproj --configuration Release --no-restore`, passed with 0 warnings/errors.
+- Current PostgreSQL proof: `dashboard-b2-post-ordering.trx`, **7/7 passed**, from the focused `AdminDashboardIntegrationTests` run. It includes deterministic UTC fixtures, a non-microsecond input persisted through PostgreSQL, authorization/transaction/cancellation failure behavior, and no-write checks.
+
+D01–D09 below are implemented, executed at applicable backend boundaries and
+independently source-reviewed. UI acceptance remains separate:
+
+- **D01 — implemented/executed/reviewed:** enabled Admin read boundary, event ownership,
+  valid membership intervals, linked/unlinked identity, disabled-account
+  retention, emergency exclusion and hidden/cancelled/discarded filtering.
+- **D02 — implemented/executed/reviewed:** headline statistics and availability metadata,
+  including zero versus unavailable and provisional Live/final-review states.
+- **D03 — implemented/executed/reviewed:** latest additions/community population with one
+  request clock, strict stored dates, disabled-account retention and emergency
+  exclusion.
+- **D04 — implemented/executed/reviewed:** actual-start chronology and equal-start cohort
+  handling for contribution/chart/history population.
+- **D05 — implemented/executed/reviewed:** ended-only recap, active official placements,
+  retained snapshot names, shared winners, published frozen-board denominator and
+  reopened/provisional winner suppression.
+- **D06 — implemented/executed/reviewed:** compatible stored EHB bulk coverage with
+  complete, partial, measured-zero and unavailable states; no historical per-row
+  provider fetch or signup EHB substitution.
+- **D07 — implemented/executed/reviewed:** six typed null-last history sorts with stable
+  EventId ties; UI query-string/back/reload binding remains deferred.
+- **D08 — implemented/executed/reviewed:** deterministic Live/scheduled/unscheduled card
+  selection, overdue metadata, nullable capacity and stable ties without lifecycle
+  writes.
+- **D09 — implemented/executed/reviewed:** website-account total/new/logged-in figures
+  using the captured request clock and precise stored date boundaries.
+- **D10 — not integrated:** no Dashboard UI, route, transport endpoint, browser
+  walkthrough or manual visual acceptance is claimed.
+
+Known source limitations are intentional: imported-only approved-submission
+coverage remains unavailable; missing or incompatible historical EHB remains
+unavailable unless compatible stored generation/fingerprint coverage exists;
+measured zero remains distinct from unavailable. Read failures and provider
+exceptions propagate. No tables, migrations, jobs, cache, provider fetch,
+lifecycle write or new policy was added. Independent reviewer
+`/root/dashboard_backend/independent_review` (`gpt-6.1-sol` / high) passed the
+final named R1–R5 recheck. It inspected source and recorded evidence without
+rerunning tests. The backend pass is technically complete; UI integration and
+manual acceptance remain deferred.
+
+### Named review remediation handoff — 2026-10-01
+
+The fresh independent review by `/root/dashboard_backend/independent_review`
+(Sol 6.1/high) returned **CHANGES REQUIRED** with R1–R5. The same implementer
+applied only those named corrections and focused proofs. The same reviewer
+completed the final named recheck with **PASS**, resolving R1–R5 and their direct
+consequences without a repeated broad review.
+
+Fresh evidence is retained under `/private/tmp/dashboard-remediation-20261001/`:
+
+- `dashboard-remediation-r2-r3-r1-r5.trx` — **8/9 passed** in real PostgreSQL.
+  The only failure is class initialization with `28P01 password authentication
+  failed for user "postgres"` before the query-shape test body; the other eight
+  cases pass, including the new interior Live departure, missing/inverted
+  ended-boundary availability, independent login boundary, weighted published
+  drop plus importless AdminCreated roster, and reopened winner suppression.
+- `dashboard-remediation-r5-queryshape-retry.trx` — **1/1 passed** when the
+  initialization-only failure was isolated. It covers the fixed query shape,
+  no tracked writes, read-failure propagation and repeatable-read boundary.
+- `dashboard-remediation-r3-original-login-boundary.trx` — **1/1 passed** for
+  the affected original cohort fixture, including the four-account independent
+  login-window expectation.
+- `dashboard-remediation-ordering.trx` — **2/2 passed**. The six history
+  fields, including EventDate, sort null-last in both directions with stable
+  EventId ties.
+- The earlier `dashboard-remediation-r1-r5-fixturefixed.trx` (9/9) remains
+  retained as prior provenance; it is not substituted for the latest source
+  identity. Release builds and the prior Dashboard 7/7/non-microsecond
+  PostgreSQL evidence remain retained, and the latest test command rebuilt the
+  affected integration project successfully.
+
+The R2 contract now distinguishes an eligible ended-state event from a usable
+actual ended boundary: missing or inverted dates make Community
+`NewWebsiteAccounts` unavailable with `Since=null`; the 30-day creation
+fallback is reserved for genuinely absent ended-state events. R1, R2, R3, R4
+and R5 are implemented with the named focused evidence above, while the
+independent review is **PASS** after the same reviewer verified the stable
+source identity and recorded proof. Final disposition is recorded in
+`/private/tmp/dashboard-remediation-20261001/dashboard-review-final.meta`. No broad suite,
+UI/reference work, manual acceptance, packaging, commit, push, merge or
+deployment is authorized by this handoff.
+
+## Participants backend pass — approved 2026-09-30
+
+**Outcome:** implement the agreed Participants service/domain/persistence behavior
+before applying the new UI. Preserve existing UI/forms and public self-signup.
+Manual interaction/visual testing and new frontend controls/routes are deferred by
+explicit user instruction; executable backend checks are not deferred.
+
+**Checkout:** `/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage`,
+branch `codex/participants-functionality`, starting at
+`993c90e9835d1f2d74fc9c03ed4d8f6306a7e37c` from clean `admin-simplification`.
+The older `573d` planner checkout and Documents reference checkout are not the
+implementation baseline. Claude owns the reference export/tokens/components;
+workers do not edit those files.
+
+**Roles:** planner `/root`, app task `01a0ec9a-76e3-7252-9850-3f260c612e59`;
+collaboration orchestrator `/root/participants_backend`, Sol `gpt-6.1-sol` / `high`
+(explicit user substitution for unavailable Terra); implementer/remediator
+`gpt-5.6-luna` / `max`; independent reviews `gpt-6.1-sol` / `high` (user override).
+Use the lean workflow in section 4.2.1. No extra coordinator or verifier.
+
+### Execution and ownership
+
+1. Run one bounded independent read-only readiness review of this complete slice
+   under section 4.1. Reuse the completed reference functional audit; do not redo a
+   whole-site audit. Identify account/primary/question mapping, missing stored EHB,
+   service/old-caller compatibility, concurrency and directly affected projections.
+   Resolve ordinary implementation choices in this plan; escalate only genuine
+   product decisions with evidence and a recommendation. No implementation before
+   named readiness blockers are resolved.
+2. One implementer owns the connected service changes below sequentially; the same
+   SignupService is shared, so do not split concurrent writers by feature name.
+   Deliver an early working behavior/checkpoint and proceed through authorized
+   scope without waiting for a new approval per operation.
+3. Once implementation and focused checks are stable, use one fresh independent
+   reviewer. Route defects to the same implementer and named rechecks to the same
+   reviewer. Reuse passing evidence and do not launch a broad extra verification.
+4. Consolidate CURRENT_STATUS and the integration handoff in this plan: service
+   entry points/request/result shapes, commands/results, unresolved limitations,
+   migrations if any and future UI binding. Stop before commit/push/deploy, reference
+   edits, app restart, user-data mutation or manual acceptance.
+
+### Readiness decisions — 2026-09-30
+
+The bounded Sol 6.1/high readiness review by
+`/root/participants_backend/readiness` found no unresolved product blocker or
+schema requirement. Implementation uses the existing `PrimaryRegularAccount`
+question plus matching `SignupAnswer` as primary authority. Swap/map question
+associations for selected Playing accounts while retaining each assignment's
+character identity, EHB and provenance. `AdminPrimaryCharacters` and the pre-Live
+planned-account fallback must use the same authority for Admin-created records.
+
+Preserve full-question `CreateAdminParticipantAsync` and
+`CorrectAdminParticipantAsync` callers; expose distinct saved-link Add and
+account-only correction/primary-switch boundaries. Saved-link Add rejects missing
+stored EHB with actionable saved-profile feedback and requires unambiguous active
+protected-primary/Playing-slot configuration. It does not use WOM or default EHB
+to zero. Existing shared global links remain allowed.
+
+New/changed transactions recheck the active Admin under the existing account lock
+before the event lock. Queue order/positions use the existing
+`WaitingListedAt ?? SignedUpAt` promotion authority consistently. Move captures the
+pre-existing next eligible signup waiter before appending the mover, preserves
+reservations, and ends current membership/role authority with history. Focused
+PostgreSQL proof includes the real draft-start transaction boundary, not solely a
+pre-set draft-lock fixture. No new UI binding or migration is selected.
+
+### Journey coverage and proof
+
+All new roster operations use an enabled Admin in an accessible event
+Draft/SignupOpen/SignupClosed before team-draft start. Tests call the real application
+boundary with controlled fixtures; these service capabilities are for later binding
+from Participants table/Add/edit. Existing route callers remain protected.
+
+| Slice | Action and persisted outcome | Boundary checks / next read |
+| --- | --- | --- |
+| P1 (F01/F02/F03) | Confirm selected waiter, with explicit +1 capacity only when full; move Confirmed to queue end and promote another; normal/override restore | PostgreSQL atomic capacity/status/order, no extra promotion, no immediate re-promotion, full/no-waiter/open-place rejection, restored sequence/reservation conflict, ended membership authority/history; persisted Participants/draft projections |
+| P2 (F04) | Add saved accounts without questions/WOM, selected primary, initial payment, normal/override placement | Active owner/link validation, slot limits, duplicate within participant/event, missing EHB/configuration handling, false captain, absent custom answers, no provider or saved-link writes, all-or-nothing failure, existing Add caller compatibility |
+| P3 (F05/F06) | Switch primary; add/remove/correct event accounts within configured slots without global mutation | A/B switch preserves identities and per-account EHB, at least one/exactly one primary, draft/name reads agree, shared links allowed, event conflicts rejected, saved names/links/order/EHB unchanged, correction preserves status/order/non-account answers |
+| Cross-cutting | Authorization, stale/repeated/concurrent requests and draft-start races | Existing PostgreSQL fixture boundaries, expected versions/current actor checks, no writes/audit success on rejected request, no double capacity increase, unchanged ordinary promotion/private payment-note/finalized-roster behavior |
+
+### Protected scope and complexity budget
+
+Reuse `ISignupService`, `SignupService`, EventParticipant/assignment/question/answer
+entities, EventParticipantAuthorityQueries and existing integration fixtures.
+Preserve privacy, current actor authority, notifications, audit, locks, PostgreSQL
+uniqueness, immutable competitive evidence, existing Live/finalized workflows and
+stored numeric precision. Fixtures use deterministic microsecond-aligned UTC times
+with affected precision/round-trip cases where relevant.
+
+No new tables, services, dependencies, policies, jobs or speculative API framework
+are budgeted. New request/result types and methods on existing boundaries are
+allowed where needed. Production UI, client routing/history, CSS, animation,
+reference runtime and manual test execution are out of scope. Do not add temporary
+UI to exercise backend methods. Existing HTTP binding changes only if needed to
+keep current callers safe/compatible, then test the affected real pipeline; new
+frontend transport binding can wait. No Undo or general manual queue reorder.
+
+Use scoped build/formatter/diff checks and discriminating Domain/Application and
+real PostgreSQL tests for changed behavior. Add tests where existing checks cannot
+detect the changed risk. Do not rerun the whole solution or broad browser suite
+without a concrete reason. Environment failures are reported with the exact
+unverified boundary; no tests on the user's database or external WOM calls.
+
+**Completion:** all three slices implemented and independently source-reviewed,
+focused checks passed or explicitly reported blocked, contract/data docs reconciled,
+existing UI compatible, and a useful binding handoff recorded. This is technical
+backend completion only. Future manual journeys are in MANUAL_TEST_CHECKLIST.md;
+page approval remains in UI_PAGE_MATRIX.md.
+
+### Completion and UI-binding handoff — 2026-09-30
+
+**Technically complete.** Same-worker implementation and named remediation are
+finished. Independent Sol 6.1/high reviewer
+`/root/participants_backend/independent_review` accepted the stable source and
+required executed proof, with no remaining findings or proof gaps. The reviewer
+verified source, logs/TRX and command/assembly identity rather than rerunning the
+checks. Manual acceptance and new UI binding remain deferred; page approval is
+unchanged. No schema/migration, new service/dependency or temporary UI/HTTP endpoint
+was introduced. Existing full-question Admin Add/correction and public signup
+callers remain compatible.
+
+Changed implementation files: `ISignupService`; Domain `EventParticipant` and
+`EventParticipantCharacter`; Infrastructure `SignupService`,
+`EventParticipantAuthorityQueries`, `ParticipantLiveService` and
+`EventSignupLifecycleService`; Web Admin Participants and public Confirmation /
+Signups read models; integration `Slice4ParticipantLifecycleIntegrationTests` and
+`DraftOperationsIntegrationTests`. The six planner-authored documents remain
+preserved; the complete checkout/status is in `CURRENT_STATUS.md`.
+
+| Service entry point | Request binding | Authoritative result |
+| --- | --- | --- |
+| `ConfirmWaitingParticipantAsync` | `ConfirmWaitingParticipantRequest`: event, participant, actor; explicit `ExpandCapacityWhenFull`; expected event/response versions | `ParticipantQueueMutationResult`: success/error, participant/status/position, promoted participant, effective cap, changed |
+| `MoveConfirmedParticipantToWaitingAsync` | `MoveConfirmedParticipantToWaitingRequest`: event, participant, actor; expected event/response versions | Same queue result |
+| `RestoreAdminParticipantAsync` | `AdminParticipantRestoreRequest`: event, participant, actor; explicit expansion; expected event/response versions; existing WOM validation token where applicable | `ParticipantLifecycleResult`: success/error, status/position, changed, existing validation token |
+| `AddSavedParticipantAsync` | `AddSavedParticipantRequest`: event, owner, actor; `PlayingCharacterIds`, `PrimaryCharacterId`; payment defaults Unpaid; explicit expansion; expected event version | `AdminParticipantResult`: success/error, participant/status/position, existing validation token shape |
+| `SwitchAdminPrimaryAsync` | `SwitchAdminPrimaryRequest`: event, participant, next character, actor; expected current character and response version | `EventAccountMutationResult`: success/error, participant/primary character, Playing/total account counts, changed |
+| `AddEventParticipantAccountAsync` | `AddEventParticipantAccountRequest`: event, participant, character, role, EHB, actor; optional question and expected response version | Same account result |
+| `RemoveEventParticipantAccountAsync` | `RemoveEventParticipantAccountRequest`: event, participant, assignment, actor; expected response version | Same account result |
+| `CorrectEventParticipantAccountAsync` | `CorrectEventParticipantAccountRequest`: event, participant, assignment, replacement character/EHB, actor; expected response version | Same account result |
+
+Requests use authenticated actor identity; the service canonicalizes actor name and
+rechecks enabled Admin authority inside the transaction. Saved Add uses character
+IDs resolved through the owner's active saved links, not link-record IDs or
+client-supplied saved EHB. Missing stored EHB rejects with saved-profile feedback;
+Add does not call WOM. Supply observed versions/current primary to detect stale
+intent and show the returned error/changed state. Capacity expansion requires the
+future UI's explicit full-capacity confirmation; it only confirms/restores/adds the
+selected participant. Move requires full capacity and another eligible waiter.
+
+Primary authority remains the protected `PrimaryRegularAccount` question plus its
+answer. Account correction releases the old assignment and appends the replacement,
+retaining old identity/EHB/provenance and auditing the actual change. Saved global
+names/links/order/EHB remain unaffected. Successful account changes notify the
+linked owner using the existing privacy-safe event; promotion recipients include
+enabled Admins. Failed and repeated no-change requests do not duplicate success
+notifications/audit. PostgreSQL persistence is authoritative; refresh affected
+participant/draft projections after success. Add and restore retain legacy result
+shapes, so refresh event capacity/count/status rather than inferring capacity from
+an error string. Waiting reads use `WaitingListedAt ?? SignedUpAt` consistently.
+
+Saved final evidence is retained outside the repository at
+`/private/tmp/participants-backend-remediation-20260930/`:
+
+- Release Web build: `web-build-after-test-fixes.log`, 0 warnings/errors.
+- Focused PostgreSQL seven-case run: `remediation-focused-final.log/.trx`, 7/7
+  passed, covering selected/parallel confirmation, move, saved-account journey,
+  restore rollback/retry and saved-Add negative/custom-answer boundaries. Later
+  named cases supersede the initial draft/primary proof in that run.
+- Real draft-start conflict/recovery: `draft-interleaving-controlled-proof`, 1/1.
+  The controlled event-reader barrier is inside the real Serializable
+  `DraftModel.OnPostStart` route; committed selected-capacity/account changes force
+  a handled snapshot conflict and a successful real-route retry.
+- Secondary-primary/stale projection proof: `primary-projection-proof-final`, 1/1;
+  final same case `primary-invalid-current-slot-proof-final`, 1/1, additionally
+  targets an existing Playing assignment whose question is inactive, and proves
+  unchanged primary/assignments/answers/version/audit/notifications after a later
+  same-context note save.
+- Same-character EHB release-and-append/retry proof:
+  `ehb-correction-proof-parsed`, 1/1, against PostgreSQL's partial unique key with
+  deterministic microsecond-precise WOM provenance and unchanged global profile.
+
+Each named proof has `.log`, `.trx` and `.meta` command/exit artifacts. They use
+`dotnet test tests/Bingo.IntegrationTests/Bingo.IntegrationTests.csproj --no-restore
+--configuration Release --filter FullyQualifiedName~<case> --logger trx
+--results-directory /private/tmp/participants-backend-remediation-20260930`, with
+exact filters in the corresponding metadata:
+`DraftStartInterleavesWithSelectedCapacityAndAccountMutationAtTheRealBoundary`,
+`SavedAddAndEventOnlyAccountMutationsPreserveGlobalLinksAndPrimaryMapping`, and
+`SameCharacterEhbCorrectionAppendsHistoryAndRepeatIsNoOp`. These freshly build the
+Release test assembly; no stale `--no-build` assumption or full-suite claim applies.
+Do not sum overlapping rechecks as unique test coverage.
+
+Scoped formatter used `dotnet format Bingo.slnx --no-restore --verify-no-changes
+--verbosity minimal --include <the twelve changed source/test paths>`; exact paths
+and exit 0 are in `format-scoped-final-exact.meta`, independently checked by the
+reviewer. Later changed-test formatting exit 0 is worker-reported with quiet
+`format-slice4-invalid-slot.log`. `git diff --check` passed independently for
+orchestrator and reviewer; saved exit metadata is `diff-check-final.meta`.
+Earlier broader terminal-only worker counts are distinguished in CURRENT_STATUS,
+not repeated as fresh candidate evidence. Earlier failed logs remain retained.
+
+Bounded build diagnosis identified generated-output write denial (MSB3371) in the
+checkout outside default writable roots; narrow authorized escalation recovered
+build/test execution. No active environment blocker remains. All four named source
+findings (assignment history, owner notifications, Admin promotion recipients,
+rejection-safe tracked state) and their required targeted proof are accepted.
+Temporary trace/debug tests and hardcoded diagnostic paths were removed from source.
+
+Orchestrator reports completion to planner `/root` through internal collaboration /
+final delivery. The previously rejected app-thread callback is not retried. Stop
+here: future redesigned Participants UI integration/confirmations and manual
+journeys need their own assignment; no packaging, reference edits, broad-suite
+rerun, user-data mutation or app restart is authorized by this completion.
+
 ## Admin simplification — approved 2026-09-26
 
 The approved [Admin simplification implementation plan](/Users/christopher/.codex/visualizations/2026/09/24/01a0d414-daca-72f3-bea0-d1e9e53a3b2f/ADMIN_SIMPLIFICATION_IMPLEMENTATION_PLAN.md)

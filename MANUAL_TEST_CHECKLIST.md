@@ -2,11 +2,76 @@
 
 **Status:** Current September follow-up, managed WOM functionality and boss leaderboards accepted by the user on 2026-09-23, with the explicit waivers/deferrals below. Older slice checklists remain separate history.
 
-**Last updated:** 2026-09-23
+**Last updated:** 2026-10-01
 
 **Purpose:** Preserve the user's manual acceptance checks outside chat without adding testing controls to the application.
 
 **Authority boundary:** This file records manual verification journeys, observed results, and accepted evidence only. Product behavior and scope, workflow contracts, data invariants, technical architecture, and UI rules/approval are owned by the active authority documents linked from `README.md`; this checklist does not redefine them.
+
+## Dashboard backend proof complete; UI integration deferred — 2026-10-01
+
+The read-only backend contract and focused PostgreSQL proof are complete. This
+section does not claim manual or visual acceptance. Current automated evidence is
+`/private/tmp/dashboard-backend-20261001/dashboard-ordering-fixed4.trx` (2/2)
+and `dashboard-b2-post-ordering.trx` (7/7), with Release builds for the
+Application.Tests and IntegrationTests projects passing with 0 warnings/errors.
+Named review-remediation evidence is also
+`/private/tmp/dashboard-remediation-20261001/dashboard-remediation-r1-r5-fixturefixed.trx`
+(9/9), `dashboard-remediation-ordering.trx` (2/2), and the latest bounded
+continuation evidence: `dashboard-remediation-r2-r3-r1-r5.trx` (8/9 with one
+PostgreSQL initialization-only authentication failure), its isolated
+`dashboard-remediation-r5-queryshape-retry.trx` (1/1), and the affected
+`dashboard-remediation-r3-original-login-boundary.trx` (1/1). The latest cases
+cover the focused R1–R5 backend boundaries, including unavailable ended-date
+classification, weighted published-drop/importless-roster submissions and
+reopened winner suppression. The independent Dashboard source review is PASS
+after the same reviewer resolved R1–R5 and their direct consequences. It inspected
+source and recorded evidence without rerunning tests. Later UI integration and
+manual acceptance remain pending.
+
+After UI integration:
+
+- Open Dashboard as an enabled Admin with no events, imported-only history,
+  one tracked event and mixed history; confirm truthful coverage and matching
+  totals/chart/history. Live and final-review figures are Provisional; the recap
+  remains ended-only and the current-event card retains the actual phase.
+- Open chart, history, recap and current-card destinations; verify stable event
+  identity, direct entry/reload and Back preserving sort/context.
+- Check provisional, finalized and reopened results, winner ties and missing/
+  partial EHB without invented zero or stale official winner.
+- Exercise controlled read failure and retry, newer-response ownership and lost
+  authorization; confirm no write/sync side effect or fabricated success.
+- Accept both themes, narrow horizontal table scrolling, chart keyboard/touch
+  details, focus, localization and reduced motion on the real integrated page.
+Page visual approval remains exclusively in UI_PAGE_MATRIX.md.
+
+## Participants new UI integration — deferred 2026-09-30
+
+The user explicitly deferred manual testing until the new Participants UI is
+integrated. Backend work is authorized now with automated checks and independent
+review; none of the journeys below is claimed manually passed.
+
+Later bind/test the actual new Participants table, Add and edit drawer:
+
+- In an event Draft before signups open, then SignupOpen/SignupClosed before team
+  draft, perform authorized admin Add/corrections; distinguish team-draft lock.
+- Confirm a selected waiter in an open place and at full capacity with explicit
+  +1 confirmation; see the intended person and unchanged remaining queue order.
+- Move a confirmed team member to Waiting, disclose team removal, observe the next
+  waiter promoted; disabled/no-op cases include open places and no eligible waiter.
+- Withdraw and restore with normal and explicit expanded-capacity placement;
+  observe refreshed counts, queue order and applicable confirmations.
+- Add existing saved accounts, select primary and payment without signup questions
+  or WOM; exercise configured limits and actionable missing-data/conflict feedback.
+- Switch primary and edit event accounts; reopen and verify primary/EHB while the
+  member's saved accounts/defaults remain unchanged.
+- Exercise stale requests, changed permission/lifecycle and failure recovery;
+  payment/private notes retain their existing broader administration window.
+- Verify drawer/direct URL/Back/Forward, dirty closing, focus, filters/scroll and
+  responsive feedback against the approved new reference during UI integration.
+
+No temporary controls, demonstration seeds or user-database reset are authorized
+by this deferred checklist.
 
 ## Current walkthrough disposition — user acceptance, 2026-09-23
 

@@ -1,5 +1,361 @@
 # Current project status
 
+## Consolidation — commits prepared for GitHub backup, 2 October 2026
+
+The user authorized consolidation commits and a normal push of
+`codex/participants-functionality` to
+`https://github.com/swiftpenguin578/BingoWebpage.git` for backup/review.
+This checkpoint supersedes the earlier packaging prohibitions in the historical
+pass entries below. Merge, deployment, main updates and AU/RC implementation remain
+excluded. No production behavior was changed during packaging.
+
+Execution checkout:
+`/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage`.
+Starting HEAD was `993c90e9835d1f2d74fc9c03ed4d8f6306a7e37c`; the index was empty,
+with 48 tracked modified files and seven untracked files. All were retained.
+Inherited local commits `525d5d1` and `993c90e` are included without rewriting them.
+
+Packaging groups (whole files, no overlapping partial staging):
+
+- Participants backend: `d932fdff8bdcd3e6b256a97a36a5568fb49571b7` — 12 files.
+- Dashboard backend: `242094b7a4ee15b8420cc09eae98f27c604a2b0f` — six files.
+- Luck: `d1d2944805b608d70469db80226eabcf9acc25ed` — 29 files, including the migration,
+  designer and model snapshot together.
+- Admin UI references: `ddf39ca03da7710a28a216f1ac50275c270b7a10` — 17 source files
+  plus the reference hash manifest and two retained source-review reports.
+- Planning/acceptance contracts and this delivery checkpoint form a separate
+  documentation commit. Source PASS and application/manual acceptance remain
+  distinct; UI_PAGE_MATRIX remains the page-approval authority.
+
+Packaging preflight: all 26 final Luck candidate hashes and six final Dashboard
+hashes match retained review evidence. The two additional Luck DTO/submission
+files match the earlier retained remediation manifest. Luck CSS retains exactly
+its three approved toggle additions; final recovery evidence already executed
+those baseline comparisons. Participants has recorded stable-diff review PASS
+and executed command/assembly evidence, but no retained final per-source hash
+manifest was located. Historical Participants byte parity is therefore not
+claimed; the planner accepted this provenance limitation for backup packaging.
+No actual source drift was found. No test/build/review suite was rerun or claimed.
+Existing focused results and their limitations remain recorded below.
+
+The 47 application files were hashed at packaging and preserved unchanged through
+commit. SHA-256 of the sorted `SHA256  relative/path\n` manifest:
+`92b9734c41e72f8e5831589c14bfa67e13c478b4d01d0132f423a3a27f501168`.
+Retained packaging baseline, manifests and command results:
+`/private/tmp/consolidation-packaging-20261002/`. The Git commits themselves retain
+the exact application bytes; this checkpoint retains the durable check summary.
+Tracked and staged diff checks passed. Static added-content checks found no private
+keys, provider-token patterns, credential URLs, quoted credential assignments or
+email addresses. Reference data is explicitly synthetic. No database export,
+secret/config file or runtime artifact was included. Largest candidate file was
+575,171 bytes; the reference source totals 1,390,478 bytes (largest 145,771 bytes).
+
+Reference source:
+`/Users/christopher/Documents/BingoWebpage/docs/references/admin-ui/`.
+All 17 source files matched before/after copying and the branch snapshot matched
+byte for byte. SHA-256 of the committed
+`docs/references/admin-ui/evidence/2026-10-02/reference-source.sha256`:
+`435e039e6213a1c1734cf410534b070a374aaa587e25c19f6279431b82f5c8d3`.
+Compared with the Identity/Teams review snapshots, the sole difference was the
+planner's approved FUNCTIONALITY_CHANGES status/findings reconciliation; its exact
+document-only delta was checked. Source and review findings were not rewritten.
+Durable reports are beside that manifest. The reports retain their original review
+wording; the current register supersedes Teams report item 4 by preserving the
+250ms feedback minimum pending a presentation decision, with no automatic removal.
+
+Luck has technical PASS and explicit user visual approval; disposable demo cleanup
+is complete. Participants and Dashboard backends have technical PASS; redesigned
+UI binding/manual acceptance remain deferred. Identity has named SOURCE PASS.
+AU01–AU14 and RC01–RC04 remain queued, including three functional Teams reference
+corrections. Reference defects are not fixed or integrated by these commits.
+Board brief was delivered but completion was not reported; no Board artifact was
+added. The copied reference register carries its page-specific states.
+
+Deliberately excluded and left untouched: the designer checkout's branch and
+unrelated AGENTS/status/UI_SYSTEM edits, TeamBoard, launchSettings, boss artwork,
+BOSS_ARTWORK_GUIDE and tmp files; all other worktrees/branches; running app,
+user/disposable databases and live providers. No PR, merge, release, deployment,
+force-push, reset, deletion or cleanup was performed.
+
+Remote preflight verified main at `22af254c893bb51e7820d84fc4154ff9af3bcc90` and no
+existing `codex/participants-functionality` remote branch. Next permitted action:
+normal branch push, remote-SHA verification and delivery-record closure, then stop.
+
+## Luck redesign — reviewed technical completion, 2026-10-01
+
+Independent reviewer `/root/luck_independent_review` (`gpt-6.1-sol` / high)
+returned **PASS** on the user-approved changed Sol recovery. All three remaining
+findings and their direct consequences are resolved; earlier cleared findings remain
+cleared, no scope expansion or required proof gap remains. Manual visual acceptance
+was explicitly granted by the user on 2026-10-02 (see UI_PAGE_MATRIX). Implementation/review workers are completed/idle; their checks are
+finished. Separate manual-inspection fixture ownership is recorded below.
+
+Manual-inspection setup completed under the user's 2026-10-02 model override:
+`/root/luck_demo_sol` (`gpt-6.1-sol` / high) recovered the existing temporary
+fixture after the previous Luna operator was stopped. Populated real Stats page:
+`http://localhost:5199/Events/stats-event/Stats`, public/no login. Existing fixture
+and accepted mocked fetch produce team Luck 35.2% / KC −100; Stats Player 0
+42.8% / −50; Stats Player 1 38.9% / −50. Worker verified page/Data HTTP 200 and
+Teams/Players Luck/KC controls. User app PID 84029/5164 and its DB remain untouched.
+No repository behavior changes or live provider calls. The user approved Luck
+after inspecting this populated demo on 2026-10-02.
+
+Disposable demo cleanup completed on 2026-10-02 after the user resumed
+consolidation. Luck orchestrator created the existing `STOP` sentinel; verified
+fixture PID 87543 and host PID 87709 exited, and disposable PostgreSQL
+`7f57b1b48407` / Ryuk `e493f80f6a7d` were removed. User app PID 84029/5164
+remains running; its database, other containers and source were untouched.
+The demo URL is no longer served. Original handoff/artifacts remain retained;
+cleanup evidence: `/private/tmp/luck-manual-demo-20261001/cleanup.txt`.
+
+Execution checkout: `/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage`,
+branch `codex/participants-functionality`, base/HEAD
+`993c90e9835d1f2d74fc9c03ed4d8f6306a7e37c`. Existing Participants/Dashboard and
+source-authority work is preserved, uncommitted. Claude reference checkout is excluded.
+Orchestrator app chat `01a0f855-c75f-7a13-8202-6cea96ae60d1`, host `local`,
+native `/root`, approved Sol 6.1/high. Planner `UI Planner`, app chat
+`01a0ec9a-76e3-7252-9850-3f260c612e59`, host `local`.
+Recovery implementer `/root/luck_sol_recovery`, explicitly approved `gpt-6.1-sol`
+/high; previous Luna `/root/luck_implementation` remains idle.
+
+Recovery: nested retained tile-team/player Result and null metrics fail closed with
+bounded diagnostics and unchanged rows; both affected CSS comparisons preserve
+baseline rules plus exactly three approved Luck toggle rules; real final-review
+proof accepts actual end 12:00 UTC, rejects planned end 22:00 UTC, and retains
+checkpoint/timestamps on rejection. The four-file recovery corrected the stopped
+Luna loop without reopening the feature or touching unrelated AU/RC tickets.
+
+Reviewer verified all 26 candidate source hashes and exactly four changed files;
+other 22 remain byte-identical to the previously reviewed candidate. Manifest SHA256:
+`c3ecfa73d424021eb6e6456e321157ad3c7d71ed9239ff24fbaf5373af4bf7be`.
+Evidence: `/private/tmp/luck-sol-recovery-20261001/commands-and-results.txt`,
+`recovery-delta.diff`, `candidate-manifest.txt`, and `independent-review-pass.txt`.
+Executed recovery PostgreSQL 5/5; complete Stats Node file 67 passed / 0 failed /
+2 existing optional PostgreSQL DTO skips; Release compilation, scoped verify-only
+formatter and diff check pass. Reviewer inspected source and recorded evidence,
+without rerunning tests. Earlier calculator 27/27, snapshot/projection/lifecycle
+proof and failed-candidate evidence remain preserved in the prior Luck directories.
+
+Implemented/reviewed: true percentile and KC mode, correct scoped tile/contributor
+results, accepted-fetch-only atomic snapshots and retention, v2 conversion/migration,
+final-review refresh/feedback/idempotency, and focused presentation. No live WOM,
+user-database migration/mutation, app restart, packaging, reference edits or manual
+acceptance occurred during implementation. Subsequent user visual approval on
+2026-10-02 is recorded in UI_PAGE_MATRIX.
+
+Prior start/blocker, new Sol-start, and verified final completion app callbacks
+to the planner all succeeded. Next permitted action: originating
+planner has recorded the technical PASS and explicit user visual approval.
+The user subsequently resumed consolidation on 2026-10-02. Luck's existing
+orchestrator owns the narrowly scoped disposable-demo cleanup. Independent
+Sol 6.1/high reviewer `/root/dashboard_backend/overview_review` is resumed through
+an explicit direct planner assignment for Identity's named correction recheck and
+Teams / Draft completion comparison, read-only, with separate evidence under
+`/private/tmp/admin-consolidation-review-20261002/`. No AU/RC implementation is
+started. Planner reconciles those results before packaging the completed work;
+no commit, push, merge or deployment has occurred during this resume.
+Use [the lean handoff](DELIVERY_PLAN.md#421-lean-execution-and-planner-handoff).
+
+## Dashboard backend — technically complete, 2026-10-01
+
+The fresh independent Dashboard reviewer `/root/dashboard_backend/independent_review`
+(Sol 6.1/high) completed the same-reviewer named recheck: **PASS — R1–R5 and
+their direct consequences are resolved; no remaining source findings or required
+proof gaps in the assigned scope**. Implementer `/root/dashboard_backend/implementation`
+(Luna 5.6/max) completed the named corrections under orchestrator
+`/root/dashboard_backend` (Sol 6.1/high). The reviewer inspected source, candidate
+identity and recorded evidence; it did not rerun the tests. No worker or command
+is running. The read-only Identity
+completion comparison remains separately complete and did not review Dashboard.
+UI binding, reference edits, manual acceptance and packaging remain deferred.
+All existing Participants changes remain preserved; no staging, commit, push,
+merge, deployment, app restart or user-database mutation occurred.
+
+Changed files owned by this pass are
+`src/Bingo.Application/Dashboard/IAdminDashboardService.cs`,
+`src/Bingo.Infrastructure/Dashboard/AdminDashboardService.cs`,
+`src/Bingo.Infrastructure/DependencyInjection.cs`,
+`tests/Bingo.IntegrationTests/AdminDashboardIntegrationTests.cs`,
+`tests/Bingo.IntegrationTests/AdminDashboardRemediationIntegrationTests.cs`, and
+`tests/Bingo.Application.Tests/DashboardHistoryOrderingTests.cs`. The source
+provides repeatable-read authorization/query behavior, event-owned team and
+valid membership interval checks, imported/normal coverage typing, official
+winner and frozen-board reads, compatible bulk EHB coverage, card/community
+figures, cancellation/weak-transaction/cancellation-token guards, and six
+null-last stable history sort helpers.
+
+Named remediation scope is limited to: R1 Live membership departure endpoint
+eligibility and JoinedAt/request-clock boundaries; R2 unavailable actual-date
+coverage and ended-event/new-account fallback semantics; R3 the approved
+last-30-days login boundary; R4 scheduled overdue/future and unscheduled card
+ordering/tie semantics; and R5 focused evidence for missing-date/inverted
+coverage, concurrent consistent reads/query count/no writes/provider behavior,
+imported submission exclusions, official winner/board/manual weighted cases and
+all six history sort fields. No broad suite or speculative matrix is authorized.
+
+The current source correction carries ended-state existence separately from the
+usable recap boundary. If an eligible ended-state event has missing or inverted
+actual dates, Community `NewWebsiteAccounts` is unavailable and `Since` is null;
+the 30-day creation fallback is used only when no ended-state event exists. The
+affected original cohort/login case now expects four stored website accounts in
+the independent login window (disabled accounts remain included).
+
+Current focused evidence:
+
+- `dotnet build tests/Bingo.Application.Tests/Bingo.Application.Tests.csproj --configuration Release --no-restore` — passed, 0 warnings/errors.
+- `dotnet test tests/Bingo.Application.Tests/Bingo.Application.Tests.csproj --no-build --configuration Release --filter FullyQualifiedName~DashboardHistoryOrderingTests --logger "trx;LogFileName=dashboard-ordering-fixed4.trx" --results-directory /private/tmp/dashboard-backend-20261001` — **2/2 passed**; TRX `/private/tmp/dashboard-backend-20261001/dashboard-ordering-fixed4.trx`.
+- `dotnet build tests/Bingo.IntegrationTests/Bingo.IntegrationTests.csproj --configuration Release --no-restore` — passed, 0 warnings/errors.
+- `dotnet test tests/Bingo.IntegrationTests/Bingo.IntegrationTests.csproj --no-build --configuration Release --filter FullyQualifiedName~AdminDashboardIntegrationTests --logger "trx;LogFileName=dashboard-b2-post-ordering.trx" --results-directory /private/tmp/dashboard-backend-20261001` — **7/7 passed**; TRX `/private/tmp/dashboard-backend-20261001/dashboard-b2-post-ordering.trx`. This prior PostgreSQL proof includes the non-microsecond input round trip, membership/disabled/emergency/hidden behavior, winners/submissions/board denominator, imported/normal/equal-start/cancelled/discarded/card/community boundaries, EHB complete/partial/missing/zero/incompatible, and weak transaction/cancellation handling.
+- Earlier passing evidence remains: `/private/tmp/dashboard-backend-20261001/dashboard-b1-retry.trx` (2/2), `dashboard-b2-resume.trx` (3/3), and `dashboard-b2-coverage-fixed.trx` (6/6). Failed precursor TRXs remain retained separately; `dashboard-b2-final.trx` is superseded by the current post-ordering run.
+
+Remediation evidence for the latest bounded continuation is now retained:
+
+- Focused PostgreSQL `AdminDashboardRemediationIntegrationTests` — **8/9
+  passed**; the only failure was test-class initialization with PostgreSQL
+  `28P01 password authentication failed for user "postgres"` before the read
+  proof body ran. TRX `/private/tmp/dashboard-remediation-20261001/dashboard-remediation-r2-r3-r1-r5.trx`.
+- The isolated query-shape/read-failure proof rerun passed **1/1** after the
+  initialization-only failure: `/private/tmp/dashboard-remediation-20261001/dashboard-remediation-r5-queryshape-retry.trx`.
+- The affected original cohort/login-boundary PostgreSQL case passed **1/1**:
+  `/private/tmp/dashboard-remediation-20261001/dashboard-remediation-r3-original-login-boundary.trx`.
+- The existing focused `DashboardHistoryOrderingTests` evidence remains **2/2**
+  passed at `/private/tmp/dashboard-remediation-20261001/dashboard-remediation-ordering.trx`.
+
+The latest remediation class also executes the new strictly interior Live
+departure, missing/inverted-ended-boundary availability, reopened winner
+suppression, published weighted-drop and importless AdminCreated-roster
+submission cases. The earlier 9/9 fixture run remains retained as prior
+provenance; it is not substituted for the latest source identity.
+
+The prior candidate identity and exact commands/results remain recorded in
+`/private/tmp/dashboard-backend-20261001/dashboard-backend-final.meta`; those
+2/2 and 7/7 runs are retained as prior evidence. Fresh remediation identity,
+exact commands/results and per-file SHA-256 values are recorded in
+`/private/tmp/dashboard-remediation-20261001/dashboard-remediation-final.meta`.
+The scoped formatter and `git diff --check` both pass with exit 0. The working
+tree remains intentionally dirty with the existing Participants candidate and
+uncommitted Dashboard/docs changes.
+
+The implementation has no HTTP/UI/routes/tables/migrations/jobs/provider fetch,
+cache, lifecycle write or new policy. Known availability limitations are
+recorded in the Dashboard source contract: imported-only approved-submission
+coverage and incompatible/missing EHB coverage remain unavailable, while
+measured zero is distinct. D01–D09 are implemented, executed at their applicable
+backend boundaries and independently source-reviewed. D10 remains unintegrated;
+manual acceptance is deferred. The next permitted action is planner reconciliation
+and a separately assigned UI integration pass, not broader checks or packaging.
+The final review/status evidence is in
+`/private/tmp/dashboard-remediation-20261001/dashboard-review-final.meta`.
+
+## Overview reference completion review — source review complete, 2026-10-01
+
+Fresh independent reviewer `/root/dashboard_backend/overview_review`
+(`gpt-6.1-sol` / high) completed the user-authorized read-only comparison under
+orchestrator `/root/dashboard_backend`: **CHANGES REQUIRED for the reference**.
+Stable copies of seven directly affected reference files and matching before/
+after content identities are retained in `/private/tmp/overview-source-review-20261001/`.
+No browser checks, tests, app/database mutations, source/reference edits or
+packaging occurred; Claude's reported checks remain unverified handoff evidence.
+
+Named reference findings: R1 permanent-link copy contradicts Signups' Teams-first
+handler; R2 evidence-code failure/stale/uncertain outcome simulation and retry
+state; R3 failed hidden-event load still renders Restore; R4 scheduled-opening
+requirements incorrectly block valid manual-opening fallback. Reference README's
+cancelled Stats not-found claim also conflicts with its real cancellation-page
+handler. Shared-system reuse has no concrete finding; accepted At-a-glance
+composition and Signup setup remain outside this review.
+
+B1 is a source-confirmed P1 application gap: restoring hidden Final Review or
+legacy Finalized does not acquire the shared current-boundary lock or check for
+another visible current event. Hide A, start B, restore A can yield two visible
+current events. This was not reproduced against PostgreSQL and was not fixed.
+Planner `/root` received the concrete locations, evidence limits and full report.
+Next permitted action is planner reconciliation and separately assigned named
+reference corrections or an approved B1 backend correction, not automatic
+implementation, another audit or manual acceptance. The earlier thread-limit
+failures were recovered; no reviewer remains active.
+
+## Participants backend pass — technically complete, 2026-09-30
+
+The approved P1–P3 backend pass is implemented in
+`/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage`,
+branch `codex/participants-functionality`, base
+`993c90e9835d1f2d74fc9c03ed4d8f6306a7e37c`. The six planner-authored document
+changes and implementation diff are preserved. No staging, commit, push, merge,
+deployment, app restart, user-database mutation or manual acceptance occurred.
+
+Planner `/root` assigned Sol `gpt-6.1-sol` / `high` orchestrator
+`/root/participants_backend`, Luna `gpt-5.6-luna` / `max` implementer
+`/root/participants_backend/implementation`, and independent Sol `gpt-6.1-sol` /
+`high` reviewer `/root/participants_backend/independent_review`. Readiness resolved
+mapping and compatibility without a new schema. The same implementer completed
+named remediation and the same reviewer accepted the final stable diff and proof:
+**PASS; no source findings or required proof gaps remain**. The reviewer inspected
+source and executed-evidence identity; it did not independently rerun the tests.
+
+Implemented: selected waiter confirmation with explicit full-capacity +1; move a
+Confirmed participant to the queue end and promote the existing next waiter while
+ending current team authority with history; normal/override restore; question-free
+Admin Add from active saved Playing links and stored EHB, with selected primary and
+initial payment; primary switching and event-only account add/remove/correction.
+Primary question/answer authority agrees across participant and draft reads. Saved
+profile data, public self-signup, existing Admin forms, ordinary promotion and
+protected finalized/Live workflows remain preserved. No new UI controls/handlers,
+services, tables, dependencies or migration were added.
+
+All four review findings are resolved: corrections release and append assignments
+with retained identity/EHB/provenance and meaningful audit; account mutations notify
+the linked owner safely; promotions notify enabled Admin recipients without retry
+duplicates; rejected restore/primary operations cannot leak tracked changes into a
+later same-context save. Focused PostgreSQL proof covers override restore/retry and
+reacquisition rollback; controlled real draft-start snapshot conflict and route
+recovery after capacity/account mutations; saved-Add invalid/stale/conflicting
+inputs and omission of required custom answers; secondary-primary projection/EHB
+agreement; invalid-current-slot rejection followed by a same-context save; and
+same-character EHB correction against the partial unique key with retained
+microsecond-precise provenance.
+
+Actual saved evidence is in
+`/private/tmp/participants-backend-remediation-20260930/`:
+
+- `web-build-after-test-fixes.log`: Release Web build, 0 warnings/errors.
+- `remediation-focused-final.log/.trx`: focused PostgreSQL checks, 7/7 passed.
+- `draft-interleaving-controlled-proof.log/.trx/.meta`: controlled real draft-start
+  conflict/recovery, 1/1 passed.
+- `primary-projection-proof-final.log/.trx/.meta`: secondary-primary/stale proof,
+  1/1 passed; the final affected case is superseded by
+  `primary-invalid-current-slot-proof-final.log/.trx/.meta`, 1/1 passed, which
+  reaches the original invalid-slot branch and verifies a later same-context save.
+- `ehb-correction-proof-parsed.log/.trx/.meta`: same-character EHB history/provenance
+  and repeat behavior, 1/1 passed.
+- `format-scoped-final-exact.meta`: scoped formatter command and exit 0 verified by
+  the reviewer. The later changed-test formatter exit 0 is worker-reported in its
+  handoff; `format-slice4-invalid-slot.log` is quiet.
+- `diff-check-final.meta`: exit 0; orchestrator and reviewer also independently
+  checked the final source diff. These overlapping targeted runs are not summed as
+  unique coverage or represented as a full-suite pass.
+
+Earlier worker-reported broad results had terminal output only: Release
+Infrastructure/Web builds, Domain 264/264, lifecycle 18/18, authenticated signup
+43/43, public projection 1/1 and old Admin form 1/1. They remain earlier evidence,
+not fresh final-candidate suite execution. Failed/diagnostic artifacts are retained
+separately. Bounded diagnosis found MSB3371 access denied for generated build output
+because this checkout is outside default writable roots; narrow authorized
+escalation recovered the build. No cache wipe, reinstall or broad process kill was
+used. Fresh targeted runs built the Release test assembly; stale `--no-build`
+evidence is not used for the added proof.
+
+The completed service/request/result and UI-binding handoff is in the assigned
+Participants section of `DELIVERY_PLAN.md`. New frontend binding and manual
+interaction/visual acceptance remain deferred to redesigned UI integration;
+`UI_PAGE_MATRIX.md` approval is unchanged. Claude's Documents reference export,
+tokens and components remain excluded. The next permitted action is planner
+reconciliation and a separately assigned UI integration pass, not packaging.
+
+The prior app-thread callback was automatically rejected and remains unretried;
+no app wake-up succeeded. Completion is reported to `/root` through the currently
+authorized internal collaboration/final route.
+
 ## Final release correction pass — named failures resolved, 2026-09-29
 
 The authorized bounded correction pass on `admin-simplification` is technically

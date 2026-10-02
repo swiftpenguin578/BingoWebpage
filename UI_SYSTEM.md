@@ -897,6 +897,33 @@ remediation. Record cleared pages as awaiting manual approval. The later combine
 walkthrough includes shared-shell/CSS regressions across those pages. This does
 not authorize scope expansion, packaging, commits, deployment or bypassing a blocker.
 
+## Luck display contract — active 2026-10-01
+
+Stats keeps its existing Luck container and team/player comparison flow. The
+default mode is **Luck %** on a fixed 0–100 scale; an in-container toggle selects
+**KC difference**. Do not add a second container, boss selector or EHB mode. Both
+modes use the same saved snapshot, timestamp and scope. Sort, pin and extreme
+selection use the active mode's unrounded value, while display rounds to at most
+one decimal. Signed KC values normalize rounded negative zero.
+
+Luck uses the fixed percentile scale, so it has no plus signs, negative values or
+zero-as-expected centre. KC difference is signed and uses a zero-centred scale.
+Missing, unranked, estimated, zero-recorded, stale and numerically unavailable
+states remain explicit rows without fabricated values. A neutral Last updated
+label may accompany a retained snapshot; ordinary age is not shown as a routine
+error. Provider failure and estimate wording remains meaningful without exposing
+private diagnostics.
+
+One localized explanation is shared by Stats and tile help: Luck compares approved
+drops with modeled outcomes at the same recorded activity and retained rates;
+higher percentages mean luckier outcomes and expectation is not forced to the
+midpoint. KC mode explains the rate-equivalent balance and uses the short tooltip
+“KC totals don’t account for differences in boss kill speed.” Tile projections
+show one aggregate result plus each relevant boss/activity result, and contributor
+rows use their matching activity result. Single-boss views do not repeat identical
+aggregate and boss rows unnecessarily. Preserve reduced-motion, keyboard-focus,
+responsive and EN/DA localization rules from this document.
+
 ## Protected baselines
 
 The protected Admin baseline is the shell plus Event Create, Identity,

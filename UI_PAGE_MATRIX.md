@@ -106,6 +106,30 @@ DELIVERY_PLAN.md section 18 defines the bounded functional checks and stop bound
 
 ## Stats prototype UI approved — 2026-09-15
 
+### Luck mode contract — active implementation authority, 2026-10-01
+
+The existing Stats Luck container remains the approved composition. Its default
+mode is Luck % on a fixed 0–100 scale; an in-container toggle selects KC
+difference. The two modes share the saved snapshot, timestamps, team/player
+comparison, search, pinning and drill-down. Sort and extreme selection use the
+active mode's unrounded value; presentation rounds to at most one decimal. KC is
+signed and zero-centred, while Luck has no signed or zero-as-expected centre.
+
+Tile views retain one aggregate result and show separate boss/activity results;
+contributor rows use the matching activity result. Missing or unsupported results
+remain unavailable; calculable estimates and recorded zero retain meaningful labels.
+Ordinary age or evidence changes do not invalidate a compatible saved result;
+quiet Last updated metadata describes its age. Shared Stats/tile help uses
+localized plain language and includes “KC totals don’t account for differences in
+boss kill speed.” This is a behavior/data binding correction within the existing
+page family; it does not approve a new container, boss selector, EHB mode or a
+broader visual redesign. The Luck redesign is technically complete and independently
+reviewed. **Manually approved by the user, 2026-10-02:** “Luck is approved”, after
+inspection of the populated real Stats demo with Luck % and KC difference for teams
+and players. This closes the new Luck binding visual-acceptance gate; existing
+composition approval is retained. It does not grant approval to unrelated pages
+or constitute merge, deployment or production-data verification.
+
 User approved the complete Stats UI after the section-by-section responsiveness pass:
 "I think thats the UI approved." This final manual acceptance supersedes earlier
 pending Stats visual/trial statuses. The accepted artifact is
