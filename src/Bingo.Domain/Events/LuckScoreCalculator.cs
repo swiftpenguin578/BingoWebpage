@@ -3,7 +3,7 @@ namespace Bingo.Domain.Events;
 /// <summary>Independent repetitions of one Bernoulli opportunity.</summary>
 public readonly record struct LuckBinomialComponent(long Trials, decimal Probability);
 
-/// <summary>Scores the mid-rank of observed drops relative to the interpolated expected mid-rank.</summary>
+/// <summary>Returns the fixed 0–100 mid-rank percentile of an observed drop count.</summary>
 public static class LuckScoreCalculator
 {
     // Counts must remain exactly representable in the double-precision PMF recurrence.
@@ -15,7 +15,7 @@ public static class LuckScoreCalculator
     /// <summary>
     /// Combines independent binomial distributions, never their scores. Returns null for
     /// impossible observations or distributions exceeding the numerical work limits.
-    /// Empty and deterministic distributions score zero at their sole possible outcome.
+    /// Empty and deterministic distributions score 50 at their sole possible outcome.
     /// </summary>
     public static decimal? Calculate(IReadOnlyCollection<LuckBinomialComponent> components, long received)
     {
@@ -23,7 +23,6 @@ public static class LuckScoreCalculator
         ArgumentOutOfRangeException.ThrowIfNegative(received);
         var groups = new Dictionary<decimal, long>();
         long totalTrials = 0, minimum = 0, maximum = 0;
-        decimal expected = 0;
         foreach (var component in components)
         {
             ArgumentOutOfRangeException.ThrowIfNegative(component.Trials);
@@ -33,7 +32,6 @@ public static class LuckScoreCalculator
             totalTrials += component.Trials;
             if (component.Trials == 0 || component.Probability == 0) continue;
             maximum += component.Trials;
-            expected += component.Trials * component.Probability;
             if (component.Probability == 1)
             {
                 minimum += component.Trials;
@@ -44,7 +42,7 @@ public static class LuckScoreCalculator
         }
 
         if (received < minimum || received > maximum) return null;
-        if (groups.Count == 0) return 0m;
+        if (groups.Count == 0) return 50m;
 
         // The union bound limits the combined omitted mass. Starting at the mode avoids
         // underflow at P(X=0), even with billions of trials. No distribution is substituted.
@@ -68,15 +66,8 @@ public static class LuckScoreCalculator
             pooled = combined;
         }
 
-        var lowerExpected = (long)decimal.Floor(expected);
-        var fraction = (double)(expected - lowerExpected);
-        var baseline = MidRank(pooled, lowerExpected - minimum);
-        if (fraction > 0)
-            baseline += fraction * (MidRank(pooled, lowerExpected + 1 - minimum) - baseline);
         var rank = MidRank(pooled, received - minimum);
-        var difference = rank - baseline;
-        var score = difference == 0 ? 0 : 100 * difference / (difference < 0 ? baseline : 1 - baseline);
-        return (decimal)Math.Clamp(score, -100, 100);
+        return (decimal)Math.Clamp(100 * rank, 0, 100);
     }
 
     private static Distribution? Binomial(long trials, decimal probability, double tailBound, ref long operationsRemaining)

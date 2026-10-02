@@ -139,7 +139,6 @@ public sealed class EventLifecycleService(
             item.CloseSubmissionsIfDue(now);
             AddTransitionAndAudit(item, from, actor.Id, actor.Username, false, "event.ended", reason, now, now);
             await db.SaveChangesAsync(ct);
-            await Bingo.Infrastructure.Stats.PublicStatsService.RefreshCheckpointAsync(db, time, eventId, ct);
             await tx.CommitAsync(ct);
             return new(true);
         }
@@ -255,7 +254,6 @@ public sealed class EventLifecycleService(
             item.CloseSubmissionsIfDue(now);
             AddTransitionAndAudit(item, from, null, "System", true, "event.ended_automatically", null, now, scheduledEnd);
             await db.SaveChangesAsync(ct);
-            await Bingo.Infrastructure.Stats.PublicStatsService.RefreshCheckpointAsync(db, time, eventId, ct);
             await tx.CommitAsync(ct);
         }
         catch (Exception) when (!ct.IsCancellationRequested)

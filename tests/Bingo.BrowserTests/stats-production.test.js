@@ -105,16 +105,70 @@ test('global top five, sixth hover/focus/pin, scoped drops, search does not move
  const input=h.document.querySelector('#gp-player-search');input.value=extra.name;a.searchPlayers();const button=h.document.querySelector('#gp-search-results button');await button.fire('click');assert.equal(h.window.scrollY,123);assert.equal(h.document.activeElement.id,'gp-search-toggle');
  a.openTeam('team-1');assert.equal(h.document.querySelectorAll('.treasure-item').length,0);assert.equal(a.gpBreakdown().length,7);
 });
-test('Luck uses min 60 scale; positive/negative outliers and pinned comparison share the same extent',()=>{
- const p=fixture();const h=harness(p);assert.equal(h.api.scale(),60);
- p.stats.luck.teams[0].result.percentage=350;p.stats.luck.teams[1].result.percentage=-200;h.api.setData(p);h.api.renderLuck();assert.equal(h.api.scale(),350);h.api.finishLuckMotion();
+test('Luck uses a fixed 0–100 percentile scale and keeps pinned comparison geometry',()=>{
+ const p=fixture();const h=harness(p);assert.equal(h.api.scale(),50);
+ p.stats.luck.teams[0].result.percentage=100;p.stats.luck.teams[1].result.percentage=0;h.api.setData(p);h.api.renderLuck();assert.equal(h.api.scale(),50);h.api.finishLuckMotion();
  assert.ok(h.document.querySelectorAll('.luck-bar').every(bar=>parseFloat(bar.style.width)<=40));
- const list=h.document.querySelector('#luck-rows');list.scrollTop=999;void list.fire('scroll');assert.equal(h.api.scale(),350);
+ const list=h.document.querySelector('#luck-rows');list.scrollTop=999;void list.fire('scroll');assert.equal(h.api.scale(),50);
  h.api.setLuckMode('players');const middle=h.api.luckPlayers()[17];h.api.selectLuckPlayer(middle.id);assert.equal(h.api.state().luckPinnedId,middle.id);assert.ok(h.document.querySelector('.luck-pinned-row'));
 });
-test('missing prices/activity and stale metadata stay honest; no fabricated Luck bar',()=>{
- const p=fixture(3,true);p.stats.luck.stale=true;p.stats.luck.evidenceRevision=6;const h=harness(p);
- assert.match(h.document.querySelector('.luck-panel .subheading').textContent,/Stale/);assert.match(h.document.querySelector('.luck-panel .subheading').title,/revision 6/);
+
+test('Luck display mode keeps percentile/KC geometry, sorting, pinning, labels and reduced motion',async()=>{
+ const p=fixture(5),percent=[75.06,25.05,null,50,100],kc=[12.34,-6.25,null,0,100.04];
+ p.stats.luck.fetchedAt='2026-09-14T07:30:00Z';p.stats.luck.calculatedAt='2026-09-14T07:30:00Z';
+ p.stats.luck.teams.forEach((team,i)=>{
+  team.result.percentage=percent[i];team.result.kcDifference=kc[i];team.result.estimated=i===0;team.result.zeroRecordedApproximation=i===1;team.result.status=i===2?'WaitingForActivityData':'Calculated';
+  team.players.forEach((player,j)=>{player.result.percentage=((i*7+j)%31)-15;player.result.kcDifference=(i*7+j)-17.5;player.result.status='Calculated';});
+ });
+ const h=harness(p),panel=h.document.querySelector('.luck-panel');
+ Object.assign(panel.dataset,{luckLabel:'Luck %',kcLabel:'KC difference',luckHelp:'Percent guidance',kcHelp:'KC guidance',kcSpeedHelp:'Speed guidance',lastUpdated:'Last updated',luckEstimated:'estimated',luckZeroRecorded:'zero-recorded estimate',luckAxisLeft:'0%',luckAxisMid:'50%',luckAxisRight:'100%',kcAxisLeft:'Below rate',kcAxisMid:'Zero',kcAxisRight:'Above rate'});
+ h.api.setData(p);h.api.renderLuck();h.api.finishLuckMotion();
+ const rows=()=>[...h.document.querySelectorAll('#luck-rows .luck-row')],row=id=>rows().find(item=>item.querySelector('.luck-name').textContent.startsWith(`Team ${id.slice(-1)}`));
+ assert.equal(h.api.scale(),50);
+ assert.deepEqual(rows().map(item=>item.querySelector('.luck-name').textContent.match(/^Team \d+/)[0]),['Team 1','Team 3','Team 0','Team 4','Team 2']);
+ assert.match(h.api.data().luck.teams.find(item=>item.id==='team-0').label,/75\.1%.*estimated/);
+ assert.equal(h.api.data().luck.teams.find(item=>item.id==='team-0').kcLabel,'+12.3 KC · estimated');
+ assert.match(row('team-0').querySelector('.luck-value').textContent,/75\.1%.*estimated/);
+ assert.equal(row('team-0').querySelector('.luck-bar').style.left,'50%');assert.match(row('team-0').getAttribute('aria-label'),/estimated/);assert.equal(h.document.querySelector('#luck-axis-left').textContent,'0%');assert.equal(h.document.querySelector('#luck-axis-mid').textContent,'50%');assert.equal(h.document.querySelector('#luck-axis-right').textContent,'100%');
+ const negative=row('team-1').querySelector('.luck-bar');assert.ok(Math.abs(Number.parseFloat(negative.style.left)+Number.parseFloat(negative.style.width)-50)<.001);
+ assert.match(h.document.querySelector('#luck-subheading').textContent,/^Last updated · /);
+ const kcButton=h.document.querySelector('#luck-value-tabs button[data-value-mode="kc"]');
+ await h.document.querySelector('#luck-value-tabs').fire('click',{target:kcButton});h.api.finishLuckMotion();
+ assert.equal(h.api.scale(),100.04);assert.equal(kcButton.getAttribute('aria-pressed'),'true');
+ assert.deepEqual(rows().map(item=>item.querySelector('.luck-name').textContent.match(/^Team \d+/)[0]),['Team 1','Team 3','Team 0','Team 4','Team 2']);
+ assert.match(row('team-0').textContent,/^\s*Team 0[\s\S]*\+12\.3 KC/);
+ assert.match(row('team-1').textContent,/^\s*Team 1[\s\S]*-6\.3 KC/);
+ assert.match(row('team-3').textContent,/^\s*Team 3[\s\S]*0 KC/);
+ assert.match(row('team-2').textContent,/Waiting for activity/);
+ assert.equal(Number.parseFloat(row('team-3').querySelector('.luck-bar').style.width),0);
+ assert.equal(h.document.querySelector('#luck-axis-left').textContent,'Below rate');
+ assert.equal(h.document.querySelector('#luck-axis-mid').textContent,'Zero');
+ assert.equal(h.document.querySelector('#luck-axis-right').textContent,'Above rate');
+ assert.match(h.document.querySelector('#luck-help-text').textContent,/KC guidance Speed guidance/);
+ const updated=h.document.querySelector('#luck-subheading').textContent;
+ panel.dataset.lastUpdated='Sidst opdateret';panel.dataset.kcLabel='KC-forskel';panel.dataset.kcHelp='KC-vejledning';panel.dataset.kcSpeedHelp='Hastighed';panel.dataset.kcAxisLeft='Under rate';panel.dataset.kcAxisMid='Nul';panel.dataset.kcAxisRight='Over rate';
+ h.api.renderLuck();h.api.finishLuckMotion();
+ assert.match(h.document.querySelector('#luck-subheading').textContent,/^Sidst opdateret · /);
+ assert.notEqual(h.document.querySelector('#luck-subheading').textContent,updated);
+ assert.equal(h.document.querySelector('#luck-axis-left').textContent,'Under rate');
+ assert.equal(h.document.querySelector('#luck-axis-mid').textContent,'Nul');
+ assert.equal(h.document.querySelector('#luck-axis-right').textContent,'Over rate');
+ assert.match(h.document.querySelector('#luck-help-text').textContent,/KC-vejledning Hastighed/);
+ const playersButton=h.document.querySelector('#luck-tabs button[data-mode="players"]');
+ await h.document.querySelector('#luck-tabs').fire('click',{target:playersButton});h.api.finishLuckMotion();
+ const candidate=h.api.luckPlayers().find(player=>!h.api.luckExtremes().some(extreme=>extreme.id===player.id));
+ assert.ok(candidate);h.api.selectLuckPlayer(candidate.id);h.api.finishLuckMotion();
+ assert.equal(h.api.state().luckPinnedId,candidate.id);assert.ok(h.document.querySelector('.luck-pinned-row'));
+ h.media.matches=true;h.listeners.motion.forEach(fn=>fn());
+ const percentageButton=h.document.querySelector('#luck-value-tabs button[data-value-mode="percentage"]');
+ await h.document.querySelector('#luck-value-tabs').fire('click',{target:percentageButton});h.api.finishLuckMotion();
+ assert.equal(percentageButton.getAttribute('aria-pressed'),'true');
+ assert.ok(rows().filter(item=>!item.querySelector('.luck-bar').hidden).every(item=>item.querySelector('.luck-bar').style.transform==='scaleX(1)'));
+});
+
+test('missing prices/activity and retained timestamp metadata stay honest; no fabricated Luck bar',()=>{
+ const p=fixture(3,true);p.stats.luck.stale=true;p.stats.luck.evidenceRevision=6;const h=harness(p);h.document.querySelector('.luck-panel').dataset.lastUpdated='Last updated';h.api.renderLuck();
+ assert.match(h.document.querySelector('.luck-panel .subheading').textContent,/Last updated/);assert.match(h.document.querySelector('.luck-panel .subheading').title,/Received 3; expected 2/);
  assert.ok(h.document.querySelectorAll('.luck-bar').every(bar=>bar.hidden));assert.match(h.document.querySelector('#gp-unit').textContent,/missing prices/);
  assert.equal(h.document.querySelector('.share-percent').textContent,'—');assert.match(h.document.querySelector('.item-value').textContent,/unavailable/);
 });
@@ -165,11 +219,15 @@ test('approved baseline hashes, CSS declarations/order and unchanged interaction
  const leafBlocks=css=>[...css.replace(/\/\*[\s\S]*?\*\//g,'').matchAll(/\{([^{}]*)\}/g)].map(match=>match[1].replaceAll('/stats/assets/','assets/').replace(/\s+/g,' ').trim());
  const html=fs.readFileSync(path.join(baseline,'stats-page-prototype.html'),'utf8');
  assert.deepEqual(leafBlocks(fs.readFileSync(path.join(root,'wwwroot/css/stats-base.css'),'utf8')),leafBlocks(html.split('<style>')[1].split('</style>')[0]));
- assert.deepEqual(leafBlocks(fs.readFileSync(path.join(root,'wwwroot/css/stats-density.css'),'utf8')),leafBlocks(fs.readFileSync(path.join(baseline,'stats-density.css'),'utf8')));
+ const expectedDensity=expectedLuckDensityTree(cssTree(fs.readFileSync(path.join(baseline,'stats-density.css'),'utf8')));
+ const leafBodies=rules=>rules.flatMap(rule=>rule.children?leafBodies(rule.children):[rule.body]);
+ assert.deepEqual(leafBlocks(fs.readFileSync(path.join(root,'wwwroot/css/stats-density.css'),'utf8')),leafBodies(expectedDensity));
  const source=fs.readFileSync(path.join(baseline,'stats-prototype.js'),'utf8'),port=fs.readFileSync(path.join(root,'wwwroot/js/stats-page.js'),'utf8');
  for(const name of ['animateGp','animateSvg','dismissGpHelp','highlightGp','updateComparison','previewPlayer','pinPlayer','holdGpLayout','openTeam','searchPlayers','layoutGpSearch','setSearchOpen','node','donutArc','revealDonut','renderLegend','updateLegendState','finishLuckMotion','animateLuckRows','setLuckHelpOpen','closeLuckSearch','openLuckTeam','highlightLuckPlayer','searchLuckPlayers','removeLuckComparison','setRaceHelpOpen','animateTimeline']){
    const extract=script=>{const start=script.indexOf(`  function ${name}(`);assert.ok(start>=0,name);return script.slice(start,script.indexOf('\n  }',start)+4)};
-   assert.equal(extract(port),extract(source),`${name} remains the actual approved implementation`);
+   // Only these two removed explanatory comments differ; executable text stays exact.
+   const retainedSource=extract(source).replace('    // Rows use this positioned list as their offset parent: keep scroll coordinates local.\n    // Align the row bottom with the viewport bottom so the whole result is visible.\n','');
+   assert.equal(extract(port),name==='highlightLuckPlayer'?retainedSource:extract(source),`${name} remains the actual approved implementation`);
  }
  for(const file of ['fonts/BarlowCondensed-ExtraBold.woff2','fonts/BarlowCondensed-SemiBold.woff2','fonts/Geist-Variable.woff2','branding/login-artwork-dark.svg','items/dragon-warhammer-detail.png','items/twisted-bow.png','items/tumekens-shadow.png','items/torva-platebody.png','items/abyssal-whip.png','items/bandos-chestplate.png','items/berserker-ring.png'])assert.deepEqual(fs.readFileSync(path.join(root,'wwwroot/stats/assets',file)),fs.readFileSync(path.join(baseline,'assets',file)));
 });
@@ -408,7 +466,7 @@ test('UI1 arbitrary race inspection time survives live-domain and real progress 
  const p=fixture(2);p.generatedAt='2026-09-16T08:00:00Z';p.stats.teams[1].progressHistory[0].approved=11;p.stats.luck.teams[0].result.percentage=42;
  const calls={...h.calls};h.setResponse(p);await h.api.refreshStats();assert.equal(q('#race-date').textContent,date);assert.equal(q('.race-count').textContent,counts);
  assert.equal(q('#race-tracks').classList.contains('exploring'),true);assert.equal(q('#race-tooltip').hidden,true);assert.equal(h.calls.renderLuck,calls.renderLuck+1);
- h.api.finishLuckMotion();assert.ok(q('#luck-rows').textContent.includes('+42%'));
+ h.api.finishLuckMotion();assert.ok(q('#luck-rows').textContent.includes('42%'));
 });
 test('UI1 deferred startup clock fetch still respects an artwork draft and newer save revision',async()=>{
  const h=harness();const p=fixture();p.generatedAt='2026-09-15T08:00:01Z';h.setResponse(p);await h.api.refreshStats();assert.equal(h.posts.length,1);
@@ -501,6 +559,17 @@ function scopedStatsSelector(selector){
  return `${statsScope} ${selector}`;
 }
 function expectedStatsTree(rules,keyframes=false){return rules.map(rule=>rule.children?{...rule,children:expectedStatsTree(rule.children,/^@keyframes\b/.test(rule.header))}:{...rule,header:keyframes||rule.header.startsWith('@')?rule.header:cssSelectors(rule.header).map(scopedStatsSelector).join(',')});}
+function expectedLuckDensityTree(original){
+ const rules=expectedStatsTree(original),button=`${statsScope} #luck-value-tabs button`;
+ const compact=rules.find(rule=>rule.header==='@media(max-width:560px)'&&rule.children?.some(child=>child.header===`${statsScope} #gp-tabs button,${statsScope} #luck-tabs button`));
+ assert.ok(compact,'existing compact tab query remains present');
+ const compactTabs=compact.children.findIndex(rule=>rule.header===`${statsScope} #gp-tabs button,${statsScope} #luck-tabs button`);
+ compact.children.splice(compactTabs+1,0,{header:button,body:'font-size:14px'});
+ const tabs=rules.findIndex(rule=>rule.header===`${statsScope} #luck-tabs`&&rule.body==='flex:none;gap:12px');
+ assert.ok(tabs>=0,'existing Luck scope tabs retain their declarations');
+ rules.splice(tabs+1,0,{header:`${statsScope} #luck-value-tabs`,body:'flex:none;gap:8px'},{header:button,body:'font-size:13px'});
+ return rules;
+}
 function statsCssTrees(){
  const baseline=path.resolve(root,'../../prototypes/stats/outputs'),html=fs.readFileSync(path.join(baseline,'stats-page-prototype.html'),'utf8');
  const cssRoot=process.env.STATS_PASS5_CSS_ROOT||path.join(root,'wwwroot/css');
@@ -508,7 +577,7 @@ function statsCssTrees(){
 }
 test('responsive port preserves full base/density selector trees, nested query ancestry and Stats-only scope',()=>{
  const {original,production}=statsCssTrees();
- for(let i=0;i<original.length;i++)assert.deepEqual(production[i],expectedStatsTree(original[i]),`${i?'density':'base'} retains the exact scoped selector/query/declaration tree`);
+ for(let i=0;i<original.length;i++)assert.deepEqual(production[i],i?expectedLuckDensityTree(original[i]):expectedStatsTree(original[i]),`${i?'density with the three approved Luck value-tab rules':'base'} retains the exact scoped selector/query/declaration tree`);
 });
 function flatCssRules(rules,ancestors=[]){return rules.flatMap(rule=>rule.children?/^@keyframes/.test(rule.header)?[]:flatCssRules(rule.children,[...ancestors,rule.header]):rule.header.startsWith('@')?[]:cssSelectors(rule.header).map(selector=>({selector,ancestors,body:rule.body})));}
 function widthQueryApplies(query,viewport,card){
@@ -575,7 +644,7 @@ test('responsive GP cascade matches prototype at the 600px card boundary, viewpo
 });
 
 function contentFixture(count){
- const p=fixture(count),names=['Prifddinas Pioneers','Karamja Crew','The Last Guardians of the Very Long Wilderness Team Name','Desert Treasure Seekers','Morytania Moonwalkers','Falador Foundry','Varrock Vanguards'],scores=[-96,94.2,-94.2,1350.5,-2048.7,0,2048.7];
+ const p=fixture(count),names=['Prifddinas Pioneers','Karamja Crew','The Last Guardians of the Very Long Wilderness Team Name','Desert Treasure Seekers','Morytania Moonwalkers','Falador Foundry','Varrock Vanguards'],scores=[0,94.2,5.8,100,1,50,99];
  p.stats.value.knownValueGp=55450000000;p.stats.value.valueGp=55450000000;p.stats.valueHistory[0].value={...p.stats.value};
  p.stats.teams.forEach((team,i)=>{team.name=names[i%names.length];team.value.knownValueGp=55450000000/count;team.valueHistory[0].value={...team.value};p.stats.luck.teams[i].name=team.name;p.stats.luck.teams[i].result.percentage=scores[i%scores.length];team.players.forEach((player,j)=>{player.name=`Test teams-${count} ${i+1} ${j+1} ff3d`;p.stats.luck.teams[i].players[j].name=player.name;p.stats.luck.teams[i].players[j].result.percentage=scores[(i*7+j)%scores.length]});});
  p.stats.drops=Array.from({length:3},(_,i)=>({...p.stats.drops[0],submissionId:`content-${i}`,characterName:p.stats.teams[0].players[0].name,item:{...p.stats.drops[0].item,name:'TEST Twisted bow with a long exact item variant'},valueGp:1400000000-i*1000000}));
@@ -585,15 +654,15 @@ function assertLuckEndpoints(h,trackWidth,fontFactor=1){
  let common=null;
  for(const row of h.document.querySelectorAll('.luck-row')){
   const bar=row.querySelector('.luck-bar'),number=row.querySelector('.luck-value');if(bar.hidden)continue;
-  const value=Number.parseFloat(number.title),width=Number.parseFloat(bar.style.width),progress=Number(bar.style.transform.match(/scaleX\(([^)]+)\)/)[1]);
-  if(value){const proportion=width/Math.abs(value);if(common!==null)assert.ok(Math.abs(proportion-common)<1e-9,'all entries use the same proportional span');common=proportion;}
-  const offset=Number.parseFloat((value<0?number.style.right:number.style.left).slice(5))*trackWidth/100+7;
+  const value=Number.parseFloat(number.title),delta=value-50,width=Number.parseFloat(bar.style.width),progress=Number(bar.style.transform.match(/scaleX\(([^)]+)\)/)[1]);
+  if(delta){const proportion=width/Math.abs(delta);if(common!==null)assert.ok(Math.abs(proportion-common)<1e-9,'all entries use the same proportional span');common=proportion;}
+  const offset=Number.parseFloat((delta<0?number.style.right:number.style.left).slice(5))*trackWidth/100+7;
   const labelWidth=number.textContent.length*11*.56*fontFactor;
-  const left=value<0?trackWidth-offset-labelWidth:offset,right=left+labelWidth;
+  const left=delta<0?trackWidth-offset-labelWidth:offset,right=left+labelWidth;
   assert.ok(left>=4-1e-6,`${number.textContent} leaves the left/name clearance (${left})`);assert.ok(right<=trackWidth-4+1e-6,`${number.textContent} leaves the right/panel clearance (${right})`);
-  const end=trackWidth/2+(value<0?-1:1)*width/100*trackWidth*progress;
-  assert.ok(Math.abs((value<0?left+labelWidth+7:left-7)-end)<1e-6,'label and visible bar endpoint stay synchronized');
-  assert.equal(number.textContent,`${Number((value*progress).toFixed(1))>0?'+':''}${Number((value*progress).toFixed(1))}%`);
+  const end=trackWidth/2+(delta<0?-1:1)*width/100*trackWidth*progress;
+  assert.ok(Math.abs((delta<0?left+labelWidth+7:left-7)-end)<1e-6,'label and visible bar endpoint stay synchronized');
+  assert.equal(number.textContent,`${Number((50+delta*progress).toFixed(1))}%`);
  }
  return common;
 }
@@ -610,7 +679,8 @@ for(const count of [2,3,5,8,15])test(`R1–R3 long content stays available and m
   assert.ok(Math.hypot(width,height)<=options.ringWidth*125/180-8+.001,'entire text rectangle fits the supplied inner-circle geometry');assert.ok(valueSize>0&&valueSize<=34);assert.ok(captionSize>=8&&captionSize<=9);
  }
  fitted();const compact=Number.parseFloat(total.style['--share-value-size']);options.ringWidth=150;options.trackWidth=700;h.resize('.share-ring');h.resize('.luck-panel');h.tick(1250);fitted();
- assert.ok(Number.parseFloat(total.style['--share-value-size'])>=compact);assert.ok(Math.abs(assertLuckEndpoints(h,700)*h.api.scale()-40)<1e-8,'roomy tracks retain the approved 40% half-track');
+ assert.ok(Number.parseFloat(total.style['--share-value-size'])>=compact);const visibleLuckWidths=[...h.document.querySelectorAll('.luck-bar')].filter(bar=>!bar.hidden).map(bar=>Number.parseFloat(bar.style.width));
+ assert.ok(Math.abs(Math.max(...visibleLuckWidths)-40)<1e-8,'roomy tracks retain the approved 40% half-track');
  assert.equal(q('#gp-donut defs'),mask);assert.equal(h.document.activeElement.dataset.raceMarker,key,'content fitting does not replace a focused marker');
  h.api.setLuckMode('players');h.api.finishLuckMotion();const middle=h.api.luckPlayers().find(entry=>!h.api.luckExtremes().some(extreme=>extreme.id===entry.id));
  if(middle){h.api.selectLuckPlayer(middle.id);h.api.finishLuckMotion();const pinned=q('.luck-pinned-row');assert.ok(pinned);assert.equal(pinned.querySelector('.luck-pinned-name').textContent,middle.name);assert.ok(pinned.querySelector('.luck-clear-pin').getAttribute('aria-label').includes(middle.name));assertLuckEndpoints(h,700);await pinned.querySelector('.luck-clear-pin').fire('click');h.animations.at(-1).finish();assert.equal(h.api.state().luckPinnedId,null);assert.equal(q('.luck-pinned-row'),null);}

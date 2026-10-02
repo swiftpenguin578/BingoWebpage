@@ -986,6 +986,7 @@ html[data-public-theme=dark] .public-stats-page .stats-page .stats-brand-dark{di
 .public-stats-page .stats-page #gp-heading,.public-stats-page .stats-page #luck-heading,.public-stats-page .stats-page #timeline-heading,.public-stats-page .stats-page #race-heading{font-size:21px}
 
 .public-stats-page .stats-page #gp-tabs button,.public-stats-page .stats-page #luck-tabs button{font-size:15px}
+.public-stats-page .stats-page #luck-value-tabs button{font-size:14px}
 
 .public-stats-page .stats-page .gp-context,.public-stats-page .stats-page .gp-context #gp-unit{font-size:10px}
 
@@ -1018,6 +1019,8 @@ html:not([data-public-theme=dark]) .public-stats-page .stats-page .treasure .ite
 .public-stats-page .stats-page .luck-heading-rule{height:3px;min-width:10px;flex:1;background:var(--blue)}
 
 .public-stats-page .stats-page #luck-tabs{flex:none;gap:12px}
+.public-stats-page .stats-page #luck-value-tabs{flex:none;gap:8px}
+.public-stats-page .stats-page #luck-value-tabs button{font-size:13px}
 
 .public-stats-page .stats-page #luck-tabs button[aria-pressed=true]:after{display:none}
 

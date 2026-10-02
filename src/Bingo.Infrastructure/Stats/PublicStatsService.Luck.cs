@@ -19,33 +19,38 @@ public sealed partial class PublicStatsService
     private async Task<StatsLuck> ReadLuckAsync(StatsData data, CancellationToken ct, bool retainTileActivity = false)
     {
         var cache = await EventCompetitionSynchronizationService.ReadMetricCacheAsync(db, time, data.Event.Id, ct);
-        var sources = cache?.Sources ?? await db.LuckSourceRequestAsync(data.Event.Id, ct);
         var checkpoint = await db.EventStatsLuckCheckpoints.AsNoTracking().SingleOrDefaultAsync(x => x.EventId == data.Event.Id, ct);
-        if (checkpoint is not null && Compatible(checkpoint, data, cache))
+        if (checkpoint is not null && checkpoint.SchemaVersion == EventStatsLuckCheckpoint.CurrentSchemaVersion &&
+            (cache is null || Compatible(checkpoint, data, cache)))
         {
             var saved = JsonSerializer.Deserialize<StatsLuck>(checkpoint.Payload);
             if (saved is not null)
-                return RescoreLuck(saved with
+                return saved with
                 {
-                    Stale = checkpoint.EvidenceRevision != data.Event.StatsEvidenceRevision || !CanCalculate(cache) || checkpoint.ActivityBatchId != cache!.ActivityBatchId,
-                    // Legacy snapshots retain the denominator but not tile attribution. Current
-                    // tile evidence is coherent only at the exact retained evidence revision.
-                    Tiles = retainTileActivity && saved.Tiles is null
-                        ? CalculateTileLuck(data, saved.Teams, saved.Sources, checkpoint.EvidenceRevision == data.Event.StatsEvidenceRevision, retainKnownActivity: true)
-                        : saved.Tiles
-                }, data);
+                    // Age is presentation metadata only. The saved values, provenance and
+                    // original timestamps are never rebuilt on a read.
+                    Stale = saved.Stale || saved.FetchedAt is { } fetched && fetched.AddHours(1) <= time.GetUtcNow(),
+                    Tiles = retainTileActivity ? saved.Tiles : null
+                };
         }
-        // Raw compatible observations can retain KC without a checkpoint, but cannot recover
-        // a Luck score or bypass an existing checkpoint's evidence/lifecycle invalidation.
-        var canCalculate = CanCalculate(cache) && !(retainTileActivity && checkpoint is null && cache?.Complete == false);
-        return CalculateLuck(data, cache, sources, canCalculate ? time.GetUtcNow() : null,
-            retainKnownTileActivity: retainTileActivity && checkpoint is null && cache?.Compatible == true);
+        // Public reads never calculate from current evidence or the metric cache. A
+        // successful fetch must publish a checkpoint before a number becomes visible.
+        return UnavailableLuck(data, retainTileActivity);
     }
 
     private static bool CanCalculate(CompetitionMetricCache? cache) => cache is { SuccessfulBatch: true, Compatible: true, ActivityBatchId: not null } &&
         cache.LastAttemptAt is { } attempted && attempted.AddHours(1) > cache.ReadAt;
     private static string LifecycleFingerprint(BingoEvent ev) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(
+        // ActualStartedAt identifies the competition window. Ending an event is an
+        // ordinary lifecycle transition and must not invalidate a retained checkpoint.
+        JsonSerializer.Serialize(new { ev.Id, ev.ActualStartedAt })))).ToLowerInvariant();
+    private static string LegacyLifecycleFingerprint(BingoEvent ev) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(
+        // Schema-v1 rows retained this exact lifecycle/provenance shape.
         JsonSerializer.Serialize(new { ev.State, ev.ActualStartedAt, ev.ActualEndedAt, ev.FinalizedAt, ev.ArchivedAt, ev.ResultsPublished })))).ToLowerInvariant();
+    private static bool CompatibleLifecycle(EventStatsLuckCheckpoint saved, BingoEvent ev) =>
+        saved.LifecycleFingerprint == LifecycleFingerprint(ev) ||
+        saved.ConvertedFromSchemaVersion == 1 && saved.AlgorithmVersion == "luck-percentile-kc-v2-conversion" &&
+        saved.LifecycleFingerprint == LegacyLifecycleFingerprint(ev);
     private static string AssignmentFingerprint(StatsData data, CompetitionMetricCache cache) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(
         JsonSerializer.Serialize(new
         {
@@ -54,12 +59,33 @@ public sealed partial class PublicStatsService
             Roster = data.Roster.OrderBy(x => x.TeamId).ThenBy(x => x.PlayerId).Select(x => new { x.TeamId, x.PlayerId, x.PlayerName })
         })))).ToLowerInvariant();
     private static bool Compatible(EventStatsLuckCheckpoint saved, StatsData data, CompetitionMetricCache? cache) =>
-        cache is { Compatible: true } && saved.SchemaVersion == EventStatsLuckCheckpoint.CurrentSchemaVersion &&
-        // Only purely additive approvals may retain an older full calculation for stale display.
-        // The write boundary below still requires the exact current evidence revision.
-        saved.EvidenceRevision >= data.Event.StatsLuckInvalidatedAtRevision && saved.EvidenceRevision <= data.Event.StatsEvidenceRevision && saved.CompetitionId == cache.CompetitionId && saved.Generation == cache.Generation &&
-        (saved.ActivityBatchId == cache.ActivityBatchId || !cache.Complete) && saved.AssignmentFingerprint == AssignmentFingerprint(data, cache) &&
-        saved.SourceFingerprint == cache.Sources.Fingerprint && saved.LifecycleFingerprint == LifecycleFingerprint(data.Event);
+        cache is { Compatible: true } && saved.SchemaVersion == EventStatsLuckCheckpoint.CurrentSchemaVersion && saved.CompetitionId == cache.CompetitionId && saved.Generation == cache.Generation &&
+        saved.AssignmentFingerprint == AssignmentFingerprint(data, cache) && saved.SourceFingerprint == cache.Sources.Fingerprint &&
+        CompatibleLifecycle(saved, data.Event);
+
+    private static StatsLuck UnavailableLuck(StatsData data, bool includeTiles)
+    {
+        var unavailable = Result(0, null, StatsLuckStatus.WaitingForActivityData);
+        var teams = data.Board.Teams.Select(team =>
+        {
+            var players = data.Roster.Where(x => x.TeamId == team.TeamId)
+                .Select(player => new StatsLuckPlayer(player.PlayerId, team.TeamId, player.PlayerName, unavailable, []))
+                .ToArray();
+            return new StatsLuckTeam(team.TeamId, team.TeamName, unavailable, players);
+        }).ToArray();
+        var tiles = includeTiles
+            ? data.Publication.Tiles.Select(tile =>
+            {
+                var requirements = data.Publication.Requirements.Where(x => x.BoardTileId == tile.Id && !x.ManualObjective).Select(x => x.Id).ToHashSet();
+                var hasDrops = data.Publication.Drops.Any(x => requirements.Contains(x.RequirementId));
+                var tileTeams = teams.Select(team => new StatsTileLuckTeam(team.TeamId, unavailable, [],
+                    team.Players.Select(player => new StatsTileLuckPlayer(player.PlayerId, player.Name, unavailable, [])).ToArray())).ToArray();
+                return new StatsTileLuck(tile.Id, hasDrops, tileTeams);
+            }).ToArray()
+            : null;
+        return new StatsLuck(unavailable, teams, [], false, null, null, null, data.Event.StatsEvidenceRevision,
+            null, null, "SavedLuckUnavailable", tiles);
+    }
 
     private static StatsLuck CalculateLuck(StatsData data, CompetitionMetricCache? cache, LuckSourceRequest sources, DateTimeOffset? calculatedAt,
         bool retainKnownTileActivity = false)
@@ -146,7 +172,7 @@ public sealed partial class PublicStatsService
 
     // Checkpoints predate the bounded score. Rebuild distributions from THEIR observations,
     // never from a fresh numerator or provider batch, and leave persisted JSON/timestamps intact.
-    private static StatsLuck RescoreLuck(StatsLuck luck, StatsData data)
+    private static StatsLuck RescoreLuck(StatsLuck luck, StatsData? data, bool rebuildTiles = true)
     {
         var teams = luck.Teams.Select(team => team with
         {
@@ -156,31 +182,31 @@ public sealed partial class PublicStatsService
             }).ToArray(),
             Result = Score(team.Result, team.Players.SelectMany(x => x.Sources), luck.Sources)
         }).ToArray();
-        var tiles = luck.Tiles?.Select(tile =>
-        {
-            var requirements = data.Publication.Requirements.Where(x => x.BoardTileId == tile.TileId && !x.ManualObjective).Select(x => x.Id).ToHashSet();
-            var outcomes = data.Publication.Drops.Where(x => requirements.Contains(x.RequirementId))
-                .Select(x => (x.SourceDropId, x.ItemIdSnapshot)).ToHashSet();
-            var sources = luck.Sources.Where(x => outcomes.Contains((x.SourceDropId, x.ItemId))).ToArray();
-            return tile with
+        var tiles = rebuildTiles && data is not null
+            ? luck.Tiles?.Select(tile =>
             {
-                Teams = tile.Teams.Select(team =>
+                var requirements = data!.Publication.Requirements.Where(x => x.BoardTileId == tile.TileId && !x.ManualObjective).Select(x => x.Id).ToHashSet();
+                var outcomes = data.Publication.Drops.Where(x => requirements.Contains(x.RequirementId))
+                    .Select(x => (x.SourceDropId, x.ItemIdSnapshot)).ToHashSet();
+                var sources = luck.Sources.Where(x => outcomes.Contains((x.SourceDropId, x.ItemId))).ToArray();
+                return tile with
                 {
-                    var retainedTeam = luck.Teams.Single(x => x.TeamId == team.TeamId);
-                    var details = retainedTeam.Players.Where(player => team.Players.Any(x => x.PlayerId == player.PlayerId))
-                        .SelectMany(player => player.Sources).Where(x => outcomes.Contains((x.SourceDropId, x.ItemId))).ToArray();
-                    return team with
+                    Teams = tile.Teams.Select(team =>
                     {
-                        Result = Score(team.Result, details, sources),
-                        Players = team.Players.Select(player => player with
+                        var retainedTeam = luck.Teams.Single(x => x.TeamId == team.TeamId);
+                        var details = team.Players.SelectMany(player => player.Sources ?? []).ToArray();
+                        return team with
                         {
-                            Result = Score(player.Result, retainedTeam.Players.Single(x => x.PlayerId == player.PlayerId).Sources
-                                .Where(x => outcomes.Contains((x.SourceDropId, x.ItemId))), sources)
-                        }).ToArray()
-                    };
-                }).ToArray()
-            };
-        }).ToArray();
+                            Result = Score(team.Result, details, sources),
+                            Players = team.Players.Select(player => player with
+                            {
+                                Result = Score(player.Result, player.Sources ?? [], sources)
+                            }).ToArray()
+                        };
+                    }).ToArray()
+                };
+            }).ToArray()
+            : luck.Tiles;
         return luck with
         {
             Result = Score(luck.Result, luck.Teams.SelectMany(x => x.Players).SelectMany(x => x.Sources), luck.Sources),
@@ -192,61 +218,411 @@ public sealed partial class PublicStatsService
     private static StatsLuckResult Score(StatsLuckResult result, IEnumerable<StatsLuckCharacterSource> observations,
         IReadOnlyList<StatsLuckSource> sources)
     {
-        // Unavailable/zero-activity states keep their existing meanings; an old ratio is never exposed.
-        result = result with { Percentage = null };
-        if (result.Status != StatsLuckStatus.Calculated || result.Expected is not > 0) return result;
+        // Rebuild only derived values from the retained observation rows. The rows
+        // themselves remain the snapshot's source of truth.
+        result = result with { Percentage = null, KcDifference = null, Activities = null };
         var rows = observations.DistinctBy(x => (x.CharacterId, x.SourceDropId, x.ItemId)).ToArray();
-        var components = new List<LuckBinomialComponent>();
         var mechanics = rows.Select(row => (Row: row, Source: sources.SingleOrDefault(source =>
             source.SourceDropId == row.SourceDropId && source.ItemId == row.ItemId))).ToArray();
-        if (mechanics.Length == 0 || mechanics.Any(x => x.Source is null || x.Source.UnavailableReason is not null ||
-            x.Source.BossId is null || x.Source.Metric is null || x.Source.RollGroup is null || x.Source.Rolls is not > 0 ||
-            x.Source.Probability is not (> 0 and <= 1) || x.Source.ParentProbability is <= 0 or > 1 ||
-            x.Row.Expected is null || x.Row.Activity is null or < 0 || decimal.Truncate(x.Row.Activity.Value) != x.Row.Activity))
-            return result with { Status = StatsLuckStatus.Incomplete };
-        foreach (var group in mechanics.GroupBy(x => (x.Row.CharacterId, x.Source!.BossId, x.Source.Metric, x.Source.RollGroup)))
+        if (mechanics.Length == 0) return result;
+
+        var characterActivities = mechanics.GroupBy(x => (x.Row.CharacterId, x.Source?.BossId, x.Source?.Metric))
+            .Select(activityGroup =>
+            {
+                var activityRows = activityGroup.ToArray();
+                var first = activityRows[0].Source;
+                var activityValues = activityRows.Select(x => x.Row.Activity).Distinct().ToArray();
+                var activity = activityValues.Length == 1 ? activityValues[0] : null;
+                var valid = activityRows.All(x => x.Source is not null && x.Source.UnavailableReason is null &&
+                    x.Source.BossId is not null && x.Source.Metric is not null && x.Source.RollGroup is not null && x.Source.Rolls is > 0 &&
+                    x.Source.Probability is > 0 and <= 1 && x.Source.ParentProbability is null or (> 0 and <= 1) &&
+                    x.Row.Expected is not null && x.Row.Activity is not null && x.Row.Activity >= 0 && decimal.Truncate(x.Row.Activity.Value) == x.Row.Activity);
+                var coherentMechanics = valid && activity is not null && activityRows.GroupBy(x => x.Source!.RollGroup).All(group =>
+                {
+                    var sample = group.First();
+                    return group.All(x => x.Source!.Rolls == sample.Source!.Rolls && x.Row.Activity == sample.Row.Activity);
+                });
+                var complete = coherentMechanics;
+                var received = activityRows.Sum(x => x.Row.Received);
+                decimal? expected = complete ? activityRows.Sum(x => x.Row.Expected!.Value) : null;
+                decimal? lambda = complete ? activityRows.Sum(x => x.Source!.Probability!.Value * (x.Source.ParentProbability ?? 1m) * x.Source.Rolls!.Value) : null;
+                var componentGroups = complete ? activityRows.GroupBy(x => x.Source!.RollGroup).ToArray() : [];
+                var coherentComponents = complete && componentGroups.All(group =>
+                {
+                    var sample = group.First();
+                    var probability = group.Sum(x => x.Source!.Probability!.Value * (x.Source.ParentProbability ?? 1m));
+                    return TryCreateComponent(sample.Row.Activity!.Value, sample.Source!.Rolls!.Value, probability, out _);
+                });
+                var components = coherentComponents
+                    ? componentGroups.Select(group =>
+                    {
+                        var sample = group.First();
+                        var probability = group.Sum(x => x.Source!.Probability!.Value * (x.Source.ParentProbability ?? 1m));
+                        TryCreateComponent(sample.Row.Activity!.Value, sample.Source!.Rolls!.Value, probability, out var component);
+                        return component;
+                    }).ToArray()
+                    : Array.Empty<LuckBinomialComponent>();
+                var status = !complete
+                    ? activityRows.All(x => x.Row.Status == StatsLuckStatus.WaitingForActivityUpdate) ? StatsLuckStatus.WaitingForActivityUpdate
+                        : activityRows.All(x => x.Row.Status == StatsLuckStatus.WaitingForActivityData) ? StatsLuckStatus.WaitingForActivityData
+                        : StatsLuckStatus.Incomplete
+                    : !coherentComponents ? StatsLuckStatus.Incomplete
+                    : activity!.Value > 0 ? StatsLuckStatus.Calculated : StatsLuckStatus.NoEligibleActivity;
+                // A bounded PMF work-limit leaves the valid KC/lambda result usable.
+                var percentage = status == StatsLuckStatus.Calculated && expected is > 0 && components.Length > 0
+                    ? LuckScoreCalculator.Calculate(components, received) : null;
+                decimal? kcDifference = status is StatsLuckStatus.Calculated or StatsLuckStatus.NoEligibleActivity && lambda is > 0 && activity is >= 0
+                    ? received / lambda.Value - activity.Value : null;
+                return new
+                {
+                    BossId = first?.BossId,
+                    Metric = first?.Metric,
+                    Name = first?.BossName ?? activityGroup.Key.Metric ?? "Activity",
+                    Received = received,
+                    Expected = expected,
+                    Kc = complete ? activity : null,
+                    Percentage = percentage,
+                    KcDifference = kcDifference,
+                    Status = status,
+                    Estimated = activityRows.Any(x => x.Row.Estimated),
+                    ZeroRecordedApproximation = activityRows.Any(x => x.Row.ZeroRecordedApproximation),
+                    Components = components,
+                    Complete = complete && coherentComponents
+                };
+            }).ToArray();
+
+        var activities = characterActivities.GroupBy(x => (x.BossId, x.Metric))
+            .Select(activityGroup =>
+            {
+                var members = activityGroup.ToArray();
+                var received = members.Sum(x => x.Received);
+                var complete = members.All(x => x.Complete);
+                decimal? expected = complete ? members.Sum(x => x.Expected!.Value) : null;
+                decimal? kc = complete && members.All(x => x.Kc is not null) ? members.Sum(x => x.Kc!.Value) : null;
+                var components = complete ? members.SelectMany(x => x.Components).ToArray() : Array.Empty<LuckBinomialComponent>();
+                var status = !complete
+                    ? members.All(x => x.Status == StatsLuckStatus.WaitingForActivityUpdate) ? StatsLuckStatus.WaitingForActivityUpdate
+                        : members.All(x => x.Status == StatsLuckStatus.WaitingForActivityData) ? StatsLuckStatus.WaitingForActivityData
+                        : StatsLuckStatus.Incomplete
+                    : expected > 0 ? StatsLuckStatus.Calculated : StatsLuckStatus.NoEligibleActivity;
+                var percentage = status == StatsLuckStatus.Calculated && expected is > 0 && components.Length > 0
+                    ? LuckScoreCalculator.Calculate(components, received) : null;
+                decimal? kcDifference = complete && members.All(x => x.KcDifference is not null)
+                    ? members.Sum(x => x.KcDifference!.Value) : null;
+                var first = members[0];
+                return new StatsLuckActivityResult(first.BossId, first.Metric, first.Name, received, expected, kc,
+                    percentage, kcDifference, status, members.Any(x => x.Estimated), members.Any(x => x.ZeroRecordedApproximation));
+            }).OrderBy(x => x.Name, StringComparer.Ordinal).ThenBy(x => x.Metric, StringComparer.Ordinal).ToArray();
+
+        var validMechanics = mechanics.Where(x => x.Source is not null && x.Source.UnavailableReason is null &&
+            x.Source.BossId is not null && x.Source.Metric is not null && x.Source.RollGroup is not null && x.Source.Rolls is > 0 &&
+            x.Source.Probability is > 0 and <= 1 && x.Source.ParentProbability is null or (> 0 and <= 1) &&
+            x.Row.Expected is not null && x.Row.Activity is not null && x.Row.Activity >= 0 && decimal.Truncate(x.Row.Activity.Value) == x.Row.Activity).ToArray();
+        var components = new List<LuckBinomialComponent>();
+        foreach (var group in validMechanics.GroupBy(x => (x.Row.CharacterId, x.Source!.BossId, x.Source.Metric, x.Source.RollGroup)))
         {
             var first = group.First();
             // One mutually exclusive roll has one count. Contradictory frozen mechanics cannot
             // be repaired by treating its outcomes as independent opportunities.
             if (group.Any(x => x.Source!.Rolls != first.Source!.Rolls || x.Row.Activity != first.Row.Activity))
-                return result with { Status = StatsLuckStatus.Incomplete };
+                return result with { Status = StatsLuckStatus.Incomplete, Activities = activities };
             var probability = group.Sum(x => x.Source!.Probability!.Value * (x.Source.ParentProbability ?? 1m));
-            var trials = first.Row.Activity!.Value * first.Source!.Rolls!.Value;
-            if (probability is < 0 or > 1 || trials > long.MaxValue)
-                return result with { Status = StatsLuckStatus.Incomplete };
-            components.Add(new((long)trials, probability));
+            if (!TryCreateComponent(first.Row.Activity!.Value, first.Source!.Rolls!.Value, probability, out var component))
+                return result with { Status = StatsLuckStatus.Incomplete, Activities = activities };
+            components.Add(component);
         }
-        // Expected remains the frozen displayed denominator, and must describe this distribution.
-        if (components.Sum(x => x.Trials * x.Probability) != result.Expected)
-            return result with { Status = StatsLuckStatus.Incomplete };
-        var percentage = LuckScoreCalculator.Calculate(components, result.Received);
-        return result with { Percentage = percentage, Status = percentage is null ? StatsLuckStatus.Incomplete : result.Status };
+        var percentage = result.Status == StatsLuckStatus.Calculated && result.Expected is > 0 &&
+            components.Sum(x => x.Trials * x.Probability) == result.Expected
+            ? LuckScoreCalculator.Calculate(components, result.Received) : null;
+        var status = result.Status;
+        decimal? kcDifference = activities.Length > 0 && activities.All(x => x.KcDifference is not null)
+            ? activities.Sum(x => x.KcDifference!.Value) : null;
+        return result with { Percentage = percentage, Status = status, KcDifference = kcDifference, Activities = activities };
     }
 
-    /// <summary>Existing mutation/sync owners invoke this after saving, before committing their event transaction.</summary>
-    public static async Task RefreshCheckpointAsync(ApplicationDbContext context, TimeProvider clock, Guid eventId, CancellationToken ct = default)
+    private static bool TryCreateComponent(decimal activity, int rolls, decimal probability, out LuckBinomialComponent component)
+    {
+        component = default;
+        if (rolls <= 0 || activity < 0 || decimal.Truncate(activity) != activity || probability is < 0 or > 1)
+            return false;
+        try
+        {
+            var trials = activity * rolls;
+            if (trials > long.MaxValue) return false;
+            component = new((long)trials, probability);
+            return true;
+        }
+        catch (OverflowException)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>The accepted competition synchronization transaction invokes this after a successful provider response is accepted, before committing its event transaction.</summary>
+    public static async Task<string?> PublishCheckpointAfterAcceptedFetchAsync(ApplicationDbContext context, TimeProvider clock, Guid eventId, CancellationToken ct = default)
     {
         if (context.Database.CurrentTransaction is null) throw new InvalidOperationException("Checkpoint capture requires the event write transaction.");
         RequireConsistentTransaction(context);
         var ev = await context.Events.AsNoTracking().SingleOrDefaultAsync(x => x.Id == eventId, ct);
-        if (ev is null) return;
+        if (ev is null) return "event-not-found";
         var service = new PublicStatsService(context, clock);
         var data = await service.ReadDataAsync(ev.Slug, ct);
-        if (data is null) return;
+        if (data is null) return "published-data-unavailable";
         var cache = await EventCompetitionSynchronizationService.ReadMetricCacheAsync(context, clock, eventId, ct);
-        if (!CanCalculate(cache)) return;
+        if (!CanCalculate(cache)) return "accepted-fetch-cache-unavailable";
         var existing = await context.EventStatsLuckCheckpoints.AsNoTracking().SingleOrDefaultAsync(x => x.EventId == eventId, ct);
-        if (existing is not null && Compatible(existing, data, cache) && !cache!.Complete && existing.ActivityBatchId != cache.ActivityBatchId) return;
+        if (existing is not null && Compatible(existing, data, cache) && !cache!.Complete && existing.ActivityBatchId != cache.ActivityBatchId) return "partial-batch-write-fenced";
         var calculated = CalculateLuck(data, cache, cache!.Sources, clock.GetUtcNow());
         var payload = JsonSerializer.Serialize(calculated, CheckpointJsonOptions);
         // Oversized results remain available through the read query; never truncate players or sources.
-        if (Encoding.UTF8.GetByteCount(payload) > EventStatsLuckCheckpoint.MaximumPayloadBytes) return;
+        var payloadBytes = Encoding.UTF8.GetByteCount(payload);
+        if (payloadBytes > EventStatsLuckCheckpoint.MaximumPayloadBytes)
+            return $"checkpoint-discarded: payload {payloadBytes} bytes exceeds {EventStatsLuckCheckpoint.MaximumPayloadBytes} byte bound";
         var checkpoint = new EventStatsLuckCheckpoint(eventId, ev.StatsEvidenceRevision, cache.CompetitionId, cache.Generation,
             cache.ActivityBatchId!.Value, AssignmentFingerprint(data, cache), cache.Sources.Fingerprint, LifecycleFingerprint(ev),
             calculated.CalculatedAt!.Value, calculated.FetchedAt, calculated.UpstreamUpdatedAt, payload);
-        await TryWriteCheckpointAsync(context, clock, checkpoint, ct);
+        return await TryWriteCheckpointAsync(context, clock, checkpoint, ct) ? null : "checkpoint-write-fenced";
     }
+
+    // Convert one retained v1 snapshot in place. This operation never reads the metric cache or
+    // current WOM evidence; the old payload is the only input to the v2 derivation. The event lock
+    // and schema predicate make retries idempotent and preserve all original observation times.
+    public static async Task<bool> ConvertLegacyCheckpointAsync(ApplicationDbContext context, TimeProvider clock, Guid eventId, CancellationToken ct = default) =>
+        (await ConvertLegacyCheckpointWithDiagnosticAsync(context, clock, eventId, ct)).Converted;
+
+    public static async Task<StatsLegacyCheckpointConversionResult> ConvertLegacyCheckpointWithDiagnosticAsync(
+        ApplicationDbContext context, TimeProvider clock, Guid eventId, CancellationToken ct = default)
+    {
+        if (context.Database.CurrentTransaction is null) throw new InvalidOperationException("Checkpoint conversion requires an event transaction.");
+        RequireConsistentTransaction(context);
+        var ev = await context.Events.FromSqlInterpolated($"SELECT * FROM events WHERE id = {eventId} FOR UPDATE").AsNoTracking().SingleOrDefaultAsync(ct);
+        if (ev is null) return new(false, "event-not-found");
+        var legacy = await context.EventStatsLuckCheckpoints.AsNoTracking().SingleOrDefaultAsync(x => x.EventId == eventId, ct);
+        if (legacy is null) return new(false, "legacy-row-not-found");
+        if (legacy.SchemaVersion != 1) return new(false, "row-is-not-legacy-v1");
+
+        StatsLuck saved;
+        try
+        {
+            using var document = JsonDocument.Parse(legacy.Payload);
+            if (HasDuplicateJsonProperties(document.RootElement))
+                return new(false, BoundedDiagnostic("duplicate-property", "payload contains duplicate JSON properties"));
+            saved = JsonSerializer.Deserialize<StatsLuck>(legacy.Payload)
+                ?? throw new JsonException("payload root is null");
+            if (!ValidateRetainedLegacySnapshot(saved, out var diagnostic))
+                return new(false, diagnostic);
+            // Version-1 payloads do not retain the tile-to-source observation map needed to
+            // recompute tile percentiles. Keep their retained KC/identities, but clear the
+            // derived tile Luck so conversion never republishes the retired signed score.
+            var converted = RescoreLuck(saved, null, rebuildTiles: false) with
+            {
+                Tiles = ClearLegacyTileScores(saved.Tiles)
+            };
+            var payload = JsonSerializer.Serialize(converted, CheckpointJsonOptions);
+            if (Encoding.UTF8.GetByteCount(payload) > EventStatsLuckCheckpoint.MaximumPayloadBytes)
+                return new(false, "converted-payload-too-large");
+            var convertedAt = clock.GetUtcNow();
+            var changed = await context.Database.ExecuteSqlInterpolatedAsync($"""
+                UPDATE event_stats_luck_checkpoints
+                SET schema_version = {EventStatsLuckCheckpoint.CurrentSchemaVersion},
+                    algorithm_version = {"luck-percentile-kc-v2-conversion"},
+                    converted_from_schema_version = {1},
+                    converted_at = {convertedAt},
+                    payload = CAST({payload} AS jsonb)
+                WHERE event_id = {eventId} AND schema_version = {1}
+                """, ct);
+            return changed == 1 ? new(true, null) : new(false, "legacy-row-changed-before-conversion");
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
+        catch (Exception ex) when (ex is JsonException or ArgumentException or InvalidOperationException or OverflowException)
+        {
+            return new(false, BoundedDiagnostic("unsupported-retained-payload", ex.Message));
+        }
+    }
+
+    private static string BoundedDiagnostic(string code, string detail)
+    {
+        var value = code + ": " + detail.Replace('\n', ' ').Replace('\r', ' ');
+        return value.Length <= 240 ? value : value[..240];
+    }
+
+    private static bool HasDuplicateJsonProperties(JsonElement element)
+    {
+        if (element.ValueKind == JsonValueKind.Object)
+        {
+            var names = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var property in element.EnumerateObject())
+            {
+                if (!names.Add(property.Name) || HasDuplicateJsonProperties(property.Value)) return true;
+            }
+        }
+        else if (element.ValueKind == JsonValueKind.Array && element.EnumerateArray().Any(HasDuplicateJsonProperties))
+            return true;
+        return false;
+    }
+
+    private static bool ValidateRetainedLegacySnapshot(StatsLuck saved, out string diagnostic)
+    {
+        diagnostic = "unsupported-retained-payload: retained structure is incomplete";
+        if (saved.Result is null || saved.Teams is null || saved.Sources is null) return false;
+        if (!ValidateResult(saved.Result, out diagnostic)) return false;
+
+        var sourceKeys = new HashSet<(Guid SourceDropId, Guid ItemId)>();
+        foreach (var source in saved.Sources)
+        {
+            if (source is null || source.SourceDropId == Guid.Empty || source.ItemId == Guid.Empty || source.BossId == Guid.Empty ||
+                string.IsNullOrWhiteSpace(source.Metric) || string.IsNullOrWhiteSpace(source.RollGroup) ||
+                source.Rolls is not > 0 || source.Probability is < 0 or > 1 ||
+                source.ParentProbability is < 0 or > 1)
+            {
+                diagnostic = "unsupported-retained-payload: invalid source mechanics";
+                return false;
+            }
+            if (!sourceKeys.Add((source.SourceDropId, source.ItemId)))
+            {
+                diagnostic = "unsupported-retained-payload: duplicate source mechanics";
+                return false;
+            }
+        }
+
+        var teamIds = new HashSet<Guid>();
+        foreach (var team in saved.Teams)
+        {
+            if (team is null || team.TeamId == Guid.Empty || string.IsNullOrWhiteSpace(team.Name) || team.Players is null ||
+                !teamIds.Add(team.TeamId))
+            {
+                diagnostic = "unsupported-retained-payload: invalid retained team";
+                return false;
+            }
+            if (team.Result is null)
+            {
+                diagnostic = "unsupported-retained-payload: retained team result is null";
+                return false;
+            }
+            if (!ValidateResult(team.Result, out diagnostic)) return false;
+            var playerIds = new HashSet<Guid>();
+            foreach (var player in team.Players)
+            {
+                if (player is null || player.PlayerId == Guid.Empty || string.IsNullOrWhiteSpace(player.Name) ||
+                    player.Sources is null || !playerIds.Add(player.PlayerId))
+                {
+                    diagnostic = "unsupported-retained-payload: invalid retained player";
+                    return false;
+                }
+                if (player.Result is null)
+                {
+                    diagnostic = "unsupported-retained-payload: retained player result is null";
+                    return false;
+                }
+                if (!ValidateResult(player.Result, out diagnostic)) return false;
+                var observedKeys = new HashSet<(Guid CharacterId, Guid SourceDropId, Guid ItemId)>();
+                foreach (var row in player.Sources)
+                {
+                    if (row is null || row.CharacterId == Guid.Empty || !sourceKeys.Contains((row.SourceDropId, row.ItemId)) ||
+                        row.Received < 0 || row.Activity is < 0 || row.Expected is < 0 ||
+                        row.Activity is { } activity && decimal.Truncate(activity) != activity)
+                    {
+                        diagnostic = "unsupported-retained-payload: invalid retained observation";
+                        return false;
+                    }
+                    if (!observedKeys.Add((row.CharacterId, row.SourceDropId, row.ItemId)))
+                    {
+                        diagnostic = "unsupported-retained-payload: duplicate retained observation";
+                        return false;
+                    }
+                }
+            }
+        }
+
+        if (saved.Tiles is not null)
+        {
+            var tileIds = new HashSet<Guid>();
+            foreach (var tile in saved.Tiles)
+            {
+                if (tile is null || tile.TileId == Guid.Empty || tile.Teams is null || !tileIds.Add(tile.TileId))
+                {
+                    diagnostic = "unsupported-retained-payload: invalid retained tile scope";
+                    return false;
+                }
+                foreach (var team in tile.Teams)
+                {
+                    if (team is null || team.TeamId == Guid.Empty || team.Players is null || team.Metrics is null)
+                    {
+                        diagnostic = "unsupported-retained-payload: invalid retained tile team";
+                        return false;
+                    }
+                    if (!ValidateResult(team.Result, out diagnostic)) return false;
+                    if (team.Metrics.Any(metric => metric is null))
+                    {
+                        diagnostic = "unsupported-retained-payload: retained tile team metric is null";
+                        return false;
+                    }
+                    foreach (var player in team.Players)
+                    {
+                        if (player is null || player.PlayerId == Guid.Empty || player.Metrics is null)
+                        {
+                            diagnostic = "unsupported-retained-payload: invalid retained tile player";
+                            return false;
+                        }
+                        if (!ValidateResult(player.Result, out diagnostic)) return false;
+                        if (player.Metrics.Any(metric => metric is null))
+                        {
+                            diagnostic = "unsupported-retained-payload: retained tile player metric is null";
+                            return false;
+                        }
+                    }
+                }
+            }
+        }
+        return true;
+    }
+
+    private static bool ValidateResult(StatsLuckResult? result, out string diagnostic)
+    {
+        diagnostic = "unsupported-retained-payload: invalid retained result";
+        if (result is null || result.Received < 0 || result.Expected is < 0 ||
+            !Enum.IsDefined(result.Status) || result.Activities?.Any(activity =>
+                activity is null || activity.Received < 0 || activity.Expected is < 0 ||
+                activity.Kc is < 0 || !Enum.IsDefined(activity.Status)) == true)
+            return false;
+        diagnostic = string.Empty;
+        return true;
+    }
+
+    private static StatsTileLuck[]? ClearLegacyTileScores(IReadOnlyList<StatsTileLuck>? tiles)
+    {
+        if (tiles is null) return null;
+        return tiles.Select(tile =>
+        {
+            var status = tile.HasDropOutcomes ? StatsLuckStatus.WaitingForActivityData : StatsLuckStatus.NoEligibleActivity;
+            return tile with
+            {
+                Teams = tile.Teams.Select(team => team with
+                {
+                    Result = ClearLegacyTileResult(team.Result, status),
+                    Metrics = team.Metrics.Select(metric => metric with
+                    {
+                        Status = tile.HasDropOutcomes ? StatsLuckStatus.WaitingForActivityData : StatsLuckStatus.NoEligibleActivity,
+                        Percentage = null,
+                        KcDifference = null
+                    }).ToArray(),
+                    Players = team.Players.Select(player => player with
+                    {
+                        Result = ClearLegacyTileResult(player.Result, status),
+                        Metrics = player.Metrics.Select(metric => metric with
+                        {
+                            Status = tile.HasDropOutcomes ? StatsLuckStatus.WaitingForActivityData : StatsLuckStatus.NoEligibleActivity,
+                            Percentage = null,
+                            KcDifference = null
+                        }).ToArray()
+                    }).ToArray()
+                }).ToArray()
+            };
+        }).ToArray();
+    }
+
+    private static StatsLuckResult ClearLegacyTileResult(StatsLuckResult result, StatsLuckStatus status) =>
+        result with { Expected = null, Percentage = null, KcDifference = null, Activities = null, Status = status };
 
     // Public infrastructure boundary permits a real stale-writer fixture. Caller owns transaction;
     // lock plus full-key comparison prevents a calculation made before another write from replacing it.
@@ -263,14 +639,21 @@ public sealed partial class PublicStatsService
             candidate.SourceFingerprint != cache.Sources.Fingerprint || candidate.LifecycleFingerprint != LifecycleFingerprint(ev)) return false;
         var changed = await context.Database.ExecuteSqlInterpolatedAsync($"""
             INSERT INTO event_stats_luck_checkpoints (event_id, schema_version, evidence_revision, competition_id, generation, activity_batch_id,
-                assignment_fingerprint, source_fingerprint, lifecycle_fingerprint, calculated_at, fetched_at, upstream_updated_at, payload)
+                assignment_fingerprint, source_fingerprint, lifecycle_fingerprint, calculated_at, fetched_at, upstream_updated_at,
+                algorithm_version, converted_from_schema_version, converted_at, payload)
             VALUES ({candidate.EventId}, {candidate.SchemaVersion}, {candidate.EvidenceRevision}, {candidate.CompetitionId}, {candidate.Generation}, {candidate.ActivityBatchId},
-                {candidate.AssignmentFingerprint}, {candidate.SourceFingerprint}, {candidate.LifecycleFingerprint}, {candidate.CalculatedAt}, {candidate.FetchedAt}, {candidate.UpstreamUpdatedAt}, CAST({candidate.Payload} AS jsonb))
+                {candidate.AssignmentFingerprint}, {candidate.SourceFingerprint}, {candidate.LifecycleFingerprint}, {candidate.CalculatedAt}, {candidate.FetchedAt}, {candidate.UpstreamUpdatedAt},
+                {candidate.AlgorithmVersion}, {candidate.ConvertedFromSchemaVersion}, {candidate.ConvertedAt}, CAST({candidate.Payload} AS jsonb))
             ON CONFLICT (event_id) DO UPDATE SET schema_version = EXCLUDED.schema_version, evidence_revision = EXCLUDED.evidence_revision,
                 competition_id = EXCLUDED.competition_id, generation = EXCLUDED.generation, activity_batch_id = EXCLUDED.activity_batch_id,
                 assignment_fingerprint = EXCLUDED.assignment_fingerprint, source_fingerprint = EXCLUDED.source_fingerprint, lifecycle_fingerprint = EXCLUDED.lifecycle_fingerprint,
-                calculated_at = EXCLUDED.calculated_at, fetched_at = EXCLUDED.fetched_at, upstream_updated_at = EXCLUDED.upstream_updated_at, payload = EXCLUDED.payload
-            WHERE event_stats_luck_checkpoints.evidence_revision <= EXCLUDED.evidence_revision AND event_stats_luck_checkpoints.calculated_at <= EXCLUDED.calculated_at
+                calculated_at = EXCLUDED.calculated_at, fetched_at = EXCLUDED.fetched_at, upstream_updated_at = EXCLUDED.upstream_updated_at,
+                algorithm_version = EXCLUDED.algorithm_version, converted_from_schema_version = EXCLUDED.converted_from_schema_version,
+                converted_at = EXCLUDED.converted_at, payload = EXCLUDED.payload
+            WHERE (event_stats_luck_checkpoints.schema_version < EXCLUDED.schema_version)
+                OR (event_stats_luck_checkpoints.schema_version = EXCLUDED.schema_version
+                    AND event_stats_luck_checkpoints.evidence_revision <= EXCLUDED.evidence_revision
+                    AND event_stats_luck_checkpoints.calculated_at <= EXCLUDED.calculated_at)
             """, ct);
         return changed == 1;
     }

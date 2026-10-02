@@ -14,7 +14,7 @@ using Npgsql;
 
 namespace Bingo.Infrastructure.Events;
 
-public sealed class EventFinalizationService(ApplicationDbContext db, IPublicBoardService publicBoards, TimeProvider time, IProgressNotifier? progressNotifier = null) : IEventFinalizationService
+public sealed class EventFinalizationService(ApplicationDbContext db, IPublicBoardService publicBoards, TimeProvider time, IProgressNotifier? progressNotifier = null, IEventCompetitionSynchronizationService? competitionSynchronization = null) : IEventFinalizationService
 {
     private static readonly string[] CompetitiveInputNames = ["board completion", "completion time", "completed lines", "completed tiles", "current score time", "EHB"];
 
@@ -93,18 +93,37 @@ public sealed class EventFinalizationService(ApplicationDbContext db, IPublicBoa
     public Task CorrectCompletionAsync(Guid eventId, Guid teamId, DateTimeOffset correctedAt, string reason, Guid adminId, long? expectedVersion = null, Guid? expectedReviewCycleId = null, CancellationToken ct = default)
         => throw new InvalidOperationException("Manual completion-time corrections are retired. Calculated completion facts are authoritative.");
 
-    public async Task FinalizeAsync(Guid eventId, LifecycleActor actor, long? expectedVersion = null, CancellationToken ct = default)
+    public async Task<FinalizationOperationResult> FinalizeAsync(Guid eventId, LifecycleActor actor, long? expectedVersion = null, CancellationToken ct = default)
     {
+        string? operationFeedback = null;
         try
         {
+            actor = await EventMutationAuthorization.EnsureAuthorizedAsync(db, actor, ct);
+            if (expectedVersion is not > 0) throw new InvalidOperationException("This final-review form is stale or incomplete. Reload before finalizing.");
+            var preflight = await db.Events.AsNoTracking().SingleOrDefaultAsync(x => x.Id == eventId && x.HiddenAt == null, ct)
+                ?? throw new InvalidOperationException("Event not found.");
+            var hasActiveFinalization = await db.EventFinalizations.AsNoTracking()
+                .AnyAsync(x => x.EventId == eventId && x.UnfinalizedAt == null, ct);
+            var archivedRetry = preflight.State == EventState.Archived && hasActiveFinalization && expectedVersion == preflight.Version - 1;
+            if (preflight.Version != expectedVersion && !archivedRetry) throw new InvalidOperationException("This event changed in another session. Reload before finalizing.");
+            EventCompetitionRefreshResult? refreshResult = null;
+            Exception? refreshFailure = null;
+            if (!archivedRetry && preflight.State == EventState.AwaitingFinalReview && competitionSynchronization is not null)
+            {
+                // The fetch owns its own short lease transaction and HTTP request.
+                // A skip or provider failure intentionally leaves publication available,
+                // while its outcome is retained in the publication operation feedback.
+                try { refreshResult = await competitionSynchronization.RefreshForFinalReviewAsync(eventId, ct); }
+                catch (OperationCanceledException ex) when (!ct.IsCancellationRequested) { refreshFailure = ex; }
+                catch (Exception ex) { refreshFailure = ex; }
+            }
+
             await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
             actor = await EventMutationAuthorization.EnsureAuthorizedAsync(db, actor, ct);
-
-            if (expectedVersion is not > 0) throw new InvalidOperationException("This final-review form is stale or incomplete. Reload before finalizing.");
             await db.Database.ExecuteSqlRawAsync("SELECT pg_advisory_xact_lock(7303004)", ct);
             var ev = await db.Events.FromSqlInterpolated($"SELECT * FROM events WHERE id = {eventId} AND hidden_at IS NULL FOR UPDATE").SingleOrDefaultAsync(ct) ?? throw new InvalidOperationException("Event not found.");
             var activeFinal = await db.EventFinalizations.Where(x => x.EventId == eventId && x.UnfinalizedAt == null).OrderByDescending(x => x.Version).FirstOrDefaultAsync(ct);
-            if (ev.State == EventState.Archived && activeFinal is not null && expectedVersion == ev.Version - 1) { await tx.CommitAsync(ct); return; }
+            if (ev.State == EventState.Archived && activeFinal is not null && expectedVersion == ev.Version - 1) { await tx.CommitAsync(ct); return new(true, true); }
             // A pre-existing Finalized row is a legacy resting state from the
             // old two-step workflow. It may only be completed when its
             // immutable official snapshot is already present; never recalculate
@@ -120,7 +139,7 @@ public sealed class EventFinalizationService(ApplicationDbContext db, IPublicBoa
                 AddLifecycleHistory(ev, EventState.Finalized, actor, "event.legacy_finalized_archived", "Retained official results completed the legacy Finalized transition", legacyNow);
                 await db.SaveChangesAsync(ct);
                 await tx.CommitAsync(ct);
-                return;
+                return new(true, false);
             }
             if (expectedVersion is { } supplied && supplied != ev.Version) throw new InvalidOperationException("This event changed in another session. Reload before finalizing.");
             if (ev.State != EventState.AwaitingFinalReview) throw new InvalidOperationException("Only an event in final review can be finalized.");
@@ -166,14 +185,15 @@ public sealed class EventFinalizationService(ApplicationDbContext db, IPublicBoa
             ev.ClearAnnouncements();
             ev.PublishOfficialResults(now);
             ev.AdvanceVersion();
-            AddLifecycleHistory(ev, from, actor, "event.results_published", "Official placements snapshotted and event archived", now);
+            AddLifecycleHistory(ev, from, actor, "event.results_published", PublicationDetail(refreshResult, refreshFailure), now);
+            operationFeedback = PublicationFeedback(refreshResult, refreshFailure);
             await AddResultNotificationsAsync(ev, now, ct);
             await db.SaveChangesAsync(ct);
-            await Bingo.Infrastructure.Stats.PublicStatsService.RefreshCheckpointAsync(db, time, eventId, ct);
             await tx.CommitAsync(ct);
         }
         catch (Exception ex) when (IsReviewPersistenceConflict(ex)) { throw new InvalidOperationException("This event changed in another session. Reload before finalizing."); }
         await NotifyProgressAsync(eventId, ct);
+        return new(true, false, operationFeedback);
     }
 
     private static bool IsReviewPersistenceConflict(Exception exception)
@@ -208,7 +228,6 @@ public sealed class EventFinalizationService(ApplicationDbContext db, IPublicBoa
         ev.AdvanceVersion();
         AddLifecycleHistory(ev, from, actor, "event.unfinalized", reason.Trim(), now);
         await db.SaveChangesAsync(ct);
-        await Bingo.Infrastructure.Stats.PublicStatsService.RefreshCheckpointAsync(db, time, eventId, ct);
         await tx.CommitAsync(ct);
     }
 
@@ -224,6 +243,43 @@ public sealed class EventFinalizationService(ApplicationDbContext db, IPublicBoa
             var id = DeterministicId("event-results", ev.Id, owner);
             if (!await db.PersonalNotifications.AnyAsync(x => x.Id == id, ct)) db.PersonalNotifications.Add(new PersonalNotification(id, owner, "event.results_published", $"Official results are available for {ev.Name}.", $"/Events/{Uri.EscapeDataString(ev.Slug)}/Board", now, ev.Id));
         }
+    }
+
+    private static string? PublicationFeedback(EventCompetitionRefreshResult? refreshResult, Exception? refreshFailure)
+    {
+        const string published = "Official results were published.";
+        if (refreshFailure is not null)
+            return published + " Final-review competition refresh failed before completion.";
+        if (refreshResult is { Succeeded: false })
+        {
+            var state = refreshResult.Skipped ? "skipped" : "failed";
+            return published + $" Final-review competition refresh {state}: " +
+                BoundedFeedback(refreshResult.Message ?? refreshResult.ErrorKind ?? "no detail");
+        }
+        if (refreshResult?.Message is { Length: > 0 } message)
+            return published + " Final-review competition refresh note: " + BoundedFeedback(message);
+        return null;
+    }
+
+    private static string PublicationDetail(EventCompetitionRefreshResult? refreshResult, Exception? refreshFailure)
+    {
+        const string published = "Official placements snapshotted and event archived";
+        if (refreshFailure is not null)
+            return published + ". Final-review competition refresh failed: " + BoundedFeedback(refreshFailure.Message);
+        if (refreshResult is { Succeeded: false })
+        {
+            var state = refreshResult.Skipped ? "skipped" : "failed";
+            return published + $". Final-review competition refresh {state}: " + BoundedFeedback(refreshResult.Message ?? refreshResult.ErrorKind ?? "no detail");
+        }
+        if (refreshResult?.Message is { Length: > 0 } message)
+            return published + ". Final-review competition refresh note: " + BoundedFeedback(message);
+        return published;
+    }
+
+    private static string BoundedFeedback(string? value)
+    {
+        var detail = string.IsNullOrWhiteSpace(value) ? "no detail" : value.Trim().Replace('\n', ' ').Replace('\r', ' ');
+        return detail.Length <= 240 ? detail : detail[..240];
     }
 
     private void AddLifecycleHistory(BingoEvent ev, EventState from, LifecycleActor actor, string action, string detail, DateTimeOffset now)

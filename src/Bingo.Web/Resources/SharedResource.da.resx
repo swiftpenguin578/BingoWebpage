@@ -2942,4 +2942,26 @@
   <data name="No dependencies were found. This permanently deletes the unused catalogue record. Shared items, prices and Audit history are retained. This cannot be undone." xml:space="preserve"><value>Der blev ikke fundet afhængigheder. Dette sletter den ubrugte katalogpost permanent. Fælles genstande, priser og revisionshistorik bevares. Handlingen kan ikke fortrydes.</value></data>
   <data name="Review the deletion impact and confirm before deleting this record." xml:space="preserve"><value>Gennemgå konsekvensen af sletningen, og bekræft før du sletter posten.</value></data>
   <data name="These operator-managed fields cannot be changed here. Your changes were not saved. Reload the current editor; ask an operator to change the retained mechanics or source metadata." xml:space="preserve"><value>Disse operatørstyrede felter kan ikke ændres her. Dine ændringer blev ikke gemt. Genindlæs editoren; bed en operatør om at ændre de bevarede mekanikker eller kildedata.</value></data>
+  <data name="estimated" xml:space="preserve"><value>estimeret</value></data>
+  <data name="zero-recorded estimate" xml:space="preserve"><value>estimat uden registrerede kills</value></data>
+  <data name="Luck %" xml:space="preserve"><value>Luck %</value></data>
+  <data name="KC difference" xml:space="preserve"><value>KC-forskel</value></data>
+  <data name="Luck" xml:space="preserve"><value>Held</value></data>
+  <data name="How to explore luck" xml:space="preserve"><value>Sådan udforsker du held</value></data>
+  <data name="Luck display" xml:space="preserve"><value>Heldvisning</value></data>
+  <data name="Compare luck by" xml:space="preserve"><value>Sammenlign held efter</value></data>
+  <data name="Luck compares approved drops with modeled outcomes at the same recorded activity and retained rates. Higher percentages mean luckier outcomes; expectation is not forced to the midpoint." xml:space="preserve"><value>Held sammenligner godkendte drops med modellerede udfald ved samme registrerede aktivitet og bevarede rater. Højere procenter betyder mere held; forventningen tvinges ikke til midtpunktet.</value></data>
+  <data name="KC difference shows the rate-equivalent balance from approved drops and recorded activity." xml:space="preserve"><value>KC-forskel viser den rate-tilsvarende balance fra godkendte drops og registreret aktivitet.</value></data>
+  <data name="KC totals don’t account for differences in boss kill speed." xml:space="preserve"><value>KC-totaler tager ikke højde for forskelle i bossens drabshastighed.</value></data>
+  <data name="Last updated" xml:space="preserve"><value>Senest opdateret</value></data>
+  <data name="Unlucky" xml:space="preserve"><value>Uheldig</value></data>
+  <data name="Expected" xml:space="preserve"><value>Forventet</value></data>
+  <data name="Lucky" xml:space="preserve"><value>Heldig</value></data>
+  <data name="Below rate" xml:space="preserve"><value>Under rate</value></data>
+  <data name="Zero" xml:space="preserve"><value>Nul</value></data>
+  <data name="Above rate" xml:space="preserve"><value>Over rate</value></data>
+  <data name="Overall" xml:space="preserve"><value>Samlet</value></data>
+  <data name="Combined" xml:space="preserve"><value>Samlet</value></data>
+  <data name="Combined activity across bosses" xml:space="preserve"><value>Samlet aktivitet på tværs af bosser</value></data>
+  <data name="Compared with expected drops" xml:space="preserve"><value>Sammenlignet med forventede drops</value></data>
 </root>

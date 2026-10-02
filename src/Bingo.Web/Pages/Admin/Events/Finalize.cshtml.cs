@@ -35,7 +35,12 @@ public sealed class FinalizeModel(IEventFinalizationService finalization, Applic
     {
         if (!ConfirmLifecycleAction && !string.Equals(FinalizeConfirmation, "PUBLISH_OFFICIAL_RESULTS", StringComparison.Ordinal))
             throw new InvalidOperationException(Localize("Confirm that these placements should be published as the official results."));
-        await finalization.FinalizeAsync(id, Actor, ExpectedVersion, ct);
+        var outcome = await finalization.FinalizeAsync(id, Actor, ExpectedVersion, ct);
+        if (outcome.Feedback is { Length: > 0 } feedback)
+        {
+            TempData["StatusMessage"] = feedback;
+            TempData[UiMessage.TypeKey] = UiMessageType.Warning.ToString();
+        }
     }, ct);
     public async Task<IActionResult> OnPostUnfinalizeAsync(Guid id, CancellationToken ct) => await Run(id, async () => await finalization.UnfinalizeAsync(id, Reason ?? string.Empty, ConfirmLifecycleAction, Actor, ExpectedVersion > 0 ? ExpectedVersion : null, ct), ct);
     [NonAction]
