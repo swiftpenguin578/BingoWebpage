@@ -340,6 +340,7 @@ public sealed class EventSignupLifecycleService(ApplicationDbContext db, IEventR
         var waiting = await signupParticipants.Where(x => x.SignupStatus == SignupStatus.WaitingList)
             .OrderBy(x => x.WaitingListedAt ?? x.SignedUpAt)
             .ThenBy(x => x.SignupSequence)
+            .ThenBy(x => x.Id)
             .Take(Math.Max(0, item.ParticipantCap.Value - confirmed)).ToListAsync(ct);
         var now = time.GetUtcNow();
         var admins = await db.Accounts.Where(x => x.Active && x.AccountType == AccountType.WebsiteAccount && (x.GlobalRole == GlobalRole.Admin || x.GlobalRole == GlobalRole.SuperAdmin)).Select(x => x.Id).ToListAsync(ct);

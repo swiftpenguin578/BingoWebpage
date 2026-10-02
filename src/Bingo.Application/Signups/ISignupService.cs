@@ -61,6 +61,61 @@ public interface ISignupService
     Task<ParticipantLifecycleResult> RestoreAsync(Guid eventId, Guid participantId, Guid adminAccountId, string adminName, string? womValidationConfirmationToken, CancellationToken cancellationToken = default)
         => RestoreAsync(eventId, participantId, adminAccountId, adminName, cancellationToken);
 
+    /// <summary>Confirms one selected waiting-list participant atomically.</summary>
+    Task<ParticipantQueueMutationResult> ConfirmWaitingParticipantAsync(
+        ConfirmWaitingParticipantRequest request,
+        CancellationToken cancellationToken = default)
+        => Task.FromException<ParticipantQueueMutationResult>(new NotSupportedException("Selected waiting-list confirmation is not available."));
+
+    /// <summary>Moves one confirmed participant to the end of the waiting list.</summary>
+    Task<ParticipantQueueMutationResult> MoveConfirmedParticipantToWaitingAsync(
+        MoveConfirmedParticipantToWaitingRequest request,
+        CancellationToken cancellationToken = default)
+        => Task.FromException<ParticipantQueueMutationResult>(new NotSupportedException("Selected waiting-list movement is not available."));
+
+    /// <summary>Admin restore boundary with an explicit full-event capacity override.</summary>
+    Task<ParticipantLifecycleResult> RestoreAdminParticipantAsync(
+        AdminParticipantRestoreRequest request,
+        CancellationToken cancellationToken = default)
+        => Task.FromException<ParticipantLifecycleResult>(new NotSupportedException("Admin participant restoration is not available."));
+
+    /// <summary>Adds a participant from the owner's saved Playing account links without questionnaire input.</summary>
+    Task<AdminParticipantResult> AddSavedParticipantAsync(
+        AddSavedParticipantRequest request,
+        CancellationToken cancellationToken = default)
+        => Task.FromException<AdminParticipantResult>(new NotSupportedException("Saved-account participant addition is not available."));
+
+    /// <summary>Changes the primary Playing account for a pre-draft participant.</summary>
+    Task<EventAccountMutationResult> SwitchAdminPrimaryAsync(
+        SwitchAdminPrimaryRequest request,
+        CancellationToken cancellationToken = default)
+        => Task.FromException<EventAccountMutationResult>(new NotSupportedException("Primary account switching is not available."));
+
+    Task<EventAccountMutationResult> AddEventParticipantAccountAsync(
+        AddEventParticipantAccountRequest request,
+        CancellationToken cancellationToken = default)
+        => Task.FromException<EventAccountMutationResult>(new NotSupportedException("Event account additions are not available."));
+
+    Task<EventAccountMutationResult> RemoveEventParticipantAccountAsync(
+        RemoveEventParticipantAccountRequest request,
+        CancellationToken cancellationToken = default)
+        => Task.FromException<EventAccountMutationResult>(new NotSupportedException("Event account removals are not available."));
+
+    Task<EventAccountMutationResult> CorrectEventParticipantAccountAsync(
+        CorrectEventParticipantAccountRequest request,
+        CancellationToken cancellationToken = default)
+        => Task.FromException<EventAccountMutationResult>(new NotSupportedException("Event account corrections are not available."));
+
+    // Readable aliases for future Participants route binding.
+    Task<ParticipantQueueMutationResult> ConfirmParticipantAsync(ConfirmWaitingParticipantRequest request, CancellationToken cancellationToken = default)
+        => ConfirmWaitingParticipantAsync(request, cancellationToken);
+    Task<ParticipantQueueMutationResult> MoveParticipantToWaitingAsync(MoveConfirmedParticipantToWaitingRequest request, CancellationToken cancellationToken = default)
+        => MoveConfirmedParticipantToWaitingAsync(request, cancellationToken);
+    Task<AdminParticipantResult> AddAdminParticipantFromSavedAccountsAsync(AddSavedParticipantRequest request, CancellationToken cancellationToken = default)
+        => AddSavedParticipantAsync(request, cancellationToken);
+    Task<EventAccountMutationResult> SwitchParticipantPrimaryAsync(SwitchAdminPrimaryRequest request, CancellationToken cancellationToken = default)
+        => SwitchAdminPrimaryAsync(request, cancellationToken);
+
     Task<ParticipantPaymentResult> SetPaymentAsync(Guid eventId, Guid participantId, Guid? actorAccountId, string actorName, PaymentStatus payment, CancellationToken cancellationToken = default)
         => Task.FromException<ParticipantPaymentResult>(new NotSupportedException("Participant payment is not available."));
 
@@ -115,6 +170,91 @@ public interface ISignupService
 }
 
 public sealed record ParticipantLifecycleResult(bool Succeeded, string? Error, SignupStatus? Status = null, int? WaitingPosition = null, bool Changed = false, string? WomValidationConfirmationToken = null);
+public sealed record ConfirmWaitingParticipantRequest(
+    Guid EventId,
+    Guid ParticipantId,
+    Guid ActorAccountId,
+    string ActorName,
+    bool ExpandCapacityWhenFull = false,
+    long? ExpectedEventVersion = null,
+    int? ExpectedResponseVersion = null);
+public sealed record MoveConfirmedParticipantToWaitingRequest(
+    Guid EventId,
+    Guid ParticipantId,
+    Guid ActorAccountId,
+    string ActorName,
+    long? ExpectedEventVersion = null,
+    int? ExpectedResponseVersion = null);
+public sealed record ParticipantQueueMutationResult(
+    bool Succeeded,
+    string? Error = null,
+    Guid? ParticipantId = null,
+    SignupStatus? Status = null,
+    int? WaitingPosition = null,
+    Guid? PromotedParticipantId = null,
+    int? EffectiveParticipantCap = null,
+    bool Changed = false);
+public sealed record AdminParticipantRestoreRequest(
+    Guid EventId,
+    Guid ParticipantId,
+    Guid ActorAccountId,
+    string ActorName,
+    bool ExpandCapacityWhenFull = false,
+    long? ExpectedEventVersion = null,
+    int? ExpectedResponseVersion = null,
+    string? WomValidationConfirmationToken = null);
+public sealed record AddSavedParticipantRequest(
+    Guid EventId,
+    Guid OwnerAccountId,
+    Guid ActorAccountId,
+    string ActorName,
+    IReadOnlyList<Guid> PlayingCharacterIds,
+    Guid PrimaryCharacterId,
+    PaymentStatus Payment = PaymentStatus.Unpaid,
+    bool ExpandCapacityWhenFull = false,
+    long? ExpectedEventVersion = null);
+public sealed record SwitchAdminPrimaryRequest(
+    Guid EventId,
+    Guid ParticipantId,
+    Guid NextCharacterId,
+    Guid ActorAccountId,
+    string ActorName,
+    Guid? ExpectedCurrentCharacterId = null,
+    int? ExpectedResponseVersion = null);
+public sealed record AddEventParticipantAccountRequest(
+    Guid EventId,
+    Guid ParticipantId,
+    Guid CharacterId,
+    EventCharacterRole Role,
+    decimal? Ehb,
+    Guid ActorAccountId,
+    string ActorName,
+    Guid? SignupQuestionId = null,
+    int? ExpectedResponseVersion = null);
+public sealed record RemoveEventParticipantAccountRequest(
+    Guid EventId,
+    Guid ParticipantId,
+    Guid AssignmentId,
+    Guid ActorAccountId,
+    string ActorName,
+    int? ExpectedResponseVersion = null);
+public sealed record CorrectEventParticipantAccountRequest(
+    Guid EventId,
+    Guid ParticipantId,
+    Guid AssignmentId,
+    Guid CharacterId,
+    decimal? Ehb,
+    Guid ActorAccountId,
+    string ActorName,
+    int? ExpectedResponseVersion = null);
+public sealed record EventAccountMutationResult(
+    bool Succeeded,
+    string? Error = null,
+    Guid? ParticipantId = null,
+    Guid? PrimaryCharacterId = null,
+    int? PlayingAccountCount = null,
+    int? TotalAccountCount = null,
+    bool Changed = false);
 public sealed record SignupAdministrationResult(
     bool Succeeded,
     string? Error = null,

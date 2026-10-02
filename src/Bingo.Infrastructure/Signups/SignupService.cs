@@ -525,6 +525,524 @@ public sealed class SignupService(
     public Task<AdminParticipantResult> CreateAdminParticipantAsync(AdminParticipantChangeRequest request, CancellationToken cancellationToken = default) =>
         ApplyAdminParticipantChangeAsync(request, true, cancellationToken);
 
+    public async Task<AdminParticipantResult> AddSavedParticipantAsync(
+        AddSavedParticipantRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        if (request.EventId == Guid.Empty || request.OwnerAccountId == Guid.Empty || request.ActorAccountId == Guid.Empty || string.IsNullOrWhiteSpace(request.ActorName))
+            return new(false, "A current event, website account, and administrator are required.");
+        if (request.Payment is not (PaymentStatus.Paid or PaymentStatus.Unpaid))
+            return new(false, "Choose Paid or Unpaid.");
+        if (request.PlayingCharacterIds is null || request.PlayingCharacterIds.Count == 0)
+            return new(false, "Select at least one saved Playing account.");
+        if (request.PlayingCharacterIds.Any(id => id == Guid.Empty) || request.PlayingCharacterIds.Distinct().Count() != request.PlayingCharacterIds.Count)
+            return new(false, "Choose each Playing account only once.");
+        if (!request.PlayingCharacterIds.Contains(request.PrimaryCharacterId))
+            return new(false, "The selected primary account must be one of the selected Playing accounts.");
+
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
+        try
+        {
+            var authorizedActor = await Bingo.Infrastructure.Events.EventMutationAuthorization.GetAuthorizedActorAsync(
+                dbContext, new(request.ActorAccountId, request.ActorName), cancellationToken);
+            if (authorizedActor is null) return new(false, "Admin access is required.");
+            var now = ParticipantAttributionLock.AtDatabasePrecision(timeProvider.GetUtcNow());
+            var bingoEvent = await LockEventAsync(request.EventId, cancellationToken);
+            if (bingoEvent is null) return new(false, "The event could not be found.");
+            if (!CanAdministerParticipants(bingoEvent)) return new(false, "Participant administration is read-only after the draft starts.");
+            if (request.ExpectedEventVersion is { } expectedEventVersion && bingoEvent.Version != expectedEventVersion)
+                return new(false, "The event changed while you were editing it. Reload before adding the participant.");
+
+            var owner = await dbContext.Accounts
+                .FromSqlInterpolated($"SELECT * FROM accounts WHERE id = {request.OwnerAccountId} FOR UPDATE")
+                .SingleOrDefaultAsync(cancellationToken);
+            if (owner is null || !owner.Active || owner.AccountType != AccountType.WebsiteAccount)
+                return new(false, "The selected owner must be an active website account.");
+            if (await dbContext.EventParticipants.AnyAsync(x => x.EventId == request.EventId && x.AccountId == owner.Id, cancellationToken))
+                return new(false, "That website account already owns a participant in this event.");
+
+            var form = await dbContext.SignupForms.SingleOrDefaultAsync(x => x.EventId == request.EventId, cancellationToken);
+            if (form is null) return new(false, "This event has no signup form.");
+            var questions = await dbContext.SignupQuestions
+                .Where(x => x.SignupFormId == form.Id && x.EventId == request.EventId && x.Active)
+                .OrderBy(x => x.Position).ToListAsync(cancellationToken);
+            var playingQuestions = questions
+                .Where(x => x.Type == SignupQuestionType.Account && x.AccountAnswerRole == EventCharacterRole.Playing)
+                .ToList();
+            var primaryQuestions = playingQuestions
+                .Where(x => x.SystemField == SignupSystemField.PrimaryRegularAccount)
+                .ToList();
+            if (primaryQuestions.Count != 1 || !primaryQuestions[0].Required)
+                return new(false, "The event has no unambiguous required Playing primary account field.");
+            if (request.PlayingCharacterIds.Count > playingQuestions.Count)
+                return new(false, "The selected Playing accounts exceed the event's configured Playing slots.");
+
+            var selectedLinks = await (from link in dbContext.AccountOsrsCharacters
+                                       join character in dbContext.OsrsCharacters on link.OsrsCharacterId equals character.Id
+                                       where link.AccountId == owner.Id && link.Active && request.PlayingCharacterIds.Contains(link.OsrsCharacterId)
+                                       select new { Link = link, Character = character }).ToListAsync(cancellationToken);
+            if (selectedLinks.Count != request.PlayingCharacterIds.Count)
+                return new(false, "Every selected Playing account must be an active saved link for the selected website account.");
+            var byCharacter = selectedLinks.ToDictionary(x => x.Link.OsrsCharacterId);
+            var missingEhb = selectedLinks
+                .Where(x => x.Link.SavedEhb is null || x.Link.SavedEhb < 0 || x.Link.SavedEhb > 100000)
+                .Select(x => x.Character.DisplayName).ToList();
+            if (missingEhb.Count != 0)
+                return new(false, $"Save a supported EHB for each selected Playing account before adding this participant: {string.Join(", ", missingEhb)}.");
+            if (await dbContext.EventParticipantCharacters.AnyAsync(x => x.EventId == request.EventId && x.ReleasedAt == null && request.PlayingCharacterIds.Contains(x.OsrsCharacterId), cancellationToken))
+                return new(false, "One of the selected Playing accounts is already registered for this event.");
+
+            var capacity = bingoEvent.ParticipantCap;
+            if (capacity is not { } currentCapacity || currentCapacity < 1)
+                return new(false, "Configure a participant capacity before adding signups.");
+            var confirmed = await SignupParticipants(request.EventId).CountAsync(x => x.SignupStatus == SignupStatus.Confirmed, cancellationToken);
+            var full = confirmed >= currentCapacity;
+            if (full && !request.ExpandCapacityWhenFull)
+            {
+                // The normal Add flow admits the participant to the queue.
+            }
+            else if (!full && request.ExpandCapacityWhenFull)
+                return new(false, "The add-one-place option is available only when the event is full.");
+            else if (full && request.ExpandCapacityWhenFull)
+            {
+                bingoEvent.SetParticipantCap(checked(currentCapacity + 1));
+                bingoEvent.AdvanceVersion();
+            }
+            var status = full && !request.ExpandCapacityWhenFull ? SignupStatus.WaitingList : SignupStatus.Confirmed;
+            var sequence = (await dbContext.EventParticipants.Where(x => x.EventId == request.EventId)
+                .MaxAsync(x => (long?)x.SignupSequence, cancellationToken) ?? 0) + 1;
+            var participant = new EventParticipant(Guid.NewGuid(), request.EventId, status, sequence, now, SignupSource.AdminCreated);
+            participant.AssignOwner(owner);
+            participant.SetCaptainVolunteer(false);
+            participant.SetPaymentStatus(request.Payment);
+            dbContext.EventParticipants.Add(participant);
+
+            var remainingQuestions = playingQuestions.Where(x => x.Id != primaryQuestions[0].Id).ToList();
+            var registrationOrder = 0;
+            var selectedQuestionByCharacter = new Dictionary<Guid, SignupQuestion>();
+            selectedQuestionByCharacter[request.PrimaryCharacterId] = primaryQuestions[0];
+            var remainingIds = request.PlayingCharacterIds.Where(x => x != request.PrimaryCharacterId).ToList();
+            for (var index = 0; index < remainingIds.Count; index++)
+                selectedQuestionByCharacter[remainingIds[index]] = remainingQuestions[index];
+            foreach (var characterId in request.PlayingCharacterIds)
+            {
+                var selected = byCharacter[characterId];
+                var question = selectedQuestionByCharacter[characterId];
+                var ehb = selected.Link.SavedEhb!.Value;
+                dbContext.EventParticipantCharacters.Add(new EventParticipantCharacter(
+                    Guid.NewGuid(), request.EventId, participant.Id, characterId, registrationOrder++, now,
+                    authorizedActor.Id, question.Id, EventCharacterRole.Playing, ehb, EhbSource.Manual, null));
+                dbContext.SignupAnswers.Add(new SignupAnswer(
+                    Guid.NewGuid(), participant.Id, question.Id, question.Label, string.Empty, characterId));
+            }
+            form.RecordAcceptedResponse(now);
+            await dbContext.SaveChangesAsync(cancellationToken);
+            var after = await AdminStateAsync(participant.Id, cancellationToken);
+            dbContext.AuditEntries.Add(new AuditEntry(
+                Guid.NewGuid(), now, authorizedActor.Id, authorizedActor.Username, "participant.admin_saved_created",
+                "participant", participant.Id.ToString(),
+                Json(new { payment = request.Payment.ToString(), expandedCapacity = full && request.ExpandCapacityWhenFull, questionnaireAnswers = 0 }),
+                request.EventId, null, after));
+            await dbContext.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+            return new(true, null, participant.Id, status,
+                status == SignupStatus.WaitingList ? await GetWaitingPositionAsync(participant.Id, request.EventId, cancellationToken) : null);
+        }
+        catch (Exception exception) when (IsExpectedConflict(exception) && !cancellationToken.IsCancellationRequested)
+        {
+            await transaction.RollbackAsync(CancellationToken.None);
+            dbContext.ChangeTracker.Clear();
+            return new(false, "The participant or one of the selected accounts changed elsewhere. No changes were applied; reload and try again.");
+        }
+    }
+
+    public async Task<EventAccountMutationResult> SwitchAdminPrimaryAsync(
+        SwitchAdminPrimaryRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        if (request.EventId == Guid.Empty || request.ParticipantId == Guid.Empty || request.NextCharacterId == Guid.Empty || request.ActorAccountId == Guid.Empty || string.IsNullOrWhiteSpace(request.ActorName))
+            return new(false, "A current event, participant, account, and administrator are required.");
+
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
+        try
+        {
+            var authorizedActor = await Bingo.Infrastructure.Events.EventMutationAuthorization.GetAuthorizedActorAsync(
+                dbContext, new(request.ActorAccountId, request.ActorName), cancellationToken);
+            if (authorizedActor is null) return new(false, "Admin access is required.");
+            var now = ParticipantAttributionLock.AtDatabasePrecision(timeProvider.GetUtcNow());
+            var bingoEvent = await LockEventAsync(request.EventId, cancellationToken);
+            if (bingoEvent is null) return new(false, "The event could not be found.");
+            if (!CanAdministerParticipants(bingoEvent)) return new(false, "Primary account changes are locked after the draft starts.");
+            var participant = await dbContext.EventParticipants
+                .FromSqlInterpolated($"SELECT * FROM event_participants WHERE event_id = {request.EventId} AND id = {request.ParticipantId} FOR UPDATE")
+                .SingleOrDefaultAsync(cancellationToken);
+            if (participant is null) return new(false, "The participant could not be found.");
+            if (participant.SignupStatus == SignupStatus.Withdrawn)
+                return new(false, "Withdrawn participants must be restored before changing event accounts.");
+            if (request.ExpectedResponseVersion is { } expectedVersion && participant.ResponseVersion != expectedVersion)
+                return new(false, "This participant changed while you were editing it. Reload and try again.");
+
+            var questions = await dbContext.SignupQuestions
+                .Where(x => x.EventId == request.EventId && x.Active && x.Type == SignupQuestionType.Account && x.AccountAnswerRole == EventCharacterRole.Playing)
+                .OrderBy(x => x.Position).ToListAsync(cancellationToken);
+            var primaryQuestions = questions.Where(x => x.SystemField == SignupSystemField.PrimaryRegularAccount).ToList();
+            if (primaryQuestions.Count != 1 || !primaryQuestions[0].Required)
+                return new(false, "The event has no unambiguous required Playing primary account field.");
+            var primaryQuestion = primaryQuestions[0];
+            var assignments = await dbContext.EventParticipantCharacters
+                .Where(x => x.EventParticipantId == participant.Id && x.EventId == request.EventId && x.ReleasedAt == null && x.EventRole == EventCharacterRole.Playing)
+                .OrderBy(x => x.RegistrationOrder).ToListAsync(cancellationToken);
+            var current = assignments.Where(x => x.SignupQuestionId == primaryQuestion.Id).ToList();
+            if (current.Count != 1) return new(false, "The participant has no unambiguous current primary Playing account.");
+            var currentAssignment = current[0];
+            var previousPrimaryCharacterId = currentAssignment.OsrsCharacterId;
+            if (request.ExpectedCurrentCharacterId is { } expectedCurrent && expectedCurrent != currentAssignment.OsrsCharacterId)
+                return new(false, "The current primary account changed. Reload before switching it.");
+            var nextAssignment = assignments.SingleOrDefault(x => x.OsrsCharacterId == request.NextCharacterId);
+            if (nextAssignment is null) return new(false, "Choose one of the participant's current Playing accounts.");
+            if (nextAssignment.Id == currentAssignment.Id)
+            {
+                await transaction.CommitAsync(cancellationToken);
+                return new(true, ParticipantId: participant.Id, PrimaryCharacterId: currentAssignment.OsrsCharacterId,
+                    PlayingAccountCount: assignments.Count, TotalAccountCount: await dbContext.EventParticipantCharacters.CountAsync(x => x.EventParticipantId == participant.Id && x.ReleasedAt == null, cancellationToken), Changed: false);
+            }
+            if (assignments.Count(x => x.SignupQuestionId == nextAssignment.SignupQuestionId) > 1)
+                return new(false, "The participant has duplicate account-slot mappings. Resolve them before switching the primary account.");
+
+            var oldQuestionId = currentAssignment.SignupQuestionId;
+            var nextQuestionId = nextAssignment.SignupQuestionId;
+            SignupQuestion? secondaryQuestion = null;
+            if (nextQuestionId is { } validatedSecondaryQuestionId)
+            {
+                secondaryQuestion = questions.SingleOrDefault(x => x.Id == validatedSecondaryQuestionId);
+                if (secondaryQuestion is null) return new(false, "The selected account is not mapped to an active Playing slot.");
+            }
+            var answers = await dbContext.SignupAnswers
+                .Where(x => x.EventParticipantId == participant.Id && (x.SignupQuestionId == primaryQuestion.Id || (nextQuestionId != null && x.SignupQuestionId == nextQuestionId.Value)))
+                .ToListAsync(cancellationToken);
+            if (answers.Count(x => x.SignupQuestionId == primaryQuestion.Id) > 1 ||
+                (nextQuestionId is { } duplicateQuestionId && answers.Count(x => x.SignupQuestionId == duplicateQuestionId) > 1))
+                return new(false, "The participant has duplicate account answers. Resolve them before switching the primary account.");
+            var primaryAnswer = answers.SingleOrDefault(x => x.SignupQuestionId == primaryQuestion.Id);
+            var secondaryAnswer = nextQuestionId is { } selectedQuestionId
+                ? answers.SingleOrDefault(x => x.SignupQuestionId == selectedQuestionId)
+                : null;
+
+            // Validate every dependent slot and answer before changing tracked
+            // assignments. A rejected request must not leak a remap through a
+            // later SaveChanges call on this DbContext.
+            currentAssignment.SetSignupQuestion(nextQuestionId);
+            nextAssignment.SetSignupQuestion(oldQuestionId);
+            if (primaryAnswer is null)
+                dbContext.SignupAnswers.Add(new SignupAnswer(Guid.NewGuid(), participant.Id, primaryQuestion.Id, primaryQuestion.Label, string.Empty, request.NextCharacterId));
+            else
+                primaryAnswer.SetAccountCharacter(request.NextCharacterId);
+            if (nextQuestionId is { } selectedSecondaryQuestionId)
+            {
+                if (secondaryAnswer is null)
+                    dbContext.SignupAnswers.Add(new SignupAnswer(Guid.NewGuid(), participant.Id, selectedSecondaryQuestionId, secondaryQuestion!.Label, string.Empty, currentAssignment.OsrsCharacterId));
+                else
+                    secondaryAnswer.SetAccountCharacter(currentAssignment.OsrsCharacterId);
+            }
+            participant.AdvanceResponseVersion();
+            AddAudit(authorizedActor.Id, authorizedActor.Username, "participant.primary_switched", participant, request.EventId,
+                Json(new { primaryCharacterId = previousPrimaryCharacterId }),
+                Json(new { primaryCharacterId = request.NextCharacterId, previousPrimaryCharacterId }));
+            if (participant.AccountId is { } owner)
+                AddNotification(owner, "participant.accounts_changed", "Your registered event accounts were updated by an administrator.", Route(bingoEvent, participant.Id), now, bingoEvent.Id);
+            await dbContext.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+            return new(true, ParticipantId: participant.Id, PrimaryCharacterId: request.NextCharacterId,
+                PlayingAccountCount: assignments.Count,
+                TotalAccountCount: await dbContext.EventParticipantCharacters.CountAsync(x => x.EventParticipantId == participant.Id && x.ReleasedAt == null, cancellationToken), Changed: true);
+        }
+        catch (Exception exception) when (IsExpectedConflict(exception) && !cancellationToken.IsCancellationRequested)
+        {
+            await transaction.RollbackAsync(CancellationToken.None);
+            dbContext.ChangeTracker.Clear();
+            return new(false, "Another administrator changed this participant first. Reload and try again.");
+        }
+    }
+
+    public async Task<EventAccountMutationResult> AddEventParticipantAccountAsync(
+        AddEventParticipantAccountRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        if (request.EventId == Guid.Empty || request.ParticipantId == Guid.Empty || request.CharacterId == Guid.Empty || request.ActorAccountId == Guid.Empty || string.IsNullOrWhiteSpace(request.ActorName))
+            return new(false, "A current event, participant, account, and administrator are required.");
+        if (request.Role is not (EventCharacterRole.Playing or EventCharacterRole.Informational))
+            return new(false, "Choose a supported event account role.");
+        if (request.Role == EventCharacterRole.Playing)
+        {
+            if (request.Ehb is not { } playingEhb)
+                return new(false, "A Playing account requires an event EHB.");
+            if (playingEhb < 0 || playingEhb > 100000)
+                return new(false, "Enter a supported non-negative event EHB.");
+        }
+        if (request.Role == EventCharacterRole.Informational && request.Ehb is not null)
+            return new(false, "Informational accounts do not accept EHB.");
+
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
+        try
+        {
+            var authorizedActor = await Bingo.Infrastructure.Events.EventMutationAuthorization.GetAuthorizedActorAsync(
+                dbContext, new(request.ActorAccountId, request.ActorName), cancellationToken);
+            if (authorizedActor is null) return new(false, "Admin access is required.");
+            var now = ParticipantAttributionLock.AtDatabasePrecision(timeProvider.GetUtcNow());
+            var bingoEvent = await LockEventAsync(request.EventId, cancellationToken);
+            if (bingoEvent is null) return new(false, "The event could not be found.");
+            if (!CanAdministerParticipants(bingoEvent)) return new(false, "Event account changes are locked after the draft starts.");
+            var participant = await dbContext.EventParticipants
+                .FromSqlInterpolated($"SELECT * FROM event_participants WHERE event_id = {request.EventId} AND id = {request.ParticipantId} FOR UPDATE")
+                .SingleOrDefaultAsync(cancellationToken);
+            if (participant is null) return new(false, "The participant could not be found.");
+            if (participant.SignupStatus == SignupStatus.Withdrawn)
+                return new(false, "Withdrawn participants must be restored before changing event accounts.");
+            if (request.ExpectedResponseVersion is { } expectedVersion && participant.ResponseVersion != expectedVersion)
+                return new(false, "This participant changed while you were editing it. Reload and try again.");
+            var character = await dbContext.OsrsCharacters.SingleOrDefaultAsync(x => x.Id == request.CharacterId, cancellationToken);
+            if (character is null) return new(false, "The selected OSRS account could not be found.");
+            if (await dbContext.EventParticipantCharacters.AnyAsync(x => x.EventId == request.EventId && x.ReleasedAt == null && x.OsrsCharacterId == request.CharacterId, cancellationToken))
+                return new(false, "That OSRS account is already assigned to another participant in this event.");
+
+            var questions = await dbContext.SignupQuestions
+                .Where(x => x.EventId == request.EventId && x.Active && x.Type == SignupQuestionType.Account && x.AccountAnswerRole == request.Role)
+                .OrderBy(x => x.Position).ToListAsync(cancellationToken);
+            if (questions.Count == 0) return new(false, "The event has no configured slot for this account role.");
+            var current = await dbContext.EventParticipantCharacters
+                .Where(x => x.EventParticipantId == participant.Id && x.EventId == request.EventId && x.ReleasedAt == null && x.EventRole == request.Role)
+                .OrderBy(x => x.RegistrationOrder).ToListAsync(cancellationToken);
+            if (current.Count >= questions.Count)
+                return new(false, "The participant has reached the configured event account slots for this role.");
+            var occupiedQuestionIds = current.Where(x => x.SignupQuestionId is not null).Select(x => x.SignupQuestionId!.Value).ToHashSet();
+            SignupQuestion? question = null;
+            if (request.SignupQuestionId is { } requestedQuestionId)
+            {
+                question = questions.SingleOrDefault(x => x.Id == requestedQuestionId);
+                if (question is null) return new(false, "The selected account slot is not active for this event.");
+                if (!occupiedQuestionIds.Add(question.Id)) return new(false, "The selected account slot is already in use.");
+            }
+            else
+                question = questions.FirstOrDefault(x => !occupiedQuestionIds.Contains(x.Id));
+            if (question is null) return new(false, "No configured event account slot is available.");
+
+            var order = (await dbContext.EventParticipantCharacters.Where(x => x.EventParticipantId == participant.Id)
+                .MaxAsync(x => (int?)x.RegistrationOrder, cancellationToken) ?? -1) + 1;
+            var assignment = new EventParticipantCharacter(
+                Guid.NewGuid(), request.EventId, participant.Id, request.CharacterId, order, now, authorizedActor.Id,
+                question.Id, request.Role, request.Role == EventCharacterRole.Playing ? request.Ehb : null,
+                request.Role == EventCharacterRole.Playing ? EhbSource.AdminCorrection : null, null);
+            dbContext.EventParticipantCharacters.Add(assignment);
+            dbContext.SignupAnswers.Add(new SignupAnswer(Guid.NewGuid(), participant.Id, question.Id, question.Label, string.Empty, request.CharacterId));
+            participant.AdvanceResponseVersion();
+            AddAudit(authorizedActor.Id, authorizedActor.Username, "participant.event_account_added", participant, request.EventId,
+                Json(null), Json(new { assignmentId = assignment.Id, characterId = request.CharacterId, role = request.Role.ToString(), ehb = request.Ehb }));
+            if (participant.AccountId is { } owner)
+                AddNotification(owner, "participant.accounts_changed", "Your registered event accounts were updated by an administrator.", Route(bingoEvent, participant.Id), now, bingoEvent.Id);
+            await dbContext.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+            var total = await dbContext.EventParticipantCharacters.CountAsync(x => x.EventParticipantId == participant.Id && x.ReleasedAt == null, cancellationToken);
+            var playing = await dbContext.EventParticipantCharacters.CountAsync(x => x.EventParticipantId == participant.Id && x.ReleasedAt == null && x.EventRole == EventCharacterRole.Playing, cancellationToken);
+            var primary = await dbContext.PrimaryCharacters().Where(x => x.ParticipantId == participant.Id).Select(x => (Guid?)x.OsrsCharacterId).SingleOrDefaultAsync(cancellationToken);
+            return new(true, ParticipantId: participant.Id, PrimaryCharacterId: primary, PlayingAccountCount: playing, TotalAccountCount: total, Changed: true);
+        }
+        catch (Exception exception) when (IsExpectedConflict(exception) && !cancellationToken.IsCancellationRequested)
+        {
+            await transaction.RollbackAsync(CancellationToken.None);
+            dbContext.ChangeTracker.Clear();
+            return new(false, "Another administrator changed this participant or account first. Reload and try again.");
+        }
+    }
+
+    public async Task<EventAccountMutationResult> RemoveEventParticipantAccountAsync(
+        RemoveEventParticipantAccountRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        if (request.EventId == Guid.Empty || request.ParticipantId == Guid.Empty || request.AssignmentId == Guid.Empty || request.ActorAccountId == Guid.Empty || string.IsNullOrWhiteSpace(request.ActorName))
+            return new(false, "A current event, participant, assignment, and administrator are required.");
+
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
+        try
+        {
+            var authorizedActor = await Bingo.Infrastructure.Events.EventMutationAuthorization.GetAuthorizedActorAsync(
+                dbContext, new(request.ActorAccountId, request.ActorName), cancellationToken);
+            if (authorizedActor is null) return new(false, "Admin access is required.");
+            var now = ParticipantAttributionLock.AtDatabasePrecision(timeProvider.GetUtcNow());
+            var bingoEvent = await LockEventAsync(request.EventId, cancellationToken);
+            if (bingoEvent is null) return new(false, "The event could not be found.");
+            if (!CanAdministerParticipants(bingoEvent)) return new(false, "Event account changes are locked after the draft starts.");
+            var participant = await dbContext.EventParticipants
+                .FromSqlInterpolated($"SELECT * FROM event_participants WHERE event_id = {request.EventId} AND id = {request.ParticipantId} FOR UPDATE")
+                .SingleOrDefaultAsync(cancellationToken);
+            if (participant is null) return new(false, "The participant could not be found.");
+            if (participant.SignupStatus == SignupStatus.Withdrawn)
+                return new(false, "Withdrawn participants must be restored before changing event accounts.");
+            if (request.ExpectedResponseVersion is { } expectedVersion && participant.ResponseVersion != expectedVersion)
+                return new(false, "This participant changed while you were editing it. Reload and try again.");
+            var assignment = await dbContext.EventParticipantCharacters
+                .FromSqlInterpolated($"SELECT * FROM event_participant_characters WHERE id = {request.AssignmentId} AND event_id = {request.EventId} AND event_participant_id = {request.ParticipantId} FOR UPDATE")
+                .SingleOrDefaultAsync(cancellationToken);
+            if (assignment is null || assignment.ReleasedAt is not null)
+                return new(false, "The selected event account is no longer active.");
+            var primaryQuestions = await dbContext.SignupQuestions
+                .Where(x => x.EventId == request.EventId && x.Active && x.SystemField == SignupSystemField.PrimaryRegularAccount && x.AccountAnswerRole == EventCharacterRole.Playing)
+                .Select(x => x.Id)
+                .ToListAsync(cancellationToken);
+            if (primaryQuestions.Count > 1)
+                return new(false, "The event has an ambiguous primary Playing account field.");
+            if (assignment.SignupQuestionId == primaryQuestions.SingleOrDefault())
+                return new(false, "The required primary Playing account cannot be removed.");
+            if (assignment.EventRole == EventCharacterRole.Playing && await dbContext.EventParticipantCharacters.CountAsync(x => x.EventParticipantId == participant.Id && x.ReleasedAt == null && x.EventRole == EventCharacterRole.Playing, cancellationToken) <= 1)
+                return new(false, "A participant must retain at least one Playing account.");
+            assignment.Release(authorizedActor.Id, now);
+            if (assignment.SignupQuestionId is { } questionId)
+            {
+                var answer = await dbContext.SignupAnswers.SingleOrDefaultAsync(x => x.EventParticipantId == participant.Id && x.SignupQuestionId == questionId, cancellationToken);
+                if (answer is not null) dbContext.SignupAnswers.Remove(answer);
+            }
+            participant.AdvanceResponseVersion();
+            AddAudit(authorizedActor.Id, authorizedActor.Username, "participant.event_account_removed", participant, request.EventId,
+                Json(new { assignmentId = assignment.Id, characterId = assignment.OsrsCharacterId, role = assignment.EventRole.ToString() }), Json(null));
+            if (participant.AccountId is { } owner)
+                AddNotification(owner, "participant.accounts_changed", "Your registered event accounts were updated by an administrator.", Route(bingoEvent, participant.Id), now, bingoEvent.Id);
+            await dbContext.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+            var total = await dbContext.EventParticipantCharacters.CountAsync(x => x.EventParticipantId == participant.Id && x.ReleasedAt == null, cancellationToken);
+            var playing = await dbContext.EventParticipantCharacters.CountAsync(x => x.EventParticipantId == participant.Id && x.ReleasedAt == null && x.EventRole == EventCharacterRole.Playing, cancellationToken);
+            var primary = await dbContext.PrimaryCharacters().Where(x => x.ParticipantId == participant.Id).Select(x => (Guid?)x.OsrsCharacterId).SingleOrDefaultAsync(cancellationToken);
+            return new(true, ParticipantId: participant.Id, PrimaryCharacterId: primary, PlayingAccountCount: playing, TotalAccountCount: total, Changed: true);
+        }
+        catch (Exception exception) when (IsExpectedConflict(exception) && !cancellationToken.IsCancellationRequested)
+        {
+            await transaction.RollbackAsync(CancellationToken.None);
+            dbContext.ChangeTracker.Clear();
+            return new(false, "Another administrator changed this participant or account first. Reload and try again.");
+        }
+    }
+
+    public async Task<EventAccountMutationResult> CorrectEventParticipantAccountAsync(
+        CorrectEventParticipantAccountRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        if (request.EventId == Guid.Empty || request.ParticipantId == Guid.Empty || request.AssignmentId == Guid.Empty || request.CharacterId == Guid.Empty || request.ActorAccountId == Guid.Empty || string.IsNullOrWhiteSpace(request.ActorName))
+            return new(false, "A current event, participant, assignment, account, and administrator are required.");
+
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
+        try
+        {
+            var authorizedActor = await Bingo.Infrastructure.Events.EventMutationAuthorization.GetAuthorizedActorAsync(
+                dbContext, new(request.ActorAccountId, request.ActorName), cancellationToken);
+            if (authorizedActor is null) return new(false, "Admin access is required.");
+            var now = ParticipantAttributionLock.AtDatabasePrecision(timeProvider.GetUtcNow());
+            var bingoEvent = await LockEventAsync(request.EventId, cancellationToken);
+            if (bingoEvent is null) return new(false, "The event could not be found.");
+            if (!CanAdministerParticipants(bingoEvent)) return new(false, "Event account changes are locked after the draft starts.");
+            var participant = await dbContext.EventParticipants
+                .FromSqlInterpolated($"SELECT * FROM event_participants WHERE event_id = {request.EventId} AND id = {request.ParticipantId} FOR UPDATE")
+                .SingleOrDefaultAsync(cancellationToken);
+            if (participant is null) return new(false, "The participant could not be found.");
+            if (participant.SignupStatus == SignupStatus.Withdrawn)
+                return new(false, "Withdrawn participants must be restored before changing event accounts.");
+            if (request.ExpectedResponseVersion is { } expectedVersion && participant.ResponseVersion != expectedVersion)
+                return new(false, "This participant changed while you were editing it. Reload and try again.");
+            var assignment = await dbContext.EventParticipantCharacters
+                .FromSqlInterpolated($"SELECT * FROM event_participant_characters WHERE id = {request.AssignmentId} AND event_id = {request.EventId} AND event_participant_id = {request.ParticipantId} FOR UPDATE")
+                .SingleOrDefaultAsync(cancellationToken);
+            if (assignment is null || assignment.ReleasedAt is not null)
+                return new(false, "The selected event account is no longer active.");
+            var character = await dbContext.OsrsCharacters.SingleOrDefaultAsync(x => x.Id == request.CharacterId, cancellationToken);
+            if (character is null) return new(false, "The selected OSRS account could not be found.");
+            if (await dbContext.EventParticipantCharacters.AnyAsync(x => x.EventId == request.EventId && x.ReleasedAt == null && x.OsrsCharacterId == request.CharacterId && x.Id != assignment.Id, cancellationToken))
+                return new(false, "That OSRS account is already assigned to another participant in this event.");
+            var previousAssignmentId = assignment.Id;
+            var previousCharacterId = assignment.OsrsCharacterId;
+            var previousEhb = assignment.EhbSnapshot;
+            var previousEhbSource = assignment.EhbSource;
+            var previousEhbFetchedAt = assignment.EhbFetchedAt;
+            var previousQuestionId = assignment.SignupQuestionId;
+            decimal? correctedEhb = null;
+            EhbSource? correctedEhbSource = null;
+            if (assignment.EventRole == EventCharacterRole.Playing)
+            {
+                correctedEhb = request.Ehb ?? assignment.EhbSnapshot;
+                if (correctedEhb is not { } validEhb || validEhb < 0 || validEhb > 100000)
+                    return new(false, "Enter a supported non-negative event EHB for the Playing account.");
+                if (assignment.OsrsCharacterId == request.CharacterId && assignment.EhbSnapshot == validEhb)
+                {
+                    await transaction.CommitAsync(cancellationToken);
+                    return new(true, ParticipantId: participant.Id, PrimaryCharacterId: (await dbContext.PrimaryCharacters().Where(x => x.ParticipantId == participant.Id).Select(x => (Guid?)x.OsrsCharacterId).SingleOrDefaultAsync(cancellationToken)), Changed: false);
+                }
+                correctedEhbSource = EhbSource.AdminCorrection;
+            }
+            else
+            {
+                if (request.Ehb is not null) return new(false, "Informational accounts do not accept EHB.");
+                if (assignment.OsrsCharacterId == request.CharacterId)
+                {
+                    await transaction.CommitAsync(cancellationToken);
+                    return new(true, ParticipantId: participant.Id, PrimaryCharacterId: (await dbContext.PrimaryCharacters().Where(x => x.ParticipantId == participant.Id).Select(x => (Guid?)x.OsrsCharacterId).SingleOrDefaultAsync(cancellationToken)), Changed: false);
+                }
+            }
+
+            // Corrections are append-only assignment history. Keep the prior
+            // character/EHB/provenance row released, then add a new active row
+            // with the same configured slot and a fresh registration order.
+            var order = (await dbContext.EventParticipantCharacters
+                .Where(x => x.EventParticipantId == participant.Id)
+                .MaxAsync(x => (int?)x.RegistrationOrder, cancellationToken) ?? -1) + 1;
+            assignment.Release(authorizedActor.Id, now);
+            var correctedAssignment = new EventParticipantCharacter(
+                Guid.NewGuid(), request.EventId, participant.Id, request.CharacterId, order, now,
+                authorizedActor.Id, previousQuestionId, assignment.EventRole, correctedEhb, correctedEhbSource, null);
+            dbContext.EventParticipantCharacters.Add(correctedAssignment);
+            if (previousQuestionId is { } questionId)
+            {
+                var answer = await dbContext.SignupAnswers.SingleOrDefaultAsync(x => x.EventParticipantId == participant.Id && x.SignupQuestionId == questionId, cancellationToken);
+                if (answer is null)
+                {
+                    var question = await dbContext.SignupQuestions.SingleAsync(x => x.Id == questionId, cancellationToken);
+                    dbContext.SignupAnswers.Add(new SignupAnswer(Guid.NewGuid(), participant.Id, questionId, question.Label, string.Empty, request.CharacterId));
+                }
+                else answer.SetAccountCharacter(request.CharacterId);
+            }
+            participant.AdvanceResponseVersion();
+            AddAudit(authorizedActor.Id, authorizedActor.Username, "participant.event_account_corrected", participant, request.EventId,
+                Json(new
+                {
+                    assignmentId = previousAssignmentId,
+                    characterId = previousCharacterId,
+                    ehb = previousEhb,
+                    ehbSource = previousEhbSource?.ToString(),
+                    ehbFetchedAt = previousEhbFetchedAt,
+                    signupQuestionId = previousQuestionId
+                }),
+                Json(new
+                {
+                    assignmentId = correctedAssignment.Id,
+                    characterId = correctedAssignment.OsrsCharacterId,
+                    ehb = correctedAssignment.EhbSnapshot,
+                    ehbSource = correctedAssignment.EhbSource?.ToString(),
+                    ehbFetchedAt = correctedAssignment.EhbFetchedAt,
+                    signupQuestionId = correctedAssignment.SignupQuestionId,
+                    replacedAssignmentId = previousAssignmentId
+                }));
+            if (participant.AccountId is { } owner)
+                AddNotification(owner, "participant.accounts_changed", "Your registered event accounts were updated by an administrator.", Route(bingoEvent, participant.Id), now, bingoEvent.Id);
+            await dbContext.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+            var total = await dbContext.EventParticipantCharacters.CountAsync(x => x.EventParticipantId == participant.Id && x.ReleasedAt == null, cancellationToken);
+            var playing = await dbContext.EventParticipantCharacters.CountAsync(x => x.EventParticipantId == participant.Id && x.ReleasedAt == null && x.EventRole == EventCharacterRole.Playing, cancellationToken);
+            var primary = await dbContext.PrimaryCharacters().Where(x => x.ParticipantId == participant.Id).Select(x => (Guid?)x.OsrsCharacterId).SingleOrDefaultAsync(cancellationToken);
+            return new(true, ParticipantId: participant.Id, PrimaryCharacterId: primary, PlayingAccountCount: playing, TotalAccountCount: total, Changed: true);
+        }
+        catch (Exception exception) when (IsExpectedConflict(exception) && !cancellationToken.IsCancellationRequested)
+        {
+            await transaction.RollbackAsync(CancellationToken.None);
+            dbContext.ChangeTracker.Clear();
+            return new(false, "Another administrator changed this participant or account first. Reload and try again.");
+        }
+    }
+
     public Task<ParticipantOwnershipTransferResult> TransferParticipantOwnershipAsync(ParticipantOwnershipTransferRequest request, CancellationToken cancellationToken = default)
     {
         // Ownership transfer was a legacy correction path.  Keep the result type so
@@ -541,10 +1059,11 @@ public sealed class SignupService(
 
         await using var transaction = await dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
         var now = timeProvider.GetUtcNow();
+        var authorizedActor = await Bingo.Infrastructure.Events.EventMutationAuthorization.GetAuthorizedActorAsync(
+            dbContext, new(request.ActorAccountId, request.ActorName), ct);
+        if (authorizedActor is null) return new(false, "Admin access is required.");
         var bingoEvent = await LockEventAsync(request.EventId, ct);
         if (bingoEvent is null) return new(false, "The event could not be found.");
-        var actor = await AdminAsync(request.ActorAccountId, ct);
-        if (actor is null) return new(false, "Admin access is required.");
         if (!CanAdministerParticipants(bingoEvent)) return new(false, "Participant administration is read-only after the draft starts.");
         var form = await dbContext.SignupForms.SingleOrDefaultAsync(x => x.EventId == request.EventId, ct);
         if (form is null) return new(false, "This event has no signup form.");
@@ -643,7 +1162,7 @@ public sealed class SignupService(
                 ? creating ? "Admin participant created." : "Participant signup corrected."
                 : creating ? "Admin participant created after explicitly confirming a Wise Old Man operational failure."
                 : "Participant signup corrected after explicitly confirming a Wise Old Man operational failure.";
-            dbContext.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), now, request.ActorAccountId, request.ActorName, creating ? "participant.admin_created" : "participant.corrected", "participant", participant.Id.ToString(), validationDetail, request.EventId, before, after));
+            dbContext.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), now, authorizedActor.Id, authorizedActor.Username, creating ? "participant.admin_created" : "participant.corrected", "participant", participant.Id.ToString(), validationDetail, request.EventId, before, after));
             await dbContext.SaveChangesAsync(ct);
             await transaction.CommitAsync(ct);
         }
@@ -1889,6 +2408,188 @@ public sealed class SignupService(
         return false;
     }
 
+    public async Task<ParticipantQueueMutationResult> ConfirmWaitingParticipantAsync(
+        ConfirmWaitingParticipantRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        if (request.EventId == Guid.Empty || request.ParticipantId == Guid.Empty || request.ActorAccountId == Guid.Empty || string.IsNullOrWhiteSpace(request.ActorName))
+            return new(false, "A current event, participant, and administrator are required.");
+
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
+        try
+        {
+            var authorizedActor = await Bingo.Infrastructure.Events.EventMutationAuthorization.GetAuthorizedActorAsync(
+                dbContext, new(request.ActorAccountId, request.ActorName), cancellationToken);
+            if (authorizedActor is null) return new(false, "Admin access is required.");
+            var now = ParticipantAttributionLock.AtDatabasePrecision(timeProvider.GetUtcNow());
+            var bingoEvent = await LockEventAsync(request.EventId, cancellationToken);
+            if (bingoEvent is null) return new(false, "The event could not be found.");
+            if (!CanAdministerParticipants(bingoEvent)) return new(false, "Participant administration is read-only after the draft starts.");
+            if (request.ExpectedEventVersion is { } expectedEventVersion && bingoEvent.Version != expectedEventVersion)
+                return new(false, "The event changed while you were editing it. Reload before confirming the participant.");
+
+            var participant = await dbContext.EventParticipants
+                .FromSqlInterpolated($"SELECT * FROM event_participants WHERE id = {request.ParticipantId} AND event_id = {request.EventId} FOR UPDATE")
+                .SingleOrDefaultAsync(cancellationToken);
+            if (participant is null) return new(false, "The participant could not be found.");
+            if (!await SignupParticipants(request.EventId).AnyAsync(x => x.Id == participant.Id, cancellationToken))
+                return new(false, "That participant is managed by the finalized/direct roster workflow.");
+            if (request.ExpectedResponseVersion is { } expectedResponseVersion && participant.ResponseVersion != expectedResponseVersion)
+                return new(false, "This participant changed while you were editing it. Reload before confirming it.");
+            if (participant.SignupStatus == SignupStatus.Confirmed)
+            {
+                await transaction.CommitAsync(cancellationToken);
+                return new(true, ParticipantId: participant.Id, Status: SignupStatus.Confirmed, EffectiveParticipantCap: bingoEvent.ParticipantCap, Changed: false);
+            }
+            if (participant.SignupStatus != SignupStatus.WaitingList)
+                return new(false, "Only a waiting-list participant can be confirmed.");
+
+            var capacity = bingoEvent.ParticipantCap;
+            if (capacity is not { } currentCapacity || currentCapacity < 1)
+                return new(false, "Configure a participant capacity before confirming signups.");
+            var confirmed = await SignupParticipants(request.EventId).CountAsync(x => x.SignupStatus == SignupStatus.Confirmed, cancellationToken);
+            var full = confirmed >= currentCapacity;
+            if (full && !request.ExpandCapacityWhenFull)
+                return new(false, "The event is full. Confirm the add-one-place option to confirm this participant.");
+            if (!full && request.ExpandCapacityWhenFull)
+                return new(false, "The add-one-place option is available only when the event is full.");
+
+            if (full)
+            {
+                bingoEvent.SetParticipantCap(checked(currentCapacity + 1));
+                bingoEvent.AdvanceVersion();
+            }
+            participant.Promote(now);
+            participant.AdvanceResponseVersion();
+            var actorId = authorizedActor.Id;
+            AddAudit(actorId, authorizedActor.Username, "participant.admin_confirmed", participant, request.EventId,
+                SignupStatus.WaitingList.ToString(), SignupStatus.Confirmed.ToString(),
+                full ? "Selected confirmation added exactly one capacity place." : "Selected confirmation used an existing capacity place.");
+            if (participant.AccountId is { } owner)
+                AddNotification(owner, "participant.promoted", $"Your signup for {bingoEvent.Name} is confirmed.", Route(bingoEvent, participant.Id), now, bingoEvent.Id);
+            var admins = await dbContext.Accounts
+                .Where(x => x.Active && x.AccountType == AccountType.WebsiteAccount && (x.GlobalRole == GlobalRole.Admin || x.GlobalRole == GlobalRole.SuperAdmin))
+                .Select(x => x.Id)
+                .ToListAsync(cancellationToken);
+            foreach (var admin in admins)
+                AddNotification(admin, "participant.promoted", $"A participant was promoted for {bingoEvent.Name} (selected admin confirmation).", $"/Admin/Events/Manage/{bingoEvent.Id}", now, bingoEvent.Id);
+            await dbContext.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+            return new(true, ParticipantId: participant.Id, Status: SignupStatus.Confirmed,
+                EffectiveParticipantCap: bingoEvent.ParticipantCap, Changed: true);
+        }
+        catch (Exception exception) when (IsExpectedConflict(exception) && !cancellationToken.IsCancellationRequested)
+        {
+            await transaction.RollbackAsync(CancellationToken.None);
+            dbContext.ChangeTracker.Clear();
+            return new(false, "Another administrator changed this participant or event first. Reload and try again.");
+        }
+    }
+
+    public async Task<ParticipantQueueMutationResult> MoveConfirmedParticipantToWaitingAsync(
+        MoveConfirmedParticipantToWaitingRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        if (request.EventId == Guid.Empty || request.ParticipantId == Guid.Empty || request.ActorAccountId == Guid.Empty || string.IsNullOrWhiteSpace(request.ActorName))
+            return new(false, "A current event, participant, and administrator are required.");
+
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
+        try
+        {
+            var authorizedActor = await Bingo.Infrastructure.Events.EventMutationAuthorization.GetAuthorizedActorAsync(
+                dbContext, new(request.ActorAccountId, request.ActorName), cancellationToken);
+            if (authorizedActor is null) return new(false, "Admin access is required.");
+            var now = ParticipantAttributionLock.AtDatabasePrecision(timeProvider.GetUtcNow());
+            var bingoEvent = await LockEventAsync(request.EventId, cancellationToken);
+            if (bingoEvent is null) return new(false, "The event could not be found.");
+            if (!CanAdministerParticipants(bingoEvent)) return new(false, "Participant administration is read-only after the draft starts.");
+            if (request.ExpectedEventVersion is { } expectedEventVersion && bingoEvent.Version != expectedEventVersion)
+                return new(false, "The event changed while you were editing it. Reload before moving the participant.");
+
+            var participant = await dbContext.EventParticipants
+                .FromSqlInterpolated($"SELECT * FROM event_participants WHERE id = {request.ParticipantId} AND event_id = {request.EventId} FOR UPDATE")
+                .SingleOrDefaultAsync(cancellationToken);
+            if (participant is null) return new(false, "The participant could not be found.");
+            if (!await SignupParticipants(request.EventId).AnyAsync(x => x.Id == participant.Id, cancellationToken))
+                return new(false, "That participant is managed by the finalized/direct roster workflow.");
+            if (request.ExpectedResponseVersion is { } expectedResponseVersion && participant.ResponseVersion != expectedResponseVersion)
+                return new(false, "This participant changed while you were editing it. Reload before moving it.");
+            if (participant.SignupStatus == SignupStatus.WaitingList)
+            {
+                await transaction.CommitAsync(cancellationToken);
+                return new(true, ParticipantId: participant.Id, Status: SignupStatus.WaitingList,
+                    WaitingPosition: await GetWaitingPositionAsync(participant.Id, request.EventId, cancellationToken), Changed: false);
+            }
+            if (participant.SignupStatus != SignupStatus.Confirmed)
+                return new(false, "Only a confirmed participant can be moved to the waiting list.");
+
+            var capacity = bingoEvent.ParticipantCap;
+            if (capacity is not { } currentCapacity || currentCapacity < 1)
+                return new(false, "Configure a participant capacity before moving a participant.");
+            var confirmed = await SignupParticipants(request.EventId).CountAsync(x => x.SignupStatus == SignupStatus.Confirmed, cancellationToken);
+            if (confirmed < currentCapacity)
+                return new(false, "A place is available; a confirmed participant cannot be forced onto the waiting list.");
+
+            // Capture the next eligible waiter before appending the selected
+            // participant, otherwise the mover can be immediately re-promoted.
+            var next = await SignupParticipants(request.EventId)
+                .Where(x => x.SignupStatus == SignupStatus.WaitingList && x.Id != participant.Id)
+                .OrderBy(x => x.WaitingListedAt ?? x.SignedUpAt)
+                .ThenBy(x => x.SignupSequence)
+                .ThenBy(x => x.Id)
+                .FirstOrDefaultAsync(cancellationToken);
+            if (next is null)
+                return new(false, "Another eligible waiting-list participant is required to fill the released place.");
+
+            var memberships = await dbContext.TeamMemberships
+                .Where(x => x.EventParticipantId == participant.Id && x.LeftAt == null)
+                .ToListAsync(cancellationToken);
+            foreach (var membership in memberships)
+            {
+                var previousRole = membership.Role;
+                if (previousRole is TeamMembershipRole.Captain or TeamMembershipRole.CoCaptain)
+                {
+                    membership.ChangeRole(TeamMembershipRole.Participant);
+                    dbContext.TeamMembershipRoleTransitions.Add(new TeamMembershipRoleTransition(
+                        Guid.NewGuid(), membership.Id, previousRole, TeamMembershipRole.Participant, authorizedActor.Id, now));
+                }
+                membership.Leave(now, "Admin moved participant to waiting list");
+            }
+
+            var sequence = (await dbContext.EventParticipants.Where(x => x.EventId == request.EventId)
+                .MaxAsync(x => (long?)x.SignupSequence, cancellationToken) ?? 0) + 1;
+            participant.MoveToWaiting(sequence, now);
+            next.Promote(now);
+            next.AdvanceResponseVersion();
+            AddAudit(authorizedActor.Id, authorizedActor.Username, "participant.admin_moved_to_waiting", participant, request.EventId,
+                SignupStatus.Confirmed.ToString(), SignupStatus.WaitingList.ToString(),
+                Json(new { promotedParticipantId = next.Id, endedMembershipCount = memberships.Count }));
+            AddAudit(authorizedActor.Id, authorizedActor.Username, "participant.promoted", next, request.EventId,
+                SignupStatus.WaitingList.ToString(), SignupStatus.Confirmed.ToString(), "Promoted into the place vacated by a selected participant.");
+            if (participant.AccountId is { } owner)
+                AddNotification(owner, "participant.waiting", $"Your signup for {bingoEvent.Name} is now on the waiting list.", Route(bingoEvent, participant.Id), now, bingoEvent.Id);
+            if (next.AccountId is { } nextOwner)
+                AddNotification(nextOwner, "participant.promoted", $"Your signup for {bingoEvent.Name} is confirmed.", Route(bingoEvent, next.Id), now, bingoEvent.Id);
+            var admins = await dbContext.Accounts
+                .Where(x => x.Active && x.AccountType == AccountType.WebsiteAccount && (x.GlobalRole == GlobalRole.Admin || x.GlobalRole == GlobalRole.SuperAdmin))
+                .Select(x => x.Id)
+                .ToListAsync(cancellationToken);
+            foreach (var admin in admins)
+                AddNotification(admin, "participant.promoted", $"A participant was promoted for {bingoEvent.Name} (selected participant moved to waiting).", $"/Admin/Events/Manage/{bingoEvent.Id}", now, bingoEvent.Id);
+            await dbContext.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+            return new(true, ParticipantId: participant.Id, Status: SignupStatus.WaitingList,
+                WaitingPosition: await GetWaitingPositionAsync(participant.Id, request.EventId, cancellationToken),
+                PromotedParticipantId: next.Id, EffectiveParticipantCap: bingoEvent.ParticipantCap, Changed: true);
+        }
+        catch (Exception exception) when (IsExpectedConflict(exception) && !cancellationToken.IsCancellationRequested)
+        {
+            await transaction.RollbackAsync(CancellationToken.None);
+            dbContext.ChangeTracker.Clear();
+            return new(false, "Another administrator changed this participant or event first. Reload and try again.");
+        }
+    }
+
     public Task<ParticipantLifecycleResult> RejoinAsync(Guid eventId, Guid participantId, Guid accountId, string actorName, CancellationToken cancellationToken = default) =>
         RejoinAsync(eventId, participantId, accountId, actorName, null, null, cancellationToken);
 
@@ -1930,32 +2631,95 @@ public sealed class SignupService(
     }
 
     public Task<ParticipantLifecycleResult> RestoreAsync(Guid eventId, Guid participantId, Guid adminAccountId, string adminName, CancellationToken cancellationToken = default) =>
-        RestoreAsync(eventId, participantId, adminAccountId, adminName, null, cancellationToken);
+        RestoreAdminParticipantAsync(new(eventId, participantId, adminAccountId, adminName), cancellationToken);
 
-    public async Task<ParticipantLifecycleResult> RestoreAsync(Guid eventId, Guid participantId, Guid adminAccountId, string adminName, string? womValidationConfirmationToken, CancellationToken cancellationToken = default)
+    public Task<ParticipantLifecycleResult> RestoreAsync(Guid eventId, Guid participantId, Guid adminAccountId, string adminName, string? womValidationConfirmationToken, CancellationToken cancellationToken = default) =>
+        RestoreAdminParticipantAsync(new(eventId, participantId, adminAccountId, adminName, WomValidationConfirmationToken: womValidationConfirmationToken), cancellationToken);
+
+    public async Task<ParticipantLifecycleResult> RestoreAdminParticipantAsync(
+        AdminParticipantRestoreRequest request,
+        CancellationToken cancellationToken = default)
     {
-        var validation = await PrevalidateReacquireNamesAsync(eventId, participantId, adminAccountId, true, adminAccountId, null, womValidationConfirmationToken, cancellationToken);
+        var validation = await PrevalidateReacquireNamesAsync(
+            request.EventId, request.ParticipantId, request.ActorAccountId, true, request.ActorAccountId,
+            null, request.WomValidationConfirmationToken, cancellationToken);
         if (validation.Failure is not null) return validation.Failure;
-        await using var tx = await dbContext.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken);
-        var bingoEvent = await LockEventAsync(eventId, cancellationToken);
-        var participant = await dbContext.EventParticipants.SingleOrDefaultAsync(x => x.EventId == eventId && x.Id == participantId, cancellationToken);
-        if (bingoEvent is null || participant is null) return new(false, "The participant could not be found.");
-        if (bingoEvent.DraftLocked || !CanAdministerParticipants(bingoEvent)) return new(false, "Participant lifecycle changes are locked because the draft has started or the event has moved on.");
-        if (validation.ExpectedVersion is { } expectedVersion && participant.ResponseVersion != expectedVersion)
-            return new(false, "This participant changed while you were editing it. Reload and try again.");
-        if (participant.SignupStatus != SignupStatus.Withdrawn) return new(true, null, participant.SignupStatus, null, false);
-        var status = await AdmissionStatusAsync(bingoEvent, cancellationToken);
-        var now = timeProvider.GetUtcNow();
-        if (validation.Names is not null && !SameNames(validation.Names, await LoadReacquireNamesAsync(participant, cancellationToken)))
-            return new(false, "The reacquired accounts changed while you were editing it. Please reload and try again.");
-        if (!await ReacquireAssignmentsAsync(participant, adminAccountId, now, cancellationToken)) return new(false, "One of this participant's accounts is now assigned to another participant.");
-        var next = (await dbContext.EventParticipants.Where(x => x.EventId == eventId).MaxAsync(x => (long?)x.SignupSequence, cancellationToken) ?? 0) + 1;
-        participant.Rejoin(status, next, now);
-        AddAudit(adminAccountId, adminName, "participant.admin_restored", participant, eventId, SignupStatus.Withdrawn.ToString(), status.ToString(),
-            string.IsNullOrWhiteSpace(womValidationConfirmationToken) ? null : "Wise Old Man operational failure explicitly confirmed.");
-        if (participant.AccountId is { } owner) AddNotification(owner, "participant.restored", "Your signup has been restored by an administrator.", Route(bingoEvent, participant.Id), now, bingoEvent.Id);
-        await dbContext.SaveChangesAsync(cancellationToken); await tx.CommitAsync(cancellationToken);
-        return new(true, null, status, status == SignupStatus.WaitingList ? await GetWaitingPositionAsync(participantId, eventId, cancellationToken) : null, true);
+
+        await using var tx = await dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
+        try
+        {
+            // The preflight is only advisory. Recheck the actor while holding its
+            // row lock before locking the event and changing roster state.
+            var authorizedActor = await Bingo.Infrastructure.Events.EventMutationAuthorization.GetAuthorizedActorAsync(
+                dbContext, new(request.ActorAccountId, request.ActorName), cancellationToken);
+            if (authorizedActor is null) return new(false, "Admin access is required.");
+            var bingoEvent = await LockEventAsync(request.EventId, cancellationToken);
+            var participant = await dbContext.EventParticipants
+                .FromSqlInterpolated($"SELECT * FROM event_participants WHERE event_id = {request.EventId} AND id = {request.ParticipantId} FOR UPDATE")
+                .SingleOrDefaultAsync(cancellationToken);
+            if (bingoEvent is null || participant is null) return new(false, "The participant could not be found.");
+            if (!CanAdministerParticipants(bingoEvent)) return new(false, "Participant lifecycle changes are locked because the draft has started or the event has moved on.");
+            if (request.ExpectedEventVersion is { } expectedEventVersion && bingoEvent.Version != expectedEventVersion)
+                return new(false, "The event changed while you were editing it. Reload before restoring the participant.");
+            if (!await SignupParticipants(request.EventId).AnyAsync(x => x.Id == participant.Id, cancellationToken))
+                return new(false, "That participant is managed by the finalized/direct roster workflow.");
+            if (validation.ExpectedVersion is { } expectedVersion && participant.ResponseVersion != expectedVersion)
+                return new(false, "This participant changed while you were editing it. Reload and try again.");
+            if (request.ExpectedResponseVersion is { } requestVersion && participant.ResponseVersion != requestVersion)
+                return new(false, "This participant changed while you were editing it. Reload and try again.");
+            if (participant.SignupStatus != SignupStatus.Withdrawn)
+                return new(true, null, participant.SignupStatus,
+                    participant.SignupStatus == SignupStatus.WaitingList
+                        ? await GetWaitingPositionAsync(participant.Id, request.EventId, cancellationToken) : null,
+                    false);
+
+            var now = ParticipantAttributionLock.AtDatabasePrecision(timeProvider.GetUtcNow());
+            var capacity = bingoEvent.ParticipantCap;
+            if (capacity is not { } currentCapacity || currentCapacity < 1)
+                return new(false, "Configure a participant capacity before restoring signups.");
+            var confirmed = await SignupParticipants(request.EventId).CountAsync(x => x.SignupStatus == SignupStatus.Confirmed, cancellationToken);
+            var full = confirmed >= currentCapacity;
+            if (full && !request.ExpandCapacityWhenFull)
+            {
+                // A normal restore goes to the end of the queue. It never
+                // displaces a participant already promoted into a place.
+            }
+            else if (!full && request.ExpandCapacityWhenFull)
+                return new(false, "The add-one-place option is available only when the event is full.");
+
+            if (validation.Names is not null && !SameNames(validation.Names, await LoadReacquireNamesAsync(participant, cancellationToken)))
+                return new(false, "The reacquired accounts changed while you were editing it. Please reload and try again.");
+            if (!await ReacquireAssignmentsAsync(participant, authorizedActor.Id, now, cancellationToken))
+                return new(false, "One of this participant's accounts is now assigned to another participant.");
+            // Do not mutate the tracked event until account reacquisition has
+            // passed. A rejected restore can then safely be followed by a
+            // different mutation on this same DbContext.
+            if (full && request.ExpandCapacityWhenFull)
+            {
+                bingoEvent.SetParticipantCap(checked(currentCapacity + 1));
+                bingoEvent.AdvanceVersion();
+            }
+            var status = full && !request.ExpandCapacityWhenFull ? SignupStatus.WaitingList : SignupStatus.Confirmed;
+            var next = (await dbContext.EventParticipants.Where(x => x.EventId == request.EventId)
+                .MaxAsync(x => (long?)x.SignupSequence, cancellationToken) ?? 0) + 1;
+            participant.Rejoin(status, next, now);
+            AddAudit(authorizedActor.Id, authorizedActor.Username, "participant.admin_restored", participant, request.EventId,
+                SignupStatus.Withdrawn.ToString(), status.ToString(),
+                Json(new { expandedCapacity = full && request.ExpandCapacityWhenFull }));
+            if (participant.AccountId is { } owner)
+                AddNotification(owner, "participant.restored", "Your signup has been restored by an administrator.", Route(bingoEvent, participant.Id), now, bingoEvent.Id);
+            await dbContext.SaveChangesAsync(cancellationToken);
+            await tx.CommitAsync(cancellationToken);
+            return new(true, null, status,
+                status == SignupStatus.WaitingList ? await GetWaitingPositionAsync(request.ParticipantId, request.EventId, cancellationToken) : null,
+                true, request.WomValidationConfirmationToken);
+        }
+        catch (Exception exception) when (IsExpectedConflict(exception) && !cancellationToken.IsCancellationRequested)
+        {
+            await tx.RollbackAsync(CancellationToken.None);
+            dbContext.ChangeTracker.Clear();
+            return new(false, "Another administrator changed this participant or event first. Reload and try again.");
+        }
     }
 
     private async Task<ReacquirePrevalidation> PrevalidateReacquireNamesAsync(
@@ -2039,6 +2803,7 @@ public sealed class SignupService(
             .Where(participant => participant.SignupStatus == SignupStatus.WaitingList)
             .OrderBy(participant => participant.WaitingListedAt ?? participant.SignedUpAt)
             .ThenBy(participant => participant.SignupSequence)
+            .ThenBy(participant => participant.Id)
             .Take(places)
             .ToListAsync(cancellationToken);
         var now = timeProvider.GetUtcNow();
@@ -2095,8 +2860,9 @@ public sealed class SignupService(
     {
         var waitingIds = await SignupParticipants(eventId).AsNoTracking()
             .Where(participant => participant.SignupStatus == SignupStatus.WaitingList)
-            .OrderBy(participant => participant.SignedUpAt)
+            .OrderBy(participant => participant.WaitingListedAt ?? participant.SignedUpAt)
             .ThenBy(participant => participant.SignupSequence)
+            .ThenBy(participant => participant.Id)
             .Select(participant => participant.Id)
             .ToListAsync(cancellationToken);
         return waitingIds.IndexOf(participantId) + 1;

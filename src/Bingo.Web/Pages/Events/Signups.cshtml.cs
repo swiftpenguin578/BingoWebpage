@@ -86,7 +86,18 @@ public sealed class SignupsModel(ApplicationDbContext db, ITeamCaptainAuthorityS
             .ToList();
         Columns = columns;
 
-        var participants = await db.EventParticipants.AsNoTracking().Where(x => x.EventId == item.Id && (captainDraftAccess ? x.SignupStatus == SignupStatus.Confirmed : x.SignupStatus == SignupStatus.Confirmed || x.SignupStatus == SignupStatus.WaitingList)).OrderBy(x => x.SignedUpAt).ThenBy(x => x.SignupSequence).ToListAsync(ct);
+        var participants = await db.EventParticipants.AsNoTracking()
+            .Where(x => x.EventId == item.Id && (captainDraftAccess
+                ? x.SignupStatus == SignupStatus.Confirmed
+                : x.SignupStatus == SignupStatus.Confirmed || x.SignupStatus == SignupStatus.WaitingList))
+            // Keep the displayed waiting positions aligned with the service's
+            // queue authority. Confirmed rows stay above the queue, while a
+            // restored/moved waiter is ordered by its new waiting timestamp.
+            .OrderBy(x => x.SignupStatus == SignupStatus.WaitingList)
+            .ThenBy(x => x.WaitingListedAt ?? x.SignedUpAt)
+            .ThenBy(x => x.SignupSequence)
+            .ThenBy(x => x.Id)
+            .ToListAsync(ct);
         var participantIds = participants.Select(x => x.Id).ToList();
         var assignments = await (from assignment in db.EventParticipantCharacters.AsNoTracking()
                                  join character in db.OsrsCharacters.AsNoTracking() on assignment.OsrsCharacterId equals character.Id

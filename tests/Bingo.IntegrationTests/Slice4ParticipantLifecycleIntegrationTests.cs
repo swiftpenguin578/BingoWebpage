@@ -287,6 +287,65 @@ public sealed class Slice4ParticipantLifecycleIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task AdminRestoreCapacityOverrideWaitsForReacquisitionAndCanRetryInTheSameContext()
+    {
+        var setup = await SeedAsync(capacity: 1, confirmed: 1, waiting: 0);
+        await using (var db = new ApplicationDbContext(options))
+            Assert.True((await Service(db).WithdrawAsync(setup.EventId, setup.ConfirmedParticipantId, setup.ConfirmedOwnerId, "owner", false)).Succeeded);
+        var releasedCharacter = await CharacterIdAsync(setup.ConfirmedParticipantId);
+        await ClaimCharacterAsync(setup.EventId, releasedCharacter, "override-claimant");
+
+        await using var restoreDb = new ApplicationDbContext(options);
+        var beforeEvent = await restoreDb.Events.AsNoTracking().SingleAsync(x => x.Id == setup.EventId);
+        var failed = await Service(restoreDb).RestoreAdminParticipantAsync(new(
+            setup.EventId, setup.ConfirmedParticipantId, setup.EnabledAdminId, "admin", ExpandCapacityWhenFull: true));
+        Assert.False(failed.Succeeded);
+        Assert.Contains("assigned", failed.Error, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(beforeEvent.ParticipantCap, await restoreDb.Events.Where(x => x.Id == setup.EventId).Select(x => x.ParticipantCap).SingleAsync());
+        Assert.Equal(beforeEvent.Version, await restoreDb.Events.Where(x => x.Id == setup.EventId).Select(x => x.Version).SingleAsync());
+
+        var note = await Service(restoreDb).SetAdminNotesAsync(setup.EventId, setup.ConfirmedParticipantId, setup.EnabledAdminId, "admin", "after failed restore", null);
+        Assert.True(note.Succeeded, note.Error);
+
+        var claimant = await restoreDb.EventParticipantCharacters
+            .Where(x => x.EventId == setup.EventId && x.OsrsCharacterId == releasedCharacter && x.ReleasedAt == null)
+            .Select(x => x.EventParticipantId)
+            .SingleAsync();
+        var claimantOwner = await restoreDb.EventParticipants.Where(x => x.Id == claimant).Select(x => x.AccountId).SingleAsync();
+        Assert.True(claimantOwner.HasValue);
+        var withdrawn = await Service(restoreDb).WithdrawAsync(setup.EventId, claimant, claimantOwner, "claimant", false);
+        Assert.True(withdrawn.Succeeded, withdrawn.Error);
+
+        // Keep the event genuinely full for the retry.  The released claimant
+        // has been withdrawn, so a separate confirmed participant supplies the
+        // capacity boundary while the original character remains available.
+        var fillerNow = new DateTimeOffset(2026, 9, 30, 20, 0, 0, TimeSpan.Zero).AddTicks(1_234_560);
+        var fillerOwner = Website($"override-filler-{Guid.NewGuid():N}", fillerNow);
+        var fillerParticipant = new EventParticipant(Guid.NewGuid(), setup.EventId, SignupStatus.Confirmed, 2, fillerNow, SignupSource.AdminCreated);
+        fillerParticipant.AssignOwner(fillerOwner);
+        var fillerCharacter = new OsrsCharacter(Guid.NewGuid(), "Override filler", $"OVERRIDE FILLER {Guid.NewGuid():N}", fillerNow);
+        var fillerAssignment = new EventParticipantCharacter(Guid.NewGuid(), setup.EventId, fillerParticipant.Id, fillerCharacter.Id, 0, fillerNow, setup.EnabledAdminId, null, EventCharacterRole.Playing, 18m, EhbSource.AdminCorrection, null);
+        restoreDb.AddRange(fillerOwner, fillerParticipant, fillerCharacter, fillerAssignment);
+        await restoreDb.SaveChangesAsync();
+
+        var request = new AdminParticipantRestoreRequest(setup.EventId, setup.ConfirmedParticipantId, setup.EnabledAdminId, "admin", ExpandCapacityWhenFull: true);
+        var restored = await Service(restoreDb).RestoreAdminParticipantAsync(request);
+        Assert.True(restored.Succeeded, restored.Error);
+        Assert.True(restored.Changed);
+        var retry = await Service(restoreDb).RestoreAdminParticipantAsync(request);
+        Assert.True(retry.Succeeded, retry.Error);
+        Assert.False(retry.Changed);
+
+        await using var verify = new ApplicationDbContext(options);
+        Assert.Equal(2, await verify.Events.Where(x => x.Id == setup.EventId).Select(x => x.ParticipantCap).SingleAsync());
+        Assert.Equal(beforeEvent.Version + 1, await verify.Events.Where(x => x.Id == setup.EventId).Select(x => x.Version).SingleAsync());
+        Assert.Equal(SignupStatus.Confirmed, await verify.EventParticipants.Where(x => x.Id == setup.ConfirmedParticipantId).Select(x => x.SignupStatus).SingleAsync());
+        Assert.Equal("after failed restore", await verify.EventParticipants.Where(x => x.Id == setup.ConfirmedParticipantId).Select(x => x.AdminNotes).SingleAsync());
+        Assert.Single(await verify.AuditEntries.Where(x => x.EventId == setup.EventId && x.Action == "participant.admin_restored" && x.TargetId == setup.ConfirmedParticipantId.ToString()).ToListAsync());
+        Assert.Single(await verify.PersonalNotifications.Where(x => x.EventId == setup.EventId && x.RecipientAccountId == setup.ConfirmedOwnerId && x.Title == "participant.restored").ToListAsync());
+    }
+
+    [Fact]
     public async Task ClosedSignupAllowsWithdrawalButRejectsSelfRejoinAndAdminRestoreNotifiesGenerically()
     {
         var setup = await SeedAsync(capacity: 2, confirmed: 1, waiting: 0);
@@ -539,6 +598,536 @@ public sealed class Slice4ParticipantLifecycleIntegrationTests : IAsyncLifetime
         Assert.Equal(oldCharacter.Id, await verify.SignupAnswers.Where(x => x.EventParticipantId == participant.Id && x.SignupQuestionId == regular.Id).Select(x => x.OsrsCharacterId).SingleAsync());
     }
 
+    [Fact]
+    public async Task SelectedWaitingConfirmationUsesOnlyOneExplicitCapacityPlaceAndIsIdempotent()
+    {
+        var setup = await SeedAsync(capacity: 1, confirmed: 1, waiting: 2);
+        Guid selectedId;
+        await using (var lookup = new ApplicationDbContext(options))
+            selectedId = await lookup.EventParticipants.Where(x => x.AccountId == setup.WaitingOwnerIds[0]).Select(x => x.Id).SingleAsync();
+
+        await using (var normal = new ApplicationDbContext(options))
+        {
+            var rejected = await Service(normal).ConfirmWaitingParticipantAsync(new(setup.EventId, selectedId, setup.EnabledAdminId, "admin"));
+            Assert.False(rejected.Succeeded);
+            Assert.Contains("add-one-place", rejected.Error, StringComparison.OrdinalIgnoreCase);
+        }
+
+        await using (var overrideDb = new ApplicationDbContext(options))
+        {
+            var confirmed = await Service(overrideDb).ConfirmWaitingParticipantAsync(new(setup.EventId, selectedId, setup.EnabledAdminId, "admin", ExpandCapacityWhenFull: true));
+            Assert.True(confirmed.Succeeded, confirmed.Error);
+            Assert.True(confirmed.Changed);
+            Assert.Equal(SignupStatus.Confirmed, confirmed.Status);
+            Assert.Equal(2, confirmed.EffectiveParticipantCap);
+        }
+
+        await using (var retryDb = new ApplicationDbContext(options))
+        {
+            var retry = await Service(retryDb).ConfirmWaitingParticipantAsync(new(setup.EventId, selectedId, setup.EnabledAdminId, "admin", ExpandCapacityWhenFull: true));
+            Assert.True(retry.Succeeded, retry.Error);
+            Assert.False(retry.Changed);
+        }
+
+        await using var verify = new ApplicationDbContext(options);
+        Assert.Equal(2, await verify.Events.Where(x => x.Id == setup.EventId).Select(x => x.ParticipantCap).SingleAsync());
+        Assert.Equal(SignupStatus.Confirmed, await verify.EventParticipants.Where(x => x.Id == selectedId).Select(x => x.SignupStatus).SingleAsync());
+        Assert.Equal(1, await verify.EventParticipants.CountAsync(x => x.EventId == setup.EventId && x.SignupStatus == SignupStatus.WaitingList));
+        Assert.Single(await verify.AuditEntries.Where(x => x.EventId == setup.EventId && x.TargetId == selectedId.ToString() && x.Action == "participant.admin_confirmed").ToListAsync());
+        var promotionNotifications = await verify.PersonalNotifications.Where(x => x.EventId == setup.EventId && x.Title == "participant.promoted").ToListAsync();
+        Assert.Equal(3, promotionNotifications.Count);
+        Assert.Single(promotionNotifications, x => x.RecipientAccountId == setup.WaitingOwnerIds[0]);
+        Assert.Contains(promotionNotifications, x => x.RecipientAccountId == setup.EnabledAdminId);
+        Assert.Contains(promotionNotifications, x => x.RecipientAccountId == setup.EnabledSuperAdminId);
+        Assert.DoesNotContain(promotionNotifications, x => x.RecipientAccountId == setup.DisabledAdminId || x.RecipientAccountId == setup.UnrelatedUserId);
+    }
+
+    [Fact]
+    public async Task ConcurrentSelectedConfirmationHasOneWinnerAndOneAudit()
+    {
+        var setup = await SeedAsync(capacity: 1, confirmed: 1, waiting: 1);
+        Guid selectedId;
+        await using (var lookup = new ApplicationDbContext(options))
+            selectedId = await lookup.EventParticipants.Where(x => x.AccountId == setup.WaitingOwnerIds[0]).Select(x => x.Id).SingleAsync();
+
+        async Task<ParticipantQueueMutationResult> ConfirmAsync()
+        {
+            await using var db = new ApplicationDbContext(options);
+            return await Service(db).ConfirmWaitingParticipantAsync(new(setup.EventId, selectedId, setup.EnabledAdminId, "admin", ExpandCapacityWhenFull: true));
+        }
+
+        var results = await Task.WhenAll(ConfirmAsync(), ConfirmAsync());
+        Assert.Single(results, result => result.Succeeded && result.Changed);
+        Assert.Single(results, result => !result.Succeeded || !result.Changed);
+
+        await using var verify = new ApplicationDbContext(options);
+        Assert.Equal(2, await verify.Events.Where(x => x.Id == setup.EventId).Select(x => x.ParticipantCap).SingleAsync());
+        Assert.Single(await verify.AuditEntries.Where(x => x.EventId == setup.EventId && x.Action == "participant.admin_confirmed").ToListAsync());
+        var promotionNotifications = await verify.PersonalNotifications.Where(x => x.EventId == setup.EventId && x.Title == "participant.promoted").ToListAsync();
+        Assert.Equal(3, promotionNotifications.Count);
+        Assert.Contains(promotionNotifications, x => x.RecipientAccountId == setup.WaitingOwnerIds[0]);
+        Assert.Contains(promotionNotifications, x => x.RecipientAccountId == setup.EnabledAdminId);
+        Assert.Contains(promotionNotifications, x => x.RecipientAccountId == setup.EnabledSuperAdminId);
+        Assert.DoesNotContain(promotionNotifications, x => x.RecipientAccountId == setup.DisabledAdminId || x.RecipientAccountId == setup.UnrelatedUserId);
+    }
+
+    [Fact]
+    public async Task MovingConfirmedParticipantAppendsItAndPromotesThePreExistingWaiterWithMembershipHistory()
+    {
+        var setup = await SeedAsync(capacity: 1, confirmed: 1, waiting: 1);
+        var now = DateTimeOffset.UtcNow;
+        var team = new Team(Guid.NewGuid(), setup.EventId, "Draft team", "draft-team", TeamFormationType.Drafted, null, true, now);
+        TeamMembership membership;
+        await using (var seed = new ApplicationDbContext(options))
+        {
+            membership = new TeamMembership(Guid.NewGuid(), team.Id, setup.ConfirmedParticipantId, TeamMembershipRole.Captain, now, null, "fixture");
+            seed.AddRange(team, membership);
+            await seed.SaveChangesAsync();
+        }
+
+        Guid waiterId;
+        await using (var lookup = new ApplicationDbContext(options))
+            waiterId = await lookup.EventParticipants.Where(x => x.AccountId == setup.WaitingOwnerIds[0]).Select(x => x.Id).SingleAsync();
+
+        await using (var db = new ApplicationDbContext(options))
+        {
+            var result = await Service(db).MoveConfirmedParticipantToWaitingAsync(new(setup.EventId, setup.ConfirmedParticipantId, setup.EnabledAdminId, "admin"));
+            Assert.True(result.Succeeded, result.Error);
+            Assert.Equal(waiterId, result.PromotedParticipantId);
+            Assert.Equal(1, result.WaitingPosition);
+        }
+
+        await using var verify = new ApplicationDbContext(options);
+        var moved = await verify.EventParticipants.SingleAsync(x => x.Id == setup.ConfirmedParticipantId);
+        var promoted = await verify.EventParticipants.SingleAsync(x => x.Id == waiterId);
+        Assert.Equal(SignupStatus.WaitingList, moved.SignupStatus);
+        Assert.Equal(SignupStatus.Confirmed, promoted.SignupStatus);
+        Assert.NotNull(moved.WaitingListedAt);
+        Assert.All(await verify.EventParticipantCharacters.Where(x => x.EventParticipantId == moved.Id).ToListAsync(), x => Assert.Null(x.ReleasedAt));
+        var ended = await verify.TeamMemberships.SingleAsync(x => x.Id == membership.Id);
+        Assert.NotNull(ended.LeftAt);
+        Assert.Equal(TeamMembershipRole.Participant, ended.Role);
+        Assert.Single(await verify.TeamMembershipRoleTransitions.Where(x => x.TeamMembershipId == membership.Id).ToListAsync());
+        Assert.Single(await verify.AuditEntries.Where(x => x.EventId == setup.EventId && x.Action == "participant.admin_moved_to_waiting" && x.TargetId == moved.Id.ToString()).ToListAsync());
+        Assert.Single(await verify.AuditEntries.Where(x => x.EventId == setup.EventId && x.Action == "participant.promoted" && x.TargetId == promoted.Id.ToString()).ToListAsync());
+        var promotionNotifications = await verify.PersonalNotifications.Where(x => x.EventId == setup.EventId && x.Title == "participant.promoted").ToListAsync();
+        Assert.Equal(3, promotionNotifications.Count);
+        Assert.Single(promotionNotifications, x => x.RecipientAccountId == setup.WaitingOwnerIds[0]);
+        Assert.Contains(promotionNotifications, x => x.RecipientAccountId == setup.EnabledAdminId);
+        Assert.Contains(promotionNotifications, x => x.RecipientAccountId == setup.EnabledSuperAdminId);
+        Assert.DoesNotContain(promotionNotifications, x => x.RecipientAccountId == setup.DisabledAdminId || x.RecipientAccountId == setup.UnrelatedUserId);
+    }
+
+    [Fact]
+    public async Task SavedAddAndEventOnlyAccountMutationsPreserveGlobalLinksAndPrimaryMapping()
+    {
+        var now = new DateTimeOffset(2026, 9, 30, 20, 0, 0, TimeSpan.Zero).AddTicks(1_234_560);
+        var admin = Website($"saved-add-admin-{Guid.NewGuid():N}", now, GlobalRole.Admin);
+        var owner = Website($"saved-add-owner-{Guid.NewGuid():N}", now);
+        var item = new BingoEvent(Guid.NewGuid(), "Saved add", $"saved-add-{Guid.NewGuid():N}", "", "UTC", now.AddHours(-1), now.AddDays(1), now.AddDays(2), now.AddDays(3), now.AddDays(3), 2, admin.Id, now);
+        item.OpenSignups(now);
+        var form = new SignupForm(Guid.NewGuid(), item.Id, now);
+        var primary = new SignupQuestion(Guid.NewGuid(), form.Id, item.Id, "primary_regular_account", "Primary", SignupQuestionType.Account, true, 0, null, SignupSystemField.PrimaryRegularAccount, EventCharacterRole.Playing);
+        var second = new SignupQuestion(Guid.NewGuid(), form.Id, item.Id, "playing_second", "Second Playing", SignupQuestionType.Account, false, 1, null, SignupSystemField.None, EventCharacterRole.Playing);
+        var custom = new SignupQuestion(Guid.NewGuid(), form.Id, item.Id, "custom", "Custom", SignupQuestionType.Text, true, 2, null);
+        var third = new SignupQuestion(Guid.NewGuid(), form.Id, item.Id, "playing_third", "Third Playing", SignupQuestionType.Account, false, 3, null, SignupSystemField.None, EventCharacterRole.Playing);
+        var firstCharacter = new OsrsCharacter(Guid.NewGuid(), "Saved first", $"SAVED FIRST {Guid.NewGuid():N}", now);
+        var secondCharacter = new OsrsCharacter(Guid.NewGuid(), "Saved second", $"SAVED SECOND {Guid.NewGuid():N}", now);
+        var correctedCharacter = new OsrsCharacter(Guid.NewGuid(), "Corrected event account", $"CORRECTED EVENT {Guid.NewGuid():N}", now);
+        var thirdCharacter = new OsrsCharacter(Guid.NewGuid(), "Saved third", $"SAVED THIRD {Guid.NewGuid():N}", now);
+        var firstLink = new AccountOsrsCharacter(Guid.NewGuid(), owner.Id, firstCharacter.Id, owner.Id, true, 0, "first", 11.25m, now);
+        var secondLink = new AccountOsrsCharacter(Guid.NewGuid(), owner.Id, secondCharacter.Id, owner.Id, false, 1, "second", 22.5m, now);
+        await using (var seed = new ApplicationDbContext(options))
+        {
+            seed.AddRange(admin, owner, item, form, primary, second, custom, third, firstCharacter, secondCharacter, correctedCharacter, thirdCharacter, firstLink, secondLink);
+            await seed.SaveChangesAsync();
+        }
+
+        Guid participantId;
+        await using (var db = new ApplicationDbContext(options))
+        {
+            var result = await Service(db).AddSavedParticipantAsync(new(
+                item.Id, owner.Id, admin.Id, admin.LoginName, [firstCharacter.Id], firstCharacter.Id, PaymentStatus.Paid));
+            Assert.True(result.Succeeded, result.Error);
+            Assert.Equal(SignupStatus.Confirmed, result.Status);
+            participantId = result.ParticipantId!.Value;
+        }
+
+        Guid secondAssignmentId;
+        Guid correctedAssignmentId;
+        Guid thirdAssignmentId;
+        int responseVersion;
+        await using (var verify = new ApplicationDbContext(options))
+        {
+            var participant = await verify.EventParticipants.SingleAsync(x => x.Id == participantId);
+            Assert.Equal(SignupSource.AdminCreated, participant.Source);
+            Assert.True(participant.PaymentReceived);
+            Assert.False(participant.CaptainVolunteer);
+            Assert.Equal(1, await verify.EventParticipantCharacters.CountAsync(x => x.EventParticipantId == participantId && x.ReleasedAt == null));
+            Assert.Equal(11.25m, await verify.EventParticipantCharacters.Where(x => x.EventParticipantId == participantId).Select(x => x.EhbSnapshot).SingleAsync());
+            Assert.Single(await verify.SignupAnswers.Where(x => x.EventParticipantId == participantId).ToListAsync());
+            Assert.Empty(await verify.SignupAnswers.Where(x => x.EventParticipantId == participantId && x.SignupQuestionId == custom.Id).ToListAsync());
+            Assert.Equal(11.25m, await verify.AccountOsrsCharacters.Where(x => x.Id == firstLink.Id).Select(x => x.SavedEhb).SingleAsync());
+            responseVersion = participant.ResponseVersion;
+        }
+
+        await using (var teamDb = new ApplicationDbContext(options))
+        {
+            var team = new Team(Guid.NewGuid(), item.Id, "Primary agreement team", $"primary-agreement-{Guid.NewGuid():N}", TeamFormationType.Drafted, null, true, now);
+            var membership = new TeamMembership(Guid.NewGuid(), team.Id, participantId, TeamMembershipRole.Participant, now, null, "primary agreement");
+            teamDb.AddRange(team, membership);
+            await teamDb.SaveChangesAsync();
+        }
+
+        await using (var db = new ApplicationDbContext(options))
+        {
+            var added = await Service(db).AddEventParticipantAccountAsync(new(
+                item.Id, participantId, secondCharacter.Id, EventCharacterRole.Playing, 22.5m, admin.Id, admin.LoginName, second.Id, responseVersion));
+            Assert.True(added.Succeeded, added.Error);
+            secondAssignmentId = await db.EventParticipantCharacters.Where(x => x.EventParticipantId == participantId && x.OsrsCharacterId == secondCharacter.Id && x.ReleasedAt == null).Select(x => x.Id).SingleAsync();
+        }
+
+        await using (var db = new ApplicationDbContext(options))
+        {
+            var participant = await db.EventParticipants.SingleAsync(x => x.Id == participantId);
+            var added = await Service(db).AddEventParticipantAccountAsync(new(
+                item.Id, participantId, thirdCharacter.Id, EventCharacterRole.Playing, 18m, admin.Id, admin.LoginName, third.Id, participant.ResponseVersion));
+            Assert.True(added.Succeeded, added.Error);
+            thirdAssignmentId = await db.EventParticipantCharacters.Where(x => x.EventParticipantId == participantId && x.OsrsCharacterId == thirdCharacter.Id && x.ReleasedAt == null).Select(x => x.Id).SingleAsync();
+        }
+
+        await using (var db = new ApplicationDbContext(options))
+        {
+            var question = await db.SignupQuestions.SingleAsync(x => x.Id == third.Id);
+            question.Deactivate(admin.Id, now, "Current assignment validation fixture");
+            await db.SaveChangesAsync();
+        }
+
+        await using (var db = new ApplicationDbContext(options))
+        {
+            var participant = await db.EventParticipants.SingleAsync(x => x.Id == participantId);
+            var switched = await Service(db).SwitchAdminPrimaryAsync(new(item.Id, participantId, secondCharacter.Id, admin.Id, admin.LoginName, firstCharacter.Id, participant.ResponseVersion));
+            Assert.True(switched.Succeeded, switched.Error);
+            Assert.Equal(secondCharacter.Id, switched.PrimaryCharacterId);
+        }
+
+        await using (var agreement = new ApplicationDbContext(options))
+        {
+            var primaryProjection = await agreement.PrimaryCharacters().Where(x => x.ParticipantId == participantId).Select(x => new { x.OsrsCharacterId, x.Ehb }).SingleAsync();
+            var adminProjection = await agreement.AdminPrimaryCharacters().Where(x => x.ParticipantId == participantId).Select(x => new { x.OsrsCharacterId, x.Ehb }).SingleAsync();
+            Assert.Equal(secondCharacter.Id, primaryProjection.OsrsCharacterId);
+            Assert.Equal(22.5m, primaryProjection.Ehb);
+            Assert.Equal(secondCharacter.Id, adminProjection.OsrsCharacterId);
+            Assert.Equal(22.5m, adminProjection.Ehb);
+            var context = await new ParticipantLiveService(agreement, TimeProvider.System).GetContextAsync(item.Id, participantId, owner.Id);
+            Assert.NotNull(context);
+            Assert.Equal(secondCharacter.DisplayName, context!.PlannedCharacterName);
+            Assert.Equal(secondCharacter.DisplayName, context.ActiveCharacterName);
+            Assert.Contains(context.PlayingCharacters, character => character.CharacterId == secondCharacter.Id && character.IsActive);
+        }
+
+        await using (var db = new ApplicationDbContext(options))
+        {
+            var participant = await db.EventParticipants.SingleAsync(x => x.Id == participantId);
+            var accountAuditCount = await db.AuditEntries.CountAsync(x => x.EventId == item.Id && x.Action == "participant.primary_switched");
+            var ownerNotificationCount = await db.PersonalNotifications.CountAsync(x => x.EventId == item.Id && x.RecipientAccountId == owner.Id && x.Title == "participant.accounts_changed");
+            var mappingsBefore = await db.EventParticipantCharacters
+                .Where(x => x.EventParticipantId == participantId && x.ReleasedAt == null && x.EventRole == EventCharacterRole.Playing)
+                .OrderBy(x => x.RegistrationOrder)
+                .Select(x => new { x.OsrsCharacterId, x.SignupQuestionId, x.EhbSnapshot })
+                .ToListAsync();
+            var answersBefore = await db.SignupAnswers
+                .Where(x => x.EventParticipantId == participantId)
+                .OrderBy(x => x.SignupQuestionId)
+                .Select(x => new { x.SignupQuestionId, x.OsrsCharacterId, x.Value })
+                .ToListAsync();
+            var primaryBefore = await db.PrimaryCharacters().Where(x => x.ParticipantId == participantId).Select(x => x.OsrsCharacterId).SingleAsync();
+            var responseVersionBefore = participant.ResponseVersion;
+            var invalidSlot = await Service(db).SwitchAdminPrimaryAsync(new(item.Id, participantId, thirdCharacter.Id, admin.Id, admin.LoginName, secondCharacter.Id, responseVersionBefore));
+            Assert.False(invalidSlot.Succeeded);
+            Assert.Contains("active Playing slot", invalidSlot.Error, StringComparison.OrdinalIgnoreCase);
+            var unchanged = await Service(db).SwitchAdminPrimaryAsync(new(item.Id, participantId, secondCharacter.Id, admin.Id, admin.LoginName, secondCharacter.Id, participant.ResponseVersion));
+            Assert.True(unchanged.Succeeded, unchanged.Error);
+            Assert.False(unchanged.Changed);
+            var stale = await Service(db).SwitchAdminPrimaryAsync(new(item.Id, participantId, firstCharacter.Id, admin.Id, admin.LoginName, secondCharacter.Id, participant.ResponseVersion - 1));
+            Assert.False(stale.Succeeded);
+            Assert.Contains("changed", stale.Error, StringComparison.OrdinalIgnoreCase);
+            var note = await Service(db).SetAdminNotesAsync(item.Id, participantId, admin.Id, admin.LoginName, "same-context validation recovery", null);
+            Assert.True(note.Succeeded, note.Error);
+            var mappingsAfter = await db.EventParticipantCharacters
+                .Where(x => x.EventParticipantId == participantId && x.ReleasedAt == null && x.EventRole == EventCharacterRole.Playing)
+                .OrderBy(x => x.RegistrationOrder)
+                .Select(x => new { x.OsrsCharacterId, x.SignupQuestionId, x.EhbSnapshot })
+                .ToListAsync();
+            var answersAfter = await db.SignupAnswers
+                .Where(x => x.EventParticipantId == participantId)
+                .OrderBy(x => x.SignupQuestionId)
+                .Select(x => new { x.SignupQuestionId, x.OsrsCharacterId, x.Value })
+                .ToListAsync();
+            Assert.Equal(mappingsBefore, mappingsAfter);
+            Assert.Equal(answersBefore, answersAfter);
+            Assert.Equal(primaryBefore, await db.PrimaryCharacters().Where(x => x.ParticipantId == participantId).Select(x => x.OsrsCharacterId).SingleAsync());
+            Assert.Equal(participant.ResponseVersion, await db.EventParticipants.Where(x => x.Id == participantId).Select(x => x.ResponseVersion).SingleAsync());
+            Assert.Equal(responseVersionBefore, participant.ResponseVersion);
+            Assert.Equal(accountAuditCount, await db.AuditEntries.CountAsync(x => x.EventId == item.Id && x.Action == "participant.primary_switched"));
+            Assert.Equal(ownerNotificationCount, await db.PersonalNotifications.CountAsync(x => x.EventId == item.Id && x.RecipientAccountId == owner.Id && x.Title == "participant.accounts_changed"));
+        }
+
+        await using (var db = new ApplicationDbContext(options))
+        {
+            var participant = await db.EventParticipants.SingleAsync(x => x.Id == participantId);
+            var corrected = await Service(db).CorrectEventParticipantAccountAsync(new(item.Id, participantId, secondAssignmentId, correctedCharacter.Id, 33.75m, admin.Id, admin.LoginName, participant.ResponseVersion));
+            Assert.True(corrected.Succeeded, corrected.Error);
+            correctedAssignmentId = await db.EventParticipantCharacters
+                .Where(x => x.EventParticipantId == participantId && x.OsrsCharacterId == correctedCharacter.Id && x.ReleasedAt == null)
+                .Select(x => x.Id)
+                .SingleAsync();
+        }
+
+        await using (var db = new ApplicationDbContext(options))
+        {
+            var participant = await db.EventParticipants.SingleAsync(x => x.Id == participantId);
+            var switchedBack = await Service(db).SwitchAdminPrimaryAsync(new(item.Id, participantId, firstCharacter.Id, admin.Id, admin.LoginName, correctedCharacter.Id, participant.ResponseVersion));
+            Assert.True(switchedBack.Succeeded, switchedBack.Error);
+        }
+
+        await using (var agreement = new ApplicationDbContext(options))
+        {
+            Assert.Equal(firstCharacter.Id, await agreement.PrimaryCharacters().Where(x => x.ParticipantId == participantId).Select(x => x.OsrsCharacterId).SingleAsync());
+            Assert.Equal(firstCharacter.Id, await agreement.AdminPrimaryCharacters().Where(x => x.ParticipantId == participantId).Select(x => x.OsrsCharacterId).SingleAsync());
+            var context = await new ParticipantLiveService(agreement, TimeProvider.System).GetContextAsync(item.Id, participantId, owner.Id);
+            Assert.NotNull(context);
+            Assert.Equal(firstCharacter.DisplayName, context!.PlannedCharacterName);
+            Assert.Equal(firstCharacter.DisplayName, context.ActiveCharacterName);
+        }
+
+        await using (var db = new ApplicationDbContext(options))
+        {
+            var participant = await db.EventParticipants.SingleAsync(x => x.Id == participantId);
+            var removed = await Service(db).RemoveEventParticipantAccountAsync(new(item.Id, participantId, correctedAssignmentId, admin.Id, admin.LoginName, participant.ResponseVersion));
+            Assert.True(removed.Succeeded, removed.Error);
+        }
+
+        await using var final = new ApplicationDbContext(options);
+        var savedParticipant = await final.EventParticipants.SingleAsync(x => x.Id == participantId);
+        Assert.Equal(SignupStatus.Confirmed, savedParticipant.SignupStatus);
+        Assert.Equal(1, savedParticipant.SignupSequence);
+        Assert.Equal(firstCharacter.Id, await final.PrimaryCharacters().Where(x => x.ParticipantId == participantId).Select(x => x.OsrsCharacterId).SingleAsync());
+        var activeCharacters = await final.EventParticipantCharacters.Where(x => x.EventParticipantId == participantId && x.ReleasedAt == null).Select(x => x.OsrsCharacterId).ToListAsync();
+        Assert.Contains(firstCharacter.Id, activeCharacters);
+        Assert.Contains(thirdCharacter.Id, activeCharacters);
+        var retainedThird = await final.EventParticipantCharacters.SingleAsync(x => x.Id == thirdAssignmentId);
+        Assert.Equal(third.Id, retainedThird.SignupQuestionId);
+        Assert.Null(retainedThird.ReleasedAt);
+        var oldAssignment = await final.EventParticipantCharacters.SingleAsync(x => x.Id == secondAssignmentId);
+        var correctedAssignment = await final.EventParticipantCharacters.SingleAsync(x => x.Id == correctedAssignmentId);
+        Assert.Equal(secondCharacter.Id, oldAssignment.OsrsCharacterId);
+        Assert.Equal(22.5m, oldAssignment.EhbSnapshot);
+        Assert.Equal(EhbSource.AdminCorrection, oldAssignment.EhbSource);
+        Assert.Equal(correctedCharacter.Id, correctedAssignment.OsrsCharacterId);
+        Assert.Equal(33.75m, correctedAssignment.EhbSnapshot);
+        Assert.Equal(EhbSource.AdminCorrection, correctedAssignment.EhbSource);
+        Assert.NotEqual(oldAssignment.Id, correctedAssignment.Id);
+        Assert.NotNull(oldAssignment.ReleasedAt);
+        Assert.NotNull(correctedAssignment.ReleasedAt);
+        Assert.Equal(6, await final.PersonalNotifications.CountAsync(x => x.EventId == item.Id && x.RecipientAccountId == owner.Id && x.Title == "participant.accounts_changed"));
+        Assert.Equal(11.25m, await final.AccountOsrsCharacters.Where(x => x.Id == firstLink.Id).Select(x => x.SavedEhb).SingleAsync());
+        Assert.Equal(22.5m, await final.AccountOsrsCharacters.Where(x => x.Id == secondLink.Id).Select(x => x.SavedEhb).SingleAsync());
+        Assert.Empty(await final.AccountOsrsCharacters.Where(x => x.AccountId == owner.Id && x.OsrsCharacterId == correctedCharacter.Id).ToListAsync());
+        Assert.Empty(await final.SignupAnswers.Where(x => x.EventParticipantId == participantId && x.SignupQuestionId == custom.Id).ToListAsync());
+    }
+
+    [Fact]
+    public async Task SavedAddRejectsInvalidLinksEhbSlotsPrimaryReservationAndStaleEventWithoutPartialWrites()
+    {
+        var now = new DateTimeOffset(2026, 9, 30, 20, 0, 0, TimeSpan.Zero);
+        var admin = Website($"saved-negative-admin-{Guid.NewGuid():N}", now, GlobalRole.Admin);
+        var owner = Website($"saved-negative-owner-{Guid.NewGuid():N}", now);
+        var foreignOwner = Website($"saved-negative-foreign-{Guid.NewGuid():N}", now);
+        var item = new BingoEvent(Guid.NewGuid(), "Saved negative", $"saved-negative-{Guid.NewGuid():N}", "", "UTC", now.AddHours(-1), now.AddDays(1), now.AddDays(2), now.AddDays(3), now.AddDays(3), 2, admin.Id, now);
+        item.OpenSignups(now);
+        var form = new SignupForm(Guid.NewGuid(), item.Id, now);
+        var primary = new SignupQuestion(Guid.NewGuid(), form.Id, item.Id, "primary_regular_account", "Primary", SignupQuestionType.Account, true, 0, null, SignupSystemField.PrimaryRegularAccount, EventCharacterRole.Playing);
+        var second = new SignupQuestion(Guid.NewGuid(), form.Id, item.Id, "playing_second", "Second Playing", SignupQuestionType.Account, false, 1, null, SignupSystemField.None, EventCharacterRole.Playing);
+        var requiredCustom = new SignupQuestion(Guid.NewGuid(), form.Id, item.Id, "required_custom", "Required Custom", SignupQuestionType.Text, true, 2, null);
+        var firstCharacter = new OsrsCharacter(Guid.NewGuid(), "Negative first", $"NEGATIVE FIRST {Guid.NewGuid():N}", now);
+        var missingEhbCharacter = new OsrsCharacter(Guid.NewGuid(), "Negative missing EHB", $"NEGATIVE MISSING {Guid.NewGuid():N}", now);
+        var inactiveCharacter = new OsrsCharacter(Guid.NewGuid(), "Negative inactive", $"NEGATIVE INACTIVE {Guid.NewGuid():N}", now);
+        var foreignCharacter = new OsrsCharacter(Guid.NewGuid(), "Negative foreign", $"NEGATIVE FOREIGN {Guid.NewGuid():N}", now);
+        var reservedCharacter = new OsrsCharacter(Guid.NewGuid(), "Negative reserved", $"NEGATIVE RESERVED {Guid.NewGuid():N}", now);
+        var firstLink = new AccountOsrsCharacter(Guid.NewGuid(), owner.Id, firstCharacter.Id, owner.Id, true, 0, "first", 11.25m, now);
+        var missingEhbLink = new AccountOsrsCharacter(Guid.NewGuid(), owner.Id, missingEhbCharacter.Id, owner.Id, false, 1, "missing", null, now);
+        var inactiveLink = new AccountOsrsCharacter(Guid.NewGuid(), owner.Id, inactiveCharacter.Id, owner.Id, false, 2, "inactive", 13.5m, now);
+        inactiveLink.Unlink(now);
+        var foreignLink = new AccountOsrsCharacter(Guid.NewGuid(), foreignOwner.Id, foreignCharacter.Id, foreignOwner.Id, true, 0, "foreign", 14m, now);
+        var reservedLink = new AccountOsrsCharacter(Guid.NewGuid(), owner.Id, reservedCharacter.Id, owner.Id, false, 3, "reserved", 15m, now);
+        var reservedOwner = Website($"saved-negative-reserver-{Guid.NewGuid():N}", now);
+        var reservedParticipant = new EventParticipant(Guid.NewGuid(), item.Id, SignupStatus.Confirmed, 1, now, SignupSource.Website);
+        reservedParticipant.AssignOwner(reservedOwner);
+        var reservedAssignment = new EventParticipantCharacter(Guid.NewGuid(), item.Id, reservedParticipant.Id, reservedCharacter.Id, 0, now, reservedOwner.Id, primary.Id, EventCharacterRole.Playing, 15m, EhbSource.Manual, null);
+        await using (var seed = new ApplicationDbContext(options))
+        {
+            seed.AddRange(admin, owner, foreignOwner, reservedOwner, item, form, primary, second, requiredCustom,
+                firstCharacter, missingEhbCharacter, inactiveCharacter, foreignCharacter, reservedCharacter,
+                firstLink, missingEhbLink, inactiveLink, foreignLink, reservedLink, reservedParticipant, reservedAssignment);
+            await seed.SaveChangesAsync();
+        }
+
+        async Task<AdminParticipantResult> TryAdd(params Guid[] ids)
+        {
+            await using var db = new ApplicationDbContext(options);
+            return await Service(db).AddSavedParticipantAsync(new(
+                item.Id, owner.Id, admin.Id, admin.LoginName, ids, ids[0]));
+        }
+
+        var foreign = await TryAdd(foreignCharacter.Id);
+        Assert.False(foreign.Succeeded);
+        Assert.Contains("saved link", foreign.Error, StringComparison.OrdinalIgnoreCase);
+        var inactive = await TryAdd(inactiveCharacter.Id);
+        Assert.False(inactive.Succeeded);
+        Assert.Contains("saved link", inactive.Error, StringComparison.OrdinalIgnoreCase);
+        var missingEhb = await TryAdd(missingEhbCharacter.Id);
+        Assert.False(missingEhb.Succeeded);
+        Assert.Contains("EHB", missingEhb.Error, StringComparison.OrdinalIgnoreCase);
+        var duplicate = await Service(new ApplicationDbContext(options)).AddSavedParticipantAsync(new(
+            item.Id, owner.Id, admin.Id, admin.LoginName, [firstCharacter.Id, firstCharacter.Id], firstCharacter.Id));
+        Assert.False(duplicate.Succeeded);
+        Assert.Contains("once", duplicate.Error, StringComparison.OrdinalIgnoreCase);
+        var overSlot = await TryAdd(firstCharacter.Id, missingEhbCharacter.Id, inactiveCharacter.Id);
+        Assert.False(overSlot.Succeeded);
+        Assert.Contains("slots", overSlot.Error, StringComparison.OrdinalIgnoreCase);
+
+        // The schema enforces one active PrimaryRegularAccount question per
+        // form, so exercise the same actionable validation with a separate
+        // form that has no primary question instead of manufacturing an
+        // impossible duplicate row.
+        var noPrimaryEvent = new BingoEvent(Guid.NewGuid(), "Saved no primary", $"saved-no-primary-{Guid.NewGuid():N}", "", "UTC", now.AddHours(-1), now.AddDays(1), now.AddDays(2), now.AddDays(3), now.AddDays(3), 1, admin.Id, now);
+        noPrimaryEvent.OpenSignups(now);
+        var noPrimaryForm = new SignupForm(Guid.NewGuid(), noPrimaryEvent.Id, now);
+        var noPrimaryText = new SignupQuestion(Guid.NewGuid(), noPrimaryForm.Id, noPrimaryEvent.Id, "required_text", "Required text", SignupQuestionType.Text, true, 0, null);
+        await using (var noPrimarySeed = new ApplicationDbContext(options))
+        {
+            noPrimarySeed.AddRange(noPrimaryEvent, noPrimaryForm, noPrimaryText);
+            await noPrimarySeed.SaveChangesAsync();
+        }
+        await using (var noPrimaryDb = new ApplicationDbContext(options))
+        {
+            var noPrimaryResult = await Service(noPrimaryDb).AddSavedParticipantAsync(new(
+                noPrimaryEvent.Id, owner.Id, admin.Id, admin.LoginName, [firstCharacter.Id], firstCharacter.Id));
+            Assert.False(noPrimaryResult.Succeeded);
+            Assert.Contains("unambiguous", noPrimaryResult.Error, StringComparison.OrdinalIgnoreCase);
+        }
+
+        var reservation = await TryAdd(reservedCharacter.Id);
+        Assert.False(reservation.Succeeded);
+        Assert.Contains("already registered", reservation.Error, StringComparison.OrdinalIgnoreCase);
+        long staleVersion;
+        await using (var mutate = new ApplicationDbContext(options))
+        {
+            staleVersion = await mutate.Events.Where(x => x.Id == item.Id).Select(x => x.Version).SingleAsync();
+            var current = await mutate.Events.SingleAsync(x => x.Id == item.Id);
+            current.SetParticipantCap(3);
+            current.AdvanceVersion();
+            await mutate.SaveChangesAsync();
+        }
+        var stale = await Service(new ApplicationDbContext(options)).AddSavedParticipantAsync(new(
+            item.Id, owner.Id, admin.Id, admin.LoginName, [firstCharacter.Id], firstCharacter.Id,
+            ExpectedEventVersion: staleVersion));
+        Assert.False(stale.Succeeded);
+        Assert.Contains("changed", stale.Error, StringComparison.OrdinalIgnoreCase);
+
+        var successful = await TryAdd(firstCharacter.Id);
+        Assert.True(successful.Succeeded, successful.Error);
+        await using var verify = new ApplicationDbContext(options);
+        Assert.Single(await verify.EventParticipants.Where(x => x.EventId == item.Id && x.AccountId == owner.Id).ToListAsync());
+        Assert.Empty(await verify.SignupAnswers.Where(x => x.EventParticipantId == successful.ParticipantId && x.SignupQuestionId == requiredCustom.Id).ToListAsync());
+        Assert.Equal(11.25m, await verify.AccountOsrsCharacters.Where(x => x.Id == firstLink.Id).Select(x => x.SavedEhb).SingleAsync());
+    }
+
+    [Fact]
+    public async Task SameCharacterEhbCorrectionAppendsHistoryAndRepeatIsNoOp()
+    {
+        var now = new DateTimeOffset(2026, 9, 30, 20, 0, 0, TimeSpan.Zero).AddTicks(1_234_560);
+        var fetchedAt = now.AddHours(-2);
+        var admin = Website($"same-character-admin-{Guid.NewGuid():N}", now, GlobalRole.Admin);
+        var owner = Website($"same-character-owner-{Guid.NewGuid():N}", now);
+        var item = new BingoEvent(Guid.NewGuid(), "Same character correction", $"same-character-{Guid.NewGuid():N}", "", "UTC", now.AddHours(-1), now.AddDays(1), now.AddDays(2), now.AddDays(3), now.AddDays(3), 1, admin.Id, now);
+        item.OpenSignups(now);
+        var form = new SignupForm(Guid.NewGuid(), item.Id, now);
+        var primary = new SignupQuestion(Guid.NewGuid(), form.Id, item.Id, "primary_regular_account", "Primary", SignupQuestionType.Account, true, 0, null, SignupSystemField.PrimaryRegularAccount, EventCharacterRole.Playing);
+        var character = new OsrsCharacter(Guid.NewGuid(), "Same character", $"SAME CHARACTER {Guid.NewGuid():N}", now);
+        var savedLink = new AccountOsrsCharacter(Guid.NewGuid(), owner.Id, character.Id, owner.Id, true, 0, "saved", 17.25m, now);
+        var participant = new EventParticipant(Guid.NewGuid(), item.Id, SignupStatus.Confirmed, 1, now, SignupSource.Website);
+        participant.AssignOwner(owner);
+        var assignment = new EventParticipantCharacter(Guid.NewGuid(), item.Id, participant.Id, character.Id, 0, now.AddMinutes(-1), owner.Id, primary.Id, EventCharacterRole.Playing, 20.13m, EhbSource.WiseOldMan, fetchedAt);
+        var answer = new SignupAnswer(Guid.NewGuid(), participant.Id, primary.Id, primary.Label, string.Empty, character.Id);
+        await using (var seed = new ApplicationDbContext(options))
+        {
+            seed.AddRange(admin, owner, item, form, primary, character, savedLink, participant, assignment, answer);
+            await seed.SaveChangesAsync();
+        }
+
+        Guid replacementId;
+        int responseVersion;
+        await using (var db = new ApplicationDbContext(options))
+        {
+            var result = await new SignupService(db, new SecretHasher(), new FixedTimeProvider(now), accountValidation: new SuccessfulWiseOldManAccountValidation())
+                .CorrectEventParticipantAccountAsync(new(item.Id, participant.Id, assignment.Id, character.Id, 21.5m, admin.Id, admin.LoginName, participant.ResponseVersion));
+            Assert.True(result.Succeeded, result.Error);
+            Assert.True(result.Changed);
+            replacementId = await db.EventParticipantCharacters
+                .Where(x => x.EventParticipantId == participant.Id && x.ReleasedAt == null)
+                .Select(x => x.Id)
+                .SingleAsync();
+            responseVersion = await db.EventParticipants.Where(x => x.Id == participant.Id).Select(x => x.ResponseVersion).SingleAsync();
+        }
+
+        await using (var verify = new ApplicationDbContext(options))
+        {
+            var assignments = await verify.EventParticipantCharacters.Where(x => x.EventParticipantId == participant.Id).OrderBy(x => x.RegistrationOrder).ToListAsync();
+            Assert.Equal(2, assignments.Count);
+            var old = Assert.Single(assignments, x => x.Id == assignment.Id);
+            var replacement = Assert.Single(assignments, x => x.Id == replacementId);
+            Assert.Equal(character.Id, old.OsrsCharacterId);
+            Assert.Equal(20.13m, old.EhbSnapshot);
+            Assert.Equal(EhbSource.WiseOldMan, old.EhbSource);
+            Assert.Equal(fetchedAt, old.EhbFetchedAt);
+            Assert.NotNull(old.ReleasedAt);
+            Assert.Equal(character.Id, replacement.OsrsCharacterId);
+            Assert.Equal(21.5m, replacement.EhbSnapshot);
+            Assert.Equal(EhbSource.AdminCorrection, replacement.EhbSource);
+            Assert.Null(replacement.EhbFetchedAt);
+            Assert.Null(replacement.ReleasedAt);
+            var audit = await verify.AuditEntries.SingleAsync(x => x.EventId == item.Id && x.Action == "participant.event_account_corrected");
+            Assert.Contains("20.13", audit.BeforeState, StringComparison.Ordinal);
+            Assert.Contains("WiseOldMan", audit.BeforeState, StringComparison.Ordinal);
+            using var beforeState = System.Text.Json.JsonDocument.Parse(audit.BeforeState!);
+            Assert.Equal(fetchedAt, beforeState.RootElement.GetProperty("ehbFetchedAt").GetDateTimeOffset());
+            Assert.Contains("21.5", audit.AfterState, StringComparison.Ordinal);
+            Assert.Contains("AdminCorrection", audit.AfterState, StringComparison.Ordinal);
+            Assert.Contains(replacementId.ToString(), audit.AfterState, StringComparison.Ordinal);
+            Assert.Equal(17.25m, await verify.AccountOsrsCharacters.Where(x => x.Id == savedLink.Id).Select(x => x.SavedEhb).SingleAsync());
+            Assert.True(await verify.AccountOsrsCharacters.Where(x => x.Id == savedLink.Id).Select(x => x.Active).SingleAsync());
+            Assert.Equal(character.Id, await verify.SignupAnswers.Where(x => x.Id == answer.Id).Select(x => x.OsrsCharacterId).SingleAsync());
+            Assert.Single(await verify.PersonalNotifications.Where(x => x.EventId == item.Id && x.RecipientAccountId == owner.Id && x.Title == "participant.accounts_changed").ToListAsync());
+        }
+
+        await using (var db = new ApplicationDbContext(options))
+        {
+            var repeat = await new SignupService(db, new SecretHasher(), new FixedTimeProvider(now), accountValidation: new SuccessfulWiseOldManAccountValidation())
+                .CorrectEventParticipantAccountAsync(new(item.Id, participant.Id, replacementId, character.Id, 21.5m, admin.Id, admin.LoginName, responseVersion));
+            Assert.True(repeat.Succeeded, repeat.Error);
+            Assert.False(repeat.Changed);
+        }
+
+        await using var final = new ApplicationDbContext(options);
+        Assert.Equal(2, await final.EventParticipantCharacters.CountAsync(x => x.EventParticipantId == participant.Id));
+        Assert.Single(await final.EventParticipantCharacters.Where(x => x.EventParticipantId == participant.Id && x.ReleasedAt == null).ToListAsync());
+        Assert.Single(await final.AuditEntries.Where(x => x.EventId == item.Id && x.Action == "participant.event_account_corrected").ToListAsync());
+        Assert.Single(await final.PersonalNotifications.Where(x => x.EventId == item.Id && x.RecipientAccountId == owner.Id && x.Title == "participant.accounts_changed").ToListAsync());
+        Assert.Equal(17.25m, await final.AccountOsrsCharacters.Where(x => x.Id == savedLink.Id).Select(x => x.SavedEhb).SingleAsync());
+    }
+
     private async Task<Setup> SeedAsync(int capacity, int confirmed, int waiting)
     {
         var now = DateTimeOffset.UtcNow;
@@ -584,6 +1173,7 @@ public sealed class Slice4ParticipantLifecycleIntegrationTests : IAsyncLifetime
         new(db, new SecretHasher(), TimeProvider.System, accountValidation: new SuccessfulWiseOldManAccountValidation());
     private static DefaultHttpContext AdminContext(Guid accountId) => new() { User = new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, accountId.ToString()), new Claim(ClaimTypes.Name, "admin")], "test")) };
     private static Account Website(string name, DateTimeOffset now, GlobalRole role = GlobalRole.User) { var account = Account.CreateWebsite(Guid.NewGuid(), name, name.ToUpperInvariant(), now); account.SetGlobalRole(role); return account; }
+    private sealed class FixedTimeProvider(DateTimeOffset value) : TimeProvider { public override DateTimeOffset GetUtcNow() => value; }
     private sealed record Setup(Guid EventId, Guid ConfirmedParticipantId, Guid ConfirmedOwnerId, IReadOnlyList<Guid> WaitingOwnerIds, Guid EnabledAdminId, Guid EnabledSuperAdminId, Guid DisabledAdminId, Guid UnrelatedUserId);
     private sealed class ThrowOnCapacityAudit : SaveChangesInterceptor
     {

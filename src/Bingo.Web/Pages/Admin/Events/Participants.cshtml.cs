@@ -288,7 +288,13 @@ public sealed class ParticipantsModel(
         if (ParticipantDiscord == "unlinked") participants = participants.Where(item => item.AccountId is null || !owners.TryGetValue(item.AccountId.Value, out var account) || account.DiscordUserId == null);
 
         var authorities = await db.AdminPrimaryCharacters().AsNoTracking().Where(item => item.EventId == id).ToDictionaryAsync(item => item.ParticipantId, ct);
-        var waiting = allParticipants.Where(item => item.SignupStatus == SignupStatus.WaitingList).Select((item, index) => (item.Id, Position: index + 1)).ToDictionary(item => item.Id, item => item.Position);
+        var waiting = allParticipants
+            .Where(item => item.SignupStatus == SignupStatus.WaitingList)
+            .OrderBy(item => item.WaitingListedAt ?? item.SignedUpAt)
+            .ThenBy(item => item.SignupSequence)
+            .ThenBy(item => item.Id)
+            .Select((item, index) => (item.Id, Position: index + 1))
+            .ToDictionary(item => item.Id, item => item.Position);
         var coCaptainQuestion = ActiveSignupQuestions.FirstOrDefault(question => question.SystemField == SignupSystemField.CoCaptainName);
         var coCaptainAnswers = coCaptainQuestion is null
             ? new Dictionary<Guid, string>()

@@ -5,6 +5,7 @@ using System.Security.Claims;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Bingo.Application.Integrations.WiseOldMan;
+using Bingo.Application.Signups;
 using Bingo.Application.Teams;
 using Bingo.Domain.Access;
 using Bingo.Domain.Boards;
@@ -14,6 +15,8 @@ using Bingo.Domain.Teams;
 using Bingo.Infrastructure.Auditing;
 using Bingo.Infrastructure.Boards;
 using Bingo.Infrastructure.Persistence;
+using Bingo.Infrastructure.Security;
+using Bingo.Infrastructure.Signups;
 using Bingo.Infrastructure.Teams;
 using Bingo.Web;
 using Bingo.Web.Events;
@@ -436,6 +439,104 @@ public sealed class DraftOperationsIntegrationTests : IAsyncLifetime
         Assert.Single(await completed.AuditEntries.Where(value => value.Action == "draft.control_acquired").ToListAsync());
         Assert.Single(await completed.AuditEntries.Where(value => value.Action == "draft.control_taken_over").ToListAsync());
         Assert.Equal(2, await completed.AuditEntries.CountAsync(value => value.Action == "draft.started"));
+    }
+
+    [Fact]
+    public async Task DraftStartInterleavesWithSelectedCapacityAndAccountMutationAtTheRealBoundary()
+    {
+        var setup = await SeedAsync();
+        Guid secondaryQuestionId;
+        Guid addedCharacterId;
+        await using (var seed = new ApplicationDbContext(options))
+        {
+            var item = await seed.Events.SingleAsync(value => value.Id == setup.EventId);
+            item.SetParticipantCap(3);
+            item.AdvanceVersion();
+            var form = await seed.SignupForms.SingleAsync(value => value.EventId == setup.EventId);
+            var secondary = new SignupQuestion(Guid.NewGuid(), form.Id, setup.EventId, "playing_second", "Second Playing", SignupQuestionType.Account, false, 1, null, SignupSystemField.None, EventCharacterRole.Playing);
+            var character = new OsrsCharacter(Guid.NewGuid(), "Interleaved account", $"INTERLEAVED {setup.EventId:N}", now);
+            var waiting = await seed.EventParticipants.SingleAsync(value => value.Id == setup.PlayerIds[3]);
+            waiting.MoveToWaiting(5, now);
+            seed.AddRange(secondary, character);
+            await seed.SaveChangesAsync();
+            secondaryQuestionId = secondary.Id;
+            addedCharacterId = character.Id;
+        }
+
+        var startBoundary = new DraftEventReadBoundary();
+        var startOptions = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseNpgsql(database.GetConnectionString())
+            .AddInterceptors(startBoundary)
+            .Options;
+
+        async Task<string?> StartAsync() => await ExecuteAndReadStatusAsync(
+            setup.EventId,
+            setup.FirstAdminId,
+            page => page.OnPostStartAsync(setup.EventId, CancellationToken.None),
+            startOptions);
+
+        async Task<ParticipantQueueMutationResult> ConfirmAsync()
+        {
+            await using var db = new ApplicationDbContext(options);
+            return await new SignupService(db, new SecretHasher(), new FixedTimeProvider(now), accountValidation: new SuccessfulWiseOldManAccountValidation())
+                .ConfirmWaitingParticipantAsync(new(setup.EventId, setup.PlayerIds[3], setup.FirstAdminId, "admin", ExpandCapacityWhenFull: true));
+        }
+
+        async Task<EventAccountMutationResult> AddAccountAsync()
+        {
+            await using var db = new ApplicationDbContext(options);
+            return await new SignupService(db, new SecretHasher(), new FixedTimeProvider(now), accountValidation: new SuccessfulWiseOldManAccountValidation())
+                .AddEventParticipantAccountAsync(new(setup.EventId, setup.PlayerIds[2], addedCharacterId, EventCharacterRole.Playing, 12.345678m, setup.FirstAdminId, "admin", secondaryQuestionId));
+        }
+
+        Task<ParticipantQueueMutationResult>? confirmTask = null;
+        Task<EventAccountMutationResult>? accountTask = null;
+        var startTask = StartAsync();
+        try
+        {
+            await startBoundary.Reached.Task.WaitAsync(TimeSpan.FromSeconds(15));
+            confirmTask = ConfirmAsync();
+            await confirmTask;
+            accountTask = AddAccountAsync();
+            await accountTask;
+            startBoundary.Release.TrySetResult();
+        }
+        finally
+        {
+            startBoundary.Release.TrySetResult();
+        }
+
+        await using var verify = new ApplicationDbContext(options);
+        var draft = await verify.DraftSessions.SingleAsync(value => value.EventId == setup.EventId);
+        var itemAfter = await verify.Events.SingleAsync(value => value.Id == setup.EventId);
+        var confirmedCount = await verify.EventParticipants.CountAsync(value => value.EventId == setup.EventId && value.SignupStatus == SignupStatus.Confirmed);
+        var activeAddedAccount = await verify.EventParticipantCharacters.AnyAsync(value => value.EventParticipantId == setup.PlayerIds[2] && value.OsrsCharacterId == addedCharacterId && value.ReleasedAt == null);
+        var startStatus = await startTask;
+        var confirmResult = await confirmTask!;
+        var accountResult = await accountTask!;
+
+        Assert.NotNull(startStatus);
+        Assert.Equal("An exception has been raised that is likely due to a transient failure.", startStatus);
+        Assert.Equal(DraftState.Setup, draft.State);
+        Assert.False(itemAfter.DraftLocked);
+        Assert.Equal(0, await verify.AuditEntries.CountAsync(value => value.EventId == setup.EventId && value.Action == "draft.started"));
+        Assert.True(itemAfter.ParticipantCap == 4, $"confirm succeeded={confirmResult.Succeeded}, changed={confirmResult.Changed}, error={confirmResult.Error}, status={confirmResult.Status}");
+        Assert.Equal(4, confirmedCount);
+        Assert.True(accountResult.Succeeded);
+        Assert.True(accountResult.Changed);
+        Assert.True(activeAddedAccount);
+        var selectedStatus = await verify.EventParticipants.Where(value => value.Id == setup.PlayerIds[3]).Select(value => value.SignupStatus).SingleAsync();
+        Assert.True(confirmResult.Succeeded);
+        Assert.Equal(SignupStatus.Confirmed, selectedStatus);
+
+        var recoveryStatus = await ExecuteAndReadStatusAsync(
+            setup.EventId,
+            setup.FirstAdminId,
+            page => page.OnPostStartAsync(setup.EventId, CancellationToken.None));
+        Assert.Contains("started", recoveryStatus, StringComparison.OrdinalIgnoreCase);
+        await using var recovered = new ApplicationDbContext(options);
+        Assert.Equal(DraftState.Running, await recovered.DraftSessions.Where(value => value.EventId == setup.EventId).Select(value => value.State).SingleAsync());
+        Assert.True(await recovered.Events.Where(value => value.Id == setup.EventId).Select(value => value.DraftLocked).SingleAsync());
     }
 
     [Fact]
@@ -1684,9 +1785,9 @@ public sealed class DraftOperationsIntegrationTests : IAsyncLifetime
         return await action(page);
     }
 
-    private async Task<string?> ExecuteAndReadStatusAsync(Guid eventId, Guid accountId, Func<DraftModel, Task<IActionResult>> action)
+    private async Task<string?> ExecuteAndReadStatusAsync(Guid eventId, Guid accountId, Func<DraftModel, Task<IActionResult>> action, DbContextOptions<ApplicationDbContext>? contextOptions = null)
     {
-        await using var db = new ApplicationDbContext(options);
+        await using var db = new ApplicationDbContext(contextOptions ?? options);
         var context = new DefaultHttpContext
         {
             User = new ClaimsPrincipal(new ClaimsIdentity(
@@ -1699,6 +1800,31 @@ public sealed class DraftOperationsIntegrationTests : IAsyncLifetime
         };
         await action(page);
         return page.TempData["StatusMessage"]?.ToString();
+    }
+
+    private sealed class DraftEventReadBoundary : DbCommandInterceptor
+    {
+        private int entered;
+
+        public TaskCompletionSource Reached { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public override async ValueTask<DbDataReader> ReaderExecutedAsync(
+            DbCommand command,
+            CommandExecutedEventData eventData,
+            DbDataReader result,
+            CancellationToken cancellationToken = default)
+        {
+            if (command.CommandText.Contains("FROM events AS e", StringComparison.Ordinal)
+                && command.CommandText.Contains("WHERE e.id =", StringComparison.Ordinal)
+                && Interlocked.CompareExchange(ref entered, 1, 0) == 0)
+            {
+                Reached.TrySetResult();
+                await Release.Task.WaitAsync(TimeSpan.FromSeconds(15), cancellationToken);
+            }
+
+            return result;
+        }
     }
 
     private async Task<Setup> SeedAsync(bool initialPrivate = false)

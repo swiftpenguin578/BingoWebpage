@@ -71,7 +71,16 @@ public sealed class ConfirmationModel(ApplicationDbContext db, TimeProvider time
             CanRejoin = !row.Event.DraftLocked && row.Event.AcceptsSignups(timeProvider.GetUtcNow()) && row.Participant.SignupStatus == SignupStatus.Withdrawn;
             IsReadOnly = !CanEdit && !CanWithdraw && !CanRejoin && (row.Participant.SignupStatus is SignupStatus.Confirmed or SignupStatus.WaitingList);
             if (row.Participant.SignupStatus == SignupStatus.WaitingList)
-                WaitingPosition = await db.EventParticipants.AsNoTracking().Where(x => x.EventId == row.Participant.EventId && x.SignupStatus == SignupStatus.WaitingList && (x.SignedUpAt < row.Participant.SignedUpAt || x.SignedUpAt == row.Participant.SignedUpAt && x.SignupSequence <= row.Participant.SignupSequence)).CountAsync(ct);
+            {
+                var waitingTimestamp = row.Participant.WaitingListedAt ?? row.Participant.SignedUpAt;
+                WaitingPosition = await db.EventParticipants.AsNoTracking()
+                    .Where(x => x.EventId == row.Participant.EventId && x.SignupStatus == SignupStatus.WaitingList &&
+                        ((x.WaitingListedAt ?? x.SignedUpAt) < waitingTimestamp ||
+                         (x.WaitingListedAt ?? x.SignedUpAt) == waitingTimestamp &&
+                         (x.SignupSequence < row.Participant.SignupSequence ||
+                          x.SignupSequence == row.Participant.SignupSequence && x.Id.CompareTo(row.Participant.Id) <= 0)))
+                    .CountAsync(ct);
+            }
             NextStep = row.Participant.SignupStatus switch
             {
                 SignupStatus.Withdrawn when CanRejoin => "You can rejoin using the button below. Your previous place is not reserved.",

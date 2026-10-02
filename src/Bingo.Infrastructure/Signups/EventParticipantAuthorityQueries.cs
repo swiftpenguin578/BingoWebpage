@@ -51,6 +51,11 @@ public static class EventParticipantAuthorityQueries
                                                question.SystemField == SignupSystemField.PrimaryRegularAccount &&
                                                question.AccountAnswerRole == EventCharacterRole.Playing &&
                                                assignment.ReleasedAt == null && assignment.EventRole == EventCharacterRole.Playing &&
+                                               !db.SignupQuestions.Any(other =>
+                                                   other.Id != question.Id && other.SignupFormId == form.Id && other.EventId == participant.EventId &&
+                                                   other.Active && other.Type == SignupQuestionType.Account &&
+                                                   other.SystemField == SignupSystemField.PrimaryRegularAccount &&
+                                                   other.AccountAnswerRole == EventCharacterRole.Playing) &&
                                                !db.EventParticipantCharacters.Any(other =>
                                                    other.Id != assignment.Id && other.EventParticipantId == participant.Id &&
                                                    other.ReleasedAt == null && other.EventRole == EventCharacterRole.Playing &&
@@ -102,14 +107,13 @@ public static class EventParticipantAuthorityQueries
 
     public static IQueryable<EventParticipantAuthority> AdminPrimaryCharacters(this ApplicationDbContext db)
     {
-        // Website signups have an authoritative PrimaryRegularAccount linkage.
-        // Keep the registration-order projection below only as a display fallback
-        // for legacy rows which do not have that linkage; readiness, evidence, and
-        // public-history authority continue to use PrimaryCharacters().
-        var authoritativeWebsiteCurrent = db.PrimaryCharacters()
+        // Any participant with a current PrimaryRegularAccount linkage has an
+        // authoritative slot mapping, including AdminCreated rows. Keep the
+        // registration-order projection below only as a display fallback for
+        // legacy rows which do not have that linkage.
+        var authoritativeCurrent = db.PrimaryCharacters()
             .Where(primary => db.EventParticipants.Any(participant =>
                 participant.Id == primary.ParticipantId &&
-                participant.Source == SignupSource.Website &&
                 (participant.SignupStatus == SignupStatus.Confirmed || participant.SignupStatus == SignupStatus.WaitingList)));
 
         var displayFallback = from participant in db.EventParticipants
@@ -118,8 +122,7 @@ public static class EventParticipantAuthorityQueries
                               where assignment.EventRole == EventCharacterRole.Playing &&
                                     (((participant.SignupStatus == SignupStatus.Confirmed || participant.SignupStatus == SignupStatus.WaitingList) &&
                                       assignment.ReleasedAt == null &&
-                                      (participant.Source != SignupSource.Website ||
-                                       !authoritativeWebsiteCurrent.Any(primary => primary.ParticipantId == participant.Id)) &&
+                                      !authoritativeCurrent.Any(primary => primary.ParticipantId == participant.Id) &&
                                       !db.EventParticipantCharacters.Any(other =>
                                           other.EventParticipantId == participant.Id &&
                                           other.EventRole == EventCharacterRole.Playing &&
@@ -150,7 +153,7 @@ public static class EventParticipantAuthorityQueries
                                   AssignmentId = assignment.Id
                               };
 
-        return authoritativeWebsiteCurrent
+        return authoritativeCurrent
             .Concat(displayFallback)
             .Concat(db.PrimaryCharacters().Where(primary => db.EventParticipants.Any(participant =>
                 participant.Id == primary.ParticipantId && participant.SignupStatus == SignupStatus.Withdrawn)));

@@ -130,7 +130,18 @@ public sealed class ParticipantLiveService(ApplicationDbContext db, TimeProvider
         CancellationToken cancellationToken)
     {
         var assignments = await PlayingAssignmentsAsync(row.Participant.Id, cancellationToken);
-        var planned = assignments.OrderBy(x => x.Assignment.RegistrationOrder).FirstOrDefault();
+        // Before Live, the built-in PrimaryRegularAccount slot is the planned
+        // account for every source, including AdminCreated participants. Fall
+        // back to registration order only for retained legacy rows without that
+        // mapping, matching the PrimaryCharacters authority query.
+        var plannedPrimaryId = await db.PrimaryCharacters()
+            .Where(x => x.EventId == row.Event.Id && x.ParticipantId == row.Participant.Id)
+            .Select(x => (Guid?)x.OsrsCharacterId)
+            .SingleOrDefaultAsync(cancellationToken);
+        var planned = plannedPrimaryId is { } primaryId
+            ? assignments.FirstOrDefault(x => x.Assignment.OsrsCharacterId == primaryId)
+            : null;
+        planned ??= assignments.OrderBy(x => x.Assignment.RegistrationOrder).FirstOrDefault();
         var active = await db.ActiveCharacterAtAsync(row.Event.Id, row.Participant.Id, now, cancellationToken);
         var activeId = row.Event.State is EventState.Draft or EventState.SignupOpen or EventState.SignupClosed
             ? planned?.Assignment.OsrsCharacterId
