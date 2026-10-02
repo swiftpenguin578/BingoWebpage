@@ -1,3 +1,11 @@
+> Historical walkthrough/test ledger. Dated Passed/Failed/waived records below
+> describe the code and requirements at that time, not current product authority or
+> instructions to reactivate retired workflows. In particular emergency access,
+> vacancies/replacements, owner transfer, finalization overrides and old Luck rules
+> are superseded by PRODUCT_REQUIREMENTS/FUNCTIONAL_CONTRACTS. Use the current
+> DELIVERY_PLAN ticket gates for new work; UI_PAGE_MATRIX owns visual acceptance.
+> No old checked box represents a rerun on the current branch candidate.
+
 # Manual Test Checklist
 
 **Status:** Current September follow-up, managed WOM functionality and boss leaderboards accepted by the user on 2026-09-23, with the explicit waivers/deferrals below. Older slice checklists remain separate history.

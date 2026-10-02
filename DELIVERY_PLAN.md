@@ -271,19 +271,36 @@ under the agreed consolidation scope. Do not start unrelated AU/RC implementatio
 merge or deploy. CURRENT_STATUS records active owners and exact checkpoint.
 
 
+## Review preparation checkpoint — 2 October 2026
+
+Implementation/reference backup is pushed: `acf8ba9` (AU01–AU10 and planner docs),
+`be0014e` (references/evidence), `1e8d457` (unchanged CLAUDE.md only).
+Base main is `22af254c893bb51e7820d84fc4154ff9af3bcc90`.
+This is not a release or permission to restart implementation. AU11 onward stays
+stopped. Planner reconciled requirements and the 47 source-finding dispositions; the approved
+summary and complete finding map are in
+[the existing register](docs/references/admin-ui/FUNCTIONALITY_CHANGES.md#review-reconciliation-and-requirements-summary--2-october-2026).
+The user approved the clarified product changes. The final documentation checkpoint
+precedes a short whole-branch handoff, not a prescribed area-by-area review procedure.
+Claude chooses the review method and checks requirements/tickets as well as code.
+Distinguish defects, requirement mismatches and known unfinished tickets; name exact
+base/candidate commits. Scope includes the original simplification, not just AU work.
+No new independent code review or tests are claimed by this documentation pass.
+
 ## Admin functionality queue — recorded 1 October 2026
 
-The user authorized execution of the recorded AU01–AU14 and RC01–RC04 tickets
-on 2 October 2026, after Luck's technical completion and visual approval. Execute
-one ticket at a time: AU01 through AU14 in dependency order, then RC01 through
-RC04. Recording later tickets does not automatically authorize their execution.
+The user originally authorized the AU01–AU14 / RC01–RC04 sequence, then explicitly
+stopped after AU10. AU01–AU10 are committed and technically complete; no next-ticket
+implementation or dispatch is currently authorized. Reconciliation records later
+agreed outcomes and remaining technical scope for review. On a future explicit resume, execute one ticket at a time in
+the approved order. Recording a ticket or approving requirements is not a resume.
 Each ticket uses a fresh Sol 6.1/high orchestrator, Astra/high implementer and a
 separate fresh Astra/high independent reviewer. The orchestrator owns checks and
 same-worker remediation/recheck, then sends a verified waking completion/blocker
 callback to the planner. AU01 stays in the existing collaboration worker; from
 AU02 onward the user explicitly authorizes a separate Sol 6.1/high orchestrator
 chat per ticket, spawning its own Astra/high worker pair. Planner reconciles
-completion and starts the next chat. Planner resolves manageable blockers within
+completion and starts the next chat only within an authorized continuation. Planner resolves manageable blockers within
 existing authority; only unresolved blockers or decisions requiring human input
 are escalated to the user. Do not skip unfinished tickets.
 This replaces the earlier queue-only authorization. Before each implementation,
@@ -310,18 +327,18 @@ into a broad pass.
 
 | Order / ID | Application outcome | Depends on | Implementation | Executed proof | Independent review | UI integration / manual acceptance |
 | --- | --- | --- | --- | --- | --- | --- |
-| AU01 | Restore cannot produce two visible current events | Reject conflicting restore; reuse current-event boundary | Technically complete; uncommitted; manifest cb8d95f5 | PASS 9/9 PostgreSQL/HTTP plus 3/3 quarantine regressions; Release build | PASS — fresh Astra/high; report 8b78c557; no findings | Deferred |
-| AU02 | Enforce signup-code length at the server boundary | Luck complete | Technically complete — /root/au02_implementer; uncommitted; manifest 286f23b0; planner reconciled completion; prior callback failure retained | PASS 5/5 authenticated PostgreSQL; Release build 0 warnings/errors; scoped diff/leak PASS | PASS — fresh Astra/high /root/au02_reviewer; report 9c18fe67; no findings | Existing route; new UI/manual acceptance deferred |
-| AU03 | Duplicate-safe event creation and uncertain-outcome lookup | Luck complete | Technically complete — /root/au03_implementer; uncommitted; manifest feafacaa; planner directly reconciled completion and all 22 hashes; callback rejection retained | PASS 13 distinct PostgreSQL/request cases + reset 1/1; final Release build; slug 6/6; architecture 2/2; scoped diff/leak/protected-source checks | PASS — fresh Astra/high /root/au03_reviewer; sole P2 reset finding resolved; report aa90ac4a | Existing route; new modal/UI/manual acceptance deferred |
-| AU04 | Events directory ordering, retained counts and attention projection | Dashboard backend available | Technically complete — /root/au04_implementer; uncommitted; corrected manifest c59d2745 | PASS: 8 distinct PostgreSQL cases (7/8 + fixture-corrected 1/1); final Release solution build; expanded attention case 1/1 + affected Release compile; scoped diff/leak/protected checks | PASS — fresh Astra/high /root/au04_reviewer; sole P2 attention-filter omission resolved/rechecked; report 673b0641 | Layout/URL/control/participant bindings and manual acceptance deferred |
-| AU05 | Signup setup stale-edit protection and settings version responses | Existing signup services | Technically complete — /root/au05_implementer; uncommitted; manifest 387426bb | PASS: 25 distinct PostgreSQL/HTTP cases across corrected runs; final Release build 0 warnings/errors; scoped diff/leak/protected checks | PASS — fresh Astra/high /root/au05_reviewer; no required findings; report cfb67191 | UI/per-card uncertainty binding and manual acceptance deferred |
-| AU06 | Duplicate-safe question/account-field creation | AU05 version contract | Technically complete — /root/au06_implementer; uncommitted; manifest 54af691e | PASS: 12 distinct PostgreSQL/HTTP cases across corrected runs; final Release build 0 warnings/errors; scoped diff/leak/protected checks | PASS — fresh Astra/high /root/au06_reviewer; no required findings; report bcf9392b | Frontend draft/uncertainty binding, AU07 feedback and manual acceptance deferred |
-| AU07 | Explicit required-to-optional outcome when first response arrives | AU05/AU06 result contract | Technically complete — /root/au07_implementer; uncommitted; manifest 93c76d18; callback rejected; planner reconciled directly | PASS: 22 distinct PostgreSQL/HTTP cases across corrected runs; final Release build 0 warnings/errors; scoped diff/leak/protected checks | PASS — fresh Astra/high /root/au07_reviewer; no required findings; report ca110d17 | Frontend uncertainty binding and manual acceptance deferred |
-| AU08 | Identity field-level conflict handling | Existing Identity concurrency/timezone rules | Technically complete — /root/au08_implementer; uncommitted; manifest d74176f8 | PASS: 14 distinct PostgreSQL/HTTP cases across corrected runs; controlled timezone fixture; final Release build 0 warnings/errors; scoped diff/leak/protected checks | PASS — fresh Astra/high /root/au08_reviewer; no required findings; report 912763bd | Conflict-choice frontend integration, AU09 and manual acceptance deferred |
-| AU09 | Identity uncertain-save readback | AU08 result/field contract | Technically complete — /root/au09_implementer; uncommitted; manifest a93e9584 | PASS: 7 distinct PG/HTTP cases across corrected fixture runs; readback/timezone and named multiline transport; Release build 0 warnings/errors; scoped checks | PASS — fresh Astra/high /root/au09_reviewer after single P2 named correction; report f5547bcd | Full ordinary-save/new-reference UI binding and manual acceptance deferred |
-| AU10 | Schedule instant preservation, field errors and uncertain readback | Existing versioned schedule save/read | Technically complete — /root/au10_implementer; uncommitted; manifest e4592b79 | PASS: 12/12 PostgreSQL/HTTP; named Live check 1/1; shipped controlled HTTP transport; Release build 0 warnings/errors; scoped checks | PASS — fresh Astra/high /root/au10_reviewer; no required findings; report 24f0870c | Explicit user stop after AU10 report; no next-ticket work; full UI/manual acceptance deferred |
+| AU01 | Restore cannot produce two visible current events | Reject conflicting restore; reuse current-event boundary | Technically complete; committed at checkpoint 1e8d457; manifest cb8d95f5 | PASS 9/9 PostgreSQL/HTTP plus 3/3 quarantine regressions; Release build | PASS — fresh Astra/high; report 8b78c557; no findings | Deferred |
+| AU02 | Enforce signup-code length at the server boundary | Luck complete | Technically complete — /root/au02_implementer; committed at checkpoint 1e8d457; manifest 286f23b0; planner reconciled completion; prior callback failure retained | PASS 5/5 authenticated PostgreSQL; Release build 0 warnings/errors; scoped diff/leak PASS | PASS — fresh Astra/high /root/au02_reviewer; report 9c18fe67; no findings | Existing route; new UI/manual acceptance deferred |
+| AU03 | Duplicate-safe event creation and uncertain-outcome lookup | Luck complete | Technically complete — /root/au03_implementer; committed at checkpoint 1e8d457; manifest feafacaa; planner directly reconciled completion and all 22 hashes; callback rejection retained | PASS 13 distinct PostgreSQL/request cases + reset 1/1; final Release build; slug 6/6; architecture 2/2; scoped diff/leak/protected-source checks | PASS — fresh Astra/high /root/au03_reviewer; sole P2 reset finding resolved; report aa90ac4a | Existing route; new modal/UI/manual acceptance deferred |
+| AU04 | Events directory ordering, retained counts and attention projection | Dashboard backend available | Technically complete — /root/au04_implementer; committed at checkpoint 1e8d457; corrected manifest c59d2745 | PASS: 8 distinct PostgreSQL cases (7/8 + fixture-corrected 1/1); final Release solution build; expanded attention case 1/1 + affected Release compile; scoped diff/leak/protected checks | PASS — fresh Astra/high /root/au04_reviewer; sole P2 attention-filter omission resolved/rechecked; report 673b0641 | Layout/URL/control/participant bindings and manual acceptance deferred |
+| AU05 | Signup setup stale-edit protection and settings version responses | Existing signup services | Technically complete — /root/au05_implementer; committed at checkpoint 1e8d457; manifest 387426bb | PASS: 25 distinct PostgreSQL/HTTP cases across corrected runs; final Release build 0 warnings/errors; scoped diff/leak/protected checks | PASS — fresh Astra/high /root/au05_reviewer; no required findings; report cfb67191 | UI/per-card uncertainty binding and manual acceptance deferred |
+| AU06 | Duplicate-safe question/account-field creation | AU05 version contract | Technically complete — /root/au06_implementer; committed at checkpoint 1e8d457; manifest 54af691e | PASS: 12 distinct PostgreSQL/HTTP cases across corrected runs; final Release build 0 warnings/errors; scoped diff/leak/protected checks | PASS — fresh Astra/high /root/au06_reviewer; no required findings; report bcf9392b | Frontend draft/uncertainty binding, AU07 feedback and manual acceptance deferred |
+| AU07 | Explicit required-to-optional outcome when first response arrives | AU05/AU06 result contract | Technically complete — /root/au07_implementer; committed at checkpoint 1e8d457; manifest 93c76d18; callback rejected; planner reconciled directly | PASS: 22 distinct PostgreSQL/HTTP cases across corrected runs; final Release build 0 warnings/errors; scoped diff/leak/protected checks | PASS — fresh Astra/high /root/au07_reviewer; no required findings; report ca110d17 | Frontend uncertainty binding and manual acceptance deferred |
+| AU08 | Identity field-level conflict handling | Existing Identity concurrency/timezone rules | Technically complete — /root/au08_implementer; committed at checkpoint 1e8d457; manifest d74176f8 | PASS: 14 distinct PostgreSQL/HTTP cases across corrected runs; controlled timezone fixture; final Release build 0 warnings/errors; scoped diff/leak/protected checks | PASS — fresh Astra/high /root/au08_reviewer; no required findings; report 912763bd | Conflict-choice frontend integration, AU09 and manual acceptance deferred |
+| AU09 | Identity uncertain-save readback | AU08 result/field contract | Technically complete — /root/au09_implementer; committed at checkpoint 1e8d457; manifest a93e9584 | PASS: 7 distinct PG/HTTP cases across corrected fixture runs; readback/timezone and named multiline transport; Release build 0 warnings/errors; scoped checks | PASS — fresh Astra/high /root/au09_reviewer after single P2 named correction; report f5547bcd | Full ordinary-save/new-reference UI binding and manual acceptance deferred |
+| AU10 | Schedule instant preservation, field errors and uncertain readback | Existing versioned schedule save/read | Technically complete — /root/au10_implementer; committed at checkpoint 1e8d457; manifest e4592b79 | PASS: 12/12 PostgreSQL/HTTP; named Live check 1/1; shipped controlled HTTP transport; Release build 0 warnings/errors; scoped checks | PASS — fresh Astra/high /root/au10_reviewer; no required findings; report 24f0870c | Explicit user stop after AU10 report; no next-ticket work; full UI/manual acceptance deferred |
 | AU11 | Tile-local manual EHB override for every objective type | Existing calculation/approval/evidence boundaries | Queued | Not run | Not run | Deferred |
-| AU12 | Credited EHB before score time in placement order | Historical-rule compatibility resolved at handoff; AU11 values reused | Queued | Not run | Not run | Deferred |
+| AU12 | Credited EHB before score time in placement order | New events only; existing event rules retained; AU11 values reused | Queued | Not run | Not run | Deferred |
 | AU13 | Board planning team-size estimate editable after draft finalization | Existing board statistics/settings boundary | Queued | Not run | Not run | Deferred |
 | AU14 | Teams: authoritative uncertain-action readback | Resolve minimal transport contract using existing commands/IDs | Queued; contract at handoff | Not run | Source gap mapped | Deferred |
 
@@ -339,7 +356,7 @@ a new override from an earlier ticket. Manual acceptance belongs to UI_PAGE_MATR
 
 ### AU01 — Restore exclusivity
 
-Source finding: Overview B1, `/private/tmp/overview-source-review-20261001/`.
+Source finding: Overview B1, `docs/references/admin-ui/reviews/2026-10-02/earlier-pages/overview-status-extract.md`.
 Starting owners: `EventQuarantineService`, `BingoEvent.Restore`, shared current-event
 boundary used by event Start/Resume. Hiding current A, starting B, then restoring A
 currently permits two visible current events.
@@ -358,7 +375,7 @@ and actual authorized transport recovery where affected. No global lifecycle aud
 ### AU02 — Signup-code server validation
 
 Source finding: Signup setup B1,
-`/private/tmp/signup-setup-source-review-20261001/review.md`.
+`docs/references/admin-ui/reviews/2026-10-02/earlier-pages/signup-setup/review.md`.
 Starting owner: `Participants.OnPostSignupCodeAsync`; its StringLength(100)
 annotation is not enforced by the handler before hashing/persistence.
 
@@ -551,7 +568,7 @@ to read-only checks; it must never blindly send that mutation again.
 ### AU10 — Schedule preservation and integration gaps, source-reviewed
 
 Sol 6.1/high source comparison completed with changes required; evidence:
-`/private/tmp/schedule-source-review-20261001/review.md`. No execution or production
+`docs/references/admin-ui/reviews/2026-10-02/earlier-pages/schedule/review.md`. No execution or production
 fix is claimed. Preserve existing atomic serializable/versioned authorized save,
 audit, timezone/DST/five-minute rules, overlap/WOM checks and lifecycle exceptions.
 
@@ -599,8 +616,8 @@ evidence continues to lock affected tile scoring, regardless of evidence status;
 no override can rewrite published evidence, archived values or official results.
 Starting owners: Board page model/editor data, TileTemplate/BoardTile, EhbCalculator,
 BoardEstimateService, approval snapshots and proportional contribution allocation.
-Promote this accepted exception to existing Board/product/data authorities before
-implementation. Do not revive reusable template workflows or catalogue overrides.
+The accepted exception is recorded in PRODUCT_REQUIREMENTS sections 10–11,
+FUNCTIONAL_CONTRACTS 6.2 and DATA_MODEL; implementation is still pending. Do not revive reusable template workflows or catalogue overrides.
 
 Acceptance/proof: automatic fallback, set/change/reset on calculated tiles, required
 manual estimate, invalid values, multiple objectives and weighted/partial allocation
@@ -621,11 +638,10 @@ provisional standings and finalization; retain existing immutable official resul
 
 Starting owners: PublicProgressCalculator Rank/SameRank and its actual consumers,
 finalization/official snapshots, public standings/copy and existing rule authorities.
-Before implementation establish the smallest explicit applicability boundary so
-existing historical results and historical reads do not silently acquire the new
-ordering. If the repository has no sufficient rule-version/event boundary, bring
-that concrete decision to the planner; recording this ticket does not authorize a
-migration that retroactively re-ranks events. No separate points infrastructure.
+User decision, 2 October: apply only to new events. Existing events retain the
+prior rule even without official results. Implement an explicit creation/rule
+boundary; do not infer it from today's date or retroactively re-rank existing events.
+Resolve the minimal persistence mechanism at readiness. No separate points infrastructure.
 
 Acceptance/proof: higher EHB beats earlier score time after equal lines/tiles;
 board completion, full-board finish time, lines and tiles retain precedence; equal
@@ -673,7 +689,7 @@ team edits and readback failures. Bind existing roster synchronization statuses;
 queued or failed WOM work must not be described as completed. Reconcile the
 HasUsableCaptain projection with existing command eligibility during integration;
 no new lifecycle permission or algorithm is approved. All changes remain queued.
-Evidence: `/private/tmp/admin-consolidation-review-20261002/teams-review.md`.
+Evidence: `docs/references/admin-ui/reviews/2026-10-02/earlier-pages/teams-identity/teams-review.md`.
 
 ### AU15 — WOM manual fetch without typed confirmation, 2 October 2026
 
@@ -726,7 +742,7 @@ on 1 October, reserving Claude usage for visual design and subsequent artifact
 synchronization. RC01/RC02 below supersede the earlier Claude correction prompts;
 do not send those stale prompts for duplicate implementation. Their source reviews
 are not application implementation or executed browser proof. Identity's named
-reference corrections still need their bounded recheck. Track future page findings
+reference corrections have SOURCE PASS; application binding remains deferred. Track future page findings
 here under stable new AU identifiers,
 separating existing capability, approved backend gap, proposed product decision
 and UI binding. Toast Undo and general manual queue reordering remain deferred/
@@ -737,17 +753,17 @@ unapproved; do not add them to implementation just because prototypes contain th
 ### Reference corrections — Codex ownership, approved 1 October 2026
 
 These are separate from AU application tickets and the active Luck assignment.
-Implementation is authorized within the named findings, but no worker is dispatched
-merely by this planning update. Execution is now authorized in the order above.
+The named scopes were approved, but execution is stopped after AU10. No worker
+is dispatched by this planning update; a new user resume is required.
 Use the current model policy: fresh Sol 6.1/high orchestrator per ticket, Astra/high
 implementer and a separate Astra/high reviewer. Do not silently change models or
 create another visible chat. Reuse established source evidence and keep remediation
 and named rechecks within that ticket’s same worker pair. No broad extraction/review pass.
 
-Reference edit checkout: `/Users/christopher/Documents/BingoWebpage`, current
-`feature/boss-artwork` branch; confirm status and preserve all existing exports.
-Application behaviour baseline remains the separate `participants-functionality`
-checkout. Reference mocks must not be installed as production functionality.
+Reference edits now belong to `docs/references/admin-ui/` in the assigned
+`participants-functionality` checkout/branch, alongside the application baseline.
+The synced freeze is committed at `be0014e`; Documents is a retained source copy,
+not the execution checkout. Reference mocks must not become production services.
 
 | ID | Scope | Implementation / checks | Independent review | Canvas sync |
 | --- | --- | --- | --- | --- |
@@ -761,7 +777,7 @@ make evidence-code failure/stale/uncertain mocks truthful and reconcile before
 retry; suppress Restore after failed hidden-event reads; separate manual from
 scheduled opening eligibility. Correct cancelled-event Stats documentation without
 adding a new link. Preserve current lifecycle rules and approved At-a-glance spacing.
-Source evidence: `/private/tmp/overview-source-review-20261001/`.
+Source evidence: `docs/references/admin-ui/reviews/2026-10-02/earlier-pages/overview-status-extract.md`.
 
 **RC02:** compare the complete intended question definition including ordered
 choices; never resolve an uncertain add by another admin's same-label question;
@@ -769,7 +785,7 @@ retain the uncertain settings request's own comparison baseline across other-car
 saves; protect unsaved inline renames when another rename/add starts; describe
 promotion as waiting-list order. Preserve separate card saves and reuse existing
 confirmation/recovery controls. Source evidence:
-`/private/tmp/signup-setup-source-review-20261001/review.md`.
+`docs/references/admin-ui/reviews/2026-10-02/earlier-pages/signup-setup/review.md`.
 
 **RC03:** retain unchanged exact schedule instants and immutable full submitted
 values for readback (including opening flag); preserve retained overdue enabled
@@ -778,7 +794,7 @@ resume and evidence-code consumers; constrain picker to short viewport height wi
 reachable overflow/footer. Extend uncertain readback mock with read failure that
 retains uncertainty. Correct unconditional automatic-close README requirement and
 outdated claim of an existing confirmation ladder. Evidence/source lines:
-`/private/tmp/schedule-source-review-20261001/review.md`; 15 files stable, source-only.
+`docs/references/admin-ui/reviews/2026-10-02/earlier-pages/schedule/review.md`; 15 files stable, source-only.
 R4 permits necessary bounded shared CSS height/overflow changes, not redesign.
 Focused checks reproduce seconds/subsecond and repeated-hour preservation, exact
 readback conflicts/read failure, retained overdue opening, skipped/repeated local
@@ -796,7 +812,7 @@ NotManaged/Unchanged/Pending/Sending/Retry/Failed/Conflict/Unknown results.
 Preserve approved composition, scramble motion and current interaction model.
 Reproduce the named timeout-without-save scenarios and readback failures, then
 reuse the same reviewer for the named recheck. Evidence:
-`/private/tmp/admin-consolidation-review-20261002/teams-review.md`.
+`docs/references/admin-ui/reviews/2026-10-02/earlier-pages/teams-identity/teams-review.md`.
 
 The review's fourth finding (forced `busyMinQuick=250`) is a pending presentation
 choice, not an automatic removal requirement. The user likes brief visible saving
@@ -806,8 +822,8 @@ No new delay standard or removal is approved by the reviewer alone.
 
 Identity's named correction recheck returned SOURCE PASS on 2 October 2026; no
 remaining named reference defect. Twelve files were stable; no browser/runtime
-checks were executed by the reviewer. AU08/AU09 and application UI binding remain
-queued. Evidence: `/private/tmp/admin-consolidation-review-20261002/identity-review.md`.
+checks were executed by the reviewer. AU08/AU09 are technically complete;
+application UI binding remains pending. Evidence: `docs/references/admin-ui/reviews/2026-10-02/earlier-pages/teams-identity/identity-review.md`.
 
 For all: preserve approved layout, typography, colours, spacing, components and
 animation feel. Expect JavaScript/state, markup/copy and documentation changes;
@@ -825,6 +841,63 @@ them to matching artboards and shared files without redesign or overwriting with
 older canvas content, then verifies parity. This is not blanket reassignment of
 visual design authority. Keep completed RC records; append future bounded reference
 correction tickets rather than spending Claude usage on behavioural bug fixes.
+
+### Proposed application follow-ups — AU16–AU24, not dispatched
+
+These scopes come from the seven completed source comparisons and later explicit
+user decisions, not a new audit. Accepting the requirements summary records the
+delivery target; implementation still needs a user resume. Reuse existing services
+and narrow projections; no generic receipt system, new persistence framework or
+cosmetic redesign is implied. Transport choices are resolved at ticket handoff.
+Keep visual binding separate when the existing backend already provides the data.
+All are **not implemented; checks/review not run** in this reconciliation.
+
+| ID | Bounded outcome and protected behavior | Focused acceptance / known decision boundary |
+| --- | --- | --- |
+| AU16 | Audit: restore already-required hidden-event history; authorized single-entry read/event choices; exact action vs area filters and timezone-aware calendar dates; preserve immutable redaction and hidden workspace restriction | Hidden event entry readable only under ordinary Audit permission; secrets excluded; specific vs prefix results; DST spring/fall days; unavailable entry/strict paging; use existing presenter and truthful historical fallbacks |
+| AU17 | Review: credited-account transition context, consistent effective-end/paused-window warnings, exact contribution preview and scoped action/current-state readback; reuse evidence commands | Corrected account gets its own context; screenshot vs upload wording; exact cap/duplicate/reversal outcomes; unknown reads never claim request attribution; private/hidden/phase guards. Full-event-pool Admin correction approved, including non-current entries; resolve player/character/team attribution at readiness without restoring the current-only filter. No OCR, image replacement or duplicate state |
+| AU18 | Final Review: complete readiness including current-event exclusivity; structured retained WOM outcome/actors; version/history/readback projection and in-place outcomes | Exact ties including cutoff tie group, stale archived vs reopened, read failure, optional refresh failure, inclusive upload boundary, stored versions unchanged. AU12 owns new ranking, not this ticket |
+| AU19 | Board: structured approval issues with tile targets, private/published comparison and authoritative uncertain-action readback over full intended state | Compare identity/name/description/artwork/objectives/EHB; late evidence retained; publish vs discard distinguished; no automatic replay. Reuse existing calculator/leases/snapshots. AU11–AU13 own scoring/planning changes |
+| AU20 | WOM: structured eligibility/next-permitted-time/credential/operation outcomes and read-only recovery; expose already-supported final-review fetch eligibility in new binding | Old last-success cannot prove a new fetch; GET never fetches; unknown never Up to date; missing-account coverage and failure retained. Preserve all cooldown/schedule/lease guards. Option 1 explicitly approved after investigation: support external replacement before/during Live with exactly matching UTC start/end and disconnect before first Live, irrespective of stored/rejected code. Safely retire old local management state; block active/unresolved operations, never delete external competition or reuse old code. Test ID-only, valid/rejected credentials, pending/unknown operations and late completion against replaced links. Credential-enabled edits already exist; conflict resend deferred; AU15 owns challenge removal. Later approved exact-window rule replaces five-minute tolerance: update shared linking/replacement/schedule/fetch checks and RC09 copy/mock; exercise timezone-equivalent instants, unequal start/end (including formerly accepted small offsets), provider/PostgreSQL precision and existing-link mismatch handling without deleting history or inventing zeros |
+| AU21 | Catalogue: explicit shared-item adoption on add, source/item identities/versions and scoped CRUD/mapping/value recovery | Creation uncertainty cannot duplicate/crash; every intended field and shared image scope explicit; preserve independent drafts, item provenance/price invalidation, reactivation roll guards and dependency-safe deletion. No silent shared-item merge or automatic price adoption |
+| AU22 | Accounts: bind existing overlay/projections to accurate counts/detail and role/status/ownership readback; transient target-bound reset response | Late response cannot expose A's secret in B; no secret history/log/storage or secret readback; permission loss/session invalidation handled; status not changed by revoke; current-state matching not attributed to request. Reuse reset permission-under-lock rule, no implicit new reset expected-version policy; typed transfer is AU24 |
+| AU23 | Catalogue advanced mechanics: implement approved SuperAdmin-only edits for existing advanced fields, read-only for ordinary Admins | Server permissions, validation, audit, stale edits, affected Draft estimates; approved/published/history unchanged; no separate roll-group management/import workflow. User already approved behavior; exact mapping to existing fields resolved before implementation |
+| AU24 | Ownership transfer: add approved typed destination public username alongside current owner's password | Reject missing/wrong/mismatched recipient text server-side; confirmation retains selected recipient/version; atomic sole owner, eligibility/session invalidation and secret privacy preserved. No new reason or typed confirmation on ordinary role changes |
+
+The earlier reports are evidence of source observations, not claims these gaps
+were implemented. The complete 47-finding map is in the functionality register;
+report links below preserve reproduction details. Existing server protection is
+not rebuilt just because the reference mock omitted it.
+
+### Proposed reference corrections — RC05–RC11, not dispatched
+
+| ID | Page and exact findings | Required correction boundary |
+| --- | --- | --- |
+| RC05 | Board B1–B7 | Full-intent uncertainty/draft retention; takeover/version safety; late evidence; routes; decimals; faithful weighted EHB/short-event fixtures |
+| RC06 | Audit A1–A4 | Hidden-history exception, exact action, DST date bound, reachable filter panel; strict page query normalization |
+| RC07 | Review R1–R8 | Honest action/actor/reason recovery; explicit uncertain leave; dirty/stale protection; real reversal allocation; correct route/account/objective context and completed-manual guard |
+| RC08 | Final Review F1–F6 | Honest readback, captured pending context/reason, version-link retry, complete shared-rank metadata, correct stale state, modal scroll lock |
+| RC09 | WOM W1–W6 plus approved exact-window change | Exact UTC start/end matching and wording (remove five-minute allowance); coordinate affected Schedule reference validation. Credential capability, captured event responses, actual fetch freshness, protected unsent drafts, unresolved status and scroll lock; preserve submitted-secret clearing |
+| RC10 | Catalogue C1–C8 | Safe full-intent creation/edit recovery; independent drafts; pending identity; fixed baselines; mapping/price invalidation; explicit shared-image scope; reactivation and direct routes |
+| RC11 | Accounts A1–A8 | Target-bound transient reset secret, truthful readback, protected drafts, route/focus recovery, retained disabled status, captured transfer version, normalized search and modal scroll lock |
+
+These extend the recorded correction queue without changing any completed ticket.
+Catalogue advanced controls and typed ownership confirmation follow the later user
+decisions AU23/AU24, not the superseded report questions. No blanket removal of
+reference functionality to match the old app. Full-pool evidence correction follows the later approved decision. WOM external
+link option 1 is now approved after investigation; AU20 aligns the application with
+the artifact, preserving active/unresolved-operation and date/lifecycle guards.
+
+Common acceptance: reproduce the named normal/failure/stale/uncertain/navigation
+paths with controlled fixtures, verify directly affected shared consumers and
+reduced motion, retain approved layout and motion feel, then one independent source
+review/named recheck. Do not replace production scoring/security with mock logic.
+Record implementation, executed checks, review and canvas sync separately. Claude
+syncs the reviewed file hashes after correction; no broad design/extraction pass.
+Use [Board/Audit](docs/references/admin-ui/reviews/2026-10-02/remaining-seven/board-audit-review.md),
+[Review/Final Review](docs/references/admin-ui/reviews/2026-10-02/remaining-seven/review-finalreview-review.md),
+[WOM/Catalogue](docs/references/admin-ui/reviews/2026-10-02/remaining-seven/wom-catalogue-review.md)
+and [Accounts](docs/references/admin-ui/reviews/2026-10-02/remaining-seven/accounts-review.md).
 
 ## Dashboard backend pass — approved, 2026-10-01
 
@@ -1306,48 +1379,56 @@ rerun, user-data mutation or app restart is authorized by this completion.
 
 ## Admin simplification — approved 2026-09-26
 
-The approved [Admin simplification implementation plan](/Users/christopher/.codex/visualizations/2026/09/24/01a0d414-daca-72f3-bea0-d1e9e53a3b2f/ADMIN_SIMPLIFICATION_IMPLEMENTATION_PLAN.md)
-is the assigned scope, ticket/dependency and acceptance contract for this overhaul.
-Its sections 2–7 and 10 supersede conflicting older pass requirements only within
-that scope. Product, journey, data and confirmation decisions are promoted in
-`PRODUCT_REQUIREMENTS.md`, `FUNCTIONAL_CONTRACTS.md`, `DATA_MODEL.md` and
-`UI_SYSTEM.md`; they are approved targets, not claims of implementation or release.
-Unchanged safeguards, public composition and `UI_PAGE_MATRIX.md` approval records
-remain authoritative. Dashboard and later visual/public-page redesign are excluded.
+This completed baseline is part of the whole branch review, not excluded by later
+AU work. Original ticket definitions and decisions are preserved byte-for-byte in
+[the original plan snapshot](docs/references/admin-ui/reviews/2026-10-02/simplification/original-plan.md).
+It is provenance, not current routing, dispatch authority or permission to restore
+retired behaviour. The current product/contracts/data/UI documents and refinements
+below govern the review target. Original exclusions applied to that pass only;
+Dashboard, Luck and the new Admin reference work were authorized separately later.
 
-Reuse `admin-simplification` at the verified merged PR #11 baseline recorded in
-`CURRENT_STATUS.md`. PRE-01 changes documentation only: establish source identity,
-separate actual deployment evidence from merge/image-publication evidence, record
-read-only retained-data findings or category-specific unknowns, and reconcile
-authorities. No data transformation or feature/worker behavior is part of PRE-01.
-Unknown retained data blocks only its corresponding destructive migration or
-transition decision; it does not prohibit unrelated authorized implementation.
-An unavailable current deployment baseline remains an explicit rollout/rehearsal
-limitation, never an inferred successful promotion.
+Baseline implementation commit: `993c90e9835d1f2d74fc9c03ed4d8f6306a7e37c`.
+[Baseline verification excerpts](docs/references/admin-ui/reviews/2026-10-02/simplification/baseline-status.md)
+preserve the September 28 user-run 1,555/1,555 result and September 29 independent
+correction PASS. The later correction reran named failures/build only, not the whole
+suite. These are historical results, not a fresh whole-branch verification pass.
+Deployment, production cleanup and current runtime state are not inferred from them.
 
-The assignment-specific roles/models in `AGENTS.md` apply. Following the user's
-2026-09-26 routing update, new Admin simplification implementer turns use
-`gpt-5.6-luna` / `max`; any Astra/high implementer turn already in progress
-finishes under its existing assignment without interruption before this change
-takes effect. The persistent coordinator starts ready packages under the plan's
-waves, disjoint-file ownership and one-migration-owner rule. It serializes shared
-authority/status edits and unlocks dependents only after accepted prerequisite
-changes are available in their baseline. Fresh orchestrators retain the same
-implementer/reviewer through named remediation/recheck; no extra routine verifier
-or review layer is added.
-Each assignment carries exact planner/coordinator/orchestrator identities, renewed
-authorization, checkout/branch, relevant ticket, protected scope, evidence, checks
-and stop boundary. Orchestrators report accepted/needs-remediation/blocked to the
-coordinator through the explicit waking callback and use collaboration handoffs
-for workers. A status report is not manual acceptance or publication authority.
+| Original tickets | Agreed simplification outcome retained | Later refinements / delivery distinction |
+| --- | --- | --- |
+| PRE-01 | Baseline/retained-data investigation, no guessed production migration | Historical evidence; no current production access implied |
+| ADM-01, ADM-02 | Honest outcomes, useful sanitized Audit, shared confirmations | New shared Admin reference supersedes visual composition; RC fixes pending |
+| SEC-01 | Retire emergency authority, preserve actors/history | No reactivation through later UI |
+| CAT-01 | Simplify Catalogue; retire roll-group UI/import surfaces, preserve mechanics | AU21/AU23 pending; SuperAdmin advanced-field editing does not create a roll-group editor |
+| EVT-01 | Name/timezone creation, permanent slug, atomic defaults, Identity ownership | AU03/AU08/AU09 complete; new UI binding pending |
+| ACC-01 | Existing-account support/security; no user creation/merge or emergency controls | AU22/AU24 pending; typed ownership confirmation is an existing requirement gap |
+| EVD-01 | Real team-role submission authority, immediate participant account switch | AU17 full-pool Admin metadata correction pending; not permission to change rosters |
+| LIF-01 | Timestamp-led scheduling, phase-aware manual controls, +30m early-end grace | AU01/AU10 complete; RC01/RC03 and reference binding pending |
+| TEM-01 | Existing website accounts, IncludedInDraft; retire accountless/CSV/owner-transfer | New team reference omits affiliation/image controls; old data preserved |
+| EVD-02 | Ordinary later attempts, binary review, reasoned correction/reversal | AU17/RC07 pending; preserve original evidence and separate approval |
+| SGN-01 | Mutable pre-draft questions, optional-after-first-response, protected first Playing | AU05–AU07 complete; RC02/UI binding pending |
+| DRF-01 | 2+ team draft, 0/1 manual roster; no pause/finalized reopen; cancel only zero picks | AU14/RC04 pending; click-pick, compact board and stay-on-Teams UI accepted |
+| SGN-02 | Admission code, always-enabled waiting, capacity rules and normal promotion | F01–F04 add explicit selected-person +1 exceptions; backend complete |
+| BRD-01 | Board leases/snapshots, approval/publication and evidence locks | AU11 manual total EHB override, AU13 estimate, AU19/RC05 pending |
+| PAR-01 | Pre-draft correction, withdrawal/restore, payment/notes | F01–F06 backend complete; new UI binding pending |
+| RES-01 | Mandatory gates, exact ties, immutable publication directly to Archived | AU12 new-events-only ranking and AU18/RC08 pending |
+| ROS-01 | Separate finalized pre-first-Live Add/Remove; permanently fixed Live roster | Later reference retains Live role changes, not membership changes |
+| BNR-01 | Retire event banners with guarded cleanup/history policy | Baseline migration/code present; production disposal not claimed |
+| WOM-01 | Website-owned dates; provenance separate from credentials; external never deleted | AU15 normal Fetch and AU20 exact UTC windows/code-bearing detach pending |
+| ACT-01 | Actions derived from current pending reviews/scheduled failures | AU04 directory data complete; no vacancy/follow-up/missing-Captain revival |
+| BRD-02 | Lightweight Board reads, targeted estimate freshness | AU19 projections pending; preserve calculator and approved snapshots |
+| WOM-02 | Dedicated WOM operations, Overview summary/link | AU20/RC09 pending; no user-scheduled creation, normal Create starts now |
+| VER-01 | Integrated proof and bounded remediation | Historical evidence linked above; reviewer evaluates entire base-to-candidate diff |
 
-PRE-01 uses scoped consistency/reference checks and `git diff --check`; no .NET
-suite is needed. Feature tickets use changed-risk checks and one independent
-stable-diff review. W6/W9 checkpoints and VER-01 retain the plan's integrated
-journeys and full release gates, including all CI Integration shards. Existing
-restrictions on packaging, promotion, deployment and production writes remain.
+Current routing is in AGENTS.md, not the original wave/coordinator/model prose.
+All later unfinished AU/RC scopes remain listed in this plan. No implementation
+resumes during documentation reconciliation or review preparation.
 
 ## Drop announcements and NEW tracking — approved behaviour, 2026-09-12
+
+Historical delivery context: completed-pass instructions/model assignments below
+do not authorize new work or override current product/contracts/UI authorities.
+Current stop boundaries and routing are above and in AGENTS.md.
 
 Status: implementation authorized by the user after the single independent readiness
 review and resolution of its named lifecycle decision. Execute the three bounded
@@ -1740,6 +1821,10 @@ DA-01..09 are recorded in MANUAL_TEST_CHECKLIST but are not yet runnable accepta
 
 ## 1. Documentation consolidation
 
+Historical delivery context: completed-pass instructions/model assignments below
+do not authorize new work or override current product/contracts/UI authorities.
+Current stop boundaries and routing are above and in AGENTS.md.
+
 1. **UI authority pass — complete:** `UI_SYSTEM.md` holds active global UI
    rules and exact implementation ownership; `UI_PAGE_MATRIX.md` holds active
    page families, protected composition, exceptions, approvals, and gates. The
@@ -1807,6 +1892,10 @@ DA-01..09 are recorded in MANUAL_TEST_CHECKLIST but are not yet runnable accepta
    and production launch are recorded below.
 
 ## 2. Launch and UI order
+
+Historical delivery context: completed-pass instructions/model assignments below
+do not authorize new work or override current product/contracts/UI authorities.
+Current stop boundaries and routing are above and in AGENTS.md.
 
 The user approved a complete Public UI identity replacement on 2026-08-22.
 The public Board ecosystem's accepted behavior remains protected, except for
@@ -2966,7 +3055,7 @@ resuming as planner; apply the assigned pass's gates without creating extra stag
    For Admin popups, applicable review is source-only and visual acceptance is the
    user's. Stop when the authorized assignment is complete.
 6. Before delivery back to the planner, the orchestrator consolidates the active `CURRENT_STATUS.md` entry with
-   the checkout/branch, assigned pass, completed work/checks and evidence locations,
+   the checkout/branch, assigned pass, completed work/checks and durable repository evidence locations (not only temporary paths),
    unresolved findings, active worker ownership (if any), acceptance state and exact
    next permitted action. Link this procedure; do not copy it into the handoff or
    rely on chat history. Preserve approval authority in `UI_PAGE_MATRIX.md`.
@@ -3251,7 +3340,7 @@ effects can still be used, and every accepted mutation is atomic with history.
 
 - Preserve and regression-check the existing reachable Live Wise Old Man
   competition replacement rather than reimplementing it. It must reference an
-  existing competition whose boundaries match within five minutes, cannot clear
+  existing competition whose boundaries match exactly as UTC instants, cannot clear
   the link, cannot synchronize the schedule, invalidates the prior displayed
   cache only after success, and leaves state unchanged on failure. Change it
   only if focused proof exposes a concrete contract gap.

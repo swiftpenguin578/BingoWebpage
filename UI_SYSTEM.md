@@ -27,6 +27,38 @@ Archived documents, root tombstones, old pass notes, selector presence, and
 page-local CSS cannot override these active sources. A canonical reference is
 not the same thing as approval in the current regression.
 
+## Approved Admin reference direction — 2 October 2026
+
+For the new Admin overhaul, `UI_PAGE_MATRIX.md` names the accepted pages and
+`docs/references/admin-ui/` holds their committed design. Canvas 42 / published
+artifact `1790965722-e7ad` is frozen in the 2 October manifest. The user explicitly
+selected this design over older Admin visual rules, including filled primary
+buttons. Its light/dark typography, spacing, surfaces, focus, motion, responsive
+tables and component hierarchy are the target; Public UI rules are unchanged.
+
+The reference's `ui/tokens.css`, `ui/components.css`, `ui/behavior.js` and Components
+preview are the shared design owners. Reuse them as the design contract during
+application integration; map runtime ownership deliberately into the existing app.
+`support.js`, vendor canvas support, fixture data and simulated requests/URLs are
+reference runtime machinery, not production services or mandatory dependencies.
+New reusable components may be added when needed, consistent with this visual
+language and documented in the gallery. Page-specific composition need not become
+a generic component. Underlined actions already accepted are intentional exceptions.
+
+Older Admin dimensions, fonts, outline-only/button prohibitions, forced table-to-
+card transitions and no-stacked-dialog rules below describe the prior application,
+not competing targets for these accepted pages. Keep wide tables horizontally
+scrollable. Layered confirmation is permitted with the underlying editor inert,
+appropriately dimmed, scroll locked and focus returned. Keep existing accessibility,
+dirty/pending/conflict/uncertainty and security contracts. New-reference visual
+acceptance is not application binding or acceptance of newly exposed feedback.
+
+Exit timing derives from computed shared CSS animation and completes even when no
+animation runs. A brief shared visible saving/spinner minimum is allowed as approved
+presentation; exact duration is not yet fixed. It never delays the backend operation
+or shows success before confirmation. Respect reduced motion and block repeat
+submission while pending. No toast Undo is added by this visual policy.
+
 ## Rule promotion and ownership
 
 Page-specific is the default. A page rule becomes global only through an
@@ -99,11 +131,10 @@ physically shared by `_TransientToast.cshtml`; toast behavior is in `site.js`.
 - Primary content and actions align to the owning layout. Final actions sit
   at the end of their row; low-priority navigation does not compete with the
   primary action.
-- Normal Admin primary actions use the neutral/muted outline treatment.
-  Hierarchy comes from placement, wording, and typographic weight; colored
-  normal actions are forbidden. Red is reserved for explicit destructive
-  actions, and semantic success color is reserved for an action that explicitly
-  means success.
+- New Admin primary actions use the accepted shared reference treatment, including
+  filled primaries. Neutral and destructive variants retain their distinct roles.
+  Use shared theme tokens, not page-local color substitutions. The older outline
+  treatment remains existing application code until the authorized integration.
 
 ## Layout families
 
@@ -544,7 +575,7 @@ coral live, sage signup, bronze postponed/upcoming, and subdued bronze archived.
 The mapping is semantic, never positional, and its hover/focus contrast must pass
 in both themes.
 
-## Primitive registry
+## Existing application primitive registry — migration sources
 
 Each entry names the semantic role, exact owner, canonical rendered reference,
 current uses, permitted variants, and forbidden legacy residue.
@@ -552,7 +583,7 @@ current uses, permitted variants, and forbidden legacy residue.
 | Role | Exact owner and reference | Uses and permitted variants | Forbidden residue |
 | --- | --- | --- | --- |
 | Create/Add | CSS `.admin-button-create` in the transitional stylesheet set; Events directory markup is the canonical reference | Events, Accounts emergency credential, Catalogue Add, and page-approved Add actions; label and icon vary | Bootstrap/local border, background, outline, padding, or geometry layered over the class |
-| Primary action | CSS `.admin-button-primary` in the transitional stylesheet set; Board and Events directory are canonical action references | Neutral/muted outline primary submit/publish/save action; hierarchy comes from placement, wording, and weight | Colored normal action, filled/local `.btn` styling, duplicated focus, or page-local color override |
+| Primary action | CSS `.admin-button-primary` in the transitional stylesheet set; Board and Events directory are canonical action references | Existing outline implementation; new Admin target uses reference primary variants | Duplicated focus or local overrides outside the approved shared design |
 | Secondary action | CSS `.admin-button-secondary` and `.event-create-cancel` in the transitional stylesheet set; Board/Identity are references | Neutral cancel, edit, navigation, and independent save actions | Ad hoc neutral button geometry or a disabled-looking fake terminal action |
 | Destructive action | CSS `.action-danger-outline` in the transitional stylesheet set; lifecycle controls in Manage and Board are references | Danger-outline delete/remove/reversal actions, normally behind confirmation | Red filled action, generic danger text without consequence, or empty danger panel |
 | Ghost/low-priority | CSS `.event-overview-row-action` is the canonical quiet route action; other page-local quiet links remain patterns | Read-only Workspace/route links and low-priority navigation | Treating every text link as a global component or adding a pill/button shell |
@@ -573,7 +604,7 @@ The registry distinguishes CSS sharing from markup sharing. A class reused by
 several pages is physically shared CSS; the surrounding composition remains a
 page-local exception unless a partial/helper/module owns it.
 
-## Explicit Create/Add rule
+## Existing application Create/Add rule — superseded as redesign target
 
 `.admin-button-create` owns the approved outline-free Create/Add appearance.
 It affects consumers of that class, not every action whose label says

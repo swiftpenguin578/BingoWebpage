@@ -1,6 +1,12 @@
+> Historical pre-simplification ticket ledger; not an active queue or authority.
+> Preserve recorded outcomes as evidence. Later simplification and approved UI-era
+> changes supersede conflicting requirements; use PRODUCT_REQUIREMENTS,
+> FUNCTIONAL_CONTRACTS and DELIVERY_PLAN. Model/routing/authorization statements
+> below applied to those old assignments only and do not dispatch new work.
+
 # Application sweep tickets
 
-## ACTIVE workflow — temporary Sol/Luna reinstatement, 2026-09-16
+## Historical workflow — temporary Sol/Luna reinstatement, 2026-09-16
 
 **The Astra workflow recorded below is CURRENTLY SUPERSEDED and INACTIVE.
 Its original text is preserved for reference, not execution.** Follow

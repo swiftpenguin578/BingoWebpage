@@ -94,7 +94,7 @@ src/
     ├── R2 object storage
     ├── Password and token services
     ├── Scheduled processing
-    └── External catalogue import
+    └── Retained/operator catalogue import mechanics (not an Admin UI workflow)
 
 tests/
 ├── Bingo.Domain.Tests
@@ -182,7 +182,7 @@ PostgreSQL stores:
 
 - Event configuration
 - Signup and waiting-list data
-- Draft-participating and pre-formed teams, manual rosters, and draft picks
+- IncludedInDraft teams, manual rosters, and draft picks
 - Boss/drop catalogue and event snapshots
 - Boards, tiles, and requirements
 - Submission metadata and review history
@@ -229,7 +229,7 @@ Board and draft administration use two complementary concurrency mechanisms:
 
 - Each board aggregate carries an optimistic concurrency version covering its tiles, requirements, layout, and publication state. Every mutating request includes the loaded version; stale writes return a recoverable conflict and do not overwrite newer content.
 - A separate renewable board-editor lease provides the normal user-facing edit lock. Opening a board does not acquire it; explicit edit, release, and confirmed takeover actions change ownership while viewers receive live updates. Navigating away sends a keepalive release request, while client activity renews the lease at a throttled interval. The five-minute inactivity expiry remains the fallback for interrupted or abandoned browsers.
-- A draft session carries an active-controller lease tied to an administrator account and lease/version value. Server-side authorization checks that lease for start, pick, undo, pause/resume, and finalization.
+- A draft session carries an active-controller lease tied to an administrator account and lease/version value. Server-side authorization checks that lease for start, pick, undo, zero-pick cancellation and finalization; no new Pause/Resume.
 - Draft observers receive live state but remain read-only. A confirmed takeover atomically replaces the controller lease and writes an audit entry.
 - Draft-pick transactions retain serializable isolation and uniqueness constraints as the final integrity boundary even when controller requests race or are retried.
 - Draft setup derives team count from active drafted teams and derives balanced final sizes from included confirmed participants; it does not persist an admin-entered target size. Board-editor team/size estimates remain isolated board-EHB inputs.
@@ -239,7 +239,7 @@ Board and draft administration use two complementary concurrency mechanisms:
 - Undo is a repeatable transactional stack operation over the latest active pick. Each request marks one pick undone, ends its membership, and recalculates the next turn from the remaining active ledger; no arbitrary undo-count limit exists.
 - Recording the first pick permanently locks the drafted-team set and formation types. Undoing every pick does not reopen structural team configuration. Team display metadata remains writable until the separate event-start lock.
 - Draft finalization transactionally publishes only the effective active-pick order and roster projection. After success, the UI may open a **Publish board?** prompt/page. Its separate board-publication command revalidates full grid, approval, and private state in a new transaction; failure cannot roll back or corrupt the completed draft.
-- Reopening a finalized draft is a pre-event exceptional transition requiring strong confirmation and a written reason. It withdraws the public roster/pick-order projection, preserves the board's independent publication, retains structural team locks, and appends transition history before allowing stack undo/repicking.
+- Finalized drafts cannot reopen. Before first actual Live, separate Add/Remove republishes current rosters while preserving picks/prior versions. A private Running attempt may cancel only after individual latest-pick Undo leaves zero active picks. Historical transitions grant no new authority.
 - Board approval uses the board aggregate's optimistic concurrency version. Approval requires a full grid and valid tiles; any later private competitive-content edit atomically returns the board to Draft while retaining the superseded approval record.
 - A Draft board reads catalogue-backed names, images, source-drop rates, and EHB mechanics live. Relevant catalogue writes invalidate its derived projections and notify open editors; the server recalculates authoritative tile, line, total, and per-player estimates from current catalogue rows rather than treating cached editor values as competitive history.
 - A blank tile description remains blank in the template/working edit field and is derived for the draft preview from current ordered requirement and selected-drop names. Nonblank text is explicitly manual. Approval stores the rendered description and mode in the immutable approval snapshot; public consumers keep reading that frozen copy, and correction discard restores the active snapshot's prior mode and text.
@@ -399,13 +399,12 @@ must not depend on a global EF query filter: each event-scoped read and
 mutation applies the appropriate explicit predicate/guard.
 
 One narrow application service owns Hide and Restore. It validates the
-post-Live eligibility states, exact ordinal event-name confirmation, mandatory
-reason, SuperAdmin authority, and optimistic concurrency, then atomically
+post-Live eligibility states, ordinary confirmation, a mandatory Hide reason
+(no reason for Restore), SuperAdmin authority and optimistic concurrency, then atomically
 updates `HiddenAt`, `HiddenByAccountId`, and `HiddenReason` with the audit
-entry. Restore clears only those fields. No lifecycle scheduler, signup/live
-singleton check, active-event processing, notification, or competitive
-snapshot/data rewrite is involved because hidden events are never eligible
-before Live.
+entry. Restore clears only those fields. Restore rechecks current-event exclusivity transactionally. Neither operation
+rewrites competitive data, starts a scheduler or sends notifications; hidden
+events are never eligible before Live.
 
 The captain draft-information view reuses the signup-board projection with a role-aware column set. It exposes participant-submitted answers, including fields hidden from the public projection, but never joins paid/unpaid status, private admin notes, identity-recovery/security metadata, or audit data. Only captains/co-captains of drafted teams may load it, and only until draft finalization. After finalization, the signup route remains an admin-authorized signup page; non-admin requests redirect to the published team-roster route rather than rendering roster content through the signup page.
 
@@ -433,7 +432,7 @@ Grant/revoke Admin and restore commands append a personal notification for the t
 
 Lost-owner recovery is an operator-only command surface, never a web route. It can generate a purpose-bound 60-minute reset link for the current owner or atomically transfer ownership to a specified active website account. It requires explicit source/destination identifiers plus an explicit confirmation argument and records a system-actor audit event.
 
-Personal notification read state and unresolved operational work are different projections. Opening a personal notification may mark it read, but pending reviews, postponed starts, waiting-list follow-up, vacancies, and missing-captain conditions remain in the Admin action inbox until their authoritative underlying state is resolved.
+Personal notification read state and unresolved operational work are different projections. Opening a personal notification may mark it read, but pending reviews and unresolved scheduled opening/start failures remain in the Admin action inbox until their authoritative underlying state is resolved.
 
 ### 8.3 Signup ownership and editing
 
@@ -476,7 +475,7 @@ opt-in. Rename support is intentionally omitted unless a small unchanged
 provider-ID recognition path is independently safe; reading My Accounts cannot
 rewrite frozen event identity.
 
-Exactly one playing account is active/drop-eligible for a participant at a time. The primary account activates at event start. Normal swaps are available only while the event is `LIVE`, are unlimited during that state, and append an immutable transition with effective and recorded UTC timestamps. Event end closes normal swaps. The swap mutation uses optimistic concurrency or a row lock so simultaneous requests cannot both succeed from the same prior active character. Participants act for themselves, captains/co-captains act for unlinked members of their own external team, and admins may make audited corrections.
+Exactly one playing account is active/drop-eligible for a participant at a time. The primary account activates at event start. Normal swaps are available only while the event is `LIVE`, are unlimited during that state, and append an immutable transition with effective and recorded UTC timestamps. Event end closes normal swaps. The swap mutation uses optimistic concurrency or a row lock so simultaneous requests cannot both succeed from the same prior active character. Only participants switch for themselves; Captain/Admin switch-on-behalf is retired. Admin evidence metadata correction is a separate reasoned operation under AU17, not an account-switch command.
 
 Evidence creation derives rather than selects the credited playing character. An ordinary participant is locked to themselves; a captain/co-captain selects a current teammate. In the same transaction, the service resolves that participant's active character at immutable server submission time and snapshots it on the submission. The form never exposes an account selector, and later submitter edits preserve the credited fields. The screenshot's clan-plugin UTC overlay remains the evidence of when the drop occurred. Review shows the latest relevant account transition in UTC; full history remains available to admins for audit, visual validation, corrections, and later activity attribution.
 
@@ -493,7 +492,7 @@ The review summary displays immutable server **Submission time**, calculated min
 
 Evidence review has only `Approve` and `Reject` decisions. Approval needs no note; rejection requires one. Duplicate or unusable evidence is rejected rather than entering an intermediate state. While the active/reopened upload window remains open, a rejected or reversed submission remains immutable history and any later attempt is an ordinary new submission requiring its own screenshot, attribution resolution, server time, and review. Existing predecessor links and `Resubmit`/related review enum values are retained for legacy display only; no dedicated linked-child command, unique-child claim, or copied attribution is used for new attempts. Neither rejection nor reversal creates post-cutoff correction access. Required notification, retained ReviewAction history, and the main immutable audit entry are written atomically with their owning mutation; the shared Audit presentation renders retained review history once and falls back to the immutable audit entry where needed.
 
-Before approval, a reviewer may correct tile/requirement, qualifying drop, or credited playing character with a required reason. The participant is derived from the character's event assignment. The command locks or version-checks the pending submission, revalidates authorization and every structured allocation/account rule, records before/after values, and rejects stale decisions. It never changes the immutable server submission time, calculated contribution, or evidence asset; a changed target replaces snapshot weight with that destination's frozen authoritative value. Approval records the human decision that the screenshot time satisfies event/account eligibility. Reversal is a separate reasoned transaction that preserves history and recalculates authoritative progress.
+Before approval, a reviewer may correct tile/requirement, qualifying drop, or credited character from the full event pool with a required reason (approved AU17, pending). Derive unambiguous participant/team attribution from that event identity, not a current-only Playing filter. The command locks or version-checks the pending submission, revalidates authorization and every structured allocation/account rule, records before/after values, and rejects stale decisions. It never changes the immutable server submission time, calculated contribution, or evidence asset; a changed target replaces snapshot weight with that destination's frozen authoritative value. Approval records the human decision that the screenshot time satisfies event/account eligibility. Reversal is a separate reasoned transaction that preserves history and recalculates authoritative progress.
 
 Duplicate-disabled contribution uses immutable shared catalogue-item identity frozen
 into event and approval drop snapshots, scoped to one requirement. It never relies
@@ -519,7 +518,7 @@ Approved evidence metadata, credited player, and screenshot are public; particip
 
 There is no public feedback or evidence-report persistence/API in version one. Community evidence concerns, bugs, and feedback are received through Discord; a valid evidence concern enters the existing administrator reversal and ordinary new-submission workflow.
 
-Normal swaps are recorded immediately but become evidence-effective at the first whole UTC minute strictly after the request. While a future-effective transition is pending, the old account remains active and another participant swap is rejected. This makes each plugin-displayed minute belong unambiguously to one playing account.
+Participant account switches become effective immediately at authoritative server time. Serialize switching with attribution capture so each submission retains one unambiguous original character. There is no new pending future-effective switch. Preserve PostgreSQL timestamp precision, deterministic ordering and retained historical transitions; screenshot time remains human-reviewed evidence.
 
 After draft finalization, participant navigation resolves to the published team roster until the board is available, then to the existing team-board route. Role-aware queries add only the participant's own non-public submissions and their team's focus projection. They do not change the approved public-board HTML/data projection for anonymous users or opponents. If the private focus layer is visually disabled by an authorized viewer, the server authorization and shared marker state remain unchanged.
 
@@ -568,29 +567,29 @@ Normal edits preserve signup ordering and status. Cancellation while signup is o
 
 Waiting-list promotion writes durable in-site notifications for the linked participant and every enabled administrator in the promotion transaction. Participant notification links to the authoritative confirmation page; admin notifications link to participant management and include the event, participant, and promotion trigger. These ordinary notification rows use fresh IDs and rely on the accepted promotion transaction; no universal recipient-and-transition notification constraint is required. No Discord message integration is required.
 
-Event-participant ownership transfer is an admin-only correction for a participant attached to the wrong or duplicate website account; lost Discord access uses same-account relinking instead. The command uses strong confirmation, locks the participant, verifies that the destination account has no participant in that event, changes ownership/derived access atomically, and records structured old/new identity history. It does not merge accounts or My accounts links. Authorization is resolved from current ownership on every request, so the previous account loses event access immediately without requiring its unrelated global login session to be destroyed.
+Event-participant ownership transfer is retired. Preserve retained attribution/ownership history; no active command or UI may reassign it. Password/Discord recovery retains the same website account. SuperAdmin ownership transfer remains a separate authorized global-account operation.
 
 Participant administration uses one application query/command boundary even if responsive UI routes are later split. The pre-draft workspace projects all three statuses, identity/source/queue state, regular and alt assignments, EHB, public participant answers, private paid/unpaid state, Admin notes, and team state. Admin corrections after signup close reuse signup validation and reservation constraints without changing queue/status.
 
 `My events` queries only explicit `EventParticipant.AccountId` ownership. It separates current participation from history and resolves state-aware destinations through the same lifecycle policy used by signup, table, roster, board, and results routes. It never infers ownership from website username, Discord, or OSRS-character links.
 
-Admin-created internal participants bypass only public availability and signup-code checks; they use the same validation, capacity count, waiting-list ordering, and reservation transaction as website signups. External/pre-formed roster records are explicitly classified outside that signup pool rather than being excluded merely because their source is `ADMIN_CREATED`.
+Admin Add uses an existing active website account and saved Playing accounts with stored EHB, no WOM lookup, code or questionnaire, selected primary and payment. F01–F06 define explicit full-capacity confirmation/add/restore and event-only corrections; atomic reservations, placement and audit remain mandatory.
 
 Payment is stored as a private boolean and defaults unpaid. The migration from the current multi-value enum maps only existing `PAID` to true and maps every other legacy value to false while preserving the old value in migration/audit evidence. Participant status migration maps legacy `REMOVED` to `WITHDRAWN` and retains its original timestamp/history.
 
 Admin withdrawal, restoration, and registered-account correction create durable in-site notifications for a linked participant within the accepted mutation. These ordinary notification rows use fresh IDs rather than a universal recipient-transition constraint. Payment, private-note, and non-account answer corrections do not. Every command still records automatic structured history without requiring a typed reason.
 
-After draft start, participant self-withdrawal is rejected server-side. Admin withdrawal remains available through the live event. The command ends current membership and future eligibility while preserving the draft pick, membership history, registered-account reservations, evidence, and contributions. It creates a durable vacancy/admin action item but never invokes the automatic promotion service.
+After draft start, self-withdrawal stops. Running locks roster edits except authorized before-first-pick preassignment. Finalized pre-first-Live Add and Remove are separate transactions that republish current rosters without signup/team-size caps or automatic rebalance. First Live permanently locks membership and registrations.
 
-Post-draft replacement is optional and uses a separate transaction. For a normal replacement it locks the vacancy and chosen waiting-list participant, verifies that the waiting participant is still available with intact frozen character assignments, changes them to confirmed, and creates a prospective `ROSTER_REPLACEMENT` membership linked to the ended membership. The waiting list is displayed in original order but the selected candidate is admin-authoritative because availability is confirmed outside the application. If no waiting participant is available, the command may atomically create a validated internal participant and unique event-character assignments before creating the membership. The vacancy may instead remain open. The draft ledger remains unchanged.
+The former post-draft replacement/vacancy commands have no future authority. Retain original picks and past publications when permitted pre-Live Add/Remove runs; a failed Add never reverses a committed Remove.
 
-During a live replacement, eligibility is time-bounded: withdrawal ends at the first full UTC minute after confirmation, and replacement membership plus primary-account activation begins at the first full UTC minute after replacement confirmation. The departed member retains reviewable evidence for qualifying pre-withdrawal drop times, the replacement receives no pre-activation eligibility, and any interval between the two effective instants remains a real vacancy.
+Historical replacement eligibility boundaries remain readable; do not create new Live replacements or recalculate their past evidence.
 
-The withdrawal command revokes the participant's website event/team mutation authority as soon as the transaction commits. The later whole-minute timestamp is specifically the competitive drop-eligibility boundary used for plugin/evidence comparison; it is not an authorization grace period.
+Pre-draft withdrawal updates status, reservations and eligible promotion atomically. There is no Live withdrawal authorization or competitive-eligibility grace workflow.
 
 Captain/co-captain mutations are admin-only, event/team-scoped role-transition commands over an active membership and website account. Live-start readiness does not require Captain credentials. Actual website-draft start/finalization retains current-Captain requirements. Withdrawal atomically revokes the departing member's role. Removing the last current captain during live play is allowed because real-world withdrawal may require it, but emits a prominent team/admin warning rather than silently granting authority or stopping the event. A later assignment takes effect immediately, survives authentication-method changes, is retained in role history, and creates an in-site notification for the affected linked participant.
 
-Vacancy creation writes idempotent in-site notifications for every enabled admin and remaining linked team captain/co-captain using the owning live transition/recipient deterministic IDs. Replacement confirmation writes them for the linked replacement and current linked team captains/co-captains using the same selective retry boundary. Discord remains the manual availability-contact channel.
+Vacancy/promotion-follow-up/missing-Captain actions and their new notifications are retired; preserve existing history and current pending-review/scheduled-failure actions.
 
 External/pre-formed retained memberships do not infer website ownership. Emergency Captain authority is retired (SEC-01). Retained emergency accounts, access rows, tokens and actor references remain historical data: login, existing cookies, token consumption, creation, reset, enable/disable, evidence and Team Focus authority are unavailable. No conversion, deletion, fabricated human disable Audit or expiry processing accompanies retirement. Normal Captain/Co-captain authority remains membership-based. Live start has no Captain/credential prerequisite; actual website-draft start/finalization still requires current Captains. Event-specific rollout remains subject to the retained-data evidence gate.
 
@@ -612,19 +611,19 @@ Event timestamps remain authoritative. If the application was offline when a sch
 
 Normal production publication/lifecycle commands query and lock the current operational event before moving another event into `SIGNUP_OPEN`, `SIGNUP_CLOSED`, `LIVE`, `AWAITING_FINAL_REVIEW`, or `FINALIZED`. A conflict returns the blocking event and recovery route without partially mutating either event. This is intentionally application-level rather than a PostgreSQL uniqueness constraint because `DevelopmentScenarioSeeder` and automated fixtures require several simultaneous lifecycle scenarios. That seeder remains guarded by `environment.IsDevelopment()` and writes labelled fixtures directly; test/development pages and services use explicit event IDs/slugs rather than arbitrary singleton selection when several scenarios exist.
 
-Cancellation is an administrator transaction available only before `LIVE`. It locks the event, requires confirmation/reason, records the transition, closes signup and event-scoped mutation access, and makes every scheduler branch ignore the event. It preserves all owned data and publishes only a generic cancellation state when `first_public_at` already exists. Archive is a confirmed `FINALIZED → ARCHIVED` transaction requiring no reason; it preserves official snapshots and public URLs while removing the event from current operational queries. Reasoned unfinalization of an archived event rechecks the production singleton policy.
+Cancellation is an administrator transaction available only before `LIVE`. It locks the event, requires confirmation/reason, records the transition, closes signup and event-scoped mutation access, and makes every scheduler branch ignore the event. It preserves all owned data and publishes only a generic cancellation state when `first_public_at` already exists. Official publication atomically transitions to Archived; no separate Archive action remains. It preserves official snapshots and public URLs. Reasoned unfinalization of an archived event rechecks the production singleton policy.
 
-Scheduled event end uses the configured instant as `actual_ended_at`, even when the transition is persisted later. Early end is an administrator-authorized transaction requiring strong confirmation and a reason; it records the confirmation time as the effective end without rewriting the scheduled end or submission cutoff. Both paths use the same transition policy, close new-drop eligibility, and leave grace-period uploads available until the active cutoff. Evidence-image UTC timestamps remain a visual review input rather than an OCR or fixed upload-hours subsystem.
+Scheduled event end uses the configured instant as `actual_ended_at`, even when the transition is persisted later. Early end is an administrator-authorized transaction requiring strong confirmation and a reason; it records the confirmation time as the effective end without rewriting scheduled end; early end sets the upload cutoff to actual end plus 30 minutes. Both paths use the same transition policy, close new-drop eligibility, and leave grace-period uploads available until the active cutoff. Evidence-image UTC timestamps remain a visual review input rather than an OCR or fixed upload-hours subsystem.
 
 Manual and scheduled opening call the same application/domain readiness policy with an explicit opening mode. Manual opening ignores any stored scheduled-opening value and supplies the current authoritative instant. Scheduling persists the stable active warning codes that the Admin acknowledged. Scheduled opening transactionally revalidates the complete event/form configuration at execution time; a blocker or newly active unacknowledged warning leaves the event private, records one failed attempt, disables delayed retry, and creates one durable Admin action/notification rather than partially publishing signup. External-provider reachability is not part of this transaction.
 
-Scheduled event start follows the same fail-closed pattern. The worker revalidates finalized draft state, published board state, and every other live-transition invariant. Failure stores a scheduled-start attempt, leaves the event pre-live, and creates/updates one idempotent **Automatic start postponed** admin action containing current blocker codes. The worker does not surprise-start the event on a later retry after blockers clear. An admin must invoke **Start event now**; the transition uses actual time, needs no written reason after the scheduled instant, and requires one for an early start.
+Scheduled event start follows the same fail-closed pattern. The worker revalidates finalized draft state, published board state, and every other live-transition invariant. Failure stores a scheduled-start attempt, leaves the event pre-live, and creates/updates one idempotent **Automatic start postponed** admin action containing current blocker codes. The worker does not surprise-start the event on a later retry after blockers clear. An admin must invoke **Start event now**; the transition uses actual time, requires one confirmation and no written reason for either an early or overdue manual start.
 
 Critical competitive actions such as finalization remain explicit admin actions.
 
 Submission-cutoff processing records closure without modifying retained emergency identities/access. Normal website-account captain/co-captain roles remain historical; every mutation still fails because event state/upload-window authorization is evaluated server-side. Reopening submissions never grants emergency authority.
 
-Finalization is an administrator-confirmed transaction with no required reason on the normal path. Each authoritative transition into final review starts a distinct immutable review cycle; cycle-scoped acknowledgements, corrections, and overrides cannot authorize a later cycle. The transaction locks/rechecks the final-review aggregate, rejects any pending submission or other unresolved blocker, recalculates progress/rankings, stores consumed resolution identities and calculation inputs/results, and appends official placement/statistic snapshots. A reasoned blocker override changes only blocker resolution metadata. Unfinalization requires confirmation/reason, supersedes snapshots without deleting them, rechecks singleton-current boundaries, and never reopens uploads. Archived former participants may reach only their own rejected/withdrawn evidence history through normal account history navigation, read-only.
+Finalization requires confirmation, closed uploads, zero Pending, valid placements and current lifecycle/version checks. One transaction publishes an immutable official version and Archived state. No new completion inspection, override, tie acknowledgment or separate Archive. Reopening requires reason/confirmation, preserves older versions and does not reopen uploads.
 
 ## 10. Deployment topology
 
@@ -984,7 +983,7 @@ Seed data should create:
 
 - One sample event in each important state
 - Six teams
-- One pre-formed external team excluded from the website draft
+- One team with IncludedInDraft=false and existing-account members
 - Representative captains and admins
 - A 5x5 example board
 - Pending, approved, rejected, and reversed evidence metadata
@@ -998,7 +997,7 @@ No real participant comments or evidence screenshots belong in seed data.
 
 - Waiting-list promotion
 - Snake-draft order
-- Pre-formed-team exclusion from draft order and participant pool
+- IncludedInDraft inclusion and 0/1-team manual roster publication
 - Duplicate drop rules
 - Higher-weight submission rules
 - Multi-requirement tile completion
@@ -1016,7 +1015,7 @@ No real participant comments or evidence screenshots belong in seed data.
 - Hidden-event hide/restore authorization, eligibility, route privacy, and
   ordinary-Admin/SuperAdmin boundary
 - Event snapshot immutability
-- Finalization blockers and overrides
+- Mandatory finalization gates, exact ties and immutable result versions
 - Audit creation
 - Event-linked notification filtering and absence of hide/restore notifications
 - Migration/preflight refusal to roll back while hidden rows exist
@@ -1031,7 +1030,7 @@ No real participant comments or evidence screenshots belong in seed data.
 - SuperAdmin hidden-event inspection/restore and fail-closed direct routes
 - Board building and resizing
 - Snake draft
-- Pre-formed team creation and roster correction before and after draft finalization
+- Existing-account roster assembly and finalized pre-first-Live Add/Remove
 - Event finalization
 
 ## 21. Architecture acceptance criteria

@@ -1,0 +1,16 @@
+Identity named corrections recheck — SOURCE PASS
+
+Bounded recheck of the Identity completion/correction handoff in the existing reference register. No broad Identity review or queued AU implementation was performed. No source edits, browser/runtime checks or tests were executed.
+
+Named corrections are present:
+- Identity.dc.html:633 and :818 display/copy the absolute https://bingo.example/Events/{slug}/Signups mock destination; the application must bind its configured origin. The actual Signups handler retains visibility and onward Teams/Board policy (application Signups.cshtml.cs:35–52). No bare-route proposal remains.
+- Identity.dc.html:475–479 routes uncertain departure to the distinct confirmation; :756–764 offers Check again / Leave anyway and explicitly says the save may have happened. check at :563–570 reports current matching values with present/Up to date, not attribution to the timed-out request (:556–561, :819).
+- Schedule-only conflicts produce staleInfo independently of field conflicts, refresh the baseline, focus the visible stale banner and require a fresh timezone review (:583–585, :774–781; banner :143). openTz uses a new current version (:605–607).
+- The saving timezone dialog explicitly focuses its tabindex=-1 container after disabling controls (:538; markup :270). Shared trapTab handles Shift+Tab from the container and the no-enabled-controls case (ui/behavior.js:67–82). Identity active layers lock the page scroller (:800; shared .scroller.is-locked at components.css:102); Components and Participants retain their own layer scroll-lock consumers. No concrete regression attributable to the named shared helper correction was found. Browser focus/scroll behavior was not executed.
+- Event name uses Array.from code-point counting with the approved 50 limit, while description/buy-in use UTF-16 string length for their existing limits (:358–361, :446–448, :699). App Identity.cshtml.cs:95–100 confirms the distinct boundaries.
+- Heading focus styles live in ui/components.css:105–106; the earlier Events/Identity page-local duplicate is absent.
+- README.md:574–578 now accurately distinguishes existing unsupported-stored-timezone handling, stale version refresh, departure guards and lifecycle restrictions from new safe field merge/readback/stay-on-Identity UI binding. App Identity.cshtml.cs:106–111, :263–284 and the existing event-identity client support these retained capabilities.
+
+Evidence: reference Identity SHA-256 22a7800c248918007bd33cf80fd9c799781c12f40a6a6672f91a9ec1ea1a686b. Twelve captured directly relevant reference/application files matched before/after in identity/manifest-before.json and identity/manifest-after.json. Snapshots are in identity/reference and identity/application. Reference checkout /Users/christopher/Documents/BingoWebpage branch feature/boss-artwork; application /Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage branch codex/participants-functionality. Dirty work preserved. Claude-reported browser checks are not independent executed evidence; manual application acceptance and AU08/AU09/UI binding remain pending.
+
+No required named correction remains in this source recheck. Next permitted action is planner reconciliation of this source pass; it does not authorize application implementation or packaging.

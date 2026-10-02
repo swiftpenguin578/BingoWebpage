@@ -71,12 +71,10 @@ the next ticket. Do not add a persistent coordinator layer.
 | Implementer/remediator | `gpt-6-astra` / `high` | Implementation, focused checks and named remediation |
 | Independent reviewer | `gpt-6-astra` / `high` | Stable-diff review and named rechecks |
 
-- For the user-authorized AU01–AU14 / RC01–RC04 queue, AU01 continues as the
-  existing collaboration orchestrator. From AU02 onward, the user explicitly
-  authorizes a separate new orchestrator chat per ticket, using Sol 6.1/high and
-  the assigned active checkout. Each chat spawns its own Astra/high implementation
-  and independent-review subagents. Do not nest future orchestrators under the
-  planner's collaboration tree. This task-creation authority is scoped to this queue.
+- Separate visible orchestrator chats require explicit user authorization in the
+  assignment; this reusable policy does not grant it. Queue-specific identities,
+  task-creation authorization and stop boundaries belong in DELIVERY_PLAN and
+  CURRENT_STATUS, not this file.
 - Orchestrators report blockers to the planner. The planner resolves technical,
   environment and routine execution issues within existing authority and resumes
   the ticket; escalate to the user only when their decision/authority is required
@@ -104,8 +102,8 @@ the next ticket. Do not add a persistent coordinator layer.
   checks, independent review outcome and remaining limitations. On blockage include
   the precise cause and next required owner/action. Do not quietly stop, advance to
   a second ticket, or leave a routine implementation/review handoff unassigned.
-- The planner reconciles a completed ticket and dispatches a fresh orchestrator
-  for the next approved ticket without requiring another routine user prompt.
+- The planner reconciles a completed ticket and dispatches the next only when the
+  active assignment authorizes continuation. An explicit stop/pause always wins.
   A genuine blocker or consequential product decision pauses progression; report it
   rather than inventing approval or silently skipping the blocked ticket.
 - The **orchestrator is explicitly allowed to use `wait_threads` on worker tasks**
@@ -225,6 +223,22 @@ the next ticket. Do not add a persistent coordinator layer.
   task. Preserve approved composition and interaction models. Manual approval is
   page-specific; deferred acceptance stays awaiting approval.
 - Use existing setup/build/test commands from `README.md`; run only applicable gates.
+
+## Durable evidence and authorized checkpoints
+
+- Put final reports, manifests and compact test evidence in the repository before
+  packaging; temporary directories are scratch space, not the sole durable handoff.
+  Never commit secrets, real participant data or unnecessary raw runtime output.
+- At each completed coherent slice, record readiness for its own scoped commit.
+  If packaging is authorized, the packager commits reviewed scope and named evidence
+  before unrelated implementation starts; otherwise report the checkpoint as
+  uncommitted and request packaging authority only when necessary. Commit authority
+  does not imply push, merge or deployment authority.
+- Keep CURRENT_STATUS.md approximately 100 lines or fewer: replace stale handoffs,
+  link durable evidence and leave historical pass transcripts in Git/reports.
+- The planner updates owning requirements when a product decision/ticket is made.
+  Orchestrators update delivery/evidence, and report any uncovered requirement gap;
+  they do not quietly redefine the product to match implementation.
 
 ## Keep authority and handoffs clear
 
