@@ -27,12 +27,23 @@ public sealed class EventQuarantineService(ApplicationDbContext db, TimeProvider
             var authorized = await db.Accounts.AsNoTracking().AnyAsync(account => account.Id == actor.Id && account.Active && account.AccountType == AccountType.WebsiteAccount && account.GlobalRole == GlobalRole.SuperAdmin, ct);
             if (!authorized) return new(false, "Only a SuperAdmin can hide or restore an event.") { Outcome = EventQuarantineOutcome.Forbidden };
 
+            if (!hide) await EventCurrentBoundary.LockAsync(db, ct);
+
             var item = await db.Events.FromSqlInterpolated($"SELECT * FROM events WHERE id = {eventId} FOR UPDATE").SingleOrDefaultAsync(ct);
             if (item is null || item.State == EventState.Discarded) return new(false, "The event was not found.") { Outcome = EventQuarantineOutcome.NotFound };
             if (item.Version != expectedVersion) return Stale();
             if (hide && string.IsNullOrWhiteSpace(reason))
                 return new(false, "Enter a reason for hiding the event.")
                 { Outcome = EventQuarantineOutcome.ValidationFailed, FieldErrors = new Dictionary<string, string> { ["reason"] = "Enter a reason for hiding the event." } };
+
+            if (!hide && item.IsHidden && EventCurrentBoundary.IsCurrentState(item.State))
+            {
+                var current = await EventCurrentBoundary.OtherCurrentEvents(db, item.Id)
+                    .OrderBy(x => x.Name).Select(x => x.Name).FirstOrDefaultAsync(ct);
+                if (current is not null)
+                    return new(false, $"{current} is already the current event. Archive it before restoring this event.")
+                    { Outcome = EventQuarantineOutcome.InvalidState };
+            }
 
             var now = timeProvider.GetUtcNow();
             var before = new { item.State, item.Version, item.HiddenAt, item.HiddenByAccountId, item.HiddenReason };
@@ -59,6 +70,12 @@ public sealed class EventQuarantineService(ApplicationDbContext db, TimeProvider
         catch (PostgresException exception) when (exception.SqlState is PostgresErrorCodes.SerializationFailure or PostgresErrorCodes.DeadlockDetected)
         {
             await transaction.RollbackAsync(ct);
+            return Stale();
+        }
+        catch (DbUpdateException exception) when (exception.InnerException is PostgresException { SqlState: PostgresErrorCodes.SerializationFailure or PostgresErrorCodes.DeadlockDetected })
+        {
+            await transaction.RollbackAsync(ct);
+            db.ChangeTracker.Clear();
             return Stale();
         }
         catch (InvalidOperationException exception)

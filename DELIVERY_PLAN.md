@@ -273,11 +273,21 @@ merge or deploy. CURRENT_STATUS records active owners and exact checkpoint.
 
 ## Admin functionality queue — recorded 1 October 2026
 
-The user requested ordered tickets for application work after Luck, with more
-added as later UI pages are reviewed. **This is queue/planning authorization;
-no ticket below is dispatched or implemented by recording it.** Luck keeps its
-current assignment. At the next implementation handoff, confirm the ticket and
-checkout and promote approved behaviour into the existing authority sections.
+The user authorized execution of the recorded AU01–AU14 and RC01–RC04 tickets
+on 2 October 2026, after Luck's technical completion and visual approval. Execute
+one ticket at a time: AU01 through AU14 in dependency order, then RC01 through
+RC04. Recording later tickets does not automatically authorize their execution.
+Each ticket uses a fresh Sol 6.1/high orchestrator, Astra/high implementer and a
+separate fresh Astra/high independent reviewer. The orchestrator owns checks and
+same-worker remediation/recheck, then sends a verified waking completion/blocker
+callback to the planner. AU01 stays in the existing collaboration worker; from
+AU02 onward the user explicitly authorizes a separate Sol 6.1/high orchestrator
+chat per ticket, spawning its own Astra/high worker pair. Planner reconciles
+completion and starts the next chat. Planner resolves manageable blockers within
+existing authority; only unresolved blockers or decisions requiring human input
+are escalated to the user. Do not skip unfinished tickets.
+This replaces the earlier queue-only authorization. Before each implementation,
+promote its approved behavior into the relevant existing authority sections.
 Use this section as the execution owner; the reference's
 `docs/references/admin-ui/FUNCTIONALITY_CHANGES.md` links here and maps pages.
 Do not create a competing general ticket inventory or automatically expand scope.
@@ -292,28 +302,30 @@ mutation, staging, commit, push or deployment is authorized by this queue.
 
 ### Queue and delivery state
 
-Work one ticket at a time after Luck reaches its completion boundary. AU01/AU02
-are source-confirmed defects, not yet executed reproductions. Other tickets are
+Luck is complete; work one ticket at a time under the execution authorization above. AU01/AU02
+are technically complete with executed focused proof and independent review PASS. Other tickets are
 verified integration gaps; this is not permission to rebuild already working
 services. Shared files/dependencies can inform sequence without merging tickets
 into a broad pass.
 
 | Order / ID | Application outcome | Depends on | Implementation | Executed proof | Independent review | UI integration / manual acceptance |
 | --- | --- | --- | --- | --- | --- | --- |
-| AU01 | Restore cannot produce two visible current events | Luck complete; confirm restore rejection contract at handoff | Queued | Not run | Not run | Deferred |
-| AU02 | Enforce signup-code length at the server boundary | Luck complete | Queued | Not run | Not run | Existing route; new UI deferred |
-| AU03 | Duplicate-safe event creation and uncertain-outcome lookup | Luck complete | Queued | Not run | Not run | Deferred |
-| AU04 | Events directory ordering, retained counts and attention projection | Dashboard backend available | Queued | Not run | Not run | Deferred |
-| AU05 | Signup setup stale-edit protection and settings version responses | Existing signup services | Queued | Not run | Not run | Deferred |
-| AU06 | Duplicate-safe question/account-field creation | AU05 version contract | Queued | Not run | Not run | Deferred |
-| AU07 | Explicit required-to-optional outcome when first response arrives | AU05/AU06 result contract | Queued | Not run | Not run | Deferred |
-| AU08 | Identity field-level conflict handling | Existing Identity concurrency/timezone rules | Queued | Not run | Not run | Deferred |
-| AU09 | Identity uncertain-save readback | AU08 result/field contract | Queued | Not run | Not run | Deferred |
-| AU10 | Schedule instant preservation, field errors and uncertain readback | Existing versioned schedule save/read | Queued | Not run | Source comparison complete; implementation review pending | Deferred |
+| AU01 | Restore cannot produce two visible current events | Reject conflicting restore; reuse current-event boundary | Technically complete; uncommitted; manifest cb8d95f5 | PASS 9/9 PostgreSQL/HTTP plus 3/3 quarantine regressions; Release build | PASS — fresh Astra/high; report 8b78c557; no findings | Deferred |
+| AU02 | Enforce signup-code length at the server boundary | Luck complete | Technically complete — /root/au02_implementer; uncommitted; manifest 286f23b0; planner reconciled completion; prior callback failure retained | PASS 5/5 authenticated PostgreSQL; Release build 0 warnings/errors; scoped diff/leak PASS | PASS — fresh Astra/high /root/au02_reviewer; report 9c18fe67; no findings | Existing route; new UI/manual acceptance deferred |
+| AU03 | Duplicate-safe event creation and uncertain-outcome lookup | Luck complete | Technically complete — /root/au03_implementer; uncommitted; manifest feafacaa; planner directly reconciled completion and all 22 hashes; callback rejection retained | PASS 13 distinct PostgreSQL/request cases + reset 1/1; final Release build; slug 6/6; architecture 2/2; scoped diff/leak/protected-source checks | PASS — fresh Astra/high /root/au03_reviewer; sole P2 reset finding resolved; report aa90ac4a | Existing route; new modal/UI/manual acceptance deferred |
+| AU04 | Events directory ordering, retained counts and attention projection | Dashboard backend available | Technically complete — /root/au04_implementer; uncommitted; corrected manifest c59d2745 | PASS: 8 distinct PostgreSQL cases (7/8 + fixture-corrected 1/1); final Release solution build; expanded attention case 1/1 + affected Release compile; scoped diff/leak/protected checks | PASS — fresh Astra/high /root/au04_reviewer; sole P2 attention-filter omission resolved/rechecked; report 673b0641 | Layout/URL/control/participant bindings and manual acceptance deferred |
+| AU05 | Signup setup stale-edit protection and settings version responses | Existing signup services | Technically complete — /root/au05_implementer; uncommitted; manifest 387426bb | PASS: 25 distinct PostgreSQL/HTTP cases across corrected runs; final Release build 0 warnings/errors; scoped diff/leak/protected checks | PASS — fresh Astra/high /root/au05_reviewer; no required findings; report cfb67191 | UI/per-card uncertainty binding and manual acceptance deferred |
+| AU06 | Duplicate-safe question/account-field creation | AU05 version contract | Technically complete — /root/au06_implementer; uncommitted; manifest 54af691e | PASS: 12 distinct PostgreSQL/HTTP cases across corrected runs; final Release build 0 warnings/errors; scoped diff/leak/protected checks | PASS — fresh Astra/high /root/au06_reviewer; no required findings; report bcf9392b | Frontend draft/uncertainty binding, AU07 feedback and manual acceptance deferred |
+| AU07 | Explicit required-to-optional outcome when first response arrives | AU05/AU06 result contract | Technically complete — /root/au07_implementer; uncommitted; manifest 93c76d18; callback rejected; planner reconciled directly | PASS: 22 distinct PostgreSQL/HTTP cases across corrected runs; final Release build 0 warnings/errors; scoped diff/leak/protected checks | PASS — fresh Astra/high /root/au07_reviewer; no required findings; report ca110d17 | Frontend uncertainty binding and manual acceptance deferred |
+| AU08 | Identity field-level conflict handling | Existing Identity concurrency/timezone rules | Technically complete — /root/au08_implementer; uncommitted; manifest d74176f8 | PASS: 14 distinct PostgreSQL/HTTP cases across corrected runs; controlled timezone fixture; final Release build 0 warnings/errors; scoped diff/leak/protected checks | PASS — fresh Astra/high /root/au08_reviewer; no required findings; report 912763bd | Conflict-choice frontend integration, AU09 and manual acceptance deferred |
+| AU09 | Identity uncertain-save readback | AU08 result/field contract | Technically complete — /root/au09_implementer; uncommitted; manifest a93e9584 | PASS: 7 distinct PG/HTTP cases across corrected fixture runs; readback/timezone and named multiline transport; Release build 0 warnings/errors; scoped checks | PASS — fresh Astra/high /root/au09_reviewer after single P2 named correction; report f5547bcd | Full ordinary-save/new-reference UI binding and manual acceptance deferred |
+| AU10 | Schedule instant preservation, field errors and uncertain readback | Existing versioned schedule save/read | Technically complete — /root/au10_implementer; uncommitted; manifest e4592b79 | PASS: 12/12 PostgreSQL/HTTP; named Live check 1/1; shipped controlled HTTP transport; Release build 0 warnings/errors; scoped checks | PASS — fresh Astra/high /root/au10_reviewer; no required findings; report 24f0870c | Explicit user stop after AU10 report; no next-ticket work; full UI/manual acceptance deferred |
 | AU11 | Tile-local manual EHB override for every objective type | Existing calculation/approval/evidence boundaries | Queued | Not run | Not run | Deferred |
 | AU12 | Credited EHB before score time in placement order | Historical-rule compatibility resolved at handoff; AU11 values reused | Queued | Not run | Not run | Deferred |
 | AU13 | Board planning team-size estimate editable after draft finalization | Existing board statistics/settings boundary | Queued | Not run | Not run | Deferred |
 | AU14 | Teams: authoritative uncertain-action readback | Resolve minimal transport contract using existing commands/IDs | Queued; contract at handoff | Not run | Source gap mapped | Deferred |
+
+| AU15 | WOM: remove typed FETCH confirmation | Existing refresh guards; after the previously authorized AU01–AU14 / RC01–RC04 sequence | Approved; queued, not dispatched | Not run | Not run | Deferred |
 
 For each ticket retain owner/model, changed-source identity, exact check/evidence
 paths, unresolved limitations and next owner when work starts. Replace Queued with
@@ -335,9 +347,9 @@ currently permits two visible current events.
 Target: when restoring would conflict with another visible current event, reject
 without changing hidden metadata; do not implicitly hide/end B. Reuse the existing
 shared boundary/lock and definition of current event. Preserve SuperAdmin authority,
-auditing, history and restoration of non-conflicting archived events. Confirm this
-proposed rejection contract at implementation handoff; no new lifecycle policy is
-silently settled by the source finding.
+auditing, history and restoration of non-conflicting archived events. The user’s authorization to
+execute the recorded ticket adopts this rejection outcome; escalate only a concrete
+conflict with protected product behavior discovered during implementation.
 
 Proof: real PostgreSQL sequential reproduction and concurrent Restore versus
 Start/Resume, one successful non-conflicting restore, rejected state unchanged,
@@ -396,6 +408,8 @@ in the page integration pass.
 
 ### AU05 — Signup setup versions and stale edits
 
+Implementation contract: non-destructive form mutations require `expectedFormVersion` under the event lock; existing forms forward it. Settings results separately retain submitted event baseline and authoritative current values/version (capacity, waiting enabled, code-required/present only). Opt-in JSON on existing capacity/code handlers preserves ordinary redirects; pending client state binding stays deferred. No new persistence or generic concurrency abstraction.
+
 Starting owners: `Questions.cshtml.cs`, signup mutation services/contracts,
 capacity/code handlers. Add explicit client-baseline checks to question/account
 add, custom edit, account rename, move and co-captain enable where currently absent.
@@ -425,6 +439,18 @@ Proof: real PostgreSQL duplicate/concurrent/lost-response adds, same-label unrel
 creation, actor ownership and changed-input retry handling. No new profile accounts:
 this ticket creates event form fields, not players' globally saved accounts.
 
+AU06 implementation contract (2 October 2026): one globally unique durable add ID
+is bound to actor/event, canonical requested values and original form baseline;
+changed-input/baseline or cross-owner reuse fails without revealing a prior result.
+Current authorization/visibility precedes replay; own committed replay bypasses
+new-write stale/lifecycle rejection, returns its exact field ID, and never repeats
+an audit/version change. Deleted/inactive outcomes are explicit and never recreated.
+Complexity: one operation entity/table/migration, one method on existing signup
+service, minimal hidden-field/JSON transport; no new service/page/policy/job or
+framework. Preserve Serializable event locking, existing normalization/protected
+fields and ordinary routes. Include reset/history compatibility. Frontend draft and
+uncertainty integration, AU07 feedback and manual UI acceptance remain deferred.
+
 ### AU07 — First-response normalization feedback
 
 Current add silently makes a requested required question optional after the first
@@ -437,6 +463,21 @@ Proof: a first response arrives between rendering/editing and add; only an optio
 question persists, the result explains it, retries retain the same definition.
 Also verify ordinary pre-response required creation remains supported.
 
+AU07 response boundary: the ordinary null-to-first-accepted `FirstResponseAt`
+transition alone is response metadata and preserves the editable form version.
+Any simultaneous definition/settings mutation or explicit Version mark/advance
+still advances it. No stale-baseline bypass is permitted. The immutable first
+marker, required/type restrictions and all current guards are rechecked under the
+existing Serializable event lock. A required custom add after that boundary succeeds
+as optional with an explicit `CompletedAsOptional` outcome, explanation and original
+committed definition; there is no rejection or backfill. Exact replay/readback uses
+AU06 identity plus its uniquely linked immutable creation audit and verified original
+intent, preserving the normalization and definition after later edits. Missing or
+corrupt creation audit fails closed without returning a guessed definition or writing.
+Complexity: reuse AU06 operation identity and retained creation audit; no added
+persistence/service/route. Minimum existing JSON/form feedback only. Full frontend
+uncertainty binding and manual acceptance remain deferred.
+
 ### AU08 — Identity conflicts
 
 Starting owners: existing Identity transport/service and timezone-review contract.
@@ -446,9 +487,40 @@ conflicting edits. Keep schedule-only timezone conflicts separately stale and
 require a fresh review of their consequences. Do not change permanent slug ownership,
 50-code-point name limit, UTF-16 description/buy-in limits or existing phase locks.
 
+AU08 implementation contract: compare each canonical Name, Description,
+BuyInDescription and Timezone against the submitted original baseline and current
+persisted value. Untouched fields retain current values; intended changes apply
+when current still equals baseline or already equals intent. Different same-field
+changes block the entire save until explicitly resolved. Keep mine / Use current
+choices carry reviewed current values; a newer differing same-field value requires
+resolution again. Preserve original baselines and drafts on failure rather than
+silently advancing them. Current-version legacy requests may retain their existing
+path; stale requests without a complete baseline fail closed and require reload.
+The rendered form carries baseline and reviewed-value transport; full conflict-choice
+UI integration remains deferred.
+
+Timezone confirmation separately binds original/proposed zones and all current
+participant-facing timeline consequences at PostgreSQL microsecond precision.
+Changed schedule consequences return separately identified stale feedback and a
+fresh preview; confirmation is required again before any Identity field saves.
+Recompare inside the existing Serializable transaction; preserve atomic audit,
+phase/visibility/authorization guards and provider-conflict recovery. Reuse the
+existing event and Identity page owners with a small domain comparison value/result;
+no new service, table, route, policy, job, migration or receipt. AU09 is excluded.
+The existing generic route filter incorrectly used the pre-Live combined capability
+for Identity. Map only Identity to its existing ConfigureIdentity capability, so the
+approved Live/Final Review text-edit behavior is reachable through real HTTP while
+the existing permanent first-Live timezone lock remains authoritative.
+Valid Unicode/UTF-16-limit values must fit the existing atomic audit: retain truthful
+truncated text excerpts budgeted against serialized JSON storage, without schema
+changes. Existing timezone confirmation transport must retain the returned failed
+editor/drafts even when another Admin's change removes the need for a timezone
+preview. This adds no conflict-choice UI, readback or uncertainty workflow.
+
 Proof: disjoint and same-field concurrent edits, schedule-only conflict, stale
 resolution retry and unchanged values against PostgreSQL/actual transport as
-appropriate. UI Use theirs interactions remain for integration.
+appropriate, including non-microsecond-aligned input crossing persistence before
+review. UI Use theirs interactions remain for integration.
 
 ### AU09 — Identity readback
 
@@ -460,6 +532,21 @@ read failure or different values; do not blindly resubmit the mutation.
 
 Proof: applied/lost-response, unapplied, another-admin matching/different update,
 authorization and read failure. UI wording is Up to date, not proof of Saved.
+
+AU09 dispatch contract: freeze the complete canonical Name, Description,
+BuyInDescription and Timezone expected tuple separately from the original edit
+intent/baseline. Use current takes exactly the explicitly reviewed value; untouched
+fields take the latest values actually observed and used at dispatch. Never derive
+expected values from a later read. Check again uses the existing authorized Identity
+read boundary and compares all four full values. A match means only Up to date now,
+never that this request saved them. An unseen disjoint server merge or later edit
+may therefore remain Different/uncertain even after an applied save. Different or
+failed reads preserve the frozen tuple and editing draft without retry, rebase,
+overwrite or discard; failed reads are Unknown. No receipt or reconstruction of
+the server's effective merged tuple is introduced. Backend/transport integration
+is sufficient for AU09; full new-reference UI binding and manual acceptance remain
+deferred. Existing timezone confirmation transport switches an uncertain mutation
+to read-only checks; it must never blindly send that mutation again.
 
 ### AU10 — Schedule preservation and integration gaps, source-reviewed
 
@@ -588,6 +675,27 @@ HasUsableCaptain projection with existing command eligibility during integration
 no new lifecycle permission or algorithm is approved. All changes remain queued.
 Evidence: `/private/tmp/admin-consolidation-review-20261002/teams-review.md`.
 
+### AU15 — WOM manual fetch without typed confirmation, 2 October 2026
+
+User approved replacing the typed FETCH challenge with a normal Fetch now action.
+Remove the challenge/confirmation wrapper in WiseOldMan.cshtml and the exact-word
+check in OnPostFetchCompetitionAsync; reuse RefreshAsync unchanged. Preserve Admin
+authorization, antiforgery, existing phase eligibility, one-hour last-success guard,
+normal schedule/retry due times and in-flight lease protection. Failure does not
+entitle the user to bypass those guards. No force refresh, manual update-all,
+provider-policy change or extra automatic fetch on page load. Reflect pending and
+cooldown outcomes honestly. Reference uses the normal action; binding any disabled
+state/next-available timing must reflect all authoritative guards, not only an hour
+from the last attempt. Do not broaden phase access in this correction.
+
+Focused proof: permitted authenticated POST without FETCH reaches the existing
+refresh service; cooldown/retry/in-flight rejection issues no provider request;
+unauthorized/antiforgery and phase restrictions remain intact. Use controlled
+provider fixtures, never live WOM or user databases. One independent review of the
+stable change; new-reference visual acceptance remains separate. Approved scope,
+not implemented or checked. Queue after the existing AU01–AU14 then RC01–RC04
+sequence; do not interrupt the active ticket.
+
 ### Deferred UI binding and reference ownership
 
 The following remain implementation work when the new UI is connected, not more
@@ -630,10 +738,11 @@ unapproved; do not add them to implementation just because prototypes contain th
 
 These are separate from AU application tickets and the active Luck assignment.
 Implementation is authorized within the named findings, but no worker is dispatched
-by this planning update. Use the existing role/model policy and supported capacity;
-do not silently change models or create another visible chat. Work one page at a
-time using a Luna implementer and independent Sol 6.1/high named recheck, reusing
-compatible workers/evidence. No broad extraction/review pass.
+merely by this planning update. Execution is now authorized in the order above.
+Use the current model policy: fresh Sol 6.1/high orchestrator per ticket, Astra/high
+implementer and a separate Astra/high reviewer. Do not silently change models or
+create another visible chat. Reuse established source evidence and keep remediation
+and named rechecks within that ticket’s same worker pair. No broad extraction/review pass.
 
 Reference edit checkout: `/Users/christopher/Documents/BingoWebpage`, current
 `feature/boss-artwork` branch; confirm status and preserve all existing exports.
@@ -2807,12 +2916,13 @@ cannot silently revise the baseline or settle an unresolved product decision.
 #### 4.2.1 Lean execution and planner handoff
 
 The current roles, models and routing are owned by
-[AGENTS.md](AGENTS.md#active-workflow-and-model-defaults--2026-09-24): planner defines
-the work; Terra/medium orchestrator manages it; Luna/max implements and checks;
-one independent Sol/high reviewer reviews the stable correction. The approved
-Admin simplification assignment uses the scoped coordinator/model override above
-and in `AGENTS.md`. Explicit user model overrides are assignment-scoped. Historical model/workflow assignments
-elsewhere do not override this current policy.
+[AGENTS.md](AGENTS.md#active-workflow-and-model-defaults--2026-10-02): planner defines
+the work; a fresh Sol 6.1/high orchestrator manages each ticket; Astra/high implements
+and checks; a separate fresh Astra/high reviewer reviews the stable correction.
+Historical assignments elsewhere do not override this policy. Each orchestrator
+must deliver completion or a blocker through the verified waking planner callback.
+The planner starts the next authorized ticket only after reconciling completion;
+no additional coordinator layer or silent stop is permitted.
 
 The planner hands off and ends its turn. The orchestrator owns the entire authorized
 implementation/review/remediation sequence and may use `wait_threads` for worker

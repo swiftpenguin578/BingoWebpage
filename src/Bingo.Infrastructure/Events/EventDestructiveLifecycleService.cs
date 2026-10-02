@@ -121,6 +121,8 @@ public sealed class EventDestructiveLifecycleService(ApplicationDbContext db, Ti
         await db.BoardTileImageAssets.Where(x => tileIds.Contains(x.BoardTileId)).ExecuteDeleteAsync(ct);
         await db.BoardTiles.Where(x => boardIds.Contains(x.BoardId)).ExecuteDeleteAsync(ct);
         await db.Boards.Where(x => x.EventId == eventId).ExecuteDeleteAsync(ct);
+        // Retain committed field-add identities with the event tombstone. Their scalar
+        // question IDs deliberately do not prevent disposable setup deletion.
         await db.SignupQuestions.Where(x => x.EventId == eventId).ExecuteDeleteAsync(ct);
         await db.SignupForms.Where(x => x.EventId == eventId).ExecuteDeleteAsync(ct);
         await db.DraftSessions.Where(x => x.EventId == eventId).ExecuteDeleteAsync(ct);

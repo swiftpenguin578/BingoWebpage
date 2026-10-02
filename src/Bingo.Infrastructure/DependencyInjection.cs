@@ -70,6 +70,7 @@ public static class DependencyInjection
         services.AddScoped<EventItemPriceService>();
         services.AddScoped<IEventLifecycleService, EventLifecycleService>();
         services.AddScoped<IEventQuarantineService, EventQuarantineService>();
+        services.AddScoped<IEventCreationService, EventCreationService>();
         services.AddScoped<IEventDestructiveLifecycleService, EventDestructiveLifecycleService>();
         services.AddScoped<IEventCompetitionSynchronizationService, EventCompetitionSynchronizationService>();
         services.AddScoped<IEventCompetitionManagementService, EventCompetitionManagementService>();

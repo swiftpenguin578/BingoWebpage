@@ -25,7 +25,6 @@ public sealed class EventLifecycleService(
 {
     private readonly EventItemPriceService prices = itemPrices ?? new(db, time);
     private static readonly EventState[] PreLiveStates = [EventState.Draft, EventState.SignupOpen, EventState.SignupClosed];
-    private static readonly EventState[] CurrentStates = [EventState.Live, EventState.AwaitingFinalReview, EventState.Finalized];
 
     public async Task ProcessDueAsync(CancellationToken ct = default)
     {
@@ -89,7 +88,7 @@ public sealed class EventLifecycleService(
             }
             actor = authorizedActor;
 
-            await LockCurrentBoundaryAsync(ct);
+            await EventCurrentBoundary.LockAsync(db, ct);
             var item = await db.Events.FromSqlInterpolated($"SELECT * FROM events WHERE id = {eventId} AND hidden_at IS NULL FOR UPDATE")
                 .SingleOrDefaultAsync(ct) ?? throw new InvalidOperationException("Event not found.");
             if (item.Version != version) throw new DbUpdateConcurrencyException();
@@ -129,7 +128,7 @@ public sealed class EventLifecycleService(
             actor = authorizedActor;
             if (!confirmed) return new(false, "Confirm that you want to end the event.");
 
-            await LockCurrentBoundaryAsync(ct);
+            await EventCurrentBoundary.LockAsync(db, ct);
             var item = await EventAsync(eventId, version, ct);
             var now = time.GetUtcNow();
             if (item.EventEndsAt is { } scheduledEnd && now < scheduledEnd && string.IsNullOrWhiteSpace(reason))
@@ -162,7 +161,7 @@ public sealed class EventLifecycleService(
             if (!confirmed) return new(false, "Confirm that you want to resume the event.");
             if (string.IsNullOrWhiteSpace(reason)) return new(false, "Enter a reason for resuming the event.");
 
-            await LockCurrentBoundaryAsync(ct);
+            await EventCurrentBoundary.LockAsync(db, ct);
             var item = await EventAsync(eventId, version, ct);
             var now = time.GetUtcNow();
             if (item.State != EventState.AwaitingFinalReview)
@@ -177,8 +176,7 @@ public sealed class EventLifecycleService(
                 return new(false, "The replacement event end must be in the future.");
             if (item.EventStartsAt is not { } startsAt || effectiveEnd <= startsAt)
                 return new(false, "The replacement event end must be after the event start.");
-            var singleton = await db.Events.AsNoTracking()
-                .Where(x => x.Id != eventId && x.HiddenAt == null && CurrentStates.Contains(x.State) && !(IsDevelopmentMode() && x.IsDevelopmentFixture))
+            var singleton = await EventCurrentBoundary.OtherCurrentEvents(db, eventId)
                 .OrderBy(x => x.Name)
                 .Select(x => x.Name)
                 .FirstOrDefaultAsync(ct);
@@ -206,7 +204,7 @@ public sealed class EventLifecycleService(
         await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
         try
         {
-            await LockCurrentBoundaryAsync(ct);
+            await EventCurrentBoundary.LockAsync(db, ct);
             var item = await db.Events.FromSqlInterpolated($"SELECT * FROM events WHERE id = {eventId} AND hidden_at IS NULL FOR UPDATE").SingleOrDefaultAsync(ct);
             if (item is null || !PreLiveStates.Contains(item.State) || item.EventStartsAt is not { } scheduledFor || scheduledFor > now)
                 return;
@@ -245,7 +243,7 @@ public sealed class EventLifecycleService(
         await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
         try
         {
-            await LockCurrentBoundaryAsync(ct);
+            await EventCurrentBoundary.LockAsync(db, ct);
             var item = await db.Events.SingleOrDefaultAsync(x => x.Id == eventId && x.HiddenAt == null, ct);
             if (item is null || item.State != EventState.Live || item.EventEndsAt is not { } scheduledEnd || scheduledEnd > now)
                 return;
@@ -268,7 +266,7 @@ public sealed class EventLifecycleService(
         await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
         try
         {
-            await LockCurrentBoundaryAsync(ct);
+            await EventCurrentBoundary.LockAsync(db, ct);
             var item = await db.Events.SingleOrDefaultAsync(x => x.Id == eventId && x.HiddenAt == null, ct);
             if (item is null || !item.CloseSubmissionsIfDue(now)) return;
             await db.SaveChangesAsync(ct);
@@ -322,9 +320,7 @@ public sealed class EventLifecycleService(
         foreach (var participantId in confirmedParticipantIds.Except(primaryParticipantIds))
             blockers.Add(new("PARTICIPANT_PLAYING_ASSIGNMENT_INVALID", "Every confirmed participant needs an unambiguous current Playing assignment before the event can start.", $"/Admin/Events/Participant/{item.Id}/Participants/{participantId}"));
 
-        var developmentMode = string.Equals(Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT"), "Development", StringComparison.OrdinalIgnoreCase);
-        var current = await db.Events.AsNoTracking()
-            .Where(x => x.Id != item.Id && x.HiddenAt == null && CurrentStates.Contains(x.State) && !(developmentMode && x.IsDevelopmentFixture))
+        var current = await EventCurrentBoundary.OtherCurrentEvents(db, item.Id)
             .OrderBy(x => x.Name)
             .Select(x => new { x.Id, x.Name, x.State })
             .FirstOrDefaultAsync(ct);
@@ -373,9 +369,6 @@ public sealed class EventLifecycleService(
         if (item.Version != version) throw new DbUpdateConcurrencyException();
         return item;
     }
-
-    private async Task LockCurrentBoundaryAsync(CancellationToken ct) =>
-        await db.Database.ExecuteSqlRawAsync("SELECT pg_advisory_xact_lock(7303004)", ct);
 
     private async Task NotifyAdminsAsync(Guid eventId, string title, string detail, string route, DateTimeOffset now, CancellationToken ct)
     {

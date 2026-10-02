@@ -296,7 +296,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         Assert.True(disabled.Succeeded, disabled.Error);
         Assert.False(await db.SignupQuestions.Where(x => x.Id == coCaptain.Id).Select(x => x.Active).SingleAsync());
         Assert.False(await db.SignupAnswers.AnyAsync(x => x.SignupQuestionId == coCaptain.Id));
-        Assert.True((await service.EnableCoCaptainAsync(bingoEvent.Id, coCaptain.Id, admin.Id, admin.LoginName)).Succeeded);
+        Assert.True((await service.EnableCoCaptainAsync(bingoEvent.Id, coCaptain.Id, admin.Id, admin.LoginName, (await db.SignupForms.SingleAsync(item => item.EventId == bingoEvent.Id)).Version)).Succeeded);
         Assert.True(await db.SignupQuestions.Where(x => x.Id == coCaptain.Id).Select(x => x.Active).SingleAsync());
         Assert.False(await db.SignupAnswers.AnyAsync(x => x.SignupQuestionId == coCaptain.Id));
     }
@@ -1816,6 +1816,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
             ["questionId"] = secondCustomId.ToString(),
             ["up"] = "true",
             ["overlay"] = "false",
+            ["expectedFormVersion"] = InputValueByName(page, "expectedFormVersion"),
             ["__RequestVerificationToken"] = AntiforgeryToken(page)
         })))
             Assert.Equal(HttpStatusCode.Redirect, moved.StatusCode);
@@ -3039,6 +3040,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
             ["questionId"] = questionId.ToString(),
             ["Edit.Label"] = label,
             ["Edit.HelpText"] = helpText ?? string.Empty,
+            ["expectedFormVersion"] = InputValueByName(page, "expectedFormVersion"),
             ["__RequestVerificationToken"] = AntiforgeryToken(page)
         };
         if (structural is not null)
@@ -3050,12 +3052,14 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
 
     private static FormUrlEncodedContent QuestionPost(string page, string label, string type = "Text") => new(new Dictionary<string, string>
     {
+        ["addRequestId"] = InputValueByName(page, "addRequestId"),
         ["Input.Label"] = label,
         ["Input.Type"] = type,
         ["Input.HelpText"] = string.Empty,
         ["Input.Options"] = string.Empty,
         ["Input.AccountRole"] = string.Empty,
-        ["__RequestVerificationToken"] = AntiforgeryToken(page)
+        ["expectedFormVersion"] = InputValueByName(page, "expectedFormVersion"),
+            ["__RequestVerificationToken"] = AntiforgeryToken(page)
     });
 
     private static string InputValue(string page, string id) => Regex.Match(page, $"<input id=\"{id}\"[^>]*value=\"([^\"]*)\"").Groups[1].Value;

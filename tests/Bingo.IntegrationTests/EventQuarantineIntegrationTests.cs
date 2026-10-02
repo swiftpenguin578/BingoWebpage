@@ -26,7 +26,7 @@ using Testcontainers.PostgreSql;
 
 namespace Bingo.IntegrationTests;
 
-public sealed class EventQuarantineIntegrationTests : IAsyncLifetime
+public sealed partial class EventQuarantineIntegrationTests : IAsyncLifetime
 {
     private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine")
         .WithDatabase("bingo_event_quarantine")

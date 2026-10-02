@@ -2964,4 +2964,16 @@
   <data name="Combined" xml:space="preserve"><value>Samlet</value></data>
   <data name="Combined activity across bosses" xml:space="preserve"><value>Samlet aktivitet på tværs af bosser</value></data>
   <data name="Compared with expected drops" xml:space="preserve"><value>Sammenlignet med forventede drops</value></data>
+  <data name="Question added as optional because the form has already received its first signup response." xml:space="preserve">
+    <value>Spørgsmålet blev tilføjet som valgfrit, fordi formularen allerede har modtaget sin første tilmelding.</value>
+  </data>
+  <data name="The identity comparison baseline is incomplete. Reload the page before trying again." xml:space="preserve"><value>Sammenligningsgrundlaget for identiteten er ufuldstændigt. Genindlæs siden, før du prøver igen.</value></data>
+  <data name="The identity conflict resolution is incomplete. Review the latest values and try again." xml:space="preserve"><value>Løsningen af identitetskonflikten er ufuldstændig. Gennemgå de seneste værdier, og prøv igen.</value></data>
+  <data name="Another administrator changed this field. Resolve it against the latest value before saving." xml:space="preserve"><value>En anden administrator har ændret dette felt. Løs konflikten i forhold til den seneste værdi, før du gemmer.</value></data>
+  <data name="The schedule changed after this timezone review. Review the current dates and confirm again." xml:space="preserve"><value>Tidsplanen er ændret efter denne gennemgang af tidszonen. Gennemgå de aktuelle datoer, og bekræft igen.</value></data>
+  <data name="Up to date. The event now has the expected values. This does not confirm which request saved them." xml:space="preserve"><value>Opdateret. Begivenheden har nu de forventede værdier. Det bekræfter ikke, hvilken anmodning der gemte dem.</value></data>
+  <data name="The current event values differ from this submission. Its outcome is still uncertain; your draft is retained." xml:space="preserve"><value>Begivenhedens aktuelle værdier afviger fra denne indsendelse. Resultatet er stadig usikkert; din kladde er bevaret.</value></data>
+  <data name="The save outcome is uncertain. Check again to read the current values; your draft is retained." xml:space="preserve"><value>Resultatet af gemningen er usikkert. Kontrollér igen for at læse de aktuelle værdier; din kladde er bevaret.</value></data>
+  <data name="Check again" xml:space="preserve"><value>Kontrollér igen</value></data>
+  <data name="The save outcome is uncertain. Check the current values before trying another save. Diagnostic reference: {0}." xml:space="preserve"><value>Resultatet af gemningen er usikkert. Kontrollér de aktuelle værdier før en ny gemning. Diagnostisk reference: {0}.</value></data>
 </root>

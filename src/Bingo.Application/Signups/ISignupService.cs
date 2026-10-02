@@ -5,10 +5,13 @@ namespace Bingo.Application.Signups;
 
 public interface ISignupService
 {
+    Task<SignupQuestionCreationResult> AddQuestionAsync(SignupQuestionCreationRequest request, CancellationToken cancellationToken = default)
+        => Task.FromException<SignupQuestionCreationResult>(new NotSupportedException("Signup field creation is not available."));
+
     Task<SignupAdministrationResult> ApplyQuestionMutationAsync(SignupQuestionMutationRequest request, CancellationToken cancellationToken = default)
         => Task.FromException<SignupAdministrationResult>(new NotSupportedException("Signup question mutation is not available."));
 
-    Task<SignupAdministrationResult> EnableCoCaptainAsync(Guid eventId, Guid questionId, Guid actorAccountId, string actorName, CancellationToken cancellationToken = default)
+    Task<SignupAdministrationResult> EnableCoCaptainAsync(Guid eventId, Guid questionId, Guid actorAccountId, string actorName, int? expectedFormVersion = null, CancellationToken cancellationToken = default)
         => Task.FromException<SignupAdministrationResult>(new NotSupportedException("Co-captain configuration is not available."));
 
     Task<SignupAdministrationResult> DeleteQuestionAsync(Guid eventId, Guid questionId, Guid actorAccountId, string actorName, CancellationToken cancellationToken = default)
@@ -261,7 +264,16 @@ public sealed record SignupAdministrationResult(
     int PromotedParticipants = 0,
     int? EffectiveParticipantCap = null,
     SignupQuestionImpact? Impact = null,
-    bool RequiresConfirmation = false);
+    bool RequiresConfirmation = false,
+    long? SubmittedEventVersion = null,
+    SignupSettingsSnapshot? Settings = null,
+    int? FormVersion = null);
+
+// A submitted baseline belongs to this operation, never to a later card refresh.
+// Never return a signup secret or its hash.
+public sealed record SignupSettingsSnapshot(
+    long EventVersion, int? ParticipantCap, bool WaitingListEnabled,
+    bool RequireSignupCode, bool HasSignupCode);
 public enum SignupQuestionMutationKind
 {
     DeleteQuestion,

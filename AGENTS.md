@@ -56,43 +56,36 @@ Each worker has exactly one assigned role.
   collaboration subagents for the approved roles. This policy does not authorize
   new visible tasks, new work, packaging or publication by itself.
 
-### Active workflow and model defaults — 2026-09-24
+### Active workflow and model defaults — 2026-10-02
 
-This is the single current role/model/routing policy. It replaces the former
-Astra ticket trial, temporary direct planner-to-worker workflow and historical
-model tables. Their history is retained in Git, not as competing instructions.
-Task-specific user overrides take precedence only for their stated assignment;
-they do not silently become defaults for the next task.
-
-For the approved **Admin simplification** assignment only, the current 2026-09-26
-routing is Astra planner → persistent `gpt-5.6-sol` / `medium` coordinator →
-fresh `gpt-5.6-terra` / `medium` orchestrator per ticket or coherent package →
-`gpt-5.6-luna` / `max` implementer/remediator → independent `gpt-5.6-sol` / `high`
-reviewer. Any Astra/high implementer turn already in progress when this routing
-changed remains authorized to finish without interruption; apply Luna/max to new
-implementer turns after those current turns finish. Separate visible coordinator
-and orchestrator tasks, collaboration workers, required checks, same-worker
-remediation/recheck and scoped task-to-task callbacks are explicitly authorized.
-The coordinator owns dependency readiness, W6/W9 integration checkpoints and final
-reconciliation; each orchestrator owns its bounded implementation/review cycle.
-Use [the assigned execution contract](DELIVERY_PLAN.md#admin-simplification--approved-2026-09-26)
-and verified callback IDs in `CURRENT_STATUS.md`. Other assignments retain the
-defaults below. Commits, pushes, merges, deployment, production-data changes and
-manual acceptance remain separately authorized; proposed reviewer-model changes
-are not approved overrides.
+This is the single current role/model/routing policy, explicitly updated by the
+user on 2 October. Historical model assignments remain evidence of completed work,
+not competing defaults. Use a fresh orchestrator for each ticket. Run tickets
+sequentially; the planner receives completion or a blocker and owns dispatch of
+the next ticket. Do not add a persistent coordinator layer.
 
 | Role | Model / reasoning | Owns |
 | --- | --- | --- |
 | Planner | Current user-selected planner | Scope, plan, consequential decisions, delivery reconciliation |
-| Orchestrator | `gpt-5.6-terra` / `medium` | Worker dispatch, waits, handoffs, progress and completion |
-| Implementer/remediator | `gpt-5.6-luna` / `max` | Implementation, focused checks and named remediation |
-| Independent reviewer | `gpt-5.6-sol` / `high` | Stable-diff review and named rechecks |
+| Orchestrator | `gpt-6.1-sol` / `high` | Worker dispatch, waits, handoffs, progress and completion |
+| Implementer/remediator | `gpt-6-astra` / `high` | Implementation, focused checks and named remediation |
+| Independent reviewer | `gpt-6-astra` / `high` | Stable-diff review and named rechecks |
 
+- For the user-authorized AU01–AU14 / RC01–RC04 queue, AU01 continues as the
+  existing collaboration orchestrator. From AU02 onward, the user explicitly
+  authorizes a separate new orchestrator chat per ticket, using Sol 6.1/high and
+  the assigned active checkout. Each chat spawns its own Astra/high implementation
+  and independent-review subagents. Do not nest future orchestrators under the
+  planner's collaboration tree. This task-creation authority is scoped to this queue.
+- Orchestrators report blockers to the planner. The planner resolves technical,
+  environment and routine execution issues within existing authority and resumes
+  the ticket; escalate to the user only when their decision/authority is required
+  or the planner cannot resolve the blocker. Do not treat a routine worker question
+  as an automatic reason to stop for the user or skip unfinished work.
 - Set the exact model/reasoning explicitly with bounded context when dispatching.
   Do not silently substitute another model/version or reasoning level. If the
-  configured model is unavailable, report that precise issue. An Astra assignment
-  requires an explicit user override; difficulty alone is not authorization to
-  change the implementer or reviewer model. Preserve compatible work/evidence when
+  configured model is unavailable, report that precise issue. Difficulty alone is
+  not authorization to change the implementer or reviewer model. Preserve compatible work/evidence when
   the user changes models; do not restart discovery automatically.
 - Normal route: **planner → orchestrator → implementer → orchestrator → reviewer
   → orchestrator**. Findings return to the same implementer, then the same reviewer.
@@ -104,6 +97,17 @@ are not approved overrides.
   genuine blockers or consequential questions to the planner; routine findings and
   rechecks stay within the orchestrator's assignment. The planner may inspect or
   intervene when the user requests status or a concrete stall becomes apparent.
+- Every ticket orchestrator must send a terminal completion/blocker report to the
+  originating planner through its assigned waking callback, verify the callback
+  result, and record delivery in CURRENT_STATUS. Updating a file or finishing a
+  worker turn is not a substitute. On completion include exact source identity,
+  checks, independent review outcome and remaining limitations. On blockage include
+  the precise cause and next required owner/action. Do not quietly stop, advance to
+  a second ticket, or leave a routine implementation/review handoff unassigned.
+- The planner reconciles a completed ticket and dispatches a fresh orchestrator
+  for the next approved ticket without requiring another routine user prompt.
+  A genuine blocker or consequential product decision pauses progression; report it
+  rather than inventing approval or silently skipping the blocked ticket.
 - The **orchestrator is explicitly allowed to use `wait_threads` on worker tasks**
   and `wait_agent` on collaboration workers. Use the tool appropriate to the worker,
   verified IDs and supported cursors; do not busy-poll unchanged state. A timeout

@@ -193,6 +193,47 @@ public sealed class AdminDashboardService(ApplicationDbContext db, TimeProvider 
         return new AdminDashboardResult(requestClock, statistics, points, recap, history, currentEvent, community);
     }
 
+    public async Task<IReadOnlyDictionary<Guid, EventParticipationSummary>> GetEventParticipationAsync(
+        Guid actorAccountId, IReadOnlyCollection<Guid> eventIds, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(eventIds);
+        RequireConsistentTransaction(db);
+        await using var transaction = db.Database.CurrentTransaction is null
+            ? await db.Database.BeginTransactionAsync(IsolationLevel.RepeatableRead, cancellationToken)
+            : null;
+        var requestClock = time.GetUtcNow().ToUniversalTime();
+        var actor = await db.Accounts.AsNoTracking().SingleOrDefaultAsync(account =>
+            account.Id == actorAccountId && account.AccountType == AccountType.WebsiteAccount && account.Active &&
+            account.DisabledAt == null && (account.GlobalRole == GlobalRole.Admin || account.GlobalRole == GlobalRole.SuperAdmin), cancellationToken);
+        if (actor is null) throw new UnauthorizedAccessException("An active website Admin is required to read event participation.");
+        var events = await db.Events.AsNoTracking()
+            .Where(value => eventIds.Contains(value.Id) && value.State != EventState.Discarded &&
+                (value.HiddenAt == null || actor.GlobalRole == GlobalRole.SuperAdmin))
+            .ToListAsync(cancellationToken);
+        var ids = events.Select(value => value.Id).ToArray();
+        if (ids.Length == 0) return new Dictionary<Guid, EventParticipationSummary>();
+        var teams = await db.Teams.AsNoTracking().Where(value => ids.Contains(value.EventId)).ToListAsync(cancellationToken);
+        var participants = await db.EventParticipants.AsNoTracking().Where(value => ids.Contains(value.EventId)).ToListAsync(cancellationToken);
+        var teamIds = teams.Select(value => value.Id).ToArray();
+        var participantIds = participants.Select(value => value.Id).ToArray();
+        var memberships = await db.TeamMemberships.AsNoTracking()
+            .Where(value => teamIds.Contains(value.TeamId) && participantIds.Contains(value.EventParticipantId)).ToListAsync(cancellationToken);
+        var accountIds = participants.Where(person => person.AccountId != null).Select(person => person.AccountId!.Value).Distinct().ToArray();
+        var websiteIds = await db.Accounts.AsNoTracking()
+            .Where(value => value.AccountType == AccountType.WebsiteAccount && accountIds.Contains(value.Id))
+            .Select(value => value.Id).ToListAsync(cancellationToken);
+        var finalizations = await db.EventFinalizations.AsNoTracking().Where(value => ids.Contains(value.EventId)).ToListAsync(cancellationToken);
+        var audits = await db.AuditEntries.AsNoTracking()
+            .Where(value => value.Action == HistoricalImportAction && value.EventId != null && ids.Contains(value.EventId.Value))
+            .Select(value => new ImportAuditRow(value.EventId!.Value, value.OccurredAt, value.Details)).ToListAsync(cancellationToken);
+        var imports = BuildImportInfo(events, audits, finalizations);
+        var populations = BuildPopulations(events, teams, participants, memberships, websiteIds.ToHashSet(), imports, requestClock);
+        return populations.ToDictionary(value => value.Key, value => new EventParticipationSummary(
+            value.Value.HasUsableDates ? DashboardMetric<long>.Measured(value.Value.People.Count)
+                : DashboardMetric<long>.Unknown("No usable actual lifecycle interval is retained."),
+            imports.ContainsKey(value.Key)));
+    }
+
     private static void RequireConsistentTransaction(ApplicationDbContext context)
     {
         if (context.Database.CurrentTransaction is { } current &&

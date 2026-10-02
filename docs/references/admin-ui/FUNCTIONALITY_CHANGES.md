@@ -1,6 +1,6 @@
 # Admin UI — functionality and delivery register
 
-Updated 1 October 2026. Records agreed behavior, remaining decisions and actual
+Updated 2 October 2026. Records agreed behavior, remaining decisions and actual
 delivery progress for the new Admin UI. Keep completed entries; update their state
 and evidence rather than deleting them or leaving everything labelled pending.
 Neither a working prototype nor inclusion here means the application supports it.
@@ -11,13 +11,15 @@ Neither a working prototype nor inclusion here means the application supports it
 | --- | --- | --- | --- |
 | Participants | Approved direction; corrected reference and shared extraction delivered by Claude | F01–F06 backend technically complete; required focused checks and independent Sol 6.1/high final recheck PASS (30 September) | New UI binding and manual application acceptance deferred |
 | Dashboard | Agreed composition and metrics; reference delivered | D01–D09 implemented, focused proof executed, independent Sol 6.1/high final recheck PASS (1 October); active checkout evidence is authoritative | D10 new UI binding and manual application acceptance deferred |
-| Events directory / Create | Reference completed per user; source comparison 1 October identifies attention/name-limit reconciliation below | Existing capabilities mapped; backend gaps recorded; Events implementation not yet authorized | New UI integration, executed checks and manual application acceptance pending |
+| Events directory / Create | Reference completed per user; source comparison retained below | AU03/AU04 backend technically complete with focused proof and independent review/recheck PASS; uncommitted | New UI/modal/participant binding and manual application acceptance pending |
 | Identity | Narrow left-aligned form accepted; completion source review delivered; named corrections applied/tested by Claude per latest handoff | Existing behavior and real gaps mapped below; no new implementation claimed | Named correction SOURCE PASS (2 October); production UI and manual acceptance pending |
-| Event Overview | Reference source review complete; R1–R4 and README correction queued for Codex (RC01) | Existing lifecycle reused; restore-exclusivity defect queued as AU01 | New UI binding and manual application acceptance deferred |
-| Signup setup | Reference source review complete; R1–R4 queued for Codex (RC02); shared reuse has no concrete finding | AU02 and AU05–AU07 queued; existing capacity/code/form capabilities retained | Route/tabs/binding and manual application acceptance deferred |
-| Schedule | Sol 6.1/high source review complete: changes required; RC03 queued | AU10 source-confirmed preservation/integration gaps; not implemented | Picker binding, stay-on-page, feedback/navigation and manual acceptance deferred |
+| Event Overview | Reference source review complete; R1–R4 and README correction queued for Codex (RC01) | Existing lifecycle reused; AU01 technically complete, focused checks and independent Astra review PASS, uncommitted | New UI binding and manual application acceptance deferred |
+| Signup setup | Reference source review complete; R1–R4 queued for Codex (RC02); shared reuse has no concrete finding | AU02 technically complete, focused checks and independent Astra review PASS, uncommitted; AU05 technically complete, 25 distinct focused cases and independent Astra/high review PASS; AU06 technically complete, 12 distinct focused cases and independent Astra/high review PASS; AU07 implemented, 22 distinct focused cases and Release build PASS, awaiting independent review; existing capacity/code/form capabilities retained | Route/tabs/binding and manual application acceptance deferred |
+| Schedule | Sol 6.1/high source review complete: changes required; RC03 queued | AU10 backend/readback technically complete; focused proof and independent Astra/high review PASS; uncommitted | Full form/picker binding, stay-on-page, feedback/navigation and manual acceptance deferred |
 | Teams / Draft | Reference delivered; user reports latest UI refinements complete; TeamsDraft.dc.html exists | Existing commands/projections confirmed; uncertain-action transport queued as AU14 | Completion source review done; three functional corrections queued as RC04, application UI integration pending |
 | Board | Full designer brief delivered after Teams / Draft; completion not reported | AU11–AU13 agreed and queued | Reference review, implementation and UI integration pending |
+
+| Wise Old Man | Designer brief prepared; manual Fetch now approved without typed confirmation (2 October) | AU15 queued; existing server cooldown/retry/lease guards retained | Reference design, integration and acceptance pending |
 
 Status meanings: **designed** = reference exists; **implemented** = application
 source changed; **executed** = named checks actually ran; **source-reviewed** =
@@ -27,6 +29,23 @@ Track these separately, and distinguish worker-reported results from saved evide
 Page-specific visual acceptance remains owned by UI_PAGE_MATRIX.md. This register
 does not approve future corrections, packaging, deployment or production behavior.
 
+## Reference decisions — 2 October 2026
+
+- **Catalogue advanced drop mechanics:** ordinary Admins see read-only values;
+  SuperAdmin may edit them. Includes team chance, participant assumptions,
+  conditional probability, reward-roll settings, mechanics notes and source already
+  presented in the advanced section. Server authorization, validation, concurrency,
+  audit and approved/historical snapshot protection are required. No separate
+  roll-group editor or import workflow. Approved scope; not implemented or tested.
+- **Ownership transfer:** retain the current owner's password and require typing
+  the destination public username as strong confirmation. This resolves the existing
+  requirement/implementation discrepancy in favour of PRODUCT_REQUIREMENTS 5.4.
+  Preserve atomic sole-owner transfer, eligibility, version checks and session
+  invalidation. No written reason or new typed confirmation for ordinary role
+  grants/revocations. Approved correction; not implemented or tested.
+- WOM additional recovery/link-management behavior and historical evidence-correction
+  eligibility remain discussion items, not approved changes.
+
 ## Ordered application tickets after Luck
 
 The user requested a growing, one-at-a-time application queue on 1 October.
@@ -34,24 +53,44 @@ Execution tickets and their acceptance/proof requirements live in the active
 [DELIVERY_PLAN.md](/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/DELIVERY_PLAN.md),
 section **Admin functionality queue — recorded 1 October 2026**. That is the single
 execution owner; this register maps tickets to reference pages. Recording a queue
-is not dispatch, implementation or approval to package. Luck is technically complete with independent PASS and user visual approval on 2 October. Its disposable demo has been cleaned up.
+is not itself dispatch or implementation. On 2 October the user separately
+authorized sequential execution of AU01–AU14 then RC01–RC04: fresh Sol 6.1/high
+orchestrator per ticket, Astra/high implementer and separate Astra/high reviewer.
+The planner receives a waking completion/blocker callback; it starts the next ticket
+after completion reconciliation. AU01 is technically complete and reconciled: focused
+checks and independent Astra review PASS, uncommitted, UI/manual acceptance deferred.
+AU02 is also technically complete: focused authenticated PostgreSQL checks 5/5,
+Release build and independent Astra review PASS, uncommitted, UI/manual acceptance
+deferred. Planner recovered/reconciled AU02 completion directly; prior callback failures
+remain recorded evidence. Fresh scope-limited planner callback approval is recorded
+in CURRENT_STATUS. AU03 is technically complete: focused PostgreSQL/request/reset checks, Release
+build and independent Astra review PASS; modal/UI/manual acceptance deferred.
+AU03 callback was rejected by automatic approval review; that transport evidence is
+retained. Planner directly reconciled its final independent PASS and all 22 live
+source hashes on 2 October. Technical completion permits the next ticket.
+AU04 is technically complete with focused PostgreSQL proof and independent review/recheck PASS;
+the sole attention-filter omission is resolved. UI binding/manual acceptance stays deferred.
+Later tickets remain queued.
+No new UI integration, packaging, merge or deployment is included in this execution.
+Luck has technical PASS and user visual approval; its disposable demo is cleaned up.
 
 | ID | Page / application outcome | Current status |
 | --- | --- | --- |
-| AU01 | Overview: prevent restore creating two visible current events | Queued; source-confirmed defect, proposed rejection contract to confirm at handoff |
-| AU02 | Signup setup: enforce 100-character code limit server-side | Queued; source-confirmed defect, no executed reproduction |
-| AU03 | Events: duplicate-safe create and uncertain-outcome lookup | Queued |
-| AU04 | Events: directory ordering, retained counts and attention data | Queued; reuse completed Dashboard mappings |
-| AU05 | Signup setup: stale-edit protection and settings version results | Queued |
-| AU06 | Signup setup: duplicate-safe question/account-field adds | Queued after AU05 |
-| AU07 | Signup setup: explicit required-to-optional normalization outcome | Queued after AU05/AU06 |
-| AU08 | Identity: safe field-level conflict handling | Queued |
-| AU09 | Identity: uncertain-save readback without claiming request success | Queued after AU08 |
-| AU10 | Schedule: unchanged-instant preservation, field-addressable lifecycle errors and full-state uncertain readback | Source-confirmed; queued, no executed proof |
+| AU01 | Overview: prevent restore creating two visible current events | Technically complete — focused PostgreSQL/HTTP checks and independent Astra review PASS; uncommitted; UI/manual acceptance deferred |
+| AU02 | Signup setup: enforce 100-character code limit server-side | Technically complete — focused authenticated PostgreSQL checks 5/5 and Release build PASS; independent Astra/high review PASS, no findings; uncommitted; new UI/manual acceptance deferred |
+| AU03 | Events: duplicate-safe create and uncertain-outcome lookup | Technically complete — focused PostgreSQL/request 13 cases + reset 1/1, Release build and independent Astra/high review PASS; uncommitted; modal/UI/manual acceptance deferred |
+| AU04 | Events: directory ordering, retained counts and attention data | Technically complete — 8 distinct PostgreSQL cases, Release build and independent Astra/high review/recheck PASS; attention filter P2 resolved; uncommitted; UI/manual acceptance deferred |
+| AU05 | Signup setup: stale-edit protection and settings version results | Technically complete; 25 distinct focused PostgreSQL/HTTP cases PASS across corrected runs, final Release build and independent Astra/high review PASS (cfb67191); uncommitted; UI binding/manual acceptance deferred |
+| AU06 | Signup setup: duplicate-safe question/account-field adds | Technically complete; 12 distinct focused PostgreSQL/HTTP cases PASS across corrected runs, final Release build and independent Astra/high review PASS (bcf9392b); uncommitted; frontend recovery/manual acceptance deferred |
+| AU07 | Signup setup: explicit required-to-optional normalization outcome | Technically complete; 22 distinct focused PostgreSQL/HTTP cases PASS across corrected runs, final Release build and independent Astra/high review PASS (ca110d17); uncommitted; completion callback rejected; planner reconciled directly; frontend uncertainty binding/manual acceptance deferred |
+| AU08 | Identity: safe field-level conflict handling | Technically complete; 14 distinct PostgreSQL/HTTP cases PASS across corrected runs, controlled timezone fixture, final Release build and independent Astra/high review PASS (912763bd); uncommitted; conflict-choice frontend integration/AU09/manual acceptance deferred |
+| AU09 | Identity: uncertain-save readback without claiming request success | Technically complete; 7 distinct PG/HTTP cases PASS across corrected fixture runs, readback/timezone/multiline transport PASS, Release build 0 warnings/errors; independent Astra/high review PASS after one P2 correction (f5547bcd); uncommitted; full ordinary-save/new-reference UI binding/manual acceptance deferred |
+| AU10 | Schedule: unchanged-instant preservation, field-addressable lifecycle errors and full-state uncertain readback | Technically complete; 12/12 PG/HTTP plus named Live 1/1, controlled transport and Release build PASS; independent Astra/high review PASS (24f0870c); uncommitted; explicit stop after AU10, full UI/manual acceptance deferred |
 | AU11 | Board: tile-local manual EHB override for all objective types | Agreed; queued, not implemented |
 | AU12 | Rankings: credited EHB before score time; preserve first full-board finish and history | Agreed; queued, historical applicability boundary to resolve at handoff |
 | AU13 | Board: manually adjustable planning team size after draft finalization | Agreed; queued, not implemented |
 | AU14 | Teams: safe authoritative readback after uncertain actions | Queued; minimal transport contract to resolve at handoff, existing commands reused |
+| AU15 | WOM: remove typed FETCH confirmation; preserve refresh protections | Approved 2 October; queued after the existing AU01–AU14 / RC01–RC04 sequence, not dispatched |
 
 Retain completed tickets and their implementation, executed-proof, independent-review
 and deferred UI/manual-acceptance states. Add later reviewed application gaps under
@@ -652,6 +691,20 @@ the Participants/Dashboard shared visual system.
 - Separate No events yet from No matching events. Offer Create for the former and
   Clear filters for the latter, retaining ordinary Create access.
 
+AU04 backend implementation checkpoint, 2 October: directory query exposes the
+approved population/phase/name/`attention=1` filters and stable sorts; preparation uses scheduled
+start then signup dates, unscheduled last; past uses actual end/lifecycle fallback
+or cancellation time newest across phases. Retained participant reads reuse the
+Dashboard mapper, keep missing intervals unavailable and capacity nullable, and
+include import provenance. Attention prioritizes current start/opening failure,
+then review, with +N counting categories once per review queue; inbox units remain
+unchanged. Eight focused PostgreSQL cases pass after a fixture-only correction.
+Independent review found the missing backend attention filter; its named correction
+passes its focused PostgreSQL case 1/1; same-reviewer recheck is pending. Layout/filter
+URL/navigation binding and manual acceptance remain deferred. Original evidence:
+`/private/tmp/au04-implementation-20261002/handoff.md`; corrected evidence:
+`/private/tmp/au04-implementation-20261002/remediation-handoff.md`.
+
 ### E03 — Create event modal and journey
 
 - A small modal collects required name and editable timezone, initially
@@ -682,13 +735,14 @@ simulated navigation. Prototype tooling is not application functionality.
 
 | ID | Decisions | Reference | Application / verification |
 | --- | --- | --- | --- |
-| E01 | Agreed | Completed per user | Search/phase/sorts/Hidden partly reusable; grouped views, ordering, attention filter and authoritative URL queries pending |
-| E02 | Setup-blocker removal source-confirmed applied | Completed per user | Retained player counts, nullable capacity/import provenance and category-priority attention projection pending |
-| E03 | Create 50-code-point limit source-confirmed applied | Completed per user | Atomic creation in existing Create PageModel reusable; durable request-key replay/outcome lookup absent; modal/navigation binding pending |
+| E01 | Agreed | Completed per user | AU04 grouped views, ordering, phase/name/attention filters and authoritative query data technically PASS; URL/control/navigation binding and manual acceptance deferred |
+| E02 | Setup-blocker removal source-confirmed applied | Completed per user | AU04 retained participation, nullable capacity/import provenance and category-priority attention technically PASS; participant rendering integration/manual acceptance deferred |
+| E03 | Create 50-code-point limit and durable actor/request-key retry contract applied | Completed per user | AU03 atomic creation/replay/authorized outcome lookup technically PASS with PostgreSQL/request/reset proof and independent review; modal/navigation binding and manual acceptance pending |
 | E04 | Agreed | Shared reference delivered | Application integration, executed proof and manual application acceptance pending |
 
-No new Events implementation, independent implementation review or manual application
-acceptance is claimed. A read-only reference/application comparison is recorded below.
+AU03/AU04 backend implementation and independent technical review/recheck PASS are
+recorded above. New UI integration and manual application acceptance remain deferred.
+The original read-only reference/application comparison is retained below as dated evidence.
 Promote changed application behavior to its existing authorities before backend
 implementation; this brief does not authorize packaging or a broader lifecycle
 redesign.
@@ -847,18 +901,19 @@ and regression checks are Claude-reported, not independently verified. Independe
 All 15 captured files remained stable; no runtime/tests/browser checks were run.
 User supplies visual acceptance. Evidence: `/private/tmp/schedule-source-review-20261001/review.md`.
 
-Track every remaining item separately:
-- AU10: preserve unchanged seconds/subseconds and repeated-hour historical instants
-  (existing app parser gap); map lifecycle errors to fields while retaining existing
-  parsing ModelState errors; authorized full-state uncertain readback, not minute-only
-  comparison. Exact expected proof and boundary live in DELIVERY_PLAN.
+Track implementation and remaining items separately:
+- AU10 technically complete (2 October): unchanged exact/repeated-hour UTC preservation,
+  lifecycle field errors and authorized immutable full-state readback. Focused PG/HTTP
+  12/12, affected Live 1/1, controlled transport, Release build and scoped checks PASS;
+  fresh independent Astra/high review PASS, no findings. Evidence
+  `/private/tmp/au10-review-20261002/review.md`. Full UI binding remains deferred.
 - RC03: four named reference fixes and qualified README/read-failure recovery; queued.
   Shared reuse otherwise confirmed; no whole-site extraction or redesign needed.
 - UI integration: shared picker with unchanged event-local posting semantics and
   server DST/five-minute authority; remain on Schedule after successful save;
   navigation, confirmation, stale/error/uncertain states and modal focus binding.
-- Authority reconciliation: outdated FUNCTIONAL_CONTRACTS section 4.4 must reflect
-  approved editable start/end during drafting and overdue pre-Live start repair.
+- Authority reconciliation completed in AU10: FUNCTIONAL_CONTRACTS section 4.4
+  reflects approved start/end editing during drafting and overdue pre-Live repair.
 - Shared 600ms minimum saving feedback is Claude's proposed reference setting;
   the user approved a brief minimum, not this exact number. Keep actual network
   completion/failure truthful and separate prototype delays from application work.
@@ -866,7 +921,9 @@ Track every remaining item separately:
 - Review shared token/component reuse and Overview picker consequences without
   reopening unrelated RC01/RC02 findings or redesigning approved composition.
 
-No Schedule implementation, independent PASS or manual acceptance is claimed.
+AU10 implementation and independent technical PASS are verified; reference RC03,
+full application UI integration and manual acceptance remain pending. User explicitly
+requires stopping after AU10 reporting; no next-ticket work without instruction.
 
 ## Teams / Draft — agreed design scope, 1 October 2026
 
@@ -944,3 +1001,13 @@ permission to rescore submitted history. Application tickets AU11–AU13 now own
 these agreed changes in the active DELIVERY_PLAN, with focused acceptance/proof
 and historical compatibility requirements. All are queued: no implementation,
 executed proof, independent PASS or new UI acceptance is claimed.
+
+## Wise Old Man — manual fetch decision, 2 October 2026
+
+The user approved a normal Fetch now button without typing FETCH or a confirmation
+modal. This supersedes the prepared designer brief's instruction to retain the
+current confirmation requirement. Preserve existing server-side cooldown, normal
+schedule/retry timing and in-flight protections; a failed attempt does not bypass
+them. AU15 in DELIVERY_PLAN owns the handler/markup correction and focused proof.
+Reference design and production implementation are pending; no tests, independent
+review or manual acceptance claimed. No other WOM functionality change approved.

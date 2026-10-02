@@ -66,7 +66,7 @@
                                   data-signup-question-confirmation-description="@T["This removes saved co-captain answers from event registrations. My accounts and other event registrations are not changed."]"
                                   data-signup-question-confirmation-impact="@T["Current impact: {0} saved answer(s), {1} event registration(s) released, question version {2}.", coCaptainImpact.AnswerCount, coCaptainImpact.EventRegistrationReleaseCount, coCaptainImpact.QuestionVersion]"
                                   data-signup-question-confirmation-action="@T["Disable co-captain"]">
-                                <input type="hidden" name="overlay" value="@(Model.IsOverlay ? "1" : "0")" />
+                                <input type="hidden" name="expectedFormVersion" value="@Model.FormVersion" /><input type="hidden" name="overlay" value="@(Model.IsOverlay ? "1" : "0")" />
                                 <input type="hidden" name="questionId" value="@coCaptain.Id" />
                                 <input type="hidden" name="enabled" value="false" />
                                 <input type="hidden" name="confirmed" value="true" />
@@ -79,7 +79,7 @@
                         else
                         {
                             <form method="post" asp-page-handler="CoCaptain" class="signup-question-action-form">
-                                <input type="hidden" name="overlay" value="@(Model.IsOverlay ? "1" : "0")" /><input type="hidden" name="questionId" value="@coCaptain.Id" /><input type="hidden" name="enabled" value="true" />
+                                <input type="hidden" name="expectedFormVersion" value="@Model.FormVersion" /><input type="hidden" name="overlay" value="@(Model.IsOverlay ? "1" : "0")" /><input type="hidden" name="questionId" value="@coCaptain.Id" /><input type="hidden" name="enabled" value="true" />
                                 <button class="admin-button-secondary" type="submit">@T["Enable co-captain"]</button>
                             </form>
                         }
@@ -101,7 +101,8 @@
                     @if (Model.CanEdit)
                     {
                         <form method="post" asp-page-handler="AddAccount" class="signup-question-action-form">
-                            <input type="hidden" name="overlay" value="@(Model.IsOverlay ? "1" : "0")" />
+                            <input type="hidden" name="addRequestId" value="@Guid.NewGuid()" />
+                            <input type="hidden" name="expectedFormVersion" value="@Model.FormVersion" /><input type="hidden" name="overlay" value="@(Model.IsOverlay ? "1" : "0")" />
                             <input type="hidden" name="role" value="@role" />
                             <button class="admin-button-secondary" type="submit">+ @T["Add account field"]</button>
                         </form>
@@ -129,7 +130,7 @@
                                 {
                                     <details class="signup-question-edit"><summary class="signup-question-edit-action" aria-label="@T["Edit {0}", question.Label]" title="@T["Edit {0}", question.Label]"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg><span class="visually-hidden">@T["Edit"]</span></summary></details>
                                     <form method="post" asp-page-handler="EditAccount" class="signup-question-edit-form">
-                                        <input type="hidden" name="overlay" value="@(Model.IsOverlay ? "1" : "0")" />
+                                        <input type="hidden" name="expectedFormVersion" value="@Model.FormVersion" /><input type="hidden" name="overlay" value="@(Model.IsOverlay ? "1" : "0")" />
                                         <input type="hidden" name="questionId" value="@question.Id" />
                                         <div class="admin-field"><label for="edit-account-label-@question.Id">@T["Question"]</label><input id="edit-account-label-@question.Id" name="Account.Label" value="@question.Label" class="form-control" maxlength="160" required /></div>
                                         <button class="admin-button-secondary" type="submit">@T["Save question"]</button>
@@ -140,7 +141,7 @@
                                           data-signup-question-confirmation-description="@T["This deletes the account question and releases accounts registered through it from this event only. Saved My accounts are kept."]"
                                           data-signup-question-confirmation-impact="@T["Current impact: {0} saved answer(s), {1} event registration(s), question version {2}.", questionImpact.AnswerCount, questionImpact.EventRegistrationReleaseCount, questionImpact.QuestionVersion]"
                                           data-signup-question-confirmation-action="@T["Delete account question"]">
-                                        <input type="hidden" name="overlay" value="@(Model.IsOverlay ? "1" : "0")" />
+                                        <input type="hidden" name="expectedFormVersion" value="@Model.FormVersion" /><input type="hidden" name="overlay" value="@(Model.IsOverlay ? "1" : "0")" />
                                         <input type="hidden" name="questionId" value="@question.Id" />
                                         <input type="hidden" name="confirmed" value="true" />
                                         <input type="hidden" name="expectedAnswerCount" value="@questionImpact.AnswerCount" />
@@ -186,7 +187,7 @@
                             {
                                 <details class="signup-question-edit"><summary class="signup-question-edit-action" aria-controls="signup-question-edit-form-@question.Id" aria-label="@T["Edit {0}", question.Label]" title="@T["Edit {0}", question.Label]"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg><span class="visually-hidden">@T["Edit"]</span></summary></details>
                                 <form id="signup-question-edit-form-@question.Id" method="post" asp-page-handler="Edit" class="signup-question-edit-form" hidden>
-                                        <input type="hidden" name="overlay" value="@(Model.IsOverlay ? "1" : "0")" /><input type="hidden" name="questionId" value="@question.Id" />
+                                        <input type="hidden" name="expectedFormVersion" value="@Model.FormVersion" /><input type="hidden" name="overlay" value="@(Model.IsOverlay ? "1" : "0")" /><input type="hidden" name="questionId" value="@question.Id" />
                                         <div class="admin-field"><label for="edit-label-@question.Id">@T["Question"]</label><input id="edit-label-@question.Id" name="Edit.Label" value="@question.Label" class="form-control" /></div>
                                         @if (!Model.HasFirstResponse)
                                         {
@@ -209,7 +210,7 @@
                                       data-signup-question-confirmation-description="@(question.Type == SignupQuestionType.Account ? T["This deletes the question and all its answers. Any accounts registered through this question are released from this event only; saved My accounts are kept."] : T["This deletes the question and all its answers."])"
                                       data-signup-question-confirmation-impact="@T["Current impact: {0} saved answer(s), {1} event registration(s) released, question version {2}.", questionImpact.AnswerCount, questionImpact.EventRegistrationReleaseCount, questionImpact.QuestionVersion]"
                                       data-signup-question-confirmation-action="@T["Delete question"]">
-                                    <input type="hidden" name="overlay" value="@(Model.IsOverlay ? "1" : "0")" />
+                                    <input type="hidden" name="expectedFormVersion" value="@Model.FormVersion" /><input type="hidden" name="overlay" value="@(Model.IsOverlay ? "1" : "0")" />
                                     <input type="hidden" name="questionId" value="@question.Id" />
                                     <input type="hidden" name="confirmed" value="true" />
                                     <input type="hidden" name="expectedAnswerCount" value="@questionImpact.AnswerCount" />
@@ -218,8 +219,8 @@
                                     <button class="admin-button-secondary action-danger-outline" type="submit">@T["Delete question"]</button>
                                 </form>
                                 <div class="signup-question-order-actions">
-                                    <form method="post" asp-page-handler="Move" class="signup-question-action-form"><input type="hidden" name="overlay" value="@(Model.IsOverlay ? "1" : "0")" /><input type="hidden" name="questionId" value="@question.Id" /><input type="hidden" name="up" value="true" /><button class="admin-button-secondary signup-question-order-button" type="submit" aria-label="@T["Move {0} up", question.Label]">↑</button></form>
-                                    <form method="post" asp-page-handler="Move" class="signup-question-action-form"><input type="hidden" name="overlay" value="@(Model.IsOverlay ? "1" : "0")" /><input type="hidden" name="questionId" value="@question.Id" /><input type="hidden" name="up" value="false" /><button class="admin-button-secondary signup-question-order-button" type="submit" aria-label="@T["Move {0} down", question.Label]">↓</button></form>
+                                    <form method="post" asp-page-handler="Move" class="signup-question-action-form"><input type="hidden" name="expectedFormVersion" value="@Model.FormVersion" /><input type="hidden" name="overlay" value="@(Model.IsOverlay ? "1" : "0")" /><input type="hidden" name="questionId" value="@question.Id" /><input type="hidden" name="up" value="true" /><button class="admin-button-secondary signup-question-order-button" type="submit" aria-label="@T["Move {0} up", question.Label]">↑</button></form>
+                                    <form method="post" asp-page-handler="Move" class="signup-question-action-form"><input type="hidden" name="expectedFormVersion" value="@Model.FormVersion" /><input type="hidden" name="overlay" value="@(Model.IsOverlay ? "1" : "0")" /><input type="hidden" name="questionId" value="@question.Id" /><input type="hidden" name="up" value="false" /><button class="admin-button-secondary signup-question-order-button" type="submit" aria-label="@T["Move {0} down", question.Label]">↓</button></form>
                                 </div>
                             }
                         </article>
@@ -236,7 +237,8 @@
             @if (Model.CanEdit)
             {
                 <form method="post" asp-page="/Admin/Events/Questions" asp-route-id="@eventId" class="signup-question-add">
-                    <input type="hidden" name="overlay" value="@(Model.IsOverlay ? "1" : "0")" />
+                    <input type="hidden" name="addRequestId" value="@Model.CustomAddRequestId" />
+                    <input type="hidden" name="expectedFormVersion" value="@Model.FormVersion" /><input type="hidden" name="overlay" value="@(Model.IsOverlay ? "1" : "0")" />
                     <div asp-validation-summary="ModelOnly" class="validation-summary"></div>
                     <div class="signup-question-fields">
                         <div class="admin-field signup-question-field">

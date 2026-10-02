@@ -1,3 +1,4 @@
+using Bingo.Domain.Events;
 using System.ComponentModel.DataAnnotations;
 using System.Data;
 using System.Globalization;

@@ -67,8 +67,17 @@ ticket/acceptance contract is linked from
   (Europe/Copenhagen default) and atomically creates a private Draft, permanent
   collision-safe slug, built-in signup structure and empty 5×5 board. Identity owns
   name, optional description, buy-in and timezone; Schedule owns the five dates.
+  Creation retries use an actor-scoped durable request key: the same key and trimmed
+  name/timezone return the original result; changed input conflicts, while a new key
+  may create another same-name event. Check again reads that key under current Admin
+  and event visibility permissions, never by name.
   Name/description/buy-in remain editable through Live/Final Review; timezone only
-  before first Live, preserving UTC instants. Retire future banner editing and
+  before first Live, preserving UTC instants. Identity saves merge untouched fields
+  with current values and reject different same-field edits until explicitly
+  resolved against reviewed current values. A newer same-field change invalidates
+  that resolution. A timezone review becomes stale independently when its current
+  schedule consequences change; review and confirm the fresh preview before saving.
+  Retire future banner editing and
   `PublicRules`, `PrizeDescription`, `ExpectedTeamCount`, `ExpectedBoardRows` and
   `ExpectedBoardColumns` use; keep `BuyInDescription` and temporary Board
   `ExpectedTeamSize` until actual finalized rosters supply team size.
@@ -163,13 +172,39 @@ ticket/acceptance contract is linked from
   unverified status; never redisplay secrets. Preserve anchored schedules,
   cooldowns, retry/unknown outcomes and no deletion after ever Live. Dedicated WOM
   owns operations; Overview summarizes/links. Provider failure does not block valid
-  lifecycle transitions. No manual update-all feature.
+  lifecycle transitions. No manual update-all feature. Manual fetch uses a normal
+  Fetch now action without a typed FETCH challenge or confirmation dialog (user
+  decision, 2 October 2026; AU15 pending). Preserve all server-side eligibility,
+  successful-fetch cooldown, scheduled-slot/retry timing and in-flight protection.
 - **Actions/feedback (ADM-01/ADM-02/ACT-01):** Shared confirmations and explicit
   outcomes follow `UI_SYSTEM.md` and `FUNCTIONAL_CONTRACTS.md`. Pending evidence and
   genuinely unresolved scheduled opening/start failures drive Admin actions and
   directory Needs attention; historical failures alone do not. Remove missing-
   Captain/vacancy/promotion-follow-up actions. Personal read state resolves no
   business condition. Dashboard redesign is excluded.
+
+## Events directory data — approved AU04, 2026-10-02
+
+The Admin directory exposes All, Current/upcoming (Setup, Signups open/closed,
+Live), Past (Final review, Finished, Archived, Cancelled), name search, phase
+filtering, actionable-only `attention=1` filtering and column sorts. Hidden events are a separate SuperAdmin-only population, excluded
+from ordinary rows and counts. Discarded events never appear.
+
+Default order is Live first, preparation by scheduled start (signup opening,
+then closing when start is unset), unscheduled last, then one newest-first past
+population across phases. Past uses actual end, falling back to the relevant
+finalized/archive/scheduled end; Cancelled uses cancellation time. Missing dates
+sort last and equal keys use stable event ID. Retained participation for Live and
+past reuses Dashboard membership/import identity rules, including departed people;
+missing actual intervals remain unavailable. Preparation uses confirmed/waiting
+counts and capacity stays nullable, including imported events.
+
+Needs attention prioritizes unresolved scheduled failure (start, then opening),
+then pending review. Its +N counts additional issue categories, with the whole
+review queue counting once. Existing shared inbox counts remain per submission
+plus each failure. Ordinary unfinished setup is not attention. No new failure
+subsystem is authorized. Query contracts are in scope; visual layout, filter URL/
+navigation integration and manual acceptance remain deferred.
 
 ## Community Dashboard — approved backend scope, 2026-10-01
 
@@ -480,7 +515,11 @@ the separated Super Admin Events Control Hidden area and its limited Manage
 inspection, which exposes retained lifecycle details, quarantine audit history,
 and Restore. Restore clears only the hiding metadata and returns the unchanged
 lifecycle and data; it does not rewrite dates, snapshots, rankings, evidence,
-history, assets, or storage. Hide and Restore emit no notification. Hidden is
+history, assets, or storage. If restoring a current-state event would conflict
+with another visible current event, restoration is rejected without changing
+either event or the hiding metadata. Apply the same current-event definition and
+development-fixture exclusions as Start/Resume; archived restoration does not
+claim the current-event slot. Hide and Restore emit no notification. Hidden is
 retention, never deletion, and because eligibility begins after Live, hidden
 events have no active-event scheduler, signup, singleton/window-collision, or
 active realtime processing.
@@ -672,6 +711,8 @@ EHB is used for board estimation, line balancing, player contribution statistics
 ## 9. Boss, activity, item, and drop catalogue
 
 Any enabled Admin may create, edit, deactivate, or reactivate catalogue records. Routine changes are audited without requiring a written reason. Only the Super Admin may permanently delete a catalogue record, and only after strong confirmation and a complete dependency check proves that no source drop, board, asset/cache, import review, or historical record references it. Referenced records must be deactivated instead.
+
+Advanced drop mechanics shown in the new Catalogue reference (team chance, participant assumptions, conditional probability, reward-roll settings, mechanics notes and source) are read-only for ordinary Admins and editable only by the Super Admin (user decision, 2026-10-02). Enforce this distinction server-side as well as in the editor; preserve source-specific calculation validation, audit, concurrency and immutable approved/published/historical snapshots. This authorizes editing these advanced fields, not a new roll-group management or import workflow. Implementation remains queued.
 
 The application catalogue-import preview/apply interface is excluded by user decision (D03, reaffirmed 2026-09-14); existing operator tooling remains separate. Blocked catalogue deletion must protect dependencies and offer deactivation, but an individual dependency-reference list is not required (C26).
 
@@ -1444,7 +1485,37 @@ The system records signup time automatically. Buy-in/payment is not collected fr
 
 Custom questions support Text, Number, Yes/No, Single choice, and Account. Text is a single multiline question type. An Account answer uses the participant's My accounts selector; a missing character must first be added through My accounts. The question configuration determines whether that answer is a user-facing **Regular account** (internally playing/drop-eligible) or **Alt account** (internally informational-only). Comments and availability are not fixed fields; organizers add Text questions when needed.
 
-Before the draft starts, admins may add, edit, delete, and reorder custom questions while signup is open or closed. Before the first accepted/imported response, an existing question's answer shape may change; after the first response, its type, Account role, choice options, stable key, and answer shape are locked. New questions added after the first response are optional, and an optional question cannot become required. Labels, help text, and order remain editable in either pre-draft signup state. Changing a question's format is a delete-then-create operation: the explicit current-impact deletion permanently removes the old question's answers and releases only event registrations created through that question, then ordinary creation adds a new stable question. Draft start freezes ordinary form metadata. Version one has no per-question public/private toggle; removing any stale implementation of that superseded capability is outside the current event-functionality correction.
+Before the draft starts, admins may add, edit, delete, and reorder custom questions while signup is open or closed. Before the first accepted/imported response, an existing question's answer shape may change; after the first response, its type, Account role, choice options, stable key, and answer shape are locked. New questions added after the first response are optional, and an optional question cannot become required. Labels, help text, and order remain editable in either pre-draft signup state. Changing a question's format is a delete-then-create operation: the explicit current-impact deletion permanently removes the old question's answers and releases only event registrations created through that question, then ordinary creation adds a new stable question. Draft start freezes ordinary form metadata.
+
+AU05 client baselines: custom/account-field add, custom edit, account rename, move and co-captain enable submit the rendered `SignupForm.version` as `expectedFormVersion`. Missing or malformed baselines fail closed; stale baselines are rejected under the event lock before writes. Delete/disable retain their existing question-version and impact-count confirmation contract. Existing forms forward this token without introducing a new UI workflow. Each settings save returns authoritative values and the resulting event version separately from its immutable submitted baseline. Another card refresh cannot erase pending uncertainty; frontend binding is deferred. No whole-page atomic save or request-identity guarantee is introduced by AU05. Version one has no per-question public/private toggle; removing any stale implementation of that superseded capability is outside the current event-functionality correction.
+
+AU07 response boundary: the ordinary null-to-first-accepted `FirstResponseAt`
+transition alone is response metadata and preserves the editable form version.
+Any simultaneous definition/settings mutation or explicit Version mark/advance
+still advances it. No stale-baseline bypass is permitted. The immutable first
+marker, required/type restrictions and all current guards are rechecked under the
+existing Serializable event lock. A required custom add after that boundary succeeds
+as optional with an explicit `CompletedAsOptional` outcome, explanation and original
+committed definition; there is no rejection or backfill. Exact replay/readback uses
+AU06 identity plus its uniquely linked immutable creation audit and verified original
+intent, preserving the normalization and definition after later edits. Missing or
+corrupt creation audit fails closed without returning a guessed definition or writing.
+
+AU06 add retries: each custom-question or secondary Account-field add carries a nonempty
+request ID bound on successful commit to the authenticated Admin, event, normalized
+intended definition and original submitted form version. Identical retries return
+that created field ID without another definition, audit or version change, even
+when the original write advanced the form or the event later stopped accepting
+new fields. A reused ID with changed intent/baseline, another actor or another
+event fails closed and does not disclose the previous result. A new request still
+requires the current form baseline and pre-draft write authority. Every attempt
+rechecks enabled Admin authority and current event visibility; hidden/discarded
+results are unavailable. A deleted/inactive created field is reported as removed,
+never recreated or replaced by a same-label field. Preserve the submitted request
+and baseline while its result is uncertain. Existing post-first-response optional
+normalization and explicit AU07 outcome remain authoritative. These operations
+create event form fields only. Ordinary forms gain request identity transport;
+frontend draft/uncertainty recovery and manual UI acceptance remain deferred.
 
 Signup forms may therefore differ between participants in the same event. Authorized Admin/private-history views must treat every retained custom answer as optional historical data. A participant who signed up before a question was added has no answer record for that question; the page must show a neutral fallback such as **Not answered** and must never fail because an answer is missing. Existing inactive legacy questions and their retained answers remain authorized private history only and are excluded from every public signup-table projection. Before draft start, deleting a custom question while signup is open or closed uses the explicit current-impact confirmation, permanently removes its answers from the signup form, table, confirmation, and ordinary question/answer views, and releases only its affected event registrations. Global My accounts links, participant status/order, required system questions, and audit/competitive history remain intact. No separate Hide action, disclosure-tracking field, or historical backfill is introduced. The retained signup-board visibility persistence field remains compatibility-only and fixed/defaulted true, not an Admin control; private and co-captain answers remain excluded from public projections.
 

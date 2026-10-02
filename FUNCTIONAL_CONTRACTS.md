@@ -20,6 +20,20 @@ When documents disagree, the authority above decides the concern in its own colu
 
 This contract deliberately omits detailed schema, formulas, infrastructure design, implementation history, planning method, status legends, and test inventories. Refer to the owning source for those details.
 
+## Events directory read — AU04, 2026-10-02
+
+Enabled Admins read visible non-discarded directory rows; only an enabled
+SuperAdmin may read the separate hidden population. Search, phase and
+`attention=1` (existing attention category count greater than zero) narrow the
+selected All/Current/Past/Hidden population. Results expose total population size
+before search/phase/attention filtering, nullable capacity, retained participant availability
+and import provenance for later honest empty/filtered and participant rendering.
+The existing Dashboard service provides a narrow authorized participation read
+using its same retained population mapping; Dashboard statistics eligibility and
+shared inbox units do not change. Failures propagate rather than becoming zero
+participation. Existing directory forms/routes continue; new UI bindings remain
+in the integration pass. Ordinary incomplete setup adds no attention category.
+
 ## Dashboard read journey — approved, 2026-10-01
 
 Enabled Admins can obtain one read-only community Dashboard projection under
@@ -307,27 +321,81 @@ Each durable capability/journey below has one owning contract section. Shared cr
 
 **Entry and reachability:** Admin Events → Create saves the draft and returns to the event setup workspace. Another enabled Admin can continue the same event.
 
-**Authoritative happy path:** The server creates a unique event ID and slug, creator/time metadata, Draft state, and safe defaults in one transaction. No participant, team, board, captain, or evidence record is implied.
+**Authoritative happy path:** The server creates a unique event ID and slug, creator/time metadata, Draft state, standard signup questions, an empty 5×5 board, and safe defaults in one transaction. No participant, team, captain, or evidence record is implied.
 
 **Permissions and history:** Every enabled Admin may create/configure every event. Duplicate display names are allowed; the slug is unique and editable until first public exposure. Creation and later setup changes are audited.
 
 **Failure and recovery:** Invalid name/timezone or lost authorization creates no usable event. A slug collision gets a different valid slug. An unprotected experimental event can be confirmed-discarded; once protected participant, team, event-access, submission, or evidence data exists, discard is blocked and the cancellation contract applies.
 
+**Retry identity (AU03):** Each logical create submission carries a non-empty UUID,
+scoped to the authenticated enabled Admin. The original trimmed name and supported
+timezone are immutable request input. Concurrent/repeated submissions with that
+actor/key/input commit one aggregate, creation audit and durable outcome together;
+a different name or timezone with a completed key is rejected without mutation.
+Different keys may create events with identical names. Invalid requests do not
+consume a key. An absent/malformed key is rejected; the existing GET form supplies
+one, retained across validation errors and retries. New modal binding is deferred.
+Check again uses `/Admin/Events/Create?handler=CheckAgain&requestId=…` and returns
+only the requesting actor's committed event ID; absence means no accessible committed
+outcome at that lookup, not proof a request can never finish. Retry with the same
+key remains safe. Renaming/configuring an event cannot change original request
+identity. Hidden outcomes obey SuperAdmin visibility; discarded outcomes are
+unavailable. Neither case frees the key or allows recreating the event. Revoked or
+disabled Admins cannot create, replay or look up an outcome.
+
 **Acceptance outcome:** A minimal private draft is independently saveable, resumable, auditable, undiscoverable publicly, and unable to accept signup or publish competitive information by itself.
 
 ### 4.3 `ADM-EVENT-02` — Identity and public description
 
-**Actors and outcome:** An enabled Admin manages event name, optional banner, public description, supported timezone, and pre-exposure slug; signup receives the required public introduction before it opens.
+**Actors and outcome:** An enabled Admin manages event name, optional public description,
+buy-in information and supported timezone. The server-owned public slug is permanent;
+there is no event banner capability. Text fields remain editable through Live and
+Final Review; timezone locks permanently at the first Live transition.
 
-**Entry and reachability:** Use the event Identity route from Admin Manage or the setup progression. The same server contract supports normal form fallback.
+**Entry and reachability:** Use the event Identity route from Admin Manage or the
+setup progression. Existing forms carry original field baselines and timezone-review
+state; full conflict-choice UI integration remains deferred.
 
-**Authoritative happy path:** Before Live, select a supported timezone (Copenhagen is the default), save the public description, manage a stored banner, and retain the stable slug after first public exposure. Display-name changes preserve the URL. Identity and timezone become read-only when the event enters Live.
+**Authoritative happy path:** Compare canonical original, intended and current values
+for each Identity field. Untouched fields retain another Admin's changes; an intended
+change is safe when current equals original or already equals intent. Different
+same-field edits block the entire save. Explicit Keep mine / Use current resolution
+is valid only against its reviewed current field value; a newer differing edit
+requires resolution again. Failure preserves the original baseline and draft.
+Current-version legacy submissions retain their path; stale baseline-free submissions
+fail closed and require reload.
 
-**Permissions and history:** Identity changes are Admin-authorized and audited. Banner absence is optional and never a readiness blocker. Stored UTC instants do not change merely because the display timezone changes.
+**Permissions and history:** Identity changes remain Admin-authorized, phase-checked,
+Serializable, concurrency-protected and audited atomically. Stored UTC instants never
+move because the display timezone changes. Permanent slug, 50-code-point name and
+UTF-16 description/buy-in limits remain authoritative.
 
-**Failure and recovery:** Unsupported timezone, slug conflict, stale confirmation, or banner failure leaves the prior valid value active and returns retryable feedback. A post-signup timezone change previews participant-facing local times. Live identity and timezone corrections are intentionally unavailable; explicit schedule edits remain a separate capability.
+**Failure and recovery:** Unsupported timezone, slug mutation, malformed baseline,
+unresolved field conflict or stale timezone review leaves all prior values active.
+After public exposure, a timezone change reviews its participant-facing timeline.
+Confirmation binds the original/proposed zones and current timeline consequences
+at persisted timestamp precision. A schedule-only change returns separate stale
+feedback and fresh consequences requiring confirmation again. Recomparison occurs
+inside the write transaction. Unchanged values produce no identity mutation/audit.
+AU09 dispatch contract: freeze the complete canonical Name, Description,
+BuyInDescription and Timezone expected tuple separately from the original edit
+intent/baseline. Use current takes exactly the explicitly reviewed value; untouched
+fields take the latest values actually observed and used at dispatch. Never derive
+expected values from a later read. Check again uses the existing authorized Identity
+read boundary and compares all four full values. A match means only Up to date now,
+never that this request saved them. An unseen disjoint server merge or later edit
+may therefore remain Different/uncertain even after an applied save. Different or
+failed reads preserve the frozen tuple and editing draft without retry, rebase,
+overwrite or discard; failed reads are Unknown. No receipt or reconstruction of
+the server's effective merged tuple is introduced. Backend/transport integration
+is sufficient for AU09; full new-reference UI binding and manual acceptance remain
+deferred. Existing timezone confirmation transport switches an uncertain mutation
+to read-only checks; it must never blindly send that mutation again.
+Full Use theirs frontend binding remains deferred.
 
-**Acceptance outcome:** Admins can identify an event and make it understandable before signup without requiring decorative artwork, changing historical instants, or exposing a private draft.
+**Acceptance outcome:** Concurrent edits retain untouched current values, same-field
+conflicts require an explicit current resolution, and stale schedule consequences
+cannot be accepted through an old timezone confirmation.
 
 ### 4.4 `ADM-EVENT-03` — Schedule and timezone
 
@@ -337,7 +405,7 @@ Each durable capability/journey below has one owning contract section. Shared cr
 
 **Authoritative happy path:** A private Draft may save supplied schedule values before full opening readiness; the save validates supplied ordering, future boundaries, and any complete event-window overlap. Before opening, validate event start before end, establish a valid signup closing no later than start, use a configured future opening plus the persisted automatic-opening toggle for scheduled mode, or record the actual current opening for manual mode. Default submission cutoff is 30 minutes after event end and cannot precede that end. Capacity uses the posted value and an eligible increase atomically promotes the waiting queue with its ordinary audit and notifications.
 
-**Permissions and history:** An unchanged historical timestamp is accepted, but a passed boundary cannot be changed or cleared and every newly entered or changed timestamp must be future. Signup opening and automatic-opening enablement lock once that boundary passes. Reopening manually closed signup reuses its configured close when that close remains future; otherwise Reopen establishes and confirms a replacement future close. Published start/end cannot be cleared. Draft time is optional planning information and never starts the draft. Routine pre-Live Schedule mutations retain automatic actor/time/before/after audit evidence and require no written reason; changing a future end while Live additionally requires confirmation and a written reason.
+**Permissions and history:** An unchanged historical timestamp retains its exact UTC instant, including seconds/subseconds and valid repeated-hour history. Changed local times must be valid, unambiguous five-minute values and future. Passed signup/draft boundaries cannot be changed or cleared; before the first Live transition, event start/end may be repaired to future values even when their configured boundaries have passed. Signup opening and automatic-opening enablement lock once that boundary passes. Reopening manually closed signup reuses its configured close when that close remains future; otherwise Reopen establishes and confirms a replacement future close. Published start/end cannot be cleared. Draft time is optional planning information and never starts the draft. Routine pre-Live Schedule mutations retain automatic actor/time/before/after audit evidence and require no written reason; changing a future end while Live additionally requires confirmation and a written reason.
 
 The following matrix is the authoritative editability contract. `Edit` means the value is available through Schedule, `Action` means only the named lifecycle action may change or reuse it, and `Locked` means it is retained as read-only history.
 
@@ -347,17 +415,19 @@ The following matrix is the authoritative editability contract. `Edit` means the
 | Automatic signup opening | Edit before the opening boundary | Locked/off | Locked/off | Locked | Locked | Locked | Locked | Locked |
 | Signup closing | Edit while future | Edit while future | Action: Reopen reuses the configured close when it remains future; otherwise it establishes and confirms a replacement future close | Locked | Locked | Locked | Locked | Locked |
 | Draft time | Edit while future | Edit while future | Edit while future | Locked | Locked | Locked | Locked | Locked |
-| Event start | Edit while future | Edit while future | Edit while future | Locked | Edit while its existing boundary remains future | Locked as actual/history | Locked | Locked |
-| Event end | Edit while future | Edit while future | Edit while future | Locked | Edit while its existing boundary remains future | Edit to another future time with confirmation and reason | Action: Resume reuses the configured end when it remains future; otherwise it requires a replacement future end; confirmation and reason are always required | Locked |
+| Event start | Edit to a future value | Edit to a future value | Edit to a future value | Edit to a future value | Edit to a future value | Locked as actual/history | Locked | Locked |
+| Event end | Edit to a future value | Edit to a future value | Edit to a future value | Edit to a future value | Edit to a future value | Edit to another future time with confirmation and reason | Action: Resume reuses the configured end when it remains future; otherwise it requires a replacement future end; confirmation and reason are always required | Locked |
 | Normal submission cutoff | Derived as event end plus 30 minutes; never directly editable | Same | Same | Same | Same | Re-derived when a future event end changes | Historical | Locked |
 | Reopened submission cutoff | Unavailable | Unavailable | Unavailable | Unavailable | Unavailable | Unavailable | Action: Reopen submissions with a future cutoff and reason | Locked |
 | Participant capacity | Edit | Edit; an increase may promote waiting participants | Edit before draft start | Locked | Locked | Locked | Locked | Locked |
 
 Actual signup opening/closing, actual event start/end, submission closure, finalization, archival, and cancellation timestamps are system-recorded history and are never ordinary Schedule inputs. Hidden events expose only SuperAdmin restoration, and Discarded events expose no event workspace.
 
-While the team draft is Running or Paused, the complete schedule is locked. Once the draft is Finalized but before Live, signup dates, draft time, and capacity remain locked, while a still-future event start or end may change. Every accepted schedule change rechecks ordering, operational-window overlap, and any linked Wise Old Man competition's five-minute window tolerance; changing event end atomically re-derives the normal submission cutoff and commits its audit evidence in the same transaction.
+While the team draft is Running, Paused or Finalized before first Live, signup dates, draft time and capacity remain locked; event start/end remain editable, including correction of overdue configured boundaries to future values. Every accepted schedule change rechecks ordering, operational-window overlap, and any linked Wise Old Man competition's five-minute window tolerance; changing event end atomically re-derives the normal submission cutoff and commits its audit evidence in the same transaction.
 
-**Failure and recovery:** A missing/invalid schedule blocks the opening transition while a valid partial private-Draft save may remain incomplete and show those values as unmet opening readiness. Manual-opening defaults are previewed and committed only inside the successful transaction. Schedule shows one server-recomputed confirmation containing only actual changes, derived cutoff/capacity-promotion effects, and current warnings when the event is public or warnings exist; private warning-free changes save immediately. Scheduled readiness failure leaves signup closed and alerts Admins. A postponed start does not close its own recovery path: while the event has not actually started and its configured end remains future, Admins may complete pre-Live roster corrections, draft finalization, and board publication, then start manually without rewriting the missed configured start. If the configured end has also passed, start fails closed and the event must be cancelled or replaced. Complete event-window edits on private Drafts and signup-open/closed edits recheck non-overlap, and a linked Wise Old Man competition must remain within five minutes of the proposed event interval. Timezone changes alter display only; explicit schedule edits alter stored instants and retain before/after history.
+**Failure and recovery:** A missing/invalid schedule blocks the opening transition while a valid partial private-Draft save may remain incomplete and show those values as unmet opening readiness. Manual-opening defaults are previewed and committed only inside the successful transaction. Schedule shows one server-recomputed confirmation containing only actual changes, derived cutoff/capacity-promotion effects, and current warnings when the event is public or warnings exist; private warning-free changes save immediately. Scheduled readiness failure leaves signup closed and alerts Admins. A postponed start does not close its own recovery path: while the event has not actually started and its configured end remains future, Admins may complete pre-Live roster corrections, draft finalization, and board publication, then start manually without rewriting the missed configured start. If the configured end has also passed, start fails closed until the Admin repairs the pre-Live event window to future values or cancels/replaces the event. This does not change automatic scheduler readiness or execution. Complete event-window edits on private Drafts and signup-open/closed edits recheck non-overlap, and a linked Wise Old Man competition must remain within five minutes of the proposed event interval. Timezone changes alter display only; explicit schedule edits alter stored instants and retain before/after history.
+
+**Schedule save recovery (AU10):** Preserve each unchanged field from the version-checked authoritative row instead of reparsing its minute-only display. Retain the enabled overdue automatic-opening exception and legacy disabled state when editing unrelated fields. Map suitable lifecycle/order errors to existing field ModelState entries; overlap stays a form error. An authorized no-store Current read exposes the full precise schedule, automatic-opening state, version, timezone, phase and editability. A transport session freezes the full submitted UTC tuple separately from its original baseline/draft. Matching current values mean Up to date, never proof that this request saved them; version and phase/editability remain visible context. An unchanged old state or competing different state retains the submission and uncertainty; a failed/unauthorized/malformed read is Unknown. Check again is read-only, with no blind retry, rebase, discard or receipt system. Backend/readback transport integration is sufficient for AU10; ordinary form enhancement, picker binding, stay-on-Schedule, confirmation table and navigation remain deferred. The existing single confirmation policy is retained.
 
 **Acceptance outcome:** Manual and scheduled opening share one readiness contract, closing and cutoff boundaries remain valid, and delayed processing never backdates or extends competitive eligibility.
 
@@ -374,6 +444,36 @@ While the team draft is Running or Paused, the complete schedule is locked. Once
 **Failure and recovery:** Missing description, capacity, schedule, primary playing field/EHB, invalid question, unusable enabled code, or requested opening inconsistency blocks opening. Waiting is always enabled while signup is open. Public text answers are informational warnings shown in the same server-recomputed confirmation when confirmation is otherwise required; they never require a separate acknowledgement and do not block manual or scheduled opening. Banner, board, teams, draft time, and current Wise Old Man availability are not opening blockers. A failed scheduled attempt leaves signup closed and exposes its true blockers.
 
 **Acceptance outcome:** Capacity and deterministic waiting-list order are authoritative, Account roles are unambiguous, and signup can open manually or on schedule without partial form/question changes.
+
+AU05 client baselines: custom/account-field add, custom edit, account rename, move and co-captain enable submit the rendered `SignupForm.version` as `expectedFormVersion`. Missing or malformed baselines fail closed; stale baselines are rejected under the event lock before writes. Delete/disable retain their existing question-version and impact-count confirmation contract. Existing forms forward this token without introducing a new UI workflow. Capacity/code responses expose the submitted baseline separately from authoritative settings. Refreshing another card must not rebase a pending uncertain operation; client recovery binding remains deferred.
+
+AU07 response boundary: the ordinary null-to-first-accepted `FirstResponseAt`
+transition alone is response metadata and preserves the editable form version.
+Any simultaneous definition/settings mutation or explicit Version mark/advance
+still advances it. No stale-baseline bypass is permitted. The immutable first
+marker, required/type restrictions and all current guards are rechecked under the
+existing Serializable event lock. A required custom add after that boundary succeeds
+as optional with an explicit `CompletedAsOptional` outcome, explanation and original
+committed definition; there is no rejection or backfill. Exact replay/readback uses
+AU06 identity plus its uniquely linked immutable creation audit and verified original
+intent, preserving the normalization and definition after later edits. Missing or
+corrupt creation audit fails closed without returning a guessed definition or writing.
+
+AU06 add retries: each custom-question or secondary Account-field add carries a nonempty
+request ID bound on successful commit to the authenticated Admin, event, normalized
+intended definition and original submitted form version. Identical retries return
+that created field ID without another definition, audit or version change, even
+when the original write advanced the form or the event later stopped accepting
+new fields. A reused ID with changed intent/baseline, another actor or another
+event fails closed and does not disclose the previous result. A new request still
+requires the current form baseline and pre-draft write authority. Every attempt
+rechecks enabled Admin authority and current event visibility; hidden/discarded
+results are unavailable. A deleted/inactive created field is reported as removed,
+never recreated or replaced by a same-label field. Preserve the submitted request
+and baseline while its result is uncertain. Existing post-first-response optional
+normalization and explicit AU07 outcome remain authoritative. These operations
+create event form fields only. Ordinary forms gain request identity transport;
+frontend draft/uncertainty recovery and manual UI acceptance remain deferred.
 
 ### 4.6 `ADM-RULES-01` and `PUB-HOWTO-01` — Permanent guidance
 
@@ -633,7 +733,7 @@ cases, scope exclusions and delivery gates are in DELIVERY_PLAN's
 
 **Permissions and history:** Automatic start never bypasses gates or backdates eligibility. Manual start, including a start before the configured instant, requires strong confirmation but no written reason. Scheduled attempt occurrence, blocker state, actual start, and audit remain distinct.
 
-**Failure and recovery:** A blocked attempt leaves the event pre-live, retains the configured instant, records visible failure, and does not retry into an unexpected start. Clearing blockers followed by Start event now is the recovery even after the configured start has passed, provided the configured end remains future. If the configured end has also passed, start fails closed and the event must be cancelled or replaced.
+**Failure and recovery:** A blocked attempt leaves the event pre-live, retains the configured instant, records visible failure, and does not retry into an unexpected start. Clearing blockers followed by Start event now is the recovery even after the configured start has passed, provided the configured end remains future. If the configured end has also passed, start fails closed until the Admin repairs the pre-Live event window to future values or cancels/replaces the event. This does not change automatic scheduler readiness or execution.
 
 **Acceptance outcome:** A delayed or invalid deployment cannot silently start an unready event, and the Admin can identify and resolve every blocker.
 
@@ -776,7 +876,12 @@ workspaces or change existing hide/restore permissions, event routes or source f
 `FINALIZED`, or `ARCHIVED`. It records hiding metadata and removes the event
 from every ordinary discovery, history, account, submission, evidence,
 notification, action, and realtime projection. Restore clears only that
-metadata and returns the unchanged lifecycle and event data.
+metadata and returns the unchanged lifecycle and event data. Restoration of a current-state
+event is rejected if another visible current event exists, using the same
+current-event definition, development-fixture exclusions, and transactional lock
+as Start and Resume. Rejection retains all hiding metadata, lifecycle data and
+history and does not hide, end, or otherwise change the other event. Archived
+events remain restorable without claiming the current-event slot.
 
 **Permissions and history:** Draft, SignupOpen, SignupClosed, Live, Cancelled,
 and Discarded events cannot be hidden. Public visitors, participants,

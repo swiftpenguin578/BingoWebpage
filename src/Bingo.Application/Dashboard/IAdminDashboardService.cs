@@ -7,6 +7,11 @@ namespace Bingo.Application.Dashboard;
 public interface IAdminDashboardService
 {
     Task<AdminDashboardResult> GetAsync(Guid actorAccountId, CancellationToken cancellationToken = default);
+
+    // The directory reuses the retained population rules without reading all
+    // Dashboard statistics. Hidden records remain restricted to SuperAdmin.
+    Task<IReadOnlyDictionary<Guid, EventParticipationSummary>> GetEventParticipationAsync(
+        Guid actorAccountId, IReadOnlyCollection<Guid> eventIds, CancellationToken cancellationToken = default);
 }
 
 // Kept as a domain-neutral alias for later page binding. Both ports describe the
@@ -15,6 +20,8 @@ public interface ICommunityDashboardService
 {
     Task<AdminDashboardResult> GetAsync(Guid actorAccountId, CancellationToken cancellationToken = default);
 }
+
+public sealed record EventParticipationSummary(DashboardMetric<long> Participants, bool IsHistoricalImport);
 
 public enum DashboardValueAvailability
 {

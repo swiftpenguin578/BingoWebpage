@@ -1,6 +1,9 @@
 using System.Globalization;
+using System.Security.Claims;
+using Bingo.Application.Dashboard;
 using Bingo.Application.Access;
 using Bingo.Application.Events;
+using Bingo.Domain.Access;
 using Bingo.Domain.Boards;
 using Bingo.Domain.Events;
 using Bingo.Domain.Evidence;
@@ -19,10 +22,16 @@ using Microsoft.Extensions.Localization;
 namespace Bingo.Web.Pages.Admin.Events;
 
 [Authorize(Policy = AuthorizationPolicies.Admin)]
-public sealed class IndexModel(ApplicationDbContext dbContext, IEventLifecycleService eventLifecycle, TimeProvider timeProvider, IStringLocalizer<SharedResource> localizer, SharedShellService adminActionProjection) : PageModel
+public sealed class IndexModel(ApplicationDbContext dbContext, IEventLifecycleService eventLifecycle, TimeProvider timeProvider, IStringLocalizer<SharedResource> localizer, SharedShellService adminActionProjection, IAdminDashboardService dashboard) : PageModel
 {
     private static readonly string[] KnownStates = ["all", "draft", "signupopen", "signupclosed", "live", "awaitingfinalreview", "finalized", "archived", "cancelled", "hidden"];
     private static readonly string[] KnownSorts = ["identity", "state", "dates", "signups", "attention"];
+
+    [BindProperty(SupportsGet = true, Name = "view")]
+    public string? View { get; set; }
+
+    public string ActiveView { get; private set; } = "all";
+    public int PopulationCount { get; private set; }
 
     [BindProperty(SupportsGet = true, Name = "filter")]
     public string? Filter { get; set; }
@@ -36,6 +45,10 @@ public sealed class IndexModel(ApplicationDbContext dbContext, IEventLifecycleSe
     [BindProperty(SupportsGet = true, Name = "direction")]
     public string? Direction { get; set; }
 
+    [BindProperty(SupportsGet = true, Name = "attention")]
+    public string? Attention { get; set; }
+
+    public bool ActiveAttention { get; private set; }
     public string ActiveFilter { get; private set; } = "all";
     public string ActiveSearch { get; private set; } = string.Empty;
     public string ActiveSort { get; private set; } = string.Empty;
@@ -55,17 +68,31 @@ public sealed class IndexModel(ApplicationDbContext dbContext, IEventLifecycleSe
                   && cycle.SupersededAt == null
                   && dbContext.DraftPublicationRosters.Any(roster => roster.DraftPublicationCycleId == cycle.Id)
             select draft.EventId;
-        var isSuperAdmin = User.IsInRole("SuperAdmin");
+        var actorId = Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var accountId) ? accountId : Guid.Empty;
+        var actor = await dbContext.Accounts.AsNoTracking().SingleOrDefaultAsync(account =>
+            account.Id == actorId && account.AccountType == AccountType.WebsiteAccount && account.Active && account.DisabledAt == null &&
+            (account.GlobalRole == GlobalRole.Admin || account.GlobalRole == GlobalRole.SuperAdmin), cancellationToken);
+        if (actor is null) throw new UnauthorizedAccessException("An active website Admin is required to read the directory.");
+        var isSuperAdmin = actor.GlobalRole == GlobalRole.SuperAdmin;
         ActiveFilter = KnownStates.Contains(Filter ?? string.Empty, StringComparer.OrdinalIgnoreCase) && (isSuperAdmin || !string.Equals(Filter, "hidden", StringComparison.OrdinalIgnoreCase))
             ? Filter!.ToLowerInvariant()
             : "all";
+        ActiveView = (View ?? "all").ToLowerInvariant() switch
+        {
+            "current" => "current",
+            "past" => "past",
+            "hidden" when isSuperAdmin => "hidden",
+            _ => "all"
+        };
+        if (ActiveFilter == "hidden") ActiveView = "hidden";
         ActiveSearch = Search?.Trim() ?? string.Empty;
+        ActiveAttention = string.Equals(Attention, "1", StringComparison.Ordinal);
         ActiveSort = KnownSorts.Contains(Sort ?? string.Empty, StringComparer.OrdinalIgnoreCase)
             ? Sort!.ToLowerInvariant()
             : string.Empty;
         ActiveSortDirection = string.Equals(Direction, "desc", StringComparison.OrdinalIgnoreCase) ? "desc" : "asc";
 
-        var allEvents = await dbContext.Events.AsNoTracking().Where(item => item.State != EventState.Discarded && (item.HiddenAt == null || isSuperAdmin && ActiveFilter == "hidden"))
+        var allEvents = await dbContext.Events.AsNoTracking().Where(item => item.State != EventState.Discarded && (ActiveView == "hidden" ? item.HiddenAt != null && isSuperAdmin : item.HiddenAt == null))
             .Select(item => new EventRow(
                 item.Id,
                 item.Name,
@@ -78,7 +105,7 @@ public sealed class IndexModel(ApplicationDbContext dbContext, IEventLifecycleSe
                 item.EventEndsAt,
                 item.FinalizedAt,
                 item.ArchivedAt,
-                item.ParticipantCap ?? 0,
+                item.ParticipantCap,
                 dbContext.EventParticipants.Count(participant => participant.EventId == item.Id && participant.SignupStatus == SignupStatus.Confirmed),
                 dbContext.EventParticipants.Count(participant => participant.EventId == item.Id && participant.SignupStatus == SignupStatus.WaitingList),
                 dbContext.Submissions.Count(submission => submission.EventId == item.Id && submission.Status == SubmissionStatus.Pending),
@@ -86,9 +113,16 @@ public sealed class IndexModel(ApplicationDbContext dbContext, IEventLifecycleSe
                 dbContext.Boards.Any(board => board.EventId == item.Id && board.State == BoardState.Published),
                 dbContext.ScheduledEventStartAttempts.Any(attempt => attempt.EventId == item.Id && attempt.ScheduledFor == item.EventStartsAt && attempt.ScheduledFor <= now && !attempt.Started && attempt.ResolvedAt == null && (item.State == EventState.Draft || item.State == EventState.SignupOpen || item.State == EventState.SignupClosed)),
                 EventDisplayPhase.Lifecycle,
-                item.HiddenAt != null))
+                item.HiddenAt != null)
+            {
+                ActualStartedAt = item.ActualStartedAt,
+                ActualEndedAt = item.ActualEndedAt,
+                CancelledAt = item.CancelledAt
+            })
             .ToListAsync(cancellationToken);
 
+        var participation = await dashboard.GetEventParticipationAsync(actorId,
+            allEvents.Where(item => !item.IsPreparation).Select(item => item.Id).ToArray(), cancellationToken);
         var actionProjection = await adminActionProjection.GetAdminActionsSafelyAsync(cancellationToken);
         ActionProjectionUnavailable = !actionProjection.IsAvailable;
 
@@ -103,12 +137,23 @@ public sealed class IndexModel(ApplicationDbContext dbContext, IEventLifecycleSe
             {
                 DisplayPhase = EventDisplayPhaseProjection.From(new(item.State, item.DraftFinalized, item.BoardPublished, item.StartPostponed, startReady)),
                 ActionCount = actions.Count,
+                PendingReviews = actions.PendingEvidenceCount,
+                AttentionCategoryCount = actions.CategoryCount,
+                Participation = participation.GetValueOrDefault(item.Id),
                 ScheduledOpeningFailed = actions.ScheduledOpeningFailed,
                 ScheduledStartPostponed = actions.ScheduledStartPostponed
             };
         }
 
-        var filtered = allEvents.Where(MatchesActiveFilter).Where(MatchesSearch);
+        var population = allEvents.Where(item => ActiveView switch
+        {
+            "current" => item.IsPreparation || item.State == EventState.Live,
+            "past" => !item.IsPreparation && item.State != EventState.Live,
+            _ => true
+        }).ToList();
+        PopulationCount = population.Count;
+        var filtered = population.Where(MatchesActiveFilter).Where(MatchesSearch)
+            .Where(item => !ActiveAttention || item.AttentionCategoryCount > 0);
         Events = OrderEvents(filtered).ToList();
         StateOptions =
         [
@@ -186,14 +231,11 @@ public sealed class IndexModel(ApplicationDbContext dbContext, IEventLifecycleSe
 
     public string AttentionSummary(EventRow item)
     {
-        if (item.ActionCount == 0) return localizer["Nothing needs attention"];
-        if (item.PendingReviews > 0 && item.ActionCount == item.PendingReviews)
-            return localizer["{0} to review", item.PendingReviews];
-        if (item.PendingReviews == 0 && item.ScheduledOpeningFailed && !item.ScheduledStartPostponed)
-            return localizer["Signup opening failed"];
-        if (item.PendingReviews == 0 && item.ScheduledStartPostponed && !item.ScheduledOpeningFailed)
-            return localizer["Start postponed"];
-        return localizer["{0} action(s)", item.ActionCount];
+        if (item.AttentionCategoryCount == 0) return "—";
+        var summary = item.ScheduledStartPostponed ? localizer["Start postponed"].Value
+            : item.ScheduledOpeningFailed ? localizer["Signup opening failed"].Value
+            : localizer["{0} to review", item.PendingReviews].Value;
+        return item.AttentionCategoryCount > 1 ? $"{summary} +{item.AttentionCategoryCount - 1}" : summary;
     }
 
     private bool MatchesActiveFilter(EventRow item) => ActiveFilter switch
@@ -211,50 +253,43 @@ public sealed class IndexModel(ApplicationDbContext dbContext, IEventLifecycleSe
     };
 
     private bool MatchesSearch(EventRow item) => string.IsNullOrWhiteSpace(ActiveSearch)
-        || item.Name.Contains(ActiveSearch, StringComparison.OrdinalIgnoreCase)
-        || item.Slug.Contains(ActiveSearch, StringComparison.OrdinalIgnoreCase);
+        || item.Name.Contains(ActiveSearch, StringComparison.OrdinalIgnoreCase);
 
     private IEnumerable<EventRow> OrderEvents(IEnumerable<EventRow> source)
     {
         if (string.IsNullOrEmpty(ActiveSort))
-            return source.OrderBy(item => SortGroup(item.State)).ThenBy(item => SortDate(item)).ThenBy(item => item.Name).ThenBy(item => item.Id);
+            return source.OrderBy(item => SortGroup(item.State)).ThenBy(item => SortDate(item) is null).ThenBy(item => SortDate(item)).ThenBy(item => item.Id);
 
         var descending = ActiveSortDirection == "desc";
         IOrderedEnumerable<EventRow> ordered = ActiveSort switch
         {
-            "identity" => descending ? source.OrderByDescending(item => item.Name).ThenByDescending(item => item.Slug) : source.OrderBy(item => item.Name).ThenBy(item => item.Slug),
+            "identity" => descending ? source.OrderByDescending(item => item.Name, StringComparer.Ordinal) : source.OrderBy(item => item.Name, StringComparer.Ordinal),
             "state" => descending ? source.OrderByDescending(item => (int)item.State) : source.OrderBy(item => (int)item.State),
             "dates" => descending
                 ? source.OrderBy(item => item.EventStartsAt is null).ThenByDescending(item => item.EventStartsAt).ThenByDescending(item => item.EventEndsAt)
                 : source.OrderBy(item => item.EventStartsAt is null).ThenBy(item => item.EventStartsAt).ThenBy(item => item.EventEndsAt),
             "signups" => descending
-                ? source.OrderByDescending(item => item.Confirmed).ThenByDescending(item => item.Waiting).ThenByDescending(item => item.ParticipantCap)
-                : source.OrderBy(item => item.Confirmed).ThenBy(item => item.Waiting).ThenBy(item => item.ParticipantCap),
-            "attention" => descending ? source.OrderByDescending(item => item.ActionCount) : source.OrderBy(item => item.ActionCount),
+                ? source.OrderBy(item => item.ParticipantCount is null).ThenByDescending(item => item.ParticipantCount)
+                : source.OrderBy(item => item.ParticipantCount is null).ThenBy(item => item.ParticipantCount),
+            "attention" => descending ? source.OrderByDescending(item => item.AttentionPriority).ThenByDescending(item => item.AttentionCategoryCount).ThenByDescending(item => item.PendingReviews) : source.OrderBy(item => item.AttentionPriority).ThenBy(item => item.AttentionCategoryCount).ThenBy(item => item.PendingReviews),
             _ => source.OrderBy(item => SortGroup(item.State)).ThenBy(item => SortDate(item))
         };
 
-        return ordered.ThenBy(item => item.Name).ThenBy(item => item.Id);
+        return ordered.ThenBy(item => item.Id);
     }
 
     private static int SortGroup(EventState state) => state switch
     {
         EventState.Live => 0,
         EventState.Draft or EventState.SignupOpen or EventState.SignupClosed => 1,
-        EventState.AwaitingFinalReview => 2,
-        EventState.Finalized => 3,
-        EventState.Archived => 4,
-        _ => 5
+        _ => 2
     };
 
-    private static long? SortDate(EventRow item) => SortGroup(item.State) switch
-    {
-        1 => item.EventStartsAt?.UtcTicks,
-        2 => item.EventEndsAt is { } eventEndsAt ? -eventEndsAt.UtcTicks : null,
-        3 => (item.FinalizedAt ?? item.EventEndsAt) is { } finalizedAt ? -finalizedAt.UtcTicks : null,
-        4 => (item.ArchivedAt ?? item.FinalizedAt ?? item.EventEndsAt) is { } archivedAt ? -archivedAt.UtcTicks : null,
-        _ => item.EventStartsAt is { } eventStartsAt ? -eventStartsAt.UtcTicks : null
-    };
+    private static long? SortDate(EventRow item) => item.IsPreparation
+        ? (item.EventStartsAt ?? item.SignupOpensAt ?? item.SignupClosesAt)?.UtcTicks
+        : item.State == EventState.Live
+            ? item.ActualStartedAt is { } started ? -started.UtcTicks : null
+            : item.PastDate is { } past ? -past.UtcTicks : null;
 
     public sealed record EventRow(
         Guid Id,
@@ -268,7 +303,7 @@ public sealed class IndexModel(ApplicationDbContext dbContext, IEventLifecycleSe
         DateTimeOffset? EventEndsAt,
         DateTimeOffset? FinalizedAt,
         DateTimeOffset? ArchivedAt,
-        int ParticipantCap,
+        int? ParticipantCap,
         int Confirmed,
         int Waiting,
         int PendingReviews,
@@ -279,7 +314,19 @@ public sealed class IndexModel(ApplicationDbContext dbContext, IEventLifecycleSe
         bool IsHidden = false,
         int ActionCount = 0,
         bool ScheduledOpeningFailed = false,
-        bool ScheduledStartPostponed = false);
+        bool ScheduledStartPostponed = false)
+    {
+        public DateTimeOffset? ActualStartedAt { get; init; }
+        public DateTimeOffset? ActualEndedAt { get; init; }
+        public DateTimeOffset? CancelledAt { get; init; }
+        public EventParticipationSummary? Participation { get; init; }
+        public int AttentionCategoryCount { get; init; }
+        public int AttentionPriority => ScheduledStartPostponed || ScheduledOpeningFailed ? 2 : PendingReviews > 0 ? 1 : 0;
+        public bool IsPreparation => State is EventState.Draft or EventState.SignupOpen or EventState.SignupClosed;
+        public long? ParticipantCount => IsPreparation ? Confirmed : Participation?.Participants.IsAvailable == true ? Participation.Participants.Value : null;
+        public DateTimeOffset? PastDate => State == EventState.Cancelled ? CancelledAt
+            : ActualEndedAt ?? (State == EventState.Archived ? ArchivedAt ?? FinalizedAt : FinalizedAt) ?? EventEndsAt;
+    }
 
     public sealed record StateOption(string Value, string Label);
 }

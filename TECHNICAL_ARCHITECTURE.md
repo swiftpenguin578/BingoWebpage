@@ -210,7 +210,7 @@ Database-specific constraints and indexes are still used where needed. Important
 
 The following operations require a database transaction:
 
-- Event draft creation with its creation audit record
+- Event draft creation with its creation audit record and actor-scoped creation operation
 - Event discard, event-owned setup cleanup, and tombstone audit record
 - Waiting-list promotion
 - Draft pick and undo
@@ -254,6 +254,16 @@ Board and draft administration use two complementary concurrency mechanisms:
 - Tile records retain only objective wording and custom/manual completion criteria. General evidence/submission guidance links to the global Rules and how-to pages, and board approval has no per-tile evidence-instruction invariant.
 
 Discarding an accidental or experimental event is a server-authoritative transaction. The server rechecks that no participants, teams, event-scoped account access, submissions, or evidence exist immediately before cleanup. Racing creation of any protected record makes the discard fail rather than deleting newly created data. Event-owned setup data may be removed, while the terminal event tombstone, retired slug, actor, time, and audit record remain. Event banners are not part of discard or lifecycle processing. Legacy banner storage is handled only by the ordered, banner-only BNR-01 retirement procedure; it never targets evidence, team, tile, catalogue, or unrelated storage.
+
+Event creation uses one focused Application contract and Infrastructure service,
+reusing the minimal aggregate/slug retry transaction previously in the Create
+PageModel. A transaction-scoped PostgreSQL advisory lock over a namespaced
+actor/request identity serializes creation retries and Check again; the operation's
+composite primary key also enforces uniqueness. The service rechecks enabled Admin
+authority and current result visibility. The Web boundary supplies authenticated
+actor identity, validates legacy form shape and renders field errors/redirects.
+A commit with a lost response is recovered by the retained key, without automatic
+creation under another key. No generic receipt framework or new page is required.
 
 ### 6.4 Event timezones
 
@@ -517,7 +527,36 @@ Participants may create evidence for themselves and edit, replace the active scr
 
 The unlisted public signup table treats every participant-facing answer as public in version one. The retained visibility field is fixed/defaulted true for future compatibility; there is no admin-only custom question or post-draft privacy mutation. Confirmed and waiting-listed profiles are shown separately using their primary regular OSRS characters as event-facing names; waiting-listed profiles show exact derived positions. Generated Account/Alt account headings remain consistent. Website username, Discord identity, payment, Admin notes, security data, and audit data never enter the projection. Alt-account answers are excluded from later roster, evidence, progress, and leaderboard projections.
 
-Signup-form changes use versioned application commands. Published forms reject definition mutations while signup is open. The first-response marker and question structural fields are concurrency-checked in the same transaction so a racing signup cannot be accepted under a definition an admin simultaneously rewrites. After the marker is set, the database/application boundary rejects required additions and structural edits; disabling and safe metadata changes create a new form version while preserving question and answer rows.
+AU06 field creation is owned by the existing signup Application/Infrastructure
+service. Both custom-question and secondary Account-field handlers forward the
+current authenticated actor, request identity and immutable submitted form version.
+One concrete operation table records the canonical input fingerprint and created
+ID in the existing Serializable event-lock transaction with definition/audit/version.
+Successful replay is resolved before the stale-baseline/new-write lifecycle gates,
+but after current actor and visible-event authorization. Three bounded fresh
+transaction attempts handle serialization or request-key contention; exhaustion
+returns an explicit retryable result with the same submitted identity/baseline.
+Uncertain commit errors propagate without inventing success or a replacement key.
+Fingerprints contain no clock values or database-roundtripped timestamp values.
+Only the existing Questions default/AddAccount POSTs pass the generic lifecycle
+filter to the signup service, after the existing hidden/discarded checks; all other
+question mutations retain their route gate. No extra service, page, job, generic
+receipt layer or browser workflow is introduced.
+
+Signup-form changes use versioned application commands before draft start while signup is open or closed. The first-response marker and question structural fields are checked in the same Serializable event-lock transaction so a racing signup cannot be accepted under a definition an admin simultaneously rewrites. After the marker is set, new custom questions are normalized to optional and existing answer-shape changes or optional-to-required changes are rejected. Safe metadata edits advance the form version; explicit current-impact deletion retains its existing answer-removal and registration-release semantics.
+
+AU07 response boundary: the ordinary null-to-first-accepted `FirstResponseAt`
+transition alone is response metadata and preserves the editable form version.
+Any simultaneous definition/settings mutation or explicit Version mark/advance
+still advances it. No stale-baseline bypass is permitted. The immutable first
+marker, required/type restrictions and all current guards are rechecked under the
+existing Serializable event lock. A required custom add after that boundary succeeds
+as optional with an explicit `CompletedAsOptional` outcome, explanation and original
+committed definition; there is no rejection or backfill. Exact replay/readback uses
+AU06 identity plus its uniquely linked immutable creation audit and verified original
+intent, preserving the normalization and definition after later edits. Missing or
+corrupt creation audit fails closed without returning a guessed definition or writing.
+
 
 Existing legacy/imported records may temporarily use the private-token compatibility path until Slice 4. Any retained tokens use high-entropy random values with only hashes stored in PostgreSQL and are removed with that migration. Slice 2 adds no claim-token path and never auto-links participant ownership by Discord display name, website username, or OSRS character name.
 

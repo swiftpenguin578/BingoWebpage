@@ -414,6 +414,8 @@ public sealed record NotificationInbox(IReadOnlyList<Guid> EventIds, int Count, 
 public sealed record AdminActionSummary(Guid EventId, int PendingEvidenceCount, bool ScheduledOpeningFailed, bool ScheduledStartPostponed)
 {
     public int Count => PendingEvidenceCount + (ScheduledOpeningFailed ? 1 : 0) + (ScheduledStartPostponed ? 1 : 0);
+    // Directory categories are deliberately distinct from inbox action units.
+    public int CategoryCount => (PendingEvidenceCount > 0 ? 1 : 0) + (ScheduledOpeningFailed ? 1 : 0) + (ScheduledStartPostponed ? 1 : 0);
     public bool HasActions => Count > 0;
 }
 public sealed record AdminActionProjection(

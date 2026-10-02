@@ -16,7 +16,7 @@ using Npgsql;
 
 namespace Bingo.Infrastructure.Signups;
 
-public sealed class SignupService(
+public sealed partial class SignupService(
     ApplicationDbContext dbContext,
     ISecretHasher secretHasher,
     TimeProvider timeProvider,
@@ -137,7 +137,7 @@ public sealed class SignupService(
         }
     }
 
-    public async Task<SignupAdministrationResult> EnableCoCaptainAsync(Guid eventId, Guid questionId, Guid actorAccountId, string actorName, CancellationToken cancellationToken = default)
+    public async Task<SignupAdministrationResult> EnableCoCaptainAsync(Guid eventId, Guid questionId, Guid actorAccountId, string actorName, int? expectedFormVersion = null, CancellationToken cancellationToken = default)
     {
         if (eventId == Guid.Empty || questionId == Guid.Empty || actorAccountId == Guid.Empty || string.IsNullOrWhiteSpace(actorName))
             return new(false, "A current question identity and administrator are required.");
@@ -152,13 +152,16 @@ public sealed class SignupService(
             item => item.EventId == eventId && item.Id == questionId && item.SystemField == SignupSystemField.CoCaptainName,
             cancellationToken);
         if (question is null) return new(false, "The standard co-captain field could not be found.");
+        var form = await dbContext.SignupForms.SingleOrDefaultAsync(item => item.Id == question.SignupFormId && item.EventId == eventId, cancellationToken);
+        if (form is null) return new(false, "This event has no signup form.");
+        if (expectedFormVersion is null || expectedFormVersion != form.Version)
+            return new(false, "This signup form changed while you were editing it. Review the latest values and try again.", FormVersion: form.Version);
         if (question.Active)
         {
             await transaction.CommitAsync(cancellationToken);
-            return new(true);
+            return new(true, FormVersion: form.Version);
         }
-        var form = await dbContext.SignupForms.SingleOrDefaultAsync(item => item.Id == question.SignupFormId && item.EventId == eventId, cancellationToken);
-        if (form is null) return new(false, "This event has no signup form.");
+
         var before = QuestionAuditSnapshot(question);
         try
         {
@@ -169,7 +172,7 @@ public sealed class SignupService(
                 Json(before), Json(QuestionAuditSnapshot(question))));
             await dbContext.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
-            return new(true);
+            return new(true, FormVersion: form.Version);
         }
         catch (Exception) when (!cancellationToken.IsCancellationRequested)
         {
@@ -261,6 +264,29 @@ public sealed class SignupService(
         bool confirmWaitingListDisablement = false,
         CancellationToken cancellationToken = default)
     {
+        var result = await UpdateSignupAdministrationCoreAsync(eventId, expectedVersion, newCap, waitingListEnabled,
+            actorAccountId, actorName, confirmWaitingListDisablement, cancellationToken);
+        if (!result.Succeeded && result.Settings is null && await AdminAsync(actorAccountId, cancellationToken) is not null)
+        {
+            var current = await dbContext.Events.AsNoTracking().SingleOrDefaultAsync(item => item.Id == eventId && item.HiddenAt == null, cancellationToken);
+            if (current is not null) result = result with { Settings = SettingsSnapshot(current) };
+        }
+        return result;
+    }
+
+    private async Task<SignupAdministrationResult> UpdateSignupAdministrationCoreAsync(
+        Guid eventId,
+        long expectedVersion,
+        int newCap,
+        bool waitingListEnabled,
+        Guid actorAccountId,
+        string actorName,
+        bool confirmWaitingListDisablement = false,
+        CancellationToken cancellationToken = default)
+    {
+        SignupSettingsSnapshot? settings = null;
+        SignupAdministrationResult Failure(string error) => new(false, error,
+            SubmittedEventVersion: expectedVersion, Settings: settings);
         await using var transaction = await dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
         try
         {
@@ -272,20 +298,21 @@ public sealed class SignupService(
                 dbContext,
                 new(actorAccountId, actorName),
                 cancellationToken);
-            if (authorizedActor is null) return new(false, "Admin access is required.");
+            if (authorizedActor is null) return Failure("Admin access is required.");
             actorAccountId = authorizedActor.Id;
             actorName = authorizedActor.Username;
 
             var bingoEvent = await LockEventAsync(eventId, cancellationToken);
-            if (bingoEvent is null) return new(false, "The event could not be found.");
-            if (bingoEvent.Version != expectedVersion) return new(false, "This event changed while you were editing it. Review the latest values and try again.");
+            if (bingoEvent is null) return Failure("The event could not be found.");
+            settings = SettingsSnapshot(bingoEvent);
+            if (bingoEvent.Version != expectedVersion) return Failure("This event changed while you were editing it. Review the latest values and try again.");
             if (!bingoEvent.AcceptsWaitingList)
-                return new(false, "Signup administration is read-only after the draft starts or the event has moved on.");
-            if (newCap < 1) return new(false, "Maximum players must be at least 1.");
+                return Failure("Signup administration is read-only after the draft starts or the event has moved on.");
+            if (newCap < 1) return Failure("Maximum players must be at least 1.");
             var waitingCount = await SignupParticipants(eventId).CountAsync(item => item.SignupStatus == SignupStatus.WaitingList, cancellationToken);
             var confirmedCount = await SignupParticipants(eventId).CountAsync(item => item.SignupStatus == SignupStatus.Confirmed, cancellationToken);
             if (newCap < confirmedCount)
-                return new(false, $"Maximum players cannot be lower than the {confirmedCount} confirmed participant(s).");
+                return Failure($"Maximum players cannot be lower than the {confirmedCount} confirmed participant(s).");
 
             var beforeCapacity = bingoEvent.ParticipantCap;
             var beforeWaitingListEnabled = bingoEvent.WaitingListEnabled;
@@ -304,8 +331,8 @@ public sealed class SignupService(
                 // active waiting-list model.
                 bingoEvent.EnableWaitingList();
             }
-            catch (ArgumentOutOfRangeException) { return new(false, "Maximum players must be at least 1."); }
-            catch (InvalidOperationException ex) { return new(false, ex.Message); }
+            catch (ArgumentOutOfRangeException) { return Failure("Maximum players must be at least 1."); }
+            catch (InvalidOperationException ex) { return Failure(ex.Message); }
 
             try
             {
@@ -332,6 +359,8 @@ public sealed class SignupService(
                     waiting = waitingAfter,
                     waitingListEnabled = true
                 };
+                // Even an accepted unchanged value invalidates the submitted operation baseline.
+                bingoEvent.AdvanceVersion();
                 dbContext.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), timeProvider.GetUtcNow(), actorAccountId, actorName, "event.signup_administration_updated", "event",
                     eventId.ToString(), System.Text.Json.JsonSerializer.Serialize(new
                     {
@@ -350,22 +379,28 @@ public sealed class SignupService(
                     System.Text.Json.JsonSerializer.Serialize(before), System.Text.Json.JsonSerializer.Serialize(after)));
                 await dbContext.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync(cancellationToken);
-                return new(true, null, promoted, bingoEvent.ParticipantCap);
+                return new(true, null, promoted, bingoEvent.ParticipantCap, SubmittedEventVersion: expectedVersion, Settings: SettingsSnapshot(bingoEvent));
             }
             catch (Exception) when (!cancellationToken.IsCancellationRequested)
             {
                 await transaction.RollbackAsync(CancellationToken.None);
                 dbContext.ChangeTracker.Clear();
-                return new(false, "Signup administration could not be saved. Please try again.");
+                settings = null;
+                return Failure("Signup administration could not be saved. Please try again.");
             }
         }
         catch (Exception) when (!cancellationToken.IsCancellationRequested)
         {
             await transaction.RollbackAsync(CancellationToken.None);
             dbContext.ChangeTracker.Clear();
-            return new(false, "Signup administration could not be saved. Please try again.");
+            settings = null;
+            return Failure("Signup administration could not be saved. Please try again.");
         }
     }
+    private static SignupSettingsSnapshot SettingsSnapshot(BingoEvent bingoEvent) => new(
+        bingoEvent.Version, bingoEvent.ParticipantCap, bingoEvent.WaitingListEnabled,
+        bingoEvent.RequireSignupCode, bingoEvent.SignupCodeHash is not null);
+
     public async Task<SignupResult> SignUpAuthenticatedAsync(AuthenticatedSignupRequest request, CancellationToken cancellationToken = default)
     {
         var prevalidation = await PrevalidateAuthenticatedNamesAsync(request, cancellationToken);

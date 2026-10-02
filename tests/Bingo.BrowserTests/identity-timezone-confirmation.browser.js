@@ -9,7 +9,7 @@ const partial = fs.readFileSync(`${root}Pages/Shared/_AdminConfirmation.cshtml`,
 const identityScript = fs.readFileSync(`${root}wwwroot/js/event-identity.js`, "utf8");
 
 const identityMarkup = ({ identityUrl, version = "7", name = "Preview event", error = "", preview = true }) => `
-<main id="main-content"><section data-identity-editor data-identity-save-error="Identity save failed.">
+<main id="main-content"><section data-identity-editor data-identity-event-id="fixture" data-identity-save-error="Identity save failed.">
   <form method="post" action="${identityUrl}">
     <div class="validation-summary">${error}</div>
     <input name="Input.Name" value="${name}">
@@ -30,6 +30,7 @@ const identityMarkup = ({ identityUrl, version = "7", name = "Preview event", er
 (async () => {
   let postCount = 0;
   let failedOnce = false;
+  let failureWithoutPreview = false;
   const postBodies = [];
   let serve;
   const server = http.createServer((request, response) => serve(request, response));
@@ -57,11 +58,11 @@ const identityMarkup = ({ identityUrl, version = "7", name = "Preview event", er
         postCount++;
         if (!failedOnce) {
           failedOnce = true;
-          return fulfill({ body: `<!doctype html><html><body class="admin-shell-body">${identityMarkup({ identityUrl, version: "8", name: "Authoritative event", error: "This event changed while you were editing it.", preview: true })}${partial}<script src="/js/admin-confirmation.js"></script><script src="/js/admin-editor-guard.js"></script><script src="/js/event-identity.js"></script></body></html>` });
+          return fulfill({ body: `<!doctype html><html><body class="admin-shell-body">${identityMarkup({ identityUrl, version: "8", name: "Authoritative event", error: "This event changed while you were editing it.", preview: !failureWithoutPreview })}${partial}<script src="/js/admin-confirmation.js"></script><script src="/js/admin-editor-guard.js"></script><script src="/js/event-identity.js"></script></body></html>` });
         }
-        return fulfill({ status: 303, headers: { location: "/saved" } });
+        return fulfill({ status: 303, headers: { location: "/Admin/Events/Manage/fixture" } });
       }
-      if (url.pathname === "/saved") return fulfill({ body: "<!doctype html><html><body><h1>Saved</h1></body></html>" });
+      if (url.pathname === "/Admin/Events/Manage/fixture") return fulfill({ body: "<!doctype html><html><body><h1>Saved</h1></body></html>" });
       if (url.pathname === "/before") return fulfill({ body: "<!doctype html><html><body><h1>Before identity</h1></body></html>" });
       if (url.pathname === "/manage") return fulfill({ body: "<!doctype html><html><body><h1>Manage</h1></body></html>" });
       const preview = url.searchParams.get("mode") !== "ordinary";
@@ -111,10 +112,28 @@ const identityMarkup = ({ identityUrl, version = "7", name = "Preview event", er
     assert.equal(await page.locator("[data-identity-timezone-confirm]").isHidden(), true, "the returned inline confirmation remains hidden");
     assert.equal(await page.locator("[data-identity-timezone-confirm]").isDisabled(), true, "the returned inline submit remains unusable");
     await modal.locator("[data-admin-confirmation-action]").click();
-    await page.waitForURL(`${origin}/saved`);
+    await page.waitForURL(`${origin}/Admin/Events/Manage/fixture`);
     assert.equal(postCount, 2, "the corrected confirmation submits once");
     assert.match(postBodies[0], /name="Input\.Version"[\s\S]*?\r\n\r\n7\r\n/);
     assert.match(postBodies[1], /name="Input\.Version"[\s\S]*?\r\n\r\n8\r\n/, "retry uses the authoritative returned version");
+
+    failedOnce = false;
+    failureWithoutPreview = true;
+    await page.goto(identityUrl);
+    await modal.waitFor({ state: "visible" });
+    await modal.locator("[data-admin-confirmation-action]").click();
+    await page.waitForFunction(() => document.querySelector("input[name='Input.Name']")?.value === "Authoritative event");
+    assert.equal(await page.locator("[data-identity-timezone-preview]").count(), 0);
+    assert.equal(page.url(), identityUrl, "failed response without preview must not reload away the returned draft");
+    assert.match(await page.locator(".validation-summary").textContent(), /event changed/);
+    await page.keyboard.press("Escape");
+    await modal.waitFor({ state: "hidden" });
+    assert.equal(await page.locator("input[name='Input.Name']").inputValue(), "Authoritative event");
+    await page.locator("[data-identity-cancel]").last().click();
+    await modal.waitFor({ state: "visible" });
+    await modal.locator("[data-admin-confirmation-cancel]").click();
+    await modal.waitFor({ state: "hidden" });
+    assert.equal(page.url(), identityUrl, "returned failed draft remains guarded after the preview disappears");
 
     const backPage = await browser.newPage();
     const backErrors = [];
@@ -159,7 +178,7 @@ const identityMarkup = ({ identityUrl, version = "7", name = "Preview event", er
     assert.deepEqual(errors, []);
     assert.deepEqual(ordinaryErrors, []);
     assert.deepEqual(backErrors, []);
-    console.log("PASS identity timezone confirmation: single shared surface, authoritative retry, dirty cancel/back navigation and server-confirmed submit");
+    console.log("PASS identity timezone confirmation: single shared surface, authoritative retry, dirty cancel/back navigation, preview-free error draft retention and server-confirmed submit");
   } finally {
     await browser.close();
     await new Promise(resolve => server.close(resolve));

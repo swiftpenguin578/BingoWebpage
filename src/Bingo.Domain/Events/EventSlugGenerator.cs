@@ -1,7 +1,7 @@
 using System.Globalization;
 using System.Text;
 
-namespace Bingo.Web.Events;
+namespace Bingo.Domain.Events;
 
 public static class EventSlugGenerator
 {

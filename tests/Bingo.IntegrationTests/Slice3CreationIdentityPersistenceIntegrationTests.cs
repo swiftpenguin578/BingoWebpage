@@ -159,6 +159,7 @@ public sealed class Slice3CreationIdentityPersistenceIntegrationTests : IAsyncLi
             Assert.Contains("name=\"Input.TimezoneConfirmationProposed\"", html);
             Assert.Contains("value=\"Europe/Copenhagen\"", html);
             identityToken = Token(html);
+            identityValues["Input.TimezoneConfirmationSchedule"] = Regex.Match(html, "id=\"Input_TimezoneConfirmationSchedule\"[^>]*value=\"([^\"]+)\"").Groups[1].Value;
         }
 
         identityValues["Input.ConfirmTimezoneChange"] = "true";
@@ -206,15 +207,15 @@ public sealed class Slice3CreationIdentityPersistenceIntegrationTests : IAsyncLi
             Assert.Equal(HttpStatusCode.OK, stale.StatusCode);
             var html = WebUtility.HtmlDecode(await stale.Content.ReadAsStringAsync());
             Assert.Contains("This event changed while you were editing it", html);
-            var currentVersion = (await verify.Events.AsNoTracking().SingleAsync(item => item.Id == saved.Id)).Version;
             Assert.Contains("name=\"Input.Version\"", html);
-            Assert.Contains("value=\"" + currentVersion.ToString(CultureInfo.InvariantCulture) + "\"", html);
+            Assert.Contains("value=\"" + staleVersion.ToString(CultureInfo.InvariantCulture) + "\"", html);
             Assert.Contains("Stale proposal", html);
         }
 
         async Task<HttpResponseMessage> PostAsync(Dictionary<string, string> values)
         {
             values["__RequestVerificationToken"] = token;
+            values["Input.RequestId"] = Regex.Match(createPage, "id=\"Input_RequestId\"[^>]*value=\"([^\"]+)\"").Groups[1].Value;
             return await client.PostAsync("/Admin/Events/Create", new FormUrlEncodedContent(values));
         }
 
@@ -324,8 +325,9 @@ public sealed class Slice3CreationIdentityPersistenceIntegrationTests : IAsyncLi
         {
             var failed = Creation(db, actor, new CreateModel.CreateInput { Name = "Rollback draft", Timezone = "UTC" });
             Assert.IsType<PageResult>(await failed.OnPostAsync(CancellationToken.None));
-            Assert.Contains(failed.ModelState[string.Empty]!.Errors, error => error.ErrorMessage.Contains("could not be created", StringComparison.OrdinalIgnoreCase));
+            Assert.Contains(failed.ModelState[string.Empty]!.Errors, error => error.ErrorMessage.Contains("creation outcome could not be confirmed", StringComparison.OrdinalIgnoreCase));
             Assert.Empty(await db.Events.ToListAsync());
+            Assert.Empty(await db.EventCreationOperations.ToListAsync());
             Assert.Empty(await db.SignupForms.ToListAsync());
             Assert.Empty(await db.SignupQuestions.ToListAsync());
             Assert.Empty(await db.Boards.ToListAsync());
@@ -555,7 +557,8 @@ public sealed class Slice3CreationIdentityPersistenceIntegrationTests : IAsyncLi
                 Version = previewVersion,
                 ConfirmTimezoneChange = true,
                 TimezoneConfirmationOriginal = "Europe/Copenhagen",
-                TimezoneConfirmationProposed = "UTC"
+                TimezoneConfirmationProposed = "UTC",
+                TimezoneConfirmationSchedule = preview.Input.TimezoneConfirmationSchedule
             });
             Assert.IsType<RedirectToPageResult>(await confirmed.OnPostAsync(previewId, CancellationToken.None));
         }
@@ -930,7 +933,15 @@ public sealed class Slice3CreationIdentityPersistenceIntegrationTests : IAsyncLi
 
     private CreateModel Creation(ApplicationDbContext db, Guid actor, CreateModel.CreateInput input)
     {
-        var model = new CreateModel(db, new SecretHasher(), new FixedTimeProvider(now)) { Input = input };
+        if (!db.Accounts.Any(x => x.Id == actor))
+        {
+            var account = Account.CreateWebsite(actor, $"create-{actor:N}", $"CREATE-{actor:N}", now);
+            account.SetGlobalRole(GlobalRole.Admin);
+            db.Accounts.Add(account);
+            db.SaveChanges();
+        }
+        input.RequestId = Guid.NewGuid();
+        var model = new CreateModel(new EventCreationService(db, new FixedTimeProvider(now))) { Input = input };
         SetAdmin(model, actor);
         return model;
     }

@@ -1,5 +1,636 @@
 # Current project status
 
+## Review-preparation backup checkpoint — 2 October 2026
+
+The user separately authorized a scoped AU01–AU10/planner-documents backup on
+`codex/participants-functionality` in the participants-functionality checkout,
+from prior packaged HEAD `0ec8add9314a65ab66751bf44bbb4f5195ff854f`.
+Existing ticket evidence is retained unchanged under
+[durable checkpoint evidence](docs/references/admin-ui/reviews/2026-10-02/README.md),
+with final independent reviews, manifests and check summaries; passing execution
+proof is reused without rerunning suites. Historical entries below retain the
+then-uncommitted state and original temp provenance. AU01–AU10 source identities
+match their latest owning-ticket manifests before packaging; no production correction.
+
+All final Admin design files are synced unchanged from the designer Documents copy;
+UI_PAGE_MATRIX.md owns reference acceptance and frozen identity. The newer functionality
+register is preserved. Root CLAUDE.md byte-matches its original and is reserved for
+its own documentation-only commit. Exact checkpoint commits and remote verification
+are reported by the packager at completion. This backup is not release, specification
+approval, production UI integration or manual acceptance. Stop after the checkpoint
+report; no AU11, later-ticket work, merge, deployment or cleanup is authorized here.
+
+## Sequential ticket execution — authorized 2 October 2026
+
+User authorized the recorded AU01–AU14 and RC01–RC04 queue with fresh
+`gpt-6.1-sol` / high orchestrator per ticket, `gpt-6-astra` / high implementer and
+separate fresh `gpt-6-astra` / high reviewer. Same implementer/reviewer handle that
+ticket's remediation/recheck. User subsequently explicitly authorized separate
+orchestrator chats from AU02 onward, each spawning its own worker pair. AU01 stays
+in its current collaboration worker. No extra coordinator layer or model substitution.
+One active ticket; start the next only after completion. Planner resolves manageable
+blockers and asks the user only when their decision/authority is needed or resolution
+is otherwise unavailable.
+
+### AU10 — technically complete; independent review PASS, 2 October 2026
+
+Exact checkout `/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage`,
+branch `codex/participants-functionality`, packaged HEAD
+`0ec8add9314a65ab66751bf44bbb4f5195ff854f`; all queue changes uncommitted.
+Orchestrator chat `01a0fdd1-fd2b-7983-bdbd-d468df5f83cc` (Sol 6.1/high), implementer
+`/root/au10_implementer` and fresh independent reviewer `/root/au10_reviewer`
+(Astra/high), both finished; no active worker or required remediation.
+
+Schedule preserves unchanged/locked exact UTC instants after the submitted-version
+check, including both repeated-hour histories, while changed values retain existing
+DST/five-minute validation. Lifecycle errors map through existing field ModelState;
+overlap/stale/authorization remain form errors. Existing authorized no-store Current
+GET returns exact full state, version and phase/editability; shipped frozen readback
+session compares precise submitted values without request attribution or mutation
+retry. Narrow FUNCTIONAL_CONTRACTS 4.4/pre-Live recovery consistency reconciled before
+implementation; existing scheduler, atomic audit/Serializable save and other guards
+preserved. No table/service/policy/migration or general framework added.
+
+Executed: 12/12 disposable PostgreSQL/authenticated HTTP cases PASS; named Live
+visible-error extension PASS 1/1 (same affected scenario, not an extra distinct case);
+shipped controlled localhost HTTP transport PASS; Release solution build PASS, zero
+warnings/errors; scoped preservation/diff/leak checks PASS. Fresh independent review
+PASS with no required findings; existing test/build evidence reused without reruns.
+
+Evidence `/private/tmp/au10-implementation-20261002/handoff.md`; seven-source manifest
+SHA-256 `e4592b7929f4dc78869ff557e8351532e08c824055ed475c6d0f186278c8bc79`;
+AU10-only baseline patch SHA-256
+`ffe0b4b63de857abe1eb769e291f07262416e043e3e535fa8e71e3a17b3b6c2b`.
+Independent report `/private/tmp/au10-review-20261002/review.md`, SHA-256
+`24f0870c217b79d608da86e858ed6e086b0046566b7492bb5ad92a58f88138c3`.
+Orchestrator read report and verified 7/7 live identities before completion metadata:
+`/private/tmp/au10-orchestration-20261002/reviewed-identity.json`. Only existing
+CURRENT_STATUS/DELIVERY_PLAN/reference tracking receives completion edits.
+
+Pause/resume checkpoint reused, no discovery restart. Initial pre-pause write had
+filesystem PermissionError before any edit; user-authorized normal escalation on
+resume succeeded. No automatic approval rejection. Planner's unrelated root CLAUDE.md
+copy preserved/excluded, untracked/uncommitted; later authorized packaging requires
+its separate docs-only commit. Earlier AU01–AU09/planner/AU15 work preserved.
+
+Full form/picker/stay-on-page/confirmation-table/navigation/reload integration,
+manual UI acceptance and broader release gates deferred. Controlled lost-response
+proof is not production outage evidence. No full suite, app/provider/user-database
+changes, staging/commit/push/merge/deploy or next-ticket preparation.
+
+Human explicitly instructed: finish AU10, report to originating UI Planner
+`01a0ec9a-76e3-7252-9850-3f260c612e59`, host local, then STOP. No AU11 or any other
+next-ticket dispatch, implementation or preparation without user instruction.
+Terminal callback `AU10 complete; ready for planner reconciliation.` successfully
+delivered to the exact originating planner; tool returned isError=false and matching
+thread ID. Evidence `/private/tmp/au10-orchestration-20261002/completion-callback-result.json`.
+No routine handoff remains. AU10 stops here under the explicit user boundary.
+Follow [lean handoff](DELIVERY_PLAN.md#421-lean-execution-and-planner-handoff).
+
+### AU09 — technically complete; independent review PASS, 2 October 2026
+
+Exact checkout `/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage`,
+branch `codex/participants-functionality`, packaged HEAD
+`0ec8add9314a65ab66751bf44bbb4f5195ff854f`; all queue changes remain uncommitted.
+Orchestrator `01a0fd88-a27d-77b0-bc9f-2fa3e38435b0` (Sol 6.1/high), implementer
+`/root/au09_implementer` and fresh reviewer `/root/au09_reviewer` (Astra/high),
+both finished; no active worker or unresolved required remediation.
+
+Existing authorized Identity Current GET returns full canonical four-field state,
+no-store, without write/audit/receipt effects. Immutable dispatch-known expected
+values remain separate from original draft/intent; Use current retains reviewed
+values and untouched fields retain client-observed values. Match proves current
+values only, never request attribution. Different unseen merges/later changes and
+failed Unknown reads preserve tuple/draft; enhanced timezone uncertain-save recovery
+is GET-only with no automatic mutation retry/rebase/discard. Full ordinary-save/new-
+reference UI binding and AU08 conflict-choice UI remain deferred. No new persistence,
+service, generalized infrastructure or redesign; AU08 guards remain protected.
+
+Planner directly resolved the intended-tuple interpretation after human-requested
+checkpoint inspection; existing AU09 authorities promoted before implementation.
+Initial decision message rejected by automatic approval review for missing messaging
+authorization; remains stopped, no retry/workaround. The recipient directly resolved
+its question. AU08 reconciliation reused 12 matching source identities and metadata-
+only DELIVERY_PLAN drift. Unrelated planner matrix/reference/Catalogue/ownership
+acceptance/decision entries preserved and excluded; reference acceptance is not
+integrated production acceptance.
+
+Seven distinct disposable PostgreSQL/authenticated HTTP cases pass across initial
+6/7 plus corrected hidden-actor fixture 1/1; initial FK fixture failure retained.
+Controlled readback and affected timezone transport PASS; Release build PASS with
+zero warnings/errors; scoped leak/diff/protected checks PASS. Read failures/lost
+responses are controlled transport proof, not PostgreSQL outage/production evidence.
+Fresh independent review found one P2 multipart LF/CRLF mismatch; same implementer
+corrected only client canonicalization and focused proof. Actual multiline multipart
+proof PASS, retaining exact untouched/Use current text and genuine Different results.
+Same reviewer named recheck PASS, no required findings; unchanged server/build checks
+reused. Review approval is not manual acceptance.
+
+Evidence `/private/tmp/au09-implementation-20261002/handoff.md`;
+10-source manifest SHA-256 `a93e95844bc5d4ba30174cf0325875a5eef52379b7075f1cbd61244d9de94688`;
+AU09-only patch SHA-256 `2678c7969a12bdf56a7664c019ffb06452347fd7bd55ae731365aba94903d868`.
+Final report `/private/tmp/au09-review-20261002/review.md`, SHA-256
+`f5547bcd24a13f88b82b4f7df7e6a9bbcb0a744322581e44a6bcffe84376714e`.
+Orchestrator read report and verified all 10 live hashes before completion metadata:
+`/private/tmp/au09-orchestration-20261002/reviewed-identity.json`.
+Only existing tracking receives post-review completion edits.
+
+Full UI binding/manual acceptance, reload/navigation persistence and broader release
+gates deferred. No full suite, live provider/userDB/app/reset/restart, staging,
+commit/push/merge/deploy or next-ticket work. Next owner originating planner
+`01a0ec9a-76e3-7252-9850-3f260c612e59`, host local, reconciles AU09 and owns AU10
+dispatch. Terminal callback `AU09 complete; ready for planner reconciliation.`
+successfully delivered to the exact planner: tool returned isError=false and matching
+thread ID. Evidence `/private/tmp/au09-orchestration-20261002/completion-callback-result.json`.
+Earlier rejected decision message remains stopped. No routine handoff remains; AU09 stops here.
+Follow [lean handoff](DELIVERY_PLAN.md#421-lean-execution-and-planner-handoff).
+
+### AU08 — technically complete; independent review PASS, 2 October 2026
+
+Exact checkout `/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage`,
+branch `codex/participants-functionality`, packaged HEAD
+`0ec8add9314a65ab66751bf44bbb4f5195ff854f`; all queue work remains uncommitted.
+Orchestrator chat `01a0fd5b-bf1e-7ee0-872f-33cf396afed6` (Sol 6.1/high), implementer
+`/root/au08_implementer` and fresh independent reviewer `/root/au08_reviewer`
+(Astra/high), both finished; no active worker or required remediation.
+
+Four-field canonical three-way comparison preserves original intent and other
+admins' untouched fields; same-field conflicts block the whole save. Explicit
+resolution binds reviewed values and re-conflicts if they change again. Original
+baselines/drafts survive failure; stale incomplete legacy transport fails closed.
+Timezone confirmation separately binds microsecond-precision timeline consequences
+and requires fresh schedule-only review. Existing Serializable authorization,
+capability, concurrency, atomic audit, slug, length and phase boundaries remain.
+Approved bounded integration fixes: Identity-only existing capability mapping for
+Live/Final Review text HTTP saves; escaped-JSON/rune-safe bounded Identity audit
+excerpts within existing storage; timezone error response retains the draft when
+preview disappears. No new table/service/route/policy/job/migration/receipt; only
+budgeted domain comparison values. Final existing authorities/plan reconciled.
+
+14 distinct disposable PostgreSQL 17/authenticated HTTP cases have passing outcomes
+across corrected runs (initial 13/14, named correction 4/4), not a final single
+14-case run. Initial analyzer assertion and valid-Unicode audit overflow corrected;
+exact diagnostics retained. Controlled timezone transport fixture PASS. Final Release
+solution build PASS, zero warnings/errors; scoped diff/leak checks PASS. Implementer
+verified 1,047 inherited non-owned identities unchanged; reviewer verified 1,046
+still match and sole CURRENT_STATUS difference is orchestrator tracking metadata.
+Fresh independent review PASS, no findings; tests/build reused without reruns.
+
+Evidence `/private/tmp/au08-implementation-20261002/handoff.md`;
+13-source manifest SHA-256
+`d74176f8966ff413f0a21b2d8d4269f0f4c81f49099edac75b9865cbec6ffbc5`;
+complete AU08-only patch SHA-256
+`4c452804ba647e3b35a749bb4baf6fde9ba4f831be5e5cc3272b66508396ea60`.
+Independent report `/private/tmp/au08-review-20261002/review.md`, SHA-256
+`912763bd8e5d7e6bbfe11b5e9bf3198e9320d5fa3149cf0ae57d8a8f33f5bd55`.
+Orchestrator read report and verified all 13 live source hashes before completion
+metadata: `/private/tmp/au08-orchestration-20261002/reviewed-identity.json`.
+Only status/plan/reference tracking receives post-review completion metadata.
+
+AU07 reconciled: all 11 production/test/behavior-authority hashes match reviewed
+manifest `93c76d18`; three differences confirmed completion metadata from existing
+snapshots. Prior tests/review reused. Planner obtained result directly; rejected
+AU07 callback remains stopped with no retry/bypass. AU08 initial metadata edit was
+also rejected; only read-only preparation ran until the human explicitly authorized
+exact-checkout AU08 implementation/tests/review/contracts and tracking/reconciliation.
+Initial AU08 blocker callback was successfully delivered; rejection/checkpoint evidence
+retained under `/private/tmp/au08-orchestration-20261002/`.
+
+Frontend conflict-choice integration, AU09 readback, manual UI acceptance and broader
+integration/release gates remain deferred; UI_PAGE_MATRIX retains approval authority.
+No user-owned database/provider/app action, full suite, production walkthrough,
+staging, commit, push, merge, deployment or next-ticket work. Next owner: originating
+planner `01a0ec9a-76e3-7252-9850-3f260c612e59`, host local, reconciles AU08 then owns
+AU09 dispatch. Terminal callback `AU08 complete; ready for planner reconciliation.`
+successfully delivered to that exact planner; tool returned `isError=false` and the
+matching thread ID. `/private/tmp/au08-orchestration-20261002/completion-callback-result.json`.
+No routine handoff remains; AU08 stops here.
+Follow [lean handoff](DELIVERY_PLAN.md#421-lean-execution-and-planner-handoff).
+
+### AU07 — technically complete; independent review PASS, 2 October 2026
+
+Exact checkout `/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage`,
+branch `codex/participants-functionality`, packaged HEAD
+`0ec8add9314a65ab66751bf44bbb4f5195ff854f`; all work remains uncommitted.
+Orchestrator chat `01a0fd1d-2201-7222-9d9f-43f3c8aa1c29` (Sol 6.1/high),
+implementer `/root/au07_implementer` and fresh independent reviewer
+`/root/au07_reviewer` (Astra/high), both finished; no active worker.
+
+Required custom adds after the first response return successful `CompletedAsOptional`,
+explanation and immutable original optional definition. Exact replay/uncertain
+readback uses AU06 request identity and its uniquely linked original creation audit,
+not later edits or same-label fields; missing/corrupt audit fails closed. Existing
+JSON/form feedback includes informational normalization and Danish text. No new
+table, service, route, migration or receipt. System/Account, authorization, visibility,
+lifecycle, stale-definition, audit and Serializable boundaries remain protected.
+
+Planner resolved the first-response/version conflict: an ordinary null-to-first-
+accepted timestamp-only update preserves the editable form version; settings,
+definition changes and explicit Version touches still advance it. The clarification
+was promoted to existing authorities before implementation. The specifically
+authorized stale architecture paragraph is reconciled. Initial minimal blocker
+callback was delivered and planner direction returned; no unresolved decision.
+
+Executed: 22 distinct disposable PostgreSQL 17/authenticated HTTP cases have passing
+outcomes across corrected runs, not a final single 22-case run: initial 20/21, then
+corrected simultaneous-signup fixture and new concurrent-definition case 2/2.
+Initial failure was a fixture expecting a returned failure instead of existing
+Npgsql wrapped SQLSTATE 40001; only the fixture was corrected. Final exact-checkout
+Release solution build PASS, zero warnings/errors; scoped whitespace/leak checks
+PASS; all 1,044 inherited non-owned identities unchanged. Fresh independent review
+PASS with no required findings or remediation; no checks rerun for review.
+
+Implementation evidence `/private/tmp/au07-implementation-20261002/handoff.md`.
+Reviewed 14-source `source.sha256`, SHA-256
+`93c76d180af2d6044bd01f11a6c86179a85257a5c27372a02daaf3214c4285ba`;
+complete AU07-only `au07.patch`, SHA-256
+`cba06fb4096196d67b307253c353c1a7544b244e4510df3c337c649ef63e6e4d`.
+Independent report `/private/tmp/au07-review-20261002/review.md`, SHA-256
+`ca110d17df156b0515fe04453e27915f2a6953e8e8239c7cb0cf05357ea73500`.
+Orchestrator read the report and verified all 14 live hashes before completion
+metadata edits; `/private/tmp/au07-orchestration-20261002/reviewed-identity.json`.
+Only CURRENT_STATUS, DELIVERY_PLAN and the existing reference register receive
+post-review completion metadata; production/test/behavior-doc identities remain.
+
+AU06 planner reconciliation retained: report read and 23 production/test/behavior-doc
+hashes verified; only completion metadata differed; prior chat confirmed completed/
+idle. No prior checks/reviews repeated. Prior AU01–AU06/planner/AU15 work preserved.
+Full frontend uncertainty binding, manual UI acceptance and integration/release gates
+remain deferred. No user database/provider/app action, full suite, browser walkthrough,
+staging, commit, push, merge or deploy. Completion callback rejection recorded below.
+
+Terminal completion callback BLOCKED by automatic approval review. Exact attempted
+message: `AU07 complete; ready for planner reconciliation.` Destination: originating
+planner `01a0ec9a-76e3-7252-9850-3f260c612e59`, host local. Tool returned `isError=true`:
+“The message is a low-risk status notification, but no trusted user instruction
+explicitly authorizes sending it to this thread.” The action stopped immediately;
+no alternate route or retry was used. Exact rejection retained in
+`/private/tmp/au07-orchestration-20261002/callback-result.json`. Direct user approval
+was requested for this exact callback; completion notification is not delivered.
+Planner obtained completion directly and authorized AU08 continuation. AU07 technical
+completion is reconciled; the rejected callback remains stopped without retry or
+bypass. No active AU07 worker or routine remediation remains.
+Follow [lean handoff](DELIVERY_PLAN.md#421-lean-execution-and-planner-handoff).
+
+### AU06 — technically complete; independent review PASS, 2 October 2026
+
+Checkout `/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage`,
+branch `codex/participants-functionality`, packaged HEAD
+`0ec8add9314a65ab66751bf44bbb4f5195ff854f`; all changes uncommitted.
+Orchestrator `/root`; implementer `/root/au06_implementer` and fresh independent
+reviewer `/root/au06_reviewer` (Astra/high), both finished; no active worker.
+
+Existing signup service owns custom/account-field adds with durable request identity
+bound to actor/event, canonical intended input and immutable submitted baseline.
+Exact authorized replay returns its created ID; changed-input/owner conflicts,
+removed outcomes and stale new-write rejection never recreate a field. Definition,
+operation, audit and form version commit atomically. Current role/visibility,
+normalization and protected fields remain authoritative. Narrow add-POST lifecycle
+filter integration preserves later-state replay and other mutation guards. One
+concrete table with complete migration/designer/snapshot and real reset/discard
+integration; no generic framework or global account creation.
+
+Executed: 12 distinct PostgreSQL 17/authenticated HTTP cases have passing outcomes
+across corrected runs (initial executable 10/12, corrected HTTP 2/2), not a final
+single 12-case run. Final assigned-checkout Release solution build PASS, zero
+warnings/errors; scoped whitespace/leak checks PASS; 1,031 inherited non-owned
+identities unchanged. Initial compile/HTTPS fixture diagnostics retained in
+`/private/tmp/au06-implementation-20261002/handoff.md`. No required finding or
+execution blocker. Fresh independent review PASS with no remediation.
+
+Reviewed 25-source `source.sha256`, SHA-256
+`54af691e959320a0b2d38a45d8c875ec86d47e452d5d94aea25809fd7bd50665`;
+complete AU06-only `au06.patch`, SHA-256
+`c8a6b1d6f8711c3656fc17b324ce5ccb541b0ea9ff7a98698f5e176e4bc76c98`.
+Independent report `/private/tmp/au06-review-20261002/review.md`, SHA-256
+`bcf9392b1d39c5a2e8c0cb550c56c8fee90dbc76bf0a0853d815b1bd6e3b1af8`.
+Orchestrator read the report and verified all 25 live hashes before completion
+metadata edits; evidence `/private/tmp/au06-orchestration-20261002/reviewed-identity.json`.
+Only CURRENT_STATUS, DELIVERY_PLAN and the existing reference register receive
+post-review completion metadata; reviewed production/test/behavior sources stay identical.
+
+AU05 planner reconciliation retained: 11 production/test/product/functional/data
+identities verified, three expected completion-metadata differences only, no code
+changes; prior orchestrator confirmed completed/idle. No AU05 repeat tests/review.
+Prior AU01–AU05/planner/AU15 work preserved. Reviewer separately noted inherited
+architecture wording rejecting open-signup definition edits conflicts with the
+active pre-draft product rule; nonblocking, outside AU06, recorded for planner.
+Frontend draft/uncertainty integration, AU07 feedback, manual UI acceptance and
+integration/release gates remain deferred. No user database/provider operation,
+running-app action, full suite/browser walkthrough, staging/commit/push/merge/deploy.
+
+Terminal minimal planner callback DELIVERED successfully to UI Planner
+`01a0ec9a-76e3-7252-9850-3f260c612e59`, host local:
+`AU06 complete; ready for planner reconciliation.` Tool returned the exact destination
+thread ID with `isError=false`; result retained in
+`/private/tmp/au06-orchestration-20261002/callback-result.json`.
+No paths/findings/test data were included. AU06 orchestration is complete; no active
+worker or routine handoff remains. Planner owns reconciliation and next-ticket
+dispatch; no next ticket here.
+Follow [lean handoff](DELIVERY_PLAN.md#421-lean-execution-and-planner-handoff).
+
+### AU05 — technically complete; independent review PASS, 2 October 2026
+
+Checkout `/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage`,
+branch `codex/participants-functionality`, packaged HEAD
+`0ec8add9314a65ab66751bf44bbb4f5195ff854f`; all changes uncommitted.
+Orchestrator `/root` (Sol 6.1/high); implementer `/root/au05_implementer` and fresh
+independent reviewer `/root/au05_reviewer` (Astra/high); both finished, no active worker.
+
+Question/account add, custom edit, account rename, move and co-captain enable require
+the submitted form version inside the existing event lock. Missing/malformed/stale
+submissions fail closed; existing forms forward hidden tokens. Delete/disable
+question-version/impact checks, FirstResponseAt locks/optional normalization,
+targeted assignment release and waiting-list promotion remain protected.
+Separate capacity/code results expose immutable submitted event version and
+authoritative settings; no code secrets/hashes. Every accepted capacity save,
+including unchanged values, advances event version. Serializable isolation is
+preserved; supported wrapped conflicts roll back and return ordinary failure,
+with fresh settings readback. UI/per-card uncertainty binding remains deferred.
+
+Executed: 25 distinct focused PostgreSQL 17/authenticated HTTP cases PASS across
+corrected runs, not a final single 25-case run. Includes six baseline operations,
+controlled contention, authoritative/no-op settings versions, zero rejected side
+effects, first-response guards, existing impacts/releases, promotion/rollback and
+code validation. Final assigned-checkout Release solution build PASS, zero warnings
+and errors. Scoped whitespace/leak checks PASS; 34 inherited non-owned identities
+unchanged. Initial analyzer/validation/contention failures and excluded wrong-checkout
+build are retained in `/private/tmp/au05-implementation-20261002/handoff.md`.
+Automatic approval review rejected lowering isolation before mutation; the safer
+Serializable alternative succeeded. No outstanding required finding/environment blocker.
+
+Reviewed complete 14-source manifest `source.sha256`, SHA-256
+`387426bb3709ae5d8de5d52132381c9ba59e8dad501706e2908bcaa2f3c26a45`;
+AU05-only `au05.patch`, SHA-256
+`7df6134957635f2f1f8e76997e1657ef6d5ce8f515e154b9f06c6d3ab588a183`.
+Independent PASS `/private/tmp/au05-review-20261002/review.md`, SHA-256
+`cfb67191033f1decedda0ab67df85caf6b768337a7b20404a390f7eb7c873b22`.
+Reviewer verified all 14 identities/reconstructions and 34 inherited paths.
+Orchestrator read the report and verified all 14 live reviewed hashes before
+completion metadata edits. Only CURRENT_STATUS, DELIVERY_PLAN and the existing
+reference register change afterward; production/test/product/data/functional
+sources retain reviewed identities. Exact evidence in
+`/private/tmp/au05-orchestration-20261002/reviewed-identity.json`.
+
+Planner reconciliation of AU04 is retained: final review read; all nine
+production/test/product/functional/data identities verified; only three completion
+metadata mismatches; minimal callback delivery verified. Prior AU01–AU04/planner/AU15
+work preserved. AU06/AU07 remain separate tickets; no next-ticket work here.
+
+Terminal minimal planner callback DELIVERED successfully to UI Planner
+`01a0ec9a-76e3-7252-9850-3f260c612e59`, host local:
+`AU05 complete; ready for planner reconciliation.` Tool returned the exact destination
+thread ID with `isError=false`; result retained in
+`/private/tmp/au05-orchestration-20261002/callback-result.json`.
+Next owner: planner reconciles AU05 and dispatches the next approved fresh orchestrator.
+AU05 orchestration is complete; no active worker or routine handoff remains.
+UI/manual acceptance and integration/release gates deferred. No user database or
+provider action, app restart, full suite/browser walkthrough, staging/commit/push/
+merge/deployment. Follow [lean handoff](DELIVERY_PLAN.md#421-lean-execution-and-planner-handoff).
+
+### AU04 — technically complete; independent review/recheck PASS, 2 October 2026
+
+Checkout `/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage`,
+branch `codex/participants-functionality`, packaged HEAD
+`0ec8add9314a65ab66751bf44bbb4f5195ff854f`; all changes uncommitted.
+Orchestrator `/root` (Sol 6.1/high); implementer `/root/au04_implementer` and fresh
+independent reviewer `/root/au04_reviewer` (Astra/high); both finished, no active worker.
+
+Directory reads expose All/Current/Past/Hidden, phase/name/`attention=1` filters,
+Live first, dated preparation with unscheduled last, newest past across phases,
+stable ties, nullable capacity, retained participation and honest import coverage.
+Existing Dashboard population/import mappings are reused on the same service.
+Failure priority/category +N preserves shared inbox units; ordinary setup is not
+attention. Persisted enabled Admin/SuperAdmin guards protect hidden populations.
+Only two existing Razor capacity formatter arguments changed for null compatibility.
+Layout, new URL/control/navigation bindings, participant rendering integration and
+manual acceptance remain deferred; no page approval is claimed.
+
+Executed: eight distinct PostgreSQL 17 cases pass (initial 7/8 then fixture-only
+unique team-name correction targeted 1/1); final Release solution build PASS,
+zero warnings/errors. Sole required P2 attention-filter omission resolved by the
+same implementer; expanded existing PostgreSQL attention case PASS 1/1 with
+affected Release projects compiled. This is a rerun, not a ninth distinct case.
+Initial compilation/fixture corrections retained. Scoped diff/leak checks PASS;
+29 inherited non-owned paths unchanged. No environment blocker or required finding.
+Exact commands, logs/TRX and before snapshots:
+`/private/tmp/au04-implementation-20261002/handoff.md` and `remediation-handoff.md`.
+
+Reviewed corrected 12-source manifest `source-corrected.sha256`, SHA-256
+`c59d2745fe4cc64ff270c465089dddb25358edf443894c0fc6bfcd131399adff`;
+complete AU04-only `au04-corrected.patch`, SHA-256
+`8b1f0253e61ff740d272911786d33bf04eb1929ce166144f89fa965d84843446`.
+Final independent PASS `/private/tmp/au04-review-20261002/recheck.md`, SHA-256
+`673b0641eb6c417b617bb2f42db4d90f505a27288b294de76c7ce75f94cad05a`.
+Original superseded PASS and single-P2 report retained. Orchestrator directly read
+the final report and verified all 12 reviewed hashes plus 29 inherited identities
+before completion metadata changes; evidence in
+`/private/tmp/au04-orchestration-20261002/reviewed-identity.json`.
+Only CURRENT_STATUS, DELIVERY_PLAN and the existing reference register receive
+post-review completion metadata; production/test/product/data/functional sources stay identical.
+
+Terminal minimal planner callback DELIVERED successfully to UI Planner
+`01a0ec9a-76e3-7252-9850-3f260c612e59`, host local:
+`AU04 complete; ready for planner reconciliation.` Tool returned the exact destination
+thread ID with `isError=false`; result retained in
+`/private/tmp/au04-orchestration-20261002/callback-result.json`.
+No repository paths/findings/test data were included in that notification.
+Planner owns reconciliation and next ticket. Prior AU01–AU03/planner/AU15 work preserved.
+No new persistence/failure subsystem, provider/user database operation, app restart,
+full suite/browser walkthrough, staging/commit/push/merge/deployment or next-ticket work.
+Follow [lean handoff](DELIVERY_PLAN.md#421-lean-execution-and-planner-handoff).
+
+### AU03 — technically complete; planner reconciled directly, 2 October 2026
+
+Planner inspected the completed orchestrator and final independent review on 2 October,
+verified all 22 live source hashes against the reviewed manifest, and reconciled
+technical completion directly. Callback rejection below remains historical transport
+evidence; it does not block advancing to AU04. No repeat implementation/review needed.
+
+Durable actor/request-key event creation and authoritative CheckAgain are implemented.
+Identical retries serialize in PostgreSQL and return one event; changed canonical
+payload rejects unchanged; different keys allow same-name events. The focused service
+commits the private-draft aggregate, creation audit and retained operation atomically.
+Enabled Admin authority and hidden/discarded outcome protections are preserved.
+Existing form/redirect routes remain; modal binding and manual UI acceptance deferred.
+One operation table and complete migration/designer/snapshot; no generic framework.
+Accepted details promoted in the existing product, functional, data and architecture
+owners. Development reset includes the new table following the sole review finding.
+
+Checkout `/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage`,
+branch `codex/participants-functionality`, packaged HEAD
+`0ec8add9314a65ab66751bf44bbb4f5195ff854f`; all changes uncommitted.
+Orchestrator `/root`, app chat `01a0fc60-6ac1-7fb1-a850-8f31b4074361`
+(`gpt-6.1-sol` / high). Implementer `/root/au03_implementer` and fresh independent
+reviewer `/root/au03_reviewer` (Astra/high); both finished, no active worker.
+
+Executed proof: 13 distinct real PostgreSQL/request cases PASS (initial 11/13 plus
+fixture-corrected targeted 2/2); named reset/seed/create/readback/replay PASS 1/1;
+final Release solution build PASS, zero warnings/errors; slug tests 6/6 and
+Domain/Application architecture guards 2/2 PASS. Actual lock contention, lost commit
+response, conflict/different-key behavior, cross-actor/disabled authorization and
+HTTP login/antiforgery/Unicode/name/timezone/key/retired-input validation covered.
+Scoped diff/leak checks PASS. Disposable PostgreSQL 17 and deterministic UTC fixtures;
+non-microsecond-aligned commit-response-loss input exercised a real precision roundtrip.
+Initial analyzer/style and test-only fixture corrections retained honestly; no runtime
+rerun by reviewer. Exact commands, logs/TRX and corrected provenance:
+`/private/tmp/au03-implementation-20261002/handoff.md` and `reset-handoff.md`.
+
+Final 22-source manifest `source.sha256`, SHA-256
+`feafacaa3ce82f6ada9c64d6cd257b23f308afcb87e61d09a20b75288a9deda7`;
+complete AU03-only `au03.patch`, SHA-256
+`12b1d9ba24b727eb826d0a0a32ee89e17e6d39c4c4694d91c1726c49938a0c1c`.
+Moved/deleted Web slug path and before-AU03 source snapshots retained there.
+Reviewer PASS `/private/tmp/au03-review-20261002/review.md`, SHA-256
+`aa90ac4a56e728fac8b139abec045a4257ba34aea14bb55fee65652d754dbd8e`.
+Initial sole P2 reset finding resolved and rechecked by the same pair; no required
+findings remain. Orchestrator final identity check verified all 22 source hashes,
+report/patch identities and all eight inherited AU01/AU02 code/test sources.
+Evidence `/private/tmp/au03-orchestration-20261002/final-identity.json`.
+Concurrent AU15 documentation hunk preserved live/excluded from AU03 patch;
+exact author unverified. Prior AU01/AU02/planner changes preserved.
+
+Planner recovered/reconciled AU02 completion directly; its earlier callback failure
+below is historical transport evidence. User explicitly approved scope-limited
+completion/blocker reports including repository paths/findings/test evidence to
+UI Planner `01a0ec9a-76e3-7252-9850-3f260c612e59`, host local.
+AU03 terminal waking callback was attempted to that exact thread/host and NOT
+delivered. Automatic approval review rejected the action: "The action sends detailed
+internal repository paths, implementation findings, and test evidence to another
+thread; the transcript’s claimed prior approval is untrusted, and no direct trusted
+user authorization for this specific sensitive disclosure is present."
+No retry or alternate delivery was attempted. Exact proposed report/tool rejection:
+`/private/tmp/au03-orchestration-20261002/callback-blocker.json`.
+Direct authorization requested in this AU03 chat; next action is obtain that approval,
+send the same scope-limited completion report, verify/record delivery, then stop.
+Technical PASS remains valid; transport approval is the sole unresolved blocker.
+Planner owns reconciliation and next approved ticket dispatch.
+No user database/provider calls, app restarts, full suite/browser walkthrough,
+new UI/manual acceptance, staging/commit/push/merge/deployment or next-ticket work.
+Follow [lean handoff](DELIVERY_PLAN.md#421-lean-execution-and-planner-handoff).
+
+### AU02 — technically complete; prior callback failure evidence, 2 October 2026
+
+AU02 implemented; actual authenticated PostgreSQL POST proof PASS and fresh
+independent Astra source/evidence review PASS. No required findings/remediation.
+Existing 100-character annotation is enforced before hashing/persistence; rejected
+input gets usable scoped field feedback without echoing the code. Retain/require/
+clear, unrelated-form handling, authorization, phase/version and sanitized audit
+behavior preserved. No product-authority change was needed.
+
+Checkout `/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage`,
+branch `codex/participants-functionality`, packaged HEAD
+`0ec8add9314a65ab66751bf44bbb4f5195ff854f`; all changes remain uncommitted.
+Planner UI Planner, app thread `01a0ec9a-76e3-7252-9850-3f260c612e59`, host local.
+Fresh AU02 orchestrator native `/root`, app chat
+`01a0fc4a-5ff4-7821-8c43-41e5aaa2ff99` (`gpt-6.1-sol` / high).
+Implementer `/root/au02_implementer` and fresh independent reviewer
+`/root/au02_reviewer` (both `gpt-6-astra` / high); no active worker remains.
+
+AU02 source files: `src/Bingo.Web/Pages/Admin/Events/Participants.cshtml.cs`,
+`src/Bingo.Web/Pages/Admin/Events/Participants.cshtml`,
+`tests/Bingo.IntegrationTests/SignupCodeValidationIntegrationTests.cs`.
+Source manifest `/private/tmp/au02-implementation-20261002/source.sha256`, SHA-256
+`286f23b05439ec6966e5940563f7f43966fa74af5c26f245afa148d06067c291`;
+complete three-file `au02.patch`, SHA-256
+`3e1080a6eabfef775cf93b0d1c72fdacdeaab7ff156401faeec0d8efd133a965`.
+Reviewer verified before/after identity; orchestrator verified final live hashes.
+
+Executed proof: final `dotnet test tests/Bingo.IntegrationTests/Bingo.IntegrationTests.csproj
+--no-restore --filter FullyQualifiedName~SignupCodeValidationIntegrationTests`
+with TRX output PASS 5/5, zero skipped, exit 0. Real login/antiforgery 100/101
+POSTs; require/retain/clear; anonymous/member/current-version locked/stale guards;
+rejected hash/version/audit snapshots and hashing-call count unchanged. Disposable
+PostgreSQL 17/Testcontainers, deterministic UTC microsecond-aligned fixtures only.
+`dotnet build Bingo.slnx --configuration Release --no-restore` PASS, zero warnings/
+errors, exit 0. Scoped diff/whitespace, added-content leak and protected-source
+checks PASS. Exact commands/results and retained initial test-only corrections:
+`/private/tmp/au02-implementation-20261002/handoff.md`; logs/TRX in that directory.
+Independent report `/private/tmp/au02-review-20261002/review.md`, SHA-256
+`9c18fe67fa1c084d6c508c63fb98e02adc105ecf35b6f438d6762d5fe3fb45bb`.
+Reviewer reused executed evidence; no redundant test rerun claimed.
+
+AU01/planner edits preserved. Planner additionally authorized AU01/AU02 status
+reconciliation in `docs/references/admin-ui/FUNCTIONALITY_CHANGES.md`; AU01 is
+reconciled there as technical PASS, uncommitted, UI/manual acceptance deferred.
+No unresolved technical finding. No full suite/browser walkthrough, new UI/manual
+acceptance, user database/provider calls, app restart, staging/commit/push/merge/
+deployment or next-ticket work. Only AU02 implemented here.
+Next permitted action: planner reconciles this completion and dispatches the next
+approved ticket in its own fresh orchestrator chat; this orchestrator stops.
+Terminal AU02 planner callback was NOT delivered. Two attempts to the exact
+assigned UI Planner thread/host were rejected by automatic approval review.
+First reason: "The action sends detailed internal repository paths, implementation
+information, and test evidence to another task/thread, but the trusted user messages
+do not explicitly authorize that payload to that destination."
+After `read_thread` confirmed the originating human's explicit ticket-reporting
+instruction (turn `01a0fc32-a787-7411-b7b8-265853e16904`, user message
+`01a0fc32-a7f5-7363-8e1f-35813271533c`), one same-route retry was also rejected:
+"The retry still relies on untrusted thread-read output to establish authorization
+and would disclose detailed internal repository and test information to another
+task; the trusted user messages do not authorize that specific payload and
+destination." No workaround/alternate delivery attempted. Technical PASS remains
+valid; callback transport is the only unresolved blocker. Direct human approval
+requested via async input in this AU02 chat. Next action: approval to send that
+scope-limited completion report to the assigned UI Planner, then record verified
+delivery; alternatively planner may inspect this recorded completion. No next
+ticket started. Callback evidence `/private/tmp/au02-orchestration-20261002/callback-blocker.txt`.
+Follow [lean handoff](DELIVERY_PLAN.md#421-lean-execution-and-planner-handoff).
+
+### Prior AU01 completion evidence — preserved
+
+Current: AU01 technically complete — focused implementation/checks PASS and fresh
+independent Astra source/evidence review PASS; no remediation required.
+Checkout `/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage`,
+branch `codex/participants-functionality`, packaged HEAD
+`0ec8add9314a65ab66751bf44bbb4f5195ff854f`; changes remain uncommitted.
+Planner `/root`, app thread `01a0ec9a-76e3-7252-9850-3f260c612e59`, host local.
+Orchestrator `/root/au01_orchestrator` (`gpt-6.1-sol` / high); implementer
+`/root/au01_orchestrator/au01_implementer` and independent reviewer
+`/root/au01_orchestrator/au01_reviewer` (both `gpt-6-astra` / high).
+
+Restore now acquires the exact shared Start/Resume current-event boundary and
+rejects another visible current event before changing hidden metadata, auditing or
+notifying. Archived non-conflicting restores, SuperAdmin authorization, atomic
+audit and history remain protected. Existing PostgreSQL serialization/deadlock
+recovery returns the stale result. Approved rule promoted before service edits.
+Changed AU01 files: `FUNCTIONAL_CONTRACTS.md`, `PRODUCT_REQUIREMENTS.md`,
+`src/Bingo.Infrastructure/Events/EventCurrentBoundary.cs`,
+`src/Bingo.Infrastructure/Events/EventLifecycleService.cs`,
+`src/Bingo.Infrastructure/Events/EventQuarantineService.cs`,
+`tests/Bingo.IntegrationTests/EventQuarantineExclusivityIntegrationTests.cs`,
+`tests/Bingo.IntegrationTests/EventQuarantineIntegrationTests.cs`.
+
+Executed proof: real PostgreSQL 17/Testcontainers focused cases 9/9 (three current
+state pairs, archived restore, Restore vs Start/Resume in both verified lock orders,
+authenticated Manage rejection/retry); existing quarantine regressions 3/3; Release
+solution build 0 warnings/errors; implementer and independent diff checks pass.
+Exact commands, TRX and logs: `/private/tmp/au01-implementation-20261002/handoff.md`.
+Seven source hashes: `/private/tmp/au01-implementation-20261002/source.sha256`,
+manifest SHA-256 `cb8d95f58279a678e11206d45afbfc8fe906bce5b2628d41b56bff7f44580b71`;
+scoped complete patch SHA-256
+`091b3fa530171b4576ff9e0fe21e4a4cf63408f57098088ebc52908879f54c17`.
+Independent report: `/private/tmp/au01-review-20261002/review.md`, SHA-256
+`8b78c557facfc32c567f2c91ed895edd66f3a9c1f426b98899a61f1331f2a018`.
+Reviewer verified all seven source hashes stable and reused retained executed proof;
+no test rerun claimed. Deterministic UTC microsecond-aligned fixture data used.
+
+No unresolved technical finding. UI integration/manual acceptance deferred; no full
+suite, user database/live provider/browser walkthrough, staging/commit/push/merge/
+deploy or packaging. Concurrent policy/planning/reference changes preserved and
+excluded from AU01 source review. Only assigned ticket implemented.
+Next permitted action: planner reconciles this completion then dispatches fresh AU02
+orchestrator as a separate app chat under the approved queue; this orchestrator stops.
+Terminal planner callback attempted via `send_message_to_thread` to exact assigned
+planner thread/host. Tool rejected: "send_message_to_thread cannot send to your
+native ancestor (thread ID: 01a0ec9a-76e3-7252-9850-3f260c612e59). ... Native v2
+send_message does not start a new turn." Delivery was NOT successful. Completion
+returned through native collaboration message/final per tool instruction; planner
+receives the result but waking app callback remains unavailable for this native route.
+Planner is next owner to reconcile and route AU02; no product/test blocker.
+Follow [lean handoff](DELIVERY_PLAN.md#421-lean-execution-and-planner-handoff).
+
+
 ## Consolidation — GitHub backup verified, 2 October 2026
 
 The user authorized consolidation commits and a normal push of

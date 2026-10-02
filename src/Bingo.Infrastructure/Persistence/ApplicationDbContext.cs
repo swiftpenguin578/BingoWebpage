@@ -37,7 +37,16 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
         foreach (var entry in ChangeTracker.Entries<EventParticipantCharacter>().Where(entry => entry.State == EntityState.Modified))
             entry.Entity.AdvanceVersion();
         foreach (var entry in ChangeTracker.Entries<SignupForm>().Where(entry => entry.State == EntityState.Modified))
-            entry.Entity.AdvanceVersion();
+        {
+            // The first accepted response changes admission metadata, not the editable definition.
+            // Explicit version touches and any accompanying definition/settings change still win.
+            var firstResponseOnly = entry.Property(x => x.FirstResponseAt).OriginalValue is null
+                && entry.Property(x => x.FirstResponseAt).CurrentValue is not null
+                && entry.Properties.Where(property => property.IsModified).All(property => property.Metadata.Name == nameof(SignupForm.FirstResponseAt))
+                && !ChangeTracker.Entries<SignupQuestion>().Any(question => question.Entity.SignupFormId == entry.Entity.Id
+                    && question.State is EntityState.Added or EntityState.Modified or EntityState.Deleted);
+            if (!firstResponseOnly) entry.Entity.AdvanceVersion();
+        }
         foreach (var entry in ChangeTracker.Entries<SignupQuestion>().Where(entry => entry.State == EntityState.Modified))
             entry.Entity.AdvanceVersion();
         foreach (var entry in ChangeTracker.Entries<BingoEvent>().Where(entry => entry.State == EntityState.Modified))
@@ -69,6 +78,7 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
 
     public DbSet<AuditEntry> AuditEntries => Set<AuditEntry>();
     public DbSet<BingoEvent> Events => Set<BingoEvent>();
+    public DbSet<EventCreationOperation> EventCreationOperations => Set<EventCreationOperation>();
     public DbSet<EventStatsLuckCheckpoint> EventStatsLuckCheckpoints => Set<EventStatsLuckCheckpoint>();
     public DbSet<EventItemPrice> EventItemPrices => Set<EventItemPrice>();
     public DbSet<EventStateTransition> EventStateTransitions => Set<EventStateTransition>();
@@ -83,6 +93,7 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     public DbSet<EventParticipantCharacterSwap> EventParticipantCharacterSwaps => Set<EventParticipantCharacterSwap>();
     public DbSet<SignupForm> SignupForms => Set<SignupForm>();
     public DbSet<SignupQuestion> SignupQuestions => Set<SignupQuestion>();
+    public DbSet<SignupQuestionCreationOperation> SignupQuestionCreationOperations => Set<SignupQuestionCreationOperation>();
     public DbSet<SignupAnswer> SignupAnswers => Set<SignupAnswer>();
     public DbSet<BossActivity> BossActivities => Set<BossActivity>();
     public DbSet<CatalogueItem> CatalogueItems => Set<CatalogueItem>();

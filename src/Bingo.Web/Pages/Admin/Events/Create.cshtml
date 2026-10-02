@@ -7,6 +7,7 @@
 
 <section class="event-create-page" aria-labelledby="create-event-heading">
     <form method="post" class="event-create-form">
+        <input asp-for="Input.RequestId" type="hidden" />
         <div asp-validation-summary="ModelOnly" class="validation-summary app-notice notice-error"></div>
         <div class="panel event-create-workspace">
             <div class="admin-section-heading event-create-panel-heading">

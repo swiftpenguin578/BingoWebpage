@@ -1,5 +1,60 @@
 (() => {
   "use strict";
+  // Client expectation, not a reconstruction of the server's eventual three-way merge.
+  // Keep this session separate from the original draft used by AU08 conflict handling.
+  window.createIdentityReadbackSession = (data, action, eventId) => {
+    const fields = ["Name", "Description", "BuyInDescription", "Timezone"];
+    // Match .NET String.Trim (including U+0085, excluding U+FEFF).
+    const trim = value => value.replace(/^[\u0009-\u000d\u0020\u0085\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]+|[\u0009-\u000d\u0020\u0085\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]+$/g, "");
+    const canonical = (field, value) => {
+      const result = trim(value);
+      return field === "Description" || field === "BuyInDescription" ? result || null : result;
+    };
+    const yes = key => String(data.get(key)).toLowerCase() === "true";
+    const reviewed = yes("Input.HasReviewedValues");
+    const baseline = yes("Input.HasBaseline");
+    const expected = {};
+    let complete = Boolean(eventId);
+    for (const field of fields) {
+      const get = (prefix, submitted = false) => {
+        const value = data.get(`Input.${prefix}${field}`);
+        if (typeof value !== "string") { complete = false; return null; }
+        // Native multipart serialization sends CRLF, even when a textarea supplies LF.
+        return canonical(field, submitted ? value.replace(/\r\n|\r|\n/g, "\r\n") : value);
+      };
+      const draft = get("", true);
+      const original = baseline ? get("Original", true) : draft;
+      // Retained/current values are observed state, not text we intend to write.
+      const observed = reviewed ? get("Reviewed") : baseline ? get("Original") : draft;
+      const choice = data.get(`Input.${field}Resolution`);
+      if (choice && !["None", "KeepMine", "UseCurrent", "0", "1", "2"].includes(choice)) complete = false;
+      if (["UseCurrent", "2"].includes(choice) && !reviewed) complete = false;
+      expected[field[0].toLowerCase() + field.slice(1)] = draft === original
+        || ["UseCurrent", "2"].includes(choice) ? observed : draft;
+    }
+    Object.freeze(expected);
+    const url = new URL(action, window.location.href);
+    url.searchParams.set("handler", "Current");
+    const unknown = () => ({ state: "unknown", expected });
+    return Object.freeze({
+      expected,
+      async checkAgain() {
+        if (!complete) return unknown();
+        try {
+          const response = await window.fetch(url.href, { method: "GET", credentials: "same-origin", cache: "no-store", redirect: "error", headers: { Accept: "application/json" } });
+          if (!response.ok || response.redirected) return unknown();
+          const current = await response.json();
+          if (current.eventId !== eventId || !current.values) return unknown();
+          for (const field of fields) {
+            const key = field[0].toLowerCase() + field.slice(1);
+            const value = current.values[key];
+            if (typeof value !== "string" && !((field === "Description" || field === "BuyInDescription") && value === null)) return unknown();
+          }
+          return { state: Object.keys(expected).every(key => expected[key] === current.values[key]) ? "upToDate" : "different", expected };
+        } catch { return unknown(); }
+      }
+    });
+  };
   const root = document.querySelector("[data-identity-editor]");
   if (!(root instanceof HTMLElement)) return;
 
@@ -106,15 +161,14 @@
     const parsed = new DOMParser().parseFromString(html, "text/html");
     const nextRoot = parsed.querySelector("[data-identity-editor]");
     const nextForm = nextRoot?.querySelector("form");
-    const nextReview = nextRoot?.querySelector("[data-identity-timezone-preview]");
-    const nextConfirmButton = nextReview?.querySelector("[data-identity-timezone-confirm]");
-    if (!(nextRoot instanceof HTMLElement) || !(nextForm instanceof HTMLFormElement)
-        || !(nextReview instanceof HTMLElement) || !(nextConfirmButton instanceof HTMLButtonElement)) {
+    if (!(nextRoot instanceof HTMLElement) || !(nextForm instanceof HTMLFormElement)) {
       window.location.assign(responseUrl);
       return { navigated: true, message: "" };
     }
 
     root.dataset.identitySaveError = nextRoot.dataset.identitySaveError || root.dataset.identitySaveError || "";
+    for (const key of ["identityCurrentVersion", "identityScheduleStale", "identityConflicts"])
+      root.dataset[key] = nextRoot.dataset[key] || "";
     const importedRoot = document.importNode(nextRoot, true);
     const previousSave = root.querySelector("[data-identity-save]");
     const importedSave = importedRoot.querySelector("[data-identity-save]");
@@ -124,7 +178,7 @@
     form = root.querySelector("form");
     review = root.querySelector("[data-identity-timezone-preview]");
     confirmButton = review?.querySelector("[data-identity-timezone-confirm]");
-    if (!(form instanceof HTMLFormElement) || !(review instanceof HTMLElement) || !(confirmButton instanceof HTMLButtonElement)) {
+    if (!(form instanceof HTMLFormElement)) {
       window.location.assign(responseUrl);
       return { navigated: true, message: "" };
     }
@@ -134,27 +188,64 @@
     bindNavigationLinks();
     hideInlineConfirmation();
     updateOpenConfirmation(review);
-    return { navigated: false, message: root.querySelector(".validation-summary")?.textContent?.trim() || "" };
+    const messages = [...root.querySelectorAll(".validation-summary, .field-error")]
+      .map(element => element.textContent.trim()).filter(Boolean);
+    return { navigated: false, message: messages.join(" ") };
   };
 
+  let uncertainSubmission = null;
+  const readbackMessage = state => state === "upToDate"
+    ? root.dataset.identityUpToDate
+    : state === "different" ? root.dataset.identityDifferent : root.dataset.identityUnknown;
+  const checkAgain = async () => {
+    const result = await uncertainSubmission.checkAgain();
+    return { succeeded: false, message: readbackMessage(result.state) || root.dataset.identitySaveError || "" };
+  };
+  const bindUncertainSubmit = () => form.addEventListener("submit", event => {
+    if (!uncertainSubmission) return;
+    event.preventDefault();
+    window.adminConfirmation?.open({
+      title: root.dataset.identityCheckAgain,
+      description: root.dataset.identityUnknown,
+      actionLabel: root.dataset.identityCheckAgain,
+      opener: root.querySelector("[data-identity-save]"),
+      onConfirm: checkAgain
+    });
+  });
+  bindUncertainSubmit();
+
   const submitConfirmation = async () => {
+    if (uncertainSubmission) return checkAgain();
     if (!(form instanceof HTMLFormElement)) return { succeeded: false, message: root.dataset.identitySaveError || "" };
     const submittedForm = form;
     const data = new FormData(submittedForm);
     data.set("Input.ConfirmTimezoneChange", "true");
+    const submitted = window.createIdentityReadbackSession(data, submittedForm.action || window.location.href, root.dataset.identityEventId);
+    const markUncertain = () => {
+      uncertainSubmission = submitted;
+      const action = document.querySelector("[data-admin-confirmation-action]");
+      if (action) action.textContent = root.dataset.identityCheckAgain || "";
+      return { succeeded: false, message: readbackMessage("unknown") || root.dataset.identitySaveError || "" };
+    };
     const finish = guard?.begin(submittedForm);
     try {
       const response = await window.fetch(submittedForm.action || window.location.href, { method: "POST", body: data, credentials: "same-origin" });
+      if (!response.ok) return markUncertain();
       if (response.redirected) {
+        if (new URL(response.url).pathname !== `/Admin/Events/Manage/${root.dataset.identityEventId}`) return markUncertain();
         window.location.assign(response.url);
         return true;
       }
       const html = await response.text();
+      const parsed = new DOMParser().parseFromString(html, "text/html");
+      const returned = parsed.querySelector("[data-identity-editor]");
+      if (!returned || returned.dataset.identitySaveUncertain === "true") return markUncertain();
       const result = replaceEditorFromResponse(html, response.url);
+      bindUncertainSubmit();
       if (result.navigated) return true;
       return { succeeded: false, message: result.message || root.dataset.identitySaveError || "" };
     } catch {
-      return { succeeded: false, message: root.dataset.identitySaveError || "" };
+      return markUncertain();
     } finally {
       finish?.();
     }

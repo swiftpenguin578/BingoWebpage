@@ -6,6 +6,16 @@
 **Last updated:** 2026-08-31
 **Companion document:** `PRODUCT_REQUIREMENTS.md`
 
+## Events directory projection — AU04, 2026-10-02
+
+No persistence is added. Directory Live/past participation uses the existing
+Dashboard population mapper and valid retained membership intervals, including
+import provenance. Missing actual start/end remains unavailable (including
+pre-Live cancellation), never current confirmed signups or fabricated zero.
+Nullable capacity remains nullable. Directory reads use the same repeatable-read
+participation boundary and enabled Admin check; hidden records require an enabled
+SuperAdmin and never enter ordinary directory populations or Dashboard totals.
+
 ## Community Dashboard read projection — 2026-10-01
 
 The approved Dashboard backend adds no entity, column, table, migration or
@@ -337,7 +347,18 @@ Duplicate event names are allowed. The slug is unique and may change until the e
 
 Description may be null while the event remains a private draft and is required before signup publication. Events have no event-level banner/artwork field or active banner asset relation. The BNR-01 retirement migration removes the legacy banner reference, asset table, and cleanup outbox only after its temporary exact-key ledger records every legacy object as deleted, missing, or shared-retained. That one-time cleanup does not rewrite event history, competitive snapshots, evidence, team images, board/tile artwork, catalogue data, or other storage references.
 
-Timezone defaults to `Europe/Copenhagen` and stores a supported canonical timezone ID. Changing timezone changes only how stored UTC instants are displayed; it never rewrites those instants. Before Live, identity and timezone changes may be saved where allowed with the owning Admin confirmation; once Live begins, identity and timezone are read-only.
+Timezone defaults to `Europe/Copenhagen` and stores a supported canonical timezone ID. Changing timezone changes only how stored UTC instants are displayed; it never rewrites those instants. Name/description/buy-in remain editable through Live/Final Review; timezone locks permanently at first Live. Public timezone changes require confirmation of current participant-facing timestamp consequences.
+
+AU08 Identity concurrency uses original/intended/current canonical field values.
+Untouched fields take current; intended values apply when current equals original
+or already equals intent. Other same-field changes block the atomic save until
+explicitly resolved against the reviewed current value, which is rechecked inside
+the existing Serializable transaction. Failure does not advance unresolved original
+baselines or erase drafts. Legacy stale requests without complete baselines fail
+closed. Timezone confirmation additionally compares the current timeline consequence
+fingerprint, using UTC timestamps at PostgreSQL microsecond precision; schedule-only
+changes require a fresh review independently of Identity field conflicts. No new
+persistence, receipt or historical rewrite is introduced.
 
 Schedule fields may be null in an incomplete private draft. Signup publication requires `signup_closes_at`, `event_starts_at`, and `event_ends_at`; `signup_opens_at` is required only for scheduled opening and retains the configured/scheduled opening instant as historical data. `actual_signup_opened_at` records the actual opening and becomes the effective lower boundary once signups have opened; manual opening records it without overwriting `signup_opens_at`. `draft_at` is optional and informational. The invariants are:
 
@@ -368,6 +389,18 @@ Each authoritative transition into `AWAITING_FINAL_REVIEW` identifies one immuta
 Evidence eligibility is derived from the append-only lifecycle transitions. If an event resumes from `AWAITING_FINAL_REVIEW` to `LIVE`, the interval between those authoritative effective times remains ineligible; review projections identify evidence timestamps in that gap without rewriting the submission or asset timestamp. Normal finalization also requires an explicit server-validated confirmation value; browser confirmation is only an enhancement.
 
 Production permits multiple `SIGNUP_OPEN` and `SIGNUP_CLOSED` events only when their configured half-open event windows `[event_starts_at, event_ends_at)` do not overlap; an end exactly equal to another start is allowed. Only `LIVE`, `AWAITING_FINAL_REVIEW`, and `FINALIZED` are singleton current states. Drafts do not reserve a window, and cancelled, discarded, or archived events do not block a new one. `is_development_fixture` is an internal persisted marker set only by the Development scenario seeder; ordinary Admin input cannot set it and Production lifecycle commands never honor it.
+
+### Event creation operation (AU03)
+
+`event_creation_operations` stores `(actor_account_id, request_id)` as its composite
+primary key, the original trimmed `name` and supported `timezone`, and unique
+`event_id`. The row is immutable and commits with the event's complete minimal
+aggregate and creation audit. Restrictive account/event foreign keys retain the
+outcome through rename, quarantine and discard (the event tombstone remains).
+No backfill or synthetic request identity is assigned to pre-existing events.
+Payload comparison is ordinal on the stored strings; timestamps, current event
+metadata and slug allocation are not part of request identity. A new key denotes
+a new operation even when names match. Validation failure leaves no operation row.
 
 ### 5.1.1 Event quarantine metadata
 
@@ -520,6 +553,29 @@ Fields:
 - `closed_at`
 - `first_response_at`, nullable and never cleared after the first accepted/imported response
 - `require_signup_code`
+
+AU05 client baselines: custom/account-field add, custom edit, account rename, move and co-captain enable submit the rendered `SignupForm.version` as `expectedFormVersion`. Missing or malformed baselines fail closed; stale baselines are rejected under the event lock before writes. Delete/disable retain their existing question-version and impact-count confirmation contract. Existing forms forward this token without introducing a new UI workflow. Settings results retain the immutable submitted event version separately from the authoritative saved/current event version, capacity, waiting-list state, code-required and code-present flags; code values/hashes are never returned. Capacity and code remain separate transactions.
+
+AU07 response boundary: the ordinary null-to-first-accepted `FirstResponseAt`
+transition alone is response metadata and preserves the editable form version.
+Any simultaneous definition/settings mutation or explicit Version mark/advance
+still advances it. No stale-baseline bypass is permitted. The immutable first
+marker, required/type restrictions and all current guards are rechecked under the
+existing Serializable event lock. A required custom add after that boundary succeeds
+as optional with an explicit `CompletedAsOptional` outcome, explanation and original
+committed definition; there is no rejection or backfill. Exact replay/readback uses
+AU06 identity plus its uniquely linked immutable creation audit and verified original
+intent, preserving the normalization and definition after later edits. Missing or
+corrupt creation audit fails closed without returning a guessed definition or writing.
+
+AU06 uses one `SignupQuestionCreationOperation` per committed add: globally unique
+`request_id`, `actor_account_id`, `event_id`, SHA-256 of the canonical requested
+shape (including original `expectedFormVersion`) and `question_id`. The operation,
+question, audit and form-version advance commit atomically. Actor/event references
+are restricted; question identity is retained without a deletion-cascading foreign
+key so cleanup cannot erase retry history. Deleted/inactive fields are never
+recreated by replay. Development reset clears operations with event-owned data.
+There is no backfill, request receipt for failed writes, expiry or generic framework.
 
 ### 6.2 SignupQuestion
 

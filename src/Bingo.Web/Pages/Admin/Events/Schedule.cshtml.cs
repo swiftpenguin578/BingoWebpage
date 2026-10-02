@@ -55,6 +55,42 @@ public sealed class ScheduleModel(ApplicationDbContext db, IEventSignupLifecycle
         return Page();
     }
 
+    // Same Admin/visibility/lifecycle filters as the rendered page. This observes
+    // current values only; it cannot identify which request wrote them.
+    public async Task<IActionResult> OnGetCurrentAsync(Guid id, CancellationToken ct)
+    {
+        Response.Headers.CacheControl = "no-store";
+        var current = await db.Events.AsNoTracking().Where(x => x.Id == id)
+            .Select(item => new { Item = item, DraftState = db.DraftSessions.Where(draft => draft.EventId == item.Id).Select(draft => (DraftState?)draft.State).SingleOrDefault() })
+            .SingleOrDefaultAsync(ct);
+        if (current is null) return NotFound();
+        var item = current.Item;
+        CurrentDraftState = current.DraftState;
+        SetDisplay(item);
+        return new JsonResult(new
+        {
+            eventId = item.Id,
+            version = item.Version.ToString(CultureInfo.InvariantCulture),
+            timezone = item.Timezone,
+            phase = item.State.ToString(),
+            draftState = CurrentDraftState?.ToString(),
+            values = new
+            {
+                signupOpensAt = Instant(item.SignupOpensAt), signupClosesAt = Instant(item.SignupClosesAt),
+                draftAt = Instant(item.DraftAt), eventStartsAt = Instant(item.EventStartsAt),
+                eventEndsAt = Instant(item.EventEndsAt), participantCap = item.ParticipantCap,
+                scheduledSignupOpeningEnabled = item.ScheduledSignupOpeningEnabled
+            },
+            editable = new
+            {
+                signupOpensAt = CanEditScheduledOpening, signupClosesAt = CanEditSignupClosing,
+                draftAt = CanEditDraftTime, eventStartsAt = CanEditEventStart, eventEndsAt = CanEditEventEnd
+            }
+        });
+    }
+
+    private static string? Instant(DateTimeOffset? value) => value?.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture);
+
     public async Task<IActionResult> OnPostAsync(Guid id, CancellationToken ct)
     {
         var item = await db.Events.AsNoTracking().SingleOrDefaultAsync(x => x.Id == id, ct);
@@ -64,7 +100,7 @@ public sealed class ScheduleModel(ApplicationDbContext db, IEventSignupLifecycle
         SetDisplay(item);
         if (Input.Version != item.Version) { ModelState.AddModelError(string.Empty, Localize("This event changed while you were editing it. Review the latest values and try again.")); return await Reload(item, ct); }
         if (!TryTimezone(item.Timezone, out var timezone)) { ModelState.AddModelError(string.Empty, Localize("The event timezone is unavailable.")); return await Reload(item, ct); }
-        var values = RestoreLockedValues(item, Parse(timezone));
+        var values = RestoreLockedValues(item, Parse(item, timezone));
         var now = time.GetUtcNow();
         // A newly changed future opening establishes a schedule.  An existing
         // disabled flag remains disabled when an Admin only edits another
@@ -85,19 +121,36 @@ public sealed class ScheduleModel(ApplicationDbContext db, IEventSignupLifecycle
         if (!result.Succeeded)
         {
             var message = Localize(result.Error!);
-            if (item.FirstPublicAt is not null && !Input.ConfirmChanges && ConsequenceChanged(item, values))
+            if (result.Error is "Confirm the Live event-end change before saving." or "Confirm the schedule consequence before saving.")
             {
                 ModelState.AddModelError("Input.ConfirmChanges", message);
                 ChangePreview = Preview(item, values, timezone);
             }
-            else ModelState.AddModelError(string.Empty, message);
+            else
+                foreach (var field in ScheduleErrorFields(result.Error!, values))
+                    ModelState.AddModelError(field, message);
             return await Reload(item, ct, preserveInput: true);
         }
         TempData["StatusMessage"] = Localize("Event schedule updated."); TempData[UiMessage.TypeKey] = UiMessageType.Success.ToString();
         return RedirectToPage("Manage", new { id });
     }
 
-    private EventScheduleValues Parse(TimeZoneInfo timezone) => new(Parse("Input.SignupOpensLocal", Input.SignupOpensLocal, timezone), Parse("Input.SignupClosesLocal", Input.SignupClosesLocal, timezone), Parse("Input.DraftLocal", Input.DraftLocal, timezone), Parse("Input.EventStartsLocal", Input.EventStartsLocal, timezone), Parse("Input.EventEndsLocal", Input.EventEndsLocal, timezone), Input.ParticipantCap, Input.ScheduledSignupOpeningEnabled);
+    private EventScheduleValues Parse(BingoEvent item, TimeZoneInfo timezone) => new(
+        PreserveOrParse("Input.SignupOpensLocal", Input.SignupOpensLocal, item.SignupOpensAt, CanEditScheduledOpening, timezone),
+        PreserveOrParse("Input.SignupClosesLocal", Input.SignupClosesLocal, item.SignupClosesAt, CanEditSignupClosing, timezone),
+        PreserveOrParse("Input.DraftLocal", Input.DraftLocal, item.DraftAt, CanEditDraftTime, timezone),
+        PreserveOrParse("Input.EventStartsLocal", Input.EventStartsLocal, item.EventStartsAt, CanEditEventStart, timezone),
+        PreserveOrParse("Input.EventEndsLocal", Input.EventEndsLocal, item.EventEndsAt, CanEditEventEnd, timezone),
+        item.ParticipantCap, item.ScheduledSignupOpeningEnabled);
+
+    private DateTimeOffset? PreserveOrParse(string field, string? submitted, DateTimeOffset? original, bool editable, TimeZoneInfo timezone)
+    {
+        // The version was checked first. Display equality retains the authoritative
+        // instant, including precision and either valid repeated-hour offset.
+        if (!editable || string.Equals(submitted ?? string.Empty, FormValue(original, timezone) ?? string.Empty, StringComparison.Ordinal))
+            return original;
+        return Parse(field, submitted, timezone);
+    }
     private DateTimeOffset? Parse(string field, string? text, TimeZoneInfo timezone)
     {
         if (string.IsNullOrWhiteSpace(text)) return null;
@@ -108,6 +161,36 @@ public sealed class ScheduleModel(ApplicationDbContext db, IEventSignupLifecycle
         if (timezone.IsAmbiguousTime(local)) { ModelState.AddModelError(field, Localize("That local time is ambiguous because the clocks change at that time. Choose another time.")); return null; }
         return new DateTimeOffset(local, timezone.GetUtcOffset(local)).ToUniversalTime();
     }
+    private static IReadOnlyList<string> ScheduleErrorFields(string error, EventScheduleValues values)
+    {
+        if (error == "Published event start and end times cannot be cleared.")
+            return new[] { values.EventStartsAt is null ? "Input.EventStartsLocal" : null, values.EventEndsAt is null ? "Input.EventEndsLocal" : null }.OfType<string>().ToArray();
+        if (error == "Enter a reason for changing the Live event end.") return ["Input.EventEndReason"];
+        if (error is "Confirm the Live event-end change before saving." or "Confirm the schedule consequence before saving.") return ["Input.ConfirmChanges"];
+        if (error == "The linked Wise Old Man competition must remain within five minutes of the event window.")
+            return ["Input.EventStartsLocal", "Input.EventEndsLocal"];
+        foreach (var (label, field) in new[]
+        {
+            ("Signup opening", "Input.SignupOpensLocal"), ("Signup closing", "Input.SignupClosesLocal"),
+            ("Draft time", "Input.DraftLocal"), ("Event start", "Input.EventStartsLocal"), ("Event end", "Input.EventEndsLocal")
+        })
+        {
+            if (error == $"{label} is locked because that boundary has passed." || error == $"A changed {label.ToLowerInvariant()} must be in the future.") return [field];
+        }
+        return error switch
+        {
+            "Automatic signup opening requires a signup opening time." or "A scheduled signup opening must be configured in the future." or
+            "Signup opening is locked after signup has opened." => ["Input.SignupOpensLocal"],
+            "Automatic signup opening requires a signup closing time." or "Signup closing must be in the future." or
+            "Signup closing must be after the scheduled opening." or "Signup closing must be after signup opening." or
+            "Signup closing must be no later than event start." or
+            "Signup closing is read-only after signup has closed; use Reopen to establish a new closing time." => ["Input.SignupClosesLocal"],
+            "An event start is required." => ["Input.EventStartsLocal"],
+            "An event end is required." or "The event end must be in the future." or "Event end must be after event start." => ["Input.EventEndsLocal"],
+            _ => [string.Empty] // Cross-event overlap, authorization and stale saves remain form errors.
+        };
+    }
+
     private string Localize(string key, params object[] arguments) => text?[key, arguments].Value ?? string.Format(CultureInfo.CurrentCulture, key, arguments);
     private async Task<IActionResult> Reload(BingoEvent item, CancellationToken ct, bool preserveInput = true)
     {

@@ -118,6 +118,7 @@ public sealed class ParticipantsModel(
         var actorId = User.GetAccountId();
         if (actorId is null) return Forbid();
         var result = await signupService.UpdateSignupAdministrationAsync(id, SignupAdministration.Version, SignupAdministration.ParticipantCap, true, actorId.Value, User.Identity?.Name ?? "Admin", cancellationToken: ct);
+        if (WantsSignupSettingsJson) return new JsonResult(result);
         if (!result.Succeeded)
         {
             SetStatus(result.Error ?? Localize("Signup settings could not be saved."), UiMessageType.Error);
@@ -131,7 +132,40 @@ public sealed class ParticipantsModel(
         return FilteredRedirect(id);
     }
 
+    private bool WantsSignupSettingsJson => Request.GetTypedHeaders().Accept?.Any(value => value.MediaType.Value == "application/json") == true;
+
     public async Task<IActionResult> OnPostSignupCodeAsync(Guid id, CancellationToken ct)
+    {
+        IActionResult response;
+        try { response = await SaveSignupCodeAsync(id, ct); }
+        catch (Exception ex) when (IsSignupSerializationConflict(ex))
+        {
+            db.ChangeTracker.Clear();
+            SetStatus(Localize("This event changed while you were editing it. Review the latest values and try again."), UiMessageType.Error);
+            response = WantsSignupSettingsJson
+                ? new JsonResult(new SignupAdministrationResult(false, "This event changed while you were editing it. Review the latest values and try again.", SubmittedEventVersion: SignupCode.Version))
+                : FilteredRedirect(id);
+        }
+        if (response is JsonResult { Value: SignupAdministrationResult { Succeeded: false, Settings: null } result })
+        {
+            var current = await db.Events.AsNoTracking().SingleOrDefaultAsync(item => item.Id == id && item.HiddenAt == null, ct);
+            if (current is not null) response = new JsonResult(result with
+            {
+                Settings = new(current.Version, current.ParticipantCap, current.WaitingListEnabled,
+                    current.RequireSignupCode, current.SignupCodeHash is not null)
+            });
+        }
+        return response;
+    }
+
+    private static bool IsSignupSerializationConflict(Exception exception)
+    {
+        for (Exception? current = exception; current is not null; current = current.InnerException)
+            if (current is Npgsql.PostgresException { SqlState: Npgsql.PostgresErrorCodes.SerializationFailure }) return true;
+        return false;
+    }
+
+    private async Task<IActionResult> SaveSignupCodeAsync(Guid id, CancellationToken ct)
     {
         var actorId = User.GetAccountId();
         if (actorId is null) return Forbid();
@@ -144,12 +178,26 @@ public sealed class ParticipantsModel(
         if (bingoEvent.Version != SignupCode.Version)
         {
             SetStatus(Localize("This event changed while you were editing it. Review the latest values and try again."), UiMessageType.Error);
-            return FilteredRedirect(id);
+            return CodeResult(false, "This event changed while you were editing it. Review the latest values and try again.");
         }
         if (!bingoEvent.AcceptsWaitingList)
         {
             SetStatus(Localize("Signup settings are locked because the draft has started or this event has moved on."), UiMessageType.Error);
-            return FilteredRedirect(id);
+            return CodeResult(false, "Signup settings are locked because the draft has started or this event has moved on.");
+        }
+
+        const string codeField = "SignupCode.NewSignupCode";
+        if (ModelState.TryGetValue(codeField, out var codeState) && codeState.Errors.Count > 0)
+        {
+            var errors = codeState.Errors.Select(error => error.ErrorMessage).ToArray();
+            if (WantsSignupSettingsJson) return CodeResult(false, string.Join(" ", errors));
+            var requireCode = SignupCode.RequireSignupCode;
+            if (!await LoadAsync(id, ct)) return NotFound();
+            SignupCode.RequireSignupCode = requireCode;
+            // Render only this form's validation, without echoing the submitted secret.
+            ModelState.Clear();
+            foreach (var error in errors) ModelState.AddModelError(codeField, error);
+            return Page();
         }
 
         try
@@ -160,7 +208,7 @@ public sealed class ParticipantsModel(
             if (SignupCode.RequireSignupCode && !currentRequiresCode && string.IsNullOrWhiteSpace(SignupCode.NewSignupCode))
             {
                 SetStatus(Localize("Enter a new signup code or turn code protection off."), UiMessageType.Error);
-                return FilteredRedirect(id);
+                return CodeResult(false, "Enter a new signup code or turn code protection off.");
             }
 
             var hash = !SignupCode.RequireSignupCode
@@ -171,7 +219,7 @@ public sealed class ParticipantsModel(
             if (SignupCode.RequireSignupCode && string.IsNullOrWhiteSpace(hash))
             {
                 SetStatus(Localize("Enter a new signup code or turn code protection off."), UiMessageType.Error);
-                return FilteredRedirect(id);
+                return CodeResult(false, "Enter a new signup code or turn code protection off.");
             }
 
             var before = new { RequireSignupCode = currentRequiresCode, HasSignupCode = currentCodeHash is not null };
@@ -206,6 +254,7 @@ public sealed class ParticipantsModel(
                 ct);
             await transaction.CommitAsync(ct);
             SetStatus(Localize("Signup-code protection saved."), UiMessageType.Success);
+            return CodeResult(true);
         }
         catch (DbUpdateConcurrencyException)
         {
@@ -219,7 +268,16 @@ public sealed class ParticipantsModel(
             db.ChangeTracker.Clear();
             SetStatus(Localize("The signup-code setting could not be changed in this event state."), UiMessageType.Error);
         }
-        return FilteredRedirect(id);
+        return WantsSignupSettingsJson
+            ? new JsonResult(new SignupAdministrationResult(false, "The signup-code setting could not be saved.", SubmittedEventVersion: SignupCode.Version))
+            : FilteredRedirect(id);
+
+        IActionResult CodeResult(bool succeeded, string? error = null) => WantsSignupSettingsJson
+            ? new JsonResult(new SignupAdministrationResult(succeeded, error,
+                SubmittedEventVersion: SignupCode.Version,
+                Settings: new(bingoEvent.Version, bingoEvent.ParticipantCap, bingoEvent.WaitingListEnabled,
+                    bingoEvent.RequireSignupCode, bingoEvent.SignupCodeHash is not null)))
+            : FilteredRedirect(id);
     }
 
     public async Task<IActionResult> OnPostCreateInternalParticipantAsync(Guid id, CancellationToken ct)

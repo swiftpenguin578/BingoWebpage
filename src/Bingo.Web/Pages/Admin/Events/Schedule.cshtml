@@ -21,6 +21,8 @@
                 <input asp-for="Input.Version" type="hidden" />
                 <input asp-for="Input.ConfirmChanges" type="hidden" value="false" data-schedule-confirm />
                 <input asp-for="Input.EventEndReason" type="hidden" data-schedule-end-reason />
+                <span asp-validation-for="Input.ConfirmChanges" class="field-error"></span>
+                <span asp-validation-for="Input.EventEndReason" class="field-error"></span>
                 @if (Model.Readiness?.Warnings is { Count: > 0 })
                 {
                     <section class="schedule-editor-warning" aria-labelledby="signup-warning-heading">
@@ -168,6 +170,7 @@
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
     <script src="~/js/event-create-datetime.js" asp-append-version="true"></script>
+    <script src="~/js/event-schedule.js" asp-append-version="true"></script>
     <script>
         window.bingoEventDateTime.initializeControls(document.querySelector("[data-schedule-editor]"), window.flatpickr);
         (() => {

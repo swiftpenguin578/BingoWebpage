@@ -11,12 +11,27 @@
     var publicBoardUrl = Url.Page("/Events/Board", null, new { slug = Model.EventSlug }, Request.Scheme, Request.Host.Value);
 }
 
-<section class="identity-editor-page" data-identity-editor data-identity-save-error="@T["The identity update could not be confirmed. Check your connection and try again."]">
+<section data-identity-save-uncertain="@Model.SaveOutcomeUncertain.ToString().ToLowerInvariant()" data-identity-event-id="@Model.EventId" data-identity-check-again="@T["Check again"]" data-identity-up-to-date="@T["Up to date. The event now has the expected values. This does not confirm which request saved them."]" data-identity-different="@T["The current event values differ from this submission. Its outcome is still uncertain; your draft is retained."]" data-identity-unknown="@T["The save outcome is uncertain. Check again to read the current values; your draft is retained."]" class="identity-editor-page" data-identity-current-version="@Model.CurrentVersion" data-identity-schedule-stale="@Model.TimezoneScheduleStale.ToString().ToLowerInvariant()" data-identity-conflicts="@string.Join(",", Model.FieldConflicts)" data-identity-editor data-identity-save-error="@T["The identity update could not be confirmed. Check your connection and try again."]">
     <div class="identity-editor-layout">
         <main class="identity-editor-main">
             <form method="post" class="identity-editor-form">
                 <div asp-validation-summary="ModelOnly" class="validation-summary app-notice notice-error"></div>
                 <input asp-for="Input.Version" type="hidden" />
+                <input asp-for="Input.HasBaseline" type="hidden" />
+                <input asp-for="Input.OriginalName" type="hidden" />
+                <input asp-for="Input.OriginalDescription" type="hidden" />
+                <input asp-for="Input.OriginalBuyInDescription" type="hidden" />
+                <input asp-for="Input.OriginalTimezone" type="hidden" />
+                <input asp-for="Input.HasReviewedValues" type="hidden" />
+                <input asp-for="Input.ReviewedName" type="hidden" />
+                <input asp-for="Input.ReviewedDescription" type="hidden" />
+                <input asp-for="Input.ReviewedBuyInDescription" type="hidden" />
+                <input asp-for="Input.ReviewedTimezone" type="hidden" />
+                <input asp-for="Input.NameResolution" type="hidden" />
+                <input asp-for="Input.DescriptionResolution" type="hidden" />
+                <input asp-for="Input.BuyInDescriptionResolution" type="hidden" />
+                <input asp-for="Input.TimezoneResolution" type="hidden" />
+                <input asp-for="Input.TimezoneConfirmationSchedule" type="hidden" />
                 <input asp-for="Input.TimezoneConfirmationOriginal" type="hidden" />
                 <input asp-for="Input.TimezoneConfirmationProposed" type="hidden" />
 

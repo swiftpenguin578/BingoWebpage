@@ -108,8 +108,8 @@
                         {
                             var statePill = AdminEventStatePresentation.For(item.State, T);
                             var playerSummary = item.Waiting > 0
-                                ? T["{0} / {1} players · {2} waiting", item.Confirmed, item.ParticipantCap, item.Waiting]
-                                : T["{0} / {1} players", item.Confirmed, item.ParticipantCap];
+                                ? T["{0} / {1} players · {2} waiting", item.Confirmed, (object?)item.ParticipantCap ?? T["Not set"].Value, item.Waiting]
+                                : T["{0} / {1} players", item.Confirmed, (object?)item.ParticipantCap ?? T["Not set"].Value];
                             <tr data-admin-event-row data-event-id="@item.Id" data-event-name="@item.Name" data-event-slug="@item.Slug" data-event-state="@item.State.ToString().ToLowerInvariant()" data-event-hidden="@item.IsHidden.ToString().ToLowerInvariant()" data-event-state-order="@((int)item.State)" data-event-start="@item.EventStartsAt?.UtcTicks" data-event-end="@item.EventEndsAt?.UtcTicks" data-event-confirmed="@item.Confirmed" data-event-waiting="@item.Waiting" data-event-cap="@item.ParticipantCap" data-event-attention="@item.ActionCount">
                                 <td data-label="@T["Event"]"><strong>@item.Name</strong><small>@item.Slug</small></td>
                                 <td class="event-state-cell" data-label="@T["State"]"><span class="admin-status-pill @statePill.Modifier">@statePill.Label</span></td>

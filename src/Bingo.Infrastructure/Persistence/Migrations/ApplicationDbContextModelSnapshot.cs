@@ -2098,6 +2098,40 @@ namespace Bingo.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Bingo.Domain.Events.EventCreationOperation", b =>
+                {
+                    b.Property<Guid>("ActorAccountId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("actor_account_id");
+
+                    b.Property<Guid>("RequestId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("request_id");
+
+                    b.Property<Guid>("EventId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("event_id");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("Timezone")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("timezone");
+
+                    b.HasKey("ActorAccountId", "RequestId");
+
+                    b.HasIndex("EventId")
+                        .IsUnique();
+
+                    b.ToTable("event_creation_operations", (string)null);
+                });
+
             modelBuilder.Entity("Bingo.Domain.Events.EventFinalizationSnapshot", b =>
                 {
                     b.Property<Guid>("Id")
@@ -4249,6 +4283,44 @@ namespace Bingo.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Bingo.Domain.Signups.SignupQuestionCreationOperation", b =>
+                {
+                    b.Property<Guid>("RequestId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("request_id");
+
+                    b.Property<Guid>("ActorAccountId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("actor_account_id");
+
+                    b.Property<Guid>("EventId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("event_id");
+
+                    b.Property<string>("InputFingerprint")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("input_fingerprint");
+
+                    b.Property<Guid>("QuestionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("question_id");
+
+                    b.HasKey("RequestId")
+                        .HasName("pk_signup_question_creation_operations");
+
+                    b.HasIndex("ActorAccountId");
+
+                    b.HasIndex("EventId");
+
+                    b.HasIndex("QuestionId")
+                        .IsUnique();
+
+                    b.ToTable("signup_question_creation_operations", (string)null);
+                });
+
             modelBuilder.Entity("Bingo.Domain.Teams.DraftPick", b =>
                 {
                     b.Property<Guid>("Id")
@@ -4974,6 +5046,21 @@ namespace Bingo.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict);
                 });
 
+            modelBuilder.Entity("Bingo.Domain.Events.EventCreationOperation", b =>
+                {
+                    b.HasOne("Bingo.Domain.Access.Account", null)
+                        .WithMany()
+                        .HasForeignKey("ActorAccountId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Bingo.Domain.Events.BingoEvent", null)
+                        .WithMany()
+                        .HasForeignKey("EventId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Bingo.Domain.Events.EventFinalizationSnapshot", b =>
                 {
                     b.HasOne("Bingo.Domain.Events.EventStateTransition", null)
@@ -5378,6 +5465,21 @@ namespace Bingo.Infrastructure.Persistence.Migrations
                     b.HasOne("Bingo.Domain.Signups.SignupForm", null)
                         .WithMany()
                         .HasForeignKey("SignupFormId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Bingo.Domain.Signups.SignupQuestionCreationOperation", b =>
+                {
+                    b.HasOne("Bingo.Domain.Access.Account", null)
+                        .WithMany()
+                        .HasForeignKey("ActorAccountId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Bingo.Domain.Events.BingoEvent", null)
+                        .WithMany()
+                        .HasForeignKey("EventId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });

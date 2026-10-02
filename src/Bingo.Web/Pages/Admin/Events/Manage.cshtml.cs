@@ -99,6 +99,7 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
         try
         {
             var result = await signupService.UpdateSignupAdministrationAsync(id, EventVersion, NewCap, current.WaitingListEnabled, User.GetAccountId()!.Value, User.Identity!.Name!, cancellationToken: ct);
+            if (Request.GetTypedHeaders().Accept?.Any(value => value.MediaType.Value == "application/json") == true) return new JsonResult(result);
             if (!result.Succeeded) TempData["StatusMessage"] = result.Error;
             else TempData["StatusMessage"] = Localize("Signup capacity saved. {0} participant(s) promoted.", result.PromotedParticipants);
         }

@@ -80,6 +80,15 @@ public sealed class EventMutationCapabilityPageFilter(ApplicationDbContext db, I
             await next();
             return;
         }
+        // Field-add POSTs also reconcile a previously committed request. The signup
+        // service rechecks current Admin/visibility and gates every genuinely new
+        // write; later lifecycle state must not prevent an authorized success replay.
+        if (path.EndsWith("/Questions.cshtml", StringComparison.OrdinalIgnoreCase)
+            && context.HandlerMethod.Name is null or "AddAccount")
+        {
+            await next();
+            return;
+        }
         if (IsExactHideHandler(context))
         {
             await next();
@@ -196,6 +205,11 @@ public sealed class EventMutationCapabilityPageFilter(ApplicationDbContext db, I
         {
             capability = default; // Participant lifecycle services perform their own state and authorization checks.
             return false;
+        }
+        if (path.EndsWith("/Identity.cshtml", StringComparison.OrdinalIgnoreCase))
+        {
+            capability = EventCapability.ConfigureIdentity;
+            return true;
         }
         capability = path.EndsWith("/Questions.cshtml", StringComparison.OrdinalIgnoreCase) ||
                      path.EndsWith("/Participant.cshtml", StringComparison.OrdinalIgnoreCase)
