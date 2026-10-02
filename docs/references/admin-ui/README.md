@@ -27,6 +27,13 @@ wins until those documents are updated.
 | `Schedule.dc.html` | The event Schedule page: signup, team-draft and event times with the shared date/time picker, editability by phase, published and Live confirmations, and the derived upload deadline. Independent event samples; simulated browser | `Schedule.dc.html` |
 | `SignupSetup.dc.html` | The event Signup setup page: Settings (capacity, signup code) and Signup form (account fields, captain fields, custom questions) tabs, with a question drawer and counted confirmations. Independent event samples; simulated browser | `SignupSetup.dc.html` |
 | `TeamsDraft.dc.html` | The event Teams / Draft page: team and captain setup with readiness, the admin-run snake draft (compact live board, player pool, control), manual rosters, finalization and pre-Live corrections. Independent event samples; simulated browser | `TeamsDraft.dc.html` ("Teams / Draft") |
+| `Board.dc.html` | The event Board page: board workspace with line totals, planning figures, the tile editor drawer, moving and resizing, approval, publication, corrections and preview. Independent event samples; simulated browser | `Board.dc.html` |
+| `Audit.dc.html` | The Audit page: read-only administrative history with filters (event, action, actor, record type, dates), newest-first pages of 25 and an entry drawer with changes, reasons and technical details. Simulated browser | `Audit.dc.html` |
+| `Review.dc.html` | The event Review page: a searchable evidence queue and a submission workspace with the screenshot viewer, the facts to compare, warnings and the decision panel (approve, reject, correct, reverse). Independent event samples; simulated browser | `Review.dc.html` |
+| `FinalReview.dc.html` | The event Final review page: publication readiness with the one publish action, provisional or official standings with what separates each team, publication history with retained versions, and exceptional reopening. Independent event samples; simulated browser | `FinalReview.dc.html` ("Final review") |
+| `Wom.dc.html` | The event WOM page: the Wise Old Man connection (capability, data freshness, account coverage, Fetch now), updates to Wise Old Man and the management code, create or link when not connected, and occasional management. Independent event samples; simulated browser | `Wom.dc.html` ("WOM") |
+| `Catalogue.dc.html` | The Catalogue page: a directory of bosses and activities, and an activity drawer with its settings, Wise Old Man metric, a compact drop list with one inline editor at a time (rate, value and item mapping, read-only rate mechanics), adding drops and availability. Simulated browser | `Catalogue.dc.html` |
+| `Accounts.dc.html` | The Accounts page: a directory of website accounts (search, global role, pages of 25) and an account drawer with access, permitted actions (Admin access, reset link, disable or restore, ownership), characters, event roles and disable history, plus confirmations and ownership transfer. Simulated browser | `Accounts.dc.html` |
 | `Components.dc.html` | Lightweight preview of the shared components, light and dark side by side, with live overlays | `Components.dc.html` |
 | `support.js`, `vendor/` | Runtime that renders the `.dc.html` pages. **Not** part of the UI system | provided by the canvas |
 
@@ -34,11 +41,11 @@ wins until those documents are updated.
 
 - **Canvas:** open the link above. It launches on Participants; the canvas view
   shows the Dashboard, Events, Overview, Identity, Schedule, Signup setup,
-  Teams / Draft and Components artboards beside it.
+  Teams / Draft, Board, Audit, Review, Final review, WOM, Catalogue, Accounts and Components artboards beside it.
 - **Locally:** serve this folder (`python3 -m http.server`) and open
   `Participants.dc.html`, `Dashboard.dc.html`, `Events.dc.html`, `Identity.dc.html`,
   `Overview.dc.html`, `Schedule.dc.html`, `SignupSetup.dc.html`,
-  `TeamsDraft.dc.html` or `Components.dc.html`. Opening over `file://` may be
+  `TeamsDraft.dc.html`, `Board.dc.html`, `Audit.dc.html`, `Review.dc.html`, `FinalReview.dc.html`, `Wom.dc.html`, `Catalogue.dc.html`, `Accounts.dc.html` or `Components.dc.html`. Opening over `file://` may be
   blocked. Fonts load from Google Fonts; without network the page falls back to
   system fonts.
 
@@ -297,6 +304,122 @@ All are CSS classes in `ui/components.css`; the markup to copy is in
     `.tcard-warn`, `.tcard-empty`, `.tcard-list` › `.tmem` with `.tmem-name`,
     `.tmem-tag`, `.tmem-ehb`, `.is-new`, and `.tcard-foot`): a team with
     its members as the main content. One column below 640px.
+
+- **Board grid and tile editor** (added with Board):
+  - `.bgrid` (`--cols`, `--tile-h`) with `.bgrid-row` rows (`display:
+    contents`). Each row ends with a `.bline` total, and a last row holds the
+    column totals. `.bline`: `.is-high`, `.is-low` (25% or more from the
+    average line, with an arrow and percentage), `.is-partial` (incomplete),
+    `.is-col`, `.is-corner`.
+  - `.bcell` positions hold `.btile` (`.btile-top`, `.btile-art`,
+    `.btile-name`, `.btile-foot`, `.btile-ehb`, `.btile-flags`) or `.bempty`
+    (`.is-readonly`). States: `.is-issue`, `.is-changed`, and while moving
+    `.is-src` and `.is-target` on the cell (`.is-outside`, `.is-cut` are
+    available for size previews). Tiles under 132px wide drop the artwork and
+    pills (container query). `.bmove-bar` explains keyboard moving.
+  - `.plan`: a headline total (`.plan-total`) and `.plan-list` rows with an
+    optional inline number field, saving spinner and saved tick
+    (`.plan-ok`).
+  - `.combo`: a searchable multi-select with `.combo-chips`/`.combo-chip`, a
+    `.combo-pop` listbox of `.combo-opt` (`.is-active`, a check when chosen)
+    and `.combo-empty`. `role="combobox"` with `aria-activedescendant`.
+  - `.obj` objective cards (`.obj-head`, `.obj-num`, `.obj-sum`,
+    `.obj-body`; `.is-single` drops the chrome; `.is-collapsed`,
+    `.is-locked`). `.drop-group` › `.drop-group-head`
+    (`.drop-group-count`) and `.drop-list` › `.drop-row` (`.is-on`,
+    `.is-locked`, `.drop-rate` with `.is-missing`, `.drop-weight`).
+  - `.count-line` ("Collect [n] …"), `.count-sum` (one-line summary with a
+    text action) and `.count-opts`.
+  - `.ehb-box` › `.ehb-row` (`.ehb-val`, `.is-struck` for a replaced
+    calculated value) and `.ehb-note` (warning with a link).
+  - `.art-pick` (`.art-thumb`, `.art-img`, `.art-acts`) and `.auto-text`
+    (an automatic value shown read-only).
+  - `.drawer.is-wide` (640px) for editors that need more room.
+  - Dialog details shared by confirmations: `.m-points` (consequence list)
+    and `.m-banner` (a banner inside a dialog). Teams / Draft now uses these
+    instead of its page-local copies.
+  - Images use `background-image: var(--art)` rather than `<img src>`, so
+    template placeholders aren't fetched before rendering.
+
+- **History table and change details** (added with Audit):
+  - Two-line cells: `.cell-main` with `.cell-sub` below (the time under the
+    date, the record under the action). `.cell-tags` puts a label and small
+    pills on one line. `.actor` (`.is-system` with a gear for automated
+    actions).
+  - `.fpanel`: a small anchored, non-modal panel for less-used filters, with
+    `.fpanel-presets`, `.fpanel-pair` and `.fpanel-foot` (Reset / Apply).
+    `.is-closing` plays the popover exit.
+  - `.filter-count` on a `.filter-btn` counts the panel's active filters;
+    `.filter-row` lists every active filter as a `.filter-chip`, with Clear
+    all.
+  - `.chg`: field changes as a list of label, previous value and new value
+    (`.chg-head`, `.chg-row`, `.chg-field`, `.chg-val` with `.is-before`,
+    `.is-empty`, `.is-clamped`; `.chg-more` toggles a clamped value). Below
+    440px of its own width it stacks into labelled Before / After lines
+    (`.chg-k`), so it fits drawers and phones.
+  - `.code-block` (safe, already-sanitised text; scrolls past 200px;
+    `.is-note` for a withheld or unreadable value) and `.code-inline` for
+    keys.
+
+- **Evidence inspection** (added with Review):
+  - `.subhead`: a record opened from a list, with back, the title and status,
+    and `.subhead-pager` (Previous, `.pager-pos`, Next).
+  - `.iv` image viewer: `.iv-bar` (zoom out/in with `.iv-pct`, Fit and 100%
+    as pressed buttons, Original) and a focusable `.iv-stage` holding
+    `.iv-img` (scaled and translated, image from `--art`; `.is-anim` for
+    button zooms) or `.iv-state` (loading, failed, missing). Keys: + and −
+    zoom, 0 fits, 1 is actual size, arrows move; drag pans, the wheel zooms.
+  - `.facts`: what to compare with the evidence. `.fact` (label, value,
+    `.fact-sub`; `.is-plain` for longer values, `.is-warn` for a boundary to
+    check), `.code-tag` for a code to match, and `.facts-note` for notes and
+    feedback.
+  - `.decide`: the decision panel (`.decide-acts`, `.decide-link`,
+    `.decide-note`, `.decide-form`, `.decide-weight`, and `.decide-result`
+    with `.is-success` after a decision).
+  - `.tl`: a read-only history timeline (`.tl-item`, `.tl-what`, `.tl-when`,
+    `.tl-reason`).
+  - `.badge-danger` (rejected, reversed) and `.seg-count` (a count in a
+    segmented option).
+
+- **Results and publication** (added with Final review):
+  - `.place`: a rank marker (`.is-top`, `.is-1` tinted, `.is-shared`
+    outlined for an exact tie, shown as "=3").
+  - `.tval`: a table value (`.is-muted` for not applicable, `.is-decider` for
+    the competitive input that separates a row from its neighbour; the
+    explanation goes in `.cell-sub`).
+  - Checklist states on Overview's `.check-item`: `.is-wait` (a normal timed
+    wait) and `.is-blocked` (needs action elsewhere, with a link button).
+
+- **Integration status** (added with WOM):
+  - `.chip.is-managed`: a capability chip (accent when the website owns the
+    connection; a plain `.chip` otherwise).
+  - `.meter-fill.is-partial`: an incomplete part in amber. `.meter-fill` is
+    now `display:block`, so it works inside a `<span>` too.
+  - `.status-rows` › `.status-row`: label, state (`.status-val`, `.is-good`,
+    `.is-bad`) with `.status-sub`, and an optional action; one column below
+    760px. Secrets show only their verification state.
+  - `a.btn` keeps the button look (no underline).
+
+- **Compact record list with an inline editor** (added with Catalogue):
+  - `.dlist` › `.dlist-item` › `.dlist-row`: a button (`aria-expanded`)
+    summarising a record with `.thumb`, `.dlist-name`, `.dlist-sub`,
+    `.dlist-flags` and a figure (`.dlist-fig`, `.dlist-ehb`,
+    `.dlist-fig-k`). One item opens at a time (`.is-open`) into `.dlist-ed`
+    inside the same item. `.is-inactive` dims it; flags hide below 640px.
+  - `.thumb` (`.is-lg`): a square image from `--art` on a neutral tile.
+
+- **Account access** (added with Accounts):
+  - `.secret-result`: a one-time secret (a reset link) in a focusable panel
+    beside the action that made it: `.secret-head` (`.secret-title`,
+    `.secret-exp`), a `.copy-field`, `.secret-notes` and `.secret-foot` with
+    Done. Held only in memory while shown. `.is-warn` is the unconfirmed
+    state, which never recovers or silently regenerates the secret.
+  - `.perm-note`: why an action isn't available to the signed-in admin,
+    instead of a disabled control.
+  - `.field-meta` with `.field-count` (`.is-near`): a hint and a character
+    count under a field.
+  - `.avatar.is-lg` heads a person's drawer; `.pill.is-success` marks a
+    confirmed state. Role changes reuse `.chg` for Now → After.
 
 ## Interaction contracts (`ui/behavior.js`)
 
@@ -1638,6 +1761,1409 @@ checkout):
   minutes (for example after a lost connection), not after 5 minutes without
   a pick.
 
+## Board: reference behaviour and integration notes
+
+Board is where admins build an event's bingo board, set each tile's
+objectives, balance estimated effort, preview what players will see, and take
+the board through approval, publication and corrections. The board is the main
+workspace. Detailed editing happens in one drawer that opens beside it, so the
+page isn't permanently filled with controls. Catalogue owns bosses,
+activities, drops, rates and GP values; Board only links to it.
+
+The URL is `/admin/events/{slug}/board`. An open tile adds `?tile=B3` (row
+letter and column number), so a tile can be linked directly.
+
+Verified against the current implementation (the participants-functionality
+checkout):
+
+- `Admin/Events/Board` and its page model: create, edit, move, resize, team
+  size, approve, unapprove, publish, start correction, discard correction,
+  remove, editing control and editor data.
+- `_BoardRequirementEditor`, `BoardEstimateService`, `EhbCalculator` and
+  `TileDescriptionFormatter`.
+- `FUNCTIONAL_CONTRACTS.md` 6.2 and 6.3.
+- `PRODUCT_REQUIREMENTS.md` sections 8, 10 and 11, and BRD-01/BRD-02.
+
+### What the reference implements
+
+- **Header:**
+  - Title with a status badge: Draft · private, Approved · private,
+    Published, or Correction · private.
+  - Size (with Resize) and how many positions are filled, plus a one-line
+    state note: when the board was approved or published, and what changes
+    return it to draft.
+  - Actions: the editing-control chip, Preview, one primary action (Approve
+    board, Publish board…, or Publish correction…), and a menu for the less
+    common actions (Board size…, Return to draft, Correct published board…,
+    Discard correction…).
+- **Board grid:**
+  - Tiles show the name, effective EHB and small flags: optional artwork,
+    "Manual" when an EHB override is in use, "2 parts" for several
+    objectives, a clipboard for manual challenges, a lock when evidence was
+    submitted, a warning when there's no estimate, and a dot for tiles
+    changed in an open correction.
+  - Empty positions read "Add tile" (or "Empty" in view mode).
+  - Row totals sit at the end of each row and column totals below. Complete
+    lines 25% or more from the average line are marked ↑ or ↓ with the
+    percentage; incomplete lines are muted.
+- **Moving:**
+  - Drag a tile onto another position, or use the keyboard: arrow keys move
+    between positions, M picks a tile up, the arrow keys choose a target,
+    Enter places it and Escape cancels. A bar explains the mode.
+  - An empty target is a move and an occupied one is a swap. Tiles travel to
+    their new places (`DKAdmin.reorder`; instant with reduced motion).
+  - Enter edits or adds; Delete removes, with a confirmation.
+- **Resize:** a small dialog with steppers from 1 to 8.
+  - It describes the result as you go ("Adds 11 empty positions. Every tile
+    keeps its row and column.").
+  - Shrinking past occupied positions is blocked, with the tiles to move or
+    remove named.
+  - On an approved board it says the board returns to draft.
+- **Planning:** the total EHB on the board, players per team (editable, and
+  still editable after rosters are finalized), EHB per player, per player each
+  day (with the event length) and line spread (absolute and percentage).
+  - "More figures" holds tiles filled, average tile, lowest and highest
+    line, tiles without an estimate and event length.
+  - The per-team EHB breakdown is removed.
+- **Tile editor** (one drawer for creating, editing and viewing):
+  - **Tile:**
+    - Name, which falls back to the suggested source names.
+    - Description: the automatic text (ported from
+      `TileDescriptionFormatter`) with "Write your own"; the override offers
+      "Use automatic description" to return to it.
+    - Artwork: upload, replace and remove (PNG, JPEG or WebP).
+  - **Objectives:**
+    - The kind is chosen once per tile: Collect drops or Manual challenge.
+      Switching keeps what you entered for the other kind until you save.
+    - A single objective has no card chrome. Several objectives become
+      numbered, collapsible cards headed by their own description and
+      estimate, with "All 2 must be completed".
+    - **Drops:**
+      - Bosses or activities: a searchable multi-select, shown as chips.
+      - Eligible drops grouped by source. Sources that already have chosen
+        drops show only those, with "Show all"; new sources show every drop.
+        Each row shows its rate or "No rate".
+      - "Collect [n] of the chosen drops", then a one-line counting summary
+        with Change. Change reveals "The same drop can count more than once"
+        and "Some drops count as more than one". The second adds a "counts
+        as" field beside each chosen drop.
+    - **Manual challenge:** "What must be completed?" and "Complete [n]
+      times". Evidence and approval are still required.
+  - **Estimate:**
+    - Drop tiles show the calculated EHB, with plain reasons when it can't be
+      calculated (a missing catalogue rate links to Catalogue; a target that
+      can't be reached without repeats).
+    - "Set EHB manually" adds an override that replaces the effective EHB
+      for this event's tile only. The calculated value stays visible (struck
+      through), and "Use calculated" returns to it.
+    - Manual challenges require an EHB estimate.
+  - **Validation** happens on save and focuses the first problem: target
+    1–10,000, at least one source and drop, weights 1–10,000, manual text,
+    EHB above 0 up to 100,000, and a description of up to 4,000 characters.
+  - **Locks:**
+    - Evidence-locked objectives show the lock reason in place, and their
+      sources, drops, target and counting can't change. The kind, the
+      override and adding or removing objectives are locked for that tile,
+      and Remove tile is replaced by "Can't be removed: evidence was
+      submitted".
+    - Name, description and artwork stay editable.
+  - **Footer:** Remove tile…, the unsaved-changes indicator, Cancel and Save.
+    Ctrl/⌘+Enter saves.
+  - **View mode** (someone else editing, or a published board): the same
+    drawer, read-only.
+- **Approval and publication:**
+  - **Approve board** runs without a confirmation and validates the whole
+    board. Failures appear as one list with links that open each tile:
+    empty positions, a drop tile without automatic EHB (the missing rate is
+    named), a manual tile without EHB, and drops without a catalogue GP
+    value.
+  - **Approved:** any tile, position or size change returns the board to
+    draft. The editor says so before saving and the toast confirms it.
+    Return to draft is in the menu.
+  - **Publish board…** needs finalized rosters, the event not yet started
+    and its end still in the future. When blocked, the button explains why
+    and a banner links to Teams / Draft. One confirmation says publishing
+    doesn't start the event.
+  - **Published:** read-only, with Correct published board… in the menu.
+- **Corrections:**
+  - Correct published board… needs a reason (up to 2,000 characters).
+    There's no separate checkbox; the dialog is the confirmation.
+  - During a correction, a banner shows the reason and the evidence rule, and
+    changed tiles carry a dot.
+  - **Publish correction…** validates the corrected copy and replaces the
+    public board. The confirmation counts the changed tiles and repeats the
+    reason.
+  - **Discard correction…** restores the working copy from the published
+    board, without touching results or evidence.
+- **Preview:** a player-facing view (names, descriptions, artwork; no admin
+  controls) labelled with what it shows: the current draft, the frozen
+  approved version, what players see now, or your private correction.
+  Opening it changes nothing.
+- **Editing control:**
+  - The chip reads "You're editing" (Stop), "Mia Kowalski is editing" (Take
+    over…, with a confirmation) or "Viewing" (Start editing).
+  - Losing control while the editor is open keeps your entries in a
+    read-only drawer with "Take over…". Taking back control makes them
+    editable again.
+- **States:**
+  - Loading skeleton and failed load with Try again; a failed editor load
+    inside the drawer with Try again.
+  - Empty and partly built boards.
+  - Saving uses the shared minimum; moves, team size and editing control use
+    the short one.
+  - Failures are reported in the dialog or a toast.
+  - "Another admin changed the board first" keeps your entries and loads the
+    latest board.
+  - Uncertain outcomes wait for Check again.
+  - Navigation: unsaved tile changes ask before discarding, and an uncertain
+    change asks before leaving. Back or Forward closes the top dialog,
+    drawer, menu or move first.
+  - Direct entry with `?tile=` opens that tile after loading.
+- **Samples:**
+  - Raids Week: draft, 18 of 25.
+  - Autumn: empty.
+  - Clan Cup: full, but approval fails on a missing rate and a missing GP
+    value.
+  - Nordic Night: approved, rosters not finalized.
+  - Boss Rush: approved, ready to publish.
+  - Midsummer: published and Live, with evidence.
+  - Summer Bingo: an open correction.
+- **Prototype controls:** in the account menu.
+  - Next change outcome.
+  - Mia takes over editing, or edits the board.
+  - Catalogue adds the missing rates; evidence arrives for a tile.
+  - Fail the next load or the next editor load, open the page or tile B3
+    directly, and show the browser bar.
+
+### What the application already supports
+
+- **Board and layout:** dimensions 1–8, create, move or swap, resize that
+  blocks shrinking past occupied positions, and tile removal blocked by
+  evidence.
+- **Tiles:** homogeneous objective kinds, drop objectives with sources, drops,
+  target, repeats and weights, manual objectives, automatic descriptions with
+  overrides, artwork upload, replace and remove, and the EHB calculator.
+- **Workflow:** approval validation and snapshot, invalidation by competitive
+  edits, unapprove, publish with confirmation and readiness, correction with
+  reason and confirmation, publishing a corrected replacement, and discarding
+  a correction.
+- **Collaboration:** the editing lease with takeover and release, presence, and
+  live board notifications.
+- **Stored caps:** maximum-contribution caps are kept in data but have no
+  editor control. None is added here.
+
+### Approved changes the backend doesn't support yet
+
+- **Manual EHB override on drop tiles.** `CreateTile`/`EditTile` currently
+  reject a manual estimate on catalogue tiles ("Catalogue tiles use automatic
+  EHB"). The approved change lets any tile carry an override that replaces its
+  effective EHB for board balancing, credited contribution statistics and the
+  ranking tie-break. It belongs to the event's tile only; catalogue rates and
+  other events are untouched. Proportional credit for partial progress stays.
+- **Players per team after finalization.** `OnPostTeamSize` refuses once a
+  roster is published ("The finalized roster determines team size"), and
+  the statistics use roster sizes. The approved change keeps the planning
+  estimate editable and uses it for the planning figures.
+- **Ranking.** Credited EHB comes before current-score completion time after
+  equal completed lines and tiles, with full-board completion still first. No
+  Board UI is needed; `PRODUCT_REQUIREMENTS.md` 8.2 still lists the old
+  order.
+
+### What needs integration
+
+1. **Editor and actions without full reloads.**
+   - The current editor posts and redirects. The reference saves in place
+     with the shared saving feedback and keeps entries on failure, conflict
+     or loss of control.
+   - The page already loads editor data on demand (`OnGetEditorData`);
+     opening the drawer should use it.
+2. **Keyboard moving and `?tile=` routes.** Today moving is drag-only, and
+   tile details open in a dialog with no URL.
+3. **Line deviation markers.** The application shows the line spread only;
+   the ±25% markers need the line totals plus a threshold. The threshold is
+   a reference choice; confirm it.
+4. **Approval failure list.** Approval currently returns one message. The
+   reference lists every problem with a link to the tile, which needs the
+   validation to report all issues.
+5. **Changed-tile markers during corrections**, from comparing the working
+   copy with the active published snapshot.
+6. **Uncertain-outcome readback** after a timeout.
+7. **Remove** the per-team EHB breakdown and the permanent explanation
+   panels.
+
+### Decisions to confirm
+
+- **Override vs missing rates.** The contracts say a manual estimate can't
+  repair a broken standard tile. The reference allows an override on any drop
+  tile but still blocks approval when the calculation itself fails (missing
+  rate), so catalogue data must still be fixed. Confirm, or allow the override
+  to stand in.
+- **Evidence and the override.** Once evidence exists for any objective in a
+  tile, the override is locked, as the tile's EHB is part of its scoring (the
+  application already blocks changing `ManualEhbOverride` then).
+- **Artwork on evidence-locked tiles** stays editable as presentation. The
+  contracts only name title and description; confirm.
+- **Optional tie-break EHB value** (PRODUCT_REQUIREMENTS 10.1) has no editor
+  field in the current application or here. The effective EHB serves the
+  tie-break.
+
+## Audit: reference behaviour and integration notes
+
+Audit is the read-only history of administrative actions. It answers four
+questions: what happened, who did it and when, which event or record was
+affected, and what changed (with the reason, if one was recorded). It is a
+focused history page: a table for browsing, a drawer for inspecting one entry,
+and no statistics or dashboard. History is immutable, so the page has no
+editing, deleting, Undo, export or bulk actions, and no save feedback.
+
+The URL is `/admin/audit`. Filters, the page and an open entry live in the
+query: `?event={slug}&action={key or area}&actor={text}&type={record
+type}&from={yyyy-mm-dd}&to={yyyy-mm-dd}&page={n}&entry={id}`. Defaults are left
+out, so the unfiltered first page is just `/admin/audit`.
+
+Verified against the current implementation (the participants-functionality
+checkout):
+
+- `Admin/Audit/Index` and its page model: the filters, ordering and
+  pagination.
+- `Shared/_AuditEntry` (also used by the Dashboard's recent activity).
+- `AuditPresenter` (labels, reasons, changes, safe technical details) and
+  `DateTimePresentation` (default zone Europe/Copenhagen).
+- `FUNCTIONAL_CONTRACTS.md` 9.3.
+
+### What the reference implements
+
+- **Header:** "Audit", "Administrative history, newest first." and the time
+  zone: "Times in Copenhagen time (UTC+02:00)". The offset follows summer and
+  winter time.
+- **Filters**, by how often they're used:
+  - In the toolbar: an actor search (applies on Enter or when leaving the
+    field, up to 100 characters, a leading `@` is ignored), an **Event**
+    menu listing events by name, and an **Action** menu with All actions, the
+    seven areas (Accounts, Events, Catalogue, Board, Teams, Draft, Evidence)
+    and "Specific action…".
+  - In **More filters** (a small anchored panel): a specific action (grouped
+    by area, by readable label), the record type, and a date range with
+    Today / Last 7 days / Last 30 days presets and From / To dates. Both days
+    are included and are Copenhagen dates. Validation: "Enter dates like 27
+    May 2027." and "The start date must be on or before the end date.";
+    focus goes to the first wrong field. Reset these clears the panel's
+    fields; Apply applies them. A count on the button shows how many panel
+    filters are active.
+  - Every active filter appears as a removable chip, with Clear all.
+  - Any filter change returns to page 1. Paging keeps the filters.
+- **Table** (newest first, scrolls sideways when narrow, with the When column
+  pinned):
+  - When: date, with the time below.
+  - Action: the readable label (never the internal key), an Automated pill for
+    system actions, and the record below (type and name, e.g. "Board · Raids
+    Week 2027").
+  - Event: the event's name, or "No event" for community-wide or older
+    entries.
+  - Actor: `@username`, or System with a gear icon.
+  - Recorded: small pills for what the entry holds: "2 changes", "Added",
+    "Deleted", "Reason". A dash when there's nothing more.
+  - The whole row and the action label open the entry.
+- **Pagination:** 25 per page. Newer / Page N / Older. Older is enabled only
+  when the server says a next page exists. No totals or page counts are shown,
+  because the application doesn't supply them. The footer reads "Showing 25
+  entries" (plus "matching your filters" when filtered).
+- **Drawer** (read-only, 640px wide):
+  - Head: the date, the action label, and badges for the record type and
+    Automated.
+  - Summary: When (full date and time to the second with the UTC offset),
+    Actor, Event and Record.
+  - **Reason and context:** the recorded reason as a quote and any lifecycle
+    explanation (for example "Publication cycle 2." or "Until 25 May 2027
+    20:00."). The section is left out when there's neither.
+  - **Changes** (the main content): field label, previous value and new value.
+    Empty values show as a dash. Long values are clamped to four lines with
+    Show full values. In a narrow drawer it stacks to labelled Before / After
+    lines. Entries without changes say why: a record was added, a record was
+    deleted, details are withheld (codes, passwords, credentials), or no field
+    changes were recorded.
+  - **Technical details** (collapsed): the action key, the target identity,
+    and the sanitised details, before and after values, as the presenter
+    already prepares them. Unreadable historic details show "Historic details
+    could not be interpreted."; sensitive actions show "Sensitive details
+    withheld" and nothing else.
+  - Footer: Newer / Older step through the current page; Close.
+- **States:** loading skeleton rows (the previous rows are not kept, as the
+  query may have changed). Load failure with "Your filters are kept" and Try
+  again (focus moves to it). "No history yet" when there is nothing at all,
+  "No entries match these filters" with Clear filters when filters exclude
+  everything, and "No entries on this page" with Go to the first page for a
+  stale page link. "This entry isn't available" for an entry link that can't
+  be shown. A notice when a link holds filters that aren't recognised. Hover,
+  focus and selected rows use the shared table states; the drawer and panel
+  use the shared motion, and reduced motion removes it.
+- **Samples:** about 50 visible entries from January to 2 June 2027 across
+  seven events: ordinary changes, automated starts, price refreshes and
+  account creation, reasons (structured and plain), a long description change,
+  a sensitive signup-code change, draft and submission reopenings with their
+  explanations, a legacy "Board updated" with only a note, an unknown older
+  action with malformed details, and old entries with no event or snapshot.
+  Two entries for the hidden Easter Mini Bingo exist in the data but are
+  excluded, as the application does (see Known discrepancy).
+- **Prototype controls** (account menu): fail the next load, empty history,
+  open an entry directly, open a filtered link, open a link with a bad
+  filter, and show the browser bar.
+
+### Routing: prototype and application
+
+The artboard simulates the browser with an in-memory history and the
+prototype URL bar. In the application these are real URLs and real history
+entries.
+
+- **Filters and pages** push a history entry, so Back returns to the previous
+  filters or page and the list reloads. A link opens with its filters
+  applied. Unknown or invalid values (an unknown event or record type, an
+  impossible date, a start after the end, an invalid page) are dropped and the
+  URL is replaced, with a notice.
+- **Opening an entry** pushes `entry={id}` on top of the current filters and
+  page. Back closes the drawer; Forward reopens it. Close and Escape step back
+  over that entry when it's the previous one, otherwise replace the URL
+  without `entry`. Newer / Older replace the URL, so they don't fill the
+  history. Focus returns to the row's action.
+- **Direct entry:** `/admin/audit?entry={id}` opens the first page with the
+  drawer over it; the entry is read by id even when it's not on that page.
+  An entry that doesn't exist, or that the query would exclude, shows "This
+  entry isn't available".
+- The browser's own Back always closes an open menu or the filter panel
+  first.
+
+### What the application already supports
+
+- Filters for event (id), actor, action, entity type and From / To, with
+  Filter and Clear.
+- Newest first by occurrence time, then id.
+- 25 per page with previous / next (it fetches 26 to know whether there's a
+  next page).
+- `AuditPresenter`: readable action and target labels with a fallback
+  ("Recorded administrative action"), structured and plain reasons, the
+  draft-reopening and submission-reopening explanations, "Added" / "Deleted"
+  lifecycle, field changes with readable labels and sensitive keys dropped,
+  withheld details for sensitive actions, malformed-details handling, and the
+  target identity line.
+- Dates in the default zone (Europe/Copenhagen).
+
+### What needs integration
+
+1. **Event lookup instead of an Event ID field.** The menu needs the list of
+   events (id, name and, for display, the lifecycle status), ordered as on
+   Events. Hidden events are left out today (see Known discrepancy). The URL
+   uses the slug in the reference; the application may keep the id, as long
+   as the control shows names.
+2. **Area and specific action filters.** The current `Action` filter is a
+   substring match on the stored key. Area filters (`event.`) work with that
+   as prefixes, but a specific action such as `event.started` also matches
+   `event.started_automatically`. A specific action needs an exact match (or
+   prefix and exact as separate parameters). The specific-action list needs
+   the presenter's labels exposed.
+3. **Labels for keys the presenter doesn't name yet.** The reference labels
+   `board.approved`, `board.resized`, `board.published_correction_started`,
+   `board.published_corrected`, `team.membership_role_changed` and
+   `board.expected_team_size_changed`. Today they show "Recorded
+   administrative action".
+4. **Actor matching.** The reference matches case-insensitively and ignores
+   a leading `@`. `Contains` on PostgreSQL is case-sensitive unless the query
+   lowers both sides or uses `ILIKE`.
+5. **Date bounds.** The reference treats From / To as whole Copenhagen days,
+   both included. The page model binds `DateTimeOffset`s; the bounds should
+   be computed from local dates in the display zone (end exclusive at the next
+   local midnight).
+6. **Single-entry read** for `?entry=` when the entry isn't on the loaded
+   page, applying the same visibility rules as the list.
+7. **URL state:** filters, page and entry as query parameters with
+   validation, and the Back / Forward behaviour above.
+8. **Change labels.** The reference sentence-cases split names ("Team role",
+   "Completions per hour"). `Humanize` currently splits camelCase without
+   changing case.
+9. **Record names.** The presenter takes a record's name from a `Name` field
+   in the before / after values. Many entries (boards, evidence, memberships,
+   drafts) have none, so today they show just the type ("Board"). The
+   reference shows names for them ("Board · Raids Week 2027", "Evidence ·
+   Rune Lyra · Vorkath heads"), which needs either the name recorded with the
+   entry or a lookup by target id. Without it, the table falls back to the
+   type and the event column still identifies the event.
+
+### Known discrepancy (for application reconciliation)
+
+`FUNCTIONAL_CONTRACTS.md` 9.3 says hiding an event is not an audit secrecy
+boundary. The current query excludes entries whose event is hidden
+(`HiddenAt != null`), so their history (including the hide itself) disappears
+from Audit. The reference reproduces the application as it is: the Easter Mini
+Bingo entries are in the sample data but excluded from the list, from the
+event menu and from direct entry links. It does not choose a fix. Either the
+query or the contract should change; if hidden events stay visible here, the
+event menu would need to include them (marked Hidden).
+
+### Decisions to confirm
+
+- **Case-insensitive actor search** and the leading `@` (item 4 above).
+- **Area filters in the toolbar** with specific actions in the panel. This
+  relies on the prefix behaviour already present.
+- **Date presets** (Today, Last 7 days, Last 30 days) count days in
+  Copenhagen time.
+- **Long values** clamp at four lines in the drawer; the full value is one
+  click away, and the raw values remain in Technical details.
+
+## Review: reference behaviour and integration notes
+
+Review is where admins check submitted evidence and decide on it. The task is
+comparison: a readable screenshot beside exactly what it has to show, then a
+decision. Final review (event-wide completion and official results) is a
+separate page; Review has no finalization controls or readiness summary.
+
+Two routes, both for the selected event:
+
+- Queue: `/admin/events/{slug}/review?q={search}&status={status}`.
+- Submission: `/admin/events/{slug}/review/{id}?q=…&status=…`. The queue's
+  search and status travel with the submission so returning keeps them.
+
+Verified against the current implementation (the participants-functionality
+checkout):
+
+- `Admin/Review/Index` and `Details` with their page models, and
+  `admin-review-queue.js`.
+- `SubmissionService` (create, approve, reject, reverse, correct, rebalance,
+  concurrency) and `EvidenceAuthority`.
+- `public-evidence.js` (zoom and pan in the current lightbox).
+- `FUNCTIONAL_CONTRACTS.md` 2.4 and 7.4–7.5; `PRODUCT_REQUIREMENTS.md` 12–14.
+
+### What the reference implements
+
+- **Queue:**
+  - Header: "Review", how many are pending, the event state ("Live · ends …",
+    or "Ended … · uploads closed, review continues"), and "Times in Copenhagen
+    time".
+  - Search across team, credited account and tile, live as you type. Status as
+    a segmented filter with counts (All, Pending, Approved, Rejected,
+    Withdrawn, Reversed); a status menu on phones. Both replace the URL, as
+    the application does. The event comes from the event selector only.
+  - Pending first, newest first within Pending and within the rest.
+  - Columns: Uploaded (Copenhagen time, UTC below), Team, Account, Tile (with
+    the drop and boss, or "Manual objective"), Status, Check. Check shows
+    short warnings: After end, Paused period, Same image, No screenshot, Left
+    team. The expected code is not a column. The table scrolls sideways with
+    Uploaded pinned.
+  - "No submissions yet" (with when evidence can arrive) is distinct from "No
+    submissions match" (with Clear search and status). Loading skeleton, and
+    load failure with Try again (search and status kept).
+  - Returning from a submission restores the search and status and puts focus
+    on the row you came from, briefly highlighted.
+- **Submission workspace** (one page, no drawer):
+  - Header: back to Review, the tile name with the status, and Previous /
+    position / Next within the list you came from.
+  - **Screenshot viewer** on the left, kept in view (sticky) while the side
+    column scrolls. Fit, 100%, zoom out/in with the level shown, and Original
+    (opens the full image in a new tab). Drag to move, wheel to zoom at the
+    pointer, double-click toggles fit and 2×. The stage is focusable: + and −
+    zoom, 0 fits, 1 is actual size, arrows move. Loading, failed (Try again,
+    Open original) and missing states.
+  - **Side column**, scrolling on its own:
+    - Warnings that need a closer look, each phrased as a check: uploaded
+      after the end (minutes after, the end in UTC, and that grace uploads
+      are allowed but the drop must be before the end), uploaded during a
+      paused interval, the credited player left the team (with the time),
+      the same image on other submissions (with links), and no screenshot.
+    - **Compare with the screenshot:** Account (team, and when the active
+      account last changed), Drop (and boss), Objective, Code (the code kept
+      with the submission, only when codes are enabled), Uploaded (UTC first,
+      as the plugin stamps UTC, with Copenhagen time below), Event window
+      (with any paused interval), and Contribution (what approving adds,
+      partial amounts, progress, or what was added or removed). The tile name
+      appears only in the header. A submitter's note and existing reviewer
+      feedback appear when present; there are no empty placeholders.
+    - **History** (decisions, corrections and reasons, newest first),
+      **Earlier approvals for this objective** (same team, with links) and
+      **Files** (current and earlier versions, size, dimensions, upload time,
+      checksum, Open) are collapsed below.
+  - **Decision panel**, pinned at the bottom of the side column (and sticky
+    at the bottom of the screen on narrow layouts):
+    - Pending: **Approve** (direct, no confirmation), **Reject…** (an inline
+      reason, required, up to 4,000 characters; says who is notified) and
+      **Correct details…** (tile, drop and credited account in a card above
+      the facts so the screenshot stays visible; the new weight is shown; a
+      reason is required; "Change at least one detail" if nothing changed).
+    - Approved: who approved and when, and **Reverse approval…**, a
+      confirmation that explains the contribution is removed, progress is
+      recalculated, later evidence may take up the amount, and the record
+      stays in history. A reason is required.
+    - Rejected, Withdrawn, Reversed: a note that the attempt is history and a
+      new upload is a separate submission. No reapproval.
+    - Event not Live or in final review: "Review starts when the event is
+      Live" (or the final-review wording).
+    - After a decision: the outcome ("Approved · 2 added to Team Masori")
+      with **Next submission** and **Back to the queue**; focus moves to the
+      outcome, and a toast confirms.
+- **Requests and failures:**
+  - One request at a time: the pressed button shows a spinner, every decision
+    control is disabled, and leaving waits. Loading feedback uses the shared
+    minimum durations.
+  - Failure: "Couldn't approve this submission. Nothing changed. Try again."
+    in the panel.
+  - Rule refusal: approving when nothing is left to add shows the reason and
+    suggests rejecting with a reason.
+  - Stale decision (another admin decided, or the team withdrew): nothing is
+    saved, the current record is shown, and a banner says who changed it and
+    asks you to check again. An unsaved reason is kept if the record is still
+    pending.
+  - Uncertain outcome (timeout): a banner with **Check status**; decisions
+    are disabled until checked, and leaving asks first. The check shows the
+    outcome or "It wasn't saved. Nothing changed, so you can decide again."
+  - Leaving with an unsaved reason or correction asks first.
+- **Samples:**
+  - Midsummer Skilling Sprint (Live, codes on): a partial contribution (worth
+    3, only 2 remain), a duplicate image of an approved submission, a manual
+    objective with a note, an account changed shortly before upload with an
+    older code in the screenshot, an image that fails to load once, a
+    submission with no screenshot, an objective that's already complete, a
+    corrected submission with a replaced (earlier) screenshot, and approved,
+    rejected, withdrawn and reversed records.
+  - Summer Bingo 2027 (in final review, codes off): an upload 43 minutes after
+    the end, an upload during a paused interval, and a player who left the
+    team.
+  - Other events show the empty queue.
+- **Prototype controls** (account menu): the next decision's outcome
+  (succeeds, fails, times out either way, another admin decides first),
+  "Mia decides the open submission", "The team withdraws the open
+  submission", fail the next load or screenshot load, open a submission
+  directly, a filtered queue link, a link with the wrong event, and the
+  browser bar.
+
+### Routing: prototype and application
+
+The artboard simulates the browser. In the application these are real URLs.
+
+- Search and status replace the queue URL as they change (no history entry
+  per keystroke).
+- Opening a submission pushes its URL with the queue's search and status.
+  Back returns to the queue with them, with focus on that row. Review in the
+  header steps back when the previous entry is that queue, otherwise opens it.
+- Previous / Next replace the URL, so Back always returns to the queue rather
+  than through every submission viewed.
+- Direct entry and refresh load the submission by id. The event comes from
+  the submission, and a link with another event's slug is corrected. Previous
+  / Next then use the queue order for the search and status in the link.
+- An unknown id shows "This submission isn't available".
+
+### What the application already supports
+
+- The queue for the selected event with live search (team, credited player,
+  tile) and status, Pending first then newest; search and status kept into
+  Details and back.
+- Approve (contribution capped by remaining progress, drop cap and weight;
+  refused when nothing is left), Reject with a reason and notifications to the
+  credited participant and current captains/co-captains, Reverse with a reason
+  and rebalancing of later approvals, and the reasoned correction of tile,
+  requirement, drop and credited playing account with the destination weight.
+- Review while Live or Awaiting final review, including after uploads close.
+- Version checks on every decision; conflicts and refusals come back as
+  messages.
+- The retained expected code, minutes after the end with the end in UTC, the
+  paused-interval check, checksum matches, earlier approvals for the team and
+  requirement, asset versions with checksums, and review history.
+- The lightbox zoom/pan logic in `public-evidence.js`.
+
+### What needs integration
+
+1. **Decisions without a full reload.** The current page posts and redirects
+   with a status message. The reference keeps you on the page, shows the
+   outcome with Next, and handles conflict, refusal and timeout in place.
+   After a timeout, read the submission back (status and version) instead of
+   retrying.
+2. **Contribution projection** for a pending submission: what approving would
+   add, partial amounts and objective progress. This is the calculation
+   `ApproveAsync` already makes (remaining requirement amount, drop cap,
+   weight), read without saving. Approved records show
+   `ApprovedContribution`; reversed records need the removed amount from
+   history.
+3. **Queue warnings.** Today the queue only flags uploads after the end.
+   Same image, paused interval, missing screenshot and left team need
+   per-row projections, all from existing data. The queue's after-end flag
+   uses `EventEndsAt` while Details uses `ActualEndedAt ?? EventEndsAt`; one
+   boundary should be used.
+4. **Drop and boss in the queue**, from the published drop snapshot.
+5. **Account context.** `PRODUCT_REQUIREMENTS` 12.2 asks review to show the
+   latest relevant account change in UTC. The data exists
+   (`EventParticipantCharacterSwap`), but Details doesn't project it. The
+   reference shows "active account since …, switched from …". The player's
+   withdrawal time (already used by `IsEligibleTeamCreditAsync`) is shown as
+   "left the team at …".
+6. **Event window** (actual start and end in UTC, and any paused interval)
+   in Details.
+7. **Previous / Next.** Compute the neighbours from the event, search and
+   status in the URL with the queue's ordering, or pass the list. The
+   reference uses the list as it was when the submission was opened.
+8. **Inline viewer.** Replace the lightbox with the in-page viewer (Fit, 100%,
+   zoom level, keyboard and pointer controls). `public-evidence.js` already
+   has the zoom, pan and pinch logic. Original stays `/Evidence/{assetId}`.
+   Add an image load failure with retry.
+9. **Routes.** The reference uses `/admin/events/{slug}/review[/{id}]`; the
+   application uses `/Admin/Review?eventId=` and
+   `/Admin/Review/Details/{id}?eventId&search&status`. Either works if search
+   and status are kept and the event comes from the submission.
+10. **Wording.** Short labels replace "Active asset", "Resolve submission",
+    "Correct metadata before approval", "Ineligible final-review interval"
+    and the always-visible "No Captain note".
+
+### Proposed additions (need new functionality or a rule decision)
+
+- **Block Approve when there is no screenshot.** The application allows
+  approving a submission without an active asset. The reference keeps Approve
+  available and shows a warning.
+- **Disable Approve when nothing is left to add.** The application refuses on
+  submit; the reference shows "Nothing left to add" under Contribution and
+  keeps the button enabled, matching the application.
+
+### Disagreements between code and requirements
+
+- The refusal for a complete objective says "Mark the submission as a
+  duplicate or reject it", but there is no duplicate state (contracts 7.5 and
+  requirements 13: a duplicate is a Reject). The reference says "reject it
+  with a reason".
+- The paused-interval check compares the **upload** time and says "Treat it
+  as outside the authoritative live eligibility intervals". The requirements
+  make the screenshot time decisive, and an earlier drop uploaded later is
+  normally fine (as in grace). The reference phrases it as a check.
+- Correction eligibility: `ValidateTarget` checks team credit at the current
+  time although its message says "at the evidence time", and the account list
+  only offers current members with unreleased playing assignments. A
+  correction to an account that was active at upload but has since left or
+  been released isn't possible.
+- Requirements 13.1 lists "Correct metadata and approve" as one action; the
+  application corrects, then approves separately. The reference follows the
+  application.
+
+### Decisions to confirm
+
+- Approving without a screenshot, and approving when nothing remains (above).
+- Previous / Next order: the list at the time of opening (reference) or the
+  live order.
+- Workspace times: UTC first (to match the screenshot stamp) with Copenhagen
+  time below; the queue leads with Copenhagen time.
+- The paused-interval and correction-eligibility questions above.
+
+## Final review: reference behaviour and integration notes
+
+Final review is where admins see the standings, resolve anything preventing
+publication, and publish official results. After publication it presents the
+official results and the retained publication history. It owns event-wide
+completion and publication only; individual evidence decisions belong to
+Review.
+
+The URL is `/admin/events/{slug}/final`. A retained version opens over the
+page with `?version={n}`.
+
+Verified against the current implementation (the participants-functionality
+checkout):
+
+- `Admin/Events/Finalize` and its page model (publish and reopen handlers;
+  resolve, acknowledge, correct and archive are retired non-actions).
+- `EventFinalizationService` (readiness, publication with the final Wise Old
+  Man refresh, reopening, current-event exclusivity, idempotent retry of an
+  archived publication).
+- `PublicProgressCalculator.Rank`, `BingoEvent.Unfinalize` and
+  `AcceptsNewSubmissions`.
+- `PRODUCT_REQUIREMENTS.md`, "Approved Admin simplification" (RES-01), which
+  supersedes older final-review descriptions.
+
+### What the reference implements
+
+- **Header:** "Final review" with a state badge (Provisional, Provisional ·
+  correction, Official · version n, Live, or the pre-live phase), the end and
+  upload-close times or the publication time, and "Times in Copenhagen time".
+- **Publication** (Final review only), one card:
+  - A headline: "n things to resolve before publishing", "Waiting for uploads
+    to close", or "Ready to publish", with what publishing does ("makes these
+    standings official as version n and archives the event"). In a correction
+    cycle it says when and by whom the results were reopened and which version
+    stays in history.
+  - **Publish official results…**, unavailable (with the reason beside it)
+    until every requirement is met.
+  - The requirements, each with its state and a destination: in final review;
+    uploads closed (an open window is a normal, timed wait: "They close at
+    10:10 (in 10 min)… this is expected"); no pending submissions (**Open
+    Review** goes to the event's queue filtered to Pending); placements
+    calculated from the published board (**Open Board** otherwise); and, when
+    another event is current, that event (see integration). Nothing can be
+    acknowledged or overridden.
+- **Standings:** place and team, full board (completion time), lines, tiles,
+  credited EHB and score reached ("At completion" for full boards). Each row
+  says in a few words what separates it from its neighbour ("First to complete
+  the board", "Same lines; fewer tiles than Bandos Bros (18 vs 19)", "Shares
+  3rd with Arma Squad: equal on every input") and highlights that value.
+  Exact ties share a place ("=3"; numbering continues 1, 2, 3, 3, 5); names
+  only order tied rows. **How placements are decided** opens the order, the
+  tie rule and the approved-but-not-implemented EHB change. Provisional
+  standings are calculated; official ones are the stored snapshot. The table
+  scrolls sideways with the team column pinned.
+- **Official results:** a stamp with the version, time and admin, "The event is
+  archived", and any Wise Old Man refresh note retained from publication.
+- **Publication history** (secondary): each version published (Official or
+  Retained) and each reopening with its admin, time and reason; **View
+  results** opens a version's stored results in a drawer, unchanged.
+- **Correct official results** (secondary, below the history): **Reopen
+  results…**, or the reason it isn't available ("Midsummer Skilling Sprint is
+  the current event. Archive it before reopening these results.").
+- **Confirmations:**
+  - Publish: the top three as they will be published, then what happens
+    (official version n, archived in the same step, the Wise Old Man refresh
+    and what a skip means, participants notified). One confirmation, no
+    reason.
+  - Reopen: returns the event to provisional final review and makes it current
+    again; the version stays in history and the next publication creates a
+    new one; it doesn't restart the event or reopen uploads. A reason is
+    required (up to 2,000 characters).
+- **Outcomes:**
+  - Published: the page becomes the official view, focus moves to it and a
+    toast confirms. Published with a skipped or failed refresh: the same, with
+    a warning banner that says the results are published and why the refresh
+    didn't run. Never shown as a failed publication.
+  - Failed: the dialog stays open with "Nothing changed. Try again."
+  - Stale (standings changed, or another admin published or reopened first):
+    nothing more is done, the current state is shown with a banner, and
+    changed rows are highlighted.
+  - Access removed: the dialog says so and offers only Close.
+  - Uncertain (timeout): a banner says the request may have gone through;
+    **Check status** reads the state back ("The results are official: version
+    2 was published at 10:04…" or "The results weren't published. Nothing
+    changed."). Publishing and reopening stay unavailable until checked.
+    Reloading or returning to the event is also a readback.
+- **Other states:** loading skeleton, load failure with Try again, Live ("Final
+  review starts when the event ends", live standings), and no calculated
+  results (pre-live, or no teams on the published board) with Open Board.
+- **Samples:** Summer Bingo 2027 (3 pending), Boss Rush Weekend (a reopened
+  correction cycle with a shared 3rd place, ready to publish), Clan Cup
+  (uploads still open), Spring Bingo 2027 (official version 2 with a retained
+  version 1, a reopening and a refresh note), Midsummer (Live), Autumn and
+  Raids (no results yet). These are independent of the other artboards'
+  samples.
+- **Prototype controls** (account menu): the next publish and reopen outcome,
+  "Another event is current", decide Summer Bingo's pending submissions, close
+  Clan Cup's upload window, fail the next load, open Spring version 1
+  directly, and the browser bar.
+
+### Routing: prototype and application
+
+The artboard simulates the browser; the application uses real URLs.
+
+- Switching events keeps you on Final review for that event. Open Review and
+  Open Board push their pages; Back returns here.
+- **View results** pushes `?version=n`. Back closes the drawer; Forward
+  reopens it; Close and Escape step back over it. A direct link opens the
+  version over the page. An unknown version shows "This version isn't
+  available"; an invalid value is dropped.
+- Dialogs aren't in the URL; Back closes an idle dialog first and waits while
+  a request is running.
+
+### What the application already supports
+
+- Readiness: final-review state, the upload window, Pending count with a link
+  to the filtered Review queue, published board and calculated placements, and
+  the retained review cycle; publication allowed only with no blockers.
+- Publication: one confirmation, an immutable official snapshot (inputs,
+  results and exact-tie explanations) and Archived state in one transaction,
+  result notifications, the final Wise Old Man refresh with its outcome kept
+  as feedback (not a failure), version checks, and an idempotent result when a
+  timed-out publication is retried after it went through.
+- Reopening with confirmation and reason, returning to provisional final
+  review without reopening uploads, retaining the version, and refusing while
+  another event is current.
+- Retained history: every version with its placements and its reopening time
+  and reason.
+- Ranking: full board and completion time, lines, tiles, score time, EHB;
+  shared rank only for exact equality.
+
+### Approved changes awaiting implementation
+
+- **EHB before score time.** RES-01 and the approved ranking put credited EHB
+  ahead of the current-score time for teams without a full board. Today
+  `Rank` compares score time first, and the current page's explanation says
+  so. The reference calculates with today's order and states the change in
+  How placements are decided. Older official versions keep their stored order.
+
+### What needs integration
+
+1. **Publish and reopen without a full reload.** Today both post and redirect
+   with a status message (the refresh outcome becomes a warning message). The
+   reference keeps you on the page, shows the outcome in place, and after a
+   timeout reads the event back (state, version, latest finalization) instead
+   of retrying. The service already treats a retried archived publication as
+   success.
+2. **Structured refresh outcome.** `FinalizeAsync` returns the Wise Old Man
+   result as free text (`Feedback`). The reference needs succeeded / skipped /
+   failed and a short reason to word the banner, and the retained note per
+   version (it's in the lifecycle detail and audit today).
+3. **Current-event exclusivity in readiness.** Publishing is refused when
+   another event is Live, in Final review or Finalized, but readiness doesn't
+   report it, so the button looks available until the request fails. Add it
+   as a blocker (with the other event) and expose the same check for
+   reopening.
+4. **Readiness wording and destinations.** Short titles and reasons replace
+   "Final-review checklist", "Results ledger", "Open records" and the
+   remaining-count badge; an open upload window reads as a timed wait with the
+   close time.
+5. **Version history projection:** who published each version (the
+   finalization keeps the actor id) and who reopened it.
+6. **Row explanations and the decisive value** are computed from the same
+   placement inputs; no new data.
+7. **Routes:** `/admin/events/{slug}/final` and `?version=n`; the application
+   uses `/Admin/Events/Finalize/{id}`.
+8. **Legacy Finalized state:** the reference doesn't show it. The page should
+   keep reading it for old records as it does today.
+
+### Proposals and questions
+
+- **Row explanations** are a presentation addition; confirm the wording.
+- **Shared-place marker** "=3": confirm, or show "3" with a "Shared" label.
+- **Reopen exclusivity:** the page shows the blocking event's name; confirm
+  admins may see it (they can see all events).
+- The publish confirmation lists the top three; confirm that's enough
+  context, or show the whole table.
+
+## WOM: reference behaviour and integration notes
+
+WOM manages an event's Wise Old Man connection. It answers three questions
+first: is the connection working, how current is the data, and does an admin
+need to do anything. Technical diagnostics and occasional management sit
+below. The website's event dates are always the schedule; this page never
+edits dates or rosters.
+
+The URL is `/admin/events/{slug}/wom`. Loading or reloading the page reads
+what the website holds and never contacts Wise Old Man.
+
+Verified against the current implementation (the participants-functionality
+checkout):
+
+- `Admin/Events/WiseOldMan` and its page model.
+- `EventCompetitionSynchronizationService` (link and validation, the five-minute
+  window check, manual and scheduled fetches, lease and retry rules),
+  `EventCompetitionManagementService` (create, credential, queued updates,
+  delete, reconciliation and conflict codes) and
+  `EventCompetitionActivityProjection` (coverage and freshness states).
+- `PRODUCT_REQUIREMENTS.md`, "Approved Admin simplification" (WOM-01/WOM-02),
+  including the 2 October 2026 manual-fetch decision (AU15).
+
+### What the reference implements
+
+- **Header:** "Wise Old Man", a state badge (Connected, Needs attention, Not
+  connected), the read-only phase when relevant ("Inspection only: the event
+  is archived"), "The website's dates are the schedule", and "Times in
+  Copenhagen time".
+- **One main issue**, when there is one, as a single banner above everything
+  else, in this priority: an operation whose outcome is unknown, a queued
+  deletion, a conflict (changed on Wise Old Man, missing, shared with another
+  event), a rejected management code (with Replace code…), a missing
+  competition (the last data is kept; in final review, "Final review and
+  publishing can continue"), temporary rate limiting or unavailability (the
+  last data is still shown, with the automatic retry time), or data more than
+  an hour old. Other sections refer to it rather than repeating it.
+- **Connected competition:**
+  - Competition number, title, **Open on Wise Old Man**, and a capability
+    chip with one line: Website-managed ("Created by the website, which keeps
+    it up to date"), Linked · read only ("reads its data but doesn't change
+    it"), or Linked · can update ("its management code lets the website update
+    it; it can't be deleted from here").
+  - Three facts: **Latest data** (the last successful fetch, how long ago,
+    and Wise Old Man's own update time), **Accounts found** (matched of
+    expected playing accounts, and participants separately), and **Next
+    scheduled fetch** (or the automatic retry and attempt).
+  - **Fetch now**: a normal button with no confirmation and nothing to type.
+    It shows "Fetching…" and can't be pressed again while running. When the
+    server wouldn't allow it, it's unavailable with the time it opens and why
+    ("Available from 11:02. Fetches are at least an hour apart.", "An
+    automatic retry is due then.", "The next scheduled fetch is due then."),
+    or "Fetching starts when the event goes live" / "Inspection only".
+- **Account coverage:** a team table (accounts found with a meter, amber when
+  incomplete; participants; names not found), from the last successful fetch,
+  and a disclosure listing every account not found with its team and what to
+  do (the website adds them with its next update, or add them on Wise Old Man
+  for a read-only link, or check names after the roster is fixed at Live).
+  Before the first fetch: "Coverage appears after the first successful fetch"
+  with the expected count.
+- **Updates to Wise Old Man:** the state of website-to-WOM synchronization
+  (Up to date with the last confirmed update; Update queued, not confirmed
+  yet; Updates paused; Not sent for an ID-only link; No more updates after the
+  event) and the **management code** state (Validated, Saved · not checked
+  yet, Rejected, Saved · couldn't be checked, Not added, or held by the website
+  for a website-created competition) with Add code… / Replace code…. After the
+  event first goes live, teams are fixed on Wise Old Man; name and dates still
+  update.
+- **Not connected:** two options side by side.
+  - **Create it on Wise Old Man**, with what it needs and where to fix it:
+    before the event starts; teams finalized (from a published draft or direct
+    finalization; **Open Teams / Draft**); dates set and in the future (**Open
+    Schedule**). Create is unavailable until all are met. A queued creation
+    shows "Creating on Wise Old Man · queued 10:25 … isn't on Wise Old Man
+    until it's confirmed"; an unknown outcome shows that it's being checked
+    without sending again. Create and link are unavailable meanwhile.
+  - **Link an existing competition** by ID, with validation ("Enter the
+    competition ID", "Use numbers only") and the server's answers (dates more
+    than 5 minutes apart, with both times and **Open Schedule**; not found;
+    couldn't reach Wise Old Man).
+- **Manage the connection** (secondary): Replace link (external, before or
+  during Live), Disconnect (external, before Live; otherwise why not), Delete
+  competition (website-created, before Live, nothing in progress; otherwise
+  why not; external competitions can't be deleted).
+- **Technical details** (collapsed): the window on Wise Old Man and whether it
+  matches, the last attempt and result, the last error, retries, the request
+  budget, and Wise Old Man's last update.
+- **Dialogs:**
+  - Management code: a password field, cleared as soon as it's sent, never
+    shown again or echoed in feedback. Says that the code allows updates but
+    doesn't change the competition's origin or allow deletion, and that it may
+    be checked now or on the first update.
+  - Replace link: the new ID with the same validation as linking.
+  - Disconnect: removes the link; the competition on Wise Old Man isn't
+    changed or deleted; optional reason (as today).
+  - Delete competition: names the competition, says it's permanent and
+    removes its history on Wise Old Man, that the event stays, and that the
+    deletion is queued until confirmed. Focus starts on Cancel.
+- **Outcomes:** fetched (toast, focus on the new time); refused within the
+  hour; another fetch running; rate limited or not found (a notice that
+  replaces the standing banner rather than repeating it); timed out (Check
+  status reads the stored state back and never fetches again). Queued
+  operations stay "queued" until confirmed; unknown outcomes are never
+  repeated; "the event changed first" sends nothing and shows the current
+  details.
+- **Samples:** Midsummer (healthy, website-managed), Boss Rush (rate limited,
+  partial coverage, read-only link), Winter Classic (rejected code, awaiting
+  the first fetch), Summer Bingo (final review, competition missing, older
+  data kept), Clan Cup (creation queued), Iron League (deletion outcome
+  unknown), Raids Week and Autumn Bingo (not connected, teams not finalized),
+  Spring Bingo (archived, inspection only). Independent of the other
+  artboards' samples.
+- **Prototype controls** (account menu): the next fetch, link or disconnect,
+  code, and create or delete outcomes; process the event's queued operation;
+  queue a website update; the competition changes on Wise Old Man; fail the
+  next load; open Boss Rush directly; and the browser bar. The application's
+  Development-only "make refresh due" control isn't shown.
+
+### Routing: prototype and application
+
+The artboard simulates the browser. Switching events stays on WOM; links to
+Teams / Draft and Schedule push those pages and Back returns. There are no
+sub-routes: dialogs and disclosures aren't in the URL, and Back closes an
+idle dialog first. In the application the route is `/Admin/Events/WiseOldMan/{id}`.
+
+### What the application already supports
+
+- Linking by ID with validation against Wise Old Man and the five-minute window
+  check; replacing; disconnecting an external link before Live (optional
+  reason); clearing refused while Live and all changes refused after Live.
+- Website-created competitions: creation preview and its errors, queued
+  create, update and delete with reconciliation (unknown outcomes are checked
+  without another write), conflict codes (changed outside, missing, shared),
+  and the roster boundary after first Live.
+- Credentials: protected storage, unverified until checked, validated,
+  rejected, revoked and unavailable states, never redisplayed.
+- Fetching: scheduled hourly slots anchored to the actual start, retries, the
+  lease against concurrent fetches, the hour after a successful fetch, and
+  manual fetch while Live or in final review.
+- Coverage: matched and expected accounts per team, participants, missing
+  names, and freshness states (waiting, partial, incomplete, temporarily
+  unavailable, stale, complete).
+
+### Approved changes awaiting implementation
+
+- **AU15: Fetch now without a challenge.** Today the fetch form asks for a
+  confirmation and the typed word FETCH. The approved change is a normal
+  button. Every server rule stays.
+
+### What needs integration
+
+1. **Actions without a full reload.** Today every action posts and redirects
+   with a status message. The reference keeps you on the page, shows pending
+   feedback, and handles refusal, failure and timeout in place.
+2. **Manual fetch availability.** The page can't tell when Fetch now will
+   work: the server combines the hour after the last success, a pending
+   retry, the next scheduled slot (once anything has been attempted) and the
+   lease. Expose one "available from" time and an "in progress" flag in the
+   view. The reference computes it from the first three; the lease isn't
+   visible today.
+3. **Structured fetch result.** `RefreshAsync` reports a skip without saying
+   which guard applied. Return the reason (within the hour, retry pending,
+   slot not due, running) and the time, so the message can be specific.
+4. **Fetch in final review.** The service allows a manual fetch while Live or
+   in final review; the current page shows the button only while Live. The
+   reference follows the service.
+5. **Last confirmed update and queued change.** Show the last applied update
+   time (`LastAppliedAt`) and what a queued update carries.
+6. **Wording.** Plain labels replace "Provenance / capability", "Website-created
+   · manageable", "Operation: Pending", "Automatic update-all" and the
+   explanation paragraphs; one main issue replaces repeated warnings.
+7. **Missing-account guidance** depends on capability and phase (see above).
+
+### Proposals and questions
+
+- **Manual fetch rarely opens once fetching has started.** Because the next
+  scheduled slot also blocks it after any attempt, Fetch now is mostly useful
+  before the first scheduled fetch or when the scheduler is behind. Confirm
+  this is intended, or relax the slot guard for manual fetches while keeping
+  the hour and lease.
+- **Conflict recovery.** For a changed, missing or shared competition the
+  application only pauses updates; there is no recovery action on this page.
+  The reference explains it and offers Open on Wise Old Man. Decide whether an
+  admin action (for example re-sending after review) is wanted.
+- **Data more than an hour old** is shown as a quiet notice while Live; confirm
+  the threshold matches the stale state (1 hour).
+- **Disconnect reason** stays optional, as today.
+
+## Catalogue: reference behaviour and integration notes
+
+Catalogue maintains the shared bosses and activities, their drops, and the
+rates used to estimate EHB on event boards. The everyday task is finding an
+activity and correcting a setting or a drop, so the page is a plain directory
+and the work happens in one drawer per activity.
+
+The URL is `/admin/catalogue?q=&cat=&status=`. The drawer adds
+`activity={slug}`, an open drop editor adds `drop={id}`, and a new activity
+is `new=1`, so every editor can be linked.
+
+Verified against the current implementation (the participants-functionality
+checkout):
+
+- `Admin/Catalogue/Index` and its page model, and `Index.Api` (suggest,
+  validate and price handlers).
+- `BossActivity`, `CatalogueItem`, `SourceDrop`, `DropRateParser` and the
+  catalogue refresh in `BoardEstimateService`.
+- `PRODUCT_REQUIREMENTS.md` section 9 and CAT-01 in the approved
+  simplification.
+
+### What the reference implements
+
+- **Directory:** search across activity and drop names (a match by drop says
+  so: "matches Uncut onyx"), a category filter, and Active / Inactive tabs
+  with counts; all three are kept in the URL and restored when the drawer
+  closes. Columns: activity (image, name, category), rate ("35 kills/hr" or
+  "Not set"), drops (with inactive ones counted separately), needs attention
+  (Rate missing, n without probability, n without value, No drops) and
+  status. "The catalogue is empty" (with Add activity) is distinct from "No
+  activities match". Loading and load failure with Try again.
+- **Activity drawer** (wide), in the order of everyday use:
+  - **Settings:** name, category, kills or runs per hour (the label follows
+    the category), and image URL with a preview. Changing the rate says what
+    saving recalculates ("this activity's 8 drops and any draft boards using
+    them. Approved boards keep their snapshot"). The footer shows "Activity
+    settings changed" with Discard and Save activity only when something
+    changed; otherwise it's just Close.
+  - **Wise Old Man metric** (collapsed, status beside it: Verified,
+    Unsupported, Couldn't check, Not checked, Not set): the metric, Suggest,
+    Validate and save, Save without validating, and the result in place. "A
+    verified metric means Wise Old Man tracks it, not that every player has
+    data."
+  - **Drops:** a compact list. Each row shows the item, the rate with its
+    plain chance ("2 x 1/1,024 · 1 in 512 per kill"), the value, flags
+    (Inactive, No probability, No value, Shared) and the calculated EHB (or
+    why there isn't one). Rows open one at a time into an editor below the
+    row.
+  - **Drop editor:**
+    - Item name (says when the item is shared and that renaming affects the
+      other activities), drop rate with a live preview of the chance and EHB,
+      image URL, and the calculated EHB with what it was and why it might be
+      unavailable ("The activity has no kills per hour", "The rate can't be
+      turned into a probability").
+    - **Save drop** says what it saves ("the name, rate and image") and is
+      unavailable until something changed; Discard resets the fields.
+    - Renaming to an existing shared item shows that item (where it's used
+      and its value) and requires ticking "Point this drop at the shared item
+      instead"; a name already used by this activity is refused.
+    - A rate that changes the number of rolls is refused with "Changing the
+      number of rolls needs an operator."
+    - **How the rate is counted** (collapsed, read-only): chance per roll,
+      rolls, chance per kill, whose chance (your own, or your own in a team
+      of n), "only after" for conditional drops, note and source.
+    - **Value and item mapping** (collapsed, its own buttons): the stored value
+      and where it comes from, the item ID and its status, any rejected
+      unusual price, the price source (Hourly price, Manual, Untradeable), the
+      manual value, the Wiki item ID with Suggest, **Validate and fetch
+      price** and **Save without validating**. It says these belong to the
+      shared item and which activities share it.
+    - Deactivate / Reactivate drop, and Delete permanently… (Super Admin).
+  - **Add drop:** a compact form at the top of the list (item name, rate with
+    preview, image). A name that matches a shared item shows that item and
+    requires "Use the shared item for this drop"; otherwise the new item needs
+    a value: Enter value (zero is fine), Fetch price (looks the item up when
+    adding; if that fails nothing is added and you can enter a value), or
+    Untradeable. A drop already on this activity is refused.
+  - **Availability:** Deactivate (with a short confirmation of what it does
+    and doesn't affect) or Reactivate, and Delete… for the Super Admin.
+- **Delete:** the dependency check runs first ("Checking what uses it…"). In
+  use: "can't be deleted" with Deactivate instead. Unused: what's removed and
+  what's kept (shared items, prices, Audit history), then Delete permanently.
+  Changed meanwhile: says so. No cascade.
+- **Unsaved work:** closing the drawer, switching to another drop, opening
+  Add drop, Back/Forward or reload ask first and list exactly what would be
+  discarded ("your changes to Tanzanite fang", "the activity settings", "the
+  new drop").
+- **Outcomes:** failure keeps entries; another admin's change shows the
+  current values with "Your changes weren't saved"; a timeout offers **Check
+  current values** (a readback), never a blind repeat. Provider failures say
+  what was saved and what wasn't ("Saved. The price service isn't
+  responding, so the ID wasn't checked. The stored value was kept.").
+- **Samples:** Zulrah (two-roll uniques, a rejected unusual price, a joke
+  drop), Vorkath, Nex (team chance and conditional drops), Tempoross, Fortis
+  Colosseum (a drop without probability or value, unsupported metric),
+  Kalphite Queen (rate missing), Corporeal Beast, Giant Mole (inactive) and
+  Tormented Demons (no drops; deletable). Shared items: Uncut onyx, Clue
+  scroll (elite), Dragon chainbody.
+- **Prototype controls** (account menu): viewing as Super Admin or Admin, the
+  next save and provider outcomes, "Mia edits Zulrah", an empty catalogue,
+  fail the next load, open Tanzanite fang directly, and the browser bar.
+
+### Routing: prototype and application
+
+The artboard simulates the browser. Search and filters replace the URL;
+opening an activity pushes `activity=`; opening a drop editor replaces it with
+`drop=`; closing steps back to the directory with its filters (or replaces the
+URL after a direct link). Back closes the drawer, asking first if something is
+unsaved. The application uses `/Admin/Catalogue?bossId=&dropId=&addBoss=`;
+either works if the filters are kept.
+
+### What the application already supports
+
+- Add, edit, deactivate and reactivate activities and drops; Super Admin
+  deletion with a dependency check; audited changes.
+- Displayed rates with the parser (numerators, separators, explicit rolls),
+  calculated EHB from completions per hour and per-completion chance,
+  recalculation of drops and draft boards when a rate changes, and approved
+  snapshots that don't change.
+- Shared items with explicit "use the existing item" on rename, new items with
+  a manual value, fetched price or untradeable classification.
+- WOM metric and Wiki item mapping with suggestion, validation, the four
+  statuses, saving during outages, manual values that refreshes keep, the
+  rejected-candidate safeguard, and cleared prices when an item ID changes.
+- Version checks against concurrent edits.
+
+### What needs integration
+
+1. **Editing without full reloads.** Every handler posts and redirects with a
+   status message. The reference keeps the drawer, the open editor and the
+   result in place.
+2. **Explicit shared-item choice when adding.** `OnPostBossDrop` silently
+   reuses an existing item with the same name. The reference shows the item
+   and asks first, as editing already does.
+3. **Live rate preview** (chance and EHB as you type) is calculated in the page
+   from the same parser and formula; no server change.
+4. **Where items are shared:** the list of activities using an item, for the
+   shared notes. The data exists (source drops by item).
+5. **Readback after a timeout** for activity, drop and price saves.
+6. **Delete impact** already exists for Super Admin (`OnGetDeletionImpact`);
+   the reference shows it before the confirm button.
+7. **Directory flags** (no probability, no value) from the existing drop and
+   item data.
+
+### Decisions and proposals
+
+- **Advanced mechanics are operator-only today.** Team scope, assumed
+  participants, conditional probability, roll changes, notes and data source
+  are refused by the admin handlers ("operator-managed fields"). The brief
+  asks to preserve them; the reference shows them read-only in "How the rate
+  is counted" with a note that an operator changes them. Decide whether
+  admins should edit any of them (that needs new handlers and validation).
+- **Rate terminology:** the application uses "Kills per hour" for bosses and
+  skilling bosses and "Runs per hour" for minigames. Consider "Completions
+  per hour" for skilling bosses.
+- **Deactivated activities** are described as hidden from new tiles; confirm
+  how draft boards that already use one behave.
+- **Image URLs** stay URLs (no upload), as today.
+
+## Accounts: reference behaviour and integration notes
+
+Accounts manages existing website accounts and their global access: finding
+someone, understanding their account and event roles, and the support actions
+the signed-in admin is allowed to take. It isn't participant management or a
+profile editor. The navigation label is now **Accounts** (previously
+"Accounts / Roles") on every artboard; the internal nav key and prototype
+route changed from `roles` to `accounts` with it. Role management is still
+part of the page.
+
+The URL is `/admin/accounts?q=&role=&page=`. The drawer adds
+`account={id}`, so an account can be linked directly.
+
+Verified against the current implementation (the participants-functionality
+checkout):
+
+- `Admin/Accounts/Index`, `Manage` and `Transfer` (and `Create`, which is
+  retired and returns Not Found) with their page models and
+  `account-transfer.js`.
+- `AccountAdministrationService`, `AccountIdentityService.GenerateResetLinkAsync`
+  and `Account` (authorization version, disable and enable).
+- `PRODUCT_REQUIREMENTS.md` lines 439–480 (role management, ownership,
+  disabling, password reset).
+
+### What the reference implements
+
+- **Directory:** search on website username (up to 100 characters), a global
+  role filter (All, User, Admin, Super Admin) and pages of 25 ordered by
+  username, with Previous and Next. All three are in the URL and restored
+  when the drawer closes. Columns: account (initials, username, Discord as
+  "Discord · last known name", "Discord linked" or "No Discord link"), global
+  role (Super Admin and Admin as badges, User as plain text), status (Active
+  as text, Disabled as a red badge), current event roles (up to three, as
+  "Summer Bingo 2027: Captain"; "No event participation" otherwise) and last
+  login ("Never" when there isn't one). "No accounts match" says search
+  covers usernames only; a page beyond the results offers "Go to the first
+  page". Loading skeleton, and load failure with Try again.
+- **Account drawer** (wide), most important first:
+  - A disabled account shows one amber notice under the header with when,
+    by whom and the reason. The rest of the drawer stays normal.
+  - **Access:** global role with what it means (Event Captain roles are
+    called out as separate when the person has one), status, last login,
+    sign-in methods (Password, Discord, or both) and Discord ("Linked", with
+    the last known display name marked as possibly out of date, or "Not
+    linked").
+  - **Manage access:** only the actions the signed-in admin can take, each
+    with a line on what it does. When something isn't available, a
+    `.perm-note` says why instead of showing a disabled control: your own
+    account, the protected Super Admin account, Admin accounts for an
+    ordinary Admin, and "Only the Super Admin can grant or revoke Admin
+    access".
+    - **Admin access** (Super Admin only): Grant Admin… for an active User,
+      Revoke Admin… for an Admin. A disabled User shows "Restore the account
+      before granting Admin access" with no button.
+    - **Password-reset link:** Create reset link (active accounts only; a
+      disabled account explains why not). Its text says the link is single
+      use, valid for 60 minutes, replaces any earlier link, and doesn't
+      change the password or contact the person. For a Discord-only account
+      it says the link sets a password.
+    - **Disable account** / **Restore account.**
+    - **Ownership** (only on the Super Admin's own account): Transfer
+      ownership….
+  - **Linked OSRS characters:** read-only, with Preferred and Inactive.
+  - **Events and team roles:** each event with its signup status
+    (Confirmed, Waiting list, Withdrawn) and team roles with Captain and
+    Co-captain badges and dates, including roles that ended.
+  - **Disable and restore history:** a timeline with actor, time and the
+    disable reason; "Never disabled" otherwise.
+  - A closing note says username, Discord and characters belong to the
+    account holder, and team roles are managed on each event's Teams page.
+- **Confirmations** (alert dialogs over the drawer; focus starts on Cancel,
+  or on the reason for disabling):
+  - Grant and revoke name the account and show the role change as Now →
+    After (`.chg`). No written reason or typed username. Grant says their
+    sessions end and they'll see a website notification; revoke says the
+    account stays active with its events, team and Captain roles and
+    characters.
+  - Disable shows Active → Disabled, says nothing is deleted and roster
+    places, team roles, evidence and results are unchanged, and needs a
+    reason (1–500 characters, with a counter). Empty reason: "Enter a
+    reason."
+  - Restore shows Disabled → Active and says only the website account is
+    restored, not withdrawn signups or team roles that events have since
+    ended.
+- **Outcomes** stay in the drawer as one banner under the header, so the
+  context is kept and the change is explicit ("arma_sky is now an Admin.
+  Their sessions were ended…"). Failures keep the dialog open with "Nothing
+  changed". Another admin's change gives the application's message ("This
+  record was changed by another administrator. Current values are shown;
+  review them before trying again.") with the current values. Lost
+  permission says nothing changed and offers Refresh. An unconfirmed change
+  offers **Check current status**, which re-reads the account and reports
+  "It went through" or "It wasn't changed"; it never repeats the action.
+- **Reset link result:** a `.secret-result` panel directly under the reset
+  row, focused when it appears: whose link it is, its expiry time, the link
+  in a copy field (Copy → Copied, or select-and-copy if the clipboard isn't
+  available), what it does and doesn't do, and Done. It exists only in the
+  drawer's memory: not in the URL, history, a toast, the samples or
+  storage, and it's cleared by Done, closing or switching the account. An
+  unconfirmed creation says a link may exist but can't be shown again, and
+  offers **Generate a new link** as a deliberate choice (which replaces any
+  earlier link) or Not now. A failure says any earlier link still works.
+- **Transfer ownership** (Super Admin only; page header and the owner's own
+  drawer): a dialog explaining it's exceptional and different from granting
+  Admin, with the new Super Admin (active accounts other than yours) and
+  your current password. Choosing someone shows the before and after for
+  both accounts. Continue leads to a confirmation step ("mia_holm becomes
+  Super Admin; your account remains an Admin. Both accounts must sign in
+  again."), with Back. A wrong password returns to the form with "The
+  current password is incorrect." and an empty password field; a recipient
+  that changed or was disabled asks to choose another account. An
+  unconfirmed transfer can't be dismissed with Escape, says not to repeat it
+  and offers **Check ownership**. Success shows Before → Now and "Sign in
+  again", after which the former owner sees the Admin view. The password is
+  cleared whenever the dialog closes or steps back.
+- **Prototype menu:** Sign in as the other admin (nils, the Super Admin, or
+  mia_holm, an Admin), Next action (Succeeds, Fails, Another admin changed
+  it first, Your access changed, Times out, Wrong password for transfer),
+  Fail next load, Open rune_nora directly, Reset sample data and Show
+  browser bar. Samples cover active and disabled Users and Admins, the
+  owner, accounts with and without Discord, a Discord-only account, no
+  characters or events, a Captain who isn't an Admin and an Admin who is a
+  Captain, ended team roles and a repeated disable history.
+
+### Routing: prototype and application
+
+| Prototype | Application today |
+| --- | --- |
+| `/admin/accounts?q=&role=&page=` | `/Admin/Accounts?WebsiteSearch=&WebsiteRole=&WebsitePage=` |
+| `…&account={id}` (drawer) | `/Admin/Accounts/Manage/{id}` (separate page) |
+| Transfer dialog | `/Admin/Accounts/Transfer` (separate page) |
+
+Opening an account pushes a history entry; closing returns to the filtered
+directory (Back closes the drawer, Forward reopens it). Search and the role
+filter replace the entry; page changes push one. A direct link opens the
+drawer over its directory.
+
+### What the application already supports
+
+- Search, role filter, 25 per page and the row information shown.
+- Account details: username, role, active, Discord linked and last known
+  display name, last login, disabled time, whether a password exists,
+  characters (Preferred, Active), event participation with signup status
+  and team roles with joined and left times, disable and restore history
+  from Audit.
+- Grant (owner, active User), revoke (owner, Admin), disable (reason 1–500)
+  and restore, with the self, Super Admin-target and Admin-target rules and
+  the authorization-version stale check. Each change increments the version,
+  ending the account's sessions; grant, revoke and restore add a website
+  notification.
+- Reset links: active accounts, Admin for Users only, Super Admin for others
+  except a Super Admin target; earlier unused links superseded; 60 minutes;
+  Audit records creation without the secret.
+- Transfer: owner only, current password, active non-self non-owner
+  destination; recipient becomes Super Admin and the former owner Admin.
+
+### What needs integration
+
+- **Drawer instead of pages:** Manage and Transfer are separate pages today.
+  The drawer needs the details as a fragment or JSON keyed by account id,
+  with the authorization version for the stale check.
+- **Outcome states:** the handlers redirect with a status message. The
+  reference needs a distinguishable result for success, stale, permission
+  lost and refusal, and a way to re-read the account after an unconfirmed
+  request (a normal details fetch is enough).
+- **Reset link delivery:** today the link travels through TempData across a
+  redirect. The reference expects it in the response to the generate request
+  and shown once. See the question below.
+- **Unconfirmed transfer:** "Check ownership" needs to read who's the Super
+  Admin now; there's no dedicated endpoint, but reading the account or the
+  directory filtered to Super Admin works.
+- **Notification wording:** the reference says grant, revoke and restore
+  leave a website notification, which matches `Notify`; disable doesn't.
+
+### Questions and a conflict to resolve
+
+- **Transfer confirmation (documentation vs implementation):**
+  `PRODUCT_REQUIREMENTS.md` line 441 requires "the current owner's password
+  and the typed destination public username". The implementation uses a
+  destination select, the password and a confirmation dialog, without a typed
+  username. The reference shows the implemented contract (select, password,
+  explicit confirmation step) and doesn't add the typed username. If the
+  requirement stands, a "Type the new owner's username" field belongs on the
+  confirmation step.
+- **Reset link in TempData:** with the default cookie TempData provider the
+  link sits in an encrypted cookie until the Manage page reads it. Confirm
+  that's acceptable, or return it directly in the generate response.
+- **Disable confirmation:** the requirements call for "strong confirmation".
+  The reference uses a confirmation with the consequences and a required
+  reason, matching the implementation; no typed username is added.
+- **Reset-link history:** the drawer doesn't list reset links created,
+  because the brief keeps them out of account history; they remain in Audit
+  ("One-time password-reset link created.").
+
 ## Building a new page
 
 1. Copy the head block from `Participants.dc.html`: the runtime scripts, then
@@ -1685,7 +3211,7 @@ checkout):
   validation, authorization, concurrency and lifecycle enforcement. The account
   menu's "Fail next request" and "Reset prototype data" are prototype-only.
 - **Routing:** Participants and the Dashboard don't implement URL state. The
-  Events, Identity, Overview, Schedule, Signup setup and Teams / Draft artboards simulate it with an
+  Events, Identity, Overview, Schedule, Signup setup, Teams / Draft, Board, Audit, Review, Final review, WOM, Catalogue and Accounts artboards simulate it with an
   in-memory history (see "URL contract" and each page's notes above); the
   application must implement it with real URLs.
 - **Deferred or unresolved:** toast Undo (removed), manual waiting-list

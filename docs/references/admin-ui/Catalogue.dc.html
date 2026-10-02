@@ -1,0 +1,1171 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Catalogue · DK Legacy Admin</title>
+<script src="./vendor/react.js"></script>
+<script src="./vendor/react-dom.js"></script>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ui/tokens.css">
+<link rel="stylesheet" href="ui/components.css">
+<script src="ui/behavior.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&amp;family=Geist+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+/* Catalogue page only. Shared tokens, components and behaviour: ui/tokens.css, ui/components.css, ui/behavior.js */
+.ct-page{max-width:1240px}
+.ct-toolbar{gap:10px 16px}
+.ct-filters{flex:1;min-width:0}
+.ct-tbl{--table-cols:minmax(240px,2fr) 120px 120px minmax(200px,1.6fr) 110px;--table-min:860px}
+.ct-tbl .td{padding-top:10px;padding-bottom:10px}
+.ct-tbl .row{cursor:pointer}
+.ct-num{text-align:right;justify-content:flex-end;font-variant-numeric:tabular-nums}
+.ct-tbl .th.ct-num{text-align:right}
+.ct-who{display:flex;align-items:center;gap:12px;min-width:0}
+.ct-who .name-btn{max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ct-muted{color:var(--dk-text-3)}
+.ct-count{color:var(--dk-text-3);font-weight:400;margin-left:4px;font-variant-numeric:tabular-nums}
+.ct-count:empty{display:none}
+#sec-drops:focus{outline:none}
+.ct-h4{margin:0;font-size:var(--dk-fs-control);font-weight:600}
+/* drawer */
+.ct-dr-banner{padding:16px var(--dk-space-6) 0}
+.ct-dr-banner .banner:focus{outline:none}
+.ct-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 14px}
+.ct-grid .field{margin:0}
+.thumb-field{display:flex;align-items:center;gap:8px}
+.thumb-field .input{flex:1;min-width:0}
+.ct-note{display:flex;gap:8px;align-items:flex-start;margin:12px 0 0;font-size:var(--dk-fs-small);color:var(--dk-text-2);line-height:1.45}
+.ct-note .ic{width:14px;height:14px;margin-top:1px;flex:none;color:var(--dk-text-3)}
+.ct-help{margin:0 0 10px;font-size:var(--dk-fs-small);color:var(--dk-text-2);line-height:1.5}
+.ct-inline{display:flex;align-items:center;gap:8px}
+.ct-inline .input{flex:1;min-width:0}
+.ct-gp{max-width:180px}
+.ct-unit{font-size:var(--dk-fs-control-sm);color:var(--dk-text-3)}
+.ct-acts{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:12px}
+.ct-save-what{font-size:var(--dk-fs-small);color:var(--dk-text-3)}
+.ct-result{margin:10px 0 0;font-size:var(--dk-fs-control-sm);color:var(--dk-text-2);line-height:1.45}
+.ct-result.is-ok{color:var(--dk-success-fg)}
+.ct-result.is-warn{color:var(--dk-warning-fg)}
+.ct-result:focus{outline:none}
+.ct-disc{margin-top:14px;border-top:1px solid var(--dk-border-subtle);padding-top:10px}
+.ct-disc-btn{font-weight:500;font-size:var(--dk-fs-control-sm)}
+.ct-disc-btn[aria-expanded=true] .ic{transform:rotate(180deg)}
+.ct-disc-meta{display:inline-flex;align-items:center;gap:8px;min-width:0}
+.ct-disc-sum{font-weight:400;color:var(--dk-text-3);font-size:var(--dk-fs-small);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ct-disc-sum.is-warn{color:var(--dk-warning-fg)}
+.ct-disc-body{padding:10px 0 2px}
+.ct-map{font-size:var(--dk-fs-small);font-weight:600;color:var(--dk-text-2)}
+.ct-map.is-ok{color:var(--dk-success-fg)}
+.ct-map.is-bad{color:var(--dk-danger-fg)}
+.ct-map.is-warn{color:var(--dk-warning-fg)}
+.ct-kv{margin-top:0;grid-template-columns:130px minmax(0,1fr)}
+.ct-kv dd{margin:0;overflow-wrap:anywhere}
+/* add drop */
+.ct-add{margin:0 0 12px;padding:14px;border:1px solid var(--dk-accent-border);border-radius:var(--dk-radius-xl);background:var(--dk-surface-2);display:flex;flex-direction:column;gap:12px;animation:fadeIn var(--dk-dur-content-in) ease-out}
+.ct-add .banner:focus{outline:none}
+.ct-value .seg{margin-top:6px}
+.ct-shared{padding:10px 12px;border-radius:var(--dk-radius-lg);background:var(--dk-accent-soft);display:flex;flex-direction:column;gap:8px}
+.ct-shared-main{display:flex;gap:10px;align-items:flex-start}
+.ct-shared-title{font-size:var(--dk-fs-control-sm);font-weight:600}
+.ct-shared-text{font-size:var(--dk-fs-small);color:var(--dk-text-2);line-height:1.45}
+.ct-check{display:flex;gap:8px;align-items:flex-start;font-size:var(--dk-fs-control-sm);line-height:1.45;cursor:pointer}
+.ct-check input{margin-top:3px}
+.ct-none{padding:14px;border:1px dashed var(--dk-border);border-radius:var(--dk-radius-lg);font-size:var(--dk-fs-control-sm);color:var(--dk-text-3);text-align:center}
+.ct-calc{display:flex;align-items:baseline;gap:8px 12px;flex-wrap:wrap;margin:12px 0;padding:9px 12px;border-radius:var(--dk-radius-lg);background:var(--dk-track)}
+.ct-calc-k{font-size:var(--dk-fs-small);color:var(--dk-text-3)}
+.ct-calc-v{font-weight:600;font-variant-numeric:tabular-nums}
+.ct-calc-v.is-muted{color:var(--dk-text-3);font-weight:500}
+.ct-calc-note{font-size:var(--dk-fs-small);color:var(--dk-text-2)}
+.ct-ed-foot{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:14px;padding-top:10px;border-top:1px solid var(--dk-border-subtle)}
+.ct-act-title{font-size:var(--dk-fs-control);font-weight:550}
+.ct-act-text{margin-top:2px;font-size:var(--dk-fs-control-sm);color:var(--dk-text-2);line-height:1.45}
+.ct-checking{display:flex;align-items:center;gap:8px}
+@media (max-width:640px){
+  .ct-grid{grid-template-columns:minmax(0,1fr)}
+  .ct-filters .search{width:100%;flex:1 1 100%}
+  .ct-filters .seg{max-width:100%;overflow-x:auto}
+  .ct-kv{grid-template-columns:minmax(0,1fr)}
+}
+/* Prototype-only: simulated browser bar (same as the Events artboard; not part of the product UI) */
+.proto-bar{position:fixed;left:12px;bottom:12px;z-index:calc(var(--dk-z-toast) - 1);display:flex;align-items:center;gap:1px;max-width:min(620px,calc(100vw - 24px));padding:3px 12px 3px 3px;border-radius:var(--dk-radius-pill);background:var(--dk-surface-raised);border:1px dashed var(--dk-border-strong);box-shadow:var(--dk-shadow-sm);font-size:var(--dk-fs-meta);color:var(--dk-text-3)}
+.proto-bar .icon-btn{width:26px;height:26px;border-radius:50%}
+.proto-bar .icon-btn .ic{width:14px;height:14px}
+.proto-tag{margin:0 8px 0 4px;font-size:var(--dk-fs-caption);letter-spacing:.02em;white-space:nowrap}
+.proto-url{font-family:var(--dk-font-mono);font-size:var(--dk-fs-meta);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--dk-text-2);min-width:0}
+@media (min-width:1200px){.page .card.form-card{margin-bottom:40px}}
+@media (max-width:640px){.proto-bar{display:none}.form-bar .btn-primary{flex:1}}
+</style>
+</helmet>
+<div class="app dk-theme {{themeClass}}" id="app">
+
+<aside class="side {{sideCls}}" id="sidebar" aria-label="Administration" onKeyDown="{{sideKey}}">
+  <div class="side-top">
+    <button class="account-btn" id="user-btn" aria-haspopup="menu" aria-expanded="{{userMenuOpen}}" title="{{sideTip}}" onClick="{{openUserMenu}}">
+      <span class="logo" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M3 12.5V5.2L8 2.5l5 2.7v7.3"/><path d="M6 12.5V8.5h4v4"/></svg></span>
+      <span class="brand-text"><span class="brand-name">Iron Pact<svg class="ic" viewBox="0 0 16 16"><path d="M4.5 6.5 8 10l3.5-3.5"/></svg></span><span class="brand-sub">Administrator</span></span>
+    </button>
+    <button class="icon-btn collapse-btn" aria-label="{{collapseLabel}}" title="{{collapseLabel}}" aria-expanded="{{sideOpen}}" onClick="{{toggleSide}}"><svg class="ic" viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="11" height="11" rx="1.5"/><path d="M6 2.5v11"/><path class="{{collapseArrowCls}}" d="M10.6 6.2 8.8 8l1.8 1.8"/></svg></button>
+  </div>
+
+  <nav class="nav" aria-label="Administration">
+    <div class="nav-label">Administration</div>
+    <button class="nav-item {{nav.dashboard.cls}}" aria-current="{{nav.dashboard.current}}" title="{{nav.dashboard.tip}}" onClick="{{nav.dashboard.go}}"><svg class="ic" viewBox="0 0 16 16"><path d="M2.5 12a5.5 5.5 0 1 1 11 0"/><path d="M8 12l2.6-3.4"/><path d="M8 12h.01"/></svg><span class="nav-text">Dashboard</span><span class="nav-count">{{nav.dashboard.count}}</span></button>
+    <button class="nav-item {{nav.events.cls}}" aria-current="{{nav.events.current}}" title="{{nav.events.tip}}" onClick="{{nav.events.go}}"><svg class="ic" viewBox="0 0 16 16"><rect x="2.5" y="3.5" width="11" height="10" rx="1.5"/><path d="M2.5 6.5h11M5.5 2v3M10.5 2v3"/></svg><span class="nav-text">Events</span><span class="nav-count">{{nav.events.count}}</span></button>
+    <button class="nav-item {{nav.catalogue.cls}}" aria-current="{{nav.catalogue.current}}" title="{{nav.catalogue.tip}}" onClick="{{nav.catalogue.go}}"><svg class="ic" viewBox="0 0 16 16"><path d="M8 2.5 2.5 5.5 8 8.5l5.5-3z"/><path d="M2.5 8.2 8 11.2l5.5-3M2.5 10.8 8 13.8l5.5-3"/></svg><span class="nav-text">Catalogue</span><span class="nav-count">{{nav.catalogue.count}}</span></button>
+    <button class="nav-item {{nav.accounts.cls}}" aria-current="{{nav.accounts.current}}" title="{{nav.accounts.tip}}" onClick="{{nav.accounts.go}}"><svg class="ic" viewBox="0 0 16 16"><rect x="3" y="2.5" width="10" height="11" rx="1.5"/><circle cx="8" cy="7" r="1.8"/><path d="M5.3 11.5c.5-1.3 1.5-2 2.7-2s2.2.7 2.7 2"/></svg><span class="nav-text">Accounts</span><span class="nav-count">{{nav.accounts.count}}</span></button>
+    <button class="nav-item {{nav.audit.cls}}" aria-current="{{nav.audit.current}}" title="{{nav.audit.tip}}" onClick="{{nav.audit.go}}"><svg class="ic" viewBox="0 0 16 16"><path d="M4 2.5h8v11H4z"/><path d="M6 5.5h4M6 8h4M6 10.5h2.5"/></svg><span class="nav-text">Audit</span><span class="nav-count">{{nav.audit.count}}</span></button>
+  </nav>
+
+  <div class="side-rule" aria-hidden="true"></div>
+
+  <nav class="nav" aria-label="Event">
+    <button class="event-switch" id="event-switch" aria-haspopup="menu" aria-expanded="{{eventMenuOpen}}" title="{{evTip}}" onClick="{{openEventMenu}}">
+      <svg class="ic ev-ic" viewBox="0 0 16 16"><rect x="2.5" y="3.5" width="11" height="10" rx="1.5"/><path d="M2.5 6.5h11M5.5 2v3M10.5 2v3"/></svg>
+      <div class="ev-text" style="flex: 1; min-width: 0">
+        <div class="ev-lbl">Event</div>
+        <div class="ev-name">{{ev.name}}</div>
+        <div class="ev-meta"><span class="dot {{ev.toneCls}}"></span><span class="ev-meta-text" title="{{ev.stage}} · {{ev.when}}">{{ev.stage}} · {{ev.when}}</span></div>
+      </div>
+      <svg class="ic ev-chev" viewBox="0 0 16 16"><path d="M4.5 6.5 8 10l3.5-3.5"/></svg>
+    </button>
+    <div style="height: 8px"></div>
+    <button class="nav-item {{nav.overview.cls}}" aria-current="{{nav.overview.current}}" title="{{nav.overview.tip}}" onClick="{{nav.overview.go}}"><svg class="ic" viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="4.5" height="4.5" rx="1"/><rect x="9" y="2.5" width="4.5" height="4.5" rx="1"/><rect x="2.5" y="9" width="4.5" height="4.5" rx="1"/><rect x="9" y="9" width="4.5" height="4.5" rx="1"/></svg><span class="nav-text">Overview</span><span class="nav-count">{{nav.overview.count}}</span></button>
+    <button class="nav-item {{nav.identity.cls}}" aria-current="{{nav.identity.current}}" title="{{nav.identity.tip}}" onClick="{{nav.identity.go}}"><svg class="ic" viewBox="0 0 16 16"><path d="M3.5 14V2.5M3.5 3h8l-1.5 3 1.5 3h-8"/></svg><span class="nav-text">Identity</span><span class="nav-count">{{nav.identity.count}}</span></button>
+    <button class="nav-item {{nav.schedule.cls}}" aria-current="{{nav.schedule.current}}" title="{{nav.schedule.tip}}" onClick="{{nav.schedule.go}}"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5"/><path d="M8 5v3l2 1.5"/></svg><span class="nav-text">Schedule</span><span class="nav-count">{{nav.schedule.count}}</span></button>
+    <button class="nav-item {{nav.participants.cls}}" aria-current="{{nav.participants.current}}" title="{{nav.participants.tip}}" onClick="{{nav.participants.go}}"><svg class="ic" viewBox="0 0 16 16"><circle cx="6" cy="5.8" r="2.4"/><path d="M1.8 13.3c.5-2.4 2.2-3.5 4.2-3.5s3.7 1.1 4.2 3.5"/><path d="M10.6 3.7a2.3 2.3 0 0 1 0 4.3M11.9 10.1c1.2.5 2 1.5 2.3 3.2"/></svg><span class="nav-text">Participants</span><span class="nav-count">{{nav.participants.count}}</span></button>
+    <button class="nav-item {{nav.signup.cls}}" aria-current="{{nav.signup.current}}" title="{{nav.signup.tip}}" onClick="{{nav.signup.go}}"><svg class="ic" viewBox="0 0 16 16"><rect x="3.5" y="3" width="9" height="11" rx="1.5"/><path d="M6 3V2h4v1M6 7h4M6 9.5h4M6 12h2"/></svg><span class="nav-text">Signup setup</span><span class="nav-count">{{nav.signup.count}}</span></button>
+    <button class="nav-item {{nav.teams.cls}}" aria-current="{{nav.teams.current}}" title="{{nav.teams.tip}}" onClick="{{nav.teams.go}}"><svg class="ic" viewBox="0 0 16 16"><rect x="6" y="2" width="4" height="3" rx=".8"/><rect x="2" y="11" width="4" height="3" rx=".8"/><rect x="10" y="11" width="4" height="3" rx=".8"/><path d="M8 5v3M4 11V8h8v3"/></svg><span class="nav-text">Teams / Draft</span><span class="nav-count">{{nav.teams.count}}</span></button>
+    <button class="nav-item {{nav.board.cls}}" aria-current="{{nav.board.current}}" title="{{nav.board.tip}}" onClick="{{nav.board.go}}"><svg class="ic" viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="11" height="11" rx="1.5"/><path d="M6.2 2.5v11M9.8 2.5v11M2.5 6.2h11M2.5 9.8h11"/></svg><span class="nav-text">Board</span><span class="nav-count">{{nav.board.count}}</span></button>
+    <button class="nav-item {{nav.wom.cls}}" aria-current="{{nav.wom.current}}" title="{{nav.wom.tip}}" onClick="{{nav.wom.go}}"><svg class="ic" viewBox="0 0 16 16"><path d="M2.5 13.5h11"/><path d="M4 11l3-3.5 2.2 2L12.5 5"/></svg><span class="nav-text">WOM</span><span class="nav-count">{{nav.wom.count}}</span></button>
+    <button class="nav-item {{nav.review.cls}}" aria-current="{{nav.review.current}}" title="{{nav.review.tip}}" onClick="{{nav.review.go}}"><svg class="ic" viewBox="0 0 16 16"><path d="M2.5 9 4.3 3.5h7.4L13.5 9v4.5h-11z"/><path d="M2.5 9h3l.8 1.5h3.4l.8-1.5h3"/></svg><span class="nav-text">Review</span><span class="nav-count">{{nav.review.count}}</span></button>
+    <button class="nav-item {{nav.final.cls}}" aria-current="{{nav.final.current}}" title="{{nav.final.tip}}" onClick="{{nav.final.go}}"><svg class="ic" viewBox="0 0 16 16"><path d="M2.5 4l1 1 2-2M2.5 9l1 1 2-2"/><path d="M7.5 4.5h6M7.5 9.5h6M7.5 13h6"/></svg><span class="nav-text">Final review</span><span class="nav-count">{{nav.final.count}}</span></button>
+  </nav>
+</aside>
+
+<div class="nav-scrim {{navScrimCls}}" onClick="{{closeMobileNav}}"></div>
+<div class="main">
+  <header class="topbar">
+    <button class="icon-btn menu-toggle" id="menu-toggle" aria-label="Open navigation" aria-controls="sidebar" aria-expanded="{{mobileNav}}" onClick="{{openMobileNav}}"><svg class="ic" viewBox="0 0 16 16"><path d="M2.5 4.5h11M2.5 8h11M2.5 11.5h11"/></svg></button>
+    <div class="crumbs">
+      <sc-if value="{{crumb.inEvents}}" hint-placeholder-val="{{false}}"><button class="crumb-btn" onClick="{{crumbEvents}}">Events</button>
+      <sc-if value="{{crumb.hasEvent}}" hint-placeholder-val="{{true}}"><span class="crumb-sep">/</span><span class="crumb-mid">{{crumb.event}}</span></sc-if>
+      <span class="crumb-sep">/</span></sc-if>
+      <span class="crumb-cur">{{crumb.page}}</span>
+    </div>
+    <div class="spacer"></div>
+    <div class="theme-seg" role="radiogroup" aria-label="Theme">
+      <label class="theme-opt {{lightCls}}" title="Light theme"><input class="sr" type="radio" name="theme" checked="{{isLight}}" onChange="{{setLight}}"><span class="sr">Light theme</span><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="2.8"/><path d="M8 1.8v1.4M8 12.8v1.4M1.8 8h1.4M12.8 8h1.4M3.6 3.6l1 1M11.4 11.4l1 1M3.6 12.4l1-1M11.4 4.6l1-1"/></svg></label>
+      <label class="theme-opt {{darkCls}}" title="Dark theme"><input class="sr" type="radio" name="theme" checked="{{isDark}}" onChange="{{setDark}}"><span class="sr">Dark theme</span><svg class="ic" viewBox="0 0 16 16"><path d="M13 9.6A5.4 5.4 0 0 1 6.4 3 5.4 5.4 0 1 0 13 9.6z"/></svg></label>
+    </div>
+  </header>
+
+  <div class="scroller {{scrollCls}}" id="scroller">
+
+    <sc-if value="{{isPage}}" hint-placeholder-val="{{true}}">
+    <div class="page ct-page">
+      <div class="page-head">
+        <div style="min-width: 0">
+          <h1 class="h1" id="page-h1" tabindex="-1">Catalogue</h1>
+          <p class="summary"><span>{{head.summary}}</span><span>Shared by every event’s board estimates</span></p>
+        </div>
+        <button class="btn btn-primary" id="add-activity" onClick="{{openNew}}"><svg class="ic" viewBox="0 0 16 16"><path d="M8 3.5v9M3.5 8h9"/></svg>Add activity</button>
+      </div>
+
+      <div class="toolbar ct-toolbar" role="search" aria-label="Find activities and drops">
+        <div class="tbar-right ct-filters">
+          <div class="search {{search.cls}}">
+            <svg class="ic" viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5 13.5 13.5"/></svg>
+            <input class="input" id="ct-search" type="search" placeholder="Search activities and drops" aria-label="Search activities and drops" value="{{search.value}}" onChange="{{search.onChange}}" onKeyDown="{{search.onKey}}">
+            <sc-if value="{{search.hasClear}}" hint-placeholder-val="{{false}}"><button class="icon-btn clear" aria-label="Clear search" onClick="{{search.clear}}"><svg class="ic" viewBox="0 0 16 16"><path d="M4.5 4.5l7 7M11.5 4.5l-7 7"/></svg></button></sc-if>
+          </div>
+          <div class="seg" role="radiogroup" aria-label="Category"><sc-for list="{{cats}}" as="c" hint-placeholder-count="4"><label class="seg-opt {{c.cls}}"><input class="sr" type="radio" name="ct-cat" checked="{{c.on}}" onChange="{{c.pick}}">{{c.label}}</label></sc-for></div>
+        </div>
+        <div class="tabs" role="radiogroup" aria-label="Status"><sc-for list="{{statusTabs}}" as="t" hint-placeholder-count="2"><label class="tab {{t.cls}}"><input class="sr" type="radio" name="ct-status" checked="{{t.on}}" onChange="{{t.pick}}"><span>{{t.label}}</span><span class="tab-count">{{t.count}}</span></label></sc-for></div>
+      </div>
+
+      <sc-if value="{{notice.show}}" hint-placeholder-val="{{false}}">
+        <div class="banner {{notice.cls}} page-banner" role="{{notice.role}}" id="ct-notice" tabindex="-1"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 4.8v3.6M8 11h.01"/></svg><span class="grow"><b>{{notice.title}}</b> {{notice.text}}</span><button class="banner-btn" onClick="{{notice.dismiss}}">Dismiss</button></div>
+      </sc-if>
+
+      <div class="card">
+        <sc-if value="{{loadError}}" hint-placeholder-val="{{false}}">
+          <div class="empty is-error"><div class="empty-ic"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 5v3.5M8 11h.01"/></svg></div><div class="empty-title">Couldn’t load the catalogue</div><div class="empty-text">Nothing was changed. Try again.</div><button class="btn" id="retry-btn" onClick="{{retry}}">Try again</button></div>
+        </sc-if>
+        <sc-if value="{{showTable}}" hint-placeholder-val="{{true}}">
+          <div class="tbl-wrap {{scrollXCls}}" id="tbl-wrap" onScroll="{{onTableScroll}}">
+            <div class="tbl ct-tbl sticky-first" role="table" aria-label="Activities">
+              <div class="tr th-row" role="row"><div class="th c-name" role="columnheader">Activity</div><div class="th ct-num" role="columnheader">Rate</div><div class="th ct-num" role="columnheader">Drops</div><div class="th" role="columnheader">Needs attention</div><div class="th" role="columnheader">Status</div></div>
+              <div class="rows {{rowsCls}}" role="rowgroup">
+                <sc-if value="{{loading}}" hint-placeholder-val="{{false}}">
+                  <sc-for list="{{skRows}}" as="s" hint-placeholder-count="6"><div class="tr sk-row" role="row" aria-hidden="true"><div class="td c-name"><div class="ct-who"><span class="sk" style="width: 32px; height: 32px; border-radius: 8px"></span><span style="flex: 1"><span class="sk" style="width: {{s.w}}%; display: block"></span></span></div></div><div class="td"><div class="sk" style="width: 60%"></div></div><div class="td"><div class="sk" style="width: 30%"></div></div><div class="td"><div class="sk" style="width: 50%"></div></div><div class="td"><div class="sk" style="width: 50%"></div></div></div></sc-for>
+                </sc-if>
+                <sc-if value="{{ready}}" hint-placeholder-val="{{true}}">
+                  <sc-for list="{{rows}}" as="r" hint-placeholder-count="6">
+                    <div class="tr row {{r.cls}}" role="row" onClick="{{r.open}}">
+                      <div class="td c-name" role="cell"><div class="ct-who"><span class="thumb" style="--art: {{r.art}}" aria-hidden="true"></span><span style="min-width: 0"><button class="name-btn" id="{{r.openId}}" onClick="{{r.openBtn}}">{{r.name}}</button><span class="cell-sub">{{r.sub}}</span></span></div></div>
+                      <div class="td ct-num" role="cell"><span class="tval {{r.rateCls}}">{{r.rate}}</span></div>
+                      <div class="td ct-num" role="cell">{{r.drops}}</div>
+                      <div class="td" role="cell"><div class="cell-tags"><sc-for list="{{r.flags}}" as="f" hint-placeholder-count="1"><span class="pill {{f.cls}}">{{f.label}}</span></sc-for><sc-if value="{{r.noFlags}}" hint-placeholder-val="{{false}}"><span class="ct-muted">—</span></sc-if></div></div>
+                      <div class="td" role="cell"><span class="badge {{r.stCls}}">{{r.st}}</span></div>
+                    </div>
+                  </sc-for>
+                </sc-if>
+              </div>
+            </div>
+          </div>
+          <sc-if value="{{empty.show}}" hint-placeholder-val="{{false}}">
+            <div class="empty"><div class="empty-ic"><svg class="ic" viewBox="0 0 16 16"><path d="M2.5 4.5h11v8h-11z"/><path d="M5.5 4.5V3h5v1.5"/></svg></div><div class="empty-title">{{empty.title}}</div><div class="empty-text">{{empty.text}}</div><sc-if value="{{empty.hasClear}}" hint-placeholder-val="{{false}}"><button class="btn" id="empty-clear" onClick="{{empty.clear}}">Clear search and filters</button></sc-if><sc-if value="{{empty.hasAdd}}" hint-placeholder-val="{{false}}"><button class="btn btn-primary" onClick="{{openNew}}">Add activity</button></sc-if></div>
+          </sc-if>
+          <div class="tfoot"><div class="tfoot-left"><span>{{foot}}</span></div></div>
+        </sc-if>
+      </div>
+    </div>
+    </sc-if>
+
+    <sc-if value="{{isOther}}" hint-placeholder-val="{{false}}">
+      <div class="page">
+        <div class="page-head"><div><h1 class="h1" id="page-h1" tabindex="-1">{{otherTitle}}</h1><p class="summary"><span>{{otherScope}}</span></p></div></div>
+        <div class="card">
+          <div class="empty ph-card">
+            <div class="empty-ic"><svg class="ic" viewBox="0 0 16 16"><rect x="2.5" y="3" width="11" height="10" rx="2"/><path d="M2.5 6h11"/></svg></div>
+            <div class="empty-title">{{otherTitle}} isn’t part of this artboard</div>
+            <div class="empty-text">{{otherText}}</div>
+            <button class="btn" onClick="{{backToPage}}"><svg class="ic" viewBox="0 0 16 16"><path d="M10 4 6 8l4 4"/></svg>Back</button>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+  </div>
+</div>
+
+<!-- menus -->
+<sc-if value="{{menu.show}}" hint-placeholder-val="{{false}}">
+  <div class="catcher" onClick="{{menu.close}}"></div>
+  <div class="menu {{menu.cls}}" id="menu" role="menu" aria-label="{{menu.label}}" style="left: {{menu.x}}px; top: {{menu.y}}px; width: {{menu.w}}px" onKeyDown="{{menu.onKey}}">
+    <sc-for list="{{menu.items}}" as="it" hint-placeholder-count="4">
+      <sc-if value="{{it.isHeader}}" hint-placeholder-val="{{false}}"><div class="menu-head" role="presentation"><b>{{it.label}}</b>{{it.hint}}</div></sc-if>
+      <sc-if value="{{it.isSep}}" hint-placeholder-val="{{false}}"><div class="menu-sep" role="separator"></div></sc-if>
+      <sc-if value="{{it.isItem}}" hint-placeholder-val="{{true}}">
+        <button class="menu-item {{it.cls}}" role="{{it.role}}" aria-checked="{{it.checked}}" disabled="{{it.disabled}}" title="{{it.title}}" onClick="{{it.run}}">
+          <span class="grow">{{it.label}}</span>
+          <span class="menu-hint">{{it.hint}}</span>
+          <sc-if value="{{it.showCheck}}" hint-placeholder-val="{{false}}"><svg class="ic menu-check" viewBox="0 0 16 16"><path d="M3.8 8.4 6.6 11.2 12.2 5"/></svg></sc-if>
+        </button>
+      </sc-if>
+    </sc-for>
+  </div>
+</sc-if>
+
+<!-- activity drawer: settings, drops (one editor open at a time), occasional actions -->
+<sc-if value="{{dr.show}}" hint-placeholder-val="{{false}}">
+  <div class="scrim {{dr.closingCls}}" id="dr-scrim" onClick="{{dr.requestClose}}"></div>
+  <div class="drawer is-wide {{dr.closingCls}} {{dr.behindCls}}" id="drawer" role="dialog" aria-modal="true" aria-labelledby="drawer-title" onKeyDown="{{dr.onKey}}">
+    <div class="dr-head">
+      <span class="thumb is-lg" style="--art: {{dr.art}}" aria-hidden="true"></span>
+      <div class="grow" style="min-width: 0">
+        <div class="eyebrow">{{dr.eyebrow}}</div>
+        <h2 class="dr-title" id="drawer-title">{{dr.title}}</h2>
+        <sc-if value="{{dr.hasBadges}}" hint-placeholder-val="{{true}}"><div class="dr-badges"><sc-for list="{{dr.badges}}" as="b" hint-placeholder-count="1"><span class="badge {{b.cls}}">{{b.label}}</span></sc-for></div></sc-if>
+      </div>
+      <button class="icon-btn" id="drawer-close" aria-label="Close" onClick="{{dr.requestClose}}"><svg class="ic" viewBox="0 0 16 16"><path d="M4.5 4.5l7 7M11.5 4.5l-7 7"/></svg></button>
+    </div>
+    <div class="dr-body" id="drawer-body">
+      <sc-if value="{{dr.loading}}" hint-placeholder-val="{{false}}"><div class="sec" aria-busy="true"><div class="sk" style="width: 50%"></div><div class="sk" style="width: 80%; margin-top: 14px"></div><div class="sk" style="width: 65%; margin-top: 12px"></div></div></sc-if>
+      <sc-if value="{{dr.missing}}" hint-placeholder-val="{{false}}"><div class="empty"><div class="empty-title">This activity isn’t available</div><div class="empty-text">It may have been deleted, or the link is incomplete.</div></div></sc-if>
+      <sc-if value="{{dr.hasBanner}}" hint-placeholder-val="{{false}}">
+        <div class="ct-dr-banner"><div class="banner {{dr.bannerCls}}" role="alert" id="dr-banner" tabindex="-1"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 4.8v3.6M8 11h.01"/></svg><span class="grow"><b>{{dr.bannerTitle}}</b> {{dr.bannerText}}</span><sc-if value="{{dr.hasBannerAct}}" hint-placeholder-val="{{false}}"><button class="btn btn-sm" id="dr-banner-act" onClick="{{dr.bannerAct}}" disabled="{{dr.bannerBusy}}"><sc-if value="{{dr.bannerBusy}}" hint-placeholder-val="{{false}}"><span class="spin"></span></sc-if>{{dr.bannerActLabel}}</button></sc-if></div></div>
+      </sc-if>
+      <sc-if value="{{dr.ready}}" hint-placeholder-val="{{true}}">
+        <!-- activity settings -->
+        <section class="sec" aria-labelledby="sec-act">
+          <div class="sec-head"><h3 class="sec-title" id="sec-act">{{act.title}}</h3><sc-if value="{{act.dirty}}" hint-placeholder-val="{{false}}"><span class="dirty"><span class="dot"></span>Changed</span></sc-if></div>
+          <div class="ct-grid">
+            <div class="field"><label class="lbl" for="a-name">Name</label><input class="input {{act.nameCls}}" id="a-name" value="{{act.name}}" onChange="{{act.onName}}" disabled="{{act.lock}}" maxlength="200" aria-invalid="{{act.nameInvalid}}" aria-describedby="a-name-err"><sc-if value="{{act.hasNameErr}}" hint-placeholder-val="{{false}}"><div class="field-err" id="a-name-err"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 5v3.5M8 11h.01"/></svg>{{act.nameErr}}</div></sc-if></div>
+            <div class="field"><label class="lbl" for="a-cat">Category</label><div class="select-wrap"><select class="select select-field" id="a-cat" onChange="{{act.onCat}}" disabled="{{act.lock}}"><sc-for list="{{act.cats}}" as="o" hint-placeholder-count="3"><option value="{{o.value}}" selected="{{o.on}}">{{o.value}}</option></sc-for></select><svg class="ic" viewBox="0 0 16 16"><path d="M4.5 6.5 8 10l3.5-3.5"/></svg></div></div>
+            <div class="field"><label class="lbl" for="a-rate">{{act.rateLabel}}</label><input class="input {{act.rateCls}}" id="a-rate" inputmode="decimal" value="{{act.rate}}" onChange="{{act.onRate}}" disabled="{{act.lock}}" aria-invalid="{{act.rateInvalid}}" aria-describedby="a-rate-hint a-rate-err"><div class="field-hint" id="a-rate-hint">{{act.rateHint}}</div><sc-if value="{{act.hasRateErr}}" hint-placeholder-val="{{false}}"><div class="field-err" id="a-rate-err"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 5v3.5M8 11h.01"/></svg>{{act.rateErr}}</div></sc-if></div>
+            <div class="field"><label class="lbl" for="a-img">Image URL <span class="opt">· optional</span></label><div class="thumb-field"><span class="thumb" style="--art: {{act.art}}" aria-hidden="true"></span><input class="input {{act.imgCls}}" id="a-img" type="url" value="{{act.img}}" onChange="{{act.onImg}}" disabled="{{act.lock}}" placeholder="OSRS Wiki or direct image link" aria-invalid="{{act.imgInvalid}}" aria-describedby="a-img-err"></div><sc-if value="{{act.hasImgErr}}" hint-placeholder-val="{{false}}"><div class="field-err" id="a-img-err"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 5v3.5M8 11h.01"/></svg>{{act.imgErr}}</div></sc-if></div>
+          </div>
+          <sc-if value="{{act.hasRecalc}}" hint-placeholder-val="{{false}}"><p class="ct-note"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 7.2v3.8M8 5h.01"/></svg><span>{{act.recalc}}</span></p></sc-if>
+          <sc-if value="{{act.hasMap}}" hint-placeholder-val="{{true}}">
+            <div class="ct-disc">
+              <button class="disc-btn ct-disc-btn" id="map-btn" aria-expanded="{{map.expanded}}" aria-controls="map-body" onClick="{{map.toggle}}"><span>Wise Old Man metric</span><span class="ct-disc-meta"><span class="ct-map {{map.cls}}">{{map.status}}</span><svg class="ic" viewBox="0 0 16 16"><path d="M4.5 6.5 8 10l3.5-3.5"/></svg></span></button>
+              <sc-if value="{{map.open}}" hint-placeholder-val="{{false}}">
+                <div class="ct-disc-body" id="map-body">
+                  <p class="ct-help">Lets events show Wise Old Man activity for this boss. A verified metric means Wise Old Man tracks it, not that every player has data.</p>
+                  <div class="field"><label class="lbl" for="m-metric">Metric</label><div class="ct-inline"><input class="input" id="m-metric" value="{{map.value}}" onChange="{{map.onValue}}" disabled="{{map.busy}}" placeholder="e.g. zulrah" autocomplete="off"><button class="btn btn-sm" id="m-suggest" onClick="{{map.suggest}}" disabled="{{map.busy}}">Suggest</button></div><div class="field-hint">Use the metric for this exact activity or raid mode. {{map.checked}}</div></div>
+                  <sc-if value="{{map.hasResult}}" hint-placeholder-val="{{false}}"><p class="ct-result {{map.resultCls}}" role="status" id="m-result">{{map.result}}</p></sc-if>
+                  <div class="ct-acts"><button class="btn btn-sm {{map.busyCls}}" id="m-validate" onClick="{{map.validate}}" disabled="{{map.busy}}"><sc-if value="{{map.busyValidate}}" hint-placeholder-val="{{false}}"><span class="spin"></span></sc-if>Validate and save</button><button class="btn btn-sm btn-quiet" id="m-save" onClick="{{map.save}}" disabled="{{map.busy}}">Save without validating</button></div>
+                </div>
+              </sc-if>
+            </div>
+          </sc-if>
+        </section>
+
+        <!-- drops -->
+        <section class="sec" aria-labelledby="sec-drops">
+          <div class="sec-head"><h3 class="sec-title" id="sec-drops" tabindex="-1">Drops <span class="ct-count">{{drops.count}}</span></h3><sc-if value="{{drops.canAdd}}" hint-placeholder-val="{{true}}"><button class="btn btn-sm" id="add-drop" onClick="{{drops.openAdd}}" aria-expanded="{{drops.addExpanded}}"><svg class="ic" viewBox="0 0 16 16"><path d="M8 3.5v9M3.5 8h9"/></svg>Add drop</button></sc-if></div>
+          <sc-if value="{{drops.isNew}}" hint-placeholder-val="{{false}}"><p class="ct-help">Save the activity first. Its drops are added here afterwards.</p></sc-if>
+
+          <sc-if value="{{add.show}}" hint-placeholder-val="{{false}}">
+            <div class="ct-add" role="group" aria-labelledby="add-title">
+              <div class="ct-add-head"><h4 class="ct-h4" id="add-title">New drop</h4></div>
+              <div class="ct-grid">
+                <div class="field"><label class="lbl" for="n-name">Item name</label><input class="input {{add.nameCls}}" id="n-name" value="{{add.name}}" onChange="{{add.onName}}" disabled="{{add.busy}}" placeholder="e.g. Tanzanite fang" maxlength="200" aria-invalid="{{add.nameInvalid}}" aria-describedby="n-name-err"><sc-if value="{{add.hasNameErr}}" hint-placeholder-val="{{false}}"><div class="field-err" id="n-name-err"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 5v3.5M8 11h.01"/></svg>{{add.nameErr}}</div></sc-if></div>
+                <div class="field"><label class="lbl" for="n-rate">Drop rate</label><input class="input {{add.rateCls}}" id="n-rate" value="{{add.rate}}" onChange="{{add.onRate}}" disabled="{{add.busy}}" placeholder="1/512 or 2 x 1/1,024" aria-invalid="{{add.rateInvalid}}" aria-describedby="n-rate-hint n-rate-err"><div class="field-hint" id="n-rate-hint">{{add.ratePreview}}</div><sc-if value="{{add.hasRateErr}}" hint-placeholder-val="{{false}}"><div class="field-err" id="n-rate-err"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 5v3.5M8 11h.01"/></svg>{{add.rateErr}}</div></sc-if></div>
+              </div>
+              <sc-if value="{{add.hasShared}}" hint-placeholder-val="{{false}}">
+                <div class="ct-shared" role="group" aria-labelledby="sh-title">
+                  <div class="ct-shared-main"><span class="thumb" style="--art: {{add.sharedArt}}" aria-hidden="true"></span><div style="min-width: 0"><div class="ct-shared-title" id="sh-title">“{{add.sharedName}}” is already a shared item</div><div class="ct-shared-text">{{add.sharedText}}</div></div></div>
+                  <label class="ct-check"><input type="checkbox" id="n-use-shared" checked="{{add.useShared}}" onChange="{{add.onUseShared}}" disabled="{{add.busy}}"><span>Use the shared item for this drop. Its name, image and value stay shared; the rate is only for this activity.</span></label>
+                  <sc-if value="{{add.hasSharedErr}}" hint-placeholder-val="{{false}}"><div class="field-err" id="n-shared-err"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 5v3.5M8 11h.01"/></svg>Confirm using the shared item, or change the name.</div></sc-if>
+                </div>
+              </sc-if>
+              <sc-if value="{{add.hasValue}}" hint-placeholder-val="{{true}}">
+                <div class="ct-value" role="group" aria-labelledby="val-lbl">
+                  <div class="lbl" id="val-lbl">Catalogue value <span class="opt">· for the new item</span></div>
+                  <div class="seg" role="radiogroup" aria-label="How to value it"><sc-for list="{{add.modes}}" as="m" hint-placeholder-count="3"><label class="seg-opt {{m.cls}}"><input class="sr" type="radio" name="n-mode" checked="{{m.on}}" onChange="{{m.pick}}" disabled="{{add.busy}}">{{m.label}}</label></sc-for></div>
+                  <sc-if value="{{add.isManual}}" hint-placeholder-val="{{true}}"><div class="ct-inline" style="margin-top: 8px"><input class="input ct-gp {{add.gpCls}}" id="n-gp" inputmode="numeric" value="{{add.gp}}" onChange="{{add.onGp}}" disabled="{{add.busy}}" aria-label="Value in GP" aria-invalid="{{add.gpInvalid}}" aria-describedby="n-gp-hint n-gp-err"><span class="ct-unit">GP</span></div></sc-if>
+                  <div class="field-hint" id="n-gp-hint">{{add.valueHint}}</div>
+                  <sc-if value="{{add.hasGpErr}}" hint-placeholder-val="{{false}}"><div class="field-err" id="n-gp-err"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 5v3.5M8 11h.01"/></svg>{{add.gpErr}}</div></sc-if>
+                </div>
+              </sc-if>
+              <div class="field"><label class="lbl" for="n-img">Image URL <span class="opt">· optional</span></label><input class="input" id="n-img" type="url" value="{{add.img}}" onChange="{{add.onImg}}" disabled="{{add.busy}}" placeholder="OSRS Wiki or direct image link"></div>
+              <sc-if value="{{add.hasErr}}" hint-placeholder-val="{{false}}"><div class="banner {{add.errCls}}" role="alert" id="add-err" tabindex="-1"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 4.8v3.6M8 11h.01"/></svg><span class="grow">{{add.err}}</span></div></sc-if>
+              <div class="ct-acts"><button class="btn btn-primary btn-sm {{add.busyCls}}" id="add-save" onClick="{{add.save}}" disabled="{{add.busy}}"><sc-if value="{{add.busy}}" hint-placeholder-val="{{false}}"><span class="spin"></span></sc-if>{{add.saveLabel}}</button><button class="btn btn-sm" id="add-cancel" onClick="{{add.cancel}}" disabled="{{add.busy}}">Cancel</button></div>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{drops.empty}}" hint-placeholder-val="{{false}}"><div class="ct-none">No drops yet. Add the first one to give this activity EHB estimates.</div></sc-if>
+          <ul class="dlist" aria-label="Drops">
+            <sc-for list="{{drops.list}}" as="d" hint-placeholder-count="4">
+              <li class="dlist-item {{d.cls}}">
+                <button class="dlist-row" id="{{d.rowId}}" aria-expanded="{{d.expanded}}" aria-controls="{{d.edId}}" onClick="{{d.toggle}}">
+                  <span class="thumb" style="--art: {{d.art}}" aria-hidden="true"></span>
+                  <span class="dlist-main"><span class="dlist-name">{{d.name}}</span><span class="dlist-sub">{{d.sub}}</span></span>
+                  <span class="dlist-flags"><sc-for list="{{d.flags}}" as="f" hint-placeholder-count="1"><span class="pill {{f.cls}}">{{f.label}}</span></sc-for></span>
+                  <span class="dlist-fig"><span class="dlist-ehb {{d.ehbCls}}">{{d.ehb}}</span><span class="dlist-fig-k">{{d.ehbK}}</span></span>
+                  <svg class="ic dlist-chev" viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 6.5 8 10l3.5-3.5"/></svg>
+                </button>
+                <sc-if value="{{d.open}}" hint-placeholder-val="{{false}}">
+                  <div class="dlist-ed" id="{{d.edId}}" role="group" aria-label="{{d.edLabel}}">
+                    <sc-if value="{{d.hasErr}}" hint-placeholder-val="{{false}}"><div class="banner {{d.errCls}}" role="alert" id="ed-err" tabindex="-1"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 4.8v3.6M8 11h.01"/></svg><span class="grow"><b>{{d.errTitle}}</b> {{d.err}}</span><sc-if value="{{d.hasErrAct}}" hint-placeholder-val="{{false}}"><button class="btn btn-sm" id="ed-err-act" onClick="{{d.errAct}}" disabled="{{d.errBusy}}"><sc-if value="{{d.errBusy}}" hint-placeholder-val="{{false}}"><span class="spin"></span></sc-if>{{d.errActLabel}}</button></sc-if></div></sc-if>
+                    <div class="ct-grid">
+                      <div class="field"><label class="lbl" for="e-name">Item name</label><input class="input {{d.nameCls}}" id="e-name" value="{{d.fName}}" onChange="{{d.onName}}" disabled="{{d.lock}}" maxlength="200" aria-invalid="{{d.nameInvalid}}" aria-describedby="e-name-hint e-name-err"><div class="field-hint" id="e-name-hint">{{d.nameHint}}</div><sc-if value="{{d.hasNameErr}}" hint-placeholder-val="{{false}}"><div class="field-err" id="e-name-err"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 5v3.5M8 11h.01"/></svg>{{d.nameErr}}</div></sc-if></div>
+                      <div class="field"><label class="lbl" for="e-rate">Drop rate</label><input class="input {{d.rateCls}}" id="e-rate" value="{{d.fRate}}" onChange="{{d.onRate}}" disabled="{{d.lock}}" aria-invalid="{{d.rateInvalid}}" aria-describedby="e-rate-hint e-rate-err"><div class="field-hint" id="e-rate-hint">{{d.ratePreview}}</div><sc-if value="{{d.hasRateErr}}" hint-placeholder-val="{{false}}"><div class="field-err" id="e-rate-err"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 5v3.5M8 11h.01"/></svg>{{d.rateErr}}</div></sc-if></div>
+                    </div>
+                    <sc-if value="{{d.hasMerge}}" hint-placeholder-val="{{false}}">
+                      <div class="ct-shared" role="group" aria-labelledby="mg-title">
+                        <div class="ct-shared-main"><span class="thumb" style="--art: {{d.mergeArt}}" aria-hidden="true"></span><div style="min-width: 0"><div class="ct-shared-title" id="mg-title">“{{d.mergeName}}” is already a shared item</div><div class="ct-shared-text">{{d.mergeText}}</div></div></div>
+                        <label class="ct-check"><input type="checkbox" id="e-use-shared" checked="{{d.useShared}}" onChange="{{d.onUseShared}}" disabled="{{d.lock}}"><span>Point this drop at the shared item instead. The current item keeps its own value and history.</span></label>
+                      </div>
+                    </sc-if>
+                    <div class="ct-calc"><span class="ct-calc-k">Calculated EHB</span><span class="ct-calc-v {{d.calcCls}}" id="e-ehb">{{d.calc}}</span><span class="ct-calc-note">{{d.calcNote}}</span></div>
+                    <div class="field"><label class="lbl" for="e-img">Image URL <span class="opt">· {{d.imgScope}}</span></label><div class="thumb-field"><span class="thumb" style="--art: {{d.art}}" aria-hidden="true"></span><input class="input" id="e-img" type="url" value="{{d.fImg}}" onChange="{{d.onImg}}" disabled="{{d.lock}}" placeholder="OSRS Wiki or direct image link"></div></div>
+                    <div class="ct-acts"><button class="btn btn-primary btn-sm {{d.busyCls}}" id="e-save" onClick="{{d.save}}" disabled="{{d.saveDisabled}}" aria-describedby="e-save-what"><sc-if value="{{d.busy}}" hint-placeholder-val="{{false}}"><span class="spin"></span></sc-if>{{d.saveLabel}}</button><button class="btn btn-sm" id="e-cancel" onClick="{{d.cancel}}" disabled="{{d.busy}}">{{d.cancelLabel}}</button><span class="ct-save-what" id="e-save-what">{{d.saveWhat}}</span></div>
+
+                    <div class="ct-disc">
+                      <button class="disc-btn ct-disc-btn" id="mech-btn" aria-expanded="{{d.mechExpanded}}" aria-controls="mech-body" onClick="{{d.toggleMech}}"><span>How the rate is counted</span><span class="ct-disc-meta"><span class="ct-disc-sum">{{d.mechSum}}</span><svg class="ic" viewBox="0 0 16 16"><path d="M4.5 6.5 8 10l3.5-3.5"/></svg></span></button>
+                      <sc-if value="{{d.mechOpen}}" hint-placeholder-val="{{false}}">
+                        <div class="ct-disc-body" id="mech-body">
+                          <dl class="kv ct-kv"><sc-for list="{{d.mech}}" as="m" hint-placeholder-count="4"><dt>{{m.k}}</dt><dd>{{m.v}}</dd></sc-for></dl>
+                          <p class="ct-help">Team, conditional and reward-roll settings are kept by an operator. Changing the number of rolls in the rate needs an operator too.</p>
+                        </div>
+                      </sc-if>
+                    </div>
+                    <div class="ct-disc">
+                      <button class="disc-btn ct-disc-btn" id="price-btn" aria-expanded="{{d.priceExpanded}}" aria-controls="price-body" onClick="{{d.togglePrice}}"><span>Value and item mapping</span><span class="ct-disc-meta"><span class="ct-disc-sum {{d.priceSumCls}}">{{d.priceSum}}</span><svg class="ic" viewBox="0 0 16 16"><path d="M4.5 6.5 8 10l3.5-3.5"/></svg></span></button>
+                      <sc-if value="{{d.priceOpen}}" hint-placeholder-val="{{false}}">
+                        <div class="ct-disc-body" id="price-body">
+                          <p class="ct-help">These belong to the shared item{{d.sharedWith}}. Approved boards and event prices keep their own snapshot.</p>
+                          <dl class="kv ct-kv"><dt>Stored value</dt><dd>{{d.storedValue}}</dd><dt>Item ID</dt><dd><span class="ct-map {{d.itemMapCls}}">{{d.itemMap}}</span>{{d.itemChecked}}</dd></dl>
+                          <sc-if value="{{d.hasRejected}}" hint-placeholder-val="{{false}}"><p class="ct-result is-warn">{{d.rejected}}</p></sc-if>
+                          <div class="field"><div class="lbl">Price source</div><div class="seg" role="radiogroup" aria-label="Price source"><sc-for list="{{d.modes}}" as="m" hint-placeholder-count="3"><label class="seg-opt {{m.cls}}"><input class="sr" type="radio" name="e-mode" checked="{{m.on}}" onChange="{{m.pick}}" disabled="{{d.pBusy}}">{{m.label}}</label></sc-for></div><div class="field-hint">{{d.modeHint}}</div></div>
+                          <sc-if value="{{d.isManual}}" hint-placeholder-val="{{false}}"><div class="field"><label class="lbl" for="p-gp">Manual value</label><div class="ct-inline"><input class="input ct-gp {{d.gpCls}}" id="p-gp" inputmode="numeric" value="{{d.pGp}}" onChange="{{d.onGp}}" disabled="{{d.pBusy}}" aria-invalid="{{d.gpInvalid}}" aria-describedby="p-gp-err"><span class="ct-unit">GP</span></div><sc-if value="{{d.hasGpErr}}" hint-placeholder-val="{{false}}"><div class="field-err" id="p-gp-err"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 5v3.5M8 11h.01"/></svg>{{d.gpErr}}</div></sc-if></div></sc-if>
+                          <sc-if value="{{d.hasItemId}}" hint-placeholder-val="{{true}}"><div class="field"><label class="lbl" for="p-id">OSRS Wiki item ID</label><div class="ct-inline"><input class="input ct-gp" id="p-id" inputmode="numeric" value="{{d.pId}}" onChange="{{d.onId}}" disabled="{{d.pBusy}}" placeholder="e.g. 12922"><button class="btn btn-sm" id="p-suggest" onClick="{{d.suggest}}" disabled="{{d.pBusy}}">Suggest</button></div></div></sc-if>
+                          <sc-if value="{{d.hasPResult}}" hint-placeholder-val="{{false}}"><p class="ct-result {{d.pResultCls}}" role="status" id="p-result">{{d.pResult}}</p></sc-if>
+                          <div class="ct-acts"><button class="btn btn-sm {{d.pBusyCls}}" id="p-validate" onClick="{{d.pValidate}}" disabled="{{d.pValidateDisabled}}"><sc-if value="{{d.pBusyValidate}}" hint-placeholder-val="{{false}}"><span class="spin"></span></sc-if>{{d.pValidateLabel}}</button><button class="btn btn-sm btn-quiet" id="p-save" onClick="{{d.pSave}}" disabled="{{d.pBusy}}">Save without validating</button></div>
+                        </div>
+                      </sc-if>
+                    </div>
+                    <div class="ct-ed-foot">
+                      <button class="btn btn-sm btn-quiet" id="e-toggle" onClick="{{d.toggleActive}}" disabled="{{d.lock}}">{{d.toggleLabel}}</button>
+                      <sc-if value="{{d.canDelete}}" hint-placeholder-val="{{false}}"><button class="btn btn-sm btn-quiet-danger" id="e-delete" onClick="{{d.del}}" disabled="{{d.lock}}">Delete permanently…</button></sc-if>
+                    </div>
+                  </div>
+                </sc-if>
+              </li>
+            </sc-for>
+          </ul>
+        </section>
+
+        <!-- occasional, reversible first -->
+        <sc-if value="{{manage.show}}" hint-placeholder-val="{{true}}">
+          <section class="sec is-last" aria-labelledby="sec-manage">
+            <div class="sec-head"><h3 class="sec-title" id="sec-manage">Availability</h3></div>
+            <div class="act-row"><div style="min-width: 0"><div class="ct-act-title">{{manage.toggleTitle}}</div><div class="ct-act-text">{{manage.toggleText}}</div></div><button class="btn btn-sm" id="a-toggle" onClick="{{manage.toggle}}" disabled="{{manage.lock}}">{{manage.toggleLabel}}</button></div>
+            <sc-if value="{{manage.canDelete}}" hint-placeholder-val="{{false}}"><div class="act-row"><div style="min-width: 0"><div class="ct-act-title">Delete permanently</div><div class="ct-act-text">Only for an activity nothing uses. Super Admin only.</div></div><button class="btn btn-sm btn-quiet-danger" id="a-delete" onClick="{{manage.del}}" disabled="{{manage.lock}}">Delete…</button></div></sc-if>
+          </section>
+        </sc-if>
+      </sc-if>
+    </div>
+    <div class="dr-foot">
+      <sc-if value="{{dr.showFootNote}}" hint-placeholder-val="{{false}}"><span class="dirty" role="status"><span class="dot"></span>{{dr.footNote}}</span></sc-if>
+      <div class="spacer"></div>
+      <button class="btn" id="dr-cancel" onClick="{{dr.cancel}}" disabled="{{dr.busy}}">{{dr.cancelLabel}}</button>
+      <sc-if value="{{dr.hasSave}}" hint-placeholder-val="{{false}}"><button class="btn btn-primary {{dr.busyCls}}" id="dr-save" onClick="{{dr.save}}" disabled="{{dr.busy}}"><sc-if value="{{dr.busy}}" hint-placeholder-val="{{false}}"><span class="spin"></span></sc-if>{{dr.saveLabel}}</button></sc-if>
+    </div>
+  </div>
+</sc-if>
+
+<!-- confirmations: discard, deactivate, delete (with dependency check) -->
+<sc-if value="{{cm.show}}" hint-placeholder-val="{{false}}">
+  <div class="m-scrim is-stacked {{cm.closingCls}}" id="cm-scrim" onClick="{{cm.dismiss}}"></div>
+  <div class="m-wrap">
+    <div class="modal is-wide {{cm.closingCls}}" id="cm" tabindex="-1" role="alertdialog" aria-modal="true" aria-labelledby="cm-title" aria-describedby="cm-body" aria-busy="{{cm.busy}}" onKeyDown="{{cm.onKey}}">
+      <h2 class="m-title" id="cm-title">{{cm.title}}</h2>
+      <div id="cm-body">
+        <sc-if value="{{cm.checking}}" hint-placeholder-val="{{false}}"><p class="m-body ct-checking"><span class="spin"></span>Checking what uses it…</p></sc-if>
+        <sc-if value="{{cm.hasBanner}}" hint-placeholder-val="{{false}}"><div class="banner {{cm.bannerCls}} m-banner" role="alert" id="cm-banner" tabindex="-1"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 4.8v3.6M8 11h.01"/></svg><span class="grow"><b>{{cm.bannerTitle}}</b> {{cm.bannerText}}</span></div></sc-if>
+        <sc-if value="{{cm.hasPoints}}" hint-placeholder-val="{{true}}"><ul class="m-points"><sc-for list="{{cm.points}}" as="x" hint-placeholder-count="2"><li>{{x.text}}</li></sc-for></ul></sc-if>
+      </div>
+      <div class="m-actions">
+        <button class="btn" id="cm-cancel" onClick="{{cm.dismiss}}" disabled="{{cm.busy}}">{{cm.cancelLabel}}</button>
+        <sc-if value="{{cm.hasAlt}}" hint-placeholder-val="{{false}}"><button class="btn" id="cm-alt" onClick="{{cm.alt}}" disabled="{{cm.busy}}">{{cm.altLabel}}</button></sc-if>
+        <sc-if value="{{cm.hasConfirm}}" hint-placeholder-val="{{true}}"><button class="btn {{cm.confirmCls}} {{cm.busyCls}}" id="cm-confirm" onClick="{{cm.confirm}}" disabled="{{cm.busy}}"><sc-if value="{{cm.busy}}" hint-placeholder-val="{{false}}"><span class="spin"></span></sc-if>{{cm.confirmLabel}}</button></sc-if>
+      </div>
+    </div>
+  </div>
+</sc-if>
+
+<!-- prototype only: simulated browser (URL and history) -->
+<sc-if value="{{pb.show}}" hint-placeholder-val="{{true}}">
+  <div class="proto-bar" role="group" aria-label="Simulated browser, prototype only">
+    <button class="icon-btn" aria-label="Back" title="Back" disabled="{{pb.noBack}}" onClick="{{pb.back}}"><svg class="ic" viewBox="0 0 16 16"><path d="M13 8H3.5M7.5 4 3.5 8l4 4"/></svg></button>
+    <button class="icon-btn" aria-label="Forward" title="Forward" disabled="{{pb.noFwd}}" onClick="{{pb.fwd}}"><svg class="ic" viewBox="0 0 16 16"><path d="M3 8h9.5M8.5 4l4 4-4 4"/></svg></button>
+    <button class="icon-btn" aria-label="Reload" title="Reload" onClick="{{pb.reload}}"><svg class="ic" viewBox="0 0 16 16"><path d="M13 8a5 5 0 1 1-1.5-3.6"/><path d="M13 2.8v2.8h-2.8"/></svg></button>
+    <span class="proto-tag">Prototype URL</span>
+    <span class="proto-url" title="{{pb.url}}">{{pb.url}}</span>
+  </div>
+</sc-if>
+
+<div class="toasts" aria-live="polite" aria-atomic="false">
+  <sc-for list="{{toasts}}" as="t" hint-placeholder-count="0">
+    <div class="toast {{t.cls}}" role="status" data-toast="{{t.id}}">
+      <sc-if value="{{t.isError}}" hint-placeholder-val="{{false}}"><svg class="ic t-ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 5v3.5M8 11h.01"/></svg></sc-if>
+      <sc-if value="{{t.isOk}}" hint-placeholder-val="{{true}}"><svg class="ic t-ic" viewBox="0 0 16 16"><path d="M3.8 8.4 6.6 11.2 12.2 5"/></svg></sc-if>
+      <span class="grow">{{t.text}}</span>
+      <sc-if value="{{t.hasAction}}" hint-placeholder-val="{{false}}"><button class="toast-act" onClick="{{t.act}}">{{t.actionLabel}}</button></sc-if>
+      <button class="toast-x" aria-label="Dismiss notification" onClick="{{t.close}}"><svg class="ic" viewBox="0 0 16 16" style="width: 14px; height: 14px"><path d="M4.5 4.5l7 7M11.5 4.5l-7 7"/></svg></button>
+    </div>
+  </sc-for>
+</div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+// DK Legacy Admin — Catalogue (reference prototype). Fictional catalogue; "now" is 2 Jun 2027, 10:30 Copenhagen.
+// Verified against the current implementation (participants-functionality: Admin/Catalogue/Index and Index.Api, SourceDrop,
+// CatalogueItem, BossActivity, DropRateParser, BoardEstimateService, PRODUCT_REQUIREMENTS 9 and CAT-01):
+// - Any Admin adds, edits, deactivates and reactivates; only the Super Admin deletes, after a dependency check (an activity
+//   with any drop or board reference can't be deleted; a drop referenced by a board can't). No cascade.
+// - EHB per drop = 1 / (completions per hour × chance per completion); chance per completion = 1 − (1 − p)^rolls, with p
+//   parsed from the displayed rate ("1/512", "2 x 1/1,024"). Changing the rate recalculates the drop; changing the activity
+//   rate recalculates all its drops and draft boards. Approved board snapshots, evidence and official results don't change.
+// - Team scope, assumed participants, conditional (parent) probability, roll group, condition notes and data source are
+//   operator-managed today: the admin form can't change them, and a rate that changes the number of rolls is refused.
+//   The reference shows them read-only (see README). Roll-group editing is retired and isn't shown.
+// - Items are shared: name, image, value and Wiki ID belong to the item; rate and mechanics belong to the drop. Renaming a
+//   drop to an existing item's name needs an explicit choice to use that item. Zero is a valid value; missing isn't zero;
+//   manual values aren't overwritten by refreshes; provider outages don't block saving manual settings.
+// - Provider calls (suggest, validate, fetch price) happen only on explicit actions.
+// The browser is simulated (prototype URL bar). DKAdmin.mock stands in for request latency.
+const TZ = 'Europe/Copenhagen';
+const NOW = Date.UTC(2027, 5, 2, 8, 30);
+const CATS = ['Boss', 'Skilling boss', 'Minigame'];
+const SAVE_OUT = { ok: 'Succeeds', fail: 'Fails, nothing saved', stale: 'Another admin changed it first', timeout: 'Times out' };
+const PROV_OUT = { ok: 'Finds a match and price', unsupported: 'No exact match', unavailable: 'Provider unavailable', rateLimited: 'Provider rate limiting', rejected: 'Price looks unusual' };
+const NAV = [['dashboard', 'Dashboard'], ['events', 'Events'], ['catalogue', 'Catalogue'], ['accounts', 'Accounts'], ['audit', 'Audit'],
+  ['overview', 'Overview'], ['identity', 'Identity'], ['schedule', 'Schedule'], ['participants', 'Participants'], ['signup', 'Signup setup'], ['teams', 'Teams / Draft'], ['board', 'Board'], ['wom', 'WOM'], ['review', 'Review'], ['final', 'Final review']];
+const TITLES = {}; NAV.forEach(([k, l]) => { TITLES[k] = l; });
+const EVENT_PAGES = ['overview', 'identity', 'schedule', 'participants', 'signup', 'teams', 'board', 'wom', 'review', 'final'];
+const EVENTS = [{ slug: 'raids-week-2027', name: 'Raids Week 2027', phase: 'Signups closed', when: 'draft running', tone: 'tone-draft' }, { slug: 'midsummer-skilling-sprint', name: 'Midsummer Skilling Sprint', phase: 'Live', when: 'ends 6 Jun', tone: 'tone-live' }];
+const clone = o => JSON.parse(JSON.stringify(o));
+const slugify = s => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+const norm = s => (s || '').trim().toUpperCase();
+const fmt = ms => new Intl.DateTimeFormat('en-GB', { timeZone: TZ, day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(ms));
+const gp = n => n == null ? null : n.toLocaleString('en-GB') + ' gp';
+const num = (n, d) => n.toLocaleString('en-GB', { maximumFractionDigits: d == null ? 2 : d });
+// placeholder artwork: a tinted tile with an initial (stands in for the cached Wiki image)
+const art = (name, url) => { if (!name) return 'none'; let h = 0; for (const c of name) h = (h * 31 + c.charCodeAt(0)) % 360; const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><rect width="40" height="40" rx="8" fill="hsl(' + h + ',32%,46%)"/><text x="20" y="26" font-family="sans-serif" font-size="17" font-weight="600" fill="white" text-anchor="middle">' + name.trim()[0].toUpperCase() + '</text></svg>'; return url === '' ? 'none' : 'url("data:image/svg+xml;utf8,' + encodeURIComponent(svg) + '")'; };
+
+/* ---------------- displayed-rate parsing (DropRateParser) ---------------- */
+function parseNumber(v) { if (!v) return null; v = v.replace(/ /g, ''); if (/^\d{1,3}(,\d{3})+$/.test(v)) v = v.replace(/,/g, ''); else if (/^\d{1,3}(\.\d{3})+$/.test(v)) v = v.replace(/\./g, ''); else v = v.replace(',', '.'); const n = parseFloat(v); return isFinite(n) && /^\d+(\.\d+)?$/.test(v) ? n : null; }
+function parseRate(t) {
+  const m = /^(?:(\d+(?:[.,]\d+)?)\s*[x×*]\s*)?(\d+(?:[.,]\d+)?)\s*\/\s*([\d., ]+?)(?:\s*[x×*]\s*(\d+)\s*(?:rolls?)?)?$/i.exec((t || '').trim()); if (!m) return null;
+  const pre = parseNumber(m[1]), suf = parseNumber(m[4]); if (pre != null && suf != null) return null;
+  const mult = pre != null ? pre : suf; const a = parseNumber(m[2]), b = parseNumber(m[3]); if (!(a > 0) || !(b > 0)) return null;
+  const p = a / b; if (p > 1) return null; if (mult == null) return { p, rolls: 1, explicit: false };
+  if (!(mult > 0) || mult !== Math.trunc(mult) || mult > 10000) return null; return { p, rolls: mult, explicit: true };
+}
+const perCompletion = (p, rolls) => (p > 0 && p <= 1 && rolls >= 1) ? 1 - Math.pow(1 - p, rolls) : null;
+const ehbOf = (rate, p, rolls) => { const c = perCompletion(p, rolls); return rate > 0 && c > 0 ? 1 / (rate * c) : null; };
+const oneIn = c => c > 0 ? '1 in ' + num(Math.round(1 / c), 0) : '';
+const unit = cat => cat === 'Minigame' ? 'run' : 'kill';
+const rateLabel = cat => cat === 'Minigame' ? 'Runs per hour' : 'Kills per hour';
+
+/* ---------------- samples ---------------- */
+function samples() {
+  let n = 0; const id = p => p + (++n);
+  const acts = [], items = [], drops = [];
+  const item = (name, value, source, wikiId, map, extra) => { const it = Object.assign({ id: id('i'), name, img: 'wiki', value, source, wikiId: wikiId || '', map: map || 'none', checked: map && map !== 'none' ? NOW - 3 * 86400000 : null, rejected: null, version: 1 }, extra || {}); items.push(it); return it; };
+  const act = (name, cat, rate, wom, extra) => { const a = Object.assign({ id: id('a'), slug: slugify(name), name, cat, rate, img: 'wiki', active: true, wom: wom || { id: '', status: 'none', checked: null }, version: 3, boardRefs: 0 }, extra || {}); acts.push(a); return a; };
+  const drop = (a, it, rate, extra) => { const r = parseRate(rate); const d = Object.assign({ id: id('d'), act: a.id, item: it.id, rate, p: r ? r.p : null, rolls: r ? r.rolls : 1, scope: 'personal', parts: 1, cond: null, note: '', source: 'OSRS Wiki drop table', active: true, version: 2, boardRefs: 0 }, extra || {}); drops.push(d); return d; };
+  const onyx = item('Uncut onyx', 2650000, 'api', '6571', 'verified');
+  const elite = item('Clue scroll (elite)', 0, 'untradeable', '', 'none');
+  const z = act('Zulrah', 'Boss', 35, { id: 'zulrah', status: 'verified', checked: NOW - 5 * 86400000 }, { boardRefs: 3 });
+  drop(z, item('Tanzanite fang', 1620000, 'api', '12922', 'verified'), '2 x 1/1,024', { boardRefs: 2 });
+  drop(z, item('Magic fang', 1390000, 'api', '12932', 'verified'), '2 x 1/1,024', { boardRefs: 1 });
+  drop(z, item('Serpentine visage', 1960000, 'api', '12927', 'verified', { rejected: { gp: 19600000, at: NOW - 2 * 3600000 } }), '2 x 1/1,024');
+  drop(z, onyx, '2 x 1/1,024');
+  drop(z, item('Pet snakeling', 0, 'untradeable'), '1/4,000');
+  drop(z, item('Jar of swamp', 0, 'untradeable'), '1/3,000');
+  drop(z, elite, '1/75');
+  drop(z, item('Swamp tar', 4, 'manual', '1939', 'verified'), '1/12', { note: 'Joke drop for the community board.' });
+  const v = act('Vorkath', 'Boss', 32, { id: 'vorkath', status: 'verified', checked: NOW - 5 * 86400000 }, { boardRefs: 2 });
+  drop(v, item('Dragonbone necklace', 7890000, 'api', '22111', 'verified'), '1/1,000', { boardRefs: 1 });
+  drop(v, item('Draconic visage', 3010000, 'api', '11286', 'verified'), '1/5,000');
+  drop(v, item('Skeletal visage', 21500000, 'api', '22006', 'verified'), '1/5,000');
+  drop(v, item('Vorki', 0, 'untradeable'), '1/3,000');
+  drop(v, elite, '1/65');
+  const nex = act('Nex', 'Boss', 7.5, { id: 'nex', status: 'verified', checked: NOW - 9 * 86400000 }, { boardRefs: 1 });
+  drop(nex, item('Nihil horn', 22100000, 'api', '26372', 'verified'), '1/1,290', { scope: 'team', parts: 5, note: 'Your own chance at five players; entered as the in-name chance for the team rate.', source: 'Operator review, Mar 2027' });
+  drop(nex, item('Torva full helm (damaged)', 152000000, 'api', '26376', 'verified'), '1/2,580', { scope: 'team', parts: 5, cond: { p: 1 / 43, note: 'Rolled only after the 1/43 unique table.' }, source: 'Operator review, Mar 2027' });
+  drop(nex, item('Nexling', 0, 'untradeable'), '1/500', { scope: 'team', parts: 5, cond: { p: 1 / 10, note: 'Pet roll after a unique.' } });
+  const temp = act('Tempoross', 'Skilling boss', 7, { id: 'tempoross', status: 'verified', checked: NOW - 2 * 86400000 });
+  drop(temp, item('Fish barrel', 0, 'untradeable'), '1/400');
+  drop(temp, item('Tackle box', 0, 'untradeable'), '1/400');
+  drop(temp, item('Big harpoonfish', 0, 'untradeable'), '1/1,600');
+  drop(temp, item('Tiny tempor', 0, 'untradeable'), '1/8,000');
+  drop(temp, item('Dragon harpoon', 5300000, 'manual', '21028', 'unavailable'), '1/8,000');
+  drop(temp, onyx, '1/10,000', { note: 'Very rare reward pool roll.' });
+  const fc = act('Fortis Colosseum', 'Minigame', 1.6, { id: 'sol_heredit', status: 'unsupported', checked: NOW - 86400000 });
+  drop(fc, item('Sunfire fanatic helm', 4200000, 'api', '28933', 'verified'), '1/120', { cond: { p: 1, note: 'Counted for a full wave-12 completion.' } });
+  drop(fc, item('Echo crystal', null, 'missing', '', 'none'), 'Varies by wave', { p: null });
+  drop(fc, item('Smol heredit', 0, 'untradeable'), '1/200');
+  const kq = act('Kalphite Queen', 'Boss', null, { id: '', status: 'none', checked: null });
+  drop(kq, item('Dragon chainbody', 7400000, 'api', '3140', 'verified'), '1/128');
+  drop(kq, item('Kq head', 0, 'untradeable'), '1/128');
+  drop(kq, elite, '1/100');
+  const cb = act('Corporeal Beast', 'Boss', 6, { id: 'corporeal_beast', status: 'verified', checked: NOW - 4 * 86400000 });
+  drop(cb, item('Spectral sigil', 115000000, 'api', '12823', 'verified'), '1/1,365', { scope: 'team', parts: 5 });
+  drop(cb, item('Holy elixir', 9600000, 'api', '12833', 'verified'), '3/1,024');
+  const mole = act('Giant Mole', 'Boss', 75, { id: 'giant_mole', status: 'verified', checked: NOW - 30 * 86400000 }, { active: false });
+  drop(mole, item('Baby mole', 0, 'untradeable'), '1/3,000', { active: false });
+  act('Tormented Demons', 'Boss', 60, { id: '', status: 'none', checked: null });
+  return { acts, items, drops };
+}
+
+class Component extends DCLogic {
+  constructor(...args) {
+    super(...args);
+    this.timers = []; this.db = samples(); this.clock = NOW;
+    this.hist = { entries: [{ url: '/admin/catalogue', scroll: 0 }], idx: 0 };
+    let dark = false; try { dark = window.matchMedia('(prefers-color-scheme: dark)').matches; } catch (e) {}
+    this.state = {
+      theme: dark ? 'dark' : 'light', route: 'catalogue', otherKey: null, slug: 'raids-week-2027',
+      q: '', cat: '', status: 'active', qDraft: null, view: null, loading: false, loadError: false, failNext: false, empty: false, notice: null,
+      dr: null, cm: null, menu: null, superAdmin: true, saveOut: 'ok', provOut: 'ok',
+      showBar: true, scrollX: false, scrolledX: false, swap: 'a', toasts: [], sideOpen: true, mobileNav: false, vw: 1440, histRev: 0
+    };
+  }
+  componentDidMount() {
+    this.onResize = () => { const vw = window.innerWidth; if (vw !== this.state.vw) this.setState(s => ({ vw, mobileNav: vw > 860 ? false : s.mobileNav })); };
+    window.addEventListener('resize', this.onResize); this.onResize();
+    this.overflow = DKAdmin.watchOverflowX(this, 'tbl-wrap', 'scrollX', 'scroller');
+    this.applyEntry('load');
+  }
+  componentWillUnmount() { this.timers.forEach(clearTimeout); window.removeEventListener('resize', this.onResize); if (this.overflow) this.overflow.disconnect(); }
+  later(fn, ms) { const t = setTimeout(() => { this.timers = this.timers.filter(x => x !== t); fn(); }, ms); this.timers.push(t); return t; }
+  isMobile() { return this.state.vw <= 860; }
+  toast(o) { DKAdmin.toast(this, o); }
+  takeOut(key) { const v = this.state[key]; this.setState({ [key]: 'ok' }); return v; }
+
+  /* ---------------- data helpers (the "server") ---------------- */
+  srvAct(id) { return this.db.acts.find(a => a.id === id); }
+  srvItem(id) { return this.db.items.find(i => i.id === id); }
+  vAct(id) { return this.state.view && this.state.view.acts.find(a => a.id === id); }
+  vItem(id) { return this.state.view.items.find(i => i.id === id); }
+  vDrops(actId) { return this.state.view.drops.filter(d => d.act === actId); }
+  usesOf(itemId, view) { const v = view || this.state.view; return v.drops.filter(d => d.item === itemId).map(d => v.acts.find(a => a.id === d.act)).filter(Boolean); }
+  refresh(patch, cb) { this.setState(s => Object.assign({ view: clone(this.db), swap: s.swap === 'a' ? 'b' : 'a' }, patch || {}), () => { if (this.overflow) this.overflow.check(); if (cb) cb(); }); }
+
+  /* ---------------- URL ---------------- */
+  cur() { return this.hist.entries[this.hist.idx]; }
+  bumpHist() { this.setState(s => ({ histRev: s.histRev + 1 })); }
+  push(url) { this.hist.entries = this.hist.entries.slice(0, this.hist.idx + 1).concat([{ url, scroll: 0 }]); this.hist.idx++; this.bumpHist(); }
+  replace(url) { this.hist.entries[this.hist.idx] = { url, scroll: 0 }; this.bumpHist(); }
+  urlFor(o) { const S = this.state; o = Object.assign({ q: S.q, cat: S.cat, status: S.status }, o || {}); return '/admin/catalogue' + DKAdmin.toQuery({ q: o.q, cat: o.cat, status: o.status === 'inactive' ? 'inactive' : '', activity: o.activity || '', drop: o.drop || '', new: o.isNew ? '1' : '' }); }
+  readUrl(url) {
+    const m = url.match(/^\/admin\/catalogue(?:\?(.*))?$/); if (!m) return null; const q = DKAdmin.fromQuery(m[1] || '');
+    return { q: (q.q || '').slice(0, 100), cat: CATS.indexOf(q.cat) >= 0 ? q.cat : '', status: q.status === 'inactive' ? 'inactive' : 'active', activity: q.activity || null, drop: q.drop || null, isNew: q.new === '1' };
+  }
+  applyEntry(how) {
+    const url = this.cur().url; const r = this.readUrl(url);
+    if (!r) {
+      const m = url.match(/^\/admin\/events\/([a-z0-9-]+)\/([a-z]+)/); const m2 = url.match(/^\/admin\/([a-z]+)/);
+      this.setState({ route: 'other', otherKey: m ? m[2] : (m2 ? m2[1] : 'dashboard'), dr: null, cm: null, menu: null, mobileNav: false }, () => DKAdmin.focusSoon('page-h1'));
+      return;
+    }
+    const after = () => {
+      if (r.isNew) { this.openNew(null, true); return; }
+      if (r.activity) { const a = this.state.view && this.state.view.acts.find(x => x.slug === r.activity); if (this.state.dr && this.state.dr.id === (a && a.id)) { this.openDrop(r.drop, true); return; } this.openDr(r.activity, r.drop, true); return; }
+      if (this.state.dr) this.closeDr(true);
+    };
+    const listSame = this.state.route === 'catalogue' && this.state.view && !this.state.loadError && how === 'pop';
+    this.setState({ route: 'catalogue', otherKey: null, q: r.q, cat: r.cat, status: r.status, qDraft: null, menu: null, mobileNav: false }, () => { if (listSame) after(); else this.load(after); });
+  }
+  // a guarded navigation: unsaved drawer edits ask first
+  navGuard(go) { if (this.dirtyParts().length) { this.askDiscard(go); return true; } return false; }
+  back() { if (this.hist.idx === 0) return; if (this.popLayer()) return; const go = () => { this.hist.idx--; this.bumpHist(); this.applyEntry('pop'); }; if (!this.navGuard(go)) go(); }
+  forward() { if (this.hist.idx >= this.hist.entries.length - 1) return; if (this.popLayer()) return; const go = () => { this.hist.idx++; this.bumpHist(); this.applyEntry('pop'); }; if (!this.navGuard(go)) go(); }
+  popLayer() { const S = this.state; if (S.menu) { this.closeMenu(false); return true; } if (S.cm) { if (!S.cm.busy) this.closeCm(); return true; } return false; }
+  reload() { const go = () => this.applyEntry('load'); if (!this.navGuard(go)) go(); }
+  directVisit(url) { const go = () => { this.hist = { entries: [{ url, scroll: 0 }], idx: 0 }; this.setState({ dr: null }); this.bumpHist(); this.applyEntry('load'); }; if (!this.navGuard(go)) go(); }
+  goUrl(url) { if (url === this.cur().url) return; const go = () => { this.push(url); this.applyEntry('push'); }; if (!this.navGuard(go)) go(); }
+  goNav(k) { this.closeMobileNav(false); this.goUrl(k === 'events' ? '/admin/events' : k === 'catalogue' ? '/admin/catalogue' : EVENT_PAGES.indexOf(k) >= 0 ? '/admin/events/' + this.state.slug + '/' + k : '/admin/' + k); }
+  backToPage() { const prev = this.hist.entries[this.hist.idx - 1]; if (prev && this.readUrl(prev.url)) this.back(); else this.goUrl('/admin/catalogue'); }
+
+  /* ---------------- list ---------------- */
+  load(cb) {
+    const willFail = this.state.failNext;
+    this.setState({ loading: true, loadError: false, failNext: false });
+    DKAdmin.mock.request(this, () => {
+      if (willFail) { this.setState({ loading: false, loadError: true }, () => DKAdmin.focusSoon('retry-btn')); return; }
+      this.refresh({ loading: false }, cb);
+    });
+  }
+  setFilter(p) { const S = this.state; const n = Object.assign({ q: S.q, cat: S.cat, status: S.status }, p); this.setState(n); this.replace(this.urlFor(n)); }
+  matches(a) {
+    const S = this.state; const q = (S.qDraft != null ? S.qDraft : S.q).trim().toLowerCase();
+    if (S.status === 'active' ? !a.active : a.active) return false; if (S.cat && a.cat !== S.cat) return false;
+    if (!q) return { by: null };
+    if (a.name.toLowerCase().indexOf(q) >= 0) return { by: null };
+    const hit = this.vDrops(a.id).map(d => this.vItem(d.item)).find(i => i.name.toLowerCase().indexOf(q) >= 0);
+    return hit ? { by: hit.name } : false;
+  }
+  flagsOf(a) {
+    const f = []; const ds = this.vDrops(a.id).filter(d => d.active);
+    if (!(a.rate > 0)) f.push({ label: 'Rate missing', cls: 'is-warning' });
+    const noP = ds.filter(d => !(d.p > 0)).length; if (noP) f.push({ label: noP + ' without probability', cls: 'is-warning' });
+    const noV = ds.filter(d => this.vItem(d.item).value == null).length; if (noV) f.push({ label: noV + ' without value', cls: 'is-warning' });
+    if (a.active && ds.length === 0) f.push({ label: 'No drops', cls: 'is-neutral' });
+    return f;
+  }
+
+  /* ---------------- drawer ---------------- */
+  openNew(e, fromUrl) {
+    if (!fromUrl) { this.drReturn = e && e.currentTarget; this.push(this.urlFor({ isNew: true })); }
+    this.setState({ dr: { id: null, isNew: true, closing: false, banner: null, busy: false, act: { name: '', cat: 'Boss', rate: '', img: '' }, actErr: {}, showActErr: false, mapOpen: false, map: null, ed: null, add: null } }, () => DKAdmin.focusSoon('a-name'));
+  }
+  openDr(slug, dropId, fromUrl) {
+    const a = this.state.view.acts.find(x => x.slug === slug);
+    if (!fromUrl) { const act = document.activeElement; this.drReturn = act && act !== document.body ? act : null; this.push(this.urlFor({ activity: slug })); }
+    if (!a) { this.setState({ dr: { id: null, missing: true, closing: false } }, () => DKAdmin.focusSoon('drawer-close')); return; }
+    this.setState({ dr: { id: a.id, closing: false, banner: null, busy: false, act: this.actForm(a), actErr: {}, showActErr: false, mapOpen: false, map: null, ed: null, add: null } }, () => { if (dropId) this.openDrop(dropId, true); else DKAdmin.focusSoon('drawer-close', { preventScroll: true }); });
+  }
+  actForm(a) { return { name: a.name, cat: a.cat, rate: a.rate == null ? '' : String(a.rate), img: a.img === 'wiki' ? 'https://oldschool.runescape.wiki/images/' + a.name.replace(/ /g, '_') + '.png' : a.img }; }
+  updDr(p, cb) { this.setState(s => ({ dr: s.dr ? Object.assign({}, s.dr, typeof p === 'function' ? p(s.dr) : p) : s.dr }), cb); }
+  dirtyParts() {
+    const d = this.state.dr; if (!d || d.missing) return []; const out = [];
+    if (this.actDirty()) out.push(d.isNew ? 'the new activity' : 'the activity settings');
+    if (d.ed && this.edDirty()) out.push('your changes to ' + this.vItem(this.vDropById(d.ed.id).item).name);
+    if (d.ed && this.priceDirty()) out.push('the value and mapping changes for ' + this.vItem(this.vDropById(d.ed.id).item).name);
+    if (d.add && (d.add.name || d.add.rate || d.add.gp || d.add.img)) out.push('the new drop');
+    return out;
+  }
+  vDropById(id) { return this.state.view.drops.find(x => x.id === id); }
+  actDirty() { const d = this.state.dr; if (!d || !d.act) return false; if (d.isNew) return !!(d.act.name || d.act.rate || d.act.img); const a = this.vAct(d.id); const f = this.actForm(a); return ['name', 'cat', 'rate', 'img'].some(k => String(d.act[k]).trim() !== String(f[k]).trim()); }
+  edDirty() { const e = this.state.dr.ed; const dr = this.vDropById(e.id); const it = this.vItem(dr.item); return e.fName.trim() !== it.name || e.fRate.trim() !== dr.rate || (e.fImg || '') !== (e.origImg || ''); }
+  priceDirty() { const e = this.state.dr.ed; const it = this.vItem(this.vDropById(e.id).item); return e.pMode !== this.modeOf(it) || (e.pMode === 'manual' && String(e.pGp) !== String(it.value == null ? '' : it.value)) || e.pId !== (it.wikiId || ''); }
+  modeOf(it) { return it.source === 'manual' ? 'manual' : it.source === 'untradeable' ? 'untradeable' : 'api'; }
+  requestClose() { const d = this.state.dr; if (!d || d.closing || d.busy) return; const go = () => this.closeDr(false); if (!this.navGuard(go)) go(); }
+  closeDr(fromPop) {
+    const d = this.state.dr; if (!d) return;
+    if (!fromPop) { const prev = this.hist.entries[this.hist.idx - 1]; const r = prev && this.readUrl(prev.url); if (r && !r.activity && !r.isNew) { this.hist.idx--; this.bumpHist(); } else this.replace(this.urlFor({})); }
+    const ret = this.drReturn; const fallback = d.id ? 'open-' + d.id : 'add-activity';
+    DKAdmin.closeLayer(this, 'dr', '#drawer, #dr-scrim', () => DKAdmin.restoreFocus(ret, fallback));
+  }
+  askDiscard(go) {
+    const parts = this.dirtyParts();
+    this.cmReturn = document.activeElement;
+    this.setState({ cm: { kind: 'discard', closing: false, busy: false, parts, go } }, () => DKAdmin.focusSoon('cm-cancel'));
+  }
+  closeCm(restore) { const c = this.state.cm; if (!c || c.busy) return; DKAdmin.closeLayer(this, 'cm', '#cm, #cm-scrim', () => { if (restore !== false) DKAdmin.restoreFocus(this.cmReturn); }); }
+  finishCm(fn) { this.setState(s => ({ cm: s.cm ? Object.assign({}, s.cm, { busy: false }) : s.cm }), () => DKAdmin.closeLayer(this, 'cm', '#cm, #cm-scrim', fn)); }
+
+  /* ---------------- activity save ---------------- */
+  actErrors(f, id) {
+    const e = {}; const name = f.name.trim();
+    if (!name) e.name = 'Enter a name.'; else if (name.length > 200) e.name = 'Use 200 characters or fewer.';
+    else if (this.db.acts.some(a => a.id !== id && a.name.toLowerCase() === name.toLowerCase())) e.name = 'An activity named ' + name + ' already exists.';
+    const r = f.rate.trim(); if (r && !(parseFloat(r.replace(',', '.')) > 0 && /^\d+([.,]\d+)?$/.test(r) && parseFloat(r.replace(',', '.')) <= 100000)) e.rate = 'Enter a number above 0, like 35 or 7.5. Leave it empty if unknown.';
+    if (f.img.trim() && !/^https?:\/\/\S+$/.test(f.img.trim())) e.img = 'Enter a full link starting with https://.';
+    return e;
+  }
+  saveAct() {
+    const d = this.state.dr; if (!d || d.busy) return; const errs = this.actErrors(d.act, d.id);
+    if (Object.keys(errs).length) { this.updDr({ actErr: errs, showActErr: true }, () => DKAdmin.focusSoon(errs.name ? 'a-name' : errs.rate ? 'a-rate' : 'a-img')); return; }
+    const out = this.takeOut('saveOut'); const started = Date.now(); const f = clone(d.act); const ver = d.isNew ? null : this.vAct(d.id).version;
+    this.updDr({ busy: true, banner: null, showActErr: false });
+    DKAdmin.mock.request(this, () => {
+      let res = 'ok'; let created = null;
+      const apply = () => {
+        const rate = f.rate.trim() ? parseFloat(f.rate.replace(',', '.')) : null; const img = f.img.trim() ? f.img.trim() : '';
+        if (d.isNew) { created = { id: 'a' + Date.now(), slug: slugify(f.name), name: f.name.trim(), cat: f.cat, rate, img: img || '', active: true, wom: { id: '', status: 'none', checked: null }, version: 1, boardRefs: 0 }; this.db.acts.push(created); }
+        else { const a = this.srvAct(d.id); Object.assign(a, { name: f.name.trim(), cat: f.cat, rate, img: img && img === this.actForm(Object.assign({}, a, { img: 'wiki' })).img ? 'wiki' : img }); a.version++; }
+      };
+      if (out === 'fail') res = 'fail';
+      else if (out === 'stale' && !d.isNew) { const a = this.srvAct(d.id); a.rate = (a.rate || 30) + 3; a.version++; res = 'stale'; }
+      else if (!d.isNew && this.srvAct(d.id).version !== ver) res = 'stale';
+      else { apply(); res = out === 'timeout' ? 'uncertain' : 'ok'; }
+      DKAdmin.settle(this, started, () => {
+        if (res === 'fail') { this.updDr({ busy: false, banner: { cls: 'is-error', title: 'Couldn’t save the activity.', text: 'Nothing changed; your entries are still here. Try again.' } }, () => DKAdmin.focusSoon('dr-banner')); return; }
+        if (res === 'stale') { this.refresh({}, () => this.updDr({ busy: false, act: this.actForm(this.vAct(d.id)), banner: { cls: 'is-warning', title: 'Another admin changed this activity.', text: 'Your changes weren’t saved. The current values are shown; check them and edit again.' } }, () => DKAdmin.focusSoon('dr-banner'))); return; }
+        if (res === 'uncertain') { this.updDr({ busy: false, banner: { cls: 'is-warning', title: 'We couldn’t confirm the save.', text: 'It may have gone through. Check the current values before saving again.', act: 'check-act', actLabel: 'Check current values', snapshot: f } }, () => DKAdmin.focusSoon('dr-banner')); return; }
+        if (d.isNew) { this.refresh({}, () => { this.replace(this.urlFor({ activity: created.slug })); this.setState({ dr: Object.assign({}, this.state.dr, { id: created.id, isNew: false, busy: false, act: this.actForm(this.vAct(created.id)), banner: null }) }, () => { DKAdmin.focusSoon('sec-drops'); this.toast({ text: created.name + ' added. Add its drops next.' }); }); }); return; }
+        this.refresh({}, () => this.updDr({ busy: false, act: this.actForm(this.vAct(d.id)) }, () => { DKAdmin.focusSoon('drawer-title'); this.toast({ text: f.name.trim() + ' saved.' + (this.vAct(d.id).rate !== (parseFloat(f.rate) || null) ? '' : ' EHB recalculated for its drops.') }); }));
+      });
+    });
+  }
+  checkAct() {
+    const d = this.state.dr; const snap = d.banner && d.banner.snapshot; this.updDr(s => ({ banner: Object.assign({}, s.banner, { busy: true }) }));
+    DKAdmin.mock.request(this, () => {
+      const a = this.srvAct(d.id); const saved = snap && a.name === snap.name.trim() && a.cat === snap.cat;
+      this.refresh({}, () => this.updDr({ banner: saved ? { cls: 'is-success', title: 'Saved.', text: 'The current values match what you entered.' } : { cls: 'is-info', title: 'It wasn’t saved.', text: 'Your entries are still here; save again when ready.' }, act: saved ? this.actForm(this.vAct(d.id)) : d.act }, () => DKAdmin.focusSoon('dr-banner')));
+    }, DKAdmin.mock.quickLatency);
+  }
+
+  /* ---------------- activity WOM metric ---------------- */
+  mapState() { const d = this.state.dr; const a = this.vAct(d.id); return d.map || { value: a.wom.id, result: null, busy: null }; }
+  updMap(p) { const m = this.mapState(); this.updDr({ map: Object.assign({}, m, p) }); }
+  mapSuggest() {
+    const out = this.takeOut('provOut'); const a = this.vAct(this.state.dr.id); this.updMap({ busy: 'suggest', result: null });
+    DKAdmin.mock.request(this, () => {
+      if (out === 'unavailable' || out === 'rateLimited') this.updMap({ busy: null, result: { cls: 'is-warn', text: out === 'rateLimited' ? 'Wise Old Man is limiting requests. Nothing changed; try again later.' : 'Wise Old Man isn’t responding. Nothing changed; you can still enter the metric yourself.' } });
+      else if (out === 'unsupported') this.updMap({ busy: null, result: { cls: 'is-warn', text: 'No exact match. Enter the metric for this exact activity or raid mode.' } });
+      else this.updMap({ busy: null, value: slugify(a.name).replace(/-/g, '_'), result: { cls: '', text: 'Suggested “' + slugify(a.name).replace(/-/g, '_') + '”. Validate to save it.' } });
+    }, DKAdmin.mock.quickLatency);
+  }
+  mapSave(validate) {
+    const out = validate ? this.takeOut('provOut') : 'ok'; const m = this.mapState(); const id = this.state.dr.id; const started = Date.now(); this.updMap({ busy: validate ? 'validate' : 'save', result: null });
+    DKAdmin.mock.request(this, () => {
+      const a = this.srvAct(id); a.wom.id = (m.value || '').trim(); a.version++;
+      if (!a.wom.id) a.wom.status = 'none'; else if (!validate) a.wom.status = 'unchecked';
+      else a.wom.status = out === 'unavailable' || out === 'rateLimited' ? 'unavailable' : out === 'unsupported' ? 'unsupported' : 'verified';
+      if (validate && a.wom.id) a.wom.checked = this.clock;
+      const txt = { verified: 'Saved and verified. Wise Old Man tracks this metric; not every player will have data.', unsupported: 'Saved. Wise Old Man doesn’t recognise this metric; check the exact activity or raid mode.', unavailable: 'Saved. Wise Old Man couldn’t be reached to check it; validate again later.', unchecked: 'Saved without checking.', none: 'Saved. No metric is set, so events can’t show Wise Old Man activity for it.' }[a.wom.status];
+      DKAdmin.settle(this, started, () => this.refresh({}, () => this.updDr({ map: { value: a.wom.id, busy: null, result: { cls: a.wom.status === 'verified' ? 'is-ok' : a.wom.status === 'unsupported' || a.wom.status === 'unavailable' ? 'is-warn' : '', text: txt } } }, () => DKAdmin.focusSoon('m-result'))));
+    }, validate ? undefined : DKAdmin.mock.quickLatency);
+  }
+
+  /* ---------------- drop editor (one at a time, inside the drawer) ---------------- */
+  openDrop(dropId, fromUrl) {
+    const d = this.state.dr; if (!d || !dropId) return; const dr = this.vDropById(dropId); if (!dr || dr.act !== d.id) return;
+    const go = () => {
+      const it = this.vItem(dr.item); const img = it.img === 'wiki' ? 'https://oldschool.runescape.wiki/images/' + it.name.replace(/ /g, '_') + '.png' : it.img;
+      this.updDr({ add: null, ed: { id: dropId, fName: it.name, fRate: dr.rate, fImg: img, origImg: img, useShared: false, showErr: false, err: null, busy: false, mechOpen: false, priceOpen: false, pMode: this.modeOf(it), pGp: it.value == null ? '' : String(it.value), pId: it.wikiId || '', pResult: null, pBusy: null, pShowErr: false } },
+        () => { if (!fromUrl) this.replace(this.urlFor({ activity: this.vAct(d.id).slug, drop: dropId })); DKAdmin.focusSoon('e-name'); });
+    };
+    if (d.ed && d.ed.id !== dropId && (this.edDirty() || this.priceDirty())) { this.askDiscard(go); return; }
+    if (d.add && (d.add.name || d.add.rate)) { this.askDiscard(go); return; }
+    go();
+  }
+  closeDrop(focusRow) { const d = this.state.dr; const id = d.ed && d.ed.id; this.updDr({ ed: null }, () => { this.replace(this.urlFor({ activity: this.vAct(d.id).slug })); if (focusRow && id) DKAdmin.focusSoon('row-' + id); }); }
+  toggleDrop(id) { const d = this.state.dr; if (d.ed && d.ed.id === id) { const go = () => this.closeDrop(true); if (this.edDirty() || this.priceDirty()) this.askDiscard(go); else go(); } else this.openDrop(id); }
+  updEd(p, cb) { this.updDr(s => ({ ed: s.ed ? Object.assign({}, s.ed, typeof p === 'function' ? p(s.ed) : p) : s.ed }), cb); }
+  edErrors() {
+    const e = this.state.dr.ed; const dr = this.vDropById(e.id); const out = {}; const name = e.fName.trim();
+    if (!name) out.name = 'Enter the item name.'; else if (name.length > 200) out.name = 'Use 200 characters or fewer.';
+    const other = this.state.view.items.find(i => i.id !== dr.item && norm(i.name) === norm(name));
+    if (other && this.state.view.drops.some(x => x.id !== dr.id && x.act === dr.act && x.item === other.id)) out.name = 'This activity already has a drop named ' + other.name + '.';
+    else if (other && !e.useShared) out.shared = true;
+    const rate = e.fRate.trim();
+    if (!rate) out.rate = 'Enter the drop rate, like 1/512.';
+    else if (rate !== dr.rate) { const p = parseRate(rate); if (!p) out.rate = 'Enter a rate like 1/512, 3/1,024 or 2 x 1/1,024.'; else if (p.explicit && p.rolls !== dr.rolls) out.rate = 'Changing the number of rolls needs an operator. Keep ' + dr.rolls + (dr.rolls === 1 ? ' roll' : ' rolls') + '.'; else if (!p.explicit && dr.rolls > 1) { /* the stored rolls are kept */ } }
+    return out;
+  }
+  saveDrop() {
+    const d = this.state.dr; const e = d.ed; if (!e || e.busy) return; const errs = this.edErrors();
+    if (Object.keys(errs).length) { this.updEd({ showErr: true }, () => DKAdmin.focusSoon(errs.name || errs.shared ? (errs.shared ? 'e-use-shared' : 'e-name') : 'e-rate')); return; }
+    if (!this.edDirty()) return;
+    const out = this.takeOut('saveOut'); const started = Date.now(); const f = clone(e); const dr0 = this.vDropById(e.id); const it0 = this.vItem(dr0.item);
+    this.updEd({ busy: true, err: null, showErr: false });
+    DKAdmin.mock.request(this, () => {
+      const dr = this.db.drops.find(x => x.id === e.id); const it = this.srvItem(dr.item); let res = 'ok';
+      if (out === 'fail') res = 'fail';
+      else if (out === 'stale') { it.value = (it.value || 0) + 125000; it.version++; dr.version++; res = 'stale'; }
+      else if (dr.version !== dr0.version || it.version !== it0.version) res = 'stale';
+      else {
+        const name = f.fName.trim(); const other = this.db.items.find(i => i.id !== it.id && norm(i.name) === norm(name));
+        if (f.fRate.trim() !== dr.rate) { const p = parseRate(f.fRate); dr.rate = f.fRate.trim(); dr.p = p.p; }
+        if (other) { dr.item = other.id; } else { it.name = name; if (f.fImg !== f.origImg) it.img = f.fImg || ''; it.version++; }
+        dr.version++; res = out === 'timeout' ? 'uncertain' : 'ok';
+      }
+      DKAdmin.settle(this, started, () => {
+        if (res === 'fail') { this.updEd({ busy: false, err: { cls: 'is-error', title: 'Couldn’t save the drop.', text: 'Nothing changed; your entries are still here.' } }, () => DKAdmin.focusSoon('ed-err')); return; }
+        if (res === 'stale') { this.refresh({}, () => { const it2 = this.vItem(this.vDropById(e.id).item); this.updEd({ busy: false, fName: it2.name, fRate: this.vDropById(e.id).rate, pGp: it2.value == null ? '' : String(it2.value), err: { cls: 'is-warning', title: 'Another admin changed this drop or its shared item.', text: 'Your changes weren’t saved. The current values are shown; check them and edit again.' } }, () => DKAdmin.focusSoon('ed-err')); }); return; }
+        if (res === 'uncertain') { this.updEd({ busy: false, err: { cls: 'is-warning', title: 'We couldn’t confirm the save.', text: 'It may have gone through. Check before saving again.', act: true, snapshot: f } }, () => DKAdmin.focusSoon('ed-err')); return; }
+        this.refresh({}, () => { this.closeDrop(true); this.toast({ text: f.fName.trim() + ' saved. EHB recalculated.' }); });
+      });
+    });
+  }
+  checkDrop() {
+    const e = this.state.dr.ed; const snap = e.err && e.err.snapshot; this.updEd(s => ({ err: Object.assign({}, s.err, { busy: true }) }));
+    DKAdmin.mock.request(this, () => {
+      const dr = this.db.drops.find(x => x.id === e.id); const saved = snap && dr.rate === snap.fRate.trim();
+      this.refresh({}, () => { if (saved) { this.closeDrop(true); this.toast({ text: 'It was saved. The current values match what you entered.' }); } else this.updEd({ err: { cls: 'is-info', title: 'It wasn’t saved.', text: 'Your entries are still here; save again when ready.' } }, () => DKAdmin.focusSoon('ed-err')); });
+    }, DKAdmin.mock.quickLatency);
+  }
+  toggleDropActive() {
+    const e = this.state.dr.ed; const dr = this.db.drops.find(x => x.id === e.id); const it = this.srvItem(dr.item); const started = Date.now();
+    this.updEd({ busy: true });
+    DKAdmin.mock.request(this, () => { dr.active = !dr.active; dr.version++; DKAdmin.settle(this, started, () => this.refresh({}, () => { this.updEd({ busy: false }); DKAdmin.focusSoon('e-toggle'); this.toast({ text: it.name + (dr.active ? ' reactivated. It can be picked for tiles again.' : ' deactivated. It stays here and can be reactivated.') }); })); }, DKAdmin.mock.quickLatency);
+  }
+
+  /* ---------------- value and item mapping (shared item; its own save) ---------------- */
+  priceSave(validate) {
+    const e = this.state.dr.ed; const gpTxt = String(e.pGp).trim();
+    if (e.pMode === 'manual' && !/^\d+$/.test(gpTxt)) { this.updEd({ pShowErr: true }, () => DKAdmin.focusSoon('p-gp')); return; }
+    if (e.pId && !/^\d+$/.test(String(e.pId).trim())) { this.updEd({ pResult: { cls: 'is-warn', text: 'Item IDs are whole numbers, like 12922.' } }); return; }
+    const out = validate ? this.takeOut('provOut') : 'ok'; const started = Date.now(); const dr = this.db.drops.find(x => x.id === e.id); const it = this.srvItem(dr.item);
+    this.updEd({ pBusy: validate ? 'validate' : 'save', pResult: null, pShowErr: false });
+    DKAdmin.mock.request(this, () => {
+      const prevSource = it.source, prevValue = it.value, prevId = it.wikiId; let msg, cls = 'is-ok';
+      it.wikiId = String(e.pId || '').trim();
+      if (e.pMode === 'manual') { it.source = 'manual'; it.value = parseInt(gpTxt, 10); }
+      else if (e.pMode === 'untradeable') { it.source = 'untradeable'; it.value = 0; }
+      if (it.wikiId !== prevId && prevSource === 'api' && e.pMode === 'api') { it.value = null; it.source = 'missing'; }
+      if (validate && it.wikiId) {
+        it.checked = this.clock;
+        if (out === 'unavailable' || out === 'rateLimited') { it.map = 'unavailable'; cls = 'is-warn'; msg = 'Saved. ' + (out === 'rateLimited' ? 'The price service is limiting requests' : 'The price service isn’t responding') + ', so the ID wasn’t checked. ' + (it.value != null ? 'The stored value was kept.' : 'No value is stored yet; enter a manual value or validate later.'); }
+        else if (out === 'unsupported') { it.map = 'unsupported'; cls = 'is-warn'; msg = 'Saved. This ID isn’t in the tradeable item list; check the exact variant, or mark it untradeable.'; }
+        else { it.map = 'verified';
+          if (e.pMode === 'api') { if (out === 'rejected') { it.rejected = { gp: (it.value || 1000) * 10, at: this.clock }; cls = 'is-warn'; msg = 'Verified. The new price looked like an unusual change, so the trusted value was kept. Review it or enter a checked manual value.'; } else { it.value = Math.round((prevValue || 120000) * 1.02); it.source = 'api'; it.rejected = null; msg = 'Verified. Hourly price saved: ' + gp(it.value) + '.'; } }
+          else msg = 'Verified. Your chosen value was kept.'; }
+      } else { if (!validate && it.wikiId !== prevId) it.map = it.wikiId ? 'unchecked' : 'none'; msg = e.pMode === 'manual' ? 'Saved. ' + gp(it.value) + ' is a fixed value; price refreshes won’t change it.' : e.pMode === 'untradeable' ? 'Saved as untradeable (0 GP).' : 'Saved without checking.' + (it.wikiId !== prevId && prevSource === 'api' ? ' The old price was cleared with the old ID; validate or enter a manual value.' : ' Validate to fetch the hourly price.'); cls = e.pMode === 'api' ? '' : 'is-ok'; }
+      it.version++; dr.version++;
+      DKAdmin.settle(this, started, () => this.refresh({}, () => { const it2 = this.vItem(dr.item); this.updEd({ pBusy: null, pMode: this.modeOf(it2), pGp: it2.value == null ? '' : String(it2.value), pId: it2.wikiId || '', pResult: { cls, text: msg } }, () => DKAdmin.focusSoon('p-result')); }));
+    }, validate ? undefined : DKAdmin.mock.quickLatency);
+  }
+  priceSuggest() {
+    const out = this.takeOut('provOut'); const e = this.state.dr.ed; const it = this.vItem(this.vDropById(e.id).item); this.updEd({ pBusy: 'suggest', pResult: null });
+    DKAdmin.mock.request(this, () => {
+      if (out === 'unavailable' || out === 'rateLimited') this.updEd({ pBusy: null, pResult: { cls: 'is-warn', text: 'The item list couldn’t be reached. Nothing changed; enter the ID yourself or try later.' } });
+      else if (out === 'unsupported') this.updEd({ pBusy: null, pResult: { cls: 'is-warn', text: 'No unique exact-name match. Enter the exact item ID, or mark it untradeable. Nothing changed.' } });
+      else this.updEd({ pBusy: null, pId: String(20000 + (it.name.length * 137) % 9000), pResult: { cls: '', text: 'Suggested an ID for “' + it.name + '”. Validate to save it.' } });
+    }, DKAdmin.mock.quickLatency);
+  }
+
+  /* ---------------- add drop ---------------- */
+  openAdd() { const d = this.state.dr; const go = () => this.updDr({ ed: null, add: { name: '', rate: '', img: '', mode: 'manual', gp: '', useShared: false, showErr: false, err: null, busy: false } }, () => { this.replace(this.urlFor({ activity: this.vAct(d.id).slug })); DKAdmin.focusSoon('n-name'); }); if (d.ed && (this.edDirty() || this.priceDirty())) { this.askDiscard(go); return; } go(); }
+  updAdd(p, cb) { this.updDr(s => ({ add: s.add ? Object.assign({}, s.add, p) : s.add }), cb); }
+  addShared() { const a = this.state.dr.add; const n = norm(a.name); return n ? this.state.view.items.find(i => norm(i.name) === n) : null; }
+  addErrors() {
+    const a = this.state.dr.add; const e = {}; const name = a.name.trim(); const sh = this.addShared();
+    if (!name) e.name = 'Enter the item name.'; else if (name.length > 200) e.name = 'Use 200 characters or fewer.';
+    if (sh) { const ex = this.state.view.drops.find(x => x.act === this.state.dr.id && x.item === sh.id); if (ex && ex.active) e.name = sh.name + ' is already a drop for this activity.'; else if (!a.useShared) e.shared = true; }
+    if (!a.rate.trim()) e.rate = 'Enter the drop rate, like 1/512.'; else if (!parseRate(a.rate)) e.rate = 'Enter a rate like 1/512, 3/1,024 or 2 x 1/1,024.';
+    if (!sh && a.mode === 'manual' && !/^\d+$/.test(String(a.gp).trim())) e.gp = String(a.gp).trim() ? 'Enter whole GP, like 2500. Zero is fine.' : 'Enter a value for the new item. Zero is fine.';
+    return e;
+  }
+  saveAdd() {
+    const d = this.state.dr; const a = d.add; if (!a || a.busy) return; const errs = this.addErrors();
+    if (Object.keys(errs).length) { this.updAdd({ showErr: true }, () => DKAdmin.focusSoon(errs.name ? 'n-name' : errs.rate ? 'n-rate' : errs.shared ? 'n-use-shared' : 'n-gp')); return; }
+    const sh = this.addShared(); const out = a.mode === 'fetch' && !sh ? this.takeOut('provOut') : 'ok'; const save = this.takeOut('saveOut'); const started = Date.now(); const f = clone(a);
+    this.updAdd({ busy: true, err: null, showErr: false });
+    DKAdmin.mock.request(this, () => {
+      let res = 'ok', msg = null;
+      if (save === 'fail') res = 'fail';
+      else if (f.mode === 'fetch' && !sh && out !== 'ok') { res = 'provider'; msg = out === 'unsupported' ? 'No unique exact-name item was found, so there’s no price.' : out === 'rejected' ? 'The fetched price looked unusual and wasn’t used.' : out === 'rateLimited' ? 'The price service is limiting requests.' : 'The price service isn’t responding.'; }
+      else {
+        const p = parseRate(f.rate); let it = sh ? this.srvItem(sh.id) : null;
+        if (!it) { it = { id: 'i' + Date.now(), name: f.name.trim(), img: f.img.trim() || 'wiki', value: f.mode === 'untradeable' ? 0 : f.mode === 'fetch' ? 250000 : parseInt(f.gp, 10), source: f.mode === 'untradeable' ? 'untradeable' : f.mode === 'fetch' ? 'api' : 'manual', wikiId: f.mode === 'fetch' ? '30' + (f.name.length * 71) : '', map: f.mode === 'fetch' ? 'verified' : 'none', checked: f.mode === 'fetch' ? this.clock : null, rejected: null, version: 1 }; this.db.items.push(it); }
+        const ex = this.db.drops.find(x => x.act === d.id && x.item === it.id);
+        if (ex) { ex.active = true; ex.rate = f.rate.trim(); ex.p = p.p; ex.version++; }
+        else this.db.drops.push({ id: 'd' + Date.now(), act: d.id, item: it.id, rate: f.rate.trim(), p: p.p, rolls: p.rolls, scope: 'personal', parts: 1, cond: null, note: '', source: '', active: true, version: 1, boardRefs: 0 });
+        res = save === 'timeout' ? 'uncertain' : 'ok'; msg = it.name;
+      }
+      DKAdmin.settle(this, started, () => {
+        if (res === 'fail') { this.updAdd({ busy: false, err: { cls: 'is-error', text: 'Couldn’t add the drop. Nothing changed; your entries are still here.' } }, () => DKAdmin.focusSoon('add-err')); return; }
+        if (res === 'provider') { this.updAdd({ busy: false, mode: 'manual', err: { cls: 'is-warning', text: msg + ' The drop wasn’t added. Enter a manual value (zero is fine) and add it; you can set up price fetching later.' } }, () => DKAdmin.focusSoon('add-err')); return; }
+        if (res === 'uncertain') { this.refresh({}, () => this.updAdd({ busy: false, err: { cls: 'is-warning', text: 'We couldn’t confirm whether it was added. Check the list below before adding it again.' } }, () => DKAdmin.focusSoon('add-err'))); return; }
+        this.refresh({}, () => this.updDr({ add: null }, () => { DKAdmin.focusSoon('add-drop'); this.toast({ text: msg + ' added to ' + this.vAct(d.id).name + '.' }); }));
+      });
+    });
+  }
+
+  /* ---------------- deactivate / reactivate / delete ---------------- */
+  toggleAct() {
+    const d = this.state.dr; const a = this.vAct(d.id);
+    if (a.active) { this.cmReturn = document.activeElement; this.setState({ cm: { kind: 'deactivate', closing: false, busy: false } }, () => DKAdmin.focusSoon('cm-confirm')); return; }
+    this.doToggleAct();
+  }
+  doToggleAct(fromCm) {
+    const d = this.state.dr; const started = Date.now(); if (fromCm) this.setState(s => ({ cm: Object.assign({}, s.cm, { busy: true }) })); else this.updDr({ busy: true });
+    DKAdmin.mock.request(this, () => {
+      const a = this.srvAct(d.id); a.active = !a.active; a.version++;
+      DKAdmin.settle(this, started, () => {
+        const done = () => this.refresh({}, () => { this.updDr({ busy: false }); DKAdmin.focusSoon('a-toggle'); this.toast({ text: a.name + (a.active ? ' reactivated. It can be picked for new tiles again.' : ' deactivated. It stays in the catalogue; boards that use it keep it.') }); });
+        if (fromCm) this.finishCm(done); else done();
+      });
+    }, DKAdmin.mock.quickLatency);
+  }
+  askDelete(kind, dropId) {
+    const d = this.state.dr; const ver = kind === 'activity' ? this.vAct(d.id).version : this.vDropById(dropId).version; this.cmReturn = document.activeElement;
+    this.setState({ cm: { kind: 'delete', target: kind, dropId, closing: false, busy: false, checking: true, verdict: null } }, () => DKAdmin.focusSoon('cm'));
+    DKAdmin.mock.request(this, () => {
+      let verdict;
+      if (kind === 'activity') { const a = this.srvAct(d.id); verdict = a.version !== ver ? 'stale' : (this.db.drops.some(x => x.act === a.id) || a.boardRefs) ? 'blocked' : 'ok'; }
+      else { const x = this.db.drops.find(y => y.id === dropId); verdict = !x || x.version !== ver ? 'stale' : x.boardRefs ? 'blocked' : 'ok'; }
+      this.setState(s => ({ cm: s.cm ? Object.assign({}, s.cm, { checking: false, verdict }) : s.cm }), () => DKAdmin.focusSoon(verdict === 'ok' ? 'cm-cancel' : 'cm-banner'));
+    }, DKAdmin.mock.quickLatency);
+  }
+  doDelete() {
+    const c = this.state.cm; const d = this.state.dr; const started = Date.now(); this.setState(s => ({ cm: Object.assign({}, s.cm, { busy: true }) }));
+    DKAdmin.mock.request(this, () => {
+      let name;
+      if (c.target === 'activity') { const a = this.srvAct(d.id); name = a.name; this.db.acts = this.db.acts.filter(x => x.id !== a.id); }
+      else { const x = this.db.drops.find(y => y.id === c.dropId); name = this.srvItem(x.item).name; this.db.drops = this.db.drops.filter(y => y.id !== c.dropId); }
+      DKAdmin.settle(this, started, () => this.finishCm(() => {
+        if (c.target === 'activity') { this.refresh({}, () => { this.setState({ dr: null }); this.replace(this.urlFor({})); DKAdmin.focusSoon('page-h1'); this.toast({ text: name + ' permanently deleted. Shared items, prices and Audit history are kept.' }); }); }
+        else this.refresh({}, () => this.updDr({ ed: null }, () => { this.replace(this.urlFor({ activity: this.vAct(d.id).slug })); DKAdmin.focusSoon('sec-drops'); this.toast({ text: name + ' permanently deleted from this activity. The shared item is kept.' }); }));
+      }));
+    });
+  }
+
+  /* ---------------- prototype ---------------- */
+  protoOtherAdmin() { const z = this.db.acts.find(a => a.slug === 'zulrah'); if (!z) return; z.rate = 38; z.version++; const fang = this.db.drops.find(d => d.act === z.id && this.srvItem(d.item).name === 'Tanzanite fang'); if (fang) { fang.version++; } this.toast({ text: 'Mia changed Zulrah’s rate to 38. Saving older values will be refused.' }); }
+  cycle(key, map, label) { const ks = Object.keys(map); const next = ks[(ks.indexOf(this.state[key]) + 1) % ks.length]; this.setState({ [key]: next }); this.toast({ text: label + map[next] + '.' }); }
+
+  /* ---------------- menus ---------------- */
+  menuItems(m) {
+    const S = this.state;
+    if (m.kind === 'event-sw') { const items = [{ type: 'header', label: 'Switch event', hint: 'Opens its Overview' }]; EVENTS.forEach(e => items.push({ label: e.name, hint: e.phase, check: S.slug === e.slug, action: () => { this.setState({ slug: e.slug }); this.goUrl('/admin/events/' + e.slug + '/overview'); } })); return items; }
+    return [
+      { type: 'header', label: 'Nils Andersen', hint: S.superAdmin ? '@nils · Super Admin' : '@nils · Administrator' }, { type: 'sep' },
+      { type: 'header', label: 'Prototype', hint: 'Role, outcomes, data and browser' },
+      { label: 'Viewing as', hint: S.superAdmin ? 'Super Admin' : 'Admin', action: () => this.setState(s => ({ superAdmin: !s.superAdmin })) },
+      { label: 'Next save', hint: SAVE_OUT[S.saveOut], action: () => this.cycle('saveOut', SAVE_OUT, 'Next save: ') },
+      { label: 'Next provider call', hint: PROV_OUT[S.provOut], action: () => this.cycle('provOut', PROV_OUT, 'Next provider call: ') }, { type: 'sep' },
+      { label: 'Mia edits Zulrah', action: () => this.protoOtherAdmin() },
+      { label: 'Empty catalogue', checkbox: true, checked: S.empty, action: () => this.setState(s => ({ empty: !s.empty })) },
+      { label: 'Fail next load', checkbox: true, checked: S.failNext, action: () => { const on = !this.state.failNext; this.setState({ failNext: on }); this.toast({ text: on ? 'The next load will fail. Reload to try it.' : 'Simulated failure turned off.' }); } },
+      { label: 'Open Tanzanite fang directly', action: () => { const z = this.db.acts.find(a => a.slug === 'zulrah'); const f = z && this.db.drops.find(d => d.act === z.id && this.srvItem(d.item).name === 'Tanzanite fang'); if (f) this.directVisit('/admin/catalogue?activity=zulrah&drop=' + f.id); } },
+      { label: 'Show browser bar', checkbox: true, checked: S.showBar, action: () => this.setState(s => ({ showBar: !s.showBar })) }
+    ];
+  }
+  openMenu(kind, e) {
+    const m = this.state.menu; if (m && !m.closing && m.kind === kind) { this.closeMenu(true); return; }
+    this.menuReturn = e.currentTarget; const r = e.currentTarget.getBoundingClientRect(); const spec = { kind };
+    const place = kind === 'event-sw' ? DKAdmin.placeMenu(r, { width: Math.max(r.width, 256), align: !this.state.sideOpen && !this.isMobile() ? 'side' : 'start' }) : DKAdmin.placeMenu(r, { width: 280, align: 'start', height: DKAdmin.menuHeight(this.menuItems(spec)) });
+    this.setState({ menu: Object.assign(spec, place) }, () => DKAdmin.focusFirstMenuItem('menu'));
+  }
+  closeMenu(restore) { if (DKAdmin.closeLayer(this, 'menu', '#menu') && restore) DKAdmin.restoreFocus(this.menuReturn); }
+  vmMenu() {
+    const m = this.state.menu; if (!m) return { show: false, items: [], x: 0, y: 0, w: 236 };
+    const items = this.menuItems(m).map(it => {
+      if (it.type === 'sep') return { isSep: true }; if (it.type === 'header') return { isHeader: true, label: it.label, hint: it.hint };
+      return { isItem: true, label: it.label, hint: it.hint || '', disabled: false, cls: '', title: undefined, role: it.checkbox ? 'menuitemcheckbox' : (it.check !== undefined ? 'menuitemradio' : 'menuitem'), checked: it.checkbox ? !!it.checked : (it.check !== undefined ? !!it.check : undefined), showCheck: !!(it.checked || it.check), run: () => { const ret = this.menuReturn; this.closeMenu(false); DKAdmin.restoreFocus(ret); it.action(); } };
+    });
+    return { show: true, items, x: m.x, y: m.y, w: m.w, cls: (m.up ? 'is-up' : '') + (m.closing ? ' is-closing' : ''), label: m.kind === 'event-sw' ? 'Events' : 'Account', close: () => this.closeMenu(true), onKey: e => DKAdmin.menuKeydown(e, 'menu', () => this.closeMenu(true)) };
+  }
+  openMobileNav(e) { this.navReturn = e && e.currentTarget; this.setState({ mobileNav: true, menu: null }, () => DKAdmin.focusSoon('user-btn', { preventScroll: true })); }
+  closeMobileNav(restore) { if (!this.state.mobileNav) return; this.setState({ mobileNav: false }, () => { if (restore !== false) DKAdmin.restoreFocus(this.navReturn, 'menu-toggle'); }); }
+
+  /* ---------------- view models ---------------- */
+  vmList() {
+    const S = this.state; const v = S.view; if (!v) return { rows: [], cats: [], statusTabs: [] };
+    const acts = S.empty ? [] : v.acts; const hits = acts.map(a => ({ a, m: this.matches(a) })).filter(x => x.m).sort((x, y) => x.a.name.localeCompare(y.a.name));
+    const rows = hits.map(({ a, m }) => {
+      const ds = this.vDrops(a.id); const fl = this.flagsOf(a);
+      return { name: a.name, openId: 'open-' + a.id, art: art(a.name, a.img), sub: a.cat + (m.by ? ' · matches ' + m.by : ''), rate: a.rate > 0 ? num(a.rate) + ' ' + unit(a.cat) + 's/hr' : 'Not set', rateCls: a.rate > 0 ? '' : 'is-muted',
+        drops: String(ds.filter(d => d.active).length) + (ds.some(d => !d.active) ? ' + ' + ds.filter(d => !d.active).length + ' inactive' : ''), flags: fl, noFlags: !fl.length, st: a.active ? 'Active' : 'Inactive', stCls: a.active ? 'badge-success' : 'badge-neutral',
+        cls: S.dr && S.dr.id === a.id ? 'is-selected' : '', open: () => this.openDr(a.slug), openBtn: e => { e.stopPropagation(); this.openDr(a.slug); } };
+    });
+    const qNow = (S.qDraft != null ? S.qDraft : S.q).trim(); const filtered = !!(qNow || S.cat);
+    const activeN = acts.filter(a => a.active).length, inactiveN = acts.length - activeN;
+    return {
+      head: { summary: acts.length ? activeN + ' active activities · ' + v.drops.filter(d => d.active && acts.some(a => a.id === d.act && a.active)).length + ' drops' : 'No activities yet' },
+      search: { value: S.qDraft != null ? S.qDraft : S.q, cls: qNow ? 'has-clear' : '', hasClear: !!qNow, onChange: e => { this.setState({ qDraft: e.target.value }); this.later(() => { if (this.state.qDraft != null) this.setFilter({ q: this.state.qDraft.trim() }); }, 250); }, onKey: e => { if (e.key === 'Escape' && qNow) { e.preventDefault(); this.setState({ qDraft: null }); this.setFilter({ q: '' }); } }, clear: () => { this.setState({ qDraft: null }); this.setFilter({ q: '' }); DKAdmin.focusSoon('ct-search'); } },
+      cats: [{ v: '', l: 'All' }].concat(CATS.map(c => ({ v: c, l: c }))).map(c => ({ label: c.l, on: S.cat === c.v, cls: S.cat === c.v ? 'is-on' : '', pick: () => this.setFilter({ cat: c.v }) })),
+      statusTabs: [['active', 'Active', activeN], ['inactive', 'Inactive', inactiveN]].map(([k, l, n]) => ({ label: l, count: String(n), on: S.status === k, cls: S.status === k ? 'is-on' : '', pick: () => this.setFilter({ status: k }) })),
+      rows, rowsCls: 'swap-' + S.swap, showTable: !S.loadError,
+      empty: { show: !S.loading && !S.loadError && !rows.length, title: !acts.length ? 'The catalogue is empty' : filtered ? 'No activities match' : S.status === 'inactive' ? 'No inactive activities' : 'No active activities', text: !acts.length ? 'Add a boss or activity, then its drops, to give boards EHB estimates.' : filtered ? 'Search looks at activity and drop names. Try another word or category.' : 'Deactivated activities appear here.', hasClear: filtered && acts.length > 0, hasAdd: !acts.length, clear: () => { this.setState({ qDraft: null }); this.setFilter({ q: '', cat: '' }); } },
+      foot: S.loading ? 'Loading…' : rows.length ? rows.length + (rows.length === 1 ? ' activity' : ' activities') + (filtered ? ' match' : '') : ''
+    };
+  }
+  vmDr() {
+    const S = this.state; const d = S.dr; if (!d) return { dr: { show: false, badges: [] }, act: { cats: [] }, map: {}, drops: { list: [] }, add: { modes: [] }, manage: {} };
+    const base = { show: true, closingCls: d.closing ? 'is-closing' : '', behindCls: S.cm && !S.cm.closing ? 'is-behind' : '',
+      requestClose: () => this.requestClose(), onKey: e => { if (S.cm) return; if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); this.requestClose(); } else DKAdmin.trapTab(e, 'drawer'); } };
+    if (d.missing) return { dr: Object.assign(base, { eyebrow: 'Catalogue', title: 'Not found', art: 'none', hasBadges: false, badges: [], missing: true, ready: false, cancelLabel: 'Close', cancel: () => this.requestClose(), hasSave: false }), act: { cats: [] }, map: {}, drops: { list: [] }, add: { modes: [] }, manage: {} };
+    const a = d.isNew ? null : this.vAct(d.id); const f = d.act; const errs = d.showActErr ? this.actErrors(f, d.id) : {};
+    const rateNum = parseFloat(String(f.rate).replace(',', '.')); const rateChanged = a && String(f.rate).trim() !== String(a.rate == null ? '' : a.rate);
+    const banner = d.banner;
+    const actDirty = this.actDirty();
+    const dr = Object.assign(base, {
+      eyebrow: d.isNew ? 'Catalogue' : a.cat + (a.active ? '' : ' · inactive'), title: d.isNew ? 'Add activity' : a.name, art: art(d.isNew ? f.name : a.name, d.isNew ? '' : a.img),
+      hasBadges: !d.isNew && !a.active, badges: !d.isNew && !a.active ? [{ label: 'Inactive', cls: 'badge-neutral' }] : [], missing: false, ready: true,
+      hasBanner: !!banner, bannerCls: banner ? banner.cls : '', bannerTitle: banner ? banner.title : '', bannerText: banner ? banner.text : '', hasBannerAct: !!(banner && banner.act), bannerActLabel: banner ? banner.actLabel : '', bannerBusy: !!(banner && banner.busy), bannerAct: () => this.checkAct(),
+      showFootNote: actDirty, footNote: d.isNew ? 'Not added yet' : 'Activity settings changed', busy: d.busy, busyCls: d.busy ? 'is-busy' : '',
+      hasSave: d.isNew || actDirty, saveLabel: d.isNew ? (d.busy ? 'Adding…' : 'Add activity') : (d.busy ? 'Saving…' : 'Save activity'), save: () => this.saveAct(),
+      cancelLabel: actDirty && !d.isNew ? 'Discard' : d.isNew ? 'Cancel' : 'Close', cancel: () => { if (actDirty && !d.isNew) { this.updDr({ act: this.actForm(a), showActErr: false, banner: null }); this.toast({ text: 'Activity changes discarded.' }); } else this.requestClose(); }
+    });
+    const act = { title: d.isNew ? 'Activity' : 'Settings', dirty: actDirty && !d.isNew, lock: d.busy, name: f.name, onName: e => this.updDr({ act: Object.assign({}, this.state.dr.act, { name: e.target.value }) }),
+      cats: CATS.map(c => ({ value: c, on: f.cat === c })), onCat: e => this.updDr({ act: Object.assign({}, this.state.dr.act, { cat: e.target.value }) }),
+      rateLabel: rateLabel(f.cat), rate: f.rate, onRate: e => this.updDr({ act: Object.assign({}, this.state.dr.act, { rate: e.target.value }) }),
+      rateHint: f.cat === 'Minigame' ? 'Efficient runs or completions in one hour.' : 'Efficient kills in one hour, at the group size the drop rates assume.',
+      img: f.img, art: f.img.trim() ? art(f.name || '?') : 'none', onImg: e => this.updDr({ act: Object.assign({}, this.state.dr.act, { img: e.target.value }) }),
+      nameCls: errs.name ? 'is-invalid' : '', nameInvalid: errs.name ? 'true' : 'false', hasNameErr: !!errs.name, nameErr: errs.name || '',
+      rateCls: errs.rate ? 'is-invalid' : '', rateInvalid: errs.rate ? 'true' : 'false', hasRateErr: !!errs.rate, rateErr: errs.rate || '',
+      imgCls: errs.img ? 'is-invalid' : '', imgInvalid: errs.img ? 'true' : 'false', hasImgErr: !!errs.img, imgErr: errs.img || '',
+      hasRecalc: !!(rateChanged && !errs.rate), recalc: !a ? '' : rateNum > 0 ? 'Saving recalculates EHB for this activity’s ' + this.vDrops(a.id).length + ' drops and any draft boards using them. Approved boards keep their snapshot.' : 'Without a rate, its drops have no EHB and draft tiles using them can’t be approved.',
+      hasMap: !d.isNew };
+    let map = {};
+    if (!d.isNew) {
+      const ms = this.mapState(); const st = a.wom.status;
+      map = { open: d.mapOpen, expanded: d.mapOpen ? 'true' : 'false', toggle: () => this.updDr({ mapOpen: !this.state.dr.mapOpen }),
+        status: { verified: 'Verified', unsupported: 'Unsupported', unavailable: 'Couldn’t check', unchecked: 'Not checked', none: 'Not set' }[st], cls: st === 'verified' ? 'is-ok' : st === 'unsupported' ? 'is-bad' : st === 'unavailable' ? 'is-warn' : '',
+        value: ms.value, onValue: e => this.updMap({ value: e.target.value, result: null }), busy: !!ms.busy, busyValidate: ms.busy === 'validate', busyCls: ms.busy === 'validate' ? 'is-busy' : '',
+        checked: a.wom.checked ? 'Last checked ' + fmt(a.wom.checked) + '.' : 'Not checked yet.', hasResult: !!ms.result, result: ms.result ? ms.result.text : '', resultCls: ms.result ? ms.result.cls : '',
+        suggest: () => this.mapSuggest(), validate: () => this.mapSave(true), save: () => this.mapSave(false) };
+    }
+    // drops
+    const list = d.isNew ? [] : this.vDrops(a.id).slice().sort((x, y) => (y.active - x.active) || this.vItem(x.item).name.localeCompare(this.vItem(y.item).name)).map(x => this.vmDrop(a, x));
+    const drops = { count: d.isNew ? '' : String(list.length), canAdd: !d.isNew, isNew: d.isNew, empty: !d.isNew && !list.length && !d.add, list, openAdd: () => this.openAdd(), addExpanded: d.add ? 'true' : 'false' };
+    let add = { show: false, modes: [] };
+    if (d.add) {
+      const ad = d.add; const e = ad.showErr ? this.addErrors() : {}; const sh = this.addShared(); const p = parseRate(ad.rate);
+      const uses = sh ? this.usesOf(sh.id) : [];
+      add = { show: true, busy: ad.busy, busyCls: ad.busy ? 'is-busy' : '', name: ad.name, onName: ev => this.updAdd({ name: ev.target.value, useShared: false }), rate: ad.rate, onRate: ev => this.updAdd({ rate: ev.target.value }), img: ad.img, onImg: ev => this.updAdd({ img: ev.target.value }),
+        ratePreview: p ? this.preview(a, p) : 'Write it as shown on the Wiki. Your own chance, at the group size the activity rate uses.',
+        nameCls: e.name ? 'is-invalid' : '', nameInvalid: e.name ? 'true' : 'false', hasNameErr: !!e.name, nameErr: e.name || '', rateCls: e.rate ? 'is-invalid' : '', rateInvalid: e.rate ? 'true' : 'false', hasRateErr: !!e.rate, rateErr: e.rate || '',
+        hasShared: !!sh && !e.name, sharedName: sh ? sh.name : '', sharedArt: sh ? art(sh.name, sh.img) : 'none', sharedText: sh ? 'Used by ' + (uses.length ? uses.map(u => u.name).join(', ') : 'no activity yet') + ' · value ' + (sh.value == null ? 'not set' : gp(sh.value)) + '.' : '', useShared: !!ad.useShared, onUseShared: ev => this.updAdd({ useShared: ev.target.checked }), hasSharedErr: !!e.shared,
+        hasValue: !sh, isManual: ad.mode === 'manual', modes: [['manual', 'Enter value'], ['fetch', 'Fetch price'], ['untradeable', 'Untradeable']].map(([k, l]) => ({ label: l, on: ad.mode === k, cls: ad.mode === k ? 'is-on' : '', pick: () => this.updAdd({ mode: k }) })),
+        gp: ad.gp, onGp: ev => this.updAdd({ gp: ev.target.value }), gpCls: e.gp ? 'is-invalid' : '', gpInvalid: e.gp ? 'true' : 'false', hasGpErr: !!e.gp, gpErr: e.gp || '',
+        valueHint: ad.mode === 'manual' ? 'Zero is fine. Manual values stay fixed when prices refresh.' : ad.mode === 'fetch' ? 'Looks up the exact name and its hourly price when you add the drop. If that fails, nothing is added.' : 'Stored as 0 GP and marked untradeable.',
+        hasErr: !!ad.err, err: ad.err ? ad.err.text : '', errCls: ad.err ? ad.err.cls : '', saveLabel: ad.busy ? (ad.mode === 'fetch' && !sh ? 'Fetching…' : 'Adding…') : (ad.mode === 'fetch' && !sh ? 'Fetch price and add' : 'Add drop'), save: () => this.saveAdd(),
+        cancel: () => { const go = () => this.updDr({ add: null }, () => DKAdmin.focusSoon('add-drop')); if (ad.name || ad.rate || ad.gp || ad.img) this.askDiscard(go); else go(); } };
+    }
+    const manage = d.isNew ? { show: false } : { show: true, lock: d.busy, toggleTitle: a.active ? 'Deactivate' : 'Reactivate', toggleText: a.active ? 'Hides it from new tiles. Its drops, boards that use it and history are kept.' : 'Makes it available for new tiles again.', toggleLabel: a.active ? 'Deactivate…' : 'Reactivate', toggle: () => this.toggleAct(), canDelete: S.superAdmin, del: () => this.askDelete('activity') };
+    return { dr, act, map, drops, add, manage };
+  }
+  preview(a, p) { const c = perCompletion(p.p, p.rolls); const u = a ? unit(a.cat) : 'kill'; const e = a && a.rate > 0 ? ehbOf(a.rate, p.p, p.rolls) : null; return (p.rolls > 1 ? p.rolls + ' rolls of ' + oneIn(p.p) + ' · ' : '') + oneIn(c) + ' per ' + u + (e != null ? ' · about ' + num(e, 1) + ' EHB' : a && !(a.rate > 0) ? ' · no EHB until the activity has a rate' : ''); }
+  vmDrop(a, x) {
+    const S = this.state; const d = S.dr; const it = this.vItem(x.item); const uses = this.usesOf(it.id); const others = uses.filter(u => u.id !== a.id);
+    const ehb = ehbOf(a.rate, x.p, x.rolls); const open = !!(d.ed && d.ed.id === x.id); const flags = [];
+    if (!x.active) flags.push({ label: 'Inactive', cls: 'is-neutral' });
+    if (!(x.p > 0)) flags.push({ label: 'No probability', cls: 'is-warning' });
+    if (it.value == null) flags.push({ label: 'No value', cls: 'is-warning' });
+    if (others.length) flags.push({ label: 'Shared', cls: 'is-neutral' });
+    const c = perCompletion(x.p, x.rolls);
+    const row = { name: it.name, art: art(it.name, it.img), sub: x.rate + (c ? ' · ' + oneIn(c) + ' per ' + unit(a.cat) : '') + (it.value != null ? ' · ' + (it.source === 'untradeable' ? 'untradeable' : gp(it.value)) : ''), flags,
+      ehb: ehb != null ? num(ehb, ehb < 10 ? 2 : 1) : '—', ehbK: ehb != null ? 'EHB' : !(a.rate > 0) ? 'no rate' : 'no EHB', ehbCls: ehb != null ? '' : 'is-muted',
+      cls: (x.active ? '' : 'is-inactive') + (open ? ' is-open' : ''), rowId: 'row-' + x.id, edId: 'ed-' + x.id, expanded: open ? 'true' : 'false', open, toggle: () => this.toggleDrop(x.id), edLabel: 'Edit ' + it.name };
+    if (!open) return row;
+    const e = d.ed; const errs = e.showErr ? this.edErrors() : {}; const p = parseRate(e.fRate); const rateChanged = e.fRate.trim() !== x.rate;
+    const other = this.state.view.items.find(i => i.id !== it.id && norm(i.name) === norm(e.fName)); const nameChanged = e.fName.trim() !== it.name;
+    const newEhb = rateChanged && p ? ehbOf(a.rate, p.p, x.rolls) : ehb;
+    const pe = e.pShowErr && e.pMode === 'manual' && !/^\d+$/.test(String(e.pGp).trim()) ? (String(e.pGp).trim() ? 'Enter whole GP, like 2500. Zero is fine.' : 'Enter a value. Zero is fine.') : '';
+    const dirty = this.edDirty();
+    return Object.assign(row, {
+      hasErr: !!e.err, errCls: e.err ? e.err.cls : '', errTitle: e.err ? e.err.title : '', err: e.err ? e.err.text : '', hasErrAct: !!(e.err && e.err.act), errActLabel: 'Check current values', errBusy: !!(e.err && e.err.busy), errAct: () => this.checkDrop(),
+      lock: e.busy, fName: e.fName, onName: ev => this.updEd({ fName: ev.target.value, useShared: false }), fRate: e.fRate, onRate: ev => this.updEd({ fRate: ev.target.value }), fImg: e.fImg, onImg: ev => this.updEd({ fImg: ev.target.value }),
+      nameHint: others.length ? (nameChanged && !other ? 'Renames the shared item for ' + others.map(o => o.name).join(', ') + ' too.' : 'Shared with ' + others.map(o => o.name).join(', ') + '. Name, image and value change there too.') : 'The item’s name everywhere it appears.',
+      nameCls: errs.name ? 'is-invalid' : '', nameInvalid: errs.name ? 'true' : 'false', hasNameErr: !!errs.name, nameErr: errs.name || '',
+      ratePreview: p ? this.preview(a, { p: p.p, rolls: p.explicit ? p.rolls : x.rolls }) : 'Like 1/512, 3/1,024 or 2 x 1/1,024.', rateCls: errs.rate ? 'is-invalid' : '', rateInvalid: errs.rate ? 'true' : 'false', hasRateErr: !!errs.rate, rateErr: errs.rate || '',
+      hasMerge: !!(other && nameChanged && !errs.name), mergeName: other ? other.name : '', mergeArt: other ? art(other.name, other.img) : 'none', mergeText: other ? 'Used by ' + (this.usesOf(other.id).map(u => u.name).join(', ') || 'no activity') + ' · value ' + (other.value == null ? 'not set' : gp(other.value)) + '. Its rate here stays ' + (p ? e.fRate.trim() : x.rate) + '.' : '', useShared: !!e.useShared, onUseShared: ev => this.updEd({ useShared: ev.target.checked }),
+      calc: newEhb != null ? num(newEhb, newEhb < 10 ? 2 : 1) + ' EHB' : 'Not available', calcCls: newEhb != null ? '' : 'is-muted',
+      calcNote: newEhb == null ? (!(a.rate > 0) ? 'The activity has no ' + rateLabel(a.cat).toLowerCase() + '. Add it in Settings above.' : 'The rate can’t be turned into a probability. Enter it like 1/512.') : rateChanged && ehb != null ? 'Was ' + num(ehb, ehb < 10 ? 2 : 1) + '. Approved boards keep their snapshot.' : 'Hours to get one at ' + num(a.rate) + ' ' + unit(a.cat) + 's per hour.',
+      imgScope: others.length ? 'shared item' : 'optional',
+      busy: e.busy, busyCls: e.busy ? 'is-busy' : '', saveDisabled: e.busy || !dirty, saveLabel: e.busy ? 'Saving…' : 'Save drop', cancelLabel: dirty ? 'Discard' : 'Close',
+      saveWhat: dirty ? 'Saves the name, rate and image.' : 'No changes yet.', save: () => this.saveDrop(), cancel: () => { if (dirty) { const it2 = this.vItem(x.item); this.updEd({ fName: it2.name, fRate: x.rate, fImg: e.origImg, useShared: false, showErr: false, err: null }); } else this.closeDrop(true); },
+      mechOpen: e.mechOpen, mechExpanded: e.mechOpen ? 'true' : 'false', toggleMech: () => this.updEd({ mechOpen: !this.state.dr.ed.mechOpen }),
+      mechSum: (x.rolls > 1 ? x.rolls + ' rolls' : '1 roll') + (x.scope === 'team' ? ' · team of ' + x.parts : '') + (x.cond ? ' · conditional' : ''),
+      mech: [{ k: 'Chance per roll', v: x.p > 0 ? oneIn(x.p) + ' (' + x.p.toPrecision(3) + ')' : 'Not set: the rate isn’t a probability' }, { k: 'Rolls per ' + unit(a.cat), v: String(x.rolls) }, { k: 'Chance per ' + unit(a.cat), v: c ? oneIn(c) + ' (' + c.toPrecision(3) + ')' : '—' },
+        { k: 'Whose chance', v: x.scope === 'team' ? 'Your own chance in a team of ' + x.parts : 'Your own chance' }].concat(x.cond ? [{ k: 'Only after', v: oneIn(x.cond.p) + ' · ' + x.cond.note }] : []).concat(x.note ? [{ k: 'Note', v: x.note }] : []).concat([{ k: 'Source', v: x.source || 'Not recorded' }]),
+      priceOpen: e.priceOpen, priceExpanded: e.priceOpen ? 'true' : 'false', togglePrice: () => this.updEd({ priceOpen: !this.state.dr.ed.priceOpen }),
+      priceSum: it.value == null ? 'No value' : it.source === 'untradeable' ? 'Untradeable · 0 gp' : (it.source === 'manual' ? 'Manual · ' : 'Hourly price · ') + gp(it.value), priceSumCls: it.value == null ? 'is-warn' : '',
+      sharedWith: others.length ? ' (also used by ' + others.map(o => o.name).join(', ') + ')' : '',
+      storedValue: it.value == null ? 'None yet. Missing isn’t zero; tiles need a value.' : gp(it.value) + ' · ' + { api: 'hourly price', manual: 'manual, fixed during refreshes', untradeable: 'untradeable', missing: '' }[it.source],
+      itemMap: { verified: 'Verified', unsupported: 'Not in the item list', unavailable: 'Couldn’t check', unchecked: 'Not checked', none: 'Not set' }[it.wikiId ? it.map : 'none'], itemMapCls: it.map === 'verified' && it.wikiId ? 'is-ok' : it.map === 'unsupported' ? 'is-bad' : it.map === 'unavailable' ? 'is-warn' : '', itemChecked: it.wikiId ? ' · ID ' + it.wikiId + (it.checked ? ', checked ' + fmt(it.checked) : '') : '',
+      hasRejected: !!it.rejected, rejected: it.rejected ? 'An hourly price of ' + gp(it.rejected.gp) + ' (' + fmt(it.rejected.at) + ') looked like an unusual change and wasn’t used. The trusted value was kept.' : '',
+      modes: [['api', 'Hourly price'], ['manual', 'Manual'], ['untradeable', 'Untradeable']].map(([k, l]) => ({ label: l, on: e.pMode === k, cls: e.pMode === k ? 'is-on' : '', pick: () => this.updEd({ pMode: k, pResult: null }) })),
+      modeHint: e.pMode === 'api' ? 'Uses the Wiki hourly price for the item ID. Validate to fetch it.' : e.pMode === 'manual' ? 'A fixed value. Price refreshes don’t change it. Zero is fine.' : 'Stored as 0 GP and never priced.',
+      isManual: e.pMode === 'manual', pGp: e.pGp, onGp: ev => this.updEd({ pGp: ev.target.value }), gpCls: pe ? 'is-invalid' : '', gpInvalid: pe ? 'true' : 'false', hasGpErr: !!pe, gpErr: pe,
+      hasItemId: e.pMode !== 'untradeable', pId: e.pId, onId: ev => this.updEd({ pId: ev.target.value, pResult: null }), suggest: () => this.priceSuggest(),
+      hasPResult: !!e.pResult, pResult: e.pResult ? e.pResult.text : '', pResultCls: e.pResult ? e.pResult.cls : '', pBusy: !!e.pBusy, pBusyValidate: e.pBusy === 'validate', pBusyCls: e.pBusy === 'validate' ? 'is-busy' : '',
+      pValidateDisabled: !!e.pBusy || !String(e.pId || '').trim(), pValidateLabel: e.pMode === 'api' ? 'Validate and fetch price' : 'Validate and save', pValidate: () => this.priceSave(true), pSave: () => this.priceSave(false),
+      toggleLabel: x.active ? 'Deactivate drop' : 'Reactivate drop', toggleActive: () => this.toggleDropActive(), canDelete: S.superAdmin, del: () => this.askDelete('drop', x.id)
+    });
+  }
+  vmCm() {
+    const c = this.state.cm; if (!c) return { show: false, points: [] };
+    const base = { show: true, closingCls: c.closing ? 'is-closing' : '', busy: c.busy, busyCls: c.busy ? 'is-busy' : '', checking: false, hasBanner: false, hasPoints: true, hasAlt: false, hasConfirm: true, cancelLabel: 'Cancel',
+      dismiss: () => this.closeCm(), onKey: e => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); this.closeCm(); } else DKAdmin.trapTab(e, 'cm'); } };
+    const d = this.state.dr; const a = d && d.id ? this.vAct(d.id) : null;
+    if (c.kind === 'discard') return Object.assign(base, { title: 'Discard unsaved changes?', points: c.parts.map(p => ({ text: 'Discards ' + p + '.' })), cancelLabel: 'Keep editing', confirmLabel: 'Discard', confirmCls: 'btn-danger',
+      confirm: () => { const go = c.go; this.finishCm(() => { if (this.state.dr) this.updDr(s => ({ act: s.isNew || !s.id ? s.act : this.actForm(this.vAct(s.id)), ed: null, add: null, map: null }), () => { if (this.state.dr && this.state.dr.isNew) this.updDr({ act: { name: '', cat: 'Boss', rate: '', img: '' } }, go); else go(); }); else go(); }); } });
+    if (c.kind === 'deactivate') return Object.assign(base, { title: 'Deactivate ' + a.name + '?', points: [{ text: 'It can’t be picked for new tiles. Its ' + this.vDrops(a.id).length + ' drops stay with it.' }, { text: 'Boards that already use it, approved snapshots and history keep it.' }, { text: 'You can reactivate it at any time.' }], confirmLabel: c.busy ? 'Deactivating…' : 'Deactivate', confirmCls: 'btn-primary', confirm: () => this.doToggleAct(true) });
+    const isAct = c.target === 'activity'; const name = isAct ? a.name : this.vItem(this.vDropById(c.dropId).item).name;
+    if (c.checking) return Object.assign(base, { title: 'Delete ' + name + ' permanently?', checking: true, hasPoints: false, points: [], hasConfirm: false });
+    if (c.verdict === 'stale') return Object.assign(base, { title: 'Delete ' + name + ' permanently?', hasBanner: true, bannerCls: 'is-warning', bannerTitle: 'It changed since you opened it.', bannerText: 'Another admin edited it. Close this, check the current values and try again.', hasPoints: false, points: [], hasConfirm: false, cancelLabel: 'Close' });
+    if (c.verdict === 'blocked') return Object.assign(base, { title: name + ' can’t be deleted', hasBanner: true, bannerCls: 'is-info', bannerTitle: 'It’s in use.', bannerText: isAct ? 'It has drops or is used by boards, so deleting it would break them. Deactivate it instead; it can be reactivated later.' : 'Boards use this drop, so deleting it would break them. Deactivate it instead.', hasPoints: false, points: [], hasConfirm: false, cancelLabel: 'Close',
+      hasAlt: isAct ? a.active : this.vDropById(c.dropId).active, altLabel: 'Deactivate instead', alt: () => this.finishCm(() => { if (isAct) this.doToggleAct(); else this.toggleDropActive(); }) });
+    return Object.assign(base, { title: 'Delete ' + name + ' permanently?', points: [{ text: 'Nothing uses it. It’s removed from the catalogue for good; this can’t be undone.' }, { text: isAct ? 'Shared items, prices and Audit history are kept.' : 'Only this activity’s drop is removed. The shared item, its value and Audit history are kept.' }], confirmLabel: c.busy ? 'Deleting…' : 'Delete permanently', confirmCls: 'btn-danger', confirm: () => this.doDelete() });
+  }
+
+  renderVals() {
+    const S = this.state; const ev = EVENTS.find(e => e.slug === S.slug);
+    const navKey = S.route === 'catalogue' ? 'catalogue' : S.otherKey;
+    const nav = {}; NAV.forEach(([k, label]) => { nav[k] = { cls: navKey === k ? 'is-current' : '', current: navKey === k ? 'page' : undefined, tip: (S.sideOpen || this.isMobile()) ? undefined : label, count: '', go: () => this.goNav(k) }; });
+    const ready = S.route === 'catalogue' && !S.loading && !S.loadError && !!S.view; const n = S.notice;
+    const L = this.vmList(); const D = this.vmDr();
+    return Object.assign({
+      themeClass: S.theme === 'dark' ? 'theme-dark' : 'theme-light', isLight: S.theme === 'light', isDark: S.theme === 'dark', lightCls: S.theme === 'light' ? 'is-on' : '', darkCls: S.theme === 'dark' ? 'is-on' : '',
+      setLight: () => this.setState({ theme: 'light' }), setDark: () => this.setState({ theme: 'dark' }),
+      nav, sideCls: (S.sideOpen ? '' : 'is-collapsed') + (S.mobileNav ? ' is-mobile-open' : ''), sideOpen: this.isMobile() ? S.mobileNav : S.sideOpen,
+      sideTip: (S.sideOpen || this.isMobile()) ? undefined : 'Iron Pact · Administrator', mobileNav: S.mobileNav, navScrimCls: S.mobileNav ? 'is-on' : '',
+      openMobileNav: x => this.openMobileNav(x), closeMobileNav: () => this.closeMobileNav(),
+      sideKey: x => { if (!this.state.mobileNav || this.state.menu) return; if (x.key === 'Escape') { x.preventDefault(); this.closeMobileNav(); } else DKAdmin.trapTab(x, 'sidebar'); },
+      collapseLabel: this.isMobile() ? 'Close navigation' : (S.sideOpen ? 'Collapse sidebar' : 'Expand sidebar'), collapseArrowCls: (S.sideOpen || this.isMobile()) ? '' : 'is-flip',
+      toggleSide: () => { if (this.isMobile()) { this.closeMobileNav(); return; } this.setState(s => ({ sideOpen: !s.sideOpen, menu: null })); },
+      ev: { name: ev.name, stage: ev.phase, when: ev.when, toneCls: ev.tone }, evTip: (S.sideOpen || this.isMobile()) ? undefined : 'Switch event',
+      eventMenuOpen: !!(S.menu && S.menu.kind === 'event-sw'), userMenuOpen: !!(S.menu && S.menu.kind === 'user'),
+      openEventMenu: x => this.openMenu('event-sw', x), openUserMenu: x => this.openMenu('user', x),
+      scrollCls: S.mobileNav || S.dr ? 'is-locked' : '',
+      crumb: { inEvents: S.route === 'other' && (S.otherKey === 'events' || EVENT_PAGES.indexOf(S.otherKey) >= 0), hasEvent: S.route === 'other' && EVENT_PAGES.indexOf(S.otherKey) >= 0, event: ev.name, page: S.route === 'catalogue' ? 'Catalogue' : (TITLES[S.otherKey] || '') },
+      crumbEvents: () => this.goNav('events'),
+      isPage: S.route === 'catalogue', isOther: S.route === 'other', otherTitle: TITLES[S.otherKey] || '', otherScope: EVENT_PAGES.indexOf(S.otherKey) >= 0 ? ev.name : 'Community-wide',
+      otherText: TITLES[S.otherKey] ? TITLES[S.otherKey] + ' has its own artboard on the canvas. Back returns to Catalogue.' : 'This artboard shows Catalogue. Back returns to it.', backToPage: () => this.backToPage(),
+      openNew: e => { const go = () => this.openNew(e); if (!this.navGuard(go)) go(); },
+      notice: { show: !!n, cls: n ? n.cls : '', role: 'status', title: n ? n.title : '', text: n ? n.text : '', dismiss: () => this.setState({ notice: null }) },
+      loadError: S.route === 'catalogue' && S.loadError, retry: () => this.load(), loading: S.loading, ready, skRows: [60, 45, 70, 52, 66, 40].map(w => ({ w })),
+      scrollXCls: (S.scrollX ? 'is-scroll' : '') + (S.scrollX && S.scrolledX ? ' is-scrolled' : ''),
+      onTableScroll: e => { const on = e.currentTarget.scrollLeft > 2; if (on !== this.state.scrolledX) this.setState({ scrolledX: on }); },
+      cm: this.vmCm(), menu: this.vmMenu(),
+      pb: { show: S.showBar, url: this.cur().url, noBack: this.hist.idx === 0, noFwd: this.hist.idx >= this.hist.entries.length - 1, back: () => this.back(), fwd: () => this.forward(), reload: () => this.reload() },
+      toasts: DKAdmin.toastView(this)
+    }, L, D);
+  }
+}
+</script>
+</body>
+</html>

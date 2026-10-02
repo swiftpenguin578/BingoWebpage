@@ -1,0 +1,85 @@
+{
+  "sources": [
+    {
+      "path": "DATA_MODEL.md",
+      "expected": "946c1c860eecdc72a969df277bbd3beaedce1ad30770c0f126cdc990d505a8f4",
+      "actual": "946c1c860eecdc72a969df277bbd3beaedce1ad30770c0f126cdc990d505a8f4",
+      "match": true
+    },
+    {
+      "path": "DELIVERY_PLAN.md",
+      "expected": "fc7938d62eaed84a185b16589b1fd8f1dc2e1f0000f9baac57c2395b7ae509c2",
+      "actual": "fc7938d62eaed84a185b16589b1fd8f1dc2e1f0000f9baac57c2395b7ae509c2",
+      "match": true
+    },
+    {
+      "path": "FUNCTIONAL_CONTRACTS.md",
+      "expected": "7b1adf0eaa5a1f95fb383df23d3ba09d5a933a57483f02121b05ca504d687626",
+      "actual": "7b1adf0eaa5a1f95fb383df23d3ba09d5a933a57483f02121b05ca504d687626",
+      "match": true
+    },
+    {
+      "path": "PRODUCT_REQUIREMENTS.md",
+      "expected": "04faf91f2c915cf20ff1dd991c0d71d737f53de22de55a8be362503b1ea8eb74",
+      "actual": "04faf91f2c915cf20ff1dd991c0d71d737f53de22de55a8be362503b1ea8eb74",
+      "match": true
+    },
+    {
+      "path": "src/Bingo.Domain/Events/EventIdentityComparison.cs",
+      "expected": "ae321e649922d0c7e45e03564a5e89a884cf90bb19fc4eb77b3c1b56d9089c42",
+      "actual": "ae321e649922d0c7e45e03564a5e89a884cf90bb19fc4eb77b3c1b56d9089c42",
+      "match": true
+    },
+    {
+      "path": "src/Bingo.Web/Pages/Admin/Events/Identity.cshtml",
+      "expected": "f6753ca26ce223400dc198473eaa6abab36637943faf7593f1b24fddbaf08502",
+      "actual": "f6753ca26ce223400dc198473eaa6abab36637943faf7593f1b24fddbaf08502",
+      "match": true
+    },
+    {
+      "path": "src/Bingo.Web/Pages/Admin/Events/Identity.cshtml.cs",
+      "expected": "b92a1f28218b3d66bb4c367a052808c808ede7860666f06e7325ab9317ec4b3b",
+      "actual": "b92a1f28218b3d66bb4c367a052808c808ede7860666f06e7325ab9317ec4b3b",
+      "match": true
+    },
+    {
+      "path": "src/Bingo.Web/Resources/SharedResource.da.resx",
+      "expected": "cc5685f30f222f30cfa2e8c7700ed3e605feec6c5892a76d6c0c03b482e08f65",
+      "actual": "cc5685f30f222f30cfa2e8c7700ed3e605feec6c5892a76d6c0c03b482e08f65",
+      "match": true
+    },
+    {
+      "path": "src/Bingo.Web/Security/EventMutationCapabilityPageFilter.cs",
+      "expected": "e7910f229fa244b1b373ac45f60b5302f6260808c083a3dd8dbd1678310fc37b",
+      "actual": "e7910f229fa244b1b373ac45f60b5302f6260808c083a3dd8dbd1678310fc37b",
+      "match": true
+    },
+    {
+      "path": "src/Bingo.Web/wwwroot/js/event-identity.js",
+      "expected": "23677b8aa8d9944f24b715f0fd02bb10563cf5bcb85018ce87161ee95f86b136",
+      "actual": "23677b8aa8d9944f24b715f0fd02bb10563cf5bcb85018ce87161ee95f86b136",
+      "match": true
+    },
+    {
+      "path": "tests/Bingo.BrowserTests/identity-timezone-confirmation.browser.js",
+      "expected": "da962de9da50fd00b9187a269b9fe38153e649da68791f98631f26d869d287e5",
+      "actual": "da962de9da50fd00b9187a269b9fe38153e649da68791f98631f26d869d287e5",
+      "match": true
+    },
+    {
+      "path": "tests/Bingo.IntegrationTests/IdentityFieldConflictIntegrationTests.cs",
+      "expected": "7e1ec747a125a37d31eaea17a1f88c3c0c32fa10d73e2cbfe2c00fb911bef38f",
+      "actual": "7e1ec747a125a37d31eaea17a1f88c3c0c32fa10d73e2cbfe2c00fb911bef38f",
+      "match": true
+    },
+    {
+      "path": "tests/Bingo.IntegrationTests/Slice3CreationIdentityPersistenceIntegrationTests.cs",
+      "expected": "03fb3b734db1d2b1cb031c3091af7b8446d30cd359495e64a1673ff69bc50f43",
+      "actual": "03fb3b734db1d2b1cb031c3091af7b8446d30cd359495e64a1673ff69bc50f43",
+      "match": true
+    }
+  ],
+  "report_sha256": "912763bd8e5d7e6bbfe11b5e9bf3198e9320d5fa3149cf0ae57d8a8f33f5bd55",
+  "manifest_sha256": "d74176f8966ff413f0a21b2d8d4269f0f4c81f49099edac75b9865cbec6ffbc5",
+  "patch_sha256": "4c452804ba647e3b35a749bb4baf6fde9ba4f831be5e5cc3272b66508396ea60"
+}

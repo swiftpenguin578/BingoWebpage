@@ -1,0 +1,19 @@
+{
+  "board-audit-production-sha256.json": {
+    "relied_on_files": 13,
+    "live_drift": [
+      "CURRENT_STATUS.md",
+      "DELIVERY_PLAN.md",
+      "FUNCTIONAL_CONTRACTS.md",
+      "docs/references/admin-ui/FUNCTIONALITY_CHANGES.md"
+    ]
+  },
+  "review-finalreview-production-sha256.json": {
+    "relied_on_files": 15,
+    "live_drift": [
+      "FUNCTIONAL_CONTRACTS.md",
+      "PRODUCT_REQUIREMENTS.md",
+      "docs/references/admin-ui/FUNCTIONALITY_CHANGES.md"
+    ]
+  }
+}

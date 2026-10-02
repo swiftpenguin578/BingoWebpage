@@ -70,7 +70,7 @@ body{margin:0}
     <button class="nav-item {{nav.dashboard.cls}}" aria-current="{{nav.dashboard.current}}" title="{{nav.dashboard.tip}}" onClick="{{nav.dashboard.go}}"><svg class="ic" viewBox="0 0 16 16"><path d="M2.5 12a5.5 5.5 0 1 1 11 0"/><path d="M8 12l2.6-3.4"/><path d="M8 12h.01"/></svg><span class="nav-text">Dashboard</span><span class="nav-count">{{nav.dashboard.count}}</span></button>
     <button class="nav-item {{nav.events.cls}}" aria-current="{{nav.events.current}}" title="{{nav.events.tip}}" onClick="{{nav.events.go}}"><svg class="ic" viewBox="0 0 16 16"><rect x="2.5" y="3.5" width="11" height="10" rx="1.5"/><path d="M2.5 6.5h11M5.5 2v3M10.5 2v3"/></svg><span class="nav-text">Events</span><span class="nav-count">{{nav.events.count}}</span></button>
     <button class="nav-item {{nav.catalogue.cls}}" aria-current="{{nav.catalogue.current}}" title="{{nav.catalogue.tip}}" onClick="{{nav.catalogue.go}}"><svg class="ic" viewBox="0 0 16 16"><path d="M8 2.5 2.5 5.5 8 8.5l5.5-3z"/><path d="M2.5 8.2 8 11.2l5.5-3M2.5 10.8 8 13.8l5.5-3"/></svg><span class="nav-text">Catalogue</span><span class="nav-count">{{nav.catalogue.count}}</span></button>
-    <button class="nav-item {{nav.roles.cls}}" aria-current="{{nav.roles.current}}" title="{{nav.roles.tip}}" onClick="{{nav.roles.go}}"><svg class="ic" viewBox="0 0 16 16"><rect x="3" y="2.5" width="10" height="11" rx="1.5"/><circle cx="8" cy="7" r="1.8"/><path d="M5.3 11.5c.5-1.3 1.5-2 2.7-2s2.2.7 2.7 2"/></svg><span class="nav-text">Accounts / Roles</span><span class="nav-count">{{nav.roles.count}}</span></button>
+    <button class="nav-item {{nav.accounts.cls}}" aria-current="{{nav.accounts.current}}" title="{{nav.accounts.tip}}" onClick="{{nav.accounts.go}}"><svg class="ic" viewBox="0 0 16 16"><rect x="3" y="2.5" width="10" height="11" rx="1.5"/><circle cx="8" cy="7" r="1.8"/><path d="M5.3 11.5c.5-1.3 1.5-2 2.7-2s2.2.7 2.7 2"/></svg><span class="nav-text">Accounts</span><span class="nav-count">{{nav.accounts.count}}</span></button>
     <button class="nav-item {{nav.audit.cls}}" aria-current="{{nav.audit.current}}" title="{{nav.audit.tip}}" onClick="{{nav.audit.go}}"><svg class="ic" viewBox="0 0 16 16"><path d="M4 2.5h8v11H4z"/><path d="M6 5.5h4M6 8h4M6 10.5h2.5"/></svg><span class="nav-text">Audit</span><span class="nav-count">{{nav.audit.count}}</span></button>
   </nav>
 
@@ -510,7 +510,7 @@ const ulen = s => (s || '').length; // the application's StringLength counts UTF
 const nf = n => Number(n || 0).toLocaleString('en-US');
 const plural = (n, one, many) => nf(n) + ' ' + (n === 1 ? one : (many || one + 's'));
 const OUTCOMES = { ok: 'Succeeds', fail: 'Fails, nothing changes', stale: 'Another admin changes it first', timeoutDone: 'Times out · it happened', timeoutNot: 'Times out · it didn’t happen' };
-const NAV = [['dashboard', 'Dashboard'], ['events', 'Events'], ['catalogue', 'Catalogue'], ['roles', 'Accounts / Roles'], ['audit', 'Audit'],
+const NAV = [['dashboard', 'Dashboard'], ['events', 'Events'], ['catalogue', 'Catalogue'], ['accounts', 'Accounts'], ['audit', 'Audit'],
   ['overview', 'Overview'], ['identity', 'Identity'], ['schedule', 'Schedule'], ['participants', 'Participants'], ['signup', 'Signup setup'], ['teams', 'Teams / Draft'], ['board', 'Board'], ['wom', 'WOM'], ['review', 'Review'], ['final', 'Final review']];
 const TITLES = {}; NAV.forEach(([k, l]) => { TITLES[k] = l; });
 const EVENT_PAGES = ['overview', 'identity', 'schedule', 'participants', 'signup', 'teams', 'board', 'wom', 'review', 'final'];
@@ -1542,10 +1542,10 @@ class Component extends DCLogic {
       eventMenuOpen: !!(S.menu && S.menu.kind === 'event'), userMenuOpen: !!(S.menu && S.menu.kind === 'user'),
       openEventMenu: x => this.openMenu('event', x), openUserMenu: x => this.openMenu('user', x),
       scrollCls: S.mobileNav || S.modal || S.dr || S.cm ? 'is-locked' : '',
-      crumb: { hasEvent: S.otherKey !== 'events' && ['dashboard', 'catalogue', 'roles', 'audit'].indexOf(S.otherKey) < 0, event: ev.name, page: S.route === 'signup' ? 'Signup setup' : (TITLES[S.otherKey] || '') },
+      crumb: { hasEvent: S.otherKey !== 'events' && ['dashboard', 'catalogue', 'accounts', 'audit'].indexOf(S.otherKey) < 0, event: ev.name, page: S.route === 'signup' ? 'Signup setup' : (TITLES[S.otherKey] || '') },
       crumbEvents: () => this.goNav('events'),
       isPage: S.route === 'signup', isOther: S.route === 'other',
-      otherTitle: TITLES[S.otherKey] || '', otherScope: ['events', 'dashboard', 'catalogue', 'roles', 'audit'].indexOf(S.otherKey) >= 0 ? 'Community-wide' : ev.name,
+      otherTitle: TITLES[S.otherKey] || '', otherScope: ['events', 'dashboard', 'catalogue', 'accounts', 'audit'].indexOf(S.otherKey) >= 0 ? 'Community-wide' : ev.name,
       otherText: ['events', 'participants', 'dashboard', 'overview', 'identity'].indexOf(S.otherKey) >= 0 ? TITLES[S.otherKey] + ' has its own artboard on the canvas.' : 'This artboard shows Signup setup. Back returns to it.',
       backToPage: () => this.backToPage(),
       summary: 'Capacity, signup code and the questions players answer when they sign up for ' + ev.name + '.',

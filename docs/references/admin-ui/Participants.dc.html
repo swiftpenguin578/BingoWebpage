@@ -61,7 +61,7 @@ body{margin:0}
     <button class="nav-item {{nav.dashboard.cls}}" aria-current="{{nav.dashboard.current}}" title="{{nav.dashboard.tip}}" onClick="{{nav.dashboard.go}}"><svg class="ic" viewBox="0 0 16 16"><path d="M2.5 12a5.5 5.5 0 1 1 11 0"/><path d="M8 12l2.6-3.4"/><path d="M8 12h.01"/></svg><span class="nav-text">Dashboard</span><span class="nav-count">{{nav.dashboard.count}}</span></button>
     <button class="nav-item {{nav.events.cls}}" aria-current="{{nav.events.current}}" title="{{nav.events.tip}}" onClick="{{nav.events.go}}"><svg class="ic" viewBox="0 0 16 16"><rect x="2.5" y="3.5" width="11" height="10" rx="1.5"/><path d="M2.5 6.5h11M5.5 2v3M10.5 2v3"/></svg><span class="nav-text">Events</span><span class="nav-count">{{nav.events.count}}</span></button>
     <button class="nav-item {{nav.catalogue.cls}}" aria-current="{{nav.catalogue.current}}" title="{{nav.catalogue.tip}}" onClick="{{nav.catalogue.go}}"><svg class="ic" viewBox="0 0 16 16"><path d="M8 2.5 2.5 5.5 8 8.5l5.5-3z"/><path d="M2.5 8.2 8 11.2l5.5-3M2.5 10.8 8 13.8l5.5-3"/></svg><span class="nav-text">Catalogue</span><span class="nav-count">{{nav.catalogue.count}}</span></button>
-    <button class="nav-item {{nav.roles.cls}}" aria-current="{{nav.roles.current}}" title="{{nav.roles.tip}}" onClick="{{nav.roles.go}}"><svg class="ic" viewBox="0 0 16 16"><rect x="3" y="2.5" width="10" height="11" rx="1.5"/><circle cx="8" cy="7" r="1.8"/><path d="M5.3 11.5c.5-1.3 1.5-2 2.7-2s2.2.7 2.7 2"/></svg><span class="nav-text">Accounts / Roles</span><span class="nav-count">{{nav.roles.count}}</span></button>
+    <button class="nav-item {{nav.accounts.cls}}" aria-current="{{nav.accounts.current}}" title="{{nav.accounts.tip}}" onClick="{{nav.accounts.go}}"><svg class="ic" viewBox="0 0 16 16"><rect x="3" y="2.5" width="10" height="11" rx="1.5"/><circle cx="8" cy="7" r="1.8"/><path d="M5.3 11.5c.5-1.3 1.5-2 2.7-2s2.2.7 2.7 2"/></svg><span class="nav-text">Accounts</span><span class="nav-count">{{nav.accounts.count}}</span></button>
     <button class="nav-item {{nav.audit.cls}}" aria-current="{{nav.audit.current}}" title="{{nav.audit.tip}}" onClick="{{nav.audit.go}}"><svg class="ic" viewBox="0 0 16 16"><path d="M4 2.5h8v11H4z"/><path d="M6 5.5h4M6 8h4M6 10.5h2.5"/></svg><span class="nav-text">Audit</span><span class="nav-count">{{nav.audit.count}}</span></button>
   </nav>
 
@@ -1439,7 +1439,7 @@ class Component extends DCLogic {
     const S = this.state; const ev = this.ev();
     const T = this.vmTable(ev);
     const NAV = [['overview', 'Overview'], ['identity', 'Identity'], ['schedule', 'Schedule'], ['participants', 'Participants'], ['signup', 'Signup setup'], ['teams', 'Teams / Draft'], ['board', 'Board'], ['wom', 'WOM'], ['review', 'Review'], ['final', 'Final review']];
-    const COMM = [['dashboard', 'Dashboard'], ['events', 'Events'], ['catalogue', 'Catalogue'], ['roles', 'Accounts / Roles'], ['audit', 'Audit']];
+    const COMM = [['dashboard', 'Dashboard'], ['events', 'Events'], ['catalogue', 'Catalogue'], ['accounts', 'Accounts'], ['audit', 'Audit']];
     const titles = {}; NAV.concat(COMM).forEach(([k, l]) => { titles[k] = l; });
     const nav = {};
     NAV.concat(COMM).forEach(([k, label]) => { nav[k] = { count: k === 'participants' ? String(T.navCount) : '', cls: S.nav === k ? 'is-current' : '', current: S.nav === k ? 'page' : undefined, tip: (S.sideOpen || this.isMobile()) ? undefined : label, go: () => { this.setState({ nav: k, menu: null }); this.closeMobileNav(false); } }; });
@@ -1466,7 +1466,7 @@ class Component extends DCLogic {
       collapseLabel: this.isMobile() ? 'Close navigation' : (S.sideOpen ? 'Collapse sidebar' : 'Expand sidebar'), collapseArrowCls: (S.sideOpen || this.isMobile()) ? '' : 'is-flip',
       toggleSide: () => { if (this.isMobile()) { this.closeMobileNav(); return; } this.setState(s => ({ sideOpen: !s.sideOpen, menu: null })); },
       isParticipants, isOther: !isParticipants, pageTitle: titles[S.nav] || 'Participants',
-      otherScope: ['dashboard', 'events', 'catalogue', 'roles', 'audit'].indexOf(S.nav) >= 0 ? 'Community-wide' : ev.name,
+      otherScope: ['dashboard', 'events', 'catalogue', 'accounts', 'audit'].indexOf(S.nav) >= 0 ? 'Community-wide' : ev.name,
       goParticipants: () => this.setState({ nav: 'participants' }), goEvents: () => this.setState({ nav: 'events' }),
       eventMenuOpen: !!(S.menu && S.menu.kind === 'event'), userMenuOpen: !!(S.menu && S.menu.kind === 'user'),
       openEventMenu: e => this.openMenu('event', e), openUserMenu: e => this.openMenu('user', e),

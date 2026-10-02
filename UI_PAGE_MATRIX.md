@@ -5,6 +5,40 @@ page-family, canonical-reference, exception, and approval record. A canonical
 reference demonstrates composition; it does not approve another page or the
 whole regression. Current status is explicit for every row.
 
+## New Admin design references — visually accepted, 2026-10-02
+
+The user reports inspecting every page and accepts the visual design of the following
+new Admin references: Participants, Dashboard, Events, Identity, Overview, Signup
+setup, Schedule, Teams / Draft, Board, Audit, Review, Final review, WOM and Accounts,
+as well as Catalogue. Reference
+files are the corresponding `.dc.html` pages in the frozen in-repository
+[Admin references](docs/references/admin-ui/README.md), synced unchanged from Claude's
+`/Users/christopher/Documents/BingoWebpage/docs/references/admin-ui/` directory.
+The full [design manifest](docs/references/admin-ui/reviews/2026-10-02/design-source.sha256)
+records the consolidated file identities; [evidence provenance](docs/references/admin-ui/reviews/2026-10-02/README.md)
+retains original review scope, hashes and historical wording.
+
+Shared search-input correction complete per the user's forwarded designer handoff:
+the clear X is centred, including Participants after entering search text. Claude
+reports publication/sync to canvas version 42 and equal stylesheet hashes across
+canvas, local and repository copies. Codex independently recorded the Documents
+copy of `ui/components.css` SHA-256 as
+`0334b7dd5c8683b9178c68f56a4d6164d65aa8e7b36b225d5dbf06cf6c3daba6`;
+canvas equality and interaction checks are designer-reported, not rerun by Codex.
+Canvas version **42**, published artifact version **1790965722-e7ad**, is the
+reported final design target; its complete in-repository file manifest is frozen
+in the linked checkpoint evidence. Comparison against the seven-page review manifest confirms
+all 13 other captured files are unchanged; only `ui/components.css` differs, by
+the added rule `.search .clear .ic{position:static;color:inherit}`. The review
+snapshot therefore predates this final search correction; do not describe it as
+a review of that exact final stylesheet. The active implementation worktree now
+contains the unchanged final design files; its newer functionality register was preserved.
+Claude's artifact design work is complete per the user. This acceptance covers
+the inspected references, not future unseen changes, unresolved functional choices,
+source-review defects, or the production application after integration. Technical
+corrections and integration/runtime verification remain separately tracked; existing
+production approvals below are not replaced by prototype acceptance.
+
 ### Scoped visual corrections approved — 2026-09-16
 
 The user explicitly approved all four corrections after checking the restarted

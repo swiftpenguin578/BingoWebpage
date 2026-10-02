@@ -1,0 +1,60 @@
+{
+  "checkout": "/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage",
+  "branch": "codex/participants-functionality",
+  "recorded_utc": "2026-10-02T16:30:45.169929+00:00",
+  "files": {
+    "AGENTS.md": "51e3d3c1cd13d0bdc69fe90ad0c5a8107f3316ed9e3b953123d885effdcba0b7",
+    "CURRENT_STATUS.md": "0e798b35c7b134bcd931b746eb1e67f340ba14df8a9249ac9acf6df493309079",
+    "DELIVERY_PLAN.md": "5d78ec21e75d0bbabe2551739ca14d50e677bdc3fc905b9a5af0d7d0fbed0187",
+    "PRODUCT_REQUIREMENTS.md": "04faf91f2c915cf20ff1dd991c0d71d737f53de22de55a8be362503b1ea8eb74",
+    "FUNCTIONAL_CONTRACTS.md": "7b1adf0eaa5a1f95fb383df23d3ba09d5a933a57483f02121b05ca504d687626",
+    "UI_SYSTEM.md": "afbb4bb1f02d2af668d1234b3eda41061b7ccaca79aec2b1638812ccb8369af1",
+    "docs/references/admin-ui/FUNCTIONALITY_CHANGES.md": "d51fcce48efe95fdf9d7e8e10739d83b359e09f9cc853f0765843d08305478e2",
+    "src/Bingo.Web/Pages/Admin/Events/WiseOldMan.cshtml.cs": "7dd584873b12e3dd8e087ae8d56e28320e491d7af7336be6f7c676e1955c5b94",
+    "src/Bingo.Infrastructure/Events/EventCompetitionSynchronizationService.cs": "ff7870c0b5adac51ef93d23749710589b434c3869f4906d9b4b0e41aa140930f",
+    "src/Bingo.Infrastructure/Events/EventCompetitionManagementService.cs": "356607c9412a1a5c09af234f537737d5423cdebb0ed8d470967d6c8bd44aaf27",
+    "src/Bingo.Domain/Integrations/WiseOldMan/EventCompetitionManagement.cs": "fa236f3204fd5f817c45c8ba7c2305e2cb17ed1b36b150cd19cc606a3f774ef6",
+    "src/Bingo.Web/Pages/Admin/Catalogue/Index.cshtml.cs": "a4918951c6bcecd8069ab9529d483e8b0d223202c7205c7d5affaa7117c8e269",
+    "src/Bingo.Web/Pages/Admin/Catalogue/Index.cshtml": "c2c757e54efadd538f4066e1535241de39597bdf7db3b694385ac3a88ecb051b",
+    "src/Bingo.Web/Pages/Admin/Catalogue/Index.Api.cs": "cc0bedeabdd838a26d9dad86a2673a31040e717b76d825fe11f72b91e3449796",
+    "src/Bingo.Application/Catalogue/DropRateParser.cs": "15e72199642eddfc09f3cc41989bdc6d10fdda72704d33233437a05fd6d9a84c",
+    "src/Bingo.Domain/Catalogue/SourceDrop.cs": "ac50fca9e758d5b82502590529a683b92bd5de2224810b38488f185abf09c0c5",
+    "src/Bingo.Domain/Catalogue/CatalogueItem.cs": "673260d3945df9cfee7caa4a559bbf962cd27af0e31628910a7032e1a96efb07",
+    "src/Bingo.Infrastructure/Boards/BoardEstimateService.cs": "3eca8b277e8d8a0dc1877495bba34acea81b335420674f60878fe024b6082089",
+    "src/Bingo.Web/Pages/Admin/Events/WiseOldMan.cshtml": "76f5b573b7f239f4d55e988dcb4abc8b3fb59994a06d56c7fe2a5711e81a3e20",
+    "src/Bingo.Infrastructure/WiseOldMan/EventCompetitionActivityProjection.cs": "ced4c9dbded50290855517a4857791553877e1af513bedf40163885ea02b3a7a",
+    "src/Bingo.Application/Events/IEventCompetitionManagementService.cs": "8a9ef6ef1106d5dd1e207937de835fce17873e029d7e74b7df88da513a1c344c"
+  },
+  "scope": "Read-only WOM/Catalogue reference comparison; identities recorded after directly relied-on source reads. No runtime checks. Existing AU01\u201307 and active AU08 preserved; Catalogue Index.cshtml.cs preexisting diff adds only using Bingo.Domain.Events.",
+  "end_recheck_utc": "2026-10-02T16:34:04.509965+00:00",
+  "end_recheck_hashes": {
+    "AGENTS.md": "51e3d3c1cd13d0bdc69fe90ad0c5a8107f3316ed9e3b953123d885effdcba0b7",
+    "CURRENT_STATUS.md": "0e798b35c7b134bcd931b746eb1e67f340ba14df8a9249ac9acf6df493309079",
+    "DELIVERY_PLAN.md": "ea5fea4625c9e27475599255e363f2cddc07e343bf32a7440f9d822b02daa00e",
+    "PRODUCT_REQUIREMENTS.md": "04faf91f2c915cf20ff1dd991c0d71d737f53de22de55a8be362503b1ea8eb74",
+    "FUNCTIONAL_CONTRACTS.md": "7b1adf0eaa5a1f95fb383df23d3ba09d5a933a57483f02121b05ca504d687626",
+    "UI_SYSTEM.md": "afbb4bb1f02d2af668d1234b3eda41061b7ccaca79aec2b1638812ccb8369af1",
+    "docs/references/admin-ui/FUNCTIONALITY_CHANGES.md": "d51fcce48efe95fdf9d7e8e10739d83b359e09f9cc853f0765843d08305478e2",
+    "src/Bingo.Web/Pages/Admin/Events/WiseOldMan.cshtml.cs": "7dd584873b12e3dd8e087ae8d56e28320e491d7af7336be6f7c676e1955c5b94",
+    "src/Bingo.Infrastructure/Events/EventCompetitionSynchronizationService.cs": "ff7870c0b5adac51ef93d23749710589b434c3869f4906d9b4b0e41aa140930f",
+    "src/Bingo.Infrastructure/Events/EventCompetitionManagementService.cs": "356607c9412a1a5c09af234f537737d5423cdebb0ed8d470967d6c8bd44aaf27",
+    "src/Bingo.Domain/Integrations/WiseOldMan/EventCompetitionManagement.cs": "fa236f3204fd5f817c45c8ba7c2305e2cb17ed1b36b150cd19cc606a3f774ef6",
+    "src/Bingo.Web/Pages/Admin/Catalogue/Index.cshtml.cs": "a4918951c6bcecd8069ab9529d483e8b0d223202c7205c7d5affaa7117c8e269",
+    "src/Bingo.Web/Pages/Admin/Catalogue/Index.cshtml": "c2c757e54efadd538f4066e1535241de39597bdf7db3b694385ac3a88ecb051b",
+    "src/Bingo.Web/Pages/Admin/Catalogue/Index.Api.cs": "cc0bedeabdd838a26d9dad86a2673a31040e717b76d825fe11f72b91e3449796",
+    "src/Bingo.Application/Catalogue/DropRateParser.cs": "15e72199642eddfc09f3cc41989bdc6d10fdda72704d33233437a05fd6d9a84c",
+    "src/Bingo.Domain/Catalogue/SourceDrop.cs": "ac50fca9e758d5b82502590529a683b92bd5de2224810b38488f185abf09c0c5",
+    "src/Bingo.Domain/Catalogue/CatalogueItem.cs": "673260d3945df9cfee7caa4a559bbf962cd27af0e31628910a7032e1a96efb07",
+    "src/Bingo.Infrastructure/Boards/BoardEstimateService.cs": "3eca8b277e8d8a0dc1877495bba34acea81b335420674f60878fe024b6082089",
+    "src/Bingo.Web/Pages/Admin/Events/WiseOldMan.cshtml": "76f5b573b7f239f4d55e988dcb4abc8b3fb59994a06d56c7fe2a5711e81a3e20",
+    "src/Bingo.Infrastructure/WiseOldMan/EventCompetitionActivityProjection.cs": "ced4c9dbded50290855517a4857791553877e1af513bedf40163885ea02b3a7a",
+    "src/Bingo.Application/Events/IEventCompetitionManagementService.cs": "8a9ef6ef1106d5dd1e207937de835fce17873e029d7e74b7df88da513a1c344c"
+  },
+  "drift": {
+    "DELIVERY_PLAN.md": {
+      "initial": "5d78ec21e75d0bbabe2551739ca14d50e677bdc3fc905b9a5af0d7d0fbed0187",
+      "final": "ea5fea4625c9e27475599255e363f2cddc07e343bf32a7440f9d822b02daa00e"
+    }
+  },
+  "drift_disposition": "Only DELIVERY_PLAN.md changed between identity captures during concurrent work. Directly relied-on production code remained unchanged. No AU08 or whole-checkout review performed."
+}

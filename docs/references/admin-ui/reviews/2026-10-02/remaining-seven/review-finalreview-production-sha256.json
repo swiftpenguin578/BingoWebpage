@@ -1,0 +1,55 @@
+{
+  "checkout": "/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage",
+  "branch": "codex/participants-functionality",
+  "recorded_utc": "2026-10-02T16:20:41.869304+00:00",
+  "files": {
+    "FUNCTIONAL_CONTRACTS.md": "29632dab13e6a59590c741dfe780ae17f74897793ab9ee5d41fc75a69ffca604",
+    "PRODUCT_REQUIREMENTS.md": "b7926f62661f93004d5881985bebe06fb900086e32df26a30908f3c2b17b8b5c",
+    "UI_SYSTEM.md": "afbb4bb1f02d2af668d1234b3eda41061b7ccaca79aec2b1638812ccb8369af1",
+    "docs/references/admin-ui/FUNCTIONALITY_CHANGES.md": "db1ed192da5ef5f2dff7d32ddcef411f8a109d8485654ae0659e7cc885eb0b2b",
+    "src/Bingo.Web/Pages/Admin/Review/Index.cshtml.cs": "0e52be43a5e43207bf60eda7d3da40495a938ab267dcc796488b5435298b9377",
+    "src/Bingo.Web/Pages/Admin/Review/Details.cshtml.cs": "cdb27195a5ced365fe7b34f034d84c1d60d9b42e216567c335632a9491340596",
+    "src/Bingo.Web/Pages/Admin/Review/Details.cshtml": "cb58b8549cfa5d7489a272adbae2420d8bb03d8b88c626edd6b8d9219c05ca27",
+    "src/Bingo.Web/Pages/Admin/Events/Finalize.cshtml.cs": "d828ea642146154a9fd50633d24a795fc4c3963e8411435b7d699dedac425791",
+    "src/Bingo.Application/Events/IEventFinalizationService.cs": "02acf65b7598d7459b866623fff0dc57066997025e79c84ff6b70f9c8bfe6a48",
+    "src/Bingo.Application/Boards/PublicProgressCalculator.cs": "69f7575f1cb3894eda6f73fb32e93cb4ddae47d3a390636c4daee21f0e56f699",
+    "src/Bingo.Infrastructure/Evidence/SubmissionService.cs": "67e855768b368040005af56acdd418942d562e92498825c7cdc8930224ff70ef",
+    "src/Bingo.Infrastructure/Evidence/EvidenceAuthority.cs": "3c93539a65c41b1a43aee2ed1bed347fb0c20353f09d207eb1e6fbbec5b0903f",
+    "src/Bingo.Infrastructure/Events/EventFinalizationService.cs": "4afc4ff5b13d813e4ab2bd2f2b6421feec3ba5c0cec6ae76b3afa9263cdc1fa9",
+    "src/Bingo.Domain/Events/BingoEvent.cs": "41dc68ec0c8d219566e42622d5df84b0381154cbf4236ffc92d09b8946be4012",
+    "src/Bingo.Web/wwwroot/js/public-evidence.js": "53a5d90769142163d44ae65c41ab4ef17f002962a4e8df37c29ebfbbba367c53"
+  },
+  "end_recheck_utc": "2026-10-02T16:27:24.536683+00:00",
+  "end_recheck_hashes": {
+    "FUNCTIONAL_CONTRACTS.md": "7b1adf0eaa5a1f95fb383df23d3ba09d5a933a57483f02121b05ca504d687626",
+    "PRODUCT_REQUIREMENTS.md": "04faf91f2c915cf20ff1dd991c0d71d737f53de22de55a8be362503b1ea8eb74",
+    "UI_SYSTEM.md": "afbb4bb1f02d2af668d1234b3eda41061b7ccaca79aec2b1638812ccb8369af1",
+    "docs/references/admin-ui/FUNCTIONALITY_CHANGES.md": "d51fcce48efe95fdf9d7e8e10739d83b359e09f9cc853f0765843d08305478e2",
+    "src/Bingo.Web/Pages/Admin/Review/Index.cshtml.cs": "0e52be43a5e43207bf60eda7d3da40495a938ab267dcc796488b5435298b9377",
+    "src/Bingo.Web/Pages/Admin/Review/Details.cshtml.cs": "cdb27195a5ced365fe7b34f034d84c1d60d9b42e216567c335632a9491340596",
+    "src/Bingo.Web/Pages/Admin/Review/Details.cshtml": "cb58b8549cfa5d7489a272adbae2420d8bb03d8b88c626edd6b8d9219c05ca27",
+    "src/Bingo.Web/Pages/Admin/Events/Finalize.cshtml.cs": "d828ea642146154a9fd50633d24a795fc4c3963e8411435b7d699dedac425791",
+    "src/Bingo.Application/Events/IEventFinalizationService.cs": "02acf65b7598d7459b866623fff0dc57066997025e79c84ff6b70f9c8bfe6a48",
+    "src/Bingo.Application/Boards/PublicProgressCalculator.cs": "69f7575f1cb3894eda6f73fb32e93cb4ddae47d3a390636c4daee21f0e56f699",
+    "src/Bingo.Infrastructure/Evidence/SubmissionService.cs": "67e855768b368040005af56acdd418942d562e92498825c7cdc8930224ff70ef",
+    "src/Bingo.Infrastructure/Evidence/EvidenceAuthority.cs": "3c93539a65c41b1a43aee2ed1bed347fb0c20353f09d207eb1e6fbbec5b0903f",
+    "src/Bingo.Infrastructure/Events/EventFinalizationService.cs": "4afc4ff5b13d813e4ab2bd2f2b6421feec3ba5c0cec6ae76b3afa9263cdc1fa9",
+    "src/Bingo.Domain/Events/BingoEvent.cs": "41dc68ec0c8d219566e42622d5df84b0381154cbf4236ffc92d09b8946be4012",
+    "src/Bingo.Web/wwwroot/js/public-evidence.js": "53a5d90769142163d44ae65c41ab4ef17f002962a4e8df37c29ebfbbba367c53"
+  },
+  "drift": {
+    "FUNCTIONAL_CONTRACTS.md": {
+      "initial": "29632dab13e6a59590c741dfe780ae17f74897793ab9ee5d41fc75a69ffca604",
+      "final": "7b1adf0eaa5a1f95fb383df23d3ba09d5a933a57483f02121b05ca504d687626"
+    },
+    "PRODUCT_REQUIREMENTS.md": {
+      "initial": "b7926f62661f93004d5881985bebe06fb900086e32df26a30908f3c2b17b8b5c",
+      "final": "04faf91f2c915cf20ff1dd991c0d71d737f53de22de55a8be362503b1ea8eb74"
+    },
+    "docs/references/admin-ui/FUNCTIONALITY_CHANGES.md": {
+      "initial": "db1ed192da5ef5f2dff7d32ddcef411f8a109d8485654ae0659e7cc885eb0b2b",
+      "final": "d51fcce48efe95fdf9d7e8e10739d83b359e09f9cc853f0765843d08305478e2"
+    }
+  },
+  "drift_disposition": "Directly relied-on production code unchanged. Concurrent AU08 authority-document changes were detected and bounded relevant Review/FinalReview clauses rechecked; their governing semantics remained unchanged. Not a reference finding or an AU08 review."
+}
