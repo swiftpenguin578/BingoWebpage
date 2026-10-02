@@ -1,0 +1,890 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Schedule · DK Legacy Admin</title>
+<script src="./vendor/react.js"></script>
+<script src="./vendor/react-dom.js"></script>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ui/tokens.css">
+<link rel="stylesheet" href="ui/components.css">
+<script src="ui/behavior.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&amp;family=Geist+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+/* Schedule page only. Shared tokens, components and behaviour: ui/tokens.css, ui/components.css, ui/behavior.js */
+.sc-owners{color:var(--dk-text-3)}
+.sc-owners .text-btn{color:var(--dk-text-2);font-weight:500}
+.sc-owners .text-btn:hover{color:var(--dk-text)}
+.sc-pair{display:grid;grid-template-columns:repeat(2,minmax(0,300px));gap:20px 28px}
+.sc-pair.is-single{grid-template-columns:minmax(0,300px)}
+.sc-field .ro-value{min-height:34px;display:flex;align-items:center;font-variant-numeric:tabular-nums}
+.sc-field .ro-value.is-empty{color:var(--dk-text-3)}
+.sc-warn{display:flex;align-items:flex-start;gap:6px;margin-top:6px;font-size:var(--dk-fs-small);color:var(--dk-warning-fg);line-height:1.45}
+.sc-warn .ic{width:13px;height:13px;margin-top:2px;flex:none}
+.sc-derived{display:flex;align-items:center;gap:8px;margin-top:18px;padding:10px 12px;border-radius:var(--dk-radius-lg);background:var(--dk-surface-2);border:1px solid var(--dk-border-subtle);font-size:var(--dk-fs-control-sm);color:var(--dk-text-2)}
+.sc-derived .ic{width:14px;height:14px;color:var(--dk-text-3);flex:none}
+.sc-derived b{color:var(--dk-text);font-weight:600;font-variant-numeric:tabular-nums}
+.sc-reason{min-height:92px}
+.sk-block{padding:var(--dk-space-5) var(--dk-space-6);border-bottom:1px solid var(--dk-border-subtle)}
+@media (max-width:720px){.sc-pair{grid-template-columns:minmax(0,1fr)}}
+/* Prototype-only: simulated browser bar (same as the Events artboard; not part of the product UI) */
+.proto-bar{position:fixed;left:12px;bottom:12px;z-index:calc(var(--dk-z-toast) - 1);display:flex;align-items:center;gap:1px;max-width:min(620px,calc(100vw - 24px));padding:3px 12px 3px 3px;border-radius:var(--dk-radius-pill);background:var(--dk-surface-raised);border:1px dashed var(--dk-border-strong);box-shadow:var(--dk-shadow-sm);font-size:var(--dk-fs-meta);color:var(--dk-text-3)}
+.proto-bar .icon-btn{width:26px;height:26px;border-radius:50%}
+.proto-bar .icon-btn .ic{width:14px;height:14px}
+.proto-tag{margin:0 8px 0 4px;font-size:var(--dk-fs-caption);letter-spacing:.02em;white-space:nowrap}
+.proto-url{font-family:var(--dk-font-mono);font-size:var(--dk-fs-meta);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--dk-text-2);min-width:0}
+@media (min-width:1200px){.page .card.form-card{margin-bottom:40px}}
+@media (max-width:640px){.proto-bar{display:none}.form-bar .btn-primary{flex:1}}
+</style>
+</helmet>
+<div class="app dk-theme {{themeClass}}" id="app">
+
+<aside class="side {{sideCls}}" id="sidebar" aria-label="Administration" onKeyDown="{{sideKey}}">
+  <div class="side-top">
+    <button class="account-btn" id="user-btn" aria-haspopup="menu" aria-expanded="{{userMenuOpen}}" title="{{sideTip}}" onClick="{{openUserMenu}}">
+      <span class="logo" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M3 12.5V5.2L8 2.5l5 2.7v7.3"/><path d="M6 12.5V8.5h4v4"/></svg></span>
+      <span class="brand-text"><span class="brand-name">Iron Pact<svg class="ic" viewBox="0 0 16 16"><path d="M4.5 6.5 8 10l3.5-3.5"/></svg></span><span class="brand-sub">Administrator</span></span>
+    </button>
+    <button class="icon-btn collapse-btn" aria-label="{{collapseLabel}}" title="{{collapseLabel}}" aria-expanded="{{sideOpen}}" onClick="{{toggleSide}}"><svg class="ic" viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="11" height="11" rx="1.5"/><path d="M6 2.5v11"/><path class="{{collapseArrowCls}}" d="M10.6 6.2 8.8 8l1.8 1.8"/></svg></button>
+  </div>
+
+  <nav class="nav" aria-label="Administration">
+    <div class="nav-label">Administration</div>
+    <button class="nav-item {{nav.dashboard.cls}}" aria-current="{{nav.dashboard.current}}" title="{{nav.dashboard.tip}}" onClick="{{nav.dashboard.go}}"><svg class="ic" viewBox="0 0 16 16"><path d="M2.5 12a5.5 5.5 0 1 1 11 0"/><path d="M8 12l2.6-3.4"/><path d="M8 12h.01"/></svg><span class="nav-text">Dashboard</span><span class="nav-count">{{nav.dashboard.count}}</span></button>
+    <button class="nav-item {{nav.events.cls}}" aria-current="{{nav.events.current}}" title="{{nav.events.tip}}" onClick="{{nav.events.go}}"><svg class="ic" viewBox="0 0 16 16"><rect x="2.5" y="3.5" width="11" height="10" rx="1.5"/><path d="M2.5 6.5h11M5.5 2v3M10.5 2v3"/></svg><span class="nav-text">Events</span><span class="nav-count">{{nav.events.count}}</span></button>
+    <button class="nav-item {{nav.catalogue.cls}}" aria-current="{{nav.catalogue.current}}" title="{{nav.catalogue.tip}}" onClick="{{nav.catalogue.go}}"><svg class="ic" viewBox="0 0 16 16"><path d="M8 2.5 2.5 5.5 8 8.5l5.5-3z"/><path d="M2.5 8.2 8 11.2l5.5-3M2.5 10.8 8 13.8l5.5-3"/></svg><span class="nav-text">Catalogue</span><span class="nav-count">{{nav.catalogue.count}}</span></button>
+    <button class="nav-item {{nav.roles.cls}}" aria-current="{{nav.roles.current}}" title="{{nav.roles.tip}}" onClick="{{nav.roles.go}}"><svg class="ic" viewBox="0 0 16 16"><rect x="3" y="2.5" width="10" height="11" rx="1.5"/><circle cx="8" cy="7" r="1.8"/><path d="M5.3 11.5c.5-1.3 1.5-2 2.7-2s2.2.7 2.7 2"/></svg><span class="nav-text">Accounts / Roles</span><span class="nav-count">{{nav.roles.count}}</span></button>
+    <button class="nav-item {{nav.audit.cls}}" aria-current="{{nav.audit.current}}" title="{{nav.audit.tip}}" onClick="{{nav.audit.go}}"><svg class="ic" viewBox="0 0 16 16"><path d="M4 2.5h8v11H4z"/><path d="M6 5.5h4M6 8h4M6 10.5h2.5"/></svg><span class="nav-text">Audit</span><span class="nav-count">{{nav.audit.count}}</span></button>
+  </nav>
+
+  <div class="side-rule" aria-hidden="true"></div>
+
+  <nav class="nav" aria-label="Event">
+    <button class="event-switch" id="event-switch" aria-haspopup="menu" aria-expanded="{{eventMenuOpen}}" title="{{evTip}}" onClick="{{openEventMenu}}">
+      <svg class="ic ev-ic" viewBox="0 0 16 16"><rect x="2.5" y="3.5" width="11" height="10" rx="1.5"/><path d="M2.5 6.5h11M5.5 2v3M10.5 2v3"/></svg>
+      <div class="ev-text" style="flex: 1; min-width: 0">
+        <div class="ev-lbl">Event</div>
+        <div class="ev-name">{{ev.name}}</div>
+        <div class="ev-meta"><span class="dot {{ev.toneCls}}"></span><span class="ev-meta-text" title="{{ev.stage}} · {{ev.when}}">{{ev.stage}} · {{ev.when}}</span></div>
+      </div>
+      <svg class="ic ev-chev" viewBox="0 0 16 16"><path d="M4.5 6.5 8 10l3.5-3.5"/></svg>
+    </button>
+    <div style="height: 8px"></div>
+    <button class="nav-item {{nav.overview.cls}}" aria-current="{{nav.overview.current}}" title="{{nav.overview.tip}}" onClick="{{nav.overview.go}}"><svg class="ic" viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="4.5" height="4.5" rx="1"/><rect x="9" y="2.5" width="4.5" height="4.5" rx="1"/><rect x="2.5" y="9" width="4.5" height="4.5" rx="1"/><rect x="9" y="9" width="4.5" height="4.5" rx="1"/></svg><span class="nav-text">Overview</span><span class="nav-count">{{nav.overview.count}}</span></button>
+    <button class="nav-item {{nav.identity.cls}}" aria-current="{{nav.identity.current}}" title="{{nav.identity.tip}}" onClick="{{nav.identity.go}}"><svg class="ic" viewBox="0 0 16 16"><path d="M3.5 14V2.5M3.5 3h8l-1.5 3 1.5 3h-8"/></svg><span class="nav-text">Identity</span><span class="nav-count">{{nav.identity.count}}</span></button>
+    <button class="nav-item {{nav.schedule.cls}}" aria-current="{{nav.schedule.current}}" title="{{nav.schedule.tip}}" onClick="{{nav.schedule.go}}"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5"/><path d="M8 5v3l2 1.5"/></svg><span class="nav-text">Schedule</span><span class="nav-count">{{nav.schedule.count}}</span></button>
+    <button class="nav-item {{nav.participants.cls}}" aria-current="{{nav.participants.current}}" title="{{nav.participants.tip}}" onClick="{{nav.participants.go}}"><svg class="ic" viewBox="0 0 16 16"><circle cx="6" cy="5.8" r="2.4"/><path d="M1.8 13.3c.5-2.4 2.2-3.5 4.2-3.5s3.7 1.1 4.2 3.5"/><path d="M10.6 3.7a2.3 2.3 0 0 1 0 4.3M11.9 10.1c1.2.5 2 1.5 2.3 3.2"/></svg><span class="nav-text">Participants</span><span class="nav-count">{{nav.participants.count}}</span></button>
+    <button class="nav-item {{nav.signup.cls}}" aria-current="{{nav.signup.current}}" title="{{nav.signup.tip}}" onClick="{{nav.signup.go}}"><svg class="ic" viewBox="0 0 16 16"><rect x="3.5" y="3" width="9" height="11" rx="1.5"/><path d="M6 3V2h4v1M6 7h4M6 9.5h4M6 12h2"/></svg><span class="nav-text">Signup setup</span><span class="nav-count">{{nav.signup.count}}</span></button>
+    <button class="nav-item {{nav.teams.cls}}" aria-current="{{nav.teams.current}}" title="{{nav.teams.tip}}" onClick="{{nav.teams.go}}"><svg class="ic" viewBox="0 0 16 16"><rect x="6" y="2" width="4" height="3" rx=".8"/><rect x="2" y="11" width="4" height="3" rx=".8"/><rect x="10" y="11" width="4" height="3" rx=".8"/><path d="M8 5v3M4 11V8h8v3"/></svg><span class="nav-text">Teams / Draft</span><span class="nav-count">{{nav.teams.count}}</span></button>
+    <button class="nav-item {{nav.board.cls}}" aria-current="{{nav.board.current}}" title="{{nav.board.tip}}" onClick="{{nav.board.go}}"><svg class="ic" viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="11" height="11" rx="1.5"/><path d="M6.2 2.5v11M9.8 2.5v11M2.5 6.2h11M2.5 9.8h11"/></svg><span class="nav-text">Board</span><span class="nav-count">{{nav.board.count}}</span></button>
+    <button class="nav-item {{nav.wom.cls}}" aria-current="{{nav.wom.current}}" title="{{nav.wom.tip}}" onClick="{{nav.wom.go}}"><svg class="ic" viewBox="0 0 16 16"><path d="M2.5 13.5h11"/><path d="M4 11l3-3.5 2.2 2L12.5 5"/></svg><span class="nav-text">WOM</span><span class="nav-count">{{nav.wom.count}}</span></button>
+    <button class="nav-item {{nav.review.cls}}" aria-current="{{nav.review.current}}" title="{{nav.review.tip}}" onClick="{{nav.review.go}}"><svg class="ic" viewBox="0 0 16 16"><path d="M2.5 9 4.3 3.5h7.4L13.5 9v4.5h-11z"/><path d="M2.5 9h3l.8 1.5h3.4l.8-1.5h3"/></svg><span class="nav-text">Review</span><span class="nav-count">{{nav.review.count}}</span></button>
+    <button class="nav-item {{nav.final.cls}}" aria-current="{{nav.final.current}}" title="{{nav.final.tip}}" onClick="{{nav.final.go}}"><svg class="ic" viewBox="0 0 16 16"><path d="M2.5 4l1 1 2-2M2.5 9l1 1 2-2"/><path d="M7.5 4.5h6M7.5 9.5h6M7.5 13h6"/></svg><span class="nav-text">Final review</span><span class="nav-count">{{nav.final.count}}</span></button>
+  </nav>
+</aside>
+
+<div class="nav-scrim {{navScrimCls}}" onClick="{{closeMobileNav}}"></div>
+<div class="main">
+  <header class="topbar">
+    <button class="icon-btn menu-toggle" id="menu-toggle" aria-label="Open navigation" aria-controls="sidebar" aria-expanded="{{mobileNav}}" onClick="{{openMobileNav}}"><svg class="ic" viewBox="0 0 16 16"><path d="M2.5 4.5h11M2.5 8h11M2.5 11.5h11"/></svg></button>
+    <div class="crumbs">
+      <button class="crumb-btn" onClick="{{crumbEvents}}">Events</button>
+      <sc-if value="{{crumb.hasEvent}}" hint-placeholder-val="{{true}}"><span class="crumb-sep">/</span><span class="crumb-mid">{{crumb.event}}</span></sc-if>
+      <span class="crumb-sep">/</span>
+      <span class="crumb-cur">{{crumb.page}}</span>
+    </div>
+    <div class="spacer"></div>
+    <div class="theme-seg" role="radiogroup" aria-label="Theme">
+      <label class="theme-opt {{lightCls}}" title="Light theme"><input class="sr" type="radio" name="theme" checked="{{isLight}}" onChange="{{setLight}}"><span class="sr">Light theme</span><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="2.8"/><path d="M8 1.8v1.4M8 12.8v1.4M1.8 8h1.4M12.8 8h1.4M3.6 3.6l1 1M11.4 11.4l1 1M3.6 12.4l1-1M11.4 4.6l1-1"/></svg></label>
+      <label class="theme-opt {{darkCls}}" title="Dark theme"><input class="sr" type="radio" name="theme" checked="{{isDark}}" onChange="{{setDark}}"><span class="sr">Dark theme</span><svg class="ic" viewBox="0 0 16 16"><path d="M13 9.6A5.4 5.4 0 0 1 6.4 3 5.4 5.4 0 1 0 13 9.6z"/></svg></label>
+    </div>
+  </header>
+
+  <div class="scroller {{scrollCls}}" id="scroller">
+
+    <sc-if value="{{isPage}}" hint-placeholder-val="{{true}}">
+    <div class="page">
+      <div class="page-head">
+        <div style="min-width: 0">
+          <h1 class="h1" id="page-h1" tabindex="-1">Schedule</h1>
+          <p class="summary"><span>{{summary}}</span><span class="sc-owners">Times are in {{tzLabel}}; change the timezone on <button class="text-btn" onClick="{{goIdentity}}">Identity</button>. Opening, closing and starting by hand happen on <button class="text-btn" onClick="{{goOverview}}">Overview</button>.</span></p>
+        </div>
+      </div>
+
+      <sc-if value="{{lockBanner.show}}" hint-placeholder-val="{{false}}">
+        <div class="banner is-info page-banner form-card" id="lock-banner"><svg class="ic" viewBox="0 0 16 16"><rect x="3.5" y="7" width="9" height="6.5" rx="1.5"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/></svg><span class="grow">{{lockBanner.text}}</span></div>
+      </sc-if>
+
+      <sc-if value="{{loading}}" hint-placeholder-val="{{false}}">
+        <div class="card form-card" aria-busy="true" aria-label="Loading schedule">
+          <div class="sk-block"><div class="sk" style="width: 18%"></div><div style="display: flex; gap: 28px; margin-top: 16px"><div class="sk" style="width: 260px; height: 34px; border-radius: 8px"></div><div class="sk" style="width: 260px; height: 34px; border-radius: 8px"></div></div></div>
+          <div class="sk-block"><div class="sk" style="width: 14%"></div><div class="sk" style="width: 260px; height: 34px; margin-top: 16px; border-radius: 8px"></div></div>
+          <div class="sk-block" style="border-bottom: 0"><div class="sk" style="width: 16%"></div><div style="display: flex; gap: 28px; margin-top: 16px"><div class="sk" style="width: 260px; height: 34px; border-radius: 8px"></div><div class="sk" style="width: 260px; height: 34px; border-radius: 8px"></div></div></div>
+        </div>
+      </sc-if>
+      <sc-if value="{{loadError}}" hint-placeholder-val="{{false}}">
+        <div class="card form-card">
+          <div class="empty is-error">
+            <div class="empty-ic"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 5v3.5M8 11h.01"/></svg></div>
+            <div class="empty-title">Couldn’t load the schedule</div>
+            <div class="empty-text">Check your connection and try again. Nothing was changed.</div>
+            <button class="btn" id="retry-btn" onClick="{{retry}}">Try again</button>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ready}}" hint-placeholder-val="{{true}}">
+      <div class="card form-card fade-in" role="form" aria-labelledby="page-h1">
+        <sc-if value="{{fb.show}}" hint-placeholder-val="{{false}}">
+          <div class="form-banners">
+            <sc-if value="{{fb.hasBanner}}" hint-placeholder-val="{{false}}"><div class="banner {{fb.cls}}" role="alert" id="form-banner" tabindex="-1"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 4.8v3.6M8 11h.01"/></svg><span class="grow"><b>{{fb.title}}</b> {{fb.text}}</span></div></sc-if>
+            <sc-if value="{{fb.hasErrSummary}}" hint-placeholder-val="{{false}}"><div class="banner is-error" role="alert"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 5v3.5M8 11h.01"/></svg><span class="grow">{{fb.errSummary}}</span></div></sc-if>
+          </div>
+        </sc-if>
+
+        <sc-for list="{{sections}}" as="sec" hint-placeholder-count="3">
+          <section class="form-sec {{sec.cls}}" aria-labelledby="{{sec.titleId}}">
+            <div class="form-sec-head">
+              <h2 class="form-sec-title" id="{{sec.titleId}}">{{sec.title}}</h2>
+              <p class="form-sec-sub">{{sec.sub}}</p>
+            </div>
+            <div class="sc-pair {{sec.pairCls}}">
+              <sc-for list="{{sec.fields}}" as="fd" hint-placeholder-count="2">
+                <div class="field sc-field" id="{{fd.wrapId}}">
+                  <div class="lbl" id="{{fd.labelId}}">{{fd.label}}<sc-if value="{{fd.optional}}" hint-placeholder-val="{{false}}"> <span class="opt">· optional</span></sc-if></div>
+                  <sc-if value="{{fd.editable}}" hint-placeholder-val="{{true}}">
+                      <div class="dtp {{fd.pk.cls}}" id="{{fd.pk.id}}-field" role="group" aria-labelledby="{{fd.pk.labelId}}" aria-describedby="{{fd.pk.describedBy}}">
+                        <input class="dtp-date" id="{{fd.pk.id}}-date" value="{{fd.pk.dateText}}" onChange="{{fd.pk.onDate}}" onBlur="{{fd.pk.onBlur}}" onKeyDown="{{fd.pk.onKey}}" disabled="{{fd.pk.disabled}}" readOnly="{{fd.pk.readOnly}}" placeholder="dd mmm yyyy" autocomplete="off" spellcheck="false" aria-label="{{fd.pk.label}}, date" aria-invalid="{{fd.pk.invalid}}" aria-describedby="{{fd.pk.describedBy}}">
+                        <span class="dtp-sep" aria-hidden="true"></span>
+                        <input class="dtp-time" id="{{fd.pk.id}}-time" value="{{fd.pk.timeText}}" onChange="{{fd.pk.onTime}}" onBlur="{{fd.pk.onBlur}}" onKeyDown="{{fd.pk.onKey}}" disabled="{{fd.pk.disabled}}" readOnly="{{fd.pk.readOnly}}" placeholder="hh:mm" inputmode="numeric" autocomplete="off" aria-label="{{fd.pk.label}}, time (24-hour)" aria-invalid="{{fd.pk.invalid}}" aria-describedby="{{fd.pk.describedBy}}">
+                        <sc-if value="{{fd.pk.editable}}" hint-placeholder-val="{{true}}"><button class="icon-btn dtp-btn" id="{{fd.pk.id}}-btn" type="button" aria-label="{{fd.pk.btnLabel}}" title="Calendar" aria-haspopup="dialog" aria-expanded="{{fd.pk.expanded}}" onClick="{{fd.pk.toggle}}"><svg class="ic" viewBox="0 0 16 16"><rect x="2.5" y="3.5" width="11" height="10" rx="1.5"/><path d="M2.5 6.5h11M5.5 2v3M10.5 2v3"/></svg></button></sc-if>
+                        <sc-if value="{{fd.pk.open}}" hint-placeholder-val="{{false}}">
+                          <div class="dtp-pop {{fd.pk.popCls}}" id="{{fd.pk.id}}-pop" role="dialog" aria-label="{{fd.pk.label}}: choose date and time" style="left: {{fd.pk.x}}px; top: {{fd.pk.y}}px; width: {{fd.pk.w}}px" onKeyDown="{{fd.pk.popKey}}">
+                            <div class="dtp-main">
+                              <div class="dtp-cal">
+                                <div class="dtp-head">
+                                  <button class="icon-btn" type="button" aria-label="Previous month" onClick="{{fd.pk.prev}}"><svg class="ic" viewBox="0 0 16 16"><path d="M10 4 6 8l4 4"/></svg></button>
+                                  <div class="dtp-month" id="{{fd.pk.id}}-month" aria-live="polite">{{fd.pk.monthLabel}}</div>
+                                  <button class="icon-btn" type="button" aria-label="Next month" onClick="{{fd.pk.next}}"><svg class="ic" viewBox="0 0 16 16"><path d="M6 4l4 4-4 4"/></svg></button>
+                                </div>
+                                <table class="dtp-grid" role="grid" aria-labelledby="{{fd.pk.id}}-month">
+                                  <thead><tr><sc-for list="{{fd.pk.weekdays}}" as="wd" hint-placeholder-count="7"><th scope="col" abbr="{{wd.long}}">{{wd.short}}</th></sc-for></tr></thead>
+                                  <tbody><sc-for list="{{fd.pk.weeks}}" as="wk" hint-placeholder-count="6"><tr><sc-for list="{{wk.days}}" as="dy" hint-placeholder-count="7"><td role="gridcell" aria-selected="{{dy.sel}}"><button class="dtp-day {{dy.cls}}" id="{{dy.id}}" type="button" tabindex="{{dy.ti}}" aria-label="{{dy.aria}}" aria-current="{{dy.cur}}" aria-disabled="{{dy.dis}}" onClick="{{dy.pick}}">{{dy.n}}</button></td></sc-for></tr></sc-for></tbody>
+                                </table>
+                              </div>
+                              <div class="dtp-times">
+                                <div class="dtp-tcol"><div class="dtp-tlbl" id="{{fd.pk.id}}-hl">Hour</div><div class="dtp-col" id="{{fd.pk.id}}-hours" role="listbox" aria-labelledby="{{fd.pk.id}}-hl"><sc-for list="{{fd.pk.hours}}" as="ho" hint-placeholder-count="6"><button class="dtp-opt {{ho.cls}}" id="{{ho.id}}" type="button" role="option" aria-selected="{{ho.sel}}" tabindex="{{ho.ti}}" onClick="{{ho.pick}}">{{ho.label}}</button></sc-for></div></div>
+                                <div class="dtp-tcol"><div class="dtp-tlbl" id="{{fd.pk.id}}-ml">Minute</div><div class="dtp-col" id="{{fd.pk.id}}-mins" role="listbox" aria-labelledby="{{fd.pk.id}}-ml"><sc-for list="{{fd.pk.mins}}" as="mo" hint-placeholder-count="6"><button class="dtp-opt {{mo.cls}}" id="{{mo.id}}" type="button" role="option" aria-selected="{{mo.sel}}" tabindex="{{mo.ti}}" onClick="{{mo.pick}}">{{mo.label}}</button></sc-for></div></div>
+                              </div>
+                            </div>
+                            <div class="dtp-foot">
+                              <button class="btn btn-sm btn-quiet" type="button" onClick="{{fd.pk.today}}" disabled="{{fd.pk.todayDisabled}}">Today</button>
+                              <sc-if value="{{fd.pk.clearable}}" hint-placeholder-val="{{false}}"><button class="btn btn-sm btn-quiet" type="button" onClick="{{fd.pk.clear}}">Clear</button></sc-if>
+                              <span class="spacer"></span>
+                              <button class="btn btn-sm btn-primary" type="button" id="{{fd.pk.id}}-done" onClick="{{fd.pk.done}}">Done</button>
+                            </div>
+                          </div>
+                        </sc-if>
+                      </div>
+                      <sc-if value="{{fd.pk.hasTypingErr}}" hint-placeholder-val="{{false}}"><div class="field-err" id="{{fd.pk.typingErrId}}"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 5v3.5M8 11h.01"/></svg>{{fd.pk.typingErr}}</div></sc-if>
+                  </sc-if>
+                  <sc-if value="{{fd.readOnly}}" hint-placeholder-val="{{false}}"><div class="ro-value {{fd.roCls}}" aria-labelledby="{{fd.labelId}}">{{fd.ro}}</div></sc-if>
+                  <sc-if value="{{fd.hasErr}}" hint-placeholder-val="{{false}}"><div class="field-err" id="{{fd.errId}}"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 5v3.5M8 11h.01"/></svg>{{fd.err}}</div></sc-if>
+                  <sc-if value="{{fd.hasStale}}" hint-placeholder-val="{{false}}"><div class="field-note" id="{{fd.staleId}}"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 7.2v3.8M8 5h.01"/></svg><span>{{fd.staleText}} <sc-if value="{{fd.canUseLatest}}" hint-placeholder-val="{{false}}"><button class="text-btn" onClick="{{fd.useLatest}}" disabled="{{fd.lockedNow}}">Use theirs</button></sc-if></span></div></sc-if>
+                  <sc-if value="{{fd.hasWarn}}" hint-placeholder-val="{{false}}"><div class="sc-warn" id="{{fd.warnId}}"><svg class="ic" viewBox="0 0 16 16"><path d="M8 2.5 14 13H2z"/><path d="M8 6.5v3M8 11.2h.01"/></svg><span>{{fd.warn}}</span></div></sc-if>
+                  <sc-if value="{{fd.hasLock}}" hint-placeholder-val="{{false}}"><div class="field-lock" id="{{fd.lockId}}"><svg class="ic" viewBox="0 0 16 16"><rect x="3.5" y="7" width="9" height="6.5" rx="1.5"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/></svg>{{fd.lock}}</div></sc-if>
+                  <sc-if value="{{fd.hasHint}}" hint-placeholder-val="{{false}}"><div class="field-hint" id="{{fd.hintId}}">{{fd.hint}}</div></sc-if>
+                </div>
+              </sc-for>
+            </div>
+            <sc-if value="{{sec.hasDerived}}" hint-placeholder-val="{{false}}"><div class="sc-derived" id="derived-uploads"><svg class="ic" viewBox="0 0 16 16"><path d="M8 10.5V3M5 6l3-3 3 3"/><path d="M3 11.5v1a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1v-1"/></svg><span>{{sec.derivedLead}} <b>{{sec.derivedValue}}</b>{{sec.derivedTail}}</span></div></sc-if>
+          </section>
+        </sc-for>
+
+        <sc-if value="{{bar.show}}" hint-placeholder-val="{{true}}">
+          <div class="form-bar">
+            <sc-if value="{{bar.dirty}}" hint-placeholder-val="{{false}}"><span class="dirty" role="status"><span class="dot"></span>Unsaved changes</span></sc-if>
+            <sc-if value="{{bar.saved}}" hint-placeholder-val="{{false}}"><span class="saved-note" role="status"><svg class="ic" viewBox="0 0 16 16"><path d="M3.8 8.4 6.6 11.2 12.2 5"/></svg>{{bar.savedText}}</span></sc-if>
+            <button class="btn btn-primary {{bar.busyCls}}" id="save-btn" onClick="{{bar.save}}" disabled="{{bar.busy}}" aria-disabled="{{bar.inert}}" title="{{bar.title}}" style="min-width: 136px"><sc-if value="{{bar.busy}}" hint-placeholder-val="{{false}}"><span class="spin"></span></sc-if>{{bar.label}}</button>
+          </div>
+        </sc-if>
+      </div>
+      </sc-if>
+    </div>
+    </sc-if>
+
+    <sc-if value="{{isOther}}" hint-placeholder-val="{{false}}">
+      <div class="page">
+        <div class="page-head"><div><h1 class="h1" id="page-h1" tabindex="-1">{{otherTitle}}</h1><p class="summary"><span>{{otherScope}}</span></p></div></div>
+        <div class="card">
+          <div class="empty ph-card">
+            <div class="empty-ic"><svg class="ic" viewBox="0 0 16 16"><rect x="2.5" y="3" width="11" height="10" rx="2"/><path d="M2.5 6h11"/></svg></div>
+            <div class="empty-title">{{otherTitle}} isn’t part of this artboard</div>
+            <div class="empty-text">{{otherText}}</div>
+            <button class="btn" onClick="{{backToPage}}"><svg class="ic" viewBox="0 0 16 16"><path d="M10 4 6 8l4 4"/></svg>Back</button>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+  </div>
+</div>
+
+<!-- menus -->
+<sc-if value="{{menu.show}}" hint-placeholder-val="{{false}}">
+  <div class="catcher" onClick="{{menu.close}}"></div>
+  <div class="menu {{menu.cls}}" id="menu" role="menu" aria-label="{{menu.label}}" style="left: {{menu.x}}px; top: {{menu.y}}px; width: {{menu.w}}px" onKeyDown="{{menu.onKey}}">
+    <sc-for list="{{menu.items}}" as="it" hint-placeholder-count="4">
+      <sc-if value="{{it.isHeader}}" hint-placeholder-val="{{false}}"><div class="menu-head" role="presentation"><b>{{it.label}}</b>{{it.hint}}</div></sc-if>
+      <sc-if value="{{it.isSep}}" hint-placeholder-val="{{false}}"><div class="menu-sep" role="separator"></div></sc-if>
+      <sc-if value="{{it.isItem}}" hint-placeholder-val="{{true}}">
+        <button class="menu-item {{it.cls}}" role="{{it.role}}" aria-checked="{{it.checked}}" disabled="{{it.disabled}}" title="{{it.title}}" onClick="{{it.run}}">
+          <span class="grow">{{it.label}}</span>
+          <span class="menu-hint">{{it.hint}}</span>
+          <sc-if value="{{it.showCheck}}" hint-placeholder-val="{{false}}"><svg class="ic menu-check" viewBox="0 0 16 16"><path d="M3.8 8.4 6.6 11.2 12.2 5"/></svg></sc-if>
+        </button>
+      </sc-if>
+    </sc-for>
+  </div>
+</sc-if>
+
+<!-- schedule confirmation: before/after in the event timezone; a Live end change also needs a reason -->
+<sc-if value="{{cf.show}}" hint-placeholder-val="{{false}}">
+  <div class="m-scrim {{cf.closingCls}}" id="cf-scrim" onClick="{{cf.dismiss}}"></div>
+  <div class="m-wrap">
+    <div class="modal is-wide {{cf.closingCls}} {{cf.behindCls}}" id="cf" tabindex="-1" role="alertdialog" aria-modal="true" aria-labelledby="cf-title" aria-describedby="cf-desc" aria-busy="{{cf.busy}}" onKeyDown="{{cf.onKey}}">
+      <h2 class="m-title" id="cf-title">{{cf.title}}</h2>
+      <p class="m-body" id="cf-desc">{{cf.body}}</p>
+      <div class="compare" role="table" aria-label="Times before and after the change">
+        <div class="compare-head" role="row"><span role="columnheader">Time</span><span role="columnheader">Now</span><span role="columnheader">After saving</span></div>
+        <sc-for list="{{cf.rows}}" as="r" hint-placeholder-count="2">
+          <div class="compare-row" role="row">
+            <span class="compare-label" role="rowheader">{{r.label}}</span>
+            <span class="compare-old" role="cell"><span class="compare-k">Now</span>{{r.old}}<span class="compare-off">{{r.oldOff}}</span></span>
+            <span class="compare-new" role="cell"><span class="compare-k">After saving</span>{{r.new}}<span class="compare-off">{{r.newOff}}</span></span>
+          </div>
+        </sc-for>
+      </div>
+      <p class="compare-foot">{{cf.foot}}</p>
+      <sc-if value="{{cf.needsReason}}" hint-placeholder-val="{{false}}">
+        <div class="field" style="margin-top: 16px">
+          <div class="lbl-row"><label class="lbl" for="cf-reason">Why are you changing the end?</label><sc-if value="{{cf.showCount}}" hint-placeholder-val="{{false}}"><span class="field-count {{cf.countCls}}" aria-live="polite">{{cf.count}}</span></sc-if></div>
+          <textarea class="textarea sc-reason {{cf.reasonCls}}" id="cf-reason" value="{{cf.reason}}" onChange="{{cf.onReason}}" disabled="{{cf.busy}}" aria-invalid="{{cf.reasonInvalid}}" aria-describedby="cf-reason-hint {{cf.reasonErrId}}" placeholder="e.g. Extended by a day after the server outage on Saturday."></textarea>
+          <div class="field-hint" id="cf-reason-hint">Required. Kept in the event history.</div>
+          <sc-if value="{{cf.hasReasonErr}}" hint-placeholder-val="{{false}}"><div class="field-err" id="cf-reason-err"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 5v3.5M8 11h.01"/></svg>{{cf.reasonErr}}</div></sc-if>
+        </div>
+      </sc-if>
+      <div class="m-actions">
+        <button class="btn" id="cf-cancel" onClick="{{cf.dismiss}}" disabled="{{cf.busy}}">Keep editing</button>
+        <button class="btn btn-primary {{cf.busyCls}}" id="cf-confirm" onClick="{{cf.confirm}}" disabled="{{cf.busy}}"><sc-if value="{{cf.busy}}" hint-placeholder-val="{{false}}"><span class="spin"></span></sc-if>{{cf.confirmLabel}}</button>
+      </div>
+    </div>
+  </div>
+</sc-if>
+
+<!-- shared discard / uncertain-leave confirmation -->
+<sc-if value="{{md.show}}" hint-placeholder-val="{{false}}">
+  <div class="m-scrim {{md.closingCls}}" id="confirm-scrim" onClick="{{md.dismiss}}"></div>
+  <div class="m-wrap">
+    <div class="modal {{md.closingCls}}" id="modal" tabindex="-1" role="alertdialog" aria-modal="true" aria-labelledby="modal-title" aria-describedby="modal-desc" onKeyDown="{{md.onKey}}">
+      <h2 class="m-title" id="modal-title">{{md.title}}</h2>
+      <p class="m-body" id="modal-desc">{{md.body}}</p>
+      <div class="m-actions">
+        <button class="btn {{md.secondaryCls}}" id="modal-cancel" onClick="{{md.secondary}}">{{md.secondaryLabel}}</button>
+        <button class="btn {{md.primaryCls}}" id="modal-confirm" onClick="{{md.primary}}">{{md.primaryLabel}}</button>
+      </div>
+    </div>
+  </div>
+</sc-if>
+
+<!-- prototype only: simulated browser (URL and history) -->
+<sc-if value="{{pb.show}}" hint-placeholder-val="{{true}}">
+  <div class="proto-bar" role="group" aria-label="Simulated browser, prototype only">
+    <button class="icon-btn" aria-label="Back" title="Back" disabled="{{pb.noBack}}" onClick="{{pb.back}}"><svg class="ic" viewBox="0 0 16 16"><path d="M13 8H3.5M7.5 4 3.5 8l4 4"/></svg></button>
+    <button class="icon-btn" aria-label="Forward" title="Forward" disabled="{{pb.noFwd}}" onClick="{{pb.fwd}}"><svg class="ic" viewBox="0 0 16 16"><path d="M3 8h9.5M8.5 4l4 4-4 4"/></svg></button>
+    <button class="icon-btn" aria-label="Reload" title="Reload" onClick="{{pb.reload}}"><svg class="ic" viewBox="0 0 16 16"><path d="M13 8a5 5 0 1 1-1.5-3.6"/><path d="M13 2.8v2.8h-2.8"/></svg></button>
+    <span class="proto-tag">Prototype URL</span>
+    <span class="proto-url" title="{{pb.url}}">{{pb.url}}</span>
+  </div>
+</sc-if>
+
+<div class="toasts" aria-live="polite" aria-atomic="false">
+  <sc-for list="{{toasts}}" as="t" hint-placeholder-count="0">
+    <div class="toast {{t.cls}}" role="status" data-toast="{{t.id}}">
+      <sc-if value="{{t.isError}}" hint-placeholder-val="{{false}}"><svg class="ic t-ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 5v3.5M8 11h.01"/></svg></sc-if>
+      <sc-if value="{{t.isOk}}" hint-placeholder-val="{{true}}"><svg class="ic t-ic" viewBox="0 0 16 16"><path d="M3.8 8.4 6.6 11.2 12.2 5"/></svg></sc-if>
+      <span class="grow">{{t.text}}</span>
+      <sc-if value="{{t.hasAction}}" hint-placeholder-val="{{false}}"><button class="toast-act" onClick="{{t.act}}">{{t.actionLabel}}</button></sc-if>
+      <button class="toast-x" aria-label="Dismiss notification" onClick="{{t.close}}"><svg class="ic" viewBox="0 0 16 16" style="width: 14px; height: 14px"><path d="M4.5 4.5l7 7M11.5 4.5l-7 7"/></svg></button>
+    </div>
+  </sc-for>
+</div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+// DK Legacy Admin — event Schedule (reference prototype). Synthetic data; "today" is 2 Jun 2027, 10:00 in Copenhagen.
+// Verified against the current implementation (participants-functionality: Admin/Events/Schedule, EventSignupLifecycleService
+// .SaveScheduleAsync / ValidateScheduleChangeAsync, BingoEvent.ConfigureSchedule / ChangeLiveEventEnd):
+// - Times are local to the event timezone in five-minute steps; skipped or repeated local times (clock changes) are rejected.
+// - Unchanged historical times are kept; every changed time must be in the future; a passed boundary is locked, except
+//   that before the first Live transition the event start and end can still be corrected (an overdue start can be repaired).
+// - Opening: editable in a private draft while future. Closing: draft or signups open, while future, not during/after the
+//   team draft (after closing, Reopen on Overview sets a new close). Draft time: optional, planning only, editable while
+//   future before the team draft starts. Start/end: editable until Live (also during and after the team draft); while Live
+//   only the end, with confirmation and a reason. Final review, archived and cancelled: read-only.
+// - Published start/end can't be cleared. End after start; closing after opening (actual or planned) and no later than start.
+//   No ordering rule for the draft time.
+// - Automatic opening: a newly set future opening in a private draft turns it on; an older schedule with it off stays off
+//   when other fields change. While on, it needs a future closing time after the opening and no later than the start.
+// - One save. Published events confirm before/after for opening/closing/start/end changes (draft time alone doesn't).
+// - Upload deadline = event end + 30 minutes (derived, not a setting). Event windows can't overlap another public event.
+// The browser is simulated (prototype URL bar). DKAdmin.mock stands in for request latency; DKAdmin.settle keeps the
+// deliberate saving feedback (product behaviour).
+const TODAY = Date.UTC(2027, 5, 2, 8, 0);
+const M = 60000, H = 3600000;
+const T = s => (s ? Date.parse(s) : null);
+const D = () => DKAdmin.dtp;
+const PHASES = {
+  draft: { label: 'Setup', tone: 'tone-draft' }, signupopen: { label: 'Signups open', tone: 'tone-open' }, signupclosed: { label: 'Signups closed', tone: 'tone-draft' },
+  live: { label: 'Live', tone: 'tone-live' }, awaitingfinalreview: { label: 'Final review', tone: 'tone-live' }, archived: { label: 'Archived', tone: 'tone-draft' }, cancelled: { label: 'Cancelled', tone: 'tone-draft' }
+};
+const PRE = ['draft', 'signupopen', 'signupclosed'];
+const KEYS = ['signupOpens', 'signupCloses', 'draftAt', 'starts', 'ends'];
+const LABEL = { signupOpens: 'Signups open', signupCloses: 'Signups close', draftAt: 'Team draft', starts: 'Event starts', ends: 'Event ends' };
+const SEED = [
+  { slug: 'autumn-bingo-2027', name: 'Autumn Bingo 2027', phase: 'signupopen', public: true, when: 'closes 15 Jun', autoOpen: false,
+    dates: { signupOpens: '2027-06-01T16:00:00Z', signupCloses: '2027-06-15T18:00:00Z', draftAt: '2027-06-20T17:00:00Z', starts: '2027-06-27T16:00:00Z', ends: '2027-07-06T20:00:00Z' },
+    actual: { opened: '2027-06-01T16:00:00Z' } },
+  { slug: 'winter-bingo-2027', name: 'Winter Bingo 2027', phase: 'draft', public: false, when: 'not public yet', autoOpen: true,
+    dates: { signupOpens: '2027-10-01T16:00:00Z', signupCloses: null, draftAt: null, starts: '2027-11-26T18:00:00Z', ends: '2027-12-05T21:00:00Z' } },
+  { slug: 'nordic-night-bingo', name: 'Nordic Night Bingo', phase: 'draft', public: false, when: 'not public yet', autoOpen: false,
+    dates: { signupOpens: '2027-08-02T16:00:00Z', signupCloses: '2027-08-16T18:00:00Z', draftAt: null, starts: '2027-08-20T17:00:00Z', ends: '2027-08-22T20:00:00Z' } },
+  { slug: 'community-mini-bingo', name: 'Community Mini Bingo', phase: 'draft', public: false, when: 'not public yet', autoOpen: false, dates: {} },
+  { slug: 'clan-cup-pvm-week', name: 'Clan Cup: PvM Week', phase: 'signupclosed', tz: 'UTC', public: true, when: 'starts 14 Jun', autoOpen: false,
+    dates: { signupOpens: '2027-05-20T18:00:00Z', signupCloses: '2027-06-10T18:00:00Z', draftAt: null, starts: '2027-06-14T18:00:00Z', ends: '2027-06-20T22:00:00Z' },
+    actual: { opened: '2027-05-20T18:00:00Z', closed: '2027-06-01T18:00:00Z' } },
+  { slug: 'raids-week-2027', name: 'Raids Week 2027', phase: 'signupclosed', public: true, when: 'draft running', draftState: 'running', autoOpen: false,
+    dates: { signupOpens: '2027-05-12T16:00:00Z', signupCloses: '2027-05-30T18:00:00Z', draftAt: '2027-06-02T07:00:00Z', starts: '2027-06-19T16:00:00Z', ends: '2027-06-26T20:00:00Z' },
+    actual: { opened: '2027-05-12T16:00:00Z', closed: '2027-05-30T18:00:00Z' } },
+  { slug: 'boss-rush-weekend', name: 'Boss Rush Weekend', phase: 'signupclosed', public: true, when: 'start postponed', draftState: 'finalized', autoOpen: false,
+    dates: { signupOpens: '2027-05-10T16:00:00Z', signupCloses: '2027-05-25T18:00:00Z', draftAt: '2027-05-27T17:00:00Z', starts: '2027-06-01T16:00:00Z', ends: '2027-06-03T20:00:00Z' },
+    actual: { opened: '2027-05-10T16:00:00Z', closed: '2027-05-25T18:00:00Z' } },
+  { slug: 'midsummer-skilling-sprint', name: 'Midsummer Skilling Sprint', phase: 'live', public: true, when: 'ends 6 Jun', draftState: 'finalized', autoOpen: false,
+    dates: { signupOpens: '2027-05-10T16:00:00Z', signupCloses: '2027-05-25T18:00:00Z', draftAt: '2027-05-26T17:00:00Z', starts: '2027-05-28T16:00:00Z', ends: '2027-06-06T20:00:00Z' },
+    actual: { opened: '2027-05-10T16:00:00Z', closed: '2027-05-25T18:00:00Z', started: '2027-05-28T16:00:00Z' } },
+  { slug: 'summer-bingo-2027', name: 'Summer Bingo 2027', phase: 'awaitingfinalreview', public: true, when: 'ended 23 May', draftState: 'finalized', autoOpen: false,
+    dates: { signupOpens: '2027-04-20T16:00:00Z', signupCloses: '2027-05-05T18:00:00Z', draftAt: '2027-05-08T17:00:00Z', starts: '2027-05-14T16:00:00Z', ends: '2027-05-23T20:00:00Z' },
+    actual: { opened: '2027-04-20T16:00:00Z', closed: '2027-05-05T18:00:00Z', started: '2027-05-14T16:00:00Z', ended: '2027-05-23T20:00:00Z' } },
+  { slug: 'easter-mini-bingo', name: 'Easter Mini Bingo', phase: 'cancelled', public: true, when: 'cancelled', autoOpen: false,
+    dates: { signupOpens: '2027-03-15T17:00:00Z', signupCloses: '2027-04-01T16:00:00Z', draftAt: null, starts: '2027-04-09T16:00:00Z', ends: '2027-04-11T20:00:00Z' },
+    actual: { opened: '2027-03-15T17:00:00Z', closed: '2027-04-01T16:00:00Z', cancelled: '2027-04-02T07:12:00Z' } }
+];
+// Other public events whose windows a schedule can't overlap (from the Events directory sample).
+// The samples are independent scenarios (like Overview's), so overlap is checked against this fixed list instead.
+const OTHERS = [
+  { slug: 'spring-bingo-2027', name: 'Spring Bingo 2027', starts: T('2027-03-12T17:00:00Z'), ends: T('2027-03-21T21:00:00Z') },
+  { slug: 'halloween-bingo-2027', name: 'Halloween Bingo 2027', starts: T('2027-10-29T17:00:00Z'), ends: T('2027-11-07T21:00:00Z') }
+];
+const OUTCOMES = { ok: 'Succeeds', fail: 'Fails, nothing saved', timeoutSaved: 'Times out · was saved', timeoutNot: 'Times out · wasn’t saved', stale: 'Another admin saves first' };
+const NAV = [['dashboard', 'Dashboard'], ['events', 'Events'], ['catalogue', 'Catalogue'], ['roles', 'Accounts / Roles'], ['audit', 'Audit'],
+  ['overview', 'Overview'], ['identity', 'Identity'], ['schedule', 'Schedule'], ['participants', 'Participants'], ['signup', 'Signup setup'], ['teams', 'Teams / Draft'], ['board', 'Board'], ['wom', 'WOM'], ['review', 'Review'], ['final', 'Final review']];
+const TITLES = {}; NAV.forEach(([k, l]) => { TITLES[k] = l; });
+const EVENT_PAGES = ['overview', 'identity', 'schedule', 'participants', 'signup', 'teams', 'board', 'wom', 'review', 'final'];
+const clone = o => JSON.parse(JSON.stringify(o));
+
+function offsetLabel(ms, tz) {
+  try { const p = new Intl.DateTimeFormat('en-GB', { timeZone: tz, timeZoneName: 'longOffset' }).formatToParts(new Date(ms)).find(x => x.type === 'timeZoneName'); return 'UTC' + ((p && p.value.replace('GMT', '')) || '+00:00'); } catch (e) { return ''; }
+}
+function fmt(ms, tz, o) {
+  if (ms == null) return 'Not set';
+  o = o || {};
+  const opts = { timeZone: tz, day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' };
+  if (o.year !== false) opts.year = 'numeric';
+  return new Intl.DateTimeFormat('en-GB', opts).format(new Date(ms));
+}
+
+class Component extends DCLogic {
+  constructor(...args) {
+    super(...args);
+    this.timers = [];
+    this.world = {};
+    SEED.forEach(s => {
+      const e = clone(s); e.tz = e.tz || 'Europe/Copenhagen'; e.version = 1; e.draftState = e.draftState || null;
+      KEYS.forEach(k => { e.dates[k] = T(e.dates[k]); }); e.actual = e.actual || {}; Object.keys(e.actual).forEach(k => { e.actual[k] = T(e.actual[k]); });
+      this.world[e.slug] = e;
+    });
+    this.hist = { entries: [{ url: '/admin/events/autumn-bingo-2027/schedule', scroll: 0 }], idx: 0 };
+    let dark = false;
+    try { dark = window.matchMedia('(prefers-color-scheme: dark)').matches; } catch (e) {}
+    this.state = {
+      theme: dark ? 'dark' : 'light', route: 'schedule', slug: 'autumn-bingo-2027', otherKey: null,
+      loading: false, loadError: false, failNext: false, outcome: 'ok', showBar: true,
+      form: null, base: null, status: 'idle', stale: null, serverErr: '', showErrors: false, saved: '', reason: '',
+      cf: null, modal: null, menu: null, toasts: [], dtp: {}, sideOpen: true, mobileNav: false, vw: 1440, histRev: 0
+    };
+    const snap = this.snapshot(this.world['autumn-bingo-2027']);
+    this.state.form = Object.assign({}, snap.values); this.state.base = snap;
+  }
+  componentDidMount() {
+    this.onResize = () => { const vw = window.innerWidth; if (vw !== this.state.vw) this.setState(s => ({ vw, mobileNav: vw > 860 ? false : s.mobileNav })); };
+    window.addEventListener('resize', this.onResize); this.onResize();
+  }
+  componentWillUnmount() { this.timers.forEach(clearTimeout); window.removeEventListener('resize', this.onResize); }
+  later(fn, ms) { const t = setTimeout(() => { this.timers = this.timers.filter(x => x !== t); fn(); }, ms); this.timers.push(t); return t; }
+  isMobile() { return this.state.vw <= 860; }
+  toast(o) { DKAdmin.toast(this, o); }
+
+  /* ---------------- data ---------------- */
+  ev() { return this.world[this.state.slug]; }
+  // Local wall-time strings in the event timezone, plus the server facts the page reads with them.
+  snapshot(e) {
+    const values = {}; KEYS.forEach(k => { values[k] = D().utcToLocal(e.dates[k], e.tz); });
+    return { values, version: e.version, dates: clone(e.dates), autoOpen: e.autoOpen, phase: e.phase, draftState: e.draftState, actual: clone(e.actual) };
+  }
+  ms(k, src) { const v = (src || this.state.form)[k]; if (!v) return null; const r = D().localToUtc(v, this.ev().tz); return r.ms; }
+  changed(k) { const S = this.state; return !!S.form && S.form[k] !== S.base.values[k]; }
+  dirty() { return this.state.route === 'schedule' && !!this.state.form && KEYS.some(k => this.editable(k) && (this.changed(k) || D().status(this, 'pk-' + k, this.state.form[k]).pending)); }
+  busy() { return this.state.status === 'saving' || this.state.status === 'checking' || !!(this.state.cf && this.state.cf.busy); }
+  // Editability (the application's Schedule page model).
+  editable(k) {
+    const b = this.state.base; if (!b) return false;
+    const pre = PRE.indexOf(b.phase) >= 0; const drafting = b.draftState === 'running' || b.draftState === 'paused'; const finalized = b.draftState === 'finalized';
+    const cur = b.dates[k]; const future = cur == null || cur > TODAY;
+    if (k === 'signupOpens') return b.phase === 'draft' && future;
+    if (k === 'signupCloses') return pre && !drafting && !finalized && b.phase !== 'signupclosed' && future;
+    if (k === 'draftAt') return pre && !drafting && !finalized && future;
+    if (k === 'starts') return pre;
+    if (k === 'ends') return pre || b.phase === 'live';
+    return false;
+  }
+  lockText(k) {
+    const b = this.state.base; const tz = this.ev().tz; const a = b.actual;
+    const drafting = b.draftState === 'running' || b.draftState === 'paused'; const finalized = b.draftState === 'finalized';
+    if (b.phase === 'cancelled' && !(k === 'signupOpens' && a.opened) && !(k === 'signupCloses' && a.closed)) return 'Kept as history; the event was cancelled.';
+    if (k === 'signupOpens') return a.opened ? 'Signups opened ' + fmt(a.opened, tz) + '.' : 'This time has passed. Open signups on Overview.';
+    if (k === 'signupCloses') {
+      if (a.closed) return 'Signups closed ' + fmt(a.closed, tz) + '.' + (b.phase === 'signupclosed' && !drafting && !finalized ? ' To set a new closing time, reopen signups on Overview.' : '');
+      return drafting ? 'Locked while the team draft is underway.' : finalized ? 'Locked after the team draft was finalized.' : 'This boundary has passed.';
+    }
+    if (k === 'draftAt') return drafting ? 'Locked while the team draft is underway.' : finalized ? 'Locked after the team draft was finalized.' : PRE.indexOf(b.phase) < 0 ? 'Locked after the event started.' : 'This time has passed.';
+    if (k === 'starts') return a.started ? 'Started ' + fmt(a.started, tz) + '.' : 'Locked.';
+    if (k === 'ends') return a.ended ? 'Ended ' + fmt(a.ended, tz) + '.' : 'Locked.';
+    return '';
+  }
+  // Automatic opening after a save (the page model's rule): only a private draft; a newly set future opening turns it on;
+  // an unchanged opening keeps whatever it had. Editing other fields never turns it on.
+  autoAfter() {
+    const S = this.state; const b = S.base; if (b.phase !== 'draft') return false;
+    const op = this.ms('signupOpens'); if (op == null) return false;
+    const changed = op !== b.dates.signupOpens;
+    return (b.autoOpen && !changed) || (changed && op > TODAY);
+  }
+  errors() {
+    const S = this.state; const e = this.ev(); const b = S.base; const out = {}; if (!S.form) return out;
+    const eff = k => (this.editable(k) ? this.ms(k) : b.dates[k]);
+    KEYS.forEach(k => {
+      if (!this.editable(k)) return;
+      const st = D().status(this, 'pk-' + k, S.form[k]);
+      if (st.error) { out[k] = st.error; return; }
+      const v = S.form[k]; if (!v) return;
+      const r = D().localToUtc(v, e.tz);
+      if (r.status === 'invalid') { out[k] = 'That time doesn’t exist in ' + e.tz + ' because the clocks go forward then. Choose another time.'; return; }
+      if (r.status === 'ambiguous') { out[k] = 'That time happens twice in ' + e.tz + ' because the clocks go back then. Choose another time.'; return; }
+      if (this.changed(k) && r.ms <= TODAY) out[k] = 'Choose a time in the future. Only times you change need to be in the future.';
+    });
+    const put = (k, alt, msg) => { const key = this.editable(k) ? k : alt; if (!out[key]) out[key] = msg; };
+    const st = eff('starts'), en = eff('ends'), cl = eff('signupCloses'), op = b.actual.opened || eff('signupOpens');
+    if (e.public && (this.editable('starts') && !S.form.starts)) out.starts = out.starts || 'A published event start can’t be cleared.';
+    if (e.public && (this.editable('ends') && !S.form.ends)) out.ends = out.ends || 'A published event end can’t be cleared.';
+    if (st != null && en != null && en <= st) put('ends', 'starts', 'The event must end after it starts.');
+    if (cl != null && st != null && cl > st) put('signupCloses', 'starts', 'Signups must close no later than the event starts.');
+    if (cl != null && op != null && cl <= op) put('signupCloses', 'signupOpens', 'Signups must close after they open.');
+    if (this.autoAfter() && this.editable('signupCloses') && !S.form.signupCloses) out.signupCloses = out.signupCloses || 'Automatic opening needs a closing time.';
+    return out;
+  }
+  consequenceChanged() { return ['signupOpens', 'signupCloses', 'starts', 'ends'].some(k => this.editable(k) && this.changed(k)); }
+
+  /* ---------------- URL (simulated browser) ---------------- */
+  cur() { return this.hist.entries[this.hist.idx]; }
+  bumpHist() { this.setState(s => ({ histRev: s.histRev + 1 })); }
+  push(url) { this.hist.entries = this.hist.entries.slice(0, this.hist.idx + 1).concat([{ url, scroll: 0 }]); this.hist.idx++; this.bumpHist(); }
+  parse(url) {
+    let m = url.match(/^\/admin\/events\/([a-z0-9-]+)\/([a-z]+)$/);
+    if (m) return { route: m[2] === 'schedule' ? 'schedule' : 'other', slug: m[1], key: m[2] };
+    if (url === '/admin/events') return { route: 'other', key: 'events', slug: this.state.slug };
+    m = url.match(/^\/admin\/([a-z]+)$/);
+    return { route: 'other', key: m ? m[1] : 'dashboard', slug: this.state.slug };
+  }
+  applyEntry(how) {
+    const r = this.parse(this.cur().url);
+    const base = { menu: null, modal: null, cf: null, mobileNav: false };
+    if (r.route === 'schedule') {
+      const same = how === 'pop' && r.slug === this.state.slug && this.state.route === 'schedule' && this.state.form;
+      this.setState(Object.assign(base, { route: 'schedule', slug: r.slug, otherKey: null }), () => { if (!same) this.load(); });
+    } else {
+      this.setState(Object.assign(base, { route: 'other', slug: r.slug || this.state.slug, otherKey: r.key }), () => { const el = document.getElementById('scroller'); if (el) el.scrollTop = 0; DKAdmin.focusSoon('page-h1'); });
+    }
+  }
+  anyPickerOpen() { return KEYS.some(k => D().isOpen(this, 'pk-' + k)); }
+  closePickers() { KEYS.forEach(k => D().close(this, 'pk-' + k, false)); }
+  leave(go) {
+    if (this.state.route === 'schedule') {
+      if (this.busy()) { this.toast({ text: 'Wait for the save to finish.' }); return; }
+      if (this.state.status === 'uncertain') { this.openDiscard(go, 'uncertain'); return; }
+      if (this.dirty()) { this.openDiscard(go); return; }
+    }
+    go();
+  }
+  // Back/Forward while a confirmation or picker is open closes it first.
+  popLayer() {
+    if (this.state.modal) return true;
+    if (this.state.cf) { this.cancelCf(); return true; }
+    if (this.anyPickerOpen()) { this.closePickers(); return true; }
+    return false;
+  }
+  back() { if (this.hist.idx === 0 || this.popLayer()) return; this.leave(() => { this.hist.idx--; this.bumpHist(); this.applyEntry('pop'); }); }
+  forward() { if (this.hist.idx >= this.hist.entries.length - 1 || this.popLayer()) return; this.leave(() => { this.hist.idx++; this.bumpHist(); this.applyEntry('pop'); }); }
+  reload() { if (this.popLayer()) return; this.leave(() => this.applyEntry('load')); }
+  directVisit(url) { this.leave(() => { this.hist = { entries: [{ url, scroll: 0 }], idx: 0 }; this.bumpHist(); this.applyEntry('load'); }); }
+  goNav(k) {
+    this.closeMobileNav(false);
+    const url = k === 'events' ? '/admin/events' : EVENT_PAGES.indexOf(k) >= 0 ? '/admin/events/' + this.state.slug + '/' + k : '/admin/' + k;
+    if (url === this.cur().url) return;
+    this.leave(() => { this.push(url); this.applyEntry('push'); });
+  }
+  switchEvent(slug) { const url = '/admin/events/' + slug + '/schedule'; if (url === this.cur().url) return; this.leave(() => { this.push(url); this.applyEntry('push'); }); }
+  backToPage() {
+    const prev = this.hist.entries[this.hist.idx - 1];
+    if (prev && this.parse(prev.url).route === 'schedule') this.back();
+    else { this.push('/admin/events/' + this.state.slug + '/schedule'); this.applyEntry('push'); }
+  }
+
+  /* ---------------- load ---------------- */
+  load() {
+    const willFail = this.state.failNext;
+    this.setState({ loading: true, loadError: false, failNext: false, status: 'idle', stale: null, serverErr: '', showErrors: false, saved: '', reason: '', dtp: {} });
+    DKAdmin.mock.request(this, () => {
+      if (willFail) { this.setState({ loading: false, loadError: true }, () => DKAdmin.focusSoon('retry-btn')); return; }
+      const snap = this.snapshot(this.ev());
+      this.setState({ loading: false, form: Object.assign({}, snap.values), base: snap }, () => { const el = document.getElementById('scroller'); if (el) el.scrollTop = 0; });
+    });
+  }
+
+  /* ---------------- editing ---------------- */
+  setField(k, v) { this.setState(s => ({ form: Object.assign({}, s.form, { [k]: v }), saved: '', serverErr: '' })); }
+  useLatest(k) {
+    const S = this.state; if (!S.stale || !S.stale[k]) return;
+    const stale = Object.assign({}, S.stale); const latest = stale[k].latest; delete stale[k];
+    D().reset(this, 'pk-' + k);
+    this.setState({ form: Object.assign({}, S.form, { [k]: latest }), stale: Object.keys(stale).length ? stale : null });
+  }
+
+  /* ---------------- saving ---------------- */
+  save() {
+    const S = this.state;
+    if (this.busy() || !KEYS.some(k => this.editable(k))) return;
+    if (S.status === 'uncertain') { this.check(); return; }
+    if (!this.dirty()) return;
+    this.closePickers();
+    const errs = this.errors();
+    if (Object.keys(errs).length) {
+      this.setState({ showErrors: true }, () => { const k = KEYS.find(x => errs[x]); DKAdmin.focusSoon('pk-' + k + '-date'); });
+      return;
+    }
+    const live = S.base.phase === 'live' && this.changed('ends');
+    if (live || (this.ev().public && this.consequenceChanged())) { this.openCf(live); return; }
+    this.submit(null);
+  }
+  openCf(live) {
+    this.cfReturn = document.getElementById('save-btn');
+    this.setState({ cf: { live, closing: false, busy: false, showErrors: false } }, () => DKAdmin.focusSoon(live ? 'cf-reason' : 'cf-cancel'));
+  }
+  cancelCf() { const c = this.state.cf; if (!c || c.busy || this.state.modal) return; DKAdmin.closeLayer(this, 'cf', '#cf, #cf-scrim', () => DKAdmin.restoreFocus(this.cfReturn, 'save-btn')); }
+  confirmCf() {
+    const c = this.state.cf; if (!c || c.busy) return;
+    if (c.live) {
+      const r = this.state.reason.trim();
+      if (!r || r.length > 2000) { this.setState({ cf: Object.assign({}, c, { showErrors: true }) }, () => DKAdmin.focusSoon('cf-reason')); return; }
+    }
+    this.submit(c.live ? this.state.reason.trim() : null);
+  }
+  // One request for the whole schedule. The server re-checks everything the page checked, plus the version and overlaps.
+  submit(reason) {
+    const S = this.state; const outcome = S.outcome; const started = Date.now();
+    const values = {}; KEYS.forEach(k => { values[k] = this.editable(k) ? this.ms(k) : S.base.dates[k]; });
+    const autoAfter = this.autoAfter(); const version = S.base.version;
+    this.setState({ outcome: 'ok', status: 'saving', showErrors: false, serverErr: '', stale: null });
+    if (S.cf) this.setState(s => ({ cf: Object.assign({}, s.cf, { busy: true }) }), () => DKAdmin.focusSoon('cf'));
+    DKAdmin.mock.request(this, () => {
+      const srv = this.ev();
+      if (outcome === 'stale') this.otherScheduleEdit(true);
+      let result = 'ok', message = '';
+      if (outcome === 'fail') result = 'failed';
+      else if (srv.version !== version) result = 'stale';
+      else {
+        const ov = OTHERS.find(o => values.starts != null && values.ends != null && o.starts != null && o.ends != null && values.starts < o.ends && o.starts < values.ends);
+        if (ov) { result = 'rejected'; message = 'The event window overlaps ' + ov.name + ' (' + fmt(ov.starts, srv.tz) + ' – ' + fmt(ov.ends, srv.tz) + ' ' + srv.tz + '). Only one event can run at a time; move the start or end.'; }
+      }
+      if (result === 'ok' && outcome !== 'timeoutNot') {
+        KEYS.forEach(k => { srv.dates[k] = values[k]; });
+        if (srv.phase === 'draft') srv.autoOpen = autoAfter;
+        srv.version++;
+        if (reason) srv.lastReason = reason;
+      }
+      if (result === 'ok' && (outcome === 'timeoutSaved' || outcome === 'timeoutNot')) result = 'uncertain';
+      DKAdmin.settle(this, started, () => this.finish(result, message));
+    });
+  }
+  finish(result, message) {
+    const after = fn => { if (!this.state.cf) { fn(); return; } this.setState(s => ({ cf: Object.assign({}, s.cf, { busy: false }) }), () => DKAdmin.closeLayer(this, 'cf', '#cf, #cf-scrim', fn)); };
+    if (result === 'ok') { after(() => this.onSaved('Schedule saved.')); return; }
+    if (result === 'stale') { after(() => this.onStale()); return; }
+    if (result === 'rejected') { after(() => this.setState({ status: 'idle', serverErr: message }, () => DKAdmin.focusSoon('form-banner'))); return; }
+    after(() => this.setState({ status: result === 'uncertain' ? 'uncertain' : 'failed' }, () => DKAdmin.focusSoon('save-btn')));
+  }
+  onSaved(text, how) {
+    const snap = this.snapshot(this.ev());
+    this.setState({ status: 'idle', stale: null, form: Object.assign({}, snap.values), base: snap, saved: how || 'saved', reason: '', dtp: {} }, () => DKAdmin.focusSoon('save-btn'));
+    this.toast({ text });
+  }
+  check() {
+    this.setState({ status: 'checking' });
+    DKAdmin.mock.request(this, () => {
+      const srv = this.ev(); const S = this.state;
+      const same = KEYS.every(k => !this.editable(k) || D().utcToLocal(srv.dates[k], srv.tz) === S.form[k]);
+      if (same && srv.version !== S.base.version) { this.onSaved('The schedule now has the times you entered.', 'present'); return; }
+      if (srv.version !== S.base.version) { this.onStale(); return; }
+      this.setState({ status: 'notSaved' }, () => DKAdmin.focusSoon('save-btn'));
+    });
+  }
+  // Another admin saved first: untouched fields take their values; fields you both changed keep yours, theirs shown beside.
+  onStale() {
+    const S = this.state; const fresh = this.snapshot(this.ev()); const form = Object.assign({}, S.form); const stale = {};
+    KEYS.forEach(k => {
+      if (fresh.values[k] === S.base.values[k]) return;
+      const mine = S.form[k] !== S.base.values[k];
+      if (mine && S.form[k] !== fresh.values[k]) stale[k] = { kind: 'conflict', latest: fresh.values[k] };
+      else { form[k] = fresh.values[k]; stale[k] = { kind: 'updated', latest: fresh.values[k] }; D().reset(this, 'pk-' + k); }
+    });
+    this.setState({ status: 'idle', form, base: fresh, stale: Object.keys(stale).length ? stale : {} }, () => DKAdmin.focusSoon('form-banner'));
+  }
+  otherScheduleEdit(silent) {
+    const e = this.ev(); const k = e.phase === 'live' || e.dates.ends != null ? 'ends' : 'starts';
+    if (PRE.indexOf(e.phase) < 0 && e.phase !== 'live') { if (!silent) this.toast({ text: 'This event’s schedule is read-only.' }); return; }
+    e.dates[k] = (e.dates[k] || (TODAY + 30 * 24 * H)) + H; e.version++;
+    if (!silent) this.toast({ text: 'Prototype: another admin moved the ' + (k === 'ends' ? 'end' : 'start') + ' to ' + fmt(e.dates[k], e.tz) + '. Save to see how the page handles it.' });
+  }
+
+  /* ---------------- discard confirmation ---------------- */
+  openDiscard(go, kind) {
+    this.discardThen = go;
+    const act = document.activeElement; this.modalReturn = act && act !== document.body ? act : null;
+    this.setState({ modal: { closing: false, kind: kind || 'discard' }, menu: null }, () => DKAdmin.focusSoon(kind === 'uncertain' ? 'modal-confirm' : 'modal-cancel'));
+  }
+  keepEditing() { DKAdmin.closeLayer(this, 'modal', '#modal, #confirm-scrim', () => DKAdmin.restoreFocus(this.modalReturn, 'save-btn')); }
+  confirmDiscard() {
+    const go = this.discardThen; this.discardThen = null;
+    this.setState({ modal: null, cf: null, form: Object.assign({}, this.state.base.values), stale: null, status: 'idle', showErrors: false, serverErr: '', dtp: {} }, () => { if (go) go(); });
+  }
+  checkInstead() { this.discardThen = null; DKAdmin.closeLayer(this, 'modal', '#modal, #confirm-scrim', () => this.check()); }
+
+  /* ---------------- menus ---------------- */
+  menuItems(kind) {
+    const S = this.state;
+    if (kind === 'event') {
+      const items = [{ type: 'header', label: 'Switch event', hint: 'Opens its Schedule' }];
+      SEED.forEach(e => items.push({ label: e.name, hint: PHASES[this.world[e.slug].phase].label, check: S.slug === e.slug, action: () => this.switchEvent(e.slug) }));
+      items.push({ type: 'sep' }); items.push({ label: 'All events', action: () => this.goNav('events') });
+      return items;
+    }
+    return [
+      { type: 'header', label: 'Nils Andersen', hint: '@nils · Administrator of Iron Pact' },
+      { type: 'sep' },
+      { type: 'header', label: 'Next save', hint: 'Prototype · resets after use' },
+      ...Object.keys(OUTCOMES).map(k => ({ label: OUTCOMES[k], check: S.outcome === k, action: () => this.setState({ outcome: k }) })),
+      { label: 'Another admin changes the schedule now', action: () => this.otherScheduleEdit(false) },
+      { type: 'sep' },
+      { type: 'header', label: 'Loading', hint: 'Prototype' },
+      { label: 'Fail next load', checkbox: true, checked: S.failNext, action: () => { const on = !this.state.failNext; this.setState({ failNext: on }); this.toast({ text: on ? 'The next load will fail. Reload to try it.' : 'Simulated failure turned off.' }); } },
+      { type: 'sep' },
+      { type: 'header', label: 'Simulated browser', hint: 'Prototype' },
+      { label: 'Open this page directly', action: () => this.directVisit('/admin/events/' + this.state.slug + '/schedule') },
+      { label: 'Show browser bar', checkbox: true, checked: S.showBar, action: () => this.setState(s => ({ showBar: !s.showBar })) }
+    ];
+  }
+  openMenu(kind, e) {
+    const m = this.state.menu;
+    if (m && !m.closing && m.kind === kind) { this.closeMenu(true); return; }
+    this.closePickers();
+    this.menuReturn = e.currentTarget;
+    const r = e.currentTarget.getBoundingClientRect();
+    const place = kind === 'event'
+      ? DKAdmin.placeMenu(r, { width: Math.max(r.width, 256), align: !this.state.sideOpen && !this.isMobile() ? 'side' : 'start' })
+      : DKAdmin.placeMenu(r, { width: 256, align: 'start' });
+    this.setState({ menu: Object.assign({ kind }, place) }, () => DKAdmin.focusFirstMenuItem('menu'));
+  }
+  closeMenu(restore) { if (DKAdmin.closeLayer(this, 'menu', '#menu') && restore) DKAdmin.restoreFocus(this.menuReturn); }
+  vmMenu() {
+    const m = this.state.menu;
+    if (!m) return { show: false, items: [], x: 0, y: 0, w: 236 };
+    const items = this.menuItems(m.kind).map(it => {
+      if (it.type === 'sep') return { isSep: true };
+      if (it.type === 'header') return { isHeader: true, label: it.label, hint: it.hint };
+      return { isItem: true, label: it.label, hint: it.hint || '', disabled: false, cls: '',
+        role: it.checkbox ? 'menuitemcheckbox' : (it.check !== undefined ? 'menuitemradio' : 'menuitem'),
+        checked: it.checkbox ? !!it.checked : (it.check !== undefined ? !!it.check : undefined), showCheck: !!(it.checked || it.check),
+        run: () => { const ret = this.menuReturn; this.closeMenu(false); DKAdmin.restoreFocus(ret); it.action(); } };
+    });
+    return { show: true, items, x: m.x, y: m.y, w: m.w, cls: (m.up ? 'is-up' : '') + (m.closing ? ' is-closing' : ''), label: m.kind === 'event' ? 'Events' : 'Account',
+      close: () => this.closeMenu(true), onKey: e => DKAdmin.menuKeydown(e, 'menu', () => this.closeMenu(true)) };
+  }
+  openMobileNav(e) { this.navReturn = e && e.currentTarget; this.setState({ mobileNav: true, menu: null }, () => DKAdmin.focusSoon('user-btn', { preventScroll: true })); }
+  closeMobileNav(restore) { if (!this.state.mobileNav) return; this.setState({ mobileNav: false }, () => { if (restore !== false) DKAdmin.restoreFocus(this.navReturn, 'menu-toggle'); }); }
+
+  /* ---------------- view models ---------------- */
+  vmField(k, errs) {
+    const S = this.state; const e = this.ev(); const b = S.base; const ed = this.editable(k);
+    const err = S.showErrors ? errs[k] : ''; const st = S.stale && S.stale[k];
+    const today = D().todayIn(e.tz, TODAY);
+    const id = 'pk-' + k; const tz = e.tz;
+    const cur = b.dates[k]; const pre = PRE.indexOf(b.phase) >= 0;
+    let hint = '', warn = '';
+    const msNow = ed ? this.ms(k) : cur;
+    if (k === 'signupOpens' && ed) {
+      if (!S.form[k]) hint = 'Not scheduled. Signups open when you open them on Overview, or set a time to open them automatically.';
+      else if (this.autoAfter()) hint = 'Signups open automatically at this time if the event is ready then. Overview lists anything still missing.';
+      else hint = 'Planned only: automatic opening is off for this older schedule, so signups open when you open them on Overview. Choosing a new time turns automatic opening on.';
+    }
+    if (k === 'signupCloses' && ed) hint = S.form[k] ? 'Signups close automatically at this time.' : 'No closing time. Signups stay open until you close them on Overview.';
+    if (k === 'draftAt') hint = ed ? 'For planning and players’ information. It doesn’t start the team draft.' : '';
+    if (k === 'starts' && ed) {
+      if (cur != null && cur <= TODAY && !this.changed(k)) warn = 'This start time has passed and the event hasn’t started. Choose a new time, or start it on Overview.';
+      else hint = 'The event starts automatically at this time if it’s ready then. If something is missing, the start is postponed and admins are told.';
+    }
+    if (k === 'ends' && ed) hint = b.phase === 'live' ? 'Changing the end while the event is live needs a reason.' : 'Must be after the event starts.';
+    const lock = ed ? '' : this.lockText(k);
+    const roMs = cur;
+    const pk = ed ? D().view(this, { id, label: LABEL[k], labelId: 'lbl-' + k, value: S.form[k], onChange: v => this.setField(k, v), today, min: today,
+      clearable: k === 'draftAt' || (k === 'signupOpens') || (k === 'signupCloses') || (!e.public && (k === 'starts' || k === 'ends')),
+      disabled: this.busy() || S.status === 'uncertain', invalid: !!err, showErrors: S.showErrors,
+      describedBy: [err ? 'err-' + k : '', st ? 'stale-' + k : '', warn ? 'warn-' + k : '', hint ? 'hint-' + k : ''].filter(Boolean).join(' ') }) : {};
+    const quote = v => (v ? fmt(D().localToUtc(v, tz).ms, tz) : 'not set');
+    return {
+      key: k, wrapId: 'f-' + k, labelId: 'lbl-' + k, label: LABEL[k], optional: k === 'draftAt',
+      editable: ed, readOnly: !ed, pk, ro: roMs == null ? 'Not set' : fmt(roMs, tz), roCls: roMs == null ? 'is-empty' : '',
+      hasErr: !!err && !(pk.hasTypingErr), err: err || '', errId: 'err-' + k,
+      hasStale: !!st, staleId: 'stale-' + k, canUseLatest: !!st && st.kind === 'conflict', lockedNow: this.busy(),
+      staleText: st ? (st.kind === 'conflict' ? 'You both changed this. Their saved time: ' + quote(st.latest) + '. Yours is kept until you choose.' : 'Updated to their saved time.') : '',
+      useLatest: () => this.useLatest(k),
+      hasWarn: !!warn, warn, warnId: 'warn-' + k, hasLock: !!lock, lock, lockId: 'lock-' + k, hasHint: !!hint, hint, hintId: 'hint-' + k
+    };
+  }
+  vmCf() {
+    const c = this.state.cf; if (!c) return { show: false, rows: [] };
+    const S = this.state; const e = this.ev(); const tz = e.tz;
+    const rows = [];
+    const add = (label, a, b) => { rows.push({ label, old: a == null ? 'Not set' : fmt(a, tz), oldOff: a == null ? '' : offsetLabel(a, tz), new: b == null ? 'Not set' : fmt(b, tz), newOff: b == null ? '' : offsetLabel(b, tz) }); };
+    KEYS.forEach(k => { if (this.editable(k) && this.changed(k)) add(LABEL[k], S.base.dates[k], this.ms(k)); });
+    if (this.editable('ends') && this.changed('ends')) { const a = S.base.dates.ends, b = this.ms('ends'); add('Uploads close (end + 30 min)', a == null ? null : a + 30 * M, b == null ? null : b + 30 * M); }
+    const r = S.reason; const rlen = r.trim().length; const rErr = c.showErrors ? (!rlen ? 'Enter a reason.' : rlen > 2000 ? 'Use 2,000 characters or fewer.' : '') : '';
+    const draftToo = this.changed('draftAt') && this.editable('draftAt');
+    return { show: true, closingCls: c.closing ? 'is-closing' : '', behindCls: S.modal && !S.modal.closing ? 'is-behind' : '', busy: !!c.busy, busyCls: c.busy ? 'is-busy' : '',
+      title: c.live ? 'Change when the event ends?' : 'Change the published schedule?',
+      body: c.live ? e.name + ' is live. Teams keep playing until the new end, and uploads stay open for 30 minutes after it.' : 'Players can already see ' + e.name + '’s dates, so they’ll see the new times. Times are in ' + tz + '.',
+      rows, foot: draftToo ? 'Your draft-time change is saved at the same time.' : '', needsReason: c.live,
+      reason: r, onReason: ev => this.setState({ reason: ev.target.value }), reasonCls: rErr ? 'is-invalid' : '', reasonInvalid: rErr ? 'true' : 'false', reasonErrId: rErr ? 'cf-reason-err' : '',
+      hasReasonErr: !!rErr, reasonErr: rErr, showCount: rlen > 1700, count: rlen.toLocaleString('en-US') + ' / 2,000', countCls: rlen > 2000 ? 'is-over' : '',
+      confirmLabel: c.busy ? 'Saving…' : c.live ? 'Save new end' : 'Save schedule',
+      dismiss: () => this.cancelCf(), confirm: () => this.confirmCf(),
+      onKey: ev => { if (this.state.modal) return; if (ev.key === 'Escape') { ev.preventDefault(); ev.stopPropagation(); this.cancelCf(); } else DKAdmin.trapTab(ev, 'cf'); } };
+  }
+  vmModal() {
+    const m = this.state.modal; if (!m) return { show: false };
+    const unsure = m.kind === 'uncertain';
+    return { show: true, closingCls: m.closing ? 'is-closing' : '',
+      title: unsure ? 'Leave before checking your save?' : 'Discard unsaved changes?',
+      body: unsure ? 'We couldn’t confirm your last save, and it may already have gone through. Check again to find out, or leave now: you won’t know which times were saved until you come back.' : 'Your changes to the schedule haven’t been saved.',
+      secondaryLabel: unsure ? 'Leave anyway' : 'Keep editing', secondaryCls: unsure ? 'btn-outline-danger' : '',
+      primaryLabel: unsure ? 'Check again' : 'Discard', primaryCls: unsure ? 'btn-primary' : 'btn-danger',
+      secondary: () => (unsure ? this.confirmDiscard() : this.keepEditing()), primary: () => (unsure ? this.checkInstead() : this.confirmDiscard()),
+      dismiss: () => this.keepEditing(),
+      onKey: e => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); this.keepEditing(); } else DKAdmin.trapTab(e, 'modal'); } };
+  }
+
+  renderVals() {
+    const S = this.state; const e = this.ev();
+    const ready = S.route === 'schedule' && !S.loading && !S.loadError && !!S.form;
+    const errs = ready ? this.errors() : {}; const busy = this.busy(); const dirty = ready && this.dirty();
+    const anyEd = ready && KEYS.some(k => this.editable(k));
+    const nErr = S.showErrors ? Object.keys(errs).length : 0;
+    const b = S.base || {};
+    const navKey = S.route === 'schedule' ? 'schedule' : S.otherKey;
+    const nav = {}; NAV.forEach(([k, label]) => { nav[k] = { cls: navKey === k ? 'is-current' : '', current: navKey === k ? 'page' : undefined, tip: (S.sideOpen || this.isMobile()) ? undefined : label, count: '', go: () => this.goNav(k) }; });
+    let lockText = '';
+    if (ready && b.phase === 'live') lockText = e.name + ' is live, so only its end can change.';
+    else if (ready && b.phase === 'awaitingfinalreview') lockText = e.name + ' has ended and is in final review, so its schedule is history. To accept uploads again or resume the event, use Overview.';
+    else if (ready && b.phase === 'archived') lockText = e.name + ' is archived, so its schedule can’t change.';
+    else if (ready && b.phase === 'cancelled') lockText = e.name + ' was cancelled, so its schedule can’t change.';
+    else if (ready && (b.draftState === 'running' || b.draftState === 'paused')) lockText = 'The team draft is underway, so signup times and the draft time are locked. The event start and end can still change.';
+    else if (ready && b.draftState === 'finalized') lockText = 'The team draft is finalized, so only the event start and end can change.';
+    const vf = k => this.vmField(k, errs);
+    const endMs = ready ? (this.editable('ends') ? this.ms('ends') : b.dates.ends) : null;
+    const sections = ready ? [
+      { titleId: 'sec-signups', title: 'Signups', sub: 'When players can sign up.', fields: [vf('signupOpens'), vf('signupCloses')], pairCls: '', cls: '', hasDerived: false },
+      { titleId: 'sec-draft', title: 'Team draft', sub: 'When captains draft their teams. Optional, and the draft is still started by hand on Teams / Draft.', fields: [vf('draftAt')], pairCls: 'is-single', cls: '', hasDerived: false },
+      { titleId: 'sec-event', title: 'Event', sub: 'When the bingo runs.', fields: [vf('starts'), vf('ends')], pairCls: '', cls: anyEd ? '' : 'is-last', hasDerived: endMs != null,
+        derivedLead: b.phase === 'awaitingfinalreview' || b.phase === 'archived' ? 'Normal uploads closed' : 'Uploads close 30 minutes after the end:', derivedValue: endMs != null ? fmt(endMs + 30 * M, e.tz) : '',
+        derivedTail: b.phase === 'awaitingfinalreview' || b.phase === 'archived' ? ', 30 minutes after the end.' : '. This follows the end; it isn’t set separately.' }
+    ] : [];
+    let fb = null;
+    if (S.serverErr) fb = { cls: 'is-error', title: 'The schedule wasn’t saved.', text: S.serverErr + ' Your times are still here.' };
+    else if (S.stale) fb = { cls: 'is-warning', title: 'Another admin saved this schedule while you were editing.', text: Object.keys(S.stale).some(k => S.stale[k].kind === 'conflict') ? 'Where you both changed a time, yours is kept and theirs is shown beside it. Nothing has been saved yet; review, then save again.' : dirty ? 'Their changes are now in the form alongside yours. Nothing has been saved yet; review, then save again.' : 'The form now shows their saved times.' };
+    else if (S.status === 'failed') fb = { cls: 'is-error', title: 'Couldn’t save the schedule.', text: 'Nothing changed, and your times are still here.' };
+    else if (S.status === 'uncertain' || S.status === 'checking') fb = { cls: 'is-warning', title: S.status === 'checking' ? 'Checking whether your times were saved…' : 'We couldn’t confirm whether your times were saved.', text: 'Check before saving again, so you don’t overwrite anything by mistake.' };
+    else if (S.status === 'notSaved') fb = { cls: 'is-info', title: 'The schedule wasn’t saved.', text: 'It still has its earlier times. Yours are still here; save again when you’re ready.' };
+    const label = S.status === 'saving' ? 'Saving…' : S.status === 'checking' ? 'Checking…' : S.status === 'uncertain' ? 'Check again' : 'Save schedule';
+    const inert = !busy && S.status !== 'uncertain' && !dirty;
+    const tzLabel = e.tz + ' (' + offsetLabel(TODAY, e.tz) + ')';
+    return {
+      themeClass: S.theme === 'dark' ? 'theme-dark' : 'theme-light', isLight: S.theme === 'light', isDark: S.theme === 'dark', lightCls: S.theme === 'light' ? 'is-on' : '', darkCls: S.theme === 'dark' ? 'is-on' : '',
+      setLight: () => this.setState({ theme: 'light' }), setDark: () => this.setState({ theme: 'dark' }),
+      nav, sideCls: (S.sideOpen ? '' : 'is-collapsed') + (S.mobileNav ? ' is-mobile-open' : ''), sideOpen: this.isMobile() ? S.mobileNav : S.sideOpen,
+      sideTip: (S.sideOpen || this.isMobile()) ? undefined : 'Iron Pact · Administrator', mobileNav: S.mobileNav, navScrimCls: S.mobileNav ? 'is-on' : '',
+      openMobileNav: x => this.openMobileNav(x), closeMobileNav: () => this.closeMobileNav(),
+      sideKey: x => { if (!this.state.mobileNav || this.state.menu) return; if (x.key === 'Escape') { x.preventDefault(); this.closeMobileNav(); } else DKAdmin.trapTab(x, 'sidebar'); },
+      collapseLabel: this.isMobile() ? 'Close navigation' : (S.sideOpen ? 'Collapse sidebar' : 'Expand sidebar'), collapseArrowCls: (S.sideOpen || this.isMobile()) ? '' : 'is-flip',
+      toggleSide: () => { if (this.isMobile()) { this.closeMobileNav(); return; } this.setState(s => ({ sideOpen: !s.sideOpen, menu: null })); },
+      ev: { name: e.name, stage: PHASES[e.phase].label, when: e.when, toneCls: PHASES[e.phase].tone },
+      evTip: (S.sideOpen || this.isMobile()) ? undefined : 'Switch event',
+      eventMenuOpen: !!(S.menu && S.menu.kind === 'event'), userMenuOpen: !!(S.menu && S.menu.kind === 'user'),
+      openEventMenu: x => this.openMenu('event', x), openUserMenu: x => this.openMenu('user', x),
+      scrollCls: S.mobileNav || S.cf || S.modal ? 'is-locked' : '',
+      crumb: { hasEvent: S.otherKey !== 'events' && ['dashboard', 'catalogue', 'roles', 'audit'].indexOf(S.otherKey) < 0, event: e.name, page: S.route === 'schedule' ? 'Schedule' : (TITLES[S.otherKey] || '') },
+      crumbEvents: () => this.goNav('events'),
+      isPage: S.route === 'schedule', isOther: S.route === 'other',
+      otherTitle: TITLES[S.otherKey] || '', otherScope: ['events', 'dashboard', 'catalogue', 'roles', 'audit'].indexOf(S.otherKey) >= 0 ? 'Community-wide' : e.name,
+      otherText: ['events', 'participants', 'dashboard', 'overview', 'identity', 'signup'].indexOf(S.otherKey) >= 0 ? TITLES[S.otherKey] + ' has its own artboard on the canvas.' : 'This artboard shows Schedule. Back returns to it.',
+      backToPage: () => this.backToPage(),
+      summary: 'When ' + e.name + '’s stages happen, and what follows from those times.', tzLabel,
+      goIdentity: () => this.goNav('identity'), goOverview: () => this.goNav('overview'),
+      lockBanner: { show: !!lockText, text: lockText },
+      loading: S.route === 'schedule' && S.loading, loadError: S.route === 'schedule' && S.loadError, retry: () => this.load(), ready,
+      sections,
+      fb: { show: ready && (!!fb || nErr > 1), hasBanner: !!fb, cls: fb ? fb.cls : '', title: fb ? fb.title : '', text: fb ? fb.text : '', hasErrSummary: nErr > 1, errSummary: nErr + ' times need attention before you can save.' },
+      bar: { show: anyEd, dirty: dirty && !busy, saved: !!S.saved && !dirty && !busy, savedText: S.saved === 'present' ? 'Up to date' : 'Saved', busy, busyCls: busy ? 'is-busy' : '', inert: inert ? 'true' : 'false', label, title: inert ? 'No changes to save' : undefined, save: () => this.save() },
+      cf: this.vmCf(), md: this.vmModal(), menu: this.vmMenu(),
+      pb: { show: S.showBar, url: this.cur().url, noBack: this.hist.idx === 0, noFwd: this.hist.idx >= this.hist.entries.length - 1, back: () => this.back(), fwd: () => this.forward(), reload: () => this.reload() },
+      toasts: DKAdmin.toastView(this)
+    };
+  }
+}
+</script>
+</body>
+</html>

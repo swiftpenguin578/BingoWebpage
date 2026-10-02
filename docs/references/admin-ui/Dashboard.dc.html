@@ -1,0 +1,734 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Dashboard · DK Legacy Admin</title>
+<script src="./vendor/react.js"></script>
+<script src="./vendor/react-dom.js"></script>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ui/tokens.css">
+<link rel="stylesheet" href="ui/components.css">
+<script src="ui/behavior.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&amp;family=Geist+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+/* Dashboard page only. Shared tokens, components and behaviour: ui/tokens.css, ui/components.css, ui/behavior.js */
+.dash-grid{display:grid;grid-template-columns:minmax(0,1.75fr) minmax(320px,1fr);gap:16px;margin-top:16px;align-items:stretch}
+.recap{display:flex;flex-direction:column}
+.recap .highlight{margin-top:16px}
+.recap .facts{margin-top:18px}
+.recap .panel-foot{margin-top:auto;padding-top:var(--dk-space-5)}
+.recap.is-wide{grid-column:1/-1;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:40px;align-content:start}
+.recap.is-wide .panel-head,.recap.is-wide .panel-foot{grid-column:1/-1}
+.recap.is-wide .facts{grid-column:2;grid-row:2/span 3;margin-top:0;align-self:start}
+@media (max-width:860px){.recap.is-wide{display:flex}.recap.is-wide .facts{margin-top:18px}}
+.dash-section{margin-top:16px}
+.section-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin:24px 2px 10px}
+.hist-head{padding:var(--dk-space-5) var(--dk-space-6) 0;margin-bottom:12px}
+.recap-name{font-size:var(--dk-fs-title-sm);font-weight:600;line-height:1.3}
+.recap-when{margin-top:2px;font-size:var(--dk-fs-small);color:var(--dk-text-3)}
+.page-head .next-event{flex:none;max-width:420px}
+.tbl.hist{--table-cols:minmax(240px,2.2fr) 96px 170px 170px 124px minmax(150px,1.3fr);--table-min:960px}
+@media (max-width:1260px){.tbl.hist{--table-cols:minmax(220px,2fr) 88px 160px 160px minmax(140px,1.2fr);--table-min:790px}.c-ehb{display:none}}
+@media (max-width:1080px){.dash-grid{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:860px){.page-head .next-event{max-width:100%;width:100%}}
+</style>
+</helmet>
+<div class="app dk-theme {{themeClass}}" id="app">
+
+<aside class="side {{sideCls}}" id="sidebar" aria-label="Administration" onKeyDown="{{sideKey}}">
+  <div class="side-top">
+    <button class="account-btn" id="user-btn" aria-haspopup="menu" aria-expanded="{{userMenuOpen}}" title="{{sideTip}}" onClick="{{openUserMenu}}">
+      <span class="logo" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M3 12.5V5.2L8 2.5l5 2.7v7.3"/><path d="M6 12.5V8.5h4v4"/></svg></span>
+      <span class="brand-text"><span class="brand-name">Iron Pact<svg class="ic" viewBox="0 0 16 16"><path d="M4.5 6.5 8 10l3.5-3.5"/></svg></span><span class="brand-sub">Administrator</span></span>
+    </button>
+    <button class="icon-btn collapse-btn" aria-label="{{collapseLabel}}" title="{{collapseLabel}}" aria-expanded="{{sideOpen}}" onClick="{{toggleSide}}"><svg class="ic" viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="11" height="11" rx="1.5"/><path d="M6 2.5v11"/><path class="{{collapseArrowCls}}" d="M10.6 6.2 8.8 8l1.8 1.8"/></svg></button>
+  </div>
+
+  <nav class="nav" aria-label="Administration">
+    <div class="nav-label">Administration</div>
+    <button class="nav-item {{nav.dashboard.cls}}" aria-current="{{nav.dashboard.current}}" title="{{nav.dashboard.tip}}" onClick="{{nav.dashboard.go}}"><svg class="ic" viewBox="0 0 16 16"><path d="M2.5 12a5.5 5.5 0 1 1 11 0"/><path d="M8 12l2.6-3.4"/><path d="M8 12h.01"/></svg><span class="nav-text">Dashboard</span><span class="nav-count">{{nav.dashboard.count}}</span></button>
+    <button class="nav-item {{nav.events.cls}}" aria-current="{{nav.events.current}}" title="{{nav.events.tip}}" onClick="{{nav.events.go}}"><svg class="ic" viewBox="0 0 16 16"><rect x="2.5" y="3.5" width="11" height="10" rx="1.5"/><path d="M2.5 6.5h11M5.5 2v3M10.5 2v3"/></svg><span class="nav-text">Events</span><span class="nav-count">{{nav.events.count}}</span></button>
+    <button class="nav-item {{nav.catalogue.cls}}" aria-current="{{nav.catalogue.current}}" title="{{nav.catalogue.tip}}" onClick="{{nav.catalogue.go}}"><svg class="ic" viewBox="0 0 16 16"><path d="M8 2.5 2.5 5.5 8 8.5l5.5-3z"/><path d="M2.5 8.2 8 11.2l5.5-3M2.5 10.8 8 13.8l5.5-3"/></svg><span class="nav-text">Catalogue</span><span class="nav-count">{{nav.catalogue.count}}</span></button>
+    <button class="nav-item {{nav.roles.cls}}" aria-current="{{nav.roles.current}}" title="{{nav.roles.tip}}" onClick="{{nav.roles.go}}"><svg class="ic" viewBox="0 0 16 16"><rect x="3" y="2.5" width="10" height="11" rx="1.5"/><circle cx="8" cy="7" r="1.8"/><path d="M5.3 11.5c.5-1.3 1.5-2 2.7-2s2.2.7 2.7 2"/></svg><span class="nav-text">Accounts / Roles</span><span class="nav-count">{{nav.roles.count}}</span></button>
+    <button class="nav-item {{nav.audit.cls}}" aria-current="{{nav.audit.current}}" title="{{nav.audit.tip}}" onClick="{{nav.audit.go}}"><svg class="ic" viewBox="0 0 16 16"><path d="M4 2.5h8v11H4z"/><path d="M6 5.5h4M6 8h4M6 10.5h2.5"/></svg><span class="nav-text">Audit</span><span class="nav-count">{{nav.audit.count}}</span></button>
+  </nav>
+
+  <div class="side-rule" aria-hidden="true"></div>
+
+  <nav class="nav" aria-label="Event">
+    <button class="event-switch" id="event-switch" aria-haspopup="menu" aria-expanded="{{eventMenuOpen}}" title="{{evTip}}" onClick="{{openEventMenu}}">
+      <svg class="ic ev-ic" viewBox="0 0 16 16"><rect x="2.5" y="3.5" width="11" height="10" rx="1.5"/><path d="M2.5 6.5h11M5.5 2v3M10.5 2v3"/></svg>
+      <div class="ev-text" style="flex: 1; min-width: 0">
+        <div class="ev-lbl">Event</div>
+        <div class="ev-name">{{ev.name}}</div>
+        <div class="ev-meta"><span class="dot {{ev.toneCls}}"></span><span class="ev-meta-text" title="{{ev.stage}} · {{ev.when}}">{{ev.stage}} · {{ev.when}}</span></div>
+      </div>
+      <svg class="ic ev-chev" viewBox="0 0 16 16"><path d="M4.5 6.5 8 10l3.5-3.5"/></svg>
+    </button>
+    <div style="height: 8px"></div>
+    <button class="nav-item {{nav.overview.cls}}" aria-current="{{nav.overview.current}}" title="{{nav.overview.tip}}" onClick="{{nav.overview.go}}"><svg class="ic" viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="4.5" height="4.5" rx="1"/><rect x="9" y="2.5" width="4.5" height="4.5" rx="1"/><rect x="2.5" y="9" width="4.5" height="4.5" rx="1"/><rect x="9" y="9" width="4.5" height="4.5" rx="1"/></svg><span class="nav-text">Overview</span><span class="nav-count">{{nav.overview.count}}</span></button>
+    <button class="nav-item {{nav.identity.cls}}" aria-current="{{nav.identity.current}}" title="{{nav.identity.tip}}" onClick="{{nav.identity.go}}"><svg class="ic" viewBox="0 0 16 16"><path d="M3.5 14V2.5M3.5 3h8l-1.5 3 1.5 3h-8"/></svg><span class="nav-text">Identity</span><span class="nav-count">{{nav.identity.count}}</span></button>
+    <button class="nav-item {{nav.schedule.cls}}" aria-current="{{nav.schedule.current}}" title="{{nav.schedule.tip}}" onClick="{{nav.schedule.go}}"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5"/><path d="M8 5v3l2 1.5"/></svg><span class="nav-text">Schedule</span><span class="nav-count">{{nav.schedule.count}}</span></button>
+    <button class="nav-item {{nav.participants.cls}}" aria-current="{{nav.participants.current}}" title="{{nav.participants.tip}}" onClick="{{nav.participants.go}}"><svg class="ic" viewBox="0 0 16 16"><circle cx="6" cy="5.8" r="2.4"/><path d="M1.8 13.3c.5-2.4 2.2-3.5 4.2-3.5s3.7 1.1 4.2 3.5"/><path d="M10.6 3.7a2.3 2.3 0 0 1 0 4.3M11.9 10.1c1.2.5 2 1.5 2.3 3.2"/></svg><span class="nav-text">Participants</span><span class="nav-count">{{nav.participants.count}}</span></button>
+    <button class="nav-item {{nav.signup.cls}}" aria-current="{{nav.signup.current}}" title="{{nav.signup.tip}}" onClick="{{nav.signup.go}}"><svg class="ic" viewBox="0 0 16 16"><rect x="3.5" y="3" width="9" height="11" rx="1.5"/><path d="M6 3V2h4v1M6 7h4M6 9.5h4M6 12h2"/></svg><span class="nav-text">Signup setup</span><span class="nav-count">{{nav.signup.count}}</span></button>
+    <button class="nav-item {{nav.teams.cls}}" aria-current="{{nav.teams.current}}" title="{{nav.teams.tip}}" onClick="{{nav.teams.go}}"><svg class="ic" viewBox="0 0 16 16"><rect x="6" y="2" width="4" height="3" rx=".8"/><rect x="2" y="11" width="4" height="3" rx=".8"/><rect x="10" y="11" width="4" height="3" rx=".8"/><path d="M8 5v3M4 11V8h8v3"/></svg><span class="nav-text">Teams / Draft</span><span class="nav-count">{{nav.teams.count}}</span></button>
+    <button class="nav-item {{nav.board.cls}}" aria-current="{{nav.board.current}}" title="{{nav.board.tip}}" onClick="{{nav.board.go}}"><svg class="ic" viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="11" height="11" rx="1.5"/><path d="M6.2 2.5v11M9.8 2.5v11M2.5 6.2h11M2.5 9.8h11"/></svg><span class="nav-text">Board</span><span class="nav-count">{{nav.board.count}}</span></button>
+    <button class="nav-item {{nav.wom.cls}}" aria-current="{{nav.wom.current}}" title="{{nav.wom.tip}}" onClick="{{nav.wom.go}}"><svg class="ic" viewBox="0 0 16 16"><path d="M2.5 13.5h11"/><path d="M4 11l3-3.5 2.2 2L12.5 5"/></svg><span class="nav-text">WOM</span><span class="nav-count">{{nav.wom.count}}</span></button>
+    <button class="nav-item {{nav.review.cls}}" aria-current="{{nav.review.current}}" title="{{nav.review.tip}}" onClick="{{nav.review.go}}"><svg class="ic" viewBox="0 0 16 16"><path d="M2.5 9 4.3 3.5h7.4L13.5 9v4.5h-11z"/><path d="M2.5 9h3l.8 1.5h3.4l.8-1.5h3"/></svg><span class="nav-text">Review</span><span class="nav-count">{{nav.review.count}}</span></button>
+    <button class="nav-item {{nav.final.cls}}" aria-current="{{nav.final.current}}" title="{{nav.final.tip}}" onClick="{{nav.final.go}}"><svg class="ic" viewBox="0 0 16 16"><path d="M2.5 4l1 1 2-2M2.5 9l1 1 2-2"/><path d="M7.5 4.5h6M7.5 9.5h6M7.5 13h6"/></svg><span class="nav-text">Final review</span><span class="nav-count">{{nav.final.count}}</span></button>
+  </nav>
+</aside>
+
+<div class="nav-scrim {{navScrimCls}}" onClick="{{closeMobileNav}}"></div>
+<div class="main">
+  <header class="topbar">
+    <button class="icon-btn menu-toggle" id="menu-toggle" aria-label="Open navigation" aria-controls="sidebar" aria-expanded="{{mobileNav}}" onClick="{{openMobileNav}}"><svg class="ic" viewBox="0 0 16 16"><path d="M2.5 4.5h11M2.5 8h11M2.5 11.5h11"/></svg></button>
+    <div class="crumbs"><span class="crumb-cur">{{crumb}}</span></div>
+    <div class="spacer"></div>
+    <div class="theme-seg" role="radiogroup" aria-label="Theme">
+      <label class="theme-opt {{lightCls}}" title="Light theme"><input class="sr" type="radio" name="theme" checked="{{isLight}}" onChange="{{setLight}}"><span class="sr">Light theme</span><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="2.8"/><path d="M8 1.8v1.4M8 12.8v1.4M1.8 8h1.4M12.8 8h1.4M3.6 3.6l1 1M11.4 11.4l1 1M3.6 12.4l1-1M11.4 4.6l1-1"/></svg></label>
+      <label class="theme-opt {{darkCls}}" title="Dark theme"><input class="sr" type="radio" name="theme" checked="{{isDark}}" onChange="{{setDark}}"><span class="sr">Dark theme</span><svg class="ic" viewBox="0 0 16 16"><path d="M13 9.6A5.4 5.4 0 0 1 6.4 3 5.4 5.4 0 1 0 13 9.6z"/></svg></label>
+    </div>
+  </header>
+
+
+  <div class="scroller {{scrollCls}}" id="scroller">
+
+    <sc-if value="{{isDashboard}}" hint-placeholder-val="{{true}}">
+    <div class="page">
+      <div class="page-head">
+        <div style="min-width: 0">
+          <h1 class="h1">Dashboard</h1>
+          <p class="summary"><span>{{summaryLine}}</span></p>
+        </div>
+        <sc-if value="{{next.show}}" hint-placeholder-val="{{true}}">
+          <div class="next-event" aria-label="Next event">
+            <div class="grow">
+              <div class="next-label">{{next.label}}</div>
+              <div class="next-name">{{next.name}}</div>
+              <div class="next-meta"><span class="dot {{next.toneCls}}"></span>{{next.phase}} · {{next.when}}</div>
+            </div>
+            <div class="meter" title="{{next.meterTitle}}">
+              <div class="meter-track" style="--meter-w: 56px"><div class="meter-fill" style="width: {{next.pct}}%"></div></div>
+              <span class="meter-label">{{next.count}}</span>
+            </div>
+            <button class="btn btn-sm" onClick="{{next.open}}">Open</button>
+          </div>
+        </sc-if>
+      </div>
+
+      <!-- loading -->
+      <sc-if value="{{loading}}" hint-placeholder-val="{{false}}">
+        <div class="card" aria-busy="true" aria-label="Loading statistics">
+          <div class="stat-strip">
+            <sc-for list="{{skStats}}" as="s" hint-placeholder-count="4">
+              <div class="stat"><div class="sk" style="width: 46%"></div><div class="sk" style="width: 38%; height: 20px; margin-top: 12px; border-radius: 6px"></div><div class="sk" style="width: 62%; height: 8px; margin-top: 12px"></div></div>
+            </sc-for>
+          </div>
+        </div>
+        <div class="dash-grid">
+          <div class="card panel"><div class="sk" style="width: 30%"></div><div class="sk" style="height: 200px; margin-top: 20px; border-radius: 8px"></div></div>
+          <div class="card panel"><div class="sk" style="width: 40%"></div><div class="sk" style="height: 64px; margin-top: 20px; border-radius: 8px"></div><div class="sk" style="width: 80%; margin-top: 20px"></div><div class="sk" style="width: 70%; margin-top: 14px"></div><div class="sk" style="width: 75%; margin-top: 14px"></div></div>
+        </div>
+      </sc-if>
+
+      <!-- error -->
+      <sc-if value="{{loadError}}" hint-placeholder-val="{{false}}">
+        <div class="card">
+          <div class="empty is-error">
+            <div class="empty-ic"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 5v3.5M8 11h.01"/></svg></div>
+            <div class="empty-title">Couldn’t load statistics</div>
+            <div class="empty-text">The dashboard figures didn’t load. Events and participants are unaffected.</div>
+            <button class="btn" id="retry-btn" onClick="{{retry}}">Try again</button>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- no events yet -->
+      <sc-if value="{{showNone}}" hint-placeholder-val="{{false}}">
+        <div class="card fade-in">
+          <div class="empty">
+            <div class="empty-ic"><svg class="ic" viewBox="0 0 16 16"><path d="M2.5 13.5h11"/><path d="M4.5 11V8M8 11V4.5M11.5 11V6.5"/></svg></div>
+            <div class="empty-title">No events have been held yet</div>
+            <div class="empty-text">Participation, results and history appear here once the first event has ended.</div>
+            <button class="btn" onClick="{{goEvents}}">Go to Events</button>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{showStats}}" hint-placeholder-val="{{true}}">
+        <!-- headline figures -->
+        <section class="card fade-in" aria-label="Headline statistics">
+          <div class="stat-strip">
+            <sc-for list="{{stats}}" as="s" hint-placeholder-count="4">
+              <div class="stat">
+                <div class="stat-label">{{s.label}}</div>
+                <div class="stat-value {{s.valueCls}}">{{s.value}}</div>
+                <div class="stat-note">
+                  <sc-if value="{{s.hasDelta}}" hint-placeholder-val="{{false}}"><span class="stat-delta"><span class="stat-delta-fig"><svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 11.5 6.5 7.5l2.5 2.5 4.5-4.5"/><path d="M10 5.5h3.5V9"/></svg><b>{{s.deltaValue}}</b></span><span>{{s.deltaText}}</span></span></sc-if>
+                  <sc-if value="{{s.plainNote}}" hint-placeholder-val="{{true}}"><span>{{s.note}}</span></sc-if>
+                  <sc-if value="{{s.hasHint}}" hint-placeholder-val="{{false}}">
+                    <span class="hint {{s.hintCls}}" tabindex="0" aria-label="{{s.hint}}"><svg class="hint-ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 7.2v3.8M8 5h.01"/></svg><span class="hint-tip" aria-hidden="true">{{s.hint}}</span></span>
+                  </sc-if>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </section>
+
+        <div class="dash-grid">
+          <!-- participation by event -->
+          <sc-if value="{{chart.showPanel}}" hint-placeholder-val="{{true}}">
+          <section class="card panel fade-in" aria-labelledby="part-title">
+            <div class="panel-head">
+              <h2 class="panel-title" id="part-title">Participation by event</h2>
+              <sc-if value="{{chart.hasLegend}}" hint-placeholder-val="{{true}}">
+                <div class="legend" aria-label="Legend">
+                  <sc-for list="{{chart.legend}}" as="l" hint-placeholder-count="3">
+                    <span class="legend-item"><span class="legend-key {{l.cls}}"></span>{{l.label}}</span>
+                  </sc-for>
+                </div>
+              </sc-if>
+            </div>
+
+            <sc-if value="{{chart.show}}" hint-placeholder-val="{{true}}">
+              <div class="chart" id="chart" style="--bar-count: {{chart.count}}">
+                <div class="chart-plot" style="--chart-h: 208px">
+                  <sc-for list="{{chart.ticks}}" as="t" hint-placeholder-count="5">
+                    <div class="chart-gridline {{t.cls}}" style="top: {{t.top}}%"></div>
+                    <div class="chart-tick" style="top: {{t.top}}%">{{t.label}}</div>
+                  </sc-for>
+                  <div class="bars {{chart.barsCls}}" role="group" aria-label="Players per event" onMouseLeave="{{chart.leave}}">
+                    <sc-for list="{{chart.bars}}" as="b" hint-placeholder-count="4">
+                      <button class="bar-col {{b.cls}}" aria-label="{{b.aria}}" onMouseEnter="{{b.enter}}" onFocus="{{b.enter}}" onBlur="{{b.blur}}" onKeyDown="{{b.key}}" onClick="{{b.open}}">
+                        <span class="bar">
+                          <span class="bar-total">{{b.total}}</span>
+                          <span class="bar-stack" aria-hidden="true">
+                            <sc-for list="{{b.segs}}" as="g" hint-placeholder-count="2"><span class="bar-seg {{g.cls}}" style="height: {{g.h}}px"></span></sc-for>
+                          </span>
+                        </span>
+                      </button>
+                    </sc-for>
+                  </div>
+                </div>
+                <div class="chart-x" aria-hidden="true">
+                  <sc-for list="{{chart.bars}}" as="b" hint-placeholder-count="4">
+                    <div class="chart-xlabel">
+                      <div class="chart-xname" title="{{b.name}}">{{b.short}}</div>
+                      <div class="chart-xmeta">{{b.when}}</div>
+                      <div class="chart-xtiny">{{b.tiny}}</div>
+                      <div class="chart-xnote">
+                        <sc-if value="{{b.hasPill}}" hint-placeholder-val="{{false}}"><span class="pill {{b.pillCls}}">{{b.pill}}</span></sc-if>
+                        <sc-if value="{{b.hasShare}}" hint-placeholder-val="{{false}}"><span class="chart-xmeta">{{b.share}} returning</span></sc-if>
+                      </div>
+                    </div>
+                  </sc-for>
+                </div>
+                <div class="chart-tip {{tip.cls}} {{tip.glideCls}}" id="chart-tip" role="tooltip" aria-hidden="true" style="left: {{tip.left}}px; top: {{tip.top}}px">
+                  <div class="tip-title">{{tip.name}}</div>
+                  <div class="tip-meta">{{tip.meta}}</div>
+                  <div class="tip-rows">
+                    <sc-for list="{{tip.rows}}" as="r" hint-placeholder-count="3">
+                      <div class="tip-row"><sc-if value="{{r.hasKey}}" hint-placeholder-val="{{true}}"><span class="tip-key {{r.keyCls}}"></span></sc-if><span>{{r.label}}</span><b>{{r.value}}</b></div>
+                    </sc-for>
+                  </div>
+                  <sc-if value="{{tip.hasNote}}" hint-placeholder-val="{{false}}"><div class="tip-note">{{tip.note}}</div></sc-if>
+                </div>
+              </div>
+              <div class="panel-foot"><span class="panel-note">{{chart.note}}</span></div>
+            </sc-if>
+
+          </section>
+          </sc-if>
+
+          <!-- latest event -->
+          <section class="card panel fade-in recap {{recap.wideCls}}" aria-labelledby="recap-title">
+            <div class="panel-head">
+              <h2 class="panel-title" id="recap-title">Latest event</h2>
+              <span class="badge {{recap.badgeCls}}">{{recap.badge}}</span>
+            </div>
+            <div class="recap-name">{{recap.name}}</div>
+            <div class="recap-when">{{recap.when}}</div>
+
+            <div class="highlight {{recap.hlCls}}">
+              <div class="highlight-ic">
+                <sc-if value="{{recap.official}}" hint-placeholder-val="{{true}}"><svg class="ic" viewBox="0 0 16 16"><path d="M5 2.5h6v3.5a3 3 0 0 1-6 0z"/><path d="M5 3.5H3v1a2 2 0 0 0 2 2M11 3.5h2v1a2 2 0 0 1-2 2M8 9v2.5M5.5 13.5h5M6.5 11.5h3"/></svg></sc-if>
+                <sc-if value="{{recap.provisional}}" hint-placeholder-val="{{false}}"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5"/><path d="M8 5v3l2 1.5"/></svg></sc-if>
+              </div>
+              <div style="min-width: 0; flex: 1">
+                <div class="highlight-label">{{recap.hlLabel}}</div>
+                <div class="highlight-value">{{recap.hlValue}}</div>
+                <div class="highlight-sub">{{recap.hlSub}}</div>
+              </div>
+              <sc-if value="{{recap.hasBoard}}" hint-placeholder-val="{{true}}">
+                <div class="meter" title="{{recap.boardTitle}}">
+                  <div class="meter-track" style="--meter-w: 48px"><div class="meter-fill" style="width: {{recap.boardPct}}%"></div></div>
+                  <span class="meter-label">{{recap.board}}</span>
+                </div>
+              </sc-if>
+            </div>
+
+            <dl class="facts">
+              <sc-for list="{{recap.facts}}" as="f" hint-placeholder-count="3">
+                <div class="fact {{f.cls}}">
+                  <dt class="fact-label">{{f.label}}</dt>
+                  <dd class="fact-value">
+                    <sc-if value="{{f.hasHint}}" hint-placeholder-val="{{false}}"><span class="hint tip-end" tabindex="0" aria-label="{{f.hint}}">{{f.value}}<span class="hint-tip" aria-hidden="true">{{f.hint}}</span></span></sc-if>
+                    <sc-if value="{{f.plain}}" hint-placeholder-val="{{true}}">{{f.value}}</sc-if>
+                    <span class="fact-sub">{{f.sub}}</span>
+                  </dd>
+                </div>
+              </sc-for>
+            </dl>
+
+            <div class="panel-foot">
+              <span class="panel-note">{{recap.foot}}</span>
+              <sc-if value="{{recap.hasCompareNote}}" hint-placeholder-val="{{false}}"><span class="panel-note">{{recap.compareNote}}</span></sc-if>
+              <button class="btn btn-quiet btn-sm" onClick="{{recap.open}}">Open event<svg class="ic" viewBox="0 0 16 16"><path d="M6 4l4 4-4 4"/></svg></button>
+            </div>
+          </section>
+        </div>
+
+        <!-- event history -->
+        <section class="card dash-section fade-in" aria-labelledby="hist-title">
+          <div class="panel-head hist-head">
+            <h2 class="panel-title" id="hist-title">Event history</h2>
+            <span class="panel-aside">{{histAside}}</span>
+          </div>
+          <div class="tbl-wrap {{scrollXCls}}" id="tbl-wrap">
+            <div class="tbl hist" role="table" aria-label="Event history">
+              <div class="tr th-row" role="row">
+                <sc-for list="{{cols}}" as="h" hint-placeholder-count="6">
+                  <div class="th {{h.cls}}" role="columnheader" aria-sort="{{h.ariaSort}}"><button class="th-btn" onClick="{{h.sort}}">{{h.label}}<svg class="ic sort-ic {{h.dirCls}}" viewBox="0 0 16 16"><path d="M4.5 10 8 6.5l3.5 3.5"/></svg></button></div>
+                </sc-for>
+              </div>
+              <div class="rows {{rowsAnim}}" role="rowgroup">
+                <sc-for list="{{rows}}" as="r" hint-placeholder-count="4">
+                  <div class="tr row" role="row" onClick="{{r.open}}">
+                    <div class="td c-name" role="cell">
+                      <div class="name-line"><button class="name-btn" title="{{r.name}}" onClick="{{r.open}}">{{r.name}}</button><sc-if value="{{r.hasPill}}" hint-placeholder-val="{{false}}"><span class="pill {{r.pillCls}}">{{r.pill}}</span></sc-if></div>
+                      <div class="sub">{{r.when}}</div>
+                    </div>
+                    <div class="td num" role="cell">{{r.players}}</div>
+                    <div class="td num" role="cell">
+                      <sc-if value="{{r.approvedNa}}" hint-placeholder-val="{{false}}"><span class="hint tip-end muted" tabindex="0" aria-label="{{r.approvedHint}}">—<span class="hint-tip" aria-hidden="true">{{r.approvedHint}}</span></span></sc-if>
+                      <sc-if value="{{r.approvedOk}}" hint-placeholder-val="{{true}}">{{r.approved}}</sc-if>
+                    </div>
+                    <div class="td" role="cell">
+                      <sc-if value="{{r.boardOk}}" hint-placeholder-val="{{true}}"><div class="meter"><div class="meter-track"><div class="meter-fill" style="width: {{r.boardPct}}%"></div></div><span class="meter-label">{{r.board}}</span></div></sc-if>
+                      <sc-if value="{{r.boardNa}}" hint-placeholder-val="{{false}}"><span class="hint tip-start muted" tabindex="0" aria-label="{{r.boardHint}}">—<span class="hint-tip" aria-hidden="true">{{r.boardHint}}</span></span></sc-if>
+                    </div>
+                    <div class="td num c-ehb" role="cell">
+                      <sc-if value="{{r.ehbOk}}" hint-placeholder-val="{{true}}"><span class="hint tip-end muted" tabindex="0" aria-label="{{r.ehbHint}}">{{r.ehb}}<span class="hint-tip" aria-hidden="true">{{r.ehbHint}}</span></span></sc-if>
+                      <sc-if value="{{r.ehbNa}}" hint-placeholder-val="{{false}}"><span class="hint tip-end muted" tabindex="0" aria-label="{{r.ehbHint}}">—<span class="hint-tip" aria-hidden="true">{{r.ehbHint}}</span></span></sc-if>
+                    </div>
+                    <div class="td" role="cell">
+                      <sc-if value="{{r.hasWinner}}" hint-placeholder-val="{{true}}"><div class="cell-main">{{r.winner}}</div></sc-if>
+                      <sc-if value="{{r.provisional}}" hint-placeholder-val="{{false}}"><span class="hint tip-end" tabindex="0" aria-label="Official results are published after final review."><span class="pill is-warning">Provisional</span><span class="hint-tip" aria-hidden="true">Official results are published after final review.</span></span></sc-if>
+                    </div>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+        </section>
+      </sc-if>
+
+      <!-- community (shown whenever figures loaded) -->
+      <sc-if value="{{showCommunity}}" hint-placeholder-val="{{true}}">
+        <section class="dash-section fade-in" aria-labelledby="comm-title">
+          <div class="section-head"><h2 class="panel-title" id="comm-title">Community</h2><span class="panel-aside">Current figures</span></div>
+          <div class="card">
+            <div class="stat-strip is-compact" style="--stat-cols: 3">
+              <sc-for list="{{community}}" as="s" hint-placeholder-count="3">
+                <div class="stat"><div class="stat-label">{{s.label}}</div><div class="stat-value">{{s.value}}</div><div class="stat-note"><span>{{s.note}}</span></div></div>
+              </sc-for>
+            </div>
+          </div>
+        </section>
+      </sc-if>
+    </div>
+    </sc-if>
+
+    <sc-if value="{{isOther}}" hint-placeholder-val="{{false}}">
+      <div class="page">
+        <div class="page-head"><div><h1 class="h1">{{otherTitle}}</h1><p class="summary"><span>{{otherScope}}</span></p></div></div>
+        <div class="card">
+          <div class="empty ph-card">
+            <div class="empty-ic"><svg class="ic" viewBox="0 0 16 16"><rect x="2.5" y="3" width="11" height="10" rx="2"/><path d="M2.5 6h11"/></svg></div>
+            <div class="empty-title">{{otherTitle}} isn’t part of this artboard</div>
+            <div class="empty-text">This artboard shows the Dashboard. Participants has its own artboard on the canvas.</div>
+            <button class="btn" onClick="{{goDashboard}}">Back to Dashboard</button>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+  </div>
+</div>
+
+<!-- menus -->
+<sc-if value="{{menu.show}}" hint-placeholder-val="{{false}}">
+  <div class="catcher" onClick="{{menu.close}}"></div>
+  <div class="menu {{menu.cls}}" id="menu" role="menu" aria-label="{{menu.label}}" style="left: {{menu.x}}px; top: {{menu.y}}px; width: {{menu.w}}px" onKeyDown="{{menu.onKey}}">
+    <sc-for list="{{menu.items}}" as="it" hint-placeholder-count="4">
+      <sc-if value="{{it.isHeader}}" hint-placeholder-val="{{false}}"><div class="menu-head" role="presentation"><b>{{it.label}}</b>{{it.hint}}</div></sc-if>
+      <sc-if value="{{it.isSep}}" hint-placeholder-val="{{false}}"><div class="menu-sep" role="separator"></div></sc-if>
+      <sc-if value="{{it.isItem}}" hint-placeholder-val="{{true}}">
+        <button class="menu-item {{it.cls}}" role="{{it.role}}" aria-checked="{{it.checked}}" disabled="{{it.disabled}}" title="{{it.title}}" onClick="{{it.run}}">
+          <span class="grow">{{it.label}}</span>
+          <span class="menu-hint">{{it.hint}}</span>
+          <sc-if value="{{it.showCheck}}" hint-placeholder-val="{{false}}"><svg class="ic menu-check" viewBox="0 0 16 16"><path d="M3.8 8.4 6.6 11.2 12.2 5"/></svg></sc-if>
+        </button>
+      </sc-if>
+    </sc-for>
+  </div>
+</sc-if>
+
+
+<div class="toasts" aria-live="polite" aria-atomic="false">
+  <sc-for list="{{toasts}}" as="t" hint-placeholder-count="0">
+    <div class="toast {{t.cls}}" role="status" data-toast="{{t.id}}">
+      <sc-if value="{{t.isError}}" hint-placeholder-val="{{false}}"><svg class="ic t-ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 5v3.5M8 11h.01"/></svg></sc-if>
+      <sc-if value="{{t.isOk}}" hint-placeholder-val="{{true}}"><svg class="ic t-ic" viewBox="0 0 16 16"><path d="M3.8 8.4 6.6 11.2 12.2 5"/></svg></sc-if>
+      <span class="grow">{{t.text}}</span>
+      <button class="toast-x" aria-label="Dismiss notification" onClick="{{t.close}}"><svg class="ic" viewBox="0 0 16 16" style="width: 14px; height: 14px"><path d="M4.5 4.5l7 7M11.5 4.5l-7 7"/></svg></button>
+    </div>
+  </sc-for>
+</div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+// DK Legacy Admin — Dashboard (reference prototype).
+// Sample data only. Figures follow the agreed rules:
+//  · An event counts once it has gone Live (Awaiting final review, Finalized, Archived). Cancelled/discarded never
+//    happened; hidden events are quarantined and never appear in admin projections.
+//  · Players = people with a team membership during the event, counted once per event (several playing accounts or
+//    a team change still count once).
+//  · Unique / returning people use website accounts only. Imported participants have no account link, so tracked
+//    history starts with the first platform event. Unique participants = the sum of first-time players per tracked
+//    event, so the headline and the chart always agree.
+//  · Approved submissions: platform events only (reconstructed import rows excluded); counts for an event in final
+//    review are current and may change.
+//  · Official winner and board completion only once finalized.
+//  · EHB gained is secondary and only shown where Wise Old Man data exists (with account coverage).
+const DAY = 86400000;
+const D = s => Date.UTC(+s.slice(0, 4), +s.slice(5, 7) - 1, +s.slice(8, 10));
+
+const EVENTS = {
+  sommer: { id: 'sommer', name: 'Det Store Danske Sommerbingo 2026', short: 'Sommerbingo 2026', start: '2026-07-14', end: '2026-07-19', source: 'imported', state: 'archived', players: 90, teams: 6, approved: null, winner: 'The Agency', board: { done: 19, total: 25 }, ehb: { value: 18420, covered: 93, total: 93, frozen: true } },
+  winter: { id: 'winter', name: 'Winter Bingo 2026', short: 'Winter Bingo 2026', start: '2026-11-27', end: '2026-12-06', source: 'platform', state: 'finalized', players: 72, returning: 0, teams: 6, approved: 486, winner: 'Salt Mines', board: { done: 22, total: 25 }, ehb: { value: 9860, covered: 68, total: 72 } },
+  spring: { id: 'spring', name: 'Spring Bingo 2027', short: 'Spring Bingo 2027', start: '2027-03-12', end: '2027-03-21', source: 'platform', state: 'finalized', players: 84, returning: 51, teams: 7, approved: 612, winner: 'Dry Streak', board: { done: 17, total: 25 }, ehb: null },
+  summer: { id: 'summer', name: 'Summer Bingo 2027', short: 'Summer Bingo 2027', start: '2027-05-14', end: '2027-05-23', source: 'platform', state: 'review', players: 96, returning: 58, teams: 8, approved: 704, winner: null, board: null, ehb: { value: 11240, covered: 94, total: 96 } }
+};
+// Prototype sample histories (account menu). "today" differs so relative dates read naturally.
+const DATASETS = {
+  full: { label: 'Full history', today: '2027-06-02', events: ['sommer', 'winter', 'spring', 'summer'],
+    next: { name: 'Autumn Bingo 2027', phase: 'Signups open', tone: 'open', when: 'closes 15 Jun', count: 41, cap: 80 },
+    accounts: { total: 212, newSince: 9, loggedIn: 118 } },
+  two: { label: 'Imported + one platform event', today: '2027-01-20', events: ['sommer', 'winter'], next: null,
+    accounts: { total: 176, newSince: 14, loggedIn: 97 } },
+  imported: { label: 'Imported event only', today: '2026-09-30', events: ['sommer'],
+    next: { name: 'Winter Bingo 2026', phase: 'Signups open', tone: 'open', when: 'closes 20 Nov', count: 23, cap: 72 },
+    accounts: { total: 131, newSince: 38, loggedIn: 64 } },
+  none: { label: 'No events held yet', today: '2026-06-01', events: [],
+    next: { name: 'Community Bingo 2026', phase: 'Draft', tone: 'draft', when: 'signups not open', count: 0, cap: 60 },
+    accounts: { total: 12, newSince: 5, loggedIn: 9 } }
+};
+const NAV = [['dashboard', 'Dashboard'], ['events', 'Events'], ['catalogue', 'Catalogue'], ['roles', 'Accounts / Roles'], ['audit', 'Audit'],
+  ['overview', 'Overview'], ['identity', 'Identity'], ['schedule', 'Schedule'], ['participants', 'Participants'], ['signup', 'Signup setup'], ['teams', 'Teams / Draft'], ['board', 'Board'], ['wom', 'WOM'], ['review', 'Review'], ['final', 'Final review']];
+const PLOT_H = 208;
+const nf = n => Number(n).toLocaleString('en-US');
+const fmtDay = (s, withYear) => new Date(D(s)).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: withYear ? 'numeric' : undefined, timeZone: 'UTC' });
+const fmtRange = e => {
+  const a = new Date(D(e.start)), b = new Date(D(e.end));
+  const sameMonth = a.getUTCMonth() === b.getUTCMonth() && a.getUTCFullYear() === b.getUTCFullYear();
+  return (sameMonth ? a.getUTCDate() : fmtDay(e.start, a.getUTCFullYear() !== b.getUTCFullYear())) + '–' + fmtDay(e.end, true);
+};
+const monthYear = s => new Date(D(s)).toLocaleDateString('en-GB', { month: 'short', year: 'numeric', timeZone: 'UTC' });
+const pct = (a, b) => Math.round((a / b) * 100);
+
+class Component extends DCLogic {
+  constructor(...args) {
+    super(...args);
+    this.timers = [];
+    let dark = false;
+    try { dark = window.matchMedia('(prefers-color-scheme: dark)').matches; } catch (e) {}
+    this.state = { theme: dark ? 'dark' : 'light', nav: 'dashboard', dataset: 'full', loading: false, loadError: false, failNext: false,
+      sortKey: 'date', sortDir: 'desc', active: null, tip: { left: 0, top: 0 }, menu: null, sideOpen: true, mobileNav: false, vw: 1440, scrollX: false, toasts: [] };
+  }
+  componentDidMount() {
+    this.onResize = () => { const vw = window.innerWidth; if (vw !== this.state.vw) this.setState(s => ({ vw, mobileNav: vw > 860 ? false : s.mobileNav, active: null })); };
+    window.addEventListener('resize', this.onResize); this.onResize();
+    this.overflow = DKAdmin.watchOverflowX(this, 'tbl-wrap', 'scrollX', 'scroller');
+  }
+  componentDidUpdate() { if (this.overflow) this.overflow.check(); }
+  componentWillUnmount() { this.timers.forEach(clearTimeout); window.removeEventListener('resize', this.onResize); if (this.overflow) this.overflow.disconnect(); }
+  later(fn, ms) { const t = setTimeout(() => { this.timers = this.timers.filter(x => x !== t); fn(); }, ms); this.timers.push(t); return t; }
+  isMobile() { return this.state.vw <= 860; }
+
+  /* ---------- data ---------- */
+  ds() { return DATASETS[this.state.dataset]; }
+  events() {
+    // Chronological. First platform event starts tracked history; returning is only known after it.
+    let tracked = 0;
+    return this.ds().events.map(id => EVENTS[id]).map(e => {
+      const isPlatform = e.source === 'platform';
+      const first = isPlatform && tracked === 0; if (isPlatform) tracked++;
+      const returning = isPlatform && !first ? e.returning : null;
+      return Object.assign({}, e, { isPlatform, trackingStart: first, returningN: returning, firstN: isPlatform ? (first ? e.players : e.players - e.returning) : null, provisional: e.state === 'review' });
+    });
+  }
+  loadData(dataset) {
+    this.setState({ dataset: dataset || this.state.dataset, loading: true, loadError: false, active: null });
+    const willFail = this.state.failNext; if (willFail) this.setState({ failNext: false });
+    this.later(() => this.setState({ loading: false, loadError: willFail }, () => { if (willFail) DKAdmin.focusSoon('retry-btn'); }), 650);
+  }
+  go(nav) { this.setState({ nav, menu: null, active: null }); this.closeMobileNav(false); const el = document.getElementById('scroller'); if (el) el.scrollTop = 0; }
+  openEvent(e) { this.go('overview'); this.eventName = e ? e.name : null; }
+
+  /* ---------- shell: menus, sidebar ---------- */
+  menuItems(kind) {
+    if (kind === 'event') {
+      const evs = this.events().slice().reverse();
+      const items = [{ type: 'header', label: 'Switch event', hint: '' }];
+      const ds = this.ds();
+      if (ds.next) items.push({ label: ds.next.name, hint: ds.next.phase, action: () => this.openEvent(ds.next) });
+      evs.slice(0, 4).forEach(e => items.push({ label: e.name, hint: e.provisional ? 'Final review' : e.state === 'archived' ? 'Archived' : 'Finished', action: () => this.openEvent(e) }));
+      items.push({ type: 'sep' }); items.push({ label: 'All events', action: () => this.go('events') });
+      return items;
+    }
+    return [
+      { type: 'header', label: 'Nils Andersen', hint: '@nils · Administrator of Iron Pact' },
+      { type: 'sep' },
+      { type: 'header', label: 'Sample history', hint: 'Prototype only' },
+      ...Object.keys(DATASETS).map(k => ({ label: DATASETS[k].label, check: this.state.dataset === k, action: () => this.loadData(k) })),
+      { type: 'sep' },
+      { label: 'Fail next request', hint: 'Prototype', checkbox: true, checked: this.state.failNext, action: () => { const on = !this.state.failNext; this.setState({ failNext: on }); DKAdmin.toast(this, { text: on ? 'The next load will fail. Switch sample history to try it.' : 'Simulated failure turned off.' }); } }
+    ];
+  }
+  openMenu(kind, e) {
+    const m = this.state.menu;
+    if (m && !m.closing && m.kind === kind) { this.closeMenu(true); return; }
+    this.menuReturn = e.currentTarget;
+    const r = e.currentTarget.getBoundingClientRect();
+    const place = kind === 'event'
+      ? DKAdmin.placeMenu(r, { width: Math.max(r.width, 236), align: !this.state.sideOpen && !this.isMobile() ? 'side' : 'start' })
+      : DKAdmin.placeMenu(r, { width: 236, align: 'start' });
+    this.setState({ menu: Object.assign({ kind }, place) }, () => DKAdmin.focusFirstMenuItem('menu'));
+  }
+  closeMenu(restore) { if (DKAdmin.closeLayer(this, 'menu', '#menu') && restore) DKAdmin.restoreFocus(this.menuReturn); }
+  vmMenu() {
+    const m = this.state.menu;
+    if (!m) return { show: false, items: [], x: 0, y: 0, w: 236 };
+    const items = this.menuItems(m.kind).map(it => {
+      if (it.type === 'sep') return { isSep: true };
+      if (it.type === 'header') return { isHeader: true, label: it.label, hint: it.hint };
+      return { isItem: true, label: it.label, hint: it.hint || '', disabled: false, cls: '',
+        role: it.checkbox ? 'menuitemcheckbox' : (it.check !== undefined ? 'menuitemradio' : 'menuitem'),
+        checked: it.checkbox ? !!it.checked : (it.check !== undefined ? !!it.check : undefined), showCheck: !!(it.checked || it.check),
+        run: () => { const ret = this.menuReturn; this.closeMenu(false); DKAdmin.restoreFocus(ret); it.action(); } };
+    });
+    return { show: true, items, x: m.x, y: m.y, w: m.w, cls: (m.up ? 'is-up' : '') + (m.closing ? ' is-closing' : ''), label: m.kind === 'event' ? 'Events' : 'Account',
+      close: () => this.closeMenu(true), onKey: e => DKAdmin.menuKeydown(e, 'menu', () => this.closeMenu(true)) };
+  }
+  openMobileNav(e) { this.navReturn = e && e.currentTarget; this.setState({ mobileNav: true, menu: null }, () => DKAdmin.focusSoon('user-btn', { preventScroll: true })); }
+  closeMobileNav(restore) { if (!this.state.mobileNav) return; this.setState({ mobileNav: false }, () => { if (restore !== false) DKAdmin.restoreFocus(this.navReturn, 'menu-toggle'); }); }
+
+  /* ---------- chart interaction ---------- */
+  activate(i, target) {
+    const chart = document.getElementById('chart');
+    const stack = target && target.querySelector('.bar-stack');
+    const tipEl = document.getElementById('chart-tip');
+    const pos = DKAdmin.tipBeside(chart, stack, 228, tipEl ? Math.max(tipEl.offsetHeight, 150) : 150, 14);
+    this.setState(s => ({ active: i, tip: pos, tipGlide: s.active != null && s.active !== i }));
+  }
+
+  /* ---------- view models ---------- */
+  vmStats(evs) {
+    const platform = evs.filter(e => e.isPlatform);
+    const review = evs.filter(e => e.provisional).length;
+    const unique = platform.reduce((n, e) => n + e.firstN, 0);
+    const participations = evs.reduce((n, e) => n + e.players, 0);
+    const approved = platform.reduce((n, e) => n + e.approved, 0);
+    const reviewApproved = platform.filter(e => e.provisional).reduce((n, e) => n + e.approved, 0);
+    const firstTracked = platform[0];
+    const hasImported = evs.some(e => !e.isPlatform);
+    // "What the latest event added" — shown only when earlier events also contributed (otherwise the
+    // latest event IS the total and the existing context line is more useful).
+    const last = evs[evs.length - 1];
+    const provHint = last.provisional ? ' The latest event is still in final review, so its figures are provisional.' : '';
+    const addUnique = last.isPlatform && !last.trackingStart ? { v: '+' + nf(last.firstN), t: 'new in the latest event' } : null;
+    const addPlayers = evs.length > 1 ? { v: '+' + nf(last.players), t: 'from the latest event' } : null;
+    const addApproved = last.isPlatform && platform.length > 1 ? { v: '+' + nf(last.approved), t: 'from the latest event' } : null;
+    const trackNote = 'Counted by website account, tracked since ' + (firstTracked ? firstTracked.short : '') + '.' + (hasImported ? ' Imported participants aren’t linked to accounts, so they aren’t included.' : '');
+    return [
+      { label: 'Events held', value: nf(evs.length), note: review ? review + ' awaiting final review' : 'since ' + monthYear(evs[0].start), hint: 'Events that have gone Live, including any awaiting final review.' },
+      platform.length
+        ? { label: 'Unique participants', value: nf(unique), delta: addUnique, note: 'tracked since ' + firstTracked.short, hint: trackNote + (addUnique ? provHint : '') }
+        : { label: 'Unique participants', value: '—', empty: true, note: 'not tracked yet', hint: 'Imported participants aren’t linked to website accounts, so they can’t be counted as unique people.' },
+      { label: 'Total participations', value: nf(participations), delta: addPlayers, note: 'each person once per event', hint: 'Players summed across every event held, including imported history. Each person counts once per event.' + (addPlayers ? provHint : '') },
+      platform.length
+        ? { label: 'Approved submissions', value: nf(approved), delta: addApproved, note: (hasImported ? 'platform events only' : 'across ' + platform.length + ' event' + (platform.length > 1 ? 's' : '')),
+            hint: 'Platform events only.' + (hasImported ? ' Reconstructed records from the imported event are excluded.' : '') + (reviewApproved ? ' ' + nf(reviewApproved) + ' are from an event still in final review and may change.' : '') }
+        : { label: 'Approved submissions', value: '—', empty: true, note: 'no platform events yet', hint: 'The imported event has no evidence submissions.' }
+    ].map((s, i) => Object.assign(s, { hasDelta: !!s.delta, plainNote: !s.delta, deltaValue: s.delta ? s.delta.v : '', deltaText: s.delta ? s.delta.t : '', valueCls: s.empty ? 'is-empty' : '', hasHint: !!s.hint, hintCls: i === 3 ? 'tip-end' : (i === 0 ? 'tip-start' : '') }));
+  }
+  vmChart(evs) {
+    const S = this.state;
+    if (evs.length < 2) {
+      const e = evs[0];
+      return { show: false, showPanel: false, hasLegend: false, legend: [], bars: [], ticks: [] };
+    }
+    const max = Math.max(...evs.map(e => e.players));
+    const step = max > 150 ? 50 : 25; const top = Math.ceil(max / step) * step;
+    const ticks = []; for (let v = 0; v <= top; v += step) ticks.push({ label: nf(v), top: 100 - (v / top) * 100, cls: v === 0 ? 'is-base' : '' });
+    const px = v => Math.max(2, Math.round((v / top) * PLOT_H));
+    const anyReturning = evs.some(e => e.returningN != null);
+    const firstTracked = evs.find(e => e.trackingStart);
+    const bars = evs.map((e, i) => {
+      const prov = e.provisional ? ' is-provisional' : '';
+      let segs, aria;
+      if (!e.isPlatform) { segs = [{ cls: 's-muted', h: px(e.players) }]; aria = e.name + ': ' + e.players + ' players, imported, not linked to website accounts.'; }
+      else if (e.trackingStart) { segs = [{ cls: 's-2' + prov, h: px(e.players) }]; aria = e.name + ': ' + e.players + ' players, all first tracked.'; }
+      else { segs = [{ cls: 's-1' + prov, h: px(e.returningN) - 1 }, { cls: 's-2' + prov, h: px(e.firstN) - 1 }]; aria = e.name + ': ' + e.players + ' players, ' + e.returningN + ' returning, ' + e.firstN + ' first time.'; }
+      if (e.provisional) aria += ' Provisional, awaiting final review.';
+      const share = e.returningN != null ? pct(e.returningN, e.players) + '%' : '';
+      const dt = new Date(D(e.start));
+      const tiny = dt.toLocaleDateString('en-GB', { month: 'short', timeZone: 'UTC' }) + ' ’' + String(dt.getUTCFullYear()).slice(2);
+      return { name: e.name, short: e.short, when: monthYear(e.start), tiny, total: nf(e.players), segs, aria,
+        cls: S.active === i ? 'is-active' : '',
+        hasPill: !e.isPlatform || e.trackingStart || e.provisional, pill: !e.isPlatform ? 'Imported' : e.provisional ? 'Provisional' : 'Tracking starts', pillCls: !e.isPlatform ? 'is-neutral' : e.provisional ? 'is-warning' : '',
+        hasShare: !!share && !e.provisional, share,
+        enter: ev => this.activate(i, ev.currentTarget), blur: () => this.setState({ active: null, tipGlide: false }),
+        key: ev => { if (ev.key === 'Escape') this.setState({ active: null }); }, open: () => this.openEvent(e) };
+    });
+    const legend = [];
+    if (anyReturning) legend.push({ cls: 's-1', label: 'Returning' });
+    legend.push({ cls: 's-2', label: anyReturning ? 'First time' : 'Tracked players' });
+    if (evs.some(e => !e.isPlatform)) legend.push({ cls: 's-muted', label: 'Imported (not linked)' });
+    if (evs.some(e => e.provisional)) legend.push({ cls: 's-2 is-provisional', label: 'Provisional' });
+    return { show: true, showPanel: true, count: evs.length, ticks, bars, legend, hasLegend: true,
+      barsCls: S.active != null ? 'has-active' : '', leave: () => this.setState({ active: null, tipGlide: false }),
+      note: 'Each person counted once per event. ' + (firstTracked ? 'Tracking by website account starts with ' + firstTracked.short + '; ' + (anyReturning ? 'returning means they played an earlier tracked event.' : 'returning players appear from the next tracked event.') : '') };
+  }
+  vmTip(evs) {
+    const S = this.state; const e = S.active != null ? evs[S.active] : null;
+    if (!e) return { cls: '', name: '', meta: '', rows: [], left: S.tip.left, top: S.tip.top };
+    const rows = [{ label: 'Players', value: nf(e.players), hasKey: false }];
+    let note = '';
+    if (!e.isPlatform) note = 'Imported history. Players aren’t linked to website accounts, so they aren’t split into returning and first time.';
+    else if (e.trackingStart) note = 'Tracked history starts here, so there’s no earlier event to return from.';
+    else { rows.push({ label: 'Returning', value: nf(e.returningN), hasKey: true, keyCls: 's-1' }, { label: 'First time', value: nf(e.firstN), hasKey: true, keyCls: 's-2' }, { label: 'Returning share', value: pct(e.returningN, e.players) + '%', hasKey: false }); }
+    if (e.provisional) note = 'Ended ' + fmtDay(e.end, true) + ' · awaiting final review. Figures may still change.';
+    return { cls: 'is-on', glideCls: S.tipGlide ? 'is-glide' : '', name: e.name, meta: fmtRange(e) + ' · ' + e.teams + ' teams', rows, hasNote: !!note, note, left: S.tip.left, top: S.tip.top };
+  }
+  vmRecap(evs) {
+    const e = evs[evs.length - 1]; if (!e) return { facts: [] };
+    const lastOfficial = evs.slice().reverse().find(x => !x.provisional);
+    const share = e.returningN != null ? ' · ' + pct(e.returningN, e.players) + '% returning' : '';
+    const facts = [{ label: 'Players', value: nf(e.players), sub: e.teams + ' teams' + share }];
+    if (e.isPlatform) facts.push({ label: 'Approved submissions', value: nf(e.approved), sub: e.provisional ? 'may change in final review' : '' });
+    else facts.push({ label: 'Approved submissions', value: '—', sub: 'not available', hint: 'Imported history has no evidence submissions; its contributions were reconstructed.' });
+    if (e.ehb) facts.push({ label: 'EHB gained', value: nf(e.ehb.value), sub: e.ehb.covered + ' of ' + e.ehb.total + ' accounts · Wise Old Man' + (e.ehb.frozen ? ' (frozen)' : ''), cls: 'is-secondary' });
+    const f = facts.map(x => Object.assign({ cls: '' }, x, { hasHint: !!x.hint, plain: !x.hint }));
+    const official = !e.provisional;
+    return {
+      name: e.name, when: fmtRange(e), badge: e.provisional ? 'Provisional' : (e.isPlatform ? 'Finalized' : 'Imported · archived'), badgeCls: e.provisional ? 'badge-warning' : 'badge-neutral',
+      official, provisional: !official, hlCls: official ? '' : 'is-muted',
+      hlLabel: official ? 'Winner' : 'Results provisional', hlValue: official ? e.winner : 'Final review in progress',
+      hlSub: official ? e.teams + ' teams competed' : (lastOfficial ? 'Last official winner: ' + lastOfficial.winner + ' · ' + lastOfficial.short : 'The winner is shown once results are official.'),
+      hasBoard: official && !!e.board, board: e.board ? e.board.done + '/' + e.board.total : '', boardPct: e.board ? pct(e.board.done, e.board.total) : 0, boardTitle: e.board ? 'Winner completed ' + e.board.done + ' of ' + e.board.total + ' tiles' : '',
+      wideCls: evs.length < 2 ? 'is-wide' : '', hasCompareNote: evs.length < 2, compareNote: 'Participation by event appears once a second event has been held.',
+      facts: f, foot: official ? (e.isPlatform ? 'Finalized results' : 'Imported history · attribution reconstructed') : 'Ended ' + fmtDay(e.end, true), open: () => this.openEvent(e)
+    };
+  }
+  vmTable(evs) {
+    const S = this.state; const dir = S.sortDir === 'asc' ? 1 : -1;
+    const key = { date: e => D(e.start), players: e => e.players, approved: e => e.approved, board: e => e.board && !e.provisional ? e.board.done / e.board.total : null, ehb: e => e.ehb ? e.ehb.value : null, winner: e => e.provisional ? null : e.winner };
+    const list = evs.slice().sort((a, b) => {
+      const x = key[S.sortKey](a), y = key[S.sortKey](b);
+      if (x == null && y == null) return D(b.start) - D(a.start);
+      if (x == null) return 1; if (y == null) return -1;
+      return (typeof x === 'string' ? x.localeCompare(y) : x - y) * dir || D(b.start) - D(a.start);
+    });
+    const rows = list.map(e => ({
+      name: e.name, when: fmtRange(e), hasPill: !e.isPlatform || e.provisional, pill: !e.isPlatform ? 'Imported' : 'Final review', pillCls: !e.isPlatform ? 'is-neutral' : 'is-warning',
+      players: nf(e.players),
+      approvedOk: e.isPlatform, approvedNa: !e.isPlatform, approved: e.isPlatform ? nf(e.approved) : '', approvedHint: 'Not available for imported history: contributions were reconstructed, not submitted.',
+      boardOk: !!e.board && !e.provisional, boardNa: !e.board || e.provisional, board: e.board ? e.board.done + '/' + e.board.total + ' tiles' : '', boardPct: e.board ? pct(e.board.done, e.board.total) : 0,
+      boardHint: e.provisional ? 'Shown once results are official.' : 'Not recorded.',
+      ehbOk: !!e.ehb, ehbNa: !e.ehb, ehb: e.ehb ? nf(e.ehb.value) : '', ehbHint: e.ehb ? 'Wise Old Man · ' + e.ehb.covered + ' of ' + e.ehb.total + ' accounts' + (e.ehb.frozen ? ' · frozen snapshot' : '') : 'Wise Old Man wasn’t linked to this event.',
+      hasWinner: !e.provisional, provisional: e.provisional, winner: e.winner,
+      open: ev => { if (ev && ev.stopPropagation) ev.stopPropagation(); this.openEvent(e); }
+    }));
+    const defs = [['date', 'Event', 'c-name'], ['players', 'Players', 'num'], ['approved', 'Approved submissions', 'num'], ['board', 'Winner’s board', ''], ['ehb', 'EHB gained', 'num c-ehb'], ['winner', 'Winner', '']];
+    const cols = defs.map(([k, label, cls]) => {
+      const on = S.sortKey === k;
+      return { label, cls: cls + (on ? ' is-sorted' : ''), ariaSort: on ? (S.sortDir === 'asc' ? 'ascending' : 'descending') : 'none', dirCls: on ? (S.sortDir === 'asc' ? 'is-asc' : 'is-desc') : '',
+        sort: () => this.setState(s => ({ sortKey: k, sortDir: s.sortKey === k ? (s.sortDir === 'asc' ? 'desc' : 'asc') : (k === 'winner' ? 'asc' : 'desc'), sortView: (s.sortView || 0) + 1 })) };
+    });
+    return { rows, cols };
+  }
+  vmNext() {
+    const n = this.ds().next;
+    if (!n) return { show: false };
+    return { show: true, label: 'Next event', name: n.name, phase: n.phase, when: n.when, toneCls: 'tone-' + n.tone, pct: pct(n.count, n.cap), count: n.count + '/' + n.cap,
+      meterTitle: n.count + ' of ' + n.cap + ' places filled', open: () => this.openEvent(n) };
+  }
+
+  renderVals() {
+    const S = this.state; const ds = this.ds(); const evs = this.events();
+    const ready = !S.loading && !S.loadError;
+    const last = evs[evs.length - 1];
+    const today = D(ds.today);
+    const daysAgo = last ? Math.round((today - D(last.end)) / DAY) : 0;
+    const summaryLine = !evs.length ? 'No events held yet' :
+      nf(evs.length) + ' event' + (evs.length > 1 ? 's' : '') + ' since ' + monthYear(evs[0].start) + ' · last ended ' + fmtDay(last.end, true) + (daysAgo > 0 ? ' (' + daysAgo + ' day' + (daysAgo === 1 ? '' : 's') + ' ago)' : '');
+    const T = evs.length ? this.vmTable(evs) : { rows: [], cols: [] };
+    const nav = {}; NAV.forEach(([k, label]) => { nav[k] = { cls: S.nav === k ? 'is-current' : '', current: S.nav === k ? 'page' : undefined, tip: (S.sideOpen || this.isMobile()) ? undefined : label, count: '', go: () => this.go(k) }; });
+    const titles = {}; NAV.forEach(([k, l]) => { titles[k] = l; });
+    const community = [
+      { label: 'Website accounts', value: nf(ds.accounts.total), note: 'registered in total' },
+      { label: last ? 'New since the last event' : 'New in the last 30 days', value: nf(ds.accounts.newSince), note: last ? 'created after ' + fmtDay(last.end, true) : 'created recently' },
+      { label: 'Logged in during the last 30 days', value: nf(ds.accounts.loggedIn), note: pct(ds.accounts.loggedIn, ds.accounts.total) + '% of accounts' }
+    ];
+    const upcomingEvent = ds.next;
+    return {
+      themeClass: S.theme === 'dark' ? 'theme-dark' : 'theme-light', isLight: S.theme === 'light', isDark: S.theme === 'dark', lightCls: S.theme === 'light' ? 'is-on' : '', darkCls: S.theme === 'dark' ? 'is-on' : '',
+      setLight: () => this.setState({ theme: 'light' }), setDark: () => this.setState({ theme: 'dark' }),
+      nav, sideCls: (S.sideOpen ? '' : 'is-collapsed') + (S.mobileNav ? ' is-mobile-open' : ''), sideOpen: this.isMobile() ? S.mobileNav : S.sideOpen,
+      sideTip: (S.sideOpen || this.isMobile()) ? undefined : 'Iron Pact · Administrator', mobileNav: S.mobileNav, navScrimCls: S.mobileNav ? 'is-on' : '',
+      openMobileNav: e => this.openMobileNav(e), closeMobileNav: () => this.closeMobileNav(),
+      sideKey: e => { if (!this.state.mobileNav || this.state.menu) return; if (e.key === 'Escape') { e.preventDefault(); this.closeMobileNav(); } else DKAdmin.trapTab(e, 'sidebar'); },
+      collapseLabel: this.isMobile() ? 'Close navigation' : (S.sideOpen ? 'Collapse sidebar' : 'Expand sidebar'), collapseArrowCls: (S.sideOpen || this.isMobile()) ? '' : 'is-flip',
+      toggleSide: () => { if (this.isMobile()) { this.closeMobileNav(); return; } this.setState(s => ({ sideOpen: !s.sideOpen, menu: null, active: null })); },
+      ev: upcomingEvent ? { name: upcomingEvent.name, stage: upcomingEvent.phase, when: upcomingEvent.when, toneCls: 'tone-' + upcomingEvent.tone } : last ? { name: last.name, stage: last.provisional ? 'Final review' : 'Finished', when: fmtDay(last.end, true), toneCls: last.provisional ? 'tone-live' : 'tone-draft' } : { name: 'No events', stage: '—', when: '', toneCls: 'tone-draft' },
+      evTip: (S.sideOpen || this.isMobile()) ? undefined : 'Switch event',
+      eventMenuOpen: !!(S.menu && S.menu.kind === 'event'), userMenuOpen: !!(S.menu && S.menu.kind === 'user'),
+      openEventMenu: e => this.openMenu('event', e), openUserMenu: e => this.openMenu('user', e),
+      scrollCls: S.mobileNav ? 'is-locked' : '',
+      isDashboard: S.nav === 'dashboard', isOther: S.nav !== 'dashboard',
+      crumb: S.nav === 'dashboard' ? 'Dashboard' : (S.nav === 'overview' && this.eventName ? this.eventName : titles[S.nav]),
+      otherTitle: S.nav === 'overview' && this.eventName ? this.eventName : (titles[S.nav] || ''), otherScope: ['events', 'catalogue', 'roles', 'audit'].indexOf(S.nav) >= 0 ? 'Community-wide' : 'Event page',
+      goDashboard: () => this.go('dashboard'), goEvents: () => this.go('events'),
+      summaryLine: ready ? summaryLine : ' ', next: this.vmNext(),
+      loading: S.loading, loadError: S.loadError, retry: () => this.loadData(), skStats: [1, 2, 3, 4],
+      showNone: ready && !evs.length, showStats: ready && evs.length > 0, showCommunity: ready,
+      stats: evs.length ? this.vmStats(evs) : [], chart: evs.length ? this.vmChart(evs) : { bars: [], ticks: [], legend: [] }, tip: this.vmTip(evs), recap: this.vmRecap(evs),
+      histAside: nf(evs.length) + ' event' + (evs.length === 1 ? '' : 's'), rowsAnim: S.sortView ? (S.sortView % 2 ? 'swap-a' : 'swap-b') : '', rows: T.rows, cols: T.cols, scrollXCls: S.scrollX ? 'is-scroll' : '',
+      community, menu: this.vmMenu(), toasts: DKAdmin.toastView(this)
+    };
+  }
+}
+
+</script>
+</body>
+</html>

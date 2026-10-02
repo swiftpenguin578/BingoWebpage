@@ -1,0 +1,1028 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Events · DK Legacy Admin</title>
+<script src="./vendor/react.js"></script>
+<script src="./vendor/react-dom.js"></script>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ui/tokens.css">
+<link rel="stylesheet" href="ui/components.css">
+<script src="ui/behavior.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&amp;family=Geist+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+/* Events page only. Shared tokens, components and behaviour: ui/tokens.css, ui/components.css, ui/behavior.js */
+.tbl.ev-tbl{--table-cols:minmax(230px,1.5fr) 152px minmax(190px,1.1fr) minmax(170px,1fr) minmax(224px,1.3fr);--table-min:990px}
+@media (max-width:640px){.tbl.ev-tbl{--table-cols:minmax(168px,1fr) 148px 188px 164px 214px;--table-min:900px}.ev-tbl .th.c-name,.ev-tbl .td.c-name{padding-left:16px}}
+.ev-tbl .row.is-cancelled .td-dates .cell-main{color:var(--dk-text-3)}
+.ev-tbl .td .meter{max-width:100%}
+.ev-tbl .meter-label{color:var(--dk-text);font-size:var(--dk-fs-control-sm)}
+.ev-tbl .meter-label.is-muted{color:var(--dk-text-3)}
+.ev-tbl .cell-main{font-size:var(--dk-fs-control-sm)}
+.ev-tbl .cell-main.is-muted{color:var(--dk-text-3)}
+.tfoot-note{color:var(--dk-text-3)}
+.ov-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+/* Prototype-only: simulated browser bar (not part of the product UI) */
+.proto-bar{position:fixed;left:12px;bottom:12px;z-index:calc(var(--dk-z-toast) - 1);display:flex;align-items:center;gap:1px;max-width:min(620px,calc(100vw - 24px));padding:3px 12px 3px 3px;border-radius:var(--dk-radius-pill);background:var(--dk-surface-raised);border:1px dashed var(--dk-border-strong);box-shadow:var(--dk-shadow-sm);font-size:var(--dk-fs-meta);color:var(--dk-text-3)}
+.proto-bar .icon-btn{width:26px;height:26px;border-radius:50%}
+.proto-bar .icon-btn .ic{width:14px;height:14px}
+.proto-tag{margin:0 8px 0 4px;font-size:var(--dk-fs-caption);letter-spacing:.02em;white-space:nowrap}
+.proto-url{font-family:var(--dk-font-mono);font-size:var(--dk-fs-meta);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--dk-text-2);min-width:0}
+@media (max-width:640px){.tbar-right{width:100%}.tbar-right .search{flex:1;width:auto;min-width:0}.proto-bar{display:none}.page-head .btn-primary{width:100%}}
+</style>
+</helmet>
+<div class="app dk-theme {{themeClass}}" id="app">
+
+<aside class="side {{sideCls}}" id="sidebar" aria-label="Administration" onKeyDown="{{sideKey}}">
+  <div class="side-top">
+    <button class="account-btn" id="user-btn" aria-haspopup="menu" aria-expanded="{{userMenuOpen}}" title="{{sideTip}}" onClick="{{openUserMenu}}">
+      <span class="logo" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M3 12.5V5.2L8 2.5l5 2.7v7.3"/><path d="M6 12.5V8.5h4v4"/></svg></span>
+      <span class="brand-text"><span class="brand-name">Iron Pact<svg class="ic" viewBox="0 0 16 16"><path d="M4.5 6.5 8 10l3.5-3.5"/></svg></span><span class="brand-sub">{{roleLabel}}</span></span>
+    </button>
+    <button class="icon-btn collapse-btn" aria-label="{{collapseLabel}}" title="{{collapseLabel}}" aria-expanded="{{sideOpen}}" onClick="{{toggleSide}}"><svg class="ic" viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="11" height="11" rx="1.5"/><path d="M6 2.5v11"/><path class="{{collapseArrowCls}}" d="M10.6 6.2 8.8 8l1.8 1.8"/></svg></button>
+  </div>
+
+  <nav class="nav" aria-label="Administration">
+    <div class="nav-label">Administration</div>
+    <button class="nav-item {{nav.dashboard.cls}}" aria-current="{{nav.dashboard.current}}" title="{{nav.dashboard.tip}}" onClick="{{nav.dashboard.go}}"><svg class="ic" viewBox="0 0 16 16"><path d="M2.5 12a5.5 5.5 0 1 1 11 0"/><path d="M8 12l2.6-3.4"/><path d="M8 12h.01"/></svg><span class="nav-text">Dashboard</span><span class="nav-count">{{nav.dashboard.count}}</span></button>
+    <button class="nav-item {{nav.events.cls}}" aria-current="{{nav.events.current}}" title="{{nav.events.tip}}" onClick="{{nav.events.go}}"><svg class="ic" viewBox="0 0 16 16"><rect x="2.5" y="3.5" width="11" height="10" rx="1.5"/><path d="M2.5 6.5h11M5.5 2v3M10.5 2v3"/></svg><span class="nav-text">Events</span><span class="nav-count">{{nav.events.count}}</span></button>
+    <button class="nav-item {{nav.catalogue.cls}}" aria-current="{{nav.catalogue.current}}" title="{{nav.catalogue.tip}}" onClick="{{nav.catalogue.go}}"><svg class="ic" viewBox="0 0 16 16"><path d="M8 2.5 2.5 5.5 8 8.5l5.5-3z"/><path d="M2.5 8.2 8 11.2l5.5-3M2.5 10.8 8 13.8l5.5-3"/></svg><span class="nav-text">Catalogue</span><span class="nav-count">{{nav.catalogue.count}}</span></button>
+    <button class="nav-item {{nav.roles.cls}}" aria-current="{{nav.roles.current}}" title="{{nav.roles.tip}}" onClick="{{nav.roles.go}}"><svg class="ic" viewBox="0 0 16 16"><rect x="3" y="2.5" width="10" height="11" rx="1.5"/><circle cx="8" cy="7" r="1.8"/><path d="M5.3 11.5c.5-1.3 1.5-2 2.7-2s2.2.7 2.7 2"/></svg><span class="nav-text">Accounts / Roles</span><span class="nav-count">{{nav.roles.count}}</span></button>
+    <button class="nav-item {{nav.audit.cls}}" aria-current="{{nav.audit.current}}" title="{{nav.audit.tip}}" onClick="{{nav.audit.go}}"><svg class="ic" viewBox="0 0 16 16"><path d="M4 2.5h8v11H4z"/><path d="M6 5.5h4M6 8h4M6 10.5h2.5"/></svg><span class="nav-text">Audit</span><span class="nav-count">{{nav.audit.count}}</span></button>
+  </nav>
+
+  <div class="side-rule" aria-hidden="true"></div>
+
+  <nav class="nav" aria-label="Event">
+    <button class="event-switch" id="event-switch" aria-haspopup="menu" aria-expanded="{{eventMenuOpen}}" title="{{evTip}}" onClick="{{openEventMenu}}">
+      <svg class="ic ev-ic" viewBox="0 0 16 16"><rect x="2.5" y="3.5" width="11" height="10" rx="1.5"/><path d="M2.5 6.5h11M5.5 2v3M10.5 2v3"/></svg>
+      <div class="ev-text" style="flex: 1; min-width: 0">
+        <div class="ev-lbl">Event</div>
+        <div class="ev-name">{{ev.name}}</div>
+        <div class="ev-meta"><span class="dot {{ev.toneCls}}"></span><span class="ev-meta-text" title="{{ev.stage}} · {{ev.when}}">{{ev.stage}} · {{ev.when}}</span></div>
+      </div>
+      <svg class="ic ev-chev" viewBox="0 0 16 16"><path d="M4.5 6.5 8 10l3.5-3.5"/></svg>
+    </button>
+    <div style="height: 8px"></div>
+    <button class="nav-item {{nav.overview.cls}}" aria-current="{{nav.overview.current}}" title="{{nav.overview.tip}}" onClick="{{nav.overview.go}}"><svg class="ic" viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="4.5" height="4.5" rx="1"/><rect x="9" y="2.5" width="4.5" height="4.5" rx="1"/><rect x="2.5" y="9" width="4.5" height="4.5" rx="1"/><rect x="9" y="9" width="4.5" height="4.5" rx="1"/></svg><span class="nav-text">Overview</span><span class="nav-count">{{nav.overview.count}}</span></button>
+    <button class="nav-item {{nav.identity.cls}}" aria-current="{{nav.identity.current}}" title="{{nav.identity.tip}}" onClick="{{nav.identity.go}}"><svg class="ic" viewBox="0 0 16 16"><path d="M3.5 14V2.5M3.5 3h8l-1.5 3 1.5 3h-8"/></svg><span class="nav-text">Identity</span><span class="nav-count">{{nav.identity.count}}</span></button>
+    <button class="nav-item {{nav.schedule.cls}}" aria-current="{{nav.schedule.current}}" title="{{nav.schedule.tip}}" onClick="{{nav.schedule.go}}"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5"/><path d="M8 5v3l2 1.5"/></svg><span class="nav-text">Schedule</span><span class="nav-count">{{nav.schedule.count}}</span></button>
+    <button class="nav-item {{nav.participants.cls}}" aria-current="{{nav.participants.current}}" title="{{nav.participants.tip}}" onClick="{{nav.participants.go}}"><svg class="ic" viewBox="0 0 16 16"><circle cx="6" cy="5.8" r="2.4"/><path d="M1.8 13.3c.5-2.4 2.2-3.5 4.2-3.5s3.7 1.1 4.2 3.5"/><path d="M10.6 3.7a2.3 2.3 0 0 1 0 4.3M11.9 10.1c1.2.5 2 1.5 2.3 3.2"/></svg><span class="nav-text">Participants</span><span class="nav-count">{{nav.participants.count}}</span></button>
+    <button class="nav-item {{nav.signup.cls}}" aria-current="{{nav.signup.current}}" title="{{nav.signup.tip}}" onClick="{{nav.signup.go}}"><svg class="ic" viewBox="0 0 16 16"><rect x="3.5" y="3" width="9" height="11" rx="1.5"/><path d="M6 3V2h4v1M6 7h4M6 9.5h4M6 12h2"/></svg><span class="nav-text">Signup setup</span><span class="nav-count">{{nav.signup.count}}</span></button>
+    <button class="nav-item {{nav.teams.cls}}" aria-current="{{nav.teams.current}}" title="{{nav.teams.tip}}" onClick="{{nav.teams.go}}"><svg class="ic" viewBox="0 0 16 16"><rect x="6" y="2" width="4" height="3" rx=".8"/><rect x="2" y="11" width="4" height="3" rx=".8"/><rect x="10" y="11" width="4" height="3" rx=".8"/><path d="M8 5v3M4 11V8h8v3"/></svg><span class="nav-text">Teams / Draft</span><span class="nav-count">{{nav.teams.count}}</span></button>
+    <button class="nav-item {{nav.board.cls}}" aria-current="{{nav.board.current}}" title="{{nav.board.tip}}" onClick="{{nav.board.go}}"><svg class="ic" viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="11" height="11" rx="1.5"/><path d="M6.2 2.5v11M9.8 2.5v11M2.5 6.2h11M2.5 9.8h11"/></svg><span class="nav-text">Board</span><span class="nav-count">{{nav.board.count}}</span></button>
+    <button class="nav-item {{nav.wom.cls}}" aria-current="{{nav.wom.current}}" title="{{nav.wom.tip}}" onClick="{{nav.wom.go}}"><svg class="ic" viewBox="0 0 16 16"><path d="M2.5 13.5h11"/><path d="M4 11l3-3.5 2.2 2L12.5 5"/></svg><span class="nav-text">WOM</span><span class="nav-count">{{nav.wom.count}}</span></button>
+    <button class="nav-item {{nav.review.cls}}" aria-current="{{nav.review.current}}" title="{{nav.review.tip}}" onClick="{{nav.review.go}}"><svg class="ic" viewBox="0 0 16 16"><path d="M2.5 9 4.3 3.5h7.4L13.5 9v4.5h-11z"/><path d="M2.5 9h3l.8 1.5h3.4l.8-1.5h3"/></svg><span class="nav-text">Review</span><span class="nav-count">{{nav.review.count}}</span></button>
+    <button class="nav-item {{nav.final.cls}}" aria-current="{{nav.final.current}}" title="{{nav.final.tip}}" onClick="{{nav.final.go}}"><svg class="ic" viewBox="0 0 16 16"><path d="M2.5 4l1 1 2-2M2.5 9l1 1 2-2"/><path d="M7.5 4.5h6M7.5 9.5h6M7.5 13h6"/></svg><span class="nav-text">Final review</span><span class="nav-count">{{nav.final.count}}</span></button>
+  </nav>
+</aside>
+
+<div class="nav-scrim {{navScrimCls}}" onClick="{{closeMobileNav}}"></div>
+<div class="main">
+  <header class="topbar">
+    <button class="icon-btn menu-toggle" id="menu-toggle" aria-label="Open navigation" aria-controls="sidebar" aria-expanded="{{mobileNav}}" onClick="{{openMobileNav}}"><svg class="ic" viewBox="0 0 16 16"><path d="M2.5 4.5h11M2.5 8h11M2.5 11.5h11"/></svg></button>
+    <div class="crumbs">
+      <sc-if value="{{crumbIsEvents}}" hint-placeholder-val="{{true}}"><span class="crumb-cur">Events</span></sc-if>
+      <sc-if value="{{crumbIsChild}}" hint-placeholder-val="{{false}}"><button class="crumb-btn" onClick="{{crumbEvents}}">Events</button><span class="crumb-sep">/</span><span class="crumb-cur">{{crumbChild}}</span></sc-if>
+      <sc-if value="{{crumbIsOther}}" hint-placeholder-val="{{false}}"><span class="crumb-cur">{{crumbChild}}</span></sc-if>
+    </div>
+    <div class="spacer"></div>
+    <div class="theme-seg" role="radiogroup" aria-label="Theme">
+      <label class="theme-opt {{lightCls}}" title="Light theme"><input class="sr" type="radio" name="theme" checked="{{isLight}}" onChange="{{setLight}}"><span class="sr">Light theme</span><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="2.8"/><path d="M8 1.8v1.4M8 12.8v1.4M1.8 8h1.4M12.8 8h1.4M3.6 3.6l1 1M11.4 11.4l1 1M3.6 12.4l1-1M11.4 4.6l1-1"/></svg></label>
+      <label class="theme-opt {{darkCls}}" title="Dark theme"><input class="sr" type="radio" name="theme" checked="{{isDark}}" onChange="{{setDark}}"><span class="sr">Dark theme</span><svg class="ic" viewBox="0 0 16 16"><path d="M13 9.6A5.4 5.4 0 0 1 6.4 3 5.4 5.4 0 1 0 13 9.6z"/></svg></label>
+    </div>
+  </header>
+
+  <div class="scroller {{scrollCls}}" id="scroller">
+
+    <!-- Events directory -->
+    <sc-if value="{{isDirectory}}" hint-placeholder-val="{{true}}">
+    <div class="page">
+      <div class="page-head">
+        <div style="min-width: 0">
+          <h1 class="h1" id="page-h1" tabindex="-1">Events</h1>
+          <p class="summary">
+            <sc-if value="{{sum.ready}}" hint-placeholder-val="{{true}}">
+              <sc-if value="{{sum.hasEvents}}" hint-placeholder-val="{{true}}">
+                <span><b class="tnum">{{sum.live}}</b> live</span>
+                <span><b class="tnum">{{sum.upcoming}}</b> upcoming or in setup</span>
+                <sc-if value="{{sum.hasAttention}}" hint-placeholder-val="{{true}}">
+                  <button class="summary-btn" aria-pressed="{{sum.attnOn}}" title="{{sum.attnTitle}}" onClick="{{sum.toggleAttn}}"><span class="dot {{sum.attnDotCls}}"></span><span><b class="tnum">{{sum.attention}}</b> need attention</span></button>
+                </sc-if>
+                <sc-if value="{{sum.calm}}" hint-placeholder-val="{{false}}"><span>Nothing needs attention</span></sc-if>
+              </sc-if>
+              <sc-if value="{{sum.noEvents}}" hint-placeholder-val="{{false}}"><span>No events yet</span></sc-if>
+            </sc-if>
+            <sc-if value="{{sum.loading}}" hint-placeholder-val="{{false}}"><span class="muted">Loading events…</span></sc-if>
+          </p>
+        </div>
+        <div class="head-actions">
+          <button class="btn btn-primary" id="create-btn" onClick="{{openCreate}}"><svg class="ic" viewBox="0 0 16 16"><path d="M8 3.5v9M3.5 8h9"/></svg>Create event</button>
+        </div>
+      </div>
+
+      <sc-if value="{{banner.show}}" hint-placeholder-val="{{false}}">
+        <div class="banner is-info page-banner" role="status"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 7.2v3.8M8 5h.01"/></svg><span class="grow">{{banner.text}}</span></div>
+      </sc-if>
+
+      <div class="toolbar">
+        <div class="tabs" role="radiogroup" aria-label="Events view">
+          <sc-for list="{{tabs}}" as="t" hint-placeholder-count="3">
+            <label class="tab {{t.cls}}"><input class="sr" type="radio" name="view-tab" checked="{{t.on}}" onChange="{{t.pick}}"><span>{{t.label}}</span><span class="tab-count">{{t.count}}</span></label>
+          </sc-for>
+          <sc-if value="{{hiddenTab.show}}" hint-placeholder-val="{{false}}">
+            <span class="tab-sep" aria-hidden="true"></span>
+            <label class="tab {{hiddenTab.cls}}" title="SuperAdmin only: quarantined events"><input class="sr" type="radio" name="view-tab" checked="{{hiddenTab.on}}" onChange="{{hiddenTab.pick}}"><svg class="ic" viewBox="0 0 16 16"><path d="M2 8s2.2-4 6-4c1.2 0 2.2.4 3.1.9M14 8s-2.2 4-6 4c-1.2 0-2.2-.4-3.1-.9"/><path d="M3 13 13 3"/></svg><span>Hidden</span><span class="tab-count">{{hiddenTab.count}}</span></label>
+          </sc-if>
+        </div>
+        <div class="tbar-right">
+          <sc-if value="{{attnChip.show}}" hint-placeholder-val="{{false}}">
+            <button class="filter-chip" onClick="{{attnChip.clear}}" aria-label="Remove filter: needs attention">Needs attention<svg class="ic" viewBox="0 0 16 16"><path d="M4.5 4.5l7 7M11.5 4.5l-7 7"/></svg></button>
+          </sc-if>
+          <div class="search {{searchCls}}">
+            <svg class="ic" viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5 13.5 13.5"/></svg>
+            <input class="input" id="search-input" type="search" placeholder="Search event names" aria-label="Search event names" value="{{q}}" onChange="{{onSearch}}" onKeyDown="{{onSearchKey}}">
+            <sc-if value="{{hasQ}}" hint-placeholder-val="{{false}}">
+              <button class="icon-btn clear" aria-label="Clear search" onClick="{{clearSearch}}"><svg class="ic" viewBox="0 0 16 16"><path d="M4.5 4.5l7 7M11.5 4.5l-7 7"/></svg></button>
+            </sc-if>
+          </div>
+          <button class="btn filter-btn {{phaseBtn.cls}}" id="phase-btn" aria-haspopup="menu" aria-expanded="{{phaseBtn.open}}" onClick="{{phaseBtn.toggle}}"><span class="fb-lbl">Phase</span>{{phaseBtn.value}}<svg class="ic" viewBox="0 0 16 16"><path d="M4.5 6.5 8 10l3.5-3.5"/></svg></button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="tbl-wrap {{scrollXCls}}" id="tbl-wrap" onScroll="{{onTableScroll}}">
+        <div class="tbl ev-tbl sticky-first" role="table" aria-label="{{tableLabel}}" aria-busy="{{loading}}" aria-rowcount="{{rowCount}}">
+          <div class="tr th-row" role="row">
+            <sc-for list="{{cols}}" as="h" hint-placeholder-count="5">
+              <div class="th {{h.cls}}" role="columnheader" aria-sort="{{h.ariaSort}}">
+                <button class="th-btn" onClick="{{h.sort}}" aria-label="{{h.aria}}">{{h.label}}<svg class="ic sort-ic {{h.dirCls}}" viewBox="0 0 16 16"><path d="M4.5 10 8 6.5l3.5 3.5"/></svg></button>
+              </div>
+            </sc-for>
+          </div>
+
+          <sc-if value="{{loading}}" hint-placeholder-val="{{false}}">
+            <sc-for list="{{skeleton}}" as="s" hint-placeholder-count="7">
+              <div class="tr sk-row" role="row" aria-hidden="true">
+                <div class="td c-name"><div class="sk" style="width: {{s.w}}%"></div></div>
+                <div class="td"><div class="sk" style="width: 62%; height: 20px; border-radius: 10px"></div></div>
+                <div class="td"><div class="sk" style="width: 70%; margin-bottom: 8px"></div><div class="sk" style="width: 44%; height: 8px"></div></div>
+                <div class="td"><div class="sk" style="width: 56%"></div></div>
+                <div class="td"><div class="sk" style="width: 40%"></div></div>
+              </div>
+            </sc-for>
+          </sc-if>
+
+          <sc-if value="{{showRows}}" hint-placeholder-val="{{true}}">
+            <div class="rows {{rowsAnim}}" role="rowgroup">
+            <sc-for list="{{rows}}" as="r" hint-placeholder-count="8">
+              <div class="tr row {{r.cls}}" role="row" onClick="{{r.rowClick}}">
+                <div class="td c-name" role="cell">
+                  <div class="name-line">
+                    <a class="name-btn" id="{{r.openId}}" href="{{r.href}}" title="{{r.name}}" onClick="{{r.open}}">{{r.name}}</a>
+                    <sc-if value="{{r.imported}}" hint-placeholder-val="{{false}}"><span class="pill is-neutral" title="Imported history from before the platform">Imported</span></sc-if>
+                  </div>
+                  <sc-if value="{{r.hasNameSub}}" hint-placeholder-val="{{false}}"><div class="sub">{{r.nameSub}}</div></sc-if>
+                </div>
+                <div class="td" role="cell"><span class="badge {{r.phaseCls}}">{{r.phase}}</span></div>
+                <div class="td td-dates" role="cell">
+                  <div class="cell-main {{r.d.mainCls}}">{{r.d.main}}</div>
+                  <sc-if value="{{r.d.hasSub}}" hint-placeholder-val="{{true}}"><div class="sub">{{r.d.sub}}</div></sc-if>
+                </div>
+                <div class="td" role="cell">
+                  <sc-if value="{{r.p.meter}}" hint-placeholder-val="{{true}}"><div class="meter" title="{{r.p.title}}"><div class="meter-track" style="--meter-w: 44px"><div class="meter-fill" style="width: {{r.p.pct}}%"></div></div><span class="meter-label {{r.p.mainCls}}">{{r.p.main}}</span></div></sc-if>
+                  <sc-if value="{{r.p.plain}}" hint-placeholder-val="{{false}}"><div class="cell-main tnum {{r.p.mainCls}}">{{r.p.main}}</div></sc-if>
+                  <sc-if value="{{r.p.hasSub}}" hint-placeholder-val="{{false}}"><div class="sub">{{r.p.sub}}</div></sc-if>
+                </div>
+                <div class="td" role="cell">
+                  <sc-if value="{{r.a.none}}" hint-placeholder-val="{{true}}"><span class="attn-none" title="Nothing needs attention"><span aria-hidden="true">—</span><span class="sr">Nothing needs attention</span></span></sc-if>
+                  <sc-if value="{{r.a.some}}" hint-placeholder-val="{{false}}">
+                    <div class="attn {{r.a.cls}}">
+                      <span class="attn-main">
+                        <sc-if value="{{r.a.isFailure}}" hint-placeholder-val="{{false}}"><svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6"/><path d="M8 5v3.5M8 11h.01"/></svg></sc-if>
+                        <sc-if value="{{r.a.hasDot}}" hint-placeholder-val="{{true}}"><span class="dot" aria-hidden="true"></span></sc-if>
+                        <span class="attn-text">{{r.a.label}}</span>
+                      </span>
+                      <sc-if value="{{r.a.hasMore}}" hint-placeholder-val="{{false}}"><span class="hint attn-more tip-end" tabindex="0" aria-label="{{r.a.moreAria}}">{{r.a.moreLabel}}<span class="hint-tip" aria-hidden="true">{{r.a.moreText}}</span></span></sc-if>
+                    </div>
+                  </sc-if>
+                </div>
+              </div>
+            </sc-for>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{empty.show}}" hint-placeholder-val="{{false}}">
+            <div class="empty {{empty.cls}}" role="row"><div role="cell" style="display: contents">
+              <div class="empty-ic">
+                <sc-if value="{{empty.isError}}" hint-placeholder-val="{{false}}"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 5v3.5M8 11h.01"/></svg></sc-if>
+                <sc-if value="{{empty.isSearch}}" hint-placeholder-val="{{false}}"><svg class="ic" viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5 13.5 13.5"/></svg></sc-if>
+                <sc-if value="{{empty.isHidden}}" hint-placeholder-val="{{false}}"><svg class="ic" viewBox="0 0 16 16"><path d="M2 8s2.2-4 6-4c1.2 0 2.2.4 3.1.9M14 8s-2.2 4-6 4c-1.2 0-2.2-.4-3.1-.9"/><path d="M3 13 13 3"/></svg></sc-if>
+                <sc-if value="{{empty.isEvents}}" hint-placeholder-val="{{true}}"><svg class="ic" viewBox="0 0 16 16"><rect x="2.5" y="3.5" width="11" height="10" rx="1.5"/><path d="M2.5 6.5h11M5.5 2v3M10.5 2v3"/></svg></sc-if>
+              </div>
+              <div class="empty-title">{{empty.title}}</div>
+              <div class="empty-text">{{empty.text}}</div>
+              <sc-if value="{{empty.hasAction}}" hint-placeholder-val="{{false}}"><button class="btn {{empty.actionCls}}" id="empty-action" onClick="{{empty.action}}">{{empty.actionLabel}}</button></sc-if>
+            </div></div>
+          </sc-if>
+        </div>
+        </div>
+
+        <sc-if value="{{foot.show}}" hint-placeholder-val="{{true}}">
+        <div class="tfoot">
+          <div class="tfoot-left">
+            <span class="tnum" aria-live="polite">{{foot.range}}</span>
+            <sc-if value="{{foot.sorted}}" hint-placeholder-val="{{false}}"><span class="tfoot-note">· Sorted by {{foot.sortLabel}}</span><button class="btn btn-quiet btn-sm" onClick="{{foot.resetSort}}">Default order</button></sc-if>
+          </div>
+          <sc-if value="{{foot.paged}}" hint-placeholder-val="{{false}}">
+          <nav class="pager" aria-label="Pagination">
+            <button class="pg" aria-label="Previous page" disabled="{{foot.prevDisabled}}" onClick="{{foot.prev}}"><svg class="ic" viewBox="0 0 16 16"><path d="M10 4 6 8l4 4"/></svg></button>
+            <sc-for list="{{foot.pages}}" as="pg" hint-placeholder-count="2">
+              <sc-if value="{{pg.isGap}}" hint-placeholder-val="{{false}}"><span class="pg-gap" aria-hidden="true">…</span></sc-if>
+              <sc-if value="{{pg.isBtn}}" hint-placeholder-val="{{true}}"><button class="pg {{pg.cls}}" aria-current="{{pg.current}}" aria-label="{{pg.aria}}" onClick="{{pg.go}}">{{pg.label}}</button></sc-if>
+            </sc-for>
+            <button class="pg" aria-label="Next page" disabled="{{foot.nextDisabled}}" onClick="{{foot.next}}"><svg class="ic" viewBox="0 0 16 16"><path d="M6 4l4 4-4 4"/></svg></button>
+          </nav>
+          </sc-if>
+        </div>
+        </sc-if>
+      </div>
+    </div>
+    </sc-if>
+
+    <!-- event Overview (destination of the name link; not built in this artboard) -->
+    <sc-if value="{{isOverview}}" hint-placeholder-val="{{false}}">
+      <div class="page fade-in">
+        <div class="page-head">
+          <div style="min-width: 0">
+            <div class="ov-head"><h1 class="h1" id="page-h1" tabindex="-1">{{ov.name}}</h1><span class="badge {{ov.phaseCls}}">{{ov.phase}}</span></div>
+            <p class="summary"><span>{{ov.summary}}</span></p>
+          </div>
+        </div>
+        <div class="card">
+          <div class="empty ph-card">
+            <div class="empty-ic"><svg class="ic" viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="4.5" height="4.5" rx="1"/><rect x="9" y="2.5" width="4.5" height="4.5" rx="1"/><rect x="2.5" y="9" width="4.5" height="4.5" rx="1"/><rect x="9" y="9" width="4.5" height="4.5" rx="1"/></svg></div>
+            <div class="empty-title">The event Overview isn’t part of this artboard</div>
+            <div class="empty-text">{{ov.text}}</div>
+            <button class="btn" id="ov-back" onClick="{{ov.back}}"><svg class="ic" viewBox="0 0 16 16"><path d="M10 4 6 8l4 4"/></svg>Back to Events</button>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{isOther}}" hint-placeholder-val="{{false}}">
+      <div class="page">
+        <div class="page-head"><div><h1 class="h1" id="page-h1" tabindex="-1">{{otherTitle}}</h1><p class="summary"><span>{{otherScope}}</span></p></div></div>
+        <div class="card">
+          <div class="empty ph-card">
+            <div class="empty-ic"><svg class="ic" viewBox="0 0 16 16"><rect x="2.5" y="3" width="11" height="10" rx="2"/><path d="M2.5 6h11"/></svg></div>
+            <div class="empty-title">{{otherTitle}} isn’t part of this artboard</div>
+            <div class="empty-text">This artboard shows the Events directory. Participants and the Dashboard have their own artboards on the canvas.</div>
+            <button class="btn" onClick="{{goEvents}}">Back to Events</button>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+  </div>
+</div>
+
+<!-- menus -->
+<sc-if value="{{menu.show}}" hint-placeholder-val="{{false}}">
+  <div class="catcher" onClick="{{menu.close}}"></div>
+  <div class="menu {{menu.cls}}" id="menu" role="menu" aria-label="{{menu.label}}" style="left: {{menu.x}}px; top: {{menu.y}}px; width: {{menu.w}}px" onKeyDown="{{menu.onKey}}">
+    <sc-for list="{{menu.items}}" as="it" hint-placeholder-count="4">
+      <sc-if value="{{it.isHeader}}" hint-placeholder-val="{{false}}"><div class="menu-head" role="presentation"><b>{{it.label}}</b>{{it.hint}}</div></sc-if>
+      <sc-if value="{{it.isSep}}" hint-placeholder-val="{{false}}"><div class="menu-sep" role="separator"></div></sc-if>
+      <sc-if value="{{it.isItem}}" hint-placeholder-val="{{true}}">
+        <button class="menu-item {{it.cls}}" role="{{it.role}}" aria-checked="{{it.checked}}" disabled="{{it.disabled}}" title="{{it.title}}" onClick="{{it.run}}">
+          <span class="grow">{{it.label}}</span>
+          <span class="menu-hint">{{it.hint}}</span>
+          <sc-if value="{{it.showCheck}}" hint-placeholder-val="{{false}}"><svg class="ic menu-check" viewBox="0 0 16 16"><path d="M3.8 8.4 6.6 11.2 12.2 5"/></svg></sc-if>
+        </button>
+      </sc-if>
+    </sc-for>
+  </div>
+</sc-if>
+
+<!-- Create event -->
+<sc-if value="{{cm.show}}" hint-placeholder-val="{{false}}">
+  <div class="m-scrim {{cm.closingCls}}" id="create-scrim" onClick="{{cm.backdrop}}"></div>
+  <div class="m-wrap">
+    <div class="modal modal-form {{cm.closingCls}} {{cm.behindCls}}" id="create-modal" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="cm-title" aria-describedby="cm-desc" aria-busy="{{cm.busy}}" onKeyDown="{{cm.onKey}}">
+      <div class="mf-head">
+        <h2 class="m-title" id="cm-title">Create event</h2>
+        <p class="m-body" id="cm-desc">It starts as a private draft that players can’t see. You’ll add dates, capacity, artwork and signups in the event afterwards.</p>
+      </div>
+      <div class="mf-body">
+        <sc-if value="{{cm.failed}}" hint-placeholder-val="{{false}}"><div class="banner is-error" role="alert"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 5v3.5M8 11h.01"/></svg><span class="grow">Couldn’t create the event. Nothing was saved, and your details are still here.</span></div></sc-if>
+        <sc-if value="{{cm.uncertain}}" hint-placeholder-val="{{false}}"><div class="banner is-warning" role="alert"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 4.8v3.6M8 11h.01"/></svg><span class="grow"><b>{{cm.uncertainTitle}}</b> Check before trying again, so the event isn’t created twice.</span></div></sc-if>
+        <sc-if value="{{cm.notCreated}}" hint-placeholder-val="{{false}}"><div class="banner is-info" role="status"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 7.2v3.8M8 5h.01"/></svg><span class="grow">It wasn’t created. You can create it now.</span></div></sc-if>
+
+        <div class="field">
+          <div class="lbl-row"><label class="lbl" for="cm-name">Event name</label><sc-if value="{{cm.showCount}}" hint-placeholder-val="{{false}}"><span class="field-count {{cm.countCls}}" aria-live="polite">{{cm.count}}</span></sc-if></div>
+          <input class="input {{cm.nameCls}}" id="cm-name" value="{{cm.name}}" onChange="{{cm.onName}}" onKeyDown="{{cm.onNameKey}}" placeholder="e.g. Autumn Bingo 2027" autocomplete="off" disabled="{{cm.fieldsLocked}}" aria-required="true" aria-invalid="{{cm.nameInvalid}}" aria-describedby="{{cm.nameDescribedBy}}">
+          <sc-if value="{{cm.hasNameErr}}" hint-placeholder-val="{{false}}"><div class="field-err" id="cm-name-err"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 5v3.5M8 11h.01"/></svg>{{cm.nameErr}}</div></sc-if>
+          <sc-if value="{{cm.hasDup}}" hint-placeholder-val="{{false}}"><div class="field-note" id="cm-name-dup" role="status"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 7.2v3.8M8 5h.01"/></svg><span>{{cm.dup}}</span></div></sc-if>
+        </div>
+
+        <div class="field">
+          <label class="lbl" for="cm-tz">Timezone</label>
+          <div class="select-wrap">
+            <select class="select select-field" id="cm-tz" value="{{cm.tz}}" onChange="{{cm.onTz}}" disabled="{{cm.fieldsLocked}}" aria-describedby="cm-tz-hint">
+              <option value="Europe/Copenhagen">Europe/Copenhagen (UTC+02:00)</option>
+              <option value="UTC">UTC (UTC+00:00)</option>
+            </select>
+            <svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 6.5 8 10l3.5-3.5"/></svg>
+          </div>
+          <div class="field-hint" id="cm-tz-hint">Every date and time in this event uses this timezone. You can change it later.</div>
+        </div>
+      </div>
+      <div class="mf-foot">
+        <button class="btn" id="cm-cancel" onClick="{{cm.cancel}}" disabled="{{cm.busy}}">Cancel</button>
+        <button class="btn btn-primary {{cm.busyCls}}" id="cm-submit" onClick="{{cm.submit}}" disabled="{{cm.busy}}" style="min-width: 132px"><sc-if value="{{cm.busy}}" hint-placeholder-val="{{false}}"><span class="spin"></span></sc-if>{{cm.submitLabel}}</button>
+      </div>
+    </div>
+  </div>
+</sc-if>
+
+<!-- shared discard confirmation (stacks above the Create dialog) -->
+<sc-if value="{{md.show}}" hint-placeholder-val="{{false}}">
+  <div class="m-scrim is-stacked {{md.closingCls}}" id="confirm-scrim" onClick="{{md.dismiss}}"></div>
+  <div class="m-wrap">
+    <div class="modal {{md.closingCls}}" id="modal" tabindex="-1" role="alertdialog" aria-modal="true" aria-labelledby="modal-title" aria-describedby="modal-desc" onKeyDown="{{md.onKey}}">
+      <h2 class="m-title" id="modal-title">{{md.title}}</h2>
+      <p class="m-body" id="modal-desc">{{md.body}}</p>
+      <div class="m-actions">
+        <button class="btn" id="modal-cancel" onClick="{{md.dismiss}}">{{md.cancelLabel}}</button>
+        <button class="btn btn-danger" id="modal-confirm" onClick="{{md.confirm}}">{{md.confirmLabel}}</button>
+      </div>
+    </div>
+  </div>
+</sc-if>
+
+<!-- prototype only: simulated browser (URL state and history) -->
+<sc-if value="{{pb.show}}" hint-placeholder-val="{{true}}">
+  <div class="proto-bar" role="group" aria-label="Simulated browser, prototype only">
+    <button class="icon-btn" aria-label="Back" title="Back" disabled="{{pb.noBack}}" onClick="{{pb.back}}"><svg class="ic" viewBox="0 0 16 16"><path d="M13 8H3.5M7.5 4 3.5 8l4 4"/></svg></button>
+    <button class="icon-btn" aria-label="Forward" title="Forward" disabled="{{pb.noFwd}}" onClick="{{pb.fwd}}"><svg class="ic" viewBox="0 0 16 16"><path d="M3 8h9.5M8.5 4l4 4-4 4"/></svg></button>
+    <button class="icon-btn" aria-label="Reload" title="Reload" onClick="{{pb.reload}}"><svg class="ic" viewBox="0 0 16 16"><path d="M13 8a5 5 0 1 1-1.5-3.6"/><path d="M13 2.8v2.8h-2.8"/></svg></button>
+    <span class="proto-tag">Prototype URL</span>
+    <span class="proto-url" title="{{pb.url}}">{{pb.url}}</span>
+  </div>
+</sc-if>
+
+<div class="toasts" aria-live="polite" aria-atomic="false">
+  <sc-for list="{{toasts}}" as="t" hint-placeholder-count="0">
+    <div class="toast {{t.cls}}" role="status" data-toast="{{t.id}}">
+      <sc-if value="{{t.isError}}" hint-placeholder-val="{{false}}"><svg class="ic t-ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 5v3.5M8 11h.01"/></svg></sc-if>
+      <sc-if value="{{t.isOk}}" hint-placeholder-val="{{true}}"><svg class="ic t-ic" viewBox="0 0 16 16"><path d="M3.8 8.4 6.6 11.2 12.2 5"/></svg></sc-if>
+      <span class="grow">{{t.text}}</span>
+      <sc-if value="{{t.hasAction}}" hint-placeholder-val="{{false}}"><button class="toast-act" onClick="{{t.act}}">{{t.actionLabel}}</button></sc-if>
+      <button class="toast-x" aria-label="Dismiss notification" onClick="{{t.close}}"><svg class="ic" viewBox="0 0 16 16" style="width: 14px; height: 14px"><path d="M4.5 4.5l7 7M11.5 4.5l-7 7"/></svg></button>
+    </div>
+  </sc-for>
+</div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+// DK Legacy Admin — Events directory (reference prototype). Synthetic data; "today" is 2 Jun 2027.
+// Agreed behaviour: docs/references/admin-ui/FUNCTIONALITY_CHANGES.md › "Events — agreed design brief" (E01–E04).
+//  · One table, filtered by view: All (default) · Current & upcoming (Setup, Signups open, Signups closed, Live)
+//    · Past (Final review, Finished, Archived, Cancelled). Hidden (quarantine) is a separate SuperAdmin-only view of
+//    the same table and is excluded from every other view and count.
+//  · Default order: Live, then upcoming/setup by start date (unscheduled last), then past by end date, newest first.
+//  · Needs attention shows ONE priority item: a failure first, otherwise pending review work (one item however many
+//    submissions), otherwise a quiet dash; the rest is "+N". Ordinary setup (unfinished configuration) is never attention.
+//  · View, phase, search, attention filter, sort and page live in the URL and survive opening an event and Back.
+//  · Create: name + timezone (Europe/Copenhagen) → private draft → its Overview. See the README for the routing and
+//    request-key contract; the canvas simulates the browser with an in-memory history (prototype URL bar).
+const DAY = 86400000;
+const TODAY = Date.UTC(2027, 5, 2);
+const D = s => Date.UTC(+s.slice(0, 4), +s.slice(5, 7) - 1, +s.slice(8, 10));
+const nf = n => Number(n).toLocaleString('en-US');
+const fmtDay = (t, withYear) => new Date(t).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: withYear ? 'numeric' : undefined, timeZone: 'UTC' });
+const fmtRange = (s, e) => {
+  const a = new Date(D(s)), b = new Date(D(e));
+  if (s === e) return fmtDay(D(s), true);
+  const sameMonth = a.getUTCMonth() === b.getUTCMonth() && a.getUTCFullYear() === b.getUTCFullYear();
+  return (sameMonth ? a.getUTCDate() : fmtDay(D(s), a.getUTCFullYear() !== b.getUTCFullYear())) + '–' + fmtDay(D(e), true);
+};
+const plural = (n, w) => n + ' ' + w + (n === 1 ? '' : 's');
+const inDays = n => n <= 0 ? 'today' : n === 1 ? 'tomorrow' : 'in ' + n + ' days';
+
+// Phase keys match the existing admin URL values (EventState, with Draft shown as "Setup").
+const PHASES = {
+  draft: { label: 'Setup', badge: 'badge-neutral', group: 'current', order: 1 },
+  signupopen: { label: 'Signups open', badge: 'badge-success', group: 'current', order: 2 },
+  signupclosed: { label: 'Signups closed', badge: 'badge-neutral', group: 'current', order: 3 },
+  live: { label: 'Live', badge: 'badge-accent', group: 'current', order: 4 },
+  awaitingfinalreview: { label: 'Final review', badge: 'badge-warning', group: 'past', order: 5 },
+  finalized: { label: 'Finished', badge: 'badge-neutral', group: 'past', order: 6 },
+  archived: { label: 'Archived', badge: 'badge-outline', group: 'past', order: 7 },
+  cancelled: { label: 'Cancelled', badge: 'badge-outline', group: 'past', order: 8 }
+};
+const PHASE_KEYS = Object.keys(PHASES);
+const VIEWS = { all: { label: 'All', phases: PHASE_KEYS }, current: { label: 'Current & upcoming', phases: PHASE_KEYS.filter(k => PHASES[k].group === 'current') },
+  past: { label: 'Past', phases: PHASE_KEYS.filter(k => PHASES[k].group === 'past') }, hidden: { label: 'Hidden', phases: PHASE_KEYS } };
+const SORTS = { identity: { label: 'event name', first: 'asc' }, state: { label: 'phase', first: 'asc' }, dates: { label: 'dates', first: 'asc' }, signups: { label: 'participants', first: 'desc' }, attention: { label: 'needs attention', first: 'desc' } };
+const DEFAULT_TZ = 'Europe/Copenhagen';
+const PER_PAGE = 25;
+
+// issues: kind 'failure' (an automated step failed), 'review' (pending submissions; n = count, one item),
+// (setup blockers are not attention; approved 1 Oct). Participants: confirmed/cap/waiting while preparing; players after.
+// Live, Final review and legacy Finished are one exclusive current-event slot among visible events: each dataset holds at
+// most one of them. Only events after Live (Final review, Finished, Archived) can be hidden.
+const SEED = [
+  { id: 'e11', slug: 'midsummer-skilling-sprint', name: 'Midsummer Skilling Sprint', phase: 'live', start: '2027-05-28', end: '2027-06-06', players: 64,
+    issues: [{ kind: 'failure', label: 'WOM sync failed' }, { kind: 'review', n: 18 }] },
+  { id: 'e12', slug: 'boss-rush-weekend', name: 'Boss Rush Weekend', phase: 'signupclosed', start: '2027-06-01', end: '2027-06-03', cap: 40, confirmed: 40, waiting: 3, startDue: '1 Jun, 18:00',
+    issues: [{ kind: 'failure', label: 'Start failed' }] },
+  { id: 'e13', slug: 'clan-cup-pvm-week', name: 'Clan Cup: PvM Week', phase: 'signupclosed', tz: 'UTC', start: '2027-06-14', end: '2027-06-20', cap: 48, confirmed: 48, waiting: 6,
+    issues: [] },
+  { id: 'e14', slug: 'autumn-bingo-2027', name: 'Autumn Bingo 2027', phase: 'signupopen', start: '2027-06-27', end: '2027-07-06', cap: 80, confirmed: 41, waiting: 0, signupCloses: '2027-06-15', issues: [] },
+  { id: 'e15', slug: 'winter-bingo-2027', name: 'Winter Bingo 2027', phase: 'draft', start: '2027-11-26', end: '2027-12-05', cap: 96, confirmed: 0, waiting: 0, signupOpens: '2027-10-01', issues: [] },
+  { id: 'e16', slug: 'community-mini-bingo', name: 'Community Mini Bingo', phase: 'draft', confirmed: 0, waiting: 0, issues: [] },
+  { id: 'e10', slug: 'summer-bingo-2027', name: 'Summer Bingo 2027', phase: 'archived', start: '2027-05-14', end: '2027-05-23', players: 96, issues: [] },
+  { id: 'e09', slug: 'easter-mini-bingo', name: 'Easter Mini Bingo', phase: 'cancelled', start: '2027-04-09', end: '2027-04-11', confirmed: 22, issues: [] },
+  { id: 'e08', slug: 'spring-bingo-2027', name: 'Spring Bingo 2027', phase: 'archived', start: '2027-03-12', end: '2027-03-21', players: 84, issues: [] },
+  { id: 'e07', slug: 'winter-bingo-2026', name: 'Winter Bingo 2026', phase: 'archived', start: '2026-11-27', end: '2026-12-06', players: 72, issues: [] },
+  { id: 'e06', slug: 'det-store-danske-sommerbingo-2026', name: 'Det Store Danske Sommerbingo 2026', phase: 'archived', start: '2026-07-14', end: '2026-07-19', players: 90, imported: true, issues: [] },
+  { id: 'h01', slug: 'staff-test-bingo', name: 'Staff test bingo', phase: 'awaitingfinalreview', start: '2027-04-20', end: '2027-04-22', players: 8, hiddenAt: '2027-04-23', issues: [] },
+  { id: 'h02', slug: 'autumn-bingo-2026-import', name: 'Autumn Bingo 2026 (import copy)', phase: 'archived', start: '2026-09-18', end: '2026-09-27', players: 90, hiddenAt: '2027-02-18', issues: [] }
+];
+const DATASETS = { full: 'Full directory · current event Live', review: 'Current event in final review', legacy: 'Current event Finished (legacy)', none: 'No events yet' };
+// Alternative current events. Each replaces the Live event, so the exclusive current slot never holds two events.
+const VARIANTS = {
+  review: { drop: ['midsummer-skilling-sprint'], set: { 'summer-bingo-2027': { phase: 'awaitingfinalreview', issues: [{ kind: 'review', n: 7 }] } } },
+  legacy: { drop: ['midsummer-skilling-sprint', 'summer-bingo-2027'], set: { 'spring-bingo-2027': { phase: 'finalized' } } }
+};
+const OUTCOMES = { ok: 'Succeeds', fail: 'Fails, nothing saved', timeoutCreated: 'Times out · was created', timeoutNot: 'Times out · wasn’t created' };
+const NAV = [['dashboard', 'Dashboard'], ['events', 'Events'], ['catalogue', 'Catalogue'], ['roles', 'Accounts / Roles'], ['audit', 'Audit'],
+  ['overview', 'Overview'], ['identity', 'Identity'], ['schedule', 'Schedule'], ['participants', 'Participants'], ['signup', 'Signup setup'], ['teams', 'Teams / Draft'], ['board', 'Board'], ['wom', 'WOM'], ['review', 'Review'], ['final', 'Final review']];
+const TITLES = {}; NAV.forEach(([k, l]) => { TITLES[k] = l; });
+const slugify = s => s.toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 80) || 'event';
+
+class Component extends DCLogic {
+  constructor(...args) {
+    super(...args);
+    this.timers = [];
+    this.world = this.makeWorld('full');
+    this.hist = { entries: [{ url: '/admin/events', scroll: 0 }], idx: 0 };
+    let dark = false;
+    try { dark = window.matchMedia('(prefers-color-scheme: dark)').matches; } catch (e) {}
+    this.state = {
+      theme: dark ? 'dark' : 'light', route: 'directory', slug: null, otherKey: null,
+      view: 'all', phase: 'all', q: '', sortKey: '', sortDir: 'asc', attn: false, page: 1,
+      role: 'admin', dataset: 'full', loading: false, loadError: false, failNext: false, outcome: 'ok', showBar: true, banner: '',
+      menu: null, create: null, modal: null, toasts: [], flash: null, sideOpen: true, mobileNav: false, vw: 1440, scrollX: false, scrolledX: false, viewKey: 0, histRev: 0
+    };
+  }
+
+  componentDidMount() {
+    this.onResize = () => { const vw = window.innerWidth; if (vw !== this.state.vw) this.setState(s => ({ vw, mobileNav: vw > 860 ? false : s.mobileNav })); };
+    window.addEventListener('resize', this.onResize); this.onResize();
+    this.overflow = DKAdmin.watchOverflowX(this, 'tbl-wrap', 'scrollX', 'scroller');
+    this.viewSig = this.sig();
+  }
+  componentDidUpdate() {
+    // View changes (not search typing) replay the table fade.
+    const sig = this.sig();
+    if (this.viewSig !== sig) { this.viewSig = sig; this.setState(s => ({ viewKey: s.viewKey + 1 })); }
+    if (this.overflow) this.overflow.check();
+  }
+  componentWillUnmount() { this.timers.forEach(clearTimeout); window.removeEventListener('resize', this.onResize); if (this.overflow) this.overflow.disconnect(); }
+  sig() { const S = this.state; return [S.route, S.view, S.phase, S.attn, S.sortKey, S.sortDir, S.page, S.loading, S.dataset].join('|'); }
+  later(fn, ms) { const t = setTimeout(() => { this.timers = this.timers.filter(x => x !== t); fn(); }, ms); this.timers.push(t); return t; }
+  isMobile() { return this.state.vw <= 860; }
+  toast(o) { DKAdmin.toast(this, o); }
+
+  /* ---------------- data ---------------- */
+  makeWorld(ds) {
+    const v = VARIANTS[ds] || { drop: [], set: {} };
+    const events = ds === 'none' ? [] : SEED.filter(e => v.drop.indexOf(e.slug) < 0)
+      .map(e => Object.assign({ tz: DEFAULT_TZ, start: null, end: null, cap: null, confirmed: 0, waiting: 0, players: null }, e, { issues: e.issues.slice() }, v.set[e.slug] || {}));
+    return { events, requests: {} };
+  }
+  isSuper() { return this.state.role === 'super'; }
+  visible() { return this.world.events.filter(e => !e.hiddenAt); }
+  hidden() { return this.world.events.filter(e => e.hiddenAt); }
+  bySlug(slug) { return this.world.events.find(e => e.slug === slug) || null; }
+  prep(e) { return e.phase === 'draft' || e.phase === 'signupopen' || e.phase === 'signupclosed'; }
+  countOf(e) { return this.prep(e) || e.phase === 'cancelled' ? e.confirmed : e.players; }
+  // One priority item for "Needs attention": failure › pending review; the rest becomes "+N".
+  attention(e) {
+    const order = { failure: 0, review: 1 };
+    const items = e.issues.slice().sort((a, b) => order[a.kind] - order[b.kind]);
+    if (!items.length) return null;
+    const label = i => i.kind === 'review' ? nf(i.n) + ' to review' : i.label;
+    const top = items[0];
+    const sev = top.kind === 'failure' ? 3000 + items.length : 2000 + top.n;
+    return { kind: top.kind, label: label(top), rest: items.slice(1).map(label), sev };
+  }
+
+  /* ---------------- URL state (simulated browser) ---------------- */
+  query(S) {
+    S = S || this.state;
+    return { view: S.view !== 'all' ? S.view : null, phase: S.phase !== 'all' ? S.phase : null, search: S.q.trim() || null, attention: S.attn ? '1' : null,
+      sort: S.sortKey || null, direction: S.sortKey ? S.sortDir : null, page: S.page > 1 ? S.page : null };
+  }
+  dirUrl(S) { return '/admin/events' + DKAdmin.toQuery(this.query(S)); }
+  createUrl(S) { return '/admin/events/new' + DKAdmin.toQuery(this.query(S)); }
+  cur() { return this.hist.entries[this.hist.idx]; }
+  bumpHist() { this.setState(s => ({ histRev: s.histRev + 1 })); }
+  saveScroll() { const el = document.getElementById('scroller'); if (el) this.cur().scroll = el.scrollTop; }
+  push(url, extra) { this.saveScroll(); this.hist.entries = this.hist.entries.slice(0, this.hist.idx + 1).concat([Object.assign({ url, scroll: 0 }, extra || {})]); this.hist.idx++; this.bumpHist(); }
+  replace(url) { const c = this.cur(); c.url = url; this.bumpHist(); }
+  syncUrl() {
+    // Filter, search and sort changes replace the current entry (Back leaves the page, it doesn't undo a filter).
+    const S = this.state;
+    if (S.route === 'directory') this.replace(S.create ? this.createUrl() : this.dirUrl());
+  }
+  parse(url) {
+    const i = url.indexOf('?'); const path = i < 0 ? url : url.slice(0, i); const q = DKAdmin.fromQuery(i < 0 ? '' : url.slice(i));
+    let banner = '';
+    // Legacy ?filter=<state> links map onto phase (and ?filter=hidden onto the Hidden view).
+    if (q.filter && !q.phase && !q.view) { if (q.filter === 'hidden') q.view = 'hidden'; else q.phase = q.filter; }
+    let view = VIEWS[q.view] ? q.view : 'all';
+    if (view === 'hidden' && !this.isSuper()) { view = 'all'; banner = 'Hidden events are only available to SuperAdmins, so you’re seeing all events instead.'; }
+    const phase = q.phase && VIEWS[view].phases.indexOf(q.phase) >= 0 ? q.phase : 'all';
+    const sortKey = SORTS[q.sort] ? q.sort : '';
+    const f = { view, phase, q: q.search || '', attn: q.attention === '1', sortKey, sortDir: sortKey && q.direction === 'desc' ? 'desc' : 'asc', page: Math.max(1, parseInt(q.page, 10) || 1) };
+    if (path === '/admin/events' || path === '/admin/events/') return { route: 'directory', f, banner };
+    if (path === '/admin/events/new') return { route: 'create', f, banner };
+    const m = path.match(/^\/admin\/events\/([a-z0-9-]+)$/);
+    if (m) return { route: 'event', slug: m[1] };
+    const o = path.match(/^\/admin\/([a-z]+)$/);
+    return { route: 'other', key: o ? o[1] : 'dashboard' };
+  }
+  // Apply the current history entry to the page. how: 'pop' (Back/Forward), 'load' (reload or direct entry).
+  applyEntry(how) {
+    const entry = this.cur(); const r = this.parse(entry.url);
+    const base = { menu: null, modal: null, mobileNav: false, banner: r.banner || '' };
+    if (r.route === 'directory' || r.route === 'create') {
+      const f = Object.assign({}, r.f);
+      const next = Object.assign(base, f, { route: 'directory', slug: null });
+      if (r.route === 'create') next.create = (how === 'pop' && this.state.create) ? this.state.create : this.newCreate();
+      else next.create = null;
+      this.setState(next, () => {
+        if (r.route === 'create') DKAdmin.focusSoon('cm-name');
+        else {
+          const el = document.getElementById('scroller'); if (el) el.scrollTop = entry.scroll || 0;
+          if (entry.focus && document.getElementById(entry.focus)) DKAdmin.focusSoon(entry.focus, { preventScroll: true }); else if (how === 'pop') DKAdmin.focusSoon('page-h1', { preventScroll: true });
+          // A just-created event is highlighted once when you come back to the list.
+          if (this.state.flash) this.later(() => DKAdmin.afterExit(this, '.row.is-flash', () => this.setState({ flash: null })), 30);
+        }
+      });
+      if (how === 'load') this.load();
+    } else if (r.route === 'event') {
+      this.setState(Object.assign(base, { route: 'event', slug: r.slug, create: null }), () => { const el = document.getElementById('scroller'); if (el) el.scrollTop = 0; DKAdmin.focusSoon('page-h1'); });
+    } else {
+      this.setState(Object.assign(base, { route: 'other', otherKey: r.key, create: null }), () => DKAdmin.focusSoon('page-h1'));
+    }
+  }
+  // Leaving the current entry: the Create dialog is respected (saving: stay; unsaved changes: confirm first).
+  leave(go) {
+    const c = this.state.create;
+    if (c && !c.closing) {
+      if (this.busy(c)) { this.toast({ text: 'Wait for the event to finish saving.' }); return; }
+      if (this.dirty(c)) { this.openDiscard(() => { this.setState({ create: null }); go(); }); return; }
+    }
+    go();
+  }
+  back() { if (this.hist.idx === 0) return; this.leave(() => { this.saveScroll(); this.hist.idx--; this.bumpHist(); this.applyEntry('pop'); }); }
+  forward() { if (this.hist.idx >= this.hist.entries.length - 1) return; this.leave(() => { this.saveScroll(); this.hist.idx++; this.bumpHist(); this.applyEntry('pop'); }); }
+  reload() { this.leave(() => { this.setState({ create: null }); this.applyEntry('load'); }); }
+  directVisit(url) { this.leave(() => { this.hist = { entries: [{ url, scroll: 0 }], idx: 0 }; this.bumpHist(); this.setState({ create: null }); this.applyEntry('load'); }); }
+  openEvent(e, fromId) {
+    this.cur().focus = fromId || null;
+    this.push('/admin/events/' + e.slug);
+    this.applyEntry('push');
+  }
+  goNav(k) {
+    this.closeMobileNav(false);
+    if (k === 'events') { this.leave(() => { this.push('/admin/events'); this.applyEntry('push'); }); return; }
+    this.leave(() => { this.push('/admin/' + k); this.applyEntry('push'); });
+  }
+  backToEvents() {
+    const prev = this.hist.entries[this.hist.idx - 1];
+    if (prev && this.parse(prev.url).route === 'directory') this.back();
+    else { this.push('/admin/events'); this.applyEntry('push'); }
+  }
+
+  /* ---------------- loading ---------------- */
+  load() {
+    const willFail = this.state.failNext;
+    this.setState({ loading: true, loadError: false, failNext: false });
+    this.later(() => this.setState({ loading: false, loadError: willFail }, () => { if (willFail && !this.state.create) DKAdmin.focusSoon('empty-action'); }), 650);
+  }
+  setDataset(ds) { this.world = this.makeWorld(ds); this.setState({ dataset: ds, page: 1 }, () => { this.syncUrl(); this.load(); }); }
+  setRole(role) {
+    const leaving = role !== 'super' && this.state.view === 'hidden';
+    this.setState(Object.assign({ role }, leaving ? { view: 'all', phase: 'all', page: 1, banner: 'Hidden events are only available to SuperAdmins, so you’re seeing all events instead.' } : { banner: '' }), () => this.syncUrl());
+  }
+
+  /* ---------------- filters ---------------- */
+  setFilters(patch, keepBanner) {
+    this.setState(s => Object.assign({ page: 1 }, keepBanner ? {} : { banner: '' }, typeof patch === 'function' ? patch(s) : patch), () => this.syncUrl());
+  }
+  setView(view) {
+    this.setFilters(s => ({ view, phase: VIEWS[view].phases.indexOf(s.phase) >= 0 ? s.phase : 'all' }));
+  }
+  clearFilters() {
+    this.setFilters(s => ({ view: s.view === 'hidden' ? 'hidden' : 'all', phase: 'all', q: '', attn: false }));
+    DKAdmin.focusSoon('search-input');
+  }
+  sortBy(k) {
+    this.setFilters(s => (s.sortKey === k ? { sortDir: s.sortDir === 'asc' ? 'desc' : 'asc' } : { sortKey: k, sortDir: SORTS[k].first }));
+  }
+
+  list() {
+    const S = this.state;
+    const base = S.view === 'hidden' ? this.hidden() : this.visible();
+    const q = S.q.trim().toLowerCase();
+    const rows = base.filter(e => (S.view === 'current' ? PHASES[e.phase].group === 'current' : S.view === 'past' ? PHASES[e.phase].group === 'past' : true))
+      .filter(e => S.phase === 'all' || e.phase === S.phase)
+      .filter(e => !S.attn || !!this.attention(e))
+      .filter(e => !q || e.name.toLowerCase().indexOf(q) >= 0);
+    return this.sorted(rows);
+  }
+  defaultCmp(a, b) {
+    if (a.hiddenAt || b.hiddenAt) return D(b.hiddenAt || '1970-01-01') - D(a.hiddenAt || '1970-01-01') || a.name.localeCompare(b.name);
+    const rank = e => e.phase === 'live' ? 0 : PHASES[e.phase].group === 'current' ? 1 : 2;
+    const ra = rank(a), rb = rank(b);
+    if (ra !== rb) return ra - rb;
+    if (ra === 2) { const x = a.end ? D(a.end) : -Infinity, y = b.end ? D(b.end) : -Infinity; if (x !== y) return y - x; }
+    else { const x = a.start ? D(a.start) : Infinity, y = b.start ? D(b.start) : Infinity; if (x !== y) return x - y; }
+    return a.name.localeCompare(b.name) || a.id.localeCompare(b.id);
+  }
+  sorted(rows) {
+    const S = this.state; const dir = S.sortDir === 'desc' ? -1 : 1;
+    if (!S.sortKey) return rows.slice().sort((a, b) => this.defaultCmp(a, b));
+    const key = {
+      identity: e => e.name.toLowerCase(), state: e => PHASES[e.phase].order, dates: e => e.start ? D(e.start) : null,
+      signups: e => this.countOf(e), attention: e => { const a = this.attention(e); return a ? a.sev : 0; }
+    }[S.sortKey];
+    return rows.slice().sort((a, b) => {
+      const x = key(a), y = key(b);
+      if (x == null && y == null) return this.defaultCmp(a, b);
+      if (x == null) return 1; if (y == null) return -1;   // unscheduled stays last either way
+      const c = typeof x === 'string' ? x.localeCompare(y) : x - y;
+      return c * dir || this.defaultCmp(a, b);
+    });
+  }
+
+  /* ---------------- Create event ---------------- */
+  newCreate() { return { name: '', tz: DEFAULT_TZ, showErrors: false, status: 'idle', key: 'req-' + Math.random().toString(36).slice(2, 10), closing: false }; }
+  busy(c) { return !!c && (c.status === 'saving' || c.status === 'checking'); }
+  dirty(c) { return !!c && (c.name.trim() !== '' || c.tz !== DEFAULT_TZ); }
+  nameError(c) {
+    const n = c.name.trim();
+    if (!n) return 'Enter an event name.';
+    if (Array.from(n).length > 50) return 'Use 50 characters or fewer.';
+    return '';
+  }
+  updCreate(patch, done) { this.setState(s => (s.create ? { create: Object.assign({}, s.create, typeof patch === 'function' ? patch(s.create) : patch) } : null), done); }
+  openCreate(e) {
+    if (this.state.create) return;
+    this.createReturn = (e && e.currentTarget) || null;
+    this.push(this.createUrl());
+    this.setState({ create: this.newCreate(), menu: null }, () => DKAdmin.focusSoon('cm-name'));
+  }
+  requestCloseCreate() {
+    const c = this.state.create; if (!c || c.closing || this.busy(c) || this.state.modal) return;
+    if (this.dirty(c)) this.openDiscard(() => this.closeCreate());
+    else this.closeCreate();
+  }
+  // Close without further checks. Opened from the directory: go Back to it (the entry we pushed).
+  // Direct entry (no directory entry before it): replace /new with the directory URL.
+  closeCreate(after) {
+    DKAdmin.closeLayer(this, 'create', '#create-modal, #create-scrim', () => {
+      const prev = this.hist.entries[this.hist.idx - 1];
+      if (prev && this.parse(prev.url).route === 'directory' && this.parse(this.cur().url).route === 'create') { this.hist.idx--; this.bumpHist(); }
+      else this.replace(this.dirUrl());
+      DKAdmin.restoreFocus(this.createReturn, 'create-btn');
+      if (after) after();
+    });
+  }
+  submitCreate() {
+    const c = this.state.create; if (!c || this.busy(c)) return;
+    if (c.status === 'uncertain') { this.checkCreate(); return; }
+    const err = this.nameError(c);
+    if (err) { this.updCreate({ showErrors: true }, () => DKAdmin.focusSoon('cm-name')); return; }
+    const outcome = this.state.outcome;
+    this.setState({ outcome: 'ok' });
+    this.updCreate({ status: 'saving', showErrors: true });
+    this.later(() => {
+      const cc = this.state.create; if (!cc) return;
+      if (outcome === 'fail') { this.updCreate({ status: 'failed' }, () => DKAdmin.focusSoon('cm-submit')); return; }
+      if (outcome === 'timeoutCreated') { this.serverCreate(cc); this.updCreate({ status: 'uncertain' }, () => DKAdmin.focusSoon('cm-submit')); return; }
+      if (outcome === 'timeoutNot') { this.updCreate({ status: 'uncertain' }, () => DKAdmin.focusSoon('cm-submit')); return; }
+      this.finishCreate(this.serverCreate(cc));
+    }, 900);
+  }
+  // Server side (simulated): creates at most one event per request key.
+  serverCreate(c) {
+    const existing = this.world.requests[c.key];
+    if (existing) return this.world.events.find(e => e.id === existing);
+    const name = c.name.trim(); let slug = slugify(name), n = 2;
+    while (this.bySlug(slug)) slug = slugify(name) + '-' + (n++);
+    const e = { id: 'n' + Date.now(), slug, name, phase: 'draft', tz: c.tz, start: null, end: null, cap: null, confirmed: 0, waiting: 0, players: null, issues: [], createdKey: c.key };
+    this.world.events.push(e); this.world.requests[c.key] = e.id;
+    return e;
+  }
+  checkCreate() {
+    this.updCreate({ status: 'checking' });
+    this.later(() => {
+      const c = this.state.create; if (!c) return;
+      const id = this.world.requests[c.key];
+      if (id) this.finishCreate(this.world.events.find(e => e.id === id));
+      else this.updCreate({ status: 'notCreated' }, () => DKAdmin.focusSoon('cm-submit'));
+    }, 700);
+  }
+  // Success: the /new entry is REPLACED by the event's Overview, so Back returns to the directory and neither Back
+  // nor reload can submit again.
+  finishCreate(e) {
+    this.replace('/admin/events/' + e.slug);
+    const prev = this.hist.entries[this.hist.idx - 1];
+    if (prev && this.parse(prev.url).route === 'directory') prev.focus = 'open-' + e.id;
+    this.setState({ create: null, flash: e.id });
+    this.applyEntry('push');
+    this.toast({ text: e.name + ' was created as a private draft.' });
+  }
+
+  /* ---------------- discard confirmation ---------------- */
+  openDiscard(onDiscard) {
+    this.discardThen = onDiscard;
+    // Return focus to the control that asked (Cancel); a backdrop click or Back has none, so the name field.
+    const cm = document.getElementById('create-modal'); const act = document.activeElement;
+    this.modalReturn = cm && act && cm.contains(act) ? act : null;
+    this.setState({ modal: { kind: 'discard', closing: false } }, () => DKAdmin.focusSoon('modal-cancel'));
+  }
+  keepEditing() {
+    DKAdmin.closeLayer(this, 'modal', '#modal, #confirm-scrim', () => DKAdmin.restoreFocus(this.modalReturn, 'cm-name'));
+  }
+  confirmDiscard() {
+    const fn = this.discardThen; this.discardThen = null;
+    this.setState({ modal: null }, () => { if (fn) fn(); });
+  }
+
+  /* ---------------- menus ---------------- */
+  menuItems(kind) {
+    const S = this.state;
+    if (kind === 'phase') {
+      const base = (S.view === 'hidden' ? this.hidden() : this.visible()).filter(e => S.view === 'all' || S.view === 'hidden' || PHASES[e.phase].group === S.view);
+      const items = [{ label: 'All phases', hint: String(base.length), check: S.phase === 'all', action: () => this.setFilters({ phase: 'all' }) }, { type: 'sep' }];
+      VIEWS[S.view].phases.forEach(k => items.push({ label: PHASES[k].label, hint: String(base.filter(e => e.phase === k).length), check: S.phase === k, action: () => this.setFilters({ phase: k }) }));
+      return items;
+    }
+    if (kind === 'event') {
+      const cur = this.visible().filter(e => PHASES[e.phase].group === 'current').sort((a, b) => this.defaultCmp(a, b));
+      const items = [{ type: 'header', label: 'Switch event', hint: '' }];
+      cur.slice(0, 5).forEach(e => items.push({ label: e.name, hint: PHASES[e.phase].label, action: () => this.leave(() => this.openEvent(e)) }));
+      items.push({ type: 'sep' }); items.push({ label: 'All events', action: () => this.goNav('events') });
+      return items;
+    }
+    return [
+      { type: 'header', label: 'Nils Andersen', hint: '@nils · ' + (this.isSuper() ? 'SuperAdmin' : 'Administrator') + ' of Iron Pact' },
+      { type: 'sep' },
+      { type: 'header', label: 'Role', hint: 'Prototype · SuperAdmins also see Hidden' },
+      { label: 'Administrator', check: S.role === 'admin', action: () => this.setRole('admin') },
+      { label: 'SuperAdmin', check: S.role === 'super', action: () => this.setRole('super') },
+      { type: 'sep' },
+      { type: 'header', label: 'Sample data', hint: 'Prototype' },
+      ...Object.keys(DATASETS).map(k => ({ label: DATASETS[k], check: S.dataset === k, action: () => this.setDataset(k) })),
+      { label: 'Fail next load', checkbox: true, checked: S.failNext, action: () => { const on = !this.state.failNext; this.setState({ failNext: on }); this.toast({ text: on ? 'The next load will fail. Reload to try it.' : 'Simulated failure turned off.' }); } },
+      { type: 'sep' },
+      { type: 'header', label: 'Next Create request', hint: 'Prototype · resets after use' },
+      ...Object.keys(OUTCOMES).map(k => ({ label: OUTCOMES[k], check: S.outcome === k, action: () => this.setState({ outcome: k }) })),
+      { type: 'sep' },
+      { type: 'header', label: 'Simulated browser', hint: 'Prototype' },
+      { label: 'Open a shared filtered link', action: () => this.directVisit('/admin/events?view=past&sort=signups&direction=desc') },
+      { label: 'Open the Create link directly', action: () => this.directVisit('/admin/events/new') },
+      { label: 'Show browser bar', checkbox: true, checked: S.showBar, action: () => this.setState(s => ({ showBar: !s.showBar })) }
+    ];
+  }
+  openMenu(kind, e) {
+    const m = this.state.menu;
+    if (m && !m.closing && m.kind === kind) { this.closeMenu(true); return; }
+    this.menuReturn = e.currentTarget;
+    const r = e.currentTarget.getBoundingClientRect();
+    let place;
+    if (kind === 'event') place = DKAdmin.placeMenu(r, { width: Math.max(r.width, 236), align: !this.state.sideOpen && !this.isMobile() ? 'side' : 'start' });
+    else if (kind === 'phase') place = DKAdmin.placeMenu(r, { width: 220, height: DKAdmin.menuHeight(this.menuItems('phase')), align: 'end' });
+    else place = DKAdmin.placeMenu(r, { width: 256, align: 'start' });
+    this.setState({ menu: Object.assign({ kind }, place) }, () => DKAdmin.focusFirstMenuItem('menu'));
+  }
+  closeMenu(restore) { if (DKAdmin.closeLayer(this, 'menu', '#menu') && restore) DKAdmin.restoreFocus(this.menuReturn); }
+  vmMenu() {
+    const m = this.state.menu;
+    if (!m) return { show: false, items: [], x: 0, y: 0, w: 236 };
+    const items = this.menuItems(m.kind).map(it => {
+      if (it.type === 'sep') return { isSep: true };
+      if (it.type === 'header') return { isHeader: true, label: it.label, hint: it.hint };
+      return { isItem: true, label: it.label, hint: it.hint || '', disabled: false, cls: '',
+        role: it.checkbox ? 'menuitemcheckbox' : (it.check !== undefined ? 'menuitemradio' : 'menuitem'),
+        checked: it.checkbox ? !!it.checked : (it.check !== undefined ? !!it.check : undefined), showCheck: !!(it.checked || it.check),
+        run: () => { const ret = this.menuReturn; this.closeMenu(false); DKAdmin.restoreFocus(ret); it.action(); } };
+    });
+    return { show: true, items, x: m.x, y: m.y, w: m.w, cls: (m.up ? 'is-up' : '') + (m.closing ? ' is-closing' : ''), label: m.kind === 'event' ? 'Events' : m.kind === 'phase' ? 'Filter by phase' : 'Account',
+      close: () => this.closeMenu(true), onKey: e => DKAdmin.menuKeydown(e, 'menu', () => this.closeMenu(true)) };
+  }
+  openMobileNav(e) { this.navReturn = e && e.currentTarget; this.setState({ mobileNav: true, menu: null }, () => DKAdmin.focusSoon('user-btn', { preventScroll: true })); }
+  closeMobileNav(restore) { if (!this.state.mobileNav) return; this.setState({ mobileNav: false }, () => { if (restore !== false) DKAdmin.restoreFocus(this.navReturn, 'menu-toggle'); }); }
+
+  /* ---------------- view models ---------------- */
+  vmDates(e) {
+    const tz = e.tz !== DEFAULT_TZ && e.start ? ' · ' + e.tz : '';
+    if (!e.start) return { main: 'Not scheduled', mainCls: 'is-muted', sub: e.phase === 'draft' ? '' : '', hasSub: false };
+    const main = fmtRange(e.start, e.end);
+    const toStart = Math.round((D(e.start) - TODAY) / DAY), toEnd = Math.round((D(e.end) - TODAY) / DAY), sinceEnd = Math.round((TODAY - D(e.end)) / DAY);
+    let sub = '';
+    if (e.phase === 'live') sub = 'Ends ' + inDays(toEnd);
+    else if (e.phase === 'signupopen') sub = e.signupCloses ? 'Signups close ' + fmtDay(D(e.signupCloses)) : (toStart > 0 ? 'Starts ' + inDays(toStart) : '');
+    else if (e.phase === 'draft') sub = e.signupOpens ? 'Signups open ' + fmtDay(D(e.signupOpens)) : (toStart > 0 ? 'Starts ' + inDays(toStart) : '');
+    else if (e.phase === 'signupclosed') sub = e.startDue ? 'Start was due ' + e.startDue : 'Starts ' + inDays(toStart);
+    else if (e.phase === 'awaitingfinalreview') sub = 'Ended ' + (sinceEnd === 1 ? 'yesterday' : sinceEnd + ' days ago');
+    else if (e.phase === 'cancelled') sub = 'Didn’t take place';
+    sub += tz;
+    return { main, mainCls: '', sub, hasSub: !!sub };
+  }
+  vmPeople(e) {
+    if (this.prep(e)) {
+      if (e.cap) {
+        const full = e.confirmed >= e.cap; const notOpen = e.phase === 'draft';
+        const sub = e.waiting ? (full ? 'Full · ' : '') + nf(e.waiting) + ' waiting' : full ? 'Full' : notOpen ? 'Signups not open' : nf(e.cap - e.confirmed) + ' spots left';
+        return { meter: true, plain: false, main: nf(e.confirmed) + ' / ' + nf(e.cap), mainCls: notOpen && !e.confirmed ? 'is-muted' : '', pct: Math.min(100, Math.round((e.confirmed / e.cap) * 100)),
+          title: nf(e.confirmed) + ' of ' + nf(e.cap) + ' places confirmed' + (e.waiting ? ', ' + nf(e.waiting) + ' waiting' : ''), sub, hasSub: !!sub };
+      }
+      return { meter: false, plain: true, main: e.confirmed ? nf(e.confirmed) + ' confirmed' : '—', mainCls: e.confirmed ? '' : 'is-muted', sub: 'No capacity set', hasSub: true };
+    }
+    if (e.phase === 'cancelled') return { meter: false, plain: true, main: nf(e.confirmed) + ' confirmed', mainCls: 'is-muted', sub: 'when it was cancelled', hasSub: true };
+    if (e.phase === 'live') return { meter: false, plain: true, main: plural(e.players, 'player'), mainCls: '', sub: '', hasSub: false };
+    return { meter: false, plain: true, main: nf(e.players) + ' played', mainCls: '', sub: '', hasSub: false };
+  }
+  vmAttention(e) {
+    const a = this.attention(e);
+    if (!a) return { none: true, some: false };
+    const more = a.rest.length;
+    return { none: false, some: true, cls: 'is-' + (a.kind === 'review' ? 'pending' : a.kind), isFailure: a.kind === 'failure', hasDot: a.kind !== 'failure', label: a.label,
+      hasMore: more > 0, moreLabel: '· +' + more, moreText: 'Also: ' + a.rest.join(', ') + '. The event’s Overview explains everything.', moreAria: more + ' more: ' + a.rest.join(', ') };
+  }
+  vmRows(list) {
+    const S = this.state;
+    return list.map(e => ({
+      name: e.name, href: '/admin/events/' + e.slug, openId: 'open-' + e.id, imported: !!e.imported,
+      hasNameSub: !!e.hiddenAt, nameSub: e.hiddenAt ? 'Hidden ' + fmtDay(D(e.hiddenAt), true) : '',
+      phase: PHASES[e.phase].label, phaseCls: PHASES[e.phase].badge,
+      d: this.vmDates(e), p: this.vmPeople(e), a: this.vmAttention(e),
+      cls: (S.flash === e.id ? 'is-flash' : '') + (e.phase === 'cancelled' ? ' is-cancelled' : ''),
+      // The name is a real link in production (modifier-click opens a new tab). The canvas keeps navigation in-page.
+      open: ev => { if (ev) { ev.preventDefault(); ev.stopPropagation(); } this.openEvent(e, 'open-' + e.id); },
+      rowClick: ev => { if (ev && ev.target && ev.target.closest && ev.target.closest('a,button,.hint')) return; this.openEvent(e, 'open-' + e.id); }
+    }));
+  }
+  vmCols() {
+    const S = this.state;
+    const defs = [['identity', 'Event', 'c-name'], ['state', 'Phase', ''], ['dates', 'Dates', ''], ['signups', 'Participants', ''], ['attention', 'Needs attention', '']];
+    return defs.map(([k, label, cls]) => {
+      const on = S.sortKey === k; const next = on ? (S.sortDir === 'asc' ? 'descending' : 'ascending') : (SORTS[k].first === 'asc' ? 'ascending' : 'descending');
+      return { label, cls: cls + (on ? ' is-sorted' : ''), ariaSort: on ? (S.sortDir === 'asc' ? 'ascending' : 'descending') : 'none', dirCls: on ? (S.sortDir === 'asc' ? 'is-asc' : 'is-desc') : '',
+        aria: 'Sort by ' + label.toLowerCase() + ', ' + next, sort: () => this.sortBy(k) };
+    });
+  }
+  vmEmpty(list, all) {
+    const S = this.state;
+    const none = { show: false };
+    if (S.loading) return none;
+    if (S.loadError) return { show: true, cls: 'is-error', isError: true, title: 'Couldn’t load events', text: 'Check your connection and try again. Nothing was changed.', hasAction: true, actionLabel: 'Try again', actionCls: '', action: () => this.load() };
+    if (list.length) return none;
+    const filtered = S.q.trim() || S.phase !== 'all' || S.attn;
+    if (filtered) {
+      const bits = []; if (S.q.trim()) bits.push('“' + S.q.trim() + '”'); if (S.phase !== 'all') bits.push(PHASES[S.phase].label); if (S.attn) bits.push('needing attention');
+      return { show: true, isSearch: true, title: 'No matching events', text: 'No ' + (S.view === 'all' ? '' : VIEWS[S.view].label.toLowerCase() + ' ') + 'events match ' + bits.join(' · ') + '.', hasAction: true, actionLabel: 'Clear filters', actionCls: '', action: () => this.clearFilters() };
+    }
+    if (S.view === 'hidden') return { show: true, isHidden: true, title: 'No hidden events', text: 'Quarantined events appear here. They’re excluded from every other view, count and the Dashboard.', hasAction: false };
+    if (!all) return { show: true, isEvents: true, title: 'No events yet', text: 'Create your first event. It starts as a private draft, so you can set it up before anyone sees it.', hasAction: true, actionLabel: 'Create event', actionCls: 'btn-primary', action: e => this.openCreate(e) };
+    if (S.view === 'current') return { show: true, isEvents: true, title: 'Nothing current or upcoming', text: 'Live events and events in setup or signups appear here.', hasAction: true, actionLabel: 'Create event', actionCls: '', action: e => this.openCreate(e) };
+    return { show: true, isEvents: true, title: 'No past events yet', text: 'Events appear here once they reach final review, finish, are archived or are cancelled.', hasAction: false };
+  }
+  vmCreate() {
+    const c = this.state.create;
+    if (!c) return { show: false };
+    const err = this.nameError(c); const showErr = c.showErrors && !!err && c.status !== 'saving';
+    const n = c.name.trim(); const len = Array.from(c.name).length;
+    const dupe = n && c.status !== 'uncertain' && c.status !== 'checking'
+      ? (this.isSuper() ? this.world.events : this.visible()).find(e => e.name.toLowerCase() === n.toLowerCase() && e.createdKey !== c.key) : null;
+    const busy = this.busy(c);
+    const fieldsLocked = busy || c.status === 'uncertain';
+    const describedBy = [showErr ? 'cm-name-err' : '', dupe ? 'cm-name-dup' : ''].filter(Boolean).join(' ') || undefined;
+    return {
+      show: true, closingCls: c.closing ? 'is-closing' : '', behindCls: this.state.modal && !this.state.modal.closing ? 'is-behind' : '', busy, busyCls: busy ? 'is-busy' : '', fieldsLocked,
+      name: c.name, tz: c.tz, nameCls: showErr ? 'is-invalid' : '', nameInvalid: showErr ? 'true' : 'false', hasNameErr: showErr, nameErr: err, nameDescribedBy: describedBy,
+      showCount: len > 40, count: len + ' / 50', countCls: len > 50 ? 'is-over' : '',
+      hasDup: !!dupe, dup: dupe ? 'An event called “' + dupe.name + '” already exists (' + (dupe.hiddenAt ? 'hidden' : PHASES[dupe.phase].label) + '). You can still create another; it gets its own link.' : '',
+      failed: c.status === 'failed', uncertain: c.status === 'uncertain' || c.status === 'checking', notCreated: c.status === 'notCreated',
+      uncertainTitle: c.status === 'checking' ? 'Checking whether the event was created…' : 'We couldn’t confirm whether the event was created.',
+      submitLabel: c.status === 'saving' ? 'Creating…' : c.status === 'checking' ? 'Checking…' : c.status === 'uncertain' ? 'Check again' : 'Create event',
+      onName: e => { const v = e.target.value; this.updCreate({ name: v }); },
+      onNameKey: e => { if (e.key === 'Enter') { e.preventDefault(); this.submitCreate(); } },
+      onTz: e => { const v = e.target.value; this.updCreate({ tz: v }); },
+      cancel: () => this.requestCloseCreate(), backdrop: () => this.requestCloseCreate(), submit: () => this.submitCreate(),
+      onKey: e => {
+        if (this.state.modal) return;
+        if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); this.requestCloseCreate(); }
+        else DKAdmin.trapTab(e, 'create-modal');
+      }
+    };
+  }
+  vmModal() {
+    const m = this.state.modal;
+    if (!m) return { show: false };
+    return { show: true, closingCls: m.closing ? 'is-closing' : '', title: 'Discard unsaved changes?', body: 'The name and timezone you entered haven’t been saved.', cancelLabel: 'Keep editing', confirmLabel: 'Discard',
+      dismiss: () => this.keepEditing(), confirm: () => this.confirmDiscard(),
+      onKey: e => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); this.keepEditing(); } else DKAdmin.trapTab(e, 'modal'); } };
+  }
+
+  renderVals() {
+    const S = this.state;
+    const vis = this.visible(); const hid = this.hidden();
+    const ready = !S.loading && !S.loadError;
+    const list = ready ? this.list() : [];
+    const pageCount = Math.max(1, Math.ceil(list.length / PER_PAGE));
+    const page = Math.min(S.page, pageCount);
+    const pageRows = list.slice((page - 1) * PER_PAGE, page * PER_PAGE);
+    const count = v => v === 'hidden' ? hid.length : v === 'all' ? vis.length : vis.filter(e => PHASES[e.phase].group === v).length;
+    const attnEvents = vis.filter(e => this.attention(e));
+    const anyFailure = attnEvents.some(e => this.attention(e).kind === 'failure');
+    const live = vis.filter(e => e.phase === 'live').length; const upcoming = vis.filter(e => PHASES[e.phase].group === 'current' && e.phase !== 'live').length;
+    const ovEvent = S.route === 'event' ? this.bySlug(S.slug) : null;
+    const liveEv = vis.find(e => e.phase === 'live');
+    const sideEv = ovEvent || liveEv || vis.find(e => PHASES[e.phase].group === 'current');
+    const navKey = S.route === 'event' ? 'overview' : S.route === 'other' ? S.otherKey : 'events';
+    const nav = {}; NAV.forEach(([k, label]) => { nav[k] = { cls: navKey === k ? 'is-current' : '', current: navKey === k ? 'page' : undefined, tip: (S.sideOpen || this.isMobile()) ? undefined : label, count: '', go: () => this.goNav(k) }; });
+    const phaseLabel = S.phase === 'all' ? 'All' : PHASES[S.phase].label;
+    const pages = DKAdmin.pageList(page, pageCount).map(p => p.gap ? { isGap: true, isBtn: false } : { isGap: false, isBtn: true, label: String(p.page), cls: p.page === page ? 'is-current' : '', current: p.page === page ? 'page' : undefined, aria: 'Page ' + p.page, go: () => this.setFilters({ page: p.page }, true) });
+    const total = S.view === 'hidden' ? hid.length : count(S.view);
+    return {
+      themeClass: S.theme === 'dark' ? 'theme-dark' : 'theme-light', isLight: S.theme === 'light', isDark: S.theme === 'dark', lightCls: S.theme === 'light' ? 'is-on' : '', darkCls: S.theme === 'dark' ? 'is-on' : '',
+      setLight: () => this.setState({ theme: 'light' }), setDark: () => this.setState({ theme: 'dark' }),
+      nav, roleLabel: this.isSuper() ? 'SuperAdmin' : 'Administrator',
+      sideCls: (S.sideOpen ? '' : 'is-collapsed') + (S.mobileNav ? ' is-mobile-open' : ''), sideOpen: this.isMobile() ? S.mobileNav : S.sideOpen,
+      sideTip: (S.sideOpen || this.isMobile()) ? undefined : 'Iron Pact · ' + (this.isSuper() ? 'SuperAdmin' : 'Administrator'), mobileNav: S.mobileNav, navScrimCls: S.mobileNav ? 'is-on' : '',
+      openMobileNav: e => this.openMobileNav(e), closeMobileNav: () => this.closeMobileNav(),
+      sideKey: e => { if (!this.state.mobileNav || this.state.menu) return; if (e.key === 'Escape') { e.preventDefault(); this.closeMobileNav(); } else DKAdmin.trapTab(e, 'sidebar'); },
+      collapseLabel: this.isMobile() ? 'Close navigation' : (S.sideOpen ? 'Collapse sidebar' : 'Expand sidebar'), collapseArrowCls: (S.sideOpen || this.isMobile()) ? '' : 'is-flip',
+      toggleSide: () => { if (this.isMobile()) { this.closeMobileNav(); return; } this.setState(s => ({ sideOpen: !s.sideOpen, menu: null })); },
+      ev: sideEv ? { name: sideEv.name, stage: PHASES[sideEv.phase].label, when: sideEv.start ? fmtRange(sideEv.start, sideEv.end) : 'not scheduled', toneCls: sideEv.phase === 'live' ? 'tone-live' : sideEv.phase === 'signupopen' ? 'tone-open' : 'tone-draft' } : { name: 'No events', stage: '—', when: 'create one to start', toneCls: 'tone-draft' },
+      evTip: (S.sideOpen || this.isMobile()) ? undefined : 'Switch event',
+      eventMenuOpen: !!(S.menu && S.menu.kind === 'event'), userMenuOpen: !!(S.menu && S.menu.kind === 'user'),
+      openEventMenu: e => this.openMenu('event', e), openUserMenu: e => this.openMenu('user', e),
+      scrollCls: S.mobileNav ? 'is-locked' : '',
+      crumbIsEvents: S.route === 'directory', crumbIsChild: S.route === 'event', crumbIsOther: S.route === 'other',
+      crumbChild: S.route === 'event' ? (ovEvent ? ovEvent.name : 'Event') : (TITLES[S.otherKey] || ''), crumbEvents: () => this.goNav('events'),
+      isDirectory: S.route === 'directory', isOverview: S.route === 'event', isOther: S.route === 'other',
+      otherTitle: TITLES[S.otherKey] || '', otherScope: ['dashboard', 'catalogue', 'roles', 'audit'].indexOf(S.otherKey) >= 0 ? 'Community-wide' : 'Event page', goEvents: () => this.goNav('events'),
+      sum: { ready, loading: S.loading, hasEvents: vis.length > 0, noEvents: ready && !vis.length, live, upcoming, attention: attnEvents.length, hasAttention: attnEvents.length > 0, calm: vis.length > 0 && !attnEvents.length,
+        attnOn: S.attn ? 'true' : 'false', attnDotCls: anyFailure ? 'is-failure' : '', attnTitle: S.attn ? 'Show all events again' : 'Show only events that need attention',
+        toggleAttn: () => this.setFilters(s => ({ attn: !s.attn, view: s.view === 'hidden' ? 'all' : s.view })) },
+      banner: { show: !!S.banner, text: S.banner },
+      openCreate: e => this.openCreate(e),
+      tabs: ['all', 'current', 'past'].map(v => ({ label: VIEWS[v].label, count: S.loading ? '' : String(count(v)), on: S.view === v, cls: S.view === v ? 'is-on' : '', pick: () => this.setView(v) })),
+      hiddenTab: { show: this.isSuper(), on: S.view === 'hidden', cls: S.view === 'hidden' ? 'is-on' : '', count: S.loading ? '' : String(hid.length), pick: () => this.setView('hidden') },
+      attnChip: { show: S.attn, clear: () => { this.setFilters({ attn: false }); DKAdmin.focusSoon('search-input'); } },
+      q: S.q, hasQ: !!S.q, searchCls: S.q ? 'has-clear' : '',
+      onSearch: e => { const v = e.target.value; this.setFilters({ q: v }); },
+      onSearchKey: e => { if (e.key === 'Escape' && this.state.q) { e.preventDefault(); this.setFilters({ q: '' }); } },
+      clearSearch: () => { this.setFilters({ q: '' }); DKAdmin.focusSoon('search-input'); },
+      phaseBtn: { cls: S.phase !== 'all' ? 'is-active' : '', value: phaseLabel, open: !!(S.menu && S.menu.kind === 'phase'), toggle: e => this.openMenu('phase', e) },
+      loading: S.loading, skeleton: [52, 38, 46, 60, 34, 48, 42].map(w => ({ w })),
+      showRows: ready && pageRows.length > 0, rows: this.vmRows(pageRows), cols: this.vmCols(), rowCount: String(list.length + 1),
+      tableLabel: 'Events · ' + VIEWS[S.view].label, rowsAnim: S.viewKey ? (S.viewKey % 2 ? 'swap-a' : 'swap-b') : '',
+      scrollXCls: (S.scrollX ? 'is-scroll' : '') + (S.scrollX && S.scrolledX ? ' is-scrolled' : ''),
+      onTableScroll: e => { const on = e.currentTarget.scrollLeft > 2; if (on !== this.state.scrolledX) this.setState({ scrolledX: on }); },
+      empty: this.vmEmpty(list, vis.length + (S.view === 'hidden' ? hid.length : 0)),
+      foot: { show: ready && list.length > 0, range: list.length === total ? plural(list.length, 'event') : 'Showing ' + nf(list.length) + ' of ' + plural(total, 'event'),
+        sorted: !!S.sortKey, sortLabel: S.sortKey ? SORTS[S.sortKey].label : '', resetSort: () => this.setFilters({ sortKey: '', sortDir: 'asc' }),
+        paged: pageCount > 1, pages, prevDisabled: page <= 1, nextDisabled: page >= pageCount, prev: () => this.setFilters({ page: page - 1 }, true), next: () => this.setFilters({ page: page + 1 }, true) },
+      ov: ovEvent ? { name: ovEvent.name, phase: PHASES[ovEvent.phase].label, phaseCls: PHASES[ovEvent.phase].badge,
+          summary: (ovEvent.start ? fmtRange(ovEvent.start, ovEvent.end) : 'Not scheduled') + ' · ' + ovEvent.tz,
+          text: ovEvent.createdKey ? 'This private draft was just created. Its Overview is where you’d set dates, capacity, artwork and signups. Back returns to Events with your filters, search and sort.' : 'Opened from the Events directory. Back returns to it with your filters, search and sort restored from the URL.',
+          back: () => this.backToEvents() }
+        : { name: 'Event not found', phase: '—', phaseCls: 'badge-neutral', summary: '', text: 'This event doesn’t exist or isn’t visible to you.', back: () => this.backToEvents() },
+      menu: this.vmMenu(), cm: this.vmCreate(), md: this.vmModal(),
+      pb: { show: S.showBar, url: this.cur().url, noBack: this.hist.idx === 0, noFwd: this.hist.idx >= this.hist.entries.length - 1, back: () => this.back(), fwd: () => this.forward(), reload: () => this.reload() },
+      toasts: DKAdmin.toastView(this)
+    };
+  }
+}
+</script>
+</body>
+</html>
