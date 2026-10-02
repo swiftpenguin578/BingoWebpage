@@ -1,6 +1,6 @@
 # Current project status
 
-## Consolidation — commits prepared for GitHub backup, 2 October 2026
+## Consolidation — GitHub backup verified, 2 October 2026
 
 The user authorized consolidation commits and a normal push of
 `codex/participants-functionality` to
@@ -23,8 +23,8 @@ Packaging groups (whole files, no overlapping partial staging):
   designer and model snapshot together.
 - Admin UI references: `ddf39ca03da7710a28a216f1ac50275c270b7a10` — 17 source files
   plus the reference hash manifest and two retained source-review reports.
-- Planning/acceptance contracts and this delivery checkpoint form a separate
-  documentation commit. Source PASS and application/manual acceptance remain
+- Planning/acceptance contracts and the delivery checkpoint:
+  `750727d27bd54a86b4f09b93dd2a3be828b4ffde` — eight documents. Source PASS and application/manual acceptance remain
   distinct; UI_PAGE_MATRIX remains the page-approval authority.
 
 Packaging preflight: all 26 final Luck candidate hashes and six final Dashboard
@@ -77,9 +77,19 @@ BOSS_ARTWORK_GUIDE and tmp files; all other worktrees/branches; running app,
 user/disposable databases and live providers. No PR, merge, release, deployment,
 force-push, reset, deletion or cleanup was performed.
 
-Remote preflight verified main at `22af254c893bb51e7820d84fc4154ff9af3bcc90` and no
-existing `codex/participants-functionality` remote branch. Next permitted action:
-normal branch push, remote-SHA verification and delivery-record closure, then stop.
+Normal push succeeded and `git ls-remote` verified GitHub's
+`refs/heads/codex/participants-functionality` at
+`750727d27bd54a86b4f09b93dd2a3be828b4ffde`, exactly matching local HEAD after all five
+consolidation groups. Remote main remains
+`22af254c893bb51e7820d84fc4154ff9af3bcc90`. The working tree/index were clean after
+that push. Final parity recheck confirms all 47 application files still match the
+packaging baseline and all 17 references still match the untouched source.
+This status-only closure is committed and pushed immediately after the verified
+payload; its commit identity is available in branch history, with final remote
+verification reported in the packaging handoff.
+
+Next permitted action: finish the status-only push and verify the final branch SHA,
+then stop. No queued AU/RC ticket, UI integration, merge or deployment is started.
 
 ## Luck redesign — reviewed technical completion, 2026-10-01
 
