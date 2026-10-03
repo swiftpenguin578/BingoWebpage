@@ -1,6 +1,6 @@
 # Admin UI — functionality and delivery register
 
-Updated 2 October 2026. Records agreed behavior, remaining decisions and actual
+Updated 3 October 2026. Records agreed behavior, remaining decisions and actual
 delivery progress for the new Admin UI. Keep completed entries; update their state
 and evidence rather than deleting them or leaving everything labelled pending.
 Neither a working prototype nor inclusion here means the application supports it.
@@ -15,8 +15,8 @@ The reference freeze and AU01–AU10 evidence are committed at `1e8d457`;
 
 | Area | Application state | Remaining work |
 | --- | --- | --- |
-| Participants | F01–F06 technically complete; executed proof and independent PASS | New reference binding and application acceptance |
-| Dashboard | D01–D09 technically complete; executed proof and independent PASS | D10 binding and application acceptance |
+| Participants | F01–F06 technically complete and committed; executed proof and independent PASS | New reference binding and application acceptance |
+| Dashboard | D01–D09 backend technically complete and committed; executed proof and independent PASS | D10 binding and application acceptance |
 | Events | AU03/AU04 technically complete; executed proof and independent PASS | Modal, filters, routing and reference binding |
 | Identity | AU08/AU09 technically complete; executed proof and independent PASS; named reference recheck SOURCE PASS | Conflict choices, readback, stay-on-page and reference binding |
 | Overview | Existing lifecycle plus AU01 technically complete, executed and independently passed | RC01 and application binding |
@@ -24,14 +24,16 @@ The reference freeze and AU01–AU10 evidence are committed at `1e8d457`;
 | Schedule | AU10 technically complete, executed and independently passed | RC03 and picker/form/navigation binding |
 | Teams / Draft | Existing draft/roster commands retained | AU14, RC04 and application binding |
 | Board | Existing board commands retained; AU11–AU13 approved but not implemented | B1–B7 → RC05; additional capability scope proposed as AU19 |
-| Audit | Existing audit service/presenter retained | A1–A4 → RC06; query/read gaps proposed as AU16 |
-| Review | Existing evidence commands retained | R1–R8 → RC07; projection/outcome gaps proposed as AU17 |
+| Audit | Existing audit service/presenter retained | A1–A4 → RC06; approved query/read correction queued as AU16 |
+| Review | Existing evidence commands retained | R1–R8 → RC07; approved full-pool correction queued as AU17; remaining projection/outcome gaps proposed |
 | Final Review | Existing publication/reopen/snapshot services retained | F1–F6 → RC08; readiness/outcome gaps proposed as AU18; ranking AU12 |
-| WOM | Existing management/fetch protections retained; AU15 approved but not implemented | W1–W6 → RC09; projection/recovery proposed as AU20; option 1 / exact UTC matching approved, implementation pending |
-| Catalogue | Existing CRUD/mapping/value services retained | C1–C8 → RC10; explicit adoption/recovery proposed as AU21; approved SuperAdmin mechanics target AU23 |
-| Accounts | Existing role/status/reset/transfer services retained | A1–A8 → RC11; transport/recovery proposed as AU22; approved typed transfer target AU24 |
+| WOM | Existing management/fetch protections retained | W1–W6 → RC09; AU15 and approved exact-window/recovery AU20 queued; no implementation dispatched |
+| Catalogue | Existing CRUD/mapping/value services retained | C1–C8 → RC10; approved adoption/recovery AU21 and SuperAdmin mechanics AU23 queued |
+| Accounts | Existing role/status/reset/transfer services retained | A1–A8 → RC11; approved transport/recovery AU22 and typed transfer AU24 queued |
 
-AU11 onward remains stopped. New ticket records allocate scope, not execution.
+AU11–AU24 remain stopped for implementation. New ticket records allocate scope,
+not execution. The cleanup commits below reconcile their approved or proposed
+status without starting any of them.
 Implemented, executed, independently reviewed, reference-accepted and application-
 accepted are separate states. Original source reports are immutable evidence of
 what was reviewed then; later user decisions below supersede their recommendations.
@@ -303,7 +305,16 @@ Luck, Participants and Dashboard backend work is complete, not queued to rebuild
 | AU12 | Rankings: credited EHB before score time; preserve first full-board finish and history | Agreed; queued, new events only; existing events keep prior rule |
 | AU13 | Board: manually adjustable planning team size after draft finalization | Agreed; queued, not implemented |
 | AU14 | Teams: safe authoritative readback after uncertain actions | Queued; minimal transport contract to resolve at handoff, existing commands reused |
-| AU15 | WOM: remove typed FETCH confirmation; preserve refresh protections | Approved 2 October; queued after the existing AU01–AU14 / RC01–RC04 sequence, not dispatched |
+| AU15 | WOM: remove typed FETCH confirmation; preserve refresh protections | Approved 2 October; queued, not dispatched |
+| AU16 | Audit: restore approved hidden-event history and exact filters | Approved defect fix; queued, not dispatched |
+| AU17 | Review: split approved full-event-pool correction from remaining review projection gaps | Approved full-pool correction queued; remaining AU17 scope proposed; not dispatched; G2 closed the paused-interval wording finding |
+| AU18 | Final Review: readiness, retained WOM outcomes and version/history readback | Proposed; not dispatched |
+| AU19 | Board: structured approval issues and uncertain-action readback | Proposed; not dispatched |
+| AU20 | WOM: exact configured-window matching, structured outcomes and replacement/recovery | Approved; queued, not dispatched; transport and scope details remain in the ticket |
+| AU21 | Catalogue: explicit shared-item adoption, rename and recovery scope | Approved defect fix; queued, not dispatched |
+| AU22 | Accounts: accurate projections and target-bound reset response | Approved defect fix; queued, not dispatched |
+| AU23 | Catalogue: SuperAdmin-only advanced mechanics with ordinary-admin refusal | Approved; queued, not dispatched; roll-count input remains an open product choice |
+| AU24 | Accounts: typed ownership transfer destination confirmation | Approved; queued, not dispatched |
 
 Retain completed tickets and their implementation, executed-proof, independent-review
 and deferred UI/manual-acceptance states. Add later reviewed application gaps under
@@ -582,11 +593,11 @@ complete. Reuse existing supported behavior where it already satisfies them.
 
 ## Implementation and evidence tracking
 
-F01–F06 are **technically complete, 30 September 2026** in the assigned backend
+F01–F06 are **technically complete, committed and independently accepted, 30 September 2026** in the assigned backend
 worktree. Contracts/data rules are reconciled; the same independent Sol 6.1/high
 reviewer accepted the stable source and required executed proof with no remaining
 findings or proof gaps. New UI integration and manual application acceptance remain
-deferred. No commit, merge, push or deployment has occurred.
+deferred. The implementation is committed; no merge, push or deployment has occurred.
 
 | ID | Scope | Contract reconciliation | Application / evidence |
 | --- | --- | --- | --- |
@@ -626,7 +637,7 @@ independent review; the planner did not rerun checks or independently review sou
   checkout outside default writable roots. Narrow authorized escalation recovered
   it; no app restart, user-database changes, cache wipe or broad process kill.
 - Implementation remains in branch codex/participants-functionality, based on
-  993c90e9835d1f2d74fc9c03ed4d8f6306a7e37c; all dirty work is preserved.
+  993c90e9835d1f2d74fc9c03ed4d8f6306a7e37c; F01–F06 are committed and preserved.
 - DELIVERY_PLAN.md, “Completion and UI-binding handoff”, records exact application
   methods, request/result contracts, version checks, primary mapping and refresh
   responsibilities. Next work is a separately assigned redesigned UI integration
@@ -840,7 +851,7 @@ test framework or an exhaustive UI matrix.
   failure and retry, keyboard/touch details and narrow layout. Manual visual
   acceptance is page-specific and separate from backend correctness.
 
-### Dashboard reference inspection — 30 September 2026
+### Historical Dashboard reference inspection — 30 September 2026
 
 Planner inspected the local exported page at
 http://127.0.0.1:5196/Dashboard.dc.html. This was a scoped design/behavior check,
@@ -858,13 +869,14 @@ not an independent source review or a production data audit.
 - Claude separately reported both themes at 390–1440px, Participants/Components
   regression checks and reduced motion. Those wider checks were not repeated
   independently in this pass.
-- No design blocker found in the inspected states. The user considers the page
-  done and is sending one additional correction; final acceptance of that
-  correction is not inferred here. The observed export's SHA-256 was
+- No design blocker was found in the inspected states. This remains historical
+  prototype evidence; later backend completion and current UI acceptance are
+  recorded by their own checkpoints. The observed export's SHA-256 was
   18ef82f42dc3a277b55f58c18d56927c197f1edddb259e3ca548be6226d525f6.
 - No reference HTML/CSS/JS or README was modified by this documentation pass.
-  Shared component extraction is delivered reference work; real Dashboard
-  functionality, route binding and backend tests remain pending.
+  Shared component extraction is delivered reference work. D01–D09 backend
+  completion is recorded above; D10 route binding and application/manual
+  acceptance remain deferred.
 
 ## Events — agreed design brief, 30 September 2026
 
@@ -1226,6 +1238,8 @@ The user approved a normal Fetch now button without typing FETCH or a confirmati
 modal. This supersedes the prepared designer brief's instruction to retain the
 current confirmation requirement. Preserve existing server-side cooldown, normal
 schedule/retry timing and in-flight protections; a failed attempt does not bypass
-them. AU15 in DELIVERY_PLAN owns the handler/markup correction and focused proof.
-Reference design and production implementation are pending; no tests, independent
-review or manual acceptance claimed. No other WOM functionality change approved.
+them. AU15 in DELIVERY_PLAN owns the handler/markup correction and focused proof;
+AU20 owns the separately approved exact-window, structured-outcome and replacement
+recovery work. Reference design and production implementation remain pending; no
+tests, independent review or manual acceptance are claimed here. No additional WOM
+scope beyond AU15 and AU20 is approved by this register.

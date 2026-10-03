@@ -17,9 +17,9 @@ operations, packaging and deployment were not performed or authorized.
 
 **Source baseline:** inspected `codex/participants-functionality` in
 `/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage`, including
-its existing uncommitted Participants/Dashboard work. The 573d checkout is stale.
+its reviewed committed Participants/Dashboard work. The 573d checkout is stale.
 The execution checkout is this same active worktree and branch; do not use stale
-573d or Claude's design-reference checkout. Preserve all uncommitted Participants,
+573d or Claude's design-reference checkout. Preserve the committed Participants,
 Dashboard and documentation work. Recheck only changed or missing dependencies.
 
 ### Assignment and ownership
@@ -260,15 +260,13 @@ or required scope expansion rather than silently broadening the probability engi
 Player/team roster histories and rate changes must not accidentally change observation
 ownership. Percentiles remain a model of approved eligible drops, not all unseen gameplay.
 
-This section records future approved behavior. Older signed-score, reversal-invalidation,
-read-time-rescore and Live-only Luck descriptions document the current implementation;
-they must be reconciled in their owning authorities under L0 before code changes. Until
-then, this queued plan is the explicit target, not a claim that production already follows it.
-**Next permitted action:** approval is recorded and the user resumed consolidation
-on 2026-10-02. Complete owned disposable-demo cleanup and the pending Identity/
-Teams reference reviews, reconcile their results, then package completed work
-under the agreed consolidation scope. Do not start unrelated AU/RC implementation,
-merge or deploy. CURRENT_STATUS records active owners and exact checkpoint.
+This section records the implemented Luck behavior and its retained historical
+boundaries. Older signed-score, reversal-invalidation, read-time-rescore and
+Live-only descriptions are historical source material; the active Luck contract
+and current implementation govern delivery.
+**Next permitted action:** H1 evidence preservation is committed. Continue the
+authorized H2–H7 cleanup only, then stop for Claude's independent review. Do not
+start AU/RC implementation, UI integration, rehearsal, merge or deploy.
 
 
 ## Review preparation checkpoint — 2 October 2026
@@ -319,11 +317,12 @@ mutation, staging, commit, push or deployment is authorized by this queue.
 
 ### Queue and delivery state
 
-Luck is complete; work one ticket at a time under the execution authorization above. AU01/AU02
-are technically complete with executed focused proof and independent review PASS. Other tickets are
-verified integration gaps; this is not permission to rebuild already working
-services. Shared files/dependencies can inform sequence without merging tickets
-into a broad pass.
+Luck, Participants and Dashboard backend work is complete and committed; remaining
+application tickets stay queued under the execution authorization above. AU01–AU10
+are technically complete with executed focused proof and independent review PASS.
+AU11–AU24 retain the approved/proposed statuses in the table below and are not
+dispatched by this cleanup. Shared files/dependencies can inform sequence without
+merging tickets into a broad pass.
 
 | Order / ID | Application outcome | Depends on | Implementation | Executed proof | Independent review | UI integration / manual acceptance |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -342,7 +341,16 @@ into a broad pass.
 | AU13 | Board planning team-size estimate editable after draft finalization | Existing board statistics/settings boundary | Queued | Not run | Not run | Deferred |
 | AU14 | Teams: authoritative uncertain-action readback | Resolve minimal transport contract using existing commands/IDs | Queued; contract at handoff | Not run | Source gap mapped | Deferred |
 
-| AU15 | WOM: remove typed FETCH confirmation | Existing refresh guards; after the previously authorized AU01–AU14 / RC01–RC04 sequence | Approved; queued, not dispatched | Not run | Not run | Deferred |
+| AU15 | WOM: remove typed FETCH confirmation | Existing refresh guards | Approved; queued, not dispatched | Not run | Not run | Deferred |
+| AU16 | Audit: restore approved hidden-event history and exact filters | Existing audit presenter/query and hidden-history authority | Approved defect fix; queued, not dispatched | Not run | Not run | Deferred |
+| AU17 | Review: split approved full-event-pool correction from remaining review projection gaps | Existing evidence/review service and G2 structured outcome | Approved full-pool correction queued; remaining scope proposed; not dispatched | Not run | G2 paused-interval wording closed; remaining review not run | Deferred |
+| AU18 | Final Review: readiness, retained WOM outcomes and version/history readback | Existing finalization/readiness boundary | Proposed; not dispatched | Not run | Not run | Deferred |
+| AU19 | Board: structured approval issues and uncertain-action readback | Existing board leases/snapshots/calculators | Proposed; not dispatched | Not run | Not run | Deferred |
+| AU20 | WOM: exact configured-window matching, structured outcomes and replacement/recovery | Existing WOM guards, operation state and schedule boundary | Approved; queued, not dispatched | Not run | Not run | Deferred |
+| AU21 | Catalogue: explicit shared-item adoption, rename and recovery scope | Existing catalogue/item mapping and version services | Approved defect fix; queued, not dispatched | Not run | Not run | Deferred |
+| AU22 | Accounts: accurate projections and target-bound reset response | Existing account/reset/authorization services | Approved defect fix; queued, not dispatched | Not run | Not run | Deferred |
+| AU23 | Catalogue: SuperAdmin-only advanced mechanics with ordinary-admin refusal | Existing catalogue authorization, validation and audit | Approved; queued, not dispatched; roll-count input remains an open product choice | Not run | Not run | Deferred |
+| AU24 | Accounts: typed ownership transfer destination confirmation | Existing ownership/version/session services | Approved; queued, not dispatched | Not run | Not run | Deferred |
 
 For each ticket retain owner/model, changed-source identity, exact check/evidence
 paths, unresolved limitations and next owner when work starts. Replace Queued with
@@ -1076,13 +1084,13 @@ provisional flags. The later Admin Dashboard UI can bind event links from
 `OverviewPath` (`/Admin/Events/Manage/{id}`), the current card, recap, chart and
 history without adding a route or changing the existing Admin Index callers.
 
-The current executable evidence is retained under
+Recorded worker execution evidence is retained under
 `docs/references/admin-ui/reviews/2026-10-03/doc-ticket-cleanup/h1/dashboard/`:
 
 - Application Release build: `dotnet build tests/Bingo.Application.Tests/Bingo.Application.Tests.csproj --configuration Release --no-restore`, passed with 0 warnings/errors.
 - Ordering proof: `dashboard-ordering-fixed4.trx`, **2/2 passed**, from the focused `DashboardHistoryOrderingTests` run. All six history fields use null-last ordering in both directions and stable EventId ties.
 - Integration Release build: `dotnet build tests/Bingo.IntegrationTests/Bingo.IntegrationTests.csproj --configuration Release --no-restore`, passed with 0 warnings/errors.
-- Current PostgreSQL proof: `dashboard-b2-post-ordering.trx`, **7/7 passed**, from the focused `AdminDashboardIntegrationTests` run. It includes deterministic UTC fixtures, a non-microsecond input persisted through PostgreSQL, authorization/transaction/cancellation failure behavior, and no-write checks.
+- Recorded PostgreSQL proof: `dashboard-b2-post-ordering.trx`, **7/7 passed**, from the focused `AdminDashboardIntegrationTests` run. It includes deterministic UTC fixtures, a non-microsecond input persisted through PostgreSQL, authorization/transaction/cancellation failure behavior, and no-write checks. The source TRX was omitted from the durable H1 copy; its metadata and disposition are retained there.
 
 D01–D09 below are implemented, executed at applicable backend boundaries and
 independently source-reviewed. UI acceptance remains separate:
@@ -1132,7 +1140,7 @@ applied only those named corrections and focused proofs. The same reviewer
 completed the final named recheck with **PASS**, resolving R1–R5 and their direct
 consequences without a repeated broad review.
 
-Fresh evidence is retained under
+Recorded named-remediation evidence is retained under
 `docs/references/admin-ui/reviews/2026-10-03/doc-ticket-cleanup/h1/dashboard/`:
 
 - `dashboard-remediation-r2-r3-r1-r5.trx` — **8/9 passed** in real PostgreSQL.
@@ -1400,7 +1408,7 @@ Deployment, production cleanup and current runtime state are not inferred from t
 | Original tickets | Agreed simplification outcome retained | Later refinements / delivery distinction |
 | --- | --- | --- |
 | PRE-01 | Baseline/retained-data investigation, no guessed production migration | Historical evidence; no current production access implied |
-| ADM-01, ADM-02 | Honest outcomes, useful sanitized Audit, shared confirmations | New shared Admin reference supersedes visual composition; RC fixes pending |
+| ADM-01, ADM-02 | Honest outcomes, useful sanitized Audit, shared confirmations | New shared Admin reference supersedes visual composition; AU16 server-side hidden-history/query correction is approved and queued; RC fixes pending |
 | SEC-01 | Retire emergency authority, preserve actors/history | No reactivation through later UI |
 | CAT-01 | Simplify Catalogue; retire roll-group UI/import surfaces, preserve mechanics | AU21/AU23 pending; SuperAdmin advanced-field editing does not create a roll-group editor |
 | EVT-01 | Name/timezone creation, permanent slug, atomic defaults, Identity ownership | AU03/AU08/AU09 complete; new UI binding pending |

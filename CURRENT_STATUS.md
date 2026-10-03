@@ -7,52 +7,54 @@
 - Planner: UI Planner `01a0ec9a-76e3-7252-9850-3f260c612e59`, collaboration `/root`.
 - Active assignment: H1–H7 ticket/documentation cleanup, per
   `docs/references/admin-ui/reviews/2026-10-03/doc-ticket-cleanup/handoff.md`.
-- Verified clean initial HEAD: `576c6615c64af4d0959152dbcbf7c327106f624f`.
-- Expected activation changes: this status, durable cleanup brief and accepted
-  G recheck copy in the same evidence folder. Commit activation separately.
-- Same direct implementer `/root/fix_batch_implementer`, `gpt-5.6-luna` / `max`.
-  No orchestrator, extra workers or separate chats. Claude independently reviews.
+- Verified clean starting HEAD: `576c6615c64af4d0959152dbcbf7c327106f624f`.
+- Activation checkpoint: `e9e65d6`. H1 durable evidence checkpoint:
+  `6c7603f`.
+- Direct implementer: `/root/fix_batch_implementer`, `gpt-5.6-luna` / `max`.
+  No extra workers, chats, production access, provider calls, user-database
+  mutation, push, merge, deployment or rehearsal. Claude independently reviews.
 - Report to `/root` before every turn-ending response and on blockers/decisions;
-  include exact checkpoint and next owner/action. No wait_threads or polling.
+  no wait_threads or polling.
 
-## Scope and checkpoints
+## Completed implementation and review state
 
-- H1 first: preserve compact historical evidence from temporary folders or
-  Claude's backup; sanitize secrets/real participant data, omit builds/large logs,
-  record omissions and total bytes. Never fabricate missing evidence.
-- H2 current status/registers; H3 owning behaviour docs; H4 release gates;
-  H5 ownership/tickets for every named finding; H6 exact test/comment cleanup
-  plus N-1 missing-draft refusal and N-2 wording/localization; H7 CLAUDE.md only.
-- Apply approved D1–D8 in the brief. Recheck current state and skip/report
-  items already closed by G commits. No implementation of findings listed in H5.
-- H6 is the only production-code exception. Preserve existing assertions;
-  add/execute the focused missing-draft test and applicable build/checks.
-- H7 changes only the specified CLAUDE.md lines and exact approved paragraph.
-  Do not change AGENTS.md or extend Claude workflow policy to this assignment.
-- One local commit per H item, including scoped evidence and needed docs.
-  No amendments, unrelated staging or deletion of the active status file.
-- Proposed remaining AU order and then UI integration order are recommendations
-  for user approval, not authority to begin or run them in parallel.
+- F1–F9 and R-2 passed Claude's independent source review at the accepted
+  checkpoints; Claude did not rerun tests. F1 records the user's one-time manual
+  banner cleanup, F2/F3 the Luck snapshot/conversion paths, F4 reset-token
+  reauthorization, F5 slug allocation, F6 late-end handling, F7 participant
+  versions, F8 AU13 planning estimate and F9 finalization validation.
+- R-1 remains a deployment blocker because a failed Luck conversion blocks this
+  release. R-3 remains unexecuted: the full `bingo-deploy` sequence must pass on
+  an isolated restored production backup and final candidate before deployment,
+  including the G4 `requires_fresh_order` backfill count.
+- G1–G6 passed Claude's named remediation recheck at `576c661`. Worker evidence
+  recorded C33 29/29, Draft Operations 56/56, Submission Workflow 79/79 and a
+  Release build with 0 warnings/errors; Claude did not rerun these checks.
+- H1 is committed at `6c7603f`: 63 sanitized durable evidence files totaling
+  137,885 bytes, with source inventory and omissions in
+  `docs/references/admin-ui/reviews/2026-10-03/doc-ticket-cleanup/h1/H1-evidence.md`.
+  The owning evidence pointers now use repository paths.
+- H2 reconciles stale status/register wording, marks Dashboard prototype notes
+  historical, records committed F/Dashboard state, and adds the approved/proposed
+  AU16–AU24 register. It does not start any ticket or change runtime behavior.
 
-## Retained outcomes and release gates
+## Protected scope and open choices
 
-- F1–F9 and R-2 passed Claude independent source review; no test reruns by Claude.
-- G1–G6 including named remediation now PASS, accepted by Claude at `576c661`.
-  Preserved verdict: `doc-ticket-cleanup/g-batch-accepted-recheck.md` under
-  `docs/references/admin-ui/reviews/2026-10-03/`.
-- G execution evidence: `br-td-batch/remediation-recheck-handoff.md` under that
-  directory. Recorded C33 29/29, DraftOperations 56/56, SubmissionWorkflow 79/79,
-  Release build 0 warnings/errors. These are worker execution results.
-- R-1 conversion failure remains a deployment blocker for this release.
-- R-3 isolated restored-production-backup rehearsal is still unexecuted and must
-  pass on the final candidate before separately authorized production deployment.
-  Include G4 requires_fresh_order migration backfill count in that rehearsal.
-- No production/provider access, user database mutation, push, merge, deployment,
-  R-3 execution, frozen-reference edits or UI integration. Preserve other work.
+- H3 owns behavior-document corrections; H4 owns release readiness; H5 owns
+  ticket ownership; H6 owns cosmetic test/comment cleanup plus N-1/N-2; H7 owns
+  only the named `CLAUDE.md` paragraph and bullet. No H5 ticket is implemented.
+- AU23's ordinary-input roll-count treatment remains an open product choice;
+  record it and do not infer a rule. D8 remains a proposed order for approval:
+  remaining AU tickets, then UI integration tickets, then final candidate, R-3
+  rehearsal and deploy. Nothing in this status starts that queue.
+- Existing user/operator facts and prior worker evidence are preserved as such;
+  this file does not claim production verification, manual acceptance or a fresh
+  full-suite run.
 
 ## Next permitted action
 
-Commit activation docs, execute H1–H7 only, with scoped checks and evidence.
-At completion update this status accurately, report per-item commits, omissions,
-size of retained evidence, open decisions and proposed queue order; then STOP for
-Claude independent review. Do not start the remaining AU/UI tickets or rehearsal.
+Complete H3–H7 only with one local commit per item and scoped checks/evidence.
+Then update this status with exact commits, skipped/already-resolved findings,
+open choices and the proposed queue order, and stop for Claude's independent
+review. Do not start AU/RC implementation, UI integration, R-3, cleanup beyond
+this brief, push or merge.
