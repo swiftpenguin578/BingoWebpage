@@ -39,7 +39,7 @@
   separately authorized production deployment. It remains unexecuted.
 - G1 is implemented and focused-tested in local commit `24c30fc`; evidence is
   recorded in `docs/references/admin-ui/reviews/2026-10-03/br-td-batch/G1-evidence.md`.
-  G2 is implemented and focused-tested in the current worktree; evidence is
+  G2 is implemented and committed as `2b7ddbc`; evidence is
   recorded in `docs/references/admin-ui/reviews/2026-10-03/br-td-batch/G2-evidence.md`.
   G3a is implemented and committed as `a8a6c24`; evidence is recorded in
   `docs/references/admin-ui/reviews/2026-10-03/br-td-batch/G3a-evidence.md`.
@@ -49,16 +49,17 @@
   `docs/references/admin-ui/reviews/2026-10-03/br-td-batch/G4-evidence.md`.
   G5 is implemented and committed as `b9bb405`; evidence is recorded in
   `docs/references/admin-ui/reviews/2026-10-03/br-td-batch/G5-evidence.md`.
-  G6 is implemented and focused-tested in the current worktree; its evidence
+  G6 is implemented and committed as `02d19db`; its evidence
   is recorded in `docs/references/admin-ui/reviews/2026-10-03/br-td-batch/G6-evidence.md`.
-  Claude's independent review is pending. G6 is ready for its scoped local
-  commit; no further batch item is authorized.
+  Claude's independent review is pending; all G1–G6 implementation commits
+  are present. No further batch item is authorized.
 - Standing scoped per-item local commit authority is confirmed; no push authority.
 
 ## Next permitted action
 
-Implementer must stage only G6's source, focused tests and evidence, inspect the
-staged diff, and create the scoped local G6 commit. At batch end report the
-per-item commits, checks, deviations and unresolved decisions, then stop for
-Claude's independent review. Do not start the separate ticket/documentation
-cleanup or another ticket.
+G1–G6 implementation and focused checks are complete; independent review is
+pending. Claude reviews the stable per-item commits listed in
+`docs/references/admin-ui/reviews/2026-10-03/br-td-batch/review-handoff.md`.
+Stop here. Do not start the separate ticket/documentation cleanup, R-3 or another
+ticket without authorization. Named review corrections may return to the same
+implementer when assigned. No push, merge or deployment is authorized.
