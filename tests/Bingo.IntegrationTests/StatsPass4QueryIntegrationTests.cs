@@ -554,6 +554,103 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests
     }
 
     [Fact]
+    public async Task LuckCheckpointConversionOperationReportsAllOutcomesAndPreservesFailedRows()
+    {
+        var f = await FullStatsFixtureAsync();
+        await SyncStatsAsync(f, 100);
+
+        EventStatsLuckCheckpoint baseline;
+        await using (var read = new ApplicationDbContext(options))
+            baseline = await read.EventStatsLuckCheckpoints.AsNoTracking().SingleAsync();
+
+        await using (var setup = new ApplicationDbContext(options))
+        {
+            await setup.Database.ExecuteSqlInterpolatedAsync($"""
+                UPDATE event_stats_luck_checkpoints
+                SET schema_version = {1},
+                    algorithm_version = {"legacy-signed-v1"},
+                    converted_from_schema_version = NULL,
+                    converted_at = NULL
+                WHERE event_id = {f.Event.Id}
+                """);
+        }
+
+        await using (var conversion = new ApplicationDbContext(options))
+        {
+            var report = await new LuckCheckpointConversionService(conversion, f.Clock).RunAsync();
+            var item = Assert.Single(report.Events);
+            Assert.True(report.Succeeded);
+            Assert.Equal(LuckCheckpointConversionOutcome.Converted, item.Outcome);
+            Assert.Null(item.Reason);
+        }
+
+        await using (var converted = new ApplicationDbContext(options))
+        {
+            var row = await converted.EventStatsLuckCheckpoints.AsNoTracking().SingleAsync();
+            Assert.Equal(EventStatsLuckCheckpoint.CurrentSchemaVersion, row.SchemaVersion);
+            Assert.Equal(1, row.ConvertedFromSchemaVersion);
+            Assert.NotNull(row.ConvertedAt);
+            Assert.Equal(baseline.CalculatedAt, row.CalculatedAt);
+            Assert.Equal(baseline.FetchedAt, row.FetchedAt);
+        }
+        Assert.Equal(StatsLuckStatus.Calculated, (await ReadStatsAsync(f)).Luck.Result.Status);
+
+        string convertedPayload;
+        DateTimeOffset? convertedAt;
+        await using (var retry = new ApplicationDbContext(options))
+        {
+            var before = await retry.EventStatsLuckCheckpoints.AsNoTracking().SingleAsync();
+            convertedPayload = before.Payload;
+            convertedAt = before.ConvertedAt;
+            var report = await new LuckCheckpointConversionService(retry, f.Clock).RunAsync();
+            var item = Assert.Single(report.Events);
+            Assert.True(report.Succeeded);
+            Assert.Equal(LuckCheckpointConversionOutcome.AlreadyConverted, item.Outcome);
+            Assert.Null(item.Reason);
+        }
+        await using (var afterRetry = new ApplicationDbContext(options))
+        {
+            var row = await afterRetry.EventStatsLuckCheckpoints.AsNoTracking().SingleAsync();
+            Assert.Equal(convertedPayload, row.Payload);
+            Assert.Equal(convertedAt, row.ConvertedAt);
+        }
+
+        await using (var malformed = new ApplicationDbContext(options))
+        {
+            await malformed.Database.ExecuteSqlInterpolatedAsync($"""
+                UPDATE event_stats_luck_checkpoints
+                SET schema_version = {1},
+                    algorithm_version = {"legacy-signed-v1"},
+                    converted_from_schema_version = NULL,
+                    converted_at = NULL,
+                    payload = CAST({"{}"} AS jsonb)
+                WHERE event_id = {f.Event.Id}
+                """);
+        }
+
+        EventStatsLuckCheckpoint failedBefore;
+        await using (var read = new ApplicationDbContext(options))
+            failedBefore = await read.EventStatsLuckCheckpoints.AsNoTracking().SingleAsync();
+        await using (var failedConversion = new ApplicationDbContext(options))
+        {
+            var report = await new LuckCheckpointConversionService(failedConversion, f.Clock).RunAsync();
+            var item = Assert.Single(report.Events);
+            Assert.False(report.Succeeded);
+            Assert.Equal(LuckCheckpointConversionOutcome.CouldNotConvert, item.Outcome);
+            Assert.Contains("unsupported-retained-payload", item.Reason, StringComparison.Ordinal);
+        }
+        await using (var afterFailure = new ApplicationDbContext(options))
+        {
+            var row = await afterFailure.EventStatsLuckCheckpoints.AsNoTracking().SingleAsync();
+            Assert.Equal(failedBefore.Payload, row.Payload);
+            Assert.Equal(failedBefore.SchemaVersion, row.SchemaVersion);
+            Assert.Equal(failedBefore.AlgorithmVersion, row.AlgorithmVersion);
+            Assert.Equal(failedBefore.ConvertedFromSchemaVersion, row.ConvertedFromSchemaVersion);
+            Assert.Equal(failedBefore.ConvertedAt, row.ConvertedAt);
+        }
+    }
+
+    [Fact]
     public async Task BoundedLuckLegacyConversionIsExplicitAndReadsRetainConvertedSnapshot()
     {
         var f = await FullStatsFixtureAsync(players: 2, extraRegular: true);

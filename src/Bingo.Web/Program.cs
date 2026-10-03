@@ -10,6 +10,7 @@ using Bingo.Application.Events;
 using Bingo.Application.Evidence;
 using Bingo.Application.Integrations.WiseOldMan;
 using Bingo.Application.Signups;
+using Bingo.Application.Stats;
 using Bingo.Application.Teams;
 using Bingo.Domain.Access;
 using Bingo.Domain.Events;
@@ -317,6 +318,27 @@ if (args.Contains("--immutable-item-preflight", StringComparer.Ordinal))
 {
     await using var scope = app.Services.CreateAsyncScope();
     Console.WriteLine(await scope.ServiceProvider.GetRequiredService<Slice1MigrationPreflight>().RunImmutableItemPreflightAsync(CancellationToken.None));
+    return;
+}
+
+if (args.Contains("--convert-luck-checkpoints", StringComparer.Ordinal))
+{
+    await using var conversionScope = app.Services.CreateAsyncScope();
+    var report = await conversionScope.ServiceProvider.GetRequiredService<ILuckCheckpointConversionService>().RunAsync(CancellationToken.None);
+    foreach (var item in report.Events)
+    {
+        var reason = string.IsNullOrWhiteSpace(item.Reason) ? string.Empty : $" Reason: {item.Reason}";
+        var outcome = item.Outcome switch
+        {
+            LuckCheckpointConversionOutcome.Converted => "Converted",
+            LuckCheckpointConversionOutcome.AlreadyConverted => "Already converted",
+            LuckCheckpointConversionOutcome.CouldNotConvert => "Could not convert",
+            _ => item.Outcome.ToString()
+        };
+        Console.WriteLine($"Luck checkpoint event {item.EventId}: {outcome}.{reason}");
+    }
+    Console.WriteLine($"Luck checkpoint conversion summary: Converted={report.ConvertedCount}; Already converted={report.AlreadyConvertedCount}; Could not convert={report.CouldNotConvertCount}.");
+    if (!report.Succeeded) Environment.ExitCode = 2;
     return;
 }
 

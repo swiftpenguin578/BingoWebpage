@@ -7,6 +7,7 @@ using Bingo.Application.Evidence;
 using Bingo.Application.Integrations.WiseOldMan;
 using Bingo.Application.Security;
 using Bingo.Application.Signups;
+using Bingo.Application.Stats;
 using Bingo.Application.Teams;
 using Bingo.Infrastructure.Announcements;
 using Bingo.Infrastructure.Auditing;
@@ -61,6 +62,7 @@ public static class DependencyInjection
         services.AddScoped<IEvidenceAuthority, EvidenceAuthority>();
         services.AddScoped<IPublicBoardService, PublicBoardService>();
         services.AddScoped<Bingo.Application.Stats.IPublicStatsService, Bingo.Infrastructure.Stats.PublicStatsService>();
+        services.AddScoped<ILuckCheckpointConversionService, Bingo.Infrastructure.Stats.LuckCheckpointConversionService>();
         services.AddScoped<AdminDashboardService>();
         services.AddScoped<IAdminDashboardService>(serviceProvider => serviceProvider.GetRequiredService<AdminDashboardService>());
         services.AddScoped<ICommunityDashboardService>(serviceProvider => serviceProvider.GetRequiredService<AdminDashboardService>());

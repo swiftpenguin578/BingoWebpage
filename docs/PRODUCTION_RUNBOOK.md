@@ -270,6 +270,35 @@ banner tables and the nullable event column; it cannot restore deleted object
 bytes or claim production rollback. Production execution remains a separately
 approved operator action.
 
+## Historical Luck checkpoint conversion
+
+The `LuckCheckpointV2` migration preserves version-1 Luck rows so they can be
+converted from their retained payloads. Run the bounded conversion operation after
+`--migrate` has succeeded and before `--production-preflight` or web replacement:
+
+```sh
+docker compose run --rm --no-deps web --convert-luck-checkpoints
+```
+
+The normal `bingo-deploy` sequence runs this operation in that position. It does not
+fetch Wise Old Man data, recalculate from current evidence, or run during application
+startup. Each event is reported exactly once with one of these outcomes:
+
+- `Converted`: the v1 payload was validated and converted to v2 in its event-lock
+  transaction, preserving the original calculation, fetch and upstream times.
+- `AlreadyConverted`: the event already carries the v2 conversion marker; no write
+  is performed. A rerun is therefore safe and reports already-converted events.
+- `CouldNotConvert`: the original v1 row remains unchanged and the output includes
+  a bounded reason. The command exits nonzero, so deployment must stop before
+  preflight/web replacement. Resolve the reported payload or data issue using a
+  controlled backup/rehearsal, then rerun the same command; do not relabel the row
+  or use newer provider data as a shortcut.
+
+The summary line is authoritative for the command exit decision:
+`Could not convert=0` is required before continuing deployment. Production currently
+has one known schema-version-1 checkpoint; that count does not establish the exact
+production migration history and must be checked against the deployment receipt.
+
 ## Evidence integrity
 
 With the host-side R2 credentials configured, run:

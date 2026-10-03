@@ -53,8 +53,10 @@
 
 F1 rollout proposal is sent to `/root`; implementation awaits proposal resolution
 and the exact production migration/object-storage facts listed in the proposal.
-F2 is implemented and focused PostgreSQL tested with durable evidence in
-`docs/references/admin-ui/reviews/2026-10-03/f2-luck-checkpoint.md`; its local item
-commit is the next checkpoint. Continue F3 while F1 remains unresolved, then F4–F9.
+F2 is implemented, focused PostgreSQL tested, and committed as
+`41eaab760c4454a85612c86e44ab7a7137d0a33d`, with durable evidence in
+`docs/references/admin-ui/reviews/2026-10-03/f2-luck-checkpoint.md`.
+F3 is implemented and focused PostgreSQL tested; its separate local commit is
+the next checkpoint. Continue F4–F9 after that commit while F1 remains unresolved.
 Every checkpoint awaits Claude's independent review; report exact blockers and
 unverified checks, and stop after the stable batch handoff.
