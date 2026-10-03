@@ -19,8 +19,10 @@
 - F1's proposal was sent before implementation. The user selected a one-time
   manual cleanup, so its reconciliation is now limited to the runbook and
   controlled fixture evidence; the migration and guard remain unchanged.
-- Claude performs the final independent review per the recorded workflow decision.
-  Stop with a stable commit-by-commit handoff awaiting that review; no next ticket.
+- Claude completed the independent read-only source review of F1–F9; no tests
+  were executed by Claude. R-2 is the only authorized test-only follow-up in
+  this handoff. After its stable commit, await Claude's named R-2 recheck; no
+  further ticket starts here.
 
 ## Baseline and authorized documentation checkpoint
 
@@ -93,10 +95,14 @@ F9 BR-5/BR-6 is implemented, focused PostgreSQL tested, and committed as
 `a3f3f1a288df62c0a634db4d053fc71f0a865e6d`, with durable evidence in
 `docs/references/admin-ui/reviews/2026-10-03/f9-finalization-validation-checkpoint.md`.
 The earlier F1 automated rollout proposal is superseded by the selected manual
-cleanup reconciliation above; its prior commit remains in history. The
-`ResultsPublicationIntegrationTests.PublicationArchivesAtomicallyAndIsFailureSafeAndIdempotentAcrossConcurrentRetries`
-fixture remains an unverified environmental limitation: it expects one of two
-concurrent calls to surface serialization, but this checkout observed two
-successful calls even with the original current-event projection. Every item
-awaits Claude's independent review; no item is manually accepted by this
-checkpoint, and no further ticket may start.
+cleanup reconciliation above; its prior commit remains in history. R-2 is now
+authorized and corrected in the publication test only: the concurrent loser
+may be the expected stale-session refusal or a verified `AlreadyPublished`
+result, while all finalization, placement, version, audit, rollback, and retry
+assertions remain mandatory. Its focused real-PostgreSQL check is recorded in
+`docs/references/admin-ui/reviews/2026-10-03/r2-results-publication-checkpoint.md`.
+R-1 is user-resolved by keeping conversion failure blocking this release until
+a successful isolated production-copy rehearsal. R-3 remains unexecuted and
+deferred; no production deployment is authorized. R-4 standing per-item local
+commit authority is confirmed. Claude's named R-2 recheck remains pending; no
+independent PASS claim is made here.

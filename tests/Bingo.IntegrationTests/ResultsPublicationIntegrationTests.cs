@@ -102,17 +102,22 @@ public sealed class ResultsPublicationIntegrationTests : IAsyncLifetime
         await AssertAwaitingReviewWithoutPublicationAsync(eventId, expectedVersion);
 
         // The advisory lock serializes the two real PostgreSQL transactions.
-        // PostgreSQL's Serializable isolation may abort the loser with a
-        // stale-session error; a fresh retry then observes the committed
-        // Archived snapshot and returns through the idempotent path.
+        // If the calls overlap, PostgreSQL may abort the loser with the
+        // expected stale-session error. If the second call starts after the
+        // first commits, it observes the committed Archived snapshot and
+        // returns through the idempotent path. Only that expected stale error
+        // is converted to a typed result; unrelated failures still fail the
+        // test immediately.
         var results = await Task.WhenAll(
             FinalizeInNewContextAsync(eventId, actor, teamId, expectedVersion),
             FinalizeInNewContextAsync(eventId, actor, teamId, expectedVersion));
-        Assert.Equal(1, results.Count(result => result is null));
-        var concurrencyFailure = Assert.Single(results, result => result is not null);
-        Assert.Contains("changed in another session", concurrencyFailure!.Message, StringComparison.Ordinal);
+        Assert.Equal(1, results.Count(result => result.IsFreshPublication));
+        Assert.Equal(1, results.Count(result => result.IsIdempotentPublication || result.IsStaleConcurrencyRefusal));
+        Assert.All(results, result => Assert.True(
+            result.IsFreshPublication || result.IsIdempotentPublication || result.IsStaleConcurrencyRefusal));
 
-        Assert.Null(await FinalizeInNewContextAsync(eventId, actor, teamId, expectedVersion));
+        var retry = await FinalizeInNewContextAsync(eventId, actor, teamId, expectedVersion);
+        Assert.True(retry.IsIdempotentPublication);
 
         await using var verify = new ApplicationDbContext(options);
         var publishedItem = await verify.Events.SingleAsync(value => value.Id == eventId);
@@ -160,19 +165,29 @@ public sealed class ResultsPublicationIntegrationTests : IAsyncLifetime
         Assert.Single(await reopened.AuditEntries.Where(value => value.EventId == eventId && value.Action == "event.unfinalized").ToListAsync());
     }
 
-    private async Task<Exception?> FinalizeInNewContextAsync(Guid eventId, LifecycleActor actor, Guid teamId, long expectedVersion)
+    private async Task<ConcurrentPublicationAttempt> FinalizeInNewContextAsync(Guid eventId, LifecycleActor actor, Guid teamId, long expectedVersion)
     {
         await using var db = new ApplicationDbContext(options);
         try
         {
-            await new EventFinalizationService(db, new ReadyBoard(teamId), new FixedClock(now))
+            var result = await new EventFinalizationService(db, new ReadyBoard(teamId), new FixedClock(now))
                 .FinalizeAsync(eventId, actor, expectedVersion);
-            return null;
+            return ConcurrentPublicationAttempt.FromResult(result);
         }
-        catch (Exception exception)
+        catch (InvalidOperationException exception) when (exception.Message.Contains("changed in another session", StringComparison.Ordinal))
         {
-            return exception;
+            return ConcurrentPublicationAttempt.StaleRefusal;
         }
+    }
+
+    private sealed record ConcurrentPublicationAttempt(FinalizationOperationResult? Result, bool IsStaleConcurrencyRefusal)
+    {
+        public bool IsFreshPublication => Result is { Published: true, AlreadyPublished: false };
+        public bool IsIdempotentPublication => Result is { Published: true, AlreadyPublished: true };
+
+        public static ConcurrentPublicationAttempt FromResult(FinalizationOperationResult result) => new(result, false);
+
+        public static ConcurrentPublicationAttempt StaleRefusal { get; } = new(null, true);
     }
 
     private async Task AssertAwaitingReviewWithoutPublicationAsync(Guid eventId, long expectedVersion)
