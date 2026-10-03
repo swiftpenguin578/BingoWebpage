@@ -617,6 +617,21 @@ preassignment is only the explicit before-first-pick exception.
 
 ### 6.1 `ADM-DRAFT-01` — Team setup, snake draft and finalization
 
+Approved G3–G6 correction scope (3 October 2026; implementation pending):
+capacity counts Confirmed event participants regardless of team inclusion; manual
+team membership never frees a signup place. Manual teams still consume no draft
+turns. Manual-team Add requires Confirmed status and manual membership changes
+are refused while Running. Inclusion/active changes and included-team removal
+must recheck the event/draft inside a transaction serialized with Start and both
+Finalize paths; structural changes are refused outside Setup or after configured
+start. Live/Final Review role changes, while otherwise permitted, must update
+public Teams role labels without changing membership or WOM data; previous
+publications remain history and lifecycle routing is decided in the transaction.
+Eligible Cancel must leave a usable Setup while retaining cancelled pick history;
+G4's brief requires a proposal before changing protected history or conflicting
+restart assertions. Finalized Add retains section 5.6's three-role contract.
+
+
 An enabled Admin uses the version-one flow in PRODUCT_REQUIREMENTS 17.1. Existing
 draft, preassignment, control renewal, latest-pick undo, manual roster, finalized
 pre-Live correction and publication commands remain authoritative. No Pause/Resume,
@@ -819,6 +834,19 @@ must not expose private event context or redirect a viewed event's action to ano
 **Authoritative happy path:** An Admin approves or rejects. Rejection requires a reason and leaves an immutable historical attempt; any later attempt through the active/reopened upload window is an ordinary new submission with a new image, immutable server time, and normal review. Before approval, a reasoned correction may change tile, requirement, drop, or credited account from the full event pool when evidence supports it (AU17 pending; not restricted to current Playing assignments); participant is derived from the account and a changed target receives its authoritative frozen weight. Approval reversal requires strong confirmation and a reason, then recalculates all affected progress/rankings. The Reversed attempt remains immutable. Historical predecessor links and the `Resubmit` enum are retained for display-only legacy history and are not used to create or constrain new attempts.
 
 **Permissions and history:** Submission time, destination-derived board snapshot weight, calculated contribution, original image, review actions, and any historical predecessor links are preserved. Admins cannot upload or replace another user's evidence image. Retained ReviewAction history is authoritative for evidence decisions and corrections; the shared Audit presentation renders it once and uses the immutable audit entry as a fallback for records without a retained ReviewAction. Notifications reach the credited participant and current team captains where applicable, without notifying another team or exposing private evidence.
+
+Approved G1–G2 correction scope (3 October 2026; implementation pending):
+approval of a later upload is blocked only when it reduces the credit available
+to an earlier Pending upload for the same team/objective, using existing claimed
+weights, remaining room, per-drop limits and duplicate rules. Evaluate earlier
+uploads in immutable SubmittedAt order with a deterministic tie-break inside the
+serialized approval transaction. Return the earliest affected submission ID/time
+as structured data and link it on the existing review page. Resolving that earlier
+upload removes its reservation; room for all permits out-of-order approval.
+Already-approved history and scoring remain unchanged. Screenshot game time
+controls activity eligibility; upload time controls cutoff/order. Without trusted
+screenshot time, show paused intervals with guidance to verify the screenshot,
+never an ineligibility instruction inferred from SubmittedAt.
 
 **Failure and recovery:** Optimistic concurrency rejects a stale decision. A duplicate/unusable image is Reject, not a third review state. Rejected and Reversed attempts remain history; a later attempt is ordinary and is not blocked by a one-child relationship. Historical predecessor links and enum values are display-only, so retries cannot create duplicate linked children. Direct Reversed reapproval is forbidden. Cutoff closes participant/captain mutation but not Admin review.
 
