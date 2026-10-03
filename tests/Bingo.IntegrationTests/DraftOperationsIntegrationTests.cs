@@ -816,6 +816,39 @@ public sealed class DraftOperationsIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task TeamInclusionChangeWithoutDraftRowIsRefusedWithoutWrites()
+    {
+        var setup = await SeedAsync();
+        Guid teamId;
+        long teamVersion;
+        int auditCountBefore;
+        await using (var seed = new ApplicationDbContext(options))
+        {
+            var team = await seed.Teams.SingleAsync(value => value.EventId == setup.EventId && value.Name == "Second");
+            teamId = team.Id;
+            teamVersion = team.Version;
+            auditCountBefore = await seed.AuditEntries.CountAsync(value => value.EventId == setup.EventId);
+            seed.DraftSessions.RemoveRange(seed.DraftSessions.Where(value => value.EventId == setup.EventId));
+            await seed.SaveChangesAsync();
+        }
+
+        var status = await ExecuteAndReadStatusAsync(setup.EventId, setup.FirstAdminId,
+            page => page.OnPostUpdateTeamAsync(setup.EventId, teamId, "Second renamed", null, null, false, teamVersion, CancellationToken.None,
+                includedInDraft: false));
+
+        Assert.Contains("draft is required", status ?? string.Empty, StringComparison.OrdinalIgnoreCase);
+        await using var verify = new ApplicationDbContext(options);
+        var teamAfter = await verify.Teams.SingleAsync(value => value.Id == teamId);
+        Assert.Equal("Second", teamAfter.Name);
+        Assert.True(teamAfter.IncludedInDraft);
+        Assert.Equal(teamVersion, teamAfter.Version);
+        Assert.Empty(await verify.DraftSessions.Where(value => value.EventId == setup.EventId).ToListAsync());
+        Assert.Equal(auditCountBefore, await verify.AuditEntries.CountAsync(value => value.EventId == setup.EventId));
+        Assert.Empty(await verify.AuditEntries.Where(value => value.EventId == setup.EventId &&
+            (value.Action == "team.updated" || value.Action == "team.inclusion_changed")).ToListAsync());
+    }
+
+    [Fact]
     public async Task DraftLoadKeepsParticipantWithMissingStrictAuthorityVisibleAndReadinessBlocked()
     {
         var setup = await SeedAsync();
@@ -1227,8 +1260,8 @@ public sealed class DraftOperationsIntegrationTests : IAsyncLifetime
             page => page.OnPostRemoveMemberAsync(setup.EventId, membershipId, "blocked", CancellationToken.None));
         var moveStatus = await ExecuteAndReadStatusAsync(setup.EventId, setup.FirstAdminId,
             page => page.OnPostMoveMemberAsync(setup.EventId, membershipId, targetTeamId, CancellationToken.None));
-        Assert.Contains("Manual roster additions are locked while the draft is running.", removeStatus ?? string.Empty, StringComparison.Ordinal);
-        Assert.Contains("Manual roster additions are locked while the draft is running.", moveStatus ?? string.Empty, StringComparison.Ordinal);
+        Assert.Contains("Manual roster changes are locked while the draft is running.", removeStatus ?? string.Empty, StringComparison.Ordinal);
+        Assert.Contains("Manual roster changes are locked while the draft is running.", moveStatus ?? string.Empty, StringComparison.Ordinal);
 
         await using var verify = new ApplicationDbContext(options);
         Assert.True(await verify.TeamMemberships.AnyAsync(value => value.Id == membershipId && value.TeamId == sourceTeamId && value.LeftAt == null));

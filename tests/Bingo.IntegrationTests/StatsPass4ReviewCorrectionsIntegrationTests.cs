@@ -96,7 +96,7 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task StatsPass4ReviewF3AdditiveApprovalDuringOutageRetainsTheEntireOldLuckUntilAnyReversal(bool reverseNewDrop)
+    public async Task StatsPass4ReviewF3AdditiveApprovalDuringOutageRetainsTheEntireOldLuckUntilAcceptedFetch(bool reverseNewDrop)
     {
         var f = await FullStatsFixtureAsync();
         var first = await PendingStatsAsync(f, 0, 0, 10); await ApproveStatsAsync(f, first); await SyncStatsAsync(f, 100);
@@ -142,7 +142,7 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests
     }
 
     [Fact]
-    public async Task StatsPass4ReviewF3CompletionCorrectionInvalidatesAnOtherwiseCompatibleStaleCheckpoint()
+    public async Task StatsPass4ReviewF3RetiredCompletionCorrectionDoesNotReplaceTheRetainedCheckpoint()
     {
         var f = await FullStatsFixtureAsync(target: 1);
         for (var tile = 0; tile < 4; tile++) await ApproveStatsAsync(f, await PendingStatsAsync(f, tile, 0, tile + 1));

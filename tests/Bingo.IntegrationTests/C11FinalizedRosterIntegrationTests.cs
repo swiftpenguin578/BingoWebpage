@@ -52,7 +52,7 @@ public sealed class C11FinalizedRosterIntegrationTests : IAsyncLifetime
     private SignupService Service(ApplicationDbContext db, IEventCompetitionManagementService? competitionManagement = null) => new(db, new SecretHasher(), clock, accountValidation: new SuccessfulWiseOldManAccountValidation(), competitionManagement: competitionManagement);
 
     [Fact]
-    public async Task HttpDepartureWaitingFillPreservesPublicationPicksNotesReservationsAndNotificationAccess()
+    public async Task FinalizedRosterWithdrawalPreservesPublicationPicksNotesReservationsAndNotificationAccess()
     {
         var seed = await SeedAsync();
         await using var factory = Factory();
@@ -438,7 +438,7 @@ public sealed class C11FinalizedRosterIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task ConcurrentFillsHaveOnlyOneWinner()
+    public async Task ConcurrentFinalizedRosterAddsHaveOnlyOneWinner()
     {
         var seed = await SeedAsync();
         await RemoveFinalizedAsync(seed, seed.DepartedId);

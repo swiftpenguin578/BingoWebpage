@@ -170,8 +170,8 @@ public sealed partial class PublicStatsService
         return Result(received, expected, status, results.Any(x => x.Estimated), results.Any(x => x.ZeroRecordedApproximation));
     }
 
-    // Checkpoints predate the bounded score. Rebuild distributions from THEIR observations,
-    // never from a fresh numerator or provider batch, and leave persisted JSON/timestamps intact.
+    // Retained checkpoints are authoritative until an accepted fetch replaces them.
+    // Reads must not rebuild a score from current evidence, provider data, or a fresh numerator.
     private static StatsLuck RescoreLuck(StatsLuck luck, StatsData? data, bool rebuildTiles = true)
     {
         var teams = luck.Teams.Select(team => team with
@@ -375,7 +375,7 @@ public sealed partial class PublicStatsService
             return "partial-batch-write-fenced";
         var calculated = CalculateLuck(data, cache, cache!.Sources, clock.GetUtcNow());
         var payload = JsonSerializer.Serialize(calculated, CheckpointJsonOptions);
-        // Oversized results remain available through the read query; never truncate players or sources.
+        // Accepted fetch results are serialized as a whole; reject oversized payloads without truncating players or sources.
         var payloadBytes = Encoding.UTF8.GetByteCount(payload);
         if (payloadBytes > EventStatsLuckCheckpoint.MaximumPayloadBytes)
             return $"checkpoint-discarded: payload {payloadBytes} bytes exceeds {EventStatsLuckCheckpoint.MaximumPayloadBytes} byte bound";

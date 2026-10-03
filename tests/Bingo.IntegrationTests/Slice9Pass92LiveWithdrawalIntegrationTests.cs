@@ -45,7 +45,7 @@ public sealed class Slice9Pass92LiveWithdrawalIntegrationTests : IAsyncLifetime
     public Task DisposeAsync() => database.DisposeAsync().AsTask();
 
     [Fact]
-    public async Task LiveWithdrawalAndWaitingReplacementPreserveHistoryAndUseOneVacancyWinner()
+    public async Task LiveWithdrawalAndReplacementAreRetiredAndPreserveHistory()
     {
         var seed = await SeedAsync();
         var clock = new FixedTimeProvider(seed.Now);
