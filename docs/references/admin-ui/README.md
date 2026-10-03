@@ -535,14 +535,17 @@ before implementation.
   - Imported participants have no account link, so tracked history starts
     with the first platform event. That event is marked "Tracking starts" and
     has no returning split.
-  - Unique participants equal the sum of first-time players across tracked
-    events, so the headline and the chart agree.
+  - Unique participants equal the sum of first-time people by actual-start
+    cohort, so the headline and chart agree. Events with equal actual starts
+    share one cohort and a person is counted once in that cohort; do not sum
+    per-event first-time rows across mixed cohorts.
 - **Approved submissions:** platform events only; reconstructed import rows
   are excluded. For an event in final review the count is current and may
   change.
 - **Official results:** a winner and board completion are shown only once an
-  event is finalized. Ended events awaiting review count towards participation
-  and are marked Provisional.
+  event is finalized. Live events and ended events awaiting review count towards
+  participation and are marked Provisional; provisional figures do not become
+  official winners or board-completion results.
 - **EHB gained:** secondary. Shown only where Wise Old Man data exists, always
   with account coverage (frozen snapshot for the imported event).
 - **Community:** current snapshots only (total accounts, created since the

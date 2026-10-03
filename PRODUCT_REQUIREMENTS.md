@@ -716,6 +716,20 @@ Application-owned images use managed upload rather than arbitrary URL entry. Cus
 
 ### 8.2 Placement order
 
+Existing events retain this comparison order, including events without an official
+result snapshot:
+
+1. Full-board completion status
+2. Full-board completion time, earliest first among finishers
+3. Completed rows and columns
+4. Completed tiles
+5. Current-score completion time, earliest first
+6. Credited EHB tie-break value, highest first
+
+This retained order is separate from the AU12 target below. The event's explicit
+ranking-rule boundary selects one order for the event; AU12 must not silently
+rerank an existing event or its saved official snapshots.
+
 Ranking priority is:
 
 1. Full-board completion, ordered by immutable submission time of the final qualifying submission

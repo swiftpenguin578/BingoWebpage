@@ -941,6 +941,9 @@ ROSTER_REPLACEMENT
 
 Historical departure/replacement memberships, former left_at and ROSTER_REPLACEMENT links remain readable. New finalized pre-first-Live Add/Remove updates current publication and preserves original picks/prior versions. First Live permanently locks membership/registration; no future vacancy/replacement workflow or notification is generated.
 
+`ROSTER_REPLACEMENT` is a retained historical membership source only. The current
+draft and Live workflows do not create new vacancy or replacement actions.
+
 For live changes, `left_at` is the first full UTC minute after withdrawal confirmation and the replacement `joined_at` is the first full UTC minute after replacement confirmation. These timestamps may leave a gap and must never overlap. The replacement's initial `EventParticipantCharacterSwap` activates their primary playing assignment at the same `joined_at` instant.
 
 ### 7.2.1 TeamMembershipRoleTransition
@@ -957,7 +960,10 @@ Fields:
 
 Only an active membership may receive a current captain/co-captain role. Withdrawing the member appends the required revocation transition atomically. Role authorization resolves from the latest applicable transition/current membership rather than an OSRS character or stale credential.
 
-Draft-start readiness requires every active `DRAFTED` team to have a current `CAPTAIN` membership. `CO_CAPTAIN` alone does not satisfy the gate. Every captain/co-captain assignment occupies a normal roster position used by the derived-size calculation.
+Draft-start readiness requires every active team with `included_in_draft = true` to
+have a current `CAPTAIN` membership. `CO_CAPTAIN` alone does not satisfy the gate.
+Every captain/co-captain assignment occupies a normal roster position used for the
+derived-size calculation.
 
 Live-start readiness does not require a current Captain or credential. Actual website-draft start and finalization retain their current-Captain requirements. Losing a current Captain during live play can still produce an unresolved support warning; that warning grants no fallback authority.
 
@@ -1000,15 +1006,17 @@ Draft state:
 
 ```text
 SETUP
-READY
-LIVE
-PAUSED
+RUNNING
 FINALIZED
 ```
 
+`PAUSED` remains a readable legacy state for historical rows only; it is not a
+current draft control state. `included_in_draft` is the only current participation
+flag; the retained `formation_type` values do not decide eligibility.
+
 Team count and target size are not authoritative stored configuration:
 
-- `team_count` is derived from active `DRAFTED` teams included in the draft.
+- `team_count` is derived from active teams with `included_in_draft = true`.
 - The drafted-team participant total includes confirmed internal participants either available for the website draft or already assigned to a drafted team.
 - `larger_size = ceiling(participant_total / team_count)`.
 - `smaller_size = floor(participant_total / team_count)`.
@@ -1065,7 +1073,11 @@ Undo may be repeated against the latest remaining active pick until no active pi
 
 Every confirmed participant remains visible during the draft. Drafted players display their assigned team rather than disappearing.
 
-The available draft pool excludes already assigned participants according to current membership and IncludedInDraft. Formation labels do not decide eligibility. Finalized pre-first-Live Add/Remove never fabricates picks or changes original order.
+The available draft pool is recomputed after each pick and excludes participants
+already assigned according to current membership and `IncludedInDraft`; it therefore
+shrinks as teams fill and a picked participant cannot return until that pick is
+undone. Formation labels do not decide eligibility. Finalized pre-first-Live
+Add/Remove never fabricates picks or changes original order.
 
 Draft finalization requires every confirmed participant included in the drafted-team total to have one active drafted-team membership and every drafted team to satisfy the derived balanced distribution.
 
@@ -1859,9 +1871,11 @@ Conceptually, non-finishers are compared using:
 `current_score_reached_at` is the latest completion time among the team's
 currently complete tiles, using only the active approval generation; it is
 null when no tile is complete. For a complete board it agrees with the
-effective board finish time. The effective full-board finish (including any
-already-retained historical correction) remains the higher-priority comparison.
-This preserves historical reads; it does not reintroduce manual time correction.
+effective board finish time. Retained `TeamCompletionCorrection` rows are
+historical only: current readiness and ranking ignore them. An existing official
+snapshot keeps its stored order and fields, while the current calculation uses
+the immutable evidence-derived times. This does not reintroduce manual time
+correction.
 Equal credited EHB falls through to current-score time under AU12; exact equality, including the defined null-time rule, can remain tied.
 
 Finishers rank ahead of all non-finishers and are ordered by completion time.
@@ -2319,7 +2333,13 @@ All regular Playing assignments contribute full competition deltas; informationa
 assignments are excluded. The EHB table and its existing projection remain the EHB owners.
 
 
-## Stats Pass 4 evidence revisions and full Luck checkpoint — implemented 2026-09-15
+## Stats Pass 4 evidence revisions and full Luck checkpoint — superseded historical text (2026-09-15)
+
+This v1 checkpoint description is retained as migration and review history. The
+active [Luck checkpoint v2 and retained-input conversion](#luck-checkpoint-v2-and-retained-input-conversion--active-2026-10-01)
+section below owns current writes, reads, retention, and conversion. In particular,
+v2 does not use this section's v1 schema, read-time presentation invalidation, or
+read-time recalculation language as current behavior.
 
 `events.stats_evidence_revision` advances in the existing event transaction for successful
 approval/reversal (including rebalanced contributions), board approval/publication changes,

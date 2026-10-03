@@ -419,7 +419,7 @@ cannot be accepted through an old timezone confirmation.
 
 **Entry and reachability:** Use Schedule from Admin Manage. Open-now, scheduled, close, reopen, and schedule-edit actions remain route-backed form actions.
 
-**Authoritative happy path:** A private Draft may save supplied schedule values before full opening readiness; the save validates supplied ordering, future boundaries, and any complete event-window overlap. Before opening, validate event start before end, establish a valid signup closing no later than start, use the configured future opening timestamp for scheduled mode; the retained legacy toggle is not an Admin control, or record the actual current opening for manual mode. Default submission cutoff is 30 minutes after event end and cannot precede that end. Capacity uses the posted value and an eligible increase atomically promotes the waiting queue with its ordinary audit and notifications.
+**Authoritative happy path:** A private Draft may save supplied schedule values before full opening readiness; the save validates supplied ordering, future boundaries, and any complete event-window overlap. Before opening, validate event start before end, establish a valid signup closing no later than start, use the configured future opening timestamp for scheduled mode; the retained legacy toggle is not an Admin control, or record the actual current opening for manual mode. Default submission cutoff is 30 minutes after event end and cannot precede that end. Participant capacity is owned and changed by Signup setup; Schedule does not write it or promote the waiting queue.
 
 **Permissions and history:** An unchanged historical timestamp retains its exact UTC instant, including seconds/subseconds and valid repeated-hour history. Changed local times must be valid, unambiguous five-minute values and future. Passed signup/draft boundaries cannot be changed or cleared; before the first Live transition, event start/end may be repaired to future values even when their configured boundaries have passed. Actual signup transitions remain history; future opening timestamps schedule opening without an Admin toggle. Manual actions supersede the corresponding scheduled action. Reopening manually closed signup reuses its configured close when that close remains future; otherwise Reopen establishes and confirms a replacement future close. Published start/end cannot be cleared. Draft time is optional planning information and never starts the draft. Routine pre-Live Schedule mutations retain automatic actor/time/before/after audit evidence and require no written reason; changing a future end while Live additionally requires confirmation and a written reason.
 
@@ -435,7 +435,7 @@ The following matrix is the authoritative editability contract. `Edit` means the
 | Event end | Edit to a future value | Edit to a future value | Edit to a future value | Edit to a future value | Edit to a future value | Edit to another future time with confirmation and reason | Action: Resume reuses the configured end when it remains future; otherwise it requires a replacement future end; confirmation and reason are always required | Locked |
 | Normal submission cutoff | Derived as event end plus 30 minutes; never directly editable | Same | Same | Same | Same | Re-derived when a future event end changes | Historical | Locked |
 | Reopened submission cutoff | Unavailable | Unavailable | Unavailable | Unavailable | Unavailable | Unavailable | Action: Reopen submissions with a future cutoff and reason | Locked |
-| Participant capacity | Edit | Edit; an increase may promote waiting participants | Edit before draft start | Locked | Locked | Locked | Locked | Locked |
+| Participant capacity | Read-only; see Signup setup | Read-only; see Signup setup | Read-only; see Signup setup | Read-only; see Signup setup | Read-only; see Signup setup | Read-only; see Signup setup | Read-only; see Signup setup | Read-only; see Signup setup |
 
 Actual signup opening/closing, actual event start/end, submission closure, finalization, archival, and cancellation timestamps are system-recorded history and are never ordinary Schedule inputs. Hidden events expose only SuperAdmin restoration, and Discarded events expose no event workspace.
 
@@ -871,7 +871,7 @@ previous versions and returns to Final Review without reopening uploads. Competi
 input/version checks reject stale publication and review mutations. Historical
 resolutions remain read-only and never satisfy current gates.
 
-Current-score time is the latest immutable completion time among currently complete active-generation tiles, null when none is complete. Preserve any retained historical correction and old official order/fields; do not rerank old versions or reactivate time-edit/inspection controls. AU12 applies only to new events after explicit activation.
+Current-score time is the latest immutable completion time among currently complete active-generation tiles, null when none is complete. Retained completion-time correction rows are historical only and are ignored by current readiness and ranking; existing official snapshots preserve their stored order and fields. Do not rerank old versions or reactivate time-edit/inspection controls. AU12 applies only to new events after explicit activation.
 
 **Failure and recovery:** Stale readiness, concurrent finalization, or an unresolved mandatory blocker fails before official mutation. Captain website roles remain historical but cannot mutate closed/finalized events. Assignment of a Captain never auto-generates a password; retained emergency credentials cannot authenticate or regain authority.
 
@@ -1212,9 +1212,12 @@ Luck/name/KC contributor rows and labelled per-metric values where needed.
 
 The query uses approved publication data, frozen event outcome rates, cached full-event
 activity and playing-account attribution. Repeated item/requirement placement must not
-duplicate KC or expectation. Preserve missing/unranked/estimated/incomplete and stale
-snapshot behavior. Tile completion does not stop the activity interval. Reversal and
-corrected approvals update tile-derived results under existing evidence rules. Empty
+duplicate KC or expectation. The tile projection retains the last compatible saved
+result, including its timestamp and known KC, until a later accepted fetch replaces
+it; failed, partial, or merely stale observations do not clear or rescore that result.
+Preserve missing/unranked/estimated/incomplete and stale snapshot behavior. Tile
+completion does not stop the activity interval. Reversal and corrected approvals do
+not invalidate a compatible saved tile result before that next accepted fetch. Empty
 objectives remain usable; unavailable data is explained without false numeric results.
 No new external request, persistence table, route, permission or submission behavior is
 introduced. Historical imported Sommerbingo remains outside asserted Stats calculations.
@@ -1224,12 +1227,12 @@ known KC > 0 for their displayed boss/mode. Hide empty contributor groups/disclo
 do not filter the underlying team totals or Luck calculation, and retain team missing/
 incomplete/stale status. Existing section order and accepted EHB styling are unchanged.
 
-Stale tile-data correction — user directed 2026-09-16: stale activity must retain
-last-known compatible KC and contributors, with the stale timestamp. This also applies
-to legacy event checkpoints that lack tile projections. Reconstruct a tile Luck score
-from retained data only when evidence revision and the existing compatibility checks
-prove a coherent numerator/denominator; otherwise retain KC and explicitly mark tile
-Luck unavailable while awaiting a coherent update. Do not clear known KC simply because
-freshness expired. Preserve reversal/assignment/source/lifecycle invalidation, team and
-metric scoping, and read-only page access. No fixture/provider refresh is a substitute
-for this correction. No browser inspection; use focused executable functionality tests.
+Stale tile-data correction — user directed 2026-09-16: stale activity retains the
+last-known compatible KC and contributors, with the stale timestamp, until the next
+accepted fetch. This also applies to legacy event checkpoints that lack tile
+projections. Do not reconstruct or rescore a tile Luck value on read. If the retained
+payload cannot provide a coherent tile result, mark tile Luck unavailable while
+awaiting a coherent update, without clearing known KC. Preserve assignment/source/
+lifecycle invalidation at the next accepted fetch, team and metric scoping, and
+read-only page access. No fixture/provider refresh is a substitute for this
+correction. No browser inspection; use focused executable functionality tests.
