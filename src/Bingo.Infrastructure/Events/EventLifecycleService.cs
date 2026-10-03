@@ -134,9 +134,10 @@ public sealed class EventLifecycleService(
             if (item.EventEndsAt is { } scheduledEnd && now < scheduledEnd && string.IsNullOrWhiteSpace(reason))
                 return new(false, "Enter a reason when ending the event before its configured end.");
             var from = item.State;
-            item.EndEvent(now);
+            var effectiveEnd = item.EventEndsAt is { } configuredEnd && now >= configuredEnd ? configuredEnd : now;
+            item.EndEvent(effectiveEnd);
             item.CloseSubmissionsIfDue(now);
-            AddTransitionAndAudit(item, from, actor.Id, actor.Username, false, "event.ended", reason, now, now);
+            AddTransitionAndAudit(item, from, actor.Id, actor.Username, false, "event.ended", reason, now, effectiveEnd);
             await db.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);
             return new(true);

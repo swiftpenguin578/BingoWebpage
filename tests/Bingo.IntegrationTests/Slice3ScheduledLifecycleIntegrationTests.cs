@@ -223,14 +223,14 @@ public sealed partial class Slice3ScheduledLifecycleIntegrationTests : IAsyncLif
         await using var verify = new ApplicationDbContext(options);
         var itemAfterSecondEnd = await verify.Events.SingleAsync(x => x.Id == eventId);
         Assert.Equal(EventState.AwaitingFinalReview, itemAfterSecondEnd.State);
-        Assert.Equal(now.AddHours(3), itemAfterSecondEnd.ActualEndedAt);
-        Assert.Equal(now.AddHours(3).AddMinutes(30), itemAfterSecondEnd.SubmissionCutoffAt);
-        Assert.Null(itemAfterSecondEnd.SubmissionsClosedAt);
-        clock.Set(now.AddHours(3).AddMinutes(30));
+        Assert.Equal(now.AddHours(2), itemAfterSecondEnd.ActualEndedAt);
+        Assert.Equal(now.AddHours(2).AddMinutes(30), itemAfterSecondEnd.SubmissionCutoffAt);
+        Assert.Equal(now.AddHours(2).AddMinutes(30), itemAfterSecondEnd.SubmissionsClosedAt);
+        clock.Set(now.AddHours(2).AddMinutes(30));
         await using (var closure = new ApplicationDbContext(options))
             await Services(closure, clock).ProcessDueAsync();
         await using var afterCutoff = new ApplicationDbContext(options);
-        Assert.Equal(now.AddHours(3).AddMinutes(30), (await afterCutoff.Events.SingleAsync(x => x.Id == eventId)).SubmissionsClosedAt);
+        Assert.Equal(now.AddHours(2).AddMinutes(30), (await afterCutoff.Events.SingleAsync(x => x.Id == eventId)).SubmissionsClosedAt);
         var transitions = await verify.EventStateTransitions.Where(x => x.EventId == eventId).OrderBy(x => x.PerformedAt).ToListAsync();
         Assert.Equal(3, transitions.Count);
         Assert.Equal((EventState.Live, EventState.AwaitingFinalReview), (transitions[0].FromState, transitions[0].ToState));
@@ -238,8 +238,39 @@ public sealed partial class Slice3ScheduledLifecycleIntegrationTests : IAsyncLif
         Assert.True(transitions[0].PerformedAt > transitions[0].EffectiveAt);
         Assert.Equal((EventState.AwaitingFinalReview, EventState.Live), (transitions[1].FromState, transitions[1].ToState));
         Assert.Equal((EventState.Live, EventState.AwaitingFinalReview), (transitions[2].FromState, transitions[2].ToState));
-        Assert.Equal(now.AddHours(3), transitions[2].EffectiveAt);
+        Assert.Equal(now.AddHours(2), transitions[2].EffectiveAt);
         Assert.Equal(3, await verify.AuditEntries.CountAsync(x => x.EventId == eventId && (x.Action == "event.ended_automatically" || x.Action == "event.resumed" || x.Action == "event.ended")));
+    }
+
+    [Fact]
+    public async Task ManualEarlyEndAnchorsUploadCutoffToActualEnd()
+    {
+        var eventId = Guid.NewGuid();
+        var actor = new LifecycleActor(Guid.NewGuid(), "early-end-admin");
+        var scheduledEnd = now.AddHours(2);
+        var admin = Account.CreateWebsite(actor.Id, actor.Username, actor.Username.ToUpperInvariant(), now);
+        admin.SetGlobalRole(GlobalRole.Admin);
+        await using (var setup = new ApplicationDbContext(options))
+        {
+            var item = ReadyDraft(setup, eventId, "early-end-cutoff", now.AddHours(-3), now.AddHours(-2), scheduledEnd);
+            item.OpenSignups(now.AddHours(-3));
+            item.CloseSignups(now.AddHours(-2));
+            item.StartEvent(now.AddHours(-1));
+            setup.AddRange(admin, item);
+            await setup.SaveChangesAsync();
+        }
+
+        await using var db = new ApplicationDbContext(options);
+        var clock = new MutableTimeProvider(now);
+        var result = await Services(db, clock).EndNowAsync(eventId, await VersionAsync(eventId), true, "End the event early.", actor);
+        Assert.True(result.Succeeded, result.Error);
+
+        await using var verify = new ApplicationDbContext(options);
+        var itemAfterEnd = await verify.Events.SingleAsync(x => x.Id == eventId);
+        Assert.Equal(EventState.AwaitingFinalReview, itemAfterEnd.State);
+        Assert.Equal(now, itemAfterEnd.ActualEndedAt);
+        Assert.Equal(now.AddMinutes(30), itemAfterEnd.SubmissionCutoffAt);
+        Assert.Null(itemAfterEnd.SubmissionsClosedAt);
     }
 
     [Fact]
