@@ -547,6 +547,238 @@ public sealed class DraftOperationsIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task TeamInclusionChangeAndStartSerializeInBothOrders()
+    {
+        async Task RunAsync(bool inclusionFirst)
+        {
+            var setup = await SeedAsync();
+            Guid teamId;
+            long teamVersion;
+            await using (var seed = new ApplicationDbContext(options))
+            {
+                var seedTeam = await seed.Teams.SingleAsync(value => value.EventId == setup.EventId && value.Name == "Second");
+                teamId = seedTeam.Id;
+                teamVersion = seedTeam.Version;
+            }
+
+            var boundary = new DraftRowLockBoundary();
+            var boundaryOptions = new DbContextOptionsBuilder<ApplicationDbContext>()
+                .UseNpgsql(database.GetConnectionString())
+                .AddInterceptors(boundary)
+                .Options;
+            Task<string?> inclusionTask;
+            Task<string?> startTask;
+            if (inclusionFirst)
+            {
+                inclusionTask = ExecuteAndReadStatusAsync(setup.EventId, setup.FirstAdminId,
+                    page => page.OnPostUpdateTeamAsync(setup.EventId, teamId, "Second", null, null, false, teamVersion, CancellationToken.None,
+                        includedInDraft: false), boundaryOptions);
+                await boundary.Reached.Task.WaitAsync(TimeSpan.FromSeconds(15));
+                startTask = ExecuteAndReadStatusAsync(setup.EventId, setup.FirstAdminId,
+                    page => page.OnPostStartAsync(setup.EventId, CancellationToken.None));
+            }
+            else
+            {
+                startTask = ExecuteAndReadStatusAsync(setup.EventId, setup.FirstAdminId,
+                    page => page.OnPostStartAsync(setup.EventId, CancellationToken.None), boundaryOptions);
+                await boundary.Reached.Task.WaitAsync(TimeSpan.FromSeconds(15));
+                inclusionTask = ExecuteAndReadStatusAsync(setup.EventId, setup.FirstAdminId,
+                    page => page.OnPostUpdateTeamAsync(setup.EventId, teamId, "Second", null, null, false, teamVersion, CancellationToken.None,
+                        includedInDraft: false));
+            }
+
+            try { boundary.Release.TrySetResult(); }
+            finally { await Task.WhenAll(inclusionTask, startTask); }
+
+            await using var verify = new ApplicationDbContext(options);
+            var draft = await verify.DraftSessions.SingleAsync(value => value.EventId == setup.EventId);
+            var verifiedTeam = await verify.Teams.SingleAsync(value => value.Id == teamId);
+            var startAudits = await verify.AuditEntries.Where(value => value.EventId == setup.EventId && value.Action == "draft.started").ToListAsync();
+            if (!verifiedTeam.IncludedInDraft)
+            {
+                Assert.Equal(DraftState.Setup, draft.State);
+                Assert.Empty(startAudits);
+            }
+            else
+            {
+                Assert.Equal(DraftState.Running, draft.State);
+                Assert.Single(startAudits);
+            }
+        }
+
+        await RunAsync(true);
+        await RunAsync(false);
+    }
+
+    [Fact]
+    public async Task TeamInclusionChangeAndDirectFinalizeSerializeInBothOrders()
+    {
+        async Task RunAsync(bool inclusionFirst)
+        {
+            var setup = await SeedAsync();
+            Guid teamId;
+            long teamVersion;
+            await using (var seed = new ApplicationDbContext(options))
+            {
+                var seedTeam = await seed.Teams.SingleAsync(value => value.EventId == setup.EventId && value.Name == "Second");
+                teamId = seedTeam.Id;
+                teamVersion = seedTeam.Version;
+            }
+
+            var boundary = new DraftRowLockBoundary();
+            var boundaryOptions = new DbContextOptionsBuilder<ApplicationDbContext>()
+                .UseNpgsql(database.GetConnectionString())
+                .AddInterceptors(boundary)
+                .Options;
+            Task<string?> inclusionTask;
+            Task<string?> finalizeTask;
+            if (inclusionFirst)
+            {
+                inclusionTask = ExecuteAndReadStatusAsync(setup.EventId, setup.FirstAdminId,
+                    page => page.OnPostUpdateTeamAsync(setup.EventId, teamId, "Second", null, null, false, teamVersion, CancellationToken.None,
+                        includedInDraft: false), boundaryOptions);
+                await boundary.Reached.Task.WaitAsync(TimeSpan.FromSeconds(15));
+                finalizeTask = ExecuteAndReadStatusAsync(setup.EventId, setup.FirstAdminId,
+                    page => page.OnPostFinalizeAsync(setup.EventId, CancellationToken.None, true));
+            }
+            else
+            {
+                finalizeTask = ExecuteAndReadStatusAsync(setup.EventId, setup.FirstAdminId,
+                    page => page.OnPostFinalizeAsync(setup.EventId, CancellationToken.None, true), boundaryOptions);
+                await boundary.Reached.Task.WaitAsync(TimeSpan.FromSeconds(15));
+                inclusionTask = ExecuteAndReadStatusAsync(setup.EventId, setup.FirstAdminId,
+                    page => page.OnPostUpdateTeamAsync(setup.EventId, teamId, "Second", null, null, false, teamVersion, CancellationToken.None,
+                        includedInDraft: false));
+            }
+
+            try { boundary.Release.TrySetResult(); }
+            finally { await Task.WhenAll(inclusionTask, finalizeTask); }
+
+            await using var verify = new ApplicationDbContext(options);
+            var draft = await verify.DraftSessions.SingleAsync(value => value.EventId == setup.EventId);
+            var verifiedTeam = await verify.Teams.SingleAsync(value => value.Id == teamId);
+            var cycles = await verify.DraftPublicationCycles.Where(value => value.DraftSessionId == draft.Id).ToListAsync();
+            if (draft.State == DraftState.Finalized)
+            {
+                Assert.False(verifiedTeam.IncludedInDraft);
+                Assert.Single(cycles);
+                Assert.Equal(DraftPublicationMethod.DirectRoster, cycles[0].PublicationMethod);
+                Assert.Equal(1, await verify.Teams.CountAsync(value => value.EventId == setup.EventId && value.Active && value.IncludedInDraft));
+            }
+            else
+            {
+                Assert.False(verifiedTeam.IncludedInDraft);
+                Assert.Equal(DraftState.Setup, draft.State);
+                Assert.Empty(cycles);
+            }
+        }
+
+        await RunAsync(true);
+        await RunAsync(false);
+    }
+
+    [Fact]
+    public async Task RemovingDraftTeamAndStartSerializeInBothOrders()
+    {
+        async Task RunAsync(bool removalFirst)
+        {
+            var setup = await SeedAsync();
+            Guid teamId;
+            await using (var seed = new ApplicationDbContext(options))
+            {
+                var team = await seed.Teams.SingleAsync(value => value.EventId == setup.EventId && value.Name == "Second");
+                teamId = team.Id;
+                seed.TeamMemberships.RemoveRange(seed.TeamMemberships.Where(value => value.TeamId == teamId && value.LeftAt == null));
+                await seed.SaveChangesAsync();
+            }
+
+            var boundary = new DraftRowLockBoundary();
+            var boundaryOptions = new DbContextOptionsBuilder<ApplicationDbContext>()
+                .UseNpgsql(database.GetConnectionString())
+                .AddInterceptors(boundary)
+                .Options;
+            Task<string?> removalTask;
+            Task<string?> startTask;
+            if (removalFirst)
+            {
+                removalTask = ExecuteAndReadStatusAsync(setup.EventId, setup.FirstAdminId,
+                    page => page.OnPostRemoveDraftTeamAsync(setup.EventId, teamId, CancellationToken.None), boundaryOptions);
+                await boundary.Reached.Task.WaitAsync(TimeSpan.FromSeconds(15));
+                startTask = ExecuteAndReadStatusAsync(setup.EventId, setup.FirstAdminId,
+                    page => page.OnPostStartAsync(setup.EventId, CancellationToken.None));
+            }
+            else
+            {
+                startTask = ExecuteAndReadStatusAsync(setup.EventId, setup.FirstAdminId,
+                    page => page.OnPostStartAsync(setup.EventId, CancellationToken.None), boundaryOptions);
+                await boundary.Reached.Task.WaitAsync(TimeSpan.FromSeconds(15));
+                removalTask = ExecuteAndReadStatusAsync(setup.EventId, setup.FirstAdminId,
+                    page => page.OnPostRemoveDraftTeamAsync(setup.EventId, teamId, CancellationToken.None));
+            }
+
+            try { boundary.Release.TrySetResult(); }
+            finally { await Task.WhenAll(removalTask, startTask); }
+
+            await using var verify = new ApplicationDbContext(options);
+            var draft = await verify.DraftSessions.SingleAsync(value => value.EventId == setup.EventId);
+            var removed = await verify.Teams.SingleAsync(value => value.Id == teamId);
+            Assert.False(removed.Active);
+            Assert.False(removed.Active && removed.IncludedInDraft);
+            Assert.Equal(DraftState.Setup, draft.State);
+            Assert.Empty(await verify.AuditEntries.Where(value => value.EventId == setup.EventId && value.Action == "draft.started").ToListAsync());
+        }
+
+        await RunAsync(true);
+        await RunAsync(false);
+    }
+
+    [Fact]
+    public async Task TeamInclusionChangesAreRefusedWhileRunningAndFinalized()
+    {
+        var running = await SeedAsync();
+        await StartAndScrambleAsync(running);
+        Guid runningTeamId;
+        long runningVersion;
+        await using (var seed = new ApplicationDbContext(options))
+        {
+            var team = await seed.Teams.SingleAsync(value => value.EventId == running.EventId && value.Name == "Second");
+            runningTeamId = team.Id;
+            runningVersion = team.Version;
+        }
+        var runningStatus = await ExecuteAndReadStatusAsync(running.EventId, running.FirstAdminId,
+            page => page.OnPostUpdateTeamAsync(running.EventId, runningTeamId, "Second", null, null, false, runningVersion, CancellationToken.None,
+                includedInDraft: false));
+        Assert.Contains("team setup", runningStatus, StringComparison.OrdinalIgnoreCase);
+
+        var finalized = await SeedAsync();
+        Guid finalizedTeamId;
+        long finalizedVersion;
+        await using (var seed = new ApplicationDbContext(options))
+        {
+            var teams = await seed.Teams.Where(value => value.EventId == finalized.EventId).ToListAsync();
+            teams.Single(value => value.Name == "Second").SetIncludedInDraft(false);
+            await seed.SaveChangesAsync();
+            var team = teams.Single(value => value.Name == "First");
+            finalizedTeamId = team.Id;
+            finalizedVersion = team.Version;
+        }
+        await ExecuteAsync(finalized.EventId, finalized.FirstAdminId,
+            page => page.OnPostFinalizeAsync(finalized.EventId, CancellationToken.None, true));
+        await using (var latest = new ApplicationDbContext(options))
+            finalizedVersion = await latest.Teams.Where(value => value.Id == finalizedTeamId).Select(value => value.Version).SingleAsync();
+        var finalizedStatus = await ExecuteAndReadStatusAsync(finalized.EventId, finalized.FirstAdminId,
+            page => page.OnPostUpdateTeamAsync(finalized.EventId, finalizedTeamId, "First", null, null, false, finalizedVersion, CancellationToken.None,
+                includedInDraft: false));
+        Assert.Contains("team setup", finalizedStatus, StringComparison.OrdinalIgnoreCase);
+
+        await using var verify = new ApplicationDbContext(options);
+        Assert.True(await verify.Teams.Where(value => value.Id == runningTeamId).Select(value => value.IncludedInDraft).SingleAsync());
+        Assert.True(await verify.Teams.Where(value => value.Id == finalizedTeamId).Select(value => value.IncludedInDraft).SingleAsync());
+        Assert.Equal(DraftState.Running, await verify.DraftSessions.Where(value => value.EventId == running.EventId).Select(value => value.State).SingleAsync());
+        Assert.Equal(DraftState.Finalized, await verify.DraftSessions.Where(value => value.EventId == finalized.EventId).Select(value => value.State).SingleAsync());
+    }
+
+    [Fact]
     public async Task DraftLoadKeepsParticipantWithMissingStrictAuthorityVisibleAndReadinessBlocked()
     {
         var setup = await SeedAsync();
@@ -1824,6 +2056,31 @@ public sealed class DraftOperationsIntegrationTests : IAsyncLifetime
         {
             if (command.CommandText.Contains("FROM events AS e", StringComparison.Ordinal)
                 && command.CommandText.Contains("WHERE e.id =", StringComparison.Ordinal)
+                && Interlocked.CompareExchange(ref entered, 1, 0) == 0)
+            {
+                Reached.TrySetResult();
+                await Release.Task.WaitAsync(TimeSpan.FromSeconds(15), cancellationToken);
+            }
+
+            return result;
+        }
+    }
+
+    private sealed class DraftRowLockBoundary : DbCommandInterceptor
+    {
+        private int entered;
+
+        public TaskCompletionSource Reached { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public override async ValueTask<DbDataReader> ReaderExecutedAsync(
+            DbCommand command,
+            CommandExecutedEventData eventData,
+            DbDataReader result,
+            CancellationToken cancellationToken = default)
+        {
+            if (command.CommandText.Contains("FROM draft_sessions", StringComparison.OrdinalIgnoreCase)
+                && command.CommandText.Contains("FOR UPDATE", StringComparison.OrdinalIgnoreCase)
                 && Interlocked.CompareExchange(ref entered, 1, 0) == 0)
             {
                 Reached.TrySetResult();
