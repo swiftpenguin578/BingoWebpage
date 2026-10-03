@@ -266,9 +266,8 @@ This section records the implemented Luck behavior and its retained historical
 boundaries. Older signed-score, reversal-invalidation, read-time-rescore and
 Live-only descriptions are historical source material; the active Luck contract
 and current implementation govern delivery.
-**Next permitted action:** H1 evidence preservation is committed. Continue the
-authorized H2–H7 cleanup only, then stop for Claude's independent review. Do not
-start AU/RC implementation, UI integration, rehearsal, merge or deploy.
+**Next permitted action:** see CURRENT_STATUS.md for the active assignment and
+stop boundary. This historical Luck closure does not dispatch later tickets.
 
 
 ## Review preparation checkpoint — 2 October 2026
@@ -980,7 +979,7 @@ this explicitly requested planning pass.
 
 **Baseline:** the completed, independently reviewed Participants candidate in
 `/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage`,
-branch `codex/participants-functionality`, including its uncommitted changes.
+branch `codex/participants-functionality`, including its committed Participants changes.
 Do not start from the stale 573d checkout or the design-reference checkout.
 Confirm checkout/ownership at dispatch; do not commit, copy away or replace
 Participants work merely to establish a Dashboard branch.
