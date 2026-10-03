@@ -5,61 +5,56 @@
 - Checkout: `/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage`.
 - Branch: `codex/participants-functionality`.
 - Planner: UI Planner `01a0ec9a-76e3-7252-9850-3f260c612e59`, collaboration `/root`.
-- User authorized G1–G6. Durable brief:
-  `docs/references/admin-ui/reviews/2026-10-03/br-td-batch/handoff.md`.
-- Verified initial HEAD: `f2ea1cffb8f4d9c0b23dd68dcf3f6675d1bbb5d5`, clean.
-- Expected activation changes: this status, the durable brief and scoped
-  FUNCTIONAL_CONTRACTS updates. Commit these separately before implementation.
-- One direct `gpt-5.6-luna` / `max` implementer, `/root/fix_batch_implementer`;
-  no orchestrator, extra workers or separate chats. Claude owns independent review.
-- Report to `/root` before every turn-ending response and for blockers/decisions.
-  No planner polling or `wait_threads`. Record exact checkpoint if delivery fails.
-- Work sequentially: G1 approval room/order; G2 screenshot-time guidance;
-  G3a structural races; G3b manual-team capacity; G4 cancelled-attempt restart;
-  G5 finalized Add roles; G6 current public role labels.
-- G3a and G3b each get a separate commit. Every item needs scoped executable
-  checks, durable evidence and a local commit; no independent PASS claim yet.
-- G4 uses the preferred full-Setup restart: `RequiresFreshOrder` preserves
-  cancelled pick history while permitting fresh positions, scrambling and
-  preassignment on the next attempt. The existing history assertions remain.
-- No push, merge, deployment, production access, live provider calls or mutation
-  of user-owned databases. Controlled PostgreSQL fixtures only.
-- Preserve frozen references (canvas 42 / artifact `1790965722-e7ad`).
-  New UI integration, other AU/RC work, R-3 and broad docs cleanup are deferred.
+- Active assignment: named G-batch review remediation only, from
+  `docs/references/admin-ui/reviews/2026-10-03/br-td-batch/remediation-review.md`.
+- Verified clean starting HEAD: `059faf5ba904b4a35c54eca4021fa306a2ea0586`.
+- Expected planner activation edits: this file, retained review copy above,
+  and FUNCTIONAL_CONTRACTS clarification of postponed-start recovery.
+- Same direct implementer `/root/fix_batch_implementer`, `gpt-5.6-luna` / `max`.
+  No orchestrator, additional worker or new chat. Claude performs named recheck.
+- Report to `/root` before every turn-ending response and immediately for
+  blockers/decisions, with exact checkpoint and next action. No wait_threads.
 
-## Retained results and gates
+## Review result and scope
 
-- F1–F9 passed Claude's independent source review. Claude did not execute tests.
-- R-2 test-only follow-up `f2ea1cf` passed Claude's named source recheck.
-- Prior item checks/evidence: `docs/references/admin-ui/reviews/2026-10-03/`.
-- F1 uses the user-performed manual banner cleanup; migration/guard unchanged.
-  No agent production access occurred; full production-baseline rehearsal unrun.
-- R-1: failed Luck conversion continues to block deployment for this release.
-- R-3: full isolated production-backup deploy rehearsal must pass before any
-  separately authorized production deployment. It remains unexecuted.
-- G1 is implemented and focused-tested in local commit `24c30fc`; evidence is
-  recorded in `docs/references/admin-ui/reviews/2026-10-03/br-td-batch/G1-evidence.md`.
-  G2 is implemented and committed as `2b7ddbc`; evidence is
-  recorded in `docs/references/admin-ui/reviews/2026-10-03/br-td-batch/G2-evidence.md`.
-  G3a is implemented and committed as `a8a6c24`; evidence is recorded in
-  `docs/references/admin-ui/reviews/2026-10-03/br-td-batch/G3a-evidence.md`.
-  G3b is implemented and committed as `56020b8`; evidence is recorded in
-  `docs/references/admin-ui/reviews/2026-10-03/br-td-batch/G3b-evidence.md`.
-  G4 is implemented and committed as `1b5a139`; evidence is recorded in
-  `docs/references/admin-ui/reviews/2026-10-03/br-td-batch/G4-evidence.md`.
-  G5 is implemented and committed as `b9bb405`; evidence is recorded in
-  `docs/references/admin-ui/reviews/2026-10-03/br-td-batch/G5-evidence.md`.
-  G6 is implemented and committed as `02d19db`; its evidence
-  is recorded in `docs/references/admin-ui/reviews/2026-10-03/br-td-batch/G6-evidence.md`.
-  Claude's independent review is pending; all G1–G6 implementation commits
-  are present. No further batch item is authorized.
-- Standing scoped per-item local commit authority is confirmed; no push authority.
+- Claude's independent source review: G1 and G3a FAIL; G3b requires fixes.
+  G2, G4, G5 and G6 pass with recorded notes. Claude did not execute tests.
+- Required findings: G1-1 cumulative credit reservation; G1-2 deterministic
+  fixtures and checked approval results; G1-3 missing/weak checks;
+  G1-6/G2-1 Danish translations/time label; G1-7 integration/docs notes;
+  G3a-1/G3a-2 real inclusion-race fix and decisive regression;
+  G3b-1 manual Remove/Move Running gate; G3b-2 unchanged-cap Schedule saves.
+- Separate follow-up commits by group: G1, G2 translations, G3a, G3b.
+  Include finding IDs, tests, necessary documentation and durable evidence.
+  Preserve earlier commits and all unrelated work; no amendments.
+- Run focused PostgreSQL checks and the full C33FinalizationFreshnessTests,
+  DraftOperationsIntegrationTests and SubmissionWorkflowTests classes.
+  Race regression must prove the second transaction is waiting and fail on
+  the defective implementation, not merely accept either end state.
+- Accepted G3a-3 clarification: retain postponed-start recovery until actual
+  start/configured end; do not add a configured-start cutoff.
+- Accepted notes are not extra fixes. No broad cleanup or optional expansion.
+
+## Retained boundaries and evidence
+
+- Original G implementation tip: `02d19db`; per-item inventory/evidence:
+  `docs/references/admin-ui/reviews/2026-10-03/br-td-batch/review-handoff.md`.
+- Original approved brief: `br-td-batch/handoff.md` in that directory.
+- Detailed review reports remain in
+  `/Users/christopher/Documents/BingoWebpage/review-notes/14a-g1-g2-review.md`
+  and `14b-g3-g6-review.md`; read relevant named findings only.
+- F1–F9 and R-2 previously passed Claude source review. Evidence remains in
+  `docs/references/admin-ui/reviews/2026-10-03/`.
+- R-1 conversion failure remains a deploy blocker this release. R-3 is still
+  unexecuted: isolated restored production-backup rehearsal required before
+  separately authorized deployment; record G4 migration backfill count there.
+- No push, merge, deployment, production/provider access or user-owned DB
+  mutation. Use controlled fixtures. Frozen references stay unchanged.
+- Other AU/RC work, UI integration and broad ticket/docs cleanup are deferred.
 
 ## Next permitted action
 
-G1–G6 implementation and focused checks are complete; independent review is
-pending. Claude reviews the stable per-item commits listed in
-`docs/references/admin-ui/reviews/2026-10-03/br-td-batch/review-handoff.md`.
-Stop here. Do not start the separate ticket/documentation cleanup, R-3 or another
-ticket without authorization. Named review corrections may return to the same
-implementer when assigned. No push, merge or deployment is authorized.
+Implementer commits activation documentation separately, fixes only the named
+findings, executes required checks and commits each item group. Record exact
+per-group commits and results in a durable recheck handoff. Then stop for
+Claude to recheck those commits. Do not start the cleanup brief or another ticket.

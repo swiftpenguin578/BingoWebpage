@@ -623,8 +623,8 @@ team membership never frees a signup place. Manual teams still consume no draft
 turns. Manual-team Add requires Confirmed status and manual membership changes
 are refused while Running. Inclusion/active changes and included-team removal
 must recheck the event/draft inside a transaction serialized with Start and both
-Finalize paths; structural changes are refused outside Setup or after configured
-start. Live/Final Review role changes, while otherwise permitted, must update
+Finalize paths; structural changes are refused outside Setup and retain section
+4.4's postponed-start recovery window (until actual start or configured end). Live/Final Review role changes, while otherwise permitted, must update
 public Teams role labels without changing membership or WOM data; previous
 publications remain history and lifecycle routing is decided in the transaction.
 Eligible Cancel must leave a usable Setup while retaining cancelled pick history;
