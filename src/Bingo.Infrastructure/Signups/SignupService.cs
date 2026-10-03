@@ -1474,8 +1474,8 @@ public sealed partial class SignupService(
     {
         if (request.EventId == Guid.Empty || request.TeamId == Guid.Empty || request.ActorAccountId == Guid.Empty || string.IsNullOrWhiteSpace(request.ActorName))
             return new(false, "A current event, team, and administrator are required.");
-        if (request.Role != TeamMembershipRole.Participant)
-            return new(false, "Finalized roster additions use the Participant role. Captain roles can be corrected separately.");
+        if (request.Role is not (TeamMembershipRole.Participant or TeamMembershipRole.Captain or TeamMembershipRole.CoCaptain))
+            return new(false, "Choose Participant, Captain, or Co-captain.");
         if (request.ParticipantId is null && request.WebsiteAccountId is null)
             return new(false, "Select an existing website account for the roster addition.");
 
@@ -1644,7 +1644,7 @@ public sealed partial class SignupService(
                     existingPrimaryAnswer.SetAccountCharacter(selectedCharacter.OsrsCharacterId);
             }
 
-            var membership = new TeamMembership(Guid.NewGuid(), team.Id, participant.Id, TeamMembershipRole.Participant, now, null, "Finalized roster addition");
+            var membership = new TeamMembership(Guid.NewGuid(), team.Id, participant.Id, request.Role, now, null, "Finalized roster addition");
             membership.SetSource(TeamMembershipSource.RetainedConversion);
             dbContext.TeamMemberships.Add(membership);
             var before = await CurrentFinalizedRosterSnapshotAsync(draft, cancellationToken);

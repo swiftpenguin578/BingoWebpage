@@ -996,6 +996,60 @@ public sealed class C11FinalizedRosterIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task FinalizedRosterAddPublishesCaptainRolesAndRejectsInvalidRoleWithoutWrites()
+    {
+        var seed = await SeedAsync();
+        await using (var db = Db())
+        {
+            var captain = await db.Accounts.SingleAsync(x => x.Id == seed.InternalOwnerId);
+            var coCaptain = await db.Accounts.SingleAsync(x => x.Id == seed.OutsiderId);
+            var captainCharacter = new OsrsCharacter(Guid.NewGuid(), "Added Captain", "ADDED CAPTAIN", clock.Now);
+            var coCaptainCharacter = new OsrsCharacter(Guid.NewGuid(), "Added Co-captain", "ADDED CO-CAPTAIN", clock.Now);
+            db.AddRange(captainCharacter, coCaptainCharacter,
+                new AccountOsrsCharacter(Guid.NewGuid(), captain.Id, captainCharacter.Id, captain.Id, true, 0, null, 44m, clock.Now),
+                new AccountOsrsCharacter(Guid.NewGuid(), coCaptain.Id, coCaptainCharacter.Id, coCaptain.Id, true, 0, null, 45m, clock.Now));
+            await db.SaveChangesAsync();
+        }
+
+        var captainAdd = await AddFinalizedAsync(seed, seed.TeamId, websiteAccountId: seed.InternalOwnerId, role: TeamMembershipRole.Captain);
+        Assert.True(captainAdd.Succeeded, captainAdd.Error);
+        await using (var afterCaptain = Db())
+        {
+            var cycle = await afterCaptain.DraftPublicationCycles.SingleAsync(x => x.SupersededAt == null);
+            Assert.Equal(2, await afterCaptain.DraftPublicationCycles.CountAsync());
+            Assert.Equal(TeamMembershipRole.Captain, await afterCaptain.TeamMemberships.Where(x => x.Id == captainAdd.MembershipId).Select(x => x.Role).SingleAsync());
+            Assert.Equal(TeamMembershipRole.Captain, await afterCaptain.DraftPublicationRosters.Where(x => x.DraftPublicationCycleId == cycle.Id && x.EventParticipantId == captainAdd.ParticipantId).Select(x => x.Role).SingleAsync());
+        }
+
+        var coCaptainAdd = await AddFinalizedAsync(seed, seed.TeamId, websiteAccountId: seed.OutsiderId, role: TeamMembershipRole.CoCaptain);
+        Assert.True(coCaptainAdd.Succeeded, coCaptainAdd.Error);
+        await using (var afterCoCaptain = Db())
+        {
+            var cycle = await afterCoCaptain.DraftPublicationCycles.SingleAsync(x => x.SupersededAt == null);
+            Assert.Equal(3, await afterCoCaptain.DraftPublicationCycles.CountAsync());
+            Assert.Equal(TeamMembershipRole.CoCaptain, await afterCoCaptain.TeamMemberships.Where(x => x.Id == coCaptainAdd.MembershipId).Select(x => x.Role).SingleAsync());
+            Assert.Equal(TeamMembershipRole.CoCaptain, await afterCoCaptain.DraftPublicationRosters.Where(x => x.DraftPublicationCycleId == cycle.Id && x.EventParticipantId == coCaptainAdd.ParticipantId).Select(x => x.Role).SingleAsync());
+        }
+
+        var beforeInvalid = await StateHashAsync();
+        var invalid = await AddFinalizedAsync(seed, seed.TeamId, websiteAccountId: seed.InternalOwnerId, role: (TeamMembershipRole)999);
+        Assert.False(invalid.Succeeded);
+        Assert.Contains("Choose Participant", invalid.Error, StringComparison.Ordinal);
+        Assert.Equal(beforeInvalid, await StateHashAsync());
+
+        await using var factory = Factory();
+        using var adminClient = await LoginAsync(factory, "c11-admin");
+        var draftPage = await adminClient.GetStringAsync($"/Admin/Events/Draft/{seed.EventId}");
+        Assert.Contains("name=\"role\"", draftPage, StringComparison.Ordinal);
+        Assert.Contains("value=\"Captain\"", draftPage, StringComparison.Ordinal);
+        Assert.Contains("value=\"CoCaptain\"", draftPage, StringComparison.Ordinal);
+        using var publicClient = factory.CreateClient();
+        var publicPage = RosterSection(await publicClient.GetStringAsync(TeamsPath(seed)));
+        Assert.Matches("(?s)<li class=\"is-captain\">\\s*<span>Added Captain</span>", publicPage);
+        Assert.Matches("(?s)<li class=\"is-co-captain\">\\s*<span>Added Co-captain</span>", publicPage);
+    }
+
+    [Fact]
     public async Task FinalizedRosterAddRequiresAnAuthoritativeLinkedPlayingSelectionForReusedParticipants()
     {
         var seed = await SeedAsync();
@@ -1554,11 +1608,11 @@ public sealed class C11FinalizedRosterIntegrationTests : IAsyncLifetime
         await using var db = Db();
         return await Service(db).ReplaceVacancyAsync(new(seed.EventId, seed.DepartedMembershipId, seed.AdminId, "admin", candidate));
     }
-    private async Task<FinalizedRosterMutationResult> AddFinalizedAsync(Seed seed, Guid teamId, Guid? participantId = null, Guid? websiteAccountId = null, IEventCompetitionManagementService? competitionManagement = null)
+    private async Task<FinalizedRosterMutationResult> AddFinalizedAsync(Seed seed, Guid teamId, Guid? participantId = null, Guid? websiteAccountId = null, IEventCompetitionManagementService? competitionManagement = null, TeamMembershipRole role = TeamMembershipRole.Participant)
     {
         await using var db = Db();
         var teamVersion = await db.Teams.Where(x => x.Id == teamId).Select(x => x.Version).SingleAsync();
-        return await Service(db, competitionManagement).AddFinalizedRosterParticipantAsync(new(seed.EventId, teamId, seed.AdminId, "c11-admin", websiteAccountId, participantId, ExpectedTeamVersion: teamVersion));
+        return await Service(db, competitionManagement).AddFinalizedRosterParticipantAsync(new(seed.EventId, teamId, seed.AdminId, "c11-admin", websiteAccountId, participantId, role, ExpectedTeamVersion: teamVersion));
     }
     private async Task<FinalizedRosterMutationResult> RemoveFinalizedAsync(Seed seed, Guid participantId)
     {

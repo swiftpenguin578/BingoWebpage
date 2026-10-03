@@ -45,16 +45,18 @@
   `docs/references/admin-ui/reviews/2026-10-03/br-td-batch/G3a-evidence.md`.
   G3b is implemented and committed as `56020b8`; evidence is recorded in
   `docs/references/admin-ui/reviews/2026-10-03/br-td-batch/G3b-evidence.md`.
-  G4 is implemented and focused-tested in the current worktree; its evidence
-  is recorded in `docs/references/admin-ui/reviews/2026-10-03/br-td-batch/G4-evidence.md`.
-  Claude's independent review is pending. G4 is ready for its scoped local
-  commit; G5 is next after that checkpoint.
+  G4 is implemented and committed as `1b5a139`; evidence is recorded in
+  `docs/references/admin-ui/reviews/2026-10-03/br-td-batch/G4-evidence.md`.
+  G5 is implemented and focused-tested in the current worktree; its evidence
+  is recorded in `docs/references/admin-ui/reviews/2026-10-03/br-td-batch/G5-evidence.md`.
+  Claude's independent review is pending. G5 is ready for its scoped local
+  commit; G6 is next after that checkpoint.
 - Standing scoped per-item local commit authority is confirmed; no push authority.
 
 ## Next permitted action
 
-Implementer must commit G4 after staged-diff inspection, then implement and
-check G5–G6 against the durable brief and cited decisions/reports. Update this
+Implementer must commit G5 after staged-diff inspection, then implement and
+check G6 against the durable brief and cited decisions/reports. Update this
 handoff with concise progress and evidence links.
 At batch end report per-item commits,
 checks, deviations and unresolved decisions, then stop for Claude's review.
