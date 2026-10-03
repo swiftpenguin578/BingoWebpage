@@ -35,6 +35,20 @@
   start/configured end; do not add a configured-start cutoff.
 - Accepted notes are not extra fixes. No broad cleanup or optional expansion.
 
+## Implemented, tested and committed
+
+- Activation documentation checkpoint: `711d794`.
+- G1 remediation (G1-1/G1-2/G1-3/G1-6/G1-7): `3c2a0a665daf70a89f88c317c2aa72c43cfdee97`.
+- G2 translation remediation (G2-1): `a4a640c`.
+- G3a concurrency remediation (G3a-1/G3a-2): `93d75f7`; generated-SQL
+  boundary probe correction: `4a99106`.
+- G3b membership/capacity remediation (G3b-1/G3b-2): `6628e4a`.
+- Focused PostgreSQL checks passed for each changed boundary. Final Release
+  build passed with 0 warnings and 0 errors. Full classes passed: C33
+  Finalization Freshness 29/29, Draft Operations 56/56, Submission Workflow
+  79/79. Exact commands and evidence are in
+  `docs/references/admin-ui/reviews/2026-10-03/br-td-batch/remediation-recheck-handoff.md`.
+
 ## Retained boundaries and evidence
 
 - Original G implementation tip: `02d19db`; per-item inventory/evidence:
@@ -52,9 +66,11 @@
   mutation. Use controlled fixtures. Frozen references stay unchanged.
 - Other AU/RC work, UI integration and broad ticket/docs cleanup are deferred.
 
-## Next permitted action
+## Review handoff and next permitted action
 
-Implementer commits activation documentation separately, fixes only the named
-findings, executes required checks and commits each item group. Record exact
-per-group commits and results in a durable recheck handoff. Then stop for
-Claude to recheck those commits. Do not start the cleanup brief or another ticket.
+- Implementation and required execution are complete and locally committed;
+  Claude's independent named recheck is pending. This status is not an
+  independent review or product acceptance.
+- Claude should recheck `3c2a0a6`, `a4a640c`, `93d75f7`, `4a99106` and
+  `6628e4a` against the named findings and the durable handoff. Do not begin
+  another ticket, cleanup brief, deployment, rehearsal, push or merge.
