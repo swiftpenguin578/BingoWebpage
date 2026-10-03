@@ -229,11 +229,21 @@ the next ticket. Do not add a persistent coordinator layer.
 - Put final reports, manifests and compact test evidence in the repository before
   packaging; temporary directories are scratch space, not the sole durable handoff.
   Never commit secrets, real participant data or unnecessary raw runtime output.
-- At each completed coherent slice, record readiness for its own scoped commit.
-  If packaging is authorized, the packager commits reviewed scope and named evidence
-  before unrelated implementation starts; otherwise report the checkpoint as
-  uncommitted and request packaging authority only when necessary. Commit authority
-  does not imply push, merge or deployment authority.
+- The user authorizes local staging and commits for completed assigned tickets/items
+  on the assigned branch (3 October 2026). After each item's applicable checks pass,
+  the orchestrator routes a scoped commit to the packager before the next item starts;
+  do not accumulate completed items into one final batch commit. Include only that
+  item's changes, required documentation and durable evidence; inspect the staged
+  diff and report the commit SHA. Preserve unrelated work and use follow-up commits
+  for review corrections rather than rewriting existing checkpoints.
+- Preserve the assignment's review boundary. If independent review is scheduled at
+  batch end, commit each implemented/tested item as a checkpoint explicitly awaiting
+  independent review; a commit is not technical completion or manual acceptance.
+  Otherwise satisfy the item's required review before its completion commit. A
+  blocked item is not complete; report its saved state and blocker separately.
+- This standing commit authority does not start unassigned work or override an
+  explicit no-commit instruction. It does not authorize push, merge, deployment,
+  destructive cleanup or staging unrelated existing work.
 - Keep CURRENT_STATUS.md approximately 100 lines or fewer: replace stale handoffs,
   link durable evidence and leave historical pass transcripts in Git/reports.
 - The planner updates owning requirements when a product decision/ticket is made.
