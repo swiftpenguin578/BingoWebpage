@@ -6,11 +6,15 @@ database access are included.
 
 ## Baseline and implementation
 
-- Source baseline: `f2ea1cffb8f4d9c0b23dd68dcf3f6675d1bbb5d5`.
-- Activation checkpoint: `14d88b0`.
-- G1 predecessor: `24c30fc`.
-- This implementation checkpoint is the local G2 commit; Claude's independent
-  read-only review remains pending.
+- Source baseline for the remediation: `059faf5ba904b4a35c54eca4021fa306a2ea0586`.
+- Activation checkpoint: `711d794`.
+- G1 predecessor: `3c2a0a6`.
+- This record covers the named G2 translation remediation; Claude's independent
+  named recheck remains pending.
+- Danish Review strings now cover the structured earlier-upload blocker, its
+  upload-time label, the direct earlier-review link, the approval-block toast,
+  and paused final-review guidance. Two stale Danish keys were removed only
+  after repository-wide usage checks showed no runtime references.
 - The Review Details page now loads all completed `AwaitingFinalReview` to
   `Live` intervals for the event without comparing them with immutable upload
   time. It renders them as an informational note and asks the reviewer to

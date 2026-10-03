@@ -1096,6 +1096,11 @@
   <data name="Admin navigation" xml:space="preserve"><value>Admin-navigation</value></data>
   <data name="Admin workspace" xml:space="preserve"><value>Admin-arbejdsområde</value></data>
   <data name="After event end" xml:space="preserve"><value>Efter eventets afslutning</value></data>
+  <data name="Earlier upload must be resolved first" xml:space="preserve"><value>Den tidligere upload skal afklares først</value></data>
+  <data name="Approve or reject the earlier upload before approving this one." xml:space="preserve"><value>Godkend eller afvis den tidligere upload, før du godkender denne.</value></data>
+  <data name="Approve or reject the earlier upload first." xml:space="preserve"><value>Godkend eller afvis den tidligere upload først.</value></data>
+  <data name="Open earlier review" xml:space="preserve"><value>Åbn tidligere gennemgang</value></data>
+  <data name="Uploaded" xml:space="preserve"><value>Uploadet</value></data>
   <data name="After event end — verify screenshot time" xml:space="preserve"><value>Efter eventets afslutning — kontrollér skærmbilledets tidspunkt</value></data>
   <data name="All start blockers are resolved. Confirm to start the event now." xml:space="preserve"><value>Alle startblokeringer er løst. Bekræft, at eventet skal starte nu.</value></data>
   <data name="All states" xml:space="preserve"><value>Alle tilstande</value></data>
@@ -1231,7 +1236,6 @@
   <data name="If disabled, all {0} queued participants will be promoted in signup order; capacity will be raised to at least {1} if needed." xml:space="preserve"><value>Hvis den deaktiveres, forfremmes alle {0} deltagere i køen i tilmeldingsrækkefølge; kapaciteten hæves til mindst {1} efter behov.</value></data>
   <data name="Immutable asset history and checksums." xml:space="preserve"><value>Uforanderlig assethistorik og checksums.</value></data>
   <data name="Immutable review history" xml:space="preserve"><value>Uforanderlig reviewhistorik</value></data>
-  <data name="Ineligible final-review interval" xml:space="preserve"><value>Ikke-kvalificeret final-review-interval</value></data>
   <data name="Inspect evidence, resolve its review state, and preserve the audit record." xml:space="preserve"><value>Undersøg beviset, afgør dets reviewstatus, og bevar auditposten.</value></data>
   <data name="Keep accepting signups after capacity is reached." xml:space="preserve"><value>Fortsæt med at acceptere tilmeldinger, når kapaciteten er nået.</value></data>
   <data name="Latest synchronization is incomplete." xml:space="preserve"><value>Seneste synkronisering er ufuldstændig.</value></data>
@@ -1303,6 +1307,8 @@
   <data name="Payment" xml:space="preserve"><value>Betaling</value></data>
   <data name="Pending evidence" xml:space="preserve"><value>Afventende bevis</value></data>
   <data name="Possible duplicate screenshot" xml:space="preserve"><value>Muligvis duplikeret skærmbillede</value></data>
+  <data name="Paused final-review interval" xml:space="preserve"><value>Pauseinterval under final review</value></data>
+  <data name="The event was paused during the following interval(s). Verify the screenshot's in-game time against them before deciding." xml:space="preserve"><value>Eventet var sat på pause i følgende interval(ler). Kontrollér skærmbilledets spilletidspunkt mod dem, før du træffer en afgørelse.</value></data>
   <data name="Preserve all event history and stop every scheduled lifecycle action." xml:space="preserve"><value>Bevar hele eventhistorikken, og stop alle planlagte livscyklushandlinger.</value></data>
   <data name="Prior approved evidence" xml:space="preserve"><value>Tidligere godkendt bevis</value></data>
   <data name="Prioritized queue" xml:space="preserve"><value>Prioriteret kø</value></data>
@@ -1426,7 +1432,6 @@
   <data name="These values are the submitted record used by review and contribution calculations." xml:space="preserve"><value>Disse værdier er den indsendte post, som bruges til review og beregning af bidrag.</value></data>
   <data name="This draft stays private, so you can revise the signup form before opening signups. Opening later exposes only the event information and signup form." xml:space="preserve"><value>Denne draft forbliver privat, så du kan ændre tilmeldingsformularen, før tilmeldingen åbnes. En senere åbning viser kun eventoplysningerne og tilmeldingsformularen.</value></data>
   <data name="This event is terminal and no scheduled or ordinary event action can reactivate it." xml:space="preserve"><value>Dette event er afsluttet, og ingen planlagt eller almindelig eventhandling kan aktivere det igen.</value></data>
-  <data name="This evidence timestamp falls between {0} and {1}. Treat it as outside the authoritative live eligibility intervals." xml:space="preserve"><value>Dette bevis-tidspunkt ligger mellem {0} og {1}. Betragt det som uden for de autoritative Live-kvalifikationsintervaller.</value></data>
   <data name="This exact image checksum also appears on the following submissions:" xml:space="preserve"><value>Det samme billedchecksum findes også på følgende indsendelser:</value></data>
   <data name="This is a warning only; the review decision remains Approve or reasoned Reject." xml:space="preserve"><value>Dette er kun en advarsel; reviewbeslutningen er fortsat Godkend eller begrundet Afvis.</value></data>
   <data name="This is reported by the lifecycle readiness check." xml:space="preserve"><value>Dette rapporteres af livscyklusparhedstjekket.</value></data>
