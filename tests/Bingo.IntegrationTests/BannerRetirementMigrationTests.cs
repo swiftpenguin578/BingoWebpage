@@ -72,6 +72,69 @@ public sealed class BannerRetirementMigrationTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task ManuallyCleanedSingleAssetRetiresSchemaWithoutPendingLedger()
+    {
+        var eventId = Guid.NewGuid();
+        var actorId = Guid.NewGuid();
+        var assetId = Guid.NewGuid();
+        var now = new DateTimeOffset(2026, 9, 27, 0, 0, 0, TimeSpan.Zero).AddTicks(1_234_560);
+        var storageKey = $"{eventId:N}/banner/manual-cleanup.png";
+
+        await using (var before = new ApplicationDbContext(options))
+        {
+            await before.Database.GetService<IMigrator>().MigrateAsync(BeforeRetirement);
+            var actor = Account.CreateWebsite(actorId, "manual-banner-fixture", "MANUAL-BANNER-FIXTURE", now);
+            var item = new BingoEvent(eventId, "Manual banner fixture", "manual-banner-fixture", "UTC", actorId, now);
+            before.AddRange(actor, item);
+            await before.SaveChangesAsync();
+
+            await using var fixtureTransaction = await before.Database.BeginTransactionAsync();
+            await before.Database.ExecuteSqlInterpolatedAsync($"""
+                INSERT INTO event_banner_assets
+                    (id, event_id, storage_key, original_filename, media_type, byte_size, width, height,
+                     checksum, uploaded_by_account_id, uploaded_at, replaced_at)
+                VALUES
+                    ({assetId}, {eventId}, {storageKey}, {"manual-cleanup.png"}, {"image/png"}, 10, 1, 1,
+                     {"manual-cleanup"}, {actorId}, {now}, NULL);
+
+                UPDATE events
+                SET banner_asset_id = {assetId}, version = version + 1
+                WHERE id = {eventId};
+                """);
+            await fixtureTransaction.CommitAsync();
+        }
+
+        await using (var cleanup = new ApplicationDbContext(options))
+        {
+            await using var cleanupTransaction = await cleanup.Database.BeginTransactionAsync();
+            Assert.Equal(1, await cleanup.Database.ExecuteSqlInterpolatedAsync($"""
+                UPDATE events
+                SET banner_asset_id = NULL, version = version + 1
+                WHERE id = {eventId} AND banner_asset_id = {assetId};
+                """));
+            Assert.Equal(1, await cleanup.Database.ExecuteSqlInterpolatedAsync($"""
+                DELETE FROM event_banner_assets
+                WHERE id = {assetId};
+                """));
+            await cleanupTransaction.CommitAsync();
+
+            Assert.Equal(0, await cleanup.Database.SqlQuery<long>($"SELECT COUNT(*)::bigint AS \"Value\" FROM event_banner_assets").SingleAsync());
+            Assert.Equal(0, await cleanup.Database.SqlQuery<long>($"SELECT COUNT(*)::bigint AS \"Value\" FROM event_banner_cleanups").SingleAsync());
+            Assert.Equal(0, await cleanup.Database.SqlQuery<long>($"SELECT COUNT(*)::bigint AS \"Value\" FROM events WHERE banner_asset_id IS NOT NULL").SingleAsync());
+        }
+
+        await using (var migrated = new ApplicationDbContext(options))
+            await migrated.Database.MigrateAsync();
+
+        await using var final = new ApplicationDbContext(options);
+        Assert.Contains(Retirement, await final.Database.GetAppliedMigrationsAsync());
+        Assert.False(await RelationExistsAsync(final, "event_banner_assets"));
+        Assert.False(await RelationExistsAsync(final, "event_banner_cleanups"));
+        Assert.False(await RelationExistsAsync(final, "event_banner_retirement_keys"));
+        Assert.False(await ColumnExistsAsync(final, "events", "banner_asset_id"));
+    }
+
+    [Fact]
     public async Task PopulatedDatabaseKeepsExactKeysUntilFailedCleanupRecoversAndPreservesSharedObjects()
     {
         var eventId = Guid.NewGuid();

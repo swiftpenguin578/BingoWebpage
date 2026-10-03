@@ -222,53 +222,65 @@ explicit full restore above; old code never writes against an uncertain schema.
 The original deployment failure status is preserved even when diagnostics or
 receipt writing fail.
 
-## Event-banner retirement (prepared procedure; not executed here)
+## Event-banner retirement (one-time manual cleanup path)
 
-BNR-01 retires the event-banner feature and its schema without assuming that a
-production database or object store is empty. The migration identity is
-`20260926233834_RetireEventBanners`. It must be rehearsed against disposable
-PostgreSQL containers and a disposable object-store fixture before any
-production decision. This task prepared and tested the procedure only; it did
-not inspect, mutate, clean, or migrate production.
+The user selected and completed a one-time manual cleanup for the known
+cancelled event on 2026-10-03. The production details below are sanitized and
+user-reported; the agent did not inspect or mutate production, call Cloudflare
+R2, or delete an object. The pre-cleanup exact-key checks found one event
+reference, zero evidence/team/tile-image references, and zero prior cleanup
+rows. In a targeted transaction, the user cleared the event's banner reference,
+advanced its version, and deleted exactly one banner-asset row (`DELETE 1`). A
+query outside the transaction then returned zero `event_banner_assets` rows.
+The user subsequently confirmed deletion of the exact PNG in Cloudflare R2.
+No event identifier, object key, image, or participant data is recorded here.
 
-1. Take and verify the ordinary database/object-store backup and record the
-   deployed release, migration history, and the exact target migration. Do not
-   run a destructive SQL shortcut or drop either legacy banner table. The
-   application release may run with the legacy tables still present because it
-   no longer reads or writes them.
-2. Apply the migration once. Its non-transactional bootstrap creates the
-   temporary `event_banner_retirement_keys` ledger and copies the exact
-   `(event_id, storage_key)` pairs from both `event_banner_assets` and
-   `event_banner_cleanups`. On a populated database, the guarded migration is
-   expected to stop while any ledger row is `pending`; the failed migration
-   history entry is not a successful cleanup signal, and the ledger remains
-   available for recovery.
-3. For each ledger row, inspect exactly the recorded object key in object
-   storage and cross-check every active storage-reference source, including
-   `evidence_assets`, `team_image_assets`, `board_tile_image_assets`, catalogue
-   image references, and any other unrelated object inventory. A key is marked
-   `deleted` only after the exact banner-only object deletion succeeds. Mark it
-   `missing` only after an exact object-store absence is confirmed. If any
-   evidence, team, tile, catalogue, or other non-banner reference shares the
-   key, do not delete the object and mark it `shared-retained` instead. A failed
-   object-store operation increments `attempt_count`, records
-   `last_attempted_at` and a safe `last_failure`, and leaves the row `pending`.
-4. Retry failed rows from the ledger; never rediscover keys from the source
-   tables and never widen a deletion to a prefix, event folder, filename, or
-   bucket listing. The ledger check constraint permits only `pending`,
-   `deleted`, `missing`, and `shared-retained`, and completed statuses require
-   `completed_at`.
-5. Re-run the same migration only after every row has a completed status. The
-   successful transaction drops the banner foreign key, event reference,
-   legacy asset/outbox tables, and temporary ledger together. If the guard
-   fails again, the source schema and exact ledger references remain available
-   for another retry. Verify the applied migration, absence of the retired
-   schema, and unchanged evidence/team/tile/catalogue rows afterward.
+The migration identity is `20260926233834_RetireEventBanners`. The selected
+rollout does not add an automated object-cleanup command or retain a general
+cleanup ledger. Before invoking `bingo-deploy`, an operator must:
 
-`Down` is a disposable schema-shape rehearsal only. It recreates empty legacy
-banner tables and the nullable event column; it cannot restore deleted object
-bytes or claim production rollback. Production execution remains a separately
-approved operator action.
+1. Record the deployed release, exact migration history, target migration, and
+   the exact production object/reference checks. These release-time facts are
+   required for a production-shaped rehearsal; aggregate row counts do not
+   establish the migration baseline.
+2. Complete the targeted reference-clear/version-increment and exact asset-row
+   delete in one controlled transaction. Confirm that both legacy tables have
+   zero rows and that no event still references a legacy asset.
+3. Delete only the exact banner object after the non-banner reference checks
+   show that it is not shared. Confirm exact absence in object storage. Never
+   delete a prefix, event folder, filename pattern, or bucket listing.
+4. Invoke the normal deployment sequence. `bingo-deploy` stops `web` before
+   taking the authoritative database backup, then runs migrations and
+   `--production-preflight` while the service remains stopped. “Pre-migrate”
+   therefore means before the migration command, not before deployment
+   downtime begins.
+
+The existing migration remains the schema-retirement gate. Its nontransactional
+bootstrap creates temporary `event_banner_retirement_keys` state and copies any
+exact keys still present in `event_banner_assets` or `event_banner_cleanups`.
+With both legacy tables empty, no ledger rows are inserted, the existing
+pending-key guard passes, and the event reference, legacy tables, and temporary
+ledger are removed. If an unexpected row appears, the unchanged guard fails
+closed with the source schema and exact temporary rows available for operator
+recovery. A successful migration drops that temporary ledger, so it is not a
+durable audit record and does not preserve cleanup outcomes.
+
+The ordinary database backup does not contain object bytes. If the exact PNG
+has already been deleted and a later migration or deployment step fails, a
+database restore cannot restore that object. The existing recovery rule still
+governs migration history and web code; object restoration requires a separate
+provider backup or version, which this path does not assume. `Down` remains a
+disposable schema-shape rehearsal: it recreates empty legacy banner tables and
+the nullable event column, but cannot restore deleted object bytes or claim a
+production rollback.
+
+The controlled PostgreSQL proof is in
+`tests/Bingo.IntegrationTests/BannerRetirementMigrationTests.cs`: it covers the
+manually-cleaned one-asset shape, the empty schema path, and the unchanged
+pending-key/shared-object guard. Those fixtures do not prove the full host
+deployment sequence or live object-store behavior. A production-shaped
+rehearsal must begin from the exact migration baseline in the release receipt
+and run through `--migrate`, `--production-preflight`, and web replacement.
 
 ## Historical Luck checkpoint conversion
 

@@ -1,95 +1,96 @@
-# F1 banner retirement rollout proposal
+# F1 banner retirement rollout reconciliation
 
 Date: 2026-10-03
 
-Status: proposal sent to `/root`; implementation is awaiting explicit proposal
-resolution and the missing production facts below. This file records the
-recommendation durably; it does not approve or implement F1.
+## Decision and status
 
-## Recommendation
+The earlier automated preflight and retained-ledger recommendation in this
+file is **superseded and was not selected**. The user selected and completed a
+one-time manual cleanup for the known cancelled event. This reconciliation
+does not add an automated cleanup command, change the retention policy, or
+change the migration and its pending-key guard.
 
-Keep the guarded migration `20260926233834_RetireEventBanners`, but split
-retirement into two explicit, idempotent operator steps in the supported
-`bingo-deploy` path. The existing `event_banner_retirement_keys` table is the
-one-off exact-key record; retain it through the migration instead of dropping
-it, so its terminal outcomes remain the audit after the legacy banner tables
-are gone. This is a bounded change to the existing migration, not a new
-general-purpose cleanup framework.
+The production facts below are user-run and sanitized. The agent did not access
+production, call Cloudflare R2, delete an object, or mutate a user-owned
+database.
 
-Before `--migrate`, while the legacy tables still exist, the preflight
-bootstraps an exact `(event_id, storage_key)` row for every legacy banner
-asset and cleanup row, and checks each exact key against object storage and
-non-banner database references. This preflight is verification-only: it does
-not delete an object. It records the verified action needed for each key and
-stops nonzero on provider failure, unknown references, or incomplete evidence.
-The migration then drops the legacy banner tables and event foreign key but
-keeps the exact-key ledger. After the migration succeeds, the deploy command
-runs the ledger cleanup while `web` is still stopped. That step records only:
+## Sanitized manual cleanup record
 
-- `deleted`: the exact object was deleted after the verified reference check;
-- `missing`: the exact object was already absent;
-- `shared-retained`: another database reference still uses the exact key, so
-  the object is retained and no shared data is deleted.
+The pre-cleanup exact-key checks reported one event banner reference and zero
+references from evidence, team-image, or board-tile-image storage. The earlier
+cleanup-row count was zero. In one targeted transaction, the user cleared the
+cancelled event's banner reference, incremented the event version, and deleted
+exactly one banner-asset row (`DELETE 1`). A subsequent query outside the
+transaction returned zero rows from `event_banner_assets`. The user then
+confirmed deletion of the exact PNG from Cloudflare R2. No event identifier,
+object key, image, or participant data is recorded here.
 
-Any failed deletion remains retryable in the retained ledger and returns
-nonzero, so the new web is not started until every key has a terminal outcome.
-An empty legacy schema follows the same idempotent path. No broad prefix
-delete, unconditional ledger rewrite, or drop-before-proof shortcut is
-supported.
+The manual path is therefore:
 
-## Retention and tradeoffs
+1. Check the exact banner key and every known non-banner reference at release
+   time. These are operator facts about the production object store and
+   database, not prerequisites for implementing or testing this repository
+   change.
+2. In a controlled transaction, clear the matching event reference while
+   advancing the event version, then delete exactly the matching banner-asset
+   row. Confirm that the legacy asset and cleanup tables contain no rows before
+   the retirement migration.
+3. Delete the exact banner object only after the reference checks establish
+   that it is no longer used by a retained non-banner source. Do not delete a
+   prefix, event folder, or bucket listing.
+4. Invoke the normal deployment path after the manual cleanup. The existing
+   migration remains the final schema-retirement gate.
 
-This preserves the data model rule that required cleanup is completed before
-the retirement process is considered complete. Unique banner objects are
-deleted only when their exact key is proven unreferenced by non-banner data.
-Missing objects are retained as an explicit historical outcome. Shared objects
-remain in storage; the legacy banner reference is retired while the shared
-object stays available to its other owner. Retaining the existing ledger means
-the exact outcome survives the migration; the current migration does not do
-this because it currently drops that table, so the migration must change before
-implementation can claim durable audit.
+## Existing migration and recovery boundary
 
-`bingo-deploy` stops `web` before the authoritative backup and keeps it stopped
-through migration, cleanup, preflight, and replacement. The ordinary database
-backup does not contain object bytes, and the runbook does not assume R2
-versioning or deletion protection. With the two-phase sequence, a migration
-failure happens before any object deletion, so restoring the database backup
-does not need to restore object bytes. If the post-migration cleanup fails, the
-ledger remains in the changed schema, `web` stays stopped, and the operator
-can retry the exact keys. A recovery after uncertain migration history uses the
-existing full database restore boundary; it cannot restore object bytes that a
-separate, already-completed cleanup had deleted. The tradeoff is an extra
-operator step and retained one-off ledger rows, in exchange for a clear
-object-restoration boundary and no old release running against an uncertain
-schema.
+`20260926233834_RetireEventBanners` creates the
+`event_banner_retirement_keys` table as temporary compatibility state, copies
+any exact keys that still exist in the two legacy tables, and fails closed when
+any copied row is pending. A successful migration drops the ledger together
+with the legacy tables. Consequently, the migration does **not** preserve a
+durable ledger or exact cleanup outcomes after success. The selected manual
+path relies on completing the known cleanup before this migration; it does not
+claim that the ledger is an audit store.
 
-## Required proof before implementation
+With both legacy tables empty, the migration's bootstrap inserts no ledger
+rows, the existing pending-key guard passes, and the legacy tables, event
+reference, and temporary ledger are removed. If an unexpected row appears,
+the unchanged guard still fails closed and leaves the source schema and
+temporary exact-key rows available for operator recovery. This guard is a
+failure boundary, not an automated cleanup mechanism.
 
-The implementation needs controlled PostgreSQL/object-store fixture tests and a
-release rehearsal from the actual production migration state, not only a
-database migrated to the revision immediately before banner retirement. The
-exact production object key, object existence result, and non-banner reference
-result are release-time operator facts; they are not needed to implement the
-bounded command against synthetic fixtures, and this batch will not make live
-provider calls. The proof must cover:
+`bingo-deploy` stops `web` before it takes the authoritative database backup
+and then runs migrations and preflight while the service remains stopped. The
+manual cleanup must therefore be completed and recorded before invoking that
+deployment command; “pre-migrate” does not mean before the deployment's
+downtime begins. The ordinary database backup does not contain object bytes.
+If exact object deletion has already completed and a later migration or deploy
+step fails, restoring that database backup cannot restore the deleted PNG. The
+existing runbook's recovery rule still applies to migration history and web
+code, while object restoration requires a separately managed provider backup
+or version; no such restoration is assumed by this batch.
 
-1. one legacy asset with zero cleanup rows is bootstrapped and, after the
-   migration, reaches `deleted` (the exact ledger row survives);
-2. an already absent object reaches `missing`;
-3. a shared exact key reaches `shared-retained` and the object is not deleted;
-4. provider/reference failure leaves the legacy row and pending ledger intact,
-   returns nonzero, and succeeds on a later retry after the fault is removed;
-5. a migration failure after verification but before cleanup deletes no object;
-6. the full `bingo-deploy` sequence runs verification, `--migrate`, exact-key
-   cleanup, production preflight, and web replacement successfully on the
-   production-shaped database;
-7. a rerun is idempotent and performs no repeat deletion.
+## Controlled fixture proof
 
-The user-provided aggregate counts (one banner asset and zero cleanup rows)
-show why the current migration blocks, but they do not establish the exact
-production migration history. Before the production-shaped rehearsal, obtain
-that migration baseline from the release receipt/host and run the operator's
-exact-key object/reference checks at release time. Do not run a live provider
-call or mutate the user-owned database as part of this batch. User approval is
-still required for the ledger-retention and post-migration object-deletion
-policy before F1 implementation.
+`BannerRetirementMigrationTests` provides the repository-side evidence without
+live provider calls:
+
+- `ManuallyCleanedSingleAssetRetiresSchemaWithoutPendingLedger` starts from
+  the migration immediately before retirement, creates one banner asset with
+  no cleanup row, applies the selected reference-clear/version-increment and
+  exact-row delete transaction, verifies zero legacy rows, and runs the
+  unchanged retirement migration.
+- `EmptyDatabaseRetiresSchemaAndCanBeRehearsedDownAndUp` proves the empty
+  legacy-schema path and disposable down/up shape rehearsal.
+- `PopulatedDatabaseKeepsExactKeysUntilFailedCleanupRecoversAndPreservesSharedObjects`
+  proves the pending guard, failed-attempt retention, terminal outcomes, and
+  preservation of shared non-banner references.
+
+These fixtures prove the migration boundary and guard behavior. They do not
+prove the full host deployment sequence or production object-store behavior.
+The exact production migration baseline is still missing: aggregate row
+counts do not identify the release receipt or applied migration history. A
+production-shaped rehearsal must start from that exact baseline and exercise
+`bingo-deploy` through `--migrate`, `--production-preflight`, and web
+replacement. This batch makes no live provider call and does not claim that
+rehearsal or the production deploy has passed.
