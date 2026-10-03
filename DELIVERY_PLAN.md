@@ -320,9 +320,10 @@ mutation, staging, commit, push or deployment is authorized by this queue.
 Luck, Participants and Dashboard backend work is complete and committed; remaining
 application tickets stay queued under the execution authorization above. AU01–AU10
 are technically complete with executed focused proof and independent review PASS.
-AU11–AU24 retain the approved/proposed statuses in the table below and are not
-dispatched by this cleanup. Shared files/dependencies can inform sequence without
-merging tickets into a broad pass.
+AU13 is separately complete through the F8 checkpoint below; AU11–AU12 and AU14–AU24
+retain the approved/proposed statuses in the table below and are not dispatched by
+this cleanup. Shared files/dependencies can inform sequence without merging tickets
+into a broad pass.
 
 | Order / ID | Application outcome | Depends on | Implementation | Executed proof | Independent review | UI integration / manual acceptance |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -338,7 +339,7 @@ merging tickets into a broad pass.
 | AU10 | Schedule instant preservation, field errors and uncertain readback | Existing versioned schedule save/read | Technically complete — /root/au10_implementer; committed at checkpoint 1e8d457; manifest e4592b79 | PASS: 12/12 PostgreSQL/HTTP; named Live check 1/1; shipped controlled HTTP transport; Release build 0 warnings/errors; scoped checks | PASS — fresh Astra/high /root/au10_reviewer; no required findings; report 24f0870c | Explicit user stop after AU10 report; no next-ticket work; full UI/manual acceptance deferred |
 | AU11 | Tile-local manual EHB override for every objective type | Existing calculation/approval/evidence boundaries | Queued | Not run | Not run | Deferred |
 | AU12 | Credited EHB before score time in placement order | New events only; existing event rules retained; AU11 values reused | Queued | Not run | Not run | Deferred |
-| AU13 | Board planning team-size estimate editable after draft finalization | Existing board statistics/settings boundary | Queued | Not run | Not run | Deferred |
+| AU13 | Board planning team-size estimate editable after draft finalization | Existing board statistics/settings boundary | Technically complete — F8 checkpoint `6d33ce6`; the post-finalization lock removed here originated in `525d5d1` (BR-2/BR-9) | Focused PostgreSQL 3/3, browser markup 1/1, diff check; evidence `docs/references/admin-ui/reviews/2026-10-03/f8-au13-checkpoint.md` | Accepted in the F1–F9 Claude source review; Claude did not rerun tests | Deferred |
 | AU14 | Teams: authoritative uncertain-action readback | Resolve minimal transport contract using existing commands/IDs | Queued; contract at handoff | Not run | Source gap mapped | Deferred |
 
 | AU15 | WOM: remove typed FETCH confirmation | Existing refresh guards | Approved; queued, not dispatched | Not run | Not run | Deferred |
@@ -361,6 +362,61 @@ Applicable focused proof and one fresh independent review precede technical
 completion; reuse the same implementer/reviewer for named remediation/rechecks.
 Use AGENTS.md model/routing policy and explicit assignment overrides; do not infer
 a new override from an earlier ticket. Manual acceptance belongs to UI_PAGE_MATRIX.
+
+### UI integration and open-finding ownership — proposed D8 order (3 October 2026)
+
+This is a documentation-only ownership ledger. It does not dispatch a ticket or
+resume the stopped queue. The source anchor for every owner below is the
+[H5 cleanup handoff](docs/references/admin-ui/reviews/2026-10-03/doc-ticket-cleanup/handoff.md#h5--ticket-ownership-for-open-findings-p-2-and-the-no-owner-findings).
+The D8 proposal keeps the remaining AU tickets first, then the page integrations,
+then the final candidate, R-3 rehearsal, and deploy. Every page integration must
+inventory its current handlers and routes and explicitly retain, redirect, or
+retire each old owner; no orphaned editor or compatibility route is left by
+inference. This applies the existing integration requirement at
+`docs/references/admin-ui/FUNCTIONALITY_CHANGES.md:571-583`.
+
+| Proposed place | Ticket | Owner boundary and acceptance |
+| --- | --- | --- |
+| 1–14 | AU11–AU24, in the existing table order | Complete each approved application ticket independently. AU13 is already complete through F8; the remaining AU entries stay queued or proposed as recorded above. |
+| 15 | **P-1 — Participants integration** | Bind the approved Participants reference to the existing routes and structured Add/Restore outcomes, including D2 and explicit retirement or redirect of obsolete legacy Restore overloads. The page must show manual-team members in its list and waiting positions, preserve drawer/history/dirty-state behavior, and keep backend authorization authoritative. Acceptance: route/readback/error/navigation checks plus page-specific manual acceptance. |
+| 16 | **DB-1 — Dashboard integration** | Bind the Dashboard reference to existing projections, including D7's equal-start cohort and Provisional rules, DB-4 metadata, and DB-5 next date. Preserve real event links, latest-ended recap, unavailable states, and explicit old-route retirement/redirect. Acceptance: focused route, readback, fixture, and page acceptance checks. |
+| 17 | **EI-2 — Events and Identity integration** | Bind Events directory/Create and Identity routes to the existing duplicate-safe creation, conflict-choice, timezone, and uncertain-readback contracts. Preserve stable destinations and state-specific errors; explicitly retire or redirect superseded handlers. Acceptance: direct-entry, reload, conflict, permission, and page acceptance checks. |
+| 18 | **OS-1 — Signup setup / Schedule / Overview integration** | Integrate the three related pages as one lifecycle surface. Include OS-3's dead Resume control removal and OS-5's capacity readback from Signup setup; preserve Schedule's no-capacity/no-opening-toggle boundary and the existing route owners. Acceptance: lifecycle, uncertain-save, readback, navigation, and page acceptance checks. |
+| 19 | **BR-10 — Board and Review integration** | Bind Board and Review to existing calculators, leases, approval outcomes, and queue/filter context. Carry G1's structured blocking submission ID/upload-time data through the page link and return path; preserve review authorization and history. Acceptance: structured error/readback, filter context, stale state, route, and page acceptance checks. |
+| 20 | **TD-6 — Teams/Draft integration** | Integrate the named Teams/Draft reference items at `docs/references/admin-ui/README.md:1720-1741`, including the existing in-place draft transport, control ownership, manual roster states, and protected route/history behavior. Retire or redirect obsolete standalone editors without deleting retained data. Acceptance: focused draft/roster/navigation checks and page acceptance. |
+| 21 | **WA-5 — WOM / Catalogue / Accounts / Audit integration** | Bind each existing service to its approved reference surface while preserving provider guards, SuperAdmin boundaries, secret redaction, immutable audit history, and stable routes. Explicitly retire or redirect old handlers per page; do not create a second service or route family. Acceptance: scoped provider-free authorization/readback/error checks and page-specific acceptance. |
+| 22 | **FINAL-CANDIDATE — branch reconciliation** | Assemble the stable AU and integration changes, run the required scoped builds/checks and source review, and record exact candidate identity. This is a gate, not permission to deploy. |
+| 23 | **R-3 — restored-backup rehearsal** | Run the complete `bingo-deploy` sequence against an isolated restored production backup and the final candidate immediately before deployment; require the H4 checks and recovery evidence. The rehearsal remains unexecuted. |
+| 24 | **DEPLOY — explicit release action** | Requires a passing final candidate and R-3 plus the user's explicit production approval. This cleanup ledger grants no deployment authority. |
+
+#### Approved AU scope additions and status corrections
+
+| Ticket | Owned addition or acceptance boundary |
+| --- | --- |
+| AU13 | F8 at `6d33ce6` closes the editable post-finalization planning estimate. The lock removed by that change originated in `525d5d1` (BR-2/BR-9); keep the note in the AU13 evidence and do not reopen this ticket. |
+| AU15 | Keep the generic cooldown wording. Structured reasons belong to AU20; do not imply that removing the typed FETCH confirmation removes server cooldown/retry guards. |
+| AU16 | Record that the two tests currently asserting the hidden-history/query violation must be inverted when AU16 runs; this is a named acceptance check, not a claim that it has run. |
+| AU17 | Keep the approved full-event-pool evidence correction as its own scope. G2 closed the paused-interval wording finding, so do not reintroduce that instruction; retain the remaining credited-account/projection acceptance. |
+| AU20 | Rewrite the ticket around the configured UTC window at every stage, exact matching, early-end and Resume rules, retries/fallback, and Resume as the third site. Add WA-9: linking also waits for an in-flight or unresolved website Create. |
+| AU21 | Name shared-item **rename** alongside adoption, image and metadata recovery; preserve independent item identity/version and dependency-safe deletion. |
+| AU22 | Record that F4 completed consume-time re-authorization of both recipient and issuer under the existing lock; remaining work is projection/readback binding, not a new reset policy. |
+| AU23 | Require a real PostgreSQL SuperAdmin path check and blanket refusal for ordinary Admins. Whether roll count in displayed-rate syntax is an ordinary input remains an open product choice and must be resolved before implementation. |
+| AU24 | Require typed destination public-username confirmation and do not reuse the legacy `TransferOwnershipAsync(actorId, password, destinationUsername)` overload. |
+
+#### Review leftovers and proof-gap ownership
+
+| Ticket | One-line scope and acceptance |
+| --- | --- |
+| **RL-1 — review leftovers** | Own DB-2/DB-3 (Dashboard metadata/next-date boundary), EI-3 (Identity uncertain response must read the database), BR-4 (server-side reject/reverse confirmation), BR-12 (review/reopen missing-version fail-closed behavior), P-7 (Restore uses stored account data without WOM), X-6 (WOM-outcome audit stays inside the transaction and excludes raw exception text), and TD-8 (Scramble and RemoveDraftTeam use the required Serializable boundary). Each line gets its own focused PostgreSQL acceptance when its owning integration runs; G3a did not close TD-8's additional movement races. |
+| **P-3 — Participants proof gap** | Exercise F04 Add when full for normal and selected-person `+1` capacity outcomes, with no unintended waiting-list promotion or side effects. Owner: P-1. |
+| **DB-6 — Dashboard proof gap** | Exercise recap selection, Provisional flags, latest additions, and pending/rejected fixtures against real persisted projections. Owner: DB-1. |
+| **LK-1 — Luck proof gap** | Exercise the F2 mixed supported/unsupported outcome review note with retained compatible snapshots, explicit unavailable states, and no read-time provider call or rescore. Owner: the existing Luck integration owner before FINAL-CANDIDATE. |
+
+Recorded observations have no separate ticket: X-5 is recorded here for the
+integration owners (PageModel mutations rely on the per-request cookie recheck and
+must not be treated as persisted authorization), while BR-11's reported production
+count of zero is recorded in the H4 release gate. These observations do not start
+implementation or widen any ticket.
 
 ### AU01 — Restore exclusivity
 
