@@ -371,7 +371,8 @@ public sealed partial class PublicStatsService
         var cache = await EventCompetitionSynchronizationService.ReadMetricCacheAsync(context, clock, eventId, ct);
         if (!CanCalculate(cache)) return "accepted-fetch-cache-unavailable";
         var existing = await context.EventStatsLuckCheckpoints.AsNoTracking().SingleOrDefaultAsync(x => x.EventId == eventId, ct);
-        if (existing is not null && Compatible(existing, data, cache) && !cache!.Complete && existing.ActivityBatchId != cache.ActivityBatchId) return "partial-batch-write-fenced";
+        if (existing is not null && Compatible(existing, data, cache) && !cache!.Complete && existing.ActivityBatchId != cache.ActivityBatchId && IsCompleteSnapshot(existing.Payload))
+            return "partial-batch-write-fenced";
         var calculated = CalculateLuck(data, cache, cache!.Sources, clock.GetUtcNow());
         var payload = JsonSerializer.Serialize(calculated, CheckpointJsonOptions);
         // Oversized results remain available through the read query; never truncate players or sources.
@@ -444,6 +445,19 @@ public sealed partial class PublicStatsService
     {
         var value = code + ": " + detail.Replace('\n', ' ').Replace('\r', ' ');
         return value.Length <= 240 ? value : value[..240];
+    }
+
+    private static bool IsCompleteSnapshot(string payload)
+    {
+        try
+        {
+            var saved = JsonSerializer.Deserialize<StatsLuck>(payload);
+            return saved?.Result.Status is StatsLuckStatus.Calculated or StatsLuckStatus.NoEligibleActivity;
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
     }
 
     private static bool HasDuplicateJsonProperties(JsonElement element)

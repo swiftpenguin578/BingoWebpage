@@ -212,6 +212,37 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests
     }
 
     [Fact]
+    public async Task StatsPass4RepeatedIncompleteFetchReplacesPriorIncompleteSnapshot()
+    {
+        var f = await FullStatsFixtureAsync(secondOutcome: true);
+        await using (var setup = new ApplicationDbContext(options))
+        {
+            (await setup.BossActivities.SingleAsync(x => x.Id == f.Boss.Id)).ConfigureApi(null);
+            await setup.SaveChangesAsync();
+        }
+
+        await SyncStatsAsync(f, 100);
+        EventStatsLuckCheckpoint first;
+        await using (var read = new ApplicationDbContext(options))
+            first = await read.EventStatsLuckCheckpoints.AsNoTracking().SingleAsync();
+        var firstStats = await ReadStatsAsync(f);
+        Assert.Equal(StatsLuckStatus.WaitingForActivityData, firstStats.Luck.Result.Status);
+        Assert.Null(firstStats.Luck.Result.Percentage);
+
+        f.Clock.Advance(TimeSpan.FromHours(3));
+        await SyncStatsAsync(f, 200);
+        EventStatsLuckCheckpoint second;
+        await using (var read = new ApplicationDbContext(options))
+            second = await read.EventStatsLuckCheckpoints.AsNoTracking().SingleAsync();
+        var secondStats = await ReadStatsAsync(f);
+        Assert.Equal(StatsLuckStatus.WaitingForActivityData, secondStats.Luck.Result.Status);
+        Assert.Null(secondStats.Luck.Result.Percentage);
+        Assert.NotEqual(first.ActivityBatchId, second.ActivityBatchId);
+        Assert.NotEqual(first.Payload, second.Payload);
+        Assert.Equal(second.ActivityBatchId, secondStats.Luck.ActivityBatchId);
+    }
+
+    [Fact]
     public async Task StatsPass4CollectiveMilestonesAndAggregateHistoryUseAllTeamsAndEndedUnreachedState()
     {
         var f = await FullStatsFixtureAsync(players: 2, target: 1);

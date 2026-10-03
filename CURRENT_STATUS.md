@@ -51,6 +51,10 @@
 
 ## Next permitted action
 
-Assigned implementer verifies baseline, records the documentation checkpoint, sends
-F1 proposal, and continues F2–F9 with focused checks and per-item commits. Report
-exact blockers and unverified checks; stop after stable handoff for Claude review.
+F1 rollout proposal is sent to `/root`; implementation awaits proposal resolution
+and the exact production migration/object-storage facts listed in the proposal.
+F2 is implemented and focused PostgreSQL tested with durable evidence in
+`docs/references/admin-ui/reviews/2026-10-03/f2-luck-checkpoint.md`; its local item
+commit is the next checkpoint. Continue F3 while F1 remains unresolved, then F4–F9.
+Every checkpoint awaits Claude's independent review; report exact blockers and
+unverified checks, and stop after the stable batch handoff.
