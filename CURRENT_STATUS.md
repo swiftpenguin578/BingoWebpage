@@ -62,7 +62,12 @@ F3 is implemented, focused PostgreSQL tested, and committed as
 F4 is implemented, focused PostgreSQL tested, and committed as
 `e7a6464f62499b1d1bbdec7590e5831a69188ac0`, with durable evidence in
 `docs/references/admin-ui/reviews/2026-10-03/f4-reset-token-security-checkpoint.md`.
-F5 is implemented and focused PostgreSQL tested; its separate local commit is
-the next checkpoint. Continue F6–F9 after that commit while F1 remains unresolved.
-Every checkpoint awaits Claude's independent review; report exact blockers and
-unverified checks, and stop after the stable batch handoff.
+F5 is implemented, focused PostgreSQL tested, and committed as
+`d6fc7fc2d56eafc99dc90993f9f3f9f081eeb1fa`, with durable evidence in
+`docs/references/admin-ui/reviews/2026-10-03/f5-event-slug-checkpoint.md`.
+F6 is implemented, focused PostgreSQL tested, and committed as
+`444bfc46c793a761d635099f0778ede00ea846f2`, with durable evidence in
+`docs/references/admin-ui/reviews/2026-10-03/f6-event-end-checkpoint.md`.
+Continue F7–F9 while F1 remains unresolved. Every checkpoint awaits Claude's
+independent review; report exact blockers and unverified checks, and stop after
+the stable batch handoff.
