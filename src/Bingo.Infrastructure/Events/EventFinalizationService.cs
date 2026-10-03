@@ -144,8 +144,8 @@ public sealed class EventFinalizationService(ApplicationDbContext db, IPublicBoa
             if (expectedVersion is { } supplied && supplied != ev.Version) throw new InvalidOperationException("This event changed in another session. Reload before finalizing.");
             if (ev.State != EventState.AwaitingFinalReview) throw new InvalidOperationException("Only an event in final review can be finalized.");
             var development = string.Equals(Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT"), "Development", StringComparison.OrdinalIgnoreCase);
-            var current = await db.Events.AsNoTracking().Where(value => value.Id != eventId && value.HiddenAt == null && (value.State == EventState.Live || value.State == EventState.AwaitingFinalReview || value.State == EventState.Finalized) && !(development && value.IsDevelopmentFixture)).OrderBy(value => value.Name).Select(value => value.Name).FirstOrDefaultAsync(ct);
-            if (current is not null) throw new InvalidOperationException($"{current} is already the current event. Archive it before finalizing this event.");
+            var current = await db.Events.AsNoTracking().Where(value => value.Id != eventId && value.HiddenAt == null && (value.State == EventState.Live || value.State == EventState.AwaitingFinalReview || value.State == EventState.Finalized) && !(development && value.IsDevelopmentFixture)).OrderBy(value => value.Name).Select(value => new { value.Name, value.State }).FirstOrDefaultAsync(ct);
+            if (current is not null) throw new InvalidOperationException(CurrentEventBlockMessage(current.Name, current.State, "finalizing this event"));
             var readiness = await GetReadinessAsync(eventId, ct) ?? throw new InvalidOperationException("Event not found.");
             if (readiness.EventVersion != ev.Version || !readiness.CanFinalize) throw new InvalidOperationException("Resolve every final-review item before finalizing.");
             if (readiness.ReviewCycleId == Guid.Empty) throw new InvalidOperationException("The final-review cycle is unavailable.");
@@ -205,6 +205,8 @@ public sealed class EventFinalizationService(ApplicationDbContext db, IPublicBoa
 
     public async Task UnfinalizeAsync(Guid eventId, string reason, bool confirmed, LifecycleActor actor, long? expectedVersion = null, CancellationToken ct = default)
     {
+        if (reason.Length > IEventFinalizationService.MaximumUnfinalizeReasonLength)
+            throw new InvalidOperationException("The reopening reason must be 2000 characters or fewer.");
         await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
         actor = await EventMutationAuthorization.EnsureAuthorizedAsync(db, actor, ct);
 
@@ -217,16 +219,17 @@ public sealed class EventFinalizationService(ApplicationDbContext db, IPublicBoa
         if (ev.State == EventState.Archived || ev.State == EventState.Finalized)
         {
             var development = string.Equals(Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT"), "Development", StringComparison.OrdinalIgnoreCase);
-            var current = await db.Events.AsNoTracking().Where(x => x.Id != eventId && x.HiddenAt == null && (x.State == EventState.Live || x.State == EventState.AwaitingFinalReview || x.State == EventState.Finalized) && !(development && x.IsDevelopmentFixture)).OrderBy(x => x.Name).Select(x => x.Name).FirstOrDefaultAsync(ct);
-            if (current is not null) throw new InvalidOperationException($"{current} is already the current event. Archive it before reopening this event.");
+            var current = await db.Events.AsNoTracking().Where(x => x.Id != eventId && x.HiddenAt == null && (x.State == EventState.Live || x.State == EventState.AwaitingFinalReview || x.State == EventState.Finalized) && !(development && x.IsDevelopmentFixture)).OrderBy(x => x.Name).Select(x => new { x.Name, x.State }).FirstOrDefaultAsync(ct);
+            if (current is not null) throw new InvalidOperationException(CurrentEventBlockMessage(current.Name, current.State, "reopening this event"));
         }
         var active = await db.EventFinalizations.Where(x => x.EventId == eventId && x.UnfinalizedAt == null).OrderByDescending(x => x.Version).FirstOrDefaultAsync(ct) ?? throw new InvalidOperationException("No active official result exists.");
         var now = time.GetUtcNow();
         var from = ev.State;
-        active.Unfinalize(now, actor.Id, reason);
-        ev.Unfinalize(reason);
+        var normalizedReason = reason.Trim();
+        active.Unfinalize(now, actor.Id, normalizedReason);
+        ev.Unfinalize(normalizedReason);
         ev.AdvanceVersion();
-        AddLifecycleHistory(ev, from, actor, "event.unfinalized", reason.Trim(), now);
+        AddLifecycleHistory(ev, from, actor, "event.unfinalized", BoundedTransitionReason(normalizedReason), now, normalizedReason);
         await db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
     }
@@ -234,6 +237,10 @@ public sealed class EventFinalizationService(ApplicationDbContext db, IPublicBoa
     [Obsolete("Official publication now archives the event atomically; use FinalizeAsync.")]
     public Task ArchiveAsync(Guid eventId, bool confirmed, LifecycleActor actor, CancellationToken ct = default)
         => Task.FromException(new InvalidOperationException("The separate Archive action is retired. Publish official results from final review."));
+
+    private static string CurrentEventBlockMessage(string name, EventState state, string operation) => state == EventState.Live
+        ? $"{name} is still live. End it first, then publish its results before {operation}."
+        : $"Publish official results for {name} before {operation}.";
 
     private async Task AddResultNotificationsAsync(BingoEvent ev, DateTimeOffset now, CancellationToken ct)
     {
@@ -282,10 +289,19 @@ public sealed class EventFinalizationService(ApplicationDbContext db, IPublicBoa
         return detail.Length <= 240 ? detail : detail[..240];
     }
 
-    private void AddLifecycleHistory(BingoEvent ev, EventState from, LifecycleActor actor, string action, string detail, DateTimeOffset now)
+    private void AddLifecycleHistory(BingoEvent ev, EventState from, LifecycleActor actor, string action, string detail, DateTimeOffset now, string? auditDetail = null)
     {
         db.EventStateTransitions.Add(new EventStateTransition(Guid.NewGuid(), ev.Id, from, ev.State, actor.Id, now, detail, effectiveAt: now));
-        db.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), now, actor.Id, actor.Username, action, "event", ev.Id.ToString(), detail, ev.Id, JsonSerializer.Serialize(new { state = from }), JsonSerializer.Serialize(new { state = ev.State })));
+        db.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), now, actor.Id, actor.Username, action, "event", ev.Id.ToString(), auditDetail ?? detail, ev.Id, JsonSerializer.Serialize(new { state = from }), JsonSerializer.Serialize(new { state = ev.State })));
+    }
+
+    private static string BoundedTransitionReason(string reason)
+    {
+        // EventStateTransition.reason is a legacy 1,000-character history
+        // column. The finalization snapshot and audit entry retain the full
+        // user reason up to their 2,000-character contract limit.
+        const int transitionReasonLength = 1_000;
+        return reason.Length <= transitionReasonLength ? reason : $"{reason[..(transitionReasonLength - 1)]}…";
     }
 
     private static Guid DeterministicId(string purpose, Guid target, Guid recipient)

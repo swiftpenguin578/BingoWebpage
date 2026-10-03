@@ -6,6 +6,7 @@ public sealed record FinalizationOperationResult(bool Published, bool AlreadyPub
 
 public interface IEventFinalizationService
 {
+    const int MaximumUnfinalizeReasonLength = 2_000;
     Task<FinalReviewReadiness?> GetReadinessAsync(Guid eventId, CancellationToken ct = default);
     Task ResolveBlockerAsync(Guid eventId, string blockerKey, string reason, bool confirmed, Guid adminId, long? expectedVersion = null, Guid? expectedReviewCycleId = null, CancellationToken ct = default);
     Task AcknowledgeCompletionTimeAsync(Guid eventId, Guid teamId, Guid adminId, long? expectedVersion = null, Guid? expectedReviewCycleId = null, string? expectedInspectionKey = null, CancellationToken ct = default);

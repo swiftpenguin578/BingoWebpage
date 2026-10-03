@@ -16,7 +16,7 @@ public sealed class FinalizeModel(IEventFinalizationService finalization, Applic
 {
     public FinalReviewReadiness Readiness { get; private set; } = null!;
     public string EventTimezone { get; private set; } = DateTimePresentation.DefaultTimezoneId;
-    [BindProperty, StringLength(2000)] public string? Reason { get; set; }
+    [BindProperty, StringLength(IEventFinalizationService.MaximumUnfinalizeReasonLength)] public string? Reason { get; set; }
     [BindProperty] public bool ConfirmLifecycleAction { get; set; }
     [BindProperty] public string? FinalizeConfirmation { get; set; }
     [BindProperty] public long? ExpectedVersion { get; set; }
@@ -42,7 +42,12 @@ public sealed class FinalizeModel(IEventFinalizationService finalization, Applic
             TempData[UiMessage.TypeKey] = UiMessageType.Warning.ToString();
         }
     }, ct);
-    public async Task<IActionResult> OnPostUnfinalizeAsync(Guid id, CancellationToken ct) => await Run(id, async () => await finalization.UnfinalizeAsync(id, Reason ?? string.Empty, ConfirmLifecycleAction, Actor, ExpectedVersion > 0 ? ExpectedVersion : null, ct), ct);
+    public async Task<IActionResult> OnPostUnfinalizeAsync(Guid id, CancellationToken ct) => await Run(id, async () =>
+    {
+        if (Reason is { Length: > IEventFinalizationService.MaximumUnfinalizeReasonLength })
+            throw new InvalidOperationException(Localize("The reopening reason must be 2000 characters or fewer."));
+        await finalization.UnfinalizeAsync(id, Reason ?? string.Empty, ConfirmLifecycleAction, Actor, ExpectedVersion > 0 ? ExpectedVersion : null, ct);
+    }, ct);
     [NonAction]
     public Task<IActionResult> OnPostArchiveAsync(Guid id, CancellationToken ct) => RetiredReviewAction();
     private async Task<IActionResult> Run(Guid id, Func<Task> action, CancellationToken ct) { try { await action(); } catch (InvalidOperationException ex) { TempData["StatusMessage"] = ex.Message; TempData[UiMessage.TypeKey] = UiMessageType.Error.ToString(); } return RedirectToPage(new { id }); }

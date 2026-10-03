@@ -68,7 +68,28 @@ public sealed class Slice3FinalizationAtomicityIntegrationTests : IAsyncLifetime
         }
         await using (var blocked = new ApplicationDbContext(options))
         {
-            Assert.IsType<RedirectToPageResult>(await FinalizeHandler(blocked, actorId, teamId).OnPostFinalizeAsync(eventId, CancellationToken.None));
+            var page = FinalizeHandler(blocked, actorId, teamId);
+            Assert.IsType<RedirectToPageResult>(await page.OnPostFinalizeAsync(eventId, CancellationToken.None));
+            var message = page.TempData["StatusMessage"]?.ToString() ?? string.Empty;
+            Assert.Contains("competing-current", message, StringComparison.Ordinal);
+            Assert.Contains("End it first", message, StringComparison.Ordinal);
+            Assert.Contains("publish its results", message, StringComparison.Ordinal);
+        }
+        await AssertNoFinalizationAsync(eventId);
+        await using (var transition = new ApplicationDbContext(options))
+        {
+            var competing = await transition.Events.SingleAsync(value => value.Slug == "competing-current");
+            competing.EndEvent(now.AddHours(-1));
+            await transition.SaveChangesAsync();
+        }
+        await using (var blockedDuringReview = new ApplicationDbContext(options))
+        {
+            var page = FinalizeHandler(blockedDuringReview, actorId, teamId);
+            Assert.IsType<RedirectToPageResult>(await page.OnPostFinalizeAsync(eventId, CancellationToken.None));
+            var message = page.TempData["StatusMessage"]?.ToString() ?? string.Empty;
+            Assert.Contains("competing-current", message, StringComparison.Ordinal);
+            Assert.Contains("Publish official results", message, StringComparison.Ordinal);
+            Assert.DoesNotContain("End it first", message, StringComparison.Ordinal);
         }
         await AssertNoFinalizationAsync(eventId);
         await using (var removeCompeting = new ApplicationDbContext(options))
@@ -96,6 +117,75 @@ public sealed class Slice3FinalizationAtomicityIntegrationTests : IAsyncLifetime
         Assert.Single(await repeated.EventFinalizations.Where(value => value.EventId == eventId).ToListAsync());
         Assert.Single(await repeated.EventStateTransitions.Where(value => value.EventId == eventId && value.ToState == EventState.Archived).ToListAsync());
         Assert.Single(await repeated.AuditEntries.Where(value => value.EventId == eventId && value.Action == "event.results_published").ToListAsync());
+
+        var publishedVersion = await repeated.Events.Where(value => value.Id == eventId).Select(value => value.Version).SingleAsync();
+        var reopenActor = new LifecycleActor(actorId, "finalization-admin");
+        var reopenBlockerId = Guid.NewGuid();
+        await using (var setupReopenBlocker = new ApplicationDbContext(options))
+        {
+            setupReopenBlocker.Events.Add(Live(reopenBlockerId, actorId));
+            await setupReopenBlocker.SaveChangesAsync();
+        }
+        await using (var blockedReopen = new ApplicationDbContext(options))
+        {
+            var failure = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                new EventFinalizationService(blockedReopen, new ReadyBoard(teamId), new FixedClock(now))
+                    .UnfinalizeAsync(eventId, "valid reason", true, reopenActor, publishedVersion));
+            Assert.Contains("competing-current", failure.Message, StringComparison.Ordinal);
+            Assert.Contains("End it first", failure.Message, StringComparison.Ordinal);
+            Assert.Contains("publish its results", failure.Message, StringComparison.Ordinal);
+        }
+        await using (var moveReopenBlockerToReview = new ApplicationDbContext(options))
+        {
+            var blocker = await moveReopenBlockerToReview.Events.SingleAsync(value => value.Id == reopenBlockerId);
+            blocker.EndEvent(now.AddHours(-1));
+            await moveReopenBlockerToReview.SaveChangesAsync();
+        }
+        await using (var blockedReopenDuringReview = new ApplicationDbContext(options))
+        {
+            var failure = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                new EventFinalizationService(blockedReopenDuringReview, new ReadyBoard(teamId), new FixedClock(now))
+                    .UnfinalizeAsync(eventId, "valid reason", true, reopenActor, publishedVersion));
+            Assert.Contains("competing-current", failure.Message, StringComparison.Ordinal);
+            Assert.Contains("Publish official results", failure.Message, StringComparison.Ordinal);
+            Assert.DoesNotContain("End it first", failure.Message, StringComparison.Ordinal);
+        }
+        await using (var removeReopenBlocker = new ApplicationDbContext(options))
+            await removeReopenBlocker.Events.Where(value => value.Id == reopenBlockerId).ExecuteDeleteAsync();
+
+        var overlongReason = new string('r', IEventFinalizationService.MaximumUnfinalizeReasonLength + 1);
+        await using (var overlong = new ApplicationDbContext(options))
+        {
+            var failure = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                new EventFinalizationService(overlong, new ReadyBoard(teamId), new FixedClock(now))
+                    .UnfinalizeAsync(eventId, overlongReason, true, reopenActor, publishedVersion));
+            Assert.Equal("The reopening reason must be 2000 characters or fewer.", failure.Message);
+        }
+        await using (var verifyOverlong = new ApplicationDbContext(options))
+        {
+            var item = await verifyOverlong.Events.SingleAsync(value => value.Id == eventId);
+            Assert.Equal(EventState.Archived, item.State);
+            Assert.Equal(publishedVersion, item.Version);
+            Assert.Null((await verifyOverlong.EventFinalizations.SingleAsync(value => value.EventId == eventId)).UnfinalizedAt);
+        }
+
+        var exactReason = new string('r', IEventFinalizationService.MaximumUnfinalizeReasonLength);
+        await using (var reopen = new ApplicationDbContext(options))
+            await new EventFinalizationService(reopen, new ReadyBoard(teamId), new FixedClock(now))
+                .UnfinalizeAsync(eventId, exactReason, true, reopenActor, publishedVersion);
+        await using (var verifyReopen = new ApplicationDbContext(options))
+        {
+            var item = await verifyReopen.Events.SingleAsync(value => value.Id == eventId);
+            Assert.Equal(EventState.AwaitingFinalReview, item.State);
+            Assert.Equal(publishedVersion + 1, item.Version);
+            var finalization = await verifyReopen.EventFinalizations.SingleAsync(value => value.EventId == eventId);
+            Assert.Equal(IEventFinalizationService.MaximumUnfinalizeReasonLength, finalization.UnfinalizeReason!.Length);
+            var transition = await verifyReopen.EventStateTransitions.SingleAsync(value => value.EventId == eventId && value.FromState == EventState.Archived && value.ToState == EventState.AwaitingFinalReview);
+            Assert.Equal(1_000, transition.Reason!.Length);
+            Assert.EndsWith("…", transition.Reason, StringComparison.Ordinal);
+            var audit = await verifyReopen.AuditEntries.SingleAsync(value => value.EventId == eventId && value.Action == "event.unfinalized");
+            Assert.Equal(IEventFinalizationService.MaximumUnfinalizeReasonLength, audit.Details!.Length);
+        }
     }
 
     [Fact]
@@ -119,6 +209,38 @@ public sealed class Slice3FinalizationAtomicityIntegrationTests : IAsyncLifetime
         await using var verify = new ApplicationDbContext(options);
         Assert.Equal(EventState.AwaitingFinalReview, await verify.Events.Where(x => x.Id == eventId).Select(x => x.State).SingleAsync());
         Assert.Empty(await verify.EventFinalizations.Where(x => x.EventId == eventId).ToListAsync());
+    }
+
+    [Fact]
+    public async Task ReopenReasonOverLimitIsRejectedByPageBeforeTheServiceRuns()
+    {
+        var eventId = Guid.NewGuid();
+        var actorId = Guid.NewGuid();
+        long initialVersion;
+        await using (var setup = new ApplicationDbContext(options))
+        {
+            var seeded = AwaitingReview(eventId, actorId);
+            setup.Events.Add(seeded);
+            await setup.SaveChangesAsync();
+            initialVersion = seeded.Version;
+        }
+
+        var service = new RecordingFinalizationService();
+        await using (var db = new ApplicationDbContext(options))
+        {
+            var page = FinalizeHandler(db, actorId, Guid.NewGuid(), finalization: service);
+            page.Reason = new string('r', IEventFinalizationService.MaximumUnfinalizeReasonLength + 1);
+            page.ConfirmLifecycleAction = true;
+            Assert.IsType<RedirectToPageResult>(await page.OnPostUnfinalizeAsync(eventId, CancellationToken.None));
+            Assert.Contains("2000", page.TempData["StatusMessage"]?.ToString(), StringComparison.Ordinal);
+        }
+
+        Assert.False(service.Unfinalized);
+        await using var verify = new ApplicationDbContext(options);
+        var item = await verify.Events.SingleAsync(value => value.Id == eventId);
+        Assert.Equal(EventState.AwaitingFinalReview, item.State);
+        Assert.Equal(initialVersion, item.Version);
+        Assert.Empty(await verify.EventFinalizations.Where(value => value.EventId == eventId).ToListAsync());
     }
 
     [Theory]
@@ -315,12 +437,13 @@ public sealed class Slice3FinalizationAtomicityIntegrationTests : IAsyncLifetime
     private sealed class RecordingFinalizationService : IEventFinalizationService
     {
         public DateTimeOffset? CorrectedAt { get; private set; }
+        public bool Unfinalized { get; private set; }
         public Task<FinalReviewReadiness?> GetReadinessAsync(Guid eventId, CancellationToken ct = default) => Task.FromResult<FinalReviewReadiness?>(null);
         public Task ResolveBlockerAsync(Guid eventId, string blockerKey, string reason, bool confirmed, Guid adminId, long? expectedVersion = null, Guid? expectedReviewCycleId = null, CancellationToken ct = default) => Task.CompletedTask;
         public Task AcknowledgeCompletionTimeAsync(Guid eventId, Guid teamId, Guid adminId, long? expectedVersion = null, Guid? expectedReviewCycleId = null, string? expectedInspectionKey = null, CancellationToken ct = default) => Task.CompletedTask;
         public Task CorrectCompletionAsync(Guid eventId, Guid teamId, DateTimeOffset correctedAt, string reason, Guid adminId, long? expectedVersion = null, Guid? expectedReviewCycleId = null, CancellationToken ct = default) { CorrectedAt = correctedAt; return Task.CompletedTask; }
         public Task<FinalizationOperationResult> FinalizeAsync(Guid eventId, LifecycleActor actor, long? expectedVersion = null, CancellationToken ct = default) => Task.FromResult(new FinalizationOperationResult(true, false));
-        public Task UnfinalizeAsync(Guid eventId, string reason, bool confirmed, LifecycleActor actor, long? expectedVersion = null, CancellationToken ct = default) => Task.CompletedTask;
+        public Task UnfinalizeAsync(Guid eventId, string reason, bool confirmed, LifecycleActor actor, long? expectedVersion = null, CancellationToken ct = default) { Unfinalized = true; return Task.CompletedTask; }
         public Task ArchiveAsync(Guid eventId, bool confirmed, LifecycleActor actor, CancellationToken ct = default) => Task.CompletedTask;
     }
 
