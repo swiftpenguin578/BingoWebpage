@@ -1009,7 +1009,7 @@ Fields:
 - `state`
 - `initial_order_randomized_at`
 - `first_pick_recorded_at`: retained first-ever pick time, including after Undo/cancel
-- `requires_fresh_order`: restart must generate a new random order after a picked attempt was cancelled
+- `requires_fresh_order`: discard the prior order on restart after a picked attempt was cancelled; establish a fresh order before picks
 - `started_at`
 - `paused_at`
 - `finalized_at`
@@ -1097,8 +1097,9 @@ Draft finalization requires every confirmed participant included in the drafted-
 The public finalized-draft projection includes only active picks, ordered by effective overall pick number, with participant and team. Undone/superseded attempts, recorded-by identity, timestamps, and correction details remain in the admin ledger.
 
 A finalized draft cannot reopen. Before first actual Live, separate roster Add/Remove republishes current membership without altering original picks/prior versions; those corrections do not withdraw the public roster. Cancel is available only for a private Running draft after individual latest-pick Undo leaves zero active picks. Cancel returns the draft to Setup. If any pick was ever recorded,
-`requires_fresh_order` is true and restart generates a fresh random order; a
-never-picked attempt may reuse its order. `first_pick_recorded_at` is retained.
+`requires_fresh_order` is true. Start clears prior team positions when no pick
+has ever been recorded or `RequiresFreshOrder` is set; the separate Scramble action
+establishes the new random order before picks. `first_pick_recorded_at` is retained.
 Historical reopened/paused state and audit remain readable without new transition authority.
 
 ## 8. Account and access domain
