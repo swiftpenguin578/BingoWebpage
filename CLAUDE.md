@@ -19,9 +19,12 @@ It adds no project policy. If the two ever conflict on a project rule,
   tool calls in parallel instead; keep dependent steps sequential.
 - **Planner → orchestrator → worker chains and visible Codex tasks:** do not
   recreate them. Take only the single role the user assigns in this session
-  (default: whatever the request implies). Do not spawn sub-agents unless the user
-  asks. An independent review means a fresh session or an explicitly requested
-  reviewer sub-agent, never a self-check relabelled as independent.
+  (default: whatever the request implies). Heavy read-only work goes to a
+  sub-agent as described below. An independent review means a fresh session or
+  an explicitly requested reviewer sub-agent, never a self-check relabelled as
+  independent.
+
+**Planner chats and agents (user decision, 3 October 2026):** the chat the user writes in acts as planner: decisions, briefs, recording decisions, and quick checks. Heavy read-only work (batch reviews, cross-ticket analysis, large sweeps) goes to a sub-agent, which writes its report to `review-notes/`. The planner personally verifies the critical findings before a pass/fail verdict. Start a fresh planner chat per phase, using `review-notes/00-index.md` as the handoff.
 
 ## Working alongside Codex
 
