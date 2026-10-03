@@ -18,7 +18,9 @@ public sealed class AccountAdministrationService(ApplicationDbContext db, IPassw
         RequireFreshTarget(target, expectedAuthorizationVersion);
         RequireOwner(actor); RequireWebsite(target); if (!target.Active) throw new AccountActionException("Restore this account before granting Admin access.");
         if (target.GlobalRole != GlobalRole.User) throw new AccountActionException("Only a User can be granted Admin access.");
-        target.SetGlobalRole(GlobalRole.Admin); Audit(actor, "account.admin_granted", target, "User", "Admin"); Notify(target, "account.admin_granted", "/Account/Settings");
+        target.SetGlobalRole(GlobalRole.Admin);
+        await AccountResetTokenPolicy.SupersedeResetTokensAsync(db, target.Id, time.GetUtcNow(), ct);
+        Audit(actor, "account.admin_granted", target, "User", "Admin"); Notify(target, "account.admin_granted", "/Account/Settings");
         await db.SaveChangesAsync(ct); await tx.CommitAsync(ct);
     }
     public async Task RevokeAdminAsync(Guid actorId, Guid targetId, long expectedAuthorizationVersion, CancellationToken ct)
@@ -27,7 +29,9 @@ public sealed class AccountAdministrationService(ApplicationDbContext db, IPassw
         var (actor, target) = await LoadPair(actorId, targetId, ct);
         RequireFreshTarget(target, expectedAuthorizationVersion);
         RequireOwner(actor); if (target.GlobalRole != GlobalRole.Admin) throw new AccountActionException("Only an Admin can be revoked.");
-        target.SetGlobalRole(GlobalRole.User); Audit(actor, "account.admin_revoked", target, "Admin", "User"); Notify(target, "account.admin_revoked", "/Account/Settings");
+        target.SetGlobalRole(GlobalRole.User);
+        await AccountResetTokenPolicy.SupersedeResetTokensAsync(db, target.Id, time.GetUtcNow(), ct);
+        Audit(actor, "account.admin_revoked", target, "Admin", "User"); Notify(target, "account.admin_revoked", "/Account/Settings");
         await db.SaveChangesAsync(ct); await tx.CommitAsync(ct);
     }
     public async Task TransferOwnershipAsync(Guid actorId, string actorPassword, string destinationUsername, CancellationToken ct)
@@ -46,7 +50,12 @@ public sealed class AccountAdministrationService(ApplicationDbContext db, IPassw
         if (actor.PasswordHash is null || passwords.VerifyHashedPassword(actor, actor.PasswordHash, actorPassword) == PasswordVerificationResult.Failed) throw new AccountActionException("The current password is incorrect.");
         if (destination.Id == actor.Id || destination.GlobalRole == GlobalRole.SuperAdmin) throw new AccountActionException("Choose another active website account.");
         if (!destination.Active) throw new AccountActionException("The selected account is disabled. Restore it before transferring ownership.");
-        var before = destination.GlobalRole?.ToString() ?? "none"; destination.SetGlobalRole(GlobalRole.SuperAdmin); actor.SetGlobalRole(GlobalRole.Admin);
+        var before = destination.GlobalRole?.ToString() ?? "none";
+        destination.SetGlobalRole(GlobalRole.SuperAdmin);
+        actor.SetGlobalRole(GlobalRole.Admin);
+        var now = time.GetUtcNow();
+        await AccountResetTokenPolicy.SupersedeResetTokensAsync(db, destination.Id, now, ct);
+        await AccountResetTokenPolicy.SupersedeResetTokensAsync(db, actor.Id, now, ct);
         Audit(actor, "account.ownership_transferred", destination, before, "SuperAdmin"); Audit(actor, "account.ownership_transferred", actor, "SuperAdmin", "Admin");
         await db.SaveChangesAsync(ct); await tx.CommitAsync(ct);
     }
@@ -57,7 +66,10 @@ public sealed class AccountAdministrationService(ApplicationDbContext db, IPassw
         RequireFreshTarget(target, expectedAuthorizationVersion);
         RequireManageTarget(actor, target);
         if (!target.Active) throw new StaleAccountChangeException();
-        target.Disable(time.GetUtcNow(), actor.Id, reason); Audit(actor, "account.disabled", target, "Active", "Disabled", details: reason.Trim()); await db.SaveChangesAsync(ct); await tx.CommitAsync(ct);
+        var now = time.GetUtcNow();
+        target.Disable(now, actor.Id, reason);
+        await AccountResetTokenPolicy.SupersedeResetTokensAsync(db, target.Id, now, ct);
+        Audit(actor, "account.disabled", target, "Active", "Disabled", details: reason.Trim()); await db.SaveChangesAsync(ct); await tx.CommitAsync(ct);
     }
     public async Task RestoreAsync(Guid actorId, Guid targetId, long expectedAuthorizationVersion, CancellationToken ct)
     {

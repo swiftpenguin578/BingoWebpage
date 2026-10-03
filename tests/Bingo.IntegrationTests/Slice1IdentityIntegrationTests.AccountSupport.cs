@@ -11,6 +11,7 @@ using Bingo.Web.Security;
 using Bingo.Web.UI;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Routing;
@@ -196,6 +197,139 @@ public sealed partial class Slice1IdentityIntegrationTests
     }
 
     [Fact]
+    public async Task ResetConsumptionRechecksRecipientAndIssuerAuthorityAndSupersedesRetiredRecipients()
+    {
+        var owner = Website(Guid.NewGuid(), $"reset-policy-owner-{Guid.NewGuid():N}", GlobalRole.SuperAdmin);
+        var grantTarget = Website(Guid.NewGuid(), $"reset-policy-grant-{Guid.NewGuid():N}");
+        var disabledTarget = Website(Guid.NewGuid(), $"reset-policy-disabled-{Guid.NewGuid():N}");
+        var transferTarget = Website(Guid.NewGuid(), $"reset-policy-transfer-{Guid.NewGuid():N}");
+        var revokedIssuer = Website(Guid.NewGuid(), $"reset-policy-revoked-issuer-{Guid.NewGuid():N}", GlobalRole.Admin);
+        var disabledIssuer = Website(Guid.NewGuid(), $"reset-policy-disabled-issuer-{Guid.NewGuid():N}", GlobalRole.Admin);
+        var issuerTarget = Website(Guid.NewGuid(), $"reset-policy-issuer-target-{Guid.NewGuid():N}");
+        var disabledIssuerTarget = Website(Guid.NewGuid(), $"reset-policy-disabled-target-{Guid.NewGuid():N}");
+        await using (var seed = new ApplicationDbContext(options))
+        {
+            seed.AddRange(owner, grantTarget, disabledTarget, transferTarget, revokedIssuer, disabledIssuer, issuerTarget, disabledIssuerTarget);
+            await seed.SaveChangesAsync();
+        }
+
+        var grantToken = await GenerateResetForTestAsync(owner.Id, grantTarget.Id);
+        await MutateAccountForTestAsync(service => service.GrantAdminAsync(owner.Id, grantTarget.Id, grantTarget.AuthorizationVersion, CancellationToken.None));
+        await AssertResetRejectedForTestAsync(grantToken, grantTarget.Id, superseded: true);
+
+        var disabledToken = await GenerateResetForTestAsync(owner.Id, disabledTarget.Id);
+        await MutateAccountForTestAsync(service => service.DisableAsync(owner.Id, disabledTarget.Id, "Policy test disable", disabledTarget.AuthorizationVersion, CancellationToken.None));
+        await AssertResetRejectedForTestAsync(disabledToken, disabledTarget.Id, superseded: true);
+
+        var revokedIssuerToken = await GenerateResetForTestAsync(revokedIssuer.Id, issuerTarget.Id);
+        await MutateAccountForTestAsync(service => service.RevokeAdminAsync(owner.Id, revokedIssuer.Id, revokedIssuer.AuthorizationVersion, CancellationToken.None));
+        await AssertResetRejectedForTestAsync(revokedIssuerToken, issuerTarget.Id, superseded: false);
+
+        var disabledIssuerToken = await GenerateResetForTestAsync(disabledIssuer.Id, disabledIssuerTarget.Id);
+        await MutateAccountForTestAsync(service => service.DisableAsync(owner.Id, disabledIssuer.Id, "Issuer policy test disable", disabledIssuer.AuthorizationVersion, CancellationToken.None));
+        await AssertResetRejectedForTestAsync(disabledIssuerToken, disabledIssuerTarget.Id, superseded: false);
+
+        var transferToken = await GenerateResetForTestAsync(owner.Id, transferTarget.Id);
+        await MutateAccountForTestAsync(service => service.TransferOwnershipAsync(owner.Id, "long-test-password", transferTarget.Id, transferTarget.AuthorizationVersion, CancellationToken.None));
+        await AssertResetRejectedForTestAsync(transferToken, transferTarget.Id, superseded: true);
+    }
+
+    [Fact]
+    public async Task ResetConsumptionStillSucceedsWhenIssuerAndRecipientRemainAuthorized()
+    {
+        var issuer = Website(Guid.NewGuid(), $"reset-policy-normal-issuer-{Guid.NewGuid():N}", GlobalRole.Admin);
+        var target = Website(Guid.NewGuid(), $"reset-policy-normal-target-{Guid.NewGuid():N}");
+        await using (var seed = new ApplicationDbContext(options))
+        {
+            seed.AddRange(issuer, target);
+            await seed.SaveChangesAsync();
+        }
+
+        var token = await GenerateResetForTestAsync(issuer.Id, target.Id);
+        await using (var consume = new ApplicationDbContext(options))
+        {
+            await new AccountIdentityService(consume, new PasswordHasher<Account>(), time).ConsumeResetAsync(token, "normal-reset-password", CancellationToken.None);
+        }
+        await using var verify = new ApplicationDbContext(options);
+        var savedToken = await verify.PasswordCredentialTokens.SingleAsync(item => item.TokenHash == AccountIdentityService.Hash(token));
+        Assert.NotNull(savedToken.UsedAt);
+        Assert.Null(savedToken.SupersededAt);
+        Assert.Single(await verify.AuditEntries.Where(item => item.Action == "account.password_reset").ToListAsync());
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task ResetConsumptionAndRecipientPromotionSerializeInEitherLockOrder(bool promotionWins)
+    {
+        var owner = Website(Guid.NewGuid(), $"reset-race-recipient-owner-{Guid.NewGuid():N}", GlobalRole.SuperAdmin);
+        var target = Website(Guid.NewGuid(), $"reset-race-recipient-target-{Guid.NewGuid():N}");
+        await using (var seed = new ApplicationDbContext(options))
+        {
+            seed.AddRange(owner, target);
+            await seed.SaveChangesAsync();
+        }
+        var token = await GenerateResetForTestAsync(owner.Id, target.Id);
+        var error = await RunResetConsumeRaceAsync(
+            token,
+            promotionWins,
+            administration => administration.GrantAdminAsync(owner.Id, target.Id, target.AuthorizationVersion, CancellationToken.None));
+
+        await using var verify = new ApplicationDbContext(options);
+        Assert.Equal(GlobalRole.Admin, await verify.Accounts.Where(item => item.Id == target.Id).Select(item => item.GlobalRole).SingleAsync());
+        var savedToken = await verify.PasswordCredentialTokens.SingleAsync(item => item.TokenHash == AccountIdentityService.Hash(token));
+        if (promotionWins)
+        {
+            Assert.IsType<InvalidOperationException>(error);
+            Assert.Null(savedToken.UsedAt);
+            Assert.NotNull(savedToken.SupersededAt);
+            Assert.Empty(await verify.AuditEntries.Where(item => item.Action == "account.password_reset").ToListAsync());
+        }
+        else
+        {
+            Assert.Null(error);
+            Assert.NotNull(savedToken.UsedAt);
+            Assert.Null(savedToken.SupersededAt);
+        }
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task ResetConsumptionAndIssuerRevocationSerializeInEitherLockOrder(bool revocationWins)
+    {
+        var owner = Website(Guid.NewGuid(), $"reset-race-issuer-owner-{Guid.NewGuid():N}", GlobalRole.SuperAdmin);
+        var issuer = Website(Guid.NewGuid(), $"reset-race-issuer-admin-{Guid.NewGuid():N}", GlobalRole.Admin);
+        var target = Website(Guid.NewGuid(), $"reset-race-issuer-target-{Guid.NewGuid():N}");
+        await using (var seed = new ApplicationDbContext(options))
+        {
+            seed.AddRange(owner, issuer, target);
+            await seed.SaveChangesAsync();
+        }
+        var token = await GenerateResetForTestAsync(issuer.Id, target.Id);
+        var error = await RunResetConsumeRaceAsync(
+            token,
+            revocationWins,
+            administration => administration.RevokeAdminAsync(owner.Id, issuer.Id, issuer.AuthorizationVersion, CancellationToken.None));
+
+        await using var verify = new ApplicationDbContext(options);
+        Assert.Equal(GlobalRole.User, await verify.Accounts.Where(item => item.Id == issuer.Id).Select(item => item.GlobalRole).SingleAsync());
+        var savedToken = await verify.PasswordCredentialTokens.SingleAsync(item => item.TokenHash == AccountIdentityService.Hash(token));
+        if (revocationWins)
+        {
+            Assert.IsType<InvalidOperationException>(error);
+            Assert.Null(savedToken.UsedAt);
+            Assert.Empty(await verify.AuditEntries.Where(item => item.Action == "account.password_reset").ToListAsync());
+        }
+        else
+        {
+            Assert.Null(error);
+            Assert.NotNull(savedToken.UsedAt);
+            Assert.Null(savedToken.SupersededAt);
+        }
+    }
+
+    [Fact]
     public async Task AccountSupportDisableReasonSurvivesRestoreAuditAndManageProjection()
     {
         var actor = Website(Guid.Parse("00000000-0000-0000-0000-0000000000d1"), "disable-history-actor", GlobalRole.Admin);
@@ -232,6 +366,104 @@ public sealed partial class Slice1IdentityIntegrationTests
         Assert.True(savedTarget.Active);
         Assert.Null(savedTarget.DisabledReason);
         Assert.Equal(reason, await db.AuditEntries.Where(x => x.Id == disabledAudit.Id).Select(x => x.Details).SingleAsync());
+    }
+
+    private async Task<string> GenerateResetForTestAsync(Guid issuerId, Guid targetId)
+    {
+        await using var context = new ApplicationDbContext(options);
+        return await new AccountIdentityService(context, new PasswordHasher<Account>(), time).GenerateResetLinkAsync(issuerId, targetId, CancellationToken.None);
+    }
+
+    private async Task MutateAccountForTestAsync(Func<AccountAdministrationService, Task> mutation)
+    {
+        await using var context = new ApplicationDbContext(options);
+        await mutation(new AccountAdministrationService(context, passwords, time));
+    }
+
+    private async Task AssertResetRejectedForTestAsync(string rawToken, Guid targetId, bool superseded)
+    {
+        await using (var attempt = new ApplicationDbContext(options))
+            await Assert.ThrowsAsync<InvalidOperationException>(() => new AccountIdentityService(attempt, new PasswordHasher<Account>(), time).ConsumeResetAsync(rawToken, "rejected-reset-password", CancellationToken.None));
+
+        await using var verify = new ApplicationDbContext(options);
+        var token = await verify.PasswordCredentialTokens.SingleAsync(item => item.TokenHash == AccountIdentityService.Hash(rawToken));
+        Assert.Null(token.UsedAt);
+        Assert.Equal(superseded, token.SupersededAt is not null);
+        Assert.Empty(await verify.AuditEntries.Where(item => item.Action == "account.password_reset" && item.TargetId == targetId.ToString()).ToListAsync());
+    }
+
+    private async Task<Exception?> RunResetConsumeRaceAsync(
+        string rawToken,
+        bool mutationWins,
+        Func<AccountAdministrationService, Task> mutation)
+    {
+        if (mutationWins)
+        {
+            var mutationBarrier = new AccountPairLockBarrier();
+            var consumeProbe = new AccountPairReadProbe();
+            var mutationOptions = new DbContextOptionsBuilder<ApplicationDbContext>(options).AddInterceptors(mutationBarrier).Options;
+            var consumeOptions = new DbContextOptionsBuilder<ApplicationDbContext>(options).AddInterceptors(consumeProbe).Options;
+            Task mutationTask = MutateAsync(mutationOptions);
+            Task<Exception?>? consumeTask = null;
+            try
+            {
+                await mutationBarrier.Reached.Task.WaitAsync(TimeSpan.FromSeconds(15));
+                consumeTask = ConsumeAsync(consumeOptions);
+                await consumeProbe.Reached.Task.WaitAsync(TimeSpan.FromSeconds(15));
+                mutationBarrier.Release.TrySetResult();
+                await mutationTask;
+                return await consumeTask;
+            }
+            finally
+            {
+                mutationBarrier.Release.TrySetResult();
+                if (consumeTask is not null) await Record.ExceptionAsync(async () => await consumeTask);
+                await Record.ExceptionAsync(async () => await mutationTask);
+            }
+        }
+
+        var consumeBarrier = new AccountPairLockBarrier();
+        var mutationProbe = new AccountPairReadProbe();
+        var consumeContextOptions = new DbContextOptionsBuilder<ApplicationDbContext>(options).AddInterceptors(consumeBarrier).Options;
+        var mutationContextOptions = new DbContextOptionsBuilder<ApplicationDbContext>(options).AddInterceptors(mutationProbe).Options;
+        Task<Exception?> consumeOperation = ConsumeAsync(consumeContextOptions);
+        Task? mutationOperation = null;
+        try
+        {
+            await consumeBarrier.Reached.Task.WaitAsync(TimeSpan.FromSeconds(15));
+            mutationOperation = MutateAsync(mutationContextOptions);
+            await mutationProbe.Reached.Task.WaitAsync(TimeSpan.FromSeconds(15));
+            consumeBarrier.Release.TrySetResult();
+            var error = await consumeOperation;
+            await mutationOperation;
+            return error;
+        }
+        finally
+        {
+            consumeBarrier.Release.TrySetResult();
+            await Record.ExceptionAsync(async () => await consumeOperation);
+            if (mutationOperation is not null) await Record.ExceptionAsync(async () => await mutationOperation);
+        }
+
+        async Task MutateAsync(DbContextOptions<ApplicationDbContext> contextOptions)
+        {
+            await using var context = new ApplicationDbContext(contextOptions);
+            await mutation(new AccountAdministrationService(context, passwords, time));
+        }
+
+        async Task<Exception?> ConsumeAsync(DbContextOptions<ApplicationDbContext> contextOptions)
+        {
+            await using var context = new ApplicationDbContext(contextOptions);
+            try
+            {
+                await new AccountIdentityService(context, new PasswordHasher<Account>(), time).ConsumeResetAsync(rawToken, "race-reset-password", CancellationToken.None);
+                return null;
+            }
+            catch (Exception exception)
+            {
+                return exception;
+            }
+        }
     }
 
     private async Task<Exception> RunResetRaceAsync(

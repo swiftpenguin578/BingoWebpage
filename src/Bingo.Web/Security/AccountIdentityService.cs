@@ -95,8 +95,10 @@ public sealed class AccountIdentityService(ApplicationDbContext db, IPasswordHas
         var (actor, target) = await LoadPairForUpdateAsync(actorId, targetId, ct);
         if (!actor.Active || actor.AccountType != AccountType.WebsiteAccount || target.AccountType != AccountType.WebsiteAccount || !target.Active)
             throw new InvalidOperationException("This account is not available.");
-        if (actor.GlobalRole != GlobalRole.SuperAdmin && (actor.GlobalRole != GlobalRole.Admin || target.GlobalRole != GlobalRole.User)) throw new AccountActionException("You do not have permission to reset this account.");
-        if (target.GlobalRole == GlobalRole.SuperAdmin) throw new AccountActionException("Super Admin password recovery requires linked Discord sign-in or operator recovery.");
+        if (!AccountResetTokenPolicy.CanIssueReset(actor, target))
+            throw new AccountActionException(target.GlobalRole == GlobalRole.SuperAdmin
+                ? "Super Admin password recovery requires linked Discord sign-in or operator recovery."
+                : "You do not have permission to reset this account.");
         var now = time.GetUtcNow(); var purpose = PasswordCredentialTokenPurpose.Reset;
         foreach (var token in await db.PasswordCredentialTokens.Where(x => x.AccountId == targetId && x.Purpose == purpose && x.UsedAt == null && x.SupersededAt == null).ToListAsync(ct)) token.Supersede(now);
         var raw = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
@@ -123,13 +125,25 @@ public sealed class AccountIdentityService(ApplicationDbContext db, IPasswordHas
     public async Task<PasswordCredentialTokenPurpose> ConsumeResetAsync(string rawToken, string password, CancellationToken ct)
     {
         ValidatePassword(password); var now = time.GetUtcNow(); await using var tx = await db.Database.BeginTransactionAsync(ct);
-        var token = await db.PasswordCredentialTokens.FromSqlInterpolated($"SELECT * FROM password_credential_tokens WHERE \"TokenHash\" = {Hash(rawToken)} FOR UPDATE").SingleOrDefaultAsync(ct) ?? throw new InvalidOperationException("This link is no longer valid.");
+        var tokenHash = Hash(rawToken);
+        var tokenIdentity = await db.PasswordCredentialTokens.AsNoTracking()
+            .Where(candidate => candidate.TokenHash == tokenHash)
+            .Select(candidate => new { candidate.AccountId, candidate.CreatedByAccountId })
+            .SingleOrDefaultAsync(ct) ?? throw new InvalidOperationException("This link is no longer valid.");
+        var accounts = await LoadAccountsForUpdateAsync(tokenIdentity.AccountId, tokenIdentity.CreatedByAccountId, ct);
+        var token = await db.PasswordCredentialTokens.FromSqlInterpolated($"SELECT * FROM password_credential_tokens WHERE \"TokenHash\" = {tokenHash} FOR UPDATE").SingleOrDefaultAsync(ct) ?? throw new InvalidOperationException("This link is no longer valid.");
         if (!token.IsUsable(now)) throw new InvalidOperationException("This link is no longer valid.");
-        var account = await db.Accounts.SingleAsync(x => x.Id == token.AccountId, ct);
+        var account = accounts.SingleOrDefault(x => x.Id == token.AccountId) ?? throw new InvalidOperationException("This link is no longer valid.");
         if (account.AccountType != AccountType.WebsiteAccount || token.Purpose is PasswordCredentialTokenPurpose.EmergencySetup or PasswordCredentialTokenPurpose.EmergencyReset)
             throw new InvalidOperationException("This link is no longer valid.");
         if (token.Purpose == PasswordCredentialTokenPurpose.OwnerRecovery && (!account.Active || account.GlobalRole != GlobalRole.SuperAdmin))
             throw new InvalidOperationException("This link is no longer valid.");
+        if (token.Purpose == PasswordCredentialTokenPurpose.Reset)
+        {
+            var issuer = token.CreatedByAccountId is { } issuerId ? accounts.SingleOrDefault(x => x.Id == issuerId) : null;
+            if (issuer is null || !AccountResetTokenPolicy.CanIssueReset(issuer, account))
+                throw new InvalidOperationException("This link is no longer valid.");
+        }
         account.SetPassword(passwords.HashPassword(account, password), false, now); token.Use(now);
         var isOwnerRecovery = token.Purpose == PasswordCredentialTokenPurpose.OwnerRecovery;
         db.AuditEntries.Add(new AuditEntry(
@@ -150,6 +164,14 @@ public sealed class AccountIdentityService(ApplicationDbContext db, IPasswordHas
     public async Task SetDiscordAsync(Account account, string discordUserId, string? displayName, string action, CancellationToken ct) { RequireWebsite(account); if (await db.Accounts.AnyAsync(x => x.Id != account.Id && x.DiscordUserId == discordUserId, ct)) throw new InvalidOperationException("That Discord account is already linked."); var before = account.DiscordUserId; var now = time.GetUtcNow(); account.SetDiscordIdentity(discordUserId, displayName); db.AccountDiscordIdentityTransitions.Add(new AccountDiscordIdentityTransition(Guid.NewGuid(), account.Id, action, before, discordUserId, now)); db.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), now, account.Id, account.LoginName, $"account.discord_{action}", "account", account.Id.ToString(), $"Discord identity {action}.", beforeState: before is null ? "null" : "{\"discordLinked\":true}", afterState: "{\"discordLinked\":true}")); try { await db.SaveChangesAsync(ct); } catch (DbUpdateException exception) when (IsExpectedIdentityCollision(exception)) { throw new InvalidOperationException("That Discord account is already linked."); } }
     public async Task RemoveDiscordAsync(Account account, CancellationToken ct) { RequireWebsite(account); var before = account.DiscordUserId; if (before is null) return; var now = time.GetUtcNow(); account.RemoveDiscordIdentity(); db.AccountDiscordIdentityTransitions.Add(new AccountDiscordIdentityTransition(Guid.NewGuid(), account.Id, "unlinked", before, null, now)); db.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), now, account.Id, account.LoginName, "account.discord_unlinked", "account", account.Id.ToString(), "Discord identity unlinked.", beforeState: "{\"discordLinked\":true}", afterState: "{\"discordLinked\":false}")); await db.SaveChangesAsync(ct); }
     private static void RequireWebsite(Account account) { if (!account.Active || account.AccountType != AccountType.WebsiteAccount) throw new InvalidOperationException("This account is not available."); }
+    private async Task<List<Account>> LoadAccountsForUpdateAsync(Guid targetId, Guid? issuerId, CancellationToken ct)
+    {
+        if (issuerId is { } issuer && issuer == targetId)
+            return await db.Accounts.FromSqlInterpolated($"SELECT * FROM accounts WHERE id = {targetId} ORDER BY id FOR UPDATE").ToListAsync(ct);
+        return issuerId is { } separateIssuer
+            ? await db.Accounts.FromSqlInterpolated($"SELECT * FROM accounts WHERE id = {targetId} OR id = {separateIssuer} ORDER BY id FOR UPDATE").ToListAsync(ct)
+            : await db.Accounts.FromSqlInterpolated($"SELECT * FROM accounts WHERE id = {targetId} ORDER BY id FOR UPDATE").ToListAsync(ct);
+    }
     public static void ValidatePassword(string password) { if (password.Length is < 10 or > 200) throw new InvalidOperationException("Passwords must be between 10 and 200 characters."); }
     public static string NormalizeOsrsCharacterName(string name) => name.Trim().ToUpperInvariant();
     public static string Hash(string raw) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(raw)));
