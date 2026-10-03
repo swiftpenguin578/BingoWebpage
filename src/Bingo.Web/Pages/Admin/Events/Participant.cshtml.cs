@@ -30,6 +30,7 @@ public sealed class ParticipantModel(
     [BindProperty, StringLength(2000)] public string? AdminNote { get; set; }
     [BindProperty] public string? ExpectedAdminNote { get; set; }
     [BindProperty] public bool ConfirmLifecycleAction { get; set; }
+    [BindProperty] public long? ExpectedEventVersion { get; set; }
     [BindProperty, StringLength(4000)] public string? PrivateWithdrawalNote { get; set; }
     [BindProperty] public long? ExpectedMembershipVersion { get; set; }
     [BindProperty] public Guid? ReplacementWaitingParticipantId { get; set; }
@@ -238,7 +239,16 @@ public sealed class ParticipantModel(
         Overlay = ResolveSubmittedOverlay(overlay);
         if (!ConfirmLifecycleAction) { SetStatus(Localize("Confirm the restoration before continuing."), UiMessageType.Error); return RedirectToParticipant(id, participantId); }
         var accountId = User.GetAccountId(); if (accountId is null) return Forbid();
-        var result = signupService is null ? new ParticipantLifecycleResult(false, "Participant lifecycle is not available.") : await signupService.RestoreAsync(id, participantId, accountId.Value, User.Identity?.Name ?? "Admin", WomValidationConfirmationToken, ct);
+        var result = signupService is null
+            ? new ParticipantLifecycleResult(false, "Participant lifecycle is not available.")
+            : await signupService.RestoreAdminParticipantAsync(new AdminParticipantRestoreRequest(
+                id,
+                participantId,
+                accountId.Value,
+                User.Identity?.Name ?? "Admin",
+                ExpectedEventVersion: ExpectedEventVersion,
+                ExpectedResponseVersion: Input.ExpectedResponseVersion,
+                WomValidationConfirmationToken: WomValidationConfirmationToken), ct);
         if (result.WomValidationConfirmationToken is not null)
         {
             WomValidationConfirmationToken = result.WomValidationConfirmationToken;
@@ -259,6 +269,7 @@ public sealed class ParticipantModel(
             await dbContext.ActiveRosterPublications(id).AnyAsync(ct);
 
         EventId = id;
+        ExpectedEventVersion = bingoEvent.Version;
         if (TempData.Peek("WomValidationConfirmationToken") is string pendingValidation)
         {
             WomValidationConfirmationToken = pendingValidation;

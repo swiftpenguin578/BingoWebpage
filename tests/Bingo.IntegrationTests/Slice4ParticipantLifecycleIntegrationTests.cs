@@ -297,8 +297,13 @@ public sealed class Slice4ParticipantLifecycleIntegrationTests : IAsyncLifetime
 
         await using var restoreDb = new ApplicationDbContext(options);
         var beforeEvent = await restoreDb.Events.AsNoTracking().SingleAsync(x => x.Id == setup.EventId);
+        var beforeRestoreResponseVersion = await restoreDb.EventParticipants.AsNoTracking()
+            .Where(x => x.Id == setup.ConfirmedParticipantId)
+            .Select(x => x.ResponseVersion)
+            .SingleAsync();
         var failed = await Service(restoreDb).RestoreAdminParticipantAsync(new(
-            setup.EventId, setup.ConfirmedParticipantId, setup.EnabledAdminId, "admin", ExpandCapacityWhenFull: true));
+            setup.EventId, setup.ConfirmedParticipantId, setup.EnabledAdminId, "admin", ExpandCapacityWhenFull: true,
+            ExpectedEventVersion: beforeEvent.Version, ExpectedResponseVersion: beforeRestoreResponseVersion));
         Assert.False(failed.Succeeded);
         Assert.Contains("assigned", failed.Error, StringComparison.OrdinalIgnoreCase);
         Assert.Equal(beforeEvent.ParticipantCap, await restoreDb.Events.Where(x => x.Id == setup.EventId).Select(x => x.ParticipantCap).SingleAsync());
@@ -328,11 +333,22 @@ public sealed class Slice4ParticipantLifecycleIntegrationTests : IAsyncLifetime
         restoreDb.AddRange(fillerOwner, fillerParticipant, fillerCharacter, fillerAssignment);
         await restoreDb.SaveChangesAsync();
 
-        var request = new AdminParticipantRestoreRequest(setup.EventId, setup.ConfirmedParticipantId, setup.EnabledAdminId, "admin", ExpandCapacityWhenFull: true);
+        var requestEventVersion = await restoreDb.Events.AsNoTracking().Where(x => x.Id == setup.EventId).Select(x => x.Version).SingleAsync();
+        var requestResponseVersion = await restoreDb.EventParticipants.AsNoTracking()
+            .Where(x => x.Id == setup.ConfirmedParticipantId)
+            .Select(x => x.ResponseVersion)
+            .SingleAsync();
+        var request = new AdminParticipantRestoreRequest(
+            setup.EventId, setup.ConfirmedParticipantId, setup.EnabledAdminId, "admin", ExpandCapacityWhenFull: true,
+            ExpectedEventVersion: requestEventVersion, ExpectedResponseVersion: requestResponseVersion);
         var restored = await Service(restoreDb).RestoreAdminParticipantAsync(request);
         Assert.True(restored.Succeeded, restored.Error);
         Assert.True(restored.Changed);
-        var retry = await Service(restoreDb).RestoreAdminParticipantAsync(request);
+        var retry = await Service(restoreDb).RestoreAdminParticipantAsync(request with
+        {
+            ExpectedEventVersion = await restoreDb.Events.Where(x => x.Id == setup.EventId).Select(x => x.Version).SingleAsync(),
+            ExpectedResponseVersion = await restoreDb.EventParticipants.Where(x => x.Id == setup.ConfirmedParticipantId).Select(x => x.ResponseVersion).SingleAsync()
+        });
         Assert.True(retry.Succeeded, retry.Error);
         Assert.False(retry.Changed);
 
@@ -599,6 +615,107 @@ public sealed class Slice4ParticipantLifecycleIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task NewParticipantOperationsRejectMissingExpectedVersionsWithoutWrites()
+    {
+        await using var db = new ApplicationDbContext(options);
+        var beforeAudits = await db.AuditEntries.CountAsync();
+        var eventId = Guid.NewGuid();
+        var participantId = Guid.NewGuid();
+        var actorId = Guid.NewGuid();
+        var characterId = Guid.NewGuid();
+        var assignmentId = Guid.NewGuid();
+
+        var results = new object[]
+        {
+            await Service(db).AddSavedParticipantAsync(new(
+                eventId, Guid.NewGuid(), actorId, "admin", [characterId], characterId)),
+            await Service(db).SwitchAdminPrimaryAsync(new(
+                eventId, participantId, characterId, actorId, "admin", characterId)),
+            await Service(db).AddEventParticipantAccountAsync(new(
+                eventId, participantId, characterId, EventCharacterRole.Playing, 10m, actorId, "admin")),
+            await Service(db).RemoveEventParticipantAccountAsync(new(
+                eventId, participantId, assignmentId, actorId, "admin")),
+            await Service(db).CorrectEventParticipantAccountAsync(new(
+                eventId, participantId, assignmentId, characterId, 10m, actorId, "admin")),
+            await Service(db).ConfirmWaitingParticipantAsync(new(
+                eventId, participantId, actorId, "admin")),
+            await Service(db).MoveConfirmedParticipantToWaitingAsync(new(
+                eventId, participantId, actorId, "admin")),
+            await Service(db).RestoreAdminParticipantAsync(new(
+                eventId, participantId, actorId, "admin"))
+        };
+
+        Assert.All(results, result =>
+        {
+            var succeeded = result switch
+            {
+                AdminParticipantResult value => value.Succeeded,
+                EventAccountMutationResult value => value.Succeeded,
+                ParticipantQueueMutationResult value => value.Succeeded,
+                ParticipantLifecycleResult value => value.Succeeded,
+                _ => true
+            };
+            var error = result switch
+            {
+                AdminParticipantResult value => value.Error,
+                EventAccountMutationResult value => value.Error,
+                ParticipantQueueMutationResult value => value.Error,
+                ParticipantLifecycleResult value => value.Error,
+                _ => null
+            };
+            Assert.False(succeeded);
+            Assert.Contains("version", error, StringComparison.OrdinalIgnoreCase);
+        });
+        Assert.Equal(beforeAudits, await db.AuditEntries.CountAsync());
+        Assert.Empty(db.ChangeTracker.Entries());
+    }
+
+    [Fact]
+    public async Task ParticipantPageRestoreRejectsStaleObservedVersionsWithoutMutation()
+    {
+        var setup = await SeedAsync(capacity: 1, confirmed: 1, waiting: 0);
+        await using var pageDb = new ApplicationDbContext(options);
+        var http = AdminContext(setup.EnabledAdminId);
+        var model = new Bingo.Web.Pages.Admin.Events.ParticipantModel(
+            pageDb,
+            new EventParticipantCharacterService(pageDb, TimeProvider.System),
+            Service(pageDb),
+            new PassthroughLocalizer(),
+            TimeProvider.System)
+        {
+            PageContext = new PageContext(new ActionContext(http, new RouteData(), new PageActionDescriptor())),
+            TempData = new TempDataDictionary(http, new DictionaryTempDataProvider())
+        };
+        Assert.IsType<PageResult>(await model.OnGetAsync(setup.EventId, setup.ConfirmedParticipantId, CancellationToken.None));
+        var staleEventVersion = model.ExpectedEventVersion;
+        var staleResponseVersion = model.Input.ExpectedResponseVersion;
+        Assert.NotNull(staleEventVersion);
+        Assert.NotNull(staleResponseVersion);
+
+        await using (var withdraw = new ApplicationDbContext(options))
+        {
+            var result = await Service(withdraw).WithdrawAsync(
+                setup.EventId, setup.ConfirmedParticipantId, setup.ConfirmedOwnerId, "owner", false);
+            Assert.True(result.Succeeded, result.Error);
+        }
+        await using (var concurrent = new ApplicationDbContext(options))
+        {
+            var participant = await concurrent.EventParticipants.SingleAsync(x => x.Id == setup.ConfirmedParticipantId);
+            participant.AdvanceResponseVersion();
+            await concurrent.SaveChangesAsync();
+        }
+
+        model.ConfirmLifecycleAction = true;
+        var response = await model.OnPostRestoreAsync(setup.EventId, setup.ConfirmedParticipantId, false, CancellationToken.None);
+        Assert.IsType<RedirectToPageResult>(response);
+        Assert.Contains("changed", model.TempData["StatusMessage"]?.ToString() ?? string.Empty, StringComparison.OrdinalIgnoreCase);
+
+        await using var verify = new ApplicationDbContext(options);
+        Assert.Equal(SignupStatus.Withdrawn, await verify.EventParticipants.Where(x => x.Id == setup.ConfirmedParticipantId).Select(x => x.SignupStatus).SingleAsync());
+        Assert.Empty(await verify.AuditEntries.Where(x => x.EventId == setup.EventId && x.Action == "participant.admin_restored").ToListAsync());
+    }
+
+    [Fact]
     public async Task SelectedWaitingConfirmationUsesOnlyOneExplicitCapacityPlaceAndIsIdempotent()
     {
         var setup = await SeedAsync(capacity: 1, confirmed: 1, waiting: 2);
@@ -608,14 +725,24 @@ public sealed class Slice4ParticipantLifecycleIntegrationTests : IAsyncLifetime
 
         await using (var normal = new ApplicationDbContext(options))
         {
-            var rejected = await Service(normal).ConfirmWaitingParticipantAsync(new(setup.EventId, selectedId, setup.EnabledAdminId, "admin"));
+            var observed = await normal.EventParticipants.Where(x => x.Id == selectedId)
+                .Select(x => new { ResponseVersion = x.ResponseVersion, EventVersion = normal.Events.Where(e => e.Id == setup.EventId).Select(e => e.Version).Single() })
+                .SingleAsync();
+            var rejected = await Service(normal).ConfirmWaitingParticipantAsync(new(
+                setup.EventId, selectedId, setup.EnabledAdminId, "admin",
+                ExpectedEventVersion: observed.EventVersion, ExpectedResponseVersion: observed.ResponseVersion));
             Assert.False(rejected.Succeeded);
             Assert.Contains("add-one-place", rejected.Error, StringComparison.OrdinalIgnoreCase);
         }
 
         await using (var overrideDb = new ApplicationDbContext(options))
         {
-            var confirmed = await Service(overrideDb).ConfirmWaitingParticipantAsync(new(setup.EventId, selectedId, setup.EnabledAdminId, "admin", ExpandCapacityWhenFull: true));
+            var observed = await overrideDb.EventParticipants.Where(x => x.Id == selectedId)
+                .Select(x => new { ResponseVersion = x.ResponseVersion, EventVersion = overrideDb.Events.Where(e => e.Id == setup.EventId).Select(e => e.Version).Single() })
+                .SingleAsync();
+            var confirmed = await Service(overrideDb).ConfirmWaitingParticipantAsync(new(
+                setup.EventId, selectedId, setup.EnabledAdminId, "admin", ExpandCapacityWhenFull: true,
+                ExpectedEventVersion: observed.EventVersion, ExpectedResponseVersion: observed.ResponseVersion));
             Assert.True(confirmed.Succeeded, confirmed.Error);
             Assert.True(confirmed.Changed);
             Assert.Equal(SignupStatus.Confirmed, confirmed.Status);
@@ -624,7 +751,12 @@ public sealed class Slice4ParticipantLifecycleIntegrationTests : IAsyncLifetime
 
         await using (var retryDb = new ApplicationDbContext(options))
         {
-            var retry = await Service(retryDb).ConfirmWaitingParticipantAsync(new(setup.EventId, selectedId, setup.EnabledAdminId, "admin", ExpandCapacityWhenFull: true));
+            var observed = await retryDb.EventParticipants.Where(x => x.Id == selectedId)
+                .Select(x => new { ResponseVersion = x.ResponseVersion, EventVersion = retryDb.Events.Where(e => e.Id == setup.EventId).Select(e => e.Version).Single() })
+                .SingleAsync();
+            var retry = await Service(retryDb).ConfirmWaitingParticipantAsync(new(
+                setup.EventId, selectedId, setup.EnabledAdminId, "admin", ExpandCapacityWhenFull: true,
+                ExpectedEventVersion: observed.EventVersion, ExpectedResponseVersion: observed.ResponseVersion));
             Assert.True(retry.Succeeded, retry.Error);
             Assert.False(retry.Changed);
         }
@@ -647,13 +779,21 @@ public sealed class Slice4ParticipantLifecycleIntegrationTests : IAsyncLifetime
     {
         var setup = await SeedAsync(capacity: 1, confirmed: 1, waiting: 1);
         Guid selectedId;
+        long eventVersion;
+        int responseVersion;
         await using (var lookup = new ApplicationDbContext(options))
+        {
             selectedId = await lookup.EventParticipants.Where(x => x.AccountId == setup.WaitingOwnerIds[0]).Select(x => x.Id).SingleAsync();
+            eventVersion = await lookup.Events.Where(x => x.Id == setup.EventId).Select(x => x.Version).SingleAsync();
+            responseVersion = await lookup.EventParticipants.Where(x => x.Id == selectedId).Select(x => x.ResponseVersion).SingleAsync();
+        }
 
         async Task<ParticipantQueueMutationResult> ConfirmAsync()
         {
             await using var db = new ApplicationDbContext(options);
-            return await Service(db).ConfirmWaitingParticipantAsync(new(setup.EventId, selectedId, setup.EnabledAdminId, "admin", ExpandCapacityWhenFull: true));
+            return await Service(db).ConfirmWaitingParticipantAsync(new(
+                setup.EventId, selectedId, setup.EnabledAdminId, "admin", ExpandCapacityWhenFull: true,
+                ExpectedEventVersion: eventVersion, ExpectedResponseVersion: responseVersion));
         }
 
         var results = await Task.WhenAll(ConfirmAsync(), ConfirmAsync());
@@ -691,7 +831,12 @@ public sealed class Slice4ParticipantLifecycleIntegrationTests : IAsyncLifetime
 
         await using (var db = new ApplicationDbContext(options))
         {
-            var result = await Service(db).MoveConfirmedParticipantToWaitingAsync(new(setup.EventId, setup.ConfirmedParticipantId, setup.EnabledAdminId, "admin"));
+            var observed = await db.EventParticipants.Where(x => x.Id == setup.ConfirmedParticipantId)
+                .Select(x => new { ResponseVersion = x.ResponseVersion, EventVersion = db.Events.Where(e => e.Id == setup.EventId).Select(e => e.Version).Single() })
+                .SingleAsync();
+            var result = await Service(db).MoveConfirmedParticipantToWaitingAsync(new(
+                setup.EventId, setup.ConfirmedParticipantId, setup.EnabledAdminId, "admin",
+                ExpectedEventVersion: observed.EventVersion, ExpectedResponseVersion: observed.ResponseVersion));
             Assert.True(result.Succeeded, result.Error);
             Assert.Equal(waiterId, result.PromotedParticipantId);
             Assert.Equal(1, result.WaitingPosition);
@@ -746,8 +891,10 @@ public sealed class Slice4ParticipantLifecycleIntegrationTests : IAsyncLifetime
         Guid participantId;
         await using (var db = new ApplicationDbContext(options))
         {
+            var eventVersion = await db.Events.Where(x => x.Id == item.Id).Select(x => x.Version).SingleAsync();
             var result = await Service(db).AddSavedParticipantAsync(new(
-                item.Id, owner.Id, admin.Id, admin.LoginName, [firstCharacter.Id], firstCharacter.Id, PaymentStatus.Paid));
+                item.Id, owner.Id, admin.Id, admin.LoginName, [firstCharacter.Id], firstCharacter.Id, PaymentStatus.Paid,
+                ExpectedEventVersion: eventVersion));
             Assert.True(result.Succeeded, result.Error);
             Assert.Equal(SignupStatus.Confirmed, result.Status);
             participantId = result.ParticipantId!.Value;
@@ -976,8 +1123,9 @@ public sealed class Slice4ParticipantLifecycleIntegrationTests : IAsyncLifetime
         async Task<AdminParticipantResult> TryAdd(params Guid[] ids)
         {
             await using var db = new ApplicationDbContext(options);
+            var eventVersion = await db.Events.Where(x => x.Id == item.Id).Select(x => x.Version).SingleAsync();
             return await Service(db).AddSavedParticipantAsync(new(
-                item.Id, owner.Id, admin.Id, admin.LoginName, ids, ids[0]));
+                item.Id, owner.Id, admin.Id, admin.LoginName, ids, ids[0], ExpectedEventVersion: eventVersion));
         }
 
         var foreign = await TryAdd(foreignCharacter.Id);
@@ -989,8 +1137,11 @@ public sealed class Slice4ParticipantLifecycleIntegrationTests : IAsyncLifetime
         var missingEhb = await TryAdd(missingEhbCharacter.Id);
         Assert.False(missingEhb.Succeeded);
         Assert.Contains("EHB", missingEhb.Error, StringComparison.OrdinalIgnoreCase);
-        var duplicate = await Service(new ApplicationDbContext(options)).AddSavedParticipantAsync(new(
-            item.Id, owner.Id, admin.Id, admin.LoginName, [firstCharacter.Id, firstCharacter.Id], firstCharacter.Id));
+        await using var duplicateDb = new ApplicationDbContext(options);
+        var duplicateEventVersion = await duplicateDb.Events.Where(x => x.Id == item.Id).Select(x => x.Version).SingleAsync();
+        var duplicate = await Service(duplicateDb).AddSavedParticipantAsync(new(
+            item.Id, owner.Id, admin.Id, admin.LoginName, [firstCharacter.Id, firstCharacter.Id], firstCharacter.Id,
+            ExpectedEventVersion: duplicateEventVersion));
         Assert.False(duplicate.Succeeded);
         Assert.Contains("once", duplicate.Error, StringComparison.OrdinalIgnoreCase);
         var overSlot = await TryAdd(firstCharacter.Id, missingEhbCharacter.Id, inactiveCharacter.Id);
@@ -1012,8 +1163,10 @@ public sealed class Slice4ParticipantLifecycleIntegrationTests : IAsyncLifetime
         }
         await using (var noPrimaryDb = new ApplicationDbContext(options))
         {
+            var noPrimaryEventVersion = await noPrimaryDb.Events.Where(x => x.Id == noPrimaryEvent.Id).Select(x => x.Version).SingleAsync();
             var noPrimaryResult = await Service(noPrimaryDb).AddSavedParticipantAsync(new(
-                noPrimaryEvent.Id, owner.Id, admin.Id, admin.LoginName, [firstCharacter.Id], firstCharacter.Id));
+                noPrimaryEvent.Id, owner.Id, admin.Id, admin.LoginName, [firstCharacter.Id], firstCharacter.Id,
+                ExpectedEventVersion: noPrimaryEventVersion));
             Assert.False(noPrimaryResult.Succeeded);
             Assert.Contains("unambiguous", noPrimaryResult.Error, StringComparison.OrdinalIgnoreCase);
         }

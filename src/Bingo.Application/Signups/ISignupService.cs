@@ -173,6 +173,9 @@ public interface ISignupService
 }
 
 public sealed record ParticipantLifecycleResult(bool Succeeded, string? Error, SignupStatus? Status = null, int? WaitingPosition = null, bool Changed = false, string? WomValidationConfirmationToken = null);
+// These baselines remain nullable for source compatibility with retained
+// callers; SignupService rejects a missing applicable baseline at its
+// authoritative mutation boundary before reading or changing roster state.
 public sealed record ConfirmWaitingParticipantRequest(
     Guid EventId,
     Guid ParticipantId,

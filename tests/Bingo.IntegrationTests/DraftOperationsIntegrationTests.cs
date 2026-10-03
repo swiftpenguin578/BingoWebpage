@@ -478,15 +478,22 @@ public sealed class DraftOperationsIntegrationTests : IAsyncLifetime
         async Task<ParticipantQueueMutationResult> ConfirmAsync()
         {
             await using var db = new ApplicationDbContext(options);
+            var eventVersion = await db.Events.Where(value => value.Id == setup.EventId).Select(value => value.Version).SingleAsync();
+            var responseVersion = await db.EventParticipants.Where(value => value.Id == setup.PlayerIds[3]).Select(value => value.ResponseVersion).SingleAsync();
             return await new SignupService(db, new SecretHasher(), new FixedTimeProvider(now), accountValidation: new SuccessfulWiseOldManAccountValidation())
-                .ConfirmWaitingParticipantAsync(new(setup.EventId, setup.PlayerIds[3], setup.FirstAdminId, "admin", ExpandCapacityWhenFull: true));
+                .ConfirmWaitingParticipantAsync(new(
+                    setup.EventId, setup.PlayerIds[3], setup.FirstAdminId, "admin", ExpandCapacityWhenFull: true,
+                    ExpectedEventVersion: eventVersion, ExpectedResponseVersion: responseVersion));
         }
 
         async Task<EventAccountMutationResult> AddAccountAsync()
         {
             await using var db = new ApplicationDbContext(options);
+            var responseVersion = await db.EventParticipants.Where(value => value.Id == setup.PlayerIds[2]).Select(value => value.ResponseVersion).SingleAsync();
             return await new SignupService(db, new SecretHasher(), new FixedTimeProvider(now), accountValidation: new SuccessfulWiseOldManAccountValidation())
-                .AddEventParticipantAccountAsync(new(setup.EventId, setup.PlayerIds[2], addedCharacterId, EventCharacterRole.Playing, 12.345678m, setup.FirstAdminId, "admin", secondaryQuestionId));
+                .AddEventParticipantAccountAsync(new(
+                    setup.EventId, setup.PlayerIds[2], addedCharacterId, EventCharacterRole.Playing, 12.345678m, setup.FirstAdminId, "admin", secondaryQuestionId,
+                    ExpectedResponseVersion: responseVersion));
         }
 
         Task<ParticipantQueueMutationResult>? confirmTask = null;

@@ -566,6 +566,8 @@ public sealed partial class SignupService(
     {
         if (request.EventId == Guid.Empty || request.OwnerAccountId == Guid.Empty || request.ActorAccountId == Guid.Empty || string.IsNullOrWhiteSpace(request.ActorName))
             return new(false, "A current event, website account, and administrator are required.");
+        if (request.ExpectedEventVersion is null)
+            return new(false, "The current event version is required. Reload before adding the participant.");
         if (request.Payment is not (PaymentStatus.Paid or PaymentStatus.Unpaid))
             return new(false, "Choose Paid or Unpaid.");
         if (request.PlayingCharacterIds is null || request.PlayingCharacterIds.Count == 0)
@@ -585,7 +587,7 @@ public sealed partial class SignupService(
             var bingoEvent = await LockEventAsync(request.EventId, cancellationToken);
             if (bingoEvent is null) return new(false, "The event could not be found.");
             if (!CanAdministerParticipants(bingoEvent)) return new(false, "Participant administration is read-only after the draft starts.");
-            if (request.ExpectedEventVersion is { } expectedEventVersion && bingoEvent.Version != expectedEventVersion)
+            if (bingoEvent.Version != request.ExpectedEventVersion.Value)
                 return new(false, "The event changed while you were editing it. Reload before adding the participant.");
 
             var owner = await dbContext.Accounts
@@ -697,6 +699,8 @@ public sealed partial class SignupService(
     {
         if (request.EventId == Guid.Empty || request.ParticipantId == Guid.Empty || request.NextCharacterId == Guid.Empty || request.ActorAccountId == Guid.Empty || string.IsNullOrWhiteSpace(request.ActorName))
             return new(false, "A current event, participant, account, and administrator are required.");
+        if (request.ExpectedResponseVersion is null)
+            return new(false, "The current participant version is required. Reload before switching the primary account.");
 
         await using var transaction = await dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
         try
@@ -714,7 +718,7 @@ public sealed partial class SignupService(
             if (participant is null) return new(false, "The participant could not be found.");
             if (participant.SignupStatus == SignupStatus.Withdrawn)
                 return new(false, "Withdrawn participants must be restored before changing event accounts.");
-            if (request.ExpectedResponseVersion is { } expectedVersion && participant.ResponseVersion != expectedVersion)
+            if (participant.ResponseVersion != request.ExpectedResponseVersion.Value)
                 return new(false, "This participant changed while you were editing it. Reload and try again.");
 
             var questions = await dbContext.SignupQuestions
@@ -816,6 +820,8 @@ public sealed partial class SignupService(
         }
         if (request.Role == EventCharacterRole.Informational && request.Ehb is not null)
             return new(false, "Informational accounts do not accept EHB.");
+        if (request.ExpectedResponseVersion is null)
+            return new(false, "The current participant version is required. Reload before adding the event account.");
 
         await using var transaction = await dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
         try
@@ -833,7 +839,7 @@ public sealed partial class SignupService(
             if (participant is null) return new(false, "The participant could not be found.");
             if (participant.SignupStatus == SignupStatus.Withdrawn)
                 return new(false, "Withdrawn participants must be restored before changing event accounts.");
-            if (request.ExpectedResponseVersion is { } expectedVersion && participant.ResponseVersion != expectedVersion)
+            if (participant.ResponseVersion != request.ExpectedResponseVersion.Value)
                 return new(false, "This participant changed while you were editing it. Reload and try again.");
             var character = await dbContext.OsrsCharacters.SingleOrDefaultAsync(x => x.Id == request.CharacterId, cancellationToken);
             if (character is null) return new(false, "The selected OSRS account could not be found.");
@@ -895,6 +901,8 @@ public sealed partial class SignupService(
     {
         if (request.EventId == Guid.Empty || request.ParticipantId == Guid.Empty || request.AssignmentId == Guid.Empty || request.ActorAccountId == Guid.Empty || string.IsNullOrWhiteSpace(request.ActorName))
             return new(false, "A current event, participant, assignment, and administrator are required.");
+        if (request.ExpectedResponseVersion is null)
+            return new(false, "The current participant version is required. Reload before removing the event account.");
 
         await using var transaction = await dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
         try
@@ -912,7 +920,7 @@ public sealed partial class SignupService(
             if (participant is null) return new(false, "The participant could not be found.");
             if (participant.SignupStatus == SignupStatus.Withdrawn)
                 return new(false, "Withdrawn participants must be restored before changing event accounts.");
-            if (request.ExpectedResponseVersion is { } expectedVersion && participant.ResponseVersion != expectedVersion)
+            if (participant.ResponseVersion != request.ExpectedResponseVersion.Value)
                 return new(false, "This participant changed while you were editing it. Reload and try again.");
             var assignment = await dbContext.EventParticipantCharacters
                 .FromSqlInterpolated($"SELECT * FROM event_participant_characters WHERE id = {request.AssignmentId} AND event_id = {request.EventId} AND event_participant_id = {request.ParticipantId} FOR UPDATE")
@@ -961,6 +969,8 @@ public sealed partial class SignupService(
     {
         if (request.EventId == Guid.Empty || request.ParticipantId == Guid.Empty || request.AssignmentId == Guid.Empty || request.CharacterId == Guid.Empty || request.ActorAccountId == Guid.Empty || string.IsNullOrWhiteSpace(request.ActorName))
             return new(false, "A current event, participant, assignment, account, and administrator are required.");
+        if (request.ExpectedResponseVersion is null)
+            return new(false, "The current participant version is required. Reload before correcting the event account.");
 
         await using var transaction = await dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
         try
@@ -978,7 +988,7 @@ public sealed partial class SignupService(
             if (participant is null) return new(false, "The participant could not be found.");
             if (participant.SignupStatus == SignupStatus.Withdrawn)
                 return new(false, "Withdrawn participants must be restored before changing event accounts.");
-            if (request.ExpectedResponseVersion is { } expectedVersion && participant.ResponseVersion != expectedVersion)
+            if (participant.ResponseVersion != request.ExpectedResponseVersion.Value)
                 return new(false, "This participant changed while you were editing it. Reload and try again.");
             var assignment = await dbContext.EventParticipantCharacters
                 .FromSqlInterpolated($"SELECT * FROM event_participant_characters WHERE id = {request.AssignmentId} AND event_id = {request.EventId} AND event_participant_id = {request.ParticipantId} FOR UPDATE")
@@ -2449,6 +2459,10 @@ public sealed partial class SignupService(
     {
         if (request.EventId == Guid.Empty || request.ParticipantId == Guid.Empty || request.ActorAccountId == Guid.Empty || string.IsNullOrWhiteSpace(request.ActorName))
             return new(false, "A current event, participant, and administrator are required.");
+        if (request.ExpectedEventVersion is null)
+            return new(false, "The current event version is required. Reload before confirming the participant.");
+        if (request.ExpectedResponseVersion is null)
+            return new(false, "The current participant version is required. Reload before confirming the participant.");
 
         await using var transaction = await dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
         try
@@ -2460,7 +2474,7 @@ public sealed partial class SignupService(
             var bingoEvent = await LockEventAsync(request.EventId, cancellationToken);
             if (bingoEvent is null) return new(false, "The event could not be found.");
             if (!CanAdministerParticipants(bingoEvent)) return new(false, "Participant administration is read-only after the draft starts.");
-            if (request.ExpectedEventVersion is { } expectedEventVersion && bingoEvent.Version != expectedEventVersion)
+            if (bingoEvent.Version != request.ExpectedEventVersion.Value)
                 return new(false, "The event changed while you were editing it. Reload before confirming the participant.");
 
             var participant = await dbContext.EventParticipants
@@ -2469,7 +2483,7 @@ public sealed partial class SignupService(
             if (participant is null) return new(false, "The participant could not be found.");
             if (!await SignupParticipants(request.EventId).AnyAsync(x => x.Id == participant.Id, cancellationToken))
                 return new(false, "That participant is managed by the finalized/direct roster workflow.");
-            if (request.ExpectedResponseVersion is { } expectedResponseVersion && participant.ResponseVersion != expectedResponseVersion)
+            if (participant.ResponseVersion != request.ExpectedResponseVersion.Value)
                 return new(false, "This participant changed while you were editing it. Reload before confirming it.");
             if (participant.SignupStatus == SignupStatus.Confirmed)
             {
@@ -2527,6 +2541,10 @@ public sealed partial class SignupService(
     {
         if (request.EventId == Guid.Empty || request.ParticipantId == Guid.Empty || request.ActorAccountId == Guid.Empty || string.IsNullOrWhiteSpace(request.ActorName))
             return new(false, "A current event, participant, and administrator are required.");
+        if (request.ExpectedEventVersion is null)
+            return new(false, "The current event version is required. Reload before moving the participant.");
+        if (request.ExpectedResponseVersion is null)
+            return new(false, "The current participant version is required. Reload before moving the participant.");
 
         await using var transaction = await dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
         try
@@ -2538,7 +2556,7 @@ public sealed partial class SignupService(
             var bingoEvent = await LockEventAsync(request.EventId, cancellationToken);
             if (bingoEvent is null) return new(false, "The event could not be found.");
             if (!CanAdministerParticipants(bingoEvent)) return new(false, "Participant administration is read-only after the draft starts.");
-            if (request.ExpectedEventVersion is { } expectedEventVersion && bingoEvent.Version != expectedEventVersion)
+            if (bingoEvent.Version != request.ExpectedEventVersion.Value)
                 return new(false, "The event changed while you were editing it. Reload before moving the participant.");
 
             var participant = await dbContext.EventParticipants
@@ -2547,7 +2565,7 @@ public sealed partial class SignupService(
             if (participant is null) return new(false, "The participant could not be found.");
             if (!await SignupParticipants(request.EventId).AnyAsync(x => x.Id == participant.Id, cancellationToken))
                 return new(false, "That participant is managed by the finalized/direct roster workflow.");
-            if (request.ExpectedResponseVersion is { } expectedResponseVersion && participant.ResponseVersion != expectedResponseVersion)
+            if (participant.ResponseVersion != request.ExpectedResponseVersion.Value)
                 return new(false, "This participant changed while you were editing it. Reload before moving it.");
             if (participant.SignupStatus == SignupStatus.WaitingList)
             {
@@ -2666,15 +2684,43 @@ public sealed partial class SignupService(
     }
 
     public Task<ParticipantLifecycleResult> RestoreAsync(Guid eventId, Guid participantId, Guid adminAccountId, string adminName, CancellationToken cancellationToken = default) =>
-        RestoreAdminParticipantAsync(new(eventId, participantId, adminAccountId, adminName), cancellationToken);
+        RestoreLegacyAsync(eventId, participantId, adminAccountId, adminName, null, cancellationToken);
 
     public Task<ParticipantLifecycleResult> RestoreAsync(Guid eventId, Guid participantId, Guid adminAccountId, string adminName, string? womValidationConfirmationToken, CancellationToken cancellationToken = default) =>
-        RestoreAdminParticipantAsync(new(eventId, participantId, adminAccountId, adminName, WomValidationConfirmationToken: womValidationConfirmationToken), cancellationToken);
+        RestoreLegacyAsync(eventId, participantId, adminAccountId, adminName, womValidationConfirmationToken, cancellationToken);
+
+    private async Task<ParticipantLifecycleResult> RestoreLegacyAsync(
+        Guid eventId,
+        Guid participantId,
+        Guid adminAccountId,
+        string adminName,
+        string? womValidationConfirmationToken,
+        CancellationToken cancellationToken)
+    {
+        var observed = await (from bingoEvent in dbContext.Events.AsNoTracking()
+                              join participant in dbContext.EventParticipants.AsNoTracking() on bingoEvent.Id equals participant.EventId
+                              where bingoEvent.Id == eventId && participant.Id == participantId
+                              select new { EventVersion = bingoEvent.Version, ResponseVersion = participant.ResponseVersion })
+            .SingleOrDefaultAsync(cancellationToken);
+        if (observed is null) return new(false, "The participant could not be found.");
+        return await RestoreAdminParticipantAsync(new(
+            eventId,
+            participantId,
+            adminAccountId,
+            adminName,
+            ExpectedEventVersion: observed.EventVersion,
+            ExpectedResponseVersion: observed.ResponseVersion,
+            WomValidationConfirmationToken: womValidationConfirmationToken), cancellationToken);
+    }
 
     public async Task<ParticipantLifecycleResult> RestoreAdminParticipantAsync(
         AdminParticipantRestoreRequest request,
         CancellationToken cancellationToken = default)
     {
+        if (request.ExpectedEventVersion is null)
+            return new(false, "The current event version is required. Reload before restoring the participant.");
+        if (request.ExpectedResponseVersion is null)
+            return new(false, "The current participant version is required. Reload before restoring the participant.");
         var validation = await PrevalidateReacquireNamesAsync(
             request.EventId, request.ParticipantId, request.ActorAccountId, true, request.ActorAccountId,
             null, request.WomValidationConfirmationToken, cancellationToken);
@@ -2694,13 +2740,13 @@ public sealed partial class SignupService(
                 .SingleOrDefaultAsync(cancellationToken);
             if (bingoEvent is null || participant is null) return new(false, "The participant could not be found.");
             if (!CanAdministerParticipants(bingoEvent)) return new(false, "Participant lifecycle changes are locked because the draft has started or the event has moved on.");
-            if (request.ExpectedEventVersion is { } expectedEventVersion && bingoEvent.Version != expectedEventVersion)
+            if (bingoEvent.Version != request.ExpectedEventVersion.Value)
                 return new(false, "The event changed while you were editing it. Reload before restoring the participant.");
             if (!await SignupParticipants(request.EventId).AnyAsync(x => x.Id == participant.Id, cancellationToken))
                 return new(false, "That participant is managed by the finalized/direct roster workflow.");
             if (validation.ExpectedVersion is { } expectedVersion && participant.ResponseVersion != expectedVersion)
                 return new(false, "This participant changed while you were editing it. Reload and try again.");
-            if (request.ExpectedResponseVersion is { } requestVersion && participant.ResponseVersion != requestVersion)
+            if (participant.ResponseVersion != request.ExpectedResponseVersion.Value)
                 return new(false, "This participant changed while you were editing it. Reload and try again.");
             if (participant.SignupStatus != SignupStatus.Withdrawn)
                 return new(true, null, participant.SignupStatus,

@@ -246,6 +246,8 @@
                         <p><strong id="restore-participant-heading">@T["Restore {0}?", Model.Name]</strong><br />@T["Restore this signup using the current capacity and waiting-list rules."]</p>
                         <form method="post" asp-page-handler="Restore" class="event-confirmation-form" data-update-targets="@partialTargets">
                             <input type="hidden" name="overlay" value="@overlayValue" />
+                            <input asp-for="ExpectedEventVersion" type="hidden" />
+                            <input asp-for="Input.ExpectedResponseVersion" type="hidden" />
                             <input asp-for="WomValidationConfirmationToken" type="hidden" />
                             <input type="hidden" name="ConfirmLifecycleAction" value="true" />
                             <div class="event-confirmation-actions">
