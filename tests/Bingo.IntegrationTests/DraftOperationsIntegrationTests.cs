@@ -1571,6 +1571,70 @@ public sealed class DraftOperationsIntegrationTests : IAsyncLifetime
         Assert.Single(await verify.AuditEntries.Where(x => x.Action == "draft.finalized").ToListAsync());
     }
 
+    [Fact]
+    public async Task RoleChangeAndFinalizationSerializeAndPublishCurrentRoleInBothOrders()
+    {
+        async Task RunAsync(bool roleFirst)
+        {
+            var setup = await SeedAsync();
+            await StartAndScrambleAsync(setup);
+            await ExecuteAsync(setup.EventId, setup.FirstAdminId, page => page.OnPostPickAsync(setup.EventId, setup.PlayerIds[2], CancellationToken.None));
+            await ExecuteAsync(setup.EventId, setup.FirstAdminId, page => page.OnPostPickAsync(setup.EventId, setup.PlayerIds[3], CancellationToken.None));
+
+            Guid membershipId;
+            long membershipVersion;
+            await using (var seed = new ApplicationDbContext(options))
+            {
+                var membership = await seed.TeamMemberships.SingleAsync(x => x.EventParticipantId == setup.PlayerIds[2] && x.LeftAt == null);
+                Assert.Equal(TeamMembershipRole.Participant, membership.Role);
+                membershipId = membership.Id;
+                membershipVersion = membership.Version;
+            }
+
+            var boundary = new RoleEventLockBoundary();
+            var roleOptions = new DbContextOptionsBuilder<ApplicationDbContext>()
+                .UseNpgsql(database.GetConnectionString())
+                .AddInterceptors(boundary)
+                .Options;
+            Task<string?> roleTask;
+            Task<string?> finalizeTask;
+            if (roleFirst)
+            {
+                roleTask = ExecuteAndReadStatusAsync(setup.EventId, setup.FirstAdminId,
+                    page => page.OnPostChangeRoleAsync(setup.EventId, membershipId, TeamMembershipRole.CoCaptain, CancellationToken.None, membershipVersion), roleOptions);
+                await boundary.Reached.Task.WaitAsync(TimeSpan.FromSeconds(15));
+                finalizeTask = ExecuteAndReadStatusAsync(setup.EventId, setup.FirstAdminId,
+                    page => page.OnPostFinalizeAsync(setup.EventId, CancellationToken.None, true));
+            }
+            else
+            {
+                finalizeTask = ExecuteAndReadStatusAsync(setup.EventId, setup.FirstAdminId,
+                    page => page.OnPostFinalizeAsync(setup.EventId, CancellationToken.None, true), roleOptions);
+                await boundary.Reached.Task.WaitAsync(TimeSpan.FromSeconds(15));
+                roleTask = ExecuteAndReadStatusAsync(setup.EventId, setup.FirstAdminId,
+                    page => page.OnPostChangeRoleAsync(setup.EventId, membershipId, TeamMembershipRole.CoCaptain, CancellationToken.None, membershipVersion));
+            }
+
+            boundary.Release.TrySetResult();
+            await Task.WhenAll(roleTask, finalizeTask);
+
+            await using var verify = new ApplicationDbContext(options);
+            var draft = await verify.DraftSessions.SingleAsync(x => x.EventId == setup.EventId);
+            Assert.True(draft.State == DraftState.Finalized, $"role status: {roleTask.Result ?? "<none>"}; finalize status: {finalizeTask.Result ?? "<none>"}");
+            var membershipAfter = await verify.TeamMemberships.SingleAsync(x => x.Id == membershipId);
+            Assert.True(membershipAfter.Role == TeamMembershipRole.CoCaptain, $"role status: {roleTask.Result ?? "<none>"}; finalize status: {finalizeTask.Result ?? "<none>"}; role persisted as {membershipAfter.Role}");
+            var activeCycle = Assert.Single(await verify.DraftPublicationCycles.Where(x => x.DraftSessionId == draft.Id && x.SupersededAt == null).ToListAsync());
+            var published = await verify.DraftPublicationRosters.SingleAsync(x => x.DraftPublicationCycleId == activeCycle.Id && x.EventParticipantId == setup.PlayerIds[2]);
+            Assert.Equal(TeamMembershipRole.CoCaptain, published.Role);
+            var finalizationAudits = await verify.AuditEntries.Where(x => x.Action == "draft.finalized" && x.TargetId == draft.Id.ToString()).ToListAsync();
+            Assert.True(finalizationAudits.Count == 1, $"role status: {roleTask.Result ?? "<none>"}; finalize status: {finalizeTask.Result ?? "<none>"}; finalization audits: {finalizationAudits.Count}");
+            Assert.Single(await verify.AuditEntries.Where(x => x.EventId == setup.EventId && x.Action == "team.membership_role_changed").ToListAsync());
+        }
+
+        await RunAsync(true);
+        await RunAsync(false);
+    }
+
     [Theory]
     [InlineData(true, true, false)]
     [InlineData(false, true, false)]
@@ -2256,6 +2320,31 @@ public sealed class DraftOperationsIntegrationTests : IAsyncLifetime
             CancellationToken cancellationToken = default)
         {
             if (command.CommandText.Contains("FROM draft_sessions", StringComparison.OrdinalIgnoreCase)
+                && command.CommandText.Contains("FOR UPDATE", StringComparison.OrdinalIgnoreCase)
+                && Interlocked.CompareExchange(ref entered, 1, 0) == 0)
+            {
+                Reached.TrySetResult();
+                await Release.Task.WaitAsync(TimeSpan.FromSeconds(15), cancellationToken);
+            }
+
+            return result;
+        }
+    }
+
+    private sealed class RoleEventLockBoundary : DbCommandInterceptor
+    {
+        private int entered;
+
+        public TaskCompletionSource Reached { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public override async ValueTask<DbDataReader> ReaderExecutedAsync(
+            DbCommand command,
+            CommandExecutedEventData eventData,
+            DbDataReader result,
+            CancellationToken cancellationToken = default)
+        {
+            if (command.CommandText.Contains("SELECT * FROM events", StringComparison.OrdinalIgnoreCase)
                 && command.CommandText.Contains("FOR UPDATE", StringComparison.OrdinalIgnoreCase)
                 && Interlocked.CompareExchange(ref entered, 1, 0) == 0)
             {

@@ -286,42 +286,68 @@ public sealed class DraftModel(ApplicationDbContext db, TimeProvider time, IAudi
             SetStatus(Localize("This membership changed or the role form is stale. Reload before changing its role."), UiMessageType.Error);
             return RedirectToPage(new { id, rosterTeamId });
         }
-        TeamCaptainRoleChangeResult result;
-        var observedDraft = await db.DraftSessions.AsNoTracking().SingleOrDefaultAsync(x => x.EventId == id, ct);
-        var observedEvent = await db.Events.AsNoTracking().SingleOrDefaultAsync(x => x.Id == id, ct);
-        if (observedDraft?.State == DraftState.Paused) { SetStatus(Localize("This historical paused draft is read-only; no roster changes are available."), UiMessageType.Error); return RedirectToPage(new { id, rosterTeamId }); }
-        if (observedDraft?.State == DraftState.Finalized && observedEvent?.State == EventState.SignupClosed)
+
+        var result = new TeamCaptainRoleChangeResult(false, Localize("The role could not be changed."));
+        for (var attempt = 0; attempt < 2; attempt++)
         {
             await using var tx = await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, ct);
             try
             {
-                var item = await db.Events.FromSqlInterpolated($"SELECT * FROM events WHERE id = {id} AND hidden_at IS NULL FOR UPDATE").SingleOrDefaultAsync(ct);
-                if (item is not null) await db.Entry(item).ReloadAsync(ct);
-                var currentDraft = await db.DraftSessions.SingleOrDefaultAsync(x => x.EventId == id, ct);
-                if (currentDraft is not null) await db.Entry(currentDraft).ReloadAsync(ct);
+                // Read the lifecycle boundary under the same event lock as role
+                // authority and draft finalization. A pre-transaction state read
+                // can route a role change through the normal path just as the
+                // finalizer publishes, leaving the public role label stale.
+                var item = await LockEventAsync(id, ct);
+                var currentDraft = await LockDraftAsync(id, ct);
+                if (item is null) return NotFound();
+                if (currentDraft?.State == DraftState.Paused)
+                {
+                    SetStatus(Localize("This historical paused draft is read-only; no roster changes are available."), UiMessageType.Error);
+                    return RedirectToPage(new { id, rosterTeamId });
+                }
+
                 var now = time.GetUtcNow();
-                if (item is null || !item.CanCorrectFinalizedRoster(currentDraft?.State, now) ||
-                    !await db.DraftPublicationCycles.AnyAsync(x => x.DraftSessionId == currentDraft!.Id && x.SupersededAt == null, ct))
-                    throw new InvalidOperationException("Roster corrections require a finalized draft before the event starts and a future event end.");
-                if (!await db.Accounts.AnyAsync(x => x.Id == AdminId && x.Active && x.AccountType == Bingo.Domain.Access.AccountType.WebsiteAccount &&
-                    (x.GlobalRole == Bingo.Domain.Access.GlobalRole.Admin || x.GlobalRole == Bingo.Domain.Access.GlobalRole.SuperAdmin), ct)) return Forbid();
+                var hasActivePublication = currentDraft is not null &&
+                    await db.DraftPublicationCycles.AnyAsync(x => x.DraftSessionId == currentDraft.Id && x.SupersededAt == null, ct);
+                var preLiveCorrection = item.CanCorrectFinalizedRoster(currentDraft?.State, now) && hasActivePublication;
+                var liveRoleCorrection = currentDraft?.State == DraftState.Finalized &&
+                    (item.State is EventState.Live or EventState.AwaitingFinalReview) && hasActivePublication;
+                if ((preLiveCorrection || liveRoleCorrection) &&
+                    !await db.Accounts.AnyAsync(x => x.Id == AdminId && x.Active && x.AccountType == Bingo.Domain.Access.AccountType.WebsiteAccount &&
+                        (x.GlobalRole == Bingo.Domain.Access.GlobalRole.Admin || x.GlobalRole == Bingo.Domain.Access.GlobalRole.SuperAdmin), ct))
+                {
+                    return Forbid();
+                }
+
                 result = await captainAuthority.ChangeRoleAsync(new(id, membershipId, role, AdminId, User.Identity?.Name ?? "Admin", membershipVersion), ct);
                 if (result.Succeeded)
                 {
-                    await RepublishPreformedCorrectionAsync(item, currentDraft!, "team.role_roster_published", membershipId, ct, "Pre-Live Captain role correction", item.Id);
+                    if (preLiveCorrection)
+                        await RepublishPreformedCorrectionAsync(item, currentDraft!, "team.role_roster_published", membershipId, ct, "Pre-Live Captain role correction", item.Id);
+                    else if (liveRoleCorrection)
+                        await RepublishLiveRoleCorrectionAsync(item, currentDraft!, membershipId, ct);
+
                     await db.SaveChangesAsync(ct);
                     await tx.CommitAsync(ct);
                 }
                 else await tx.RollbackAsync(ct);
+                break;
+            }
+            catch (Exception ex) when (IsSerializationConflict(ex) && attempt == 0)
+            {
+                await tx.RollbackAsync(CancellationToken.None);
+                db.ChangeTracker.Clear();
+                continue;
             }
             catch (Exception) when (!ct.IsCancellationRequested)
             {
                 await tx.RollbackAsync(CancellationToken.None);
                 db.ChangeTracker.Clear();
                 result = new(false, Localize("The role correction could not be saved. No changes were applied. Reload and try again."));
+                break;
             }
         }
-        else result = await captainAuthority.ChangeRoleAsync(new(id, membershipId, role, AdminId, User.Identity?.Name ?? "Admin", membershipVersion), ct);
+
         SetStatus(result.Succeeded ? Localize("{0} is now {1}.", result.ParticipantName ?? string.Empty, RoleLabel(role)) : result.Error ?? Localize("The role could not be changed."), result.Succeeded ? UiMessageType.Success : UiMessageType.Error);
         return RedirectToPage(new { id, rosterTeamId });
     }
@@ -591,24 +617,31 @@ public sealed class DraftModel(ApplicationDbContext db, TimeProvider time, IAudi
     public async Task<IActionResult> OnPostFinalizeAsync(Guid id, CancellationToken ct, bool confirmed = false)
     {
         if (!confirmed) { SetStatus(Localize("Confirm finalization before publishing the roster."), UiMessageType.Error); return RedirectToPage(new { id }); }
-        var published = false;
-        var offerBoardPublication = false;
-        await using var tx = await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, ct);
-        try
+        // A role correction and finalization share the event row lock. If the
+        // finalizer's serializable snapshot began just before the correction
+        // committed, PostgreSQL can reject that otherwise valid loser with a
+        // serialization failure. Re-read the locked boundary once so the
+        // serialized winner is then published with its current role labels.
+        for (var attempt = 0; attempt < 2; attempt++)
         {
-            var now = time.GetUtcNow();
-            var bingoEvent = await LockEventAsync(id, ct);
-            var draft = await LockDraftAsync(id, ct);
-            if (bingoEvent is null || draft is null) return NotFound();
-            if (bingoEvent.State != Bingo.Domain.Events.EventState.SignupClosed || bingoEvent.ActualStartedAt is not null || bingoEvent.EventEndsAt is not { } ends || ends <= now)
-                throw new InvalidOperationException("The draft can only be finalized before the event has started and while its configured end remains in the future.");
-            var draftedTeams = await OrderedDraftTeams(id, ct);
+            var published = false;
+            var offerBoardPublication = false;
+            await using var tx = await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, ct);
+            try
+            {
+                var now = time.GetUtcNow();
+                var bingoEvent = await LockEventAsync(id, ct);
+                var draft = await LockDraftAsync(id, ct);
+                if (bingoEvent is null || draft is null) return NotFound();
+                if (bingoEvent.State != Bingo.Domain.Events.EventState.SignupClosed || bingoEvent.ActualStartedAt is not null || bingoEvent.EventEndsAt is not { } ends || ends <= now)
+                    throw new InvalidOperationException("The draft can only be finalized before the event has started and while its configured end remains in the future.");
+                var draftedTeams = await OrderedDraftTeams(id, ct);
 
             // A zero/one-team event is a manually assembled roster. It is
             // finalized directly from setup and never receives a synthetic
             // running state, pick, turn, or team-balance calculation.
-            if (draftedTeams.Count <= 1)
-            {
+                if (draftedTeams.Count <= 1)
+                {
                 if (draft.State != DraftState.Setup)
                     throw new InvalidOperationException("A manually assembled roster can only be finalized from setup.");
                 RequireOrAcquireControl(draft, now);
@@ -634,9 +667,9 @@ public sealed class DraftModel(ApplicationDbContext db, TimeProvider time, IAudi
                 SetStatus(offerBoardPublication
                     ? Localize("Manual roster finalized and published. The board is approved and ready to publish separately.")
                     : Localize("Manual roster finalized and published."), UiMessageType.Success);
-            }
-            else
-            {
+                }
+                else
+                {
                 if (draft.State != DraftState.Running)
                     throw new InvalidOperationException("A website draft must be running before it can be finalized.");
                 draft.RequireControl(AdminId, now);
@@ -696,16 +729,24 @@ public sealed class DraftModel(ApplicationDbContext db, TimeProvider time, IAudi
                 SetStatus(offerBoardPublication
                     ? Localize("Draft finalized and team rosters published. The board is approved and ready to publish separately.")
                     : Localize("Draft finalized and team rosters published."), UiMessageType.Success);
+                }
             }
-        }
-        catch (Exception ex) when (IsDraftConflict(ex)) { return DraftConflict(id, ex); }
-        catch (InvalidOperationException ex) { SetStatus(ex.Message, UiMessageType.Error); }
-        catch (Exception) { SetStatus(Localize("The draft could not be finalized. No roster was published."), UiMessageType.Error); }
-        if (published) await NotifyDraft(id, ct);
-        if (published && offerBoardPublication)
-        {
-            SetStatus(Localize("Publish board? The approved board is ready. Publishing it is a separate action."), UiMessageType.Information);
-            return RedirectToPage("Board", new { id });
+            catch (Exception ex) when (IsSerializationConflict(ex) && attempt == 0)
+            {
+                await tx.RollbackAsync(CancellationToken.None);
+                db.ChangeTracker.Clear();
+                continue;
+            }
+            catch (Exception ex) when (IsDraftConflict(ex)) { return DraftConflict(id, ex); }
+            catch (InvalidOperationException ex) { SetStatus(ex.Message, UiMessageType.Error); }
+            catch (Exception) { SetStatus(Localize("The draft could not be finalized. No roster was published."), UiMessageType.Error); }
+            if (published) await NotifyDraft(id, ct);
+            if (published && offerBoardPublication)
+            {
+                SetStatus(Localize("Publish board? The approved board is ready. Publishing it is a separate action."), UiMessageType.Information);
+                return RedirectToPage("Board", new { id });
+            }
+            return RedirectToPage(new { id });
         }
         return RedirectToPage(new { id });
     }
@@ -873,6 +914,31 @@ public sealed class DraftModel(ApplicationDbContext db, TimeProvider time, IAudi
         foreach (var member in activeMembers) db.DraftPublicationRosters.Add(new DraftPublicationRoster(Guid.NewGuid(), replacement.Id, member.TeamId, member.EventParticipantId, member.Role, member.AssignedByDraftPickId is { } pick && picks.TryGetValue(pick, out var number) ? number : null, names[member.EventParticipantId]));
         bingoEvent.SetDraftRosterPublication(true);
         await audit.WriteAndSaveAsync(AdminId, User.Identity?.Name ?? "Admin", action, "draft_publication", targetId.ToString(), $"Superseded publication cycle {activeCycle.CycleNumber}: {correctionReason}.", publicationAuditEventId, ct);
+    }
+    private async Task RepublishLiveRoleCorrectionAsync(Bingo.Domain.Events.BingoEvent bingoEvent, DraftSession draft, Guid membershipId, CancellationToken ct)
+    {
+        if (draft.State != DraftState.Finalized || bingoEvent.State is not (EventState.Live or EventState.AwaitingFinalReview))
+            throw new InvalidOperationException("Live roster role corrections are unavailable in the current event state.");
+
+        var now = time.GetUtcNow();
+        var activeCycle = await db.DraftPublicationCycles.SingleOrDefaultAsync(x => x.DraftSessionId == draft.Id && x.SupersededAt == null, ct)
+            ?? throw new InvalidOperationException("The active roster publication no longer exists.");
+        var activeMembers = await db.TeamMemberships
+            .Where(x => x.LeftAt == null && db.Teams.Any(t => t.Id == x.TeamId && t.EventId == bingoEvent.Id && t.Active))
+            .ToListAsync(ct);
+        var names = await FrozenPublicNamesAsync(bingoEvent.Id, activeMembers.Select(x => x.EventParticipantId), now, ct);
+        var picks = await db.DraftPicks.Where(x => x.DraftSessionId == draft.Id && x.UndoneAt == null).ToDictionaryAsync(x => x.Id, x => x.PickNumber, ct);
+        activeCycle.Supersede(now, AdminId, "Live role correction");
+        await db.SaveChangesAsync(ct);
+        var nextCycle = (await db.DraftPublicationCycles.Where(x => x.DraftSessionId == draft.Id).Select(x => (int?)x.CycleNumber).MaxAsync(ct) ?? 0) + 1;
+        var replacement = new DraftPublicationCycle(Guid.NewGuid(), draft.Id, nextCycle, now, AdminId, activeCycle.PublicationMethod);
+        db.DraftPublicationCycles.Add(replacement);
+        foreach (var member in activeMembers)
+            db.DraftPublicationRosters.Add(new DraftPublicationRoster(Guid.NewGuid(), replacement.Id, member.TeamId, member.EventParticipantId, member.Role,
+                member.AssignedByDraftPickId is { } pick && picks.TryGetValue(pick, out var number) ? number : null, names[member.EventParticipantId]));
+
+        await audit.WriteAndSaveAsync(AdminId, User.Identity?.Name ?? "Admin", "team.role_roster_published", "draft_publication", membershipId.ToString(),
+            $"Superseded publication cycle {activeCycle.CycleNumber}: Live role correction.", bingoEvent.Id, ct);
     }
     private async Task<List<Team>> OrderedDraftTeams(Guid id, CancellationToken ct) => await db.Teams
         .FromSqlInterpolated($"SELECT * FROM teams WHERE event_id = {id} AND active = TRUE AND included_in_draft = TRUE ORDER BY draft_position NULLS FIRST, name FOR UPDATE")
@@ -1070,6 +1136,12 @@ public sealed class DraftModel(ApplicationDbContext db, TimeProvider time, IAudi
     private Task<string> PrimaryName(Guid participantId, CancellationToken ct) =>
         db.PrimaryCharacters().Where(x => x.ParticipantId == participantId).Select(x => x.Name).SingleAsync(ct);
     private Guid AdminId => User.GetAccountId()!.Value;
+    private static bool IsSerializationConflict(Exception exception)
+    {
+        for (var current = exception; current is not null; current = current.InnerException)
+            if (current is PostgresException { SqlState: PostgresErrorCodes.SerializationFailure or PostgresErrorCodes.DeadlockDetected }) return true;
+        return false;
+    }
     private static bool IsDraftConflict(Exception exception) => exception is InvalidOperationException or DbUpdateConcurrencyException
         or PostgresException { SqlState: PostgresErrorCodes.SerializationFailure or PostgresErrorCodes.UniqueViolation }
         or DbUpdateException { InnerException: PostgresException { SqlState: PostgresErrorCodes.SerializationFailure or PostgresErrorCodes.UniqueViolation } };

@@ -47,17 +47,18 @@
   `docs/references/admin-ui/reviews/2026-10-03/br-td-batch/G3b-evidence.md`.
   G4 is implemented and committed as `1b5a139`; evidence is recorded in
   `docs/references/admin-ui/reviews/2026-10-03/br-td-batch/G4-evidence.md`.
-  G5 is implemented and focused-tested in the current worktree; its evidence
-  is recorded in `docs/references/admin-ui/reviews/2026-10-03/br-td-batch/G5-evidence.md`.
-  Claude's independent review is pending. G5 is ready for its scoped local
-  commit; G6 is next after that checkpoint.
+  G5 is implemented and committed as `b9bb405`; evidence is recorded in
+  `docs/references/admin-ui/reviews/2026-10-03/br-td-batch/G5-evidence.md`.
+  G6 is implemented and focused-tested in the current worktree; its evidence
+  is recorded in `docs/references/admin-ui/reviews/2026-10-03/br-td-batch/G6-evidence.md`.
+  Claude's independent review is pending. G6 is ready for its scoped local
+  commit; no further batch item is authorized.
 - Standing scoped per-item local commit authority is confirmed; no push authority.
 
 ## Next permitted action
 
-Implementer must commit G5 after staged-diff inspection, then implement and
-check G6 against the durable brief and cited decisions/reports. Update this
-handoff with concise progress and evidence links.
-At batch end report per-item commits,
-checks, deviations and unresolved decisions, then stop for Claude's review.
-Do not start the separate ticket/documentation cleanup or another ticket.
+Implementer must stage only G6's source, focused tests and evidence, inspect the
+staged diff, and create the scoped local G6 commit. At batch end report the
+per-item commits, checks, deviations and unresolved decisions, then stop for
+Claude's independent review. Do not start the separate ticket/documentation
+cleanup or another ticket.

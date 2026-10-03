@@ -274,6 +274,92 @@ public sealed class C11FinalizedRosterIntegrationTests : IAsyncLifetime
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
+    public async Task HttpRoleChangeRepublishesCurrentPublicRoleDuringLiveAndFinalReview(bool finalReview)
+    {
+        var seed = await SeedAsync();
+        await StartLiveAsync(seed.EventId);
+        if (finalReview) await EndLiveForReviewAsync(seed.EventId);
+
+        Guid membershipId;
+        long membershipVersion;
+        Guid teamId;
+        Guid participantId;
+        TeamMembershipSource source;
+        Guid? pickId;
+        DateTimeOffset joinedAt;
+        int publicationCountBefore;
+        int competitionManagementBefore;
+        int competitionSynchronizationBefore;
+        int competitionOperationBefore;
+        int competitionUpdateBefore;
+        await using (var before = Db())
+        {
+            var membership = await before.TeamMemberships.SingleAsync(x => x.EventParticipantId == seed.LeaderId && x.LeftAt == null);
+            membershipId = membership.Id;
+            membershipVersion = membership.Version;
+            teamId = membership.TeamId;
+            participantId = membership.EventParticipantId;
+            source = membership.Source;
+            pickId = membership.AssignedByDraftPickId;
+            joinedAt = membership.JoinedAt;
+            publicationCountBefore = await before.DraftPublicationCycles.CountAsync(x => x.DraftSessionId == before.DraftSessions.Where(d => d.EventId == seed.EventId).Select(d => d.Id).Single());
+            competitionManagementBefore = await before.EventCompetitionManagements.CountAsync(x => x.EventId == seed.EventId);
+            competitionSynchronizationBefore = await before.EventCompetitionSynchronizations.CountAsync(x => x.EventId == seed.EventId);
+            competitionOperationBefore = await before.EventCompetitionManagementOperations.CountAsync(x => x.EventId == seed.EventId);
+            competitionUpdateBefore = await before.EventCompetitionUpdateAllSlots.CountAsync(x => x.EventId == seed.EventId);
+        }
+
+        await using var factory = Factory();
+        using var admin = await LoginAsync(factory, "c11-admin");
+        using var publicClient = factory.CreateClient();
+        var path = $"/Admin/Events/Draft/{seed.EventId}";
+        var page = await admin.GetStringAsync(path);
+        using (var changed = await PostAsync(admin, path, "ChangeRole", page, new()
+        {
+            ["membershipId"] = membershipId.ToString(),
+            ["membershipVersion"] = membershipVersion.ToString(CultureInfo.InvariantCulture),
+            ["role"] = "Captain",
+            ["rosterTeamId"] = teamId.ToString()
+        })) Assert.Equal(HttpStatusCode.Redirect, changed.StatusCode);
+
+        var publicPage = await publicClient.GetStringAsync(TeamsPath(seed));
+        Assert.Matches("(?s)<li class=\"is-captain\">\\s*<span>Leader</span>", RosterSection(publicPage));
+
+        await using var verify = Db();
+        Assert.Equal(finalReview ? EventState.AwaitingFinalReview : EventState.Live,
+            await verify.Events.Where(x => x.Id == seed.EventId).Select(x => x.State).SingleAsync());
+        var memberAfter = await verify.TeamMemberships.SingleAsync(x => x.Id == membershipId);
+        Assert.Equal(TeamMembershipRole.Captain, memberAfter.Role);
+        Assert.Equal(teamId, memberAfter.TeamId);
+        Assert.Equal(participantId, memberAfter.EventParticipantId);
+        Assert.Equal(source, memberAfter.Source);
+        Assert.Equal(pickId, memberAfter.AssignedByDraftPickId);
+        Assert.Equal(joinedAt, memberAfter.JoinedAt);
+        Assert.Null(memberAfter.LeftAt);
+        // ChangeRole advances the domain version, then the persistence hook
+        // advances the concurrency version for the single modified row.
+        Assert.Equal(membershipVersion + 2, memberAfter.Version);
+        Assert.Equal(1, await verify.TeamMembershipRoleTransitions.CountAsync(x => x.TeamMembershipId == membershipId));
+
+        var draftId = await verify.DraftSessions.Where(x => x.EventId == seed.EventId).Select(x => x.Id).SingleAsync();
+        var cycles = await verify.DraftPublicationCycles.Where(x => x.DraftSessionId == draftId).OrderBy(x => x.CycleNumber).ToListAsync();
+        Assert.Equal(publicationCountBefore + 1, cycles.Count);
+        var oldEntry = await verify.DraftPublicationRosters.SingleAsync(x => x.DraftPublicationCycleId == seed.InitialCycleId && x.EventParticipantId == seed.LeaderId);
+        Assert.Equal(TeamMembershipRole.CoCaptain, oldEntry.Role);
+        var activeCycle = Assert.Single(cycles, x => x.SupersededAt == null);
+        var currentEntry = await verify.DraftPublicationRosters.SingleAsync(x => x.DraftPublicationCycleId == activeCycle.Id && x.EventParticipantId == seed.LeaderId);
+        Assert.Equal(TeamMembershipRole.Captain, currentEntry.Role);
+        Assert.Single(await verify.AuditEntries.Where(x => x.EventId == seed.EventId && x.Action == "team.role_roster_published").ToListAsync());
+
+        Assert.Equal(competitionManagementBefore, await verify.EventCompetitionManagements.CountAsync(x => x.EventId == seed.EventId));
+        Assert.Equal(competitionSynchronizationBefore, await verify.EventCompetitionSynchronizations.CountAsync(x => x.EventId == seed.EventId));
+        Assert.Equal(competitionOperationBefore, await verify.EventCompetitionManagementOperations.CountAsync(x => x.EventId == seed.EventId));
+        Assert.Equal(competitionUpdateBefore, await verify.EventCompetitionUpdateAllSlots.CountAsync(x => x.EventId == seed.EventId));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
     public async Task HttpInternalReplacementValidatesReservationsAndCreatesNoPickOrPreStartActivation(bool linked)
     {
         var seed = await SeedAsync();
@@ -1498,6 +1584,16 @@ public sealed class C11FinalizedRosterIntegrationTests : IAsyncLifetime
         await using var transaction = await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable);
         var item = await db.Events.FromSqlInterpolated($"SELECT * FROM events WHERE id = {eventId} AND hidden_at IS NULL FOR UPDATE").SingleAsync();
         item.StartEvent(clock.Now);
+        await db.SaveChangesAsync();
+        await transaction.CommitAsync();
+    }
+
+    private async Task EndLiveForReviewAsync(Guid eventId)
+    {
+        await using var db = Db();
+        await using var transaction = await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable);
+        var item = await db.Events.FromSqlInterpolated($"SELECT * FROM events WHERE id = {eventId} AND hidden_at IS NULL FOR UPDATE").SingleAsync();
+        item.EndEvent(clock.Now.AddMinutes(-5));
         await db.SaveChangesAsync();
         await transaction.CommitAsync();
     }
