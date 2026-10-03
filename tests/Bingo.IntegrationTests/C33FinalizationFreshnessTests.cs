@@ -629,6 +629,33 @@ public sealed class C33FinalizationFreshnessTests : IAsyncLifetime
         Assert.Equal(before, await DatabaseStateAsync());
     }
 
+    [Fact]
+    public async Task ReviewApprovalRefusalRendersEarlierSubmissionLink()
+    {
+        await using (var db = new ApplicationDbContext(options))
+        {
+            await db.Database.ExecuteSqlInterpolatedAsync($"UPDATE submissions SET submitted_at = {now.AddHours(-3)} WHERE id = {fixture.First}");
+            await db.Database.ExecuteSqlInterpolatedAsync($"UPDATE submissions SET submitted_at = {now.AddHours(-2)} WHERE id = {fixture.Replacement}");
+        }
+
+        await using var factory = Factory();
+        using var client = factory.CreateClient(new() { AllowAutoRedirect = false });
+        await LoginAsync(client, "c33-admin");
+        var before = await SubmissionStateAsync(fixture.Replacement);
+        var form = Form(await client.GetStringAsync($"/Admin/Review/Details/{fixture.Replacement}?eventId={fixture.EventId}&search=C33&status=Pending"), "Approve");
+        using var response = await client.PostAsync(form.Action, new FormUrlEncodedContent(form.Fields));
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        var html = WebUtility.HtmlDecode(await client.GetStringAsync(response.Headers.Location!));
+
+        Assert.Contains("Earlier upload must be resolved first", html, StringComparison.Ordinal);
+        Assert.Contains("Approve or reject the earlier upload before approving this one.", html, StringComparison.Ordinal);
+        Assert.Contains($"/Admin/Review/Details/{fixture.First}", html, StringComparison.Ordinal);
+        Assert.Equal(before, await SubmissionStateAsync(fixture.Replacement));
+        await using var verify = new ApplicationDbContext(options);
+        Assert.Equal(SubmissionStatus.Pending, await verify.Submissions.Where(x => x.Id == fixture.Replacement).Select(x => x.Status).SingleAsync());
+        Assert.Empty(await verify.ReviewActions.Where(x => x.SubmissionId == fixture.Replacement && x.Action == ReviewActionType.Approve).ToListAsync());
+    }
+
     private static void AssertReviewConflictFeedback(string html)
     {
         Assert.Contains("This review was not saved", html);

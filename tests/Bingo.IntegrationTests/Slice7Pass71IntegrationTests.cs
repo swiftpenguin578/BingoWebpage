@@ -331,10 +331,10 @@ public sealed class Slice7Pass71IntegrationTests : IAsyncLifetime
         await db.SaveChangesAsync();
         var submissions = new Bingo.Infrastructure.Evidence.SubmissionService(db, new NoopEvidenceStorage(), new FixedTimeProvider(now), focus: focus, focusNotifier: notifier);
 
-        Assert.Equal(2, await submissions.ApproveAsync(first.Id, fixture.OwnerId));
+        Assert.Equal(2, (await submissions.ApproveAsync(first.Id, fixture.OwnerId)).ApprovedContribution);
         var afterFirst = await db.TeamFocusMarkers.SingleAsync(x => x.BoardTileId == fixture.TileId);
         Assert.True(afterFirst.Focused);
-        Assert.Equal(1, await submissions.ApproveAsync(second.Id, fixture.OwnerId));
+        Assert.Equal(1, (await submissions.ApproveAsync(second.Id, fixture.OwnerId)).ApprovedContribution);
         var completed = await db.TeamFocusMarkers.SingleAsync(x => x.BoardTileId == fixture.TileId);
         Assert.False(completed.Focused);
         Assert.Equal(2, completed.Version);
@@ -377,7 +377,7 @@ public sealed class Slice7Pass71IntegrationTests : IAsyncLifetime
         var service = new Bingo.Infrastructure.Evidence.SubmissionService(db, new NoopEvidenceStorage(), new FixedTimeProvider(now));
 
         Assert.Equal(1, submission.Version);
-        Assert.Equal(1, await service.ApproveAsync(submission.Id, fixture.OwnerId, expectedVersion: 1));
+        Assert.Equal(1, (await service.ApproveAsync(submission.Id, fixture.OwnerId, expectedVersion: 1)).ApprovedContribution);
         Assert.Equal(2, submission.Version);
         var stale = await Assert.ThrowsAsync<InvalidOperationException>(() => service.ReverseAsync(submission.Id, fixture.OwnerId, "Stale reversal", expectedVersion: 1));
         Assert.Contains("changed in another request", stale.Message, StringComparison.OrdinalIgnoreCase);

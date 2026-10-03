@@ -147,7 +147,7 @@ public sealed class SubmissionService(
         var adminName = await EnsureAdmin(adminAccountId, cancellationToken); var normalizedReason = RequireReviewReason(reason); await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken); var s = await LockedAdminReviewSubmissionAsync(submissionId, cancellationToken); EnsureExpectedVersion(s, expectedVersion); var now = time.GetUtcNow(); var before = Snapshot(s); s.Reject(normalizedReason, now); var after = Snapshot(s); db.ReviewActions.Add(Action(s.Id, ReviewActionType.Reject, adminAccountId, now, normalizedReason, before, after)); AddAudit(s, adminAccountId, adminName, "submission.rejected", normalizedReason, before, after, now); await AddRejectionNotificationsAsync(s, normalizedReason, now, cancellationToken); await db.SaveChangesAsync(cancellationToken); await tx.CommitAsync(CancellationToken.None);
     }
 
-    public async Task<int> ApproveAsync(Guid submissionId, Guid adminAccountId, CancellationToken cancellationToken = default, int? expectedVersion = null)
+    public async Task<SubmissionApprovalResult> ApproveAsync(Guid submissionId, Guid adminAccountId, CancellationToken cancellationToken = default, int? expectedVersion = null)
     {
         var adminName = await EnsureAdmin(adminAccountId, cancellationToken); await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
         var s = await LockedAdminReviewSubmissionAsync(submissionId, cancellationToken); EnsureExpectedVersion(s, expectedVersion); if (s.Status != SubmissionStatus.Pending) throw new InvalidOperationException("Only a pending submission can be approved.");
@@ -162,13 +162,23 @@ public sealed class SubmissionService(
             var dropUsed = await UsedDropContributionAsync(s.TeamId, s.RequirementId, drop, requirement.DuplicatesAllowed, cancellationToken);
             allowed = Math.Min(allowed, Math.Max(0, maximum - dropUsed));
         }
-        var amount = Math.Min(remaining, allowed); if (amount < 1) throw new InvalidOperationException("This requirement has no remaining eligible contribution. Mark the submission as a duplicate or reject it.");
+        var amount = Math.Min(remaining, allowed);
+        if (amount < 1) throw new InvalidOperationException("This objective has no remaining eligible contribution for this submission. It cannot be approved under the published objective rules.");
+        var blockingSubmission = await FindEarlierApprovalBlockAsync(s, requirement, publication, amount, cancellationToken);
+        if (blockingSubmission is not null)
+        {
+            // LockedAdminReviewSubmissionAsync advances the event version in the
+            // tracked entity for a decision. A room-order refusal must leave the
+            // transaction and context without that pending mutation.
+            db.ChangeTracker.Clear();
+            return new SubmissionApprovalResult(0, blockingSubmission);
+        }
         var ev = await db.Events.SingleAsync(x => x.Id == s.EventId, cancellationToken);
         var completesTile = await CompletesTileAtApprovalAsync(s, amount, cancellationToken);
         var now = time.GetUtcNow(); var before = Snapshot(s); ev.AdvanceStatsEvidenceRevision(additiveApproval: true); var announcementOrdinal = ev.ReserveAnnouncementOrdinal(); s.Approve(amount, now, ev.AnnouncementGeneration, completesTile, announcementOrdinal); var after = Snapshot(s); db.SubmissionContributions.Add(new SubmissionContribution(Guid.NewGuid(), s.Id, s.TeamId, s.RequirementId, s.DropSnapshotId, s.CreditedParticipantId, amount, now)); db.ReviewActions.Add(Action(s.Id, ReviewActionType.Approve, adminAccountId, now, $"Approved contribution: {amount}", before, after)); AddAudit(s, adminAccountId, adminName, "submission.approved", $"Approved contribution: {amount}.", before, after, now); await db.SaveChangesAsync(cancellationToken);
         await TileCompletionFactReconciler.ReconcileAsync(db, s.EventId, publication, [s.TeamId], now, cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
-        var focusCleared = focus is not null && await focus.ClearCompletedTileFocusAsync(s.EventId, s.TeamId, s.BoardTileId, cancellationToken); if (focusCleared) await db.SaveChangesAsync(cancellationToken); await tx.CommitAsync(CancellationToken.None); await Notify(s.EventId, cancellationToken); await NotifyFocus(s.EventId, s.TeamId, focusCleared, cancellationToken); return amount;
+        var focusCleared = focus is not null && await focus.ClearCompletedTileFocusAsync(s.EventId, s.TeamId, s.BoardTileId, cancellationToken); if (focusCleared) await db.SaveChangesAsync(cancellationToken); await tx.CommitAsync(CancellationToken.None); await Notify(s.EventId, cancellationToken); await NotifyFocus(s.EventId, s.TeamId, focusCleared, cancellationToken); return new SubmissionApprovalResult(amount);
     }
 
     public async Task ReverseAsync(Guid submissionId, Guid adminAccountId, string reason, CancellationToken cancellationToken = default, int? expectedVersion = null)
@@ -316,6 +326,68 @@ public sealed class SubmissionService(
         var caps = drops.Where(x => x.RequirementId == requirement.Id && x.ItemIdSnapshot == drop.ItemIdSnapshot).Select(x => x.MaximumContribution ?? 1).Distinct().ToList();
         if (caps.Count != 1) throw new InvalidOperationException("Eligible aliases have inconsistent contribution caps; board approval is required before review can continue.");
         return caps[0];
+    }
+
+    private async Task<SubmissionApprovalBlock?> FindEarlierApprovalBlockAsync(Submission current, BoardRequirementSnapshot requirement,
+        PublishedBoardData publication, int currentAmount, CancellationToken cancellationToken)
+    {
+        var pending = await db.Submissions.AsNoTracking()
+            .Where(x => x.TeamId == current.TeamId && x.BoardTileId == current.BoardTileId &&
+                        x.RequirementId == current.RequirementId && x.Status == SubmissionStatus.Pending)
+            .ToListAsync(cancellationToken);
+        var earlier = pending
+            .Where(x => x.Id != current.Id && (x.SubmittedAt < current.SubmittedAt ||
+                x.SubmittedAt == current.SubmittedAt && x.Id.CompareTo(current.Id) < 0))
+            .OrderBy(x => x.SubmittedAt).ThenBy(x => x.Id)
+            .ToList();
+        if (earlier.Count == 0) return null;
+
+        var drops = publication.Drops.Where(x => x.RequirementId == requirement.Id).ToDictionary(x => x.Id);
+        if (!requirement.DuplicatesAllowed) EnsureConsistentCaps(drops.Values);
+        var activeContributions = await (from contribution in db.SubmissionContributions.AsNoTracking()
+                                         join snapshot in db.BoardRequirementDropSnapshots.AsNoTracking() on contribution.DropSnapshotId equals snapshot.Id
+                                         where contribution.TeamId == current.TeamId && contribution.RequirementId == current.RequirementId &&
+                                               contribution.ReversedAt == null && snapshot.RequirementId == current.RequirementId
+                                         select new { contribution.Amount, snapshot.SourceDropId, snapshot.ItemIdSnapshot })
+            .ToListAsync(cancellationToken);
+        var used = await db.SubmissionContributions.AsNoTracking()
+            .Where(x => x.TeamId == current.TeamId && x.RequirementId == current.RequirementId && x.ReversedAt == null)
+            .SumAsync(x => (int?)x.Amount, cancellationToken) ?? 0;
+        var usedBySourceDrop = activeContributions.GroupBy(x => x.SourceDropId).ToDictionary(x => x.Key, x => x.Sum(value => value.Amount));
+        var usedByItem = activeContributions.GroupBy(x => x.ItemIdSnapshot).ToDictionary(x => x.Key, x => x.Sum(value => value.Amount));
+        var currentDrop = current.DropSnapshotId is Guid currentDropId ? drops[currentDropId] : null;
+
+        foreach (var candidate in earlier)
+        {
+            var withoutCurrent = ApprovalAmount(candidate, requirement, publication.Drops, used, usedBySourceDrop, usedByItem, null, 0);
+            var withCurrent = ApprovalAmount(candidate, requirement, publication.Drops, used, usedBySourceDrop, usedByItem, currentDrop, currentAmount);
+            if (withCurrent < withoutCurrent) return new SubmissionApprovalBlock(candidate.Id, candidate.SubmittedAt);
+        }
+        return null;
+    }
+
+    private static int ApprovalAmount(Submission candidate, BoardRequirementSnapshot requirement,
+        IEnumerable<BoardRequirementDropSnapshot> publicationDrops, int used,
+        IReadOnlyDictionary<Guid, int> usedBySourceDrop, IReadOnlyDictionary<Guid, int> usedByItem,
+        BoardRequirementDropSnapshot? additionalDrop, int additionalAmount)
+    {
+        var remaining = Math.Max(0, requirement.TargetContribution - used - additionalAmount);
+        var allowed = candidate.ClaimedWeight;
+        if (candidate.DropSnapshotId is Guid candidateDropId)
+        {
+            var drops = publicationDrops.Where(x => x.RequirementId == requirement.Id).ToDictionary(x => x.Id);
+            if (!drops.TryGetValue(candidateDropId, out var candidateDrop))
+                throw new InvalidOperationException("The published objective is unavailable.");
+            var maximum = MaximumContribution(requirement, candidateDrop, drops.Values);
+            var dropUsed = requirement.DuplicatesAllowed
+                ? usedBySourceDrop.GetValueOrDefault(candidateDrop.SourceDropId)
+                : usedByItem.GetValueOrDefault(candidateDrop.ItemIdSnapshot);
+            if (additionalDrop is not null && (requirement.DuplicatesAllowed
+                    ? additionalDrop.SourceDropId == candidateDrop.SourceDropId
+                    : additionalDrop.ItemIdSnapshot == candidateDrop.ItemIdSnapshot)) dropUsed += additionalAmount;
+            allowed = Math.Min(allowed, Math.Max(0, maximum - dropUsed));
+        }
+        return Math.Min(remaining, allowed);
     }
 
     private async Task<int> UsedDropContributionAsync(Guid teamId, Guid requirementId, BoardRequirementDropSnapshot drop, bool duplicatesAllowed, CancellationToken cancellationToken)

@@ -89,6 +89,14 @@
                         <small>@T["This is a warning only; the review decision remains Approve or reasoned Reject."]</small>
                     </aside>
                 }
+                @if (Model.ApprovalBlock is { } approvalBlock)
+                {
+                    <aside class="admin-review-callout admin-review-warning" role="alert">
+                        <strong>@T["Earlier upload must be resolved first"]</strong>
+                        <p>@T["Approve or reject the earlier upload before approving this one."] @DateTimePresentation.Format(approvalBlock.SubmittedAt, "dd MMM yyyy, HH:mm", Model.EventTimezone, CultureInfo.CurrentCulture)</p>
+                        <a asp-page="Details" asp-route-id="@approvalBlock.SubmissionId" asp-route-eventId="@Model.Details.EventId" asp-route-search="@Model.Search" asp-route-status="@queueStatus">@T["Open earlier review"]</a>
+                    </aside>
+                }
                 @if (Model.Details.MinutesAfterEventEnd is int minutes && Model.Details.EventEndsAt is DateTimeOffset eventEnd)
                 {
                     <aside class="admin-review-callout admin-review-warning" role="note">

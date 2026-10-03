@@ -189,9 +189,9 @@ public sealed partial class SubmissionWorkflowTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task PublicBoardReadKeepsOneSnapshotAcrossReversalThatLeavesTileComplete()
+    public async Task PublicBoardReadKeepsOneSnapshotAcrossReversalThatLeavesTileIncomplete()
     {
-        var setup = await SeedAsync(target: 2, allowHigherWeights: true, dropMaximum: 2, createAlternateWeightDrop: true);
+        var setup = await SeedAsync(target: 3, allowHigherWeights: true, dropMaximum: 2, createAlternateWeightDrop: true);
         var clock = new MutableTimeProvider(now.AddMinutes(-30));
         await using (var seed = new ApplicationDbContext(options))
         {
@@ -238,8 +238,8 @@ public sealed partial class SubmissionWorkflowTests : IAsyncLifetime
         await using var verify = new ApplicationDbContext(options);
         var current = await new PublicBoardService(verify, clock).GetEventBoardAsync($"event-{setup.EventId:N}");
         var currentTeam = Assert.Single(current!.Teams);
-        Assert.True(currentTeam.Progress.Tiles.Single().Complete);
-        Assert.Equal(now.AddMinutes(-20), currentTeam.Progress.CurrentScoreReachedAt);
+        Assert.False(currentTeam.Progress.Tiles.Single().Complete);
+        Assert.Null(currentTeam.Progress.CurrentScoreReachedAt);
         Assert.DoesNotContain(current.RecentDrops, value => value.SubmissionId == laterSubmission.SubmissionId);
         Assert.Contains(current.RecentDrops, value => value.SubmissionId == olderSubmission.SubmissionId);
     }
@@ -664,12 +664,15 @@ public sealed partial class SubmissionWorkflowTests : IAsyncLifetime
     {
         var setup = await SeedAsync(target: 3, allowHigherWeights: true);
         await using var db = new ApplicationDbContext(options);
-        var service = Service(db);
+        var clock = new MutableTimeProvider(now.AddMinutes(-20));
+        var service = Service(db, clock);
         var first = await service.CreateAsync(Command(setup) with { ClaimedWeight = 2 });
+        clock.Set(now.AddMinutes(-10));
         var second = await service.CreateAsync(Command(setup) with { ClaimedWeight = 2 });
+        clock.Set(now);
 
-        Assert.Equal(2, await service.ApproveAsync(first.SubmissionId, setup.AdminId));
-        Assert.Equal(1, await service.ApproveAsync(second.SubmissionId, setup.AdminId));
+        Assert.Equal(2, (await service.ApproveAsync(first.SubmissionId, setup.AdminId)).ApprovedContribution);
+        Assert.Equal(1, (await service.ApproveAsync(second.SubmissionId, setup.AdminId)).ApprovedContribution);
         Assert.Equal(3, await db.SubmissionContributions.Where(x => x.ReversedAt == null).SumAsync(x => x.Amount));
 
         var childContribution = await db.SubmissionContributions.SingleAsync(value => value.SubmissionId == second.SubmissionId);
@@ -751,6 +754,188 @@ public sealed partial class SubmissionWorkflowTests : IAsyncLifetime
 
     }
 
+    [Fact]
+    public async Task LaterApprovalReturnsEarlierPendingBlockAndUnblocksAfterResolution()
+    {
+        var setup = await SeedAsync(target: 1, allowHigherWeights: true);
+        await using var db = new ApplicationDbContext(options);
+        (await db.Teams.SingleAsync(x => x.Id == setup.TeamId)).Finalize(now.AddDays(-2));
+        await db.SaveChangesAsync();
+        var clock = new MutableTimeProvider(now.AddMinutes(-20));
+        var service = Service(db, clock);
+        var earlierTime = now.AddMinutes(-20);
+        var earlier = await service.CreateAsync(Command(setup));
+        clock.Set(now.AddMinutes(-10));
+        var later = await service.CreateAsync(Command(setup));
+        var eventVersion = await db.Events.Where(x => x.Id == setup.EventId).Select(x => x.Version).SingleAsync();
+        var actionCount = await db.ReviewActions.CountAsync();
+
+        clock.Set(now);
+        var refused = await service.ApproveAsync(later.SubmissionId, setup.AdminId);
+
+        Assert.Equal(0, refused.ApprovedContribution);
+        var block = refused.BlockingSubmission;
+        Assert.NotNull(block);
+        Assert.Equal(earlier.SubmissionId, block.SubmissionId);
+        Assert.Equal(earlierTime, block.SubmittedAt);
+        Assert.Equal(SubmissionStatus.Pending, await db.Submissions.Where(x => x.Id == earlier.SubmissionId).Select(x => x.Status).SingleAsync());
+        Assert.Equal(SubmissionStatus.Pending, await db.Submissions.Where(x => x.Id == later.SubmissionId).Select(x => x.Status).SingleAsync());
+        Assert.Empty(await db.SubmissionContributions.ToListAsync());
+        Assert.Equal(actionCount, await db.ReviewActions.CountAsync());
+        await using (var verify = new ApplicationDbContext(options))
+        {
+            Assert.Equal(eventVersion, await verify.Events.Where(x => x.Id == setup.EventId).Select(x => x.Version).SingleAsync());
+            Assert.Empty(await verify.SubmissionContributions.ToListAsync());
+        }
+
+        await service.RejectAsync(earlier.SubmissionId, setup.AdminId, "Resolve the earlier pending upload.");
+        var approved = await service.ApproveAsync(later.SubmissionId, setup.AdminId);
+        Assert.Equal(1, approved.ApprovedContribution);
+        Assert.Null(approved.BlockingSubmission);
+        Assert.Equal(SubmissionStatus.Rejected, await db.Submissions.Where(x => x.Id == earlier.SubmissionId).Select(x => x.Status).SingleAsync());
+        Assert.Equal(SubmissionStatus.Approved, await db.Submissions.Where(x => x.Id == later.SubmissionId).Select(x => x.Status).SingleAsync());
+    }
+
+    [Fact]
+    public async Task LaterApprovalUsesRoomAndUploadOrderWithoutBlockingWhenBothFit()
+    {
+        var setup = await SeedAsync(target: 4, allowHigherWeights: true);
+        await using var db = new ApplicationDbContext(options);
+        (await db.Teams.SingleAsync(x => x.Id == setup.TeamId)).Finalize(now.AddDays(-2));
+        await db.SaveChangesAsync();
+        var clock = new MutableTimeProvider(now.AddMinutes(-20));
+        var service = Service(db, clock);
+        var earlier = await service.CreateAsync(Command(setup));
+        clock.Set(now.AddMinutes(-10));
+        var later = await service.CreateAsync(Command(setup));
+
+        clock.Set(now);
+        var laterApproval = await service.ApproveAsync(later.SubmissionId, setup.AdminId);
+        var earlierApproval = await service.ApproveAsync(earlier.SubmissionId, setup.AdminId);
+
+        Assert.Equal(2, laterApproval.ApprovedContribution);
+        Assert.Null(laterApproval.BlockingSubmission);
+        Assert.Equal(2, earlierApproval.ApprovedContribution);
+        Assert.Null(earlierApproval.BlockingSubmission);
+        var board = await db.Boards.SingleAsync(x => x.EventId == setup.EventId);
+        var fact = await db.TileCompletionFacts.SingleAsync(x => x.EventId == setup.EventId && x.TeamId == setup.TeamId && x.BoardTileId == setup.TileId && x.ApprovalSnapshotId == board.ActiveApprovalSnapshotId);
+        Assert.True(fact.IsComplete);
+        Assert.Equal(await db.Submissions.Where(x => x.Id == later.SubmissionId).Select(x => x.SubmittedAt).SingleAsync(), fact.CompletedAt);
+    }
+
+    [Fact]
+    public async Task LaterApprovalBlocksWhenItConsumesAnEarlierDropCap()
+    {
+        var setup = await SeedAsync(target: 3, allowHigherWeights: true, dropMaximum: 1);
+        await using var db = new ApplicationDbContext(options);
+        (await db.Teams.SingleAsync(x => x.Id == setup.TeamId)).Finalize(now.AddDays(-2));
+        await db.SaveChangesAsync();
+        var clock = new MutableTimeProvider(now.AddMinutes(-20));
+        var service = Service(db, clock);
+        var earlier = await service.CreateAsync(Command(setup));
+        clock.Set(now.AddMinutes(-10));
+        var later = await service.CreateAsync(Command(setup));
+
+        var refused = await service.ApproveAsync(later.SubmissionId, setup.AdminId);
+
+        Assert.Equal(0, refused.ApprovedContribution);
+        Assert.NotNull(refused.BlockingSubmission);
+        Assert.Equal(earlier.SubmissionId, refused.BlockingSubmission.SubmissionId);
+        Assert.Empty(await db.SubmissionContributions.ToListAsync());
+    }
+
+    [Fact]
+    public async Task ApprovalOrderBlockIsScopedToTheSameObjective()
+    {
+        var setup = await SeedAsync(target: 1, allowHigherWeights: true, additionalObjectivesPerTile: 1);
+        await using var db = new ApplicationDbContext(options);
+        (await db.Teams.SingleAsync(x => x.Id == setup.TeamId)).Finalize(now.AddDays(-2));
+        await db.SaveChangesAsync();
+        var clock = new MutableTimeProvider(now.AddMinutes(-20));
+        var service = Service(db, clock);
+        var earlier = await service.CreateAsync(Command(setup));
+        clock.Set(now.AddMinutes(-10));
+        var otherObjective = await service.CreateAsync(Command(setup) with
+        {
+            RequirementId = setup.RequirementIds![1],
+            DropSnapshotId = setup.DropIds![1]
+        });
+
+        var approved = await service.ApproveAsync(otherObjective.SubmissionId, setup.AdminId);
+
+        Assert.Equal(1, approved.ApprovedContribution);
+        Assert.Null(approved.BlockingSubmission);
+        Assert.Equal(SubmissionStatus.Pending, await db.Submissions.Where(x => x.Id == earlier.SubmissionId).Select(x => x.Status).SingleAsync());
+    }
+
+    [Fact]
+    public async Task ConcurrentApprovalInBothLockOrdersRespectsEarlierUpload()
+    {
+        await RunRaceAsync(laterFirst: true);
+        await RunRaceAsync(laterFirst: false);
+
+        async Task RunRaceAsync(bool laterFirst)
+        {
+            var setup = await SeedAsync(target: 1, allowHigherWeights: true,
+                identitySuffix: $"-{(laterFirst ? "later" : "earlier")}-{Guid.NewGuid():N}");
+            await using (var setupDb = new ApplicationDbContext(options))
+            {
+                (await setupDb.Teams.SingleAsync(x => x.Id == setup.TeamId)).Finalize(now.AddDays(-2));
+                await setupDb.SaveChangesAsync();
+            }
+            var clock = new MutableTimeProvider(now.AddMinutes(-20));
+            SubmissionResult earlier;
+            await using (var create = new ApplicationDbContext(options))
+                earlier = await Service(create, clock).CreateAsync(Command(setup));
+            clock.Set(now.AddMinutes(-10));
+            SubmissionResult later;
+            await using (var create = new ApplicationDbContext(options))
+                later = await Service(create, clock).CreateAsync(Command(setup));
+
+            var firstId = laterFirst ? later.SubmissionId : earlier.SubmissionId;
+            var secondId = laterFirst ? earlier.SubmissionId : later.SubmissionId;
+            var boundary = new PauseAfterEventLock();
+            var firstOptions = new DbContextOptionsBuilder<ApplicationDbContext>(options).AddInterceptors(boundary).Options;
+            await using var firstDb = new ApplicationDbContext(firstOptions);
+            await firstDb.Database.OpenConnectionAsync();
+            var firstTask = TryApproveAsync(firstDb, firstId, setup.AdminId);
+            await boundary.Ready.Task.WaitAsync(TimeSpan.FromSeconds(15));
+
+            await using var secondDb = new ApplicationDbContext(options);
+            await secondDb.Database.OpenConnectionAsync();
+            var secondTask = TryApproveAsync(secondDb, secondId, setup.AdminId);
+            Assert.True(await WaitForDatabaseBlockAsync(secondTask, secondDb, firstDb), "The second approval must wait on the event-row approval lock.");
+            boundary.Release.TrySetResult();
+            var first = await firstTask;
+            var second = await secondTask;
+
+            await using var verify = new ApplicationDbContext(options);
+            var states = await verify.Submissions.AsNoTracking().Where(x => x.Id == earlier.SubmissionId || x.Id == later.SubmissionId).ToListAsync();
+            Assert.Single(states, x => x.Status == SubmissionStatus.Approved);
+            Assert.Single(states, x => x.Status == SubmissionStatus.Pending);
+            Assert.Single(await verify.SubmissionContributions.AsNoTracking().Where(x => x.SubmissionId == earlier.SubmissionId || x.SubmissionId == later.SubmissionId).ToListAsync());
+            if (laterFirst)
+            {
+                Assert.Null(first.Error);
+                Assert.Equal(earlier.SubmissionId, first.Result?.BlockingSubmission?.SubmissionId);
+                Assert.Null(second.Error);
+                Assert.Equal(1, second.Result?.ApprovedContribution);
+            }
+            else
+            {
+                Assert.Null(first.Error);
+                Assert.Equal(1, first.Result?.ApprovedContribution);
+                Assert.True(second.Error is not null || second.Result?.BlockingSubmission is not null);
+            }
+
+            async Task<(SubmissionApprovalResult? Result, Exception? Error)> TryApproveAsync(ApplicationDbContext review, Guid id, Guid adminId)
+            {
+                try { return (await new SubmissionService(review, new FakeEvidenceStorage(), new FixedTimeProvider(now)).ApproveAsync(id, adminId), null); }
+                catch (Exception exception) { return (null, exception); }
+            }
+        }
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
@@ -768,12 +953,15 @@ public sealed partial class SubmissionWorkflowTests : IAsyncLifetime
         db.BoardApprovalRequirementDropSnapshots.Add(new(Guid.NewGuid(), approvalRequirement.Id, alternate.SourceDropId, alternate.ItemIdSnapshot,
             alternate.BossName, alternate.ItemName, alternate.DisplayRate, alternate.NumericProbability, alternate.MaximumContribution, alternate.EhbPerContribution, alternate.CreditedWeight, 1));
         await db.SaveChangesAsync();
-        var service = Service(db);
+        var clock = new MutableTimeProvider(now.AddMinutes(-20));
+        var service = Service(db, clock);
         var first = await service.CreateAsync(Command(setup) with { ClaimedWeight = 2 });
+        clock.Set(now.AddMinutes(-10));
         var second = await service.CreateAsync(Command(setup) with { ClaimedWeight = 2, DropSnapshotId = alternateDropId });
+        clock.Set(now);
 
-        Assert.Equal(1, await service.ApproveAsync(first.SubmissionId, setup.AdminId));
-        Assert.Equal(1, await service.ApproveAsync(second.SubmissionId, setup.AdminId));
+        Assert.Equal(1, (await service.ApproveAsync(first.SubmissionId, setup.AdminId)).ApprovedContribution);
+        Assert.Equal(1, (await service.ApproveAsync(second.SubmissionId, setup.AdminId)).ApprovedContribution);
 
         await service.ReverseAsync(first.SubmissionId, setup.AdminId, "Approved the wrong screenshot");
 
@@ -867,7 +1055,7 @@ public sealed partial class SubmissionWorkflowTests : IAsyncLifetime
     [Fact]
     public async Task AdminReviewMutationsFailClosedAfterFinalizationWithoutAudits()
     {
-        var setup = await SeedAsync(target: 3, allowHigherWeights: true);
+        var setup = await SeedAsync(target: 4, allowHigherWeights: true);
         await using var db = new ApplicationDbContext(options);
         var service = Service(db);
         var pending = await service.CreateAsync(Command(setup));
@@ -1157,12 +1345,15 @@ public sealed partial class SubmissionWorkflowTests : IAsyncLifetime
     {
         var setup = await SeedAsync(target: 3, allowHigherWeights: false, manualObjective: false, duplicatesAllowed: false);
         await using var db = new ApplicationDbContext(options);
-        var service = Service(db);
+        var clock = new MutableTimeProvider(now.AddMinutes(-20));
+        var service = Service(db, clock);
 
         var first = await service.CreateAsync(Command(setup));
+        clock.Set(now.AddMinutes(-10));
         var pendingCopy = await service.CreateAsync(Command(setup));
         Assert.Equal(SubmissionStatus.Pending, pendingCopy.Status);
 
+        clock.Set(now);
         await service.ApproveAsync(first.SubmissionId, setup.AdminId);
 
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => service.CreateAsync(Command(setup)));
@@ -1807,7 +1998,7 @@ public sealed partial class SubmissionWorkflowTests : IAsyncLifetime
         setup.CaptainId, setup.EventId, setup.TeamId, setup.TileId, setup.RequirementId, setup.DropId,
         setup.ParticipantId, 1, "captain note", "proof.png", new MemoryStream([1, 2, 3]));
 
-    private async Task<Setup> SeedAsync(int target, bool allowHigherWeights, string? evidenceCode = null, bool manualObjective = false, bool duplicatesAllowed = true, int? dropMaximum = null, decimal tileEhb = 1, decimal dropEhb = 1, int boardRows = 1, int boardColumns = 1, bool createAlternateWeightDrop = false, int additionalObjectivesPerTile = 0)
+    private async Task<Setup> SeedAsync(int target, bool allowHigherWeights, string? evidenceCode = null, bool manualObjective = false, bool duplicatesAllowed = true, int? dropMaximum = null, decimal tileEhb = 1, decimal dropEhb = 1, int boardRows = 1, int boardColumns = 1, bool createAlternateWeightDrop = false, int additionalObjectivesPerTile = 0, string? identitySuffix = null)
     {
         await using var db = new ApplicationDbContext(options);
         var eventId = Guid.NewGuid();
@@ -1830,13 +2021,14 @@ public sealed partial class SubmissionWorkflowTests : IAsyncLifetime
         var participant = new EventParticipant(participantId, eventId, SignupStatus.Confirmed, 1, now.AddDays(-5), SignupSource.Website);
         var form = new SignupForm(Guid.NewGuid(), eventId, now.AddDays(-5));
         var primaryQuestion = new SignupQuestion(Guid.NewGuid(), form.Id, eventId, "primary_regular_account", "Account", SignupQuestionType.Account, true, 0, null, SignupSystemField.PrimaryRegularAccount, EventCharacterRole.Playing);
-        var captain = Account.CreateWebsite(captainId, "captain", "CAPTAIN", now.AddDays(-10));
+        var suffix = identitySuffix ?? string.Empty;
+        var captain = Account.CreateWebsite(captainId, $"captain{suffix}", $"CAPTAIN{suffix}", now.AddDays(-10));
         var captainParticipant = new EventParticipant(Guid.NewGuid(), eventId, SignupStatus.Confirmed, 1000, now.AddDays(-5), SignupSource.Website);
         captainParticipant.AssignOwner(captain);
         var captainMembership = new TeamMembership(Guid.NewGuid(), teamId, captainParticipant.Id, TeamMembershipRole.Captain, now.AddDays(-4), null, null);
         var captainAccess = new AccountEventAccess(Guid.NewGuid(), captainId, eventId, teamId, participantId, now.AddDays(-1), now.AddHours(5), now.AddHours(30));
         captainAccess.Enable();
-        var admin = Account.CreateWebsite(adminId, "admin", "ADMIN", now.AddDays(-10));
+        var admin = Account.CreateWebsite(adminId, $"admin{suffix}", $"ADMIN{suffix}", now.AddDays(-10));
         admin.SetGlobalRole(GlobalRole.Admin);
         var board = new Board(boardId, eventId, "Board", boardRows, boardColumns);
         var tileIds = Enumerable.Range(0, boardRows * boardColumns).Select(index => index == 0 ? tileId : Guid.NewGuid()).ToList();
@@ -1858,7 +2050,7 @@ public sealed partial class SubmissionWorkflowTests : IAsyncLifetime
             drops.Add(new BoardRequirementDropSnapshot(alternateDropId.Value, requirements[0].Id, Guid.NewGuid(), Guid.NewGuid(), "Alternate test boss", "Alternate test drop", "1/20", 0.05m,
                 dropMaximum ?? (duplicatesAllowed ? null : 1), dropEhb, 2));
         }
-        var character = new OsrsCharacter(Guid.NewGuid(), "Player One", "PLAYER ONE", now);
+        var character = new OsrsCharacter(Guid.NewGuid(), $"Player One{suffix}", $"PLAYER ONE{suffix}", now);
         var assignment = new EventParticipantCharacter(Guid.NewGuid(), eventId, participantId, character.Id, 0, now, adminId, primaryQuestion.Id, EventCharacterRole.Playing, 500, EhbSource.Manual, null);
         var draft = new DraftSession(Guid.NewGuid(), eventId, 1);
         draft.FinalizeDirect(now.AddDays(-1));
@@ -1889,6 +2081,26 @@ public sealed partial class SubmissionWorkflowTests : IAsyncLifetime
             DbDataReader result, CancellationToken cancellationToken = default)
         {
             if (command.CommandText.Contains("tile_completion_facts", StringComparison.OrdinalIgnoreCase) &&
+                Interlocked.Exchange(ref paused, 1) == 0)
+            {
+                Ready.TrySetResult();
+                await Release.Task.WaitAsync(TimeSpan.FromSeconds(30), cancellationToken);
+            }
+            return result;
+        }
+    }
+
+    private sealed class PauseAfterEventLock : DbCommandInterceptor
+    {
+        private int paused;
+        public TaskCompletionSource Ready { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public override async ValueTask<DbDataReader> ReaderExecutedAsync(DbCommand command, CommandExecutedEventData eventData,
+            DbDataReader result, CancellationToken cancellationToken = default)
+        {
+            if (command.CommandText.Contains("FROM events", StringComparison.OrdinalIgnoreCase) &&
+                command.CommandText.Contains("FOR UPDATE", StringComparison.OrdinalIgnoreCase) &&
                 Interlocked.Exchange(ref paused, 1) == 0)
             {
                 Ready.TrySetResult();

@@ -36,12 +36,15 @@
 - R-1: failed Luck conversion continues to block deployment for this release.
 - R-3: full isolated production-backup deploy rehearsal must pass before any
   separately authorized production deployment. It remains unexecuted.
+- G1 is implemented and focused-tested; evidence is recorded
+  in `docs/references/admin-ui/reviews/2026-10-03/br-td-batch/G1-evidence.md`.
+  Claude's independent review is pending. G2 is next.
 - Standing scoped per-item local commit authority is confirmed; no push authority.
 
 ## Next permitted action
 
-Implementer commits the expected activation documents, then implements and checks
-G1–G6 against the durable brief and cited decisions/reports. Update this handoff
+Implementer commits G1 after staged-diff inspection, then implements and checks
+G2–G6 against the durable brief and cited decisions/reports. Update this handoff
 with concise progress and evidence links. At batch end report per-item commits,
 checks, deviations and unresolved decisions, then stop for Claude's review.
 Do not start the separate ticket/documentation cleanup or another ticket.

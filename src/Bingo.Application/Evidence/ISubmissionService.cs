@@ -9,7 +9,7 @@ public interface ISubmissionService
     Task<SubmissionResult> CorrectAsync(CorrectSubmissionCommand command, CancellationToken cancellationToken = default);
     Task WithdrawAsync(Guid submissionId, Guid actorAccountId, CancellationToken cancellationToken = default, int? expectedVersion = null, bool ownerOnly = false);
     Task RejectAsync(Guid submissionId, Guid adminAccountId, string reason, CancellationToken cancellationToken = default, int? expectedVersion = null);
-    Task<int> ApproveAsync(Guid submissionId, Guid adminAccountId, CancellationToken cancellationToken = default, int? expectedVersion = null);
+    Task<SubmissionApprovalResult> ApproveAsync(Guid submissionId, Guid adminAccountId, CancellationToken cancellationToken = default, int? expectedVersion = null);
     Task ReverseAsync(Guid submissionId, Guid adminAccountId, string reason, CancellationToken cancellationToken = default, int? expectedVersion = null);
     Task EditMetadataAsync(EditSubmissionMetadataCommand command, CancellationToken cancellationToken = default);
 }
@@ -26,3 +26,7 @@ public sealed record EditSubmissionMetadataCommand(Guid SubmissionId, Guid Admin
     Guid RequirementId, Guid? DropSnapshotId, Guid CreditedOsrsCharacterId, string Reason, int? ExpectedVersion = null);
 
 public sealed record SubmissionResult(Guid SubmissionId, SubmissionStatus Status);
+
+public sealed record SubmissionApprovalResult(int ApprovedContribution, SubmissionApprovalBlock? BlockingSubmission = null);
+
+public sealed record SubmissionApprovalBlock(Guid SubmissionId, DateTimeOffset SubmittedAt);
