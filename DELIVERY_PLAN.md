@@ -2537,10 +2537,32 @@ production launched from PR #5 at source SHA
 `1f893133edc26455c41535807633225fdee36292` with immutable image digest
 `sha256:5de9882be6cd63e170b6d68fc1b869ea134e9b67f3bfab6a1b7eb042ed4c1a20`.
 CI, deployment, and focused production smoke passed for that launch. See the
-active PRE-01 handoff in `CURRENT_STATUS.md` for later recorded release evidence
-and current verification limits. The remaining operational
+[release-readiness gate](#release-readiness-gate-3-october-2026) for the current
+PRE-01 evidence, release checks, and verification limits. The remaining operational
 stage is the production Admin test event; it has not run. Launch-critical
 release work takes precedence over deferred UI polish.
+
+### Release-readiness gate (3 October 2026)
+
+This is the current PRE-01 release gate. The records below preserve sanitized
+user/operator evidence from 3 October; the agent did not access production or
+run these queries. Before a release, the operator records the candidate SHA,
+exact deployed migration history, and the check timestamp, then runs every
+database query against that release database. Aggregate counts do not establish
+the migration baseline.
+
+| Check | Query or required step | Record on 3 October | If the result differs |
+| --- | --- | --- | --- |
+| Banner cleanup (X-1/F1) | Before `--migrate`, record the exact migration history and run the exact-key event, banner-asset, non-banner-reference, and cleanup-state checks in the [runbook banner procedure](docs/PRODUCTION_RUNBOOK.md#event-banner-retirement-one-time-manual-cleanup-path). | The user reported one targeted reference clear/version increment, one banner-asset deletion, zero legacy asset rows outside the transaction, and exact PNG deletion. These are not agent-verified. | Stop and reconcile the exact key and all references in a controlled transaction. Delete only the exact unshared object, then verify absence. If a later step fails after object deletion, use a separate provider backup/version; the database backup cannot restore object bytes. |
+| Luck v1 conversion (LK-2/R-1) | After `--migrate` and before preflight/web replacement, run `docker compose run --rm --no-deps web --convert-luck-checkpoints` and require `Could not convert=0`. | R-1 remains a release blocker because a failed conversion was recorded; the exact production migration baseline and a passing final-candidate conversion are not established here. | Preserve the v1 row and bounded failure reason, stop before preflight/web replacement, and resolve only through the controlled backup/rehearsal path. |
+| Current-cycle completion corrections (BR-7) | With `:current_cycle_start_utc` recorded in the release receipt, run `SELECT COUNT(*) FROM team_completion_corrections WHERE recorded_at >= :current_cycle_start_utc;`. | Recorded production count: `0` (operator evidence, not agent-verified). | Stop release and investigate the retained correction rows. Current readiness and ranking ignore them; do not rewrite historical rows or snapshots. |
+| Published board without roster publication (BR-11) | Run `SELECT COUNT(*) FROM events e JOIN boards b ON b.event_id = e.id WHERE b.state = 'Published' AND e.team_rosters_published IS NOT TRUE;`. | Recorded production count: `0` (operator evidence, not agent-verified). | Stop release and publish/reconcile the roster through the existing lifecycle boundary before continuing. |
+| Future-effective account switches | At the recorded check time, run `SELECT COUNT(*) FROM event_participant_character_swaps WHERE effective_at_utc > :check_time_utc;` and inspect any rows with their PostgreSQL microsecond timestamps and attribution dependencies. | No production count is recorded in this handoff; status is unknown and unverified. | Stop release and apply a deterministic operator decision that preserves submitted attribution and historical transitions; do not silently cancel, rewrite, or backdate a switch. |
+| R-3 final-candidate rehearsal | Restore an isolated copy of the production backup, verify its exact migration history, and run the complete `bingo-deploy` sequence with the final candidate immediately before deployment, including backup, migrations, Luck conversion, production preflight, web replacement, and health checks. | Unexecuted. R-3 remains a release blocker. | Do not deploy. Preserve the failed receipt and recovery boundary, keep the service stopped when required, and use the documented full-restore path if migration history is uncertain. |
+
+The gate is complete only when each release-time query/step has a recorded
+candidate identity and passing result. The runbook owns the operator sequence;
+this section owns the release decision and the explicit stop conditions.
 
 Keep the complete infrastructure and operational checklist through release,
 including optional but prudent safety items. Evaluate each item when its

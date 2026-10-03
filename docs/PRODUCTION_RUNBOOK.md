@@ -222,6 +222,85 @@ explicit full restore above; old code never writes against an uncertain schema.
 The original deployment failure status is preserved even when diagnostics or
 receipt writing fail.
 
+## Release-readiness checklist — 3 October 2026
+
+Run this checklist against the exact release candidate and its restored
+production backup immediately before a deploy. The 3 October entries are
+sanitized user/operator records; the agent did not access production, call an
+object provider, or execute the deployment. Record the candidate SHA, exact
+migration history, check timestamp, and command output in the release receipt.
+
+1. **Banner cleanup (X-1/F1).** Before `--migrate`, perform the exact-key
+   reference checks and the targeted reference-clear/version-increment plus
+   asset-row deletion described in [Event-banner retirement](#event-banner-retirement-one-time-manual-cleanup-path).
+   Confirm that the exact object is not shared by evidence, team, or tile-image
+   references before deleting only that object. The user reported one cleared
+   reference, one deleted asset row, zero legacy rows outside the transaction,
+   and exact object deletion on 3 October; these facts are not agent-verified.
+   If any check differs, stop and reconcile in a controlled transaction. If a
+   later migration or deployment step fails after object deletion, use a
+   separate provider backup or object version; the database backup cannot
+   restore object bytes.
+2. **Luck v1 conversion (LK-2/R-1).** After `--migrate` succeeds and before
+   preflight or web replacement, run:
+
+   ```sh
+   docker compose run --rm --no-deps web --convert-luck-checkpoints
+   ```
+
+   Require `Could not convert=0` and a zero exit status. A failed conversion
+   leaves the v1 row unchanged and blocks the release; R-1 remains blocked in
+   the 3 October record. Do not relabel the row or use newer provider data as
+   a shortcut.
+3. **Current-cycle completion corrections (BR-7).** Record the current-cycle
+   UTC boundary, then run:
+
+   ```sql
+   SELECT COUNT(*)
+   FROM team_completion_corrections
+   WHERE recorded_at >= :current_cycle_start_utc;
+   ```
+
+   The recorded production result is `0` (operator evidence, not
+   agent-verified). Any nonzero result stops the release for investigation;
+   current readiness and ranking ignore retained correction rows, and history
+   or official snapshots must not be rewritten.
+4. **Published boards without roster publication (BR-11).** Run:
+
+   ```sql
+   SELECT COUNT(*)
+   FROM events e
+   JOIN boards b ON b.event_id = e.id
+   WHERE b.state = 'Published'
+     AND e.team_rosters_published IS NOT TRUE;
+   ```
+
+   The recorded production result is `0` (operator evidence, not
+   agent-verified). Any nonzero result stops the release until the existing
+   roster-publication lifecycle is reconciled.
+5. **Future-effective account switches.** At the recorded check time, run:
+
+   ```sql
+   SELECT COUNT(*)
+   FROM event_participant_character_swaps
+   WHERE effective_at_utc > :check_time_utc;
+   ```
+
+   Inspect every returned row with its microsecond-precision timestamp and
+   attribution dependencies. No production count is recorded in the 3 October
+   handoff, so this check remains unknown until the operator runs it. Any row
+   requires a deterministic decision that preserves submitted attribution and
+   historical transitions; do not silently cancel, rewrite, or backdate it.
+6. **R-3 final-candidate rehearsal.** Restore an isolated copy of the exact
+   production backup with the [backup and restore procedure](#backup-and-restore),
+   verify its migration history, and run the complete `bingo-deploy` sequence
+   with the final candidate immediately before deployment. Include the
+   authoritative backup, migrations, Luck conversion, production preflight,
+   web replacement, and health checks. This rehearsal is unexecuted in the
+   3 October record and remains a release blocker. A failure keeps the service
+   stopped under the rollback boundary and requires the full-restore path when
+   migration history is uncertain.
+
 ## Event-banner retirement (one-time manual cleanup path)
 
 The user selected and completed a one-time manual cleanup for the known

@@ -147,8 +147,8 @@ For unfinished/Live events, do not automatically resume Paused drafts, match
 accountless participants to names, cancel pending remote operations, enable disabled
 scheduled opening, rewrite finalized rosters or recalculate historical results.
 Each affected transition requires a deterministic rule with evidence or a controlled
-operator decision. `CURRENT_STATUS.md` owns PRE-01 category evidence/unknowns and
-bounded blockers. Future waiting-list enablement must not invoke legacy promote-all
+operator decision. The [release-readiness gate](DELIVERY_PLAN.md#release-readiness-gate-3-october-2026)
+owns the release-time PRE-01 checks and bounded blockers. Future waiting-list enablement must not invoke legacy promote-all
 or silently expand capacity.
 
 Physical banner removal requires authoritative checks of database references,
