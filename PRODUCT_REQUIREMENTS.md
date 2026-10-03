@@ -74,14 +74,16 @@ pending-decision notes below; implementation remains queued, not complete.
   provider updates already exist. Conflict overwrite/re-send and scheduled-slot
   relaxation are not approved. Implementation remains pending under AU20.
 - **Exact WOM window — approved 2 October:** replace the five-minute matching
-  tolerance with equality of both start and end UTC instants. Different timezone
+  tolerance with equality of configured start and end UTC instants at every stage,
+  including Final Review (WA-2). Actual instants remain eligibility/cutoff/review
+  inputs; the later pending-AU20 early-end/Resume rules below apply. Different timezone
   displays of the same instant match; an actual time difference does not. Do not
   silently change website dates to fit WOM. Apply consistently at linking,
   replacement and existing window-validation boundaries. Reconcile provider and
   persistence timestamp precision explicitly, without rounding away genuine time
   differences. Existing links must not be silently disconnected or their historical
   snapshots rewritten. Application and reference updates are pending in AU20/RC09.
-- **Evidence correction (AU17):** Admin metadata correction must offer all players
+- **Evidence correction (AU17a):** Admin metadata correction must offer all players
   from the event pool, not only currently active Playing assignments. The concrete
   use case is correcting attribution when someone forgot to change the account.
   Do not retain the current-only restriction merely because the existing service
@@ -609,9 +611,18 @@ Submission cutoff is internal lifecycle data: whenever a normal event end is ass
 
 The configured event-start instant may trigger an automatic start attempt, but never bypasses readiness. If the draft is not finalized, the board is not published, another start invariant fails, the event remains pre-live and displays **Automatic start postponed** with the exact blockers. The scheduled instant remains historical and live eligibility is never backdated. Clearing the blockers does not trigger a delayed automatic retry; an admin uses **Start event now** with strong confirmation. Manual start requires confirmation only, whether it is before, at, or after the configured instant; no written reason is required.
 
-The event ends automatically at its configured event-end instant and enters `AWAITING_FINAL_REVIEW`. If processing occurs late because the application was unavailable, the configured instant remains the effective end. An enabled administrator may end a live event early after strong confirmation and a required reason; the early confirmation time becomes the authoritative end while the original schedule remains visible. Early end sets the normal upload cutoff to actual end plus 30 minutes.
+The event ends automatically at its configured event-end instant and enters `AWAITING_FINAL_REVIEW`. If processing occurs late because the application was unavailable, the configured instant remains the effective end. An enabled administrator may end a live event early after strong confirmation and a required reason; the early confirmation time becomes the authoritative actual end. Early end sets the normal upload cutoff to actual end plus 30 minutes.
 
-Before official finalization, an enabled administrator may resume an event that entered `AWAITING_FINAL_REVIEW` prematurely, whether the end was manual or automatic. Resume requires strong confirmation and a written reason. If the configured event end is still future, Resume reuses it; only a missing or expired end requires the administrator to confirm a replacement future end. The action returns the event to `LIVE` only after the ordinary singleton-current and lifecycle checks pass. The prior end transition and its effective time remain immutable history rather than being erased. The ordinary submission cutoff is re-derived from the retained or replacement end, and any separate submission-reopening window must be revalidated rather than silently reused. Submissions, reviews, and contributions created during the intervening final-review period remain historical and continue through their normal workflows. Resume is unavailable directly from `FINALIZED` or `ARCHIVED`; resuming an event that has already produced official finalization history is outside this approved recovery action and fails closed unless separately approved.
+**Approved, pending AU20:** early end also sets the configured end and requested
+WOM end to the precise click instant rounded up to the next whole minute; actual
+end retains the precise click. Resume requires the Admin's validated replacement
+future configured end, with no click-time rounding. Both actions succeed locally
+without waiting for WOM. Compare WOM exactly against configured start/end at every
+stage including Final Review; actual times still own eligibility/cutoff/review.
+The AU20 ticket owns retry, post-end fetch suppression and publication fallback;
+these changes are not yet implemented.
+
+Before official finalization, an enabled administrator may resume an event that entered `AWAITING_FINAL_REVIEW` prematurely, whether the end was manual or automatic. Resume requires strong confirmation and a written reason. Current implementation reuses a future configured end and asks for a replacement only when missing/expired. **Pending AU20**, Resume instead requires the Admin to choose a validated replacement future end as specified above. The action returns the event to `LIVE` only after the ordinary singleton-current and lifecycle checks pass. The prior end transition and its effective time remain immutable history rather than being erased. The ordinary submission cutoff is re-derived from the applicable configured end, and any separate submission-reopening window must be revalidated rather than silently reused. Submissions, reviews, and contributions created during the intervening final-review period remain historical and continue through their normal workflows. Resume is unavailable directly from `FINALIZED` or `ARCHIVED`; resuming an event that has already produced official finalization history is outside this approved recovery action and fails closed unless separately approved.
 
 ### 7.2 Post-cutoff behavior
 
@@ -762,7 +773,34 @@ EHB is used for board estimation, line balancing, player contribution statistics
 
 Any enabled Admin may create, edit, deactivate, or reactivate catalogue records. Routine changes are audited without requiring a written reason. Only the Super Admin may permanently delete a catalogue record, and only after strong confirmation and a complete dependency check proves that no source drop, board, asset/cache, import review, or historical record references it. Referenced records must be deactivated instead.
 
-Advanced drop mechanics shown in the new Catalogue reference (team chance, participant assumptions, conditional probability, reward-roll settings, mechanics notes and source) are read-only for ordinary Admins and editable only by the Super Admin (user decision, 2026-10-02). Enforce this distinction server-side as well as in the editor; preserve source-specific calculation validation, audit, concurrency and immutable approved/published/historical snapshots. This authorizes editing these advanced fields, not a new roll-group management or import workflow. Implementation remains queued.
+**Catalogue decision, 4 October 2026 — pending AU23/CAT-1/WA-5:** ordinary Admins
+enter and edit the full rate text, including `N x` roll count, on add/edit/reactivation.
+`3/1024` is one roll at 3/1024; `3 x 1/1024` is three rolls at 1/1024. Remove the
+operator-only roll-change refusal. Always enter the final chance of the item in
+one's own name at the agreed team size; raid parent chances are resolved before
+entry. Retire “Only after” from editor/panel/new input; retain its database columns
+and all historical/snapshot data. No EHB parent-chance fix ticket is authorized.
+Advanced roll-group editing remains SuperAdmin-only, with server-side checks,
+validation, audit and concurrency. New drops use `default`; preserve existing
+production groups. Legacy probability-scope/assumed-participant advanced writes
+remain SuperAdmin-only until CAT-1 moves that informational context to the activity;
+parent input is retired for every role.
+
+CAT-1 gives the activity one agreed **Team size**, whole number >=1/default 1,
+editable by every Admin next to Kills per hour in both Settings and Add activity.
+It describes the shared efficient strategy behind rate and EHB; it never multiplies
+probability or EHB. Recheck per-drop non-default/conflicting values before migration
+(the user reported zero on 4 October), preserve approved/published snapshots, and
+stop for a decision on unexpected values. The same user reported zero conditional
+drops and existing production roll groups, which remain unchanged; no agent
+production verification is claimed.
+
+WA-5's decided “How the rate is counted” panel shows group in its header, then
+chance per kill including `N x`, source and optional note. SuperAdmin edits group
+there; others see it read-only. Bottom text: “Roll group can only be changed by the
+Super Admin.” Remove chance-per-roll, rolls-per-kill, whose-chance, Only-after and
+operator-refusal text. This intentionally supersedes the corresponding frozen
+Catalogue reference when bound; no reference edit is part of this cleanup.
 
 The application catalogue-import preview/apply interface is excluded by user decision (D03, reaffirmed 2026-09-14); existing operator tooling remains separate. Blocked catalogue deletion must protect dependencies and offer deactivation, but an individual dependency-reference list is not required (C26).
 
@@ -951,7 +989,15 @@ EHB and efficient-rate data may be imported from useful external sources such as
 
 Catalogue source data is collected through the existing reviewed import/admin workflow and remains editable by admins. Separately, Slice 10 provides explicit Wise Old Man account-EHB lookup plus cached Live event-competition EHB synchronization under the bounded contract in `FUNCTIONAL_CONTRACTS.md` section 9.6 and the technical/data authorities; it does not turn catalogue data into an automatically synchronized external feed.
 
-For a simple single-drop requirement, expected EHB is calculated from a reviewed source-specific probability and efficient-completion-rate pair. For example, at 100 kills per hour and a `1/1,000` drop rate, the expected time for one qualifying drop is 10 EHB. Group content may pair an in-name probability with the relevant team completion rate, or a full-contribution probability with a rate normalized per invested player-hour; team size is applied exactly once. Catalogue rates may use numerators other than one and explicitly record per-completion rolls. Team, raid-scale, purple-table, points, and contribution assumptions are resolved before entry and retained as explanatory notes rather than calculator exceptions.
+For a simple single-drop requirement, expected EHB pairs the reviewed final
+in-name item probability with efficient completions per hour at the agreed team
+size. At 100 kills/hour and 1/1,000, one drop requires 10 EHB. The agreed team size
+balances speed and drops, not simply maximum kills/hour. Team-size/probability-scope
+context is informational, never a calculation input. Valid numerator fractions
+and `N x` repeated rolls remain explicit. Raid/points/purple-table assumptions are
+resolved before entry and may be explained in notes. Pending AU23/CAT-1 implements
+the 4 October input/context changes above; immutable approved/history snapshots
+and existing roll groups remain untouched.
 
 Complex requirements are estimated from possible completion outcomes rather than by blindly averaging bosses or adding rates. Weighted drops advance by their configured contribution, duplicate-restricted requirements track shared item identities, and alternative sources are chosen according to the lowest expected remaining person-hours. Multiple objectives are estimated separately and added. A catalogue-backed/drop tile must always produce an automatic estimate. Missing or ambiguous rate mechanics block board approval and must be corrected in the catalogue or requirement configuration; they are never guessed and cannot be bypassed with a manual override. AU11 permits an optional manual TOTAL tile EHB override on a valid calculated
 drop tile as well. Retain the calculated baseline and allow reset to it; custom/
@@ -1069,7 +1115,7 @@ An admin can:
 Editable metadata includes:
 
 - Tile or requirement
-- Credited account from the full event pool, including non-current entries, with validated participant/team attribution (AU17 approved, pending)
+- Credited account from the full event pool, including non-current entries, with validated participant/team attribution (AU17a approved, pending)
 - Qualifying drop and its derived boss/activity
 
 These material corrections require a written reason, revalidate the complete submission, and store the original and new values. Credited participant is not independently editable. Immutable server submission time, calculated contribution, and the submitted evidence image are not administrator-editable. Snapshot contribution weight is not manually editable; changing requirement/drop replaces it with the authoritative frozen weight of the selected destination.

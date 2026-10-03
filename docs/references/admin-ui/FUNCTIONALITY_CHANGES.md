@@ -25,7 +25,7 @@ The reference freeze and AU01–AU10 evidence are committed at `1e8d457`;
 | Teams / Draft | Existing draft/roster commands retained | AU14, RC04 and application binding |
 | Board | Existing board commands retained; AU11–AU13 approved but not implemented | B1–B7 → RC05; additional capability scope proposed as AU19 |
 | Audit | Existing audit service/presenter retained | A1–A4 → RC06; approved query/read correction queued as AU16 |
-| Review | Existing evidence commands retained | R1–R8 → RC07; approved full-pool correction queued as AU17; remaining projection/outcome gaps proposed |
+| Review | Existing evidence commands retained | R1–R8 → RC07; approved full-pool correction queued as AU17a; remaining projection/outcome gaps proposed |
 | Final Review | Existing publication/reopen/snapshot services retained | F1–F6 → RC08; readiness/outcome gaps proposed as AU18; ranking AU12 |
 | WOM | Existing management/fetch protections retained | W1–W6 → RC09; AU15 and approved exact-window/recovery AU20 queued; no implementation dispatched |
 | Catalogue | Existing CRUD/mapping/value services retained | C1–C8 → RC10; approved adoption/recovery AU21 and SuperAdmin mechanics AU23 queued |
@@ -40,12 +40,12 @@ what was reviewed then; later user decisions below supersede their recommendatio
 
 ## Reference decisions — 2 October 2026
 
-- **Catalogue advanced drop mechanics:** ordinary Admins see read-only values;
-  SuperAdmin may edit them. Includes team chance, participant assumptions,
-  conditional probability, reward-roll settings, mechanics notes and source already
-  presented in the advanced section. Server authorization, validation, concurrency,
-  audit and approved/historical snapshot protection are required. No separate
-  roll-group editor or import workflow. Approved scope; not implemented or tested.
+- **Catalogue advanced drop mechanics (2 October, refined 4 October):**
+  ordinary Admins may add/edit rate text including N x rolls. SuperAdmin-only
+  advanced roll-group edits keep validation/audit/concurrency. Final-chance input,
+  retired Only after controls and informational activity team size follow the
+  later AU23/CAT-1/WA-5 decision below; the earlier blanket reward-roll and parent
+  control proposal is superseded. Pending implementation; no frozen artifact edit.
 - **Ownership transfer:** retain the current owner's password and require typing
   the destination public username as strong confirmation. This resolves the existing
   requirement/implementation discrepancy in favour of PRODUCT_REQUIREMENTS 5.4.
@@ -82,10 +82,10 @@ This wording clarification changes neither approved behavior nor delivery status
 | Identity / Schedule | Name/description/buy-in remain editable through Live/Final Review; timezone only before first Live, preserving UTC instants. Merge untouched fields but require explicit resolution for conflicting same-field edits; newer changes invalidate that resolution. Preserve unchanged schedule instants exactly; changed values still pass timezone/order/phase rules. Timezone confirmation reviews current consequences and becomes stale if the schedule changes. Live end changes require confirmation/reason. Uncertain saves compare complete intended values and report current state, not proof this request saved it; read failure stays uncertain and does not trigger a blind retry. Keep permanent `/Events/{slug}/Signups` entry and stay on the edited page after save | AU08–AU10 complete; Identity reference recheck passed; RC03 and UI binding pending |
 | Signup setup | Capacity, signup code and form configuration share the page. Before team-draft lock, capacity cannot fall below Confirmed count; ordinary increases promote earliest eligible waiters. Waiting remains enabled while signups are open. Code gates first signup/self-rejoin, not edits, withdrawal or Admin Add. After first response, new questions are optional and existing optional questions cannot become required; format changes use confirmed delete/create, preserving unrelated answers/registrations. Keep at least the protected required first Playing field, optional extra/Alt fields and boolean Captain answer. Versions protect edits; duplicate-safe creation reports when requested Required was normalized to Optional | AU02/AU05–AU07 complete; RC02 and combined-page binding pending |
 | Teams / Draft | Admin records captain selections in a compact board: actual members in team columns, available primary accounts/EHB in the shrinking pool; click to pick, Undo and confirmed-order scramble. Control renews while the page can renew it, not only on picks. With **2+ included teams**, use a balanced website draft and at least one actual Captain per drafted team; multiple Captains are allowed. With **0–1 included team**, manually assemble/finalize without picks; only this manual flow permits unplaced people with an explicit note. Before first Live, finalized roster Add/Remove republishes without signup-cap/team-size-cap enforcement or automatic rebalance. First Live locks membership permanently; role changes for current members remain allowed. Stay on Teams after finalizing | Existing commands largely support this; AU14/RC04 and UI binding pending. No captain-operated draft, Pause/Resume or finalized Reopen; cancel a private Running attempt only after individual undos leave zero active picks |
-| Board / rankings | Keep custom/manual tiles and current objective mechanics. A calculated drop tile may have an optional **total tile** EHB override with baseline/reset; manual tiles still require an entered estimate. An override cannot bypass missing rate mechanics, alter catalogue/KC/Luck or change evidence-bound scoring; effective EHB still feeds existing proportional contribution statistics. Full-board finishers lead, ordered by earliest full-board finish; otherwise compare completed lines, completed tiles, credited EHB, then score time, preserving exact ties and historical results. Planning players-per-team remains manually adjustable **after draft finalization**, affects planning only and is not replaced by actual roster sizes | AU11–AU13 approved, not implemented; new-events-only activation approved. RC05/AU19 proposed; existing leases, approval/publication and late-evidence protections retained |
-| Review / Final Review | One-click approval; rejection/reversal require reason and confirmation; pending metadata correction requires reason and is separate from approval. Never replace the submitter's image or invent a timestamp. Show the credited account's own relevant context; screenshot game time determines activity eligibility, upload time cutoff/order. Publication requires **closed uploads, zero Pending and valid placements**; no override of those gates. Publish immutable results and Archived state atomically; preserve ties/history. An optional normal WOM refresh may be skipped/fail without blocking publication. Reasoned confirmed reopening creates a new correction cycle, retains earlier versions and does not reopen uploads | Existing commands retained; RC07/RC08 and AU17/AU18 proposed. Full-event-pool correction approved; AU17 implementation pending; no separate Archive action or manual result/time override |
+| Board / rankings | Keep custom/manual tiles and current objective mechanics. A calculated drop tile may have an optional **total tile** EHB override with baseline/reset; manual tiles still require an entered estimate. An override cannot bypass missing rate mechanics, alter catalogue/KC/Luck or change evidence-bound scoring; effective EHB still feeds existing proportional contribution statistics. Full-board finishers lead, ordered by earliest full-board finish; otherwise compare completed lines, completed tiles, credited EHB, then score time, preserving exact ties and historical results. Planning players-per-team remains manually adjustable **after draft finalization**, affects planning only and is not replaced by actual roster sizes | AU11/AU12 approved, queued; AU13 complete through F8; new-events-only activation approved. RC05/AU19 proposed; existing leases, approval/publication and late-evidence protections retained |
+| Review / Final Review | One-click approval; rejection/reversal require reason and confirmation; pending metadata correction requires reason and is separate from approval. Never replace the submitter's image or invent a timestamp. Show the credited account's own relevant context; screenshot game time determines activity eligibility, upload time cutoff/order. Publication requires **closed uploads, zero Pending and valid placements**; no override of those gates. Publish immutable results and Archived state atomically; preserve ties/history. An optional normal WOM refresh may be skipped/fail without blocking publication. Reasoned confirmed reopening creates a new correction cycle, retains earlier versions and does not reopen uploads | Existing commands retained; RC07/RC08 and AU17/AU18 proposed. Full-event-pool correction approved as AU17a; remaining AU17 proposed; no separate Archive action or manual result/time override |
 | WOM | Website dates own the schedule. External ID-only connections are read-only; protected valid/unverified credentials can permit sync without changing provenance. **External competitions are never deleted by the app**; website-created deletion retains eligible credentials, pre-first-Live and operation guards. Fetch now needs no typed challenge or confirmation, but all server cooldown/retry/scheduled-slot/lease rules still apply. Status/readback never fetches, old success is not proof of a new fetch, and unknown outcomes stay unresolved | AU15 approved; RC09 proposed; AU20 approved. Credential-enabled edits already supported; replacement/disconnection after credentials approved under option 1; implementation pending; external provider deletion stays forbidden |
-| Catalogue | Keep the activity drawer and progressive common/advanced settings. Shared-item adoption/metadata changes must be explicit; source-specific rate changes must not silently rewrite shared items. Ordinary Admins can do normal CRUD/deactivation but advanced mechanics are read-only; only SuperAdmin edits those fields. **Permanent deletion is also SuperAdmin-only**, requires strong confirmation and a fresh complete dependency check; referenced records deactivate instead. Preserve calculation validation, audit, versions and immutable approved/history snapshots | Existing CRUD retained; RC10 proposed; AU21 approved defect fix; AU23 records approved advanced editing. No import/upload or separate roll-group editor |
+| Catalogue | Keep the activity drawer and progressive common/advanced settings. Shared-item adoption/metadata changes must be explicit; source-specific rate changes must not silently rewrite shared items. Ordinary Admins can do normal CRUD/deactivation and add/edit `N x` rate text; advanced roll groups remain SuperAdmin-only. Pending AU23/CAT-1: final in-name chance always, Only after retired from new input/editor/panel with columns/history retained; activity team size is informational and editable by every Admin. **Permanent deletion is also SuperAdmin-only**, requires strong confirmation and a fresh complete dependency check; referenced records deactivate instead. Preserve calculation validation, audit, versions and immutable approved/history snapshots | Existing CRUD retained; RC10 proposed; AU21 approved defect fix; AU23 records approved advanced editing. No import/upload or separate roll-group editor; group editing stays in the decided rate panel |
 | Accounts | Manage existing normal accounts with per-action permissions; **only SuperAdmin grants/revokes Admin or transfers ownership**. Role changes do not remove event membership; revoking a disabled Admin leaves it disabled. Password-reset links stay transient, bound to the correct account, expire after 60 minutes, are single-use and supersede unused links; never read a lost secret back. Ownership transfer requires current owner's password plus typed destination username, preserves exactly one owner atomically and invalidates affected sessions | Existing services retained; RC11 proposed; AU22 approved defect fix; AU24 records approved typed confirmation. No create/delete/merge/impersonation or Admin editing of members' saved identity/accounts |
 | Audit | Enabled Admins read sanitized immutable history, with filters and direct entry detail. Hidden-event audit remains visible under the existing exception without granting hidden-workspace access. Specific actions match exactly; recognized areas use prefixes. Whole-day date filters use calendar boundaries in the display timezone, including DST. Preserve truthful historical labels and sensitive-data redaction; no editing/deleting/exporting history | Existing query violates hidden-history contract; RC06 proposed; AU16 approved defect fix. Keep reference filter conveniences; do not invent missing historical names |
 | Luck / KC | Existing container defaults to 0–100 Luck percentile and switches to KC difference, using the same saved snapshot. KC difference is expected KC for approved eligible outcomes minus recorded KC, counted once per character/activity; totals do not compensate for boss speed. New approvals/reversals retain a compatible previous result and original freshness until a successful WOM fetch recalculates it; unavailable/unsupported data is not zero. Reads never fetch or rescore. Final refresh remains provider-limited and failure does not block publication; historical conversion uses retained inputs, never newer evidence | Implemented, independently reviewed and user accepted; no new Luck work in this reconciliation |
@@ -113,19 +113,21 @@ and [shared UI](../../../UI_SYSTEM.md#approved-admin-reference-direction--2-octo
   replacement before/during Live, with or without stored/rejected credentials.
   Preserve active/unresolved-operation guards, never delete the external competition
   and require a new code for a replacement. Implementation pending.
-- **AU17:** Admin correction selects from the full event pool, not only current
+- **AU17a:** Admin correction selects from the full event pool, not only current
   Playing assignments, to fix mistakes such as forgetting to change the account.
   Map retained/non-current player and character identities explicitly at readiness;
   preserve evidence history, reasons and separate approval. No saved-account or
   roster rewrite is implied.
 
-AU12/AU17/AU20 decisions are approved, not implemented. Conflict overwrite/re-send and
+AU12/AU17a/AU20 decisions are approved, not implemented. Conflict overwrite/re-send and
 scheduled-slot relaxation for WOM remain deferred, not implicitly approved.
 
 ### Exact WOM time matching — approved, not implemented
 
-Both WOM boundaries must equal the website's corresponding UTC instant; timezone
-formatting may differ, actual times may not. Remove the five-minute tolerance in
+Both WOM boundaries must equal the website's **configured** UTC start/end at every
+stage including Final Review; timezone displays may differ, the instants may not.
+Actual lifecycle times remain eligibility/cutoff/review inputs. The approved
+early-end/Resume/retry/fallback rules are pending AU20 in DELIVERY_PLAN. Remove the five-minute tolerance in
 AU20 and update reference validation/copy in RC09, including directly affected
 Schedule consumers. Do not confuse this with the separate schedule input's
 five-minute increments. Keep timestamp precision explicit; no silent date import,
@@ -261,7 +263,7 @@ the report's earlier all-read-only recommendation; ownership confirmation is set
 | Catalogue C4 | Immutable baselines, retained stale drafts and final delete recheck | RC10; preserve existing server concurrency |
 | Catalogue C5 | Mapping/value changes invalidate old checked/rejected state | RC10; existing domain behavior |
 | Catalogue C6 | Explicit retained or deliberately changed shared image; honest save scope | RC10 + AU21 |
-| Catalogue C7 | Reactivation preserves/validates roll mechanics | RC10; ordinary Admin guard plus AU23 authority |
+| Catalogue C7 | Reactivation validates mechanics while ordinary Admin may edit rate text including N x | RC10 + AU23; remove operator-only roll refusal, preserve SuperAdmin group boundary and final-chance rule |
 | Catalogue C8 | Failed direct-link retry restores editor and missing-target state | RC10 |
 | Accounts A1 | Reset secret rendered/copied only for captured matching account | RC11 + AU22 transient delivery |
 | Accounts A2 | Readback describes current role/state/owner without false attribution | RC11 + AU22 |
@@ -303,18 +305,34 @@ Luck, Participants and Dashboard backend work is complete, not queued to rebuild
 | AU10 | Schedule: unchanged-instant preservation, field-addressable lifecycle errors and full-state uncertain readback | Technically complete; 12/12 PG/HTTP plus named Live 1/1, controlled transport and Release build PASS; independent Astra/high review PASS (24f0870c); committed at the checkpoint; explicit stop after AU10, full UI/manual acceptance deferred |
 | AU11 | Board: tile-local manual EHB override for all objective types | Agreed; queued, not implemented |
 | AU12 | Rankings: credited EHB before score time; preserve first full-board finish and history | Agreed; queued, new events only; existing events keep prior rule |
-| AU13 | Board: manually adjustable planning team size after draft finalization | Complete through F8 (`525d5d1`); manual planning estimate stays authoritative |
+| AU13 | Board: manually adjustable planning team size after draft finalization | Complete through F8 (`6d33ce6`); removed lock originated in `525d5d1`; manual planning estimate stays authoritative |
 | AU14 | Teams: safe authoritative readback after uncertain actions | Queued; minimal transport contract to resolve at handoff, existing commands reused |
 | AU15 | WOM: remove typed FETCH confirmation; preserve refresh protections | Approved 2 October; queued, not dispatched |
 | AU16 | Audit: restore approved hidden-event history and exact filters | Approved defect fix; queued, not dispatched |
-| AU17 | Review: split approved full-event-pool correction from remaining review projection gaps | Approved full-pool correction queued; remaining AU17 scope proposed; not dispatched; G2 closed the paused-interval wording finding |
+| AU17a | Review: full-event-pool metadata correction | Approved D5; separately queued before AU17; no implementation yet |
+| AU17 | Review: remaining context/projection/readback gaps | Proposed; not dispatched; G2 closed the paused-interval wording finding; AU17a owns approved full-pool work |
 | AU18 | Final Review: readiness, retained WOM outcomes and version/history readback | Proposed; not dispatched |
 | AU19 | Board: structured approval issues and uncertain-action readback | Proposed; not dispatched |
 | AU20 | WOM: exact configured-window matching, structured outcomes and replacement/recovery | Approved; queued, not dispatched; transport and scope details remain in the ticket |
 | AU21 | Catalogue: explicit shared-item adoption, rename and recovery scope | Approved defect fix; queued, not dispatched |
 | AU22 | Accounts: accurate projections and target-bound reset response | Approved defect fix; queued, not dispatched |
-| AU23 | Catalogue: SuperAdmin-only advanced mechanics with ordinary-admin refusal | Approved; queued, not dispatched; roll-count input remains an open product choice |
+| AU23 | Catalogue: ordinary rate-text N x rolls, SuperAdmin roll groups, final-chance input | Approved 4 October; queued; remove operator roll refusal; new groups default; retire Only after input, preserve columns/history and production groups; no parent-EHB ticket |
+| CAT-1 | Catalogue: informational team size moves from drops to activity | Approved 4 October; queued after AU23; integer >=1/default 1 editable by every Admin; pre-migration set/conflict recheck and snapshots preserved |
 | AU24 | Accounts: typed ownership transfer destination confirmation | Approved; queued, not dispatched |
+
+The 4 October Catalogue decision is pending AU23/CAT-1/WA-5: input is always the
+final in-name item chance at the agreed efficient team size; team context never
+changes calculations. WA-5 binds the decided panel: group header, chance per kill
+including N x, source, optional note; SuperAdmin group edit with read-only ordinary
+Admin display and “Roll group can only be changed by the Super Admin.” Remove
+chance-per-roll/rolls-per-kill/whose-chance/Only-after/operator-refusal content.
+Settings and Add activity both expose informational Team size beside Kills per
+hour, integer >=1/default 1, editable by every Admin. These intentionally override
+those portions of frozen Catalogue.dc.html when bound; no artifact change now.
+The user reported zero conditional and non-default team-context production rows
+on 4 October. Preserve columns, historical/approved snapshots and all existing
+production groups; recheck before migration and resolve unexpected values with
+the user. No EHB parent-chance fix ticket. DELIVERY_PLAN owns the full ticket text.
 
 Retain completed tickets and their implementation, executed-proof, independent-review
 and deferred UI/manual-acceptance states. Add later reviewed application gaps under

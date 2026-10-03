@@ -339,6 +339,15 @@ Reopen signups uses shared confirmation without a written reason. Reopen submiss
 
 The scheduled end transition sets `actual_ended_at = event_ends_at`, even if a background check persists the transition later. An authorized early-end command sets `actual_ended_at` to its authoritative confirmation time and requires a reason in the audit record. The event moves from `LIVE` to `AWAITING_FINAL_REVIEW` at that effective instant. Early end sets the normal `submission_cutoff_at` to actual end plus 30 minutes.
 
+**Approved, pending AU20:** early end also sets the configured end and requested
+WOM end to the precise click instant rounded up to the next whole minute; actual
+end retains the precise click. Resume requires the Admin's validated replacement
+future configured end, with no click-time rounding. Both actions succeed locally
+without waiting for WOM. Compare WOM exactly against configured start/end at every
+stage including Final Review; actual times still own eligibility/cutoff/review.
+The AU20 ticket owns retry, post-end fetch suppression and publication fallback;
+these changes are not yet implemented.
+
 An incomplete `DRAFT` requires only a valid name, unique slug, timezone, creator, and creation time. Schedule, signup, capacity, and planning fields become required only at the readiness gate for the transition that uses them. A field being available during initial creation does not make it required for the first save.
 
 Duplicate event names are allowed. The slug is unique and may change until the event first becomes public; it is immutable afterward.
@@ -1317,10 +1326,10 @@ Fields:
 - `item_id`
 - `display_rate`
 - `numeric_probability`
-- `probability_scope` (legacy; new and edited values are always `Participant`)
-- `conditional_on_parent` (legacy)
-- `parent_probability` (legacy)
-- `assumed_participants` (legacy)
+- `probability_scope` (retained context; final chance is in-name, pending AU23/CAT-1)
+- `conditional_on_parent` (retained; new input retired by pending AU23)
+- `parent_probability` (retained with parent flag/history)
+- `assumed_participants` (current per-drop context; activity move pending CAT-1)
 - `rolls_per_completion`
 - `roll_group`
 - `rate_condition_note`
@@ -1329,7 +1338,34 @@ Fields:
 - `data_updated_at`
 - `active`
 
-`numeric_probability` stores the final effective chance paired with the boss/activity's efficient-completion rate. For ordinary solo content this is the item's full drop chance. Group content may use either a personal in-name probability with the corresponding team completion rate, or a full-contribution probability with a completion rate already normalized per invested player-hour. The pair must represent the same strategy, scale, difficulty, team size, and contribution assumptions so group size is applied exactly once. It accepts any valid fraction numerator, not only `1/x`. Raid-specific purple-table, points, scale, and difficulty assumptions are resolved before entry and recorded in `rate_condition_note`; the EHB calculator never applies raid-specific conversions. The older scope/parent columns remain only for migration compatibility and are ignored by calculation. Repeated rolls remain explicit. `roll_group` identifies mutually exclusive results from the same roll; different groups are independent. The probability remains empty when no reviewed effective probability is available.
+**4 October final-chance decision, pending AU23/CAT-1:** `numeric_probability`
+is paired with the activity's efficient completion rate for the same agreed team
+size/strategy and stores the final in-name chance per roll; `N x` explicitly
+records repeated rolls. Valid fraction numerators are allowed. Enter a raid's
+final item chance with the purple chance already included; never add “Only after”
+for that final rate. Retire parent input/editor/panel controls, retaining
+`conditional_on_parent` and `parent_probability` columns/values for history and
+snapshot integrity. No EHB parent-chance fix ticket is created. Existing Luck code
+can still apply retained parent mechanics while EHB currently ignores them; the
+user reported zero conditional production drops on 4 October, so this decision
+does not rewrite historical calculations. Recheck before change and stop if any
+unexpected conditional records appear.
+
+Scope/assumed-participant context never multiplies a calculation. CAT-1 moves the
+agreed team size to one informational activity value (integer >=1, default 1),
+editable by every Admin beside efficient completions/hour. The production query
+reported zero non-default per-drop contexts on 4 October; recheck set values and
+per-activity conflicts before migration, with no silent loss and no rewriting
+approved/published snapshots. This is a pending schema change, not a current field.
+
+`roll_group` remains a real EHB/Luck calculation input for mutually exclusive
+results from one roll; different groups are independent. New drops use `default`;
+existing production groups (`barrows-equipment`, `purple table`,
+`doom-1-16-aggregate`, `fortis-full-run-unique`, 56 active rows reported by the user)
+are preserved. Only SuperAdmin edits advanced groups; ordinary Admins may add/edit
+`N x` rate text under AU23. The effective chance remains empty without a reviewed
+rate. Source/strategy details belong in `rate_condition_note`, never ad hoc
+calculator exceptions. Operator-reported counts are not agent verification.
 
 Each `SourceDrop` is one authoritative drop record with one displayed rate and numeric probability. Conditional mechanics are recorded in `rate_condition_note`; distinct real drops, such as `Nid` and `Nid (Destroy)`, remain separate records rather than rate choices beneath one drop.
 
@@ -1681,7 +1717,7 @@ PENDING → WITHDRAWN
 APPROVED → REVERSED
 ```
 
-An admin may correct a pending submission's tile/requirement, qualifying drop, or credited character from the full event pool with a required reason (AU17 approved, pending) and complete revalidation. Credited participant is derived from the unambiguous event-pool character identity, including retained/non-current entries under AU17 and is never independently edited. Server submission time, calculated contribution, and submitted evidence asset are immutable to the reviewer. Snapshot weight is not manually editable; retargeting atomically replaces it with the selected destination requirement/drop's frozen authoritative weight. Correcting an approved submission requires reversal.
+An admin may correct a pending submission's tile/requirement, qualifying drop, or credited character from the full event pool with a required reason (AU17a approved, pending) and complete revalidation. Credited participant is derived from the unambiguous event-pool character identity, including retained/non-current entries under AU17a and is never independently edited. Server submission time, calculated contribution, and submitted evidence asset are immutable to the reviewer. Snapshot weight is not manually editable; retargeting atomically replaces it with the selected destination requirement/drop's frozen authoritative weight. Correcting an approved submission requires reversal.
 
 A later attempt after rejection or reversal is a new `PENDING` submission rather than a transition or direct reapproval of the predecessor. It is accepted only while the active/reopened upload window permits new submissions and requires a new evidence asset. The attempt follows ordinary participant/captain authorization and validation, resolves its own credited participant/account snapshots, and creates its own review history and contribution if approved. Existing predecessor links and `ReviewActionType.Resubmit` values remain display-only legacy history; no unique-child claim, predecessor copy, or linked-chain rule applies to new submissions. A reversed predecessor's contribution stays inactive.
 

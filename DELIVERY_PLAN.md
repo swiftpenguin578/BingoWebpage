@@ -345,13 +345,14 @@ into a broad pass.
 
 | AU15 | WOM: remove typed FETCH confirmation | Existing refresh guards | Approved; queued, not dispatched | Not run | Not run | Deferred |
 | AU16 | Audit: restore approved hidden-event history and exact filters | Existing audit presenter/query and hidden-history authority | Approved defect fix; queued, not dispatched | Not run | Not run | Deferred |
-| AU17 | Review: split approved full-event-pool correction from remaining review projection gaps | Existing evidence/review service and G2 structured outcome | Approved full-pool correction queued; remaining scope proposed; not dispatched | Not run | G2 paused-interval wording closed; remaining review not run | Deferred |
+| AU17a | Review: approved full-event-pool metadata correction | Existing evidence correction/readiness boundary | Approved; queued before AU17 | Not run | Not run | Deferred |
+| AU17 | Review: remaining context/projection/readback gaps | Existing review service; AU17a owns full pool | Proposed; not dispatched | Not run | G2 paused-interval wording closed | Deferred |
 | AU18 | Final Review: readiness, retained WOM outcomes and version/history readback | Existing finalization/readiness boundary | Proposed; not dispatched | Not run | Not run | Deferred |
 | AU19 | Board: structured approval issues and uncertain-action readback | Existing board leases/snapshots/calculators | Proposed; not dispatched | Not run | Not run | Deferred |
 | AU20 | WOM: exact configured-window matching, structured outcomes and replacement/recovery | Existing WOM guards, operation state and schedule boundary | Approved; queued, not dispatched | Not run | Not run | Deferred |
 | AU21 | Catalogue: explicit shared-item adoption, rename and recovery scope | Existing catalogue/item mapping and version services | Approved defect fix; queued, not dispatched | Not run | Not run | Deferred |
 | AU22 | Accounts: accurate projections and target-bound reset response | Existing account/reset/authorization services | Approved defect fix; queued, not dispatched | Not run | Not run | Deferred |
-| AU23 | Catalogue: SuperAdmin-only advanced mechanics with ordinary-admin refusal | Existing catalogue authorization, validation and audit | Approved; queued, not dispatched; roll-count input remains an open product choice | Not run | Not run | Deferred |
+| AU23 | Catalogue: ordinary rate-text rolls and SuperAdmin advanced mechanics | Existing catalogue authorization, validation and audit; final-chance decision below | Approved 4 October; queued, not dispatched | Not run | Not run | Deferred |
 | AU24 | Accounts: typed ownership transfer destination confirmation | Existing ownership/version/session services | Approved; queued, not dispatched | Not run | Not run | Deferred |
 
 For each ticket retain owner/model, changed-source identity, exact check/evidence
@@ -378,40 +379,150 @@ inference. This applies the existing integration requirement at
 
 | Proposed place | Ticket | Owner boundary and acceptance |
 | --- | --- | --- |
-| 1–14 | AU11–AU24, in the existing table order | Complete each approved application ticket independently. AU13 is already complete through F8; the remaining AU entries stay queued or proposed as recorded above. |
-| 15 | **P-1 — Participants integration** | Bind the approved Participants reference to the existing routes and structured Add/Restore outcomes, including D2 and explicit retirement or redirect of obsolete legacy Restore overloads. The page must show manual-team members in its list and waiting positions, preserve drawer/history/dirty-state behavior, and keep backend authorization authoritative. Acceptance: route/readback/error/navigation checks plus page-specific manual acceptance. |
-| 16 | **DB-1 — Dashboard integration** | Bind the Dashboard reference to existing projections, including D7's equal-start cohort and Provisional rules, DB-4 metadata, and DB-5 next date. Preserve real event links, latest-ended recap, unavailable states, and explicit old-route retirement/redirect. Acceptance: focused route, readback, fixture, and page acceptance checks. |
-| 17 | **EI-2 — Events and Identity integration** | Bind Events directory/Create and Identity routes to the existing duplicate-safe creation, conflict-choice, timezone, and uncertain-readback contracts. Preserve stable destinations and state-specific errors; explicitly retire or redirect superseded handlers. Acceptance: direct-entry, reload, conflict, permission, and page acceptance checks. |
-| 18 | **OS-1 — Signup setup / Schedule / Overview integration** | Integrate the three related pages as one lifecycle surface. Include OS-3's dead Resume control removal and OS-5's capacity readback from Signup setup. Observation OS-4 (`05-overview-signup-schedule.md`): `BingoEvent.ConfigureSchedule` retains a dead capacity rule forbidding lowering after first public; active capacity editing belongs to Signup setup. Record/reconcile that obsolete rule during integration without reactivating it; preserve Schedule's no-capacity/no-opening-toggle boundary and the existing route owners. Acceptance: lifecycle, uncertain-save, readback, navigation, and page acceptance checks. |
-| 19 | **BR-10 — Board and Review integration** | Bind Board and Review to existing calculators, leases, approval outcomes, and queue/filter context. Carry G1's structured blocking submission ID/upload-time data through the page link and return path; preserve review authorization and history. Acceptance: structured error/readback, filter context, stale state, route, and page acceptance checks. |
-| 20 | **TD-6 — Teams/Draft integration** | Integrate the named Teams/Draft reference items at `docs/references/admin-ui/README.md:1720-1741`, including the existing in-place draft transport, control ownership, manual roster states, and protected route/history behavior. Retire or redirect obsolete standalone editors without deleting retained data. Acceptance: focused draft/roster/navigation checks and page acceptance. |
-| 21 | **WA-5 — WOM / Catalogue / Accounts / Audit integration** | Bind each existing service to its approved reference surface while preserving provider guards, SuperAdmin boundaries, secret redaction, immutable audit history, and stable routes. Explicitly retire or redirect old handlers per page; do not create a second service or route family. Acceptance: scoped provider-free authorization/readback/error checks and page-specific acceptance. |
-| 22 | **FINAL-CANDIDATE — branch reconciliation** | Assemble the stable AU and integration changes, run the required scoped builds/checks and source review, and record exact candidate identity. This is a gate, not permission to deploy. |
-| 23 | **R-3 — restored-backup rehearsal** | Run the complete `bingo-deploy` sequence against an isolated restored production backup and the final candidate immediately before deployment; require the H4 checks and recovery evidence. The rehearsal remains unexecuted. |
-| 24 | **DEPLOY — explicit release action** | Requires a passing final candidate and R-3 plus the user's explicit production approval. This cleanup ledger grants no deployment authority. |
+| A1 | AU11, AU12, AU14, AU15, AU16, **AU17a**, AU17, AU18, AU19, AU20, AU21, AU22, AU23, AU24, **CAT-1** | Proposed AU order; AU13 is complete through F8. AU17a is the separately approved full-pool correction. AU17/AU18/AU19 remain proposed, requiring approval before execution. CAT-1 is the approved informational activity team-size move below. Claude decides batching/models after cleanup passes. |
+| B1 | **RC01 → RC02 → RC03 → RC04 → RC05 → RC06 → RC07 → RC08 → RC09 → RC10 → RC11** | Proposed reference-correction order, after their owning application contracts settle and before affected binding. RC01–RC04 are queued; RC05–RC11 remain proposed. This slot does not approve proposed scope or authorize editing frozen artifacts now. |
+| C1 | **P-1 — Participants integration**, including RL-1/P-7 and P-3 | `01-participants.md` P-1/P-2: approved routes/new reference are unbound. Bind structured Add/Restore capacity outcomes (P-6/D2: old results omit effective cap/+1 outcome); retire or redirect obsolete Restore overloads. `14b-g3-g6-review.md` G3b-3: show manual-team members in lists/waiting positions. Execute P-3 and RL-1/P-7 below. Preserve drawer/history/dirty-state, authorization and selected-person-only capacity rules. Route/readback/error/navigation and page acceptance required. |
+| C2 | **DB-1 — Dashboard integration**, including DB-2/DB-3 and DB-6 | `02-dashboard.md` DB-1: GetAsync has no page. D7 requires **DB-2** (Confirmed participants removed from a pre-Live roster or never placed remain in WOM's sync fingerprint but disappear from Dashboard's expected set, making EHB Unavailable); align compatibility sets and prove a removed-but-Confirmed fixture. **DB-3**: one imported event makes mixed-history approved-submissions headline unknown; count platform submissions while excluding reconstructed imports, keep imported-only unavailable. **DB-4** separately owns missing provisional/import/tracking-start/latest-event metadata; **DB-5** separately owns phase-relevant next date. DB-7's equal-start cohort and Provisional definitions are documentation rules, not D7's two bugs. Execute DB-6; preserve event links/ended recap/unavailable states and route retirement. |
+| C3 | **EI-2 — Events and Identity integration**, including RL-1/EI-3 | `04-events-identity.md` EI-2: new directory/Create/Identity reference and recovery controls are unbound. Bind duplicate-safe creation, field conflict choices, timezone and uncertain readback; render uncertainty without requiring DB recovery (RL-1/EI-3). Preserve stable routes and posted drafts; direct entry/reload/conflict/permission/page acceptance. |
+| C4 | **OS-1 — Signup setup / Schedule / Overview integration** | `05-overview-signup-schedule.md` OS-1: combined Signup controls and Schedule/Overview recovery are unbound. OS-3: remove dead Resume control; OS-5: capacity readback belongs to Signup setup. OS-4 observation: `BingoEvent.ConfigureSchedule` retains a dead capacity rule forbidding lowering after first public; reconcile the obsolete rule without reactivating it. Preserve Schedule's no-capacity/no-opening-toggle boundary; lifecycle/readback/navigation/page acceptance. |
+| C5 | **BR-10 — Board, Review and Final Review integration**, including RL-1/BR-4/BR-12 | `06a-board-review-final.md` BR-10: bind existing calculators, leases, approved full-pool correction, review/current-state and finalization outcomes to the new references. **RC07** and BR-10 bind G1's structured blocking submission ID/upload time with a direct earlier-review link and queue/filter-preserving return. Retain history/authorization; execute RL-1 findings and structured error/readback/stale-route/page acceptance. |
+| C6 | **TD-6 — Teams/Draft integration**, including RL-1/TD-8 and X-6 observation | `11-teams-draft.md` TD-6: bind the deferred Teams/Draft reference (`docs/references/admin-ui/README.md`, Teams/Draft binding notes), in-place draft/control/manual roster states and route recovery; retire/redirect old standalone editors without deleting history. TD-8 remains an observation unless these handlers are touched; then use the named concurrency checks below. X-6 remains an observation with mechanism undecided. |
+| C7 | **WA-5 — WOM / Catalogue / Accounts / Audit integration** | `06b-wom-catalogue-accounts-audit.md` WA-5: AU15/AU20/AU23/AU24 and page bindings were missing; bind the settled contracts without another service/route family. Preserve provider guards, SuperAdmin checks, transient secrets and immutable audit. Catalogue follows the decided panel/activity fields below instead of the conflicting frozen reference. Scoped provider-free authorization/readback/error checks and individual page acceptance. |
+| C8 | **LKP-1 — Luck mixed-outcome proof** | Dedicated Luck proof owner/assignment after page bindings, before FINAL-CANDIDATE; scope below. No reuse of the already-fixed LK-1 finding ID. |
+| D1 | **FINAL-CANDIDATE — branch reconciliation** | Stable AU/reference/integration candidate, required checks/source review and exact identity. No deployment permission. |
+| D2 | **R-3 — restored-backup rehearsal** | Blocked pending H4-2 procedure approval and then separately authorized execution. Never use the production host wrapper as a rehearsal; see the separate proposal and H4 release gate. |
+| D3 | **DEPLOY — explicit release action** | Requires passing final candidate/R-3 plus explicit production approval. No deployment authority in this ledger. |
 
 #### Approved AU scope additions and status corrections
 
 | Ticket | Owned addition or acceptance boundary |
 | --- | --- |
 | AU13 | F8 at `6d33ce6` closes the editable post-finalization planning estimate. The lock removed by that change originated in `525d5d1` (BR-2/BR-9); keep the note in the AU13 evidence and do not reopen this ticket. |
-| AU15 | Keep the generic cooldown wording. Structured reasons belong to AU20; do not imply that removing the typed FETCH confirmation removes server cooldown/retry guards. |
-| AU16 | Record that the two tests currently asserting the hidden-history/query violation must be inverted when AU16 runs; this is a named acceptance check, not a claim that it has run. |
-| AU17 | Keep the approved full-event-pool evidence correction as its own scope. G2 closed the paused-interval wording finding, so do not reintroduce that instruction; retain the remaining credited-account/projection acceptance. |
-| AU20 | Rewrite the ticket around the configured UTC window at every stage, exact matching, early-end and Resume rules, retries/fallback, and Resume as the third site. Add WA-9: linking also waits for an in-flight or unresolved website Create. |
-| AU21 | Name shared-item **rename** alongside adoption, image and metadata recovery; preserve independent item identity/version and dependency-safe deletion. |
-| AU22 | Record that F4 completed consume-time re-authorization of both recipient and issuer under the existing lock; remaining work is projection/readback binding, not a new reset policy. |
-| AU23 | Require a real PostgreSQL SuperAdmin path check and blanket refusal for ordinary Admins. Whether roll count in displayed-rate syntax is an ordinary input remains an open product choice and must be resolved before implementation. |
-| AU24 | Require typed destination public-username confirmation and do not reuse the legacy `TransferOwnershipAsync(actorId, password, destinationUsername)` overload. |
+| AU15 | WA-6 (`06b-wom-catalogue-accounts-audit.md`): RefreshAsync lacks structured rejection reasons. Keep the generic cooldown wording. Structured reasons belong to AU20; do not imply that removing the typed FETCH confirmation removes server cooldown/retry guards. |
+| AU16 | WA-4/WA-7 (`06b-wom-catalogue-accounts-audit.md`): Audit wrongly hides hidden-event history, uses substring/instant filters, and two tests lock those violations in. The two tests must be inverted when AU16 runs; this is a named acceptance check, not a claim that it has run. |
+| AU17a | `06a-board-review-final.md` BR-9/BR-10 and D5: correction still filters to current Playing accounts/current members. Offer the full event account pool, including non-current entries; resolve player/character/team eligibility at readiness. Pending-only metadata correction still requires reason, preserves image/upload time, evidence locks and immutable approvals. Prove valid former assignments and invalid attribution without partial writes. Approved, queued before remaining AU17. |
+| AU17 | BR-9/BR-10: remaining credited-account context/contribution preview/readback is proposed; G2 already fixed paused-window wording. Full-pool correction is AU17a, not approval-dependent AU17 scope. |
+| AU20 | WA-2/WA-6/WA-9 (`06b-wom-catalogue-accounts-audit.md`): actual-time matching would reject final-review fetches, current outcomes lack structured reasons, and linking can race a pending Create. The full approved requirements and focused checks are in **AU20 — configured-window and end synchronization** below; those requirements govern this ticket. |
+| AU21 | WA-3/WA-7 (`06b-wom-catalogue-accounts-audit.md`): drop edits silently rename/re-image shared items across activities. Make shared-item **rename**, adoption, image and metadata scope explicit; preserve independent item identity/version and dependency-safe deletion. |
+| AU22 | WA-1/WA-7 (`06b-wom-catalogue-accounts-audit.md`): reset consume-time authorization was missing; F4 completed consume-time re-authorization of both recipient and issuer under the existing lock; remaining work is projection/readback binding, not a new reset policy. |
+| AU23 | 4 October decision: rate text including `N x` is ordinary Admin input on add/edit/reactivation. Remove the “Changes to reward rolls require an operator” refusal. `3/1024` means one roll at 3/1024; `3 x 1/1024` means three rolls at 1/1024. New drops use `default` roll group. Real PostgreSQL authorization checks must allow ordinary rate-text roll changes and reject non-default advanced input; only SuperAdmin edits advanced roll groups. Final-chance/retired-parent and activity-context rules below supersede earlier advanced-field proposals. |
+| AU24 | WA-5 (`06b-wom-catalogue-accounts-audit.md`): approved typed ownership confirmation is not implemented. Require typed destination public-username confirmation and do not reuse the legacy `TransferOwnershipAsync(actorId, password, destinationUsername)` overload. |
 
 #### Review leftovers and proof-gap ownership
 
 | Ticket | One-line scope and acceptance |
 | --- | --- |
-| **RL-1 — review leftovers** | Own DB-2/DB-3 (Dashboard metadata/next-date boundary), EI-3 (Identity uncertain response must read the database), BR-4 (server-side reject/reverse confirmation), BR-12 (review/reopen missing-version fail-closed behavior), P-7 (Restore uses stored account data without WOM), X-6 (WOM-outcome audit stays inside the transaction and excludes raw exception text), and TD-8 (Scramble and RemoveDraftTeam use the required Serializable boundary). Each line gets its own focused PostgreSQL acceptance when its owning integration runs; G3a did not close TD-8's additional movement races. |
-| **P-3 — Participants proof gap** | Exercise F04 Add when full for normal and selected-person `+1` capacity outcomes, with no unintended waiting-list promotion or side effects. Owner: P-1. |
-| **DB-6 — Dashboard proof gap** | Exercise recap selection, Provisional flags, latest additions, and pending/rejected fixtures against real persisted projections. Owner: DB-1. |
-| **LK-1 — Luck proof gap** | Exercise the F2 mixed supported/unsupported outcome review note with retained compatible snapshots, explicit unavailable states, and no read-time provider call or rescore. Owner: the existing Luck integration owner before FINAL-CANDIDATE. |
+| **RL-1 — routed review leftovers** | Coordination ledger, not an extra standalone implementation. Each subfinding runs at the named C slot below; DB-2/DB-3 belong only to DB-1. No blanket transaction design or new product rule is authorized. |
+| RL-1 / P-7 → P-1 (C1) | `01-participants.md` P-7 + D3: Restore makes a live WOM lookup and may permanently block a renamed/unknown withdrawn account. Use stored account data, like Admin Add; no WOM request. Prove retained reservation/eligibility/capacity and no-write failures with PostgreSQL/provider-free fixtures. |
+| RL-1 / EI-3 → EI-2 (C3) | `04-events-identity.md` EI-3: the uncertain catch path rolls back then re-reads DB, so a commit-time connection loss may throw again and produce 500. Render the posted draft/uncertain page **without a database read**, as Create does; tolerate failed rollback and add an injected lost-commit HTTP test. Never claim the save succeeded. |
+| RL-1 / BR-4 → BR-10 (C5) | `06a-board-review-final.md` BR-4: direct reject/reverse POSTs with a reason bypass client-only confirmation. Enforce the existing reason/confirmation requirement at the server and prove missing-confirmation no-write behavior. |
+| RL-1 / BR-12 → BR-10 (C5) | `06a-board-review-final.md` BR-12: omitted Review/reopen versions skip optimistic checks. Fail closed on missing/zero baseline and prove unchanged state/audit plus ordinary valid/stale behavior. |
+| RL-1 / TD-8 observation → TD-6 (C6) | `11-teams-draft.md` TD-8: Scramble's no-pick check can race Pick; RemoveDraftTeam can race AddMember, leaving membership on an inactive team. G3a did not close these races. If binding touches those handlers, resolve within the existing Serializable boundary and prove both interleavings; otherwise retain as observation, not silently close it. |
+| RL-1 / X-6 observation → TD-6 (C6) | `07-cross-cutting.md` X-6: the post-roster WOM-outcome audit is separate, its failure is swallowed, no-op outcomes write rows, and raw provider exception text can enter audit. The roster transaction itself is already atomic. Mechanism remains undecided; do not move a later provider outcome into an already-committed transaction or imply an approved fix. |
+| **P-3 — Participants proof gap** → P-1 (C1) | `01-participants.md` P-3: F04's Add-directly-to-Confirmed-when-full claim lacks executed proof. Exercise ordinary full outcome and explicit selected-person `+1`, exact cap, no other waiting promotion, repeat/no-write behavior and PostgreSQL persistence. |
+| **DB-6 — Dashboard proof gap** → DB-1 (C2) | `02-dashboard.md` DB-6: no executed assertions select the latest ended recap, its Provisional flags or latest additions; pending/rejected submissions are absent. Exercise all on real persisted projections and distinguish source inference from executed proof. |
+| **LKP-1 — Luck mixed-outcome proof** (C8) | `10-fix-batch-review.md` F2 test-gap note: current test makes every outcome unsupported; one unsupported outcome among supported outcomes is only source-traced. Dedicated Luck proof assignment exercises mixed outcomes, replaceable incomplete checkpoint, retained compatible complete snapshot/freshness, explicit unavailable states and no read-time WOM/rescore. This is a new proof ID; original LK-1 is already fixed by F2. |
+
+#### AU20 — configured-window and end synchronization (approved; pending implementation)
+
+Source: `06b-wom-catalogue-accounts-audit.md` WA-2, WA-6, WA-9 and
+`decisions.md` “WA-2 (decided, extends AU20)” in the 4 October remediation evidence.
+The original actual-window tolerance would make exact final-review matching fail;
+the following is the approved replacement, not a request for a future rewrite.
+
+1. Compare WOM start/end exactly with the website's **configured** UTC start/end
+   at every stage, including Final Review. Actual instants still drive upload
+   cutoff, drop eligibility and the review window; never substitute them for this check.
+2. Early end and Resume always succeed locally within ordinary lifecycle rules;
+   WOM availability or a provider rejection never blocks the local action.
+3. Early end sets WOM end to the click instant rounded **up** to the next whole
+   minute (21:59:55 → 22:00:00), and persists the same configured end locally.
+   Actual end retains the precise click instant; no lead time is required.
+   Resume requires the Admin's validated replacement future end, using existing
+   schedule increments; store/use that end, never the resume-click time, with no
+   click-time rounding. The three former tolerance sites are shared linking/
+   replacement/fetch validation, Schedule save, and **Resume**.
+4. Retry temporary update failures with spaced backoff, never a fast loop. WOM
+   accepts edits ending in the past provided end is not before start; retries may
+   continue until official results publication. HTTP 400
+   `COMPETITION_START_DATE_AFTER_END_DATE` is a non-transient rejection.
+5. While WOM end is unmatched, run no fetch after actual end: that could count
+   post-end gains. After successful end update, normal fetches resume with the
+   correct window. If still unmatched at publication (prolonged outage, absent/
+   invalid verification code or non-transient rejection), mark the event
+   **“WOM end could not be updated”**, skip the final fetch and use the last fetch
+   before actual end as official WOM data. Luck freshness shows that fetch's age;
+   no invented fresh values or zeros. ID-only external links without a verification
+   code always take this fallback after early end.
+6. Preserve external deletion prohibition and existing cooldown, scheduled slot,
+   lease, operation and history guards. Provide structured eligibility/reason/
+   next-permitted-time/credential/operation outcomes; AU15 retains generic cooldown
+   wording. External replacement before/during Live and disconnection before first
+   Live follow approved option 1 regardless of stored/rejected code, exact configured
+   window and active/unresolved guards; never reuse the old code or delete externally.
+   WA-9: external linking also waits for Sending/Unknown website Create, so its late
+   completion cannot overwrite a newly saved link. Readback never performs a fetch
+   and old success does not prove a new operation.
+7. Accepted limit: WOM end values use each player's last snapshot inside the window;
+   precision depends on player updates. Users know to log out immediately before
+   the end. This limit is accepted, not a new compensation or attribution algorithm.
+
+Focused acceptance: deterministic sub-minute early end, minute-boundary end,
+validated future Resume, exact/timezone-equivalent configured windows through
+Final Review, non-microsecond input through real PostgreSQL precision, each old
+five-minute tolerance site, transient retry spacing and non-transient rejection,
+unmatched-end fetch suppression/success/fallback/publication, ID-only credentials,
+external delete refusal, Sending/Unknown Create-link race and late responses after
+replacement. Use controlled provider doubles, never live WOM. The early-end texts
+in DATA_MODEL, TECHNICAL_ARCHITECTURE and PRODUCT_REQUIREMENTS are updated and marked
+**pending AU20**; they previously retained the scheduled end. No implementation is
+claimed by this documentation change.
+
+#### Catalogue decisions — AU23, CAT-1 and WA-5 (4 October; pending implementation)
+
+Source: 4 October user decisions in the durable remediation `decisions.md`,
+superseding earlier proposals in `06b-wom-catalogue-accounts-audit.md` WA-5 and
+Catalogue C7 / AU23 mapping.
+
+- **AU23 / final chance:** always enter the final chance for the specific item in
+  one's own name at the agreed team size; conditional raid-table chances must be
+  resolved before entry. Retire “Only after” from new input, editor and panel;
+  keep `conditional_on_parent`/`parent_probability` columns, existing records and
+  immutable snapshots/history. **No EHB parent-chance fix ticket.** The user queried
+  production on 4 October and reported zero conditional rows; this is operator
+  evidence, not our verification. Existing runtime differences for legacy conditional
+  records are not rewritten by this ticket; stop if the pre-change check finds any.
+- Rate text, including `N x`, is ordinary Admin add/edit/reactivation input. Remove
+  the current refusal at `Catalogue/Index.cshtml.cs:139-143` and `:209-213` when
+  implementing AU23, retaining validation/concurrency/audit. `default` is the group
+  for every new drop, including on newly created activities. Existing production
+  groups (`barrows-equipment`, `purple table`, `doom-1-16-aggregate`,
+  `fortis-full-run-unique`; 56 active rows reported by the user) remain unchanged.
+  Roll groups are calculation inputs, SuperAdmin-only. Legacy probability-scope/
+  assumed-participant advanced writes remain SuperAdmin-only until CAT-1 moves
+  context; they are never calculation multipliers. Parent fields are retired from
+  new input, not opened to either role. No separate roll-count input.
+- **CAT-1 — move informational agreed team size to activity (approved, A1 after
+  AU23; before WA-5):** one integer >=1, default 1, for the boss/activity, beside
+  efficient kills per hour. The rate and EHB use the same agreed efficient strategy;
+  this field is explanatory and never enters a calculation. Every Admin can edit it.
+  Move the context from per-drop `assumed_participants`/`probability_scope` without
+  changing existing approved/published snapshots or history. The user reported zero
+  non-default per-drop contexts on 4 October; re-query immediately before migration
+  for set values and conflicts within each activity. A new set/conflict requires a
+  user decision, never silent loss/coalescing. Required migration/designer/snapshot
+  travel together. Verify default, validation, Admin edit, no calculation effect,
+  retained groups/history and rollback shape with controlled PostgreSQL fixtures.
+- **WA-5 binding:** the “How the rate is counted” header displays the actual group
+  (`default`, `purple table`, etc.). Rows are chance per kill (including `N x`),
+  source, and note only if present. Bottom: “Roll group can only be changed by the
+  Super Admin.” SuperAdmin edits group in that panel; ordinary Admin sees it read-only.
+  Remove chance-per-roll, rolls-per-kill, whose-chance and Only-after rows, the
+  operator sentence, and the rate-roll refusal in frozen `Catalogue.dc.html:378`
+  and `:801` when binding. Put editable informational **Team size** next to **Kills
+  per hour** in Settings and Add activity, with the same fields/validation. This
+  deliberately supersedes those portions of the frozen reference. Do not edit that
+  artifact in this cleanup; RC10/WA-5 later implement the decision.
 
 Recorded observations have no separate ticket: X-5 is recorded here for the
 integration owners (PageModel mutations rely on the per-request cookie recheck and
@@ -907,7 +1018,7 @@ older canvas content, then verifies parity. This is not blanket reassignment of
 visual design authority. Keep completed RC records; append future bounded reference
 correction tickets rather than spending Claude usage on behavioural bug fixes.
 
-### Proposed application follow-ups — AU16–AU24, not dispatched
+### Approved and proposed application follow-ups — AU16–AU24 and CAT-1, not dispatched
 
 These scopes come from the seven completed source comparisons and later explicit
 user decisions, not a new audit. Accepting the requirements summary records the
@@ -920,13 +1031,15 @@ All are **not implemented; checks/review not run** in this reconciliation.
 | ID | Bounded outcome and protected behavior | Focused acceptance / known decision boundary |
 | --- | --- | --- |
 | AU16 | Audit: restore already-required hidden-event history; authorized single-entry read/event choices; exact action vs area filters and timezone-aware calendar dates; preserve immutable redaction and hidden workspace restriction | Hidden event entry readable only under ordinary Audit permission; secrets excluded; specific vs prefix results; DST spring/fall days; unavailable entry/strict paging; use existing presenter and truthful historical fallbacks |
-| AU17 | Review: credited-account transition context, consistent effective-end/paused-window warnings, exact contribution preview and scoped action/current-state readback; reuse evidence commands | Corrected account gets its own context; screenshot vs upload wording; exact cap/duplicate/reversal outcomes; unknown reads never claim request attribution; private/hidden/phase guards. Full-event-pool Admin correction approved, including non-current entries; resolve player/character/team attribution at readiness without restoring the current-only filter. No OCR, image replacement or duplicate state |
+| AU17a | Approved full-event-pool metadata correction | BR-9/BR-10/D5 acceptance above; queued separately before AU17; image/upload time and approved history unchanged |
+| AU17 | Proposed remaining credited-account context, contribution preview and scoped readback | Account-specific context, precise contribution effects and unknown-state honesty; G2 warning fix already complete; full-pool work belongs to AU17a |
 | AU18 | Final Review: complete readiness including current-event exclusivity; structured retained WOM outcome/actors; version/history/readback projection and in-place outcomes | Exact ties including cutoff tie group, stale archived vs reopened, read failure, optional refresh failure, inclusive upload boundary, stored versions unchanged. AU12 owns new ranking, not this ticket |
 | AU19 | Board: structured approval issues with tile targets, private/published comparison and authoritative uncertain-action readback over full intended state | Compare identity/name/description/artwork/objectives/EHB; late evidence retained; publish vs discard distinguished; no automatic replay. Reuse existing calculator/leases/snapshots. AU11–AU13 own scoring/planning changes |
-| AU20 | WOM: structured eligibility/next-permitted-time/credential/operation outcomes and read-only recovery; expose already-supported final-review fetch eligibility in new binding | Old last-success cannot prove a new fetch; GET never fetches; unknown never Up to date; missing-account coverage and failure retained. Preserve all cooldown/schedule/lease guards. Option 1 explicitly approved after investigation: support external replacement before/during Live with exactly matching UTC start/end and disconnect before first Live, irrespective of stored/rejected code. Safely retire old local management state; block active/unresolved operations, never delete external competition or reuse old code. Test ID-only, valid/rejected credentials, pending/unknown operations and late completion against replaced links. Credential-enabled edits already exist; conflict resend deferred; AU15 owns challenge removal. Later approved exact-window rule replaces five-minute tolerance: update shared linking/replacement/schedule/fetch checks and RC09 copy/mock; exercise timezone-equivalent instants, unequal start/end (including formerly accepted small offsets), provider/PostgreSQL precision and existing-link mismatch handling without deleting history or inventing zeros |
-| AU21 | Catalogue: explicit shared-item adoption on add, source/item identities/versions and scoped CRUD/mapping/value recovery | Creation uncertainty cannot duplicate/crash; every intended field and shared image scope explicit; preserve independent drafts, item provenance/price invalidation, reactivation roll guards and dependency-safe deletion. No silent shared-item merge or automatic price adoption |
+| AU20 | Approved configured-window/end synchronization and structured recovery | All numbered requirements and focused acceptance in **AU20 — configured-window and end synchronization** above are mandatory, including early end, Resume, fallback, WA-9 and accepted snapshot limit; pending implementation |
+| AU21 | Catalogue: explicit shared-item adoption on add, source/item identities/versions and scoped CRUD/mapping/value recovery | Creation uncertainty cannot duplicate/crash; every intended field and shared image scope explicit; preserve independent drafts, item provenance/price invalidation, valid reactivation mechanics under AU23’s ordinary rate-text rule and dependency-safe deletion. No silent shared-item merge or automatic price adoption |
 | AU22 | Accounts: bind existing overlay/projections to accurate counts/detail and role/status/ownership readback; transient target-bound reset response | Late response cannot expose A's secret in B; no secret history/log/storage or secret readback; permission loss/session invalidation handled; status not changed by revoke; current-state matching not attributed to request. Reuse reset permission-under-lock rule, no implicit new reset expected-version policy; typed transfer is AU24 |
-| AU23 | Catalogue advanced mechanics: implement approved SuperAdmin-only edits for existing advanced fields, read-only for ordinary Admins | Server permissions, validation, audit, stale edits, affected Draft estimates; approved/published/history unchanged; no separate roll-group management/import workflow. User already approved behavior; exact mapping to existing fields resolved before implementation |
+| AU23 | Ordinary rate-text rolls; SuperAdmin advanced roll group; final-chance input and retirement of Only after | Mandatory Catalogue decisions above; real PostgreSQL role/validation/audit/stale checks, default new groups, existing groups and immutable snapshots preserved; no parent-EHB ticket |
+| CAT-1 | Informational agreed team size moves to boss/activity | Mandatory pre-migration set/conflict recheck, whole number >=1/default 1, ordinary Admin edit, no calculation effect, historical snapshots unchanged; see Catalogue decisions above |
 | AU24 | Ownership transfer: add approved typed destination public username alongside current owner's password | Reject missing/wrong/mismatched recipient text server-side; confirmation retains selected recipient/version; atomic sole owner, eligibility/session invalidation and secret privacy preserved. No new reason or typed confirmation on ordinary role changes |
 
 The earlier reports are evidence of source observations, not claims these gaps
@@ -950,8 +1063,9 @@ These extend the recorded correction queue without changing any completed ticket
 RC07/UI integration must bind the same structured approval-block data produced by
 the Review service and preserve the queue's search/status context when opening
 the earlier review and returning to the queue.
-Catalogue advanced controls and typed ownership confirmation follow the later user
-decisions AU23/AU24, not the superseded report questions. No blanket removal of
+Catalogue ordinary rate-text rolls, retired parent input, activity team-size context
+and advanced roll-group controls follow the 4 October AU23/CAT-1/WA-5 decisions;
+typed ownership confirmation follows AU24, not the superseded report questions. No blanket removal of
 reference functionality to match the old app. Full-pool evidence correction follows the later approved decision. WOM external
 link option 1 is now approved after investigation; AU20 aligns the application with
 the artifact, preserving active/unresolved-operation and date/lifecycle guards.
@@ -1473,7 +1587,7 @@ Deployment, production cleanup and current runtime state are not inferred from t
 | CAT-01 | Simplify Catalogue; retire roll-group UI/import surfaces, preserve mechanics | AU21/AU23 pending; SuperAdmin advanced-field editing does not create a roll-group editor |
 | EVT-01 | Name/timezone creation, permanent slug, atomic defaults, Identity ownership | AU03/AU08/AU09 complete; new UI binding pending |
 | ACC-01 | Existing-account support/security; no user creation/merge or emergency controls | AU22/AU24 pending; typed ownership confirmation is an existing requirement gap |
-| EVD-01 | Real team-role submission authority, immediate participant account switch | AU17 full-pool Admin metadata correction pending; not permission to change rosters |
+| EVD-01 | Real team-role submission authority, immediate participant account switch | AU17a full-pool Admin metadata correction pending; not permission to change rosters |
 | LIF-01 | Timestamp-led scheduling, phase-aware manual controls, +30m early-end grace | AU01/AU10 complete; RC01/RC03 and reference binding pending |
 | TEM-01 | Existing website accounts, IncludedInDraft; retire accountless/CSV/owner-transfer | New team reference omits affiliation/image controls; old data preserved |
 | EVD-02 | Ordinary later attempts, binary review, reasoned correction/reversal | AU17/RC07 pending; preserve original evidence and separate approval |
