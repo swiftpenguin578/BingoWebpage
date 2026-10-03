@@ -1,0 +1,20 @@
+Independent review handoff — CHANGES REQUIRED, 2026-10-01
+Reviewer: /root/luck_independent_review, gpt-6.1-sol/high, read-only.
+Candidate: codex/participants-functionality, base 993c90e9835d1f2d74fc9c03ed4d8f6306a7e37c.
+Verified tracked scoped diff SHA256: 573605b2526acfda88aa15dd7a41386aafc66ffe1ca4a0fce26a841dce15d867.
+Verified migration and evidence log hashes match manifest. Recorded passing counts are genuine but do not discriminate the defects below.
+This is the orchestrator's compact transcription of the reviewer findings, not a new review.
+
+R1 P1 — PublicStatsService.Luck.cs:329; SubmissionService.cs:171/179; lifecycle/finalization callers. Recent successful cache still permits non-fetch evidence/lifecycle recalculation. Remove non-fetch publication and restrict accepted batch ownership. Immediate approval/reversal must retain exact saved payload/times until accepted fetch; prove accepted-fetch atomic rollback rather than obsolete approval-recalculation rollback.
+R2 P1 — PublicStatsService.Tile.cs:74/98; PublicStatsService.Luck.cs:234 and RescoreLuck. Activity received counts/KC use event-wide observations instead of tile attribution. Retain tile-specific observations at tile/team/contributor scopes. Repeated Prime fixture must assert own received/percentile/KC/contributor results.
+R3 P1 — PublicStatsService.Luck.cs:43/54/345. ActualEndedAt lifecycle fingerprint invalidates ordinary ending; latest-batch compatibility hides retained prior row after oversized complete candidate discard. Preserve compatible whole snapshot across ordinary lifecycle and rejected batch; keep write fences and diagnostic. Prove exact payload/times for both.
+R4 P1 — PublicStatsService.Luck.cs:255 and preceding activity components. PMF limit clears sound KC; invalid probability groups are silently omitted and trial cast/multiplication unchecked. Validate mechanics before projection; preserve independent valid KC on PMF work-limit failure. Prove that limit and invalid-group boundary.
+R5 P1 — EventFinalizationService.cs:104/109/119; EventCompetitionSynchronizationService.cs:227. New preflight bypasses idempotent retry; refresh failure/outcome discarded; ScheduleMismatch reported as provider success. Preserve retry without second fetch, actual accepted outcome/feedback, nonblocking publication and postfetch revalidation.
+R6 P1 — PublicStatsService.Luck.cs:363. Legacy conversion throws for missing/null/wrong-type/duplicate/negative retained structure. Fail closed with bounded diagnostic and retained original row; support complete partial scopes from retained inputs only.
+R7 P1 — 20261001165543_LuckCheckpointV2.cs:64. Down relabels v2 JSON as v1 and drops provenance. Fail closed on v2 rows with actionable operator instruction; no historical relabel/delete; consistent migration artifacts.
+R8 P2 — stats-page.js:705/724/734/737/696. Literal midpoint still Expected, estimates/zero labels lost, team aria always KC. Truthful percentile labels, retained localized state descriptions, mode-aware aria and focused runtime proof.
+
+Required proof reconciliation: actual catalogue Seers/Berserker/Warrior/Archers DKS grouping, repeated Prime attribution, real synchronization final-review/manual/hourly/retry/lease/window boundaries, failed/skipped publication, postfetch change, idempotent/no-postpublish fetch, accepted-fetch atomic rollback, storage precision where relevant. Existing success stub and synthetic warhammer fixture are not sufficient.
+Broad Node report 54/12/2 lacks retained individual stdout. Source confirms obsolete signed/stale assertions and prototype parity; reconcile affected Luck assertions only, classify unrelated failures separately rather than assuming all harmless.
+No unbudgeted service/table/route/policy/job/framework, EHB/container or unrelated Overview fix found. Existing Participants/Dashboard scope excluded. No manual, live-provider, user-database or browser acceptance claimed.
+Next owner: same implementer /root/luck_implementation for only R1–R8 and required direct proof, then same reviewer named recheck.

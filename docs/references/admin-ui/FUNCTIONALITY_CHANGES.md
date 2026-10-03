@@ -614,7 +614,7 @@ independent review; the planner did not rerun checks or independently review sou
 - Same-character EHB release-and-append history, deterministic microsecond-precise
   WOM provenance and repeat behavior: 1/1,
   ehb-correction-proof-parsed.log/.trx/.meta.
-- Evidence folder: /private/tmp/participants-backend-remediation-20260930/.
+- Durable evidence folder: `reviews/2026-10-03/doc-ticket-cleanup/h1/participants/`.
   Runs overlap; do not sum them as unique coverage or claim a full-suite pass.
 - Earlier scoped formatter command/exit 0 was verified from
   format-scoped-final-exact.meta. The later changed-test formatter exit 0 remains
@@ -665,7 +665,7 @@ functional/product/data authorities and plan the implementation before dispatch.
 D01–D09 are implemented, executed at affected boundaries and independently
 source-reviewed PASS. D10 remains deferred UI integration/manual acceptance.
 Authoritative completion/evidence is in the implementation checkout's
-CURRENT_STATUS.md and `/private/tmp/dashboard-remediation-20261001/dashboard-review-final.meta`.
+CURRENT_STATUS.md and `reviews/2026-10-03/doc-ticket-cleanup/h1/dashboard/dashboard-review-final.meta`.
 The final focused PostgreSQL run was 8/9 with an initialization-only failure,
 followed by that isolated proof passing 1/1; affected original login proof 1/1
 and ordering 2/2 are separate runs, not a single clean 9/9 claim. Existing build,
@@ -920,8 +920,8 @@ unchanged. Eight focused PostgreSQL cases pass after a fixture-only correction.
 Independent review found the missing backend attention filter; its named correction
 passes its focused PostgreSQL case 1/1; same-reviewer recheck subsequently passed as recorded under AU04. Layout/filter
 URL/navigation binding and manual acceptance remain deferred. Original evidence:
-`/private/tmp/au04-implementation-20261002/handoff.md`; corrected evidence:
-`/private/tmp/au04-implementation-20261002/remediation-handoff.md`.
+`reviews/2026-10-02/au04/implementation/handoff.md`; corrected evidence:
+`reviews/2026-10-02/au04/implementation/remediation-handoff.md`.
 
 ### E03 — Create event modal and journey
 
@@ -1124,7 +1124,7 @@ Track implementation and remaining items separately:
   lifecycle field errors and authorized immutable full-state readback. Focused PG/HTTP
   12/12, affected Live 1/1, controlled transport, Release build and scoped checks PASS;
   fresh independent Astra/high review PASS, no findings. Evidence
-  `/private/tmp/au10-review-20261002/review.md`. Full UI binding remains deferred.
+  `reviews/2026-10-02/au10/review/review.md`. Full UI binding remains deferred.
 - RC03: four named reference fixes and qualified README/read-failure recovery; queued.
   Shared reuse otherwise confirmed; no whole-site extraction or redesign needed.
 - UI integration: shared picker with unchanged event-local posting semantics and

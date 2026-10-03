@@ -1077,7 +1077,7 @@ provisional flags. The later Admin Dashboard UI can bind event links from
 history without adding a route or changing the existing Admin Index callers.
 
 The current executable evidence is retained under
-`/private/tmp/dashboard-backend-20261001/`:
+`docs/references/admin-ui/reviews/2026-10-03/doc-ticket-cleanup/h1/dashboard/`:
 
 - Application Release build: `dotnet build tests/Bingo.Application.Tests/Bingo.Application.Tests.csproj --configuration Release --no-restore`, passed with 0 warnings/errors.
 - Ordering proof: `dashboard-ordering-fixed4.trx`, **2/2 passed**, from the focused `DashboardHistoryOrderingTests` run. All six history fields use null-last ordering in both directions and stable EventId ties.
@@ -1132,7 +1132,8 @@ applied only those named corrections and focused proofs. The same reviewer
 completed the final named recheck with **PASS**, resolving R1–R5 and their direct
 consequences without a repeated broad review.
 
-Fresh evidence is retained under `/private/tmp/dashboard-remediation-20261001/`:
+Fresh evidence is retained under
+`docs/references/admin-ui/reviews/2026-10-03/doc-ticket-cleanup/h1/dashboard/`:
 
 - `dashboard-remediation-r2-r3-r1-r5.trx` — **8/9 passed** in real PostgreSQL.
   The only failure is class initialization with `28P01 password authentication
@@ -1162,7 +1163,7 @@ fallback is reserved for genuinely absent ended-state events. R1, R2, R3, R4
 and R5 are implemented with the named focused evidence above, while the
 independent review is **PASS** after the same reviewer verified the stable
 source identity and recorded proof. Final disposition is recorded in
-`/private/tmp/dashboard-remediation-20261001/dashboard-review-final.meta`. No broad suite,
+`docs/references/admin-ui/reviews/2026-10-03/doc-ticket-cleanup/h1/dashboard/dashboard-review-final.meta`. No broad suite,
 UI/reference work, manual acceptance, packaging, commit, push, merge or
 deployment is authorized by this handoff.
 
@@ -1326,8 +1327,8 @@ participant/draft projections after success. Add and restore retain legacy resul
 shapes, so refresh event capacity/count/status rather than inferring capacity from
 an error string. Waiting reads use `WaitingListedAt ?? SignedUpAt` consistently.
 
-Saved final evidence is retained outside the repository at
-`/private/tmp/participants-backend-remediation-20260930/`:
+Saved final evidence is retained in the repository at
+`docs/references/admin-ui/reviews/2026-10-03/doc-ticket-cleanup/h1/participants/`:
 
 - Release Web build: `web-build-after-test-fixes.log`, 0 warnings/errors.
 - Focused PostgreSQL seven-case run: `remediation-focused-final.log/.trx`, 7/7
@@ -1349,8 +1350,7 @@ Saved final evidence is retained outside the repository at
 
 Each named proof has `.log`, `.trx` and `.meta` command/exit artifacts. They use
 `dotnet test tests/Bingo.IntegrationTests/Bingo.IntegrationTests.csproj --no-restore
---configuration Release --filter FullyQualifiedName~<case> --logger trx
---results-directory /private/tmp/participants-backend-remediation-20260930`, with
+--configuration Release --filter FullyQualifiedName~<case> --logger trx`, with
 exact filters in the corresponding metadata:
 `DraftStartInterleavesWithSelectedCapacityAndAccountMutationAtTheRealBoundary`,
 `SavedAddAndEventOnlyAccountMutationsPreserveGlobalLinksAndPrimaryMapping`, and

@@ -77,9 +77,11 @@ winner data remains snapshot-owned after reopening. Read failures, cancellation,
 authorization failures and provider exceptions propagate instead of becoming
 successful zero results.
 
-The backend proof is current in
-`/private/tmp/dashboard-backend-20261001/dashboard-ordering-fixed4.trx` (2/2)
-and `dashboard-b2-post-ordering.trx` (7/7). Imported-only approved-submission
+The backend proof is current in the durable H1 handoff metadata under
+`docs/references/admin-ui/reviews/2026-10-03/doc-ticket-cleanup/h1/dashboard/`:
+the ordering proof is 2/2 and the Dashboard integration proof is 7/7. The
+source TRX files were intentionally omitted from the durable copy. Imported-only
+approved-submission
 coverage and incompatible/missing historical EHB remain unavailable by contract;
 compatible stored bulk coverage, partial coverage and measured zero are typed.
 The named review-remediation evidence includes the earlier
