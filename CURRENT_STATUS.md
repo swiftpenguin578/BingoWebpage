@@ -5,72 +5,54 @@
 - Checkout: `/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage`.
 - Branch: `codex/participants-functionality`.
 - Planner: UI Planner `01a0ec9a-76e3-7252-9850-3f260c612e59`, collaboration `/root`.
-- Active assignment: named G-batch review remediation only, from
-  `docs/references/admin-ui/reviews/2026-10-03/br-td-batch/remediation-review.md`.
-- Verified clean starting HEAD: `059faf5ba904b4a35c54eca4021fa306a2ea0586`.
-- Expected planner activation edits: this file, retained review copy above,
-  and FUNCTIONAL_CONTRACTS clarification of postponed-start recovery.
+- Active assignment: H1–H7 ticket/documentation cleanup, per
+  `docs/references/admin-ui/reviews/2026-10-03/doc-ticket-cleanup/handoff.md`.
+- Verified clean initial HEAD: `576c6615c64af4d0959152dbcbf7c327106f624f`.
+- Expected activation changes: this status, durable cleanup brief and accepted
+  G recheck copy in the same evidence folder. Commit activation separately.
 - Same direct implementer `/root/fix_batch_implementer`, `gpt-5.6-luna` / `max`.
-  No orchestrator, additional worker or new chat. Claude performs named recheck.
-- Report to `/root` before every turn-ending response and immediately for
-  blockers/decisions, with exact checkpoint and next action. No wait_threads.
+  No orchestrator, extra workers or separate chats. Claude independently reviews.
+- Report to `/root` before every turn-ending response and on blockers/decisions;
+  include exact checkpoint and next owner/action. No wait_threads or polling.
 
-## Review result and scope
+## Scope and checkpoints
 
-- Claude's independent source review: G1 and G3a FAIL; G3b requires fixes.
-  G2, G4, G5 and G6 pass with recorded notes. Claude did not execute tests.
-- Required findings: G1-1 cumulative credit reservation; G1-2 deterministic
-  fixtures and checked approval results; G1-3 missing/weak checks;
-  G1-6/G2-1 Danish translations/time label; G1-7 integration/docs notes;
-  G3a-1/G3a-2 real inclusion-race fix and decisive regression;
-  G3b-1 manual Remove/Move Running gate; G3b-2 unchanged-cap Schedule saves.
-- Separate follow-up commits by group: G1, G2 translations, G3a, G3b.
-  Include finding IDs, tests, necessary documentation and durable evidence.
-  Preserve earlier commits and all unrelated work; no amendments.
-- Run focused PostgreSQL checks and the full C33FinalizationFreshnessTests,
-  DraftOperationsIntegrationTests and SubmissionWorkflowTests classes.
-  Race regression must prove the second transaction is waiting and fail on
-  the defective implementation, not merely accept either end state.
-- Accepted G3a-3 clarification: retain postponed-start recovery until actual
-  start/configured end; do not add a configured-start cutoff.
-- Accepted notes are not extra fixes. No broad cleanup or optional expansion.
+- H1 first: preserve compact historical evidence from temporary folders or
+  Claude's backup; sanitize secrets/real participant data, omit builds/large logs,
+  record omissions and total bytes. Never fabricate missing evidence.
+- H2 current status/registers; H3 owning behaviour docs; H4 release gates;
+  H5 ownership/tickets for every named finding; H6 exact test/comment cleanup
+  plus N-1 missing-draft refusal and N-2 wording/localization; H7 CLAUDE.md only.
+- Apply approved D1–D8 in the brief. Recheck current state and skip/report
+  items already closed by G commits. No implementation of findings listed in H5.
+- H6 is the only production-code exception. Preserve existing assertions;
+  add/execute the focused missing-draft test and applicable build/checks.
+- H7 changes only the specified CLAUDE.md lines and exact approved paragraph.
+  Do not change AGENTS.md or extend Claude workflow policy to this assignment.
+- One local commit per H item, including scoped evidence and needed docs.
+  No amendments, unrelated staging or deletion of the active status file.
+- Proposed remaining AU order and then UI integration order are recommendations
+  for user approval, not authority to begin or run them in parallel.
 
-## Implemented, tested and committed
+## Retained outcomes and release gates
 
-- Activation documentation checkpoint: `711d794`.
-- G1 remediation (G1-1/G1-2/G1-3/G1-6/G1-7): `3c2a0a665daf70a89f88c317c2aa72c43cfdee97`.
-- G2 translation remediation (G2-1): `a4a640c`.
-- G3a concurrency remediation (G3a-1/G3a-2): `93d75f7`; generated-SQL
-  boundary probe correction: `4a99106`.
-- G3b membership/capacity remediation (G3b-1/G3b-2): `6628e4a`.
-- Focused PostgreSQL checks passed for each changed boundary. Final Release
-  build passed with 0 warnings and 0 errors. Full classes passed: C33
-  Finalization Freshness 29/29, Draft Operations 56/56, Submission Workflow
-  79/79. Exact commands and evidence are in
-  `docs/references/admin-ui/reviews/2026-10-03/br-td-batch/remediation-recheck-handoff.md`.
-
-## Retained boundaries and evidence
-
-- Original G implementation tip: `02d19db`; per-item inventory/evidence:
-  `docs/references/admin-ui/reviews/2026-10-03/br-td-batch/review-handoff.md`.
-- Original approved brief: `br-td-batch/handoff.md` in that directory.
-- Detailed review reports remain in
-  `/Users/christopher/Documents/BingoWebpage/review-notes/14a-g1-g2-review.md`
-  and `14b-g3-g6-review.md`; read relevant named findings only.
-- F1–F9 and R-2 previously passed Claude source review. Evidence remains in
+- F1–F9 and R-2 passed Claude independent source review; no test reruns by Claude.
+- G1–G6 including named remediation now PASS, accepted by Claude at `576c661`.
+  Preserved verdict: `doc-ticket-cleanup/g-batch-accepted-recheck.md` under
   `docs/references/admin-ui/reviews/2026-10-03/`.
-- R-1 conversion failure remains a deploy blocker this release. R-3 is still
-  unexecuted: isolated restored production-backup rehearsal required before
-  separately authorized deployment; record G4 migration backfill count there.
-- No push, merge, deployment, production/provider access or user-owned DB
-  mutation. Use controlled fixtures. Frozen references stay unchanged.
-- Other AU/RC work, UI integration and broad ticket/docs cleanup are deferred.
+- G execution evidence: `br-td-batch/remediation-recheck-handoff.md` under that
+  directory. Recorded C33 29/29, DraftOperations 56/56, SubmissionWorkflow 79/79,
+  Release build 0 warnings/errors. These are worker execution results.
+- R-1 conversion failure remains a deployment blocker for this release.
+- R-3 isolated restored-production-backup rehearsal is still unexecuted and must
+  pass on the final candidate before separately authorized production deployment.
+  Include G4 requires_fresh_order migration backfill count in that rehearsal.
+- No production/provider access, user database mutation, push, merge, deployment,
+  R-3 execution, frozen-reference edits or UI integration. Preserve other work.
 
-## Review handoff and next permitted action
+## Next permitted action
 
-- Implementation and required execution are complete and locally committed;
-  Claude's independent named recheck is pending. This status is not an
-  independent review or product acceptance.
-- Claude should recheck `3c2a0a6`, `a4a640c`, `93d75f7`, `4a99106` and
-  `6628e4a` against the named findings and the durable handoff. Do not begin
-  another ticket, cleanup brief, deployment, rehearsal, push or merge.
+Commit activation docs, execute H1–H7 only, with scoped checks and evidence.
+At completion update this status accurately, report per-item commits, omissions,
+size of retained evidence, open decisions and proposed queue order; then STOP for
+Claude independent review. Do not start the remaining AU/UI tickets or rehearsal.
