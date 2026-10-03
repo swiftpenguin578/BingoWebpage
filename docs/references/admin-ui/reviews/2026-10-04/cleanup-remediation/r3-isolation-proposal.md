@@ -1,14 +1,19 @@
-# H4-2 isolated R3 rehearsal proposal — awaiting user approval
+# H4-2 isolated R3 rehearsal — approval record, 4 October 2026
 
-4 October 2026. Proposal only; no rehearsal executed and no runbook procedure approved.
+The user approved this approach **and the stated coverage limits on 4 October 2026**.
+Approval permits documenting the accepted procedure only. The owning procedure is
+[PRODUCTION_RUNBOOK.md](../../../../../PRODUCTION_RUNBOOK.md#r-3-isolated-rehearsal-procedure--approved-4-october-2026).
+The design below is retained under its original filename for provenance; it is no
+longer awaiting a procedure decision. Harness/configuration/fixtures are not built
+or tested, R3 is unexecuted, and Claude's independent recheck remains pending.
 
-## Decision requested
+## Accepted decision
 
-Approve a future, separately implemented rehearsal harness on a disposable Linux VM,
+The approved approach is a future, separately implemented rehearsal harness on a disposable Linux VM,
 with a dedicated Compose project (`bingo-r3`), no production host mounts or Docker
 socket, no `/etc/bingo`, and no live services. The harness runs the deployment's
 application stages explicitly; **never invoke the host `bingo-deploy` wrapper for
-this rehearsal**. This is a proposed interpretation of the R3 full-sequence gate:
+this rehearsal**. This is the user-approved interpretation of the R3 full-sequence gate:
 it proves restored-data/application stage compatibility, not the wrapper's host,
 backup-provider, public DNS/TLS, GHCR or production-R2 integration. If exact wrapper
 execution is required instead, a separately approved refactor/testable harness is
@@ -27,7 +32,7 @@ R2 availability plus lifecycle/synchronization heartbeats for readiness.
 service URL but requires HTTPS, path-style S3 and signing region `auto`.
 Blocking external network alone therefore does not establish a successful preflight.
 
-## Proposed isolation and prerequisites
+## Accepted isolation and prerequisites
 
 1. An authorized operator exports the backup and exact migration-history manifest,
    plus the final reviewed candidate image and required dependency images into the
@@ -65,18 +70,19 @@ Blocking external network alone therefore does not establish a successful prefli
    a worker-disable switch. Such a switch and corresponding readiness semantics
    require separate code approval and would reduce what this rehearsal proves.
 
-## Proposed ordered stages and evidence
+## Accepted ordered stages and evidence
 
 The future harness supplies explicit `docker compose --project-name bingo-r3
 --file <approved isolated compose> --env-file <fixture env>` commands. Its rendered
 configuration must be inspected for volumes, endpoints, network and secrets before
-execution. This document does not supply runnable operator commands before approval.
+execution. The approval does not supply built/tested tooling or authorize execution;
+concrete commands and fixture compatibility require a later assignment.
 
 1. Restore the transferred production dump to the isolated PostgreSQL service;
    compare the complete ordered `__EFMigrationsHistory` with the backup manifest.
    Fail on any mismatch. Take an isolated baseline backup and prove its restore to
    a second disposable DB; this substitutes a local backup/restore proof for the
-   production restic wrapper/provider path, explicitly outside this proposal.
+   production restic wrapper/provider path, explicitly outside the accepted coverage.
 2. Record gate counts on the restored baseline, including all retained completion
    corrections, published boards missing active finalized roster publications,
    future-effective switches, version-1 Luck scopes, and G4 Setup drafts with a
@@ -104,13 +110,16 @@ execution. This document does not supply runnable operator commands before appro
    private backup data only under operator retention authority; no automatic
    destructive cleanup of user data. Re-run after relevant final-candidate changes.
 
-## Work requiring approval after this proposal
+## Work requiring a later assignment
 
-No production application switch is proposed. A new isolated Compose/harness,
+No production application switch is included in this approval. A new isolated Compose/harness,
 local HTTPS storage/WOM fixtures, trusted test CA setup and firewall validation
 must be implemented and checked under a separate explicit assignment. Image/tool
 availability and local provider compatibility remain unexecuted prerequisites.
 Approval of this document permits documenting the accepted procedure, not deploying,
 accessing production, transferring backups or executing R3. These remain separately
 authorized operator work. R3 stays pending until the approved final-candidate
-rehearsal succeeds and the user accepts the stated wrapper/provider coverage limit.
+rehearsal succeeds. The user has accepted the stated wrapper/provider coverage
+limit; that acceptance is not production-wrapper/provider verification. Harness
+implementation, backup transfer/production access, execution and deployment remain
+separately unauthorized in this cleanup assignment.

@@ -16,22 +16,33 @@ Claude owns independent named recheck; no independent PASS is claimed here.
 | H3-4 follow-up | `6b8331d` | Explicitly approved additional H3-only commit; Start/Scramble wording source-matched. |
 | H5 | `c3a3474` | H5-1–H5-9 tickets and owning docs only; no implementation. |
 | H6 | `610c842` | H6-1 resource only. |
-| H4 | `fe395f2` | H4-1/3/4/5 corrected; H4-2 proposal only, not complete. |
+| H4 | `fe395f2` | H4-1/3/4/5 corrected; H4-2 was proposal-only at this checkpoint. |
+| Final reconciliation | `1c16356` | User-authorized two-file status/handoff commit; prior pending-proposal state preserved in Git. |
+| H4-2 adoption | This documentation follow-up after `1c16356` | User approved the procedure and coverage limits on 4 October 2026; runbook/gate adopted. Tooling not built/tested, R3 unexecuted, Claude recheck pending. |
 
 The user explicitly approved one additional documentation-only commit containing
 this handoff and CURRENT_STATUS.md after the final reconciliation was initially
 rejected by automatic approval review. That approval covers these two files only;
-it does not approve the H4-2 proposal, R3 execution or independent review. Prior
+that earlier approval did not approve H4-2, R3 execution or independent review. The
+user subsequently approved H4-2 procedure/coverage adoption separately, as below. Prior
 checkpoints and original evidence remain unchanged in Git and their durable paths.
 
 ## Open decisions and resolved approval boundaries
 
-- **H4-2:** `r3-isolation-proposal.md` is awaiting user approval of procedure and
-  coverage interpretation. The proposal uses a disposable offline VM, explicit
-  candidate app stages, local trusted HTTPS S3/refusal WOM fixtures and enabled
-  worker heartbeat checks. It cannot prove production host-wrapper/restic/R2 or
-  public TLS behavior. No harness is implemented, no procedure adopted, no R3 or
-  production operation executed. Existing unsafe wrapper instruction was withdrawn.
+- **H4-2 procedure approved, 4 October 2026:** the user accepted the disposable
+  isolated VM/restored database approach **and its stated coverage limits**. The
+  runbook now owns the documented procedure and DELIVERY_PLAN the release gate;
+  `r3-isolation-proposal.md` records approval under its existing provenance filename.
+  The procedure requires denied external access and local WOM refusal/HTTPS S3 fixtures for the exact
+  candidate's migration, conversion, preflight, enabled workers and web-health stages.
+  Never invoke host `bingo-deploy` as rehearsal. Coverage does not include the
+  production host wrapper, real provider/restic/GHCR connectivity/integration,
+  public DNS/TLS or production-key recovery. Those limits are accepted, not verified.
+- **Execution/review still pending:** no harness/config/fixtures built or tested;
+  no credentials/backup/data transfer, production access, provider calls or R3 run.
+  Procedure approval authorizes documenting the procedure only. Later implementation,
+  backup transfer/access, execution and deployment require separate assignments.
+  Claude's independent named recheck remains pending; no independent PASS claimed.
 - **H3-4 resolved:** source check found the initial restart sentence inaccurate.
   Start (`src/Bingo.Web/Pages/Admin/Events/Draft.cshtml.cs:480`) clears positions
   for never-picked/RequiresFreshOrder attempts; separate Scramble (`:413`)
@@ -69,11 +80,11 @@ no text line; its conventional :1 locator is labelled empty rather than invented
 | H3-4 | `DATA_MODEL.md:894`; `DATA_MODEL.md:1011`; `DATA_MODEL.md:1099`; `DATA_MODEL.md:1100` | Fields/retirement recorded; approved follow-up 6b8331d states that Start clears prior positions and separate Scramble establishes the new order before picks. |
 | H3-5 | `DELIVERY_PLAN.md:387` | OS-4 dead ConfigureSchedule capacity rule recorded as observation in OS-1. |
 | H3-6 | `UI_PAGE_MATRIX.md:76` | C33 freshness/reinspection/error states still awaiting manual acceptance. |
-| H4-1 | `docs/PRODUCTION_RUNBOOK.md:275`; `DELIVERY_PLAN.md:2735` | NOT EXISTS on unsuperseded publication + Finalized draft + roster rows; previous operator zero must be rechecked. |
-| H4-2 | `docs/references/admin-ui/reviews/2026-10-04/cleanup-remediation/r3-isolation-proposal.md:1`; `docs/PRODUCTION_RUNBOOK.md:233`; `DELIVERY_PLAN.md:2738` | PROPOSAL/PENDING: reported to planner before runbook safety warning; no adopted execution procedure or R3 run. |
-| H4-3 | `docs/PRODUCTION_RUNBOOK.md:313`; `DELIVERY_PLAN.md:2737` | Pre/post eligible backfill set/count, clone-only Down/re-Up and no production downgrade; unexecuted. |
-| H4-4 | `docs/PRODUCTION_RUNBOOK.md:264`; `DELIVERY_PLAN.md:2734` | All-row count replaces undefined global cycle timestamp; prior zero not promoted to new-query proof. |
-| H4-5 | `docs/PRODUCTION_RUNBOOK.md:237`; `DELIVERY_PLAN.md:2732` | Verification only; historical deletion sequence explicitly one-time, no repeat/provider operation. |
+| H4-1 | `docs/PRODUCTION_RUNBOOK.md:278`; `DELIVERY_PLAN.md:2735` | NOT EXISTS on unsuperseded publication + Finalized draft + roster rows; previous operator zero must be rechecked. |
+| H4-2 | `docs/references/admin-ui/reviews/2026-10-04/cleanup-remediation/r3-isolation-proposal.md:1`; `docs/PRODUCTION_RUNBOOK.md:342`; `DELIVERY_PLAN.md:2738` | PROCEDURE APPROVED 4 October 2026: accepted approach/coverage adopted in runbook and gate; tooling not built/tested, R3 unexecuted, independent recheck pending. |
+| H4-3 | `docs/PRODUCTION_RUNBOOK.md:316`; `DELIVERY_PLAN.md:2737` | Pre/post eligible backfill set/count, clone-only Down/re-Up and no production downgrade; unexecuted. |
+| H4-4 | `docs/PRODUCTION_RUNBOOK.md:267`; `DELIVERY_PLAN.md:2734` | All-row count replaces undefined global cycle timestamp; prior zero not promoted to new-query proof. |
+| H4-5 | `docs/PRODUCTION_RUNBOOK.md:239`; `DELIVERY_PLAN.md:2732` | Verification only; historical deletion sequence explicitly one-time, no repeat/provider operation. |
 | H5-1 | `DELIVERY_PLAN.md:426`; `DELIVERY_PLAN.md:1038`; `DATA_MODEL.md:342`; `TECHNICAL_ARCHITECTURE.md:618`; `PRODUCT_REQUIREMENTS.md:616` | Full decided WA-2 rules, accepted snapshot limit, WA-6 outcomes and WA-9 Create-link race; all owners pending implementation. |
 | H5-2 | `DELIVERY_PLAN.md:385` | DB-2 fingerprint/roster defect and DB-3 mixed-history headline owned by integration; DB-4/5 separate metadata/date. |
 | H5-3 | `DELIVERY_PLAN.md:417` | Render uncertain posted draft without DB read and lost-commit test, not database-dependent recovery. |
@@ -129,12 +140,22 @@ and admin-ui README/FUNCTIONALITY_CHANGES.
   labelled. No absent evidence, counts, hashes, provenance or manual acceptance
   was fabricated. No credentials, participant names or runtime identifiers copied.
 
+## H4-2 documentation-adoption checks
+
+The user explicitly authorized this five-file documentation follow-up after
+`1c16356`: PRODUCTION_RUNBOOK.md, DELIVERY_PLAN.md, the existing proposal/approval
+record, CURRENT_STATUS.md and this handoff. Exact staged scope, diff whitespace,
+changed links/anchors and approval/execution wording were checked. The accepted
+procedure retains all original isolation stages and R-1/final-candidate gates;
+no executable tooling, production/provider check or independent review ran.
+The terminal callback supplies this follow-up's exact commit SHA and tree status.
+
 ## Next permitted action
 
-Planner obtains the user's H4-2 procedure/coverage decision. The proposal remains
-unapproved and must not be adopted or executed under this documentation permission.
-Claude independently rechecks the named remediation commits; no independent PASS
-is claimed. R3 execution remains separately unauthorized, unexecuted and blocking.
-Stop here: no further ticket, broader audit, implementation, push, merge or deployment
-is authorized. The final reconciliation commit contains only this handoff and
-CURRENT_STATUS.md; the terminal callback reports its exact SHA and tree status.
+Claude independently rechecks the named remediation commits including this H4-2
+adoption. The procedure and coverage limits are user-approved; harness/tooling
+validation and R3 execution remain pending and release-blocking. No additional
+procedure-approval request is needed for the unchanged accepted approach. A later
+explicit assignment is required to implement tooling, transfer/access backups or
+execute the final-candidate rehearsal. Deployment remains separately authorized.
+Stop here; no further ticket, code/config, broader audit, execution, push or merge.

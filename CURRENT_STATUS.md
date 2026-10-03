@@ -8,7 +8,8 @@
 - Direct implementer: `/root/cleanup_astra_remediator`, `gpt-6-astra` / high,
   explicit user override for this named remediation round only.
 - No orchestrator/additional workers/chats; Claude owns independent named recheck.
-- Starting candidate `f6b5bd9`; last remediation-source checkpoint `6b8331d`.
+- Starting candidate `f6b5bd9`; last remediation-source checkpoint `6b8331d`;
+  final status/handoff checkpoint `1c16356` precedes this H4-2 documentation adoption.
 - Durable assignment/decisions: `docs/references/admin-ui/reviews/2026-10-04/cleanup-remediation/review.md`
   and `decisions.md`. Detailed 15a/15b originals remain in the private review-notes folder.
 - Exact finding → file:line/check/commit map:
@@ -31,7 +32,9 @@
   AU23/CAT-1/WA-5 scopes. Tickets/docs only, no AU/RC implementation.
 - H6 `610c842`: only Danish N-1 resource string. XML/key/caller checks passed.
 - H4 `fe395f2`: corrected publication query, all-row correction count, G4 backfill/
-  Down gate, banner verification only; separate **unapproved H4-2 proposal**.
+  Down gate, banner verification only; the then-pending H4-2 proposal is now adopted
+  by this separately authorized documentation follow-up. The user approved the
+  isolated approach and stated coverage limits on **4 October 2026**.
 - Scoped diff checks passed. H4 SQL matched source predicates/schema and gate/
   runbook text; no SQL, migration, Down/Up or rehearsal executed.
 - Required stale-phrase checks passed; older out-of-scope temporary evidence
@@ -43,17 +46,23 @@
 
 ## Pending approvals and retained evidence
 
-- **H4-2 remains open.** Proposal:
+- **H4-2 procedure approved and documented, 4 October 2026.** Approval record:
   `docs/references/admin-ui/reviews/2026-10-04/cleanup-remediation/r3-isolation-proposal.md`.
-  Reported to `/root` before runbook safety edits. It proposes an offline isolated
-  VM/harness with local HTTPS S3/WOM fixtures and enabled worker health checks;
-  production-wrapper/provider/public-TLS coverage is explicitly limited.
-- Unsafe host `bingo-deploy` rehearsal instruction is withdrawn. The proposal
-  has not been adopted as approved procedure. Harness implementation, backup
-  transfer, R3 execution and production deployment are not authorized here.
-- The user separately approved final reconciliation of this file and the handoff
-  above in one additional documentation-only commit after automatic rejection.
-  This approval does not approve H4-2, R3 or Claude's independent recheck outcome.
+  The current procedure is in `docs/PRODUCTION_RUNBOOK.md`, “R-3 isolated rehearsal
+  procedure — approved 4 October 2026”; DELIVERY_PLAN owns the release decision.
+- Accepted approach: disposable isolated VM/restored DB, denied external access,
+  local WOM refusal/HTTPS S3 fixtures, exact final-candidate migration/conversion/
+  preflight/web-health stages. Never invoke host `bingo-deploy` as rehearsal.
+- Accepted coverage limits: no production wrapper, real provider/restic/GHCR
+  integration, public DNS/TLS or production-key recovery verification. The user
+  approved these limits; the documentation does not claim those boundaries passed.
+- **Tooling not built/tested; R3 unexecuted; Claude independent recheck pending.**
+  Approval permits documentation only. Harness/config implementation, credentials/
+  data transfer, backup access, provider calls, R3 and deployment require later
+  explicit assignments. No such work occurred in this follow-up.
+- The user authorized one scoped local documentation follow-up for H4-2 adoption,
+  including this status and handoff. Earlier explicit approvals for activation,
+  H3-4 correction and final reconciliation remain recorded in the handoff/history.
 - Prior F1–F9/R-2 and G1–G6 Claude source-review results remain retained; accepted
   G checkpoint `576c661`. Original H candidate `f6b5bd9` failed the named cleanup
   review; these follow-up commits await recheck, not an inferred PASS.
@@ -65,9 +74,9 @@
 
 ## Next permitted action / stop boundary
 
-Planner obtains the user's H4-2 procedure/coverage decision; only then may the
-approved procedure be adopted under its stated scope. Claude independently
-rechecks the named remediation commits; record H4-2 pending separately. No next
-AU/RC/UI ticket, additional audit, provider call, user-owned DB mutation, R3 run,
-push, merge or deploy. Send the exact checkpoint/blockers/next action to `/root`
-before the final response, then stop. No wait_threads or routine planner polling.
+Claude independently rechecks the named remediation commits including this H4-2
+adoption. Procedure approval is recorded; tooling validation and R3 execution stay
+pending and release-blocking. Stop here. No next AU/RC/UI ticket, additional audit,
+provider call, user-owned DB mutation, harness build, backup transfer, R3 run, push,
+merge or deploy. Send the exact checkpoint/checks/next action to `/root` before the
+final response. No wait_threads or routine planner polling.

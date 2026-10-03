@@ -230,9 +230,11 @@ access. Migration, conversion, Down/Up and rehearsal checks run on isolated
 restored copies only under an approved procedure; production deployment has its
 own authorization. The 3 October entries are operator-reported, not agent-verified.
 Record candidate/image identity, exact migration history, timestamp and outcomes.
-**H4-2: the former instruction to invoke host `bingo-deploy` for an isolated copy
-was unsafe and is withdrawn. Do not execute it.** The [separate proposal](references/admin-ui/reviews/2026-10-04/cleanup-remediation/r3-isolation-proposal.md)
-is awaiting user approval and is not an approved runbook procedure.
+**H4-2 procedure and coverage limits were approved by the user on 4 October 2026.**
+The [accepted isolated procedure](#r-3-isolated-rehearsal-procedure--approved-4-october-2026)
+below replaces the unsafe host-wrapper instruction. Never invoke host `bingo-deploy`
+as rehearsal. Tooling is not built/tested and R3 is unexecuted; this documentation
+approval does not authorize harness implementation, backup transfer or execution.
 
 1. **Banner cleanup verification only (X-1/F1).** The one-time deletion was
    reported complete on 3 October. Record exact migration history first. If
@@ -254,7 +256,8 @@ is awaiting user approval and is not an approved runbook procedure.
    object bytes. No new cleanup result is claimed here.
 2. **Luck v1 conversion (LK-2/R-1).** After `--migrate` succeeds and before
    preflight or web replacement, run the exact candidate's `--convert-luck-checkpoints` stage using the explicitly
-   isolated harness once approved. The production deployment wrapper already
+   isolated harness after its separately authorized implementation and validation.
+   The production deployment wrapper already
    invokes this stage; do not run an unqualified Compose command from this checklist.
 
    Require `Could not convert=0` and a zero exit status. A failed conversion
@@ -330,14 +333,131 @@ is awaiting user approval and is not an approved runbook procedure.
    Resolve the exact predecessor/tooling and any later migrations in the approved
    rehearsal harness. Never downgrade production or the primary rehearsal copy.
    Counts and Down/Up execution are unknown/unexecuted here and required for R3.
-7. **R-3 final-candidate rehearsal — blocked pending procedure approval.** The
-   [H4-2 proposal](references/admin-ui/reviews/2026-10-04/cleanup-remediation/r3-isolation-proposal.md)
-   defines a reviewable isolated approach and its limitations. It is not adopted
-   here. Never invoke the host `bingo-deploy` wrapper on the live host for a rehearsal:
-   it reads `/etc/bingo`, stops web and targets production configuration. Restored
-   credentials/workers must not reach WOM/R2 or other real providers. R3 remains
-   unexecuted and deployment blocked until the user approves the procedure and
-   separately authorized final-candidate execution passes all required stages.
+7. **R-3 final-candidate rehearsal — procedure approved, execution pending.** Follow
+   the accepted procedure below only after separate harness/backup-transfer/execution
+   authorization. Require every isolated stage and release-gate check to pass on
+   the exact final candidate. R-1 conversion failure still blocks deployment.
+   Procedure approval is not a rehearsal pass or Claude independent-review PASS.
+
+## R-3 isolated rehearsal procedure — approved 4 October 2026
+
+The user approved the approach **and its stated coverage limits on 4 October 2026**.
+The [approval record and original design](references/admin-ui/reviews/2026-10-04/cleanup-remediation/r3-isolation-proposal.md)
+retain the decision's provenance. This section owns the accepted procedure.
+
+Use a disposable Linux VM and dedicated `bingo-r3` Compose project with an isolated
+restored production database, denied external access, local WOM refusal and trusted
+HTTPS S3 fixtures. Run the exact reviewed candidate's application stages explicitly.
+**Never invoke the host `bingo-deploy` wrapper as rehearsal**: it reads `/etc/bingo`,
+stops live web and uses production configuration/volumes. No `/etc/bingo`, live-service
+or production-volume access is permitted from the rehearsal environment.
+
+**Accepted coverage after a successful run:** restored-data compatibility, ordered migration
+history, migration, Luck conversion, application preflight, worker startup and local
+web health. It does **not** test the production host deployment wrapper, real WOM/R2
+connectivity/credentials/permissions/objects, production restic/backup-provider or
+GHCR integration, public DNS/TLS, or recovery of production data-protection keys.
+Local fixtures/health cannot be reported as real-provider or public-TLS verification.
+These limits were accepted, not waived by an implementer. Any later scope expansion
+or application/worker switch requires its own approval.
+
+**Execution state:** procedure approved; harness/configuration/fixtures are not
+built or tested, R3 is unexecuted, and Claude's independent recheck is pending.
+Approval permits documenting this procedure only. Harness implementation, obtaining
+or transferring a backup, production access, execution and deployment each require
+a later explicit assignment. Do not execute this section under cleanup authority.
+
+### Isolation and prerequisites
+
+1. An authorized operator exports the backup and exact migration-history manifest,
+   plus the final reviewed candidate image and required dependency images into the
+   disposable VM using approved offline transfer. Record hashes and source/image
+   identity. No production environment file, provider credentials or deployment
+   keys are loaded as executable configuration. Backup contents remain restricted
+   local data, never committed evidence. Preserve the original backup read-only.
+2. Before restoring, deny outbound traffic from VM and containers (IPv4 and IPv6,
+   DNS and host-gateway paths included). A Compose `internal: true` network is an
+   additional layer, not the sole guarantee. No host network, extra external
+   networks, published ports, Docker socket or production volumes. Permit only
+   the dedicated project services. Prove external/provider destinations unreachable
+   using an approved local deny-test target; do not test against real providers.
+3. Create fresh project-scoped DB, catalogue-cache and data-protection volumes.
+   Configure only fixture database credentials and fixture Discord/WOM/R2 settings.
+   Restored database-held WOM verification codes stay confined by the network;
+   do not expose them in command output or fixture logs. Fresh data-protection keys
+   test the configured storage round-trip, not recovery of production protected data.
+4. Provide local HTTPS S3-compatible storage with a fixture bucket and dummy keys,
+   trusted by the exact candidate container without disabling TLS validation
+   (e.g. mount the test CA trust bundle using the runtime-supported trust path).
+   Verify `HeadBucket` with path-style signing region `auto` before application
+   preflight. No production objects are needed for the readiness probe. Provide a
+   local WOM refusal fixture returning deterministic failures for all requests and
+   discarding/redacting bodies and authentication headers. No success response that
+   invents provider data. This exercises worker startup/failure handling, not WOM
+   synchronization correctness. Configure all other external URLs to local refusal
+   endpoints or leave them behind the independent egress deny.
+5. Keep workers enabled to exercise ordinary startup and readiness heartbeats.
+   Lifecycle changes are confined to the expendable restored database; record
+   aggregate before/after counts and preserve a pre-start database snapshot. Never
+   reuse the rehearsal database for production or migration-count evidence after
+   workers start. If workers fail to produce readiness under controlled provider
+   failures, stop and report: do not waive health, bypass preflight, or silently add
+   a worker-disable switch. Such a switch and corresponding readiness semantics
+   require separate code approval and would reduce what this rehearsal proves.
+
+### Ordered stages and evidence
+
+The future harness supplies explicit `docker compose --project-name bingo-r3
+--file <approved isolated compose> --env-file <fixture env>` commands. Its rendered
+configuration must be inspected for volumes, endpoints, network and secrets before
+execution. The harness is not built/tested; concrete runnable commands, fixture
+compatibility, trusted CA setup and migration tooling must be delivered and checked
+under a later assignment before any R3 execution.
+
+1. Restore the transferred production dump to the isolated PostgreSQL service;
+   compare the complete ordered `__EFMigrationsHistory` with the backup manifest.
+   Fail on any mismatch. Take an isolated baseline backup and prove its restore to
+   a second disposable DB; this substitutes a local backup/restore proof for the
+   production restic wrapper/provider path, explicitly outside the accepted coverage.
+2. Record gate counts on the restored baseline, including all retained completion
+   corrections, published boards missing active finalized roster publications,
+   future-effective switches, version-1 Luck scopes, and G4 Setup drafts with a
+   non-null `first_pick_recorded_at`. Retain aggregate counts only.
+3. Run the exact candidate web image with `--migrate`; capture exit status and the
+   complete ordered post-migration history. Check G4's eligible rows now have
+   `requires_fresh_order = true`. On a separate clone test G4 Down to its immediate
+   predecessor and re-Up with the matching EF migration tooling/artifact; record
+   column removal/recreation and backfill behavior. Do not downgrade the main
+   rehearsal DB or an image with later migrations without the reviewed rollback
+   chain. Tooling and exact target must be resolved in the approved harness.
+4. On the main rehearsal DB run `--convert-luck-checkpoints`; require exit 0 and
+   `Could not convert=0`, record summary counts. R1 remains blocking on failure.
+5. Run `--production-preflight` with local HTTPS S3 fixture; require exit 0. This
+   validates migrations, catalogue baseline, exactly one active SuperAdmin and
+   local storage availability/data-protection round-trip. It proves no real R2
+   credential, object, permission or availability property.
+6. Start web from the same candidate/configuration. Require the native
+   `--health-probe` (ready), plus `/health/live` and `/health/ready` through the
+   isolated network. Record worker heartbeat health and bounded startup logs,
+   aggregate data changes and egress-deny evidence. Stop on any failure. Local
+   health is not public production HTTPS or external-provider verification.
+7. Stop the disposable project; preserve a redacted report, image/source hashes,
+   migration lists, counts, command outcomes and isolation checks. Retain/dispose
+   private backup data only under operator retention authority; no automatic
+   destructive cleanup of user data. Re-run after relevant final-candidate changes.
+
+### Completion and release boundary
+
+Retain the R-1 failure rule: a failed conversion blocks the release; never relabel
+unconverted v1 data or substitute newer provider data. All final-candidate release
+gates, including baseline history and G4 clone-only Down/re-Up checks, still apply.
+Any failed isolation, migration, conversion, preflight, heartbeat or health check
+leaves R3 failed/unexecuted as applicable and blocks deployment. Do not bypass a
+failed stage or claim the production wrapper passed. Preserve the failing stage,
+private restored-data checkpoint and redacted evidence for the next authorized owner.
+A relevant candidate change requires a new rehearsal. Only a successful authorized
+final-candidate rehearsal can satisfy R3; production deployment still requires
+separate explicit user approval.
 
 ## Event-banner retirement (one-time manual cleanup path)
 
