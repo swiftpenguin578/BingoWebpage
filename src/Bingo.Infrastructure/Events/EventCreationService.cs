@@ -15,8 +15,6 @@ namespace Bingo.Infrastructure.Events;
 
 public sealed class EventCreationService(ApplicationDbContext db, TimeProvider time) : IEventCreationService
 {
-    private const int MaximumSlugAllocationAttempts = 10;
-
     public async Task<EventCreationResult> CreateAsync(Guid requestId, string? name, string? timezone, LifecycleActor actor, CancellationToken ct = default)
     {
         name = name?.Trim() ?? string.Empty;
@@ -28,7 +26,7 @@ public sealed class EventCreationService(ApplicationDbContext db, TimeProvider t
         if (timezone is not ("Europe/Copenhagen" or "UTC") || !TimeZoneInfo.TryFindSystemTimeZoneById(timezone, out _))
             return Invalid("Choose a supported timezone.", "Timezone");
 
-        for (var sequence = 1; sequence <= MaximumSlugAllocationAttempts; sequence++)
+        for (var sequence = 1; ; sequence++)
         {
             await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
             await LockAsync(actor.Id, requestId, ct);
@@ -75,7 +73,6 @@ public sealed class EventCreationService(ApplicationDbContext db, TimeProvider t
                 throw;
             }
         }
-        return new(EventCreationOutcome.SlugUnavailable, Error: "An event link could not be allocated. Try creating the event again.");
     }
 
     public async Task<EventCreationResult> CheckAgainAsync(Guid requestId, LifecycleActor actor, CancellationToken ct = default)

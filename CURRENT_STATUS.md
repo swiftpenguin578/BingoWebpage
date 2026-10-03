@@ -59,7 +59,10 @@ F2 is implemented, focused PostgreSQL tested, and committed as
 F3 is implemented, focused PostgreSQL tested, and committed as
 `9b1ea5fd2c3d6c40abf9334810080b46c7690f6b`, with durable evidence in
 `docs/references/admin-ui/reviews/2026-10-03/f3-luck-conversion-checkpoint.md`.
-F4 is implemented and focused PostgreSQL tested; its separate local commit is
-the next checkpoint. Continue F5–F9 after that commit while F1 remains unresolved.
+F4 is implemented, focused PostgreSQL tested, and committed as
+`e7a6464f62499b1d1bbdec7590e5831a69188ac0`, with durable evidence in
+`docs/references/admin-ui/reviews/2026-10-03/f4-reset-token-security-checkpoint.md`.
+F5 is implemented and focused PostgreSQL tested; its separate local commit is
+the next checkpoint. Continue F6–F9 after that commit while F1 remains unresolved.
 Every checkpoint awaits Claude's independent review; report exact blockers and
 unverified checks, and stop after the stable batch handoff.

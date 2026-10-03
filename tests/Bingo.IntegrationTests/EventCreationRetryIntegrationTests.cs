@@ -74,6 +74,36 @@ public sealed class EventCreationRetryIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task SlugAllocationProbesPastTenCollisionsAndKeepsDiscardedUnicodeSlugs()
+    {
+        var account = await AccountAsync("slug-exhaustion-admin");
+        var actor = Actor(account);
+        var results = new List<EventCreationResult>();
+        for (var index = 0; index < 11; index++)
+        {
+            await using var create = new ApplicationDbContext(options);
+            results.Add(await Service(create).CreateAsync(Guid.NewGuid(), "😀", "UTC", actor));
+        }
+
+        Assert.All(results, result => Assert.Equal(EventCreationOutcome.Completed, result.Outcome));
+        Assert.Equal(11, results.Select(result => result.EventId).Distinct().Count());
+        await using (var db = new ApplicationDbContext(options))
+        {
+            var slugs = await db.Events.AsNoTracking().OrderBy(item => item.Slug).Select(item => item.Slug).ToListAsync();
+            Assert.Equal(["event", "event-10", "event-11", "event-2", "event-3", "event-4", "event-5", "event-6", "event-7", "event-8", "event-9"], slugs);
+            var first = await db.Events.SingleAsync(item => item.Id == results[0].EventId);
+            first.Discard(actor.Id, Now, protectedHistoryExists: false);
+            await db.SaveChangesAsync();
+        }
+
+        await using var afterDiscardDb = new ApplicationDbContext(options);
+        var afterDiscard = await Service(afterDiscardDb).CreateAsync(Guid.NewGuid(), "😀", "UTC", actor);
+        Assert.Equal(EventCreationOutcome.Completed, afterDiscard.Outcome);
+        Assert.Equal("event-12", await afterDiscardDb.Events.Where(item => item.Id == afterDiscard.EventId).Select(item => item.Slug).SingleAsync());
+        await AssertAggregateCountAsync(12);
+    }
+
+    [Fact]
     public async Task LostCommitResponseCanBeReadBackAndRetriedWithoutAnotherCreation()
     {
         var actor = Actor(await AccountAsync("lost-admin"));
