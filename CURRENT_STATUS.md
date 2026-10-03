@@ -16,8 +16,9 @@
   Send reports directly to `/root` before ending each turn, and for blockers/decisions.
   No `wait_threads` or planner polling. Native callback delivery is not a guarantee
   that the planner has already processed a message; record exact checkpoint.
-- First send F1 banner rollout proposal; await its resolution while working F2, F3
-  consecutively (separate commits), then F4–F9. No F1 implementation before resolution.
+- F1's proposal was sent before implementation. The user selected a one-time
+  manual cleanup, so its reconciliation is now limited to the runbook and
+  controlled fixture evidence; the migration and guard remain unchanged.
 - Claude performs the final independent review per the recorded workflow decision.
   Stop with a stable commit-by-commit handoff awaiting that review; no next ticket.
 
@@ -45,14 +46,28 @@
   canvas 42 / artifact `1790965722-e7ad` remains frozen. Do not edit reference HTML/CSS/JS.
 - Prior durable evidence: `docs/references/admin-ui/reviews/2026-10-02/README.md`.
   New compact evidence belongs under `docs/references/admin-ui/reviews/`, not only tmp.
-- User-run production SELECTs: 1 banner asset, 0 cleanup rows, 1 v1 Luck checkpoint,
-  0 completion corrections, 0 visible published boards missing roster publication.
-  These counts do not establish the exact production migration history.
+- User-reported production facts before the selected banner cleanup: 1 banner
+  asset, 0 cleanup rows, one exact event reference, and zero evidence/team/tile
+  image references. The user then cleared that reference and incremented the
+  event version in a targeted transaction, deleted exactly one asset row, saw
+  zero rows afterward, and confirmed exact PNG deletion in Cloudflare R2. No
+  agent production access, live provider call, or user-owned database mutation
+  occurred. The exact migration baseline remains unknown. Other user-run facts:
+  1 v1 Luck checkpoint, 0 completion corrections, 0 visible published boards
+  missing roster publication.
 
 ## Next permitted action
 
-F1 rollout proposal is sent to `/root`; implementation awaits proposal resolution
-and the exact production migration/object-storage facts listed in the proposal.
+F1's selected one-time manual banner cleanup path is documented, focused-tested,
+and committed as `2d62b59`, with durable reconciliation in
+`docs/references/admin-ui/reviews/2026-10-03/f1-banner-rollout-proposal.md`.
+The migration, temporary-ledger behavior, and pending-key guard are unchanged;
+no automated cleanup or retention/schema change was added. The focused
+`BannerRetirementMigrationTests` run passed all three tests, including the
+manually-cleaned one-asset shape, empty path, and populated guard/shared-object
+path. The exact production migration baseline and a full controlled
+`bingo-deploy` rehearsal through `--migrate`, `--production-preflight`, and web
+replacement remain unverified, so F1 deploy-proof is not claimed complete.
 F2 is implemented, focused PostgreSQL tested, and committed as
 `41eaab760c4454a85612c86e44ab7a7137d0a33d`, with durable evidence in
 `docs/references/admin-ui/reviews/2026-10-03/f2-luck-checkpoint.md`.
@@ -77,9 +92,8 @@ committed as `6d33ce67d048d3452fa34c4bc0b06461f431ea10`, with durable evidence i
 F9 BR-5/BR-6 is implemented, focused PostgreSQL tested, and committed as
 `a3f3f1a288df62c0a634db4d053fc71f0a865e6d`, with durable evidence in
 `docs/references/admin-ui/reviews/2026-10-03/f9-finalization-validation-checkpoint.md`.
-The F1 rollout proposal is durably recorded and committed separately as
-`6ca4a00bddbc059958b0425b6cbd9cd7f65aa497`; it remains unresolved and unimplemented pending user resolution of
-ledger retention and object-deletion recovery policy. The existing
+The earlier F1 automated rollout proposal is superseded by the selected manual
+cleanup reconciliation above; its prior commit remains in history. The
 `ResultsPublicationIntegrationTests.PublicationArchivesAtomicallyAndIsFailureSafeAndIdempotentAcrossConcurrentRetries`
 fixture remains an unverified environmental limitation: it expects one of two
 concurrent calls to surface serialization, but this checkout observed two
