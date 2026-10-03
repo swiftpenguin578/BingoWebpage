@@ -68,6 +68,21 @@ F5 is implemented, focused PostgreSQL tested, and committed as
 F6 is implemented, focused PostgreSQL tested, and committed as
 `444bfc46c793a761d635099f0778ede00ea846f2`, with durable evidence in
 `docs/references/admin-ui/reviews/2026-10-03/f6-event-end-checkpoint.md`.
-Continue F7–F9 while F1 remains unresolved. Every checkpoint awaits Claude's
-independent review; report exact blockers and unverified checks, and stop after
-the stable batch handoff.
+F7 is implemented, focused PostgreSQL tested, and committed as
+`36ef73e4292c348de7d2ba3e53366b2ecefdf356`, with durable evidence in
+`docs/references/admin-ui/reviews/2026-10-03/f7-participant-version-checkpoint.md`.
+F8 AU13 is implemented, focused PostgreSQL and board-markup tested, and
+committed as `6d33ce67d048d3452fa34c4bc0b06461f431ea10`, with durable evidence in
+`docs/references/admin-ui/reviews/2026-10-03/f8-au13-checkpoint.md`.
+F9 BR-5/BR-6 is implemented, focused PostgreSQL tested, and committed as
+`a3f3f1a288df62c0a634db4d053fc71f0a865e6d`, with durable evidence in
+`docs/references/admin-ui/reviews/2026-10-03/f9-finalization-validation-checkpoint.md`.
+The F1 rollout proposal is durably recorded and committed separately as
+`6ca4a00bddbc059958b0425b6cbd9cd7f65aa497`; it remains unresolved and unimplemented pending user resolution of
+ledger retention and object-deletion recovery policy. The existing
+`ResultsPublicationIntegrationTests.PublicationArchivesAtomicallyAndIsFailureSafeAndIdempotentAcrossConcurrentRetries`
+fixture remains an unverified environmental limitation: it expects one of two
+concurrent calls to surface serialization, but this checkout observed two
+successful calls even with the original current-event projection. Every item
+awaits Claude's independent review; no item is manually accepted by this
+checkpoint, and no further ticket may start.
