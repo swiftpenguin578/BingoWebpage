@@ -681,6 +681,7 @@ The final focused PostgreSQL run was 8/9 with an initialization-only failure,
 followed by that isolated proof passing 1/1; affected original login proof 1/1
 and ordering 2/2 are separate runs, not a single clean 9/9 claim. Existing build,
 scoped formatter and diff-check proof passed. No packaging is claimed.
+The Dashboard PASS covers the earlier source hashes `846aed4b65b5ac3f1a853dda275a6e6269cdb97453600eaeb82e4fd99bc5d55f` (service) and `871051bc2e148237ab7d9927de2c56cb44b3e1d06ca3fb47afccdca4ccc70f99` (interface). The later change is AU04’s `GetEventParticipationAsync`; AU04’s independent review covers that change.
 
 ### Historical backend planning checkpoint — 30 September 2026
 

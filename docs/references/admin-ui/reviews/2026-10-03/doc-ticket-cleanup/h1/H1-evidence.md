@@ -59,3 +59,21 @@ owning active-document pointers now target this durable copy. The copied Luck re
 review limitations, including the earlier Node runtime limitation and the
 recorded independent-review dispositions. Those historical outcomes are not
 recast as fresh execution by this checkpoint.
+
+## H1-4/H1-5/H1-6 correction — 4 October
+
+The original counts above describe the 3 October copy only. Two small Participants
+logs are now retained byte-for-byte from `participants-backend-remediation-20260930`
+in the private evidence backup: `web-build-after-test-fixes.log` (0 warnings/errors)
+and `ehb-correction-proof-parsed.log` (1/1). Their paths are `participants/` here.
+Raw TRX files remain omitted, including the historically reported Dashboard 9/9
+fixturefixed result; no claim that its raw evidence is retained is made.
+
+Two flat-name collisions are restored in source-named subfolders of `luck/`:
+- `luck-redesign-remediation-evidence-20261001/candidate-manifest.txt` preserves
+  that earlier manifest; the flat `candidate-manifest.txt` is the Sol-recovery copy.
+- `luck-redesign-final-remediation-20261001/scoped-diff-check.txt` preserves that
+  empty successful-check artifact; the flat file is the Sol-recovery copy.
+Both restored files match the corresponding backup source byte-for-byte. This
+source mapping disambiguates them without changing the final recovery identity.
+The demo note now preserves the inspected route and aggregate fixture values.

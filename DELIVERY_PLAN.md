@@ -35,8 +35,9 @@ and focused checks completed; same independent reviewer `/root/luck_independent_
 (Sol 6.1/high) returned PASS on the three findings/direct consequences. The other
 22 reviewed candidate files remain unchanged. Prior Luna is idle and no further
 worker/review layer or scope was added. Orchestrator retains its approved Sol 6.1/high
-setting and final scoped planner callback. Evidence/identities are in CURRENT_STATUS;
-manual visual acceptance stays deferred.
+setting and final scoped planner callback. Evidence is retained in `docs/references/admin-ui/reviews/2026-10-03/doc-ticket-cleanup/h1/luck/`
+(final manifest SHA-256 `c3ecfa73d424021eb6e6456e321157ad3c7d71ed9239ff24fbaf5373af4bf7be`; disposition `independent-review-pass.txt`).
+Manual visual acceptance is recorded in UI_PAGE_MATRIX.
 Follow DELIVERY_PLAN section 4.2.1; no extra coordinator or routine verifier.
 
 ### Agreed outcome and boundaries
@@ -249,7 +250,8 @@ recorded evidence and stable identity review passed. Recovery PG 5/5, complete N
 67 passed / 0 failed / 2 existing optional skips, Release compilation, scoped formatter
 and diff checks pass; prior cleared proof is retained. User manual visual acceptance
 was granted on 2026-10-02 after populated demo inspection and is recorded in
-UI_PAGE_MATRIX. Exact final identity/evidence and next owner are in CURRENT_STATUS.
+UI_PAGE_MATRIX. Final evidence: `docs/references/admin-ui/reviews/2026-10-03/doc-ticket-cleanup/h1/luck/`,
+final manifest SHA-256 `c3ecfa73d424021eb6e6456e321157ad3c7d71ed9239ff24fbaf5373af4bf7be`; disposition `independent-review-pass.txt`. CURRENT_STATUS owns the next assignment.
 
 ### Remaining risks and stop boundary
 
@@ -1214,9 +1216,9 @@ Recorded named-remediation evidence is retained under
 - `dashboard-remediation-ordering.trx` — **2/2 passed**. The six history
   fields, including EventDate, sort null-last in both directions with stable
   EventId ties.
-- The earlier `dashboard-remediation-r1-r5-fixturefixed.trx` (9/9) remains
-  retained as prior provenance; it is not substituted for the latest source
-  identity. Release builds and the prior Dashboard 7/7/non-microsecond
+- The earlier `dashboard-remediation-r1-r5-fixturefixed.trx` (9/9) was reported
+  historically but was not retained in the durable copy; it is not durable proof
+  of the latest source identity. Release builds and the prior Dashboard 7/7/non-microsecond
   PostgreSQL evidence remain retained, and the latest test command rebuilt the
   affected integration project successfully.
 
@@ -1227,7 +1229,9 @@ fallback is reserved for genuinely absent ended-state events. R1, R2, R3, R4
 and R5 are implemented with the named focused evidence above, while the
 independent review is **PASS** after the same reviewer verified the stable
 source identity and recorded proof. Final disposition is recorded in
-`docs/references/admin-ui/reviews/2026-10-03/doc-ticket-cleanup/h1/dashboard/dashboard-review-final.meta`. No broad suite,
+`docs/references/admin-ui/reviews/2026-10-03/doc-ticket-cleanup/h1/dashboard/dashboard-review-final.meta`.
+The Dashboard PASS covers the earlier source hashes `846aed4b65b5ac3f1a853dda275a6e6269cdb97453600eaeb82e4fd99bc5d55f` (service) and `871051bc2e148237ab7d9927de2c56cb44b3e1d06ca3fb47afccdca4ccc70f99` (interface). The later change is AU04’s `GetEventParticipationAsync`; AU04’s independent review covers that change.
+No broad suite,
 UI/reference work, manual acceptance, packaging, commit, push, merge or
 deployment is authorized by this handoff.
 
@@ -1395,7 +1399,7 @@ Saved final evidence is retained in the repository at
 `docs/references/admin-ui/reviews/2026-10-03/doc-ticket-cleanup/h1/participants/`:
 
 - Release Web build: `web-build-after-test-fixes.log`, 0 warnings/errors.
-- Focused PostgreSQL seven-case run: `remediation-focused-final.log/.trx`, 7/7
+- Focused PostgreSQL seven-case run: `remediation-focused-final.log`, 7/7
   passed, covering selected/parallel confirmation, move, saved-account journey,
   restore rollback/retry and saved-Add negative/custom-answer boundaries. Later
   named cases supersede the initial draft/primary proof in that run.
@@ -1412,7 +1416,8 @@ Saved final evidence is retained in the repository at
   `ehb-correction-proof-parsed`, 1/1, against PostgreSQL's partial unique key with
   deterministic microsecond-precise WOM provenance and unchanged global profile.
 
-Each named proof has `.log`, `.trx` and `.meta` command/exit artifacts. They use
+The durable copy retains the named compact `.log` and `.meta` command/exit
+records; raw `.trx` artifacts were omitted. Original commands use
 `dotnet test tests/Bingo.IntegrationTests/Bingo.IntegrationTests.csproj --no-restore
 --configuration Release --filter FullyQualifiedName~<case> --logger trx`, with
 exact filters in the corresponding metadata:

@@ -84,9 +84,9 @@ source TRX files were intentionally omitted from the durable copy. Imported-only
 approved-submission
 coverage and incompatible/missing historical EHB remain unavailable by contract;
 compatible stored bulk coverage, partial coverage and measured zero are typed.
-The named review-remediation evidence includes the earlier
-`dashboard-remediation-r1-r5-fixturefixed.trx` (9/9) and
-`dashboard-remediation-ordering.trx` (2/2), plus the latest bounded proof
+The earlier `dashboard-remediation-r1-r5-fixturefixed.trx` (9/9) was reported
+historically but is not retained in the durable copy. Named retained metadata
+records `dashboard-remediation-ordering.trx` (2/2), plus the latest bounded proof
 `dashboard-remediation-r2-r3-r1-r5.trx` (8/9 with one PostgreSQL
 initialization-only authentication failure), its isolated
 `dashboard-remediation-r5-queryshape-retry.trx` (1/1), and the affected

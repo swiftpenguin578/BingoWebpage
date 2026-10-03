@@ -19,13 +19,16 @@
 ## Dashboard backend proof complete; UI integration deferred — 2026-10-01
 
 The read-only backend contract and focused PostgreSQL proof are complete. This
-section does not claim manual or visual acceptance. Current automated evidence is
-`/private/tmp/dashboard-backend-20261001/dashboard-ordering-fixed4.trx` (2/2)
+section does not claim manual or visual acceptance. Recorded automated evidence is retained in
+`docs/references/admin-ui/reviews/2026-10-03/doc-ticket-cleanup/h1/dashboard/dashboard-backend-final.meta`:
+`dashboard-ordering-fixed4.trx` (2/2)
 and `dashboard-b2-post-ordering.trx` (7/7), with Release builds for the
 Application.Tests and IntegrationTests projects passing with 0 warnings/errors.
-Named review-remediation evidence is also
-`/private/tmp/dashboard-remediation-20261001/dashboard-remediation-r1-r5-fixturefixed.trx`
-(9/9), `dashboard-remediation-ordering.trx` (2/2), and the latest bounded
+Named review-remediation evidence is retained in
+`docs/references/admin-ui/reviews/2026-10-03/doc-ticket-cleanup/h1/dashboard/dashboard-remediation-final.meta`.
+The earlier `dashboard-remediation-r1-r5-fixturefixed.trx` (9/9) was reported
+historically but is not retained in the durable copy. Retained metadata covers
+`dashboard-remediation-ordering.trx` (2/2) and the latest bounded
 continuation evidence: `dashboard-remediation-r2-r3-r1-r5.trx` (8/9 with one
 PostgreSQL initialization-only authentication failure), its isolated
 `dashboard-remediation-r5-queryshape-retry.trx` (1/1), and the affected
