@@ -882,6 +882,9 @@ not rebuilt just because the reference mock omitted it.
 | RC11 | Accounts A1–A8 | Target-bound transient reset secret, truthful readback, protected drafts, route/focus recovery, retained disabled status, captured transfer version, normalized search and modal scroll lock |
 
 These extend the recorded correction queue without changing any completed ticket.
+RC07/UI integration must bind the same structured approval-block data produced by
+the Review service and preserve the queue's search/status context when opening
+the earlier review and returning to the queue.
 Catalogue advanced controls and typed ownership confirmation follow the later user
 decisions AU23/AU24, not the superseded report questions. No blanket removal of
 reference functionality to match the old app. Full-pool evidence correction follows the later approved decision. WOM external

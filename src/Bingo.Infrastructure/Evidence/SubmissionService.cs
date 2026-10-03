@@ -357,13 +357,36 @@ public sealed class SubmissionService(
         var usedByItem = activeContributions.GroupBy(x => x.ItemIdSnapshot).ToDictionary(x => x.Key, x => x.Sum(value => value.Amount));
         var currentDrop = current.DropSnapshotId is Guid currentDropId ? drops[currentDropId] : null;
 
+        var usedWithoutCurrent = used;
+        var usedWithCurrent = used;
+        var usedBySourceDropWithoutCurrent = new Dictionary<Guid, int>(usedBySourceDrop);
+        var usedBySourceDropWithCurrent = new Dictionary<Guid, int>(usedBySourceDrop);
+        var usedByItemWithoutCurrent = new Dictionary<Guid, int>(usedByItem);
+        var usedByItemWithCurrent = new Dictionary<Guid, int>(usedByItem);
+        AddApprovalState(currentAmount, currentDrop, ref usedWithCurrent, usedBySourceDropWithCurrent, usedByItemWithCurrent);
+
         foreach (var candidate in earlier)
         {
-            var withoutCurrent = ApprovalAmount(candidate, requirement, publication.Drops, used, usedBySourceDrop, usedByItem, null, 0);
-            var withCurrent = ApprovalAmount(candidate, requirement, publication.Drops, used, usedBySourceDrop, usedByItem, currentDrop, currentAmount);
+            var candidateDrop = candidate.DropSnapshotId is Guid candidateDropId ? drops[candidateDropId] : null;
+            var withoutCurrent = ApprovalAmount(candidate, requirement, publication.Drops, usedWithoutCurrent,
+                usedBySourceDropWithoutCurrent, usedByItemWithoutCurrent, null, 0);
+            var withCurrent = ApprovalAmount(candidate, requirement, publication.Drops, usedWithCurrent,
+                usedBySourceDropWithCurrent, usedByItemWithCurrent, null, 0);
             if (withCurrent < withoutCurrent) return new SubmissionApprovalBlock(candidate.Id, candidate.SubmittedAt);
+            AddApprovalState(withoutCurrent, candidateDrop, ref usedWithoutCurrent, usedBySourceDropWithoutCurrent, usedByItemWithoutCurrent);
+            AddApprovalState(withCurrent, candidateDrop, ref usedWithCurrent, usedBySourceDropWithCurrent, usedByItemWithCurrent);
         }
         return null;
+    }
+
+    private static void AddApprovalState(int amount, BoardRequirementDropSnapshot? drop, ref int used,
+        Dictionary<Guid, int> usedBySourceDrop, Dictionary<Guid, int> usedByItem)
+    {
+        if (amount < 1) return;
+        used += amount;
+        if (drop is null) return;
+        usedBySourceDrop[drop.SourceDropId] = usedBySourceDrop.GetValueOrDefault(drop.SourceDropId) + amount;
+        usedByItem[drop.ItemIdSnapshot] = usedByItem.GetValueOrDefault(drop.ItemIdSnapshot) + amount;
     }
 
     private static int ApprovalAmount(Submission candidate, BoardRequirementSnapshot requirement,

@@ -845,6 +845,85 @@ public sealed partial class SubmissionWorkflowTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task LaterApprovalSimulatesMultipleEarlierPendingUploadsCumulatively()
+    {
+        var setup = await SeedAsync(target: 2, allowHigherWeights: false);
+        await using var db = new ApplicationDbContext(options);
+        (await db.Teams.SingleAsync(x => x.Id == setup.TeamId)).Finalize(now.AddDays(-2));
+        await db.SaveChangesAsync();
+        var clock = new MutableTimeProvider(now.AddMinutes(-30));
+        var service = Service(db, clock);
+        var first = await service.CreateAsync(Command(setup));
+        clock.Set(now.AddMinutes(-20));
+        var second = await service.CreateAsync(Command(setup));
+        clock.Set(now.AddMinutes(-10));
+        var later = await service.CreateAsync(Command(setup));
+
+        var refused = await service.ApproveAsync(later.SubmissionId, setup.AdminId);
+
+        Assert.Equal(0, refused.ApprovedContribution);
+        Assert.NotNull(refused.BlockingSubmission);
+        Assert.Equal(second.SubmissionId, refused.BlockingSubmission.SubmissionId);
+        Assert.Equal(SubmissionStatus.Pending, await db.Submissions.Where(x => x.Id == first.SubmissionId).Select(x => x.Status).SingleAsync());
+        Assert.Equal(SubmissionStatus.Pending, await db.Submissions.Where(x => x.Id == second.SubmissionId).Select(x => x.Status).SingleAsync());
+        Assert.Equal(SubmissionStatus.Pending, await db.Submissions.Where(x => x.Id == later.SubmissionId).Select(x => x.Status).SingleAsync());
+        Assert.Empty(await db.SubmissionContributions.ToListAsync());
+    }
+
+    [Fact]
+    public async Task LaterApprovalSimulatesEarlierUploadsSharingOneDropCapCumulatively()
+    {
+        var setup = await SeedAsync(target: 4, allowHigherWeights: false, dropMaximum: 2);
+        await using var db = new ApplicationDbContext(options);
+        (await db.Teams.SingleAsync(x => x.Id == setup.TeamId)).Finalize(now.AddDays(-2));
+        await db.SaveChangesAsync();
+        var clock = new MutableTimeProvider(now.AddMinutes(-30));
+        var service = Service(db, clock);
+        var first = await service.CreateAsync(Command(setup));
+        clock.Set(now.AddMinutes(-20));
+        var second = await service.CreateAsync(Command(setup));
+        clock.Set(now.AddMinutes(-10));
+        var later = await service.CreateAsync(Command(setup));
+
+        var refused = await service.ApproveAsync(later.SubmissionId, setup.AdminId);
+
+        Assert.Equal(0, refused.ApprovedContribution);
+        Assert.NotNull(refused.BlockingSubmission);
+        Assert.Equal(second.SubmissionId, refused.BlockingSubmission.SubmissionId);
+        Assert.Empty(await db.SubmissionContributions.ToListAsync());
+    }
+
+    [Fact]
+    public async Task LaterApprovalBlocksWithOnlyOneRoomLeftAtTargetAboveOne()
+    {
+        var setup = await SeedAsync(target: 3, allowHigherWeights: false);
+        await using var db = new ApplicationDbContext(options);
+        (await db.Teams.SingleAsync(x => x.Id == setup.TeamId)).Finalize(now.AddDays(-2));
+        await db.SaveChangesAsync();
+        var clock = new MutableTimeProvider(now.AddMinutes(-50));
+        var service = Service(db, clock);
+        var approvedFirst = await service.CreateAsync(Command(setup));
+        clock.Set(now.AddMinutes(-40));
+        var approvedSecond = await service.CreateAsync(Command(setup));
+        clock.Set(now);
+        Assert.Equal(1, (await service.ApproveAsync(approvedFirst.SubmissionId, setup.AdminId)).ApprovedContribution);
+        Assert.Equal(1, (await service.ApproveAsync(approvedSecond.SubmissionId, setup.AdminId)).ApprovedContribution);
+
+        clock.Set(now.AddMinutes(-20));
+        var earlier = await service.CreateAsync(Command(setup));
+        clock.Set(now.AddMinutes(-10));
+        var later = await service.CreateAsync(Command(setup));
+        var refused = await service.ApproveAsync(later.SubmissionId, setup.AdminId);
+
+        Assert.Equal(0, refused.ApprovedContribution);
+        Assert.NotNull(refused.BlockingSubmission);
+        Assert.Equal(earlier.SubmissionId, refused.BlockingSubmission.SubmissionId);
+        Assert.Equal(2, await db.SubmissionContributions.Where(x => x.ReversedAt == null).SumAsync(x => x.Amount));
+        Assert.Equal(SubmissionStatus.Pending, await db.Submissions.Where(x => x.Id == earlier.SubmissionId).Select(x => x.Status).SingleAsync());
+        Assert.Equal(SubmissionStatus.Pending, await db.Submissions.Where(x => x.Id == later.SubmissionId).Select(x => x.Status).SingleAsync());
+    }
+
+    [Fact]
     public async Task ApprovalOrderBlockIsScopedToTheSameObjective()
     {
         var setup = await SeedAsync(target: 1, allowHigherWeights: true, additionalObjectivesPerTile: 1);
@@ -866,6 +945,49 @@ public sealed partial class SubmissionWorkflowTests : IAsyncLifetime
         Assert.Equal(1, approved.ApprovedContribution);
         Assert.Null(approved.BlockingSubmission);
         Assert.Equal(SubmissionStatus.Pending, await db.Submissions.Where(x => x.Id == earlier.SubmissionId).Select(x => x.Status).SingleAsync());
+    }
+
+    [Fact]
+    public async Task ApprovalOrderBlockIsScopedToTheSameTeam()
+    {
+        var setup = await SeedAsync(target: 1, allowHigherWeights: true);
+        await using var db = new ApplicationDbContext(options);
+        (await db.Teams.SingleAsync(x => x.Id == setup.TeamId)).Finalize(now.AddDays(-2));
+        var otherTeamId = Guid.NewGuid();
+        var otherParticipantId = Guid.NewGuid();
+        var otherCharacterId = Guid.NewGuid();
+        var otherTeam = new Team(otherTeamId, setup.EventId, "Team Two", $"team-{otherTeamId:N}", TeamFormationType.Drafted, null, true);
+        otherTeam.Finalize(now.AddDays(-2));
+        var otherParticipant = new EventParticipant(otherParticipantId, setup.EventId, SignupStatus.Confirmed, 2, now.AddDays(-5), SignupSource.AdminCreated);
+        var otherCharacter = new OsrsCharacter(otherCharacterId, "Player Two", "PLAYER TWO", now.AddDays(-5));
+        var otherAssignment = new EventParticipantCharacter(Guid.NewGuid(), setup.EventId, otherParticipantId, otherCharacterId, 0,
+            now.AddDays(-5), setup.AdminId, null, EventCharacterRole.Playing, 1, EhbSource.Manual, null);
+        var otherMembership = new TeamMembership(Guid.NewGuid(), otherTeamId, otherParticipantId, TeamMembershipRole.Participant,
+            now.AddDays(-4), null, "test");
+        var publicationId = await db.DraftPublicationCycles
+            .Where(x => db.DraftSessions.Any(d => d.Id == x.DraftSessionId && d.EventId == setup.EventId) && x.SupersededAt == null)
+            .Select(x => x.Id).SingleAsync();
+        db.AddRange(otherTeam, otherParticipant, otherCharacter, otherAssignment, otherMembership,
+            new DraftPublicationRoster(Guid.NewGuid(), publicationId, otherTeamId, otherParticipantId,
+                TeamMembershipRole.Participant, null, otherCharacter.DisplayName));
+        await db.SaveChangesAsync();
+
+        var clock = new MutableTimeProvider(now.AddMinutes(-20));
+        var service = Service(db, clock);
+        var earlier = await service.CreateAsync(Command(setup));
+        clock.Set(now.AddMinutes(-10));
+        var otherTeamLater = new Submission(Guid.NewGuid(), setup.EventId, otherTeamId, setup.TileId, setup.RequirementId,
+            setup.DropId, otherParticipantId, otherCharacterId, otherCharacter.DisplayName, setup.AdminId, 1,
+            now.AddMinutes(-10), null, null);
+        db.Submissions.Add(otherTeamLater);
+        await db.SaveChangesAsync();
+
+        var approved = await service.ApproveAsync(otherTeamLater.Id, setup.AdminId);
+
+        Assert.Equal(1, approved.ApprovedContribution);
+        Assert.Null(approved.BlockingSubmission);
+        Assert.Equal(SubmissionStatus.Pending, await db.Submissions.Where(x => x.Id == earlier.SubmissionId).Select(x => x.Status).SingleAsync());
+        Assert.Equal(SubmissionStatus.Approved, await db.Submissions.Where(x => x.Id == otherTeamLater.Id).Select(x => x.Status).SingleAsync());
     }
 
     [Fact]
@@ -925,7 +1047,9 @@ public sealed partial class SubmissionWorkflowTests : IAsyncLifetime
             {
                 Assert.Null(first.Error);
                 Assert.Equal(1, first.Result?.ApprovedContribution);
-                Assert.True(second.Error is not null || second.Result?.BlockingSubmission is not null);
+                Assert.NotNull(second.Error);
+                var serialization = second.Error as PostgresException ?? second.Error.InnerException as PostgresException;
+                Assert.Equal(PostgresErrorCodes.SerializationFailure, serialization?.SqlState);
             }
 
             async Task<(SubmissionApprovalResult? Result, Exception? Error)> TryApproveAsync(ApplicationDbContext review, Guid id, Guid adminId)

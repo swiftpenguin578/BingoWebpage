@@ -835,7 +835,7 @@ must not expose private event context or redirect a viewed event's action to ano
 
 **Permissions and history:** Submission time, destination-derived board snapshot weight, calculated contribution, original image, review actions, and any historical predecessor links are preserved. Admins cannot upload or replace another user's evidence image. Retained ReviewAction history is authoritative for evidence decisions and corrections; the shared Audit presentation renders it once and uses the immutable audit entry as a fallback for records without a retained ReviewAction. Notifications reach the credited participant and current team captains where applicable, without notifying another team or exposing private evidence.
 
-Approved G1–G2 correction scope (3 October 2026; implementation pending):
+Approved G1–G2 correction scope (3 October 2026; implemented and rechecked):
 approval of a later upload is blocked only when it reduces the credit available
 to an earlier Pending upload for the same team/objective, using existing claimed
 weights, remaining room, per-drop limits and duplicate rules. Evaluate earlier

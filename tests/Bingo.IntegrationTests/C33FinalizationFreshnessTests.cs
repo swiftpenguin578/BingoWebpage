@@ -50,7 +50,7 @@ public sealed class C33FinalizationFreshnessTests : IAsyncLifetime
     public Task DisposeAsync() => database.DisposeAsync().AsTask();
 
     [Fact]
-    public async Task ActualPublishFormRejectsStaleEqualDisplayedResultsThenPublishesCalculatedHistory()
+    public async Task ActualPublishFormRejectsStaleResultsThenPublishesCalculatedHistory()
     {
         await using var factory = Factory();
         using var client = factory.CreateClient(new() { AllowAutoRedirect = false });
@@ -65,8 +65,14 @@ public sealed class C33FinalizationFreshnessTests : IAsyncLifetime
         var returned = await ReadinessAsync();
         Assert.True(returned.EventVersion > first.EventVersion);
         Assert.Equal(first.ReviewCycleId, returned.ReviewCycleId);
-        foreach (var placement in first.Placements)
+        foreach (var placement in first.Placements.Where(x => x.TeamId != fixture.TeamA))
             Assert.Equal(placement, returned.Placements.Single(x => x.TeamId == placement.TeamId));
+        var firstTeamA = first.Placements.Single(x => x.TeamId == fixture.TeamA);
+        var returnedTeamA = returned.Placements.Single(x => x.TeamId == fixture.TeamA);
+        Assert.Equal(firstTeamA.Placement, returnedTeamA.Placement);
+        Assert.Equal(firstTeamA.BoardComplete, returnedTeamA.BoardComplete);
+        Assert.Equal(now.AddHours(-3).AddMinutes(1), returnedTeamA.CurrentScoreReachedAt);
+        Assert.NotEqual(firstTeamA.CurrentScoreReachedAt, returnedTeamA.CurrentScoreReachedAt);
         await PostAsync(client, staleFinalize, ("FinalizeConfirmation", "PUBLISH_OFFICIAL_RESULTS"));
         await AssertNotFinalizedAsync();
         var staleHtml = WebUtility.HtmlDecode(await client.GetStringAsync(FinalizeUrl));
@@ -542,7 +548,21 @@ public sealed class C33FinalizationFreshnessTests : IAsyncLifetime
     [InlineData("Reverse")]
     public async Task ConcurrentReviewHttpLoserShowsActionableErrorWithoutWritesThenFreshRetrySucceeds(string handler)
     {
-        if (handler == "Reverse") await ApproveAsync(fixture.Replacement);
+        var concurrentWinner = fixture.First;
+        if (handler == "Reverse")
+        {
+            await RejectAsync(fixture.First);
+            await ApproveAsync(fixture.Replacement);
+            await using var seed = new ApplicationDbContext(options);
+            var source = await seed.Submissions.SingleAsync(x => x.Id == fixture.First);
+            var pendingWinner = new Submission(Guid.NewGuid(), source.EventId, source.TeamId, source.BoardTileId,
+                source.RequirementId, source.DropSnapshotId, source.CreditedParticipantId, source.CreditedOsrsCharacterId,
+                source.CreditedCharacterName, source.SubmittedByAccountId, source.ClaimedWeight,
+                source.SubmittedAt.AddMinutes(30), null, source.ExpectedEvidenceCode);
+            seed.Submissions.Add(pendingWinner);
+            await seed.SaveChangesAsync();
+            concurrentWinner = pendingWinner.Id;
+        }
         var waiting = new EventReadBoundary();
         await using var factory = Factory(waiting);
         using var client = factory.CreateClient(new() { AllowAutoRedirect = false });
@@ -556,7 +576,7 @@ public sealed class C33FinalizationFreshnessTests : IAsyncLifetime
         async Task RejectWinnerAsync()
         {
             await using var db = new ApplicationDbContext(new DbContextOptionsBuilder<ApplicationDbContext>(options).AddInterceptors(boundary).Options);
-            await Submissions(db).RejectAsync(fixture.First, fixture.Admin, "C33 concurrent winning decision");
+            await Submissions(db).RejectAsync(concurrentWinner, fixture.Admin, "C33 concurrent winning decision");
         }
         var winner = RejectWinnerAsync();
         await boundary.Reached.Task.WaitAsync(TimeSpan.FromSeconds(20));
@@ -580,7 +600,7 @@ public sealed class C33FinalizationFreshnessTests : IAsyncLifetime
         Assert.Equal(before, await SubmissionStateAsync(fixture.Replacement));
         Assert.Equal(version + 1, (await ReadinessAsync()).EventVersion);
         await using (var verify = new ApplicationDbContext(options))
-            Assert.Equal(SubmissionStatus.Rejected, await verify.Submissions.Where(x => x.Id == fixture.First).Select(x => x.Status).SingleAsync());
+            Assert.Equal(SubmissionStatus.Rejected, await verify.Submissions.Where(x => x.Id == concurrentWinner).Select(x => x.Status).SingleAsync());
 
         // Explicitly reload and submit the rendered current form, with no automatic retry.
         var fresh = Form(await client.GetStringAsync(location), handler);
@@ -729,7 +749,13 @@ public sealed class C33FinalizationFreshnessTests : IAsyncLifetime
     }
     private async Task<int> ResolutionCountAsync() { await using var db = new ApplicationDbContext(options); return await db.FinalReviewResolutions.CountAsync(); }
     private async Task<int> CompletionCorrectionCountAsync() { await using var db = new ApplicationDbContext(options); return await db.TeamCompletionCorrections.CountAsync(); }
-    private async Task ApproveAsync(Guid id) { await using var db = new ApplicationDbContext(options); await Submissions(db).ApproveAsync(id, fixture.Admin); }
+    private async Task ApproveAsync(Guid id)
+    {
+        await using var db = new ApplicationDbContext(options);
+        var result = await Submissions(db).ApproveAsync(id, fixture.Admin);
+        Assert.True(result.ApprovedContribution > 0, "The deterministic C33 fixture approval must succeed.");
+        Assert.Null(result.BlockingSubmission);
+    }
     private async Task RejectAsync(Guid id) { await using var db = new ApplicationDbContext(options); await Submissions(db).RejectAsync(id, fixture.Admin, "C33 fixture rejection"); }
     private async Task FinalizeAsync()
     {
@@ -871,7 +897,11 @@ public sealed class C33FinalizationFreshnessTests : IAsyncLifetime
     [InlineData("Edit")]
     public async Task ReviewReasonOverLimitIsRejectedBeforeAnyMutation(string handler)
     {
-        if (handler == "Reverse") await ApproveAsync(fixture.Replacement);
+        if (handler == "Reverse")
+        {
+            await RejectAsync(fixture.First);
+            await ApproveAsync(fixture.Replacement);
+        }
         await using var factory = Factory();
         using var client = factory.CreateClient(new() { AllowAutoRedirect = false });
         await LoginAsync(client, "c33-admin");
@@ -925,7 +955,8 @@ public sealed class C33FinalizationFreshnessTests : IAsyncLifetime
             db.AddRange(team, participant, character, assignment, new TeamMembership(Guid.NewGuid(), team.Id, participant.Id, TeamMembershipRole.Participant, now.AddDays(-4), null, "C33 fixture"));
             for (var count = 0; count < (index == 0 ? 2 : 1); count++)
             {
-                var submission = new Submission(Guid.NewGuid(), ev.Id, team.Id, tile.Id, requirement.Id, null, participant.Id, character.Id, character.DisplayName, player.Id, 1, now.AddHours(index == 0 ? -3 : -2), null, null);
+                var submittedAt = index == 0 ? now.AddHours(-3).AddMinutes(count) : now.AddHours(-2);
+                var submission = new Submission(Guid.NewGuid(), ev.Id, team.Id, tile.Id, requirement.Id, null, participant.Id, character.Id, character.DisplayName, player.Id, 1, submittedAt, null, null);
                 db.Submissions.Add(submission);
                 submissions.Add(submission);
             }
