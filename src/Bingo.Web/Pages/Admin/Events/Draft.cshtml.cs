@@ -275,6 +275,7 @@ public sealed class DraftModel(ApplicationDbContext db, TimeProvider time, IAudi
         if (team.EventId != id || !CanDirectPreEventRosterMutation(ev)) { SetStatus(Localize("Direct roster removal is available only before the configured event start."), UiMessageType.Error); return RedirectToPage(new { id, rosterTeamId }); }
         var draft = await db.DraftSessions.SingleOrDefaultAsync(x => x.EventId == id, ct);
         if (draft?.State == DraftState.Paused) { SetStatus(Localize("This historical paused draft is read-only; no roster changes are available."), UiMessageType.Error); return RedirectToPage(new { id, rosterTeamId }); }
+        if (draft?.State == DraftState.Running && !team.IncludedInDraft) { SetStatus(Localize("Manual roster additions are locked while the draft is running."), UiMessageType.Error); return RedirectToPage(new { id, rosterTeamId }); }
         if ((team.IncludedInDraft && ev.DraftLocked) || (!team.IncludedInDraft && draft?.State == DraftState.Finalized && !confirmed)) { SetStatus(Localize("Included rosters lock when the draft starts; published roster corrections require confirmation."), UiMessageType.Error); return RedirectToPage(new { id, rosterTeamId }); }
         var correctionReason = reason?.Trim() ?? "Roster removal";
         var participant = await db.EventParticipants.SingleAsync(x => x.Id == membership.EventParticipantId, ct); var participantName = await PrimaryName(participant.Id, ct); var now = time.GetUtcNow(); var previous = membership.Role;
@@ -379,6 +380,7 @@ public sealed class DraftModel(ApplicationDbContext db, TimeProvider time, IAudi
             return RedirectToPage(new { id, rosterTeamId });
         }
         if (draft?.State == DraftState.Paused) { SetStatus(Localize("This historical paused draft is read-only; no roster changes are available."), UiMessageType.Error); return RedirectToPage(new { id, rosterTeamId }); }
+        if (draft?.State == DraftState.Running) { SetStatus(Localize("Manual roster additions are locked while the draft is running."), UiMessageType.Error); return RedirectToPage(new { id, rosterTeamId }); }
         var participantName = await PrimaryName(membership.EventParticipantId, ct); var now = time.GetUtcNow(); var previous = membership.Role; const string correctionReason = "Roster correction"; membership.Leave(now, correctionReason);
         if (previous is TeamMembershipRole.Captain or TeamMembershipRole.CoCaptain) db.TeamMembershipRoleTransitions.Add(new TeamMembershipRoleTransition(Guid.NewGuid(), membership.Id, previous, TeamMembershipRole.Participant, AdminId, now));
         var replacement = new TeamMembership(Guid.NewGuid(), target.Id, membership.EventParticipantId, previous, now, null, correctionReason); replacement.SetSource(TeamMembershipSource.Replacement, membership.Id); db.TeamMemberships.Add(replacement);

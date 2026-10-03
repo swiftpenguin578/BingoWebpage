@@ -1204,6 +1204,39 @@ public sealed class DraftOperationsIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task ManualRosterRemoveAndMoveAreLockedWhileDraftRuns()
+    {
+        var setup = await SeedAsync();
+        var sourceName = $"Manual source {Guid.NewGuid():N}"[..30];
+        var targetName = $"Manual target {Guid.NewGuid():N}"[..30];
+        await ExecuteAsync(setup.EventId, setup.FirstAdminId, page => page.OnPostAddTeamAsync(
+            setup.EventId, sourceName, TeamFormationType.Preformed, null, CancellationToken.None, false, false));
+        await ExecuteAsync(setup.EventId, setup.FirstAdminId, page => page.OnPostAddTeamAsync(
+            setup.EventId, targetName, TeamFormationType.Preformed, null, CancellationToken.None, false, false));
+        var sourceTeamId = await TeamIdAsync(setup.EventId, sourceName);
+        var targetTeamId = await TeamIdAsync(setup.EventId, targetName);
+        await ExecuteAsync(setup.EventId, setup.FirstAdminId, page => page.OnPostAddMemberAsync(
+            setup.EventId, sourceTeamId, setup.PlayerIds[2], "Manual participant", CancellationToken.None));
+        var membershipId = await MembershipIdAsync(setup.EventId, sourceTeamId, setup.PlayerIds[2]);
+        await ExecuteAsync(setup.EventId, setup.FirstAdminId, page => page.OnPostAcquireControlAsync(setup.EventId, CancellationToken.None));
+        var startStatus = await ExecuteAndReadStatusAsync(setup.EventId, setup.FirstAdminId,
+            page => page.OnPostStartAsync(setup.EventId, CancellationToken.None));
+        Assert.Contains("Draft started", startStatus ?? string.Empty, StringComparison.Ordinal);
+
+        var removeStatus = await ExecuteAndReadStatusAsync(setup.EventId, setup.FirstAdminId,
+            page => page.OnPostRemoveMemberAsync(setup.EventId, membershipId, "blocked", CancellationToken.None));
+        var moveStatus = await ExecuteAndReadStatusAsync(setup.EventId, setup.FirstAdminId,
+            page => page.OnPostMoveMemberAsync(setup.EventId, membershipId, targetTeamId, CancellationToken.None));
+        Assert.Contains("Manual roster additions are locked while the draft is running.", removeStatus ?? string.Empty, StringComparison.Ordinal);
+        Assert.Contains("Manual roster additions are locked while the draft is running.", moveStatus ?? string.Empty, StringComparison.Ordinal);
+
+        await using var verify = new ApplicationDbContext(options);
+        Assert.True(await verify.TeamMemberships.AnyAsync(value => value.Id == membershipId && value.TeamId == sourceTeamId && value.LeftAt == null));
+        Assert.False(await verify.TeamMemberships.AnyAsync(value => value.ReplacesMembershipId == membershipId && value.LeftAt == null));
+        Assert.Empty(await verify.AuditEntries.Where(value => value.EventId == setup.EventId && (value.Action == "team.member_removed" || value.Action == "team.member_moved")).ToListAsync());
+    }
+
+    [Fact]
     public async Task MalformedPostedRoleIsRejectedBeforeMemberOrExternalWrites()
     {
         var setup = await SeedAsync();

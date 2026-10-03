@@ -6,20 +6,17 @@ provider calls, or user database access are included.
 
 ## Baseline and implementation
 
-- G3a predecessor: `a8a6c24`.
-- Source baseline for the batch: `f2ea1cffb8f4d9c0b23dd68dcf3f6675d1bbb5d5`.
-- Capacity admission, promotion, capacity-floor validation, and waiting
-  position now count every event participant. The direct/finalized-roster
-  eligibility checks retain their separate manual-team exclusion, so this
-  change does not turn signup administration into finalized-roster editing.
-- The Admin participant capacity summary counts all Confirmed and
-  WaitingList rows, including active manual-team members. Draft derivation
-  continues to exclude manual-team members from the draft pool and turn plan.
-- Manual-team additions require a Confirmed event participant and are refused
-  while the draft is Running. No migration, schema change, new capacity
-  override, or automatic promotion path was added.
-- `DATA_MODEL.md` now states that manual-team membership consumes capacity but
-  no draft turn. Claude's independent review remains pending.
+- G3a predecessor: `93d75f7`.
+- G1 predecessor: `3c2a0a6`; G2 predecessor: `a4a640c`.
+- Source baseline for the batch: `059faf5ba904b4a35c54eca4021fa306a2ea0586`.
+- Manual-team Remove and Move now use the same running-draft refusal message
+  as manual Add, so a Running draft cannot change the manual roster pool.
+- Schedule capacity-floor validation compares the requested cap with the
+  persisted cap. A lower requested cap is rejected only when the cap changes;
+  an unchanged legacy over-cap event can still save an unrelated schedule or
+  Live-end change. No migration, capacity override, or automatic promotion
+  path was added.
+- Claude's named independent recheck remains pending.
 
 ## Controlled PostgreSQL checks
 
@@ -38,6 +35,12 @@ fixtures:
   waiter cannot be added to a manual team, a confirmed manual member remains
   outside the draft distribution, and a later manual-team addition is refused
   after the draft enters Running.
+- `ManualRosterRemoveAndMoveAreLockedWhileDraftRuns`: both manual membership
+  mutations return the Add gate message while Running and leave the original
+  membership, replacement history, and audit rows unchanged.
+- `LiveEndChangeAllowsUnchangedLegacyCapacityBelowConfirmedCount`: a controlled
+  Live event with two Confirmed participants and persisted cap 1 accepts an
+  end-time change while posting the unchanged cap; the cap remains 1.
 - Existing affected manual-roster journeys passed:
   `AdminCreatedInternalParticipantsReachPoolPreassignmentPicksAndFinalRoster`,
   `FinalizedPreformedEditorPreservesSourceBasedRemovalControls`,
@@ -46,16 +49,15 @@ fixtures:
 - The full `ParticipantFlowIntegrationTests` class passed (10 tests), covering
   the public signup projection and existing lifecycle/capacity behavior.
 
-Build and focused checks:
+Build and focused PostgreSQL checks:
 
 ```text
-dotnet build tests/Bingo.IntegrationTests/Bingo.IntegrationTests.csproj --no-restore /p:UseSharedCompilation=false
-dotnet test tests/Bingo.IntegrationTests/Bingo.IntegrationTests.csproj --no-build --filter 'FullyQualifiedName~InterleavedPreformedMemberKeepsWaitingRanksAndOrdinaryAdmission|FullyQualifiedName~CapacityDoesNotChangeWhenAIncludedTeamBecomesManualOrIsRestored|FullyQualifiedName~ManualRosterAdditionRequiresConfirmedParticipantAndStopsWhenDraftRuns'
-dotnet test tests/Bingo.IntegrationTests/Bingo.IntegrationTests.csproj --no-build --filter 'FullyQualifiedName~ParticipantFlowIntegrationTests'
-dotnet test tests/Bingo.IntegrationTests/Bingo.IntegrationTests.csproj --no-build --filter 'FullyQualifiedName~AdminCreatedInternalParticipantsReachPoolPreassignmentPicksAndFinalRoster|FullyQualifiedName~FinalizedPreformedEditorPreservesSourceBasedRemovalControls|FullyQualifiedName~DraftedSetupAssignmentRejectsAfterFirstPickAndAfterEventStartWithoutResidue|FullyQualifiedName~InvalidOrFailedSelectedRoleLeavesManualRosterAdditionWithoutResidue'
+dotnet build tests/Bingo.IntegrationTests/Bingo.IntegrationTests.csproj --no-restore --configuration Release --disable-build-servers
+dotnet test tests/Bingo.IntegrationTests/Bingo.IntegrationTests.csproj --no-build --configuration Release --filter 'FullyQualifiedName~ManualRosterRemoveAndMoveAreLockedWhileDraftRuns|FullyQualifiedName~ManualRosterAdditionRequiresConfirmedParticipantAndStopsWhenDraftRuns|FullyQualifiedName~LiveEndChangeAllowsUnchangedLegacyCapacityBelowConfirmedCount'
 git diff --check
 ```
 
-The build passed with 0 warnings and 0 errors. The focused run passed 3/3,
-the full participant-flow class passed 10/10, and the affected manual-roster
-journeys passed 4/4. No other Teams/Draft scope is included.
+The Release build passed with 0 warnings and 0 errors, and the focused run
+passed 3/3. The required full `DraftOperationsIntegrationTests` and
+`SubmissionWorkflowTests` runs remain pending after this commit. No other
+Teams/Draft scope is included.

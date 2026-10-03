@@ -750,6 +750,37 @@ public sealed class Slice3ScheduleLifecycleIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task LiveEndChangeAllowsUnchangedLegacyCapacityBelowConfirmedCount()
+    {
+        var actor = await SeedAdminActorAsync();
+        var eventId = await SeedReadyDraftAsync("live-over-cap", waitingList: true);
+        await using (var setup = new ApplicationDbContext(options))
+        {
+            var item = await setup.Events.SingleAsync(x => x.Id == eventId);
+            item.ConfigureSchedule(item.SignupOpensAt, item.SignupClosesAt, item.DraftAt, item.EventStartsAt, item.EventEndsAt, 1);
+            item.OpenSignups(now);
+            item.CloseSignups(now);
+            setup.EventParticipants.AddRange(
+                new EventParticipant(Guid.NewGuid(), eventId, SignupStatus.Confirmed, 1, now, SignupSource.AdminCreated),
+                new EventParticipant(Guid.NewGuid(), eventId, SignupStatus.Confirmed, 2, now.AddMinutes(1), SignupSource.AdminCreated));
+            item.StartEvent(now);
+            await setup.SaveChangesAsync();
+        }
+
+        await using var db = new ApplicationDbContext(options);
+        var current = await db.Events.AsNoTracking().SingleAsync(x => x.Id == eventId);
+        Assert.Equal(1, current.ParticipantCap);
+        Assert.Equal(2, await db.EventParticipants.CountAsync(x => x.EventId == eventId && x.SignupStatus == SignupStatus.Confirmed));
+        var service = new EventSignupLifecycleService(db, new EventReadinessEvaluator(db, configuration), new FixedTimeProvider(now));
+        var values = Values(current, current.EventEndsAt!.Value.AddHours(1));
+        var result = await service.SaveScheduleAsync(eventId, current.Version, values, true, actor, reason: "Extend for the live event.");
+
+        Assert.True(result.Succeeded, result.Error);
+        Assert.Equal(values.EventEndsAt, (await db.Events.AsNoTracking().SingleAsync(x => x.Id == eventId)).EventEndsAt);
+        Assert.Equal(1, await db.Events.Where(x => x.Id == eventId).Select(x => x.ParticipantCap).SingleAsync());
+    }
+
+    [Fact]
     public async Task LiveEndChangeRejectsWiseOldManWindowMismatchWithoutMutation()
     {
         var actor = await SeedAdminActorAsync();

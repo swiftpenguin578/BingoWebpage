@@ -112,11 +112,11 @@ public sealed class EventSignupLifecycleService(ApplicationDbContext db, IEventR
             var draftState = await DraftStateAsync(item.Id, ct);
             var validationError = await ValidateScheduleChangeAsync(db, item, values, now, draftState, confirmChanges, reason, ct);
             if (validationError is not null) return new(false, validationError);
+            var previousCapacity = item.ParticipantCap;
             var confirmedSignupCount = await SignupParticipants(item.Id)
                 .CountAsync(participant => participant.SignupStatus == SignupStatus.Confirmed, ct);
-            if (values.ParticipantCap is { } requestedCapacity && requestedCapacity < confirmedSignupCount)
+            if (values.ParticipantCap is { } requestedCapacity && requestedCapacity != previousCapacity && requestedCapacity < confirmedSignupCount)
                 return new(false, $"The participant cap cannot be lower than the {confirmedSignupCount} confirmed participant(s).");
-            var previousCapacity = item.ParticipantCap;
             var before = ScheduleState(item);
             if (item.State == EventState.Live)
                 item.ChangeLiveEventEnd(values.EventEndsAt ?? throw new InvalidOperationException("The event end must be in the future."), now);
