@@ -2982,4 +2982,5 @@
   <data name="The save outcome is uncertain. Check again to read the current values; your draft is retained." xml:space="preserve"><value>Resultatet af gemningen er usikkert. Kontrollér igen for at læse de aktuelle værdier; din kladde er bevaret.</value></data>
   <data name="Check again" xml:space="preserve"><value>Kontrollér igen</value></data>
   <data name="The save outcome is uncertain. Check the current values before trying another save. Diagnostic reference: {0}." xml:space="preserve"><value>Resultatet af gemningen er usikkert. Kontrollér de aktuelle værdier før en ny gemning. Diagnostisk reference: {0}.</value></data>
+  <data name="A draft is required before changing website-draft inclusion." xml:space="preserve"><value>Der skal være en draft, før du kan ændre, om holdet deltager i hjemmesidens draft.</value></data>
 </root>
