@@ -37,6 +37,7 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Testcontainers.PostgreSql;
+using Npgsql;
 
 namespace Bingo.IntegrationTests;
 
@@ -558,6 +559,8 @@ public sealed class DraftOperationsIntegrationTests : IAsyncLifetime
             {
                 var seedTeam = await seed.Teams.SingleAsync(value => value.EventId == setup.EventId && value.Name == "Second");
                 teamId = seedTeam.Id;
+                seedTeam.SetIncludedInDraft(false);
+                await seed.SaveChangesAsync();
                 teamVersion = seedTeam.Version;
             }
 
@@ -566,16 +569,21 @@ public sealed class DraftOperationsIntegrationTests : IAsyncLifetime
                 .UseNpgsql(database.GetConnectionString())
                 .AddInterceptors(boundary)
                 .Options;
+            var observer = new DraftEventLockObserver();
+            var observerOptions = new DbContextOptionsBuilder<ApplicationDbContext>()
+                .UseNpgsql(database.GetConnectionString())
+                .AddInterceptors(observer)
+                .Options;
             Task<string?> inclusionTask;
             Task<string?> startTask;
             if (inclusionFirst)
             {
                 inclusionTask = ExecuteAndReadStatusAsync(setup.EventId, setup.FirstAdminId,
                     page => page.OnPostUpdateTeamAsync(setup.EventId, teamId, "Second", null, null, false, teamVersion, CancellationToken.None,
-                        includedInDraft: false), boundaryOptions);
+                        includedInDraft: true), boundaryOptions);
                 await boundary.Reached.Task.WaitAsync(TimeSpan.FromSeconds(15));
                 startTask = ExecuteAndReadStatusAsync(setup.EventId, setup.FirstAdminId,
-                    page => page.OnPostStartAsync(setup.EventId, CancellationToken.None));
+                    page => page.OnPostStartAsync(setup.EventId, CancellationToken.None), observerOptions);
             }
             else
             {
@@ -584,25 +592,37 @@ public sealed class DraftOperationsIntegrationTests : IAsyncLifetime
                 await boundary.Reached.Task.WaitAsync(TimeSpan.FromSeconds(15));
                 inclusionTask = ExecuteAndReadStatusAsync(setup.EventId, setup.FirstAdminId,
                     page => page.OnPostUpdateTeamAsync(setup.EventId, teamId, "Second", null, null, false, teamVersion, CancellationToken.None,
-                        includedInDraft: false));
+                        includedInDraft: true), observerOptions);
             }
 
-            try { boundary.Release.TrySetResult(); }
-            finally { await Task.WhenAll(inclusionTask, startTask); }
+            await observer.Reached.Task.WaitAsync(TimeSpan.FromSeconds(15));
+            var waitingTask = inclusionFirst ? startTask : inclusionTask;
+            var blocked = await WaitForDatabaseBlockAsync(
+                waitingTask,
+                observer.BackendPid.Task.Result,
+                boundary.BackendPid.Task.Result);
+            boundary.Release.TrySetResult();
+            await Task.WhenAll(inclusionTask, startTask);
+            Assert.True(blocked, "The second operation must be blocked by the first transaction's event-row lock before it is released.");
+            var inclusionSucceeded = inclusionTask.Result?.Contains("now participates in the website draft", StringComparison.OrdinalIgnoreCase) == true;
+            var startSucceeded = startTask.Result?.Contains("Draft started.", StringComparison.OrdinalIgnoreCase) == true;
+            Assert.NotEqual(inclusionSucceeded, startSucceeded);
 
             await using var verify = new ApplicationDbContext(options);
             var draft = await verify.DraftSessions.SingleAsync(value => value.EventId == setup.EventId);
             var verifiedTeam = await verify.Teams.SingleAsync(value => value.Id == teamId);
             var startAudits = await verify.AuditEntries.Where(value => value.EventId == setup.EventId && value.Action == "draft.started").ToListAsync();
-            if (!verifiedTeam.IncludedInDraft)
+            if (inclusionSucceeded)
             {
                 Assert.Equal(DraftState.Setup, draft.State);
+                Assert.True(verifiedTeam.IncludedInDraft);
                 Assert.Empty(startAudits);
             }
             else
             {
                 Assert.Equal(DraftState.Running, draft.State);
                 Assert.Single(startAudits);
+                Assert.False(verifiedTeam.IncludedInDraft);
             }
         }
 
@@ -622,6 +642,8 @@ public sealed class DraftOperationsIntegrationTests : IAsyncLifetime
             {
                 var seedTeam = await seed.Teams.SingleAsync(value => value.EventId == setup.EventId && value.Name == "Second");
                 teamId = seedTeam.Id;
+                seedTeam.SetIncludedInDraft(false);
+                await seed.SaveChangesAsync();
                 teamVersion = seedTeam.Version;
             }
 
@@ -630,16 +652,21 @@ public sealed class DraftOperationsIntegrationTests : IAsyncLifetime
                 .UseNpgsql(database.GetConnectionString())
                 .AddInterceptors(boundary)
                 .Options;
+            var observer = new DraftEventLockObserver();
+            var observerOptions = new DbContextOptionsBuilder<ApplicationDbContext>()
+                .UseNpgsql(database.GetConnectionString())
+                .AddInterceptors(observer)
+                .Options;
             Task<string?> inclusionTask;
             Task<string?> finalizeTask;
             if (inclusionFirst)
             {
                 inclusionTask = ExecuteAndReadStatusAsync(setup.EventId, setup.FirstAdminId,
                     page => page.OnPostUpdateTeamAsync(setup.EventId, teamId, "Second", null, null, false, teamVersion, CancellationToken.None,
-                        includedInDraft: false), boundaryOptions);
+                        includedInDraft: true), boundaryOptions);
                 await boundary.Reached.Task.WaitAsync(TimeSpan.FromSeconds(15));
                 finalizeTask = ExecuteAndReadStatusAsync(setup.EventId, setup.FirstAdminId,
-                    page => page.OnPostFinalizeAsync(setup.EventId, CancellationToken.None, true));
+                    page => page.OnPostFinalizeAsync(setup.EventId, CancellationToken.None, true), observerOptions);
             }
             else
             {
@@ -648,28 +675,38 @@ public sealed class DraftOperationsIntegrationTests : IAsyncLifetime
                 await boundary.Reached.Task.WaitAsync(TimeSpan.FromSeconds(15));
                 inclusionTask = ExecuteAndReadStatusAsync(setup.EventId, setup.FirstAdminId,
                     page => page.OnPostUpdateTeamAsync(setup.EventId, teamId, "Second", null, null, false, teamVersion, CancellationToken.None,
-                        includedInDraft: false));
+                        includedInDraft: true), observerOptions);
             }
 
-            try { boundary.Release.TrySetResult(); }
-            finally { await Task.WhenAll(inclusionTask, finalizeTask); }
+            await observer.Reached.Task.WaitAsync(TimeSpan.FromSeconds(15));
+            var waitingTask = inclusionFirst ? finalizeTask : inclusionTask;
+            var blocked = await WaitForDatabaseBlockAsync(
+                waitingTask,
+                observer.BackendPid.Task.Result,
+                boundary.BackendPid.Task.Result);
+            boundary.Release.TrySetResult();
+            await Task.WhenAll(inclusionTask, finalizeTask);
+            Assert.True(blocked, "The second operation must be blocked by the first transaction's event-row lock before it is released.");
+            var inclusionSucceeded = inclusionTask.Result?.Contains("now participates in the website draft", StringComparison.OrdinalIgnoreCase) == true;
+            var finalizeSucceeded = finalizeTask.Result?.Contains("published", StringComparison.OrdinalIgnoreCase) == true;
+            Assert.NotEqual(inclusionSucceeded, finalizeSucceeded);
 
             await using var verify = new ApplicationDbContext(options);
             var draft = await verify.DraftSessions.SingleAsync(value => value.EventId == setup.EventId);
             var verifiedTeam = await verify.Teams.SingleAsync(value => value.Id == teamId);
             var cycles = await verify.DraftPublicationCycles.Where(value => value.DraftSessionId == draft.Id).ToListAsync();
-            if (draft.State == DraftState.Finalized)
+            if (inclusionSucceeded)
             {
-                Assert.False(verifiedTeam.IncludedInDraft);
-                Assert.Single(cycles);
-                Assert.Equal(DraftPublicationMethod.DirectRoster, cycles[0].PublicationMethod);
-                Assert.Equal(1, await verify.Teams.CountAsync(value => value.EventId == setup.EventId && value.Active && value.IncludedInDraft));
+                Assert.Equal(DraftState.Setup, draft.State);
+                Assert.True(verifiedTeam.IncludedInDraft);
+                Assert.Empty(cycles);
             }
             else
             {
+                Assert.Equal(DraftState.Finalized, draft.State);
                 Assert.False(verifiedTeam.IncludedInDraft);
-                Assert.Equal(DraftState.Setup, draft.State);
-                Assert.Empty(cycles);
+                Assert.Single(cycles);
+                Assert.Equal(DraftPublicationMethod.DirectRoster, cycles[0].PublicationMethod);
             }
         }
 
@@ -2281,6 +2318,22 @@ public sealed class DraftOperationsIntegrationTests : IAsyncLifetime
         return page.TempData["StatusMessage"]?.ToString();
     }
 
+    private async Task<bool> WaitForDatabaseBlockAsync(Task operation, int waitingPid, int blockingPid)
+    {
+        await using var monitor = new NpgsqlConnection(database.GetConnectionString());
+        await monitor.OpenAsync();
+        for (var attempt = 0; attempt < 100 && !operation.IsCompleted; attempt++)
+        {
+            await using var query = new NpgsqlCommand("SELECT @blockingPid = ANY(pg_blocking_pids(@waitingPid))", monitor);
+            query.Parameters.AddWithValue("blockingPid", blockingPid);
+            query.Parameters.AddWithValue("waitingPid", waitingPid);
+            if ((bool)(await query.ExecuteScalarAsync())!) return true;
+            await Task.Delay(25);
+        }
+
+        return false;
+    }
+
     private sealed class DraftEventReadBoundary : DbCommandInterceptor
     {
         private int entered;
@@ -2312,6 +2365,38 @@ public sealed class DraftOperationsIntegrationTests : IAsyncLifetime
 
         public TaskCompletionSource Reached { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource<int> BackendPid { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public override InterceptionResult<DbDataReader> ReaderExecuting(
+            DbCommand command,
+            CommandEventData eventData,
+            InterceptionResult<DbDataReader> result)
+        {
+            if (command.CommandText.Contains("FROM draft_sessions", StringComparison.OrdinalIgnoreCase)
+                && command.CommandText.Contains("FOR UPDATE", StringComparison.OrdinalIgnoreCase)
+                && command.Connection is NpgsqlConnection connection)
+            {
+                BackendPid.TrySetResult(connection.ProcessID);
+            }
+
+            return result;
+        }
+
+        public override ValueTask<InterceptionResult<DbDataReader>> ReaderExecutingAsync(
+            DbCommand command,
+            CommandEventData eventData,
+            InterceptionResult<DbDataReader> result,
+            CancellationToken cancellationToken = default)
+        {
+            if (command.CommandText.Contains("FROM draft_sessions", StringComparison.OrdinalIgnoreCase)
+                && command.CommandText.Contains("FOR UPDATE", StringComparison.OrdinalIgnoreCase)
+                && command.Connection is NpgsqlConnection connection)
+            {
+                BackendPid.TrySetResult(connection.ProcessID);
+            }
+
+            return new(result);
+        }
 
         public override async ValueTask<DbDataReader> ReaderExecutedAsync(
             DbCommand command,
@@ -2328,6 +2413,47 @@ public sealed class DraftOperationsIntegrationTests : IAsyncLifetime
             }
 
             return result;
+        }
+    }
+
+    private sealed class DraftEventLockObserver : DbCommandInterceptor
+    {
+        private int entered;
+
+        public TaskCompletionSource Reached { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource<int> BackendPid { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public override InterceptionResult<DbDataReader> ReaderExecuting(
+            DbCommand command,
+            CommandEventData eventData,
+            InterceptionResult<DbDataReader> result)
+        {
+            if (command.CommandText.Contains("FOR UPDATE", StringComparison.OrdinalIgnoreCase)
+                && Interlocked.CompareExchange(ref entered, 1, 0) == 0
+                && command.Connection is NpgsqlConnection connection)
+            {
+                BackendPid.TrySetResult(connection.ProcessID);
+                Reached.TrySetResult();
+            }
+
+            return result;
+        }
+
+        public override ValueTask<InterceptionResult<DbDataReader>> ReaderExecutingAsync(
+            DbCommand command,
+            CommandEventData eventData,
+            InterceptionResult<DbDataReader> result,
+            CancellationToken cancellationToken = default)
+        {
+            if (command.CommandText.Contains("FOR UPDATE", StringComparison.OrdinalIgnoreCase)
+                && Interlocked.CompareExchange(ref entered, 1, 0) == 0
+                && command.Connection is NpgsqlConnection connection)
+            {
+                BackendPid.TrySetResult(connection.ProcessID);
+                Reached.TrySetResult();
+            }
+
+            return new(result);
         }
     }
 

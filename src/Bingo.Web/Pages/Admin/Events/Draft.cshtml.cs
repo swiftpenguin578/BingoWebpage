@@ -139,6 +139,7 @@ public sealed class DraftModel(ApplicationDbContext db, TimeProvider time, IAudi
         var before = TeamAuditState(team);
         team.SetActive(false);
         team.SetDraftPosition(null);
+        draft.AdvanceVersion();
         await AuditMutation(id, "draft.team_removed", "team", team.Id, before, TeamAuditState(team), ct);
         await tx.CommitAsync(ct);
         SetStatus(Localize("{0} removed from the website draft.", team.Name), UiMessageType.Success);
@@ -171,7 +172,11 @@ public sealed class DraftModel(ApplicationDbContext db, TimeProvider time, IAudi
             var now = time.GetUtcNow(); if (removeImage && team.ActiveImageAssetId is { } old) { (await db.TeamImageAssets.SingleOrDefaultAsync(x => x.Id == old, ct))?.Replace(now); team.SetActiveImage(null); }
             if (image is { Length: > 0 }) { if (storage is null) throw new InvalidOperationException("Image storage is unavailable."); var assetId = Guid.NewGuid(); await using var content = image.OpenReadStream(); uploaded = await storage.StoreAsync(id, assetId, image.FileName, content, ct); if (team.ActiveImageAssetId is { } previous) (await db.TeamImageAssets.SingleOrDefaultAsync(x => x.Id == previous, ct))?.Replace(now); db.TeamImageAssets.Add(new TeamImageAsset(assetId, id, team.Id, uploaded.StorageKey, uploaded.OriginalFilename, uploaded.MediaType, uploaded.ByteSize, uploaded.Width, uploaded.Height, uploaded.Checksum, AdminId, now)); team.SetActiveImage(assetId); }
             team.Update(name.Trim(), team.Slug, Clean(affiliation), null);
-            if (inclusionChanged) team.SetIncludedInDraft(requestedInclusion);
+            if (inclusionChanged)
+            {
+                team.SetIncludedInDraft(requestedInclusion);
+                draft!.AdvanceVersion();
+            }
             team.AdvanceVersion();
             var after = TeamAuditState(team);
             var action = inclusionChanged ? "team.inclusion_changed" : "team.updated";
@@ -409,7 +414,15 @@ public sealed class DraftModel(ApplicationDbContext db, TimeProvider time, IAudi
     public async Task<IActionResult> OnPostStartAsync(Guid id, CancellationToken ct)
     {
         await using var tx = await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, ct);
-        var bingoEvent = await LockEventAsync(id, ct);
+        BingoEvent? bingoEvent;
+        try
+        {
+            bingoEvent = await LockEventAsync(id, ct);
+        }
+        catch (Exception exception) when (IsDraftConflict(exception))
+        {
+            return DraftConflict(id, exception);
+        }
         if (bingoEvent is null) return NotFound();
         if (bingoEvent.State != Bingo.Domain.Events.EventState.SignupClosed)
         {
@@ -421,7 +434,15 @@ public sealed class DraftModel(ApplicationDbContext db, TimeProvider time, IAudi
             return RedirectToPage(new { id });
         }
 
-        var draft = await LockDraftAsync(id, ct);
+        DraftSession? draft;
+        try
+        {
+            draft = await LockDraftAsync(id, ct);
+        }
+        catch (Exception exception) when (IsDraftConflict(exception))
+        {
+            return DraftConflict(id, exception);
+        }
         if (draft is null) return NotFound();
         if (draft.State != DraftState.Setup)
         {
