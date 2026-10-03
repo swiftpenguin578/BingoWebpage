@@ -1,73 +1,65 @@
 # Current project status
 
-## Active handoff — 3 October 2026
+## Active handoff — 4 October 2026
 
 - Checkout: `/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage`.
 - Branch: `codex/participants-functionality`.
 - Planner: UI Planner `01a0ec9a-76e3-7252-9850-3f260c612e59`, collaboration `/root`.
-- Active assignment: H1–H7 ticket/documentation cleanup, per
-  `docs/references/admin-ui/reviews/2026-10-03/doc-ticket-cleanup/handoff.md`.
-- Verified clean starting HEAD: `576c6615c64af4d0959152dbcbf7c327106f624f`.
-- Activation checkpoint: `e9e65d6`. H1 durable evidence checkpoint:
-  `6c7603f`. H1–H7 final handoff:
+- User explicitly authorized the named H cleanup remediation round only.
+- Verified clean starting HEAD: `f6b5bd9e75957892f7323ae55d29c380f1181266`.
+- Durable assignment/review and decisions:
+  `docs/references/admin-ui/reviews/2026-10-04/cleanup-remediation/review.md`
+  and `decisions.md` beside it. Original detailed reviews are in
+  `/Users/christopher/Documents/BingoWebpage/review-notes/15a-h1-h3-review.md`
+  and `15b-h4-h7-review.md`.
+- This round's user override: one direct `gpt-6-astra` / `high` implementer,
+  `/root/cleanup_astra_remediator`. Previous Luna worker remains stopped;
+  collaboration cannot change its model, so carry forward its evidence/context.
+- No orchestrator, extra workers or new chats. Claude independently rechecks.
+- Send a report to `/root` before every turn-ending response and immediately
+  for blockers or decisions; include exact checkpoint and next action.
+  No wait_threads or routine planner polling.
+
+## Scope and approval boundary
+
+- Claude review: H1/H3/H4/H5 FAIL, H2 small misses, H6/H7 PASS with H6 string gap.
+  No reviewer builds/tests were run. Prior worker checks remain evidence only.
+- Fix only Required fixes in review.md. One follow-up commit per H1–H6 group,
+  naming findings. No amendments. H7 unchanged.
+- H4-2 is PROPOSE FIRST: write a separate isolated-rehearsal proposal, report it
+  to the planner/user, and do not place the procedure into the runbook before
+  explicit user approval. Continue other independent items while pending.
+- H5-8/H5-9 are ticket/document text only. Option 1 supersedes older H5-9 text:
+  always enter final chance; retire Only after from new input/editor/panel;
+  retain history columns; NO EHB parent-chance fix ticket. Preserve existing
+  production roll groups. Activity team size is informational, editable by Admins.
+- AU23 ordinary rate text includes N x rolls; advanced roll groups stay
+  SuperAdmin-only. Apply the final decided Catalogue layout, not earlier proposals.
+- No production-code changes except H6-1 Danish resource string. No H5 ticket
+  implementation, provider calls, production/user DB access or mutation,
+  deployment/rehearsal, push, merge, frozen-reference edits or UI integration.
+- Proof maps every finding to exact changed file:line; check evidence/path
+  integrity and named stale-phrase searches. Preserve real historical evidence;
+  sanitize secrets/personal data, do not invent absent evidence or provenance.
+- Expected activation edits: this file and durable review/decisions above.
+  Commit activation separately before item commits. Preserve unrelated changes.
+
+## Retained outcomes and gates
+
+- F1–F9, R-2 and G1–G6 passed Claude independent source review/recheck.
+- G accepted checkpoint: `576c661`; H original candidate: `f6b5bd9`.
+- Original H handoff and prior evidence:
   `docs/references/admin-ui/reviews/2026-10-03/doc-ticket-cleanup/h1-h7-final-handoff.md`.
-- Direct implementer: `/root/fix_batch_implementer`, `gpt-5.6-luna` / `max`.
-  No extra workers, chats, production access, provider calls, user-database
-  mutation, push, merge, deployment or rehearsal. Claude independently reviews.
-- Report to `/root` before every turn-ending response and on blockers/decisions;
-  no wait_threads or polling.
-
-## Completed implementation and review state
-
-- F1–F9 and R-2 passed Claude's independent source review at the accepted
-  checkpoints; Claude did not rerun tests. F1 records the user's one-time manual
-  banner cleanup, F2/F3 the Luck snapshot/conversion paths, F4 reset-token
-  reauthorization, F5 slug allocation, F6 late-end handling, F7 participant
-  versions, F8 AU13 planning estimate and F9 finalization validation.
-- R-1 remains a deployment blocker because a failed Luck conversion blocks this
-  release. R-3 remains unexecuted: the full `bingo-deploy` sequence must pass on
-  an isolated restored production backup and final candidate before deployment,
-  including the G4 `requires_fresh_order` backfill count.
-- G1–G6 passed Claude's named remediation recheck at `576c661`. Worker evidence
-  recorded C33 29/29, Draft Operations 56/56, Submission Workflow 79/79 and a
-  Release build with 0 warnings/errors; Claude did not rerun these checks.
-- H1 is committed at `6c7603f`: 63 sanitized durable evidence files totaling
-  137,885 bytes, with source inventory and omissions in
-  `docs/references/admin-ui/reviews/2026-10-03/doc-ticket-cleanup/h1/H1-evidence.md`.
-  The owning evidence pointers now use repository paths.
-- H2 is committed at `4c59b19d3810056b00f7cf92405d085614372623`; it reconciles
-  stale status/register wording, marks Dashboard prototype notes historical,
-  records committed F/Dashboard state, and adds the approved/proposed AU16–AU24
-  register. It does not start any ticket or change runtime behavior.
-- H3 is committed at `0fadc2f55558205b8c06f2075d06b7236e95d22d` and reconciles
-  the approved behavior documents. H4 is committed at
-  `de812b4de7825d8c30d32ce3b4863f866bd0090a` with the release readiness gate
-  and operator runbook. H5 is committed at
-  `f5bf0c20c8ac84ecb03226dbdd103aa9774e56e5` with ownership and proposed D8
-  integration routing; no H5 ticket was implemented.
-- H6 is committed at `eb129e5`, with focused evidence in
-  `docs/references/admin-ui/reviews/2026-10-03/doc-ticket-cleanup/h6-evidence.md`.
-  Its controlled PostgreSQL checks passed N-1/N-2 2/2, renamed roster checks
-  3/3, and Luck checks 3/3; the Release web build passed with 0 warnings and
-  0 errors. H7 is committed at `b11b6a1`; it touches only the approved
-  `CLAUDE.md` bullet and planner paragraph.
-
-## Protected scope and open choices
-
-- H1–H7 are implemented, checked and committed. H3 owns behavior-document
-  corrections; H4 owns release readiness; H5 owns ticket ownership; H6 owns
-  cosmetic test/comment cleanup plus N-1/N-2; H7 owns only the named
-  `CLAUDE.md` paragraph and bullet. No H5 ticket is implemented.
-- AU23's ordinary-input roll-count treatment remains an open product choice;
-  record it and do not infer a rule. D8 remains a proposed order for approval:
-  remaining AU tickets, then UI integration tickets, then final candidate, R-3
-  rehearsal and deploy. Nothing in this status starts that queue.
-- Existing user/operator facts and prior worker evidence are preserved as such;
-  this file does not claim production verification, manual acceptance or a fresh
-  full-suite run.
+- R-1: Luck conversion failure blocks deployment for this release.
+- R-3 remains unexecuted; procedure requires correction/approval before the
+  isolated final-candidate rehearsal and separately authorized production deploy.
+- D8 queue order remains proposed. Claude plans remaining batching/parallel work
+  after this review passes; nothing here starts AU/RC/UI tickets.
 
 ## Next permitted action
 
-Claude performs the independent named review of the stable H1–H7 commits. No
-further implementation is authorized in this handoff. Do not start AU/RC
-implementation, UI integration, R-3, cleanup beyond this brief, push or merge.
+Implementer commits activation documents, prepares H4-2 proposal early and sends
+it to `/root`, then fixes other named items while awaiting the user's decision.
+At round end report each finding, commit and exact evidence/line references;
+record unresolved H4 approval separately and stop for Claude's named recheck.
+Do not delete this file or claim a failed/blocked/unexecuted gate passed.
