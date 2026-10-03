@@ -749,8 +749,9 @@ Full-board completion is based on the immutable server submission time of the ev
 
 For teams that have not completed the full board, current-score completion time
 is the latest immutable completion time among their currently complete tiles;
-it is null when no tile is complete. It breaks ties only after equal completed
-lines, tiles and credited EHB. Reversals use surviving valid tile completions,
+it is null when no tile is complete. Under the AU12 new-events-only target it
+breaks ties after equal completed lines, tiles and credited EHB; the retained
+comparator places score time before EHB as specified above. Reversals use surviving valid tile completions,
 never the reversal/review clock. Existing full-board finish remains higher priority.
 Exact equality across all competitive inputs gives shared placement; no discretionary
 tie procedure or new manual timestamp correction is introduced.

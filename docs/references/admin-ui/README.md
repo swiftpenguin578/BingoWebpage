@@ -535,10 +535,11 @@ before implementation.
   - Imported participants have no account link, so tracked history starts
     with the first platform event. That event is marked "Tracking starts" and
     has no returning split.
-  - Unique participants equal the sum of first-time people by actual-start
-    cohort, so the headline and chart agree. Events with equal actual starts
-    share one cohort and a person is counted once in that cohort; do not sum
-    per-event first-time rows across mixed cohorts.
+  - Unique participants equal the sum of per-event first-time people except
+    when events share an actual start. Equal-start events share a cohort: a
+    person first seen in both appears as first-time in each event bar, but once
+    in the unique headline (unique **1**, first-time bars **1 + 1**). Do not sum
+    those equal-start bars to derive the unique headline.
 - **Approved submissions:** platform events only; reconstructed import rows
   are excluded. For an event in final review the count is current and may
   change.

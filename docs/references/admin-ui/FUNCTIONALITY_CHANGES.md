@@ -745,7 +745,9 @@ D10 remains deferred UI integration, not a backend-completion claim.
   eligible linked population. Unlinked platform records, if present, need explicit
   coverage handling rather than invented identity (see decisions below).
 - For comparable complete linked history, unique people equals the sum of
-  first-time people, and total participations equals the sum of event bar totals.
+  first-time people except for equal-actual-start events: one person new in both
+  gives unique **1**, but first-time **1 + 1** across their event bars. Total
+  participations equals the sum of event bar totals.
   Hiding/excluding an event must apply consistently when recomputing these sets.
 - Approved submissions use the real submission eligibility/source/status rules.
   Exclude reconstructed imported contribution rows; count records, not drop
