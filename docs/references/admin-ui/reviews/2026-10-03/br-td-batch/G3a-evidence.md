@@ -20,6 +20,9 @@ user database access are included.
 - `OnPostStartAsync` maps serialization failures at either locked boundary to
   the existing no-write draft-conflict response. The event and draft locks still
   serialize the authority decision before team validation and publication.
+- The existing event-lock boundary probe now matches the generated raw-SQL
+  wrapper by its `events` and `FOR UPDATE` markers rather than an EF alias
+  spelling, so the proof does not depend on provider-generated alias text.
 
 ## Controlled PostgreSQL checks
 
@@ -43,6 +46,10 @@ transaction, so it proves database blocking rather than task scheduling.
 - `RemovingDraftTeamAndStartSerializeInBothOrders`: passed 2 orderings after
   the shared draft-version write; existing removal and running/finalized
   refusal coverage also passed.
+- `DraftStartInterleavesWithSelectedCapacityAndAccountMutationAtTheRealBoundary`:
+  passed after the boundary probe was made independent of generated aliases;
+  the selected capacity/account mutation still completes before the held
+  Start transaction resumes.
 
 Build and focused PostgreSQL commands:
 

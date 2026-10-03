@@ -2380,8 +2380,8 @@ public sealed class DraftOperationsIntegrationTests : IAsyncLifetime
             DbDataReader result,
             CancellationToken cancellationToken = default)
         {
-            if (command.CommandText.Contains("FROM events AS e", StringComparison.Ordinal)
-                && command.CommandText.Contains("WHERE e.id =", StringComparison.Ordinal)
+            if (command.CommandText.Contains("events", StringComparison.OrdinalIgnoreCase)
+                && command.CommandText.Contains("FOR UPDATE", StringComparison.OrdinalIgnoreCase)
                 && Interlocked.CompareExchange(ref entered, 1, 0) == 0)
             {
                 Reached.TrySetResult();
