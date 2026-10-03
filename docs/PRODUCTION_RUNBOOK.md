@@ -224,60 +224,79 @@ receipt writing fail.
 
 ## Release-readiness checklist — 3 October 2026
 
-Run this checklist against the exact release candidate and its restored
-production backup immediately before a deploy. The 3 October entries are
-sanitized user/operator records; the agent did not access production, call an
-object provider, or execute the deployment. Record the candidate SHA, exact
-migration history, check timestamp, and command output in the release receipt.
+These are release-gate requirements, not authorization to access production or
+execute R3. Read-only production checks require separately authorized operator
+access. Migration, conversion, Down/Up and rehearsal checks run on isolated
+restored copies only under an approved procedure; production deployment has its
+own authorization. The 3 October entries are operator-reported, not agent-verified.
+Record candidate/image identity, exact migration history, timestamp and outcomes.
+**H4-2: the former instruction to invoke host `bingo-deploy` for an isolated copy
+was unsafe and is withdrawn. Do not execute it.** The [separate proposal](references/admin-ui/reviews/2026-10-04/cleanup-remediation/r3-isolation-proposal.md)
+is awaiting user approval and is not an approved runbook procedure.
 
-1. **Banner cleanup (X-1/F1).** Before `--migrate`, perform the exact-key
-   reference checks and the targeted reference-clear/version-increment plus
-   asset-row deletion described in [Event-banner retirement](#event-banner-retirement-one-time-manual-cleanup-path).
-   Confirm that the exact object is not shared by evidence, team, or tile-image
-   references before deleting only that object. The user reported one cleared
-   reference, one deleted asset row, zero legacy rows outside the transaction,
-   and exact object deletion on 3 October; these facts are not agent-verified.
-   If any check differs, stop and reconcile in a controlled transaction. If a
-   later migration or deployment step fails after object deletion, use a
-   separate provider backup or object version; the database backup cannot
-   restore object bytes.
-2. **Luck v1 conversion (LK-2/R-1).** After `--migrate` succeeds and before
-   preflight or web replacement, run:
+1. **Banner cleanup verification only (X-1/F1).** The one-time deletion was
+   reported complete on 3 October. Record exact migration history first. If
+   `20260926233834_RetireEventBanners` is pending and legacy schema exists, verify:
 
-   ```sh
-   docker compose run --rm --no-deps web --convert-luck-checkpoints
+   ```sql
+   SELECT COUNT(*) FROM event_banner_assets;
+   SELECT COUNT(*) FROM event_banner_cleanups;
+   SELECT COUNT(*) FROM events WHERE banner_asset_id IS NOT NULL;
    ```
+
+   Require zero for both tables and event references. If the migration is already
+   applied, verify its history entry and expected dropped tables/column instead;
+   do not run queries against absent schema or treat that error as a zero count.
+   Unexpected rows or schema/history mismatch stop the release for an operator
+   decision. This checklist does **not** authorize another reference/asset/object
+   deletion or any provider access from a rehearsal. The [one-time record](#event-banner-retirement-one-time-manual-cleanup-path)
+   preserves the historical cleanup/recovery boundary; a DB backup contains no
+   object bytes. No new cleanup result is claimed here.
+2. **Luck v1 conversion (LK-2/R-1).** After `--migrate` succeeds and before
+   preflight or web replacement, run the exact candidate's `--convert-luck-checkpoints` stage using the explicitly
+   isolated harness once approved. The production deployment wrapper already
+   invokes this stage; do not run an unqualified Compose command from this checklist.
 
    Require `Could not convert=0` and a zero exit status. A failed conversion
    leaves the v1 row unchanged and blocks the release; R-1 remains blocked in
    the 3 October record. Do not relabel the row or use newer provider data as
    a shortcut.
-3. **Current-cycle completion corrections (BR-7).** Record the current-cycle
-   UTC boundary, then run:
+3. **All retained completion corrections (BR-7).** Count all retained rows;
+   this avoids a nonexistent global review-cycle start across multiple events:
 
    ```sql
-   SELECT COUNT(*)
-   FROM team_completion_corrections
-   WHERE recorded_at >= :current_cycle_start_utc;
+   SELECT COUNT(*) FROM team_completion_corrections;
    ```
 
-   The recorded production result is `0` (operator evidence, not
-   agent-verified). Any nonzero result stops the release for investigation;
-   current readiness and ranking ignore retained correction rows, and history
-   or official snapshots must not be rewritten.
-4. **Published boards without roster publication (BR-11).** Run:
+   The user's earlier check reported zero on 3 October; that is not verification
+   of this corrected all-rows query. Re-run and record the count. Any nonzero
+   count stops the release for investigation because current readiness/ranking
+   ignore retained corrections; do not rewrite history or official snapshots.
+4. **Published boards without active finalized roster publication (BR-11).**
+   Match `DraftPublicationQueries.ActiveRosterPublications`, not an event flag:
 
    ```sql
    SELECT COUNT(*)
-   FROM events e
-   JOIN boards b ON b.event_id = e.id
+   FROM boards b
    WHERE b.state = 'Published'
-     AND e.team_rosters_published IS NOT TRUE;
+     AND NOT EXISTS (
+       SELECT 1
+       FROM draft_publication_cycles c
+       JOIN draft_sessions d ON d.id = c.draft_session_id
+       WHERE d.event_id = b.event_id
+         AND d.state = 'Finalized'
+         AND c.superseded_at IS NULL
+         AND EXISTS (
+           SELECT 1 FROM draft_publication_rosters r
+           WHERE r.draft_publication_cycle_id = c.id
+         )
+     );
    ```
 
-   The recorded production result is `0` (operator evidence, not
-   agent-verified). Any nonzero result stops the release until the existing
-   roster-publication lifecycle is reconciled.
+   The 3 October zero was from the user's earlier check, not this corrected query.
+   It must be re-run. A Finalized draft, unsuperseded cycle and at least one roster
+   row are all required; a true `team_rosters_published` flag proves none of them.
+   Any nonzero result stops release for roster-lifecycle reconciliation.
 5. **Future-effective account switches.** At the recorded check time, run:
 
    ```sql
@@ -291,15 +310,34 @@ migration history, check timestamp, and command output in the release receipt.
    handoff, so this check remains unknown until the operator runs it. Any row
    requires a deterministic decision that preserves submitted attribution and
    historical transitions; do not silently cancel, rewrite, or backdate it.
-6. **R-3 final-candidate rehearsal.** Restore an isolated copy of the exact
-   production backup with the [backup and restore procedure](#backup-and-restore),
-   verify its migration history, and run the complete `bingo-deploy` sequence
-   with the final candidate immediately before deployment. Include the
-   authoritative backup, migrations, Luck conversion, production preflight,
-   web replacement, and health checks. This rehearsal is unexecuted in the
-   3 October record and remains a release blocker. A failure keeps the service
-   stopped under the rollback boundary and requires the full-restore path when
-   migration history is uncertain.
+6. **G4 cancelled-draft restart migration.** On the isolated restored baseline,
+   before applying `20261003184632_AllowCancelledDraftRestart`, record:
+
+   ```sql
+   SELECT COUNT(*) FROM draft_sessions
+   WHERE state = 'Setup' AND first_pick_recorded_at IS NOT NULL;
+   ```
+
+   Capture the eligible row identities privately for set comparison (no participant
+   data in committed evidence). After migration and before web/workers start,
+   require that the exact same eligible set has `requires_fresh_order = true` and
+   that its count matches; check untouched ineligible rows retain the default false.
+   If the migration was already applied in the backup, report that fact and the
+   current counts; do not mislabel them as a newly observed backfill.
+   On a separate disposable baseline clone, verify **Down** removes only the new
+   column and the matching migration-history entry without deleting draft rows or
+   `first_pick_recorded_at`; then re-Up restores the column and eligible backfill.
+   Resolve the exact predecessor/tooling and any later migrations in the approved
+   rehearsal harness. Never downgrade production or the primary rehearsal copy.
+   Counts and Down/Up execution are unknown/unexecuted here and required for R3.
+7. **R-3 final-candidate rehearsal — blocked pending procedure approval.** The
+   [H4-2 proposal](references/admin-ui/reviews/2026-10-04/cleanup-remediation/r3-isolation-proposal.md)
+   defines a reviewable isolated approach and its limitations. It is not adopted
+   here. Never invoke the host `bingo-deploy` wrapper on the live host for a rehearsal:
+   it reads `/etc/bingo`, stops web and targets production configuration. Restored
+   credentials/workers must not reach WOM/R2 or other real providers. R3 remains
+   unexecuted and deployment blocked until the user approves the procedure and
+   separately authorized final-candidate execution passes all required stages.
 
 ## Event-banner retirement (one-time manual cleanup path)
 
@@ -316,7 +354,9 @@ No event identifier, object key, image, or participant data is recorded here.
 
 The migration identity is `20260926233834_RetireEventBanners`. The selected
 rollout does not add an automated object-cleanup command or retain a general
-cleanup ledger. Before invoking `bingo-deploy`, an operator must:
+cleanup ledger. The sequence below records the one-time authorized cleanup path;
+it is not a repeat release-checklist instruction. Any unexpected new assets need
+separate operator authorization, and none of these provider steps run in R3:
 
 1. Record the deployed release, exact migration history, target migration, and
    the exact production object/reference checks. These release-time facts are
