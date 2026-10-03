@@ -295,6 +295,11 @@ public sealed class ParticipantFlowIntegrationTests : IAsyncLifetime
         }
         var waiterB = await AddWaiterAsync("Waiter B");
         await using var factory = Factory();
+        using var adminClient = Client(factory);
+        await LoginAsync(adminClient, admin);
+        var adminParticipantsHtml = await adminClient.GetStringAsync($"/Admin/Events/Participants/{item.Id}");
+        Assert.Contains("data-confirmed=\"2\"", adminParticipantsHtml, StringComparison.Ordinal);
+        Assert.Contains("data-waiting=\"2\"", adminParticipantsHtml, StringComparison.Ordinal);
         using var anonymous = Client(factory);
         var html = await anonymous.GetStringAsync($"/Events/{item.Slug}/Signups");
         var waitingRows = Regex.Matches(html, "<th scope=\"row\" data-label=\"Position\">(\\d+)</th>").Select(x => x.Groups[1].Value).ToArray();
@@ -310,11 +315,57 @@ public sealed class ParticipantFlowIntegrationTests : IAsyncLifetime
             Assert.True((await new SignupService(db, new SecretHasher(), new FixedClock(now)).WithdrawAsync(item.Id, first.Id, admin.Id, admin.LoginName, true)).Succeeded);
         }
         await using var verify = new ApplicationDbContext(options);
-        Assert.Equal(SignupStatus.Confirmed, (await verify.EventParticipants.FindAsync(waiterA))!.SignupStatus);
+        // The manual-team participant still consumes the only confirmed place;
+        // withdrawing the other confirmed participant cannot promote a waiter.
+        Assert.Equal(SignupStatus.WaitingList, (await verify.EventParticipants.FindAsync(waiterA))!.SignupStatus);
         Assert.Equal(SignupStatus.WaitingList, (await verify.EventParticipants.FindAsync(waiterB))!.SignupStatus);
         Assert.Equal(new long[] { 1, 2, 3, 4 }, await verify.EventParticipants.OrderBy(x => x.SignupSequence).Select(x => x.SignupSequence).ToArrayAsync());
         html = await anonymous.GetStringAsync($"/Events/{item.Slug}/Signups");
-        Assert.Equal<string>(["01"], Regex.Matches(html, "<th scope=\"row\" data-label=\"Position\">(\\d+)</th>").Select(x => x.Groups[1].Value).ToArray());
+        Assert.Equal<string>(["01", "02"], Regex.Matches(html, "<th scope=\"row\" data-label=\"Position\">(\\d+)</th>").Select(x => x.Groups[1].Value).ToArray());
+    }
+
+    [Fact]
+    public async Task CapacityDoesNotChangeWhenAIncludedTeamBecomesManualOrIsRestored()
+    {
+        var admin = Website($"capacity-inclusion-admin-{Guid.NewGuid():N}", GlobalRole.Admin);
+        var item = new BingoEvent(Guid.NewGuid(), "Capacity inclusion event", $"capacity-inclusion-{Guid.NewGuid():N}", "UTC", admin.Id, now.AddDays(-3));
+        item.ConfigureInitialSchedule(now.AddDays(-2), now.AddDays(-1), null, now.AddHours(1), now.AddHours(4), 2);
+        item.MarkFirstPublic(now.AddDays(-2));
+        item.OpenSignups(now.AddDays(-2));
+        item.CloseSignups(now.AddDays(-1));
+        var team = new Team(Guid.NewGuid(), item.Id, "Switchable team", "switchable-team", TeamFormationType.Drafted, null, true);
+        var draft = new DraftSession(Guid.NewGuid(), item.Id, 1);
+        var confirmed = new EventParticipant(Guid.NewGuid(), item.Id, SignupStatus.Confirmed, 1, now.AddMinutes(-3), SignupSource.AdminCreated);
+        var secondConfirmed = new EventParticipant(Guid.NewGuid(), item.Id, SignupStatus.Confirmed, 2, now.AddMinutes(-2), SignupSource.AdminCreated);
+        var waiter = new EventParticipant(Guid.NewGuid(), item.Id, SignupStatus.Confirmed, 3, now.AddMinutes(-1), SignupSource.AdminCreated);
+        waiter.MoveToWaiting(3, now.AddMinutes(-1));
+        var membership = new TeamMembership(Guid.NewGuid(), team.Id, confirmed.Id, TeamMembershipRole.Participant, now.AddMinutes(-2), null, "seed");
+        await using (var seed = new ApplicationDbContext(options))
+        {
+            seed.AddRange(admin, item, team, draft, confirmed, secondConfirmed, waiter, membership);
+            await seed.SaveChangesAsync();
+        }
+
+        await using (var manual = new ApplicationDbContext(options))
+        {
+            (await manual.Teams.SingleAsync(value => value.Id == team.Id)).SetIncludedInDraft(false);
+            await manual.SaveChangesAsync();
+            var promoted = await new SignupService(manual, new SecretHasher(), new FixedClock(now)).PromoteAvailablePlacesAsync(item.Id);
+            Assert.Equal(0, promoted);
+        }
+        await using (var afterManual = new ApplicationDbContext(options))
+        {
+            Assert.Equal(2, await afterManual.EventParticipants.CountAsync(value => value.EventId == item.Id && value.SignupStatus == SignupStatus.Confirmed));
+            Assert.Equal(SignupStatus.WaitingList, await afterManual.EventParticipants.Where(value => value.Id == waiter.Id).Select(value => value.SignupStatus).SingleAsync());
+            (await afterManual.Teams.SingleAsync(value => value.Id == team.Id)).SetIncludedInDraft(true);
+            await afterManual.SaveChangesAsync();
+            var promoted = await new SignupService(afterManual, new SecretHasher(), new FixedClock(now)).PromoteAvailablePlacesAsync(item.Id);
+            Assert.Equal(0, promoted);
+        }
+        await using var verify = new ApplicationDbContext(options);
+        Assert.Equal(2, await verify.EventParticipants.CountAsync(value => value.EventId == item.Id && value.SignupStatus == SignupStatus.Confirmed));
+        Assert.Equal(SignupStatus.WaitingList, await verify.EventParticipants.Where(value => value.Id == waiter.Id).Select(value => value.SignupStatus).SingleAsync());
+        Assert.True(await verify.Teams.Where(value => value.Id == team.Id).Select(value => value.IncludedInDraft).SingleAsync());
     }
 
     [Theory]

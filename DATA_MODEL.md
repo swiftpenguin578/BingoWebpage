@@ -876,7 +876,7 @@ open_places = participant_cap - confirmed_count
 promote the first open_places waiting-list records
 ```
 
-Capacity is editable before team-draft lock and cannot fall below Confirmed count. Ordinary increases promote earliest eligible waiters atomically with the capacity write, audit and notifications. F01–F04 explicit selected-person +1 exceptions never promote anyone else. Waiting remains enabled while open.
+Capacity is editable before team-draft lock and cannot fall below the Confirmed count across all event participants, regardless of team inclusion or manual-team membership. Manual-team membership never frees a signup place; manual teams still consume no draft turns. Ordinary increases promote earliest eligible waiters atomically with the capacity write, audit and notifications. F01–F04 explicit selected-person +1 exceptions never promote anyone else. Waiting remains enabled while open.
 
 The participant cap can be increased but not lowered. If signups close below the cap, the confirmed participants at that time are simply the available participant pool.
 

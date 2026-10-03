@@ -2481,7 +2481,7 @@ public sealed partial class SignupService(
                 .FromSqlInterpolated($"SELECT * FROM event_participants WHERE id = {request.ParticipantId} AND event_id = {request.EventId} FOR UPDATE")
                 .SingleOrDefaultAsync(cancellationToken);
             if (participant is null) return new(false, "The participant could not be found.");
-            if (!await SignupParticipants(request.EventId).AnyAsync(x => x.Id == participant.Id, cancellationToken))
+            if (!await DirectSignupParticipants(request.EventId).AnyAsync(x => x.Id == participant.Id, cancellationToken))
                 return new(false, "That participant is managed by the finalized/direct roster workflow.");
             if (participant.ResponseVersion != request.ExpectedResponseVersion.Value)
                 return new(false, "This participant changed while you were editing it. Reload before confirming it.");
@@ -2563,7 +2563,7 @@ public sealed partial class SignupService(
                 .FromSqlInterpolated($"SELECT * FROM event_participants WHERE id = {request.ParticipantId} AND event_id = {request.EventId} FOR UPDATE")
                 .SingleOrDefaultAsync(cancellationToken);
             if (participant is null) return new(false, "The participant could not be found.");
-            if (!await SignupParticipants(request.EventId).AnyAsync(x => x.Id == participant.Id, cancellationToken))
+            if (!await DirectSignupParticipants(request.EventId).AnyAsync(x => x.Id == participant.Id, cancellationToken))
                 return new(false, "That participant is managed by the finalized/direct roster workflow.");
             if (participant.ResponseVersion != request.ExpectedResponseVersion.Value)
                 return new(false, "This participant changed while you were editing it. Reload before moving it.");
@@ -2742,7 +2742,7 @@ public sealed partial class SignupService(
             if (!CanAdministerParticipants(bingoEvent)) return new(false, "Participant lifecycle changes are locked because the draft has started or the event has moved on.");
             if (bingoEvent.Version != request.ExpectedEventVersion.Value)
                 return new(false, "The event changed while you were editing it. Reload before restoring the participant.");
-            if (!await SignupParticipants(request.EventId).AnyAsync(x => x.Id == participant.Id, cancellationToken))
+            if (!await DirectSignupParticipants(request.EventId).AnyAsync(x => x.Id == participant.Id, cancellationToken))
                 return new(false, "That participant is managed by the finalized/direct roster workflow.");
             if (validation.ExpectedVersion is { } expectedVersion && participant.ResponseVersion != expectedVersion)
                 return new(false, "This participant changed while you were editing it. Reload and try again.");
@@ -2902,8 +2902,16 @@ public sealed partial class SignupService(
         return waiting.Count;
     }
 
+    // Capacity and waiting-list decisions apply to every event participant. A
+    // manual roster membership changes draft participation, not signup capacity.
     private IQueryable<EventParticipant> SignupParticipants(Guid eventId) =>
-        dbContext.EventParticipants.Where(participant => participant.EventId == eventId &&
+        dbContext.EventParticipants.Where(participant => participant.EventId == eventId);
+
+    // Selected signup administration operations still reject participants owned
+    // by the finalized/direct-roster workflow. Keep that workflow distinction
+    // separate from capacity counting.
+    private IQueryable<EventParticipant> DirectSignupParticipants(Guid eventId) =>
+        SignupParticipants(eventId).Where(participant =>
             !dbContext.TeamMemberships.Any(membership => membership.EventParticipantId == participant.Id && membership.LeftAt == null &&
                 dbContext.Teams.Any(team => team.Id == membership.TeamId && team.EventId == eventId && team.Active && !team.IncludedInDraft)));
 

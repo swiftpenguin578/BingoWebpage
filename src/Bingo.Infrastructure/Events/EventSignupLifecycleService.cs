@@ -354,10 +354,10 @@ public sealed class EventSignupLifecycleService(ApplicationDbContext db, IEventR
         return waiting.Count;
     }
 
+    // Manual roster membership does not remove an event participant from the
+    // signup capacity calculation. Team inclusion still controls draft turns.
     private IQueryable<EventParticipant> SignupParticipants(Guid eventId) =>
-        db.EventParticipants.Where(participant => participant.EventId == eventId &&
-            !db.TeamMemberships.Any(membership => membership.EventParticipantId == participant.Id && membership.LeftAt == null &&
-                db.Teams.Any(team => team.Id == membership.TeamId && team.EventId == eventId && team.Active && !team.IncludedInDraft)));
+        db.EventParticipants.Where(participant => participant.EventId == eventId);
     internal static async Task<string?> ValidateScheduleChangeAsync(ApplicationDbContext db, BingoEvent item, EventScheduleValues values, DateTimeOffset now, DraftState? draftState, bool confirmChanges, string? reason, CancellationToken ct, WiseOldManCompetition? proposedCompetition = null)
     {
         now = now.ToUniversalTime();

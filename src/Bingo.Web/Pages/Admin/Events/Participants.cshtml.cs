@@ -317,6 +317,10 @@ public sealed class ParticipantsModel(
                 !db.TeamMemberships.Any(membership => membership.EventParticipantId == item.Id && membership.LeftAt == null &&
                     db.Teams.Any(team => team.Id == membership.TeamId && team.EventId == id && team.Active && !team.IncludedInDraft)))
             .OrderBy(item => item.SignedUpAt).ThenBy(item => item.SignupSequence).ToListAsync(ct);
+        var capacityConfirmedCount = await db.EventParticipants.AsNoTracking()
+            .CountAsync(item => item.EventId == id && item.SignupStatus == SignupStatus.Confirmed, ct);
+        var capacityWaitingCount = await db.EventParticipants.AsNoTracking()
+            .CountAsync(item => item.EventId == id && item.SignupStatus == SignupStatus.WaitingList, ct);
         if (TryGetTempData()?.Peek("WomValidationConfirmationToken") is string pendingValidation)
             InternalParticipant.WomValidationConfirmationToken = pendingValidation;
         ActiveSignupQuestions = await db.SignupQuestions.AsNoTracking().Where(item => item.EventId == id && item.Active).OrderBy(item => item.Position)
@@ -388,7 +392,7 @@ public sealed class ParticipantsModel(
         }).ToList();
 
         Event = new EventView(bingoEvent.Id, bingoEvent.Name, bingoEvent.State, bingoEvent.DraftLocked, bingoEvent.ParticipantCap ?? 0,
-            allParticipants.Count(item => item.SignupStatus == SignupStatus.Confirmed), waiting.Count, true, bingoEvent.Version,
+            capacityConfirmedCount, capacityWaitingCount, true, bingoEvent.Version,
             bingoEvent.RequireSignupCode, bingoEvent.SignupCodeHash is not null,
             !bingoEvent.DraftLocked && bingoEvent.State is (EventState.Draft or EventState.SignupOpen or EventState.SignupClosed));
         SignupAdministration = new SignupAdministrationInput { ParticipantCap = bingoEvent.ParticipantCap ?? 1, WaitingListEnabled = true, Version = bingoEvent.Version };

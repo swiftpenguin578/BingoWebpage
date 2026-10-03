@@ -1016,6 +1016,58 @@ public sealed class DraftOperationsIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task ManualRosterAdditionRequiresConfirmedParticipantAndStopsWhenDraftRuns()
+    {
+        var setup = await SeedAsync();
+        var manualTeamName = $"Manual capacity {Guid.NewGuid():N}"[..30];
+        await ExecuteAsync(setup.EventId, setup.FirstAdminId, page => page.OnPostAddTeamAsync(
+            setup.EventId, manualTeamName, TeamFormationType.Preformed, null, CancellationToken.None, false, false));
+        var manualTeamId = await TeamIdAsync(setup.EventId, manualTeamName);
+
+        await using (var seed = new ApplicationDbContext(options))
+        {
+            var waiter = await seed.EventParticipants.SingleAsync(value => value.Id == setup.PlayerIds[3]);
+            waiter.MoveToWaiting(5, now);
+            await seed.SaveChangesAsync();
+        }
+        await ExecuteAsync(setup.EventId, setup.FirstAdminId, page => page.OnPostAddMemberAsync(
+            setup.EventId, manualTeamId, setup.PlayerIds[3], "Waiting participant", CancellationToken.None));
+        await using (var afterWaiting = new ApplicationDbContext(options))
+        {
+            Assert.Equal(SignupStatus.WaitingList, await afterWaiting.EventParticipants.Where(value => value.Id == setup.PlayerIds[3]).Select(value => value.SignupStatus).SingleAsync());
+            Assert.False(await afterWaiting.TeamMemberships.AnyAsync(value => value.TeamId == manualTeamId && value.EventParticipantId == setup.PlayerIds[3] && value.LeftAt == null));
+        }
+
+        await using (var restore = new ApplicationDbContext(options))
+        {
+            (await restore.EventParticipants.SingleAsync(value => value.Id == setup.PlayerIds[3])).Promote(now);
+            await restore.SaveChangesAsync();
+        }
+        await ExecuteAsync(setup.EventId, setup.FirstAdminId, page => page.OnPostAddMemberAsync(
+            setup.EventId, manualTeamId, setup.PlayerIds[2], "Manual participant", CancellationToken.None));
+        await ExecuteAsync(setup.EventId, setup.FirstAdminId, page => page.OnPostAcquireControlAsync(setup.EventId, CancellationToken.None));
+        await ExecuteAsync(setup.EventId, setup.FirstAdminId, page => page.OnPostStartAsync(setup.EventId, CancellationToken.None));
+        await ExecuteAsync(setup.EventId, setup.FirstAdminId, page => page.OnPostAddMemberAsync(
+            setup.EventId, manualTeamId, setup.PlayerIds[3], "Running draft participant", CancellationToken.None));
+
+        await using var verify = new ApplicationDbContext(options);
+        Assert.Equal(DraftState.Running, await verify.DraftSessions.Where(value => value.EventId == setup.EventId).Select(value => value.State).SingleAsync());
+        Assert.True(await verify.TeamMemberships.AnyAsync(value => value.TeamId == manualTeamId && value.EventParticipantId == setup.PlayerIds[2] && value.LeftAt == null));
+        Assert.False(await verify.TeamMemberships.AnyAsync(value => value.TeamId == manualTeamId && value.EventParticipantId == setup.PlayerIds[3] && value.LeftAt == null));
+        Assert.Equal(1, await verify.TeamMemberships.CountAsync(value => value.TeamId == manualTeamId && value.LeftAt == null));
+
+        DraftModel? loaded = null;
+        await ExecuteAsync(setup.EventId, setup.FirstAdminId, async page =>
+        {
+            loaded = page;
+            return await page.OnGetAsync(setup.EventId, null, CancellationToken.None);
+        });
+        Assert.NotNull(loaded?.Distribution);
+        Assert.Equal(3, loaded!.Distribution!.IncludedParticipants);
+        Assert.Equal(1, loaded.AvailableCount);
+    }
+
+    [Fact]
     public async Task MalformedPostedRoleIsRejectedBeforeMemberOrExternalWrites()
     {
         var setup = await SeedAsync();
