@@ -17,6 +17,24 @@ public sealed class TeamAndDraftRulesTests
     }
 
     [Fact]
+    public void CancelledPickedAttemptRequestsFreshOrderWithoutClearingHistory()
+    {
+        var at = DateTimeOffset.UtcNow;
+        var draft = new DraftSession(Guid.NewGuid(), Guid.NewGuid(), 2);
+        draft.Start(at);
+        draft.RecordFirstPick(at);
+
+        draft.ReturnToSetup();
+
+        Assert.Equal(DraftState.Setup, draft.State);
+        Assert.Equal(at, draft.FirstPickRecordedAt);
+        Assert.True(draft.RequiresFreshOrder);
+        draft.Start(at.AddMinutes(1));
+        draft.RecordFirstPick(at.AddMinutes(2));
+        Assert.False(draft.RequiresFreshOrder);
+    }
+
+    [Fact]
     public void TeamSlugRemainsStableWhenMetadataIsUpdated()
     {
         var team = new Team(Guid.NewGuid(), Guid.NewGuid(), "Old", "stable-slug", TeamFormationType.Drafted, null, true);

@@ -16,6 +16,7 @@ public sealed class DraftSession
     public DateTimeOffset? ControllerLeaseExpiresAt { get; private set; }
     public long ControlVersion { get; private set; }
     public DateTimeOffset? FirstPickRecordedAt { get; private set; }
+    public bool RequiresFreshOrder { get; private set; }
     public long Version { get; private set; } = 1;
     [Obsolete("Draft sizing is derived from participants and active drafted teams.")]
     public void ConfigureTargetSize(int size) => throw new InvalidOperationException("Draft team size is derived and cannot be configured.");
@@ -54,13 +55,18 @@ public sealed class DraftSession
     public void ReturnToSetup()
     {
         if (State is not (DraftState.Running or DraftState.Paused)) throw new InvalidOperationException("Only an active private draft can return to setup.");
+        RequiresFreshOrder = FirstPickRecordedAt is not null;
         State = DraftState.Setup;
         LockedAt = null;
         ControllerAccountId = null;
         ControllerLeaseExpiresAt = null;
         ControlVersion++;
     }
-    public void RecordFirstPick(DateTimeOffset now) => FirstPickRecordedAt ??= now.ToUniversalTime();
+    public void RecordFirstPick(DateTimeOffset now)
+    {
+        FirstPickRecordedAt ??= now.ToUniversalTime();
+        RequiresFreshOrder = false;
+    }
     public void AdvanceVersion() => Version++;
     public bool HasActiveController(DateTimeOffset now) => ControllerAccountId is not null && ControllerLeaseExpiresAt > now.ToUniversalTime();
     public Guid? AcquireControl(Guid accountId, DateTimeOffset now, TimeSpan leaseDuration, bool force = false)

@@ -19,8 +19,9 @@
   G5 finalized Add roles; G6 current public role labels.
 - G3a and G3b each get a separate commit. Every item needs scoped executable
   checks, durable evidence and a local commit; no independent PASS claim yet.
-- G4's explicit history/contract decision stop remains in force. Report the
-  proposal and continue independent items if that stop is reached.
+- G4 uses the preferred full-Setup restart: `RequiresFreshOrder` preserves
+  cancelled pick history while permitting fresh positions, scrambling and
+  preassignment on the next attempt. The existing history assertions remain.
 - No push, merge, deployment, production access, live provider calls or mutation
   of user-owned databases. Controlled PostgreSQL fixtures only.
 - Preserve frozen references (canvas 42 / artifact `1790965722-e7ad`).
@@ -42,17 +43,19 @@
   recorded in `docs/references/admin-ui/reviews/2026-10-03/br-td-batch/G2-evidence.md`.
   G3a is implemented and committed as `a8a6c24`; evidence is recorded in
   `docs/references/admin-ui/reviews/2026-10-03/br-td-batch/G3a-evidence.md`.
-  G3b is implemented and focused-tested in the current worktree; evidence is
-  recorded in `docs/references/admin-ui/reviews/2026-10-03/br-td-batch/G3b-evidence.md`.
-  Claude's independent review is pending. G3b is ready for its scoped local
-  commit; G4 is next after that checkpoint.
+  G3b is implemented and committed as `56020b8`; evidence is recorded in
+  `docs/references/admin-ui/reviews/2026-10-03/br-td-batch/G3b-evidence.md`.
+  G4 is implemented and focused-tested in the current worktree; its evidence
+  is recorded in `docs/references/admin-ui/reviews/2026-10-03/br-td-batch/G4-evidence.md`.
+  Claude's independent review is pending. G4 is ready for its scoped local
+  commit; G5 is next after that checkpoint.
 - Standing scoped per-item local commit authority is confirmed; no push authority.
 
 ## Next permitted action
 
-Implementer has committed G3a and must commit G3b after staged-diff inspection,
-then implements and checks G4–G6 against the durable brief and cited
-decisions/reports. Update this handoff with concise progress and evidence links.
+Implementer must commit G4 after staged-diff inspection, then implement and
+check G5–G6 against the durable brief and cited decisions/reports. Update this
+handoff with concise progress and evidence links.
 At batch end report per-item commits,
 checks, deviations and unresolved decisions, then stop for Claude's review.
 Do not start the separate ticket/documentation cleanup or another ticket.

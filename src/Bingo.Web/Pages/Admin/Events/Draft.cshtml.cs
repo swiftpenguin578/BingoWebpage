@@ -359,7 +359,7 @@ public sealed class DraftModel(ApplicationDbContext db, TimeProvider time, IAudi
         var draft = await db.DraftSessions.SingleAsync(x => x.EventId == id, ct);
         if (draft.State != DraftState.Running) { SetStatus(Localize("The draft is not ready to scramble."), UiMessageType.Error); return RedirectToPage(new { id }); }
         if (!RequireControl(draft, id)) return RedirectToPage(new { id });
-        if (draft.FirstPickRecordedAt is not null)
+        if (draft.FirstPickRecordedAt is not null && !draft.RequiresFreshOrder)
         {
             SetStatus(Localize("The team order cannot be changed after the first pick."), UiMessageType.Error);
             return RedirectToPage(new { id });
@@ -423,7 +423,7 @@ public sealed class DraftModel(ApplicationDbContext db, TimeProvider time, IAudi
             var derived = await DeriveDraftState(id, teams, null, ct);
             if (derived.Blockers.Count != 0) { SetStatus(string.Join(" ", derived.Blockers), UiMessageType.Error); return RedirectToPage(new { id }); }
             var before = new { draft = DraftAuditState(draft), bingoEvent.DraftLocked, teams = TeamOrderAuditState(teams) };
-            if (draft.FirstPickRecordedAt is null)
+            if (draft.FirstPickRecordedAt is null || draft.RequiresFreshOrder)
                 foreach (var team in teams) team.SetDraftPosition(null);
             if (draft.HasActiveController(now)) draft.RenewControl(AdminId, now, DraftControlLease.Duration);
             else draft.AcquireControl(AdminId, now, DraftControlLease.Duration);
@@ -845,7 +845,9 @@ public sealed class DraftModel(ApplicationDbContext db, TimeProvider time, IAudi
         : status is "Pending" or "Sending" or "Retry" ? UiMessageType.Warning : UiMessageType.Error;
     private bool CanDirectDraftedSetupAssignment(Bingo.Domain.Events.BingoEvent bingoEvent, DraftSession? draft) =>
         CanDirectPreEventRosterMutation(bingoEvent)
-        && draft is { FirstPickRecordedAt: null, State: DraftState.Setup or DraftState.Running };
+        && draft is { State: DraftState.Setup }
+            or { State: DraftState.Running, FirstPickRecordedAt: null }
+            or { State: DraftState.Running, RequiresFreshOrder: true };
     private async Task<Dictionary<Guid, string>> FrozenPublicNamesAsync(Guid eventId, IEnumerable<Guid> participantIds, DateTimeOffset publishedAt, CancellationToken ct)
     {
         var ids = participantIds.Distinct().ToList();
@@ -923,7 +925,7 @@ public sealed class DraftModel(ApplicationDbContext db, TimeProvider time, IAudi
         // This is a render-only draft; the first POST creates the persisted session.
         draft ??= new DraftSession(Guid.NewGuid(), id, 1);
 
-        Draft = new(draft.Id, draft.State, draft.FirstPickRecordedAt is not null);
+        Draft = new(draft.Id, draft.State, draft.FirstPickRecordedAt is not null && !draft.RequiresFreshOrder);
         var teams = await db.Teams.AsNoTracking().Where(x => x.EventId == id && x.Active).OrderBy(x => x.IncludedInDraft ? 0 : 1).ThenBy(x => x.DraftPosition).ThenBy(x => x.Name).ToListAsync(ct);
         var memberships = await db.TeamMemberships.AsNoTracking().Where(x => x.LeftAt == null && teams.Select(t => t.Id).Contains(x.TeamId)).ToListAsync(ct);
         var assignedParticipantIds = memberships.Select(x => x.EventParticipantId).ToList();
@@ -1110,7 +1112,7 @@ public sealed class DraftModel(ApplicationDbContext db, TimeProvider time, IAudi
     }
     private static JsonElement AuditText(string value) => JsonSerializer.Serialize(value).Length <= 200 ? JsonSerializer.SerializeToElement(value)
         : JsonSerializer.SerializeToElement(new { Preview = value[..Math.Min(value.Length, 40)], value.Length, Truncated = true, Sha256 = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value))) });
-    private static object DraftAuditState(DraftSession draft) => new { State = draft.State.ToString(), draft.LockedAt, draft.FirstPickRecordedAt, draft.ControllerAccountId, draft.ControllerLeaseExpiresAt, draft.ControlVersion };
+    private static object DraftAuditState(DraftSession draft) => new { State = draft.State.ToString(), draft.LockedAt, draft.FirstPickRecordedAt, draft.RequiresFreshOrder, draft.ControllerAccountId, draft.ControllerLeaseExpiresAt, draft.ControlVersion };
     private static object PickAuditState(DraftSession draft, DraftPick pick, TeamMembership membership) => new
     {
         draft = DraftAuditState(draft),
