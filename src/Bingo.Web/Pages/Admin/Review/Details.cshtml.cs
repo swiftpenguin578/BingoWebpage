@@ -91,8 +91,8 @@ public sealed class DetailsModel(ApplicationDbContext db, ISubmissionService ser
         if (s.DropSnapshotId is not null && drop is null) return false;
         var effectiveEnd = eventItem.ActualEndedAt ?? eventItem.EventEndsAt;
         var minutesAfterEnd = effectiveEnd is { } eventEnd && s.SubmittedAt > eventEnd ? (int?)Math.Ceiling((s.SubmittedAt - eventEnd).TotalMinutes) : null;
-        var eligibilityGap = await FindEligibilityGapAsync(s.EventId, s.SubmittedAt, ct);
-        Details = new(s.Id, s.EventId, s.TeamId, s.BoardTileId, s.RequirementId, s.DropSnapshotId, s.CreditedParticipantId, s.CreditedOsrsCharacterId, team.Name, tile.NameSnapshot, req.Description, drop?.BossName, drop?.ItemName, s.CreditedCharacterName, s.Status, s.ClaimedWeight, s.ApprovedContribution, s.SubmittedAt, s.CaptainNote, s.CurrentReviewerNote, s.ExpectedEvidenceCode, s.Version, minutesAfterEnd, effectiveEnd, eligibilityGap);
+        var eligibilityGaps = await FindEligibilityGapsAsync(s.EventId, ct);
+        Details = new(s.Id, s.EventId, s.TeamId, s.BoardTileId, s.RequirementId, s.DropSnapshotId, s.CreditedParticipantId, s.CreditedOsrsCharacterId, team.Name, tile.NameSnapshot, req.Description, drop?.BossName, drop?.ItemName, s.CreditedCharacterName, s.Status, s.ClaimedWeight, s.ApprovedContribution, s.SubmittedAt, s.CaptainNote, s.CurrentReviewerNote, s.ExpectedEvidenceCode, s.Version, minutesAfterEnd, effectiveEnd, eligibilityGaps);
         ApprovalBlock = await LoadApprovalBlockAsync(s, ct);
         Assets = await db.EvidenceAssets.AsNoTracking().Where(x => x.SubmissionId == id).OrderByDescending(x => x.UploadedAt).Select(x => new AssetView(x.Id, x.OriginalFilename, x.MediaType, x.ByteSize, x.PixelWidth, x.PixelHeight, x.Checksum, x.UploadedAt, x.Role, x.Active)).ToListAsync(ct);
         var activeChecksum = Assets.FirstOrDefault(x => x.Active)?.Checksum; if (activeChecksum is not null) ChecksumMatches = await (from asset in db.EvidenceAssets.AsNoTracking() join other in db.Submissions on asset.SubmissionId equals other.Id join otherTile in db.BoardTiles on other.BoardTileId equals otherTile.Id where asset.Checksum == activeChecksum && asset.Active && other.EventId == s.EventId && other.Id != s.Id orderby other.SubmittedAt descending select new ChecksumMatch(other.Id, otherTile.NameSnapshot, other.SubmittedAt, other.Status)).ToListAsync(ct);
@@ -155,10 +155,11 @@ public sealed class DetailsModel(ApplicationDbContext db, ISubmissionService ser
     }
 
     public sealed class ReviewInput { [StringLength(MaxReviewReasonLength)] public string? Reason { get; set; } public Guid BoardTileId { get; set; } public Guid RequirementId { get; set; } public Guid? DropSnapshotId { get; set; } public Guid CreditedOsrsCharacterId { get; set; } public int? ExpectedVersion { get; set; } }
-    private async Task<EligibilityGapView?> FindEligibilityGapAsync(Guid eventId, DateTimeOffset submittedAt, CancellationToken ct)
+    private async Task<IReadOnlyList<EligibilityGapView>> FindEligibilityGapsAsync(Guid eventId, CancellationToken ct)
     {
         var transitions = await db.EventStateTransitions.AsNoTracking().Where(x => x.EventId == eventId &&
             (x.ToState == EventState.AwaitingFinalReview || x.ToState == EventState.Live)).OrderBy(x => x.EffectiveAt).ThenBy(x => x.PerformedAt).ThenBy(x => x.Id).ToListAsync(ct);
+        var gaps = new List<EligibilityGapView>();
         DateTimeOffset? gapStarted = null;
         foreach (var transition in transitions)
         {
@@ -166,12 +167,12 @@ public sealed class DetailsModel(ApplicationDbContext db, ISubmissionService ser
             else if (transition.ToState == EventState.Live && gapStarted is { } started)
             {
                 var resumed = transition.EffectiveAt;
-                if (submittedAt >= started && submittedAt < resumed) return new EligibilityGapView(started, resumed);
+                if (resumed > started) gaps.Add(new EligibilityGapView(started, resumed));
                 gapStarted = null;
             }
         }
-        return null;
+        return gaps;
     }
 
-    public sealed record DetailsView(Guid Id, Guid EventId, Guid TeamId, Guid TileId, Guid RequirementId, Guid? DropId, Guid PlayerId, Guid CharacterId, string Team, string Tile, string Requirement, string? Boss, string? Drop, string Player, SubmissionStatus Status, int Claimed, int Approved, DateTimeOffset SubmittedAt, string? CaptainNote, string? Note, string? ExpectedCode, int Version = 1, int? MinutesAfterEventEnd = null, DateTimeOffset? EventEndsAt = null, EligibilityGapView? EligibilityGap = null); public sealed record ApprovalBlockView(Guid SubmissionId, DateTimeOffset SubmittedAt); public sealed record EligibilityGapView(DateTimeOffset StartedAt, DateTimeOffset ResumedAt); public sealed record AssetView(Guid Id, string Filename, string MediaType, long Bytes, int Width, int Height, string Checksum, DateTimeOffset UploadedAt, EvidenceAssetRole Role, bool Active); public sealed record ContextView(Guid Id, string Player, int Amount, DateTimeOffset SubmittedAt); public sealed record ChecksumMatch(Guid Id, string Tile, DateTimeOffset SubmittedAt, SubmissionStatus Status); [System.Diagnostics.CodeAnalysis.SuppressMessage("Naming", "CA1716:Identifiers should not match keywords")] public sealed record Option(Guid Id, string Label); public sealed record RequirementOption(Guid Id, Guid TileId, string Tile, string Description, bool Manual, bool Higher); public sealed record DropOption(Guid Id, Guid RequirementId, string Boss, string Item, string Rate);
+    public sealed record DetailsView(Guid Id, Guid EventId, Guid TeamId, Guid TileId, Guid RequirementId, Guid? DropId, Guid PlayerId, Guid CharacterId, string Team, string Tile, string Requirement, string? Boss, string? Drop, string Player, SubmissionStatus Status, int Claimed, int Approved, DateTimeOffset SubmittedAt, string? CaptainNote, string? Note, string? ExpectedCode, int Version = 1, int? MinutesAfterEventEnd = null, DateTimeOffset? EventEndsAt = null, IReadOnlyList<EligibilityGapView>? EligibilityGaps = null); public sealed record ApprovalBlockView(Guid SubmissionId, DateTimeOffset SubmittedAt); public sealed record EligibilityGapView(DateTimeOffset StartedAt, DateTimeOffset ResumedAt); public sealed record AssetView(Guid Id, string Filename, string MediaType, long Bytes, int Width, int Height, string Checksum, DateTimeOffset UploadedAt, EvidenceAssetRole Role, bool Active); public sealed record ContextView(Guid Id, string Player, int Amount, DateTimeOffset SubmittedAt); public sealed record ChecksumMatch(Guid Id, string Tile, DateTimeOffset SubmittedAt, SubmissionStatus Status); [System.Diagnostics.CodeAnalysis.SuppressMessage("Naming", "CA1716:Identifiers should not match keywords")] public sealed record Option(Guid Id, string Label); public sealed record RequirementOption(Guid Id, Guid TileId, string Tile, string Description, bool Manual, bool Higher); public sealed record DropOption(Guid Id, Guid RequirementId, string Boss, string Item, string Rate);
 }

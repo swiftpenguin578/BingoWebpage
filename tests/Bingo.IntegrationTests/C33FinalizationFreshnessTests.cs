@@ -656,6 +656,35 @@ public sealed class C33FinalizationFreshnessTests : IAsyncLifetime
         Assert.Empty(await verify.ReviewActions.Where(x => x.SubmissionId == fixture.Replacement && x.Action == ReviewActionType.Approve).ToListAsync());
     }
 
+    [Fact]
+    public async Task ReviewDetailsShowsPausedIntervalsAsScreenshotTimeGuidance()
+    {
+        var pausedAt = now.AddHours(-2.5);
+        var resumedAt = now.AddHours(-1.5);
+        await using (var db = new ApplicationDbContext(options))
+        {
+            db.EventStateTransitions.AddRange(
+                new EventStateTransition(Guid.NewGuid(), fixture.EventId, EventState.AwaitingFinalReview, EventState.Live, fixture.Admin,
+                    resumedAt, "C33 paused interval resumed", effectiveAt: resumedAt),
+                new EventStateTransition(Guid.NewGuid(), fixture.EventId, EventState.Live, EventState.AwaitingFinalReview, fixture.Admin,
+                    pausedAt, "C33 paused interval started", effectiveAt: pausedAt));
+            await db.Database.ExecuteSqlInterpolatedAsync($"UPDATE submissions SET submitted_at = {now.AddHours(-2)} WHERE id = {fixture.Replacement}");
+            await db.SaveChangesAsync();
+        }
+
+        await using var factory = Factory();
+        using var client = factory.CreateClient(new() { AllowAutoRedirect = false });
+        await LoginAsync(client, "c33-admin");
+        var html = WebUtility.HtmlDecode(await client.GetStringAsync($"/Admin/Review/Details/{fixture.Replacement}"));
+
+        Assert.Contains("Paused final-review interval", html, StringComparison.Ordinal);
+        Assert.Contains("Verify the screenshot's in-game time against them before deciding.", html, StringComparison.Ordinal);
+        Assert.Contains("2026-09-14 09:30 UTC", html, StringComparison.Ordinal);
+        Assert.Contains("2026-09-14 10:30 UTC", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("Ineligible final-review interval", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("Treat it as outside the authoritative live eligibility intervals.", html, StringComparison.Ordinal);
+    }
+
     private static void AssertReviewConflictFeedback(string html)
     {
         Assert.Contains("This review was not saved", html);

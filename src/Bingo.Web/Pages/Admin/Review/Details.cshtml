@@ -104,11 +104,17 @@
                         <p>@T["Uploaded {0} minute(s) after event end. Latest event end: {1}.", minutes, eventEnd.UtcDateTime.ToString("yyyy-MM-dd HH:mm 'UTC'")] @T["Verify the screenshot time before deciding."]</p>
                     </aside>
                 }
-                @if (Model.Details.EligibilityGap is { } gap)
+                @if (Model.Details.EligibilityGaps is { Count: > 0 } gaps)
                 {
-                    <aside class="admin-review-callout admin-review-warning" role="alert">
-                        <strong>@T["Ineligible final-review interval"]</strong>
-                        <p>@T["This evidence timestamp falls between {0} and {1}. Treat it as outside the authoritative live eligibility intervals.", gap.StartedAt.UtcDateTime.ToString("yyyy-MM-dd HH:mm 'UTC'"), gap.ResumedAt.UtcDateTime.ToString("yyyy-MM-dd HH:mm 'UTC'")]</p>
+                    <aside class="admin-review-callout admin-review-warning" role="note">
+                        <strong>@T["Paused final-review interval"]</strong>
+                        <p>@T["The event was paused during the following interval(s). Verify the screenshot's in-game time against them before deciding."]</p>
+                        <ul>
+                            @foreach (var gap in gaps)
+                            {
+                                <li>@gap.StartedAt.UtcDateTime.ToString("yyyy-MM-dd HH:mm 'UTC'") – @gap.ResumedAt.UtcDateTime.ToString("yyyy-MM-dd HH:mm 'UTC'")</li>
+                            }
+                        </ul>
                     </aside>
                 }
             </section>
