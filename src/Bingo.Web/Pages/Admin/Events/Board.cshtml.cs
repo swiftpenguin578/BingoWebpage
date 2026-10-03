@@ -547,11 +547,6 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
         await using var transaction = await db.Database.BeginTransactionAsync(ct);
         if (expectedTeamSize is < 1 or > 100) { SetStatus(Localize("Expected team size must be between 1 and 100."), UiMessageType.Warning); return RedirectToPage(new { id }); }
         var board = await db.Boards.SingleOrDefaultAsync(x => x.EventId == id, ct); if (board is null) return NotFound();
-        if (await db.ActiveRosterPublications(id).AnyAsync(ct))
-        {
-            SetStatus(Localize("The finalized roster determines team size. Planning team size can no longer be changed."), UiMessageType.Warning);
-            return RedirectToPage(new { id });
-        }
         if (!await TryClaimBoardAsync(board, ct)) return RedirectToPage(new { id });
         var bingoEvent = await db.Events.SingleOrDefaultAsync(x => x.Id == id, ct); if (bingoEvent is null) return NotFound();
         var before = new { bingoEvent.ExpectedTeamSize };
@@ -1598,12 +1593,10 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
                     .GroupBy(x => x.TeamId)
                     .ToDictionaryAsync(x => x.Key, x => x.Count(), ct);
         }
-        // Before roster publication this is only a planning estimate. Once the
-        // DRF publication exists, derive the board metrics from the frozen roster;
-        // never let ExpectedTeamSize override the actual published distribution.
-        var actualTeamSizes = eventTeams.Select(team => rosterSizes.GetValueOrDefault(team.Id)).ToList();
-        var actualRosterIsUniform = actualTeamSizes.Count > 0 && actualTeamSizes.All(size => size > 0) && actualTeamSizes.Distinct().Count() == 1;
-        var teamSize = DraftFinalized && actualRosterIsUniform ? actualTeamSizes[0] : DraftFinalized ? null : bingoEvent.ExpectedTeamSize;
+        // ExpectedTeamSize is the manual planning estimate in every lifecycle
+        // state. The frozen roster remains visible as actual context, but never
+        // replaces the estimate used for projections.
+        var teamSize = bingoEvent.ExpectedTeamSize;
         var durationDays = bingoEvent.EventEndsAt is { } eventEnd && bingoEvent.EventStartsAt is { } eventStart ? Math.Max(0.5m, (decimal)(eventEnd - eventStart).TotalHours / 24m) : 0.5m; var total = displayedTotal; var populatedLines = lines.Where(x => x.Ehb > 0).ToList();
         Statistics = new(total, teamSize, teamSize is > 0 ? total / teamSize.Value : null, teamSize is > 0 ? total / teamSize.Value / durationDays : null, Tiles.Count == 0 ? 0 : total / Tiles.Count, populatedLines.Count == 0 ? 0 : populatedLines.Min(x => x.Ehb), populatedLines.Count == 0 ? 0 : populatedLines.Max(x => x.Ehb), Tiles.Count(x => x.Ehb <= 0), durationDays);
         if (eventTeams.Count > 0)
@@ -1611,7 +1604,7 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
             TeamWorkloads = eventTeams.Select(team =>
             {
                 var actualSize = rosterSizes.GetValueOrDefault(team.Id);
-                var sizeUsed = DraftFinalized ? actualSize : bingoEvent.ExpectedTeamSize ?? 0;
+                var sizeUsed = bingoEvent.ExpectedTeamSize ?? 0;
                 return new TeamWorkloadView(team.Name, team.FormationType, actualSize, sizeUsed > 0 ? sizeUsed : null, sizeUsed > 0 ? total / sizeUsed : null);
             }).ToList();
         }

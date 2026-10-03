@@ -441,6 +441,7 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests : IAsy
         var now = DateTimeOffset.UtcNow;
         var admin = Website($"slice6-frozen-roster-admin-{Guid.NewGuid():N}", now);
         var bingoEvent = new BingoEvent(Guid.NewGuid(), "Frozen roster board", $"frozen-roster-board-{Guid.NewGuid():N}", "UTC", admin.Id, now);
+        bingoEvent.SetExpectedTeamSize(4);
         var draft = new DraftSession(Guid.NewGuid(), bingoEvent.Id, 2);
         draft.Start(now); draft.Finalize(now);
         var team = new Team(Guid.NewGuid(), bingoEvent.Id, "Frozen team", "frozen-team", TeamFormationType.Drafted, null, true);
@@ -476,10 +477,86 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests : IAsy
         var page = await LoadBoardAsync(bingoEvent.Id, admin.Id);
 
         Assert.True(page.DraftFinalized);
-        Assert.Equal(2, page.Statistics!.TeamSize);
+        Assert.Equal(4, page.Statistics!.TeamSize);
         var workload = Assert.Single(page.TeamWorkloads);
         Assert.Equal(2, workload.ActualRosterSize);
-        Assert.Equal(2, workload.SizeUsed);
+        Assert.Equal(4, workload.SizeUsed);
+    }
+
+    [Fact]
+    public async Task FinalizedBoardKeepsManualEstimateForUnequalRostersAndAllowsCorrection()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var admin = Website($"slice6-team-estimate-admin-{Guid.NewGuid():N}", now);
+        var bingoEvent = new BingoEvent(Guid.NewGuid(), "Team estimate board", $"team-estimate-board-{Guid.NewGuid():N}", "UTC", admin.Id, now);
+        bingoEvent.SetExpectedTeamSize(4);
+        var draft = new DraftSession(Guid.NewGuid(), bingoEvent.Id, 2);
+        draft.Start(now);
+        draft.Finalize(now);
+        var alpha = new Team(Guid.NewGuid(), bingoEvent.Id, "Alpha", "alpha", TeamFormationType.Drafted, null, true);
+        var beta = new Team(Guid.NewGuid(), bingoEvent.Id, "Beta", "beta", TeamFormationType.Drafted, null, true);
+        alpha.Finalize(now);
+        beta.Finalize(now);
+        var participants = Enumerable.Range(1, 5)
+            .Select(index => new EventParticipant(Guid.NewGuid(), bingoEvent.Id, SignupStatus.Confirmed, index, now.AddSeconds(index), SignupSource.Website))
+            .ToArray();
+        var cycle = new DraftPublicationCycle(Guid.NewGuid(), draft.Id, 1, now, admin.Id, DraftPublicationMethod.HistoricalUnknown);
+        var frozenRoster = participants.Select((participant, index) => new DraftPublicationRoster(
+            Guid.NewGuid(), cycle.Id, index < 2 ? alpha.Id : beta.Id, participant.Id,
+            TeamMembershipRole.Participant, null, $"Frozen player {index + 1}")).ToArray();
+        var board = new Board(Guid.NewGuid(), bingoEvent.Id, "Board", 1, 1);
+        board.AcquireEditing(admin.Id, now, TimeSpan.FromMinutes(5));
+        board.SetTotalEhb(120m);
+
+        await using (var setup = new ApplicationDbContext(options))
+        {
+            setup.AddRange(admin, bingoEvent, draft, alpha, beta, cycle, board);
+            setup.AddRange(participants);
+            setup.AddRange(frozenRoster);
+            await setup.SaveChangesAsync();
+        }
+
+        await using (var db = new ApplicationDbContext(options))
+        {
+            var page = Page(db, admin.Id);
+            Assert.IsType<PageResult>(await page.OnGetAsync(bingoEvent.Id, CancellationToken.None));
+            Assert.True(page.DraftFinalized);
+            Assert.Equal(4, page.Statistics!.TeamSize);
+            Assert.Equal(0m, page.Statistics.EhbPerPlayer);
+            Assert.Collection(page.TeamWorkloads.OrderBy(workload => workload.TeamName),
+                workload =>
+                {
+                    Assert.Equal(2, workload.ActualRosterSize);
+                    Assert.Equal(4, workload.SizeUsed);
+                    Assert.Equal(0m, workload.EhbPerPlayer);
+                },
+                workload =>
+                {
+                    Assert.Equal(3, workload.ActualRosterSize);
+                    Assert.Equal(4, workload.SizeUsed);
+                    Assert.Equal(0m, workload.EhbPerPlayer);
+                });
+
+            Assert.IsType<RedirectToPageResult>(await page.OnPostTeamSizeAsync(bingoEvent.Id, 6, CancellationToken.None));
+        }
+
+        await using var verify = new ApplicationDbContext(options);
+        Assert.Equal(6, await verify.Events.Where(value => value.Id == bingoEvent.Id).Select(value => value.ExpectedTeamSize).SingleAsync());
+        var reloaded = Page(verify, admin.Id);
+        Assert.IsType<PageResult>(await reloaded.OnGetAsync(bingoEvent.Id, CancellationToken.None));
+        Assert.Equal(6, reloaded.Statistics!.TeamSize);
+        Assert.Equal(0m, reloaded.Statistics.EhbPerPlayer);
+        Assert.Collection(reloaded.TeamWorkloads.OrderBy(workload => workload.TeamName),
+            workload =>
+            {
+                Assert.Equal(2, workload.ActualRosterSize);
+                Assert.Equal(6, workload.SizeUsed);
+            },
+            workload =>
+            {
+                Assert.Equal(3, workload.ActualRosterSize);
+                Assert.Equal(6, workload.SizeUsed);
+            });
     }
 
     [Fact]
