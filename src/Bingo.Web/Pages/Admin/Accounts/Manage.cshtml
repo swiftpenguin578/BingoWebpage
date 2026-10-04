@@ -99,7 +99,7 @@
             <div class="admin-account-route-panel-heading"><h2>@T["Disable history"]</h2><p>@T["Recorded state changes for this website account."]</p></div>
             <ul class="admin-account-history-list">@foreach (var history in item.DisableHistory) { <li><strong>@history.State</strong><span>@history.ActorName · @DateTimePresentation.Format(history.OccurredAt, "dd MMM yyyy, HH:mm", provider: CultureInfo.CurrentCulture)@if (!string.IsNullOrWhiteSpace(history.Reason)) { <span> · @T["Reason"]: @history.Reason</span> }</span></li> }@if (!item.DisableHistory.Any()) { <li>@T["No disable history."]</li> }</ul>
         </section>
-        @if (TempData["CredentialLink"] is string link && TempData["CredentialLinkTargetId"]?.ToString() == item.Id.ToString() && TempData["CredentialLinkPurpose"]?.ToString() == "reset")
+        @if (Model.CredentialLink is string link)
         {
             <section class="admin-account-route-panel admin-account-secret-panel"><strong>@T["One-time reset link"]</strong><code>@link</code></section>
         }

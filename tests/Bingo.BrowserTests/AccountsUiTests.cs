@@ -50,6 +50,7 @@ public sealed class AccountsUiTests
         Assert.Contains("Any role", accounts);
         Assert.Contains("Transfer ownership", accounts);
         Assert.Contains("Current event roles", accounts);
+        Assert.Contains("admin-accounts-section-count", accounts);
         Assert.Equal(1, accounts.Split("class=\"admin-accounts-section-heading\"", StringSplitOptions.None).Length - 1);
         Assert.Equal(1, accounts.Split("class=\"admin-accounts-table-wrap\"", StringSplitOptions.None).Length - 1);
         Assert.Equal(7, accounts.Split("class=\"admin-accounts-table-header-label\"", StringSplitOptions.None).Length - 1);
@@ -58,6 +59,8 @@ public sealed class AccountsUiTests
         Assert.Contains("admin-accounts-col-last-login", accounts);
         Assert.Contains("title=\"@account.EventRoleSummary\"", accounts);
         Assert.Contains("new WebsiteAccountRow(x.Id, x.PublicUsername!, x.GlobalRole!.Value, x.Active, x.DiscordUserId != null, x.DiscordDisplayName, x.LastLoginAt, \"\")", model);
+        Assert.Contains("WebsiteTotalCount", model);
+        Assert.Contains("WebsiteDisabledCount", model);
         Assert.Contains("WebsiteAccountRow(Guid Id, string Username, GlobalRole Role, bool Active, bool DiscordLinked, string? DiscordDisplayName, DateTimeOffset? LastLoginAt, string EventRoleSummary)", model);
         Assert.Contains("@if (account.DiscordLinked && !string.IsNullOrWhiteSpace(account.DiscordDisplayName))", accounts);
         Assert.Contains("<small class=\"admin-account-discord-name\">@account.DiscordDisplayName</small>", accounts);
@@ -69,6 +72,8 @@ public sealed class AccountsUiTests
         Assert.Equal(1, accounts.Split("data-account-manage-trigger=\"true\"", StringSplitOptions.None).Length - 1);
         Assert.DoesNotContain("data-account-dialog-trigger", accounts);
         Assert.Contains("data-account-manage-trigger", manageDialogScript);
+        Assert.Contains("const requestId = ++loadId", manageDialogScript);
+        Assert.Contains("if (requestId !== loadId || !dialog?.open || !hasOverlay()) return;", manageDialogScript);
         Assert.Contains("data-account-create-trigger", manageDialogScript);
         Assert.Equal(1, accounts.Split("asp-page=\"Manage\" asp-route-id=", StringSplitOptions.None).Length - 1);
         Assert.Equal(1, accounts.Split("account-manage-dialog.js", StringSplitOptions.None).Length - 1);
@@ -90,6 +95,9 @@ public sealed class AccountsUiTests
         Assert.DoesNotContain("Create emergency credential", accounts);
         Assert.DoesNotContain("data-account-emergency-action", manage);
         Assert.DoesNotContain("admin-destructive-confirmation", manage);
+        Assert.DoesNotContain("TempData[\"CredentialLink\"] is string link", manage);
+        Assert.Contains("public string? CredentialLink", manageModel);
+        Assert.Contains("LoadCredentialLink", manageModel);
         Assert.Contains("item.Role != GlobalRole.SuperAdmin", manage);
         Assert.Contains("GenerateResetLink", manage);
         Assert.Contains("Disable reason", manage);

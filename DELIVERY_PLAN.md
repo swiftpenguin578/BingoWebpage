@@ -351,7 +351,7 @@ into a broad pass.
 | AU19 | Board: tile-targeted approval issues, preview comparison and uncertain-action readback | Existing board leases/snapshots/calculators | Approved; queued B5 | Not run | Not run | Deferred |
 | AU20 | WOM: exact configured-window matching, structured outcomes and replacement/recovery | Existing WOM guards, operation state and schedule boundary | Approved; queued, not dispatched | Not run | Not run | Deferred |
 | AU21 | Catalogue: explicit shared-item adoption, rename and recovery scope | Existing catalogue/item mapping and version services | Approved defect fix; queued, not dispatched | Not run | Not run | Deferred |
-| AU22 | Accounts: accurate projections and target-bound reset response | Existing account/reset/authorization services | Approved defect fix; queued, not dispatched | Not run | Not run | Deferred |
+| AU22 | Accounts: accurate projections and target-bound reset response | Existing account/reset/authorization services | Implemented by B1 Luna/max; local checkpoint awaiting Claude review; evidence `docs/references/admin-ui/reviews/2026-10-04/au-b1/AU22.md` | PostgreSQL AccountOverview 3/3; authenticated PostgreSQL/HTTP reset target/readback 1/1; Accounts BrowserTests 2/2; overlay Node fixture PASS; diff check PASS | Pending — Claude commit-by-commit review | Deferred |
 | AU23 | Catalogue: ordinary rate-text rolls and SuperAdmin advanced mechanics | Existing catalogue authorization, validation and audit; final-chance decision below | Approved 4 October; queued, not dispatched | Not run | Not run | Deferred |
 | AU24 | Accounts: typed ownership transfer destination confirmation | Existing ownership/version/session services | Approved; queued, not dispatched | Not run | Not run | Deferred |
 

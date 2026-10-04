@@ -12,9 +12,12 @@ namespace Bingo.Web.Pages.Admin.Accounts;
 public sealed class IndexModel(ApplicationDbContext db) : PageModel
 {
     private const int PageSize = 25;
+    private const int MaxPage = int.MaxValue / PageSize + 1;
 
     public IReadOnlyList<WebsiteAccountRow> WebsiteAccounts { get; private set; } = [];
     public bool WebsiteHasNextPage { get; private set; }
+    public int WebsiteTotalCount { get; private set; }
+    public int WebsiteDisabledCount { get; private set; }
 
     [BindProperty(SupportsGet = true)] public string? WebsiteSearch { get; set; }
     [BindProperty(SupportsGet = true)] public GlobalRole? WebsiteRole { get; set; }
@@ -24,13 +27,17 @@ public sealed class IndexModel(ApplicationDbContext db) : PageModel
     public async Task OnGetAsync(CancellationToken ct)
     {
         WebsiteSearch = Sanitize(WebsiteSearch);
-        WebsitePage = Math.Max(1, WebsitePage);
+        WebsitePage = Math.Clamp(WebsitePage, 1, MaxPage);
         await LoadWebsiteAsync(ct);
     }
 
     private async Task LoadWebsiteAsync(CancellationToken ct)
     {
-        var query = db.Accounts.AsNoTracking().Where(x => x.AccountType == AccountType.WebsiteAccount);
+        var websiteQuery = db.Accounts.AsNoTracking().Where(x => x.AccountType == AccountType.WebsiteAccount);
+        WebsiteTotalCount = await websiteQuery.CountAsync(ct);
+        WebsiteDisabledCount = await websiteQuery.CountAsync(x => !x.Active, ct);
+
+        var query = websiteQuery;
         if (WebsiteSearch is { Length: > 0 })
         {
             var normalized = WebsiteSearch.ToUpperInvariant();

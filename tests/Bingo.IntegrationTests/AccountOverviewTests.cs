@@ -5,6 +5,12 @@ using Bingo.Domain.Teams;
 using Bingo.Infrastructure.Persistence;
 using Bingo.Web.Pages.Admin.Accounts;
 using Bingo.Web.Security;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.AspNetCore.Mvc.ViewFeatures;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using Testcontainers.PostgreSql;
 
@@ -30,6 +36,7 @@ public sealed class AccountOverviewTests : IAsyncLifetime
             var username = $"overview-user-{index:D2}";
             var web = Account.CreateWebsite(Guid.NewGuid(), username, AccountAuthenticationService.NormalizeUsername(username), now);
             if (index == 0) web.SetGlobalRole(GlobalRole.Admin);
+            if (index == 1) web.Disable(now, reason: "overview fixture");
             var character = new OsrsCharacter(Guid.NewGuid(), username, AccountAuthenticationService.NormalizeUsername(username), now);
             var participant = new EventParticipant(Guid.NewGuid(), ev.Id, SignupStatus.Confirmed, index, now, SignupSource.Website);
             participant.AssignOwner(web);
@@ -57,11 +64,15 @@ public sealed class AccountOverviewTests : IAsyncLifetime
 
         await page.OnGetAsync(CancellationToken.None);
 
+        Assert.Equal(27, page.WebsiteTotalCount);
+        Assert.Equal(1, page.WebsiteDisabledCount);
         Assert.Single(page.WebsiteAccounts);
         Assert.Contains("Overview event", page.WebsiteAccounts[0].EventRoleSummary);
 
         var searchedWebsite = new IndexModel(db) { WebsiteSearch = "overview-user-01", WebsiteRole = GlobalRole.User };
         await searchedWebsite.OnGetAsync(CancellationToken.None);
+        Assert.Equal(27, searchedWebsite.WebsiteTotalCount);
+        Assert.Equal(1, searchedWebsite.WebsiteDisabledCount);
         Assert.Single(searchedWebsite.WebsiteAccounts);
         Assert.Equal("overview-user-01", searchedWebsite.WebsiteAccounts[0].Username);
 
@@ -71,9 +82,54 @@ public sealed class AccountOverviewTests : IAsyncLifetime
     public async Task OutOfRangeAndCombinedFiltersReturnEmptyWithoutChangingOtherDataset()
     {
         await using var db = new ApplicationDbContext(options);
-        var page = new IndexModel(db) { WebsitePage = 99 };
+        var page = new IndexModel(db) { WebsitePage = int.MaxValue };
         await page.OnGetAsync(CancellationToken.None);
 
         Assert.Empty(page.WebsiteAccounts);
+    }
+
+    [Fact]
+    public async Task ManageResetLinkProjectionIsConsumedOnlyForMatchingAccount()
+    {
+        await using var db = new ApplicationDbContext(options);
+        var accounts = await db.Accounts.Where(x => x.AccountType == AccountType.WebsiteAccount).OrderBy(x => x.PublicUsername).Take(2).ToListAsync();
+        var first = accounts[0];
+        var second = accounts[1];
+
+        var mismatched = CreateManageModel(db);
+        mismatched.TempData["CredentialLink"] = "https://example.test/reset/A";
+        mismatched.TempData["CredentialLinkTargetId"] = first.Id.ToString();
+        mismatched.TempData["CredentialLinkPurpose"] = "reset";
+        await mismatched.OnGetAsync(second.Id, CancellationToken.None);
+
+        Assert.Null(mismatched.CredentialLink);
+        Assert.False(mismatched.TempData.ContainsKey("CredentialLink"));
+        Assert.False(mismatched.TempData.ContainsKey("CredentialLinkTargetId"));
+        Assert.False(mismatched.TempData.ContainsKey("CredentialLinkPurpose"));
+
+        var matching = CreateManageModel(db);
+        matching.TempData["CredentialLink"] = "https://example.test/reset/A";
+        matching.TempData["CredentialLinkTargetId"] = first.Id.ToString();
+        matching.TempData["CredentialLinkPurpose"] = "reset";
+        await matching.OnGetAsync(first.Id, CancellationToken.None);
+
+        Assert.Equal("https://example.test/reset/A", matching.CredentialLink);
+    }
+
+    private static ManageModel CreateManageModel(ApplicationDbContext db)
+    {
+        var context = new DefaultHttpContext();
+        var page = new ManageModel(db, new AccountAdministrationService(db, new PasswordHasher<Account>(), TimeProvider.System), new AccountIdentityService(db, new PasswordHasher<Account>(), TimeProvider.System))
+        {
+            PageContext = new PageContext(new ActionContext(context, new RouteData(), new PageActionDescriptor())),
+            TempData = new TempDataDictionary(context, new DictionaryTempDataProvider())
+        };
+        return page;
+    }
+
+    private sealed class DictionaryTempDataProvider : ITempDataProvider
+    {
+        public IDictionary<string, object> LoadTempData(HttpContext context) => new Dictionary<string, object>();
+        public void SaveTempData(HttpContext context, IDictionary<string, object> values) { }
     }
 }

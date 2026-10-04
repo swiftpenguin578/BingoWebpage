@@ -2191,6 +2191,7 @@
   <data name="Any role" xml:space="preserve"><value>Alle roller</value></data>
   <data name="Website accounts" xml:space="preserve"><value>Webstedskonti</value></data>
   <data name="Normal website identities and their global roles." xml:space="preserve"><value>Almindelige webstedsidentiteter og deres globale roller.</value></data>
+  <data name="{0} accounts · {1} disabled" xml:space="preserve"><value>{0} konti · {1} deaktiveret</value></data>
   <data name="Last login" xml:space="preserve"><value>Seneste login</value></data>
   <data name="Current event roles" xml:space="preserve"><value>Nuværende eventroller</value></data>
   <data name="Manage" xml:space="preserve"><value>Administrer</value></data>
