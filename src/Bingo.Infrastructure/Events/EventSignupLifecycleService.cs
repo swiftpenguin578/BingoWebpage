@@ -448,8 +448,8 @@ public sealed class EventSignupLifecycleService(ApplicationDbContext db, IEventR
             competitionEnd = linkedCompetition?.CompetitionEndsAt;
         }
         if (hasCompetition && managedCompetition is null)
-            if (proposedStart is not { } start || proposedEnd is not { } end || competitionStart is not { } expectedStart || competitionEnd is not { } expectedEnd || Math.Abs((start - expectedStart).TotalMinutes) > 5 || Math.Abs((end - expectedEnd).TotalMinutes) > 5)
-                return "The linked Wise Old Man competition must remain within five minutes of the event window.";
+            if (proposedStart is not { } start || proposedEnd is not { } end || competitionStart is not { } expectedStart || competitionEnd is not { } expectedEnd || start != expectedStart || end != expectedEnd)
+                return "The linked Wise Old Man competition must match the configured website UTC window exactly.";
         return null;
     }
 

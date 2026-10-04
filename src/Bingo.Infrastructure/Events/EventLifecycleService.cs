@@ -408,8 +408,8 @@ public sealed class EventLifecycleService(
             .SingleOrDefaultAsync(x => x.EventId == item.Id && x.CompetitionId != null, ct);
         if (competition is not null &&
             (competition.CompetitionStartsAt is not { } competitionStart || competition.CompetitionEndsAt is not { } competitionEnd ||
-             Math.Abs((start - competitionStart).TotalMinutes) > 5 || Math.Abs((replacementEnd - competitionEnd).TotalMinutes) > 5))
-            return "The linked Wise Old Man competition must remain within five minutes of the event window.";
+             start != competitionStart || replacementEnd != competitionEnd))
+            return "The linked Wise Old Man competition must match the configured website UTC window exactly.";
 
         return null;
     }

@@ -86,7 +86,9 @@ public sealed class EventCompetitionManagementService(
             provenance,
             writeCapability,
             management?.CanWrite == true,
-            management?.CanDelete == true && projection.Event.ActualStartedAt is null);
+            management?.CanDelete == true && projection.Event.ActualStartedAt is null,
+            operation?.Id, operation?.Phase, operation?.Type, operation?.NextAttemptAt,
+            management?.CredentialStatus ?? EventCompetitionCredentialStatus.NotApplicable);
     }
 
     public async Task<EventCompetitionManagementResult> AdoptCredentialAsync(

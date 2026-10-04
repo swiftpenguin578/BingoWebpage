@@ -218,7 +218,7 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
-    public async Task StatsPass4RealFinalReviewUsesAuthoritativeWindowAndNoDuplicateFetchAfterPublish(bool matchesActualWindow)
+    public async Task StatsPass4RealFinalReviewUsesConfiguredWindowAndNoDuplicateFetchAfterPublish(bool matchesConfiguredWindow)
     {
         var f = await FullStatsFixtureAsync(target: 1);
         await ApproveStatsAsync(f, await PendingStatsAsync(f, 0, 0, 10));
@@ -229,18 +229,20 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests
         {
             var ev = await end.Events.SingleAsync();
             Assert.True(ev.EventEndsAt!.Value - actualEnd > TimeSpan.FromMinutes(5));
-            var ended = await new EventLifecycleService(end, null!, f.Clock).EndNowAsync(
-                ev.Id, ev.Version, true, "Controlled authoritative final-review end", new(f.Admin.Id, f.Admin.LoginName));
-            Assert.True(ended.Succeeded, ended.Error);
+            // Controlled existing final-review row: actual instants differ from its configured window.
+            ev.EndEvent(actualEnd);
+            end.EventStateTransitions.Add(new EventStateTransition(Guid.NewGuid(), ev.Id, EventState.Live,
+                EventState.AwaitingFinalReview, f.Admin.Id, actualEnd, "Controlled configured-window fixture", false, actualEnd));
+            await end.SaveChangesAsync();
             prior = await end.EventStatsLuckCheckpoints.AsNoTracking().SingleAsync();
         }
         // End early, then move beyond the initial successful fetch's hourly slot.
-        // Only the actual end matches final review; the planned end is hours later.
+        // AU20 validates the configured window; actual end still drives eligibility.
         f.Clock.Advance(TimeSpan.FromHours(1));
         var response = await NamedStatsResponseAsync(f, new(0, 200, 200));
         response = response with
         {
-            Competition = response.Competition! with { EndsAt = matchesActualWindow ? actualEnd : f.Event.EventEndsAt!.Value }
+            Competition = response.Competition! with { EndsAt = matchesConfiguredWindow ? f.Event.EventEndsAt!.Value : actualEnd }
         };
         var client = new CountingFinalReviewClient(response, response);
         await using (var db = new ApplicationDbContext(options))
@@ -254,11 +256,11 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests
             Assert.Equal(EventState.AwaitingFinalReview, currentEvent.State);
             Assert.Equal(actualEnd, currentEvent.ActualEndedAt);
             Assert.NotEqual(currentEvent.EventEndsAt, currentEvent.ActualEndedAt);
-            if (!matchesActualWindow)
+            if (!matchesConfiguredWindow)
             {
                 Assert.False(first.Succeeded);
                 Assert.Equal("ScheduleMismatch", first.ErrorKind);
-                Assert.Contains(actualEnd.ToString("O"), first.Message, StringComparison.Ordinal);
+                Assert.Contains(currentEvent.EventEndsAt!.Value.ToString("O"), first.Message, StringComparison.Ordinal);
                 Assert.Equal(prior.Payload, checkpoint.Payload);
                 Assert.Equal(prior.ActivityBatchId, checkpoint.ActivityBatchId);
                 Assert.Equal(prior.CalculatedAt, checkpoint.CalculatedAt);

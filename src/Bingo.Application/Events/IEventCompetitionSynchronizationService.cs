@@ -38,9 +38,12 @@ public sealed record EventCompetitionView(
     WiseOldManRequestStatus RequestStatus,
     EventCompetitionProvenance Provenance = EventCompetitionProvenance.Unknown,
     EventCompetitionWriteCapability WriteCapability = EventCompetitionWriteCapability.ReadOnly,
-    EventCompetitionCredentialStatus CredentialStatus = EventCompetitionCredentialStatus.NotApplicable)
+    EventCompetitionCredentialStatus CredentialStatus = EventCompetitionCredentialStatus.NotApplicable,
+    EventCompetitionRefreshSkipReason? RefreshSkipReason = null,
+    DateTimeOffset? NextEligibleAt = null)
 {
     public bool Configured => CompetitionId is not null;
+    public bool CanRefresh => Configured && RefreshSkipReason is null;
 }
 
 public interface IEventCompetitionSynchronizationService

@@ -36,7 +36,7 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests : IAsy
     [Fact]
     public async Task OneCompetitionResponseAggregatesCurrentPlayingOnlyAndCachesAnIncompleteGeneration()
     {
-        var clock = new TestClock(DateTimeOffset.UtcNow);
+        var clock = new TestClock(new DateTimeOffset(2026, 10, 4, 12, 0, 0, TimeSpan.Zero));
         var now = clock.GetUtcNow();
         var admin = Account.CreateWebsite(Guid.NewGuid(), "competition-admin", "COMPETITION-ADMIN", now);
         admin.SetGlobalRole(GlobalRole.Admin);
@@ -93,7 +93,7 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests : IAsy
     [Fact]
     public async Task ManualRefreshDistinguishesSuccessFromPerformedUpstreamFailures()
     {
-        var clock = new TestClock(DateTimeOffset.UtcNow);
+        var clock = new TestClock(new DateTimeOffset(2026, 10, 4, 12, 0, 0, TimeSpan.Zero));
         var now = clock.GetUtcNow();
         var admin = Account.CreateWebsite(Guid.NewGuid(), "refresh-feedback-admin", "REFRESH-FEEDBACK-ADMIN", now);
         admin.SetGlobalRole(GlobalRole.Admin);
@@ -138,7 +138,7 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests : IAsy
     [Fact]
     public async Task InitialLiveTransitionDefersAutomaticFetchAndReturnToLiveKeepsItsSchedule()
     {
-        var clock = new TestClock(DateTimeOffset.UtcNow);
+        var clock = new TestClock(new DateTimeOffset(2026, 10, 4, 12, 0, 0, TimeSpan.Zero));
         var now = clock.GetUtcNow();
         var admin = Account.CreateWebsite(Guid.NewGuid(), "initial-live-admin", "INITIAL-LIVE-ADMIN", now);
         admin.SetGlobalRole(GlobalRole.Admin);
@@ -253,7 +253,7 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests : IAsy
     [Fact]
     public async Task StaleConfigurationPostLeavesOneStateAndOneAudit()
     {
-        var clock = new TestClock(DateTimeOffset.UtcNow);
+        var clock = new TestClock(new DateTimeOffset(2026, 10, 4, 12, 0, 0, TimeSpan.Zero));
         var now = clock.GetUtcNow();
         var admin = Account.CreateWebsite(Guid.NewGuid(), "configuration-admin", "CONFIGURATION-ADMIN", now);
         admin.SetGlobalRole(GlobalRole.Admin);
@@ -290,7 +290,7 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests : IAsy
     [Fact]
     public async Task LiveCompetitionReplacementInvalidatesOnlyAfterAValidatedSuccess()
     {
-        var clock = new TestClock(DateTimeOffset.UtcNow);
+        var clock = new TestClock(new DateTimeOffset(2026, 10, 4, 12, 0, 0, TimeSpan.Zero));
         var now = clock.GetUtcNow();
         var admin = Account.CreateWebsite(Guid.NewGuid(), "live-replacement-admin", "LIVE-REPLACEMENT-ADMIN", now);
         admin.SetGlobalRole(GlobalRole.Admin);
@@ -356,7 +356,7 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests : IAsy
             var failed = await new EventCompetitionSynchronizationService(mismatchDb, fake, new FixedStatus(), clock)
                 .ConfigureAsync(eventItem.Id, currentVersion, mismatch.Id, false, actor);
             Assert.False(failed.Succeeded);
-            Assert.Contains("within five minutes", failed.Error, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("configured website UTC window exactly", failed.Error, StringComparison.OrdinalIgnoreCase);
         }
 
         await using (var clearDb = new ApplicationDbContext(options))
@@ -392,7 +392,7 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests : IAsy
     [Fact]
     public async Task CooldownIsSharedAndAssignmentChangeStartsANewAuthoritativeGeneration()
     {
-        var clock = new TestClock(DateTimeOffset.UtcNow);
+        var clock = new TestClock(new DateTimeOffset(2026, 10, 4, 12, 0, 0, TimeSpan.Zero));
         var now = clock.GetUtcNow();
         var admin = Account.CreateWebsite(Guid.NewGuid(), "generation-admin", "GENERATION-ADMIN", now);
         admin.SetGlobalRole(GlobalRole.Admin);
@@ -448,7 +448,7 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests : IAsy
     [Fact]
     public async Task FourTemporaryFailuresExhaustTheRetryCycleWithoutMovingTheFixedHourlyAnchor()
     {
-        var clock = new TestClock(DateTimeOffset.UtcNow);
+        var clock = new TestClock(new DateTimeOffset(2026, 10, 4, 12, 0, 0, TimeSpan.Zero));
         var now = clock.GetUtcNow();
         var admin = Account.CreateWebsite(Guid.NewGuid(), "retry-admin", "RETRY-ADMIN", now);
         admin.SetGlobalRole(GlobalRole.Admin);
@@ -492,7 +492,7 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests : IAsy
     [Fact]
     public async Task RetryAfterBeyondNormalAnchorBlocksTheAnchorUntilRetryIsDue()
     {
-        var clock = new TestClock(DateTimeOffset.UtcNow);
+        var clock = new TestClock(new DateTimeOffset(2026, 10, 4, 12, 0, 0, TimeSpan.Zero));
         var now = clock.GetUtcNow();
         var admin = Account.CreateWebsite(Guid.NewGuid(), "retry-after-admin", "RETRY-AFTER-ADMIN", now);
         admin.SetGlobalRole(GlobalRole.Admin);
@@ -523,7 +523,7 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests : IAsy
     [InlineData(DraftState.Paused)]
     public async Task WiseOldManScheduleSynchronizationRejectsMismatchedProviderWindowBeforeDraftStateMutation(DraftState draftState)
     {
-        var rawNow = DateTimeOffset.UtcNow;
+        var rawNow = new DateTimeOffset(2026, 10, 4, 12, 0, 0, TimeSpan.Zero);
         var now = rawNow.AddTicks(-(rawNow.Ticks % TimeSpan.TicksPerMicrosecond));
         var clock = new TestClock(now);
         var admin = Account.CreateWebsite(Guid.NewGuid(), "locked-schedule-admin", "LOCKED-SCHEDULE-ADMIN", now);
@@ -553,7 +553,7 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests : IAsy
             var result = await new EventCompetitionSynchronizationService(db, fake, new FixedStatus(), clock)
                 .ConfigureAsync(eventItem.Id, eventItem.Version, competition.Id, true, new(admin.Id, admin.LoginName));
             Assert.False(result.Succeeded);
-            Assert.Contains("within five minutes", result.Error, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("configured website UTC window exactly", result.Error, StringComparison.OrdinalIgnoreCase);
         }
 
         await using var verify = new ApplicationDbContext(options);
@@ -571,7 +571,7 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests : IAsy
     [Fact]
     public async Task WiseOldManScheduleSynchronizationRetainsTheFinalizedWebsiteEventWindow()
     {
-        var clock = new TestClock(DateTimeOffset.UtcNow);
+        var clock = new TestClock(new DateTimeOffset(2026, 10, 4, 12, 0, 0, TimeSpan.Zero));
         var now = clock.GetUtcNow();
         var admin = Account.CreateWebsite(Guid.NewGuid(), "finalized-schedule-admin", "FINALIZED-SCHEDULE-ADMIN", now);
         admin.SetGlobalRole(GlobalRole.Admin);
@@ -634,7 +634,7 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests : IAsy
     [InlineData(EventState.SignupClosed)]
     public async Task CompetitionScheduleSynchronizationRejectsMismatchedProviderWindowWithoutResidue(EventState state)
     {
-        var clock = new TestClock(DateTimeOffset.UtcNow);
+        var clock = new TestClock(new DateTimeOffset(2026, 10, 4, 12, 0, 0, TimeSpan.Zero));
         var now = clock.GetUtcNow();
         var admin = Account.CreateWebsite(Guid.NewGuid(), "past-boundary-admin", "PAST-BOUNDARY-ADMIN", now);
         admin.SetGlobalRole(GlobalRole.Admin);
@@ -660,7 +660,7 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests : IAsy
             var result = await new EventCompetitionSynchronizationService(db, fake, new FixedStatus(), clock)
                 .ConfigureAsync(eventItem.Id, version, competition.Id, true, actor);
             Assert.False(result.Succeeded);
-            Assert.Contains("within five minutes", result.Error, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("configured website UTC window exactly", result.Error, StringComparison.OrdinalIgnoreCase);
         }
 
         await using var verify = new ApplicationDbContext(options);
@@ -676,7 +676,7 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests : IAsy
     [Fact]
     public async Task CompetitionScheduleSynchronizationRejectsMismatchedProviderWindowBeforeOverlapWithoutResidue()
     {
-        var clock = new TestClock(DateTimeOffset.UtcNow);
+        var clock = new TestClock(new DateTimeOffset(2026, 10, 4, 12, 0, 0, TimeSpan.Zero));
         var now = clock.GetUtcNow();
         var admin = Account.CreateWebsite(Guid.NewGuid(), "overlap-admin", "OVERLAP-ADMIN", now);
         admin.SetGlobalRole(GlobalRole.Admin);
@@ -705,7 +705,7 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests : IAsy
             var result = await new EventCompetitionSynchronizationService(db, fake, new FixedStatus(), clock)
                 .ConfigureAsync(target.Id, version, competition.Id, true, actor);
             Assert.False(result.Succeeded);
-            Assert.Contains("within five minutes", result.Error, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("configured website UTC window exactly", result.Error, StringComparison.OrdinalIgnoreCase);
         }
 
         await using var verify = new ApplicationDbContext(options);
@@ -720,7 +720,7 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests : IAsy
     [Fact]
     public async Task CompetitionScheduleSynchronizationLinksMatchingWindowWithoutRetiredScheduleConfirmation()
     {
-        var clock = new TestClock(DateTimeOffset.UtcNow);
+        var clock = new TestClock(new DateTimeOffset(2026, 10, 4, 12, 0, 0, TimeSpan.Zero));
         var now = clock.GetUtcNow();
         var admin = Account.CreateWebsite(Guid.NewGuid(), "public-confirmation-admin", "PUBLIC-CONFIRMATION-ADMIN", now);
         admin.SetGlobalRole(GlobalRole.Admin);
@@ -763,7 +763,7 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests : IAsy
     [Fact]
     public async Task PreLiveCompetitionLinkRetainsTheWebsiteOwnedEventWindow()
     {
-        var clock = new TestClock(DateTimeOffset.UtcNow);
+        var clock = new TestClock(new DateTimeOffset(2026, 10, 4, 12, 0, 0, TimeSpan.Zero));
         var now = clock.GetUtcNow();
         var admin = Account.CreateWebsite(Guid.NewGuid(), "prelive-replacement-admin", "PRELIVE-REPLACEMENT-ADMIN", now);
         admin.SetGlobalRole(GlobalRole.Admin);
@@ -818,7 +818,7 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests : IAsy
     [Fact]
     public async Task ScheduleEditRejectsAMismatchWithTheLinkedCompetition()
     {
-        var now = DateTimeOffset.UtcNow;
+        var now = new DateTimeOffset(2026, 10, 4, 12, 0, 0, TimeSpan.Zero);
         var actor = new LifecycleActor(Guid.NewGuid(), "schedule-admin");
         var item = new BingoEvent(Guid.NewGuid(), "Linked schedule", $"linked-schedule-{Guid.NewGuid():N}", "UTC", actor.Id, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         item.ConfigureSchedule(now.AddHours(1), now.AddHours(2), null, now.AddDays(1), now.AddDays(2), 20);
@@ -830,12 +830,12 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests : IAsy
         await db.SaveChangesAsync();
         var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>()).Build();
         var service = new EventSignupLifecycleService(db, new EventReadinessEvaluator(db, configuration), new TestClock(now));
-        var values = new EventScheduleValues(item.SignupOpensAt, item.SignupClosesAt, item.DraftAt, item.EventStartsAt, item.EventEndsAt!.Value.AddMinutes(10), item.ParticipantCap, false);
+        var values = new EventScheduleValues(item.SignupOpensAt, item.SignupClosesAt, item.DraftAt, item.EventStartsAt, item.EventEndsAt!.Value.AddMinutes(1), item.ParticipantCap, false);
 
         var result = await service.SaveScheduleAsync(item.Id, item.Version, values, false, actor);
 
         Assert.False(result.Succeeded);
-        Assert.Contains("within five minutes", result.Error);
+        Assert.Contains("configured website UTC window exactly", result.Error);
         var expectedEnd = now.AddDays(2);
         Assert.Equal(expectedEnd.AddTicks(-(expectedEnd.Ticks % TimeSpan.TicksPerMicrosecond)), (await db.Events.AsNoTracking().SingleAsync(x => x.Id == item.Id)).EventEndsAt);
     }
@@ -843,7 +843,7 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests : IAsy
     [Fact]
     public async Task SaveScheduleAllowsManagedWindowChangesBeyondFiveMinutesForAutomaticUpdate()
     {
-        var now = DateTimeOffset.UtcNow;
+        var now = new DateTimeOffset(2026, 10, 4, 12, 0, 0, TimeSpan.Zero);
         var actor = new LifecycleActor(Guid.NewGuid(), "managed-schedule-admin");
         var item = new BingoEvent(Guid.NewGuid(), "Managed schedule", $"managed-schedule-{Guid.NewGuid():N}", "UTC", actor.Id, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         item.ConfigureSchedule(now.AddHours(1), now.AddHours(2), null, now.AddDays(1), now.AddDays(2), 20);

@@ -630,7 +630,7 @@ public sealed class EventCompetitionManagementIntegrationTests : IAsyncLifetime
         var linkResult = await manualLink;
         Assert.True(updateResult.Succeeded, updateResult.Error);
         Assert.False(linkResult.Succeeded);
-        Assert.Contains("within five minutes", linkResult.Error, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("configured website UTC window exactly", linkResult.Error, StringComparison.OrdinalIgnoreCase);
 
         await using var verify = CreateDb();
         Assert.False(await verify.EventCompetitionSynchronizations.AnyAsync(x => x.EventId == manual.EventId));

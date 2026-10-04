@@ -167,7 +167,7 @@ public sealed class ScheduleModel(ApplicationDbContext db, IEventSignupLifecycle
             return new[] { values.EventStartsAt is null ? "Input.EventStartsLocal" : null, values.EventEndsAt is null ? "Input.EventEndsLocal" : null }.OfType<string>().ToArray();
         if (error == "Enter a reason for changing the Live event end.") return ["Input.EventEndReason"];
         if (error is "Confirm the Live event-end change before saving." or "Confirm the schedule consequence before saving.") return ["Input.ConfirmChanges"];
-        if (error == "The linked Wise Old Man competition must remain within five minutes of the event window.")
+        if (error == "The linked Wise Old Man competition must match the configured website UTC window exactly.")
             return ["Input.EventStartsLocal", "Input.EventEndsLocal"];
         foreach (var (label, field) in new[]
         {

@@ -800,7 +800,7 @@ public sealed class Slice3ScheduleLifecycleIntegrationTests : IAsyncLifetime
         var service = new EventSignupLifecycleService(db, new EventReadinessEvaluator(db, configuration), new FixedTimeProvider(now));
         var result = await service.SaveScheduleAsync(eventId, item.Version, Values(item, item.EventEndsAt!.Value.AddMinutes(10)), true, actor, reason: "Extend for the live event.");
         Assert.False(result.Succeeded);
-        Assert.Contains("within five minutes", result.Error);
+        Assert.Contains("configured website UTC window exactly", result.Error);
         Assert.Equal(item.EventEndsAt, (await db.Events.AsNoTracking().SingleAsync(x => x.Id == eventId)).EventEndsAt);
     }
 

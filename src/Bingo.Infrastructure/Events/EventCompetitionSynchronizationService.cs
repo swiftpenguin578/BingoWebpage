@@ -30,15 +30,24 @@ public sealed partial class EventCompetitionSynchronizationService(
 
     public async Task<EventCompetitionView?> GetAsync(Guid eventId, CancellationToken cancellationToken = default)
     {
-        if (!await db.Events.AsNoTracking().AnyAsync(x => x.Id == eventId && x.HiddenAt == null, cancellationToken)) return null;
+        var item = await db.Events.AsNoTracking().SingleOrDefaultAsync(x => x.Id == eventId && x.HiddenAt == null, cancellationToken);
+        if (item is null) return null;
         var state = await db.EventCompetitionSynchronizations.AsNoTracking()
             .Where(x => x.EventId == eventId)
             .OrderByDescending(x => x.Generation)
             .FirstOrDefaultAsync(cancellationToken);
-        if (state is null) return new EventCompetitionView(0, null, null, null, null, null, null, null, null, [], null, null, null, null, 0, womStatus.GetStatus());
+        if (state is null) return new EventCompetitionView(0, null, null, null, null, null, null, null, null, [], null, null, null, null, 0, womStatus.GetStatus(), RefreshSkipReason: EventCompetitionRefreshSkipReason.NoCompetition);
         var management = await db.EventCompetitionManagements.AsNoTracking()
             .SingleOrDefaultAsync(x => x.EventId == eventId && x.Status != EventCompetitionManagementStatus.Deleted, cancellationToken);
-        return ToView(state, management);
+        // Project the same decision on detached rows: readback never acquires a lease or calls WOM.
+        var view = ToView(state, management);
+        var now = time.GetUtcNow();
+        var fingerprint = await AssignmentFingerprintAsync(eventId, cancellationToken);
+        if (state.AssignmentFingerprint != fingerprint)
+            state.BeginReplacementGeneration(fingerprint, now);
+        else state.ReconcileNormalSlot(item.ActualStartedAt, now);
+        var eligibility = RefreshEligibility(item, state, manual: true, now);
+        return view with { RefreshSkipReason = eligibility.SkipReason, NextEligibleAt = eligibility.NextEligibleAt };
     }
 
     public Task<EventCompetitionConfigurationResult> ConfigureAsync(
@@ -153,9 +162,9 @@ public sealed partial class EventCompetitionSynchronizationService(
     {
         await RequireAdminAsync(actor, cancellationToken);
         var item = await db.Events.AsNoTracking().SingleOrDefaultAsync(x => x.Id == eventId && x.HiddenAt == null, cancellationToken);
-        if (item is null) return new(false, true, "The event was not found.");
+        if (item is null) return new(false, true, "The event was not found.", SkipReason: EventCompetitionRefreshSkipReason.EventUnavailable);
         if (item.State is not (EventState.Live or EventState.AwaitingFinalReview))
-            return new(false, true, "Competition refresh is available only while the event is active or in final review.");
+            return new(false, true, "Competition refresh is available only while the event is active or in final review.", SkipReason: EventCompetitionRefreshSkipReason.EventUnavailable);
         return await SynchronizeOneAsync(eventId, manual: true, cancellationToken);
     }
 
@@ -216,9 +225,8 @@ public sealed partial class EventCompetitionSynchronizationService(
     {
         var decision = await AcquireLeaseAsync(eventId, manual, cancellationToken);
         if (decision.Lease is not { } lease)
-            return manual
-                ? new(false, true, "The cached competition result is still within its refresh window.")
-                : new(false, true, RetryAt: decision.NextEligibleAt, SkipReason: decision.SkipReason);
+            return new(false, true, manual ? "The cached competition result is still within its refresh window." : null,
+                RetryAt: decision.NextEligibleAt, SkipReason: decision.SkipReason);
 
         WiseOldManCompetitionResult result;
         try { result = await competitionClient.GetCompetitionAsync(lease.CompetitionId, lease.SourceRequest.Metrics, cancellationToken); }
@@ -251,18 +259,8 @@ public sealed partial class EventCompetitionSynchronizationService(
             state.BeginReplacementGeneration(fingerprint, now);
         else
             state.ReconcileNormalSlot(item.ActualStartedAt, now);
-        if (manual)
-        {
-            if (state.LastSuccessfulAt is { } successfulAt && successfulAt.Add(NormalInterval) > now) return new(null, EventCompetitionRefreshSkipReason.NotDue, successfulAt.Add(NormalInterval));
-            if (state.RetryDueAt is { } retryDue && retryDue > now) return new(null, EventCompetitionRefreshSkipReason.RetryDelay, retryDue);
-            var hasCompletedOrAttemptedRefresh = state.LastAttemptAt is not null || state.LastSuccessfulAt is not null;
-            if (hasCompletedOrAttemptedRefresh && state.NormalDueAt is { } normalDue && normalDue > now) return new(null, EventCompetitionRefreshSkipReason.NotDue, normalDue);
-        }
-        else
-        {
-            if (state.RetryDueAt is { } retryDue && retryDue > now) return new(null, EventCompetitionRefreshSkipReason.RetryDelay, retryDue);
-            if (state.RetryDueAt is null && (state.NormalDueAt is null || state.NormalDueAt > now)) return new(null, EventCompetitionRefreshSkipReason.NotDue, state.NormalDueAt);
-        }
+        var eligibility = RefreshEligibility(item, state, manual, now);
+        if (eligibility.SkipReason is not null) return eligibility;
 
         if (state.RetryDueAt is null && state.NormalDueAt is { } normalDueAt && normalDueAt <= now)
             state.BeginNormalAttempt(item.ActualStartedAt, now);
@@ -277,6 +275,27 @@ public sealed partial class EventCompetitionSynchronizationService(
         await db.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
         return new(new SyncLease(eventId, state.Id, state.Generation, competitionId, owner, fingerprint, expected, sources));
+    }
+
+    private static LeaseDecision RefreshEligibility(BingoEvent item, EventCompetitionSynchronization state, bool manual, DateTimeOffset now)
+    {
+        if (item.State is not (EventState.Live or EventState.AwaitingFinalReview)) return new(null, EventCompetitionRefreshSkipReason.EventUnavailable);
+        if (state.CompetitionId is null) return new(null, EventCompetitionRefreshSkipReason.NoCompetition);
+        if (state.LeaseExpiresAt is { } leaseExpiry && leaseExpiry > now) return new(null, EventCompetitionRefreshSkipReason.RefreshInProgress, leaseExpiry);
+        if (manual)
+        {
+            if (state.LastSuccessfulAt is { } successfulAt && successfulAt.Add(NormalInterval) > now) return new(null, EventCompetitionRefreshSkipReason.NotDue, successfulAt.Add(NormalInterval));
+            if (state.RetryDueAt is { } retryDue && retryDue > now) return new(null, EventCompetitionRefreshSkipReason.RetryDelay, retryDue);
+            var hasCompletedOrAttemptedRefresh = state.LastAttemptAt is not null || state.LastSuccessfulAt is not null;
+            if (hasCompletedOrAttemptedRefresh && state.NormalDueAt is { } normalDue && normalDue > now) return new(null, EventCompetitionRefreshSkipReason.NotDue, normalDue);
+        }
+        else
+        {
+            if (state.RetryDueAt is { } retryDue && retryDue > now) return new(null, EventCompetitionRefreshSkipReason.RetryDelay, retryDue);
+            if (state.RetryDueAt is null && (state.NormalDueAt is null || state.NormalDueAt > now)) return new(null, EventCompetitionRefreshSkipReason.NotDue, state.NormalDueAt);
+        }
+
+        return new(null);
     }
 
     private async Task<LeaseFinalizationOutcome> FinalizeLeaseAsync(SyncLease lease, WiseOldManCompetitionResult result, CancellationToken cancellationToken)
@@ -316,7 +335,7 @@ public sealed partial class EventCompetitionSynchronizationService(
         var returnedCompetition = result.Competition;
         var rejectionMessage = (string?)null;
         var accepted = result.Succeeded && returnedCompetition is not null &&
-            returnedCompetition.Id == lease.CompetitionId && ScheduleMatches(item, returnedCompetition, item.State == EventState.AwaitingFinalReview);
+            returnedCompetition.Id == lease.CompetitionId && ScheduleMatches(item, returnedCompetition);
         if (accepted)
         {
             var byName = returnedCompetition!.Participants
@@ -357,9 +376,9 @@ public sealed partial class EventCompetitionSynchronizationService(
             else state.MarkMetricFailure(now);
             state.MarkSuccess(now, returnedCompetition!.LastUpdatedAt, missing.Count == 0, JsonSerializer.Serialize(missing), missing.Count == 0 ? null : "The competition response is missing one or more current Playing accounts.", item.ActualStartedAt);
         }
-        else if (result.Succeeded && result.Competition is { } mismatchedCompetition && !ScheduleMatches(item, mismatchedCompetition, item.State == EventState.AwaitingFinalReview))
+        else if (result.Succeeded && result.Competition is { } mismatchedCompetition && !ScheduleMatches(item, mismatchedCompetition))
         {
-            rejectionMessage = DescribeScheduleMismatch(item, mismatchedCompetition, item.State == EventState.AwaitingFinalReview);
+            rejectionMessage = DescribeScheduleMismatch(item, mismatchedCompetition);
             state.MarkFailure(now, "ScheduleMismatch", rejectionMessage, null, item.ActualStartedAt);
         }
         else if (result.Status is WiseOldManCompetitionStatus.NotFound or WiseOldManCompetitionStatus.Invalid)
@@ -416,25 +435,21 @@ public sealed partial class EventCompetitionSynchronizationService(
         return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(string.Join('|', values)))).ToLowerInvariant();
     }
 
-    private static bool ScheduleMatches(BingoEvent item, WiseOldManCompetition competition, bool useActualWindow = false)
+    private static bool ScheduleMatches(BingoEvent item, WiseOldManCompetition competition)
     {
-        var (start, end) = useActualWindow
-            ? (item.ActualStartedAt, item.ActualEndedAt)
-            : (item.EventStartsAt, item.EventEndsAt);
+        var (start, end) = (item.EventStartsAt, item.EventEndsAt);
         return start is { } authoritativeStart && end is { } authoritativeEnd &&
-            Math.Abs((authoritativeStart - competition.StartsAt).TotalMinutes) <= 5 && Math.Abs((authoritativeEnd - competition.EndsAt).TotalMinutes) <= 5;
+            authoritativeStart == competition.StartsAt && authoritativeEnd == competition.EndsAt;
     }
 
-    private static string DescribeScheduleMismatch(BingoEvent item, WiseOldManCompetition competition, bool useActualWindow = false)
+    private static string DescribeScheduleMismatch(BingoEvent item, WiseOldManCompetition competition)
     {
-        var (start, end) = useActualWindow
-            ? (item.ActualStartedAt, item.ActualEndedAt)
-            : (item.EventStartsAt, item.EventEndsAt);
+        var (start, end) = (item.EventStartsAt, item.EventEndsAt);
         var websiteStart = start?.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture) ?? "unset";
         var websiteEnd = end?.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture) ?? "unset";
         var providerStart = competition.StartsAt.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture);
         var providerEnd = competition.EndsAt.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture);
-        return $"The Wise Old Man competition window must match the website window within five minutes. Website: {websiteStart} to {websiteEnd}; Wise Old Man: {providerStart} to {providerEnd}.";
+        return $"The Wise Old Man competition window must match the configured website UTC window exactly. Website: {websiteStart} to {websiteEnd}; Wise Old Man: {providerStart} to {providerEnd}.";
     }
 
     private EventCompetitionView ToView(EventCompetitionSynchronization state, EventCompetitionManagement? management = null) => new(state.Generation, state.CompetitionId, state.CompetitionTitle,

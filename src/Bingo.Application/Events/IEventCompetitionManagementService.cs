@@ -43,7 +43,12 @@ public sealed record EventCompetitionManagementView(
     EventCompetitionProvenance Provenance = EventCompetitionProvenance.Unknown,
     EventCompetitionWriteCapability WriteCapability = EventCompetitionWriteCapability.Unknown,
     bool CanWrite = false,
-    bool CanDelete = false);
+    bool CanDelete = false,
+    Guid? OperationId = null,
+    EventCompetitionManagementOperationPhase? OperationPhase = null,
+    EventCompetitionManagementOperationType? OperationType = null,
+    DateTimeOffset? NextAttemptAt = null,
+    EventCompetitionCredentialStatus CredentialStatus = EventCompetitionCredentialStatus.NotApplicable);
 
 public interface IEventCompetitionManagementService
 {

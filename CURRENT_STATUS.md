@@ -1,81 +1,22 @@
 # Current project status
 
-## Active assignment — merged B1/B2 awaiting scope check, 4 October 2026
+## Active assignment — B3 / AU20, 4 October 2026
 
-- Base verified clean: `5cf9081b458a573baa0c32fe423f88375f49534d`.
-- Main feature checkout: `/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage`,
-  branch `codex/participants-functionality`.
-- Planner `/root`, chat `01a10660-cc8a-7843-abb4-6cc1ebbb2bf2`, replaces old UI Planner.
-- Exact user authorization and attribution policy:
-  `docs/references/admin-ui/reviews/2026-10-04/au-step0/approval-record.md`.
-  Full assignment: `assignment.md` beside it; supplied decisions: `decisions.md`.
-- Step 0 completed and reported before dispatch: `3ce941b6718fd27fa514c309eabeb74d4ba17c3c`.
-- B1 Luna `gpt-5.6-luna` / max works in the separate
-  `/Users/christopher/.codex/worktrees/au-b1-small-fixes/BingoWebpage` checkout,
-  branch `codex/au-b1-small-fixes`. B2 Astra `gpt-6-astra` / high used this checkout.
-  Both started from Step 0; no orchestrator or extra workers.
+- Checkout `/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage`, branch `codex/participants-functionality`.
+- Clean baseline verified `b126c556ccd2e16cb59829837581646a3179847e`; planner's authorized documentation prerequisite `2649008` follows it.
+- Planner `/root`, replacement chat `01a10660-cc8a-7843-abb4-6cc1ebbb2bf2`. Sole implementer `/root/au_b3_implementer`, `gpt-6-astra` / high; no orchestrator or extra workers.
+- User supplied assignment: [B3 brief](docs/references/admin-ui/reviews/2026-10-04/au-b3/supplied-brief.md). Section 6's old planner chat is retired by the current assignment.
+- Six ordered implementation items, one scoped local commit each; all await external Claude review. No current-page display, B4/B5, RC/UI integration, rehearsal, push, main merge or deployment.
+- Item 1 implemented and focused checks passed (external review pending): exact configured UTC window at all three validation sites; extend AU18 outcome/readback mechanism. No review or acceptance claimed.
+- AU20 absent-reference binding is recorded once in DELIVERY_PLAN's register; placement remains for UI integration.
 
-## Lane ownership and stops
+## Retained B1/B2 evidence and limits
 
-- B1: AU15 → AU16 → AU22 → AU24. WOM Fetch page only (RefreshAsync unchanged),
-  Audit, Accounts/ownership, their projections/tests/translations and ticket docs.
-  No scoring/Board/finalization/catalogue/draft/lifecycle/WOM management or sync
-  edits; no migrations. C11FinalizedRosterIntegrationTests changes are B1-owned.
-- B2: AU11 → AU12 → narrowed AU18. Board/editor/EHB/estimates/contribution,
-  scoring/snapshots/Final Review and migrations. Existing events retain old ranking;
-  explicit persisted event-creation boundary for new events. No B1 file edits.
-- Use separate test files for B2 additions where B1 owns an existing test class.
-  Shared translation/test/infrastructure file needs outside ownership are reported
-  before edits. No silent overlap. B1 ticket-doc sections and B2 ticket-doc sections
-  are disjoint; lane evidence/status stays in its own au-b1/ or au-b2/ directory.
-- One local commit per ticket with focused checks and durable evidence.
-- Report lane/ticket/commit/next action to `/root` before every turn-ending response
-  and immediately for blockers/decisions. No wait_threads or planner polling.
-- Each lane stops for Claude’s independent review, without waiting for the other.
-  B1 local merge-back only after Claude B1 PASS; no push/main merge/deploy.
-- B3–B5, RC/UI integration and rehearsal tooling/execution remain stopped.
-
-## Claude recheck and assigned follow-ups — brief 22
-
-- Source: `/Users/christopher/Documents/BingoWebpage/review-notes/22-b1-b2-remediation-recheck.md`.
-  Claude initial and appended direct follow-up reviews are source-only; no execution.
-- Initial B1 `b38749d..ea60b64`: FAIL on R1; all five brief 21 fixes passed.
-  Confirmed account actions save but lose the response because the confirmation
-  temporarily closes the editor. The line-62 browser failure was this real bug.
-- B2 `f932893..52be2b6`: PASS with R2 rounding follow-up. The field-specific Danish
-  decimal binder is a Claude-accepted planner technical resolution, not product approval.
-- Follow-ups dispatched 4 October; no orchestrator, Claude rechecks directly:
-  - B1 `/root/au_b1_followup`, `gpt-5.6-luna` / max, replaces unavailable old-tree
-    worker; complete at clean `a9399b2`. Claude recheck: `ea60b64..a9399b2`.
-    `404524d`: R1 confirmed-response fix; `a9399b2`: malformed Audit feedback/tests.
-    Worker reports browser and Node dialog tests passed, all four previously
-    unverified AU24 assertions reached; Audit 5/5, ownership HTTP 1/1, Accounts 3/3.
-    Release web build: zero warnings/errors; diff check passed. Planner verified
-    Git checkpoint and durable evidence, not independently rerun or source-reviewed.
-    Evidence: au-b1/remediation browser-account-support.md, AU16-D4.md, AU24-F1.md.
-  - B2 existing chat `01a10444-ca79-71a1-8841-07e1d926ac2d`, local,
-    `gpt-6-astra` / high; clean start `c557139` (status only after `52be2b6`).
-    Item 3 complete at `5545845`; Claude direct recheck range `0417b53..5545845`.
-    Four AwayFromZero comparisons plus midpoint ranking/PostgreSQL discard tests.
-    Worker reports 19 PostgreSQL and 8 application cases passed, Release build
-    zero warnings/errors; three pre-fix failures reproduced, two legacy cases passed.
-    Evidence: `au-b2/remediation/brief22-r2.md`. Planner verified clean checkpoint
-    and durable report, not independently rerun tests or reviewed implementation.
-    Completion callback delivered to this planner after direct user authorization.
-- Claude appended direct recheck: B1 `404524d`/`a9399b2` PASS; B2 `5545845` PASS.
-  User forwarded both passes and authorized local merge-back. Execution evidence
-  remains workers'; no new visual acceptance claimed. Local merge completed below.
-- Durable evidence: `docs/references/admin-ui/reviews/2026-10-04/au-b1/remediation/`
-  and corresponding `au-b2/remediation/`. Reuse prior applicable passing evidence.
-- B1 owns SharedResource; B2 owns migrations. Preserve B2 constructor arguments and
-  B1 behavior edits when merging shared tests; never replace whole files.
-- Existing limits remain: snapshot override equal to automatic is indistinguishable;
-  cleanup Down cannot restore cleared values. Operator pre/post migration counts
-  are still due. No production access is assigned.
-- Packager `/root/au_b1_followup` completed; both workers stopped. Merge `4065cb0`
-  has parents `43ce865` and `a9399b2`; no conflicts. Evidence commit `40e624a`.
-  Planner verified clean checkpoint, parents and au-b1/remediation/merge-back.md;
-  no independent test rerun or merge scope review claimed.
+- B1/B2 merge `4065cb0`, evidence `40e624a`; Claude merge scope PASS per supplied B3 assignment. Prior checks are reused, not rerun or independently reviewed here.
+- B1 follow-ups `404524d` / `a9399b2` and B2 `5545845` passed Claude source recheck. Execution evidence remains workers'.
+- Evidence: `docs/references/admin-ui/reviews/2026-10-04/au-b1/remediation/` and `au-b2/remediation/`; merge evidence `au-b1/remediation/merge-back.md`.
+- Approval attribution: `docs/references/admin-ui/reviews/2026-10-04/au-step0/approval-record.md`, supplied `assignment.md` and `decisions.md` beside it.
+- Snapshot override equal to automatic remains indistinguishable; cleanup Down cannot restore cleared values. Operator pre/post migration counts remain due. No production access assigned.
 
 ## Prior outcomes / corrected approvals
 
@@ -94,7 +35,4 @@
 
 ## Next permitted action
 
-Claude's merge-only scope check of `4065cb0` is pending. Packager reports merged
-checks passed: AU15 1, Audit 5, Accounts 3, ownership 6, reset HTTP 1, Accounts UI 2;
-Node dialog/Chromium passed; Release solution build zero warnings/errors; diff passed.
-No new work, push, main merge, deploy or B3. R1 conversion/R3 release gates remain.
+Continue B3's six-item brief through focused execution and local checkpoints; stop after item 6 for Claude's independent review. R1 conversion/R3 release gates remain.
