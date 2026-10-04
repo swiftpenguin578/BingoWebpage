@@ -52,11 +52,16 @@
     Two new local commits, one per item. No completed work rediscovery.
   - B2 existing chat `01a10444-ca79-71a1-8841-07e1d926ac2d`, local,
     `gpt-6-astra` / high; clean start `c557139` (status only after `52be2b6`).
-    Item 3: AwayFromZero at four named stored-EHB comparisons; midpoint ranking
-    and PostgreSQL discard tests. One new local commit.
-- Workers own focused execution, Release build and diff checks. Results pending;
-  no follow-up independent review or manual acceptance claimed. B1's four AU24
-  browser assertions remain unverified until the new browser run reaches them.
+    Item 3 complete at `5545845`; Claude direct recheck range `0417b53..5545845`.
+    Four AwayFromZero comparisons plus midpoint ranking/PostgreSQL discard tests.
+    Worker reports 19 PostgreSQL and 8 application cases passed, Release build
+    zero warnings/errors; three pre-fix failures reproduced, two legacy cases passed.
+    Evidence: `au-b2/remediation/brief22-r2.md`. Planner verified clean checkpoint
+    and durable report, not independently rerun tests or reviewed implementation.
+    Completion callback delivered to this planner after direct user authorization.
+- B1 execution/report pending; four AU24 browser assertions remain unverified until
+  its new run reaches them. B2 stopped for Claude; follow-up review and manual
+  acceptance remain pending. No merge performed.
 - Durable evidence: `docs/references/admin-ui/reviews/2026-10-04/au-b1/remediation/`
   and corresponding `au-b2/remediation/`. Reuse prior applicable passing evidence.
 - B1 owns SharedResource; B2 owns migrations. Preserve B2 constructor arguments and
@@ -84,7 +89,8 @@
 
 ## Next permitted action
 
-Complete only the assigned brief 22 follow-ups, then Claude directly rechecks both.
+B1 completes its assigned follow-ups; Claude directly rechecks B2 `0417b53..5545845`
+and B1 when its completion report arrives.
 After Claude B1 PASS, coordinate local merge into `codex/participants-functionality`
 (not `main`), preserving both lanes, then rerun B1 focused checks including AU15 and
 account-support.browser.js. Stop after rechecks and authorized merge. No push,
