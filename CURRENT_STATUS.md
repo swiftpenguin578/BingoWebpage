@@ -46,10 +46,13 @@
   decimal binder is a Claude-accepted planner technical resolution, not product approval.
 - Follow-ups dispatched 4 October; no orchestrator, Claude rechecks directly:
   - B1 `/root/au_b1_followup`, `gpt-5.6-luna` / max, replaces unavailable old-tree
-    worker; starts at clean `ea60b644aca91789c0e51600cc31ab63f047305b` in B1 checkout.
-    Item 1: fix R1 and rerun account-support.browser.js. Item 2: malformed Audit
-    date/entry feedback plus three Accounts/Audit test gaps named in brief 22.
-    Two new local commits, one per item. No completed work rediscovery.
+    worker; complete at clean `a9399b2`. Claude recheck: `ea60b64..a9399b2`.
+    `404524d`: R1 confirmed-response fix; `a9399b2`: malformed Audit feedback/tests.
+    Worker reports browser and Node dialog tests passed, all four previously
+    unverified AU24 assertions reached; Audit 5/5, ownership HTTP 1/1, Accounts 3/3.
+    Release web build: zero warnings/errors; diff check passed. Planner verified
+    Git checkpoint and durable evidence, not independently rerun or source-reviewed.
+    Evidence: au-b1/remediation browser-account-support.md, AU16-D4.md, AU24-F1.md.
   - B2 existing chat `01a10444-ca79-71a1-8841-07e1d926ac2d`, local,
     `gpt-6-astra` / high; clean start `c557139` (status only after `52be2b6`).
     Item 3 complete at `5545845`; Claude direct recheck range `0417b53..5545845`.
@@ -59,9 +62,8 @@
     Evidence: `au-b2/remediation/brief22-r2.md`. Planner verified clean checkpoint
     and durable report, not independently rerun tests or reviewed implementation.
     Completion callback delivered to this planner after direct user authorization.
-- B1 execution/report pending; four AU24 browser assertions remain unverified until
-  its new run reaches them. B2 stopped for Claude; follow-up review and manual
-  acceptance remain pending. No merge performed.
+- Both follow-ups complete and stopped for Claude direct recheck; independent
+  follow-up review and manual acceptance remain pending. No merge performed.
 - Durable evidence: `docs/references/admin-ui/reviews/2026-10-04/au-b1/remediation/`
   and corresponding `au-b2/remediation/`. Reuse prior applicable passing evidence.
 - B1 owns SharedResource; B2 owns migrations. Preserve B2 constructor arguments and
@@ -89,8 +91,8 @@
 
 ## Next permitted action
 
-B1 completes its assigned follow-ups; Claude directly rechecks B2 `0417b53..5545845`
-and B1 when its completion report arrives.
+Claude directly rechecks B1 `ea60b64..a9399b2` and B2 `0417b53..5545845`.
+Both workers are stopped; do not dispatch additional work before the review result.
 After Claude B1 PASS, coordinate local merge into `codex/participants-functionality`
 (not `main`), preserving both lanes, then rerun B1 focused checks including AU15 and
 account-support.browser.js. Stop after rechecks and authorized merge. No push,
