@@ -114,7 +114,14 @@ public sealed class EventLifecycleService(
         catch (DbUpdateException) { await tx.RollbackAsync(ct); db.ChangeTracker.Clear(); return new(false, "The event could not be started. Review its current state and try again."); }
     }
 
-    public async Task<EventStartResult> EndNowAsync(Guid eventId, long version, bool confirmed, string? reason, LifecycleActor actor, CancellationToken ct = default)
+    public Task<EventStartResult> EndNowAsync(Guid eventId, long version, bool confirmed, string? reason, LifecycleActor actor, CancellationToken ct = default)
+    {
+        var clickedAt = time.GetUtcNow();
+        return RetryLifecycleWriteAsync(() => EndNowAttemptAsync(eventId, version, confirmed, reason, actor, clickedAt, ct),
+            "This event changed while it was being ended. Review its current state and try again.", ct);
+    }
+
+    private async Task<EventStartResult> EndNowAttemptAsync(Guid eventId, long version, bool confirmed, string? reason, LifecycleActor actor, DateTimeOffset clickedAt, CancellationToken ct)
     {
         await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
         try
@@ -130,7 +137,7 @@ public sealed class EventLifecycleService(
 
             await EventCurrentBoundary.LockAsync(db, ct);
             var item = await EventAsync(eventId, version, ct);
-            var now = time.GetUtcNow();
+            var now = clickedAt;
             if (item.EventEndsAt is { } scheduledEnd && now < scheduledEnd && string.IsNullOrWhiteSpace(reason))
                 return new(false, "Enter a reason when ending the event before its configured end.");
             var from = item.State;
@@ -147,12 +154,20 @@ public sealed class EventLifecycleService(
             await tx.CommitAsync(ct);
             return new(true);
         }
+        catch (Exception ex) when (IsLifecycleWriteConflict(ex)) { await tx.RollbackAsync(ct); throw; }
         catch (DbUpdateConcurrencyException) { await tx.RollbackAsync(ct); return new(false, "This event changed while it was being ended. Review its current state and try again."); }
         catch (InvalidOperationException ex) { await tx.RollbackAsync(ct); return new(false, ex.Message); }
         catch (DbUpdateException) { await tx.RollbackAsync(ct); return new(false, "The event could not be ended. Review its current state and try again."); }
     }
 
-    public async Task<EventStartResult> ResumePrematureEndAsync(Guid eventId, long version, bool confirmed, string? reason, DateTimeOffset? replacementEventEndsAt, LifecycleActor actor, CancellationToken ct = default)
+    public Task<EventStartResult> ResumePrematureEndAsync(Guid eventId, long version, bool confirmed, string? reason, DateTimeOffset? replacementEventEndsAt, LifecycleActor actor, CancellationToken ct = default)
+    {
+        var clickedAt = time.GetUtcNow();
+        return RetryLifecycleWriteAsync(() => ResumePrematureEndAttemptAsync(eventId, version, confirmed, reason, replacementEventEndsAt, actor, clickedAt, ct),
+            "This event changed while it was being resumed. Review its current state and try again.", ct);
+    }
+
+    private async Task<EventStartResult> ResumePrematureEndAttemptAsync(Guid eventId, long version, bool confirmed, string? reason, DateTimeOffset? replacementEventEndsAt, LifecycleActor actor, DateTimeOffset clickedAt, CancellationToken ct)
     {
         await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
         try
@@ -169,7 +184,7 @@ public sealed class EventLifecycleService(
 
             await EventCurrentBoundary.LockAsync(db, ct);
             var item = await EventAsync(eventId, version, ct);
-            var now = time.GetUtcNow();
+            var now = clickedAt;
             if (item.State != EventState.AwaitingFinalReview)
                 return new(false, "Only an event in final review can be resumed.");
             if (await db.EventFinalizations.AnyAsync(x => x.EventId == eventId, ct))
@@ -201,9 +216,28 @@ public sealed class EventLifecycleService(
             await tx.CommitAsync(ct);
             return new(true);
         }
+        catch (Exception ex) when (IsLifecycleWriteConflict(ex)) { await tx.RollbackAsync(ct); throw; }
         catch (DbUpdateConcurrencyException) { await tx.RollbackAsync(ct); return new(false, "This event changed while it was being resumed. Review its current state and try again."); }
         catch (InvalidOperationException ex) { await tx.RollbackAsync(ct); return new(false, ex.Message); }
         catch (DbUpdateException) { await tx.RollbackAsync(ct); return new(false, "The event could not be resumed. Review its current state and try again."); }
+    }
+
+    private async Task<EventStartResult> RetryLifecycleWriteAsync(Func<Task<EventStartResult>> action, string conflictMessage, CancellationToken ct)
+    {
+        for (var attempt = 0; attempt < 3; attempt++)
+        {
+            ct.ThrowIfCancellationRequested();
+            try { return await action(); }
+            catch (Exception ex) when (IsLifecycleWriteConflict(ex)) { db.ChangeTracker.Clear(); }
+        }
+        return new(false, conflictMessage);
+    }
+
+    private static bool IsLifecycleWriteConflict(Exception exception)
+    {
+        for (Exception? current = exception; current is not null; current = current.InnerException)
+            if (current is PostgresException { SqlState: "40001" or "40P01" }) return true;
+        return false;
     }
 
     private async Task ExecuteScheduledStartAsync(Guid eventId, DateTimeOffset now, CancellationToken ct)
@@ -373,7 +407,8 @@ public sealed class EventLifecycleService(
 
     private async Task<BingoEvent> EventAsync(Guid eventId, long version, CancellationToken ct)
     {
-        var item = await db.Events.SingleOrDefaultAsync(x => x.Id == eventId && x.HiddenAt == null, ct) ?? throw new InvalidOperationException("Event not found.");
+        var item = await db.Events.FromSqlInterpolated($"SELECT * FROM events WHERE id = {eventId} AND hidden_at IS NULL FOR UPDATE").SingleOrDefaultAsync(ct) ?? throw new InvalidOperationException("Event not found.");
+        await db.Entry(item).ReloadAsync(ct);
         if (item.Version != version) throw new DbUpdateConcurrencyException();
         return item;
     }
@@ -419,7 +454,11 @@ public sealed class EventLifecycleService(
         var synchronization = await db.EventCompetitionSynchronizations
             .FromSqlInterpolated($"SELECT * FROM event_competition_synchronizations WHERE event_id = {item.Id} FOR UPDATE")
             .SingleOrDefaultAsync(ct);
-        synchronization?.RequestEndUpdate(item.EventEndsAt!.Value, now);
+        if (synchronization is not null)
+        {
+            await db.Entry(synchronization).ReloadAsync(ct);
+            synchronization.RequestEndUpdate(item.EventEndsAt!.Value, now);
+        }
     }
 
     private static bool IsDevelopmentMode() => string.Equals(Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT"), "Development", StringComparison.OrdinalIgnoreCase);
