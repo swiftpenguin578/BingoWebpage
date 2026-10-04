@@ -116,9 +116,13 @@ public sealed class AccountOverviewTests : IAsyncLifetime
         matching.TempData["CredentialLink"] = "https://example.test/reset/A";
         matching.TempData["CredentialLinkTargetId"] = first.Id.ToString();
         matching.TempData["CredentialLinkPurpose"] = "reset";
+        matching.TempData["StatusMessage"] = "Generated a one-time reset link.";
+        matching.TempData[UiMessage.TypeKey] = UiMessageType.Success.ToString();
         await matching.OnGetAsync(first.Id, CancellationToken.None);
 
         Assert.Equal("https://example.test/reset/A", matching.CredentialLink);
+        Assert.Equal("Generated a one-time reset link.", matching.TempData["StatusMessage"]?.ToString());
+        Assert.Equal(UiMessageType.Success.ToString(), matching.TempData[UiMessage.TypeKey]?.ToString());
     }
 
     private static ManageModel CreateManageModel(ApplicationDbContext db)

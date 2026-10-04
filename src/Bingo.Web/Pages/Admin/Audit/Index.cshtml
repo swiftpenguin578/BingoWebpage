@@ -40,6 +40,7 @@
         <div class="admin-field">
             <label asp-for="From"></label>
             <input asp-for="From" type="date" class="form-control" />
+            <span asp-validation-for="From" class="admin-audit-validation"></span>
         </div>
         <div class="admin-field">
             <label asp-for="To"></label>
@@ -52,7 +53,7 @@
         </div>
     </form>
 
-    @if (Model.EntryId is not null)
+    @if (Model.EntryId is not null || Model.EntryUnavailable)
     {
         <section class="admin-audit-entry" aria-labelledby="admin-audit-entry-title">
             @if (Model.EntryUnavailable)

@@ -48,7 +48,7 @@ public sealed partial class Slice1IdentityIntegrationTests
     }
 
     [Fact]
-    public async Task OwnershipTransferHttpRejectsMissingConfirmationWithoutMutation()
+    public async Task OwnershipTransferHttpRejectsMissingOrMismatchedConfirmationWithoutMutation()
     {
         Guid ownerId;
         Guid destinationId;
@@ -88,6 +88,18 @@ public sealed partial class Slice1IdentityIntegrationTests
         Assert.Equal(HttpStatusCode.OK, rejected.StatusCode);
         var rejectedHtml = await rejected.Content.ReadAsStringAsync();
         Assert.Contains("Destination username confirmation", rejectedHtml, StringComparison.OrdinalIgnoreCase);
+
+        using var serverRejected = await client.PostAsync("/Admin/Accounts/Transfer", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["Input.DestinationId"] = destinationId.ToString(),
+            ["Input.ExpectedAuthorizationVersion"] = destinationVersion.ToString(CultureInfo.InvariantCulture),
+            ["Input.DestinationUsernameConfirmation"] = "not-the-destination",
+            ["Input.CurrentPassword"] = "long-test-password",
+            ["__RequestVerificationToken"] = transferToken
+        }));
+        Assert.Equal(HttpStatusCode.OK, serverRejected.StatusCode);
+        var serverRejectedHtml = await serverRejected.Content.ReadAsStringAsync();
+        Assert.Contains("destination username confirmation does not match", serverRejectedHtml, StringComparison.OrdinalIgnoreCase);
 
         await using var verify = new ApplicationDbContext(options);
         var persisted = await verify.Accounts.Where(x => x.Id == ownerId || x.Id == destinationId).ToListAsync();

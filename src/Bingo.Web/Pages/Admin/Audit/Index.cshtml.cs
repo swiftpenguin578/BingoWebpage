@@ -50,6 +50,8 @@ public sealed class IndexModel(ApplicationDbContext dbContext, IStringLocalizer<
         PageNumber = NormalizePageNumber();
         if (PageContext?.HttpContext?.Request.Query.ContainsKey("pageNumber") == true)
             ModelState.Remove(nameof(PageNumber));
+        if (EntryId is null && PageContext?.HttpContext?.Request.Query.ContainsKey("entry") == true)
+            EntryUnavailable = true;
         if (!ModelState.IsValid)
         {
             Entries = [];

@@ -172,14 +172,16 @@ public sealed class AuditHistoryIntegrationTests : IAsyncLifetime
         hiddenEvent.Hide(actorId, eventAt.AddDays(1), hiddenEvent.Name, "Controlled autumn fixture");
         var startInside = new DateTimeOffset(2027, 10, 30, 22, 30, 0, TimeSpan.Zero);
         var endInside = new DateTimeOffset(2027, 10, 31, 22, 30, 0, TimeSpan.Zero);
-        var afterEnd = new DateTimeOffset(2027, 11, 1, 23, 30, 0, TimeSpan.Zero);
+        var beforeStart = new DateTimeOffset(2027, 10, 30, 21, 59, 0, TimeSpan.Zero);
+        var atEnd = new DateTimeOffset(2027, 10, 31, 23, 0, 0, TimeSpan.Zero);
         await using (var setup = new ApplicationDbContext(options))
         {
             var actor = Account.CreateWebsite(actorId, "autumn-admin", "AUTUMN-ADMIN", eventAt);
             setup.AddRange(actor, hiddenEvent,
                 new AuditEntry(Guid.NewGuid(), startInside, actorId, "autumn-admin", "event.started", "event", eventId.ToString("D"), "Inside lower bound.", eventId),
                 new AuditEntry(Guid.NewGuid(), endInside, actorId, "autumn-admin", "event.ended", "event", eventId.ToString("D"), "Inside upper bound.", eventId),
-                new AuditEntry(Guid.NewGuid(), afterEnd, actorId, "autumn-admin", "event.cancelled", "event", eventId.ToString("D"), "Outside upper bound.", eventId));
+                new AuditEntry(Guid.NewGuid(), beforeStart, actorId, "autumn-admin", "event.cancelled", "event", eventId.ToString("D"), "Before selected local day.", eventId),
+                new AuditEntry(Guid.NewGuid(), atEnd, actorId, "autumn-admin", "event.cancelled", "event", eventId.ToString("D"), "At exclusive upper bound.", eventId));
             await setup.SaveChangesAsync();
         }
 
@@ -193,7 +195,8 @@ public sealed class AuditHistoryIntegrationTests : IAsyncLifetime
         await page.OnGetAsync(CancellationToken.None);
 
         Assert.Equal(2, page.Entries.Count);
-        Assert.DoesNotContain(page.Entries, entry => entry.OccurredAt == afterEnd);
+        Assert.DoesNotContain(page.Entries, entry => entry.OccurredAt == beforeStart);
+        Assert.DoesNotContain(page.Entries, entry => entry.OccurredAt == atEnd);
         Assert.Contains(page.Entries, entry => entry.OccurredAt == startInside);
         Assert.Contains(page.Entries, entry => entry.OccurredAt == endInside);
     }
@@ -256,6 +259,17 @@ public sealed class AuditHistoryIntegrationTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var html = await response.Content.ReadAsStringAsync();
         Assert.Contains("The end date is out of range.", html, StringComparison.Ordinal);
+
+        using var invalidFrom = await client.GetAsync("/Admin/Audit?From=abc");
+        Assert.Equal(HttpStatusCode.OK, invalidFrom.StatusCode);
+        var invalidFromHtml = await invalidFrom.Content.ReadAsStringAsync();
+        Assert.Contains("data-valmsg-for=\"From\"", invalidFromHtml, StringComparison.Ordinal);
+        Assert.Contains("field-validation-error", invalidFromHtml, StringComparison.Ordinal);
+
+        using var invalidEntry = await client.GetAsync("/Admin/Audit?entry=abc");
+        Assert.Equal(HttpStatusCode.OK, invalidEntry.StatusCode);
+        var invalidEntryHtml = await invalidEntry.Content.ReadAsStringAsync();
+        Assert.Contains("This entry isn't available", WebUtility.HtmlDecode(invalidEntryHtml), StringComparison.Ordinal);
     }
 
     [Fact]
