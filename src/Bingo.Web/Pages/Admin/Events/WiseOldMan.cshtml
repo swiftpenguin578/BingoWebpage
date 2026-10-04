@@ -124,9 +124,8 @@ else
                     <div class="event-control-static">
                         @if (!Model.IsHiddenInspection && canFetch)
                         {
-                            <form method="post" asp-page-handler="FetchCompetition" id="wom-fetch-form" data-lifecycle-confirm data-confirm-title="@T["Fetch WOM data now"]" data-confirm-description="@T["Manual fetches should only be used when fresh data is genuinely needed. Repeated unnecessary requests may trigger Wise Old Man rate limits and affect the integration for everyone."]" data-confirm-action="@T["Fetch now"]" data-confirm-wom-value="FETCH" data-confirm-wom-label="@T["Type FETCH to fetch WOM data now."]">
+                            <form method="post" asp-page-handler="FetchCompetition" id="wom-fetch-form">
                                 <input asp-for="EventVersion" type="hidden" />
-                                <input type="hidden" name="FetchConfirmation" />
                                 <button class="btn admin-button-secondary" type="submit">@T["Fetch WOM data now"]</button>
                             </form>
                         }

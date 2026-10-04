@@ -434,7 +434,6 @@ public sealed class Slice10Pass103ActivityProjectionTests : IAsyncLifetime
         var refreshPage = await client.GetStringAsync(workspaceRoute);
         using (var refreshed = await client.PostAsync($"{workspaceRoute}?handler=FetchCompetition", new FormUrlEncodedContent(new Dictionary<string, string>
         {
-            ["FetchConfirmation"] = "FETCH",
             ["__RequestVerificationToken"] = Regex.Match(refreshPage, "name=\"__RequestVerificationToken\" type=\"hidden\" value=\"([^\"]+)\"").Groups[1].Value
         }))) Assert.Equal(HttpStatusCode.Redirect, refreshed.StatusCode);
         Assert.Equal(1, fake.Calls);
@@ -467,7 +466,6 @@ public sealed class Slice10Pass103ActivityProjectionTests : IAsyncLifetime
         var lookupPage = await client.GetStringAsync(lookupRoute);
         using (var rejected = await client.PostAsync($"{lookupRoute}?handler=FetchCompetition", new FormUrlEncodedContent(new Dictionary<string, string>
         {
-            ["FetchConfirmation"] = "FETCH",
             ["__RequestVerificationToken"] = Regex.Match(lookupPage, "name=\"__RequestVerificationToken\" type=\"hidden\" value=\"([^\"]+)\"").Groups[1].Value
         }))) Assert.Equal(HttpStatusCode.Redirect, rejected.StatusCode);
         Assert.Contains("This event is read-only in its current lifecycle state.", await client.GetStringAsync(lookupRoute), StringComparison.Ordinal);

@@ -18,8 +18,13 @@ public sealed class ManagedCompetitionUiTests
         Assert.Contains("asp-page-handler=\"AdoptCompetitionCredential\"", workspace);
         Assert.Contains("asp-for=\"CompetitionVerificationCode\"", workspace);
         Assert.Contains("type=\"password\"", workspace);
-        Assert.Contains("data-confirm-wom-value=\"FETCH\"", workspace);
-        Assert.Contains("Manual fetches should only be used when fresh data is genuinely needed.", workspace);
+        Assert.Contains("<form method=\"post\" asp-page-handler=\"FetchCompetition\" id=\"wom-fetch-form\">", workspace);
+        Assert.DoesNotContain("id=\"wom-fetch-form\" data-lifecycle-confirm", workspace, StringComparison.Ordinal);
+        Assert.DoesNotContain("data-confirm-wom-value", workspace, StringComparison.Ordinal);
+        Assert.DoesNotContain("FetchConfirmation", workspace, StringComparison.Ordinal);
+        Assert.DoesNotContain("FetchConfirmation", handler, StringComparison.Ordinal);
+        Assert.DoesNotContain("Type FETCH", workspace, StringComparison.Ordinal);
+        Assert.DoesNotContain("Type FETCH", handler, StringComparison.Ordinal);
         Assert.Contains("LocalizeManagedError", handler);
         Assert.Contains("asp-page=\"WiseOldMan\"", manage);
         Assert.DoesNotContain("asp-page-handler=\"CreateManagedCompetition\"", manage, StringComparison.Ordinal);

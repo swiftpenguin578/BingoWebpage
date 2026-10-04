@@ -26,8 +26,6 @@ public sealed class WiseOldManModel(
     IStringLocalizer<SharedResource>? text = null,
     IHostEnvironment? environment = null) : PageModel
 {
-    private const string FetchConfirmationValue = "FETCH";
-
     public EventSummary? EventView { get; private set; }
     public EventCompetitionView? CompetitionIntegration { get; private set; }
     public EventCompetitionManagementView? CompetitionManagement { get; private set; }
@@ -43,8 +41,6 @@ public sealed class WiseOldManModel(
     [BindProperty, StringLength(2000)] public string? CompetitionClearReason { get; set; }
     [BindProperty] public bool ConfirmManagedCompetitionDelete { get; set; }
     [BindProperty, Range(1, long.MaxValue)] public long? ManagedCompetitionDeleteId { get; set; }
-    [BindProperty, StringLength(20)] public string? FetchConfirmation { get; set; }
-
     public async Task<IActionResult> OnGetAsync(Guid id, [FromQuery(Name = "hidden")] bool hiddenInspection, CancellationToken ct)
         => await LoadAsync(id, hiddenInspection, ct) ? Page() : NotFound();
 
@@ -92,9 +88,6 @@ public sealed class WiseOldManModel(
 
     public async Task<IActionResult> OnPostFetchCompetitionAsync(Guid id, CancellationToken ct)
     {
-        if (!string.Equals(FetchConfirmation?.Trim(), FetchConfirmationValue, StringComparison.Ordinal))
-            return RedirectWithStatus(id, Localize("Type FETCH exactly to request WOM data."), UiMessageType.Warning);
-
         try
         {
             var result = await competitionSynchronization.RefreshAsync(id, Actor, ct);

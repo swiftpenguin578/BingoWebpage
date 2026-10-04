@@ -343,7 +343,7 @@ into a broad pass.
 | AU13 | Board planning team-size estimate editable after draft finalization | Existing board statistics/settings boundary | Technically complete — F8 checkpoint `6d33ce6`; the post-finalization lock removed here originated in `525d5d1` (BR-2/BR-9) | Focused PostgreSQL 3/3, browser markup 1/1, diff check; evidence `docs/references/admin-ui/reviews/2026-10-03/f8-au13-checkpoint.md` | Accepted in the F1–F9 Claude source review; Claude did not rerun tests | Deferred |
 | AU14 | Teams: authoritative uncertain-action readback | Resolve minimal transport contract using existing commands/IDs | Queued; contract at handoff | Not run | Source gap mapped | Deferred |
 
-| AU15 | WOM: remove typed FETCH confirmation | Existing refresh guards | Approved; queued, not dispatched | Not run | Not run | Deferred |
+| AU15 | WOM: remove typed FETCH confirmation | Existing refresh guards | Implemented by B1 Luna/max; local checkpoint awaiting Claude review; evidence `docs/references/admin-ui/reviews/2026-10-04/au-b1/AU15.md` | Browser markup 4/4; Release build 0 warnings/errors; current and Step0 baseline PostgreSQL/HTTP runs reach the route without `FETCH` and reproduce the unchanged schedule assertion failure (see evidence) | Pending — Claude commit-by-commit review | Deferred |
 | AU16 | Audit: restore approved hidden-event history and exact filters | Existing audit presenter/query and hidden-history authority | Approved defect fix; queued, not dispatched | Not run | Not run | Deferred |
 | AU17a | Review: approved full-event-pool metadata correction | Existing evidence correction/readiness boundary | Approved; queued before AU17 | Not run | Not run | Deferred |
 | AU17 | Review: Contribution line and safe uncertain-save readback only | Existing review service; AU17a owns full pool | Approved, narrowed; queued B5 | Not run | Not run | Deferred |
@@ -911,10 +911,13 @@ from the last attempt. Do not broaden phase access in this correction.
 Focused proof: permitted authenticated POST without FETCH reaches the existing
 refresh service; cooldown/retry/in-flight rejection issues no provider request;
 unauthorized/antiforgery and phase restrictions remain intact. Use controlled
-provider fixtures, never live WOM or user databases. One independent review of the
-stable change; new-reference visual acceptance remains separate. Approved scope,
-not implemented or checked. Queue after the existing AU01–AU14 then RC01–RC04
-sequence; do not interrupt the active ticket.
+provider fixtures, never live WOM or user databases. The B1 implementation is
+recorded in `docs/references/admin-ui/reviews/2026-10-04/au-b1/AU15.md`; its
+browser contract and Release build pass. Both the current and Step0 baseline
+PostgreSQL/HTTP fixture runs reach the route and reproduce the unchanged schedule
+assertion failure, so that gate remains unverified for this environment. One
+independent review of the stable change remains required; new-reference visual
+acceptance remains separate. The ticket is implemented and awaits Claude review.
 
 ### Deferred UI binding and reference ownership
 
