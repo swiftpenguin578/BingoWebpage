@@ -4,8 +4,10 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using Bingo.Application.Events;
 using Bingo.Domain.Events;
+using Bingo.Domain.Access;
 using Bingo.Domain.Evidence;
 using Bingo.Domain.Teams;
+using Bingo.Domain.Signups;
 using Bingo.Infrastructure.Boards;
 using Bingo.Infrastructure.Events;
 using Bingo.Infrastructure.Persistence;
@@ -85,6 +87,56 @@ public sealed partial class SubmissionWorkflowTests
         Assert.Equal(2, publishedCreditedRows.Count);
         Assert.All(publishedCreditedRows, player => Assert.Equal(12m, player.EstimatedEhb));
         await AssertCrossTeamPagesAsync(client, ev.Slug, setup.ParticipantId);
+    }
+
+    [Theory]
+    [InlineData(-1, false, false)]
+    [InlineData(0, false, true)]
+    [InlineData(1, false, true)]
+    [InlineData(null, false, true)]
+    [InlineData(1, true, false)]
+    public async Task B5RemediationCorrectionUsesMembershipAtUploadAndLatestRole(int? leaveSeconds, bool latestInformational, bool eligible)
+    {
+        var setup = await SeedAsync(3, true);
+        await using var db = new ApplicationDbContext(options);
+        var service = Service(db);
+        var created = await service.CreateAsync(Command(setup));
+        var submission = await db.Submissions.AsNoTracking().SingleAsync(x => x.Id == created.SubmissionId);
+        var participant = new EventParticipant(Guid.NewGuid(), setup.EventId, SignupStatus.Confirmed, 10, now.AddDays(-5), SignupSource.Website);
+        var character = new OsrsCharacter(Guid.NewGuid(), "Retained player", "RETAINED PLAYER", now.AddDays(-5));
+        var playing = new EventParticipantCharacter(Guid.NewGuid(), setup.EventId, participant.Id, character.Id, 0, now.AddDays(-5), setup.AdminId, null, EventCharacterRole.Playing, 1, EhbSource.Manual, null);
+        var membership = new TeamMembership(Guid.NewGuid(), setup.TeamId, participant.Id, TeamMembershipRole.Participant, now.AddDays(-4), null, null);
+        if (leaveSeconds is { } offset) membership.Leave(submission.SubmittedAt.AddSeconds(offset), "Retained membership");
+        db.AddRange(participant, character, playing, membership);
+        if (latestInformational)
+        {
+            playing.Release(setup.AdminId, now.AddMinutes(-2));
+            var informational = new EventParticipantCharacter(Guid.NewGuid(), setup.EventId, participant.Id, character.Id, 1, now.AddMinutes(-1), setup.AdminId, null, EventCharacterRole.Informational, null, null, null);
+            informational.Release(setup.AdminId, now);
+            db.EventParticipantCharacters.Add(informational);
+        }
+        await db.SaveChangesAsync();
+        var baseline = await B5EvidenceStateAsync();
+        var choices = await service.GetCorrectionCharactersAsync(submission.Id, setup.AdminId);
+        if (!eligible)
+        {
+            Assert.DoesNotContain(choices, x => x.CharacterId == character.Id);
+            var error = await Assert.ThrowsAsync<InvalidOperationException>(() => service.EditMetadataAsync(new(submission.Id, setup.AdminId, setup.TileId, setup.RequirementId, setup.DropId, character.Id, "Correction", submission.Version)));
+            Assert.Equal("Choose an unambiguous Playing character assigned in this event to a current or former member of this submission's team.", error.Message);
+            Assert.Equal(baseline, await B5EvidenceStateAsync());
+            return;
+        }
+        var choice = Assert.Single(choices, x => x.CharacterId == character.Id);
+        Assert.Equal(leaveSeconds is not null, choice.LeftTeam);
+        Assert.False(choice.Released);
+        Assert.Equal(leaveSeconds is null, choice.Current);
+        await service.EditMetadataAsync(new(submission.Id, setup.AdminId, setup.TileId, setup.RequirementId, setup.DropId, character.Id, "Correction", submission.Version));
+        var corrected = await db.Submissions.AsNoTracking().SingleAsync(x => x.Id == submission.Id);
+        Assert.Equal(participant.Id, corrected.CreditedParticipantId);
+        Assert.Equal(character.Id, corrected.CreditedOsrsCharacterId);
+        Assert.Equal(setup.TeamId, corrected.TeamId);
+        Assert.Equal(submission.SubmittedAt, corrected.SubmittedAt);
+        Assert.Equal(submission.Version + 1, corrected.Version);
     }
 
     private static async Task AssertCrossTeamPagesAsync(HttpClient client, string slug, Guid participantId)

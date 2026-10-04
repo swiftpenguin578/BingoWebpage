@@ -223,12 +223,13 @@ public sealed partial class SubmissionService(
                           join participant in db.EventParticipants.AsNoTracking() on assignment.EventParticipantId equals participant.Id
                           join character in db.OsrsCharacters.AsNoTracking() on assignment.OsrsCharacterId equals character.Id
                           where assignment.EventId == submission.EventId && participant.EventId == submission.EventId
-                          select new { assignment.EventParticipantId, character.Id, character.DisplayName, assignment.ReleasedAt, assignment.EventRole }).ToListAsync(ct);
+                          select new { assignment.EventParticipantId, character.Id, character.DisplayName, assignment.ReleasedAt, assignment.EventRole, assignment.RegisteredAt }).ToListAsync(ct);
         var memberships = await db.TeamMemberships.AsNoTracking().Where(x => x.TeamId == submission.TeamId)
+            .Where(x => x.LeftAt == null || (x.JoinedAt <= submission.SubmittedAt && x.LeftAt >= submission.SubmittedAt))
             .Select(x => new { x.EventParticipantId, x.LeftAt }).ToListAsync(ct);
         return rows.GroupBy(x => x.Id).Where(g => g.Select(x => x.EventParticipantId).Distinct().Count() == 1)
-            .Where(g => g.Any(x => x.EventRole == Bingo.Domain.Signups.EventCharacterRole.Playing) &&
-                        !g.Any(x => x.ReleasedAt == null && x.EventRole != Bingo.Domain.Signups.EventCharacterRole.Playing))
+            .Where(g => g.OrderByDescending(x => x.RegisteredAt).ThenByDescending(x => x.ReleasedAt ?? DateTimeOffset.MaxValue)
+                .First().EventRole == Bingo.Domain.Signups.EventCharacterRole.Playing)
             .Where(g => memberships.Any(m => m.EventParticipantId == g.First().EventParticipantId))
             .Select(g => new SubmissionCorrectionCharacter(g.Key, g.First().EventParticipantId, g.First().DisplayName,
                 g.All(x => x.ReleasedAt != null),

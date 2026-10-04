@@ -30,7 +30,7 @@ public sealed partial class SubmissionWorkflowTests
         var assignment = new EventParticipantCharacter(Guid.NewGuid(), setup.EventId, former.Id, character.Id, 0, now.AddDays(-5), setup.AdminId, null, EventCharacterRole.Playing, 1, EhbSource.Manual, null);
         assignment.Release(setup.AdminId, now.AddMinutes(-1));
         var membership = new TeamMembership(Guid.NewGuid(), setup.TeamId, former.Id, TeamMembershipRole.Participant, now.AddDays(-4), null, null);
-        membership.Leave(now.AddMinutes(-1), "Retained membership");
+        membership.Leave(now.AddMinutes(1), "Retained membership");
         db.AddRange(former, character, assignment, membership);
         await db.SaveChangesAsync();
         var choice = Assert.Single(await service.GetCorrectionCharactersAsync(created.SubmissionId, setup.AdminId), x => x.CharacterId == character.Id);
