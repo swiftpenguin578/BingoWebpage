@@ -155,7 +155,7 @@ public sealed class AccessAndAuditTests : IAsyncLifetime
     {
         var now = new DateTimeOffset(2026, 9, 26, 12, 0, 0, TimeSpan.Zero);
         var admin = Account.CreateWebsite(Guid.NewGuid(), "organizer", "ORGANIZER", now);
-        var item = new BingoEvent(Guid.NewGuid(), "Captain audit fixture", "captain-audit-fixture", "UTC", admin.Id, now);
+        var item = new BingoEvent(Guid.NewGuid(), "Captain audit fixture", "captain-audit-fixture", "UTC", admin.Id, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         var form = new SignupForm(Guid.NewGuid(), item.Id, now);
         var question = new SignupQuestion(Guid.NewGuid(), form.Id, item.Id, "primary_regular_account", "Account", SignupQuestionType.Account, true, 0, null, SignupSystemField.PrimaryRegularAccount, EventCharacterRole.Playing);
         var participant = new EventParticipant(Guid.NewGuid(), item.Id, SignupStatus.Confirmed, 1, now, SignupSource.AdminCreated);

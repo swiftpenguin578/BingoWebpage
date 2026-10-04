@@ -318,7 +318,7 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests
         var boss = new BossActivity(Guid.NewGuid(), "Price gate source", "price-gate-source", "Boss", 10, now);
         var first = new SourceDrop(Guid.NewGuid(), boss.Id, other.Id, "1/10", .1m, 1, now);
         var second = new SourceDrop(Guid.NewGuid(), boss.Id, item.Id, "1/10", .1m, 1, now);
-        var e = new BingoEvent(Guid.NewGuid(), "Price board", $"price-board-{Guid.NewGuid():N}", "UTC", actor.Id, now);
+        var e = new BingoEvent(Guid.NewGuid(), "Price board", $"price-board-{Guid.NewGuid():N}", "UTC", actor.Id, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         e.ConfigureSchedule(now.AddDays(-2), now.AddDays(-1), null, now.AddHours(2), now.AddDays(4), 10);
         e.OpenSignups(now.AddDays(-2)); e.CloseSignups(now.AddDays(-1)); e.SetDraftRosterPublication(true);
         var draft = new DraftSession(Guid.NewGuid(), e.Id, 1); draft.Start(now); draft.Finalize(now);

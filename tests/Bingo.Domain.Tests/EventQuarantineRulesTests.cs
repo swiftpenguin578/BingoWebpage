@@ -76,7 +76,7 @@ public sealed class EventQuarantineRulesTests
 
     private static BingoEvent Event(EventState state)
     {
-        var item = new BingoEvent(Guid.NewGuid(), "Quarantine test", $"quarantine-{Guid.NewGuid():N}", "UTC", Guid.NewGuid(), Now);
+        var item = new BingoEvent(Guid.NewGuid(), "Quarantine test", $"quarantine-{Guid.NewGuid():N}", "UTC", Guid.NewGuid(), Now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         item.ConfigureInitialSchedule(Now.AddHours(-5), Now.AddHours(-4), null, Now.AddHours(-3), Now.AddHours(1), 10);
 
         if (state is EventState.SignupOpen or EventState.SignupClosed or EventState.Live or EventState.AwaitingFinalReview or EventState.Finalized or EventState.Archived)

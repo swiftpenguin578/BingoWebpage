@@ -312,7 +312,7 @@ public sealed partial class SignupQuestionCreationRetryIntegrationTests : IAsync
     private async Task<Seed> SeedAsync()
     {
         var admin = await AccountAsync("retry-admin");
-        var ev = new BingoEvent(Guid.NewGuid(), "Retry tests", $"retry-{Guid.NewGuid():N}", "UTC", admin.Id, Now);
+        var ev = new BingoEvent(Guid.NewGuid(), "Retry tests", $"retry-{Guid.NewGuid():N}", "UTC", admin.Id, Now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         var form = new SignupForm(Guid.NewGuid(), ev.Id, Now);
         var primary = new SignupQuestion(Guid.NewGuid(), form.Id, ev.Id, "primary_regular_account", "Account", SignupQuestionType.Account, true, 0, null, SignupSystemField.PrimaryRegularAccount, EventCharacterRole.Playing);
         var captain = new SignupQuestion(Guid.NewGuid(), form.Id, ev.Id, "captain_volunteer", "Captain", SignupQuestionType.YesNo, false, 1, null, SignupSystemField.CaptainVolunteer);

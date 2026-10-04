@@ -115,7 +115,7 @@ public sealed class EventSignupWarningRemediationIntegrationTests : IAsyncLifeti
         var admin = Account.CreateWebsite(Guid.NewGuid(), "warning-admin", "WARNING-ADMIN", now);
         admin.SetGlobalRole(GlobalRole.Admin);
         admin.SetPassword(new PasswordHasher<Account>().HashPassword(admin, "warning-test-password"), false, now, incrementVersion: false);
-        var item = new BingoEvent(Guid.NewGuid(), "Warning fixture", "warning-fixture", "UTC", admin.Id, now);
+        var item = new BingoEvent(Guid.NewGuid(), "Warning fixture", "warning-fixture", "UTC", admin.Id, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         item.UpdateIdentity(item.Name, item.Slug, "Public fixture description", "UTC");
         item.ConfigureSchedule(now.AddHours(1), now.AddDays(1), null, now.AddDays(2), now.AddDays(3), 20);
         item.ConfigureSignup(true, false, null);

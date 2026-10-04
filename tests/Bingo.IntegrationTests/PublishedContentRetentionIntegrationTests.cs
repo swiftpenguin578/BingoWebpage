@@ -376,7 +376,7 @@ public sealed class PublishedContentRetentionIntegrationTests : IAsyncLifetime
     private async Task<Fixture> SeedAsync()
     {
         var now = DateTimeOffset.UtcNow;
-        var ev = new BingoEvent(Guid.NewGuid(), "Public retention fixture", $"retention-{Guid.NewGuid():N}", "UTC", actor.Id, now);
+        var ev = new BingoEvent(Guid.NewGuid(), "Public retention fixture", $"retention-{Guid.NewGuid():N}", "UTC", actor.Id, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         ev.ConfigureSchedule(now.AddDays(-2), now.AddDays(-1), null, now.AddHours(1), now.AddDays(2), 10);
         ev.OpenSignups(now.AddDays(-2)); ev.CloseSignups(now.AddDays(-1));
         ev.SetDraftRosterPublication(true);

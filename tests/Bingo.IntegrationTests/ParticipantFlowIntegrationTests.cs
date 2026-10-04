@@ -148,7 +148,7 @@ public sealed class ParticipantFlowIntegrationTests : IAsyncLifetime
     public async Task RetiredCsvHandlersReturnNotFoundWithoutWrites()
     {
         var admin = Website("csv-admin", GlobalRole.Admin);
-        var item = new BingoEvent(Guid.NewGuid(), "CSV preview event", "csv-preview", "UTC", admin.Id, now);
+        var item = new BingoEvent(Guid.NewGuid(), "CSV preview event", "csv-preview", "UTC", admin.Id, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         var team = new Team(Guid.NewGuid(), item.Id, "CSV team", "csv-team", TeamFormationType.Preformed, null, false);
         await using (var db = new ApplicationDbContext(options))
         {
@@ -328,7 +328,7 @@ public sealed class ParticipantFlowIntegrationTests : IAsyncLifetime
     public async Task CapacityDoesNotChangeWhenAIncludedTeamBecomesManualOrIsRestored()
     {
         var admin = Website($"capacity-inclusion-admin-{Guid.NewGuid():N}", GlobalRole.Admin);
-        var item = new BingoEvent(Guid.NewGuid(), "Capacity inclusion event", $"capacity-inclusion-{Guid.NewGuid():N}", "UTC", admin.Id, now.AddDays(-3));
+        var item = new BingoEvent(Guid.NewGuid(), "Capacity inclusion event", $"capacity-inclusion-{Guid.NewGuid():N}", "UTC", admin.Id, now.AddDays(-3), Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         item.ConfigureInitialSchedule(now.AddDays(-2), now.AddDays(-1), null, now.AddHours(1), now.AddHours(4), 2);
         item.MarkFirstPublic(now.AddDays(-2));
         item.OpenSignups(now.AddDays(-2));
@@ -377,7 +377,7 @@ public sealed class ParticipantFlowIntegrationTests : IAsyncLifetime
         var admin = Website("role-admin", GlobalRole.Admin);
         var owner = Website("role-owner", ownerRole);
         var outsider = Website("role-outsider");
-        var item = new BingoEvent(Guid.NewGuid(), "Role notification event", "role-event", "UTC", admin.Id, now.AddDays(-3));
+        var item = new BingoEvent(Guid.NewGuid(), "Role notification event", "role-event", "UTC", admin.Id, now.AddDays(-3), Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         var team = new Team(Guid.NewGuid(), item.Id, "Private roster team", "private-team", TeamFormationType.Drafted, null, true);
         var member = new EventParticipant(Guid.NewGuid(), item.Id, SignupStatus.Confirmed, 1, now.AddDays(-2), SignupSource.AdminCreated);
         member.AssignOwner(owner);
@@ -674,7 +674,7 @@ public sealed class ParticipantFlowIntegrationTests : IAsyncLifetime
     }
     private BingoEvent ClosedEvent(Account admin, string slug)
     {
-        var item = new BingoEvent(Guid.NewGuid(), $"Participant flow {slug}", slug, "UTC", admin.Id, now.AddDays(-3));
+        var item = new BingoEvent(Guid.NewGuid(), $"Participant flow {slug}", slug, "UTC", admin.Id, now.AddDays(-3), Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         item.ConfigureInitialSchedule(now.AddDays(-2), now.AddDays(-1), null, now.AddHours(1), now.AddHours(4), 1);
         item.MarkFirstPublic(now.AddDays(-2));
         item.OpenSignups(now.AddDays(-2));

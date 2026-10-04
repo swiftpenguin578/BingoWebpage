@@ -241,7 +241,7 @@ public sealed class DevelopmentScenarioSeeder(
     {
         var bingoEvent = new BingoEvent(
             Guid.NewGuid(), "Februarbingo 2026", "test-04-readiness-blockers",
-            "Europe/Copenhagen", adminId, now);
+            "Europe/Copenhagen", adminId, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         db.Entry(bingoEvent).Property(nameof(BingoEvent.IsDevelopmentFixture)).CurrentValue = true;
         db.Events.Add(bingoEvent);
         AddSignupFoundation(bingoEvent, now);
@@ -351,7 +351,7 @@ public sealed class DevelopmentScenarioSeeder(
     {
         var bingoEvent = new BingoEvent(
             Guid.NewGuid(), "Søndagsbingo 2026", "test-87-discarded-empty-draft",
-            "Europe/Copenhagen", adminId, now);
+            "Europe/Copenhagen", adminId, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         db.Entry(bingoEvent).Property(nameof(BingoEvent.IsDevelopmentFixture)).CurrentValue = true;
         db.Events.Add(bingoEvent);
         bingoEvent.Discard(adminId, now, protectedHistoryExists: false);
@@ -362,7 +362,7 @@ public sealed class DevelopmentScenarioSeeder(
     {
         var bingoEvent = new BingoEvent(
             Guid.NewGuid(), "Det Store Danske Efterårsbingo 2026", "test-91-overlapping-scheduled-opening",
-            "Europe/Copenhagen", adminId, now);
+            "Europe/Copenhagen", adminId, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         bingoEvent.ConfigureSignup(true, false, null);
         bingoEvent.ConfigurePlanning("Seeded scheduled-opening overlap rules.", null, null, 2, 3, 5, 5);
         bingoEvent.ConfigureSchedule(

@@ -254,7 +254,7 @@ public sealed class Slice3FinalizationAtomicityIntegrationTests : IAsyncLifetime
         var createdAt = new DateTimeOffset(2026, month, 1, 12, 0, 0, TimeSpan.Zero).AddMicroseconds(123456);
         await using (var setup = new ApplicationDbContext(options))
         {
-            setup.Events.Add(new BingoEvent(eventId, "Local completion", $"local-completion-{Guid.NewGuid():N}", "Europe/Copenhagen", actorId, createdAt));
+            setup.Events.Add(new BingoEvent(eventId, "Local completion", $"local-completion-{Guid.NewGuid():N}", "Europe/Copenhagen", actorId, createdAt, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb));
             await setup.SaveChangesAsync();
         }
 
@@ -285,7 +285,7 @@ public sealed class Slice3FinalizationAtomicityIntegrationTests : IAsyncLifetime
         var createdAt = new DateTimeOffset(2026, 1, 1, 12, 0, 0, TimeSpan.Zero).AddMicroseconds(234567);
         await using (var setup = new ApplicationDbContext(options))
         {
-            setup.Events.Add(new BingoEvent(eventId, "Invalid local completion", $"invalid-local-{Guid.NewGuid():N}", "Europe/Copenhagen", actorId, createdAt));
+            setup.Events.Add(new BingoEvent(eventId, "Invalid local completion", $"invalid-local-{Guid.NewGuid():N}", "Europe/Copenhagen", actorId, createdAt, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb));
             await setup.SaveChangesAsync();
         }
 
@@ -390,7 +390,7 @@ public sealed class Slice3FinalizationAtomicityIntegrationTests : IAsyncLifetime
 
     private BingoEvent AwaitingReview(Guid eventId, Guid actorId)
     {
-        var item = new BingoEvent(eventId, "atomic-finalization", "atomic-finalization", "UTC", actorId, now.AddDays(-2));
+        var item = new BingoEvent(eventId, "atomic-finalization", "atomic-finalization", "UTC", actorId, now.AddDays(-2), Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         item.ConfigureSchedule(now.AddDays(-2), now.AddDays(-1), null, now.AddHours(-3), now.AddHours(-2), 20);
         item.OpenSignups(now.AddDays(-2));
         item.CloseSignups(now.AddDays(-1));
@@ -401,7 +401,7 @@ public sealed class Slice3FinalizationAtomicityIntegrationTests : IAsyncLifetime
 
     private BingoEvent Live(Guid eventId, Guid actorId)
     {
-        var item = new BingoEvent(eventId, "competing-current", "competing-current", "UTC", actorId, now.AddDays(-2));
+        var item = new BingoEvent(eventId, "competing-current", "competing-current", "UTC", actorId, now.AddDays(-2), Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         item.ConfigureSchedule(now.AddDays(-2), now.AddDays(-1), null, now.AddHours(-3), now.AddHours(2), 20);
         item.OpenSignups(now.AddDays(-2));
         item.CloseSignups(now.AddDays(-1));

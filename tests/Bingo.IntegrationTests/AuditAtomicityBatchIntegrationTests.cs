@@ -551,7 +551,7 @@ public sealed class AuditAtomicityBatchIntegrationTests : IAsyncLifetime
     {
         var admin = Account.CreateWebsite(Guid.NewGuid(), "admin", "ADMIN", now); admin.SetGlobalRole(GlobalRole.Admin);
         var other = Account.CreateWebsite(Guid.NewGuid(), "other", "OTHER", now); other.SetGlobalRole(GlobalRole.Admin);
-        var ev = new BingoEvent(Guid.NewGuid(), "Audit fixture", "audit-fixture", "UTC", admin.Id, now.AddDays(-1));
+        var ev = new BingoEvent(Guid.NewGuid(), "Audit fixture", "audit-fixture", "UTC", admin.Id, now.AddDays(-1), Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         ev.ConfigureSchedule(now.AddDays(-1), now.AddHours(-1), null, now.AddHours(1), now.AddDays(1), 10);
         ev.ConfigureSignup(true, false, null); ev.OpenSignups(now.AddDays(-1)); ev.CloseSignups(now.AddHours(-1));
         var form = new SignupForm(Guid.NewGuid(), ev.Id, now);

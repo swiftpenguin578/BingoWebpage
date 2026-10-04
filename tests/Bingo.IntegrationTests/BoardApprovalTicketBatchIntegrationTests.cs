@@ -669,7 +669,7 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests
     {
         var now = DateTimeOffset.UtcNow;
         var admin = Website("batch-approval-admin", now); admin.SetGlobalRole(GlobalRole.Admin); SetPassword(admin, now);
-        var bingoEvent = new BingoEvent(Guid.NewGuid(), "Batch approval", "batch-approval", "UTC", admin.Id, now);
+        var bingoEvent = new BingoEvent(Guid.NewGuid(), "Batch approval", "batch-approval", "UTC", admin.Id, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         var board = new Board(Guid.NewGuid(), bingoEvent.Id, "Batch board", 1, 1);
         board.AcquireEditing(admin.Id, now, TimeSpan.FromMinutes(10));
         var template = new TileTemplate(Guid.NewGuid(), "Batch tile", "Batch objective", manual ? ObjectiveType.Manual : ObjectiveType.DropRequirements, "", manual && !missingEstimate ? 7m : null);

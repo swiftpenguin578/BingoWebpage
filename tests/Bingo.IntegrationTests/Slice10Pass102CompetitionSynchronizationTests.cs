@@ -820,7 +820,7 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests : IAsy
     {
         var now = DateTimeOffset.UtcNow;
         var actor = new LifecycleActor(Guid.NewGuid(), "schedule-admin");
-        var item = new BingoEvent(Guid.NewGuid(), "Linked schedule", $"linked-schedule-{Guid.NewGuid():N}", "UTC", actor.Id, now);
+        var item = new BingoEvent(Guid.NewGuid(), "Linked schedule", $"linked-schedule-{Guid.NewGuid():N}", "UTC", actor.Id, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         item.ConfigureSchedule(now.AddHours(1), now.AddHours(2), null, now.AddDays(1), now.AddDays(2), 20);
         var state = new EventCompetitionSynchronization(Guid.NewGuid(), item.Id, 1, 99, "Linked competition", item.EventStartsAt, item.EventEndsAt, "", now);
         await using var db = new ApplicationDbContext(options);
@@ -845,7 +845,7 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests : IAsy
     {
         var now = DateTimeOffset.UtcNow;
         var actor = new LifecycleActor(Guid.NewGuid(), "managed-schedule-admin");
-        var item = new BingoEvent(Guid.NewGuid(), "Managed schedule", $"managed-schedule-{Guid.NewGuid():N}", "UTC", actor.Id, now);
+        var item = new BingoEvent(Guid.NewGuid(), "Managed schedule", $"managed-schedule-{Guid.NewGuid():N}", "UTC", actor.Id, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         item.ConfigureSchedule(now.AddHours(1), now.AddHours(2), null, now.AddDays(1), now.AddDays(2), 20);
         var state = new EventCompetitionSynchronization(Guid.NewGuid(), item.Id, 1, 99, "Managed competition", item.EventStartsAt, item.EventEndsAt, "", now);
         var management = new EventCompetitionManagement(Guid.NewGuid(), item.Id, state.Id, 99, "Managed competition", item.EventStartsAt!.Value, item.EventEndsAt!.Value, "protected", "local", now);

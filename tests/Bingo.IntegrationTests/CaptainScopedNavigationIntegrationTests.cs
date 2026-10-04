@@ -790,7 +790,7 @@ public sealed partial class CaptainScopedNavigationIntegrationTests : IAsyncLife
         var admin = Website("admin-review-event-scope", now);
         admin.SetGlobalRole(GlobalRole.Admin);
         admin.SetPassword(new PasswordHasher<Account>().HashPassword(admin, "password"), false, now, false);
-        var emptyDraft = new BingoEvent(Guid.NewGuid(), "Admin review empty draft", "admin-review-empty-draft", "UTC", admin.Id, now);
+        var emptyDraft = new BingoEvent(Guid.NewGuid(), "Admin review empty draft", "admin-review-empty-draft", "UTC", admin.Id, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         var selected = LiveEvent(admin.Id, "Admin review selected", "admin-review-selected", now);
         var other = LiveEvent(admin.Id, "Admin review other", "admin-review-other", now);
         var hidden = LiveEvent(admin.Id, "Admin review hidden", "admin-review-hidden", now);
@@ -922,7 +922,7 @@ public sealed partial class CaptainScopedNavigationIntegrationTests : IAsyncLife
 
     private static BingoEvent LiveEvent(Guid ownerId, string name, string slug, DateTimeOffset now)
     {
-        var item = new BingoEvent(Guid.NewGuid(), name, slug, "UTC", ownerId, now.AddDays(-2));
+        var item = new BingoEvent(Guid.NewGuid(), name, slug, "UTC", ownerId, now.AddDays(-2), Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         item.ConfigureSchedule(now.AddDays(-2), now.AddDays(-1), null, now.AddHours(-1), now.AddHours(2), 20);
         item.OpenSignups(now.AddDays(-2));
         item.CloseSignups(now.AddDays(-1));

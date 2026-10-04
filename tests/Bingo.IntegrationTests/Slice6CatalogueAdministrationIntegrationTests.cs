@@ -225,8 +225,8 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests : IAsy
     {
         var now = DateTimeOffset.UtcNow;
         var admin = Website($"slice6-board-admin-{Guid.NewGuid():N}", now);
-        var firstEvent = new BingoEvent(Guid.NewGuid(), "First board", $"first-board-{Guid.NewGuid():N}", "UTC", admin.Id, now);
-        var secondEvent = new BingoEvent(Guid.NewGuid(), "Second board", $"second-board-{Guid.NewGuid():N}", "UTC", admin.Id, now);
+        var firstEvent = new BingoEvent(Guid.NewGuid(), "First board", $"first-board-{Guid.NewGuid():N}", "UTC", admin.Id, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
+        var secondEvent = new BingoEvent(Guid.NewGuid(), "Second board", $"second-board-{Guid.NewGuid():N}", "UTC", admin.Id, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         var boss = new BossActivity(Guid.NewGuid(), "Current boss", "current-boss", "Boss", 10m, now);
         var item = new CatalogueItem(Guid.NewGuid(), "Current item", "CURRENT ITEM");
         item.SetPrice(0, CataloguePriceSource.Manual, now);
@@ -314,7 +314,7 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests : IAsy
     {
         var now = DateTimeOffset.UtcNow;
         var admin = Website($"slice6-resize-admin-{Guid.NewGuid():N}", now);
-        var bingoEvent = new BingoEvent(Guid.NewGuid(), "Resize board", $"resize-board-{Guid.NewGuid():N}", "UTC", admin.Id, now);
+        var bingoEvent = new BingoEvent(Guid.NewGuid(), "Resize board", $"resize-board-{Guid.NewGuid():N}", "UTC", admin.Id, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         var board = new Board(Guid.NewGuid(), bingoEvent.Id, "Board", 2, 2);
         board.AcquireEditing(admin.Id, now, TimeSpan.FromMinutes(5));
         var tiles = new[]
@@ -360,7 +360,7 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests : IAsy
     {
         var now = DateTimeOffset.UtcNow;
         var admin = Website($"slice6-safe-resize-admin-{Guid.NewGuid():N}", now);
-        var bingoEvent = new BingoEvent(Guid.NewGuid(), "Safe resize board", $"safe-resize-board-{Guid.NewGuid():N}", "UTC", admin.Id, now);
+        var bingoEvent = new BingoEvent(Guid.NewGuid(), "Safe resize board", $"safe-resize-board-{Guid.NewGuid():N}", "UTC", admin.Id, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         var board = new Board(Guid.NewGuid(), bingoEvent.Id, "Board", 3, 3);
         board.AcquireEditing(admin.Id, now, TimeSpan.FromMinutes(5));
         var tiles = new[]
@@ -412,7 +412,7 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests : IAsy
     {
         var now = DateTimeOffset.UtcNow;
         var admin = Website($"slice6-team-size-admin-{Guid.NewGuid():N}", now);
-        var bingoEvent = new BingoEvent(Guid.NewGuid(), "Team size board", $"team-size-board-{Guid.NewGuid():N}", "UTC", admin.Id, now);
+        var bingoEvent = new BingoEvent(Guid.NewGuid(), "Team size board", $"team-size-board-{Guid.NewGuid():N}", "UTC", admin.Id, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         var board = new Board(Guid.NewGuid(), bingoEvent.Id, "Board", 1, 1);
         board.AcquireEditing(admin.Id, now, TimeSpan.FromMinutes(5));
 
@@ -440,7 +440,7 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests : IAsy
     {
         var now = DateTimeOffset.UtcNow;
         var admin = Website($"slice6-frozen-roster-admin-{Guid.NewGuid():N}", now);
-        var bingoEvent = new BingoEvent(Guid.NewGuid(), "Frozen roster board", $"frozen-roster-board-{Guid.NewGuid():N}", "UTC", admin.Id, now);
+        var bingoEvent = new BingoEvent(Guid.NewGuid(), "Frozen roster board", $"frozen-roster-board-{Guid.NewGuid():N}", "UTC", admin.Id, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         bingoEvent.SetExpectedTeamSize(4);
         var draft = new DraftSession(Guid.NewGuid(), bingoEvent.Id, 2);
         draft.Start(now); draft.Finalize(now);
@@ -488,7 +488,7 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests : IAsy
     {
         var now = DateTimeOffset.UtcNow;
         var admin = Website($"slice6-team-estimate-admin-{Guid.NewGuid():N}", now);
-        var bingoEvent = new BingoEvent(Guid.NewGuid(), "Team estimate board", $"team-estimate-board-{Guid.NewGuid():N}", "UTC", admin.Id, now);
+        var bingoEvent = new BingoEvent(Guid.NewGuid(), "Team estimate board", $"team-estimate-board-{Guid.NewGuid():N}", "UTC", admin.Id, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         bingoEvent.SetExpectedTeamSize(4);
         var draft = new DraftSession(Guid.NewGuid(), bingoEvent.Id, 2);
         draft.Start(now);
@@ -564,7 +564,7 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests : IAsy
     {
         var now = DateTimeOffset.UtcNow;
         var admin = Website($"slice6-approval-admin-{Guid.NewGuid():N}", now);
-        var bingoEvent = new BingoEvent(Guid.NewGuid(), "Approval board", $"approval-board-{Guid.NewGuid():N}", "UTC", admin.Id, now);
+        var bingoEvent = new BingoEvent(Guid.NewGuid(), "Approval board", $"approval-board-{Guid.NewGuid():N}", "UTC", admin.Id, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         var board = new Board(Guid.NewGuid(), bingoEvent.Id, "Board", 1, 1);
         board.AcquireEditing(admin.Id, now, TimeSpan.FromMinutes(5));
         var template = new TileTemplate(Guid.NewGuid(), "Manual tile", "Private description", ObjectiveType.Manual, string.Empty, 4m);
@@ -641,7 +641,7 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests : IAsy
     {
         var now = DateTimeOffset.UtcNow;
         var admin = Website($"slice6-publish-admin-{Guid.NewGuid():N}", now); admin.SetGlobalRole(GlobalRole.Admin); SetPassword(admin, now);
-        var bingoEvent = new BingoEvent(Guid.NewGuid(), "Publication board", $"publication-board-{Guid.NewGuid():N}", "UTC", admin.Id, now);
+        var bingoEvent = new BingoEvent(Guid.NewGuid(), "Publication board", $"publication-board-{Guid.NewGuid():N}", "UTC", admin.Id, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         bingoEvent.ConfigureSchedule(now.AddDays(-2), now.AddDays(-1), null, now.AddHours(-2), now.AddDays(2), 10);
         bingoEvent.OpenSignups(now.AddDays(-2));
         bingoEvent.CloseSignups(now.AddDays(-1));
@@ -955,7 +955,7 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests : IAsy
 
     private async Task<Guid> CreatePublishedCorrectionFixtureAsync(Guid eventId, EventState targetState, bool hidden, Account admin, DateTimeOffset now, int columns = 1)
     {
-        var bingoEvent = new BingoEvent(eventId, $"Correction boundary {eventId:N}", $"correction-boundary-{eventId:N}", "UTC", admin.Id, now);
+        var bingoEvent = new BingoEvent(eventId, $"Correction boundary {eventId:N}", $"correction-boundary-{eventId:N}", "UTC", admin.Id, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         bingoEvent.ConfigureSchedule(now.AddDays(-3), now.AddDays(-2), null, now.AddDays(-1), now.AddDays(2), 10);
         if (targetState == EventState.SignupOpen)
         {
@@ -1005,7 +1005,7 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests : IAsy
     {
         var now = DateTimeOffset.UtcNow;
         var admin = Website($"slice6-preview-admin-{Guid.NewGuid():N}", now);
-        var bingoEvent = new BingoEvent(Guid.NewGuid(), "Preview", $"preview-{Guid.NewGuid():N}", "UTC", admin.Id, now);
+        var bingoEvent = new BingoEvent(Guid.NewGuid(), "Preview", $"preview-{Guid.NewGuid():N}", "UTC", admin.Id, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         var board = new Board(Guid.NewGuid(), bingoEvent.Id, "Preview board", 1, 3);
         var template = new TileTemplate(Guid.NewGuid(), "Preview tile", string.Empty, ObjectiveType.Manual, string.Empty, 4m);
         var tiles = Enumerable.Range(0, 3).Select(index => new BoardTile(Guid.NewGuid(), board.Id, template.Id, 0, index, $"Tile {index + 1}", string.Empty, string.Empty, 4m)).ToArray();
@@ -1057,7 +1057,7 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests : IAsy
     {
         var now = DateTimeOffset.UtcNow;
         var admin = Website($"slice6-publication-race-{Guid.NewGuid():N}", now);
-        var bingoEvent = new BingoEvent(Guid.NewGuid(), "Publication race", $"publication-race-{Guid.NewGuid():N}", "UTC", admin.Id, now);
+        var bingoEvent = new BingoEvent(Guid.NewGuid(), "Publication race", $"publication-race-{Guid.NewGuid():N}", "UTC", admin.Id, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         bingoEvent.ConfigureSchedule(now.AddDays(-2), now.AddDays(-1), null, now.AddDays(2), now.AddDays(4), 10);
         bingoEvent.OpenSignups(now.AddDays(-2));
         bingoEvent.CloseSignups(now.AddDays(-1));
@@ -1407,12 +1407,12 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests : IAsy
     {
         var now = DateTimeOffset.UtcNow;
         var admin = Website($"slice6-approval-invalid-{Guid.NewGuid():N}", now);
-        var incompleteEvent = new BingoEvent(Guid.NewGuid(), "Incomplete", $"incomplete-{Guid.NewGuid():N}", "UTC", admin.Id, now);
+        var incompleteEvent = new BingoEvent(Guid.NewGuid(), "Incomplete", $"incomplete-{Guid.NewGuid():N}", "UTC", admin.Id, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         var incompleteBoard = new Board(Guid.NewGuid(), incompleteEvent.Id, "Board", 1, 2);
         var incompleteTemplate = new TileTemplate(Guid.NewGuid(), "Tile", string.Empty, ObjectiveType.Manual, string.Empty, 3m);
         var incompleteTile = new BoardTile(Guid.NewGuid(), incompleteBoard.Id, incompleteTemplate.Id, 0, 0, "Tile", string.Empty, string.Empty, 3m);
         var incompleteRequirement = new BoardRequirementSnapshot(Guid.NewGuid(), incompleteTile.Id, 1, 1, true, false, "Manual", true);
-        var missingEhbEvent = new BingoEvent(Guid.NewGuid(), "Missing EHB", $"missing-ehb-{Guid.NewGuid():N}", "UTC", admin.Id, now);
+        var missingEhbEvent = new BingoEvent(Guid.NewGuid(), "Missing EHB", $"missing-ehb-{Guid.NewGuid():N}", "UTC", admin.Id, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         var missingEhbBoard = new Board(Guid.NewGuid(), missingEhbEvent.Id, "Board", 1, 1);
         var missingEhbTemplate = new TileTemplate(Guid.NewGuid(), "No EHB", string.Empty, ObjectiveType.Manual, string.Empty, null);
         var missingEhbTile = new BoardTile(Guid.NewGuid(), missingEhbBoard.Id, missingEhbTemplate.Id, 0, 0, "No EHB", string.Empty, string.Empty, 0m);
@@ -1447,7 +1447,7 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests : IAsy
     {
         var now = DateTimeOffset.UtcNow;
         var admin = Website($"slice6-approval-race-{Guid.NewGuid():N}", now);
-        var bingoEvent = new BingoEvent(Guid.NewGuid(), "Approval race", $"approval-race-{Guid.NewGuid():N}", "UTC", admin.Id, now);
+        var bingoEvent = new BingoEvent(Guid.NewGuid(), "Approval race", $"approval-race-{Guid.NewGuid():N}", "UTC", admin.Id, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         var board = new Board(Guid.NewGuid(), bingoEvent.Id, "Board", 1, 1);
         board.AcquireEditing(admin.Id, now, TimeSpan.FromMinutes(5));
         var template = new TileTemplate(Guid.NewGuid(), "Manual", string.Empty, ObjectiveType.Manual, string.Empty, 2m);

@@ -479,7 +479,7 @@ public sealed class DropAnnouncementPersistenceIntegrationTests : IAsyncLifetime
         var now = DateTimeOffset.UtcNow.AddMinutes(-5);
         var loginName = $"drop-{Guid.NewGuid():N}";
         var account = Account.CreateWebsite(Guid.NewGuid(), loginName, loginName.ToUpperInvariant(), now);
-        var eventItem = new BingoEvent(Guid.NewGuid(), "Drop event", $"drop-{Guid.NewGuid():N}", "UTC", account.Id, now);
+        var eventItem = new BingoEvent(Guid.NewGuid(), "Drop event", $"drop-{Guid.NewGuid():N}", "UTC", account.Id, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         eventItem.ConfigureInitialSchedule(now.AddDays(-2), now.AddDays(-1), null, now.AddMinutes(-4), now.AddDays(1), 10);
         eventItem.OpenSignups(now.AddDays(-2));
         eventItem.CloseSignups(now.AddDays(-1));

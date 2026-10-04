@@ -621,7 +621,7 @@ public sealed class Slice3CreationIdentityPersistenceIntegrationTests : IAsyncLi
         var eventId = Guid.NewGuid();
         await using (var setup = new ApplicationDbContext(options))
         {
-            setup.Events.Add(new BingoEvent(eventId, "Retained timezone", "retained-timezone", "Legacy/Unknown", actor, now));
+            setup.Events.Add(new BingoEvent(eventId, "Retained timezone", "retained-timezone", "Legacy/Unknown", actor, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb));
             await setup.SaveChangesAsync();
         }
 
@@ -909,7 +909,7 @@ public sealed class Slice3CreationIdentityPersistenceIntegrationTests : IAsyncLi
 
     private async Task<Guid> SeedEventAsync(string slug, Guid actor)
     {
-        var item = new BingoEvent(Guid.NewGuid(), slug, slug, "Europe/Copenhagen", actor, now);
+        var item = new BingoEvent(Guid.NewGuid(), slug, slug, "Europe/Copenhagen", actor, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         var form = new SignupForm(Guid.NewGuid(), item.Id, now);
         var regular = new SignupQuestion(Guid.NewGuid(), form.Id, item.Id, "primary_regular_account", "Account", SignupQuestionType.Account, true, 0, null, SignupSystemField.PrimaryRegularAccount, EventCharacterRole.Playing);
         var captain = new SignupQuestion(Guid.NewGuid(), form.Id, item.Id, "captain_volunteer", "Captain volunteer", SignupQuestionType.YesNo, false, 1, null, SignupSystemField.CaptainVolunteer);

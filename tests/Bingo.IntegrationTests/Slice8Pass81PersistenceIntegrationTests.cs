@@ -191,7 +191,7 @@ public sealed class Slice8Pass81PersistenceIntegrationTests : IAsyncLifetime
     private async Task<Seed> SeedBaseAsync(bool includeAmbiguousParticipant)
     {
         var account = Account.CreateWebsite(Guid.NewGuid(), $"slice8-{Guid.NewGuid():N}", "SLICE8", DateTimeOffset.UtcNow.AddDays(-2));
-        var item = new BingoEvent(Guid.NewGuid(), "Slice 8 retained", $"slice8-{Guid.NewGuid():N}", "UTC", account.Id, DateTimeOffset.UtcNow.AddDays(-2));
+        var item = new BingoEvent(Guid.NewGuid(), "Slice 8 retained", $"slice8-{Guid.NewGuid():N}", "UTC", account.Id, DateTimeOffset.UtcNow.AddDays(-2), Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         var swappedParticipant = new EventParticipant(Guid.NewGuid(), item.Id, SignupStatus.Confirmed, 1, item.CreatedAt, SignupSource.AdminCreated);
         var uniqueParticipant = new EventParticipant(Guid.NewGuid(), item.Id, SignupStatus.Confirmed, 2, item.CreatedAt, SignupSource.AdminCreated);
         var ambiguousParticipant = new EventParticipant(Guid.NewGuid(), item.Id, SignupStatus.Confirmed, 3, item.CreatedAt, SignupSource.AdminCreated);

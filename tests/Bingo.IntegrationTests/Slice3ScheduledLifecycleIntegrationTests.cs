@@ -142,7 +142,7 @@ public sealed partial class Slice3ScheduledLifecycleIntegrationTests : IAsyncLif
         admin.SetGlobalRole(GlobalRole.Admin);
         await using (var setup = new ApplicationDbContext(options))
         {
-            var failed = new BingoEvent(failedId, "Failed opening", "failed-opening", "UTC", Guid.NewGuid(), now);
+            var failed = new BingoEvent(failedId, "Failed opening", "failed-opening", "UTC", Guid.NewGuid(), now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
             failed.UpdateIdentity("Failed opening", "failed-opening", "Public event description", "UTC");
             failed.ConfigureSchedule(clock.GetUtcNow(), now.AddDays(2), null, now.AddDays(3), null, 20);
             failed.ConfigureSignup(true, false, null);
@@ -467,7 +467,7 @@ public sealed partial class Slice3ScheduledLifecycleIntegrationTests : IAsyncLif
         await using (var setup = new ApplicationDbContext(options))
         {
             var item = ReadyDraft(setup, eventId, "postponed-start", now.AddHours(-2), now.AddHours(-1), now.AddDays(1));
-            var signupOpen = new BingoEvent(signupOpenId, "open-postponed-start", "open-postponed-start", "UTC", Guid.NewGuid(), now);
+            var signupOpen = new BingoEvent(signupOpenId, "open-postponed-start", "open-postponed-start", "UTC", Guid.NewGuid(), now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
             signupOpen.UpdateIdentity("open-postponed-start", "open-postponed-start", "Public event description", "UTC");
             signupOpen.ConfigureSchedule(now.AddHours(-4), null, null, now.AddHours(-3), now.AddHours(2), 20);
             signupOpen.ConfigureSignup(true, false, null);
@@ -1053,7 +1053,7 @@ public sealed partial class Slice3ScheduledLifecycleIntegrationTests : IAsyncLif
 
     private BingoEvent ReadyDraft(ApplicationDbContext db, Guid id, string slug, DateTimeOffset opening, DateTimeOffset closing, DateTimeOffset end)
     {
-        var item = new BingoEvent(id, slug, slug, "UTC", Guid.NewGuid(), now);
+        var item = new BingoEvent(id, slug, slug, "UTC", Guid.NewGuid(), now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         item.UpdateIdentity(slug, slug, "Public event description", "UTC");
         item.ConfigureSchedule(opening, closing, null, closing, end, 20);
         item.ConfigureSignup(true, false, null);

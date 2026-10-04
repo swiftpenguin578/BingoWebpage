@@ -173,7 +173,7 @@ public sealed class HistoricalImportIntegrationTests : IAsyncLifetime
             var collidingTeamId = StableGuid($"{historicalEventId:N}:team:touch-kids-not-grass");
             await using (var db = new ApplicationDbContext(options))
             {
-                var blockerEvent = new BingoEvent(Guid.NewGuid(), "Import collision blocker", "import-collision-blocker", "UTC", Guid.NewGuid(), now);
+                var blockerEvent = new BingoEvent(Guid.NewGuid(), "Import collision blocker", "import-collision-blocker", "UTC", Guid.NewGuid(), now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
                 db.Events.Add(blockerEvent);
                 db.Teams.Add(new Team(collidingTeamId, blockerEvent.Id, "Collision blocker", "collision-blocker", TeamFormationType.Preformed, null, false, now));
                 await db.SaveChangesAsync();

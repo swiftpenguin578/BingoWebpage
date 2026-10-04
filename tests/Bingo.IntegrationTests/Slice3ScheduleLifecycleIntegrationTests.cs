@@ -807,7 +807,7 @@ public sealed class Slice3ScheduleLifecycleIntegrationTests : IAsyncLifetime
     private async Task<Guid> SeedReadyDraftAsync(string slug, bool waitingList, bool signupClose = true, int startDays = 2, int endDays = 4, bool publicTextQuestion = false)
     {
         await using var db = new ApplicationDbContext(options);
-        var item = new BingoEvent(Guid.NewGuid(), slug, slug, "UTC", Guid.NewGuid(), now);
+        var item = new BingoEvent(Guid.NewGuid(), slug, slug, "UTC", Guid.NewGuid(), now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         item.UpdateIdentity(slug, slug, "Public description", "UTC");
         item.ConfigureSchedule(now.AddHours(1), signupClose ? now.AddDays(startDays - 1) : null, null, now.AddDays(startDays), now.AddDays(endDays), 20);
         item.ConfigureSignup(waitingList, false, null);
@@ -832,7 +832,7 @@ public sealed class Slice3ScheduleLifecycleIntegrationTests : IAsyncLifetime
     private async Task<Guid> SeedOperationalEventAsync(string slug, EventState state, DateTimeOffset start, DateTimeOffset end)
     {
         await using var db = new ApplicationDbContext(options);
-        var item = new BingoEvent(Guid.NewGuid(), slug, slug, "UTC", Guid.NewGuid(), now);
+        var item = new BingoEvent(Guid.NewGuid(), slug, slug, "UTC", Guid.NewGuid(), now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         item.UpdateIdentity(slug, slug, "Public description", "UTC");
         item.ConfigureSchedule(now.AddHours(1), start.AddHours(-1), null, start, end, 20);
         item.OpenSignups(now);

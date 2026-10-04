@@ -187,14 +187,14 @@ public sealed class AdminActionProjectionIntegrationTests : IAsyncLifetime
 
     private BingoEvent DraftEvent(Account admin, string slug, DateTimeOffset opening)
     {
-        var item = new BingoEvent(Guid.NewGuid(), $"{slug} event", $"{slug}-{Guid.NewGuid():N}", "UTC", admin.Id, now.AddDays(-1));
+        var item = new BingoEvent(Guid.NewGuid(), $"{slug} event", $"{slug}-{Guid.NewGuid():N}", "UTC", admin.Id, now.AddDays(-1), Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         item.ConfigureSchedule(opening, opening.AddHours(1), null, now.AddHours(2), now.AddDays(1), 10);
         return item;
     }
 
     private BingoEvent ClosedEvent(Account admin, string slug, DateTimeOffset startedAt)
     {
-        var item = new BingoEvent(Guid.NewGuid(), $"{slug} event", $"{slug}-{Guid.NewGuid():N}", "UTC", admin.Id, now.AddDays(-1));
+        var item = new BingoEvent(Guid.NewGuid(), $"{slug} event", $"{slug}-{Guid.NewGuid():N}", "UTC", admin.Id, now.AddDays(-1), Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         item.ConfigureSchedule(now.AddDays(-2), now.AddDays(-1), null, startedAt, now.AddDays(1), 10);
         item.ConfigureSignup(true, false, null);
         item.OpenSignups(now.AddDays(-2));

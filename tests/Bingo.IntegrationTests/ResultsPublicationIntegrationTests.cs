@@ -215,7 +215,7 @@ public sealed class ResultsPublicationIntegrationTests : IAsyncLifetime
 
     private BingoEvent AwaitingReview(Guid eventId, Guid actorId)
     {
-        var item = new BingoEvent(eventId, "VER-01 publication", $"ver01-publication-{eventId:N}", "UTC", actorId, now.AddDays(-2));
+        var item = new BingoEvent(eventId, "VER-01 publication", $"ver01-publication-{eventId:N}", "UTC", actorId, now.AddDays(-2), Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         item.ConfigureSchedule(now.AddDays(-2), now.AddDays(-1), null, now.AddHours(-3), now.AddHours(-2), 20);
         item.OpenSignups(now.AddDays(-2));
         item.CloseSignups(now.AddDays(-1));

@@ -42,7 +42,7 @@ public sealed partial class SchedulePrecisionIntegrationTests : IAsyncLifetime
             db.Accounts.Add(account);
         }
         eventId = Guid.NewGuid();
-        db.Events.Add(new BingoEvent(eventId, "Original", "identity-conflict", "UTC", db.Accounts.Local.First().Id, Now));
+        db.Events.Add(new BingoEvent(eventId, "Original", "identity-conflict", "UTC", db.Accounts.Local.First().Id, Now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb));
         await db.SaveChangesAsync();
         factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder
             .UseEnvironment("Testing").UseSetting("ConnectionStrings:Database", database.GetConnectionString())

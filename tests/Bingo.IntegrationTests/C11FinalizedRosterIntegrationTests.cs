@@ -814,7 +814,7 @@ public sealed class C11FinalizedRosterIntegrationTests : IAsyncLifetime
         Guid foreignVacancy; Guid foreignParticipant;
         await using (var db = Db())
         {
-            var item = new BingoEvent(Guid.NewGuid(), "Other C11 event", "other-c11", "UTC", seed.AdminId, clock.Now);
+            var item = new BingoEvent(Guid.NewGuid(), "Other C11 event", "other-c11", "UTC", seed.AdminId, clock.Now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
             var team = new Team(Guid.NewGuid(), item.Id, "Other team", "other", TeamFormationType.Drafted, null, true, clock.Now);
             var participant = new EventParticipant(Guid.NewGuid(), item.Id, SignupStatus.WaitingList, 1, clock.Now, SignupSource.AdminCreated);
             var member = new TeamMembership(Guid.NewGuid(), team.Id, participant.Id, TeamMembershipRole.Participant, clock.Now, null, "Foreign fixture");
@@ -1623,7 +1623,7 @@ public sealed class C11FinalizedRosterIntegrationTests : IAsyncLifetime
         var admin = Owner("c11-admin", GlobalRole.Admin); var super = Owner("c11-super", GlobalRole.SuperAdmin);
         var departedOwner = Owner("c11-departed"); var leaderOwner = Owner("c11-leader"); var otherCaptain = Owner("c11-other-captain");
         var waitingOwner = Owner("c11-waiting"); var otherWaitingOwner = Owner("c11-other-waiting"); var internalOwner = Owner("c11-internal"); var outsider = Owner("c11-outsider");
-        var item = new BingoEvent(Guid.NewGuid(), "C11 fixture event", "c11-fixture", "UTC", admin.Id, now.AddDays(-3));
+        var item = new BingoEvent(Guid.NewGuid(), "C11 fixture event", "c11-fixture", "UTC", admin.Id, now.AddDays(-3), Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         item.ConfigureInitialSchedule(now.AddDays(-2), now.AddDays(-1), now.AddDays(-1), now.AddHours(1), now.AddHours(5), 3);
         item.ConfigureSignup(true, false, null); item.OpenSignups(now.AddDays(-2)); item.CloseSignups(now.AddDays(-1)); item.SetDraftLocked(true); item.SetDraftRosterPublication(true);
         var form = new SignupForm(Guid.NewGuid(), item.Id, now.AddDays(-3)); form.Publish(now.AddDays(-2)); form.Close(now.AddDays(-1));

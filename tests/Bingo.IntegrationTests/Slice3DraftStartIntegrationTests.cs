@@ -135,7 +135,7 @@ public sealed class Slice3DraftStartIntegrationTests : IAsyncLifetime
         Account? firstOwner = null,
         Account? secondOwner = null)
     {
-        var item = new BingoEvent(eventId, slug, slug, "UTC", adminId, now.AddDays(-2));
+        var item = new BingoEvent(eventId, slug, slug, "UTC", adminId, now.AddDays(-2), Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         item.ConfigureSchedule(now.AddDays(-2), closedAt, null, now.AddDays(1), now.AddDays(2), 20);
         item.ConfigureSignup(true, false, null);
         if (state is not (EventState.Draft or EventState.Cancelled or EventState.Discarded)) item.OpenSignups(now.AddDays(-2));

@@ -574,7 +574,7 @@ public sealed partial class EventQuarantineIntegrationTests : IAsyncLifetime
 
     private BingoEvent ReadyForFinalReview(Guid actorId)
     {
-        var item = new BingoEvent(Guid.NewGuid(), "Quarantine integration", $"quarantine-{Guid.NewGuid():N}", "UTC", actorId, now);
+        var item = new BingoEvent(Guid.NewGuid(), "Quarantine integration", $"quarantine-{Guid.NewGuid():N}", "UTC", actorId, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         item.ConfigureInitialSchedule(now.AddHours(-5), now.AddHours(-4), null, now.AddHours(-3), now.AddHours(1), 10);
         item.OpenSignups(now.AddHours(-4));
         item.CloseSignups(now.AddHours(-3));

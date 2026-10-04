@@ -18,7 +18,7 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests
     {
         var now = new DateTimeOffset(2026, 9, 27, 12, 0, 0, TimeSpan.Zero);
         var owner = Website($"brd02-refresh-{Guid.NewGuid():N}", now);
-        var bingoEvent = new BingoEvent(Guid.NewGuid(), "BRD-02 refresh", $"brd02-refresh-{Guid.NewGuid():N}", "UTC", owner.Id, now);
+        var bingoEvent = new BingoEvent(Guid.NewGuid(), "BRD-02 refresh", $"brd02-refresh-{Guid.NewGuid():N}", "UTC", owner.Id, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         var board = new Board(Guid.NewGuid(), bingoEvent.Id, "BRD-02 board", 1, 2);
         var firstBoss = new BossActivity(Guid.NewGuid(), "First boss", $"brd02-first-{Guid.NewGuid():N}", "Boss", 10m, now);
         var secondBoss = new BossActivity(Guid.NewGuid(), "Second boss", $"brd02-second-{Guid.NewGuid():N}", "Boss", 10m, now);
@@ -155,7 +155,7 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests
         var item = new CatalogueItem(Guid.NewGuid(), "Race item", $"CAT01-{Guid.NewGuid():N}");
         var drop = new SourceDrop(Guid.NewGuid(), boss.Id, item.Id, "1/100", .01m, 10, now);
         item.SetPrice(0, CataloguePriceSource.Manual, now);
-        var bingoEvent = new BingoEvent(Guid.NewGuid(), "Race event", $"cat01-event-{Guid.NewGuid():N}", "UTC", actor.Id, now);
+        var bingoEvent = new BingoEvent(Guid.NewGuid(), "Race event", $"cat01-event-{Guid.NewGuid():N}", "UTC", actor.Id, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         var board = new Board(Guid.NewGuid(), bingoEvent.Id, "Race board", 1, 1);
         board.AcquireEditing(actor.Id, now, TimeSpan.FromDays(36500));
         await using (var setup = new ApplicationDbContext(options))

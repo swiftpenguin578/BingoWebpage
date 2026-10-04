@@ -43,7 +43,7 @@ public sealed class ResultsPublicationRulesTests
 
     private static BingoEvent EndedEvent(Guid actorId)
     {
-        var item = new BingoEvent(Guid.NewGuid(), "Publication rules", $"publication-rules-{Guid.NewGuid():N}", "UTC", actorId, Now.AddDays(-2));
+        var item = new BingoEvent(Guid.NewGuid(), "Publication rules", $"publication-rules-{Guid.NewGuid():N}", "UTC", actorId, Now.AddDays(-2), Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         item.ConfigureSchedule(Now.AddDays(-2), Now.AddDays(-1), null, Now.AddHours(-3), Now.AddHours(-2), 20);
         item.OpenSignups(Now.AddDays(-2));
         item.CloseSignups(Now.AddDays(-1));

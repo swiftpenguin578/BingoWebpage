@@ -128,7 +128,7 @@ public sealed partial class Au12PlacementRuleIntegrationTests : IAsyncLifetime
             var service = new EventFinalizationService(finalize, new PublicBoardService(finalize, new Clock()), new Clock());
             var readiness = await service.GetReadinessAsync(fixture.EventId);
             await service.FinalizeAsync(fixture.EventId, new LifecycleActor(fixture.AdminId, "admin"), readiness!.EventVersion);
-            finalize.Add(new BingoEvent(Guid.NewGuid(), "Existing draft", "existing-draft", "UTC", fixture.AdminId, Now));
+            finalize.Add(new BingoEvent(Guid.NewGuid(), "Existing draft", "existing-draft", "UTC", fixture.AdminId, Now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb));
             await finalize.SaveChangesAsync();
         }
         await using var db = new ApplicationDbContext(options);

@@ -182,7 +182,7 @@ public sealed partial class EventQuarantineIntegrationTests
         var hidden = ReadyForFinalReview(admin.Id);
         if (hiddenState is EventState.Finalized or EventState.Archived) hidden.FinalizeResults(now);
         if (hiddenState == EventState.Archived) hidden.Archive(now);
-        var other = new BingoEvent(Guid.NewGuid(), "Other current event", $"other-{Guid.NewGuid():N}", "UTC", admin.Id, now);
+        var other = new BingoEvent(Guid.NewGuid(), "Other current event", $"other-{Guid.NewGuid():N}", "UTC", admin.Id, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         other.ConfigureInitialSchedule(now.AddHours(-5), now.AddHours(-4), null, now.AddHours(-3), now.AddHours(1), 10);
         other.OpenSignups(now.AddHours(-4));
         other.CloseSignups(now.AddHours(-3));

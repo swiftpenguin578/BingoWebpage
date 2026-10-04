@@ -470,7 +470,7 @@ public sealed class CataloguePopulationMigrationIntegrationTests : IAsyncLifetim
         {
             preLiveAccount = Account.CreateWebsite(Guid.NewGuid(), "catalogue-migration-prelive", "CATALOGUE-MIGRATION-PRELIVE", now);
             preLiveAccount.SetGlobalRole(GlobalRole.Admin);
-            preLiveEvent = new BingoEvent(Guid.NewGuid(), "Retained pre-live event", "retained-pre-live-event", "UTC", preLiveAccount.Id, now);
+            preLiveEvent = new BingoEvent(Guid.NewGuid(), "Retained pre-live event", "retained-pre-live-event", "UTC", preLiveAccount.Id, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
             preLiveEvent.ConfigureSchedule(
                 now.AddDays(-2),
                 now.AddDays(-1),
@@ -516,7 +516,7 @@ public sealed class CataloguePopulationMigrationIntegrationTests : IAsyncLifetim
         if (includeProtectedHistory)
         {
             var account = Account.CreateWebsite(Guid.NewGuid(), "catalogue-migration-history", "CATALOGUE-MIGRATION-HISTORY", now);
-            protectedEvent = new BingoEvent(Guid.NewGuid(), "Protected catalogue history", "protected-catalogue-history", "UTC", account.Id, now);
+            protectedEvent = new BingoEvent(Guid.NewGuid(), "Protected catalogue history", "protected-catalogue-history", "UTC", account.Id, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
             protectedEvent.OpenSignups(now);
             protectedEvent.CloseSignups(now.AddMinutes(1));
             protectedEvent.StartEvent(new DateTimeOffset(2026, 9, 16, 12, 0, 0, TimeSpan.Zero));

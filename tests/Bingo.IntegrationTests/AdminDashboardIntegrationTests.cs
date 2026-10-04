@@ -243,9 +243,9 @@ public sealed class AdminDashboardIntegrationTests : IAsyncLifetime
         var cohortB = BingoEvent.CreateArchivedHistorical(Guid.NewGuid(), "Cohort B", "dashboard-cohort-b", null, "UTC",
             Clock.AddDays(-11), Clock.AddDays(-10), cohortStart, Clock.AddDays(-8), adminId,
             Clock.AddDays(-12), null, 1, 1, 1, 1);
-        var cancelled = new BingoEvent(Guid.NewGuid(), "Cancelled", "dashboard-cancelled", "UTC", adminId, Clock.AddDays(-2));
+        var cancelled = new BingoEvent(Guid.NewGuid(), "Cancelled", "dashboard-cancelled", "UTC", adminId, Clock.AddDays(-2), Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         cancelled.Cancel(adminId, Clock.AddDays(-1), "Fixture", protectedHistoryExists: true);
-        var discarded = new BingoEvent(Guid.NewGuid(), "Discarded", "dashboard-discarded", "UTC", adminId, Clock.AddDays(-2));
+        var discarded = new BingoEvent(Guid.NewGuid(), "Discarded", "dashboard-discarded", "UTC", adminId, Clock.AddDays(-2), Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         discarded.Discard(adminId, Clock.AddDays(-1), protectedHistoryExists: false);
 
         var importedTeam = new Team(Guid.NewGuid(), imported.Id, "Imported team", "imported-team", "fixture", false, imported.ActualStartedAt);

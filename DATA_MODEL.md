@@ -1889,12 +1889,12 @@ reconstructed contributions retain null drop identity.
 
 ### 13.1 Team ranking tuple
 
-Retained/current comparator (before AU12): full-board finishers first, earliest
+Persisted legacy comparator (`placement_rule = 0`): full-board finishers first, earliest
 full-board completion among finishers, completed lines descending, completed tiles
 descending, current score completion time ascending, then credited EHB descending.
 Team name is display ordering only and does not break a competitive tie.
 
-AU12 approved target comparison priority:
+Persisted new-event comparator (`placement_rule = 1`) comparison priority:
 
 1. Full-board completion status
 2. Full-board obtained completion time, earliest first among finishers
@@ -1903,10 +1903,11 @@ AU12 approved target comparison priority:
 5. Credited EHB tie-break value, highest first
 6. Current score completion time, earliest first
 
-AU12 approved target, not the deployed comparator. Only new events adopt AU12; existing events keep their prior rule, and saved historical/official placements retain
-their existing ordering and inputs.
+Both comparators are implemented and selected by the immutable event placement rule.
+Only new ordinary events adopt AU12; retained events keep their prior rule, and saved
+historical/official placements retain their existing ordering and inputs.
 
-For the AU12 target only, non-finishers are compared using:
+For the AU12 new-event rule only, non-finishers are compared using:
 
 ```text
 (
@@ -1925,7 +1926,10 @@ historical only: current readiness and ranking ignore them. An existing official
 snapshot keeps its stored order and fields, while the current calculation uses
 the immutable evidence-derived times. This does not reintroduce manual time
 correction.
-Equal credited EHB falls through to current-score time under AU12; exact equality, including the defined null-time rule, can remain tied.
+Under AU12, credited EHB is rounded to four decimals for both ordering and shared-rank
+equality; equal credited EHB falls through to current-score time. Equality of all
+applicable inputs, including the defined null-time rule, can remain tied. Legacy
+comparisons retain full-precision credited EHB.
 
 Finishers rank ahead of all non-finishers and are ordered by completion time.
 
@@ -2095,7 +2099,10 @@ and transition to Archived. Existing events retain their rule; AU12 applies only
 new events via immutable `events.placement_rule`: `0` = LegacyScoreTimeThenEhb,
 `1` = CreditedEhbThenScoreTime. The AU12 migration backfills every retained row to 0
 and removes its temporary database default. EventCreationService explicitly inserts 1;
-historical import/compatibility construction explicitly retain 0. No date inference.
+the historical import factory calls the compatibility constructor, which explicitly
+passes legacy 0 to the basic constructor. The basic constructor requires a placement
+rule argument; retained development/test fixtures explicitly pass legacy 0, and
+transient schedule-validation copies preserve their source event rule. No date inference.
 The domain exposes no rule mutation and EF rejects changing a saved rule. Each new
 official snapshot records the rule in its calculation inputs. Shared ranks require exact equality across
 all applicable inputs. Optional WOM refresh failure does not block publication.

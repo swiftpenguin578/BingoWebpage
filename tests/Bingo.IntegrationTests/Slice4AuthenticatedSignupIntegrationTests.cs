@@ -55,7 +55,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         await using var db = new ApplicationDbContext(options);
         var now = DateTimeOffset.UtcNow;
         var admin = Website($"co-migration-{Guid.NewGuid():N}", now);
-        var bingoEvent = new BingoEvent(Guid.NewGuid(), "Co-captain migration", $"co-captain-migration-{Guid.NewGuid():N}", "UTC", admin.Id, now);
+        var bingoEvent = new BingoEvent(Guid.NewGuid(), "Co-captain migration", $"co-captain-migration-{Guid.NewGuid():N}", "UTC", admin.Id, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         var form = new SignupForm(Guid.NewGuid(), bingoEvent.Id, now);
         var regular = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, "primary_regular_account", "Account", SignupQuestionType.Account, true, 0, null, SignupSystemField.PrimaryRegularAccount, EventCharacterRole.Playing);
         var captain = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, "captain_volunteer", "Captain volunteer", SignupQuestionType.YesNo, false, 1, null, SignupSystemField.CaptainVolunteer);
@@ -1703,7 +1703,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
             var admin = Website($"questions-admin-{Guid.NewGuid():N}", now);
             admin.SetGlobalRole(GlobalRole.Admin);
             admin.SetPassword(new PasswordHasher<Account>().HashPassword(admin, "questions-password"), false, now, incrementVersion: false);
-            var bingoEvent = new BingoEvent(Guid.NewGuid(), "Question builder", $"question-builder-{Guid.NewGuid():N}", "Europe/Copenhagen", admin.Id, now);
+            var bingoEvent = new BingoEvent(Guid.NewGuid(), "Question builder", $"question-builder-{Guid.NewGuid():N}", "Europe/Copenhagen", admin.Id, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
             var form = new SignupForm(Guid.NewGuid(), bingoEvent.Id, now);
             var regular = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, "primary_regular_account", "Account", SignupQuestionType.Account, true, 0, null, SignupSystemField.PrimaryRegularAccount, EventCharacterRole.Playing);
             var captain = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, "captain_volunteer", "Captain volunteer", SignupQuestionType.YesNo, false, 1, null, SignupSystemField.CaptainVolunteer);
@@ -1779,7 +1779,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
             var admin = Website($"questions-reorder-admin-{Guid.NewGuid():N}", now);
             admin.SetGlobalRole(GlobalRole.Admin);
             admin.SetPassword(new PasswordHasher<Account>().HashPassword(admin, "questions-reorder-password"), false, now, incrementVersion: false);
-            var bingoEvent = new BingoEvent(Guid.NewGuid(), "Question reorder", $"question-reorder-{Guid.NewGuid():N}", "Europe/Copenhagen", admin.Id, now);
+            var bingoEvent = new BingoEvent(Guid.NewGuid(), "Question reorder", $"question-reorder-{Guid.NewGuid():N}", "Europe/Copenhagen", admin.Id, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
             var form = new SignupForm(Guid.NewGuid(), bingoEvent.Id, now);
             var regular = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, "primary_regular_account", "Account", SignupQuestionType.Account, true, 0, null, SignupSystemField.PrimaryRegularAccount, EventCharacterRole.Playing);
             var captain = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, "captain_volunteer", "Captain volunteer", SignupQuestionType.YesNo, false, 1, null, SignupSystemField.CaptainVolunteer);
@@ -2259,7 +2259,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
             formerAdmin.SetPassword(new PasswordHasher<Account>().HashPassword(formerAdmin, "former-admin-password"), false, now, incrementVersion: false);
             var emergency = Account.CreateEmergency(Guid.NewGuid(), "emergency-sentinel", "EMERGENCY-SENTINEL", now);
 
-            var privateEvent = new BingoEvent(Guid.NewGuid(), "Private sentinel", $"private-{Guid.NewGuid():N}", "UTC", owner.Id, now);
+            var privateEvent = new BingoEvent(Guid.NewGuid(), "Private sentinel", $"private-{Guid.NewGuid():N}", "UTC", owner.Id, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
             privateSlug = privateEvent.Slug;
             var bingoEvent = Event(owner.Id, now);
             bingoEvent.MarkFirstPublic(now);

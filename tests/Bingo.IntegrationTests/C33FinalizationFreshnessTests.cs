@@ -932,7 +932,7 @@ public sealed class C33FinalizationFreshnessTests : IAsyncLifetime
         admin.SetGlobalRole(GlobalRole.Admin);
         var player = Account.CreateWebsite(Guid.NewGuid(), "c33-player", "C33-PLAYER", now.AddDays(-10));
         foreach (var account in new[] { admin, player }) account.SetPassword(new PasswordHasher<Account>().HashPassword(account, "password"), false, now, false);
-        var ev = new BingoEvent(Guid.NewGuid(), "C33 final review", "c33-final-review", "UTC", admin.Id, now.AddDays(-10));
+        var ev = new BingoEvent(Guid.NewGuid(), "C33 final review", "c33-final-review", "UTC", admin.Id, now.AddDays(-10), Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         ev.ConfigureSchedule(now.AddDays(-8), now.AddDays(-5), null, now.AddHours(-4), now.AddHours(-1), 20);
         ev.OpenSignups(now.AddDays(-8)); ev.CloseSignups(now.AddDays(-5)); ev.SetDraftRosterPublication(true); ev.StartEvent(now.AddHours(-4)); ev.MarkFirstPublic(now.AddDays(-8));
         var board = new Board(Guid.NewGuid(), ev.Id, "C33 board", 1, 1);

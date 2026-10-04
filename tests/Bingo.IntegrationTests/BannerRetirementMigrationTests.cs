@@ -84,7 +84,7 @@ public sealed class BannerRetirementMigrationTests : IAsyncLifetime
         {
             await before.Database.GetService<IMigrator>().MigrateAsync(BeforeRetirement);
             var actor = Account.CreateWebsite(actorId, "manual-banner-fixture", "MANUAL-BANNER-FIXTURE", now);
-            var item = new BingoEvent(eventId, "Manual banner fixture", "manual-banner-fixture", "UTC", actorId, now);
+            var item = new BingoEvent(eventId, "Manual banner fixture", "manual-banner-fixture", "UTC", actorId, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
             before.AddRange(actor, item);
             await before.SaveChangesAsync();
 
@@ -152,7 +152,7 @@ public sealed class BannerRetirementMigrationTests : IAsyncLifetime
         {
             await before.Database.GetService<IMigrator>().MigrateAsync(BeforeRetirement);
             var actor = Account.CreateWebsite(actorId, "banner-fixture", "BANNER-FIXTURE", now);
-            var item = new BingoEvent(eventId, "Banner fixture", "banner-fixture", "UTC", actorId, now);
+            var item = new BingoEvent(eventId, "Banner fixture", "banner-fixture", "UTC", actorId, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
             before.AddRange(actor, item);
             before.CatalogueItems.Add(new CatalogueItem(Guid.NewGuid(), "Shared catalogue object", "shared-catalogue-object"));
             await before.SaveChangesAsync();

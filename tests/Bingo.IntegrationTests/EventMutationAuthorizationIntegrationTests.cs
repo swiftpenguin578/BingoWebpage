@@ -269,7 +269,7 @@ public sealed class EventMutationAuthorizationIntegrationTests : IAsyncLifetime
         Assert.Equal(expected, actual);
     }
 
-    private BingoEvent Draft(Guid id, string slug, Guid actorId) => new(id, slug, slug, "UTC", actorId, now);
+    private BingoEvent Draft(Guid id, string slug, Guid actorId) => new(id, slug, slug, "UTC", actorId, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
 
     private BingoEvent AwaitingReview(Guid eventId, Guid actorId)
     {

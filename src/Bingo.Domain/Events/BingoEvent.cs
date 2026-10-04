@@ -7,7 +7,7 @@ public sealed class BingoEvent
     private BingoEvent() { }
 
     /// <summary>Creates the smallest permitted private event draft.</summary>
-    public BingoEvent(Guid id, string name, string slug, string timezone, Guid createdByAccountId, DateTimeOffset createdAt, PlacementRule placementRule = PlacementRule.LegacyScoreTimeThenEhb)
+    public BingoEvent(Guid id, string name, string slug, string timezone, Guid createdByAccountId, DateTimeOffset createdAt, PlacementRule placementRule)
     {
         if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("An event name is required.", nameof(name));
         if (string.IsNullOrWhiteSpace(slug)) throw new ArgumentException("An event slug is required.", nameof(slug));
@@ -58,7 +58,7 @@ public sealed class BingoEvent
         DateTimeOffset? signupOpensAt, DateTimeOffset? signupClosesAt, DateTimeOffset? eventStartsAt,
         DateTimeOffset? eventEndsAt, DateTimeOffset? submissionCutoffAt, int? participantCap,
         Guid createdByAccountId, DateTimeOffset createdAt)
-        : this(id, name, slug, timezone, createdByAccountId, createdAt)
+        : this(id, name, slug, timezone, createdByAccountId, createdAt, PlacementRule.LegacyScoreTimeThenEhb)
     {
         Description = Clean(description);
         SignupOpensAt = Utc(signupOpensAt);

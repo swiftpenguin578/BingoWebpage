@@ -205,7 +205,7 @@ public sealed partial class Slice3ScheduledLifecycleIntegrationTests
         Assert.Empty(await db.EventItemPrices.ToListAsync());
         Assert.Equal(0, (await db.CatalogueItems.SingleAsync(x => x.Id == item.Id)).CatalogueValueGp);
         // Use a controlled supported event for insert/constraint checks, not the excluded event.
-        var e = new BingoEvent(Guid.NewGuid(), "Constraint fixture", "constraint-fixture", "UTC", Guid.NewGuid(), now);
+        var e = new BingoEvent(Guid.NewGuid(), "Constraint fixture", "constraint-fixture", "UTC", Guid.NewGuid(), now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         db.Add(e); await db.SaveChangesAsync();
         var price = EventItemPrice.Introduce(e.Id, item, now.AddHours(-1), now);
         db.Add(price); await db.SaveChangesAsync();

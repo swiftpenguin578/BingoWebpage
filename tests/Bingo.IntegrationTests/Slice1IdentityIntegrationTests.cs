@@ -769,7 +769,7 @@ public sealed partial class Slice1IdentityIntegrationTests : IAsyncLifetime
     {
         await using var db = new ApplicationDbContext(options);
         var admin = Website("slice5-draft-feedback-admin", GlobalRole.Admin);
-        var ev = new BingoEvent(Guid.NewGuid(), "Draft feedback", "slice5-draft-feedback", "UTC", admin.Id, time.GetUtcNow());
+        var ev = new BingoEvent(Guid.NewGuid(), "Draft feedback", "slice5-draft-feedback", "UTC", admin.Id, time.GetUtcNow(), Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         ev.ConfigureSchedule(null, null, null, time.GetUtcNow().AddHours(1), time.GetUtcNow().AddDays(1), 10);
         var draft = new DraftSession(Guid.NewGuid(), ev.Id, 1);
         var team = new Team(Guid.NewGuid(), ev.Id, "External", "external", TeamFormationType.Preformed, null, false);
@@ -1077,7 +1077,7 @@ public sealed partial class Slice1IdentityIntegrationTests : IAsyncLifetime
         var clock = new MutableTimeProvider(now);
         await using var db = new ApplicationDbContext(options);
         var admin = Website("slice1-event-local-admin", GlobalRole.Admin);
-        var ev = new BingoEvent(Guid.NewGuid(), "Event-local parsing", $"event-local-{Guid.NewGuid():N}", "Europe/Copenhagen", admin.Id, now.AddDays(-3));
+        var ev = new BingoEvent(Guid.NewGuid(), "Event-local parsing", $"event-local-{Guid.NewGuid():N}", "Europe/Copenhagen", admin.Id, now.AddDays(-3), Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         ev.ConfigureSchedule(now.AddDays(-2), now.AddDays(-1), null, now.AddHours(-2), now.AddHours(-1), 10);
         ev.OpenSignups();
         ev.CloseSignups();
@@ -1109,7 +1109,7 @@ public sealed partial class Slice1IdentityIntegrationTests : IAsyncLifetime
         var clock = new MutableTimeProvider(now);
         await using var db = new ApplicationDbContext(options);
         var admin = Website("slice1-event-local-dst-admin", GlobalRole.Admin);
-        var ev = new BingoEvent(Guid.NewGuid(), "Event-local DST parsing", $"event-local-dst-{Guid.NewGuid():N}", "Europe/Copenhagen", admin.Id, now.AddDays(-3));
+        var ev = new BingoEvent(Guid.NewGuid(), "Event-local DST parsing", $"event-local-dst-{Guid.NewGuid():N}", "Europe/Copenhagen", admin.Id, now.AddDays(-3), Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         ev.ConfigureSchedule(now.AddDays(-2), now.AddDays(-1), null, now.AddHours(-2), now.AddHours(-1), 10);
         ev.OpenSignups();
         ev.CloseSignups();
@@ -1240,12 +1240,12 @@ public sealed partial class Slice1IdentityIntegrationTests : IAsyncLifetime
         var retainedLiveCharacter = new OsrsCharacter(Guid.NewGuid(), "Dev Player 001", "DEV PLAYER 001", seededAt);
         var retainedLink = new AccountOsrsCharacter(Guid.NewGuid(), admin.Id, retainedLiveCharacter.Id, true, 0, seededAt);
         db.AddRange(retainedBoardCharacter, retainedLiveCharacter, retainedLink);
-        var obsolete = new Bingo.Domain.Events.BingoEvent(Guid.NewGuid(), "TEST 00 — Obsolete", "test-00-obsolete", "UTC", admin.Id, seededAt);
-        var manual = new Bingo.Domain.Events.BingoEvent(Guid.NewGuid(), "S4 Manual Test", "s4-manual-test", "UTC", admin.Id, seededAt);
+        var obsolete = new Bingo.Domain.Events.BingoEvent(Guid.NewGuid(), "TEST 00 — Obsolete", "test-00-obsolete", "UTC", admin.Id, seededAt, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
+        var manual = new Bingo.Domain.Events.BingoEvent(Guid.NewGuid(), "S4 Manual Test", "s4-manual-test", "UTC", admin.Id, seededAt, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         var manualForm = new SignupForm(Guid.NewGuid(), manual.Id, seededAt);
-        var cancelled = new Bingo.Domain.Events.BingoEvent(Guid.NewGuid(), "Cancelled tombstone", "cancelled-tombstone", "UTC", admin.Id, seededAt);
+        var cancelled = new Bingo.Domain.Events.BingoEvent(Guid.NewGuid(), "Cancelled tombstone", "cancelled-tombstone", "UTC", admin.Id, seededAt, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         cancelled.Cancel(admin.Id, seededAt, "Reset regression", protectedHistoryExists: true);
-        var discarded = new Bingo.Domain.Events.BingoEvent(Guid.NewGuid(), "Discarded tombstone", "discarded-tombstone", "UTC", admin.Id, seededAt);
+        var discarded = new Bingo.Domain.Events.BingoEvent(Guid.NewGuid(), "Discarded tombstone", "discarded-tombstone", "UTC", admin.Id, seededAt, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         discarded.Discard(admin.Id, seededAt, protectedHistoryExists: false);
         db.AddRange(
             obsolete, manual, manualForm, cancelled, discarded,
@@ -1258,7 +1258,7 @@ public sealed partial class Slice1IdentityIntegrationTests : IAsyncLifetime
         await AssertSlice6FixtureInvariantsAsync(db, clock.GetUtcNow());
 
         var boundaryNow = clock.GetUtcNow();
-        var currentBoundaryEvent = new BingoEvent(Guid.NewGuid(), "Test-owned current event", "test-owned-current-event", "UTC", admin.Id, boundaryNow);
+        var currentBoundaryEvent = new BingoEvent(Guid.NewGuid(), "Test-owned current event", "test-owned-current-event", "UTC", admin.Id, boundaryNow, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         currentBoundaryEvent.ConfigureSchedule(boundaryNow.AddDays(-3), boundaryNow.AddDays(-2), null, boundaryNow.AddDays(-1), boundaryNow.AddDays(3), 20);
         currentBoundaryEvent.OpenSignups(boundaryNow.AddDays(-3));
         currentBoundaryEvent.CloseSignups(boundaryNow.AddDays(-2));
@@ -1901,8 +1901,8 @@ public sealed partial class Slice1IdentityIntegrationTests : IAsyncLifetime
         var otherEventId = Guid.NewGuid();
         var now = time.GetUtcNow();
         db.Events.AddRange(
-            new BingoEvent(eventId, "Audit event", $"audit-event-{eventId:N}", "UTC", Guid.NewGuid(), now),
-            new BingoEvent(otherEventId, "Other audit event", $"other-audit-event-{otherEventId:N}", "UTC", Guid.NewGuid(), now));
+            new BingoEvent(eventId, "Audit event", $"audit-event-{eventId:N}", "UTC", Guid.NewGuid(), now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb),
+            new BingoEvent(otherEventId, "Other audit event", $"other-audit-event-{otherEventId:N}", "UTC", Guid.NewGuid(), now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb));
         for (var index = 0; index < 30; index++)
         {
             db.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), now.AddMinutes(index), null, "admin", "account.changed", "account", index.ToString(CultureInfo.InvariantCulture), "Changed account.", eventId, "{\"role\":\"User\"}", "{\"role\":\"Admin\"}"));

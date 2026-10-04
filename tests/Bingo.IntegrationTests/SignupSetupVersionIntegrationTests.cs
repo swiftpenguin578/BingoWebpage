@@ -217,7 +217,7 @@ public sealed class SignupSetupVersionIntegrationTests : IAsyncLifetime
         await using var db = new ApplicationDbContext(options);
         var admin = Account.CreateWebsite(Guid.NewGuid(), "version-admin", "VERSION-ADMIN", Now); admin.SetGlobalRole(GlobalRole.Admin);
         admin.SetPassword(new PasswordHasher<Account>().HashPassword(admin, "synthetic-test-password"), false, Now, incrementVersion: false);
-        var ev = new BingoEvent(Guid.NewGuid(), "Version tests", $"versions-{Guid.NewGuid():N}", "UTC", admin.Id, Now); ev.SetParticipantCap(5);
+        var ev = new BingoEvent(Guid.NewGuid(), "Version tests", $"versions-{Guid.NewGuid():N}", "UTC", admin.Id, Now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb); ev.SetParticipantCap(5);
         var form = new SignupForm(Guid.NewGuid(), ev.Id, Now);
         var custom = new SignupQuestion(Guid.NewGuid(), form.Id, ev.Id, "custom", "Custom", SignupQuestionType.Text, false, 1, null);
         var other = new SignupQuestion(Guid.NewGuid(), form.Id, ev.Id, "other", "Other", SignupQuestionType.Text, false, 2, null);

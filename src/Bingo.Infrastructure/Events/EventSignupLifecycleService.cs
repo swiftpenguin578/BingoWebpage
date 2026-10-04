@@ -430,7 +430,7 @@ public sealed class EventSignupLifecycleService(ApplicationDbContext db, IEventR
         if (item.State is EventState.Draft or EventState.SignupOpen or EventState.SignupClosed or EventState.Live
             && proposedStart is not null && proposedEnd is not null)
         {
-            var proposed = new BingoEvent(item.Id, item.Name, item.Slug, item.Timezone, item.CreatedByAccountId, item.CreatedAt);
+            var proposed = new BingoEvent(item.Id, item.Name, item.Slug, item.Timezone, item.CreatedByAccountId, item.CreatedAt, item.PlacementRule);
             proposed.ConfigureSchedule(item.ActualSignupOpenedAt ?? proposedOpening, proposedClosing, proposedDraft, proposedStart, proposedEnd, values.ParticipantCap);
             var conflict = await CurrentEventBoundaryConflictAsync(db, proposed, ct);
             if (conflict is not null) return conflict.Description;

@@ -266,7 +266,7 @@ public sealed partial class C20ObjectiveIdentityIntegrationTests(C20Database fix
             return account;
         }
         var admin = Website("admin", true); var owner = Website("owner");
-        var ev = new BingoEvent(Guid.NewGuid(), "C20 event " + suffix, "c20-" + suffix, "UTC", admin.Id, now.AddDays(-3));
+        var ev = new BingoEvent(Guid.NewGuid(), "C20 event " + suffix, "c20-" + suffix, "UTC", admin.Id, now.AddDays(-3), Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         ev.ConfigureSchedule(now.AddDays(-2), now.AddDays(-1), null, now.AddHours(-1), now.AddHours(2), 20);
         ev.OpenSignups(now.AddDays(-2)); ev.CloseSignups(now.AddDays(-1));
         ev.SetDraftRosterPublication(true); ev.SetBoardPublication(true, now.AddHours(-2)); ev.StartEvent(now.AddHours(-1));

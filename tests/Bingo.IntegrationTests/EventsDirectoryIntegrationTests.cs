@@ -46,14 +46,14 @@ public sealed class EventsDirectoryIntegrationTests : IAsyncLifetime
         var early = Event(admin, EventState.SignupClosed, "Early", Now.AddDays(1));
         var tieHigh = Event(admin, EventState.SignupOpen, "Alpha", Now.AddDays(2), Guid.Parse("ffffffff-0000-0000-0000-000000000001"));
         var tieLow = Event(admin, EventState.Draft, "Zulu", Now.AddDays(2).AddTicks(7), Guid.Parse("00000001-0000-0000-0000-000000000001"));
-        var unscheduled = new BingoEvent(Guid.NewGuid(), "Unscheduled", "unscheduled", "UTC", admin.Id, Now);
+        var unscheduled = new BingoEvent(Guid.NewGuid(), "Unscheduled", "unscheduled", "UTC", admin.Id, Now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         var archived = Event(admin, EventState.Archived, "Newest archived", Now.AddDays(-4));
         var final = Event(admin, EventState.Finalized, "Finished", Now.AddDays(-6));
         var review = Event(admin, EventState.AwaitingFinalReview, "Review", Now.AddDays(-8));
         var cancelled = Event(admin, EventState.Cancelled, "Cancelled", Now.AddDays(-10));
         var hidden = Event(admin, EventState.Archived, "Hidden", Now.AddDays(-3));
         hidden.Hide(admin.Id, Now, hidden.Name, "Controlled fixture");
-        var discarded = new BingoEvent(Guid.NewGuid(), "Discarded", "discarded", "UTC", admin.Id, Now);
+        var discarded = new BingoEvent(Guid.NewGuid(), "Discarded", "discarded", "UTC", admin.Id, Now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         discarded.Discard(admin.Id, Now, false);
         await using var db = new ApplicationDbContext(options);
         db.AddRange(admin, live, early, tieHigh, tieLow, unscheduled, archived, final, review, cancelled, hidden, discarded);
@@ -178,7 +178,7 @@ public sealed class EventsDirectoryIntegrationTests : IAsyncLifetime
     {
         var admin = Admin();
         var item = Event(admin, EventState.Draft, "Failure plus review", Now.AddHours(-1));
-        var quiet = new BingoEvent(Guid.NewGuid(), "Incomplete setup", "incomplete-setup", "UTC", admin.Id, Now);
+        var quiet = new BingoEvent(Guid.NewGuid(), "Incomplete setup", "incomplete-setup", "UTC", admin.Id, Now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         var hidden = Event(admin, EventState.Archived, "Hidden attention fixture", Now.AddDays(-10));
         hidden.Hide(admin.Id, Now, hidden.Name, "Controlled fixture");
         await using var db = new ApplicationDbContext(options);
@@ -267,7 +267,7 @@ public sealed class EventsDirectoryIntegrationTests : IAsyncLifetime
 
     private static BingoEvent Event(Account admin, EventState state, string name, DateTimeOffset start, Guid? id = null)
     {
-        var item = new BingoEvent(id ?? Guid.NewGuid(), name, $"directory-{Guid.NewGuid():N}", "UTC", admin.Id, Now.AddDays(-30));
+        var item = new BingoEvent(id ?? Guid.NewGuid(), name, $"directory-{Guid.NewGuid():N}", "UTC", admin.Id, Now.AddDays(-30), Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         item.ConfigureSchedule(start.AddDays(-3), start.AddDays(-2), null, start, start.AddDays(1), 10);
         item.ConfigureSignup(true, false, null);
         if (state == EventState.Cancelled) { item.Cancel(admin.Id, start.AddDays(1), "Controlled fixture", true); return item; }

@@ -256,7 +256,7 @@ public sealed class Slice9Pass92LiveWithdrawalIntegrationTests : IAsyncLifetime
 
         await using (var db = new ApplicationDbContext(options))
         {
-            var unsupported = new BingoEvent(Guid.NewGuid(), "Awaiting route event", $"awaiting-route-{Guid.NewGuid():N}", "UTC", seed.AdminId, seed.Now);
+            var unsupported = new BingoEvent(Guid.NewGuid(), "Awaiting route event", $"awaiting-route-{Guid.NewGuid():N}", "UTC", seed.AdminId, seed.Now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
             unsupported.ConfigureInitialSchedule(seed.Now.AddDays(-2), seed.Now.AddDays(-1), seed.Now.AddDays(-1), seed.Now.AddHours(-2), seed.Now.AddHours(3), 3);
             unsupported.OpenSignups(seed.Now.AddDays(-2));
             unsupported.CloseSignups(seed.Now.AddDays(-1));
@@ -347,7 +347,7 @@ public sealed class Slice9Pass92LiveWithdrawalIntegrationTests : IAsyncLifetime
         var leaderOwner = Website("pass92-leader", GlobalRole.User, now);
         var departedOwner = Website("pass92-departed", GlobalRole.User, now);
         var waitingOwner = Website("pass92-waiting", GlobalRole.User, now);
-        var item = new BingoEvent(Guid.NewGuid(), "Pass 9.2", $"pass92-{Guid.NewGuid():N}", "UTC", admin.Id, now.AddDays(-1));
+        var item = new BingoEvent(Guid.NewGuid(), "Pass 9.2", $"pass92-{Guid.NewGuid():N}", "UTC", admin.Id, now.AddDays(-1), Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         item.ConfigureInitialSchedule(now.AddDays(-2), now.AddDays(-1), now.AddDays(-1), now.AddHours(-1), now.AddHours(4), 3);
         item.OpenSignups(now.AddDays(-2));
         if (startLive)

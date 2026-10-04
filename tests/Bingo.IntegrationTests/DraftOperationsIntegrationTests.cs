@@ -2070,8 +2070,8 @@ public sealed class DraftOperationsIntegrationTests : IAsyncLifetime
         await using (var seed = new ApplicationDbContext(options))
         {
             var admin = Account.CreateWebsite(Guid.NewGuid(), "image-admin", "IMAGE-ADMIN", now);
-            var first = new BingoEvent(Guid.NewGuid(), "public-images", "Public images", "UTC", admin.Id, now);
-            var second = new BingoEvent(Guid.NewGuid(), "other-images", "Other images", "UTC", admin.Id, now);
+            var first = new BingoEvent(Guid.NewGuid(), "public-images", "Public images", "UTC", admin.Id, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
+            var second = new BingoEvent(Guid.NewGuid(), "other-images", "Other images", "UTC", admin.Id, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
             var current = new Team(Guid.NewGuid(), first.Id, "Current", "current", TeamFormationType.Preformed, null, false);
             var other = new Team(Guid.NewGuid(), first.Id, "Other", "other", TeamFormationType.Preformed, null, false);
             var retiredTeam = new Team(Guid.NewGuid(), first.Id, "Retired", "retired", TeamFormationType.Preformed, null, false);
@@ -2563,7 +2563,7 @@ public sealed class DraftOperationsIntegrationTests : IAsyncLifetime
         var passwords = new PasswordHasher<Account>();
         firstAdmin.SetPassword(passwords.HashPassword(firstAdmin, "password"), false, now, false);
         secondAdmin.SetPassword(passwords.HashPassword(secondAdmin, "password"), false, now, false);
-        var item = new BingoEvent(Guid.NewGuid(), "Draft test", $"draft-{Guid.NewGuid():N}", "UTC", firstAdmin.Id, now.AddDays(-1));
+        var item = new BingoEvent(Guid.NewGuid(), "Draft test", $"draft-{Guid.NewGuid():N}", "UTC", firstAdmin.Id, now.AddDays(-1), Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         if (initialPrivate)
             item.ConfigureSchedule(null, null, null, null, null, null);
         else

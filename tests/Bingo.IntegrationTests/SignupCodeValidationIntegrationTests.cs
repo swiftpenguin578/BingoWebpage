@@ -177,7 +177,7 @@ public sealed class SignupCodeValidationIntegrationTests : IAsyncLifetime
         var admin = Account.CreateWebsite(Guid.NewGuid(), "code-admin", "CODE-ADMIN", Now);
         admin.SetGlobalRole(GlobalRole.Admin);
         admin.SetPassword(new PasswordHasher<Account>().HashPassword(admin, "synthetic-test-password"), false, Now, incrementVersion: false);
-        var bingoEvent = new BingoEvent(Guid.NewGuid(), "Code validation", $"code-validation-{Guid.NewGuid():N}", "UTC", admin.Id, Now);
+        var bingoEvent = new BingoEvent(Guid.NewGuid(), "Code validation", $"code-validation-{Guid.NewGuid():N}", "UTC", admin.Id, Now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         var form = new SignupForm(Guid.NewGuid(), bingoEvent.Id, Now);
         db.AddRange(admin, bingoEvent, form);
         await db.SaveChangesAsync();

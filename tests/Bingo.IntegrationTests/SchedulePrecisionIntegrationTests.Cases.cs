@@ -79,7 +79,7 @@ public sealed partial class SchedulePrecisionIntegrationTests
         await using (var db = new ApplicationDbContext(options))
         {
             var owner = await db.Events.SingleAsync(item => item.Id == eventId);
-            var other = new BingoEvent(Guid.NewGuid(), "Overlap fixture", "overlap-fixture", "UTC", owner.CreatedByAccountId, Now);
+            var other = new BingoEvent(Guid.NewGuid(), "Overlap fixture", "overlap-fixture", "UTC", owner.CreatedByAccountId, Now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
             other.ConfigureSchedule(null, null, null, owner.EventStartsAt, owner.EventEndsAt, null); other.OpenSignups(Now); db.Events.Add(other); await db.SaveChangesAsync();
         }
         var overlap = new Dictionary<string, string>(original) { ["Input.EventEndsLocal"] = "2027-11-03T12:00" };

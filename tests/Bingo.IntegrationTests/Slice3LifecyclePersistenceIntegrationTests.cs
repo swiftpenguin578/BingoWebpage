@@ -95,7 +95,7 @@ public sealed class Slice3LifecyclePersistenceIntegrationTests : IAsyncLifetime
         {
             await clean.Database.EnsureDeletedAsync();
             await clean.Database.MigrateAsync();
-            var draft = new BingoEvent(Guid.NewGuid(), "Minimal", "slice3-minimal", "Europe/Copenhagen", Guid.NewGuid(), DateTimeOffset.UtcNow);
+            var draft = new BingoEvent(Guid.NewGuid(), "Minimal", "slice3-minimal", "Europe/Copenhagen", Guid.NewGuid(), DateTimeOffset.UtcNow, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
             clean.Events.Add(draft);
             await clean.SaveChangesAsync();
             Assert.Null((await clean.Events.SingleAsync()).Description);

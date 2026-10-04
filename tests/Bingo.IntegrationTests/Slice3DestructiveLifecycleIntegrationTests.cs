@@ -624,7 +624,7 @@ public sealed class Slice3DestructiveLifecycleIntegrationTests : IAsyncLifetime
         }
     }
 
-    private BingoEvent Draft(Guid id, string slug, Guid actorId) => new(id, slug, slug, "UTC", actorId, now);
+    private BingoEvent Draft(Guid id, string slug, Guid actorId) => new(id, slug, slug, "UTC", actorId, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
     private EventParticipant Participant(Guid eventId, SignupStatus status, long sequence) => new(Guid.NewGuid(), eventId, status, sequence, now, SignupSource.Website, null);
     private static async Task AssertReadOnlyPostAsync(HttpClient client, Guid eventId, string route)
     {

@@ -119,7 +119,7 @@ public sealed class Slice3PublicCurrentSelectionIntegrationTests : IAsyncLifetim
         var eventId = Guid.NewGuid();
         var actorId = Guid.NewGuid();
         var slug = $"teams-navigation-{Guid.NewGuid():N}";
-        var item = new BingoEvent(eventId, "Teams navigation", slug, "UTC", actorId, now);
+        var item = new BingoEvent(eventId, "Teams navigation", slug, "UTC", actorId, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         item.ConfigureSchedule(now.AddDays(-2), now.AddDays(-1), null, now.AddDays(-1), now.AddDays(2), 1);
         item.ConfigureSignup(true, false, null);
         item.OpenSignups(now.AddDays(-2));
@@ -166,7 +166,7 @@ public sealed class Slice3PublicCurrentSelectionIntegrationTests : IAsyncLifetim
     private async Task AddCurrentEventAsync(ApplicationDbContext db, string slug, bool fixture, bool publishBoard = true)
     {
         var eventId = Guid.NewGuid();
-        var item = new BingoEvent(eventId, slug, slug, "UTC", Guid.NewGuid(), now);
+        var item = new BingoEvent(eventId, slug, slug, "UTC", Guid.NewGuid(), now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         item.UpdateIdentity(slug, slug, "Public event description", "UTC");
         item.ConfigureSchedule(now.AddDays(-2), now.AddDays(-1), null, now.AddDays(-1), now.AddDays(1), 20);
         item.ConfigureSignup(true, false, null);
@@ -193,7 +193,7 @@ public sealed class Slice3PublicCurrentSelectionIntegrationTests : IAsyncLifetim
     private async Task AddPublicationCaseAsync(ApplicationDbContext db, string slug, bool rosterPublished, bool boardPublished)
     {
         var eventId = Guid.NewGuid();
-        var item = new BingoEvent(eventId, slug, slug, "UTC", Guid.NewGuid(), now);
+        var item = new BingoEvent(eventId, slug, slug, "UTC", Guid.NewGuid(), now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         item.UpdateIdentity(slug, slug, "Public event description", "UTC");
         item.ConfigureSchedule(now.AddDays(-2), now.AddDays(-1), null, now.AddDays(-1), now.AddDays(1), 20);
         item.ConfigureSignup(true, false, null);
@@ -225,7 +225,7 @@ public sealed class Slice3PublicCurrentSelectionIntegrationTests : IAsyncLifetim
     private async Task AddSignupOnlyEventAsync(ApplicationDbContext db, string slug, bool publicEvent)
     {
         var eventId = Guid.NewGuid();
-        var item = new BingoEvent(eventId, slug, slug, "UTC", Guid.NewGuid(), now);
+        var item = new BingoEvent(eventId, slug, slug, "UTC", Guid.NewGuid(), now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         item.UpdateIdentity(slug, slug, "Public signup event", "UTC");
         item.ConfigureSchedule(now.AddDays(-2), now.AddDays(5), null, now.AddDays(7), now.AddDays(12), 6);
         item.ConfigureSignup(true, false, null);

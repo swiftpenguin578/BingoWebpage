@@ -78,7 +78,7 @@ public sealed class Slice7Pass71IntegrationTests : IAsyncLifetime
             await retained.GetService<IMigrator>().MigrateAsync(Slice7FoundationMigration);
 
             var owner = Account.CreateWebsite(ownerId, "slice7-retained-owner", "SLICE7 RETAINED OWNER", now);
-            var eventItem = new BingoEvent(eventId, "Retained focus event", $"retained-focus-{eventId:N}", "UTC", ownerId, now);
+            var eventItem = new BingoEvent(eventId, "Retained focus event", $"retained-focus-{eventId:N}", "UTC", ownerId, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
             var board = new Board(boardId, eventId, "Retained focus board", 1, 1);
             var tile = new BoardTile(tileId, boardId, Guid.NewGuid(), 0, 0, "Completed retained tile", "Description", "Evidence", 1);
             var requirement = new BoardRequirementSnapshot(requirementId, tileId, 0, 3, true, true, "Complete it", true);
@@ -737,7 +737,7 @@ public sealed class Slice7Pass71IntegrationTests : IAsyncLifetime
         var adminLogin = $"slice-7-admin-{eventId:N}";
         var admin = Account.CreateWebsite(adminId, adminLogin, adminLogin.ToUpperInvariant(), now);
         if (administrator) admin.SetGlobalRole(GlobalRole.Admin);
-        var item = new BingoEvent(eventId, "Slice 7 event", $"slice-7-{eventId:N}", "UTC", adminId, now);
+        var item = new BingoEvent(eventId, "Slice 7 event", $"slice-7-{eventId:N}", "UTC", adminId, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         item.UpdateIdentity(item.Name, item.Slug, "A public event description.", "UTC");
         item.ConfigureSchedule(now.AddHours(-2), now.AddHours(-1), null, now, now.AddHours(1), 20);
         item.ConfigureSignup(true, false, null);
@@ -824,7 +824,7 @@ public sealed class Slice7Pass71IntegrationTests : IAsyncLifetime
         var owner = Account.CreateWebsite(ownerId, $"slice7-owner-{eventId:N}", $"SLICE7-OWNER-{eventId:N}", now);
         owner.SetGlobalRole(GlobalRole.Admin);
         var captain = Account.CreateEmergency(captainId, $"slice7-captain-{eventId:N}", $"SLICE7-CAPTAIN-{eventId:N}", now);
-        var item = new BingoEvent(eventId, "Slice 7 progress", $"slice7-progress-{eventId:N}", "UTC", ownerId, now);
+        var item = new BingoEvent(eventId, "Slice 7 progress", $"slice7-progress-{eventId:N}", "UTC", ownerId, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         item.ConfigureSchedule(now.AddHours(-2), now.AddHours(-1), null, now.AddHours(-1), now.AddHours(1), 20);
         item.OpenSignups(now.AddHours(-2));
         item.CloseSignups(now.AddHours(-1));

@@ -238,7 +238,7 @@ public sealed class DraftStartReadinessIntegrationTests : IAsyncLifetime
         }
         var admin = Website("readiness-admin", GlobalRole.Admin);
         var ordinary = Website("readiness-user", GlobalRole.User);
-        var item = new BingoEvent(Guid.NewGuid(), "Readiness event", "readiness-event", "UTC", admin.Id, now.AddDays(-2));
+        var item = new BingoEvent(Guid.NewGuid(), "Readiness event", "readiness-event", "UTC", admin.Id, now.AddDays(-2), Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         item.ConfigureSchedule(now.AddDays(-1), now.AddHours(-1), null, now.AddHours(1), now.AddHours(3), 10);
         item.ConfigureSignup(true, false, null);
         item.OpenSignups(now.AddDays(-1)); item.CloseSignups(now.AddHours(-1));
