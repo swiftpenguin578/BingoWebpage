@@ -2,6 +2,7 @@ using System.Data;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Bingo.Application.Boards;
 using Bingo.Application.Events;
 using Bingo.Domain.Access;
@@ -16,6 +17,11 @@ namespace Bingo.Infrastructure.Events;
 
 public sealed class EventFinalizationService(ApplicationDbContext db, IPublicBoardService publicBoards, TimeProvider time, IProgressNotifier? progressNotifier = null, IEventCompetitionSynchronizationService? competitionSynchronization = null) : IEventFinalizationService
 {
+    private static readonly JsonSerializerOptions FinalWomRefreshJsonOptions = new()
+    {
+        Converters = { new JsonStringEnumConverter() }
+    };
+
     private static string[] CompetitiveInputNames(PlacementRule rule) => rule == PlacementRule.CreditedEhbThenScoreTime
         ? ["board completion", "completion time", "completed lines", "completed tiles", "EHB", "current score time"]
         : ["board completion", "completion time", "completed lines", "completed tiles", "current score time", "EHB"];
@@ -182,7 +188,7 @@ public sealed class EventFinalizationService(ApplicationDbContext db, IPublicBoa
                 readiness.EventStartsAt,
                 readiness.EventEndsAt,
                 readiness.SubmissionCutoff,
-                finalWomRefresh = FinalWomRefresh(refreshResult, refreshFailure),
+                finalWomRefresh = JsonSerializer.SerializeToElement(FinalWomRefresh(refreshResult, refreshFailure), FinalWomRefreshJsonOptions),
                 placementRule = ev.PlacementRule.ToString(),
                 competitiveInputs = CompetitiveInputNames(ev.PlacementRule),
                 teams = readiness.Placements.Select(x => new { x.TeamId, x.TeamName, x.BoardComplete, x.CalculatedCompletedAt, x.CompletedLines, x.CompletedTiles, x.CurrentScoreReachedAt, x.EhbTiebreak }),
@@ -295,8 +301,9 @@ public sealed class EventFinalizationService(ApplicationDbContext db, IPublicBoa
             using var document = JsonDocument.Parse(json);
             if (document.RootElement.ValueKind != JsonValueKind.Object || !document.RootElement.TryGetProperty("finalWomRefresh", out var value)) return null;
             if (value.ValueKind != JsonValueKind.Object || !value.TryGetProperty(nameof(FinalWomRefreshOutcome.Status), out _)) return null;
-            var outcome = value.Deserialize<FinalWomRefreshOutcome>();
-            return outcome is not null && Enum.IsDefined(outcome.Status) ? outcome : null;
+            var outcome = value.Deserialize<FinalWomRefreshOutcome>(FinalWomRefreshJsonOptions);
+            return outcome is not null && Enum.IsDefined(outcome.Status)
+                && (outcome.SkipReason is null || Enum.IsDefined(outcome.SkipReason.Value)) ? outcome : null;
         }
         catch (JsonException) { return null; }
     }

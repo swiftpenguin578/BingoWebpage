@@ -1,4 +1,6 @@
 using System.Net;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using Bingo.Web;
 using Microsoft.AspNetCore.Identity;
@@ -67,12 +69,34 @@ public sealed partial class Au12PlacementRuleIntegrationTests
         Assert.Equal(Now, history.FinalizedAt);
         var inputs = (await db.EventFinalizations.SingleAsync()).CalculationInputsJson;
         Assert.DoesNotContain("SECRET-PROVIDER-DETAIL", inputs);
+        Assert.NotNull(inputs);
+        using var stored = JsonDocument.Parse(inputs);
+        var storedOutcome = stored.RootElement.GetProperty("finalWomRefresh");
+        Assert.Equal(expected.ToString(), storedOutcome.GetProperty("Status").GetString());
+        Assert.Equal(reason?.ToString(), storedOutcome.GetProperty("SkipReason").GetString());
+        var reordered = storedOutcome.Deserialize<ReorderedRefreshOutcome>(ReorderedRefreshJsonOptions)!;
+        Assert.Equal(expected.ToString(), reordered.Status.ToString());
+        Assert.Equal(reason?.ToString(), reordered.SkipReason?.ToString());
+        Assert.NotEqual((int)expected, (int)reordered.Status);
+        if (reason is not null) Assert.NotEqual((int)reason, (int)reordered.SkipReason!);
+
         Assert.NotEqual("Not recorded", FinalizeModel.FinalWomRefreshDescription(history.FinalWomRefresh));
         if (scenario == "not-due")
         {
             Assert.Equal(Now.AddHours(1), history.FinalWomRefresh.NextEligibleAt);
             Assert.Equal("Skipped: the refresh window has not elapsed.", FinalizeModel.FinalWomRefreshDescription(history.FinalWomRefresh));
         }
+
+        // Controlled compatibility fixture for the numeric JSON written by the initial local implementation.
+        var numericJson = JsonSerializer.Serialize(new
+        {
+            finalWomRefresh = new { Status = (int)expected, SkipReason = (int?)reason, history.FinalWomRefresh.NextEligibleAt }
+        });
+        db.Entry(await db.EventFinalizations.SingleAsync()).Property(x => x.CalculationInputsJson).CurrentValue = numericJson;
+        await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
+        var numeric = Assert.Single((await finalization.GetReadinessAsync(fixture.EventId))!.History).FinalWomRefresh;
+        Assert.Equal(history.FinalWomRefresh, numeric);
     }
 
     [Fact]
@@ -146,6 +170,21 @@ public sealed partial class Au12PlacementRuleIntegrationTests
             Assert.Contains(culture == "en" ? "EHB, and current score time." : "EHB og tidspunktet for den aktuelle score.", html);
         }
     }
+
+    private static readonly JsonSerializerOptions ReorderedRefreshJsonOptions = new()
+    {
+        Converters = { new JsonStringEnumConverter() }
+    };
+
+    // Deliberately reordered and renumbered: persisted names must retain their meaning.
+    private enum ReorderedRefreshStatus { Skipped = 40, Succeeded = 41, Failed = 42 }
+    private enum ReorderedRefreshSkipReason
+    {
+        ServiceUnavailable = 40, NotDue = 41, RetryDelay = 42, RefreshInProgress = 43,
+        NoCompetition = 44, IncompleteEventWindow = 45, EventNotInFinalReview = 46, EventUnavailable = 47
+    }
+    private sealed record ReorderedRefreshOutcome(ReorderedRefreshStatus Status,
+        ReorderedRefreshSkipReason? SkipReason, DateTimeOffset? NextEligibleAt);
 
     private static async Task<EventCompetitionSynchronization> AddAu18SyncFixtureAsync(ApplicationDbContext db, Guid eventId)
     {

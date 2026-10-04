@@ -14,8 +14,9 @@ public sealed record EventCompetitionRefreshResult(
 
 public enum EventCompetitionRefreshSkipReason
 {
-    EventUnavailable, EventNotInFinalReview, IncompleteEventWindow, NoCompetition,
-    RefreshInProgress, RetryDelay, NotDue, ServiceUnavailable
+    // Explicit values preserve the numeric form written by early local AU18 versions.
+    EventUnavailable = 0, EventNotInFinalReview = 1, IncompleteEventWindow = 2, NoCompetition = 3,
+    RefreshInProgress = 4, RetryDelay = 5, NotDue = 6, ServiceUnavailable = 7
 }
 
 public sealed record EventCompetitionView(

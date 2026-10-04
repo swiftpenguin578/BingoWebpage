@@ -30,7 +30,8 @@ public sealed record ProvisionalPlacement(Guid TeamId, string TeamName, int Plac
 public sealed record FinalizationHistoryRow(Guid Id, int Version, DateTimeOffset FinalizedAt, bool Active, DateTimeOffset? UnfinalizedAt, string? UnfinalizeReason, IReadOnlyList<OfficialPlacementRow> Placements, Guid? FinalizedByAccountId = null,
     string? FinalizedByUsername = null, Guid? UnfinalizedByAccountId = null, string? UnfinalizedByUsername = null,
     FinalWomRefreshOutcome? FinalWomRefresh = null);
-public enum FinalWomRefreshStatus { Succeeded, Failed, Skipped }
+// Explicit values preserve the numeric form written by early local AU18 versions.
+public enum FinalWomRefreshStatus { Succeeded = 0, Failed = 1, Skipped = 2 }
 public sealed record FinalWomRefreshOutcome(FinalWomRefreshStatus Status,
     EventCompetitionRefreshSkipReason? SkipReason = null, DateTimeOffset? NextEligibleAt = null);
 public sealed record OfficialPlacementRow(int Placement, string TeamName, bool BoardComplete, DateTimeOffset? BoardCompletedAt, int CompletedLines, int CompletedTiles, decimal EhbTiebreak, DateTimeOffset? CurrentScoreReachedAt = null);
