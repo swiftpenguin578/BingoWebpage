@@ -66,4 +66,56 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests
         Assert.False((await verify.Boards.SingleAsync()).PublishedCorrectionInProgress);
     }
 
+    [Theory]
+    [InlineData("en", "0.5", true)]
+    [InlineData("da", "0.5", true)]
+    [InlineData("en", "0,5", false)]
+    [InlineData("da", "0,5", false)]
+    [InlineData("da", "1,000.5", false)]
+    [InlineData("da", "invalid", false)]
+    [InlineData("da", "0.00001", false)]
+    [InlineData("da", "100001", false)]
+    public async Task Au11A4HalfEhbPostUsesHtmlDecimalSyntax(string language, string input, bool accepted)
+    {
+        var fixture = await SeedApprovalBatchAsync(manual: true);
+        await using var factory = ApprovalBatchFactory();
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        client.DefaultRequestHeaders.AcceptLanguage.ParseAdd(language);
+        await LoginAsync(client, fixture.Admin.LoginName);
+        var displayed = await client.GetStringAsync(fixture.Path);
+        var fields = Au11EditFields(fixture, ApprovalBatchInput(displayed, "BoardVersion"), .5m);
+        fields["TileDraft.ManualEhb"] = input;
+        fields["TileDraft.Requirements[0].Kind"] = "challenge";
+        fields["TileDraft.Requirements[0].Description"] = "Half EHB challenge";
+        fields.Remove("TileDraft.Requirements[0].BossIds");
+        fields.Remove("TileDraft.Requirements[0].DropIds");
+        using var response = await PostAsync(client, fixture.Path + "?handler=EditTile", displayed, fields);
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        await using var verify = new ApplicationDbContext(options);
+        Assert.Equal(accepted ? .5m : 7m, (await verify.TileTemplates.SingleAsync()).ManualEhbOverride);
+        Assert.Equal(accepted ? .5m : 7m, (await verify.BoardTiles.SingleAsync()).EstimatedEhbSnapshot);
+        if (!accepted) Assert.Contains("alert", await client.GetStringAsync(fixture.Path), StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Theory]
+    [InlineData("en")]
+    [InlineData("da")]
+    public async Task Au11A4BlankDropOverrideRemainsNullable(string language)
+    {
+        var fixture = await SeedApprovalBatchAsync();
+        await using var factory = ApprovalBatchFactory();
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        client.DefaultRequestHeaders.AcceptLanguage.ParseAdd(language);
+        await LoginAsync(client, fixture.Admin.LoginName);
+        var displayed = await client.GetStringAsync(fixture.Path);
+        var fields = Au11EditFields(fixture, ApprovalBatchInput(displayed, "BoardVersion"), null);
+        fields["TileDraft.ManualEhb"] = "";
+        fields["TileDraft.Name"] = "Blank estimate accepted";
+        using var response = await PostAsync(client, fixture.Path + "?handler=EditTile", displayed, fields);
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        await using var verify = new ApplicationDbContext(options);
+        var saved = await verify.TileTemplates.SingleAsync();
+        Assert.Null(saved.ManualEhbOverride);
+        Assert.Equal("Blank estimate accepted", saved.Name);
+    }
 }
