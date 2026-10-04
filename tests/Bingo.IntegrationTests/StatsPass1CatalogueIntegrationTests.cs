@@ -192,7 +192,7 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests
                 saved.ConfigureApi("4151"); saved.SetPrice(0, CataloguePriceSource.Manual, PriceApi.Hour); saved.RecordMapping(ApiMappingStatus.Verified, PriceApi.Hour, "Variant", "variant.png");
                 (await db.BossActivities.SingleAsync(x => x.Id == boss.Id)).RecordMapping(ApiMappingStatus.Verified, PriceApi.Hour);
                 await db.SaveChangesAsync();
-                await new CatalogueSnapshotService(db, TimeProvider.System).ExportAsync(path);
+                await CatalogueSnapshotTestFixture.WriteAsync(db, path);
                 saved.SetPrice(900, CataloguePriceSource.Api, PriceApi.Hour); await db.SaveChangesAsync();
             }
             await using (var db = new ApplicationDbContext(options)) await new CatalogueSnapshotService(db, TimeProvider.System).ApplyAsync(path);

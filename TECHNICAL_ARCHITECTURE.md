@@ -795,16 +795,18 @@ visibility rewrite is permitted.
 
 Initial production provisioning uses an empty PostgreSQL database and a root-only
 explicit bootstrap-state marker (`new`, `interrupted`, or `completed`). After
-controlled migrations, deployment initializes the reviewed
-`src/Bingo.Web/data/osrs-catalogue.json` snapshot and provisions the intended
-Super Admin through the operator-only setup path. A failed first bootstrap
-leaves `interrupted` for safe resume; `completed` is retained state even with
-zero accounts. Development/test accounts, generated captain credentials,
-events, signups, participants, teams, boards, evidence, notifications, and
-audit history are not transferred to production. Retained-database migration
-support remains required for local upgrade testing and any future environment
-that genuinely needs historical preservation; it is separate from initial
-production bootstrap.
+controlled migrations, the new-database path provisions the intended Super Admin
+through the operator-only setup path but leaves the catalogue empty. D10
+production preflight therefore fails closed until an authorized operator restores
+a reviewed production backup; the retained deploy path then runs normally. The
+CI/Development/manual-test catalogue loader is not a production deployment step.
+A failed first bootstrap leaves `interrupted` for safe resume; `completed` is
+retained state even with zero accounts. Development/test accounts, generated
+captain credentials, events, signups, participants, teams, boards, evidence,
+notifications, and audit history are not transferred to production.
+Retained-database migration support remains required for local upgrade testing
+and any future environment that genuinely needs historical preservation; it is
+separate from initial production bootstrap.
 
 ## 13. Backup and recovery
 

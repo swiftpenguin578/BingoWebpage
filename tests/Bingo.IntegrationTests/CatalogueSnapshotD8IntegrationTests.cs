@@ -18,7 +18,7 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests
             {
                 (await exported.BossActivities.SingleAsync(value => value.Id == boss.Id)).SetTeamSize(4);
                 await exported.SaveChangesAsync();
-                await new CatalogueSnapshotService(exported, TimeProvider.System).ExportAsync(path);
+                await CatalogueSnapshotTestFixture.WriteAsync(exported, path);
             }
 
             var originalSnapshot = await File.ReadAllTextAsync(path);

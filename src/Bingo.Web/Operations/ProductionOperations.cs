@@ -2,7 +2,6 @@ using System.Collections.Concurrent;
 using System.Text;
 using Bingo.Infrastructure.Evidence;
 using Bingo.Infrastructure.Persistence;
-using Bingo.Web.Catalogue;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;

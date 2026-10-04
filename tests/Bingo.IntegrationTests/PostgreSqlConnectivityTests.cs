@@ -33,7 +33,6 @@ public sealed class PostgreSqlConnectivityTests : IAsyncLifetime
         var path = Path.Combine(AppContext.BaseDirectory, "data", "osrs-catalogue.json");
         var service = new CatalogueSnapshotService(context, TimeProvider.System);
         var result = await service.ApplyAsync(path);
-        await service.ValidateBaselineAsync(path);
 
         Assert.Equal(68, result.Bosses);
         Assert.Equal(311, result.Items);
