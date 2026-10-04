@@ -46,6 +46,16 @@ public sealed partial class IndexModel(ApplicationDbContext dbContext, TimeProvi
     {
         if (HasOperatorFields("Boss.ExternalIdentifier", "Boss.DataSource", "Boss.Notes")
             || Boss.ExternalIdentifier is not null || Boss.DataSource is not null || Boss.Notes is not null) return OperatorFieldsUnavailable();
+        if (HasInvalidTeamSizeBinding("Boss.TeamSize", Boss.TeamSize))
+        {
+            SetStatus(Localize("Enter a whole number for team size."), UiMessageType.Error);
+            return CataloguePage();
+        }
+        if (Boss.TeamSize < 1)
+        {
+            SetStatus(Localize("Team size must be at least 1."), UiMessageType.Error);
+            return CataloguePage();
+        }
         ModelState.Clear();
         if (!TryValidateModel(Boss, nameof(Boss)))
         {
@@ -181,6 +191,7 @@ public sealed partial class IndexModel(ApplicationDbContext dbContext, TimeProvi
     {
         if (HasOperatorFields("dataSource") || dataSource is not null) return OperatorFieldsUnavailable();
         if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(category)) return BadRequest();
+        if (HasInvalidTeamSizeBinding("teamSize", teamSize)) { SetStatus(Localize("Enter a whole number for team size."), UiMessageType.Error); return CataloguePage(); }
         if (teamSize is < 1) { SetStatus(Localize("Team size must be at least 1."), UiMessageType.Error); return CataloguePage(); }
         var entity = await dbContext.BossActivities.SingleAsync(x => x.Id == recordId, ct);
         if (entity.Version != expectedVersion) return Stale(); var before = State(entity); var cleanName = name.Trim();
@@ -432,6 +443,15 @@ public sealed partial class IndexModel(ApplicationDbContext dbContext, TimeProvi
     }
 
     private bool HasOperatorFields(params string[] names) => Request.HasFormContentType && names.Any(name => Request.Form.ContainsKey(name));
+    private bool HasInvalidTeamSizeBinding(string key, int? boundValue)
+    {
+        if (!Request.HasFormContentType || !Request.Form.TryGetValue(key, out var rawValue)) return false;
+        var raw = rawValue.ToString();
+        return string.IsNullOrWhiteSpace(raw)
+            || !int.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed)
+            || boundValue != parsed
+            || (ModelState.TryGetValue(key, out var state) && state.Errors.Count > 0);
+    }
     private RedirectToPageResult OperatorFieldsUnavailable()
     {
         SetStatus(Localize("These operator-managed fields cannot be changed here. Your changes were not saved. Reload the current editor; ask an operator to change the retained mechanics or source metadata."), UiMessageType.Warning);
@@ -445,7 +465,7 @@ public sealed partial class IndexModel(ApplicationDbContext dbContext, TimeProvi
         SharedItemAffectedActivities = TempData.TryGetValue(SharedItemAffectedActivitiesTempDataKey, out var affectedValue) && affectedValue is string affectedJson
             ? JsonSerializer.Deserialize<SharedItemActivity[]>(affectedJson) ?? []
             : [];
-        var bosses = await dbContext.BossActivities.AsNoTracking().OrderByDescending(x => x.Active).ThenBy(x => x.Name).Select(x => new BossRow(x.Id, x.Name, x.Category, x.EfficientCompletionsPerHour, x.Active, x.ImageUrl, x.DataSource, x.DataUpdatedAt, x.Version)).ToListAsync(ct);
+        var bosses = await dbContext.BossActivities.AsNoTracking().OrderByDescending(x => x.Active).ThenBy(x => x.Name).Select(x => new BossRow(x.Id, x.Name, x.Category, x.EfficientCompletionsPerHour, x.TeamSize, x.Active, x.ImageUrl, x.DataSource, x.DataUpdatedAt, x.Version)).ToListAsync(ct);
         Bosses = bosses.Select(x => x with { ImageUrl = OsrsWikiImageUrl.Normalize(x.ImageUrl) }).ToList();
 
         var drops = await (from d in dbContext.SourceDrops.AsNoTracking() join i in dbContext.CatalogueItems on d.ItemId equals i.Id select new DropRow(d.Id, d.BossActivityId, i.Name, d.DisplayRate, d.NumericProbability, d.DefaultEhbEstimate, d.ProbabilityScope, d.ConditionalOnParent, d.ParentProbability, d.AssumedParticipants, d.RollsPerCompletion, d.RollGroup, d.Active, d.DataSource, i.ImageUrl, d.DataUpdatedAt, d.Version, i.Version, i.Id)).ToListAsync(ct);
@@ -505,7 +525,7 @@ public sealed partial class IndexModel(ApplicationDbContext dbContext, TimeProvi
     public sealed class BossInput { [StringLength(200)] public string? ExternalIdentifier { get; set; } [Required, StringLength(200)] public string Name { get; set; } = string.Empty; [Required] public string Category { get; set; } = "Boss"; [Range(0.0001, 100000), Display(Name = "Efficient completions per hour")] public decimal? EfficientRate { get; set; } [Range(1, int.MaxValue), Display(Name = "Team size")] public int TeamSize { get; set; } = 1; [Display(Name = "Data source")] public string? DataSource { get; set; } [Url, Display(Name = "Image URL")] public string? ImageUrl { get; set; } public string? Notes { get; set; } }
     public sealed class BossDropInput { public bool FetchPrice { get; set; } [Range(1, int.MaxValue)] public int? InitialWikiItemId { get; set; } [Range(typeof(long), "0", "9223372036854775807")] public long? InitialValueGp { get; set; } public bool Untradeable { get; set; } public bool UseExistingItem { get; set; } [Required] public Guid BossActivityId { get; set; } [Required, StringLength(200), Display(Name = "Item name")] public string ItemName { get; set; } = string.Empty; [Required, StringLength(200), Display(Name = "Displayed drop rate")] public string DisplayRate { get; set; } = string.Empty; [Range(0.000000000001, 1), Display(Name = "Numeric probability")] public decimal? NumericProbability { get; set; } public DropProbabilityScope ProbabilityScope { get; set; } = DropProbabilityScope.Participant; public bool ConditionalOnParent { get; set; } [Range(0.000000000001, 1)] public decimal? ParentProbability { get; set; } [Range(1, 100)] public int AssumedParticipants { get; set; } = 1; [Range(1, 100)] public int RollsPerCompletion { get; set; } = 1; [StringLength(120)] public string RollGroup { get; set; } = "default"; [StringLength(2000), Display(Name = "Condition or note")] public string? Condition { get; set; } [StringLength(300), Display(Name = "Data source")] public string? DataSource { get; set; } [Url, Display(Name = "Item image URL")] public string? ImageUrl { get; set; } }
     public sealed record SharedItemActivity(Guid Id, string Name);
-    public sealed record BossRow(Guid Id, string Name, string Category, decimal? EfficientRate, bool Active, string? ImageUrl, string? DataSource, DateTimeOffset UpdatedAt, long Version);
+    public sealed record BossRow(Guid Id, string Name, string Category, decimal? EfficientRate, int TeamSize, bool Active, string? ImageUrl, string? DataSource, DateTimeOffset UpdatedAt, long Version);
     public sealed record DropRow(Guid Id, Guid BossActivityId, string ItemName, string DisplayRate, decimal? Probability, decimal? DefaultEhb, DropProbabilityScope ProbabilityScope, bool ConditionalOnParent, decimal? ParentProbability, int AssumedParticipants, int RollsPerCompletion, string RollGroup, bool Active, string? DataSource, string? ImageUrl, DateTimeOffset UpdatedAt, long Version, long ItemVersion, Guid ItemId = default);
     private enum DeletePreparationStatus { Ready, Stale, Referenced }
     private sealed record DeletePreparation(DeletePreparationStatus Status, DeleteCandidate? Candidate);

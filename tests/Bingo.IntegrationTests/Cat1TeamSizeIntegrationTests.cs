@@ -1,4 +1,5 @@
 using Bingo.Domain.Catalogue;
+using Bingo.Domain.Access;
 using Bingo.Infrastructure.Persistence;
 using Bingo.Web.Pages.Admin.Catalogue;
 using Microsoft.AspNetCore.Mvc;
@@ -17,6 +18,11 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests
     public async Task Cat1ActivityTeamSizeUsesExplicitContractAndMissingInputPreservesStoredValue()
     {
         var (actor, boss, _, _) = await PriceFixtureAsync();
+        await using (var role = new ApplicationDbContext(options))
+        {
+            role.Accounts.Single(account => account.Id == actor.Id).SetGlobalRole(GlobalRole.Admin);
+            await role.SaveChangesAsync();
+        }
         decimal? originalEhb;
         await using (var configured = new ApplicationDbContext(options))
         {
@@ -29,7 +35,7 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests
         await using (var explicitUpdate = new ApplicationDbContext(options))
         {
             var current = await explicitUpdate.BossActivities.SingleAsync(value => value.Id == boss.Id);
-            var page = CataloguePage(explicitUpdate, actor.Id, true);
+            var page = CataloguePage(explicitUpdate, actor.Id, false);
             Assert.IsType<RedirectToPageResult>(await page.OnPostUpdateBossAsync(
                 current.Id, current.Version, current.Name, current.Category, current.EfficientCompletionsPerHour,
                 null, null, CancellationToken.None, 5));
@@ -41,7 +47,7 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests
         await using (var preserving = new ApplicationDbContext(options))
         {
             var current = await preserving.BossActivities.SingleAsync(value => value.Id == boss.Id);
-            var page = CataloguePage(preserving, actor.Id, true);
+            var page = CataloguePage(preserving, actor.Id, false);
             Assert.IsType<RedirectToPageResult>(await page.OnPostUpdateBossAsync(
                 current.Id, current.Version, current.Name, current.Category, current.EfficientCompletionsPerHour,
                 null, null, CancellationToken.None));
@@ -50,7 +56,7 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests
         await using (var rejected = new ApplicationDbContext(options))
         {
             var current = await rejected.BossActivities.SingleAsync(value => value.Id == boss.Id);
-            var page = CataloguePage(rejected, actor.Id, true);
+            var page = CataloguePage(rejected, actor.Id, false);
             Assert.IsType<RedirectToPageResult>(await page.OnPostUpdateBossAsync(
                 current.Id, current.Version, current.Name, current.Category, current.EfficientCompletionsPerHour,
                 null, null, CancellationToken.None, 0));
@@ -65,10 +71,15 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests
     public async Task Cat1ActivityTeamSizeAddUsesExplicitValueAndDefaultsToOne()
     {
         var (actor, _, _, _) = await PriceFixtureAsync();
+        await using (var role = new ApplicationDbContext(options))
+        {
+            role.Accounts.Single(account => account.Id == actor.Id).SetGlobalRole(GlobalRole.Admin);
+            await role.SaveChangesAsync();
+        }
         var explicitName = $"Team size activity {Guid.NewGuid():N}";
         await using (var adding = new ApplicationDbContext(options))
         {
-            var page = CataloguePage(adding, actor.Id, true);
+            var page = CataloguePage(adding, actor.Id, false);
             page.PageContext.HttpContext.RequestServices = new ServiceCollection().AddMvcCore().AddDataAnnotations().Services.BuildServiceProvider();
             page.Boss = new IndexModel.BossInput
             {
@@ -89,7 +100,7 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests
         var defaultName = $"Default team size activity {Guid.NewGuid():N}";
         await using (var addingDefault = new ApplicationDbContext(options))
         {
-            var page = CataloguePage(addingDefault, actor.Id, true);
+            var page = CataloguePage(addingDefault, actor.Id, false);
             page.PageContext.HttpContext.RequestServices = new ServiceCollection().AddMvcCore().AddDataAnnotations().Services.BuildServiceProvider();
             page.Boss = new IndexModel.BossInput
             {
