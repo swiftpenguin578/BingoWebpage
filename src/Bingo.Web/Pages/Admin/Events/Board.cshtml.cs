@@ -1029,6 +1029,11 @@ public sealed partial class BoardModel(ApplicationDbContext db, TimeProvider tim
             var missingPrices = await db.ItemsWithoutEventOrCataloguePriceAsync(board.EventId, requirementDrops.Where(x => ids.Contains(x.RequirementId)).Select(x => x.ItemIdSnapshot), ct);
             if (missingPrices.Count > 0) issues.Add(Invalid("item-price-missing", MissingPriceMessage, tile, string.Join(", ", missingPrices)).Issue);
         }
+        // Keep the current page's historical board-wide price message while issues target each tile.
+        var missingBoardPrices = issues.Any(x => x.Code == "item-price-missing")
+            ? await db.ItemsWithoutEventOrCataloguePriceAsync(board.EventId, requirementDrops.Select(x => x.ItemIdSnapshot), ct) : [];
+        BoardApprovalValidationException CollectedIssues() => new(issues,
+            issues[0].Code == "item-price-missing" ? [string.Join(", ", missingBoardPrices)] : null);
         var evidenced = await db.EvidencedObjectiveIdsAsync(board.EventId, ct);
         var prior = allowPublished && board.ActiveApprovalSnapshotId is { } activeId
             ? await db.ApprovalObjectivesAsync(board.Id, activeId, ct) : null;
@@ -1213,7 +1218,7 @@ public sealed partial class BoardModel(ApplicationDbContext db, TimeProvider tim
             }
             catch (BoardApprovalValidationException exception) { issues.AddRange(exception.Issues); }
         }
-        if (issues.Count > 0) throw new BoardApprovalValidationException(issues);
+        if (issues.Count > 0) throw CollectedIssues();
 
         db.Entry(approval).Property(x => x.TotalEhbEstimate).CurrentValue = totalEhb;
         board.SetTotalEhb(totalEhb);
@@ -1819,11 +1824,16 @@ public sealed partial class BoardModel(ApplicationDbContext db, TimeProvider tim
     {
         public BoardApprovalValidationException(string code, Guid? tileId, int? position, string? tileName, string resourceKey, params object[] arguments)
             : this([new BoardValidationIssue(code, tileId, position, tileName, resourceKey, arguments)]) { }
-        public BoardApprovalValidationException(IReadOnlyList<BoardValidationIssue> issues) => Issues = issues;
+        private readonly object[]? pageArguments;
+        public BoardApprovalValidationException(IReadOnlyList<BoardValidationIssue> issues, object[]? pageArguments = null)
+        {
+            Issues = issues;
+            this.pageArguments = pageArguments;
+        }
         public IReadOnlyList<BoardValidationIssue> Issues { get; }
         public BoardValidationIssue Issue => Issues[0];
         public string ResourceKey => Issue.ResourceKey;
-        public object[] Arguments => Issue.Arguments.ToArray();
+        public object[] Arguments => pageArguments ?? Issue.Arguments.ToArray();
     }
 
     private sealed record ApprovalLiveDrop(SourceDrop Drop, BossActivity Boss, CatalogueItem Item);
