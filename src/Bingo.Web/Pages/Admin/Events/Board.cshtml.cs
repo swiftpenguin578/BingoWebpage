@@ -31,8 +31,9 @@ using Npgsql;
 namespace Bingo.Web.Pages.Admin.Events;
 
 [Authorize(Policy = AuthorizationPolicies.Admin)]
-public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAuditWriter audit, IAdminCollaborationNotifier collaboration, IEvidenceStorage storage, IStringLocalizer<SharedResource>? text = null, EventItemPriceService? itemPrices = null) : PageModel
+public sealed partial class BoardModel(ApplicationDbContext db, TimeProvider time, IAuditWriter audit, IAdminCollaborationNotifier collaboration, IEvidenceStorage storage, IStringLocalizer<SharedResource>? text = null, EventItemPriceService? itemPrices = null) : PageModel
 {
+    public IReadOnlyList<BoardValidationIssue> ValidationIssues { get; private set; } = [];
     public string EventName { get; private set; } = string.Empty;
     public BoardDetails? BoardView { get; private set; }
     public BoardStatistics? Statistics { get; private set; }
@@ -560,6 +561,7 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
     {
         if (!confirmed)
         {
+            ValidationIssues = [new("confirmation-required", null, null, null, "Confirmation required", [])];
             SetStatus(Localize("Confirmation required"), UiMessageType.Warning);
             return RedirectToPage(new { id });
         }
@@ -572,11 +574,11 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
             if (board is null || bingoEvent is null || draft is null) return NotFound();
             if (board.Version != BoardVersion) throw new DbUpdateConcurrencyException();
             if (draft.State != DraftState.Finalized || await db.ActiveRosterPublicationAsync(id, ct) is null)
-                throw new InvalidOperationException("Finalize the team draft before publishing the board.");
+                throw new BoardApprovalValidationException("roster-unpublished", null, null, null, "Finalize the team draft before publishing the board.");
             if (bingoEvent.ActualStartedAt is not null || bingoEvent.EventEndsAt is not { } endsAt || time.GetUtcNow() >= endsAt)
-                throw new InvalidOperationException("The board must be published before the event has started and while its configured end remains in the future.");
+                throw new BoardApprovalValidationException("publication-window", null, null, null, "The board must be published before the event has started and while its configured end remains in the future.");
             var publication = board.ActiveApprovalSnapshotId is { } approvalId ? await db.ApprovalObjectivesAsync(board.Id, approvalId, ct) : null;
-            if (publication is null) throw new InvalidOperationException("The approved board is unavailable.");
+            if (publication is null) throw new BoardApprovalValidationException("approval-unavailable", null, null, null, "The approved board is unavailable.");
             if (!await TryEnsureItemPricesAsync(id, publication.Drops.Select(x => x.ItemIdSnapshot), ct)) return RedirectToPage(new { id });
             board.Publish(time.GetUtcNow());
             bingoEvent.SetBoardPublication(true, time.GetUtcNow());
@@ -594,9 +596,11 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
             db.ChangeTracker.Clear();
             SetStatus(Localize("Another administrator changed the board first. Reload before publishing."), UiMessageType.Warning);
         }
-        catch (InvalidOperationException)
+        catch (InvalidOperationException exception)
         {
             db.ChangeTracker.Clear();
+            if (exception is BoardApprovalValidationException validation) ValidationIssues = [validation.Issue];
+            else ValidationIssues = [new("publication-refused", null, null, null, "The board publication could not be completed.", [])];
             SetStatus(Localize("The board publication could not be completed."), UiMessageType.Warning);
         }
         return RedirectToPage(new { id });
@@ -822,6 +826,7 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
             if (board is null || bingoEvent is null) return NotFound();
             if (board.Version != BoardVersion)
             {
+                ValidationIssues = [new("board-stale", null, null, null, "This board changed after you opened it. Reload before approving it.", [])];
                 SetStatus(Localize("This board changed after you opened it. Reload before approving it."), UiMessageType.Warning);
                 return RedirectToPage(new { id });
             }
@@ -888,11 +893,13 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
         catch (Exception exception) when (IsApprovalConflict(exception))
         {
             db.ChangeTracker.Clear();
+            ValidationIssues = [new("approval-conflict", null, null, null, "The board or catalogue changed while approval was being prepared. No approval was saved; reload and try again.", [])];
             SetStatus(Localize("The board or catalogue changed while approval was being prepared. No approval was saved; reload and try again."), UiMessageType.Warning);
         }
         catch (BoardApprovalValidationException exception)
         {
             db.ChangeTracker.Clear();
+            ValidationIssues = [exception.Issue];
             SetStatus(Localize(exception.ResourceKey, exception.Arguments), UiMessageType.Warning);
         }
         catch (InvalidOperationException exception)
@@ -960,71 +967,32 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
 
     private async Task<BoardApprovalSnapshot> CreateApprovalSnapshotAsync(Board board, CancellationToken ct, bool allowPublished = false)
     {
+        BoardApprovalValidationException Invalid(string code, string message, BoardTile? tile = null, params object[] arguments)
+            => new(code, tile?.Id, tile is null ? null : tile.RowIndex * board.Columns + tile.ColumnIndex, tile?.NameSnapshot, message, arguments);
         if (board.State != BoardState.Draft && !(allowPublished && board.State == BoardState.Published && board.PublishedCorrectionInProgress))
-            throw new BoardApprovalValidationException("Only an unapproved private board can be approved.");
+            throw Invalid("board-state", "Only an unapproved private board can be approved.");
 
         var tiles = await db.BoardTiles.Where(x => x.BoardId == board.Id).OrderBy(x => x.RowIndex).ThenBy(x => x.ColumnIndex).ToListAsync(ct);
         if (tiles.Count != board.Rows * board.Columns)
-            throw new BoardApprovalValidationException("Fill every board position before approving the board.");
+            throw Invalid("board-incomplete", "Fill every board position before approving the board.");
         if (tiles.Select(x => (x.RowIndex, x.ColumnIndex)).Distinct().Count() != tiles.Count)
-            throw new BoardApprovalValidationException("The board has conflicting tile positions. Reload and correct the layout before approving it.");
+            throw Invalid("board-positions", "The board has conflicting tile positions. Reload and correct the layout before approving it.");
 
         var tileIds = tiles.Select(x => x.Id).ToList();
         var templateIds = tiles.Select(x => x.TileTemplateId).Distinct().ToList();
         var templates = await db.TileTemplates.Where(x => templateIds.Contains(x.Id)).ToDictionaryAsync(x => x.Id, ct);
         if (templates.Count != templateIds.Count)
-            throw new BoardApprovalValidationException("A tile definition is no longer available. Reload the board before approval.");
+            throw Invalid("tile-definition", "A tile definition is no longer available. Reload the board before approval.", tiles.First(x => !templates.ContainsKey(x.TileTemplateId)));
 
-        // A published correction keeps the old working identity rows so that the
-        // active approval remains readable while the private copy is edited.  A
-        // replacement approval must nevertheless take only the current row for
-        // each template position; otherwise the preserved historical row and its
-        // replacement would share a position in one immutable snapshot.
-        var allRequirements = await db.BoardRequirementSnapshots
-            .Where(x => tileIds.Contains(x.BoardTileId))
-            .OrderBy(x => x.Position)
-            .ToListAsync(ct);
-        var historicalRequirementIds = await db.BoardApprovalRequirementSnapshots
-            .Select(x => x.BoardRequirementSnapshotId)
-            .ToHashSetAsync(ct);
-        var templateRequirements = await db.TileTemplateRequirements
-            .Where(x => templateIds.Contains(x.TileTemplateId))
-            .ToListAsync(ct);
-        var requirements = new List<BoardRequirementSnapshot>();
-        foreach (var tile in tiles)
-        {
-            var tileTemplateRequirements = templateRequirements
-                .Where(x => x.TileTemplateId == tile.TileTemplateId)
-                .ToDictionary(x => x.Position);
-            foreach (var positionGroup in allRequirements
-                         .Where(x => x.BoardTileId == tile.Id)
-                         .GroupBy(x => x.Position)
-                         .OrderBy(x => x.Key))
-            {
-                var candidates = positionGroup.ToList();
-                if (candidates.Count > 1 && tileTemplateRequirements.TryGetValue(positionGroup.Key, out var templateRequirement))
-                {
-                    var matches = candidates.Where(x => HasTemplateRules(x, templateRequirement)).ToList();
-                    if (matches.Count > 0) candidates = matches;
-                }
-                if (candidates.Count != 1)
-                {
-                    var currentCandidates = candidates.Where(x => !historicalRequirementIds.Contains(x.Id)).ToList();
-                    if (currentCandidates.Count == 1) candidates = currentCandidates;
-                }
-                if (candidates.Count != 1)
-                    throw new BoardApprovalValidationException("A tile has duplicate objective positions. Edit the tile before approving it.");
-                requirements.Add(candidates[0]);
-            }
-        }
+        var requirements = await CurrentRequirementsAsync(tiles, board.Columns, ct);
         if (tiles.Any(tile => requirements.All(requirement => requirement.BoardTileId != tile.Id)))
-            throw new BoardApprovalValidationException("Every board tile needs at least one objective before approval.");
+            throw Invalid("objective-missing", "Every board tile needs at least one objective before approval.", tiles.First(tile => requirements.All(requirement => requirement.BoardTileId != tile.Id)));
 
         var requirementIds = requirements.Select(x => x.Id).ToList();
         var requirementBosses = await db.BoardRequirementBossSnapshots.Where(x => requirementIds.Contains(x.RequirementId)).ToListAsync(ct);
         var requirementDrops = await db.BoardRequirementDropSnapshots.Where(x => requirementIds.Contains(x.RequirementId)).ToListAsync(ct);
         var missingPrices = await db.ItemsWithoutEventOrCataloguePriceAsync(board.EventId, requirementDrops.Select(x => x.ItemIdSnapshot), ct);
-        if (missingPrices.Count > 0) throw new BoardApprovalValidationException(MissingPriceMessage, string.Join(", ", missingPrices));
+        if (missingPrices.Count > 0) throw Invalid("item-price-missing", MissingPriceMessage, null, string.Join(", ", missingPrices));
         var evidenced = await db.EvidencedObjectiveIdsAsync(board.EventId, ct);
         var prior = allowPublished && board.ActiveApprovalSnapshotId is { } activeId
             ? await db.ApprovalObjectivesAsync(board.Id, activeId, ct) : null;
@@ -1038,7 +1006,7 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
                 if (old is null || current is null || old.BoardTileId != current.BoardTileId ||
                     !old.HasSameRules(current.TargetContribution, current.DuplicatesAllowed, current.AllowHigherWeightings, current.ManualObjective, current.CreditedWeight) ||
                     !SameDropRules(prior.Drops.Where(x => x.RequirementId == requirementId), requirementDrops.Where(x => x.RequirementId == requirementId)))
-                    throw new InvalidOperationException("Submitted evidence now references an objective changed or removed by this correction. The active publication has been preserved.");
+                    throw Invalid("evidence-objective-locked", "Submitted evidence now references an objective changed or removed by this correction. The active publication has been preserved.", tiles.FirstOrDefault(x => x.Id == old?.BoardTileId));
             }
         }
         if (prior is not null)
@@ -1070,7 +1038,7 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
             .FromSqlInterpolated($"SELECT * FROM boss_activities WHERE id = ANY({bossIds}) ORDER BY id FOR SHARE")
             .AsNoTracking().ToDictionaryAsync(x => x.Id, ct);
         if (requiredCurrentBossIds.Any(id => !currentBosses.TryGetValue(id, out var boss) || !boss.Active))
-            throw new BoardApprovalValidationException("A referenced boss or activity is no longer active. Correct the board before approval.");
+            throw Invalid("source-inactive", "A referenced boss or activity is no longer active. Correct the board before approval.", tiles.First(tile => requirements.Any(r => r.BoardTileId == tile.Id && requirementBosses.Any(b => b.RequirementId == r.Id && requiredCurrentBossIds.Contains(b.BossActivityId) && (!currentBosses.TryGetValue(b.BossActivityId, out var boss) || !boss.Active)))));
 
         var requiredCurrentDropIds = requirementDrops.Where(x => !priorRequirementIds.Contains(x.RequirementId)).Select(x => x.SourceDropId).Distinct().ToArray();
         var dropIds = requirementDrops.Select(x => x.SourceDropId).Distinct().ToArray();
@@ -1088,10 +1056,10 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
                                   where dropIds.Contains(drop.Id)
                                   select new ApprovalLiveDrop(drop, boss, item)).ToDictionaryAsync(x => x.Drop.Id, ct);
         if (requiredCurrentDropIds.Any(id => !currentDrops.TryGetValue(id, out var drop) || !drop.Drop.Active || !drop.Boss.Active || !drop.Item.Active))
-            throw new BoardApprovalValidationException("A referenced catalogue drop is no longer active. Correct the board before approval.");
+            throw Invalid("drop-inactive", "A referenced catalogue drop is no longer active. Correct the board before approval.", tiles.First(tile => requirements.Any(r => r.BoardTileId == tile.Id && requirementDrops.Any(d => d.RequirementId == r.Id && requiredCurrentDropIds.Contains(d.SourceDropId) && (!currentDrops.TryGetValue(d.SourceDropId, out var drop) || !drop.Drop.Active || !drop.Boss.Active || !drop.Item.Active)))));
 
         if (!string.Equals(ApprovalCatalogueFingerprint, CatalogueFingerprint(currentBosses.Values, currentDrops.Values), StringComparison.Ordinal))
-            throw new BoardApprovalValidationException("The catalogue changed after you opened this board. Reload and review the current values before approving it.");
+            throw Invalid("catalogue-stale", "The catalogue changed after you opened this board. Reload and review the current values before approving it.");
 
         var images = await db.BoardTileImageAssets.Where(x => tileIds.Contains(x.BoardTileId) && x.ReplacedAt == null).ToListAsync(ct);
         var imagesById = images.ToDictionary(x => x.Id);
@@ -1106,15 +1074,15 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
             if (tile.ActiveImageAssetId is { } imageId)
             {
                 if (!imagesById.TryGetValue(imageId, out var image) || image.EventId != board.EventId || image.BoardTileId != tile.Id)
-                    throw new BoardApprovalValidationException("A managed tile image no longer belongs to this event. Correct the tile before approval.");
+                    throw Invalid("artwork-invalid", "A managed tile image no longer belongs to this event. Correct the tile before approval.", tile);
                 artwork = image.StorageKey;
             }
             var tileRequirements = requirements.Where(x => x.BoardTileId == tile.Id).OrderBy(x => x.Position).ToList();
             if (tileRequirements.Select(x => x.ManualObjective).Distinct().Count() > 1)
-                throw new BoardApprovalValidationException("Use separate tiles for catalogue drops and custom challenges. Every objective in a tile must have the same kind.");
+                throw Invalid("objective-mixed", "Use separate tiles for catalogue drops and custom challenges. Every objective in a tile must have the same kind.", tile);
             var template = templates[tile.TileTemplateId];
             if (template.DescriptionIsAutomatic != tile.DescriptionIsAutomatic)
-                throw new BoardApprovalValidationException("The tile description mode changed. Edit and save the tile before approval.");
+                throw Invalid("description-mode", "The tile description mode changed. Edit and save the tile before approval.", tile);
             var description = tile.DescriptionSnapshot;
             if (tile.DescriptionIsAutomatic)
             {
@@ -1132,13 +1100,13 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
                 });
                 description = TileDescriptionFormatter.Format(descriptionRequirements);
                 if (description.Length > TileDescriptionFormatter.MaximumFrozenDescriptionLength)
-                    throw new BoardApprovalValidationException("{0} has an automatic description that is too long. Reduce the selected sources or objective count before approval.", tile.NameSnapshot);
+                    throw Invalid("description-length", "{0} has an automatic description that is too long. Reduce the selected sources or objective count before approval.", tile, tile.NameSnapshot);
             }
             var approvalTile = new BoardApprovalTileSnapshot(Guid.NewGuid(), approval.Id, tile.Id, tile.TileTemplateId, tile.RowIndex, tile.ColumnIndex, tile.NameSnapshot, description, string.Empty, 0m, artwork, tile.DescriptionIsAutomatic);
             db.BoardApprovalTileSnapshots.Add(approvalTile);
             var manualTile = tileRequirements.All(x => x.ManualObjective);
             if ((template.ObjectiveType == ObjectiveType.Manual) != manualTile)
-                throw new BoardApprovalValidationException("The tile kind does not match its objectives. Edit and save the tile with one objective kind before approval.");
+                throw Invalid("objective-kind", "The tile kind does not match its objectives. Edit and save the tile with one objective kind before approval.", tile);
             var tileEstimates = new List<decimal?>();
             foreach (var requirement in tileRequirements)
             {
@@ -1166,15 +1134,15 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
                 }
 
                 var frozenDrops = requirementDrops.Where(x => x.RequirementId == requirement.Id).ToList();
-                if (!requirement.ManualObjective && !requirement.DuplicatesAllowed) EnsureConsistentItemCaps(frozenDrops);
+                if (!requirement.ManualObjective && !requirement.DuplicatesAllowed) EnsureConsistentItemCaps(frozenDrops, tile, board.Columns);
                 var selectedDrops = frozenDrops.Select(x => currentDrops[x.SourceDropId]).ToList();
                 if (!requirement.ManualObjective && selectedDrops.Count == 0)
-                    throw new BoardApprovalValidationException("Every catalogue objective needs an active eligible drop before approval.");
+                    throw Invalid("drop-missing", "Every catalogue objective needs an active eligible drop before approval.", tile);
                 foreach (var selected in selectedDrops)
                 {
                     var sourceSnapshot = requirementDrops.Single(x => x.RequirementId == requirement.Id && x.SourceDropId == selected.Drop.Id);
                     if (selected.Drop.ItemId != sourceSnapshot.ItemIdSnapshot)
-                        throw new BoardApprovalValidationException("A catalogue item identity changed. Reselect the affected drop in the tile before approving the board.");
+                        throw Invalid("item-identity", "A catalogue item identity changed. Reselect the affected drop in the tile before approving the board.", tile);
                     var approvalDrop = new BoardApprovalRequirementDropSnapshot(Guid.NewGuid(), approvalRequirement.Id, selected.Drop.Id, sourceSnapshot.ItemIdSnapshot, selected.Boss.Name, selected.Item.Name, selected.Drop.DisplayRate, selected.Drop.NumericProbability, sourceSnapshot.MaximumContribution, selected.Drop.DefaultEhbEstimate, sourceSnapshot.CreditedWeight, selected.Drop.Version, selected.Drop.ProbabilityScope, selected.Drop.ConditionalOnParent, selected.Drop.ParentProbability, selected.Drop.AssumedParticipants, selected.Drop.RollsPerCompletion, selected.Drop.RollGroup, selected.Drop.RateConditionNote);
                     db.BoardApprovalRequirementDropSnapshots.Add(approvalDrop);
                 }
@@ -1194,13 +1162,13 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
                 if (decimal.Round(tileEhb, 4, MidpointRounding.AwayFromZero) != priorTile.EstimatedEhbSnapshot ||
                     requirements.Where(x => x.BoardTileId == tile.Id).Sum(x => (long)x.TargetContribution) !=
                     prior.Requirements.Where(x => x.BoardTileId == tile.Id).Sum(x => (long)x.TargetContribution))
-                    throw new InvalidOperationException("A tile with submitted evidence cannot change its scoring. The active publication has been preserved.");
+                    throw Invalid("evidence-scoring-locked", "A tile with submitted evidence cannot change its scoring. The active publication has been preserved.", tile);
                 tileEhb = priorTile.EstimatedEhbSnapshot;
             }
             if (tileEhb <= 0)
-                throw new BoardApprovalValidationException(manualTile
+                throw Invalid(manualTile ? "manual-ehb-missing" : "catalogue-rates-missing", manualTile
                     ? "{0} needs a positive manual EHB estimate. Edit the custom tile before approval."
-                    : "{0} needs automatic EHB. Correct the catalogue rates or drop requirements before approval; a manual estimate cannot replace them.", tile.NameSnapshot);
+                    : "{0} needs automatic EHB. Correct the catalogue rates or drop requirements before approval; a manual estimate cannot replace them.", tile, tile.NameSnapshot);
             db.Entry(approvalTile).Property(x => x.EstimatedEhb).CurrentValue = tileEhb;
             totalEhb += tileEhb;
         }
@@ -1232,6 +1200,7 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
     {
         var missing = await db.ItemsWithoutEventOrCataloguePriceAsync(eventId, itemIds, ct);
         if (missing.Count == 0) return true;
+        ValidationIssues = [new("item-price-missing", null, null, null, MissingPriceMessage, [string.Join(", ", missing)])];
         SetStatus(Localize(MissingPriceMessage, string.Join(", ", missing)), UiMessageType.Warning);
         return false;
     }
@@ -1266,12 +1235,12 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
            requirement.Description == template.Description &&
            requirement.ManualObjective == template.ManualObjective;
 
-    private static void EnsureConsistentItemCaps(IEnumerable<BoardRequirementDropSnapshot> drops)
+    private static void EnsureConsistentItemCaps(IEnumerable<BoardRequirementDropSnapshot> drops, BoardTile? tile = null, int columns = 1)
     {
         foreach (var itemDrops in drops.GroupBy(x => x.ItemIdSnapshot))
         {
             var caps = itemDrops.Select(x => x.MaximumContribution ?? 1).Distinct().ToList();
-            if (caps.Count != 1) throw new BoardApprovalValidationException("A catalogue item has inconsistent contribution limits across its sources. Correct the requirement before approval.");
+            if (caps.Count != 1) throw new BoardApprovalValidationException("item-caps", tile?.Id, tile is null ? null : tile.RowIndex * columns + tile.ColumnIndex, tile?.NameSnapshot, "A catalogue item has inconsistent contribution limits across its sources. Correct the requirement before approval.");
         }
     }
 
@@ -1803,8 +1772,9 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
         return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(inputs))));
     }
 
-    private sealed class BoardApprovalValidationException(string resourceKey, params object[] arguments) : InvalidOperationException
+    private sealed class BoardApprovalValidationException(string code, Guid? tileId, int? position, string? tileName, string resourceKey, params object[] arguments) : InvalidOperationException
     {
+        public BoardValidationIssue Issue { get; } = new(code, tileId, position, tileName, resourceKey, arguments);
         public string ResourceKey { get; } = resourceKey;
         public object[] Arguments { get; } = arguments;
     }
