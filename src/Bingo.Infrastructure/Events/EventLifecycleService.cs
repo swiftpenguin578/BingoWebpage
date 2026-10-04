@@ -13,6 +13,7 @@ using Bingo.Infrastructure.Persistence;
 using Bingo.Infrastructure.Signups;
 using Bingo.Infrastructure.Teams;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Npgsql;
 
 namespace Bingo.Infrastructure.Events;
@@ -108,7 +109,7 @@ public sealed class EventLifecycleService(
             await tx.CommitAsync(ct);
             return new(true);
         }
-        catch (PostgresException ex) when (ex.SqlState is "40001" or "40P01") { await tx.RollbackAsync(ct); db.ChangeTracker.Clear(); return new(false, "This event changed while it was being started. Review its current state and try again."); }
+        catch (PostgresException ex) when (ex.SqlState is "40001" or "40P01") { await TryRollbackConflictAsync(tx, ct); db.ChangeTracker.Clear(); return new(false, "This event changed while it was being started. Review its current state and try again."); }
         catch (DbUpdateConcurrencyException) { await tx.RollbackAsync(ct); db.ChangeTracker.Clear(); return new(false, "This event changed while it was being started. Review its current state and try again."); }
         catch (InvalidOperationException ex) { await tx.RollbackAsync(ct); db.ChangeTracker.Clear(); return new(false, ex.Message); }
         catch (DbUpdateException) { await tx.RollbackAsync(ct); db.ChangeTracker.Clear(); return new(false, "The event could not be started. Review its current state and try again."); }
@@ -154,7 +155,7 @@ public sealed class EventLifecycleService(
             await tx.CommitAsync(ct);
             return new(true);
         }
-        catch (Exception ex) when (IsLifecycleWriteConflict(ex)) { await tx.RollbackAsync(ct); throw; }
+        catch (Exception ex) when (IsLifecycleWriteConflict(ex)) { await TryRollbackConflictAsync(tx, ct); throw; }
         catch (DbUpdateConcurrencyException) { await tx.RollbackAsync(ct); return new(false, "This event changed while it was being ended. Review its current state and try again."); }
         catch (InvalidOperationException ex) { await tx.RollbackAsync(ct); return new(false, ex.Message); }
         catch (DbUpdateException) { await tx.RollbackAsync(ct); return new(false, "The event could not be ended. Review its current state and try again."); }
@@ -216,7 +217,7 @@ public sealed class EventLifecycleService(
             await tx.CommitAsync(ct);
             return new(true);
         }
-        catch (Exception ex) when (IsLifecycleWriteConflict(ex)) { await tx.RollbackAsync(ct); throw; }
+        catch (Exception ex) when (IsLifecycleWriteConflict(ex)) { await TryRollbackConflictAsync(tx, ct); throw; }
         catch (DbUpdateConcurrencyException) { await tx.RollbackAsync(ct); return new(false, "This event changed while it was being resumed. Review its current state and try again."); }
         catch (InvalidOperationException ex) { await tx.RollbackAsync(ct); return new(false, ex.Message); }
         catch (DbUpdateException) { await tx.RollbackAsync(ct); return new(false, "The event could not be resumed. Review its current state and try again."); }
@@ -231,6 +232,16 @@ public sealed class EventLifecycleService(
             catch (Exception ex) when (IsLifecycleWriteConflict(ex)) { db.ChangeTracker.Clear(); }
         }
         return new(false, conflictMessage);
+    }
+
+    private static async Task TryRollbackConflictAsync(IDbContextTransaction transaction, CancellationToken ct)
+    {
+        try { await transaction.RollbackAsync(ct); }
+        catch (Exception)
+        {
+            // COMMIT may already have ended the transaction. Preserve the original
+            // retryable database conflict even if cleanup fails; await using disposes it.
+        }
     }
 
     private static bool IsLifecycleWriteConflict(Exception exception)
