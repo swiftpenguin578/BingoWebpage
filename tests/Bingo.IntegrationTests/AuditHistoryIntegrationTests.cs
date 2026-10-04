@@ -1,14 +1,21 @@
 using System.Globalization;
+using System.Net;
+using System.Text.RegularExpressions;
 using Bingo.Domain.Access;
 using Bingo.Domain.Auditing;
 using Bingo.Domain.Events;
 using Bingo.Infrastructure.Persistence;
+using Bingo.Web;
+using Bingo.Web.UI;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Mvc.RazorPages.Infrastructure;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Localization;
 using Testcontainers.PostgreSql;
 
 namespace Bingo.IntegrationTests;
@@ -63,6 +70,7 @@ public sealed class AuditHistoryIntegrationTests : IAsyncLifetime
         var areaActionId = Guid.NewGuid();
         var nextCalendarDayId = Guid.NewGuid();
         var accountActionId = Guid.NewGuid();
+        var redactedHiddenActionId = Guid.NewGuid();
         var insideDayExact = new DateTimeOffset(2027, 3, 28, 21, 30, 0, TimeSpan.Zero);
         var insideDayArea = insideDayExact.AddMinutes(1);
         var nextCalendarDay = new DateTimeOffset(2027, 3, 28, 22, 30, 0, TimeSpan.Zero);
@@ -76,7 +84,8 @@ public sealed class AuditHistoryIntegrationTests : IAsyncLifetime
                 new AuditEntry(exactActionId, insideDayExact, actorId, actor.LoginName, "event.started", "event", hiddenEventId.ToString("D"), "Hidden event started.", hiddenEventId),
                 new AuditEntry(areaActionId, insideDayArea, actorId, actor.LoginName, "event.started_automatically", "event", hiddenEventId.ToString("D"), "Hidden event started automatically.", hiddenEventId),
                 new AuditEntry(nextCalendarDayId, nextCalendarDay, actorId, actor.LoginName, "event.ended", "event", hiddenEventId.ToString("D"), "Outside the selected local calendar day.", hiddenEventId),
-                new AuditEntry(accountActionId, accountAction, actorId, actor.LoginName, "account.changed", "account", actorId.ToString("D"), "An account change.", hiddenEventId));
+                new AuditEntry(accountActionId, accountAction, actorId, actor.LoginName, "account.changed", "account", actorId.ToString("D"), "An account change.", hiddenEventId),
+                new AuditEntry(redactedHiddenActionId, insideDayExact.AddMinutes(3), actorId, actor.LoginName, "account.password_reset", "account", actorId.ToString("D"), "{\"password\":\"hidden-secret\"}", hiddenEventId, "{\"password\":\"hidden-secret\"}", "{\"password\":\"hidden-secret\"}"));
             await setup.SaveChangesAsync();
         }
 
@@ -110,6 +119,143 @@ public sealed class AuditHistoryIntegrationTests : IAsyncLifetime
         Assert.Contains(area.Entries, entry => entry.Id == areaActionId);
         Assert.DoesNotContain(area.Entries, entry => entry.Id == nextCalendarDayId);
         Assert.DoesNotContain(area.Entries, entry => entry.Id == accountActionId);
+
+        var selected = new Bingo.Web.Pages.Admin.Audit.IndexModel(db) { EntryId = redactedHiddenActionId };
+        await selected.OnGetAsync(CancellationToken.None);
+        Assert.False(selected.EntryUnavailable);
+        Assert.Equal(redactedHiddenActionId, selected.SelectedEntry?.Id);
+        Assert.Contains(selected.EventOptions, option => option.Id == hiddenEventId && option.IsHidden);
+        var presented = AuditPresenter.Present(selected.SelectedEntry!, new AuditPassthroughLocalizer());
+        Assert.Contains("Sensitive details withheld", presented.Details);
+        Assert.DoesNotContain("hidden-secret", presented.Details);
+        Assert.DoesNotContain("hidden-secret", presented.BeforeState);
+
+        var missing = new Bingo.Web.Pages.Admin.Audit.IndexModel(db) { EntryId = Guid.NewGuid() };
+        await missing.OnGetAsync(CancellationToken.None);
+        Assert.True(missing.EntryUnavailable);
+        Assert.Null(missing.SelectedEntry);
+
+        var filteredOut = new Bingo.Web.Pages.Admin.Audit.IndexModel(db) { EntryId = redactedHiddenActionId, Action = "event.started" };
+        await filteredOut.OnGetAsync(CancellationToken.None);
+        Assert.True(filteredOut.EntryUnavailable);
+        Assert.Null(filteredOut.SelectedEntry);
+
+        var invalidDate = new Bingo.Web.Pages.Admin.Audit.IndexModel(db) { To = DateOnly.MaxValue };
+        await invalidDate.OnGetAsync(CancellationToken.None);
+        Assert.False(invalidDate.ModelState.IsValid);
+        Assert.Contains(invalidDate.ModelState[nameof(invalidDate.To)]!.Errors, error => error.ErrorMessage?.Contains("out of range", StringComparison.OrdinalIgnoreCase) == true);
+    }
+
+    [Fact]
+    public async Task AuditFiltersRespectAutumnDstCalendarBounds()
+    {
+        var actorId = Guid.NewGuid();
+        var eventId = Guid.NewGuid();
+        var eventAt = new DateTimeOffset(2027, 10, 31, 12, 0, 0, TimeSpan.Zero);
+        var hiddenEvent = BingoEvent.CreateArchivedHistorical(
+            eventId,
+            "Autumn audit history",
+            "autumn-audit-history",
+            null,
+            "Europe/Copenhagen",
+            null,
+            null,
+            eventAt,
+            eventAt.AddHours(1),
+            actorId,
+            eventAt.AddDays(-1),
+            null,
+            1,
+            1,
+            1,
+            1);
+        hiddenEvent.Hide(actorId, eventAt.AddDays(1), hiddenEvent.Name, "Controlled autumn fixture");
+        var startInside = new DateTimeOffset(2027, 10, 30, 22, 30, 0, TimeSpan.Zero);
+        var endInside = new DateTimeOffset(2027, 10, 31, 22, 30, 0, TimeSpan.Zero);
+        var afterEnd = new DateTimeOffset(2027, 11, 1, 23, 30, 0, TimeSpan.Zero);
+        await using (var setup = new ApplicationDbContext(options))
+        {
+            var actor = Account.CreateWebsite(actorId, "autumn-admin", "AUTUMN-ADMIN", eventAt);
+            setup.AddRange(actor, hiddenEvent,
+                new AuditEntry(Guid.NewGuid(), startInside, actorId, "autumn-admin", "event.started", "event", eventId.ToString("D"), "Inside lower bound.", eventId),
+                new AuditEntry(Guid.NewGuid(), endInside, actorId, "autumn-admin", "event.ended", "event", eventId.ToString("D"), "Inside upper bound.", eventId),
+                new AuditEntry(Guid.NewGuid(), afterEnd, actorId, "autumn-admin", "event.cancelled", "event", eventId.ToString("D"), "Outside upper bound.", eventId));
+            await setup.SaveChangesAsync();
+        }
+
+        await using var db = new ApplicationDbContext(options);
+        var page = new Bingo.Web.Pages.Admin.Audit.IndexModel(db)
+        {
+            EventId = eventId,
+            From = new DateOnly(2027, 10, 31),
+            To = new DateOnly(2027, 10, 31)
+        };
+        await page.OnGetAsync(CancellationToken.None);
+
+        Assert.Equal(2, page.Entries.Count);
+        Assert.DoesNotContain(page.Entries, entry => entry.OccurredAt == afterEnd);
+        Assert.Contains(page.Entries, entry => entry.OccurredAt == startInside);
+        Assert.Contains(page.Entries, entry => entry.OccurredAt == endInside);
+    }
+
+    [Fact]
+    public async Task AuditPageRefusesAuthenticatedNonAdmin()
+    {
+        var createdAt = new DateTimeOffset(2027, 10, 31, 12, 0, 0, TimeSpan.Zero);
+        await using (var setup = new ApplicationDbContext(options))
+        {
+            var user = Account.CreateWebsite(Guid.NewGuid(), "audit-ordinary-user", "AUDIT-ORDINARY-USER", createdAt);
+            user.SetPassword(new PasswordHasher<Account>().HashPassword(user, "audit-test-password"), false, createdAt, incrementVersion: false);
+            setup.Add(user);
+            await setup.SaveChangesAsync();
+        }
+
+        using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString()));
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        var login = await client.GetStringAsync("/Account/Login");
+        var loginToken = Regex.Match(login, "name=\"__RequestVerificationToken\"[^>]*value=\"([^\"]+)\"").Groups[1].Value;
+        using var signedIn = await client.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["Input.Username"] = "audit-ordinary-user",
+            ["Input.Password"] = "audit-test-password",
+            ["__RequestVerificationToken"] = loginToken
+        }));
+        Assert.Equal(HttpStatusCode.Redirect, signedIn.StatusCode);
+
+        using var denied = await client.GetAsync("/Admin/Audit?entry=00000000-0000-0000-0000-000000000001");
+        Assert.Equal(HttpStatusCode.Redirect, denied.StatusCode);
+        Assert.Contains("AccessDenied", denied.Headers.Location?.OriginalString, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task AuditHttpOutOfRangeEndDateReturnsValidationPage()
+    {
+        var createdAt = new DateTimeOffset(2027, 10, 31, 12, 0, 0, TimeSpan.Zero);
+        await using (var setup = new ApplicationDbContext(options))
+        {
+            var admin = Account.CreateWebsite(Guid.NewGuid(), "audit-date-admin", "AUDIT-DATE-ADMIN", createdAt);
+            admin.SetGlobalRole(GlobalRole.Admin);
+            admin.SetPassword(new PasswordHasher<Account>().HashPassword(admin, "audit-test-password"), false, createdAt, incrementVersion: false);
+            setup.Add(admin);
+            await setup.SaveChangesAsync();
+        }
+
+        using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString()));
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        var login = await client.GetStringAsync("/Account/Login");
+        var loginToken = Regex.Match(login, "name=\"__RequestVerificationToken\"[^>]*value=\"([^\"]+)\"").Groups[1].Value;
+        using var signedIn = await client.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["Input.Username"] = "audit-date-admin",
+            ["Input.Password"] = "audit-test-password",
+            ["__RequestVerificationToken"] = loginToken
+        }));
+        Assert.Equal(HttpStatusCode.Redirect, signedIn.StatusCode);
+
+        using var response = await client.GetAsync("/Admin/Audit?To=9999-12-31");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var html = await response.Content.ReadAsStringAsync();
+        Assert.Contains("The end date is out of range.", html, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -156,5 +302,12 @@ public sealed class AuditHistoryIntegrationTests : IAsyncLifetime
 
         Assert.Equal(1, malformed.PageNumber);
         Assert.Equal(25, malformed.Entries.Count);
+    }
+
+    private sealed class AuditPassthroughLocalizer : IStringLocalizer<AuditResource>
+    {
+        public LocalizedString this[string name] => new(name, name);
+        public LocalizedString this[string name, params object[] arguments] => new(name, string.Format(CultureInfo.InvariantCulture, name, arguments));
+        public IEnumerable<LocalizedString> GetAllStrings(bool includeParentCultures) => [];
     }
 }
