@@ -1,6 +1,6 @@
 # Test-health batch evidence
 
-Implemented test-health batch, brief 32; baseline `0179b9b3f4d4dff00a401f642e6a80374b5dc807` verified clean on `codex/participants-functionality`. Sole implementer `/root/au_b5_implementer`, Astra/high; no independent review claimed. B5 remediation remains stopped.
+Implemented test-health batch, brief 32; baseline `0179b9b3f4d4dff00a401f642e6a80374b5dc807` verified clean on `codex/participants-functionality`. Sole implementer `/root/au_b5_implementer`, Astra/high; no self-review. Claude independently reviewed and accepted the batch at `26e2434`, as recorded below. B5 remediation remains stopped.
 
 Authority: [brief 32](/Users/christopher/Documents/BingoWebpage/review-notes/32-codex-brief-test-health.md), [08-decisions.md B5 review decisions D14 and approved test-change rule, lines 176–177](/Users/christopher/Documents/BingoWebpage/review-notes/08-decisions.md#b5-review-decisions-user-4-october). Whole-suite final-commit gate must have zero failures/skips; no failure is waived.
 
@@ -12,7 +12,7 @@ At the clean baseline, a named-test filter selecting all 16 tests and F ran acro
 
 | # | Test | Verified cause/classification | Origin commit | Governing decision | Old → new / correction | Correction commit |
 | --- | --- | --- | --- | --- | --- | --- |
-| 1 | C11FinalizedRosterIntegrationTests.StaleRolePostAfterWithdrawalOrActualStartCannotPublishOrChangeRoles(true) | Outdated post-start refusal; role command decides current lifecycle under lock and republishes role-only snapshot | `02d19dbf699d5d4781e68d09f0fd1ccfd031d8ea` | 08-decisions.md:21–25, TD-7 option 1; FUNCTIONAL_CONTRACTS.md:641 | Whole-state unchanged after start → exact expected role/version, transition, immutable old roster, replacement cycle/roster, two audits and one notification; every other original table/field remains exactly equal. Withdrawal theory case retains original whole-state hash equality. | `3f519429a2f645d1db93592088c24e6814841b22` |
+| 1 | C11FinalizedRosterIntegrationTests.StaleRolePostAfterWithdrawalOrActualStartCannotPublishOrChangeRoles(true) | Outdated post-start refusal; role command decides current lifecycle under lock and republishes role-only snapshot | `02d19dbf699d5d4781e68d09f0fd1ccfd031d8ea` | 08-decisions.md:21–25, TD-7 option 1; FUNCTIONAL_CONTRACTS.md:641 | Whole-state unchanged after start → exact expected role/version, transition, immutable old roster, replacement cycle/roster, two audits and one notification; every other original table/field remains exactly equal. Withdrawal theory case retains original whole-state hash equality. Renamed to `RolePostAfterWithdrawalIsRefusedButAfterActualStartPublishesCurrentRole`. | `3f519429a2f645d1db93592088c24e6814841b22` |
 | 2 | Slice10Pass102CompetitionSynchronizationTests.StatsPass4RealFinalReviewRefreshFailureDoesNotBlockPublicationAndIsRecorded | Cause 3: early EndNow changed configured WOM end, so unmatched-end protection correctly skipped the injected provider failure | `2d74bdec1d3dfc3dd11695f8948f6dad53161e9e` changes end; `66256173eadbdceb713d54cfbaeca7545d9d4a00` enforces publication fallback | 08-decisions.md:31–40, Step 3 WA-2 item 5; DATA_MODEL.md:340–355 | End at the fixture's configured provider end before EndNow; every feedback/audit assertion unchanged | `6a1f3af0479fd809f298282fe289fc06dcaa51a3` |
 | 3 | Slice4ParticipantLifecycleIntegrationTests.PreformedRosterMembersStayOutOfSignupCountsAndPromotionWithoutExcludingAdminSignups | Outdated capacity expectations: SignupParticipants now counts all event participants; confirmed count includes the manual member | `56020b861c795e7abaafe4ffb44580e8b4a0d8ac` removes the manual-team exclusion | 08-decisions.md:26, TD-2 option B (manual members count toward capacity); existing list-display binding is deferred separately at line 113 | Cap 2→3 for zero promotions; cap 3→4 for one promotion; exact confirmed projection 3→4. All promotion, participant-status, audit and current-page row assertions retained. Renamed to describe decided capacity behavior. | `3f519429a2f645d1db93592088c24e6814841b22` |
 | 4 | BannerRetirementMigrationTests.PopulatedDatabaseKeepsExactKeysUntilFailedCleanupRecoversAndPreservesSharedObjects | Cause 3: current EF Event insert wrote later placement_rule into pre-retirement schema | `0f79ede26ae4cb497b667e167fb5a559fece136e` | DATA_MODEL.md:363 BNR-01; brief 32 §4 predecessor-schema proof | Explicit predecessor Account/Event SQL, realistic populated asset/shared-reference data retained; all assertions and migrations unchanged | `6a1f3af0479fd809f298282fe289fc06dcaa51a3` |
@@ -56,7 +56,7 @@ All introducing commits above were traced through relevant `git log`/`git show`/
 - Eight setup cases (2, 8–13, 15): focused run `/tmp/th-setup-focused/th-setup-focused.trx` — 8/8 PASS, 0 skipped; full classes **361/361 PASS**, 0 skipped (8m41s).
 - Migration cases 4–7: Banner full class **3/3 PASS** and Slice5 migration full class **5/5 PASS**, 0 skipped.
 - F: full class **16/16 PASS in each of five consecutive runs**, zero skipped; durations 51s, 47s, 50s, 45s, 42s.
-- D16 resolves #14; both affected classes pass. Completed-code whole suite passes below; no independent review claimed.
+- D16 resolves #14; both affected classes pass. Completed-code whole suite passes below; independent Claude acceptance is recorded separately below.
 
 Full setup/migration class counts: AdminStaleChange 15; BannerRetirementMigration 3; EventCompetitionManagement 83; Slice10Pass102CompetitionSynchronization 168; Slice1Identity 71; Slice3CreationIdentityPersistence 16; Slice5MigrationRejection 5. All passed, zero skipped.
 
@@ -118,9 +118,9 @@ Integration duration: 30 minutes. No test project or class excluded. The origina
 
 `git diff --check`: PASS. The source/test corrections are the four cause-group commits named in the table. This fifth commit contains only the evidence, corrected prior Stats explanation, current handoff, D16 owning contract and AGENTS whole-suite gate wording; role/model policy is unchanged. Owning-document line citations above refer to the starting `0179b9b` contents, before the D16 paragraph insertion. User decision attribution remains in supplied 08-decisions.md.
 
-## Final-commit verification and stop
+## Worker final-commit verification command
 
-To satisfy both committed actual execution evidence and the explicit final-commit gate without amending, the final documentation commit is verified once more with:
+To satisfy both committed actual execution evidence and the explicit final-commit gate without amending, the worker attempted verification of the final documentation commit with:
 
 ```sh
 git rev-parse HEAD
@@ -130,4 +130,40 @@ git diff --check 0179b9b3f4d4dff00a401f642e6a80374b5dc807..HEAD
 git status --short --branch
 ```
 
-The terminal delivery report records that exact final SHA, execution outcome/counts and clean status after the run. This committed report does not pre-claim an unrun final-commit result. The implemented batch stops for external Claude independent review; no self-review, B5 remediation, UI integration, rehearsal, live provider/user database, migration, push, merge or deployment occurred. No unresolved test remains after the completed-code gate.
+The worker result and subsequent user-run final gate are recorded separately below. No self-review, B5 remediation, UI integration, rehearsal, live provider/user database, migration, push, merge or deployment occurred.
+
+## Worker final-commit attempt — environment FAILURE
+
+At exact final commit `26e243436ce096a2e4b02561249b53d83e710c44`, the final command above produced a clean Release build (**0 warnings/errors**, 21.61s), Domain **265/265**, Application **118/118**, and Browser **148/148**, all zero failures/skips. Integration then reported:
+
+- `DropAnnouncementPersistenceIntegrationTests.ExactAcknowledgementAndGenerationBoundaryKeepLaterApprovalsNew`: **FAIL** in `InitializeAsync`, line 36, before the test body.
+- `Npgsql.NpgsqlException: The operation has timed out`, inner `System.TimeoutException`, from `NpgsqlConnector.ConnectAsync` through `HistoryRepository.GetAppliedMigrationsAsync` / `MigrateAsync`. The controlled fixture had returned from `PostgreSqlContainer.StartAsync`; opening the migration connection timed out.
+- Under the explicit environment-failure rule, the worker sent SIGINT only to this task's exact final-suite process. The command exited 1 (`Attempting to cancel the build...`). Integration was interrupted: **one observed failure, no completed aggregate or integration TRX**. No integration pass count or zero-skipped completion is claimed. The three completed projects' TRX files are in `/tmp/th-whole-final`.
+- Bounded read-only diagnostics found no Testcontainers OOM event in the prior ten minutes, no remaining task testhost or Testcontainers containers after cancellation, and a Docker environment reporting 10 CPUs / 8,321,515,520 bytes. These observations do **not** establish the timeout cause. No user database was accessed.
+- No test, timeout, retry count, assertion or product behavior was changed for this failure; no automatic rerun or waiver. The earlier completed-code run remains a real **1921/1921 PASS**, but it does not replace the failed final-commit gate.
+
+At that checkpoint the worker correctly stopped without claiming a final-gate pass. The subsequent user-terminal run below completes the final gate on the same commit. [Claude review 34](/Users/christopher/Documents/BingoWebpage/review-notes/34-test-health-review.md) records the timeout as a Codex sandbox environment failure (Docker/Testcontainers), not reproduced outside the sandbox. The specific timeout mechanism was not established by the worker's bounded diagnostics. The failed attempt remains recorded; no assertion, timeout or retry was changed to obtain a pass.
+
+## User-run final-commit gate and Claude acceptance — PASS
+
+On 4 October 2026, the user ran the following in their own terminal on exact commit `26e243436ce096a2e4b02561249b53d83e710c44`:
+
+```sh
+dotnet build Bingo.slnx -c Release && dotnet test Bingo.slnx --no-build -c Release
+```
+
+Build succeeded. The whole suite completed unfiltered:
+
+| Project | Passed | Failed | Skipped |
+| --- | ---: | ---: | ---: |
+| Bingo.Application.Tests | 118 | 0 | 0 |
+| Bingo.Domain.Tests | 265 | 0 | 0 |
+| Bingo.BrowserTests | 148 | 0 | 0 |
+| Bingo.IntegrationTests | 1390 | 0 | 0 |
+| **Total** | **1921** | **0** | **0** |
+
+Execution provenance: the user's terminal output and explicit confirmation of the tested commit, also recorded in [review 34](/Users/christopher/Documents/BingoWebpage/review-notes/34-test-health-review.md). These are user-executed results, not a claim that Codex reran the suite successfully in its sandbox.
+
+**Claude review: PASS; test-health batch accepted at `26e2434`**, review range `0179b9b..26e2434`. Review 34 confirms the final gate and requests this documentation-only follow-up, including the test #1 rename now recorded in the disposition table. The user explicitly authorized one additional documentation commit without amend. The five cause-group commits and the failed environment attempt are preserved; only this evidence and CURRENT_STATUS are updated. No code or test changes or additional suite run are part of this follow-up.
+
+Stop after the documentation commit. Await the separate B5 remediation brief; UI integration, merge, push and deployment remain stopped.

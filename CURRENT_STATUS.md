@@ -1,6 +1,6 @@
 # Current project status
 
-## Active assignment — test-health batch, 4 October 2026
+## Accepted test-health batch — 4 October 2026
 
 - Checkout `/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage`, branch `codex/participants-functionality`; clean starting HEAD `0179b9b3f4d4dff00a401f642e6a80374b5dc807` verified.
 - Planner `/root`, chat `01a10660-cc8a-7843-abb4-6cc1ebbb2bf2`; sole implementer `/root/au_b5_implementer`, explicitly assigned `gpt-6-astra` / high. No orchestrator, extra worker or self-review.
@@ -9,7 +9,8 @@
 - Cause-group commits: outdated tests `3f519429a2f645d1db93592088c24e6814841b22`; D16 code fix `f87e51865d62527dd1cc75155ef07cedd0a53252`; setup/migration fixtures `6a1f3af0479fd809f298282fe289fc06dcaa51a3`; deterministic flaky fixture `ae48c69d9cd42d039ceb48ce8b9921c6f32c1bf9`.
 - Full corrected classes passed: C11 59, capacity 23, creation Browser 28; seven setup/migration classes 361; D16 lifecycle/retry classes 43. All zero failures/skips. The flaky 16-test class passed five consecutive runs. Existing migrations and test14 remain unchanged. Controlled PostgreSQL/provider doubles only.
 - The initially unclear #14 was stopped until the user recorded **D16 option a**. Terminal Questions now returns only an exact committed-add replay; every other POST gets the exact Manage/read-only refusal. Its first added proof exposed unknown-handler fallback (3 failures); the corrected full classes passed 43/43. No failure was waived.
-- **Batch gate is the whole suite with zero failures and zero skipped tests**, plus clean Release build and diff check. Completed-code clean Release build passed, 0 warnings/errors. The unfiltered whole suite passed **1921/1921**, zero failures/skips: Domain 265, Application 118, Browser 148, Integration 1390. The final documentation commit is verified with the same gate; its exact SHA/result is recorded in the terminal delivery report. External independent review and technical acceptance remain pending. [Evidence](docs/references/admin-ui/reviews/2026-10-04/test-health/evidence.md).
+- **Final-commit whole-suite gate PASS on `26e243436ce096a2e4b02561249b53d83e710c44`**, run by the user in their own terminal on 4 October: `dotnet build Bingo.slnx -c Release && dotnet test Bingo.slnx --no-build -c Release`. Application **118/118**, Domain **265/265**, Browser **148/148**, Integration **1390/1390**: **1,921 passed, 0 failed, 0 skipped**. Build succeeded. The worker's clean Release build also passed with 0 warnings/errors. Codex's earlier final-commit PostgreSQL connection timeout in `DropAnnouncementPersistenceIntegrationTests.ExactAcknowledgementAndGenerationBoundaryKeepLaterApprovalsNew.InitializeAsync:36` remains recorded as a sandbox environment failure, not reproduced outside the sandbox; its interrupted Integration run is not counted as passing.
+- **Claude independently reviewed and accepted the test-health batch at `26e2434`**, per [review 34](/Users/christopher/Documents/BingoWebpage/review-notes/34-test-health-review.md). [Evidence](docs/references/admin-ui/reviews/2026-10-04/test-health/evidence.md) records the user-run final gate, the environment failure and test #1's rename. This final documentation-only follow-up records that acceptance; it changes no code or tests.
 - B5 implementation remains at six commits ending `0179b9b`; [Claude review 31](/Users/christopher/Documents/BingoWebpage/review-notes/31-b5-review.md) identifies separately routed B5 remediation A1/C1/C2/B1/B2/E1. None is included here. RC07/RC05/RC04–DRF binding remains pending. B4 remains accepted at `fdc73dc` per [review 29 appended PASS](/Users/christopher/Documents/BingoWebpage/review-notes/29-b4-remediation-recheck.md#follow-up-recheck-2049fb2fdc73dc-direct-claude-4-october).
 
 ## Retained release gates and prior evidence
@@ -23,4 +24,4 @@
 
 ## Next permitted action
 
-After the required final-commit whole-suite verification recorded in the terminal handoff, stop for external Claude independent review of this test-health batch. All 16 named failures and F are resolved in the completed-code gate; no test is waived. No B5 remediation, UI binding, rehearsal, next batch, push, merge to any branch or deployment is authorized.
+Stop after this authorized documentation-only acceptance commit. Await the B5 remediation brief; no B5 remediation, UI binding, rehearsal, next batch, push, merge or deployment starts here. The accepted code/test baseline is `26e2434`; the subsequent documentation commit only records the completed gate and acceptance. Future batch gates remain the whole suite with zero failures and zero skipped tests on the final commit (D14); review 34 records user-terminal execution when the sandbox cannot complete it.
