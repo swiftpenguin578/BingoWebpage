@@ -581,7 +581,7 @@ public sealed partial class EventCompetitionManagementIntegrationTests : IAsyncL
     [Fact]
     public async Task ManualLinkWaitsForManagedProviderWriteOnTheSameCompetition()
     {
-        var clock = new TestClock(DateTimeOffset.UtcNow);
+        var clock = new TestClock(NonMicrosecondFixtureNow);
         var managed = await SeedEventAsync(clock, live: true, competitionId: 4201);
         var manual = await SeedEventAsync(clock, live: false, startsOverride: managed.RemoteCompetition!.StartsAt, endsOverride: managed.RemoteCompetition.EndsAt);
         var remote = managed.RemoteCompetition!;
@@ -628,7 +628,8 @@ public sealed partial class EventCompetitionManagementIntegrationTests : IAsyncL
         var updateResult = await managedUpdate;
         await manualProviderRead.Task.WaitAsync(TimeSpan.FromSeconds(10));
         var linkResult = await manualLink;
-        Assert.True(updateResult.Succeeded, updateResult.Error);
+        Assert.False(updateResult.Succeeded);
+        Assert.Equal("Unknown", updateResult.Status); // Receipt does not match the requested window.
         Assert.False(linkResult.Succeeded);
         Assert.Contains("configured website UTC window exactly", linkResult.Error, StringComparison.OrdinalIgnoreCase);
 
@@ -1175,6 +1176,7 @@ public sealed partial class EventCompetitionManagementIntegrationTests : IAsyncL
     private sealed class RecordingManagementClient : IWiseOldManCompetitionManagementClient
     {
         public int CreateCalls { get; private set; }
+        public int DeleteCalls { get; private set; }
         public List<WiseOldManCompetitionWritePayload> Updates { get; } = [];
         public ConcurrentQueue<(long CompetitionId, string VerificationCode)> UpdateAllCalls { get; } = [];
         public Func<WiseOldManCompetitionWritePayload, CancellationToken, Task<WiseOldManCompetitionWriteResult>>? CreateHandler { get; init; }
@@ -1197,9 +1199,12 @@ public sealed partial class EventCompetitionManagementIntegrationTests : IAsyncL
                 new WiseOldManCompetition(competitionId, payload.Title, payload.StartsAt, payload.EndsAt, DateTimeOffset.UtcNow, []));
         }
 
-        public Task<WiseOldManCompetitionWriteResult> DeleteAsync(long competitionId, string verificationCode, CancellationToken cancellationToken = default) =>
-            Task.FromResult(new WiseOldManCompetitionWriteResult(WiseOldManCompetitionWriteStatus.Success,
+        public Task<WiseOldManCompetitionWriteResult> DeleteAsync(long competitionId, string verificationCode, CancellationToken cancellationToken = default)
+        {
+            DeleteCalls++;
+            return Task.FromResult(new WiseOldManCompetitionWriteResult(WiseOldManCompetitionWriteStatus.Success,
                 new WiseOldManCompetition(competitionId, "Deleted", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddHours(1), null, [])));
+        }
 
         public async Task<WiseOldManUpdateAllResult> UpdateAllAsync(long competitionId, string verificationCode, DateTimeOffset dispatchDeadline, Func<CancellationToken, Task<bool>> recheckEligibility, CancellationToken cancellationToken = default)
         {

@@ -131,6 +131,9 @@ public sealed class EventCompetitionSynchronization
         DateTimeOffset? competitionEndsAt, string assignmentFingerprint, DateTimeOffset now,
         EventCompetitionProvenance? provenance = null)
     {
+        EndUpdateStatus = EventCompetitionEndUpdateStatus.NotRequired;
+        EndUpdateTargetAt = EndUpdateRequestedAt = null;
+        EndUpdateErrorCode = null;
         Generation++;
         SourceRequestFingerprint = null; MetricActivityBatchId = null; LatestMetricsComplete = null; LastMetricAttemptAt = null;
         CompetitionId = competitionId;

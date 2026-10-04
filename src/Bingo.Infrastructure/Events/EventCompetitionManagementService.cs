@@ -37,9 +37,13 @@ public sealed partial class EventCompetitionManagementService(
     {
         var projection = await BuildProjectionAsync(eventId, cancellationToken);
         if (projection is null) return null;
-        var management = await db.EventCompetitionManagements.AsNoTracking().SingleOrDefaultAsync(x => x.EventId == eventId, cancellationToken);
+        var storedManagement = await db.EventCompetitionManagements.AsNoTracking().SingleOrDefaultAsync(x => x.EventId == eventId, cancellationToken);
+        var management = storedManagement?.Status == EventCompetitionManagementStatus.Deleted ? null : storedManagement;
         var operation = await db.EventCompetitionManagementOperations.AsNoTracking()
-            .Where(x => x.EventId == eventId)
+            .Where(x => x.EventId == eventId && (management != null
+                ? x.Id == management.LastOperationId
+                : (storedManagement == null || x.Type == EventCompetitionManagementOperationType.Create && x.Phase != EventCompetitionManagementOperationPhase.Succeeded) &&
+                  (projection.Synchronization == null || projection.Synchronization.CompetitionId == null)))
             .OrderByDescending(x => x.UpdatedAt)
             .FirstOrDefaultAsync(cancellationToken);
         var pendingCreate = management is null
@@ -145,7 +149,7 @@ public sealed partial class EventCompetitionManagementService(
         var management = await db.EventCompetitionManagements
             .SingleOrDefaultAsync(x => x.EventId == eventId, cancellationToken);
         var wasExisting = management is not null && management.Status != EventCompetitionManagementStatus.Deleted;
-        if (management is null || management.Status == EventCompetitionManagementStatus.Deleted)
+        if (management is null)
         {
             management = new EventCompetitionManagement(
                 Guid.NewGuid(), eventId, state.Id, competitionId,
@@ -155,6 +159,13 @@ public sealed partial class EventCompetitionManagementService(
                 protectedCode, "external-credential", now,
                 state.Provenance, EventCompetitionCredentialStatus.Unverified);
             db.EventCompetitionManagements.Add(management);
+        }
+        else if (management.Status == EventCompetitionManagementStatus.Deleted)
+        {
+            management.RebindExternalConnection(state.Id, competitionId,
+                state.CompetitionTitle ?? $"Competition {competitionId}",
+                state.CompetitionStartsAt ?? item.EventStartsAt ?? now,
+                state.CompetitionEndsAt ?? item.EventEndsAt ?? now.AddHours(1), protectedCode, now);
         }
         else
         {

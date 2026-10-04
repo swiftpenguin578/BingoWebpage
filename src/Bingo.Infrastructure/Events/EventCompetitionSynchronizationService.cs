@@ -79,8 +79,10 @@ public sealed partial class EventCompetitionSynchronizationService(
         _ = synchronizeSchedule;
         _ = confirmScheduleChanges;
         await RequireAdminAsync(actor, cancellationToken);
-        if (await db.EventCompetitionManagements.AsNoTracking().AnyAsync(x => x.EventId == eventId && x.Status != EventCompetitionManagementStatus.Deleted, cancellationToken))
+        if (await HasProtectedConnectionAsync(eventId, cancellationToken))
             return new(false, "This event has a managed WOM competition. Use managed competition controls for its title, schedule, roster, and deletion.");
+        if (await HasUnresolvedManagementOperationAsync(eventId, cancellationToken))
+            return new(false, "Wait for the current WOM operation to finish or be resolved before changing its link.");
         var previousCompetitionId = await db.EventCompetitionSynchronizations.AsNoTracking()
             .Where(x => x.EventId == eventId)
             .Select(x => x.CompetitionId)
@@ -105,13 +107,16 @@ public sealed partial class EventCompetitionSynchronizationService(
                 .FromSqlInterpolated($"SELECT * FROM events WHERE id = {eventId} AND hidden_at IS NULL FOR UPDATE")
                 .SingleOrDefaultAsync(cancellationToken);
             if (item is null) return new(false, "The event was not found.");
-            if (await db.EventCompetitionManagements.AnyAsync(x => x.EventId == eventId && x.Status != EventCompetitionManagementStatus.Deleted, cancellationToken))
+            if (await HasProtectedConnectionAsync(eventId, cancellationToken))
                 return new(false, "This event has a managed WOM competition. Use managed competition controls for its title, schedule, roster, and deletion.");
+            await db.Entry(item).ReloadAsync(cancellationToken);
+            if (await HasUnresolvedManagementOperationAsync(eventId, cancellationToken))
+                return new(false, "Wait for the current WOM operation to finish or be resolved before changing its link.");
             if (item.Version != expectedEventVersion) return new(false, "This event changed in another request. Reload before changing its competition.");
             if (item.State is EventState.AwaitingFinalReview or EventState.Finalized or EventState.Archived or EventState.Cancelled or EventState.Discarded)
                 return new(false, "Competition integration is read-only after live play.");
             var clearReason = competitionClearReason?.Trim();
-            if (item.State == EventState.Live && competitionId is null)
+            if (item.ActualStartedAt is not null && competitionId is null)
                 return new(false, "A live event's competition cannot be cleared. Link a validated replacement with a matching event window.");
             if (competition is not null && !ScheduleMatches(item, competition))
                 return new(false, DescribeScheduleMismatch(item, competition));
@@ -130,6 +135,8 @@ public sealed partial class EventCompetitionSynchronizationService(
                 state.Reconfigure(competitionId, competition?.Title, competition?.StartsAt, competition?.EndsAt, fingerprint, time.GetUtcNow(),
                     competitionId is null ? EventCompetitionProvenance.Unknown : EventCompetitionProvenance.External);
             }
+            var retired = await db.EventCompetitionManagements.SingleOrDefaultAsync(x => x.EventId == eventId && x.Status != EventCompetitionManagementStatus.Deleted, cancellationToken);
+            retired?.RetireExternalConnection(time.GetUtcNow());
             item.AdvanceVersion();
             db.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), time.GetUtcNow(), actor.Id, actor.Username,
                 competitionId is null ? "event.competition_cleared" : previousCompetitionId is null ? "event.competition_linked" : "event.competition_changed",
@@ -157,6 +164,17 @@ public sealed partial class EventCompetitionSynchronizationService(
             return new(false, "The competition integration could not be saved safely. Reload and try again.");
         }
     }
+
+    private Task<bool> HasProtectedConnectionAsync(Guid eventId, CancellationToken cancellationToken) =>
+        db.EventCompetitionManagements.AsNoTracking().AnyAsync(x => x.EventId == eventId &&
+            x.Status != EventCompetitionManagementStatus.Deleted && (x.Provenance != EventCompetitionProvenance.External ||
+                x.Status == EventCompetitionManagementStatus.Unknown || x.Status == EventCompetitionManagementStatus.Conflict), cancellationToken);
+
+    private Task<bool> HasUnresolvedManagementOperationAsync(Guid eventId, CancellationToken cancellationToken) =>
+        db.EventCompetitionManagementOperations.AsNoTracking().AnyAsync(x => x.EventId == eventId &&
+            (x.Phase == EventCompetitionManagementOperationPhase.Pending || x.Phase == EventCompetitionManagementOperationPhase.Claimed ||
+             x.Phase == EventCompetitionManagementOperationPhase.Sending || x.Phase == EventCompetitionManagementOperationPhase.Retry ||
+             x.Phase == EventCompetitionManagementOperationPhase.Unknown), cancellationToken);
 
     public async Task<EventCompetitionRefreshResult> RefreshAsync(Guid eventId, LifecycleActor actor, CancellationToken cancellationToken = default)
     {

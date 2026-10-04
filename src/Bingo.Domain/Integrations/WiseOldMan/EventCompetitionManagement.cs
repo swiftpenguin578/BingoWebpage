@@ -231,6 +231,47 @@ public sealed class EventCompetitionManagement
         UpdatedAt = now.ToUniversalTime();
     }
 
+    public void RetireExternalConnection(DateTimeOffset now)
+    {
+        if (Provenance != EventCompetitionProvenance.External)
+            throw new InvalidOperationException("Only an external connection can be retired locally.");
+        MarkDeleted(Guid.Empty, now);
+        LastOperationId = null;
+        ProtectedVerificationCode = string.Empty;
+        WriteCapability = EventCompetitionWriteCapability.ReadOnly;
+        CredentialStatus = EventCompetitionCredentialStatus.NotApplicable;
+        CredentialUpdatedAt = now.ToUniversalTime();
+        CredentialValidatedAt = null;
+        LastAppliedAt = null;
+        LastAppliedLocalFingerprint = string.Empty;
+        LastAppliedRemoteFingerprint = null;
+        LastAcknowledgedRosterJson = null;
+    }
+
+    public void RebindExternalConnection(Guid synchronizationId, long competitionId, string title,
+        DateTimeOffset startsAt, DateTimeOffset endsAt, string protectedCode, DateTimeOffset now)
+    {
+        if (Status != EventCompetitionManagementStatus.Deleted)
+            throw new InvalidOperationException("The previous connection must be retired first.");
+        SynchronizationId = synchronizationId;
+        CompetitionId = competitionId;
+        CompetitionTitle = title;
+        CompetitionStartsAt = startsAt.ToUniversalTime();
+        CompetitionEndsAt = endsAt.ToUniversalTime();
+        Provenance = EventCompetitionProvenance.External;
+        Status = EventCompetitionManagementStatus.Active;
+        DeletedAt = null;
+        LastOperationId = null;
+        LastAppliedAt = null;
+        LastAppliedLocalFingerprint = string.Empty;
+        LastAppliedRemoteFingerprint = null;
+        LastAcknowledgedRosterJson = null;
+        LastErrorAt = null;
+        LastErrorCode = LastError = null;
+        ReplaceProtectedCredential(protectedCode, now);
+        ManagementVersion++;
+    }
+
     public void RebindWebsiteCreatedConnection(Guid synchronizationId, long competitionId)
     {
         SynchronizationId = synchronizationId;
