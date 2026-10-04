@@ -844,6 +844,9 @@ Approved placement direction: full-board finishers still lead and earlier full-
 board completion wins; otherwise compare completed lines (rows plus columns),
 completed tiles, highest credited EHB, then earliest current-score completion time.
 Preserve credited partial progress, exact shared ranks and existing rank numbering.
+User decision D3, 4 October (forwarded Claude-chat decisions): for the new rule only,
+compare credited EHB rounded to four decimals in both ordering and shared-rank
+equality. Legacy EHB comparison retains full precision.
 No separate points, discretionary tie-break, altered evidence timestamps or name/ID
 ordering used to split a genuine tie. Use one consistent ranking rule across public
 provisional standings and finalization; retain existing immutable official results.

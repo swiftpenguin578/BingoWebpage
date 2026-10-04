@@ -39,4 +39,20 @@ public sealed class Au12PlacementRuleTests
         Assert.Equal<int>([1, 2, 2], ranked.Select(x => x.Rank));
         Assert.Equal<int>([1, 1, 3], PublicProgressCalculator.Rank([Team("Z", 3m, Now), Team("A", 3m, Now), Team("Late", 3m, Now.AddSeconds(1))], rule).Select(x => x.Rank));
     }
+    [Theory]
+    [InlineData(PlacementRule.CreditedEhbThenScoreTime, false)]
+    [InlineData(PlacementRule.CreditedEhbThenScoreTime, true)]
+    [InlineData(PlacementRule.LegacyScoreTimeThenEhb, false)]
+    [InlineData(PlacementRule.LegacyScoreTimeThenEhb, true)]
+    public void FractionalCreditUsesFourDecimalsOnlyForNewRule(PlacementRule rule, bool sameTime)
+    {
+        var a = Team("A", 10m / 3m + 10m / 3m, Now);
+        var b = Team("B", 10m * 2m / 3m, sameTime ? Now : Now.AddSeconds(1));
+        Assert.True(a.Progress.EhbTiebreak < b.Progress.EhbTiebreak);
+        var ranked = PublicProgressCalculator.Rank([b, a], rule);
+        var shared = sameTime && rule == PlacementRule.CreditedEhbThenScoreTime;
+        Assert.Equal(sameTime && !shared ? "B" : "A", ranked[0].TeamName);
+        Assert.Equal<int>(shared ? [1, 1] : [1, 2], ranked.Select(x => x.Rank));
+    }
+
 }

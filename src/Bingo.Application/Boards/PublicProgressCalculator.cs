@@ -205,7 +205,7 @@ public static class PublicProgressCalculator
             .ThenByDescending(value => value.Progress.CompletedRows.Count + value.Progress.CompletedColumns.Count)
             .ThenByDescending(value => value.Progress.CompletedTiles);
         var ordered = (rule == PlacementRule.CreditedEhbThenScoreTime
-            ? primary.ThenByDescending(value => value.Progress.EhbTiebreak)
+            ? primary.ThenByDescending(value => RankingEhb(value.Progress, rule))
                 .ThenBy(value => ScoreTime(value.Progress) ?? DateTimeOffset.MaxValue)
             : primary.ThenBy(value => ScoreTime(value.Progress) ?? DateTimeOffset.MaxValue)
                 .ThenByDescending(value => value.Progress.EhbTiebreak))
@@ -214,19 +214,22 @@ public static class PublicProgressCalculator
         for (var index = 0; index < ordered.Count; index++)
         {
             var current = ordered[index];
-            var rank = index == 0 || !SameRank(ordered[index - 1], current) ? index + 1 : result[^1].Rank;
+            var rank = index == 0 || !SameRank(ordered[index - 1], current, rule) ? index + 1 : result[^1].Rank;
             result.Add(new RankedTeamProgress(current.TeamId, current.TeamName, current.Progress, rank));
         }
         return result;
     }
 
-    private static bool SameRank(UnrankedTeamProgress left, UnrankedTeamProgress right) =>
+    private static bool SameRank(UnrankedTeamProgress left, UnrankedTeamProgress right, PlacementRule rule) =>
         left.Progress.BoardComplete == right.Progress.BoardComplete &&
         left.Progress.BoardCompletedAt == right.Progress.BoardCompletedAt &&
         left.Progress.CompletedRows.Count + left.Progress.CompletedColumns.Count == right.Progress.CompletedRows.Count + right.Progress.CompletedColumns.Count &&
         left.Progress.CompletedTiles == right.Progress.CompletedTiles &&
         ScoreTime(left.Progress) == ScoreTime(right.Progress) &&
-        left.Progress.EhbTiebreak == right.Progress.EhbTiebreak;
+        RankingEhb(left.Progress, rule) == RankingEhb(right.Progress, rule);
+
+    private static decimal RankingEhb(CalculatedBoardProgress progress, PlacementRule rule) =>
+        rule == PlacementRule.CreditedEhbThenScoreTime ? decimal.Round(progress.EhbTiebreak, 4) : progress.EhbTiebreak;
 
     private static DateTimeOffset? ScoreTime(CalculatedBoardProgress progress) =>
         progress.BoardComplete ? progress.BoardCompletedAt : progress.CurrentScoreReachedAt;
