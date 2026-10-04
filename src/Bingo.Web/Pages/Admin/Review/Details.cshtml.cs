@@ -26,6 +26,11 @@ public sealed class DetailsModel(ApplicationDbContext db, ISubmissionService ser
     [BindProperty(SupportsGet = true)] public SubmissionStatus? Status { get; set; }
     [BindProperty] public ReviewInput Input { get; set; } = new();
     public async Task<IActionResult> OnGetAsync(Guid id, CancellationToken ct) { if (!await Load(id, ct)) return NotFound(); Input = new() { BoardTileId = Details.TileId, RequirementId = Details.RequirementId, DropSnapshotId = Details.DropId, CreditedOsrsCharacterId = Details.CharacterId, Reason = Details.Note, ExpectedVersion = Details.Version }; return Page(); }
+    public async Task<IActionResult> OnGetCorrectionCharactersAsync(Guid id, CancellationToken ct)
+    {
+        if (User.GetAccountId() is not { } adminId) return Forbid();
+        return new JsonResult(await service.GetCorrectionCharactersAsync(id, adminId, ct));
+    }
     public Task<IActionResult> OnPostApproveAsync(Guid id, CancellationToken ct) => Execute(id, async () => { var result = await service.ApproveAsync(id, User.GetAccountId()!.Value, ct, Input.ExpectedVersion); if (result.BlockingSubmission is { } block) { TempData[ApprovalBlockTempDataKey] = block.SubmissionId.ToString("D"); TempData["StatusMessage"] = Localize("Approve or reject the earlier upload first."); TempData[UiMessage.TypeKey] = UiMessageType.Error.ToString(); } else { TempData["StatusMessage"] = Localize("Approved with {0} contribution.", result.ApprovedContribution); TempData[UiMessage.TypeKey] = UiMessageType.Success.ToString(); } }, ct);
     public Task<IActionResult> OnPostRejectAsync(Guid id, CancellationToken ct) => Execute(id, () => service.RejectAsync(id, User.GetAccountId()!.Value, Input.Reason ?? string.Empty, ct, Input.ExpectedVersion), ct, "Submission rejected.", requiresReason: true);
     public Task<IActionResult> OnPostReverseAsync(Guid id, CancellationToken ct) => Execute(id, () => service.ReverseAsync(id, User.GetAccountId()!.Value, Input.Reason ?? string.Empty, ct, Input.ExpectedVersion), ct, "Approval reversed and later contributions recalculated.", requiresReason: true);

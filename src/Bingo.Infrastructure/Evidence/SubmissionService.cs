@@ -197,24 +197,51 @@ public sealed class SubmissionService(
         var s = await LockedAdminReviewSubmissionAsync(command.SubmissionId, cancellationToken);
         EnsureExpectedVersion(s, command.ExpectedVersion);
         if (s.Status != SubmissionStatus.Pending) throw new InvalidOperationException("Only a pending submission can be corrected.");
-        var selected = await (from assignment in db.EventParticipantCharacters.AsNoTracking()
-                              join participant in db.EventParticipants.AsNoTracking() on assignment.EventParticipantId equals participant.Id
-                              join character in db.OsrsCharacters.AsNoTracking() on assignment.OsrsCharacterId equals character.Id
-                              where assignment.EventId == s.EventId && assignment.OsrsCharacterId == command.CreditedOsrsCharacterId &&
-                                    assignment.EventRole == Bingo.Domain.Signups.EventCharacterRole.Playing && assignment.ReleasedAt == null &&
-                                    participant.EventId == s.EventId
-                              select new { ParticipantId = participant.Id, CharacterId = character.Id, CharacterName = character.DisplayName }).ToListAsync(cancellationToken);
-        if (selected.Count != 1) throw new InvalidOperationException("The selected playing character is missing or ambiguous for this event.");
-        var credited = selected[0];
-        if (!await db.TeamMemberships.AnyAsync(x => x.TeamId == s.TeamId && x.EventParticipantId == credited.ParticipantId && x.LeftAt == null, cancellationToken))
-            throw new InvalidOperationException("The selected playing character does not belong to this submission's team.");
-        var creditedWeight = await ValidateTarget(s.EventId, s.TeamId, command.BoardTileId, command.RequirementId, command.DropSnapshotId, credited.ParticipantId, cancellationToken);
+        var candidates = await CorrectionCharactersAsync(s, cancellationToken);
+        var credited = candidates.SingleOrDefault(x => x.CharacterId == command.CreditedOsrsCharacterId)
+            ?? throw new InvalidOperationException("Choose an unambiguous Playing character assigned in this event to a current or former member of this submission's team.");
+        var creditedWeight = await ValidateTarget(s.EventId, s.TeamId, command.BoardTileId, command.RequirementId, command.DropSnapshotId, credited.ParticipantId, cancellationToken, retainedTeamAttribution: true);
         var before = Snapshot(s);
         s.EditPending(command.BoardTileId, command.RequirementId, command.DropSnapshotId, s.CreditedParticipantId, creditedWeight, s.CaptainNote);
         s.CorrectCreditedAttribution(credited.ParticipantId, credited.CharacterId, credited.CharacterName);
         var now = time.GetUtcNow(); var after = Snapshot(s); db.ReviewActions.Add(Action(s.Id, ReviewActionType.EditMetadata, command.AdminAccountId, now, normalizedReason, before, after)); AddAudit(s, command.AdminAccountId, adminName, "submission.corrected", normalizedReason, before, after, now);
         await db.SaveChangesAsync(cancellationToken);
         await tx.CommitAsync(CancellationToken.None);
+    }
+
+    public async Task<IReadOnlyList<SubmissionCorrectionCharacter>> GetCorrectionCharactersAsync(Guid submissionId, Guid adminAccountId, CancellationToken cancellationToken = default)
+    {
+        await EnsureAdmin(adminAccountId, cancellationToken);
+        await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.RepeatableRead, cancellationToken);
+        var submission = await db.Submissions.AsNoTracking().SingleOrDefaultAsync(x => x.Id == submissionId, cancellationToken)
+            ?? throw new InvalidOperationException("Submission not found.");
+        var ev = await db.Events.AsNoTracking().SingleAsync(x => x.Id == submission.EventId, cancellationToken);
+        EnsureEvidenceReviewCapability(ev);
+        if (submission.Status != SubmissionStatus.Pending) return [];
+        var result = await CorrectionCharactersAsync(submission, cancellationToken);
+        await tx.CommitAsync(cancellationToken);
+        return result;
+    }
+
+    private async Task<IReadOnlyList<SubmissionCorrectionCharacter>> CorrectionCharactersAsync(Submission submission, CancellationToken ct)
+    {
+        // Resolve identity across the whole event before restricting membership: a
+        // character retained against two participants cannot be attributed safely.
+        var rows = await (from assignment in db.EventParticipantCharacters.AsNoTracking()
+                          join participant in db.EventParticipants.AsNoTracking() on assignment.EventParticipantId equals participant.Id
+                          join character in db.OsrsCharacters.AsNoTracking() on assignment.OsrsCharacterId equals character.Id
+                          where assignment.EventId == submission.EventId && participant.EventId == submission.EventId
+                          select new { assignment.EventParticipantId, character.Id, character.DisplayName, assignment.ReleasedAt, assignment.EventRole }).ToListAsync(ct);
+        var memberships = await db.TeamMemberships.AsNoTracking().Where(x => x.TeamId == submission.TeamId)
+            .Select(x => new { x.EventParticipantId, x.LeftAt }).ToListAsync(ct);
+        return rows.GroupBy(x => x.Id).Where(g => g.Select(x => x.EventParticipantId).Distinct().Count() == 1)
+            .Where(g => g.Any(x => x.EventRole == Bingo.Domain.Signups.EventCharacterRole.Playing) &&
+                        !g.Any(x => x.ReleasedAt == null && x.EventRole != Bingo.Domain.Signups.EventCharacterRole.Playing))
+            .Where(g => memberships.Any(m => m.EventParticipantId == g.First().EventParticipantId))
+            .Select(g => new SubmissionCorrectionCharacter(g.Key, g.First().EventParticipantId, g.First().DisplayName,
+                g.All(x => x.ReleasedAt != null),
+                !memberships.Any(m => m.EventParticipantId == g.First().EventParticipantId && m.LeftAt == null)))
+            .OrderBy(x => x.CharacterName).ThenBy(x => x.CharacterId).ToList();
     }
 
     private async Task RebalanceLaterContributions(Submission reversed, SubmissionContribution reversedContribution, PublishedBoardData publication, Guid adminAccountId, string adminName, DateTimeOffset now, CancellationToken cancellationToken)
@@ -285,9 +312,9 @@ public sealed class SubmissionService(
         if (item.IsHidden || !EventStatePolicy.Allows(item.State, EventCapability.ReviewEvidence))
             throw new InvalidOperationException("Evidence can only be reviewed while the event is Live or awaiting final review.");
     }
-    private async Task<int> ValidateTarget(Guid eventId, Guid teamId, Guid tileId, Guid requirementId, Guid? dropId, Guid participantId, CancellationToken cancellationToken)
+    private async Task<int> ValidateTarget(Guid eventId, Guid teamId, Guid tileId, Guid requirementId, Guid? dropId, Guid participantId, CancellationToken cancellationToken, bool retainedTeamAttribution = false)
     {
-        if (!await db.Teams.AnyAsync(x => x.Id == teamId && x.EventId == eventId && x.Active, cancellationToken)) throw new InvalidOperationException("Team not found."); if (!await IsEligibleTeamCreditAsync(teamId, participantId, time.GetUtcNow(), cancellationToken)) throw new InvalidOperationException("The credited player is not eligible for this team at the evidence time.");
+        if (!await db.Teams.AnyAsync(x => x.Id == teamId && x.EventId == eventId && x.Active, cancellationToken)) throw new InvalidOperationException("Team not found."); if (!retainedTeamAttribution && !await IsEligibleTeamCreditAsync(teamId, participantId, time.GetUtcNow(), cancellationToken)) throw new InvalidOperationException("The credited player is not eligible for this team at the evidence time.");
         var publication = await LockedPublicationAsync(eventId, cancellationToken);
         var tile = publication.Tiles.SingleOrDefault(x => x.Id == tileId) ?? throw new InvalidOperationException("Choose a tile from the published event board.");
         var requirement = publication.Requirements.SingleOrDefault(x => x.Id == requirementId && x.BoardTileId == tile.Id) ?? throw new InvalidOperationException("Choose a requirement from that tile.");

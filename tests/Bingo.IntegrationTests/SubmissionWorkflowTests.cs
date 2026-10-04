@@ -437,7 +437,7 @@ public sealed partial class SubmissionWorkflowTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task ReleasedPlayingAssignmentCannotBeUsedForAdminCorrectionAfterReassignment()
+    public async Task ReleasedPlayingAssignmentCanBeUsedForAdminCorrectionAfterReassignment()
     {
         var setup = await SeedAsync(target: 3, allowHigherWeights: true);
         await using var db = new ApplicationDbContext(options);
@@ -451,7 +451,7 @@ public sealed partial class SubmissionWorkflowTests : IAsyncLifetime
         db.EventParticipantCharacters.Add(new EventParticipantCharacter(Guid.NewGuid(), setup.EventId, setup.ParticipantId, replacementCharacter.Id, 1, now, setup.AdminId, null, EventCharacterRole.Playing, 500, EhbSource.Manual, null));
         await db.SaveChangesAsync();
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => service.EditMetadataAsync(new(submission.SubmissionId, setup.AdminId, setup.TileId, setup.RequirementId, setup.DropId, oldCharacterId, "historical character", null)));
+        await service.EditMetadataAsync(new(submission.SubmissionId, setup.AdminId, setup.TileId, setup.RequirementId, setup.DropId, oldCharacterId, "historical character", (await db.Submissions.AsNoTracking().SingleAsync(x => x.Id == submission.SubmissionId)).Version));
         var unchanged = await db.Submissions.AsNoTracking().SingleAsync(x => x.Id == submission.SubmissionId);
         Assert.Equal(oldCharacterId, unchanged.CreditedOsrsCharacterId);
         await service.EditMetadataAsync(new(submission.SubmissionId, setup.AdminId, setup.TileId, setup.RequirementId, setup.DropId, replacementCharacter.Id, "current character", unchanged.Version));

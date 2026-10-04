@@ -11,6 +11,7 @@ public interface ISubmissionService
     Task RejectAsync(Guid submissionId, Guid adminAccountId, string reason, CancellationToken cancellationToken = default, int? expectedVersion = null);
     Task<SubmissionApprovalResult> ApproveAsync(Guid submissionId, Guid adminAccountId, CancellationToken cancellationToken = default, int? expectedVersion = null);
     Task ReverseAsync(Guid submissionId, Guid adminAccountId, string reason, CancellationToken cancellationToken = default, int? expectedVersion = null);
+    Task<IReadOnlyList<SubmissionCorrectionCharacter>> GetCorrectionCharactersAsync(Guid submissionId, Guid adminAccountId, CancellationToken cancellationToken = default);
     Task EditMetadataAsync(EditSubmissionMetadataCommand command, CancellationToken cancellationToken = default);
 }
 
@@ -30,3 +31,8 @@ public sealed record SubmissionResult(Guid SubmissionId, SubmissionStatus Status
 public sealed record SubmissionApprovalResult(int ApprovedContribution, SubmissionApprovalBlock? BlockingSubmission = null);
 
 public sealed record SubmissionApprovalBlock(Guid SubmissionId, DateTimeOffset SubmittedAt);
+
+public sealed record SubmissionCorrectionCharacter(Guid CharacterId, Guid ParticipantId, string CharacterName, bool Released, bool LeftTeam)
+{
+    public bool Current => !Released && !LeftTeam;
+}

@@ -214,6 +214,9 @@ public sealed class PublicBoardService(ApplicationDbContext db, TimeProvider tim
                     ? contribution with { PlayerName = value.PlayerName }
                     :
                     new CalculatedPlayerContribution(value.PlayerId, value.PlayerName, 0, 0, 0))
+                // Retained approved credit belongs to its original participant even
+                // when that participant is absent from the current published roster.
+                .Concat(progress.Players.Where(value => !rosterRows.Any(row => row.TeamId == team.Id && row.PlayerId == value.PlayerId)))
                 .OrderByDescending(value => value.EstimatedEhb)
                 .ThenByDescending(value => value.ApprovedContribution)
                 .ThenBy(value => value.PlayerName)
@@ -320,7 +323,7 @@ public sealed class PublicBoardService(ApplicationDbContext db, TimeProvider tim
                     : contributors.Where(player => player.DropEhb == contributors[0].DropEhb)
                         .Select(player => player.PlayerName).ToList();
                 return new PublicDropEhbTeam(
-                    0, team.TeamId, team.TeamName, team.Progress.Players.Count, contributors.Count,
+                    0, team.TeamId, team.TeamName, rosterRows.Count(row => row.TeamId == team.TeamId), contributors.Count,
                     players.Sum(player => player.ApprovedSubmissions), players.Sum(player => player.DropEhb),
                     mvpNames, players, contributors.Count == 0 ? null : contributors[0].DropEhb);
             })

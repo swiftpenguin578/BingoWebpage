@@ -115,8 +115,8 @@ and [shared UI](../../../UI_SYSTEM.md#approved-admin-reference-direction--2-octo
   replacement before/during Live, with or without stored/rejected credentials.
   Preserve active/unresolved-operation guards, never delete the external competition
   and require a new code for a replacement. Implementation pending.
-- **AU17a:** Admin correction selects from the full event pool, not only current
-  Playing assignments, to fix mistakes such as forgetting to change the account.
+- **AU17a:** Admin correction selects from the event’s current or released Playing assignments of current or former members
+  of the submission’s own team (D11 option b; Informational accounts excluded), to fix mistakes such as forgetting to change the account.
   Map retained/non-current player and character identities explicitly at readiness;
   preserve evidence history, reasons and separate approval. No saved-account or
   roster rewrite is implied.
