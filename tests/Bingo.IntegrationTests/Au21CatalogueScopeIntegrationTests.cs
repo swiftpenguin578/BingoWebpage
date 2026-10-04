@@ -95,7 +95,7 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests
             Assert.IsType<RedirectToPageResult>(await page.OnPostUpdateDropAsync(
                 current.Id, current.Version, shared.Version, "Renamed shared item", current.DisplayRate,
                 current.DisplayRate, null, null, default, false, null, 0, 0, null, null,
-                "https://example.com/new.png", false, CancellationToken.None, secondBoss.Name));
+                "https://example.com/new.png", false, CancellationToken.None, [secondBoss.Id]));
         }
 
         await using var verify = new ApplicationDbContext(options);
