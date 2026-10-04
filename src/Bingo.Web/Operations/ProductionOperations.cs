@@ -53,8 +53,7 @@ public sealed class ProductionReadinessHealthCheck(
 public sealed class ProductionPreflight(
     ApplicationDbContext db,
     IConfiguration configuration,
-    IServiceProvider services,
-    CatalogueSnapshotService catalogue)
+    IServiceProvider services)
 {
     public const string KeyRingSetting = "DataProtection:KeyRingPath";
 
@@ -93,18 +92,11 @@ public sealed class ProductionPreflight(
         }
     }
 
-    public async Task ValidateAsync(string catalogueSnapshotPath, CancellationToken cancellationToken)
+    public async Task ValidateAsync(CancellationToken cancellationToken)
     {
         await ValidateMigrationsAsync(cancellationToken);
         await ValidateR2Async(cancellationToken);
-        try
-        {
-            await catalogue.ValidateBaselineAsync(catalogueSnapshotPath, cancellationToken);
-        }
-        catch
-        {
-            throw new InvalidOperationException("Production preflight failed [catalogue]: apply the reviewed catalogue snapshot on clean data, or correct the reported retained catalogue records, then rerun preflight.");
-        }
+        await ValidateCatalogueAsync(cancellationToken);
 
         int ownerCount;
         try
@@ -118,6 +110,31 @@ public sealed class ProductionPreflight(
 
         if (ownerCount != 1)
             throw new InvalidOperationException("Production preflight failed [ownership]: provision or recover exactly one active Super Admin, then rerun preflight.");
+    }
+
+    public async Task ValidateCatalogueAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var hasActiveActivity = await db.BossActivities.AsNoTracking().AnyAsync(activity => activity.Active, cancellationToken);
+            var hasActiveItem = await db.CatalogueItems.AsNoTracking().AnyAsync(item => item.Active, cancellationToken);
+            var hasActiveDrop = await db.SourceDrops.AsNoTracking().AnyAsync(drop => drop.Active, cancellationToken);
+            if (hasActiveActivity && hasActiveItem && hasActiveDrop) return;
+
+            throw new InvalidOperationException("Production preflight failed [catalogue]: restore the production database backup; the restored catalogue must contain at least one active activity, one active item, and one active drop.");
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (InvalidOperationException exception) when (exception.Message.StartsWith("Production preflight failed [catalogue]", StringComparison.Ordinal))
+        {
+            throw;
+        }
+        catch
+        {
+            throw new InvalidOperationException("Production preflight failed [catalogue]: verify database connectivity and restore the production database backup before retrying preflight.");
+        }
     }
 
     public async Task ValidateLegacyImageRollbackAsync(CancellationToken cancellationToken)

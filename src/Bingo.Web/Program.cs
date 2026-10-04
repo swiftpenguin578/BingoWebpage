@@ -345,7 +345,7 @@ if (args.Contains("--convert-luck-checkpoints", StringComparer.Ordinal))
 if (args.Contains("--production-preflight", StringComparer.Ordinal))
 {
     await using var preflightScope = app.Services.CreateAsyncScope();
-    await preflightScope.ServiceProvider.GetRequiredService<ProductionPreflight>().ValidateAsync(catalogueSnapshotPath, CancellationToken.None);
+    await preflightScope.ServiceProvider.GetRequiredService<ProductionPreflight>().ValidateAsync(CancellationToken.None);
     Console.WriteLine("Production preflight passed.");
     return;
 }
@@ -443,7 +443,7 @@ if (args.Contains("--apply-catalogue-snapshot", StringComparer.Ordinal))
 if (app.Environment.IsProduction())
 {
     await using var preflightScope = app.Services.CreateAsyncScope();
-    await preflightScope.ServiceProvider.GetRequiredService<ProductionPreflight>().ValidateAsync(catalogueSnapshotPath, CancellationToken.None);
+    await preflightScope.ServiceProvider.GetRequiredService<ProductionPreflight>().ValidateAsync(CancellationToken.None);
 }
 
 if (args.Contains("--apply-wiki-catalogue", StringComparer.Ordinal))
