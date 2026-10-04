@@ -1,6 +1,6 @@
 # Current project status
 
-## Active assignment — B3 / AU20, 4 October 2026
+## Active assignment — B3 / AU20 remediation, 4 October 2026
 
 - Checkout `/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage`, branch `codex/participants-functionality`.
 - Clean baseline verified `b126c556ccd2e16cb59829837581646a3179847e`; planner's authorized documentation prerequisite `2649008` follows it.
@@ -8,9 +8,10 @@
 - User supplied assignment: [B3 brief](docs/references/admin-ui/reviews/2026-10-04/au-b3/supplied-brief.md). Section 6's old planner chat is retired by the current assignment.
 - Six ordered implementation items, one scoped local commit each; all await external Claude review. No current-page display, B4/B5, RC/UI integration, rehearsal, push, main merge or deployment.
 - Six local implementation items completed: `52f0af6` (exact windows/readback), `2d74bde` (early end/Resume/migration), `fa24164` (end retries), `6625617` (publication fallback), `6d29f2c` (external replacement/races), and the final documentation checkpoint containing this status.
-- Execution: final AU20-focused integration run 44/44; additional existing guards and six old-AU18 outcome readbacks passed; enum compatibility passed; populated migration Up/Down/backfill passed; Release build zero warnings/errors. Per-item evidence: `docs/references/admin-ui/reviews/2026-10-04/au-b3/item1-exact-window.md` through `item6-documentation.md`.
+- Original implementer-reported execution (not independently rerun): final AU20-focused integration run 44/44; additional existing guards and six old-AU18 outcome readbacks passed; enum compatibility passed; populated migration Up/Down/backfill passed; Release build zero warnings/errors. Per-item evidence: `docs/references/admin-ui/reviews/2026-10-04/au-b3/item1-exact-window.md` through `item6-documentation.md`.
 - Planner resolved other-4xx classifications; item 3 records the exact technical resolution and attribution. No separate user product approval is claimed.
-- Implemented and executed, not independently reviewed or manually accepted. No new current-page display; existing Luck freshness verified without production changes.
+- Claude source-only review 24: FAIL (F1–F5 and smaller corrections); no reviewer execution. User authorized brief25 remediation, six ordered new local commits. Clean starting HEAD `4b9f15657978728160a00960bd45bf41cb04abb3` reverified.
+- Remediation item 1 implemented: end-only unchanged-window readback authorizes spaced resend; implementer reports 7/7 focused cases and clean Release/diff checks. Items 2–6 pending. Evidence/source copies under `au-b3/remediation/`. No new page display or manual acceptance.
 - Unrelated broad-check finding retained in item 1 evidence: StatsPass4Boundary fixture expects an open submission window after configured cutoff; no silent Stats fix.
 - AU20 fallback state has one register row; structured service outcomes have a separate row. Placement remains for UI integration.
 
@@ -39,4 +40,4 @@
 
 ## Next permitted action
 
-Stopped after B3 item 6 for external Claude independent review of the six implementation commits after `2649008`. Planner owns the next handoff; no B4/UI/RC work or publication authorized. R1 conversion/R3 release gates remain.
+Complete brief25 items 1–6 with one new local commit each, then stop for Claude external recheck. The corrected temporary/permanent classification supersedes the earlier planner resolution; D6 (first publication permanently stops retries, also after reopen) is the user decision in supplied-decisions.md. No B4/UI/RC implementation or publication; R1 conversion/R3 release gates remain.

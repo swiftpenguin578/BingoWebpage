@@ -178,6 +178,11 @@ public sealed class WiseOldManCompetitionManagementClient(
                 await admission.CompleteAsync(response, true, false, cancellationToken);
                 return new(WiseOldManCompetitionWriteStatus.Unauthorized, ErrorCode: "InvalidCredentials", Message: "Wise Old Man did not accept the competition management credentials.");
             }
+            if (response.StatusCode == HttpStatusCode.RequestTimeout)
+            {
+                await admission.CompleteAsync(response, true, true, cancellationToken);
+                return new(WiseOldManCompetitionWriteStatus.Unknown, RetryAt: NextRetryAt(), ErrorCode: "RequestTimeout", Message: "The Wise Old Man write outcome is unknown.");
+            }
             if ((int)response.StatusCode is >= 400 and < 500)
             {
                 var error = await ParseErrorAsync(response, verificationCode, cancellationToken);

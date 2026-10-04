@@ -580,6 +580,11 @@ public sealed partial class EventCompetitionManagementService(
                 return await PersistProviderReceiptWithRetryAsync(
                     () => CompleteUpdateAsync(operation.Id, operation, updatePayload, read.Competition!, cancellationToken),
                     cancellationToken);
+            if (read.Succeeded && RemoteConfigurationMatches(read.Competition!, management))
+            {
+                var retry = await RetryUnappliedEndAsync(operation.Id, reconciled: false, result.RetryAt, cancellationToken);
+                if (retry is not null) return retry;
+            }
             return await MarkUnknownAsync(operation.Id, RedactProviderText(result.ErrorCode, verificationCode) ?? "UnknownOutcome", RedactProviderText(result.Message, verificationCode) ?? "The WOM update outcome is unknown.", read.RetryAt, cancellationToken);
         }
         if (!result.Succeeded) return await HandleResultFailureAsync(operation.Id, result, cancellationToken, verificationCode);
@@ -846,6 +851,11 @@ public sealed partial class EventCompetitionManagementService(
         {
             await PersistProviderReceiptWithRetryAsync(() => CompleteUpdateAsync(operationId, operation, payload, read.Competition!, cancellationToken), cancellationToken);
             return;
+        }
+        if (read.Succeeded && RemoteConfigurationMatches(read.Competition!, management))
+        {
+            var retry = await RetryUnappliedEndAsync(operationId, reconciled: true, read.RetryAt, cancellationToken);
+            if (retry is not null) return;
         }
         if (read.Status == WiseOldManCompetitionStatus.NotFound)
         {
