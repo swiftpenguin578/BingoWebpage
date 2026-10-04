@@ -480,8 +480,12 @@ request ID bound on successful commit to the authenticated Admin, event, normali
 intended definition and original submitted form version. Identical retries return
 that created field ID without another definition, audit or version change, even
 when the original write advanced the form or the event later stopped accepting
-new fields. A reused ID with changed intent/baseline, another actor or another
-event fails closed and does not disclose the previous result. A new request still
+new fields. On Cancelled, Finalized or Archived events, the current Questions
+route permits only that exact committed-add replay; every other change request
+redirects to `/Admin/Events/Manage/{id}` with **This event is read-only in its
+current lifecycle state.** (08-decisions.md, B5 review D16). A reused ID with
+changed intent/baseline, another actor or another event fails closed and does not
+disclose the previous result. A new request still
 requires the current form baseline and pre-draft write authority. Every attempt
 rechecks enabled Admin authority and current event visibility; hidden/discarded
 results are unavailable. A deleted/inactive created field is reported as removed,

@@ -226,7 +226,10 @@ a persistent coordinator layer.
   Historical reference images apply only when explicitly reactivated for the current
   task. Preserve approved composition and interaction models. Manual approval is
   page-specific; deferred acceptance stays awaiting approval.
-- Use existing setup/build/test commands from `README.md`; run only applicable gates.
+- Use existing setup/build/test commands from `README.md`. Every batch completion
+  gate runs the whole test suite with zero failures and zero skipped tests, plus
+  its required build and scoped checks. Focused checks guide implementation but
+  do not replace that batch gate (08-decisions.md, B5 review D14; brief 32).
 
 ## Durable evidence and authorized checkpoints
 
