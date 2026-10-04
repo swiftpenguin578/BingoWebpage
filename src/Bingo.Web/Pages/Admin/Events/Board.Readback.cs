@@ -135,7 +135,7 @@ public sealed partial class BoardModel
                JsonSerializer.Serialize(right with { ManualEhbOverride = null, EstimateNeedsVerification = false });
     }
 
-    private async Task<List<BoardRequirementSnapshot>> CurrentRequirementsAsync(List<BoardTile> tiles, int columns, CancellationToken ct)
+    private async Task<List<BoardRequirementSnapshot>> CurrentRequirementsAsync(List<BoardTile> tiles, int columns, CancellationToken ct, List<BoardValidationIssue>? issues = null)
     {
         var tileIds = tiles.Select(x => x.Id).ToList();
         var templateIds = tiles.Select(x => x.TileTemplateId).Distinct().ToList();
@@ -177,7 +177,12 @@ public sealed partial class BoardModel
                     if (currentCandidates.Count == 1) candidates = currentCandidates;
                 }
                 if (candidates.Count != 1)
-                    throw new BoardApprovalValidationException("objective-positions", tile.Id, tile.RowIndex * columns + tile.ColumnIndex, tile.NameSnapshot, "A tile has duplicate objective positions. Edit the tile before approving it.");
+                {
+                    var issue = new BoardApprovalValidationException("objective-positions", tile.Id, tile.RowIndex * columns + tile.ColumnIndex, tile.NameSnapshot, "A tile has duplicate objective positions. Edit the tile before approving it.");
+                    if (issues is null) throw issue;
+                    issues.Add(issue.Issue);
+                    continue;
+                }
                 requirements.Add(candidates[0]);
             }
         }

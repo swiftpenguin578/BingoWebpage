@@ -26,7 +26,7 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests
         var issue = Assert.Single(response.Issues);
         Assert.Equal(boardLevel ? "board-incomplete" : "catalogue-rates-missing", issue.Code);
         Assert.Equal(boardLevel ? null : fixture.Tile.Id, issue.TileId);
-        Assert.Equal(boardLevel ? null : 0, issue.Position);
+        Assert.Equal(boardLevel ? 1 : 0, issue.Position);
         Assert.True(response.Current.Known); Assert.Equal(BoardState.Draft, response.Current.State!.State);
         Assert.Empty(await db.BoardApprovalSnapshots.ToListAsync());
         if (!boardLevel) Assert.Equal(99m, (await db.TileTemplates.SingleAsync()).ManualEhbOverride);
