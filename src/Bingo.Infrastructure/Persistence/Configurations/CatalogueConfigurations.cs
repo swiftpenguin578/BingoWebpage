@@ -10,9 +10,9 @@ public sealed class BossActivityConfiguration : IEntityTypeConfiguration<BossAct
     {
         builder.Property(x => x.MappingStatus).HasColumnName("mapping_status").HasDefaultValue(ApiMappingStatus.NotConfigured).HasConversion<string>().HasMaxLength(32);
         builder.Property(x => x.MappingCheckedAt).HasColumnName("mapping_checked_at");
-        builder.ToTable("boss_activities"); builder.HasKey(x => x.Id); builder.Property(x => x.Id).HasColumnName("id");
+        builder.ToTable("boss_activities", table => table.HasCheckConstraint("ck_boss_activity_team_size", "team_size >= 1")); builder.HasKey(x => x.Id); builder.Property(x => x.Id).HasColumnName("id");
         builder.Property(x => x.Name).HasColumnName("name").HasMaxLength(200); builder.Property(x => x.Slug).HasColumnName("slug").HasMaxLength(150); builder.HasIndex(x => x.Slug).IsUnique();
-        builder.Property(x => x.Category).HasColumnName("category").HasMaxLength(100); builder.Property(x => x.EfficientCompletionsPerHour).HasColumnName("efficient_completions_per_hour").HasPrecision(12, 4);
+        builder.Property(x => x.Category).HasColumnName("category").HasMaxLength(100); builder.Property(x => x.EfficientCompletionsPerHour).HasColumnName("efficient_completions_per_hour").HasPrecision(12, 4); builder.Property(x => x.TeamSize).HasColumnName("team_size").HasDefaultValue(1);
         builder.Property(x => x.ExternalIdentifier).HasColumnName("external_identifier").HasMaxLength(200); builder.Property(x => x.DataSource).HasColumnName("data_source").HasMaxLength(300); builder.Property(x => x.ImageUrl).HasColumnName("image_url").HasMaxLength(2000); builder.Property(x => x.DataUpdatedAt).HasColumnName("data_updated_at"); builder.Property(x => x.Active).HasColumnName("active"); builder.Property(x => x.Version).HasColumnName("version").IsConcurrencyToken(); builder.Property(x => x.Notes).HasColumnName("notes").HasMaxLength(4000);
     }
 }

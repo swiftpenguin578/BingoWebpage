@@ -61,6 +61,7 @@ public sealed partial class IndexModel(ApplicationDbContext dbContext, TimeProvi
 
         var slug = await UniqueSlug(name, ct);
         var entity = new BossActivity(Guid.NewGuid(), name, slug, Boss.Category, Boss.EfficientRate, timeProvider.GetUtcNow());
+        entity.SetTeamSize(Boss.TeamSize);
         entity.Update(name, Boss.Category, Boss.EfficientRate, Clean(Boss.ExternalIdentifier), Clean(Boss.DataSource), Clean(Boss.Notes), timeProvider.GetUtcNow(), OsrsWikiImageUrl.Normalize(Boss.ImageUrl));
         dbContext.BossActivities.Add(entity);
         BossId = entity.Id;
@@ -158,20 +159,26 @@ public sealed partial class IndexModel(ApplicationDbContext dbContext, TimeProvi
     }
     public async Task<IActionResult> OnPostToggleBossAsync(Guid recordId, long expectedVersion, CancellationToken ct) { var entity = await dbContext.BossActivities.SingleAsync(x => x.Id == recordId, ct); if (entity.Version != expectedVersion) return Stale(); var before = State(entity); entity.SetActive(!entity.Active); return await SaveAsync("catalogue.boss_toggled", "boss_activity", entity.Id, entity.Name, before, State(entity), $"{entity.Name} {(entity.Active ? "reactivated" : "deactivated")}.", ct); }
     public async Task<IActionResult> OnPostToggleDropAsync(Guid recordId, long expectedVersion, CancellationToken ct) { DropId = recordId; var entity = await dbContext.SourceDrops.SingleAsync(x => x.Id == recordId, ct); if (entity.Version != expectedVersion) return Stale(); var itemName = await dbContext.CatalogueItems.Where(x => x.Id == entity.ItemId).Select(x => x.Name).SingleAsync(ct); var before = State(entity); entity.SetActive(!entity.Active); return await SaveAsync("catalogue.drop_toggled", "source_drop", entity.Id, itemName, before, State(entity), $"{itemName} {(entity.Active ? "reactivated" : "deactivated")}.", ct); }
-    public async Task<IActionResult> OnPostUpdateBossAsync(Guid recordId, long expectedVersion, string name, string category, decimal? efficientRate, string? dataSource, string? imageUrl, CancellationToken ct)
+    public async Task<IActionResult> OnPostUpdateBossAsync(Guid recordId, long expectedVersion, string name, string category, decimal? efficientRate, string? dataSource, string? imageUrl, CancellationToken ct, int? teamSize = null)
     {
         if (HasOperatorFields("dataSource") || dataSource is not null) return OperatorFieldsUnavailable();
         if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(category)) return BadRequest();
+        if (teamSize is < 1) { SetStatus(Localize("Team size must be at least 1."), UiMessageType.Error); return CataloguePage(); }
         var entity = await dbContext.BossActivities.SingleAsync(x => x.Id == recordId, ct);
         if (entity.Version != expectedVersion) return Stale(); var before = State(entity); var cleanName = name.Trim();
+        var efficientRateChanged = efficientRate != entity.EfficientCompletionsPerHour;
         var otherNames = await dbContext.BossActivities.Where(x => x.Id != recordId).Select(x => x.Name).ToListAsync(ct);
         if (otherNames.Any(x => string.Equals(x, cleanName, StringComparison.OrdinalIgnoreCase))) { SetStatus(Localize("A boss or activity named {0} already exists.", cleanName), UiMessageType.Warning); return CataloguePage(); }
         entity.Update(cleanName, category.Trim(), efficientRate, entity.ExternalIdentifier, entity.DataSource, entity.Notes, timeProvider.GetUtcNow(), OsrsWikiImageUrl.Normalize(imageUrl));
+        if (teamSize is { } requestedTeamSize) entity.SetTeamSize(requestedTeamSize);
         var drops = await dbContext.SourceDrops.Where(x => x.BossActivityId == recordId).ToListAsync(ct);
-        foreach (var drop in drops)
+        if (teamSize is null || efficientRateChanged)
         {
-            var effective = drop.EffectiveProbabilityPerCompletion();
-            drop.Update(drop.DisplayRate, drop.NumericProbability, drop.RateConditionNote, efficientRate is > 0 && effective is > 0 ? 1 / (efficientRate.Value * effective.Value) : null, drop.DataSource, timeProvider.GetUtcNow());
+            foreach (var drop in drops)
+            {
+                var effective = drop.EffectiveProbabilityPerCompletion();
+                drop.Update(drop.DisplayRate, drop.NumericProbability, drop.RateConditionNote, efficientRate is > 0 && effective is > 0 ? 1 / (efficientRate.Value * effective.Value) : null, drop.DataSource, timeProvider.GetUtcNow());
+            }
         }
         return await SaveAsync("catalogue.boss_updated", "boss_activity", entity.Id, entity.Name, before, State(entity), $"{entity.Name} updated.", ct);
     }
@@ -437,7 +444,7 @@ public sealed partial class IndexModel(ApplicationDbContext dbContext, TimeProvi
     private static string? Clean(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     private string Localize(string key, params object[] arguments) => text?[key, arguments].Value ?? string.Format(CultureInfo.CurrentCulture, key, arguments);
     private void SetStatus(string message, UiMessageType type) { TempData["StatusMessage"] = message; TempData[UiMessage.TypeKey] = type.ToString(); }
-    public sealed class BossInput { [StringLength(200)] public string? ExternalIdentifier { get; set; } [Required, StringLength(200)] public string Name { get; set; } = string.Empty; [Required] public string Category { get; set; } = "Boss"; [Range(0.0001, 100000), Display(Name = "Efficient completions per hour")] public decimal? EfficientRate { get; set; } [Display(Name = "Data source")] public string? DataSource { get; set; } [Url, Display(Name = "Image URL")] public string? ImageUrl { get; set; } public string? Notes { get; set; } }
+    public sealed class BossInput { [StringLength(200)] public string? ExternalIdentifier { get; set; } [Required, StringLength(200)] public string Name { get; set; } = string.Empty; [Required] public string Category { get; set; } = "Boss"; [Range(0.0001, 100000), Display(Name = "Efficient completions per hour")] public decimal? EfficientRate { get; set; } [Range(1, int.MaxValue), Display(Name = "Team size")] public int TeamSize { get; set; } = 1; [Display(Name = "Data source")] public string? DataSource { get; set; } [Url, Display(Name = "Image URL")] public string? ImageUrl { get; set; } public string? Notes { get; set; } }
     public sealed class BossDropInput { public bool FetchPrice { get; set; } [Range(1, int.MaxValue)] public int? InitialWikiItemId { get; set; } [Range(typeof(long), "0", "9223372036854775807")] public long? InitialValueGp { get; set; } public bool Untradeable { get; set; } public bool UseExistingItem { get; set; } [Required] public Guid BossActivityId { get; set; } [Required, StringLength(200), Display(Name = "Item name")] public string ItemName { get; set; } = string.Empty; [Required, StringLength(200), Display(Name = "Displayed drop rate")] public string DisplayRate { get; set; } = string.Empty; [Range(0.000000000001, 1), Display(Name = "Numeric probability")] public decimal? NumericProbability { get; set; } public DropProbabilityScope ProbabilityScope { get; set; } = DropProbabilityScope.Participant; public bool ConditionalOnParent { get; set; } [Range(0.000000000001, 1)] public decimal? ParentProbability { get; set; } [Range(1, 100)] public int AssumedParticipants { get; set; } = 1; [Range(1, 100)] public int RollsPerCompletion { get; set; } = 1; [StringLength(120)] public string RollGroup { get; set; } = "default"; [StringLength(2000), Display(Name = "Condition or note")] public string? Condition { get; set; } [StringLength(300), Display(Name = "Data source")] public string? DataSource { get; set; } [Url, Display(Name = "Item image URL")] public string? ImageUrl { get; set; } }
     public sealed record BossRow(Guid Id, string Name, string Category, decimal? EfficientRate, bool Active, string? ImageUrl, string? DataSource, DateTimeOffset UpdatedAt, long Version);
     public sealed record DropRow(Guid Id, Guid BossActivityId, string ItemName, string DisplayRate, decimal? Probability, decimal? DefaultEhb, DropProbabilityScope ProbabilityScope, bool ConditionalOnParent, decimal? ParentProbability, int AssumedParticipants, int RollsPerCompletion, string RollGroup, bool Active, string? DataSource, string? ImageUrl, DateTimeOffset UpdatedAt, long Version, long ItemVersion, Guid ItemId = default);
