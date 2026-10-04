@@ -193,9 +193,16 @@
                             <span class="admin-status-pill @(version.Active ? "is-green" : "is-muted")">@(version.Active ? T["Active"] : T["Historical"])</span>
                         </summary>
                         <div class="finalize-history-body">
+                            <p>@T["Published by {0}", version.FinalizedByUsername ?? version.FinalizedByAccountId?.ToString() ?? "—"]</p>
+                            <p><strong>@T["Final WOM refresh"]:</strong> @T[FinalizeModel.FinalWomRefreshDescription(version.FinalWomRefresh)]
+                                @if (version.FinalWomRefresh?.NextEligibleAt is { } eligibleAt)
+                                {
+                                    <span> · @T["Recorded next eligible time: {0}", DateTimePresentation.Format(eligibleAt, "dd MMM yyyy, HH:mm", Model.EventTimezone, CultureInfo.CurrentCulture)]</span>
+                                }
+                            </p>
                             @if (version.UnfinalizedAt is not null)
                             {
-                                <p class="finalize-history-reopened">@T["Reopened"] @DateTimePresentation.Format(version.UnfinalizedAt.Value, "dd MMM yyyy, HH:mm", Model.EventTimezone, CultureInfo.CurrentCulture): @version.UnfinalizeReason</p>
+                                <p class="finalize-history-reopened">@T["Reopened by {0}", version.UnfinalizedByUsername ?? version.UnfinalizedByAccountId?.ToString() ?? "—"] · @DateTimePresentation.Format(version.UnfinalizedAt.Value, "dd MMM yyyy, HH:mm", Model.EventTimezone, CultureInfo.CurrentCulture): @version.UnfinalizeReason</p>
                             }
                             <div class="finalize-history-table-wrap">
                                 <table class="finalize-history-table">

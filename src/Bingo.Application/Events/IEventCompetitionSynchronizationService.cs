@@ -9,7 +9,14 @@ public sealed record EventCompetitionRefreshResult(
     bool Skipped,
     string? Message = null,
     string? ErrorKind = null,
-    DateTimeOffset? RetryAt = null);
+    DateTimeOffset? RetryAt = null,
+    EventCompetitionRefreshSkipReason? SkipReason = null);
+
+public enum EventCompetitionRefreshSkipReason
+{
+    EventUnavailable, EventNotInFinalReview, IncompleteEventWindow, NoCompetition,
+    RefreshInProgress, RetryDelay, NotDue, ServiceUnavailable
+}
 
 public sealed record EventCompetitionView(
     int Generation,

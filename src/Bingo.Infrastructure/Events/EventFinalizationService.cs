@@ -81,7 +81,14 @@ public sealed class EventFinalizationService(ApplicationDbContext db, IPublicBoa
 
         var finalIds = finals.Select(x => x.Id).ToList();
         var official = finalIds.Count == 0 ? [] : await db.OfficialPlacements.AsNoTracking().Where(x => finalIds.Contains(x.FinalizationId)).OrderBy(x => x.Placement).ThenBy(x => x.TeamName).ToListAsync(ct);
-        var history = finals.Select(f => new FinalizationHistoryRow(f.Id, f.Version, f.FinalizedAt, f.UnfinalizedAt is null, f.UnfinalizedAt, f.UnfinalizeReason, official.Where(x => x.FinalizationId == f.Id).Select(x => new OfficialPlacementRow(x.Placement, x.TeamName, x.BoardComplete, x.BoardCompletedAt, x.CompletedLines, x.CompletedTiles, x.EhbTiebreak, x.CurrentScoreReachedAt)).ToList())).ToList();
+        var historyActorIds = finals.SelectMany(f => new[] { (Guid?)f.FinalizedByAccountId, f.UnfinalizedByAccountId })
+            .Where(id => id.HasValue).Select(id => id!.Value).Distinct().ToArray();
+        var historyActors = await db.Accounts.AsNoTracking().Where(account => historyActorIds.Contains(account.Id))
+            .ToDictionaryAsync(account => account.Id, account => account.PublicUsername, ct);
+        var history = finals.Select(f => new FinalizationHistoryRow(f.Id, f.Version, f.FinalizedAt, f.UnfinalizedAt is null, f.UnfinalizedAt, f.UnfinalizeReason, official.Where(x => x.FinalizationId == f.Id).Select(x => new OfficialPlacementRow(x.Placement, x.TeamName, x.BoardComplete, x.BoardCompletedAt, x.CompletedLines, x.CompletedTiles, x.EhbTiebreak, x.CurrentScoreReachedAt)).ToList(),
+            f.FinalizedByAccountId, historyActors.GetValueOrDefault(f.FinalizedByAccountId),
+            f.UnfinalizedByAccountId, f.UnfinalizedByAccountId is { } reopenedBy ? historyActors.GetValueOrDefault(reopenedBy) : null,
+            ReadFinalWomRefresh(f.CalculationInputsJson))).ToList();
         if (activeFinal is not null && (ev.State is EventState.Finalized or EventState.Archived)) placements = official.Where(x => x.FinalizationId == activeFinal.Id).Select(x => new ProvisionalPlacement(x.TeamId, x.TeamName, x.Placement, x.BoardComplete, x.BoardCompletedAt, null, x.CompletedLines, x.CompletedTiles, x.EhbTiebreak, x.CurrentScoreReachedAt)).ToList();
         return new(eventId, ev.Name, ev.State, scheduledStart, scheduledEnd, effectiveCutoff, ev.AcceptsNewSubmissions(now), blockers, placements, history, cycleId, ev.Version, ev.PlacementRule);
     }
@@ -175,6 +182,7 @@ public sealed class EventFinalizationService(ApplicationDbContext db, IPublicBoa
                 readiness.EventStartsAt,
                 readiness.EventEndsAt,
                 readiness.SubmissionCutoff,
+                finalWomRefresh = FinalWomRefresh(refreshResult, refreshFailure),
                 placementRule = ev.PlacementRule.ToString(),
                 competitiveInputs = CompetitiveInputNames(ev.PlacementRule),
                 teams = readiness.Placements.Select(x => new { x.TeamId, x.TeamName, x.BoardComplete, x.CalculatedCompletedAt, x.CompletedLines, x.CompletedTiles, x.CurrentScoreReachedAt, x.EhbTiebreak }),
@@ -269,6 +277,28 @@ public sealed class EventFinalizationService(ApplicationDbContext db, IPublicBoa
         if (refreshResult?.Message is { Length: > 0 } message)
             return published + " Final-review competition refresh note: " + BoundedFeedback(message);
         return null;
+    }
+
+    private static FinalWomRefreshOutcome FinalWomRefresh(EventCompetitionRefreshResult? result, Exception? failure)
+    {
+        if (failure is not null) return new(FinalWomRefreshStatus.Failed);
+        if (result is null) return new(FinalWomRefreshStatus.Skipped, EventCompetitionRefreshSkipReason.ServiceUnavailable);
+        if (result.Skipped) return new(FinalWomRefreshStatus.Skipped, result.SkipReason, result.RetryAt);
+        return new(result.Succeeded ? FinalWomRefreshStatus.Succeeded : FinalWomRefreshStatus.Failed);
+    }
+
+    private static FinalWomRefreshOutcome? ReadFinalWomRefresh(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return null;
+        try
+        {
+            using var document = JsonDocument.Parse(json);
+            if (document.RootElement.ValueKind != JsonValueKind.Object || !document.RootElement.TryGetProperty("finalWomRefresh", out var value)) return null;
+            if (value.ValueKind != JsonValueKind.Object || !value.TryGetProperty(nameof(FinalWomRefreshOutcome.Status), out _)) return null;
+            var outcome = value.Deserialize<FinalWomRefreshOutcome>();
+            return outcome is not null && Enum.IsDefined(outcome.Status) ? outcome : null;
+        }
+        catch (JsonException) { return null; }
     }
 
     private static string PublicationDetail(EventCompetitionRefreshResult? refreshResult, Exception? refreshFailure)

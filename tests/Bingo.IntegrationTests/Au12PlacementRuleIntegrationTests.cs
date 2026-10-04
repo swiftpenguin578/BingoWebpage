@@ -15,7 +15,7 @@ using Testcontainers.PostgreSql;
 
 namespace Bingo.IntegrationTests;
 
-public sealed class Au12PlacementRuleIntegrationTests : IAsyncLifetime
+public sealed partial class Au12PlacementRuleIntegrationTests : IAsyncLifetime
 {
     private static readonly DateTimeOffset Now = new(2026, 10, 4, 12, 0, 0, TimeSpan.Zero);
     private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine").Build();

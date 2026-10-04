@@ -51,6 +51,20 @@ public sealed class FinalizeModel(IEventFinalizationService finalization, Applic
     [NonAction]
     public Task<IActionResult> OnPostArchiveAsync(Guid id, CancellationToken ct) => RetiredReviewAction();
     private async Task<IActionResult> Run(Guid id, Func<Task> action, CancellationToken ct) { try { await action(); } catch (InvalidOperationException ex) { TempData["StatusMessage"] = ex.Message; TempData[UiMessage.TypeKey] = UiMessageType.Error.ToString(); } return RedirectToPage(new { id }); }
+    public static string FinalWomRefreshDescription(FinalWomRefreshOutcome? outcome) => outcome switch
+    {
+        null => "Not recorded",
+        { Status: FinalWomRefreshStatus.Succeeded } => "Succeeded",
+        { Status: FinalWomRefreshStatus.Failed } => "Failed",
+        { SkipReason: EventCompetitionRefreshSkipReason.NoCompetition } => "Skipped: no competition is configured.",
+        { SkipReason: EventCompetitionRefreshSkipReason.RefreshInProgress } => "Skipped: a refresh is already in progress.",
+        { SkipReason: EventCompetitionRefreshSkipReason.RetryDelay } => "Skipped: the retry delay has not elapsed.",
+        { SkipReason: EventCompetitionRefreshSkipReason.NotDue } => "Skipped: the refresh window has not elapsed.",
+        { SkipReason: EventCompetitionRefreshSkipReason.IncompleteEventWindow } => "Skipped: the event window is incomplete.",
+        { SkipReason: EventCompetitionRefreshSkipReason.ServiceUnavailable } => "Skipped: the refresh service is unavailable.",
+        { SkipReason: EventCompetitionRefreshSkipReason.EventUnavailable or EventCompetitionRefreshSkipReason.EventNotInFinalReview } => "Skipped: the event is not available for final refresh.",
+        _ => "Skipped"
+    };
     private string Localize(string key, params object[] arguments) => text?[key, arguments].Value ?? string.Format(CultureInfo.CurrentCulture, key, arguments);
     private Task<IActionResult> RetiredReviewAction() => Task.FromResult<IActionResult>(BadRequest(Localize("This final-review action is retired. Resolve the underlying records and publish official results.")));
     private Guid AdminId => User.GetAccountId()!.Value;

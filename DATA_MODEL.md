@@ -2099,6 +2099,13 @@ historical import/compatibility construction explicitly retain 0. No date infere
 The domain exposes no rule mutation and EF rejects changing a saved rule. Each new
 official snapshot records the rule in its calculation inputs. Shared ranks require exact equality across
 all applicable inputs. Optional WOM refresh failure does not block publication.
+AU18 stores typed `finalWomRefresh` status, skip reason and optional next-eligible
+time in each new finalization's existing `calculation_inputs_json`; no schema or
+historical backfill is required. Missing metadata displays Not recorded. Reasons
+come from the actual existing lease refusal branch, never from a later state read.
+Publication/reopening actor IDs and timestamps remain the retained history; public
+usernames are resolved for display. Provider error text is not persisted in the new
+outcome metadata. Recorded eligibility time is informational.
 Prior official versions are never silently recomputed. There is no separate Archive.
 At upload closure ordinary roles remain historical; authorization stops mutations.
 Retained emergency identities never gain authority on reopening.

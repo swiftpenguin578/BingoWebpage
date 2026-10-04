@@ -2984,4 +2984,18 @@
   <data name="The save outcome is uncertain. Check the current values before trying another save. Diagnostic reference: {0}." xml:space="preserve"><value>Resultatet af gemningen er usikkert. Kontrollér de aktuelle værdier før en ny gemning. Diagnostisk reference: {0}.</value></data>
   <data name="A draft is required before changing website-draft inclusion." xml:space="preserve"><value>Der skal være en draft, før du kan ændre, om holdet deltager i hjemmesidens draft.</value></data>
   <data name="Rank order: completed boards by effective finish time, then completed rows and columns, completed tiles, EHB, and current score time." xml:space="preserve"><value>Rangorden: færdige boards efter effektiv sluttid, derefter færdige rækker og kolonner, færdige felter, EHB og tidspunktet for den aktuelle score.</value></data>
+  <data name="Final WOM refresh" xml:space="preserve"><value>Afsluttende WOM-opdatering</value></data>
+  <data name="Published by {0}" xml:space="preserve"><value>Udgivet af {0}</value></data>
+  <data name="Reopened by {0}" xml:space="preserve"><value>Genåbnet af {0}</value></data>
+  <data name="Recorded next eligible time: {0}" xml:space="preserve"><value>Registreret næste mulige tidspunkt: {0}</value></data>
+  <data name="Not recorded" xml:space="preserve"><value>Ikke registreret</value></data>
+  <data name="Succeeded" xml:space="preserve"><value>Gennemført</value></data>
+  <data name="Skipped" xml:space="preserve"><value>Sprunget over</value></data>
+  <data name="Skipped: no competition is configured." xml:space="preserve"><value>Sprunget over: ingen konkurrence er konfigureret.</value></data>
+  <data name="Skipped: a refresh is already in progress." xml:space="preserve"><value>Sprunget over: en opdatering er allerede i gang.</value></data>
+  <data name="Skipped: the retry delay has not elapsed." xml:space="preserve"><value>Sprunget over: ventetiden før næste forsøg er ikke udløbet.</value></data>
+  <data name="Skipped: the refresh window has not elapsed." xml:space="preserve"><value>Sprunget over: opdateringsvinduet er ikke udløbet.</value></data>
+  <data name="Skipped: the event window is incomplete." xml:space="preserve"><value>Sprunget over: eventets tidsvindue er ufuldstændigt.</value></data>
+  <data name="Skipped: the refresh service is unavailable." xml:space="preserve"><value>Sprunget over: opdateringstjenesten er utilgængelig.</value></data>
+  <data name="Skipped: the event is not available for final refresh." xml:space="preserve"><value>Sprunget over: eventet er ikke tilgængeligt for en afsluttende opdatering.</value></data>
 </root>

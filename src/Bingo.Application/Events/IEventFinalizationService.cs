@@ -27,5 +27,10 @@ public sealed record FinalReviewReadiness(Guid EventId, string EventName, EventS
 }
 public sealed record FinalReviewBlocker(string Key, string Title, string Description, string? Link, bool CanOverride, bool Resolved, string? ResolutionReason, bool IsCompletionTimeAcknowledgement = false, Guid? TeamId = null);
 public sealed record ProvisionalPlacement(Guid TeamId, string TeamName, int Placement, bool BoardComplete, DateTimeOffset? CalculatedCompletedAt, DateTimeOffset? CorrectedCompletedAt, int CompletedLines, int CompletedTiles, decimal EhbTiebreak, DateTimeOffset? CurrentScoreReachedAt = null);
-public sealed record FinalizationHistoryRow(Guid Id, int Version, DateTimeOffset FinalizedAt, bool Active, DateTimeOffset? UnfinalizedAt, string? UnfinalizeReason, IReadOnlyList<OfficialPlacementRow> Placements);
+public sealed record FinalizationHistoryRow(Guid Id, int Version, DateTimeOffset FinalizedAt, bool Active, DateTimeOffset? UnfinalizedAt, string? UnfinalizeReason, IReadOnlyList<OfficialPlacementRow> Placements, Guid? FinalizedByAccountId = null,
+    string? FinalizedByUsername = null, Guid? UnfinalizedByAccountId = null, string? UnfinalizedByUsername = null,
+    FinalWomRefreshOutcome? FinalWomRefresh = null);
+public enum FinalWomRefreshStatus { Succeeded, Failed, Skipped }
+public sealed record FinalWomRefreshOutcome(FinalWomRefreshStatus Status,
+    EventCompetitionRefreshSkipReason? SkipReason = null, DateTimeOffset? NextEligibleAt = null);
 public sealed record OfficialPlacementRow(int Placement, string TeamName, bool BoardComplete, DateTimeOffset? BoardCompletedAt, int CompletedLines, int CompletedTiles, decimal EhbTiebreak, DateTimeOffset? CurrentScoreReachedAt = null);
