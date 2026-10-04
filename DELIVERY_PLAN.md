@@ -293,15 +293,8 @@ stopped after AU10. AU01–AU10 are committed and technically complete; no next-
 implementation or dispatch is currently authorized. Reconciliation records later
 agreed outcomes and remaining technical scope for review. On a future explicit resume, execute one ticket at a time in
 the approved order. Recording a ticket or approving requirements is not a resume.
-Each ticket uses a fresh Sol 6.1/high orchestrator, Astra/high implementer and a
-separate fresh Astra/high independent reviewer. The orchestrator owns checks and
-same-worker remediation/recheck, then sends a verified waking completion/blocker
-callback to the planner. AU01 stays in the existing collaboration worker; from
-AU02 onward the user explicitly authorizes a separate Sol 6.1/high orchestrator
-chat per ticket, spawning its own Astra/high worker pair. Planner reconciles
-completion and starts the next chat only within an authorized continuation. Planner resolves manageable blockers within
-existing authority; only unresolved blockers or decisions requiring human input
-are escalated to the user. Do not skip unfinished tickets.
+Routing follows the current policy in `AGENTS.md` ("Active workflow and model
+defaults"). Do not skip unfinished tickets.
 This replaces the earlier queue-only authorization. Before each implementation,
 promote its approved behavior into the relevant existing authority sections.
 Use this section as the execution owner; the reference's
@@ -1011,8 +1004,7 @@ unapproved; do not add them to implementation just because prototypes contain th
 These are separate from AU application tickets and the active Luck assignment.
 The named scopes were approved, but execution is stopped after AU10. No worker
 is dispatched by this planning update; a new user resume is required.
-Use the current model policy: fresh Sol 6.1/high orchestrator per ticket, Astra/high
-implementer and a separate Astra/high reviewer. Do not silently change models or
+Use the current routing policy in `AGENTS.md`. Do not silently change models or
 create another visible chat. Reuse established source evidence and keep remediation
 and named rechecks within that ticket’s same worker pair. No broad extraction/review pass.
 
@@ -3356,23 +3348,11 @@ cannot silently revise the baseline or settle an unresolved product decision.
 #### 4.2.1 Lean execution and planner handoff
 
 The current roles, models and routing are owned by
-[AGENTS.md](AGENTS.md#active-workflow-and-model-defaults--2026-10-02): planner defines
-the work; a fresh Sol 6.1/high orchestrator manages each ticket; Astra/high implements
-and checks; a separate fresh Astra/high reviewer reviews the stable correction.
-Historical assignments elsewhere do not override this policy. Each orchestrator
-must deliver completion or a blocker through the verified waking planner callback.
-The planner starts the next authorized ticket only after reconciling completion;
-no additional coordinator layer or silent stop is permitted.
-
-The planner hands off and ends its turn. The orchestrator owns the entire authorized
-implementation/review/remediation sequence and may use `wait_threads` for worker
-tasks or `wait_agent` for collaboration workers. It handles a completed worker's
-next action without waiting for planner permission again. Wake idle workers with
-`followup_task` (collaboration) or `send_message_to_thread` (standalone task); a
-queued `send_message` alone does not resume an idle worker. Report completion,
-genuine blockers or consequential questions to the planner, not every routine
-handoff. No additional verifier or management layer is implied. Separate visible
-tasks require an explicit user request.
+[AGENTS.md](AGENTS.md#active-workflow-and-model-defaults--2026-10-05): the Claude
+planner chat defines the work, writes the brief and reviews each batch independently;
+the Codex planner chat named in the brief dispatches one implementer per batch with
+the model the brief names. No orchestrator, Codex reviewer or verifier is used unless
+a brief assigns one. Historical assignments elsewhere do not override this policy.
 
 This is the reusable coordination procedure. Read it before dispatching work or
 resuming as planner; apply the assigned pass's gates without creating extra stages.
@@ -3390,41 +3370,42 @@ resuming as planner; apply the assigned pass's gates without creating extra stag
    no extra approval round. Name the existing implementation to reuse; do not add
    a preliminary reviewer by default. Report additional discoveries separately
    unless they directly block the agreed fixes.
-3. The orchestrator dispatches the implementer with the approved scope and exact
-   model. The implementer completes a connected change and runs its checks. After
-   one focused lookup, consequential uncertainty goes to the orchestrator with
-   evidence and a recommendation. Continue independent authorized work if useful.
-4. The orchestrator resolves ordinary execution/routing questions; the planner
-   resolves consequential scope/product decisions with the user when necessary.
-   The orchestrator may wait on workers, checks stalls and interrupted work, and
-   wakes the next owner promptly. Repeated reading without progress calls for a
-   narrower next step, not another open-ended continuation.
-5. The orchestrator dispatches one independent reviewer after the diff is stable,
-   routes findings to the same implementer and named rechecks to the same reviewer.
-   It sends the planner the final evidence and acceptance status at the assigned
-   boundary. Honor explicit user review waivers; do not claim skipped checks passed.
-   For Admin popups, applicable review is source-only and visual acceptance is the
-   user's. Stop when the authorized assignment is complete.
-6. Before delivery back to the planner, the orchestrator consolidates the active `CURRENT_STATUS.md` entry with
-   the checkout/branch, assigned pass, completed work/checks and durable repository evidence locations (not only temporary paths),
-   unresolved findings, active worker ownership (if any), acceptance state and exact
-   next permitted action. Link this procedure; do not copy it into the handoff or
-   rely on chat history. Preserve approval authority in `UI_PAGE_MATRIX.md`.
+3. The dispatcher starts the implementer with the approved brief and exact model.
+   The implementer completes a connected change and runs its checks. After one
+   focused lookup, consequential uncertainty goes to the dispatcher with evidence and
+   a recommendation; product and scope questions go on to the planner and the user.
+   Continue independent authorized work if useful.
+4. The dispatcher resolves ordinary execution questions and checks stalls and
+   interrupted work. Repeated reading without progress calls for a narrower next
+   step, not another open-ended continuation.
+5. The implementer commits each item, runs the batch gate on the final commit and
+   stops at the brief's boundary with its report. The planner then reviews the stable
+   batch independently; findings return as a remediation brief to the same
+   implementer, followed by a named recheck. Honor explicit user review waivers; do
+   not claim skipped checks passed. For Admin popups, applicable review is source-only
+   and visual acceptance is the user's.
+6. At the stop boundary the implementer consolidates the active `CURRENT_STATUS.md`
+   entry with the checkout/branch, assigned pass, completed work/checks and durable
+   repository evidence locations (not only temporary paths), unresolved findings,
+   acceptance state and exact next permitted action. Link this procedure; do not
+   copy it into the handoff or rely on chat history. Preserve approval authority in
+   `UI_PAGE_MATRIX.md`.
 
 Use this compact worker brief; include only relevant facts and authority sections:
 
 ```text
 Role and approved model/reasoning:
-Exact originating planner and orchestrator IDs; callback/wake route:
+Planner and dispatcher chat IDs; worker identity if known:
 Checkout / branch:
 Observed problems and expected results (agreed fix list):
 Starting files/helper and established evidence:
 Protected behavior / non-goals / relevant authority sections:
-Required focused checks and completion boundary:
+Required checks, batch gate and stop boundary:
 Escalation: after one focused lookup, send consequential uncertainty to the
-orchestrator with evidence and a recommendation; it involves the planner if needed.
-Continue independent assigned work; name and wake the next owner at handoff.
-Return: changed files, checks/results, unresolved findings and next needed action.
+dispatcher with evidence and a recommendation; product and scope questions go to
+the planner and the user.
+Return: commit SHAs, changed files, checks/results, unresolved findings and next
+permitted action.
 ```
 
 ### 4.3 Verification at affected boundaries

@@ -1,9 +1,11 @@
+@AGENTS.md
+
 # Claude Code instructions
 
-`AGENTS.md` is the shared instruction file for every agent in this repository.
-Read it first (Claude Code normally loads it automatically) and follow its
-project rules: sources of truth, working-tree safety, architecture and data
-protections, bounded execution, scope and stop rules, verification and handoff.
+`AGENTS.md` (imported above) is the shared instruction file for every agent in
+this repository. Follow its project rules: sources of truth, working-tree safety,
+architecture and data protections, bounded execution, scope and stop rules,
+verification and handoff.
 
 This file only translates the parts of `AGENTS.md` that are written for Codex.
 It adds no project policy. If the two ever conflict on a project rule,
@@ -11,16 +13,13 @@ It adds no project policy. If the two ever conflict on a project rule,
 
 ## Codex-specific mechanics that do not apply to Claude
 
-- **Model/reasoning tables** (`gpt-*`, Astra, Sol, Luna, Terra, reasoning levels):
-  ignore them. Use the model the user selected for this session.
-- **Codex tooling** (`functions.exec`, `Promise.allSettled`, `wait_threads`,
-  `wait_agent`, `followup_task`, `send_message_to_thread`, `list_projects`, waking
-  callbacks, Codex task IDs): no direct equivalent. Batch independent read-only
-  tool calls in parallel instead; keep dependent steps sequential.
-- **Planner → orchestrator → worker chains and visible Codex tasks:** do not
-  recreate them. Take only the single role the user assigns in this session
-  (default: whatever the request implies). Heavy read-only work goes to a
-  sub-agent as described below. An independent review means a fresh session or
+- **Model/reasoning names** (`gpt-*`, Astra, Sol, Luna, Terra, reasoning levels):
+  they choose Codex workers. Claude uses the model the user selected for this session,
+  and names Codex models only in the routing section of a brief.
+- **Codex roles and tooling** (dispatcher, implementer, optional orchestrator, Codex
+  chat and task IDs): Claude takes none of these roles and does not dispatch Codex;
+  the user sends each brief. Batch independent read-only tool calls in parallel;
+  keep dependent steps sequential. An independent review means a fresh session or
   an explicitly requested reviewer sub-agent, never a self-check relabelled as
   independent.
 
