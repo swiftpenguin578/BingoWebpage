@@ -278,8 +278,6 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests
             {
                 edit.BoardRequirementBossSnapshots.Add(new BoardRequirementBossSnapshot(Guid.NewGuid(), second.Id, fixture.Boss.Id, fixture.Boss.Name, 10m));
                 edit.BoardRequirementDropSnapshots.Add(new BoardRequirementDropSnapshot(Guid.NewGuid(), second.Id, fixture.Drop.Id, fixture.Item.Id, fixture.Boss.Name, fixture.Item.Name, "1/10", .1m, null, null));
-                // AU11 reuses the persisted tile-local override for a valid calculated tile.
-                edit.Entry(await edit.TileTemplates.SingleAsync(x => x.Id == fixture.Template.Id)).Property(x => x.ManualEhbOverride).CurrentValue = 99m;
             }
             await edit.SaveChangesAsync();
         }
@@ -297,16 +295,16 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests
         await LoginAsync(client, fixture.Admin.LoginName);
         var displayed = await client.GetStringAsync(fixture.Path);
         var live = await LoadBoardAsync(fixture.Event.Id, fixture.Admin.Id);
-        Assert.Equal(manual ? 7m : 99m, live.Tiles.Single().Ehb);
+        Assert.Equal(manual ? 7m : 2m, live.Tiles.Single().Ehb);
         if (!manual)
         {
-            Assert.Equal(99m, live.TileEditors.Single().ManualEhb);
+            Assert.Null(live.TileEditors.Single().ManualEhb);
             Assert.Equal(2m, live.TileEditors.Single().CalculatedEhb);
         }
         var result = await PostApprovalBatchAsync(client, fixture, displayed);
         Assert.Contains("Board approved privately.", result, StringComparison.Ordinal);
         await using var verify = new ApplicationDbContext(options);
-        Assert.Equal(manual ? 7m : 99m, (await verify.BoardApprovalSnapshots.SingleAsync(x => x.BoardId == fixture.Board.Id)).TotalEhbEstimate);
+        Assert.Equal(manual ? 7m : 2m, (await verify.BoardApprovalSnapshots.SingleAsync(x => x.BoardId == fixture.Board.Id)).TotalEhbEstimate);
     }
 
     [Fact]

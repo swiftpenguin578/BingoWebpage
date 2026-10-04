@@ -832,6 +832,12 @@ AU11 implemented in B2 using the existing tile-local persisted field; evidence:
 `docs/references/admin-ui/reviews/2026-10-04/au-b2/au11.md`.
 New editor controls and manual visual acceptance remain deferred; Claude independent review pending.
 
+AU11 remediation D1 adds `20261004093705_ClearLegacyDropTileEhbOverrides`:
+re-run and record the DropRequirements/non-null override count immediately before
+deployment. Up clears all matching template values and reports the count; Down is
+non-restorable. Frozen scoring snapshots are untouched. See the production runbook
+and `au-b2/remediation/03-a2.md` for controlled populated-database evidence.
+
 ### AU12 — EHB before current-score completion time
 
 Approved placement direction: full-board finishers still lead and earlier full-

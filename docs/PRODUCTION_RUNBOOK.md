@@ -230,6 +230,14 @@ access. Migration, conversion, Down/Up and rehearsal checks run on isolated
 restored copies only under an approved procedure; production deployment has its
 own authorization. The 3 October entries are operator-reported, not agent-verified.
 Record candidate/image identity, exact migration history, timestamp and outcomes.
+Before deploying `20261004093705_ClearLegacyDropTileEhbOverrides`, the authorized
+operator must re-run and record this count immediately before migration:
+`SELECT count(*) FROM tile_templates WHERE objective_type = 'DropRequirements' AND manual_ehb_override IS NOT NULL;`
+The migration emits its actual cleared count. D1 authorizes clearing all such rows;
+the user's earlier report (4 October) was 1 row at 25.0000, not a current preflight.
+Approval/publication, board-tile EHB and official-result snapshots are untouched.
+Down cannot restore forgotten override values; recovery requires the authorized
+pre-deploy backup procedure, not guessing values. See B2 remediation decisions D1.
 **H4-2 procedure and coverage limits were approved by the user on 4 October 2026 after Claude’s review, as recorded in the planner decisions; attribution corrected by the quoted Step 0 user assignment.**
 See [the quoted assignment and provenance](references/admin-ui/reviews/2026-10-04/au-step0/approval-record.md).
 The [accepted isolated procedure](#r-3-isolated-rehearsal-procedure--approved-4-october-2026)
