@@ -36,11 +36,15 @@ public sealed class CataloguePopulationMigrationIntegrationTests : IAsyncLifetim
         .WithPassword("bingo_test_password")
         .Build();
     private DbContextOptions<ApplicationDbContext> options = null!;
+    private DbContextOptions<HistoricalApplicationDbContext> historicalOptions = null!;
 
     public async Task InitializeAsync()
     {
         await database.StartAsync();
         options = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseNpgsql(database.GetConnectionString())
+            .Options;
+        historicalOptions = new DbContextOptionsBuilder<HistoricalApplicationDbContext>()
             .UseNpgsql(database.GetConnectionString())
             .Options;
     }
@@ -198,6 +202,7 @@ public sealed class CataloguePopulationMigrationIntegrationTests : IAsyncLifetim
 
         await using (var migrate = new ApplicationDbContext(options))
             await migrate.GetService<IMigrator>().MigrateAsync();
+        await PublishPreLiveBoardAsync(fixture);
         await PublishPreLiveRosterAsync(fixture);
 
         Guid apiItemId;
@@ -287,6 +292,13 @@ public sealed class CataloguePopulationMigrationIntegrationTests : IAsyncLifetim
         await db.SaveChangesAsync();
     }
 
+    private async Task PublishPreLiveBoardAsync(RetainedFixture fixture)
+    {
+        await using var db = new ApplicationDbContext(options);
+        var board = await db.Boards.SingleAsync(value => value.EventId == fixture.PreLiveEventId);
+        await BoardApprovalFixture.PublishAsync(db, board, new DateTimeOffset(2026, 9, 18, 8, 0, 0, TimeSpan.Zero));
+    }
+
     [Fact]
     public async Task RetainedMigrationFailsAtomicallyWhenExactIdentityIsMissingAndCanRetryAfterRepair()
     {
@@ -362,18 +374,28 @@ public sealed class CataloguePopulationMigrationIntegrationTests : IAsyncLifetim
     public async Task CleanBootstrapMigrationDefersToTheReviewedFullSnapshotImporter()
     {
         var snapshotPath = Path.Combine(AppContext.BaseDirectory, "data", "osrs-catalogue.json");
+        await using (var migrateToPrevious = new ApplicationDbContext(options))
+            await migrateToPrevious.GetService<IMigrator>().MigrateAsync(PreviousMigration);
+
+        await using (var historical = new HistoricalApplicationDbContext(historicalOptions))
+        {
+            Assert.True(await historical.CatalogueItems.CountAsync() < 311);
+            Assert.True(await historical.BossActivities.CountAsync() < 68);
+            Assert.Empty(await historical.Accounts.ToListAsync());
+            Assert.Empty(await historical.Events.ToListAsync());
+        }
+
         await using (var migrate = new ApplicationDbContext(options))
         {
-            await migrate.GetService<IMigrator>().MigrateAsync(PreviousMigration);
-            Assert.True(await migrate.CatalogueItems.CountAsync() < 311);
-            Assert.True(await migrate.BossActivities.CountAsync() < 68);
-            Assert.Empty(await migrate.Accounts.ToListAsync());
-            Assert.Empty(await migrate.Events.ToListAsync());
             await migrate.GetService<IMigrator>().MigrateAsync();
             Assert.True(await HasAppliedMigrationAsync(migrate, Migration));
-            Assert.True(await migrate.CatalogueItems.CountAsync() < 311);
-            Assert.True(await migrate.BossActivities.CountAsync() < 68);
-            Assert.Empty(await migrate.AuditEntries.Where(x => x.ActorUsername == MigrationActor).ToListAsync());
+        }
+
+        await using (var verifyMigration = new ApplicationDbContext(options))
+        {
+            Assert.True(await verifyMigration.CatalogueItems.CountAsync() < 311);
+            Assert.True(await verifyMigration.BossActivities.CountAsync() < 68);
+            Assert.Empty(await verifyMigration.AuditEntries.Where(x => x.ActorUsername == MigrationActor).ToListAsync());
         }
 
         await using (var apply = new ApplicationDbContext(options))
@@ -394,8 +416,10 @@ public sealed class CataloguePopulationMigrationIntegrationTests : IAsyncLifetim
         bool includeProtectedHistory,
         bool includePreLiveStartFixture = false)
     {
-        await using var migrate = new ApplicationDbContext(options);
-        await migrate.GetService<IMigrator>().MigrateAsync(PreviousMigration);
+        await using (var migrateToPrevious = new ApplicationDbContext(options))
+            await migrateToPrevious.GetService<IMigrator>().MigrateAsync(PreviousMigration);
+
+        await using var migrate = new HistoricalApplicationDbContext(historicalOptions);
         var now = new DateTimeOffset(2026, 9, 16, 9, 0, 0, TimeSpan.Zero);
         var items = await migrate.CatalogueItems.ToListAsync();
         var bosses = await migrate.BossActivities.ToListAsync();
@@ -510,7 +534,6 @@ public sealed class CataloguePopulationMigrationIntegrationTests : IAsyncLifetim
             preLiveEvent.SetDraftRosterPublication(true);
             migrate.AddRange(preLiveAccount, preLiveEvent, form, primaryQuestion, captainQuestion,
                 preLiveParticipant, character, assignment, team, membership, board, draft);
-            await BoardApprovalFixture.PublishAsync(migrate, board, now);
         }
 
         if (includeProtectedHistory)
@@ -600,11 +623,11 @@ public sealed class CataloguePopulationMigrationIntegrationTests : IAsyncLifetim
         Assert.Equal("zalcano", snapshot.Bosses.Single(x => x.Name == "Zalcano").ExternalIdentifier);
     }
 
-    private static async Task<bool> HasAppliedMigrationAsync(ApplicationDbContext db, string migration)
+    private static async Task<bool> HasAppliedMigrationAsync(DbContext db, string migration)
         => await db.Database.SqlQuery<bool>($"SELECT EXISTS (SELECT 1 FROM \"__EFMigrationsHistory\" WHERE \"MigrationId\" = {migration}) AS \"Value\"").SingleAsync();
 
-    private static async Task<string> SourceDropFingerprintAsync(ApplicationDbContext db)
-        => JsonSerializer.Serialize(await db.SourceDrops.AsNoTracking().OrderBy(x => x.Id).Select(x => new
+    private static async Task<string> SourceDropFingerprintAsync(DbContext db)
+        => JsonSerializer.Serialize(await db.Set<SourceDrop>().AsNoTracking().OrderBy(x => x.Id).Select(x => new
         {
             x.Id,
             x.BossActivityId,
