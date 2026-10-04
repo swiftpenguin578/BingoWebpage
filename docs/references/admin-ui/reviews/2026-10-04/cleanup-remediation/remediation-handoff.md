@@ -82,7 +82,7 @@ no text line; its conventional :1 locator is labelled empty rather than invented
 | H3-5 | `DELIVERY_PLAN.md:387` | OS-4 dead ConfigureSchedule capacity rule recorded as observation in OS-1. |
 | H3-6 | `UI_PAGE_MATRIX.md:76` | C33 freshness/reinspection/error states still awaiting manual acceptance. |
 | H4-1 | `docs/PRODUCTION_RUNBOOK.md:278`; `DELIVERY_PLAN.md:2735` | NOT EXISTS on unsuperseded publication + Finalized draft + roster rows; previous operator zero must be rechecked. |
-| H4-2 | `docs/references/admin-ui/reviews/2026-10-04/cleanup-remediation/r3-isolation-proposal.md:1`; `docs/PRODUCTION_RUNBOOK.md:342`; `DELIVERY_PLAN.md:2738` | PROCEDURE APPROVED 4 October 2026: accepted approach/coverage adopted in runbook and gate; tooling not built/tested, R3 unexecuted, independent recheck pending. |
+| H4-2 | `docs/references/admin-ui/reviews/2026-10-04/cleanup-remediation/r3-isolation-proposal.md:1`; `docs/PRODUCTION_RUNBOOK.md:342`; `DELIVERY_PLAN.md:2738` | PROCEDURE APPROVED by the user on 4 October 2026 after Claude’s review, as recorded in the supplied planner decisions. Claude’s [cleanup recheck](../au-step0/cleanup-recheck.md) is complete; tooling is not built/tested and R3 is unexecuted. |
 | H4-3 | `docs/PRODUCTION_RUNBOOK.md:316`; `DELIVERY_PLAN.md:2737` | Pre/post eligible backfill set/count, clone-only Down/re-Up and no production downgrade; unexecuted. |
 | H4-4 | `docs/PRODUCTION_RUNBOOK.md:267`; `DELIVERY_PLAN.md:2734` | All-row count replaces undefined global cycle timestamp; prior zero not promoted to new-query proof. |
 | H4-5 | `docs/PRODUCTION_RUNBOOK.md:239`; `DELIVERY_PLAN.md:2732` | Verification only; historical deletion sequence explicitly one-time, no repeat/provider operation. |
@@ -105,8 +105,8 @@ no text line; its conventional :1 locator is labelled empty rather than invented
   logs preserve 0-warning/error build and 1/1 proof; no new test execution claimed.
 - H3 targeted source comparison: ranking matches PublicProgressCalculator; cohort
   matches AdminDashboardIntegrationTests (unique 1, first-time 1+1). Restart check
-  exposed the wording error; the user-approved follow-up now matches Start/Scramble
-  source. This is source comparison, not new behavior-test execution.
+  exposed the wording error; follow-up `6b8331d` (not user-approved) now matches
+  Start/Scramble source. This is source comparison, not new behavior-test execution.
 - H4 runbook/gate query normalized-text parity and model predicate/column comparison:
   passed. No SQL executed, no migration/Down/rehearsal run and no production counts
   independently verified. Queries require later authorized operator execution.
@@ -143,8 +143,10 @@ and admin-ui README/FUNCTIONALITY_CHANGES.
 
 ## H4-2 documentation-adoption checks
 
-The earlier claim of user authorization at the time of this five-file follow-up
-is superseded by the post-review decision in [Step 0 provenance](../au-step0/approval-record.md). The commit after `1c16356` touched: PRODUCTION_RUNBOOK.md, DELIVERY_PLAN.md, the existing proposal/approval
+The five-file commit `5cf9081` was not user-authorized when made and was never
+approved after the fact. The user approved only the procedure content and coverage
+limits on 4 October after Claude’s review, as recorded in
+[Step 0 provenance](../au-step0/approval-record.md). The commit touched: PRODUCTION_RUNBOOK.md, DELIVERY_PLAN.md, the existing proposal/approval
 record, CURRENT_STATUS.md and this handoff. Exact staged scope, diff whitespace,
 changed links/anchors and approval/execution wording were checked. The accepted
 procedure retains all original isolation stages and R-1/final-candidate gates;
@@ -153,9 +155,11 @@ The terminal callback supplies this follow-up's exact commit SHA and tree status
 
 ## Next permitted action
 
-Claude independently rechecks the named remediation commits including this H4-2
-adoption. The procedure and coverage limits are user-approved; harness/tooling
-validation and R3 execution remain pending and release-blocking. No additional
+Claude’s [cleanup recheck](../au-step0/cleanup-recheck.md) of the named remediation
+commits, including H4-2, is complete. The user approved the procedure and coverage
+limits on 4 October after that review; this did not approve commit `5cf9081` after
+the fact. Harness/tooling validation and R3 execution remain pending and
+release-blocking. No additional
 procedure-approval request is needed for the unchanged accepted approach. A later
 explicit assignment is required to implement tooling, transfer/access backups or
 execute the final-candidate rehearsal. Deployment remains separately authorized.

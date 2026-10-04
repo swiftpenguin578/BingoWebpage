@@ -370,8 +370,11 @@ Local fixtures/health cannot be reported as real-provider or public-TLS verifica
 These limits were accepted, not waived by an implementer. Any later scope expansion
 or application/worker switch requires its own approval.
 
-**Execution state:** procedure approved; harness/configuration/fixtures are not
-built or tested, R3 is unexecuted, and Claude's independent recheck is pending.
+**Execution state:** the user approved the procedure and coverage limits on
+4 October 2026 after Claude’s review, as recorded in the supplied planner decisions.
+Claude’s [cleanup recheck](references/admin-ui/reviews/2026-10-04/au-step0/cleanup-recheck.md)
+is complete. This did not approve commit `5cf9081` after the fact.
+Harness/configuration/fixtures are not built or tested and R3 is unexecuted.
 Approval permits documenting this procedure only. Harness implementation, obtaining
 or transferring a backup, production access, execution and deployment each require
 a later explicit assignment. Do not execute this section under cleanup authority.
