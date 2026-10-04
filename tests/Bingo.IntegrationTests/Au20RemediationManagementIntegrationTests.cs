@@ -124,6 +124,29 @@ public sealed partial class EventCompetitionManagementIntegrationTests
         Assert.Contains(await PublishedCharacterNameAsync(f.EventId), (await db.EventCompetitionManagements.SingleAsync()).LastAcknowledgedRosterJson, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Au20RemediationDeletedExternalCompetitionConflictCanBeReplacedOrDisconnected(bool live)
+    {
+        var clock = new TestClock(new DateTimeOffset(2026, 10, 4, 12, 0, 0, TimeSpan.Zero));
+        var (f, remote) = await Au20ExternalAsync(clock, live, false);
+        var writes = new RecordingManagementClient();
+        await using (var failed = CreateDb())
+        {
+            await CreateService(failed, writes, new RecordingCompetitionClient(_ => new(WiseOldManCompetitionStatus.NotFound)), clock).QueueUpdateAsync(f.EventId);
+            Assert.Equal(EventCompetitionManagementStatus.Conflict, (await failed.EventCompetitionManagements.SingleAsync()).Status);
+            Assert.Equal(EventCompetitionManagementOperationPhase.Failed, (await failed.EventCompetitionManagementOperations.OrderByDescending(x => x.CreatedAt).FirstAsync(x => x.SafeErrorCode == "SourceMissing")).Phase);
+        }
+        await using var db = CreateDb();
+        var provider = new RecordingCompetitionClient(_ => new(WiseOldManCompetitionStatus.Success, remote with { Id = 9990 }));
+        var result = await new EventCompetitionSynchronizationService(db, provider, new FixedStatus(), clock).ConfigureAsync(f.EventId, f.EventVersion, live ? 9990 : null, f.Actor);
+        Assert.True(result.Succeeded, result.Error);
+        Assert.Empty((await db.EventCompetitionManagements.SingleAsync()).ProtectedVerificationCode);
+        Assert.Equal(live ? 9990 : (long?)null, (await db.EventCompetitionSynchronizations.SingleAsync()).CompetitionId);
+        Assert.Equal(0, writes.DeleteCalls);
+    }
+
     private static HttpResponseMessage Au20HttpReceipt(WiseOldManCompetition remote) => new(HttpStatusCode.OK)
     {
         Content = new StringContent(JsonSerializer.Serialize(new { id = remote.Id, title = remote.Title, startsAt = remote.StartsAt, endsAt = remote.EndsAt }))

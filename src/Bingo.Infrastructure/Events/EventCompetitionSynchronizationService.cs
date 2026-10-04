@@ -80,7 +80,7 @@ public sealed partial class EventCompetitionSynchronizationService(
         _ = confirmScheduleChanges;
         await RequireAdminAsync(actor, cancellationToken);
         if (await HasProtectedConnectionAsync(eventId, cancellationToken))
-            return new(false, "This event has a managed WOM competition. Use managed competition controls for its title, schedule, roster, and deletion.");
+            return new(false, "This connection is not an external link. Use its existing management controls.");
         if (await HasUnresolvedManagementOperationAsync(eventId, cancellationToken))
             return new(false, "Wait for the current WOM operation to finish or be resolved before changing its link.");
         var previousCompetitionId = await db.EventCompetitionSynchronizations.AsNoTracking()
@@ -108,7 +108,7 @@ public sealed partial class EventCompetitionSynchronizationService(
                 .SingleOrDefaultAsync(cancellationToken);
             if (item is null) return new(false, "The event was not found.");
             if (await HasProtectedConnectionAsync(eventId, cancellationToken))
-                return new(false, "This event has a managed WOM competition. Use managed competition controls for its title, schedule, roster, and deletion.");
+                return new(false, "This connection is not an external link. Use its existing management controls.");
             await db.Entry(item).ReloadAsync(cancellationToken);
             if (await HasUnresolvedManagementOperationAsync(eventId, cancellationToken))
                 return new(false, "Wait for the current WOM operation to finish or be resolved before changing its link.");
@@ -167,8 +167,7 @@ public sealed partial class EventCompetitionSynchronizationService(
 
     private Task<bool> HasProtectedConnectionAsync(Guid eventId, CancellationToken cancellationToken) =>
         db.EventCompetitionManagements.AsNoTracking().AnyAsync(x => x.EventId == eventId &&
-            x.Status != EventCompetitionManagementStatus.Deleted && (x.Provenance != EventCompetitionProvenance.External ||
-                x.Status == EventCompetitionManagementStatus.Unknown || x.Status == EventCompetitionManagementStatus.Conflict), cancellationToken);
+            x.Status != EventCompetitionManagementStatus.Deleted && x.Provenance != EventCompetitionProvenance.External, cancellationToken);
 
     private Task<bool> HasUnresolvedManagementOperationAsync(Guid eventId, CancellationToken cancellationToken) =>
         db.EventCompetitionManagementOperations.AsNoTracking().AnyAsync(x => x.EventId == eventId &&
