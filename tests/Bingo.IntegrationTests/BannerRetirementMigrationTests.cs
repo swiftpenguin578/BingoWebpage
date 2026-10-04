@@ -85,8 +85,7 @@ public sealed class BannerRetirementMigrationTests : IAsyncLifetime
             await before.Database.GetService<IMigrator>().MigrateAsync(BeforeRetirement);
             var actor = Account.CreateWebsite(actorId, "manual-banner-fixture", "MANUAL-BANNER-FIXTURE", now);
             var item = new BingoEvent(eventId, "Manual banner fixture", "manual-banner-fixture", "UTC", actorId, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
-            before.AddRange(actor, item);
-            await before.SaveChangesAsync();
+            await InsertPreRetirementEventAsync(before, actor, item, now);
 
             await using var fixtureTransaction = await before.Database.BeginTransactionAsync();
             await before.Database.ExecuteSqlInterpolatedAsync($"""
@@ -153,7 +152,7 @@ public sealed class BannerRetirementMigrationTests : IAsyncLifetime
             await before.Database.GetService<IMigrator>().MigrateAsync(BeforeRetirement);
             var actor = Account.CreateWebsite(actorId, "banner-fixture", "BANNER-FIXTURE", now);
             var item = new BingoEvent(eventId, "Banner fixture", "banner-fixture", "UTC", actorId, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
-            before.AddRange(actor, item);
+            await InsertPreRetirementEventAsync(before, actor, item, now);
             before.CatalogueItems.Add(new CatalogueItem(Guid.NewGuid(), "Shared catalogue object", "shared-catalogue-object"));
             await before.SaveChangesAsync();
             await before.Database.ExecuteSqlInterpolatedAsync($"UPDATE catalogue_items SET image_url = {sharedKey} WHERE normalized_name = {"shared-catalogue-object"};");
@@ -275,6 +274,20 @@ public sealed class BannerRetirementMigrationTests : IAsyncLifetime
             Assert.Equal(1, await final.Database.SqlQuery<long>($"SELECT COUNT(*)::bigint AS \"Value\" FROM catalogue_items WHERE image_url = {sharedKey}").SingleAsync());
         }
     }
+
+    private static Task<int> InsertPreRetirementEventAsync(ApplicationDbContext db, Account actor, BingoEvent item, DateTimeOffset now)
+        // Explicit predecessor columns: the current EF event model also contains AU12 placement_rule.
+        => db.Database.ExecuteSqlInterpolatedAsync($"""
+            INSERT INTO accounts (id, password_hash, must_change_password, account_type, active, authorization_version,
+                login_name, normalized_login_name, global_role, public_username, normalized_public_username, password_version, version, created_at)
+            VALUES ({actor.Id}, {"fixture-hash"}, FALSE, {"WebsiteAccount"}, TRUE, 1, {actor.LoginName}, {actor.NormalizedLoginName},
+                {"User"}, {actor.LoginName}, {actor.NormalizedLoginName}, 1, 1, {now});
+            INSERT INTO events (id, name, slug, description, timezone, state, participant_cap, waiting_list_enabled,
+                require_signup_code, participant_list_published, draft_results_published, team_rosters_published,
+                board_published, results_published, draft_locked, created_by_account_id, created_at, version)
+            VALUES ({item.Id}, {item.Name}, {item.Slug}, {""}, {item.Timezone}, {"Draft"}, NULL, TRUE, FALSE,
+                FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, {actor.Id}, {now}, 1);
+            """);
 
     private static async Task<bool> RelationExistsAsync(ApplicationDbContext db, string table) =>
         await db.Database.SqlQuery<bool>($"SELECT to_regclass({"public." + table}) IS NOT NULL AS \"Value\"").SingleAsync();

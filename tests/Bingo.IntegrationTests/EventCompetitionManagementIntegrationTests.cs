@@ -479,6 +479,7 @@ public sealed partial class EventCompetitionManagementIntegrationTests : IAsyncL
         var clock = new TestClock(NonMicrosecondFixtureNow);
         var fixture = await SeedEventAsync(clock, live: true, competitionId: 4101);
         var remote = fixture.RemoteCompetition!;
+        var beforeWrite = await SeedUnappliedManagedWriteAsync(fixture, clock);
         var managementClient = new RecordingManagementClient();
         var oldPayload = new WiseOldManCompetitionWritePayload(
             "Old queued title",
@@ -500,12 +501,12 @@ public sealed partial class EventCompetitionManagementIntegrationTests : IAsyncL
 
         await using (var first = CreateDb())
         {
-            await CreateService(first, managementClient, new RecordingCompetitionClient(_ => new(WiseOldManCompetitionStatus.Success, remote)), clock)
+            await CreateService(first, managementClient, new RecordingCompetitionClient(_ => new(WiseOldManCompetitionStatus.Success, beforeWrite)), clock)
                 .ProcessDueAsync();
         }
         await using (var second = CreateDb())
         {
-            await CreateService(second, managementClient, new RecordingCompetitionClient(_ => new(WiseOldManCompetitionStatus.Success, remote)), clock)
+            await CreateService(second, managementClient, new RecordingCompetitionClient(_ => new(WiseOldManCompetitionStatus.Success, beforeWrite)), clock)
                 .ProcessDueAsync();
         }
 
@@ -585,9 +586,9 @@ public sealed partial class EventCompetitionManagementIntegrationTests : IAsyncL
         var managed = await SeedEventAsync(clock, live: true, competitionId: 4201);
         var manual = await SeedEventAsync(clock, live: false, startsOverride: managed.RemoteCompetition!.StartsAt, endsOverride: managed.RemoteCompetition.EndsAt);
         var remote = managed.RemoteCompetition!;
-        var providerCurrent = remote;
+        var providerCurrent = await SeedUnappliedManagedWriteAsync(managed, clock);
         var managementClient = new RecordingManagementClient();
-        var managedCompetitionClient = new RecordingCompetitionClient(_ => new(WiseOldManCompetitionStatus.Success, remote));
+        var managedCompetitionClient = new RecordingCompetitionClient(_ => new(WiseOldManCompetitionStatus.Success, providerCurrent));
         var manualProviderRead = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var manualCompetitionClient = new RecordingCompetitionClient(_ =>
         {
@@ -643,6 +644,7 @@ public sealed partial class EventCompetitionManagementIntegrationTests : IAsyncL
         var clock = new TestClock(NonMicrosecondFixtureNow);
         var fixture = await SeedEventAsync(clock, live: true, competitionId: 4301);
         var remote = fixture.RemoteCompetition!;
+        var beforeWrite = await SeedUnappliedManagedWriteAsync(fixture, clock);
         var interceptor = new ThrowOnceAfterArmingInterceptor();
         var managementClient = new RecordingManagementClient();
         managementClient.UpdateHandler = (_, payload, _, _) =>
@@ -671,7 +673,7 @@ public sealed partial class EventCompetitionManagementIntegrationTests : IAsyncL
         }
 
         await using (var db = CreateDb(interceptor))
-            await CreateService(db, managementClient, new RecordingCompetitionClient(_ => new(WiseOldManCompetitionStatus.Success, remote)), clock)
+            await CreateService(db, managementClient, new RecordingCompetitionClient(_ => new(WiseOldManCompetitionStatus.Success, beforeWrite)), clock)
                 .ProcessDueAsync();
 
         await using var verify = CreateDb();
@@ -1150,6 +1152,19 @@ public sealed partial class EventCompetitionManagementIntegrationTests : IAsyncL
         }
 
         return new(eventItem.Id, eventItem.Version, new(admin.Id, admin.LoginName), management?.Id, remote);
+    }
+
+    private async Task<WiseOldManCompetition> SeedUnappliedManagedWriteAsync(Fixture fixture, TestClock clock)
+    {
+        // Retain a known previous provider configuration while the website has
+        // the desired title. Already-matching provider state correctly avoids a write.
+        var previous = fixture.RemoteCompetition! with { Title = "Previous managed event" };
+        await using var db = CreateDb();
+        var management = await db.EventCompetitionManagements.SingleAsync(x => x.Id == fixture.ManagementId);
+        management.MarkApplied(Guid.NewGuid(), "previous-local-fingerprint", RemoteFingerprint(previous), "[]",
+            previous.Title, previous.StartsAt, previous.EndsAt, clock.GetUtcNow());
+        await db.SaveChangesAsync();
+        return previous;
     }
 
     private async Task<string> PublishedCharacterNameAsync(Guid eventId)

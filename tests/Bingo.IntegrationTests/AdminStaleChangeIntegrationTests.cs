@@ -52,6 +52,7 @@ public sealed class AdminStaleChangeIntegrationTests : IAsyncLifetime
         var stale = await DropForm(firstClient, first);
         var current = await DropForm(secondClient, second);
         Assert.Equal("1", stale["expectedItemVersion"]);
+        current["sharedItemConfirmationActivityIds"] = first.BossActivityId.ToString();
         current["itemName"] = "Shared renamed item";
         current["imageUrl"] = "https://oldschool.runescape.wiki/images/Abyssal_whip.png";
         using (var response = await PostDrop(secondClient, second, current)) Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
@@ -99,12 +100,12 @@ public sealed class AdminStaleChangeIntegrationTests : IAsyncLifetime
     [Fact]
     public async Task SharedItemAndDropRollBackWhenAuditPersistenceFails()
     {
-        var (admin, first, _, item) = await SeedCatalogue();
+        var (admin, first, second, item) = await SeedCatalogue();
         var before = await CatalogueState();
         var failing = new DbContextOptionsBuilder<ApplicationDbContext>(options).AddInterceptors(new ThrowOnAuditInsert()).Options;
         await using var db = new ApplicationDbContext(failing);
         var page = CataloguePage(db, admin);
-        await Assert.ThrowsAsync<InvalidOperationException>(() => UpdateDrop(page, first, item.Version, "Changed item"));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => UpdateDrop(page, first, item.Version, "Changed item", [second.BossActivityId]));
         Assert.Equal(before, await CatalogueState());
     }
 
@@ -401,7 +402,7 @@ public sealed class AdminStaleChangeIntegrationTests : IAsyncLifetime
         var context = new DefaultHttpContext { User = new ClaimsPrincipal(new ClaimsIdentity(new[] { new Claim(ClaimTypes.NameIdentifier, admin.Id.ToString()), new Claim(ClaimTypes.Name, admin.LoginName), new Claim(ClaimTypes.Role, "Admin") }, "test")) };
         return new CatalogueModel(db, TimeProvider.System) { PageContext = new PageContext { HttpContext = context }, TempData = new TempDataDictionary(context, new EmptyTempDataProvider()) };
     }
-    private static Task<IActionResult> UpdateDrop(CatalogueModel page, SourceDrop drop, long itemVersion, string name) => page.OnPostUpdateDropAsync(drop.Id, drop.Version, itemVersion, name, "1/50", "1/100", .01m, .01m, DropProbabilityScope.Participant, false, null, 1, 1, "default", null, null, false, CancellationToken.None);
+    private static Task<IActionResult> UpdateDrop(CatalogueModel page, SourceDrop drop, long itemVersion, string name, Guid[]? confirmedActivities = null) => page.OnPostUpdateDropAsync(drop.Id, drop.Version, itemVersion, name, "1/50", "1/100", .01m, .01m, DropProbabilityScope.Participant, false, null, 1, 1, "default", null, null, false, CancellationToken.None, confirmedActivities);
     private sealed class EmptyTempDataProvider : ITempDataProvider
     {
         public IDictionary<string, object> LoadTempData(HttpContext context) => new Dictionary<string, object>();

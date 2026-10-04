@@ -182,6 +182,8 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests
         var f = await FullStatsFixtureAsync(target: 1);
         await ApproveStatsAsync(f, await PendingStatsAsync(f, 0, 0, 10));
         await SyncStatsAsync(f, 100);
+        // End at the configured provider window: an early unmatched end deliberately skips this fetch.
+        f.Clock.Advance(f.Event.EventEndsAt!.Value - f.Clock.GetUtcNow());
         await using (var end = new ApplicationDbContext(options))
         {
             var ev = await end.Events.SingleAsync();

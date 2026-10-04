@@ -355,6 +355,7 @@ public sealed partial class Slice1IdentityIntegrationTests
         {
             PageContext = new PageContext(new ActionContext(new DefaultHttpContext(), new RouteData(), new PageActionDescriptor()))
         };
+        page.TempData = new Microsoft.AspNetCore.Mvc.ViewFeatures.TempDataDictionary(page.HttpContext, new DictionaryTempDataProvider());
         Assert.IsType<PageResult>(await page.OnGetAsync(target.Id, CancellationToken.None));
         var disabledHistory = Assert.Single(page.AccountView!.DisableHistory, entry => entry.State == "Disabled");
         Assert.Equal(reason, disabledHistory.Reason);

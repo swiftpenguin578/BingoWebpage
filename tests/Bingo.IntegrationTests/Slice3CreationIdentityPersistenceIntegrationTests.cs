@@ -821,6 +821,9 @@ public sealed class Slice3CreationIdentityPersistenceIntegrationTests : IAsyncLi
         var signupOpens = now.AddDays(-2);
         await using (var db = new ApplicationDbContext(options))
         {
+            var admin = Account.CreateWebsite(actor, "schedule-preview-admin", "SCHEDULE-PREVIEW-ADMIN", now);
+            admin.SetGlobalRole(GlobalRole.Admin);
+            db.Accounts.Add(admin);
             var item = await db.Events.SingleAsync(x => x.Id == eventId);
             item.UpdateIdentity(item.Name, item.Slug, "Public description", item.Timezone);
             item.ConfigureSchedule(signupOpens, now.AddDays(-1), null, now.AddDays(1), now.AddDays(3), 20);

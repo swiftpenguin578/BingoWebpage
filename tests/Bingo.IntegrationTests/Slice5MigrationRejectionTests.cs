@@ -43,7 +43,7 @@ public sealed class Slice5MigrationRejectionTests : IAsyncLifetime
     {
         await using var retained = new ApplicationDbContext(options);
         await retained.GetService<IMigrator>().MigrateAsync(Slice5FoundationMigration);
-        var now = DateTimeOffset.UtcNow.AddDays(-1); var account = Account.CreateWebsite(Guid.NewGuid(), "publication-admin", "Publication admin", now); var ev = new BingoEvent(Guid.NewGuid(), "Retained publication", "retained-publication", "UTC", account.Id, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
+        var now = new DateTimeOffset(2026, 7, 29, 12, 0, 0, TimeSpan.Zero); var account = Account.CreateWebsite(Guid.NewGuid(), "publication-admin", "Publication admin", now); var ev = new BingoEvent(Guid.NewGuid(), "Retained publication", "retained-publication", "UTC", account.Id, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         var team = new Team(Guid.NewGuid(), ev.Id, "Retained team", "retained-team", TeamFormationType.Preformed, null, false, now);
         var draft = new DraftSession(Guid.NewGuid(), ev.Id, 1); draft.Start(now); draft.Finalize(now);
         var participant = new EventParticipant(Guid.NewGuid(), ev.Id, SignupStatus.Confirmed, 1, now, SignupSource.AdminCreated);
@@ -53,7 +53,14 @@ public sealed class Slice5MigrationRejectionTests : IAsyncLifetime
         var cycle = new DraftPublicationCycle(Guid.NewGuid(), draft.Id, 1, now.AddMinutes(1), account.Id);
         await InsertLegacyAccountAsync(retained, account, now);
         await retained.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO events (id, name, slug, description, timezone, state, signup_opens_at, signup_closes_at, event_starts_at, event_ends_at, submission_cutoff_at, participant_cap, waiting_list_enabled, require_signup_code, participant_list_published, draft_results_published, team_rosters_published, board_published, results_published, draft_locked, created_by_account_id, created_at) VALUES ({ev.Id}, {ev.Name}, {ev.Slug}, {""}, {ev.Timezone}, {"Draft"}, {now}, {now}, {now}, {now.AddDays(1)}, {now.AddDays(1)}, {20}, {false}, {false}, {false}, {false}, {false}, {false}, {false}, {false}, {account.Id}, {now})");
-        retained.AddRange(team, draft, participant, character, assignment, membership); await retained.SaveChangesAsync();
+        await InsertFoundationRosterAsync(retained, team, draft, participant, membership, now);
+        await retained.Database.ExecuteSqlInterpolatedAsync($"""
+            INSERT INTO osrs_characters ("Id", "DisplayName", "NormalizedName", "CreatedAt", "UpdatedAt")
+            VALUES ({character.Id}, {character.DisplayName}, {character.NormalizedName}, {now}, {now});
+            INSERT INTO event_participant_characters (id, event_id, event_participant_id, osrs_character_id,
+                registration_order, registered_at, registered_by_account_id, event_role, ehb_snapshot, ehb_source, version)
+            VALUES ({assignment.Id}, {ev.Id}, {participant.Id}, {character.Id}, 0, {now}, {account.Id}, {"Playing"}, 1, {"AdminCorrection"}, 1);
+            """);
         await InsertLegacyPublicationCycleAsync(retained, cycle);
         await retained.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO draft_publication_rosters (id, draft_publication_cycle_id, team_id, event_participant_id, role, effective_pick_number) VALUES ({Guid.NewGuid()}, {cycle.Id}, {team.Id}, {participant.Id}, {"Participant"}, {null})");
 
@@ -67,17 +74,32 @@ public sealed class Slice5MigrationRejectionTests : IAsyncLifetime
     {
         await using var retained = new ApplicationDbContext(options);
         await retained.GetService<IMigrator>().MigrateAsync(Slice5FoundationMigration);
-        var now = DateTimeOffset.UtcNow.AddDays(-1); var account = Account.CreateWebsite(Guid.NewGuid(), "missing-admin", "Missing admin", now); var ev = new BingoEvent(Guid.NewGuid(), "Missing publication", "missing-publication", "UTC", account.Id, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
+        var now = new DateTimeOffset(2026, 7, 29, 12, 0, 0, TimeSpan.Zero); var account = Account.CreateWebsite(Guid.NewGuid(), "missing-admin", "Missing admin", now); var ev = new BingoEvent(Guid.NewGuid(), "Missing publication", "missing-publication", "UTC", account.Id, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         var team = new Team(Guid.NewGuid(), ev.Id, "Missing team", "missing-team", TeamFormationType.Preformed, null, false, now); var draft = new DraftSession(Guid.NewGuid(), ev.Id, 1); draft.Start(now); draft.Finalize(now); var participant = new EventParticipant(Guid.NewGuid(), ev.Id, SignupStatus.Confirmed, 1, now, SignupSource.AdminCreated); var membership = new TeamMembership(Guid.NewGuid(), team.Id, participant.Id, TeamMembershipRole.Participant, now, null, "missing"); var cycle = new DraftPublicationCycle(Guid.NewGuid(), draft.Id, 1, now, account.Id);
         await InsertLegacyAccountAsync(retained, account, now);
         await retained.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO events (id, name, slug, description, timezone, state, signup_opens_at, signup_closes_at, event_starts_at, event_ends_at, submission_cutoff_at, participant_cap, waiting_list_enabled, require_signup_code, participant_list_published, draft_results_published, team_rosters_published, board_published, results_published, draft_locked, created_by_account_id, created_at) VALUES ({ev.Id}, {ev.Name}, {ev.Slug}, {""}, {ev.Timezone}, {"Draft"}, {now}, {now}, {now}, {now.AddDays(1)}, {now.AddDays(1)}, {20}, {false}, {false}, {false}, {false}, {false}, {false}, {false}, {false}, {account.Id}, {now})");
-        retained.AddRange(team, draft, participant, membership); await retained.SaveChangesAsync();
+        await InsertFoundationRosterAsync(retained, team, draft, participant, membership, now);
         await InsertLegacyPublicationCycleAsync(retained, cycle);
         await retained.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO draft_publication_rosters (id, draft_publication_cycle_id, team_id, event_participant_id, role, effective_pick_number) VALUES ({Guid.NewGuid()}, {cycle.Id}, {team.Id}, {participant.Id}, {"Participant"}, {null})");
 
         var exception = await Assert.ThrowsAsync<PostgresException>(() => retained.GetService<IMigrator>().MigrateAsync());
         Assert.Contains("Cannot backfill", exception.MessageText, StringComparison.Ordinal);
     }
+
+    private static Task<int> InsertFoundationRosterAsync(ApplicationDbContext db, Team team, DraftSession draft,
+        EventParticipant participant, TeamMembership membership, DateTimeOffset now)
+        // Only Slice 5 foundation columns; current EF also writes requires_fresh_order and later participant fields.
+        => db.Database.ExecuteSqlInterpolatedAsync($"""
+            INSERT INTO teams (id, event_id, name, slug, formation_type, included_in_draft, active, created_at, version)
+            VALUES ({team.Id}, {team.EventId}, {team.Name}, {team.Slug}, {"Preformed"}, FALSE, TRUE, {now}, 1);
+            INSERT INTO draft_sessions (id, event_id, target_team_size, state, locked_at, finalized_at, control_version, version)
+            VALUES ({draft.Id}, {draft.EventId}, 1, {"Finalized"}, {now}, {now}, 1, 1);
+            INSERT INTO event_participants (id, event_id, captain_volunteer, payment_received, signup_status,
+                signup_sequence, signed_up_at, form_version, response_version, source)
+            VALUES ({participant.Id}, {participant.EventId}, FALSE, FALSE, {"Confirmed"}, 1, {now}, 1, 1, {"AdminCreated"});
+            INSERT INTO team_memberships (id, team_id, event_participant_id, role, joined_at, assignment_reason, source, version)
+            VALUES ({membership.Id}, {team.Id}, {participant.Id}, {"Participant"}, {now}, {membership.AssignmentReason}, {"RetainedConversion"}, 1);
+            """);
 
     private static Task<int> InsertLegacyAccountAsync(ApplicationDbContext db, Account account, DateTimeOffset now)
         => db.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO accounts (id, password_hash, must_change_password, account_type, active, authorization_version, login_name, normalized_login_name, global_role, public_username, normalized_public_username, password_version, version, created_at) VALUES ({account.Id}, {"hash"}, FALSE, {"WebsiteAccount"}, TRUE, 1, {account.LoginName}, {account.NormalizedLoginName}, {"Admin"}, {account.LoginName}, {account.NormalizedLoginName}, 1, 1, {now})");
