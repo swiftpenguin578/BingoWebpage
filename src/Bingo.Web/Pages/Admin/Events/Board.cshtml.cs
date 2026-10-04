@@ -437,7 +437,7 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
             }
             var ehb = oldSnapshotIds.Any(evidenced.Contains) && retained.Count == oldSnapshots.Count && retained.Count == TileDraft.Requirements.Count
                 ? tile.EstimatedEhbSnapshot : EhbCalculator.CalculateTileEstimate(objectiveType, TileDraft.Requirements.Zip(estimates, (requirement, estimate) => (requirement.IsManual, estimate)), TileDraft.ManualEhb);
-            if (protectsPublishedScoring && decimal.Round(ehb, 4) != publishedTile!.EstimatedEhb)
+            if (protectsPublishedScoring && decimal.Round(ehb, 4, MidpointRounding.AwayFromZero) != publishedTile!.EstimatedEhb)
                 throw new InvalidOperationException("Objectives with submitted evidence cannot change requirements or scoring, or be removed. Only wording corrections are allowed.");
             board.SetTotalEhb(Math.Max(0, board.TotalEhbEstimate - tile.EstimatedEhbSnapshot + ehb));
             tile.UpdateContent(name, description, string.Empty, ehb, descriptionIsAutomatic: descriptionIsAutomatic);
@@ -753,7 +753,7 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
             if (estimates.Count == 0) throw new InvalidOperationException("Published objectives are missing.");
             // Approval stores the effective EHB, not whether an equal manual override
             // was entered. Restore that frozen value without consulting live rates.
-            manualEstimates.Add(tile.BoardTileId, estimates.Any(x => x == null) || decimal.Round(EhbCalculator.SumRequirements(estimates), 4) != tile.EstimatedEhb ? tile.EstimatedEhb : null);
+            manualEstimates.Add(tile.BoardTileId, estimates.Any(x => x == null) || decimal.Round(EhbCalculator.SumRequirements(estimates), 4, MidpointRounding.AwayFromZero) != tile.EstimatedEhb ? tile.EstimatedEhb : null);
         }
         if (approvalTiles.Count != published.Approval.Rows * published.Approval.Columns || approvalTiles.Any(x => x.RowIndex < 0 || x.RowIndex >= published.Approval.Rows || x.ColumnIndex < 0 || x.ColumnIndex >= published.Approval.Columns))
             throw new InvalidOperationException("Published board positions are incomplete.");
@@ -1191,7 +1191,7 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
             if (prior is not null && requirements.Any(x => x.BoardTileId == tile.Id && evidenced.Contains(x.Id)))
             {
                 var priorTile = prior.Tiles.Single(x => x.Id == tile.Id);
-                if (decimal.Round(tileEhb, 4) != priorTile.EstimatedEhbSnapshot ||
+                if (decimal.Round(tileEhb, 4, MidpointRounding.AwayFromZero) != priorTile.EstimatedEhbSnapshot ||
                     requirements.Where(x => x.BoardTileId == tile.Id).Sum(x => (long)x.TargetContribution) !=
                     prior.Requirements.Where(x => x.BoardTileId == tile.Id).Sum(x => (long)x.TargetContribution))
                     throw new InvalidOperationException("A tile with submitted evidence cannot change its scoring. The active publication has been preserved.");

@@ -229,7 +229,7 @@ public static class PublicProgressCalculator
         RankingEhb(left.Progress, rule) == RankingEhb(right.Progress, rule);
 
     private static decimal RankingEhb(CalculatedBoardProgress progress, PlacementRule rule) =>
-        rule == PlacementRule.CreditedEhbThenScoreTime ? decimal.Round(progress.EhbTiebreak, 4) : progress.EhbTiebreak;
+        rule == PlacementRule.CreditedEhbThenScoreTime ? decimal.Round(progress.EhbTiebreak, 4, MidpointRounding.AwayFromZero) : progress.EhbTiebreak;
 
     private static DateTimeOffset? ScoreTime(CalculatedBoardProgress progress) =>
         progress.BoardComplete ? progress.BoardCompletedAt : progress.CurrentScoreReachedAt;

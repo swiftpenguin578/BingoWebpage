@@ -66,6 +66,40 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests
         Assert.False((await verify.Boards.SingleAsync()).PublishedCorrectionInProgress);
     }
 
+    [Fact]
+    public async Task Au11R2MidpointDiscardMatchesPostgresStoredPrecision()
+    {
+        var fixture = await SeedApprovalBatchAsync(correction: true);
+        // Frozen calculation: 33 guaranteed drops at 32 completions/hour = 1.03125.
+        const decimal unroundedEhb = 1.03125m;
+        const decimal storedEhb = 1.0313m;
+        await using (var setup = new ApplicationDbContext(options))
+        {
+            setup.Entry(await setup.BoardApprovalRequirementSnapshots.SingleAsync()).Property(x => x.TargetContribution).CurrentValue = 33;
+            setup.Entry(await setup.BoardApprovalRequirementBossSnapshots.SingleAsync()).Property(x => x.EfficientRate).CurrentValue = 32m;
+            setup.Entry(await setup.BoardApprovalRequirementDropSnapshots.SingleAsync()).Property(x => x.NumericProbability).CurrentValue = 1m;
+            setup.Entry(await setup.BoardApprovalTileSnapshots.SingleAsync()).Property(x => x.EstimatedEhb).CurrentValue = unroundedEhb;
+            setup.Entry(await setup.BoardApprovalSnapshots.SingleAsync()).Property(x => x.TotalEhbEstimate).CurrentValue = unroundedEhb;
+            var template = await setup.TileTemplates.SingleAsync();
+            template.Update(template.Name, "Private correction", ObjectiveType.DropRequirements, "", 99m);
+            await setup.SaveChangesAsync();
+        }
+        await using (var roundTrip = new ApplicationDbContext(options))
+            Assert.Equal(storedEhb, (await roundTrip.BoardApprovalTileSnapshots.SingleAsync()).EstimatedEhb);
+        var view = await LoadBoardAsync(fixture.Event.Id, fixture.Admin.Id);
+        await using (var discard = new ApplicationDbContext(options))
+        {
+            var page = Page(discard, fixture.Admin.Id);
+            page.BoardVersion = view.BoardView!.Version;
+            await page.OnPostDiscardCorrectionAsync(fixture.Event.Id, true, CancellationToken.None);
+        }
+        await using var verify = new ApplicationDbContext(options);
+        Assert.Null((await verify.TileTemplates.SingleAsync()).ManualEhbOverride);
+        Assert.Equal(storedEhb, (await verify.BoardTiles.SingleAsync()).EstimatedEhbSnapshot);
+        Assert.Equal(storedEhb, (await verify.BoardApprovalTileSnapshots.SingleAsync()).EstimatedEhb);
+        Assert.False((await verify.Boards.SingleAsync()).PublishedCorrectionInProgress);
+    }
+
     [Theory]
     [InlineData("en", "0.5", true)]
     [InlineData("da", "0.5", true)]
