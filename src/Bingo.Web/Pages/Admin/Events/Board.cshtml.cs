@@ -275,6 +275,7 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
         var descriptionIsAutomatic = string.IsNullOrWhiteSpace(TileDraft.Description);
         var description = descriptionIsAutomatic ? string.Empty : TileDraft.Description!.Trim();
         var objectiveType = TileDraft.Requirements.All(x => x.IsManual) ? ObjectiveType.Manual : ObjectiveType.DropRequirements;
+        if (objectiveType == ObjectiveType.DropRequirements && !TileDraft.ChangeManualEhbOverride) TileDraft.ManualEhb = null;
         var template = new TileTemplate(Guid.NewGuid(), name, description, objectiveType, string.Empty, TileDraft.ManualEhb, descriptionIsAutomatic: descriptionIsAutomatic);
         db.TileTemplates.Add(template);
         var requirements = new List<TileTemplateRequirement>();
@@ -357,6 +358,9 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
             var description = descriptionIsAutomatic ? string.Empty : TileDraft.Description!.Trim();
             var objectiveType = TileDraft.Requirements.All(x => x.IsManual) ? ObjectiveType.Manual : ObjectiveType.DropRequirements;
             var template = await db.TileTemplates.SingleAsync(x => x.Id == tile.TileTemplateId, ct);
+            if (objectiveType == ObjectiveType.DropRequirements)
+                TileDraft.ManualEhb = template.ObjectiveType != ObjectiveType.DropRequirements ? null
+                    : TileDraft.ChangeManualEhbOverride ? TileDraft.ManualEhb : template.ManualEhbOverride;
             var oldSnapshots = await db.BoardRequirementSnapshots.Where(x => x.BoardTileId == tile.Id).ToListAsync(ct);
             var oldSnapshotIds = oldSnapshots.Select(x => x.Id).ToList();
             var oldBosses = await db.BoardRequirementBossSnapshots.Where(x => oldSnapshotIds.Contains(x.RequirementId)).ToListAsync(ct);
@@ -1777,7 +1781,7 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
         }).ToList();
     private static string RequirementDescription(RequirementInput input) => input.IsManual ? input.Description!.Trim() : $"Collect {input.Target} eligible drop{(input.Target == 1 ? string.Empty : "s")}";
 
-    public sealed class TileDraftInput { public Guid? TileId { get; set; } public int Position { get; set; } public string? Name { get; set; } [StringLength(TileDescriptionFormatter.MaximumManualDescriptionLength, ErrorMessage = "Tile description cannot be longer than 4000 characters.")] public string? Description { get; set; } public IFormFile? Image { get; set; } public bool RemoveImage { get; set; } [Range(typeof(decimal), "0.0001", "100000")] public decimal? ManualEhb { get; set; } public List<RequirementInput> Requirements { get; set; } = [new()]; }
+    public sealed class TileDraftInput { public Guid? TileId { get; set; } public int Position { get; set; } public string? Name { get; set; } [StringLength(TileDescriptionFormatter.MaximumManualDescriptionLength, ErrorMessage = "Tile description cannot be longer than 4000 characters.")] public string? Description { get; set; } public IFormFile? Image { get; set; } public bool RemoveImage { get; set; } [Range(typeof(decimal), "0.0001", "100000")] public decimal? ManualEhb { get; set; } public bool ChangeManualEhbOverride { get; set; } public List<RequirementInput> Requirements { get; set; } = [new()]; }
     public sealed class RequirementInput { public Guid? RequirementId { get; set; } public string Kind { get; set; } = "drops"; public string? Description { get; set; } [Range(1, 10000)] public int Target { get; set; } = 1; public bool DuplicatesAllowed { get; set; } = true; public Dictionary<Guid, int> DropWeights { get; set; } = []; public List<Guid> BossIds { get; set; } = []; public List<Guid> DropIds { get; set; } = []; public bool IsManual => string.Equals(Kind, "challenge", StringComparison.OrdinalIgnoreCase); public int WeightFor(Guid dropId) => Math.Max(1, DropWeights.GetValueOrDefault(dropId, 1)); public bool HasHigherWeights => DropIds.Any(x => WeightFor(x) > 1); }
     public sealed record BoardDetails(int Rows, int Columns, BoardState State, decimal TotalEhb, long Version, bool PublishedCorrectionInProgress);
     public sealed record BoardStatistics(decimal TotalEhb, int? TeamSize, decimal? EhbPerPlayer, decimal? EhbPerPlayerPerDay, decimal AverageTileEhb, decimal LowestLineEhb, decimal HighestLineEhb, int MissingEhbTiles, decimal DurationDays);

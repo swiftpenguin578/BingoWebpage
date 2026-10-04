@@ -100,7 +100,7 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests
         page.BoardVersion = view.BoardView!.Version;
         page.TileDraft = new BoardModel.TileDraftInput
         {
-            TileId = fixture.Tile.Id, Name = fixture.Tile.NameSnapshot, ManualEhb = 19m,
+            TileId = fixture.Tile.Id, Name = fixture.Tile.NameSnapshot, ManualEhb = 19m, ChangeManualEhbOverride = true,
             Requirements = [new() { RequirementId = fixture.Requirement.Id, Kind = "drops", Target = 1,
                 BossIds = [fixture.Boss.Id], DropIds = [fixture.Drop.Id] }]
         };
@@ -170,6 +170,7 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests
     private static Dictionary<string, string> Au11EditFields(ApprovalBatchFixture fixture, string version, decimal? estimate) => new()
     {
         ["BoardVersion"] = version,
+        ["TileDraft.ChangeManualEhbOverride"] = "true",
         ["TileDraft.TileId"] = fixture.Tile.Id.ToString(),
         ["TileDraft.Name"] = fixture.Tile.NameSnapshot,
         ["TileDraft.ManualEhb"] = estimate?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "",

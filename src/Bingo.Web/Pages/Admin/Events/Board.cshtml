@@ -628,14 +628,14 @@ function syncObjectiveKinds() {
     });
     const manual = kinds.length > 0 && kinds.every(kind => kind.value === 'challenge');
     const input = document.getElementById('TileDraft_ManualEhb');
-    if (input) { input.disabled = false; input.required = manual; }
+    if (input) { input.disabled = !manual; input.required = manual; }
     const section = document.querySelector('.manual-ehb-override');
     if (section) section.hidden = !manual;
 }
 function initializeRequirements() {
         document.querySelectorAll('.requirement-editor:not([data-ready])').forEach(editor => {
         editor.dataset.ready = 'true'; const kind = editor.querySelector('.requirement-kind'); const dropFields = editor.querySelector('.drop-only-fields'); const challengeFields = editor.querySelector('.challenge-only-fields'); const challengeDescription = editor.querySelector('.challenge-description'); const bossChecks = [...editor.querySelectorAll('.boss-checkbox')]; const dropGroups = [...editor.querySelectorAll('.eligible-drop-group')]; const bossPickerLabel = editor.querySelector('.boss-picker-label'); const emptyDrops = editor.querySelector('.drop-picker-empty'); const dropActions = editor.querySelector('.eligible-drop-actions');
-        const updateKind = () => { const challenge = kind.value === 'challenge'; dropFields.hidden = challenge; challengeFields.hidden = !challenge; challengeDescription.required = challenge; }; kind.addEventListener('change', () => { updateKind(); syncObjectiveKinds(); }); updateKind();
+        const updateKind = () => { const challenge = kind.value === 'challenge'; dropFields.hidden = challenge; challengeFields.hidden = !challenge; challengeDescription.required = challenge; }; kind.addEventListener('change', () => { document.getElementById('TileDraft_ManualEhb').value = ''; updateKind(); syncObjectiveKinds(); }); updateKind();
         const updateBosses = () => { const selected = bossChecks.filter(x => x.checked); const ids = selected.map(x => x.dataset.bossId); let visibleDrops = 0; dropGroups.forEach(group => { const visible = ids.includes(group.dataset.bossId); group.hidden = !visible; if (!visible) group.querySelectorAll('.eligible-drop-checkbox').forEach(input => input.checked = false); else visibleDrops += group.querySelectorAll('.eligible-drop-checkbox').length; }); const selectedLabel = selected.length === 0 ? 'Choose bosses or activities' : selected.length === 1 ? selected[0].dataset.bossName : `${selected.length} sources selected`; if (bossPickerLabel) bossPickerLabel.textContent = selectedLabel; emptyDrops.textContent = selected.length === 0 ? 'Choose a boss or activity first.' : visibleDrops === 0 ? 'No drops have been added to the selected bosses yet.' : ''; emptyDrops.hidden = visibleDrops > 0; if (dropActions) dropActions.hidden = visibleDrops === 0; if (editor.dataset.index === '0' && !tileNameEdited) document.getElementById('tile-name').value = selected.map(x => x.dataset.bossName).join(' + '); };
         bossChecks.forEach(checkbox => checkbox.addEventListener('change', updateBosses)); updateBosses();
         editor.querySelector('.select-all-drops')?.addEventListener('click', () => dropGroups.filter(group => !group.hidden).forEach(group => group.querySelectorAll('.eligible-drop-checkbox').forEach(input => input.checked = true)));
