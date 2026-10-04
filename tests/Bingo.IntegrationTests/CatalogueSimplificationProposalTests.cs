@@ -16,9 +16,9 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests
         await using var db = new ApplicationDbContext(options);
         var page = CataloguePage(db, actor.Id, true);
         page.Request.ContentType = "application/x-www-form-urlencoded";
-        page.Request.Form = new FormCollection(new Dictionary<string, StringValues> { ["rollGroup"] = "replacement" });
+        page.Request.Form = new FormCollection(new Dictionary<string, StringValues> { ["conditionalOnParent"] = "true" });
         await page.OnPostUpdateDropAsync(drop.Id, drop.Version, item.Version, item.Name, "1/500", "1/1000",
-            null, null, default, false, null, 0, 0, "replacement", null, null, false, default);
+            null, null, default, false, null, 0, 0, null, null, null, false, default);
         Assert.Contains("were not saved", page.TempData["StatusMessage"]?.ToString(), StringComparison.Ordinal);
         Assert.Equal("7 x 1/1000", await db.SourceDrops.Where(x => x.Id == drop.Id).Select(x => x.DisplayRate).SingleAsync());
         Assert.False(await db.AuditEntries.AnyAsync(x => x.Action == "catalogue.drop_updated"));

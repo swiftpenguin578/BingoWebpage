@@ -6,6 +6,7 @@ using System.Text.Json;
 using Bingo.Application.Access;
 using Bingo.Application.Catalogue;
 using Bingo.Domain.Auditing;
+using Bingo.Domain.Access;
 using Bingo.Domain.Catalogue;
 using Bingo.Infrastructure.Boards;
 using Bingo.Infrastructure.Persistence;
@@ -140,12 +141,7 @@ public sealed partial class IndexModel(ApplicationDbContext dbContext, TimeProvi
         var existing = await dbContext.SourceDrops.SingleOrDefaultAsync(x => x.BossActivityId == boss.Id && x.ItemId == item.Id, ct);
         if (existing?.Active == true) { SetStatus(Localize("{0} is already listed for {1}.", item.Name, boss.Name), UiMessageType.Warning); return CataloguePage(); }
         var dropBefore = existing is null ? null : State(existing);
-        var rolls = existing?.RollsPerCompletion ?? parsedRate.RollsPerCompletion;
-        if (existing is not null && parsedRate.ExplicitMultipleRolls && parsedRate.RollsPerCompletion != rolls)
-        {
-            SetStatus(Localize("Enter a valid drop rate. Changes to reward rolls require an operator."), UiMessageType.Error);
-            return CataloguePage();
-        }
+        var rolls = parsedRate.RollsPerCompletion;
         var probability = parsedRate.ProbabilityPerRoll; var effectiveProbability = SourceDrop.CalculateProbabilityPerCompletion(probability, rolls); var now = timeProvider.GetUtcNow(); decimal? calculatedEhb = boss.EfficientCompletionsPerHour is > 0 && effectiveProbability is > 0 ? 1 / (boss.EfficientCompletionsPerHour.Value * effectiveProbability.Value) : null;
         if (existing is null) { existing = new SourceDrop(Guid.NewGuid(), boss.Id, item.Id, BossDrop.DisplayRate.Trim(), probability, calculatedEhb, now); dbContext.SourceDrops.Add(existing); }
         existing.Update(BossDrop.DisplayRate.Trim(), probability, existing.RateConditionNote, calculatedEhb, existing.DataSource, now); existing.SetActive(true);
@@ -190,9 +186,15 @@ public sealed partial class IndexModel(ApplicationDbContext dbContext, TimeProvi
             || (probabilityScope != default && probabilityScope != entity.ProbabilityScope)
             || (conditionalOnParent && !entity.ConditionalOnParent) || (parentProbability is not null && parentProbability != entity.ParentProbability)
             || (assumedParticipants > 0 && assumedParticipants != entity.AssumedParticipants) || (rollsPerCompletion > 0 && rollsPerCompletion != entity.RollsPerCompletion)
-            || (rollGroup is not null && rollGroup != entity.RollGroup) || (dataSource is not null && dataSource != entity.DataSource)) return OperatorFieldsUnavailable();
+            || (dataSource is not null && dataSource != entity.DataSource)) return OperatorFieldsUnavailable();
         var item = await dbContext.CatalogueItems.SingleAsync(x => x.Id == entity.ItemId, ct);
         if (item.Version != expectedItemVersion) return Stale();
+        var rollGroupSupplied = rollGroup is not null || HasOperatorFields("rollGroup");
+        var requestedRollGroup = rollGroup?.Trim();
+        if (rollGroupSupplied && (string.IsNullOrWhiteSpace(requestedRollGroup) || requestedRollGroup.Length > 120))
+            return OperatorFieldsUnavailable();
+        var rollGroupChanged = rollGroupSupplied && !string.Equals(requestedRollGroup, entity.RollGroup, StringComparison.Ordinal);
+        if (rollGroupChanged && !await IsActiveSuperAdminAsync(ct)) return OperatorFieldsUnavailable();
         var cleanItemName = itemName.Trim();
         var normalizedItemName = cleanItemName.ToUpperInvariant();
         var matchingItem = await dbContext.CatalogueItems.SingleOrDefaultAsync(x => x.Id != item.Id && x.NormalizedName == normalizedItemName, ct);
@@ -227,16 +229,18 @@ public sealed partial class IndexModel(ApplicationDbContext dbContext, TimeProvi
         var cleanDisplayRate = displayRate.Trim();
         var displayRateChanged = !string.Equals(cleanDisplayRate, entity.DisplayRate, StringComparison.Ordinal);
         var parsedRate = DropRateParser.TryParse(cleanDisplayRate);
-        if (displayRateChanged && (parsedRate is null || parsedRate.ExplicitMultipleRolls && parsedRate.RollsPerCompletion != entity.RollsPerCompletion))
+        if (displayRateChanged && parsedRate is null)
         {
-            SetStatus(Localize("Enter a valid drop rate. Changes to reward rolls require an operator."), UiMessageType.Error);
+            SetStatus(Localize("Enter a valid drop rate, for example 1/100."), UiMessageType.Error);
             return CataloguePage();
         }
         var probability = displayRateChanged ? parsedRate!.ProbabilityPerRoll : entity.NumericProbability;
-        rollsPerCompletion = entity.RollsPerCompletion;
+        rollsPerCompletion = displayRateChanged ? parsedRate!.RollsPerCompletion : entity.RollsPerCompletion;
         var effectiveProbability = SourceDrop.CalculateProbabilityPerCompletion(probability, rollsPerCompletion);
         var bossRate = await dbContext.BossActivities.Where(x => x.Id == entity.BossActivityId).Select(x => x.EfficientCompletionsPerHour).SingleAsync(ct); decimal? calculatedEhb = bossRate is > 0 && effectiveProbability is > 0 ? 1 / (bossRate.Value * effectiveProbability.Value) : null;
         entity.Update(cleanDisplayRate, probability, entity.RateConditionNote, calculatedEhb, entity.DataSource, timeProvider.GetUtcNow());
+        if (displayRateChanged || rollGroupChanged)
+            entity.SetRateMechanics(entity.ProbabilityScope, entity.ConditionalOnParent, entity.ParentProbability, entity.AssumedParticipants, rollsPerCompletion, rollGroupChanged ? requestedRollGroup : entity.RollGroup);
         if (matchingItem is null)
         {
             item.Update(cleanItemName, normalizedItemName, item.ExternalIdentifier, item.Notes, normalizedImageUrl);
@@ -358,6 +362,17 @@ public sealed partial class IndexModel(ApplicationDbContext dbContext, TimeProvi
     private static bool ConfirmsSharedItemChange(string? confirmation, IReadOnlyCollection<string> activityNames) =>
         !string.IsNullOrWhiteSpace(confirmation)
         && activityNames.All(name => confirmation.Contains(name, StringComparison.OrdinalIgnoreCase));
+
+    private async Task<bool> IsActiveSuperAdminAsync(CancellationToken ct)
+    {
+        var actorId = User.GetAccountId();
+        return actorId is { } id && await dbContext.Accounts.AsNoTracking().AnyAsync(account =>
+            account.Id == id
+            && account.AccountType == AccountType.WebsiteAccount
+            && account.Active
+            && account.DisabledAt == null
+            && account.GlobalRole == GlobalRole.SuperAdmin, ct);
+    }
 
     private bool HasOperatorFields(params string[] names) => Request.HasFormContentType && names.Any(name => Request.Form.ContainsKey(name));
     private RedirectToPageResult OperatorFieldsUnavailable()

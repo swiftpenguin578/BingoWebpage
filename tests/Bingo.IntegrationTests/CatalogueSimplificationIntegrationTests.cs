@@ -135,7 +135,7 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests
         var saved = await verify.SourceDrops.SingleAsync(x => x.Id == drop.Id);
         Assert.Equal(DropProbabilityScope.Team, saved.ProbabilityScope);
         Assert.True(saved.ConditionalOnParent); Assert.Equal(.25m, saved.ParentProbability);
-        Assert.Equal(4, saved.AssumedParticipants); Assert.Equal(7, saved.RollsPerCompletion);
+        Assert.Equal(4, saved.AssumedParticipants); Assert.Equal(editRate ? 1 : 7, saved.RollsPerCompletion);
         Assert.Equal("operator-group", saved.RollGroup); Assert.Equal("operator source", saved.DataSource);
         Assert.Equal("retained condition", saved.RateConditionNote);
         Assert.Equal(editRate ? .002m : .001m, saved.NumericProbability);
