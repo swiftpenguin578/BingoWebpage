@@ -2,6 +2,11 @@
 
 Status: implemented as the fourth scoped B4 commit; external Claude review is pending for the stable four-commit range.
 
+This file preserves the initial B4 documentation checkpoint from the pre-review
+range. The review-28 remediation and final documentation correction are recorded
+in [`remediation/item4-docs-register.md`](remediation/item4-docs-register.md) and
+the exact worker results in [`remediation/results.md`](remediation/results.md).
+
 The documentation now records AU21, AU23 and CAT-1 as B4 backend-delivered outcomes rather than pending implementation, while retaining the external-review and WA-5/RC10 binding boundaries. The Catalogue decisions section records the delivered backend state. The “Bindings not shown in the design references” register now has rows for the decided rate panel, activity Team size in Settings/Add activity, and the D7 confirmation naming every other activity affected by a shared-item rename/image change. The D7 row links [08-decisions.md](/Users/christopher/Documents/BingoWebpage/review-notes/08-decisions.md) and keeps the current-page refusal until the new UI supplies the intent. The runbook adds the two read-only pre-deploy checks:
 
 ```sql

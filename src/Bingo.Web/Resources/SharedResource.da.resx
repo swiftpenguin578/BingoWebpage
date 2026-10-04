@@ -2367,6 +2367,9 @@
   <data name="An item named {0} already exists. Confirm that you want to use the shared item." xml:space="preserve"><value>Der findes allerede et item med navnet {0}. Bekræft, at du vil bruge det delte item.</value></data>
   <data name="This shared item is also used by {0}. Confirm the name or image change by confirming those activities. Nothing was saved." xml:space="preserve"><value>Dette delte item bruges også af {0}. Bekræft navne- eller billedændringen ved at bekræfte disse aktiviteter. Intet blev gemt.</value></data>
   <data name="no other activities" xml:space="preserve"><value>ingen andre aktiviteter</value></data>
+  <data name="Team size must be at least 1." xml:space="preserve"><value>Holdstørrelsen skal være mindst 1.</value></data>
+  <data name="Team size" xml:space="preserve"><value>Holdstørrelse</value></data>
+  <data name="Enter a whole number for team size." xml:space="preserve"><value>Angiv et helt tal for holdstørrelsen.</value></data>
   <data name="Another administrator changed the board editor first. The latest board has been loaded." xml:space="preserve"><value>En anden administrator ændrede Board-editoren først. Det seneste Board er indlæst.</value></data>
   <data name="Another administrator changed the board first. Reload before publishing." xml:space="preserve"><value>En anden administrator ændrede Boardet først. Genindlæs, før du publicerer.</value></data>
   <data name="Another administrator changed the draft first. Nothing from your stale action was saved; the latest draft has been loaded." xml:space="preserve"><value>En anden administrator ændrede draften først. Intet fra din forældede handling blev gemt; den seneste draft er indlæst.</value></data>

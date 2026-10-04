@@ -364,7 +364,8 @@ approval does not authorize harness implementation, backup transfer or execution
    retained context. The `20261004133947_AddBossActivityTeamSize` migration also
    fails closed on the second condition. The user's 4 October report of zero
    conditional rows and zero non-default context rows is supplied evidence, not
-   an agent-run production check; re-run these read-only queries at deployment
+   an agent-run production check; see [08-decisions.md, B4 brief decisions](/Users/christopher/Documents/BingoWebpage/review-notes/08-decisions.md#b4-catalogue-brief-decisions)
+   and the [authorized B4 brief](/Users/christopher/Documents/BingoWebpage/review-notes/27-codex-brief-b4-catalogue.md). Re-run these read-only queries at deployment
    time and record the exact migration history and timestamp.
 8. **R-3 final-candidate rehearsal — procedure approved, execution pending.** Follow
    the accepted procedure below only after separate harness/backup-transfer/execution

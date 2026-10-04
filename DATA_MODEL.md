@@ -1324,6 +1324,7 @@ Fields:
 - `image_asset_id`
 - `source_image_url`, nullable
 - `efficient_completions_per_hour`
+- `team_size` (informational agreed activity team size; integer >= 1, default 1)
 - `external_identifier`
 - `data_source`
 - `data_updated_at`
@@ -1387,6 +1388,10 @@ per-activity conflicts before migration, with no silent loss and no rewriting
 approved/published snapshots. The activity `team_size` column is now the current
 field; the retired per-drop columns remain for history and snapshots.
 
+New or attempted writes of `probability_scope`, `conditional_on_parent`,
+`parent_probability`, or `assumed_participants` are refused for every role.
+Their retained values remain readable in historical rows and snapshots.
+
 `roll_group` remains a real EHB/Luck calculation input for mutually exclusive
 results from one roll; different groups are independent. New drops use `default`;
 existing production groups (`barrows-equipment`, `purple table`,
@@ -1398,7 +1403,7 @@ calculator exceptions. Operator-reported counts are not agent verification.
 
 Each `SourceDrop` is one authoritative drop record with one displayed rate and numeric probability. Conditional mechanics are recorded in `rate_condition_note`; distinct real drops, such as `Nid` and `Nid (Destroy)`, remain separate records rather than rate choices beneath one drop.
 
-Catalogue records use deactivate/reactivate for normal lifecycle changes. Permanent deletion is Super-Admin-only and succeeds only when a transactional dependency query finds no catalogue relationship, board draft reference, approval/publication snapshot, asset/cache metadata, import-review record, or other historical reference. Deletion of a genuinely unused row requires confirmation but no reason. Bulk import preview/apply is Super-Admin-only; apply verifies the preview version/hash and never hard-deletes referenced data.
+Catalogue records use deactivate/reactivate for normal lifecycle changes. Permanent deletion is Super-Admin-only and succeeds only when a transactional dependency query finds no catalogue relationship, board draft reference, approval/publication snapshot, asset/cache metadata, import-review record, or other historical reference. Deletion of a genuinely unused row requires confirmation but no reason. The reviewed catalogue snapshot loader is a CI/Development/manual-test data loader, validates retired per-drop context before writing, and never runs as a production deployment step.
 
 ## 10. Board and tile domain
 

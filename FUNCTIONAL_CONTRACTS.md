@@ -992,13 +992,19 @@ fail-closed and the competitive record remains unchanged.
 
 **Authoritative happy path:** Catalogue edits are optimistic-concurrency protected
 and audit before/after values. Referenced records deactivate rather than hard-delete.
-Advanced mechanics are read-only for ordinary Admins; only SuperAdmin may edit the
-existing advanced fields. B4 delivers the AU23 backend contract; WA-5 still binds
-the decided panel. Preserve
+Only the existing `roll_group` is editable among the retained advanced mechanics,
+and only a database-checked SuperAdmin may edit it; ordinary Admins see it as
+read-only. Every role may enter ordinary rate text, including `N x`, while
+`probability_scope`, `conditional_on_parent`, `parent_probability`, and
+`assumed_participants` are retired input and refused on every write path. B4
+delivers the AU23 backend contract; WA-5 still binds the decided panel. Preserve
 source-specific validation, affected Draft recalculation and approved/historical
 snapshots. No separate roll-group management or application import workflow.
 Shared-item adoption must be explicit and distinguish shared metadata from source
 rates. Saving one independent form does not silently save/discard another.
+The activity `team_size` is informational, defaults to 1, requires an integer at
+least 1, and is editable by every Admin without changing EHB or historical
+snapshots.
 
 **Permissions and history:** Only genuinely unused records can be permanently deleted after a complete dependency check; blocked deletion offers deactivation. Listing individual dependency references is not required (C26, reaffirmed 2026-09-14). Catalogue source-image URLs are the sole external image exception. Preserve referenced history.
 

@@ -318,10 +318,10 @@ Luck, Participants and Dashboard backend work is complete, not queued to rebuild
 | AU18 | Final Review: per-version final WOM outcome and reopen/version history | Approved, narrowed; assigned B2; no current-event readiness row; publish/reopen refusal unchanged |
 | AU19 | Board: tile-targeted approval issues, preview comparison and uncertain-action readback | Approved; queued B5 |
 | AU20 | WOM: exact configured-window matching, structured outcomes and replacement/recovery | Approved; queued, not dispatched; transport and scope details remain in the ticket |
-| AU21 | Catalogue: explicit shared-item adoption, rename and recovery scope | B4 backend implemented in `01c5dc2`; external Claude review pending; evidence `reviews/2026-10-04/au-b4/item1-au21.md` |
+| AU21 | Catalogue: explicit shared-item adoption, rename and recovery scope | B4 remediation implemented in `c4c52a4`; external Claude review pending; structured confirmation and Add-drop image coverage in `reviews/2026-10-04/au-b4/remediation/` |
 | AU22 | Accounts: accurate projections and target-bound reset response | Approved defect fix; queued, not dispatched |
-| AU23 | Catalogue: ordinary rate-text N x rolls, SuperAdmin roll groups, final-chance input | B4 backend implemented in `00dfd40`; external Claude review pending; new groups default; retire Only after input; preserve columns/history and production groups; no parent-EHB ticket; evidence `reviews/2026-10-04/au-b4/item2-au23.md` |
-| CAT-1 | Catalogue: informational team size moves from drops to activity | B4 backend implemented in `fd3ce10`; external Claude review pending; integer >=1/default 1 editable by every Admin; migration precheck and snapshots preserved; evidence `reviews/2026-10-04/au-b4/item3-cat1.md` |
+| AU23 | Catalogue: ordinary rate-text N x rolls, SuperAdmin roll groups, final-chance input | B4 backend implemented in `00dfd40`; remediation evidence covers the full catalogue path and remains pending external Claude review; new groups default; retire Only after input; preserve columns/history and production groups; no parent-EHB ticket; evidence `reviews/2026-10-04/au-b4/remediation/` |
+| CAT-1 | Catalogue: informational team size moves from drops to activity | B4 remediation implemented in `c2d2220`; external Claude review pending; integer >=1/default 1 editable by every Admin, HTTP binding rejects invalid input, migration precheck and snapshots preserved; evidence `reviews/2026-10-04/au-b4/remediation/` |
 | AU24 | Accounts: typed ownership transfer destination confirmation | Approved; queued, not dispatched |
 
 The 4 October Catalogue decision is implemented in the B4 backend for AU23/CAT-1;

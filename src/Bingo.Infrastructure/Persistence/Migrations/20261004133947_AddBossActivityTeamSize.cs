@@ -19,7 +19,7 @@ public partial class AddBossActivityTeamSize : Migration
                         WHERE assumed_participants <> 1
                            OR probability_scope <> 'Participant'
                     ) THEN
-                        RAISE EXCEPTION 'Cannot add activity team size while source drops contain non-default participant context. Resolve the source-drop context and retry the migration.';
+                        RAISE EXCEPTION 'Cannot add activity team size while source drops contain non-default participant context. A product/data decision is required before retrying this migration.';
                     END IF;
                 END $$;
                 """);
