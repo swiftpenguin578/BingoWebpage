@@ -1,11 +1,15 @@
 # H4-2 isolated R3 rehearsal — approval record, 4 October 2026
 
-The user approved this approach **and the stated coverage limits on 4 October 2026**.
+The approach and coverage limits were approved by the user on 4 October 2026
+**after Claude’s review**, as recorded in the supplied planner decisions. The
+[quoted Step 0 user assignment](../au-step0/approval-record.md) directs this
+attribution correction; the earlier at-writing approval claim is superseded.
 Approval permits documenting the accepted procedure only. The owning procedure is
 [PRODUCTION_RUNBOOK.md](../../../../../PRODUCTION_RUNBOOK.md#r-3-isolated-rehearsal-procedure--approved-4-october-2026).
 The design below is retained under its original filename for provenance; it is no
 longer awaiting a procedure decision. Harness/configuration/fixtures are not built
-or tested, R3 is unexecuted, and Claude's independent recheck remains pending.
+or tested and R3 is unexecuted. Claude's source recheck accepted the procedure;
+Step 0 corrects the approval attribution.
 
 ## Accepted decision
 
@@ -123,3 +127,10 @@ rehearsal succeeds. The user has accepted the stated wrapper/provider coverage
 limit; that acceptance is not production-wrapper/provider verification. Harness
 implementation, backup transfer/production access, execution and deployment remain
 separately unauthorized in this cleanup assignment.
+
+## Approval attribution correction — Step 0, 4 October 2026
+
+The prior at-writing attribution is superseded: user approval of the procedure
+and coverage limits was given after Claude’s review, as recorded in the supplied
+planner decisions. Authority for this correction is the [quoted current user
+assignment](../au-step0/approval-record.md). No tooling or rehearsal is authorized.

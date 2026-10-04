@@ -61,8 +61,12 @@ Each worker has exactly one assigned role.
 This is the single current role/model/routing policy, explicitly updated by the
 user on 2 October. Historical model assignments remain evidence of completed work,
 not competing defaults. Use a fresh orchestrator for each ticket. Run tickets
-sequentially; the planner receives completion or a blocker and owns dispatch of
-the next ticket. Do not add a persistent coordinator layer.
+sequentially unless the planner's approved plan explicitly names parallel lanes,
+their file ownership is disjoint, and at most one lane adds database migrations.
+Each parallel lane uses its own worktree, branch and implementer chat; merge it
+back into the feature branch only after its independent review passes. The planner
+receives completion or a blocker and owns dispatch of the next ticket. Do not add
+a persistent coordinator layer.
 
 | Role | Model / reasoning | Owns |
 | --- | --- | --- |

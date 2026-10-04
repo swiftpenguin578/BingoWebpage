@@ -230,7 +230,8 @@ access. Migration, conversion, Down/Up and rehearsal checks run on isolated
 restored copies only under an approved procedure; production deployment has its
 own authorization. The 3 October entries are operator-reported, not agent-verified.
 Record candidate/image identity, exact migration history, timestamp and outcomes.
-**H4-2 procedure and coverage limits were approved by the user on 4 October 2026.**
+**H4-2 procedure and coverage limits were approved by the user on 4 October 2026 after Claude’s review, as recorded in the planner decisions; attribution corrected by the quoted Step 0 user assignment.**
+See [the quoted assignment and provenance](references/admin-ui/reviews/2026-10-04/au-step0/approval-record.md).
 The [accepted isolated procedure](#r-3-isolated-rehearsal-procedure--approved-4-october-2026)
 below replaces the unsafe host-wrapper instruction. Never invoke host `bingo-deploy`
 as rehearsal. Tooling is not built/tested and R3 is unexecuted; this documentation
@@ -341,7 +342,7 @@ approval does not authorize harness implementation, backup transfer or execution
 
 ## R-3 isolated rehearsal procedure — approved 4 October 2026
 
-The user approved the approach **and its stated coverage limits on 4 October 2026**.
+The approach and its stated coverage limits were approved by the user on 4 October 2026 after Claude’s review, as recorded in the planner decisions; attribution corrected by the quoted Step 0 user assignment.
 The [approval record and original design](references/admin-ui/reviews/2026-10-04/cleanup-remediation/r3-isolation-proposal.md)
 retain the decision's provenance. This section owns the accepted procedure.
 
