@@ -55,7 +55,7 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests
             var template = new TileTemplate(Guid.NewGuid(), "Other template", "Other", ObjectiveType.DropRequirements, "", null);
             db.TileTemplates.Add(template); db.Entry(tile).Property(x => x.TileTemplateId).CurrentValue = template.Id;
         }
-        if (field == "ehb") db.Entry(tile).Property(x => x.EstimatedEhbSnapshot).CurrentValue = 4m;
+        if (field == "ehb") db.Entry(await db.TileTemplates.SingleAsync(x => x.Id == tile.TileTemplateId)).Property(x => x.ManualEhbOverride).CurrentValue = 4m;
         if (field == "objective") db.Entry(await db.BoardRequirementSnapshots.SingleAsync(x => x.Id == fixture.Requirement.Id)).Property(x => x.Description).CurrentValue = "Changed objective wording";
         if (field == "artwork")
         {

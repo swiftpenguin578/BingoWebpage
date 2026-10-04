@@ -55,14 +55,18 @@ public sealed partial class BoardModel
             var workingDrops = await db.BoardRequirementDropSnapshots.AsNoTracking().Where(x => ids.Contains(x.RequirementId)).ToListAsync(ct);
             var working = await ReadVersionAsync(board.Id, null, board.Version, board.Name, board.Rows, board.Columns, workingTiles, workingRequirements, workingDrops, ct);
             BoardVersionContent? approved = null;
+            PublishedBoardData? approvalProjectionSource = null;
             if (board.ActiveApprovalSnapshotId is { } approvalId)
             {
                 var publication = await db.ApprovalObjectivesAsync(board.Id, approvalId, ct);
                 if (publication is null) return new(null);
+                approvalProjectionSource = publication;
                 approved = await ReadVersionAsync(board.Id, approvalId, publication.Approval.Version, publication.Approval.Name,
                     publication.Approval.Rows, publication.Approval.Columns, publication.Tiles, publication.Requirements, publication.Drops, ct);
             }
             var published = board.State == BoardState.Published ? approved : null;
+            if (board.PublishedCorrectionInProgress && approvalProjectionSource is not null)
+                working = await ProjectCorrectionPublicationAsync(working, approvalProjectionSource, ct);
             var differences = board.PublishedCorrectionInProgress && published is not null
                 ? working.Tiles.Select(x => x.TileId).Union(published.Tiles.Select(x => x.TileId)).Where(tileId =>
                     !SameTile(working.Tiles.SingleOrDefault(x => x.TileId == tileId), published.Tiles.SingleOrDefault(x => x.TileId == tileId))).ToList()
@@ -131,8 +135,9 @@ public sealed partial class BoardModel
         if (left is null || right is null) return left is null && right is null;
         // An equal-value manual override is not retained separately by approval;
         // compare effective EHB, preserving the accepted snapshot limitation.
-        return JsonSerializer.Serialize(left with { ManualEhbOverride = null, EstimateNeedsVerification = false }) ==
-               JsonSerializer.Serialize(right with { ManualEhbOverride = null, EstimateNeedsVerification = false });
+        return JsonElement.DeepEquals(
+            JsonSerializer.SerializeToElement(left with { ManualEhbOverride = null, EstimateNeedsVerification = false }),
+            JsonSerializer.SerializeToElement(right with { ManualEhbOverride = null, EstimateNeedsVerification = false }));
     }
 
     private async Task<List<BoardRequirementSnapshot>> CurrentRequirementsAsync(List<BoardTile> tiles, int columns, CancellationToken ct, List<BoardValidationIssue>? issues = null)

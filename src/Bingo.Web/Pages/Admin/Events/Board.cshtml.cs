@@ -1127,17 +1127,17 @@ public sealed partial class BoardModel(ApplicationDbContext db, TimeProvider tim
             {
                 var descriptionRequirements = tileRequirements.Select(requirement =>
                 {
-                    var selectedDrops = requirementDrops.Where(drop => drop.RequirementId == requirement.Id)
-                        .Select(drop => currentDrops.TryGetValue(drop.SourceDropId, out var selectedDrop)
-                            ? new TileDescriptionDrop(drop.ItemIdSnapshot, selectedDrop.Item.Name, selectedDrop.Boss.Name)
-                            : null)
-                        .Where(value => value is not null)
-                        .Select(value => value!)
-                        .ToList();
+                    var selectedDrops = priorRequirementIds.Contains(requirement.Id)
+                        ? prior!.Drops.Where(drop => drop.RequirementId == requirement.Id)
+                            .Select(drop => new TileDescriptionDrop(drop.ItemIdSnapshot, drop.ItemName, drop.BossName)).ToList()
+                        : requirementDrops.Where(drop => drop.RequirementId == requirement.Id)
+                            .Select(drop => currentDrops.TryGetValue(drop.SourceDropId, out var selectedDrop)
+                                ? new TileDescriptionDrop(drop.ItemIdSnapshot, selectedDrop.Item.Name, selectedDrop.Boss.Name) : null)
+                            .Where(value => value is not null).Select(value => value!).ToList();
                     return new TileDescriptionRequirement(requirement.Position, requirement.TargetContribution,
                         requirement.ManualObjective, requirement.Description, selectedDrops);
                 });
-                description = TileDescriptionFormatter.Format(descriptionRequirements);
+                description = ApprovalDescription(tile.DescriptionIsAutomatic, tile.DescriptionSnapshot, descriptionRequirements);
                 if (description.Length > TileDescriptionFormatter.MaximumFrozenDescriptionLength)
                     throw Invalid("description-length", "{0} has an automatic description that is too long. Reduce the selected sources or objective count before approval.", tile, tile.NameSnapshot);
             }
@@ -1194,7 +1194,7 @@ public sealed partial class BoardModel(ApplicationDbContext db, TimeProvider tim
                         return new EligibleDropRate(drop.Boss.EfficientCompletionsPerHour, drop.Drop.NumericProbability, drop.Drop.ItemId, drop.Boss.Id, snapshot.CreditedWeight, drop.Drop.RollsPerCompletion, drop.Drop.RollGroup);
                     }), requirement.DuplicatesAllowed));
             }
-            var tileEhb = EhbCalculator.CalculateTileEstimate(template.ObjectiveType, tileRequirements.Zip(tileEstimates, (requirement, estimate) => (requirement.ManualObjective, estimate)), template.ManualEhbOverride);
+            var tileEhb = ApprovalTileEhb(template, tileRequirements.Select(x => x.ManualObjective).Zip(tileEstimates));
             if (prior is not null && requirements.Any(x => x.BoardTileId == tile.Id && evidenced.Contains(x.Id)))
             {
                 var priorTile = prior.Tiles.Single(x => x.Id == tile.Id);

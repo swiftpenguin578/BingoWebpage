@@ -133,6 +133,94 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests
         await AssertApprovalBatchUnchangedAsync(fixture);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task B5RemediationCorrectionIgnoresUneditedCatalogueRateOrNameChange(bool rename)
+    {
+        var fixture = await SeedApprovalBatchAsync(correction: true);
+        await SaveTileDescriptionAsync(fixture, null, 1, [fixture.Drop.Id], []);
+        await using var db = new ApplicationDbContext(options);
+        var page = Page(db, fixture.Admin.Id);
+        await page.OnGetAsync(fixture.Event.Id, CancellationToken.None);
+        await page.OnPostApproveAsync(fixture.Event.Id, true, CancellationToken.None);
+        Assert.Empty(page.ValidationIssues);
+        var original = await B5BoardReadAsync(page, fixture.Event.Id);
+        Assert.False(original.CorrectionInProgress);
+        Assert.True(Assert.Single(original.Published!.Tiles).DescriptionIsAutomatic);
+        if (rename) (await db.CatalogueItems.SingleAsync(x => x.Id == fixture.Item.Id)).Update("Renamed item", "RENAMED ITEM", null, null);
+        else (await db.BossActivities.SingleAsync(x => x.Id == fixture.Boss.Id)).Update("Batch boss", "Boss", 13m, null, null, null, CompletionFixtureNow);
+        await db.SaveChangesAsync();
+        await page.OnPostCorrectPublishedAsync(fixture.Event.Id, true, "Controlled correction", CancellationToken.None);
+        await page.OnGetAsync(fixture.Event.Id, CancellationToken.None);
+        var correction = await B5BoardReadAsync(page, fixture.Event.Id);
+        Assert.True(correction.CorrectionInProgress);
+        Assert.True(correction.DifferentTileCount == 0, JsonSerializer.Serialize(new { correction.Published, correction.PrivateCorrection }));
+        var projected = Assert.Single(correction.PrivateCorrection!.Tiles);
+        var published = Assert.Single(original.Published.Tiles);
+        Assert.Equal(published.Description, projected.Description);
+        Assert.Equal(published.Ehb, projected.Ehb);
+        Assert.Equal(JsonSerializer.Serialize(published.Objectives), JsonSerializer.Serialize(projected.Objectives));
+        await page.OnPostApproveAsync(fixture.Event.Id, true, CancellationToken.None);
+        Assert.Empty(page.ValidationIssues);
+        var replacement = await B5BoardReadAsync(page, fixture.Event.Id);
+        Assert.False(replacement.CorrectionInProgress);
+        Assert.NotEqual(original.ActiveApprovalId, replacement.ActiveApprovalId);
+        Assert.Equal(JsonSerializer.Serialize(published), JsonSerializer.Serialize(Assert.Single(replacement.Published!.Tiles)));
+    }
+
+    [Fact]
+    public async Task B5RemediationRealEditsCompareMultipleTilesAndRemoval()
+    {
+        var fixture = await SeedApprovalBatchAsync(manual: true);
+        Guid secondId;
+        await using (var prepare = new ApplicationDbContext(options))
+        {
+            prepare.Entry(await prepare.Events.SingleAsync()).Property(x => x.State).CurrentValue = EventState.SignupClosed;
+            prepare.Entry(await prepare.Events.SingleAsync()).Property(x => x.EventEndsAt).CurrentValue = DateTimeOffset.UtcNow.AddDays(3);
+            (await prepare.Boards.SingleAsync()).Resize(1, 2, 1);
+            var template = new TileTemplate(Guid.NewGuid(), "Second", "Second challenge", ObjectiveType.Manual, "", 7m);
+            var tile = new BoardTile(Guid.NewGuid(), fixture.Board.Id, template.Id, 0, 1, template.Name, template.Description, "", 7m);
+            secondId = tile.Id;
+            prepare.AddRange(template, tile, new BoardRequirementSnapshot(Guid.NewGuid(), tile.Id, 1, 1, true, false, "Second challenge", true));
+            await prepare.SaveChangesAsync();
+        }
+        await AddPublicBoardTeamAsync(fixture);
+        await using var db = new ApplicationDbContext(options);
+        var page = Page(db, fixture.Admin.Id);
+        await page.OnGetAsync(fixture.Event.Id, CancellationToken.None);
+        await page.OnPostApproveAsync(fixture.Event.Id, false, CancellationToken.None);
+        Assert.Empty(page.ValidationIssues);
+        page.BoardVersion = (await db.Boards.SingleAsync()).Version;
+        await page.OnPostPublishAsync(fixture.Event.Id, true, CancellationToken.None);
+        Assert.Empty(page.ValidationIssues);
+        await page.OnPostCorrectPublishedAsync(fixture.Event.Id, true, "Controlled edits", CancellationToken.None);
+        foreach (var tileId in new[] { fixture.Tile.Id, secondId })
+        {
+            await page.OnGetAsync(fixture.Event.Id, CancellationToken.None);
+            var tile = await db.BoardTiles.SingleAsync(x => x.Id == tileId);
+            var requirement = await db.BoardRequirementSnapshots.SingleAsync(x => x.BoardTileId == tileId);
+            page.TileDraft = new BoardModel.TileDraftInput
+            {
+                TileId = tileId, Position = tile.ColumnIndex, Name = tile.NameSnapshot + " edited", Description = tile.DescriptionSnapshot,
+                ManualEhb = 7m, Requirements = [new BoardModel.RequirementInput { RequirementId = requirement.Id, Kind = "challenge", Description = requirement.Description, Target = 1, DuplicatesAllowed = true }]
+            };
+            await page.OnPostEditTileAsync(fixture.Event.Id, CancellationToken.None);
+            Assert.Equal("committed", page.TempData["BoardTileOutcome"]);
+        }
+        var edited = await B5BoardReadAsync(page, fixture.Event.Id);
+        Assert.Equal(2, edited.DifferentTileCount);
+        Assert.Contains(fixture.Tile.Id, edited.DifferentTileIds);
+        Assert.Contains(secondId, edited.DifferentTileIds);
+        await page.OnGetAsync(fixture.Event.Id, CancellationToken.None);
+        await page.OnPostRemoveAsync(fixture.Event.Id, secondId, CancellationToken.None);
+        var removed = await B5BoardReadAsync(page, fixture.Event.Id);
+        Assert.Single(removed.PrivateCorrection!.Tiles);
+        Assert.Equal(2, removed.DifferentTileCount);
+        Assert.Contains(secondId, removed.DifferentTileIds);
+        Assert.Equal(2, removed.Published!.Tiles.Count);
+    }
+
     private async Task<string> B5RemediationBoardPersistenceAsync()
     {
         await using var db = new ApplicationDbContext(options);
