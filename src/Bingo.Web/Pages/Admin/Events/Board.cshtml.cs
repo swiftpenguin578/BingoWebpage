@@ -752,7 +752,7 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
             if (estimates.Count == 0) throw new InvalidOperationException("Published objectives are missing.");
             // Approval stores the effective EHB, not whether an equal manual override
             // was entered. Restore that frozen value without consulting live rates.
-            manualEstimates.Add(tile.BoardTileId, estimates.Any(x => x == null) || EhbCalculator.SumRequirements(estimates) != tile.EstimatedEhb ? tile.EstimatedEhb : null);
+            manualEstimates.Add(tile.BoardTileId, estimates.Any(x => x == null) || decimal.Round(EhbCalculator.SumRequirements(estimates), 4) != tile.EstimatedEhb ? tile.EstimatedEhb : null);
         }
         if (approvalTiles.Count != published.Approval.Rows * published.Approval.Columns || approvalTiles.Any(x => x.RowIndex < 0 || x.RowIndex >= published.Approval.Rows || x.ColumnIndex < 0 || x.ColumnIndex >= published.Approval.Columns))
             throw new InvalidOperationException("Published board positions are incomplete.");

@@ -36,4 +36,34 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests
         Assert.Equal(switchKind ? null : (decimal?)12m, saved.ManualEhbOverride);
         Assert.Equal(switchKind ? 1m : 12m, (await verify.BoardTiles.SingleAsync()).EstimatedEhbSnapshot);
     }
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Au11A3DiscardComparesPublishedAutomaticEstimateAtStoredPrecision(bool publishedOverride)
+    {
+        var fixture = await SeedApprovalBatchAsync(correction: true);
+        var frozenEhb = publishedOverride ? 5m : 3.3333m;
+        await using (var setup = new ApplicationDbContext(options))
+        {
+            setup.Entry(await setup.BoardApprovalRequirementBossSnapshots.SingleAsync()).Property(x => x.EfficientRate).CurrentValue = 3m;
+            setup.Entry(await setup.BoardApprovalTileSnapshots.SingleAsync()).Property(x => x.EstimatedEhb).CurrentValue = frozenEhb;
+            setup.Entry(await setup.BoardApprovalSnapshots.SingleAsync()).Property(x => x.TotalEhbEstimate).CurrentValue = frozenEhb;
+            var template = await setup.TileTemplates.SingleAsync();
+            template.Update(template.Name, "Private edit", ObjectiveType.DropRequirements, "", 99m);
+            await setup.SaveChangesAsync();
+        }
+        var view = await LoadBoardAsync(fixture.Event.Id, fixture.Admin.Id);
+        await using (var discard = new ApplicationDbContext(options))
+        {
+            var page = Page(discard, fixture.Admin.Id);
+            page.BoardVersion = view.BoardView!.Version;
+            await page.OnPostDiscardCorrectionAsync(fixture.Event.Id, true, CancellationToken.None);
+        }
+        await using var verify = new ApplicationDbContext(options);
+        Assert.Equal(publishedOverride ? 5m : (decimal?)null, (await verify.TileTemplates.SingleAsync()).ManualEhbOverride);
+        Assert.Equal(frozenEhb, (await verify.BoardTiles.SingleAsync()).EstimatedEhbSnapshot);
+        Assert.Equal(frozenEhb, (await verify.BoardApprovalTileSnapshots.SingleAsync()).EstimatedEhb);
+        Assert.False((await verify.Boards.SingleAsync()).PublishedCorrectionInProgress);
+    }
+
 }
