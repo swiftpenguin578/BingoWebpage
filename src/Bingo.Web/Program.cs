@@ -370,17 +370,6 @@ if (args.Contains("--catalogue-price-report", StringComparer.Ordinal) || args.Co
     return;
 }
 
-if (args.Contains("--export-catalogue-snapshot", StringComparer.Ordinal))
-{
-    await using var snapshotScope = app.Services.CreateAsyncScope();
-    var snapshotDb = snapshotScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    await snapshotDb.Database.MigrateAsync();
-    var snapshots = snapshotScope.ServiceProvider.GetRequiredService<CatalogueSnapshotService>();
-    var result = await snapshots.ExportAsync(catalogueSnapshotPath);
-    Console.WriteLine($"Catalogue snapshot exported to {catalogueSnapshotPath}: {result.Bosses} bosses, {result.Items} items, {result.Drops} drops.");
-    return;
-}
-
 if (args.Contains("--slice1-migration-preflight", StringComparer.Ordinal))
 {
     var ownerIndex = Array.IndexOf(args, "--slice1-owner");
@@ -440,6 +429,8 @@ if (args.Contains("--slice1-bootstrap-owner", StringComparer.Ordinal))
 
 if (args.Contains("--apply-catalogue-snapshot", StringComparer.Ordinal))
 {
+    if (app.Environment.IsProduction())
+        throw new InvalidOperationException("Catalogue snapshot import is restricted to CI, Development, and manual-test data. Restore the reviewed production database backup instead.");
     await using var snapshotScope = app.Services.CreateAsyncScope();
     var snapshotDb = snapshotScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     if (!app.Environment.IsProduction()) await snapshotDb.Database.MigrateAsync();

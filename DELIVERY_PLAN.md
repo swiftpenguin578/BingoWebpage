@@ -1687,7 +1687,7 @@ Deployment, production cleanup and current runtime state are not inferred from t
 | PRE-01 | Baseline/retained-data investigation, no guessed production migration | Historical evidence; no current production access implied |
 | ADM-01, ADM-02 | Honest outcomes, useful sanitized Audit, shared confirmations | New shared Admin reference supersedes visual composition; AU16 server-side hidden-history/query correction is approved and queued; RC fixes pending |
 | SEC-01 | Retire emergency authority, preserve actors/history | No reactivation through later UI |
-| CAT-01 | Simplify Catalogue; retain SuperAdmin roll-group editing in the per-drop rate panel; retire separate roll-group/import surfaces | AU21/AU23 pending; the decided rate panel permits SuperAdmin editing and is read-only for other roles |
+| CAT-01 | Simplify Catalogue; retain SuperAdmin roll-group editing in the per-drop rate panel; retire separate roll-group/import surfaces | AU21/AU23 backend delivered in B4 remediation; the decided rate panel permits SuperAdmin editing and is read-only for other roles |
 | EVT-01 | Name/timezone creation, permanent slug, atomic defaults, Identity ownership | AU03/AU08/AU09 complete; new UI binding pending |
 | ACC-01 | Existing-account support/security; no user creation/merge or emergency controls | AU22/AU24 pending; typed ownership confirmation is an existing requirement gap |
 | EVD-01 | Real team-role submission authority, immediate participant account switch | AU17a full-pool Admin metadata correction pending; not permission to change rosters |
@@ -2886,11 +2886,12 @@ make container-internal `/health/ready` gate PostgreSQL, configured R2 bucket
 reachability, and timely heartbeats from both existing hosted workers; keep Wise
 Old Man non-blocking; add explicit migration and read-only production-preflight
 commands without normal-startup migration; and initialize non-root ownership of
-the writable data-protection and catalogue-cache volumes. Clean setup runs
-migrate, catalogue snapshot, owner bootstrap, preflight, then web/Caddy. Retained
-data runs the legacy Slice 1 preflight only when crossing that boundary, then
-migrate, production preflight, and replacement; never apply the catalogue
-snapshot to retained data.
+the writable data-protection and catalogue-cache volumes. Clean setup restores
+the reviewed database backup after migration, then runs owner bootstrap,
+preflight, and web/Caddy. Retained data runs the legacy Slice 1 preflight only
+when crossing that boundary, then migrate, production preflight, and replacement.
+The catalogue snapshot loader is reserved for CI, Development, and manual-test
+data and is never applied by production deployment.
 
 The Pass 2 complexity budget is zero tables, schema migrations, product routes,
 policies, jobs, NuGet dependencies, CI/deployment/provider work, or generalized

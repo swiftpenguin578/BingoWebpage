@@ -231,8 +231,6 @@ else
     failure_stage=database_migration
     run_logged "database migration" compose run --rm --no-deps web --migrate
     capture_post_migration_history
-    failure_stage=catalogue_snapshot
-    run_logged "catalogue snapshot application" compose run --rm --no-deps web --apply-catalogue-snapshot
     failure_stage=initial_owner_bootstrap
     if [[ "$bootstrap_state_value" == interrupted ]]; then
         owner_count=$(active_super_admin_count)

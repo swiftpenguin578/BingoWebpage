@@ -114,9 +114,9 @@ For every deploy it:
    Protection keys, both configs, explicit bootstrap state, and every checksum.
    Restic tags bind the backup ID and manifest checksum; the local receipt is
    secret-free corroboration, never a restore prerequisite.
-3. On `new` or `interrupted` state, runs `--migrate`,
-   `--apply-catalogue-snapshot`, the selected-owner
-   `--slice1-bootstrap-owner`, and `--production-preflight`. An interrupted
+3. On `new` or `interrupted` state, restores the reviewed production database
+   backup after `--migrate`, then runs the selected-owner
+   `--slice1-bootstrap-owner` and `--production-preflight`. An interrupted
    owner command that already succeeded is skipped only after the explicit
    active-owner check. On `completed` state, it runs the legacy migration
    preflight only when `BINGO_RETAINED_LEGACY_PREFLIGHT=required`, then

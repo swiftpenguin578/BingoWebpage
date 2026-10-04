@@ -125,8 +125,8 @@ For a genuinely new database, an operator with the real environment file should:
 
 1. Start only PostgreSQL and wait for its health check.
 2. Run the reviewed image once with `--migrate`.
-3. Run the reviewed image once with `--apply-catalogue-snapshot`; migrations
-   must already be applied.
+3. Restore the reviewed production database backup after migrations; production
+   deployment does not apply `--apply-catalogue-snapshot`.
 4. Run the reviewed image once with
    `--slice1-bootstrap-owner --username <owner> --confirm-username <owner>`.
    `bingo-deploy` supplies `Slice1__BootstrapOwnerPassword` only to this

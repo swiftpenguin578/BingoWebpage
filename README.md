@@ -160,19 +160,13 @@ The import preserves boss/activity records and clan EHB rates, replaces their im
 
 ### Preserve and restore the reviewed OSRS catalogue
 
-The reviewed catalogue is versioned at `src/Bingo.Web/data/osrs-catalogue.json`. After deliberately reviewing or manually correcting catalogue data, export the database state into that file:
-
-```bash
-dotnet run --project src/Bingo.Web -- --export-catalogue-snapshot
-```
-
-To populate a freshly migrated deployment whose catalogue tables are empty:
+The reviewed catalogue is versioned at `src/Bingo.Web/data/osrs-catalogue.json`. Production rebuilds start from the restored database backup and do not apply this snapshot during deployment. The snapshot loader is retained for CI, Development, and manual-test databases only:
 
 ```bash
 dotnet run --project src/Bingo.Web -- --apply-catalogue-snapshot
 ```
 
-Applying the snapshot safely updates the catalogue created by older migrations and adds missing records; it does not delete catalogue records that historical boards may reference. The Wiki import remains a discovery/update workflow; it is not the authoritative deployment seed. Commit and review snapshot changes alongside the catalogue edits that produced them.
+Applying the snapshot safely updates a disposable catalogue created by migrations and adds missing records; it does not delete catalogue records that historical boards may reference. The Wiki import remains a discovery/update workflow; it is not the authoritative deployment seed. Commit and review snapshot changes alongside the catalogue edits that produced them.
 
 ### Catalogue API mapping and price reports
 
@@ -254,7 +248,7 @@ environment overrides must retain a valid contact-bearing structured User-Agent.
 
 Boss and item records retain their original OSRS Wiki image URLs, but the web UI serves those images through a same-origin persistent cache. Development uses the Git-ignored `src/Bingo.Web/data/catalogue-images` directory. In production, set `CatalogueImageCache__LocalPath` to a mounted persistent-volume path; do not rely on a container's temporary filesystem.
 
-Images populate on first use. A deployment can prewarm all reviewed catalogue and board artwork after applying the catalogue snapshot:
+Images populate on first use. A deployment can prewarm all reviewed catalogue and board artwork after the database restore/rebuild:
 
 ```bash
 dotnet run --project src/Bingo.Web -- --sync-catalogue-images
