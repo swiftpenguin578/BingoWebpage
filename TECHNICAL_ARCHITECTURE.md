@@ -482,8 +482,12 @@ retries saving the same receipt rather than creating again. Automatic updates
 coalesce permitted local revisions and revalidate current state at dispatch.
 After actual Live, a sent operation may reconcile but fresh roster/delete
 dispatches and destructive retries are rejected; a permitted Live end update
-contains dates only. Manual ID links never receive credentials or management
-opt-in. Rename support is intentionally omitted unless a small unchanged
+contains dates only. External ID-only links remain read-only until explicit protected-code adoption;
+external provenance never gains deletion authority. Replacement/disconnect retires
+the old local credential and uses active/unresolved-operation guards before and
+after provider validation. Sending/Unknown Create blocks linking, and generation/
+lease checks reject a late fetch for a replaced source. Readback never fetches
+and selects the current connection operation, not an old successful receipt. Rename support is intentionally omitted unless a small unchanged
 provider-ID recognition path is independently safe; reading My Accounts cannot
 rewrite frozen event identity.
 
@@ -627,14 +631,20 @@ Cancellation is an administrator transaction available only before `LIVE`. It lo
 
 Scheduled event end uses the configured instant as `actual_ended_at`, even when the transition is persisted later. Early end is an administrator-authorized transaction requiring strong confirmation and a reason; it records the confirmation time as the effective end; early end sets the upload cutoff to actual end plus 30 minutes. Both paths use the same transition policy, close new-drop eligibility, and leave grace-period uploads available until the active cutoff. Evidence-image UTC timestamps remain a visual review input rather than an OCR or fixed upload-hours subsystem.
 
-**Approved, pending AU20:** early end also sets the configured end and requested
-WOM end to the precise click instant rounded up to the next whole minute; actual
-end retains the precise click. Resume requires the Admin's validated replacement
-future configured end, with no click-time rounding. Both actions succeed locally
-without waiting for WOM. Compare WOM exactly against configured start/end at every
-stage including Final Review; actual times still own eligibility/cutoff/review.
-The AU20 ticket owns retry, post-end fetch suppression and publication fallback;
-these changes are not yet implemented.
+Early end sets the configured end and requested WOM end to the click instant
+rounded up to the next whole minute (an exact minute stays unchanged); actual end
+retains the precise click. Resume requires the Admin's validated future replacement
+end using the existing schedule increments, with no rounding. Both actions commit
+locally within ordinary lifecycle rules and record a pending end update for a linked WOM competition.
+WOM matching uses exact configured UTC start/end at every stage, including Final
+Review; actual times still own eligibility/cutoff/review. The existing management
+worker attempts the update immediately, then uses spaced retries until publication
+or permanent rejection. While the end is unmatched, post-actual-end fetches are
+suppressed. Publication persists CouldNotUpdate and an AU18 skipped outcome, using
+the last pre-end cache as official WOM data with its original Luck freshness.
+This state is exposed through service/read models only; new UI placement remains
+for UI integration. AU20 implementation/check evidence is under
+`docs/references/admin-ui/reviews/2026-10-04/au-b3/`; independent review is pending.
 
 Manual and scheduled opening call the same application/domain readiness policy with an explicit opening mode. Manual opening ignores any stored scheduled-opening value and supplies the current authoritative instant. Scheduling persists the stable active warning codes that the Admin acknowledged. Scheduled opening transactionally revalidates the complete event/form configuration at execution time; a blocker or newly active unacknowledged warning leaves the event private, records one failed attempt, disables delayed retry, and creates one durable Admin action/notification rather than partially publishing signup. External-provider reachability is not part of this transaction.
 

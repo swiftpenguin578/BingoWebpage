@@ -72,17 +72,17 @@ pending-decision notes below; implementation remains queued, not complete.
   management connection so no stale write targets it. Never delete the external
   competition, and never carry its credentials to a replacement. Credential-enabled
   provider updates already exist. Conflict overwrite/re-send and scheduled-slot
-  relaxation are not approved. Implementation remains pending under AU20.
+  relaxation are not approved. Implemented under AU20; independent review remains pending.
 - **Exact WOM window — approved 2 October:** replace the five-minute matching
   tolerance with equality of configured start and end UTC instants at every stage,
   including Final Review (WA-2). Actual instants remain eligibility/cutoff/review
-  inputs; the later pending-AU20 early-end/Resume rules below apply. Different timezone
+  inputs; the early-end/Resume rules below apply. Different timezone
   displays of the same instant match; an actual time difference does not. Do not
   silently change website dates to fit WOM. Apply consistently at linking,
   replacement and existing window-validation boundaries. Reconcile provider and
   persistence timestamp precision explicitly, without rounding away genuine time
   differences. Existing links must not be silently disconnected or their historical
-  snapshots rewritten. Application and reference updates are pending in AU20/RC09.
+  snapshots rewritten. Application behavior is implemented under AU20; reference updates remain pending in RC09.
 - **Evidence correction (AU17a):** Admin metadata correction must offer all players
   from the event pool, not only currently active Playing assignments. The concrete
   use case is correcting attribution when someone forgot to change the account.
@@ -204,7 +204,7 @@ ticket/acceptance contract is linked from
   application bulk/Wiki import surfaces while preserving domain/operator mechanics.
 - **WOM (WOM-01/WOM-02):** Website dates own the schedule; no provider-date import
   or Admin sync toggle. Compare both linked-window boundaries as equal UTC instants, without a
-  five-minute tolerance (later user decision above; implementation pending). Website-created/protected-credential connections allow sync and
+  five-minute tolerance (the later user decision above, implemented in AU20). Website-created/protected-credential connections allow sync and
   eligible pre-Live deletion; external ID-only links allow reads only, including
   no update-all writes; external links with protected supplied code allow sync but
   never deletion. Credential adoption never changes provenance. Validate without
@@ -599,7 +599,7 @@ Each event records:
 - Actual submission closure
 - Finalized time
 
-Schedule owns the five timestamps, not capacity or an automatic-opening toggle. Unchanged stored instants preserve exact precision. Changed local values follow the existing future/timezone/order rules; passed signup boundaries remain history, draft time freezes at actual draft start, and event start/end may be repaired to future values until first actual Live even after their configured times pass. Published start/end cannot be cleared. After Live, a future end change requires reason and one consequence confirmation. Participant-facing changes use one meaningful before/after confirmation; draft-time-only and ordinary private saves do not gain a confirmation ladder. AU10 preserves exact unchanged instants; exact WOM boundary validation is pending AU20.
+Schedule owns the five timestamps, not capacity or an automatic-opening toggle. Unchanged stored instants preserve exact precision. Changed local values follow the existing future/timezone/order rules; passed signup boundaries remain history, draft time freezes at actual draft start, and event start/end may be repaired to future values until first actual Live even after their configured times pass. Published start/end cannot be cleared. After Live, a future end change requires reason and one consequence confirmation. Participant-facing changes use one meaningful before/after confirmation; draft-time-only and ordinary private saves do not gain a confirmation ladder. AU10 preserves exact unchanged instants; exact configured WOM boundary validation is implemented in AU20.
 
 Admins can reopen submissions or undo finalization. These actions require a reason and create audit entries.
 
@@ -613,16 +613,22 @@ The configured event-start instant may trigger an automatic start attempt, but n
 
 The event ends automatically at its configured event-end instant and enters `AWAITING_FINAL_REVIEW`. If processing occurs late because the application was unavailable, the configured instant remains the effective end. An enabled administrator may end a live event early after strong confirmation and a required reason; the early confirmation time becomes the authoritative actual end. Early end sets the normal upload cutoff to actual end plus 30 minutes.
 
-**Approved, pending AU20:** early end also sets the configured end and requested
-WOM end to the precise click instant rounded up to the next whole minute; actual
-end retains the precise click. Resume requires the Admin's validated replacement
-future configured end, with no click-time rounding. Both actions succeed locally
-without waiting for WOM. Compare WOM exactly against configured start/end at every
-stage including Final Review; actual times still own eligibility/cutoff/review.
-The AU20 ticket owns retry, post-end fetch suppression and publication fallback;
-these changes are not yet implemented.
+Early end sets the configured end and requested WOM end to the click instant
+rounded up to the next whole minute (an exact minute stays unchanged); actual end
+retains the precise click. Resume requires the Admin's validated future replacement
+end using the existing schedule increments, with no rounding. Both actions commit
+locally within ordinary lifecycle rules and record a pending end update for a linked WOM competition.
+WOM matching uses exact configured UTC start/end at every stage, including Final
+Review; actual times still own eligibility/cutoff/review. The existing management
+worker attempts the update immediately, then uses spaced retries until publication
+or permanent rejection. While the end is unmatched, post-actual-end fetches are
+suppressed. Publication persists CouldNotUpdate and an AU18 skipped outcome, using
+the last pre-end cache as official WOM data with its original Luck freshness.
+This state is exposed through service/read models only; new UI placement remains
+for UI integration. AU20 implementation/check evidence is under
+`docs/references/admin-ui/reviews/2026-10-04/au-b3/`; independent review is pending.
 
-Before official finalization, an enabled administrator may resume an event that entered `AWAITING_FINAL_REVIEW` prematurely, whether the end was manual or automatic. Resume requires strong confirmation and a written reason. Current implementation reuses a future configured end and asks for a replacement only when missing/expired. **Pending AU20**, Resume instead requires the Admin to choose a validated replacement future end as specified above. The action returns the event to `LIVE` only after the ordinary singleton-current and lifecycle checks pass. The prior end transition and its effective time remain immutable history rather than being erased. The ordinary submission cutoff is re-derived from the applicable configured end, and any separate submission-reopening window must be revalidated rather than silently reused. Submissions, reviews, and contributions created during the intervening final-review period remain historical and continue through their normal workflows. Resume is unavailable directly from `FINALIZED` or `ARCHIVED`; resuming an event that has already produced official finalization history is outside this approved recovery action and fails closed unless separately approved.
+Before official finalization, an enabled administrator may resume an event that entered `AWAITING_FINAL_REVIEW` prematurely, whether the end was manual or automatic. Resume requires strong confirmation and a written reason. Resume requires the Admin to choose a validated replacement future end as specified above, even when the former configured end remains in the future. The action returns the event to `LIVE` only after the ordinary singleton-current and lifecycle checks pass. The prior end transition and its effective time remain immutable history rather than being erased. The ordinary submission cutoff is re-derived from the applicable configured end, and any separate submission-reopening window must be revalidated rather than silently reused. Submissions, reviews, and contributions created during the intervening final-review period remain historical and continue through their normal workflows. Resume is unavailable directly from `FINALIZED` or `ARCHIVED`; resuming an event that has already produced official finalization history is outside this approved recovery action and fails closed unless separately approved.
 
 ### 7.2 Post-cutoff behavior
 
@@ -1482,7 +1488,11 @@ The built-in required Account question creates the participant's first playing a
 
 Each My accounts link may store an optional personal EHB default. A regular Account control is prefilled from that value; saving the signup updates the default and captures a separate event snapshot. Later My accounts edits do not silently rewrite that event snapshot, while saving an edited signup refreshes it from the current control value. The primary Account answer's snapshot is the participant's draft sorting/balancing value. Secondary EHB values are not summed or substituted. Once the Wise Old Man integration is delivered, My accounts and every regular-account EHB control in signup/edit provide an explicit **Fetch from Wise Old Man** action using that account name; this is not an event-level option. A successful fetch in signup/edit immediately updates the authenticated participant's existing owner-linked My accounts character with the fetched EHB using normal My accounts update/timestamp semantics, while keeping the value visible in the signup form; it does not create or alter an event participant or assignment. Manual EHB entry remains available in My accounts, which is the accepted fallback when signup lookup is unavailable; a separate inline manual EHB editor on signup/edit is not required (user decision, 2026-09-07). A failed fetch leaves both the current signup value and My accounts value unchanged. The submitted value is stored as the event snapshot. The application must review and follow the current WoM API usage rules before implementing this action and must not issue requests on page render, selection, save, or every keystroke.
 
-An event may link one existing WOM competition. Website dates own the schedule: no provider-date import or synchronize-schedule option. Linking/replacement compares both UTC boundaries exactly (AU20 pending; current code still permits five minutes). Pre-first-Live external disconnect leaves the remote competition intact; matching replacement also remains available during Live, including after a code is stored, subject to operation guards. Final Review and terminal connection configuration is read-only.
+An event may link one existing WOM competition. Website dates own the schedule: no provider-date import or synchronize-schedule option. Linking/replacement compares both UTC boundaries exactly (configured window, including Final Review). Pre-first-Live external disconnect leaves the remote competition intact; matching replacement also remains available during Live, including after a code is stored, subject to operation guards. Final Review and terminal connection configuration is read-only.
+
+WOM end values use each player's last snapshot within the configured window.
+Players are expected to log out immediately before the end for a recent snapshot;
+this accepted provider precision limit has no compensation or attribution logic.
 
 The dedicated Admin WOM surface also supports one explicit, complete creation flow
 for a finalized pre-Live event. It builds one whole team payload from every

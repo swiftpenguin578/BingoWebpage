@@ -450,7 +450,7 @@ parallel code/test ownership disjoint and bounds documentation merge resolution.
 | **DB-6 — Dashboard proof gap** → DB-1 (C2) | `02-dashboard.md` DB-6: no executed assertions select the latest ended recap, its Provisional flags or latest additions; pending/rejected submissions are absent. Exercise all on real persisted projections and distinguish source inference from executed proof. |
 | **LKP-1 — Luck mixed-outcome proof** (C8) | `10-fix-batch-review.md` F2 test-gap note: current test makes every outcome unsupported; one unsupported outcome among supported outcomes is only source-traced. Dedicated Luck proof assignment exercises mixed outcomes, replaceable incomplete checkpoint, retained compatible complete snapshot/freshness, explicit unavailable states and no read-time WOM/rescore. This is a new proof ID; original LK-1 is already fixed by F2. |
 
-#### AU20 — configured-window and end synchronization (approved; pending implementation)
+#### AU20 — configured-window and end synchronization (implemented and focused checks passed; external review pending)
 
 Source: `06b-wom-catalogue-accounts-audit.md` WA-2, WA-6, WA-9 and
 `decisions.md` “WA-2 (decided, extends AU20)” in the 4 October remediation evidence.
@@ -501,9 +501,11 @@ five-minute tolerance site, transient retry spacing and non-transient rejection,
 unmatched-end fetch suppression/success/fallback/publication, ID-only credentials,
 external delete refusal, Sending/Unknown Create-link race and late responses after
 replacement. Use controlled provider doubles, never live WOM. The early-end texts
-in DATA_MODEL, TECHNICAL_ARCHITECTURE and PRODUCT_REQUIREMENTS are updated and marked
-**pending AU20**; they previously retained the scheduled end. No implementation is
-claimed by this documentation change.
+in DATA_MODEL, TECHNICAL_ARCHITECTURE and PRODUCT_REQUIREMENTS now describe the
+implemented behavior. Six scoped B3 checkpoints and their execution evidence are
+under `docs/references/admin-ui/reviews/2026-10-04/au-b3/`; external Claude review
+remains pending. No current-page display, RC/UI binding or release acceptance is
+implied by implementation checks.
 
 #### Catalogue decisions — AU23, CAT-1 and WA-5 (4 October; pending implementation)
 
@@ -1121,6 +1123,7 @@ here; do not silently omit a row because the reference has no corresponding cont
 | Catalogue rate entry and “How the rate is counted” panel follow the decided fields and permissions | Catalogue — intentional differences from [Catalogue.dc.html](docs/references/admin-ui/Catalogue.dc.html) | AU23 and [Catalogue decisions — AU23, CAT-1 and WA-5](#catalogue-decisions--au23-cat-1-and-wa-5-4-october-pending-implementation); `08-decisions.md` “Drop-rate mechanics” / “Catalogue layout” | RC10 / WA-5 | None; use the owning decisions, including final-chance input, retired Only-after input, ordinary rate-text rolls and SuperAdmin roll-group editing |
 | Informational activity Team size in Settings and Add activity beside Kills per hour | Catalogue — intentional difference from [Catalogue.dc.html](docs/references/admin-ui/Catalogue.dc.html) | CAT-1 and [Catalogue decisions — AU23, CAT-1 and WA-5](#catalogue-decisions--au23-cat-1-and-wa-5-4-october-pending-implementation); `08-decisions.md` “Catalogue layout” | RC10 / WA-5 | None for binding; preserve the owning ticket's migration pre-check and any resulting data decision |
 | “WOM end could not be updated” state and read-model/service output; AU20 implements backend only, with no new display on current pages | No reference shows it; candidate pages are WOM [Wom.dc.html](docs/references/admin-ui/Wom.dc.html), Overview [Overview.dc.html](docs/references/admin-ui/Overview.dc.html), Final Review [FinalReview.dc.html](docs/references/admin-ui/FinalReview.dc.html) | WA-2 / AU20; `08-decisions.md` “B3 (AU20) brief decisions”; brief 23 item 4 | WA-5 / OS-1 / BR-10 as selected by the UI integration plan | Placement and final binding owner remain open; the UI integration plan must decide before the affected pages are bound |
+| Structured fetch eligibility, AU18 skip reason and next permitted time; typed credential/current-operation identity, phase and next attempt | WOM — [Wom.dc.html](docs/references/admin-ui/Wom.dc.html); these backend outputs exceed the generic Fetch wording. Final Review retains its separate AU18 data-only next-time decision above | WA-6 / AU20; Step 4 D4 and B1/B2 D2 in [B3 source attribution](docs/references/admin-ui/reviews/2026-10-04/au-b3/item6-documentation.md); brief 23 items 1 and 6 | WA-5 / RC09, as settled in the UI integration plan | Decide which structured WOM outcomes are displayed and their binding before integration; keep current-page generic Fetch wording and no new Final Review next-time display |
 
 ### Proposed reference corrections — RC05–RC11, not dispatched
 

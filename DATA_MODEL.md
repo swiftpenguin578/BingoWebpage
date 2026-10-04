@@ -339,14 +339,20 @@ Reopen signups uses shared confirmation without a written reason. Reopen submiss
 
 The scheduled end transition sets `actual_ended_at = event_ends_at`, even if a background check persists the transition later. An authorized early-end command sets `actual_ended_at` to its authoritative confirmation time and requires a reason in the audit record. The event moves from `LIVE` to `AWAITING_FINAL_REVIEW` at that effective instant. Early end sets the normal `submission_cutoff_at` to actual end plus 30 minutes.
 
-**Approved, pending AU20:** early end also sets the configured end and requested
-WOM end to the precise click instant rounded up to the next whole minute; actual
-end retains the precise click. Resume requires the Admin's validated replacement
-future configured end, with no click-time rounding. Both actions succeed locally
-without waiting for WOM. Compare WOM exactly against configured start/end at every
-stage including Final Review; actual times still own eligibility/cutoff/review.
-The AU20 ticket owns retry, post-end fetch suppression and publication fallback;
-these changes are not yet implemented.
+Early end sets the configured end and requested WOM end to the click instant
+rounded up to the next whole minute (an exact minute stays unchanged); actual end
+retains the precise click. Resume requires the Admin's validated future replacement
+end using the existing schedule increments, with no rounding. Both actions commit
+locally within ordinary lifecycle rules and record a pending end update for a linked WOM competition.
+WOM matching uses exact configured UTC start/end at every stage, including Final
+Review; actual times still own eligibility/cutoff/review. The existing management
+worker attempts the update immediately, then uses spaced retries until publication
+or permanent rejection. While the end is unmatched, post-actual-end fetches are
+suppressed. Publication persists CouldNotUpdate and an AU18 skipped outcome, using
+the last pre-end cache as official WOM data with its original Luck freshness.
+This state is exposed through service/read models only; new UI placement remains
+for UI integration. AU20 implementation/check evidence is under
+`docs/references/admin-ui/reviews/2026-10-04/au-b3/`; independent review is pending.
 
 An incomplete `DRAFT` requires only a valid name, unique slug, timezone, creator, and creation time. Schedule, signup, capacity, and planning fields become required only at the readiness gate for the transition that uses them. A field being available during initial creation does not make it required for the first save.
 
@@ -376,7 +382,7 @@ effective_signup_opening_at = actual_signup_opened_at ?? signup_opens_at
 effective_signup_opening_at < signup_closes_at <= event_starts_at < event_ends_at <= submission_cutoff_at
 ```
 
-Unchanged stored timestamps retain exact UTC precision. Changed local values follow future/timezone/order checks. Passed signup boundaries remain historical; draft time locks at actual draft start. Until first actual Live, event start/end may be repaired to future instants even after configured boundaries pass. Published start/end cannot be cleared. Schedule does not own capacity or a user-facing opening toggle. Normal cutoff derives from end plus 30 minutes. Preserve overlap checks and existing legacy disabled-overdue opening behavior; exact WOM start/end matching replaces five-minute tolerance under pending AU20.
+Unchanged stored timestamps retain exact UTC precision. Changed local values follow future/timezone/order checks. Passed signup boundaries remain historical; draft time locks at actual draft start. Until first actual Live, event start/end may be repaired to future instants even after configured boundaries pass. Published start/end cannot be cleared. Schedule does not own capacity or a user-facing opening toggle. Normal cutoff derives from end plus 30 minutes. Preserve overlap checks and existing legacy disabled-overdue opening behavior; exact configured WOM start/end matching replaces the former five-minute tolerance.
 
 For manual opening with no explicit closing time:
 
@@ -755,9 +761,13 @@ An event may have at most one Wise Old Man integration-state record. It owns:
 - separate fixed-hourly normal-slot and retry due times. A normal slot is UTC and anchored to the event's retained `actual_started_at` (first slot +1h); a missing anchor leaves the normal due explicitly `NULL` rather than creating a rolling fallback;
 - retry count;
 - opaque synchronization lease owner and expiry;
-- observed request-budget diagnostics needed by Admin projection.
+- observed request-budget diagnostics needed by Admin projection;
+- end-update status (NotRequired, Pending, Succeeded, Rejected, CouldNotUpdate), UTC
+  target/requested timestamps and a sanitized safe rejection code. The AU20 migration
+  backfills existing rows as NotRequired with no inferred target; Down removes only
+  the new fields and cannot preserve pending end requests across rollback.
 
-The competition interval must match both website UTC boundaries exactly (AU20 pending; existing code still allows five minutes). Website dates cannot be imported from WOM. Matching replacement is allowed before/during Live and local disconnect before first Live, with active/unresolved-operation guards and no external remote deletion or credential reuse. Final Review and terminal connection configuration stays read-only.
+The competition interval must match both website UTC boundaries exactly (configured window, including Final Review). Website dates cannot be imported from WOM. Matching replacement is allowed before/during Live and local disconnect before first Live, with active/unresolved-operation guards and no external remote deletion or credential reuse. Final Review and terminal connection configuration stays read-only.
 
 Each synchronization attempt snapshots a generation identity, competition ID, and fingerprint of all current unreleased `PLAYING` event assignments. Cached per-character activity rows belong to that generation and store the event, participant, character, gained EHB, and fetch time. Alt/informational and released assignments are excluded.
 
@@ -765,18 +775,33 @@ Lease acquisition and HTTP do not share a database transaction. Final cache publ
 
 Participant activity is the sum of their current generation's matched regular-character deltas. Team total sums current-member participant totals once; team average divides by current participants with at least one matched account rather than accounts. Every participant tied for the highest available total is a provisional MVP; coverage makes the partial state explicit. Synchronization stops outside `LIVE` and `AWAITING_FINAL_REVIEW`; the latest generation state is retained without mutation and may resume only after a legitimate return to `LIVE`. Existing Live rows are reconciled lazily to the current anchored slot; a consumed current slot is detected from its recorded attempt time even when its legacy due value came from the old rolling cadence, so recovery advances to the next future slot without replaying a slot. Downtime does not backfill a burst, and retries/manual/urgent requests do not move the normal anchor.
 
+AU20 persisted WOM outcome compatibility:
+
+AU18 refresh skip reasons retain their stored names and explicit numbers:
+EventUnavailable=0, EventNotInFinalReview=1, IncompleteEventWindow=2, NoCompetition=3,
+RefreshInProgress=4, RetryDelay=5, NotDue=6, ServiceUnavailable=7. AU20 appends
+EndWindowUnmatched=8 and EndCouldNotBeUpdated=9. Published CalculationInputsJson
+continues to read old string/numeric outcomes; names/numbers must never be reused.
+Fallback publication records Skipped / EndCouldNotBeUpdated without replacing the
+pre-end cache or its fetched/calculated timestamps with fresh values or zeroes.
+
 #### Admin-managed Wise Old Man competition state — authorized 2026-09-22
 
 The existing event competition link remains the source identity for both manual
-and managed integrations. A separate management record is created only after a
-successful explicit Create through the Admin-managed flow. It stores the event
+and managed integrations. A separate management record is created after a
+successful explicit Create or explicit protected-code adoption on an external link. It stores the event
 and link identity, encrypted versioned management code, managed-field scope,
 management status, last applied local and remote fingerprints, last acknowledged
 roster, management version, and the permanent `actual_started_at` cutover
 observed for destructive/roster decisions. The code is never stored in
 cleartext, public/statistics DTOs, TempData, logs, exceptions, or raw operation
-payloads. Manually linked records have no management record and cannot be
-upgraded by importing a credential.
+payloads. ID-only links have no writable management capability. Explicit code adoption may
+add it without changing External provenance or authorizing remote deletion.
+External replacement/disconnect retires the local management connection, removes
+its protected credential and current-operation receipt, and preserves operation
+history. A later explicit code adoption rebinds the unique management row with the
+new code, never the retired credential. Replacement resets end-update state for
+the new configured connection.
 
 Durable management operations retain only an operation ID/type, authorized
 actor or originating local change, immutable desired fingerprint/payload
