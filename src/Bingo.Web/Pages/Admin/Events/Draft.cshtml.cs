@@ -30,7 +30,7 @@ using Npgsql;
 namespace Bingo.Web.Pages.Admin.Events;
 
 [Authorize(Policy = AuthorizationPolicies.Admin)]
-public sealed class DraftModel(ApplicationDbContext db, TimeProvider time, IAuditWriter audit, IAdminCollaborationNotifier collaboration, ISignupService signupService, EventParticipantCharacterService characterService, IEvidenceStorage? storage = null, ITeamCaptainAuthorityService? captainAuthority = null, IStringLocalizer<SharedResource>? text = null, IWiseOldManAccountValidation? accountValidation = null) : PageModel
+public sealed partial class DraftModel(ApplicationDbContext db, TimeProvider time, IAuditWriter audit, IAdminCollaborationNotifier collaboration, ISignupService signupService, EventParticipantCharacterService characterService, IEvidenceStorage? storage = null, ITeamCaptainAuthorityService? captainAuthority = null, IStringLocalizer<SharedResource>? text = null, IWiseOldManAccountValidation? accountValidation = null) : PageModel
 {
     public string EventName { get; private set; } = string.Empty; public string EventTimezone { get; private set; } = DateTimePresentation.DefaultTimezoneId; public string Sort { get; private set; } = "ehb"; public DraftView? Draft { get; private set; }
     public Guid EventId { get; private set; }
@@ -1052,7 +1052,7 @@ public sealed class DraftModel(ApplicationDbContext db, TimeProvider time, IAudi
         var usableCaptainTeamIds = await (from membership in db.TeamMemberships.AsNoTracking()
                                           join participant in db.EventParticipants.AsNoTracking() on membership.EventParticipantId equals participant.Id
                                           join account in db.Accounts.AsNoTracking() on participant.AccountId equals account.Id
-                                          where membership.LeftAt == null && membership.Role == TeamMembershipRole.Captain && teams.Select(team => team.Id).Contains(membership.TeamId) && account.Active && account.AccountType == Bingo.Domain.Access.AccountType.WebsiteAccount && participant.EventId == id
+                                          where membership.LeftAt == null && membership.Role == TeamMembershipRole.Captain && teams.Select(team => team.Id).Contains(membership.TeamId) && account.Active && account.AccountType == Bingo.Domain.Access.AccountType.WebsiteAccount && participant.EventId == id && participant.SignupStatus == SignupStatus.Confirmed
                                           select membership.TeamId).Distinct().ToListAsync(ct);
         var manuallyAssembledParticipantIds = memberships.Where(m => teams.Any(t => t.Id == m.TeamId && !t.IncludedInDraft)).Select(m => m.EventParticipantId).ToHashSet();
         var eligibleParticipants = participants.Where(x => !manuallyAssembledParticipantIds.Contains(x.Id) && x.SignupStatus == SignupStatus.Confirmed).ToList();

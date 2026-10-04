@@ -41,7 +41,7 @@ using Npgsql;
 
 namespace Bingo.IntegrationTests;
 
-public sealed class DraftOperationsIntegrationTests : IAsyncLifetime
+public sealed partial class DraftOperationsIntegrationTests : IAsyncLifetime
 {
     private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine")
         .WithDatabase("bingo_draft_operations")
