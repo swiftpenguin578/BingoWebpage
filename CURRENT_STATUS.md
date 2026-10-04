@@ -9,8 +9,8 @@
 - Six ordered implementation items, one scoped local commit each; all await external Claude review. No current-page display, B4/B5, RC/UI integration, rehearsal, push, main merge or deployment.
 - Item 1 checkpoint `52f0af6`: exact configured UTC checks and AU18 structured readback; focused checks passed, Claude review pending. Evidence: `au-b3/item1-exact-window.md`.
 - Item 2 implemented: local early-end/Resume and pending-state migration; focused PostgreSQL and Release build passed. Evidence: `au-b3/item2-local-end-resume.md`.
-- Item 2 checkpoint `2d74bde`; item 3 implemented/tested, awaiting local checkpoint and Claude review. Evidence: `au-b3/item3-end-update-retries.md`.
-- Planner resolved other-4xx handling before item 3; attribution and exact classifications are in that evidence. Items 4–6 remain pending.
+- Item 2 checkpoint `2d74bde`; item 3 checkpoint `fa24164`, implemented/tested; Claude review pending. Evidence: `au-b3/item3-end-update-retries.md`.
+- Planner resolved other-4xx handling before item 3; attribution and exact classifications are in that evidence. Item 4 implemented/tested; evidence `au-b3/item4-publication-fallback.md`. Items 5–6 remain pending.
 - Unrelated broad-check finding retained in item 1 evidence: StatsPass4Boundary fixture expects an open submission window after configured cutoff; no silent Stats fix.
 - AU20 absent-reference binding is recorded once in DELIVERY_PLAN's register; placement remains for UI integration.
 

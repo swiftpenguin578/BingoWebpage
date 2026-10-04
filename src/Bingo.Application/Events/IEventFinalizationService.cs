@@ -1,8 +1,9 @@
 using Bingo.Domain.Events;
+using Bingo.Domain.Integrations.WiseOldMan;
 
 namespace Bingo.Application.Events;
 
-public sealed record FinalizationOperationResult(bool Published, bool AlreadyPublished, string? Feedback = null);
+public sealed record FinalizationOperationResult(bool Published, bool AlreadyPublished, string? Feedback = null, EventCompetitionEndUpdateStatus? WomEndUpdateStatus = null);
 
 public interface IEventFinalizationService
 {
@@ -16,7 +17,7 @@ public interface IEventFinalizationService
     Task ArchiveAsync(Guid eventId, bool confirmed, LifecycleActor actor, CancellationToken ct = default);
 }
 
-public sealed record FinalReviewReadiness(Guid EventId, string EventName, EventState State, DateTimeOffset? EventStartsAt, DateTimeOffset? EventEndsAt, DateTimeOffset? SubmissionCutoff, bool SubmissionWindowOpen, IReadOnlyList<FinalReviewBlocker> Blockers, IReadOnlyList<ProvisionalPlacement> Placements, IReadOnlyList<FinalizationHistoryRow> History, Guid ReviewCycleId = default, long EventVersion = 0, PlacementRule PlacementRule = PlacementRule.LegacyScoreTimeThenEhb)
+public sealed record FinalReviewReadiness(Guid EventId, string EventName, EventState State, DateTimeOffset? EventStartsAt, DateTimeOffset? EventEndsAt, DateTimeOffset? SubmissionCutoff, bool SubmissionWindowOpen, IReadOnlyList<FinalReviewBlocker> Blockers, IReadOnlyList<ProvisionalPlacement> Placements, IReadOnlyList<FinalizationHistoryRow> History, Guid ReviewCycleId = default, long EventVersion = 0, PlacementRule PlacementRule = PlacementRule.LegacyScoreTimeThenEhb, EventCompetitionEndUpdateStatus WomEndUpdateStatus = EventCompetitionEndUpdateStatus.NotRequired)
 {
     /// <summary>
     /// A blocker is an authoritative prerequisite, not a task an administrator

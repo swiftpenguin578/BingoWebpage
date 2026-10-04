@@ -16,7 +16,8 @@ public enum EventCompetitionRefreshSkipReason
 {
     // Explicit values preserve the numeric form written by early local AU18 versions.
     EventUnavailable = 0, EventNotInFinalReview = 1, IncompleteEventWindow = 2, NoCompetition = 3,
-    RefreshInProgress = 4, RetryDelay = 5, NotDue = 6, ServiceUnavailable = 7
+    RefreshInProgress = 4, RetryDelay = 5, NotDue = 6, ServiceUnavailable = 7,
+    EndWindowUnmatched = 8, EndCouldNotBeUpdated = 9
 }
 
 public sealed record EventCompetitionView(

@@ -52,6 +52,8 @@ public sealed partial class EventCompetitionManagementIntegrationTests
         Assert.Equal(EventCompetitionEndUpdateStatus.Succeeded, state.EndUpdateStatus);
         Assert.Equal(state.EndUpdateTargetAt, state.CompetitionEndsAt);
         Assert.Equal(1, state.Generation);
+        var refreshed = await new EventCompetitionSynchronizationService(final, reads, new FixedStatus(), clock).RefreshForFinalReviewAsync(fixture.EventId);
+        Assert.True(refreshed.Succeeded, refreshed.Message);
     }
 
     [Theory]

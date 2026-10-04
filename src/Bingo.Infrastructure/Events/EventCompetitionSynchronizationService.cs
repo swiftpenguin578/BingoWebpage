@@ -252,6 +252,8 @@ public sealed partial class EventCompetitionSynchronizationService(
             .SingleOrDefaultAsync(cancellationToken);
         if (state is not null) await db.Entry(state).ReloadAsync(cancellationToken);
         if (state?.CompetitionId is not { } competitionId) return new(null, EventCompetitionRefreshSkipReason.NoCompetition);
+        if (item.ActualEndedAt is not null && state.HasUnmatchedEnd(item.EventEndsAt))
+            return new(null, EndWindowSkipReason(state));
         if (state.LeaseExpiresAt is { } leaseExpiry && leaseExpiry > now) return new(null, EventCompetitionRefreshSkipReason.RefreshInProgress, leaseExpiry);
         var fingerprint = await AssignmentFingerprintAsync(eventId, cancellationToken);
         var assignmentChanged = !string.Equals(state.AssignmentFingerprint, fingerprint, StringComparison.Ordinal);
@@ -281,6 +283,8 @@ public sealed partial class EventCompetitionSynchronizationService(
     {
         if (item.State is not (EventState.Live or EventState.AwaitingFinalReview)) return new(null, EventCompetitionRefreshSkipReason.EventUnavailable);
         if (state.CompetitionId is null) return new(null, EventCompetitionRefreshSkipReason.NoCompetition);
+        if (item.ActualEndedAt is not null && state.HasUnmatchedEnd(item.EventEndsAt))
+            return new(null, EndWindowSkipReason(state));
         if (state.LeaseExpiresAt is { } leaseExpiry && leaseExpiry > now) return new(null, EventCompetitionRefreshSkipReason.RefreshInProgress, leaseExpiry);
         if (manual)
         {
@@ -298,6 +302,10 @@ public sealed partial class EventCompetitionSynchronizationService(
         return new(null);
     }
 
+    private static EventCompetitionRefreshSkipReason EndWindowSkipReason(EventCompetitionSynchronization state) =>
+        state.EndUpdateStatus == EventCompetitionEndUpdateStatus.CouldNotUpdate
+            ? EventCompetitionRefreshSkipReason.EndCouldNotBeUpdated : EventCompetitionRefreshSkipReason.EndWindowUnmatched;
+
     private async Task<LeaseFinalizationOutcome> FinalizeLeaseAsync(SyncLease lease, WiseOldManCompetitionResult result, CancellationToken cancellationToken)
     {
         var now = time.GetUtcNow();
@@ -312,6 +320,15 @@ public sealed partial class EventCompetitionSynchronizationService(
             await db.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
             return new(false, "ConcurrencyConflict", "The competition refresh lease was no longer valid when the provider response returned.");
+        }
+
+        // A fetch started before an early end must not overwrite the last eligible cache
+        // when its provider response returns after the local window changed.
+        if (item.ActualEndedAt is not null && state.HasUnmatchedEnd(item.EventEndsAt))
+        {
+            state.ReleaseLease(lease.Owner);
+            await db.SaveChangesAsync(cancellationToken); await transaction.CommitAsync(cancellationToken);
+            return new(false, "EndWindowUnmatched", "The WOM end update has not been confirmed.");
         }
 
         var currentFingerprint = await AssignmentFingerprintAsync(lease.EventId, cancellationToken);

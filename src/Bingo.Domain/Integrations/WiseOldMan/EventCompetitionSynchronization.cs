@@ -44,6 +44,15 @@ public sealed class EventCompetitionSynchronization
         EndUpdateErrorCode = null;
     }
 
+    public bool HasUnmatchedEnd(DateTimeOffset? configuredEnd) => CompetitionId is not null &&
+        (CompetitionEndsAt != configuredEnd || EndUpdateStatus is EventCompetitionEndUpdateStatus.Pending
+            or EventCompetitionEndUpdateStatus.Rejected or EventCompetitionEndUpdateStatus.CouldNotUpdate);
+
+    public void MarkEndCouldNotBeUpdated()
+    {
+        EndUpdateStatus = EventCompetitionEndUpdateStatus.CouldNotUpdate;
+    }
+
     public void RejectEndUpdate(DateTimeOffset target, string code)
     {
         if (EndUpdateStatus != EventCompetitionEndUpdateStatus.Pending || EndUpdateTargetAt != target) return;

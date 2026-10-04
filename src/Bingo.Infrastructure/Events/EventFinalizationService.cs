@@ -8,6 +8,7 @@ using Bingo.Application.Events;
 using Bingo.Domain.Access;
 using Bingo.Domain.Auditing;
 using Bingo.Domain.Events;
+using Bingo.Domain.Integrations.WiseOldMan;
 using Bingo.Domain.Evidence;
 using Bingo.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -96,7 +97,10 @@ public sealed class EventFinalizationService(ApplicationDbContext db, IPublicBoa
             f.UnfinalizedByAccountId, f.UnfinalizedByAccountId is { } reopenedBy ? historyActors.GetValueOrDefault(reopenedBy) : null,
             ReadFinalWomRefresh(f.CalculationInputsJson))).ToList();
         if (activeFinal is not null && (ev.State is EventState.Finalized or EventState.Archived)) placements = official.Where(x => x.FinalizationId == activeFinal.Id).Select(x => new ProvisionalPlacement(x.TeamId, x.TeamName, x.Placement, x.BoardComplete, x.BoardCompletedAt, null, x.CompletedLines, x.CompletedTiles, x.EhbTiebreak, x.CurrentScoreReachedAt)).ToList();
-        return new(eventId, ev.Name, ev.State, scheduledStart, scheduledEnd, effectiveCutoff, ev.AcceptsNewSubmissions(now), blockers, placements, history, cycleId, ev.Version, ev.PlacementRule);
+        var endStatus = await db.EventCompetitionSynchronizations.AsNoTracking().Where(x => x.EventId == eventId)
+            .Select(x => (EventCompetitionEndUpdateStatus?)x.EndUpdateStatus).SingleOrDefaultAsync(ct);
+        return new(eventId, ev.Name, ev.State, scheduledStart, scheduledEnd, effectiveCutoff, ev.AcceptsNewSubmissions(now), blockers, placements, history, cycleId, ev.Version, ev.PlacementRule,
+            endStatus ?? EventCompetitionEndUpdateStatus.NotRequired);
     }
 
     public Task ResolveBlockerAsync(Guid eventId, string blockerKey, string reason, bool confirmed, Guid adminId, long? expectedVersion = null, Guid? expectedReviewCycleId = null, CancellationToken ct = default)
@@ -111,6 +115,7 @@ public sealed class EventFinalizationService(ApplicationDbContext db, IPublicBoa
     public async Task<FinalizationOperationResult> FinalizeAsync(Guid eventId, LifecycleActor actor, long? expectedVersion = null, CancellationToken ct = default)
     {
         string? operationFeedback = null;
+        EventCompetitionEndUpdateStatus? endUpdateStatus = null;
         try
         {
             actor = await EventMutationAuthorization.EnsureAuthorizedAsync(db, actor, ct);
@@ -164,6 +169,16 @@ public sealed class EventFinalizationService(ApplicationDbContext db, IPublicBoa
             var readiness = await GetReadinessAsync(eventId, ct) ?? throw new InvalidOperationException("Event not found.");
             if (readiness.EventVersion != ev.Version || !readiness.CanFinalize) throw new InvalidOperationException("Resolve every final-review item before finalizing.");
             if (readiness.ReviewCycleId == Guid.Empty) throw new InvalidOperationException("The final-review cycle is unavailable.");
+            var endState = await db.EventCompetitionSynchronizations
+                .FromSqlInterpolated($"SELECT * FROM event_competition_synchronizations WHERE event_id = {eventId} FOR UPDATE").SingleOrDefaultAsync(ct);
+            if (endState is not null) await db.Entry(endState).ReloadAsync(ct);
+            if (endState?.HasUnmatchedEnd(ev.EventEndsAt) == true)
+            {
+                endState.MarkEndCouldNotBeUpdated();
+                refreshResult = new(false, true, SkipReason: EventCompetitionRefreshSkipReason.EndCouldNotBeUpdated);
+                refreshFailure = null;
+            }
+            endUpdateStatus = endState?.EndUpdateStatus;
             var now = time.GetUtcNow();
             var version = (await db.EventFinalizations.Where(x => x.EventId == eventId).MaxAsync(x => (int?)x.Version, ct) ?? 0) + 1;
             var ties = readiness.Placements.GroupBy(x => x.Placement).Where(x => x.Count() > 1).Select(group => new
@@ -210,7 +225,7 @@ public sealed class EventFinalizationService(ApplicationDbContext db, IPublicBoa
         }
         catch (Exception ex) when (IsReviewPersistenceConflict(ex)) { throw new InvalidOperationException("This event changed in another session. Reload before finalizing."); }
         await NotifyProgressAsync(eventId, ct);
-        return new(true, false, operationFeedback);
+        return new(true, false, operationFeedback, endUpdateStatus);
     }
 
     private static bool IsReviewPersistenceConflict(Exception exception)
