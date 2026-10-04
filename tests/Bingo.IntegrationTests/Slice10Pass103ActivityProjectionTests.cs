@@ -362,7 +362,9 @@ public sealed class Slice10Pass103ActivityProjectionTests : IAsyncLifetime
     [Fact]
     public async Task DevelopmentTest15DueControlIsIdempotentAndResetRemainsCachedOnly()
     {
-        var clock = new TestClock(DateTimeOffset.UtcNow);
+        var current = DateTimeOffset.UtcNow;
+        var seededNow = new DateTimeOffset(current.Year, current.Month, current.Day, current.Hour, current.Minute < 30 ? 0 : 30, 0, TimeSpan.Zero);
+        var clock = new TestClock(seededNow);
         const string owner = "slice10-pass103-control-owner";
         await using (var db = new ApplicationDbContext(options))
         {
