@@ -147,6 +147,95 @@ public sealed partial class EventCompetitionManagementIntegrationTests
         Assert.Equal(0, writes.DeleteCalls);
     }
 
+    [Theory]
+    [InlineData(WiseOldManCompetitionWriteStatus.Validation)]
+    [InlineData(WiseOldManCompetitionWriteStatus.Unauthorized)]
+    public async Task Au20RemediationLateOldTargetRejectionCannotBlockResume(WiseOldManCompetitionWriteStatus rejection)
+    {
+        var clock = new TestClock(new DateTimeOffset(2026, 10, 4, 12, 0, 0, TimeSpan.Zero));
+        var f = await Au20PendingEndAsync(clock);
+        var remote = f.RemoteCompetition!;
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var call = 0;
+        var writes = new RecordingManagementClient { UpdateHandler = async (_, payload, _, _) =>
+        {
+            if (++call == 1)
+            {
+                entered.SetResult(); await release.Task;
+                return new(rejection, ErrorCode: "COMPETITION_START_DATE_AFTER_END_DATE");
+            }
+            remote = Success(remote, payload).Competition!;
+            return new(WiseOldManCompetitionWriteStatus.Success, remote);
+        }};
+        var reads = new RecordingCompetitionClient(_ => new(WiseOldManCompetitionStatus.Success, remote));
+        await using var original = CreateDb();
+        var sending = CreateService(original, writes, reads, clock).QueueUpdateAsync(f.EventId);
+        await entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        var target = clock.GetUtcNow().AddHours(3);
+        try
+        {
+            clock.Advance(TimeSpan.FromSeconds(1));
+            await using var resume = CreateDb();
+            var ev = await resume.Events.SingleAsync();
+            Assert.True((await new EventLifecycleService(resume, null!, clock).ResumePrematureEndAsync(f.EventId, ev.Version, true, "New target", target, f.Actor)).Succeeded);
+            clock.Advance(TimeSpan.FromSeconds(1));
+        }
+        finally { release.TrySetResult(); }
+        await sending;
+        Assert.Equal(1, call);
+        await using (var read = CreateDb())
+        {
+            var state = await read.EventCompetitionSynchronizations.SingleAsync();
+            Assert.Equal(target, state.EndUpdateTargetAt);
+            Assert.NotEqual(EventCompetitionEndUpdateStatus.Rejected, state.EndUpdateStatus);
+            Assert.True((await read.EventCompetitionManagements.SingleAsync()).CanWrite);
+        }
+        clock.Advance(TimeSpan.FromMinutes(1));
+        await using var final = CreateDb();
+        await CreateService(final, writes, reads, clock).ProcessDueAsync();
+        Assert.Equal(2, call);
+        var operations = await final.EventCompetitionManagementOperations.OrderBy(x => x.CreatedAt).ToListAsync();
+        Assert.Contains(operations, x => x.Phase == EventCompetitionManagementOperationPhase.Failed);
+        Assert.Equal(1, Assert.Single(operations, x => x.Phase == EventCompetitionManagementOperationPhase.Succeeded).AttemptCount);
+        Assert.Equal(EventCompetitionEndUpdateStatus.Succeeded, (await final.EventCompetitionSynchronizations.SingleAsync()).EndUpdateStatus);
+    }
+
+    [Fact]
+    public async Task Au20RemediationResumeRestartsBackoffAfterLongOldTargetRetry()
+    {
+        var clock = new TestClock(new DateTimeOffset(2026, 10, 4, 12, 0, 0, TimeSpan.Zero));
+        var f = await Au20PendingEndAsync(clock);
+        var reads = new RecordingCompetitionClient(_ => new(WiseOldManCompetitionStatus.Success, f.RemoteCompetition));
+        var writes = new RecordingManagementClient { UpdateHandler = (_, _, _, _) => Task.FromResult(new WiseOldManCompetitionWriteResult(WiseOldManCompetitionWriteStatus.RateLimited)) };
+        foreach (var delay in new[] { 1, 2, 4, 8, 16 })
+        {
+            await using var db = CreateDb(); await CreateService(db, writes, reads, clock).ProcessDueAsync();
+            clock.Advance(TimeSpan.FromMinutes(delay));
+        }
+        await using (var sixth = CreateDb())
+        {
+            await CreateService(sixth, writes, reads, clock).ProcessDueAsync();
+            Assert.Equal(clock.GetUtcNow().AddMinutes(30), (await sixth.EventCompetitionManagementOperations.SingleAsync()).NextAttemptAt);
+        }
+        await using (var resume = CreateDb())
+        {
+            var ev = await resume.Events.SingleAsync();
+            Assert.True((await new EventLifecycleService(resume, null!, clock).ResumePrematureEndAsync(f.EventId, ev.Version, true, "New target", new DateTimeOffset(2026, 10, 4, 15, 0, 0, TimeSpan.Zero), f.Actor)).Succeeded);
+        }
+        await using (var queue = CreateDb())
+        {
+            await CreateService(queue, writes, reads, clock).QueueUpdateAsync(f.EventId);
+            Assert.Equal(0, (await queue.EventCompetitionManagementOperations.SingleAsync()).AttemptCount);
+        }
+        await using var attempt = CreateDb();
+        await CreateService(attempt, writes, reads, clock).ProcessDueAsync();
+        var op = await attempt.EventCompetitionManagementOperations.SingleAsync();
+        Assert.Equal(1, op.AttemptCount);
+        Assert.Equal(clock.GetUtcNow().AddMinutes(1), op.NextAttemptAt);
+        Assert.Equal(7, writes.Updates.Count);
+    }
+
     private static HttpResponseMessage Au20HttpReceipt(WiseOldManCompetition remote) => new(HttpStatusCode.OK)
     {
         Content = new StringContent(JsonSerializer.Serialize(new { id = remote.Id, title = remote.Title, startsAt = remote.StartsAt, endsAt = remote.EndsAt }))

@@ -335,10 +335,11 @@ public sealed class EventCompetitionManagementOperation
         ActorUsername = username;
     }
 
-    public void ReplaceDesired(string desiredPayloadJson, string desiredFingerprint, long eventVersion, DateTimeOffset now)
+    public void ReplaceDesired(string desiredPayloadJson, string desiredFingerprint, long eventVersion, DateTimeOffset now, bool resetAttempts = false)
     {
         if (Phase is not (EventCompetitionManagementOperationPhase.Pending or EventCompetitionManagementOperationPhase.Retry))
             throw new InvalidOperationException("Only a pending WOM operation can be coalesced.");
+        if (resetAttempts) AttemptCount = 0;
         DesiredPayloadJson = desiredPayloadJson;
         DesiredFingerprint = desiredFingerprint;
         EventVersion = eventVersion;
@@ -347,10 +348,11 @@ public sealed class EventCompetitionManagementOperation
         Version++;
     }
 
-    public void RequeueCurrent(string desiredPayloadJson, string desiredFingerprint, long eventVersion, DateTimeOffset now)
+    public void RequeueCurrent(string desiredPayloadJson, string desiredFingerprint, long eventVersion, DateTimeOffset now, bool resetAttempts = false)
     {
         if (Phase != EventCompetitionManagementOperationPhase.Sending)
             throw new InvalidOperationException("Only a sending WOM operation can be refreshed.");
+        if (resetAttempts) AttemptCount = 0;
         DesiredPayloadJson = desiredPayloadJson;
         DesiredFingerprint = desiredFingerprint;
         EventVersion = eventVersion;
