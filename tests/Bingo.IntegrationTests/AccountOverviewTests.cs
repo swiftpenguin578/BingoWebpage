@@ -5,6 +5,7 @@ using Bingo.Domain.Teams;
 using Bingo.Infrastructure.Persistence;
 using Bingo.Web.Pages.Admin.Accounts;
 using Bingo.Web.Security;
+using Bingo.Web.UI;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -100,12 +101,16 @@ public sealed class AccountOverviewTests : IAsyncLifetime
         mismatched.TempData["CredentialLink"] = "https://example.test/reset/A";
         mismatched.TempData["CredentialLinkTargetId"] = first.Id.ToString();
         mismatched.TempData["CredentialLinkPurpose"] = "reset";
+        mismatched.TempData["StatusMessage"] = "Generated a one-time reset link.";
+        mismatched.TempData[UiMessage.TypeKey] = UiMessageType.Success.ToString();
         await mismatched.OnGetAsync(second.Id, CancellationToken.None);
 
         Assert.Null(mismatched.CredentialLink);
         Assert.False(mismatched.TempData.ContainsKey("CredentialLink"));
         Assert.False(mismatched.TempData.ContainsKey("CredentialLinkTargetId"));
         Assert.False(mismatched.TempData.ContainsKey("CredentialLinkPurpose"));
+        Assert.False(mismatched.TempData.ContainsKey("StatusMessage"));
+        Assert.False(mismatched.TempData.ContainsKey(UiMessage.TypeKey));
 
         var matching = CreateManageModel(db);
         matching.TempData["CredentialLink"] = "https://example.test/reset/A";

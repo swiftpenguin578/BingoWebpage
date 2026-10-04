@@ -123,6 +123,9 @@ public sealed class ManageModel(ApplicationDbContext db, AccountAdministrationSe
     private void LoadCredentialLink(Guid id)
     {
         CredentialLink = null;
+        var hasCredentialPayload = TempData.ContainsKey("CredentialLink")
+            || TempData.ContainsKey("CredentialLinkTargetId")
+            || TempData.ContainsKey("CredentialLinkPurpose");
         var targetId = TempData["CredentialLinkTargetId"]?.ToString();
         var purpose = TempData["CredentialLinkPurpose"]?.ToString();
         if (targetId == id.ToString() && purpose == "reset")
@@ -134,6 +137,11 @@ public sealed class ManageModel(ApplicationDbContext db, AccountAdministrationSe
         TempData.Remove("CredentialLink");
         TempData.Remove("CredentialLinkTargetId");
         TempData.Remove("CredentialLinkPurpose");
+        if (hasCredentialPayload)
+        {
+            TempData.Remove("StatusMessage");
+            TempData.Remove(Bingo.Web.UI.UiMessage.TypeKey);
+        }
     }
 
     private bool ResolveSubmittedOverlay(bool overlay)
