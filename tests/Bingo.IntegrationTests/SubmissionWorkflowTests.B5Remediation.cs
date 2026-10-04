@@ -1,5 +1,11 @@
 using System.Globalization;
 using System.Net;
+using System.Security.Claims;
+using System.Data.Common;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Bingo.Application.Events;
@@ -214,6 +220,167 @@ public sealed partial class SubmissionWorkflowTests
             var approved = (await Service(db).GetReviewReadbackAsync(second.SubmissionId, setup.AdminId)).State!;
             Assert.Equal(SubmissionStatus.Approved, approved.Status);
             Assert.Equal(read.Contribution.Values, approved.Contribution.Values);
+        }
+    }
+
+    [Theory]
+    [InlineData("accounts")]
+    [InlineData("submissions")]
+    [InlineData("review_actions")]
+    public async Task B5RemediationReviewReadbackHandlesEveryReadBoundary(string table)
+    {
+        var setup = await SeedAsync(3, true);
+        Guid submissionId;
+        await using (var seed = new ApplicationDbContext(options)) submissionId = (await Service(seed).CreateAsync(Command(setup))).SubmissionId;
+        var baseline = await B5EvidenceStateAsync();
+        var failing = new DbContextOptionsBuilder<ApplicationDbContext>(options).AddInterceptors(new B5AnyReviewReadFailure(table)).Options;
+        await using var db = new ApplicationDbContext(failing);
+        var page = new DetailsModel(db, Service(db)) { PageContext = new PageContext { HttpContext = new DefaultHttpContext { User = new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, setup.AdminId.ToString())], "test")) } } };
+        var result = Assert.IsType<SubmissionReviewReadback>(Assert.IsType<JsonResult>(await page.OnGetReadbackAsync(submissionId, CancellationToken.None)).Value);
+        Assert.False(result.Known); Assert.Null(result.State);
+        Assert.Equal("no-store", page.Response.Headers.CacheControl);
+        Assert.Equal(baseline, await B5EvidenceStateAsync());
+    }
+
+    [Fact]
+    public async Task B5RemediationReviewDisabledAdminIsRefusedByBothHandlers()
+    {
+        var setup = await SeedAsync(3, true);
+        await using var db = new ApplicationDbContext(options);
+        var submission = await Service(db).CreateAsync(Command(setup));
+        (await db.Accounts.SingleAsync(x => x.Id == setup.AdminId)).Disable(now);
+        await db.SaveChangesAsync();
+        var page = new DetailsModel(db, Service(db)) { PageContext = new PageContext { HttpContext = new DefaultHttpContext { User = new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, setup.AdminId.ToString())], "test")) } } };
+        Assert.IsType<ForbidResult>(await page.OnGetReadbackAsync(submission.SubmissionId, CancellationToken.None));
+        Assert.IsType<ForbidResult>(await page.OnGetCorrectionCharactersAsync(submission.SubmissionId, CancellationToken.None));
+        Assert.Equal("no-store", page.Response.Headers.CacheControl);
+    }
+
+    [Fact]
+    public async Task B5RemediationCorrectionPickerHttpUsesNoStoreAndNotFound()
+    {
+        var setup = await SeedAsync(3, true);
+        Guid submissionId;
+        await using (var seed = new ApplicationDbContext(options))
+        {
+            submissionId = (await Service(seed).CreateAsync(Command(setup))).SubmissionId;
+            var admin = await seed.Accounts.SingleAsync(x => x.Id == setup.AdminId);
+            admin.SetGlobalRole(GlobalRole.SuperAdmin);
+            admin.SetPassword(new PasswordHasher<Account>().HashPassword(admin, "password"), false, now, false);
+            await seed.SaveChangesAsync();
+        }
+        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseEnvironment("Testing").UseSetting("ConnectionStrings:Database", database.GetConnectionString())
+            .ConfigureServices(services => { services.RemoveAll<IHostedService>(); services.RemoveAll<TimeProvider>(); services.AddSingleton<TimeProvider>(new FixedTimeProvider(now)); }));
+        using var client = factory.CreateClient(new() { AllowAutoRedirect = false, BaseAddress = new Uri("https://localhost") });
+        var login = await client.GetStringAsync("/Account/Login");
+        var token = Regex.Match(login, "name=\"__RequestVerificationToken\" type=\"hidden\" value=\"([^\"]+)\"").Groups[1].Value;
+        using var authenticated = await client.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string> { ["Input.Username"] = "admin", ["Input.Password"] = "password", ["__RequestVerificationToken"] = token }));
+        Assert.Equal(HttpStatusCode.Redirect, authenticated.StatusCode);
+        using var success = await client.GetAsync($"/Admin/Review/Details/{submissionId}?handler=CorrectionCharacters");
+        Assert.Equal(HttpStatusCode.OK, success.StatusCode);
+        Assert.True(success.Headers.CacheControl!.NoStore);
+        using var json = JsonDocument.Parse(await success.Content.ReadAsStringAsync());
+        Assert.Single(json.RootElement.EnumerateArray());
+        using var missing = await client.GetAsync($"/Admin/Review/Details/{Guid.NewGuid()}?handler=CorrectionCharacters");
+        Assert.Equal(HttpStatusCode.NotFound, missing.StatusCode);
+        Assert.True(missing.Headers.CacheControl!.NoStore);
+    }
+
+    [Theory]
+    [InlineData("Readback")]
+    [InlineData("CorrectionCharacters")]
+    public async Task B5RemediationDisabledSessionReviewEndpointsReturnLoginWithoutData(string handler)
+    {
+        var setup = await SeedAsync(3, true);
+        Guid submissionId;
+        await using (var seed = new ApplicationDbContext(options))
+        {
+            submissionId = (await Service(seed).CreateAsync(Command(setup))).SubmissionId;
+            var admin = await seed.Accounts.SingleAsync(x => x.Id == setup.AdminId);
+            admin.SetGlobalRole(GlobalRole.SuperAdmin);
+            admin.SetPassword(new PasswordHasher<Account>().HashPassword(admin, "password"), false, now, false);
+            await seed.SaveChangesAsync();
+        }
+        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseEnvironment("Testing").UseSetting("ConnectionStrings:Database", database.GetConnectionString())
+            .ConfigureServices(services => { services.RemoveAll<IHostedService>(); services.RemoveAll<TimeProvider>(); services.AddSingleton<TimeProvider>(new FixedTimeProvider(now)); }));
+        using var client = factory.CreateClient(new() { AllowAutoRedirect = false, BaseAddress = new Uri("https://localhost") });
+        var login = await client.GetStringAsync("/Account/Login");
+        var token = Regex.Match(login, "name=\"__RequestVerificationToken\" type=\"hidden\" value=\"([^\"]+)\"").Groups[1].Value;
+        using var authenticated = await client.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string> { ["Input.Username"] = "admin", ["Input.Password"] = "password", ["__RequestVerificationToken"] = token }));
+        Assert.Equal(HttpStatusCode.Redirect, authenticated.StatusCode);
+        var path = $"/Admin/Review/Details/{submissionId}?handler={handler}";
+        using var available = await client.GetAsync(path);
+        Assert.Equal(HttpStatusCode.OK, available.StatusCode);
+        Assert.NotEmpty(await available.Content.ReadAsStringAsync());
+        await using (var db = new ApplicationDbContext(options))
+        {
+            (await db.Accounts.SingleAsync(x => x.Id == setup.AdminId)).Disable(now);
+            await db.SaveChangesAsync();
+        }
+        using var refused = await client.GetAsync(path);
+        Assert.Equal(HttpStatusCode.Redirect, refused.StatusCode);
+        var location = new Uri(client.BaseAddress!, refused.Headers.Location!);
+        Assert.Equal("/Account/Login", location.AbsolutePath);
+        var query = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(location.Query);
+        Assert.Equal("true", query["accessChanged"].ToString());
+        Assert.Equal(path, query["ReturnUrl"].ToString());
+        Assert.Equal(2, query.Count);
+        Assert.Empty(await refused.Content.ReadAsStringAsync());
+    }
+
+    [Theory]
+    [InlineData("moved")]
+    [InlineData("other-team")]
+    [InlineData("other-event")]
+    public async Task B5RemediationCorrectionChecksActualOtherTeamAndEventAssignments(string scenario)
+    {
+        var setup = await SeedAsync(3, true);
+        await using var db = new ApplicationDbContext(options);
+        var service = Service(db);
+        var created = await service.CreateAsync(Command(setup));
+        var submission = await db.Submissions.AsNoTracking().SingleAsync(x => x.Id == created.SubmissionId);
+        var eventId = setup.EventId;
+        if (scenario == "other-event")
+        {
+            var other = new BingoEvent(Guid.NewGuid(), "Other event", "other-event", "UTC", setup.AdminId, now, PlacementRule.LegacyScoreTimeThenEhb);
+            db.Events.Add(other); eventId = other.Id;
+        }
+        var team = new Team(Guid.NewGuid(), eventId, "Other team", "other-team", TeamFormationType.Drafted, null, true);
+        var participant = new EventParticipant(Guid.NewGuid(), eventId, SignupStatus.Confirmed, 10, now.AddDays(-5), SignupSource.Website);
+        var character = new OsrsCharacter(Guid.NewGuid(), "Other player", "OTHER PLAYER", now.AddDays(-5));
+        db.AddRange(team, participant, character,
+            new EventParticipantCharacter(Guid.NewGuid(), eventId, participant.Id, character.Id, 0, now.AddDays(-5), setup.AdminId, null, EventCharacterRole.Playing, 1, EhbSource.Manual, null),
+            new TeamMembership(Guid.NewGuid(), team.Id, participant.Id, TeamMembershipRole.Participant, now.AddSeconds(2), null, "Current other team"));
+        if (scenario == "moved")
+        {
+            var previous = new TeamMembership(Guid.NewGuid(), setup.TeamId, participant.Id, TeamMembershipRole.Participant, now.AddDays(-4), null, null);
+            previous.Leave(now.AddSeconds(1), "Moved after upload"); db.TeamMemberships.Add(previous);
+        }
+        await db.SaveChangesAsync();
+        var baseline = await B5EvidenceStateAsync();
+        var choices = await service.GetCorrectionCharactersAsync(submission.Id, setup.AdminId);
+        if (scenario == "moved")
+        {
+            Assert.True(Assert.Single(choices, x => x.CharacterId == character.Id).LeftTeam);
+            await service.EditMetadataAsync(new(submission.Id, setup.AdminId, setup.TileId, setup.RequirementId, setup.DropId, character.Id, "Correct former team credit", submission.Version));
+            var corrected = await db.Submissions.AsNoTracking().SingleAsync(x => x.Id == submission.Id);
+            Assert.Equal(setup.TeamId, corrected.TeamId); Assert.Equal(participant.Id, corrected.CreditedParticipantId);
+            Assert.Equal(submission.SubmittedAt, corrected.SubmittedAt);
+        }
+        else
+        {
+            Assert.DoesNotContain(choices, x => x.CharacterId == character.Id);
+            await Assert.ThrowsAsync<InvalidOperationException>(() => service.EditMetadataAsync(new(submission.Id, setup.AdminId, setup.TileId, setup.RequirementId, setup.DropId, character.Id, "Invalid attribution", submission.Version)));
+            Assert.Equal(baseline, await B5EvidenceStateAsync());
+        }
+    }
+
+    private sealed class B5AnyReviewReadFailure(string table) : DbCommandInterceptor
+    {
+        public override ValueTask<InterceptionResult<DbDataReader>> ReaderExecutingAsync(DbCommand command, CommandEventData eventData, InterceptionResult<DbDataReader> result, CancellationToken cancellationToken = default)
+        {
+            if (command.CommandText.Contains("FROM " + table, StringComparison.Ordinal)) throw new TimeoutException("Controlled read failure");
+            return base.ReaderExecutingAsync(command, eventData, result, cancellationToken);
         }
     }
 

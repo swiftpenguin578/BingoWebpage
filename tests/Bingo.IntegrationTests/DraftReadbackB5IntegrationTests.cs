@@ -52,16 +52,15 @@ public sealed partial class DraftOperationsIntegrationTests
     {
         var setup = await SeedAsync(); await StartAndScrambleAsync(setup);
         var before = await B5DraftReadAsync(setup);
-        // Controlled valid random outcome: the redraw keeps exactly the same order.
-        // Persist the existing command's domain operations; no RNG/algorithm change.
-        await using (var db = new ApplicationDbContext(options))
+        Assert.Equal(2, before.Teams.Count(x => x.IncludedInDraft));
+        DraftModel.DraftCurrentState? after = null;
+        for (var attempt = 1; attempt <= 40; attempt++)
         {
-            foreach (var team in await db.Teams.Where(x => x.EventId == setup.EventId).ToListAsync())
-                team.SetDraftPosition(before.Teams.Single(x => x.TeamId == team.Id).DraftPosition);
-            (await db.DraftSessions.SingleAsync()).RenewControl(setup.FirstAdminId, now.AddTicks(13), TimeSpan.FromMinutes(5));
-            await db.SaveChangesAsync();
+            await ExecuteAsync(setup.EventId, setup.FirstAdminId, p => p.OnPostScrambleAsync(setup.EventId, CancellationToken.None), at: now.AddSeconds(attempt));
+            var current = await B5DraftReadAsync(setup);
+            if (before.Teams.Select(x => (x.TeamId, x.DraftPosition)).SequenceEqual(current.Teams.Select(x => (x.TeamId, x.DraftPosition)))) { after = current; break; }
         }
-        var after = await B5DraftReadAsync(setup);
+        Assert.NotNull(after);
         Assert.Equal(before.Teams.Select(x => (x.TeamId, x.DraftPosition)), after.Teams.Select(x => (x.TeamId, x.DraftPosition)));
         Assert.True(after.Version > before.Version);
         await using var persisted = new ApplicationDbContext(options);
@@ -73,6 +72,7 @@ public sealed partial class DraftOperationsIntegrationTests
     public async Task B5DraftReadbackIncludesInclusionOnlyTeamEditsAndConfirmedCaptainEligibility()
     {
         var setup = await SeedAsync(); var before = await B5DraftReadAsync(setup); var team = before.Teams[0];
+        Assert.Contains(team.TeamId, before.UsableCaptainTeamIds);
         await ExecuteAsync(setup.EventId, setup.SecondAdminId, p => p.OnPostUpdateTeamAsync(setup.EventId, team.TeamId, team.Name, team.Affiliation, null, false, team.Version, CancellationToken.None, includedInDraft: false));
         var after = await B5DraftReadAsync(setup); var updated = Assert.Single(after.Teams, x => x.TeamId == team.TeamId);
         Assert.Equal(team.Name, updated.Name); Assert.False(updated.IncludedInDraft); Assert.True(updated.Version > team.Version);

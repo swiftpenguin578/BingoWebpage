@@ -1694,6 +1694,7 @@ public sealed partial class BoardModel(ApplicationDbContext db, TimeProvider tim
     }
     private void SetStatus(string message, UiMessageType type)
     {
+        if (suppressPageStatus) return;
         TempData["StatusMessage"] = message;
         TempData[UiMessage.TypeKey] = type.ToString();
     }

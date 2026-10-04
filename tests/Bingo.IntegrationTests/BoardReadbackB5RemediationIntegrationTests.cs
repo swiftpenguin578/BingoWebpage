@@ -1,4 +1,9 @@
+using System.Net;
+using Microsoft.AspNetCore.Hosting;
 using System.Text.Json;
+using System.Data.Common;
+using Bingo.Domain.Access;
+using Npgsql;
 using Bingo.Domain.Boards;
 using Bingo.Domain.Events;
 using Bingo.Domain.Catalogue;
@@ -13,6 +18,33 @@ namespace Bingo.IntegrationTests;
 
 public sealed partial class Slice6CatalogueAdministrationIntegrationTests
 {
+    [Fact]
+    public async Task B5RemediationDisabledSessionBoardReadbackReturnsLoginWithoutData()
+    {
+        var fixture = await SeedApprovalBatchAsync();
+        await using var factory = ApprovalBatchFactory();
+        using var client = factory.CreateClient(new() { AllowAutoRedirect = false });
+        await LoginAsync(client, fixture.Admin.LoginName);
+        var path = $"/Admin/Events/Board/{fixture.Event.Id}?handler=Readback";
+        using var available = await client.GetAsync(path);
+        Assert.Equal(HttpStatusCode.OK, available.StatusCode);
+        Assert.NotEmpty(await available.Content.ReadAsStringAsync());
+        await using (var db = new ApplicationDbContext(options))
+        {
+            (await db.Accounts.SingleAsync(x => x.Id == fixture.Admin.Id)).Disable(DateTimeOffset.UtcNow);
+            await db.SaveChangesAsync();
+        }
+        using var refused = await client.GetAsync(path);
+        Assert.Equal(HttpStatusCode.Redirect, refused.StatusCode);
+        var location = new Uri(client.BaseAddress!, refused.Headers.Location!);
+        Assert.Equal("/Account/Login", location.AbsolutePath);
+        var query = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(location.Query);
+        Assert.Equal("true", query["accessChanged"].ToString());
+        Assert.Equal(path, query["ReturnUrl"].ToString());
+        Assert.Equal(2, query.Count);
+        Assert.Empty(await refused.Content.ReadAsStringAsync());
+    }
+
     [Fact]
     public async Task B5RemediationBoardCollectsDifferentTileIssuesAndEveryEmptyPosition()
     {
@@ -219,6 +251,93 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests
         Assert.Equal(2, removed.DifferentTileCount);
         Assert.Contains(secondId, removed.DifferentTileIds);
         Assert.Equal(2, removed.Published!.Tiles.Count);
+    }
+
+    [Theory]
+    [InlineData("accounts")]
+    [InlineData("board_approval_snapshots")]
+    public async Task B5RemediationBoardReadFailuresIncludeAuthorizationAndSnapshots(string table)
+    {
+        var fixture = await SeedApprovalBatchAsync(correction: true);
+        var baseline = await B5RemediationBoardPersistenceAsync();
+        var failing = new DbContextOptionsBuilder<ApplicationDbContext>(options).AddInterceptors(new B5AnyBoardReadFailure(table)).Options;
+        await using var db = new ApplicationDbContext(failing);
+        var page = Page(db, fixture.Admin.Id);
+        var result = Assert.IsType<BoardModel.BoardReadback>(Assert.IsType<JsonResult>(await page.OnGetReadbackAsync(fixture.Event.Id, CancellationToken.None)).Value);
+        Assert.False(result.Known); Assert.Null(result.State);
+        Assert.Equal("no-store", page.Response.Headers.CacheControl);
+        Assert.Equal(baseline, await B5RemediationBoardPersistenceAsync());
+    }
+
+    [Fact]
+    public async Task B5RemediationDuplicateObjectivesRemainReadableWithoutChoosingAnIdentity()
+    {
+        var fixture = await SeedApprovalBatchAsync();
+        await using var db = new ApplicationDbContext(options);
+        var duplicate = new BoardRequirementSnapshot(Guid.NewGuid(), fixture.Tile.Id, fixture.Requirement.Position, 2, true, false, "Ambiguous retained objective", false);
+        db.BoardRequirementSnapshots.Add(duplicate);
+        await db.SaveChangesAsync();
+        var page = Page(db, fixture.Admin.Id);
+        var baseline = await B5RemediationBoardPersistenceAsync();
+        var result = await B5BoardReadAsync(page, fixture.Event.Id);
+        var tile = Assert.Single(result.Working.Tiles);
+        Assert.Equal(2, tile.Objectives.Count);
+        Assert.Contains(tile.Objectives, x => x.RequirementId == fixture.Requirement.Id);
+        Assert.Contains(tile.Objectives, x => x.RequirementId == duplicate.Id);
+        Assert.Equal(baseline, await B5RemediationBoardPersistenceAsync());
+    }
+
+    [Fact]
+    public async Task B5RemediationSeparateAdminSessionsApproveAndPublishWithoutPageMessages()
+    {
+        var fixture = await SeedApprovalBatchAsync();
+        await using (var prepare = new ApplicationDbContext(options))
+        {
+            var ev = await prepare.Events.SingleAsync();
+            prepare.Entry(ev).Property(x => x.State).CurrentValue = EventState.SignupClosed;
+            prepare.Entry(ev).Property(x => x.EventEndsAt).CurrentValue = DateTimeOffset.UtcNow.AddDays(3);
+            await prepare.SaveChangesAsync();
+        }
+        await AddPublicBoardTeamAsync(fixture);
+        await using var observerDb = new ApplicationDbContext(options);
+        var other = Account.CreateWebsite(Guid.NewGuid(), "separate-board-admin", "SEPARATE-BOARD-ADMIN", CompletionFixtureNow);
+        other.SetGlobalRole(GlobalRole.Admin); observerDb.Accounts.Add(other);
+        (await observerDb.Boards.SingleAsync()).AcquireEditing(other.Id, DateTimeOffset.UtcNow, TimeSpan.FromMinutes(10), true);
+        await observerDb.SaveChangesAsync();
+        await observerDb.Database.OpenConnectionAsync();
+        await using var actorDb = new ApplicationDbContext(options);
+        await actorDb.Database.OpenConnectionAsync();
+        Assert.NotEqual(((NpgsqlConnection)observerDb.Database.GetDbConnection()).ProcessID, ((NpgsqlConnection)actorDb.Database.GetDbConnection()).ProcessID);
+        var observer = Page(observerDb, fixture.Admin.Id);
+        var actor = Page(actorDb, other.Id);
+        await actor.OnGetAsync(fixture.Event.Id, CancellationToken.None);
+        actor.TempData.Clear();
+        var approval = Assert.IsType<BoardModel.BoardActionState>(Assert.IsType<JsonResult>(await actor.OnPostApproveStateAsync(fixture.Event.Id, false, CancellationToken.None)).Value);
+        Assert.Empty(approval.Issues);
+        Assert.True(approval.Current.Known);
+        Assert.Equal(BoardState.Validated, approval.Current.State!.State);
+        Assert.Empty(actor.TempData.Keys);
+        var observedApproval = await B5BoardReadAsync(observer, fixture.Event.Id);
+        Assert.Equal(other.Id, observedApproval.Approved!.ApprovedById);
+        Assert.Equal(approval.Current.State.ActiveApprovalId, observedApproval.ActiveApprovalId);
+        actor.BoardVersion = observedApproval.Version;
+        var publication = Assert.IsType<BoardModel.BoardActionState>(Assert.IsType<JsonResult>(await actor.OnPostPublishStateAsync(fixture.Event.Id, true, CancellationToken.None)).Value);
+        Assert.Empty(publication.Issues); Assert.True(publication.Current.Known);
+        Assert.Equal(BoardState.Published, publication.Current.State!.State);
+        Assert.Empty(actor.TempData.Keys);
+        var observedPublication = await B5BoardReadAsync(observer, fixture.Event.Id);
+        Assert.Equal(publication.Current.State.Version, observedPublication.Version);
+        Assert.Equal(publication.Current.State.ActiveApprovalId, observedPublication.ActiveApprovalId);
+        Assert.NotNull(observedPublication.Published);
+    }
+
+    private sealed class B5AnyBoardReadFailure(string table) : DbCommandInterceptor
+    {
+        public override ValueTask<InterceptionResult<DbDataReader>> ReaderExecutingAsync(DbCommand command, CommandEventData eventData, InterceptionResult<DbDataReader> result, CancellationToken cancellationToken = default)
+        {
+            if (command.CommandText.Contains("FROM " + table, StringComparison.Ordinal)) throw new TimeoutException("Controlled read failure");
+            return base.ReaderExecutingAsync(command, eventData, result, cancellationToken);
+        }
     }
 
     private async Task<string> B5RemediationBoardPersistenceAsync()

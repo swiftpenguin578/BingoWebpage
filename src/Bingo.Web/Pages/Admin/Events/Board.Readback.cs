@@ -1,5 +1,4 @@
 using System.Data;
-using System.Data.Common;
 using System.Text.Json;
 using Bingo.Application.Boards;
 using Bingo.Domain.Access;
@@ -16,25 +15,41 @@ public sealed partial class BoardModel
 {
     // These endpoints execute the existing command once and return issues plus
     // current state. Neither the response nor a subsequent read identifies a request.
-    public async Task<IActionResult> OnPostApproveStateAsync(Guid id, bool confirmed, CancellationToken ct)
-    {
-        if (!await CanReadBoardStateAsync(ct)) return Forbid();
-        await OnPostApproveAsync(id, confirmed, ct);
-        return new JsonResult(new BoardActionState(ValidationIssues, await ReadBoardStateAsync(id, ct)));
-    }
+    private bool suppressPageStatus;
 
-    public async Task<IActionResult> OnPostPublishStateAsync(Guid id, bool confirmed, CancellationToken ct)
+    public Task<IActionResult> OnPostApproveStateAsync(Guid id, bool confirmed, CancellationToken ct)
+        => ExecuteBoardStateAsync(id, () => OnPostApproveAsync(id, confirmed, ct), ct);
+
+    public Task<IActionResult> OnPostPublishStateAsync(Guid id, bool confirmed, CancellationToken ct)
+        => ExecuteBoardStateAsync(id, () => OnPostPublishAsync(id, confirmed, ct), ct);
+
+    private async Task<IActionResult> ExecuteBoardStateAsync(Guid id, Func<Task<IActionResult>> action, CancellationToken ct)
     {
-        if (!await CanReadBoardStateAsync(ct)) return Forbid();
-        await OnPostPublishAsync(id, confirmed, ct);
-        return new JsonResult(new BoardActionState(ValidationIssues, await ReadBoardStateAsync(id, ct)));
+        Response.Headers.CacheControl = "no-store";
+        try
+        {
+            if (!await CanReadBoardStateAsync(ct)) return Forbid();
+            suppressPageStatus = true;
+            ValidationIssues = [];
+            await action();
+            return new JsonResult(new BoardActionState(ValidationIssues, await ReadBoardStateAsync(id, ct)));
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            return new JsonResult(new BoardActionState([new("state-unavailable", null, null, null, "The current board state could not be read.", [])], new(null)));
+        }
+        finally { suppressPageStatus = false; }
     }
 
     public async Task<IActionResult> OnGetReadbackAsync(Guid id, CancellationToken ct)
     {
-        if (!await CanReadBoardStateAsync(ct)) return Forbid();
         Response.Headers.CacheControl = "no-store";
-        return new JsonResult(await ReadBoardStateAsync(id, ct));
+        try
+        {
+            if (!await CanReadBoardStateAsync(ct)) return Forbid();
+            return new JsonResult(await ReadBoardStateAsync(id, ct));
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException) { return new JsonResult(new BoardReadback(null)); }
     }
 
     private Task<bool> CanReadBoardStateAsync(CancellationToken ct) => User.GetAccountId() is { } actor
@@ -50,7 +65,7 @@ public sealed partial class BoardModel
             var board = await db.Boards.AsNoTracking().SingleOrDefaultAsync(x => x.EventId == eventId, ct);
             if (ev is null || board is null) return new(null);
             var workingTiles = await db.BoardTiles.AsNoTracking().Where(x => x.BoardId == board.Id).OrderBy(x => x.RowIndex).ThenBy(x => x.ColumnIndex).ToListAsync(ct);
-            var workingRequirements = await CurrentRequirementsAsync(workingTiles, board.Columns, ct);
+            var workingRequirements = await CurrentRequirementsAsync(workingTiles, board.Columns, ct, [], includeAmbiguous: true);
             var ids = workingRequirements.Select(x => x.Id).ToList();
             var workingDrops = await db.BoardRequirementDropSnapshots.AsNoTracking().Where(x => ids.Contains(x.RequirementId)).ToListAsync(ct);
             var working = await ReadVersionAsync(board.Id, null, board.Version, board.Name, board.Rows, board.Columns, workingTiles, workingRequirements, workingDrops, ct);
@@ -78,7 +93,7 @@ public sealed partial class BoardModel
             await tx.CommitAsync(ct);
             return new(state);
         }
-        catch (Exception ex) when (ex is DbException or TimeoutException or BoardApprovalValidationException || ex is InvalidOperationException { InnerException: DbException or TimeoutException })
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             return new(null);
         }
@@ -140,7 +155,7 @@ public sealed partial class BoardModel
             JsonSerializer.SerializeToElement(right with { ManualEhbOverride = null, EstimateNeedsVerification = false }));
     }
 
-    private async Task<List<BoardRequirementSnapshot>> CurrentRequirementsAsync(List<BoardTile> tiles, int columns, CancellationToken ct, List<BoardValidationIssue>? issues = null)
+    private async Task<List<BoardRequirementSnapshot>> CurrentRequirementsAsync(List<BoardTile> tiles, int columns, CancellationToken ct, List<BoardValidationIssue>? issues = null, bool includeAmbiguous = false)
     {
         var tileIds = tiles.Select(x => x.Id).ToList();
         var templateIds = tiles.Select(x => x.TileTemplateId).Distinct().ToList();
@@ -162,9 +177,14 @@ public sealed partial class BoardModel
         var requirements = new List<BoardRequirementSnapshot>();
         foreach (var tile in tiles)
         {
-            var tileTemplateRequirements = templateRequirements
-                .Where(x => x.TileTemplateId == tile.TileTemplateId)
-                .ToDictionary(x => x.Position);
+            var templateGroups = templateRequirements.Where(x => x.TileTemplateId == tile.TileTemplateId).GroupBy(x => x.Position).ToList();
+            foreach (var duplicate in templateGroups.Where(x => x.Count() > 1))
+            {
+                var issue = new BoardApprovalValidationException("objective-positions", tile.Id, tile.RowIndex * columns + tile.ColumnIndex, tile.NameSnapshot, "A tile has duplicate objective positions. Edit the tile before approving it.");
+                if (issues is null) throw issue;
+                issues.Add(issue.Issue);
+            }
+            var tileTemplateRequirements = templateGroups.Where(x => x.Count() == 1).ToDictionary(x => x.Key, x => x.Single());
             foreach (var positionGroup in allRequirements
                          .Where(x => x.BoardTileId == tile.Id)
                          .GroupBy(x => x.Position)
@@ -186,6 +206,7 @@ public sealed partial class BoardModel
                     var issue = new BoardApprovalValidationException("objective-positions", tile.Id, tile.RowIndex * columns + tile.ColumnIndex, tile.NameSnapshot, "A tile has duplicate objective positions. Edit the tile before approving it.");
                     if (issues is null) throw issue;
                     issues.Add(issue.Issue);
+                    if (includeAmbiguous) requirements.AddRange(candidates.OrderBy(x => x.Id));
                     continue;
                 }
                 requirements.Add(candidates[0]);

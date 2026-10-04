@@ -1,5 +1,4 @@
 using System.Data;
-using System.Data.Common;
 using System.Text.Json;
 using Bingo.Domain.Access;
 using Bingo.Domain.Events;
@@ -17,10 +16,11 @@ public sealed partial class DraftModel
 {
     public async Task<IActionResult> OnGetReadbackAsync(Guid id, CancellationToken ct)
     {
-        if (User.GetAccountId() is not { } actor || !await db.Accounts.AsNoTracking().AnyAsync(x => x.Id == actor && x.Active && (x.GlobalRole == GlobalRole.Admin || x.GlobalRole == GlobalRole.SuperAdmin), ct)) return Forbid();
         Response.Headers.CacheControl = "no-store";
         try
         {
+        if (User.GetAccountId() is not { } actor || !await db.Accounts.AsNoTracking().AnyAsync(x => x.Id == actor && x.Active && (x.GlobalRole == GlobalRole.Admin || x.GlobalRole == GlobalRole.SuperAdmin), ct)) return Forbid();
+
             await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.RepeatableRead, ct);
             var ev = await db.Events.AsNoTracking().SingleOrDefaultAsync(x => x.Id == id && x.HiddenAt == null, ct);
             if (ev is null) return new JsonResult(new DraftReadback(null));
@@ -55,8 +55,12 @@ public sealed partial class DraftModel
             string? localStatus = null;
             if (localOutcome?.AfterState is { } json)
             {
-                using var document = JsonDocument.Parse(json);
-                if (document.RootElement.TryGetProperty("womStatus", out var value) && value.ValueKind == JsonValueKind.String) localStatus = value.GetString();
+                try
+                {
+                    using var document = JsonDocument.Parse(json);
+                    if (document.RootElement.ValueKind == JsonValueKind.Object && document.RootElement.TryGetProperty("womStatus", out var value) && value.ValueKind == JsonValueKind.String) localStatus = value.GetString();
+                }
+                catch (JsonException) { /* An unreadable local outcome does not invalidate the roster state. */ }
             }
             var state = new DraftCurrentState(id, ev.Version, ev.State, draft?.Id, draft?.State ?? DraftState.Setup, draft?.Version,
                 draft?.ControllerAccountId, draft?.ControllerLeaseExpiresAt, draft?.ControlVersion, draft?.FirstPickRecordedAt, draft?.RequiresFreshOrder ?? false,
@@ -65,7 +69,7 @@ public sealed partial class DraftModel
             await tx.CommitAsync(ct);
             return new JsonResult(new DraftReadback(state));
         }
-        catch (Exception ex) when (ex is DbException or TimeoutException or JsonException || ex is InvalidOperationException { InnerException: DbException or TimeoutException })
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             return new JsonResult(new DraftReadback(null));
         }

@@ -1,5 +1,4 @@
 using System.Data;
-using System.Data.Common;
 using System.Text.Json;
 using Bingo.Application.Evidence;
 using Bingo.Domain.Boards;
@@ -13,9 +12,11 @@ public sealed partial class SubmissionService
 {
     public async Task<SubmissionReviewReadback> GetReviewReadbackAsync(Guid submissionId, Guid adminAccountId, CancellationToken cancellationToken = default)
     {
-        await EnsureAdmin(adminAccountId, cancellationToken);
+        var adminValidated = false;
         try
         {
+            await EnsureAdmin(adminAccountId, cancellationToken);
+            adminValidated = true;
             await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.RepeatableRead, cancellationToken);
             var s = await db.Submissions.AsNoTracking().SingleOrDefaultAsync(x => x.Id == submissionId, cancellationToken);
             if (s is null || !await db.Events.AsNoTracking().AnyAsync(x => x.Id == s.EventId && x.HiddenAt == null, cancellationToken))
@@ -45,7 +46,8 @@ public sealed partial class SubmissionService
             await tx.CommitAsync(cancellationToken);
             return new(state);
         }
-        catch (Exception ex) when (ex is DbException or TimeoutException || ex is InvalidOperationException { InnerException: DbException or TimeoutException })
+        catch (Exception ex) when (ex is not OperationCanceledException &&
+            (adminValidated || ex is not InvalidOperationException || ex.Message != "Administrator access is required."))
         {
             return new(null);
         }
