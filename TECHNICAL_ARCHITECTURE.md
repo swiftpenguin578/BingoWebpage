@@ -467,13 +467,22 @@ AU20 end-update requests use these same persisted management operations. Their
 first attempt is due immediately; failures retry after 1, 2, 4, 8, 16 minutes,
 then every 30 minutes, with a later provider retry time honored. Repeated worker
 passes do not reset the due time. Pending end updates and uncertain-outcome
-reconciliation stop at official publication. HTTP 429 is retryable; missing or
-invalid credentials (including mapped 401/403), 404, and other mapped Validation
-responses stop automatic retries with a sanitized safe code, including HTTP 400
-`COMPETITION_START_DATE_AFTER_END_DATE`. Unknown outcomes retain read-only
-reconciliation and are never treated as definite rejection or blindly resent.
-This classification was resolved by the planner under the AU20 brief; source and
-executed evidence: `docs/references/admin-ui/reviews/2026-10-04/au-b3/item3-end-update-retries.md`.
+reconciliation stop permanently at first official publication, including after
+reopen (user D6 option a in [supplied decisions](docs/references/admin-ui/reviews/2026-10-04/au-b3/remediation/supplied-decisions.md),
+quoting [08-decisions.md](/Users/christopher/Documents/BingoWebpage/review-notes/08-decisions.md)).
+The republished version retains the same WOM basis.
+
+The corrected planner technical classification in remediation brief25 is: 5xx,
+timeouts, network errors, 408 and 429 are temporary; named 400, missing/invalid code,
+401/403/404 and other validation rejections are permanent, stored as sanitized safe
+codes. An unknown end-only write is read back: the target window completes it;
+an unchanged old window proves not applied and permits resend on the persisted
+schedule. An unavailable read keeps spaced reconciliation. Other unknown operations
+retain their protections. A new target resets attempt count/backoff; an old target's
+late failure remains historical and cannot reject the new pending target.
+Source and worker-reported execution: `docs/references/admin-ui/reviews/2026-10-04/au-b3/remediation/`.
+This supersedes the earlier item3 planner resolution; no independent user product
+approval is claimed for technical error classification.
 
 Explicit Create sends one complete team payload and, on success, persists the
 existing event link plus the protected management receipt. Unknown Create

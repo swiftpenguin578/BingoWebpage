@@ -113,7 +113,8 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests
         Assert.Equal(live.StartedAt, live.Milestones[0].At); Assert.Equal("start", live.Milestones[0].Id);
         var prices = JsonSerializer.Serialize(live.Drops.Select(x => new { x.Item, x.ValueGp, x.PriceHour }));
         var rates = JsonSerializer.Serialize(live.Luck.Sources);
-        f.Clock.Advance(TimeSpan.FromHours(12));
+        // End at the configured boundary so its normal 30-minute upload grace is still open.
+        f.Clock.Advance(f.Event.EventEndsAt!.Value - f.Clock.GetUtcNow());
         await using (var end = new ApplicationDbContext(options))
         {
             var ev = await end.Events.SingleAsync();

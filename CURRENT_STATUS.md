@@ -6,14 +6,16 @@
 - Clean baseline verified `b126c556ccd2e16cb59829837581646a3179847e`; planner's authorized documentation prerequisite `2649008` follows it.
 - Planner `/root`, replacement chat `01a10660-cc8a-7843-abb4-6cc1ebbb2bf2`. Sole implementer `/root/au_b3_implementer`, `gpt-6-astra` / high; no orchestrator or extra workers.
 - User supplied assignment: [B3 brief](docs/references/admin-ui/reviews/2026-10-04/au-b3/supplied-brief.md). Section 6's old planner chat is retired by the current assignment.
-- Six ordered implementation items, one scoped local commit each; all await external Claude review. No current-page display, B4/B5, RC/UI integration, rehearsal, push, main merge or deployment.
-- Six local implementation items completed: `52f0af6` (exact windows/readback), `2d74bde` (early end/Resume/migration), `fa24164` (end retries), `6625617` (publication fallback), `6d29f2c` (external replacement/races), and the final documentation checkpoint containing this status.
-- Original implementer-reported execution (not independently rerun): final AU20-focused integration run 44/44; additional existing guards and six old-AU18 outcome readbacks passed; enum compatibility passed; populated migration Up/Down/backfill passed; Release build zero warnings/errors. Per-item evidence: `docs/references/admin-ui/reviews/2026-10-04/au-b3/item1-exact-window.md` through `item6-documentation.md`.
-- Planner resolved other-4xx classifications; item 3 records the exact technical resolution and attribution. No separate user product approval is claimed.
-- Claude source-only review 24: FAIL (F1–F5 and smaller corrections); no reviewer execution. User authorized brief25 remediation, six ordered new local commits. Clean starting HEAD `4b9f15657978728160a00960bd45bf41cb04abb3` reverified.
-- Remediation item 1 implemented: end-only unchanged-window readback authorizes spaced resend; implementer reports 7/7 focused cases and clean Release/diff checks. Items 2–6 pending. Evidence/source copies under `au-b3/remediation/`. No new page display or manual acceptance.
-- Unrelated broad-check finding retained in item 1 evidence: StatsPass4Boundary fixture expects an open submission window after configured cutoff; no silent Stats fix.
-- AU20 fallback state has one register row; structured service outcomes have a separate row. Placement remains for UI integration.
+- Original B3 six commits `52f0af6` through `4b9f156` were source-reviewed by Claude in review24: FAIL. No reviewer build or execution; historical implementation evidence remains in `au-b3/`.
+- User authorized [remediation brief25](docs/references/admin-ui/reviews/2026-10-04/au-b3/remediation/supplied-brief.md). Clean baseline `4b9f15657978728160a00960bd45bf41cb04abb3` reverified; six ordered new local commits, no extra workers.
+- Remediation checkpoints: `1a47b5e` temporary failures; `f441134` write receipts; `7be4ba2` external Conflict; `a980609` lifecycle database retries; `b2c3e1c` target isolation; final item6 documentation/tests checkpoint containing this status.
+- Implementer reports (not independently rerun): final whole-AU20 plus authorized Stats test passed 63/63; stored enum/name checks 2/2; Release solution build zero warnings/errors; diff checks clean. Per-item focused counts/commands are in `docs/references/admin-ui/reviews/2026-10-04/au-b3/remediation/item1-temporary-failures.md` through `item6-final-handoff.md`.
+- Temporary HTTP502/timeout/network/408 retries, real PostgreSQL claim expiry and forced40001 lifecycle recovery/exhaustion, stale-target rejection/backoff, all six named proof gaps and publication wording executed. No new schema; prior complete migration Up/Down/backfill evidence reused.
+- The earlier StatsPass4Boundary fixture failure is fixed under brief25's explicit test-only authorization and passed in the final run. No Stats production edits or broad-suite pass claimed.
+- Corrected error classification is planner technical resolution, superseding the earlier item3 resolution. D6 is the user's decision: first publication permanently stops end updates, including after reopen, retaining the same WOM basis; verbatim source in `remediation/supplied-decisions.md`.
+- All remediation is implemented/worker-tested, awaiting external Claude recheck, not manual acceptance. Existing skipped-fetch text corrected; no new current-page display and no Luck production change.
+- Bindings register has the complete end-state/read-model row, structured-outcome row and Resume row; RC01/OS-1 correction queued. UI placement/copy decisions remain for integration.
+- Runbook requires an authorized Final Review (`AwaitingFinalReview`) count before R-3 and deploy: expected0, otherwise stop for decision. Count/rehearsal/deployment not executed.
 
 ## Retained B1/B2 evidence and limits
 
@@ -40,4 +42,4 @@
 
 ## Next permitted action
 
-Complete brief25 items 1–6 with one new local commit each, then stop for Claude external recheck. The corrected temporary/permanent classification supersedes the earlier planner resolution; D6 (first publication permanently stops retries, also after reopen) is the user decision in supplied-decisions.md. No B4/UI/RC implementation or publication; R1 conversion/R3 release gates remain.
+Stopped after remediation item6. Planner routes Claude external recheck of `4b9f156..HEAD`: one reviewer for items1/2/5, one for3/4, direct item6 check, as brief25 specifies. No B4/B5, UI/RC implementation, rehearsal, push, main merge, deployment or production access. R1 conversion/R3 and operator migration-count gates remain.

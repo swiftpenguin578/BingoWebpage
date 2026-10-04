@@ -36,6 +36,14 @@ public sealed partial class EventCompetitionManagementIntegrationTests
     {
         var clock = new TestClock(NonMicrosecondFixtureNow);
         var (f, old) = await Au20ExternalAsync(clock, live, invalid);
+        await using (var pending = CreateDb())
+        {
+            var state = await pending.EventCompetitionSynchronizations.SingleAsync();
+            state.RequestEndUpdate(old.EndsAt, clock.GetUtcNow());
+            if (invalid) state.RejectEndUpdate(old.EndsAt, "ControlledRejection");
+            await pending.SaveChangesAsync();
+            Assert.NotEqual(EventCompetitionEndUpdateStatus.NotRequired, state.EndUpdateStatus);
+        }
         var next = old with { Id = 9802, Title = "Replacement" };
         var provider = new RecordingCompetitionClient(_ => new(WiseOldManCompetitionStatus.Success, next));
         var writes = new RecordingManagementClient();
@@ -58,6 +66,9 @@ public sealed partial class EventCompetitionManagementIntegrationTests
             Assert.Equal(EventCompetitionManagementStatus.Deleted, management.Status);
             Assert.Empty(management.ProtectedVerificationCode);
             Assert.Equal(EventCompetitionEndUpdateStatus.NotRequired, state.EndUpdateStatus);
+            Assert.Null(state.EndUpdateTargetAt);
+            Assert.Null(state.EndUpdateRequestedAt);
+            Assert.Null(state.EndUpdateErrorCode);
             Assert.Equal(EventCompetitionManagementOperationPhase.Succeeded, (await db.EventCompetitionManagementOperations.SingleAsync()).Phase);
             if (!disconnect)
             {

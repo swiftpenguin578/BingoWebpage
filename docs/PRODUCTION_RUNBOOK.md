@@ -66,6 +66,8 @@ enabled and the named volumes must remain present. Check
 
 ## Repeat deployment
 
+Before deployment, an authorized operator must pass the [AU20 Final Review count gate](#au20-final-review-count-gate). This documentation does not authorize production access.
+
 The existing `production-promotion.yml` has two modes. `promote` validates a
 successful `main` CI run, source SHA, candidate artifact, and immutable digest,
 then records the existing non-mutating promotion receipt. `deploy` performs
@@ -379,9 +381,28 @@ Approval permits documenting this procedure only. Harness implementation, obtain
 or transferring a backup, production access, execution and deployment each require
 a later explicit assignment. Do not execute this section under cleanup authority.
 
+### AU20 Final Review count gate
+
+Before the R-3 rehearsal, an authorized operator runs this read-only count on the
+restored candidate database; immediately before deployment, an authorized operator
+runs it against the current deployment database. Record database context, candidate,
+timestamp and count in restricted release evidence (no participant data):
+
+```sql
+SELECT count(*) AS awaiting_final_review_count
+FROM events
+WHERE state = 'AwaitingFinalReview';
+```
+
+Expected count: **0**. If nonzero, stop the rehearsal/deployment for a planner/user
+decision. Do not clear, transition or backfill the rows to pass this gate. Events
+ended early under the old rules can have a different WOM-window basis under AU20.
+This is a runbook requirement only; B3 remediation did not access production,
+obtain a backup or execute the rehearsal/deployment.
+
 ### Isolation and prerequisites
 
-1. An authorized operator exports the backup and exact migration-history manifest,
+1. Pass the AU20 Final Review count gate above on the restored candidate before executing application stages. An authorized operator exports the backup and exact migration-history manifest,
    plus the final reviewed candidate image and required dependency images into the
    disposable VM using approved offline transfer. Record hashes and source/image
    identity. No production environment file, provider credentials or deployment

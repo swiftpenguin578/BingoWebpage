@@ -63,6 +63,8 @@ public sealed class FinalizeModel(IEventFinalizationService finalization, Applic
         { SkipReason: EventCompetitionRefreshSkipReason.IncompleteEventWindow } => "Skipped: the event window is incomplete.",
         { SkipReason: EventCompetitionRefreshSkipReason.ServiceUnavailable } => "Skipped: the refresh service is unavailable.",
         { SkipReason: EventCompetitionRefreshSkipReason.EventUnavailable or EventCompetitionRefreshSkipReason.EventNotInFinalReview } => "Skipped: the event is not available for final refresh.",
+        { SkipReason: EventCompetitionRefreshSkipReason.EndCouldNotBeUpdated } => "Skipped: WOM end could not be updated; the last pre-end data was retained.",
+        { SkipReason: EventCompetitionRefreshSkipReason.EndWindowUnmatched } => "Skipped: the WOM end did not match the configured end.",
         _ => "Skipped"
     };
     private string Localize(string key, params object[] arguments) => text?[key, arguments].Value ?? string.Format(CultureInfo.CurrentCulture, key, arguments);

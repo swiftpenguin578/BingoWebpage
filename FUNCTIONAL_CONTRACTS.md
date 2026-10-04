@@ -161,7 +161,7 @@ option 1 is now explicitly approved: preserve local external disconnect before f
 Live and matching replacement before/during Live with or without stored credentials,
 subject to active/unresolved-operation guards. Never delete the external competition
 or reuse its code for the replacement. The earlier mistaken approval was withdrawn
-before the user approved this investigated option; AU20 implementation is pending.
+before the user approved this investigated option; AU20 is implemented and remediated; external recheck is pending.
 
 ### Approved Admin simplification precedence — 2026-09-26
 

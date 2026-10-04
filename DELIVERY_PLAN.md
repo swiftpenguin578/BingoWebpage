@@ -450,7 +450,7 @@ parallel code/test ownership disjoint and bounds documentation merge resolution.
 | **DB-6 — Dashboard proof gap** → DB-1 (C2) | `02-dashboard.md` DB-6: no executed assertions select the latest ended recap, its Provisional flags or latest additions; pending/rejected submissions are absent. Exercise all on real persisted projections and distinguish source inference from executed proof. |
 | **LKP-1 — Luck mixed-outcome proof** (C8) | `10-fix-batch-review.md` F2 test-gap note: current test makes every outcome unsupported; one unsupported outcome among supported outcomes is only source-traced. Dedicated Luck proof assignment exercises mixed outcomes, replaceable incomplete checkpoint, retained compatible complete snapshot/freshness, explicit unavailable states and no read-time WOM/rescore. This is a new proof ID; original LK-1 is already fixed by F2. |
 
-#### AU20 — configured-window and end synchronization (implemented and focused checks passed; external review pending)
+#### AU20 — configured-window and end synchronization (remediated; worker-reported focused checks; external recheck pending)
 
 Source: `06b-wom-catalogue-accounts-audit.md` WA-2, WA-6, WA-9 and
 `decisions.md` “WA-2 (decided, extends AU20)” in the 4 October remediation evidence.
@@ -506,6 +506,20 @@ implemented behavior. Six scoped B3 checkpoints and their execution evidence are
 under `docs/references/admin-ui/reviews/2026-10-04/au-b3/`; external Claude review
 remains pending. No current-page display, RC/UI binding or release acceptance is
 implied by implementation checks.
+
+AU20 error classification is a **planner technical decision**, corrected by
+[remediation brief25](docs/references/admin-ui/reviews/2026-10-04/au-b3/remediation/supplied-brief.md)
+and superseding the initial item3 resolution: 5xx, timeouts, network failures,
+408 and 429 are temporary. Named 400, missing/invalid code, 401/403/404 and other
+validation rejections are permanent. For an end-only unknown write, a read of the
+unchanged old window proves not applied and permits spaced resend; the target
+window confirms success. Other unknown operations keep their existing protections.
+
+**User decision D6 (option a):** “publication stops the WOM end update for good,
+including after a reopen.” Reopened/republished results keep the same WOM basis;
+no retry restarts. Source: [08-decisions.md, B3 review decisions](/Users/christopher/Documents/BingoWebpage/review-notes/08-decisions.md),
+with the verbatim section in [supplied decisions](docs/references/admin-ui/reviews/2026-10-04/au-b3/remediation/supplied-decisions.md).
+
 
 #### Catalogue decisions — AU23, CAT-1 and WA-5 (4 October; pending implementation)
 
@@ -991,7 +1005,7 @@ not the execution checkout. Reference mocks must not become production services.
 
 | ID | Scope | Implementation / checks | Independent review | Canvas sync |
 | --- | --- | --- | --- | --- |
-| RC01 | Overview R1–R4 and cancelled-Stats README fact | Queued; not started | Named recheck pending | Claude, after verified correction |
+| RC01 | Overview R1–R4, cancelled-Stats README fact, AU20 Resume/early-end contract | Queued; not started | Named recheck pending | Claude, after verified correction |
 | RC02 | Signup setup R1–R4 and matching README statements | Queued; not started | Named recheck pending | Claude, after verified correction |
 | RC03 | Schedule R1–R4, direct Overview picker consumers and README | Queued; not started | Named recheck pending | Claude, after verified correction |
 | RC04 | Teams uncertain-action/team-save recovery and truthful WOM outcomes | Queued; not started | Named recheck pending | Claude, after verified correction |
@@ -1002,6 +1016,12 @@ retry; suppress Restore after failed hidden-event reads; separate manual from
 scheduled opening eligibility. Correct cancelled-event Stats documentation without
 adding a new link. Preserve current lifecycle rules and approved At-a-glance spacing.
 Source evidence: `docs/references/admin-ui/reviews/2026-10-02/earlier-pages/overview-status-extract.md`.
+
+**RC01 AU20 addition (brief25 item6):** correct the Overview Resume dialog to always
+require the validated future replacement end, even if the retained end has not
+passed. Correct early-end reference behavior to preserve precise actual end and
+store configured end rounded up to a minute. Carry the required register row into
+OS-1's inventory; choose final copy before binding. Reference editing remains queued.
 
 **RC02:** compare the complete intended question definition including ordered
 choices; never resolve an uncertain add by another admin's same-label question;
@@ -1066,7 +1086,7 @@ older canvas content, then verifies parity. This is not blanket reassignment of
 visual design authority. Keep completed RC records; append future bounded reference
 correction tickets rather than spending Claude usage on behavioural bug fixes.
 
-### Approved and proposed application follow-ups — AU16–AU24 and CAT-1, not dispatched
+### Approved and proposed application follow-ups — AU16–AU24 and CAT-1
 
 These scopes come from the seven completed source comparisons and later explicit
 user decisions, not a new audit. Accepting the requirements summary records the
@@ -1074,7 +1094,8 @@ delivery target; implementation still needs a user resume. Reuse existing servic
 and narrow projections; no generic receipt system, new persistence framework or
 cosmetic redesign is implied. Transport choices are resolved at ticket handoff.
 Keep visual binding separate when the existing backend already provides the data.
-All are **not implemented; checks/review not run** in this reconciliation.
+This subsection records scope; delivery state follows each owning ticket. AU20 is
+implemented/remediated and awaits external recheck; other ticket statuses are unchanged.
 
 | ID | Bounded outcome and protected behavior | Focused acceptance / known decision boundary |
 | --- | --- | --- |
@@ -1083,7 +1104,7 @@ All are **not implemented; checks/review not run** in this reconciliation.
 | AU17 | Approved: Contribution line plus safe uncertain-save readback only | Correct adds/remaining/completes/nothing-left outcomes; readback must not attribute uncertain success to a request. No per-account context or extra design content; full-pool work belongs to AU17a |
 | AU18 | B2 implemented, awaiting Claude review: final WOM refresh outcome on each published version, plus version/reopen history (who and when) | Successful, failed and distinct skipped outcomes retained in immutable publication inputs; no backfill. Evidence: `docs/references/admin-ui/reviews/2026-10-04/au-b2/au18.md`. No another-event-current readiness row; publish/reopen refusals and WOM cadence unchanged. AU12 owns ranking |
 | AU19 | Approved: Board structured approval issues with tile targets, private/published comparison and authoritative uncertain-action readback over full intended state | Compare identity/name/description/artwork/objectives/EHB; late evidence retained; publish vs discard distinguished; no automatic replay. Reuse existing calculator/leases/snapshots. AU11–AU13 own scoring/planning changes |
-| AU20 | Approved configured-window/end synchronization and structured recovery | All numbered requirements and focused acceptance in **AU20 — configured-window and end synchronization** above are mandatory, including early end, Resume, fallback, WA-9 and accepted snapshot limit; pending implementation |
+| AU20 | Approved configured-window/end synchronization and structured recovery | All numbered requirements and focused acceptance in **AU20 — configured-window and end synchronization** above are mandatory, including early end, Resume, fallback, WA-9 and accepted snapshot limit; implemented and remediated, external recheck pending |
 | AU21 | Catalogue: explicit shared-item adoption on add, source/item identities/versions and scoped CRUD/mapping/value recovery | Creation uncertainty cannot duplicate/crash; every intended field and shared image scope explicit; preserve independent drafts, item provenance/price invalidation, valid reactivation mechanics under AU23’s ordinary rate-text rule and dependency-safe deletion. No silent shared-item merge or automatic price adoption |
 | AU22 | Accounts: bind existing overlay/projections to accurate counts/detail and role/status/ownership readback; transient target-bound reset response | Late response cannot expose A's secret in B; no secret history/log/storage or secret readback; permission loss/session invalidation handled; status not changed by revoke; current-state matching not attributed to request. Reuse reset permission-under-lock rule, no implicit new reset expected-version policy; typed transfer is AU24 |
 | AU23 | Ordinary rate-text rolls; SuperAdmin advanced roll group; final-chance input and retirement of Only after | Mandatory Catalogue decisions above; real PostgreSQL role/validation/audit/stale checks, default new groups, existing groups and immutable snapshots preserved; no parent-EHB ticket |
@@ -1122,8 +1143,9 @@ here; do not silently omit a row because the reference has no corresponding cont
 | Tile EHB override set/change/reset with calculated baseline; submit explicit change-override intent | Board — bind the control in [Board.dc.html](docs/references/admin-ui/Board.dc.html) to the reviewed backend contract | AU11 and its explicit-intent remediation | RC05 / BR-10 | None; verify the intent mapping during binding |
 | Catalogue rate entry and “How the rate is counted” panel follow the decided fields and permissions | Catalogue — intentional differences from [Catalogue.dc.html](docs/references/admin-ui/Catalogue.dc.html) | AU23 and [Catalogue decisions — AU23, CAT-1 and WA-5](#catalogue-decisions--au23-cat-1-and-wa-5-4-october-pending-implementation); `08-decisions.md` “Drop-rate mechanics” / “Catalogue layout” | RC10 / WA-5 | None; use the owning decisions, including final-chance input, retired Only-after input, ordinary rate-text rolls and SuperAdmin roll-group editing |
 | Informational activity Team size in Settings and Add activity beside Kills per hour | Catalogue — intentional difference from [Catalogue.dc.html](docs/references/admin-ui/Catalogue.dc.html) | CAT-1 and [Catalogue decisions — AU23, CAT-1 and WA-5](#catalogue-decisions--au23-cat-1-and-wa-5-4-october-pending-implementation); `08-decisions.md` “Catalogue layout” | RC10 / WA-5 | None for binding; preserve the owning ticket's migration pre-check and any resulting data decision |
-| “WOM end could not be updated” state and read-model/service output; AU20 implements backend only, with no new display on current pages | No reference shows it; candidate pages are WOM [Wom.dc.html](docs/references/admin-ui/Wom.dc.html), Overview [Overview.dc.html](docs/references/admin-ui/Overview.dc.html), Final Review [FinalReview.dc.html](docs/references/admin-ui/FinalReview.dc.html) | WA-2 / AU20; `08-decisions.md` “B3 (AU20) brief decisions”; brief 23 item 4 | WA-5 / OS-1 / BR-10 as selected by the UI integration plan | Placement and final binding owner remain open; the UI integration plan must decide before the affected pages are bound |
+| WOM end-update status NotRequired/Pending/Succeeded/Rejected/CouldNotUpdate (“WOM end could not be updated”); EndUpdateTargetAt, EndUpdateRequestedAt and sanitized EndUpdateErrorCode; FinalReviewReadiness.WomEndUpdateStatus and FinalizationOperationResult.WomEndUpdateStatus. Backend only, no new current-page display | No reference shows it; candidate pages are WOM [Wom.dc.html](docs/references/admin-ui/Wom.dc.html), Overview [Overview.dc.html](docs/references/admin-ui/Overview.dc.html), Final Review [FinalReview.dc.html](docs/references/admin-ui/FinalReview.dc.html) | WA-2 / AU20; `08-decisions.md` “B3 (AU20) brief decisions”; brief 23 item 4 | WA-5 / OS-1 / BR-10 as selected by the UI integration plan | Placement and final binding owner remain open; the UI integration plan must decide before the affected pages are bound |
 | Structured fetch eligibility, AU18 skip reason and next permitted time; typed credential/current-operation identity, phase and next attempt | WOM — [Wom.dc.html](docs/references/admin-ui/Wom.dc.html); these backend outputs exceed the generic Fetch wording. Final Review retains its separate AU18 data-only next-time decision above | WA-6 / AU20; Step 4 D4 and B1/B2 D2 in [B3 source attribution](docs/references/admin-ui/reviews/2026-10-04/au-b3/item6-documentation.md); brief 23 items 1 and 6 | WA-5 / RC09, as settled in the UI integration plan | Decide which structured WOM outcomes are displayed and their binding before integration; keep current-page generic Fetch wording and no new Final Review next-time display |
+| Resume always requires a validated future replacement end, even when the retained configured end is future; early end stores the ceiling-minute configured end and precise actual end | Overview — [Overview.dc.html](docs/references/admin-ui/Overview.dc.html) currently conditionally asks for the replacement only after the retained end has passed | WA-2 corrected Resume rule; AU20 item2; [remediation brief](docs/references/admin-ui/reviews/2026-10-04/au-b3/remediation/supplied-brief.md) item6 / review24f R1 | RC01 / OS-1 | Always-present replacement end is decided; settle dialog text and bind its validation before OS-1 acceptance |
 
 ### Proposed reference corrections — RC05–RC11, not dispatched
 
@@ -1677,10 +1699,10 @@ Deployment, production cleanup and current runtime state are not inferred from t
 | RES-01 | Mandatory gates, exact ties, immutable publication directly to Archived | AU12 new-events-only ranking and AU18/RC08 pending |
 | ROS-01 | Separate finalized pre-first-Live Add/Remove; permanently fixed Live roster | Later reference retains Live role changes, not membership changes |
 | BNR-01 | Retire event banners with guarded cleanup/history policy | Baseline migration/code present; production disposal not claimed |
-| WOM-01 | Website-owned dates; provenance separate from credentials; external never deleted | AU15 normal Fetch and AU20 exact UTC windows/code-bearing detach pending |
+| WOM-01 | Website-owned dates; provenance separate from credentials; external never deleted | AU15 normal Fetch and AU20 exact UTC windows/code-bearing detach implemented; AU20 recheck pending |
 | ACT-01 | Actions derived from current pending reviews/scheduled failures | AU04 directory data complete; no vacancy/follow-up/missing-Captain revival |
 | BRD-02 | Lightweight Board reads, targeted estimate freshness | AU19 projections pending; preserve calculator and approved snapshots |
-| WOM-02 | Dedicated WOM operations, Overview summary/link | AU20/RC09 pending; no user-scheduled creation, normal Create starts now |
+| WOM-02 | Dedicated WOM operations, Overview summary/link | AU20 implemented/remediated, recheck pending; RC09 pending; no user-scheduled creation, normal Create starts now |
 | VER-01 | Integrated proof and bounded remediation | Historical evidence linked above; reviewer evaluates entire base-to-candidate diff |
 
 Current routing is in AGENTS.md, not the original wave/coordinator/model prose.

@@ -13,11 +13,12 @@ namespace Bingo.IntegrationTests;
 public sealed partial class Slice10Pass102CompetitionSynchronizationTests
 {
     [Theory]
-    [InlineData(55, 7, 1)]
-    [InlineData(0, 0, 0)]
-    public async Task Au20EarlyEndRetainsActualPrecisionAndQueuesCeilingMinute(int seconds, int ticks, int addedMinute)
+    [InlineData(21, 59, 55, 7, 1)]
+    [InlineData(21, 59, 0, 0, 0)]
+    [InlineData(22, 0, 0, 4000, 1)]
+    public async Task Au20EarlyEndRetainsActualPrecisionAndQueuesCeilingMinute(int hour, int minuteOfHour, int seconds, int ticks, int addedMinute)
     {
-        var minute = new DateTimeOffset(2026, 10, 4, 21, 59, 0, TimeSpan.Zero);
+        var minute = new DateTimeOffset(2026, 10, 4, hour, minuteOfHour, 0, TimeSpan.Zero);
         var clicked = minute.AddSeconds(seconds).AddTicks(ticks);
         var admin = Account.CreateWebsite(Guid.NewGuid(), "au20-early", "AU20-EARLY", minute);
         admin.SetGlobalRole(GlobalRole.Admin);

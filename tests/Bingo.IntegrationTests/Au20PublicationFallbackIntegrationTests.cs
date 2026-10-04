@@ -69,6 +69,8 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests
             Assert.True(readiness.CanFinalize, string.Join(";", readiness.Blockers.Select(x => x.Description)));
             var published = await finalization.FinalizeAsync(f.Event.Id, new(f.Admin.Id, f.Admin.LoginName), readiness.EventVersion);
             Assert.True(published.Published);
+            Assert.Contains("WOM end could not be updated", published.Feedback);
+            Assert.DoesNotContain("no detail", published.Feedback);
             Assert.Equal(EventCompetitionEndUpdateStatus.CouldNotUpdate, published.WomEndUpdateStatus);
             db.ChangeTracker.Clear();
             var after = (await finalization.GetReadinessAsync(f.Event.Id))!;
@@ -76,6 +78,8 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests
             var history = Assert.Single(after.History);
             Assert.Equal(FinalWomRefreshStatus.Skipped, history.FinalWomRefresh!.Status);
             Assert.Equal(EventCompetitionRefreshSkipReason.EndCouldNotBeUpdated, history.FinalWomRefresh.SkipReason);
+            Assert.Contains("WOM end could not be updated", Bingo.Web.Pages.Admin.Events.FinalizeModel.FinalWomRefreshDescription(history.FinalWomRefresh));
+            Assert.Contains(await db.EventStateTransitions.ToListAsync(), x => x.Reason != null && x.Reason.Contains("WOM end could not be updated"));
             Assert.Equal(0, provider.Calls);
             Assert.Contains("EndCouldNotBeUpdated", (await db.EventFinalizations.SingleAsync()).CalculationInputsJson);
             var state = await db.EventCompetitionSynchronizations.SingleAsync();

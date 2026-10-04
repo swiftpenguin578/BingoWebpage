@@ -175,7 +175,7 @@ public sealed class EventFinalizationService(ApplicationDbContext db, IPublicBoa
             if (endState?.HasUnmatchedEnd(ev.EventEndsAt) == true)
             {
                 endState.MarkEndCouldNotBeUpdated();
-                refreshResult = new(false, true, SkipReason: EventCompetitionRefreshSkipReason.EndCouldNotBeUpdated);
+                refreshResult = new(false, true, "WOM end could not be updated; the last pre-end competition data was retained.", SkipReason: EventCompetitionRefreshSkipReason.EndCouldNotBeUpdated);
                 refreshFailure = null;
             }
             endUpdateStatus = endState?.EndUpdateStatus;

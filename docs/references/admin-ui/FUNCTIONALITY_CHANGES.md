@@ -84,7 +84,7 @@ This wording clarification changes neither approved behavior nor delivery status
 | Teams / Draft | Admin records captain selections in a compact board: actual members in team columns, available primary accounts/EHB in the shrinking pool; click to pick, Undo and confirmed-order scramble. Control renews while the page can renew it, not only on picks. With **2+ included teams**, use a balanced website draft and at least one actual Captain per drafted team; multiple Captains are allowed. With **0–1 included team**, manually assemble/finalize without picks; only this manual flow permits unplaced people with an explicit note. Before first Live, finalized roster Add/Remove republishes without signup-cap/team-size-cap enforcement or automatic rebalance. First Live locks membership permanently; role changes for current members remain allowed. Stay on Teams after finalizing | Existing commands largely support this; AU14/RC04 and UI binding pending. No captain-operated draft, Pause/Resume or finalized Reopen; cancel a private Running attempt only after individual undos leave zero active picks |
 | Board / rankings | Keep custom/manual tiles and current objective mechanics. A calculated drop tile may have an optional **total tile** EHB override with baseline/reset; manual tiles still require an entered estimate. An override cannot bypass missing rate mechanics, alter catalogue/KC/Luck or change evidence-bound scoring; effective EHB still feeds existing proportional contribution statistics. Full-board finishers lead, ordered by earliest full-board finish; otherwise compare completed lines, completed tiles, credited EHB, then score time, preserving exact ties and historical results. Planning players-per-team remains manually adjustable **after draft finalization**, affects planning only and is not replaced by actual roster sizes | AU11/AU12 approved, queued; AU13 complete through F8; new-events-only activation approved. RC05 proposed; AU19 approved; existing leases, approval/publication and late-evidence protections retained |
 | Review / Final Review | One-click approval; rejection/reversal require reason and confirmation; pending metadata correction requires reason and is separate from approval. Never replace the submitter's image or invent a timestamp. Show the credited account's own relevant context; screenshot game time determines activity eligibility, upload time cutoff/order. Publication requires **closed uploads, zero Pending and valid placements**; no override of those gates. Publish immutable results and Archived state atomically; preserve ties/history. An optional normal WOM refresh may be skipped/fail without blocking publication. Reasoned confirmed reopening creates a new correction cycle, retains earlier versions and does not reopen uploads | Existing commands retained; RC07/RC08 proposed; AU17 Contribution/readback and AU18 WOM outcome/history approved, narrowed. Full-event-pool correction approved as AU17a; no separate Archive action or manual result/time override |
-| WOM | Website dates own the schedule. External ID-only connections are read-only; protected valid/unverified credentials can permit sync without changing provenance. **External competitions are never deleted by the app**; website-created deletion retains eligible credentials, pre-first-Live and operation guards. Fetch now needs no typed challenge or confirmation, but all server cooldown/retry/scheduled-slot/lease rules still apply. Status/readback never fetches, old success is not proof of a new fetch, and unknown outcomes stay unresolved | AU15 approved; RC09 proposed; AU20 approved. Credential-enabled edits already supported; replacement/disconnection after credentials approved under option 1; implementation pending; external provider deletion stays forbidden |
+| WOM | Website dates own the schedule. External ID-only connections are read-only; protected valid/unverified credentials can permit sync without changing provenance. **External competitions are never deleted by the app**; website-created deletion retains eligible credentials, pre-first-Live and operation guards. Fetch now needs no typed challenge or confirmation, but all server cooldown/retry/scheduled-slot/lease rules still apply. Status/readback never fetches, old success is not proof of a new fetch, and unknown outcomes stay unresolved | AU15 approved; RC09 proposed; AU20 approved. Credential-enabled edits already supported; replacement/disconnection after credentials approved under option 1; implemented/remediated in AU20, external recheck pending; external provider deletion stays forbidden |
 | Catalogue | Keep the activity drawer and progressive common/advanced settings. Shared-item adoption/metadata changes must be explicit; source-specific rate changes must not silently rewrite shared items. Ordinary Admins can do normal CRUD/deactivation and add/edit `N x` rate text; advanced roll groups remain SuperAdmin-only. Pending AU23/CAT-1: final in-name chance always, Only after retired from new input/editor/panel with columns/history retained; activity team size is informational and editable by every Admin. **Permanent deletion is also SuperAdmin-only**, requires strong confirmation and a fresh complete dependency check; referenced records deactivate instead. Preserve calculation validation, audit, versions and immutable approved/history snapshots | Existing CRUD retained; RC10 proposed; AU21 approved defect fix; AU23 records approved advanced editing. No import/upload or separate roll-group editor; group editing stays in the decided rate panel |
 | Accounts | Manage existing normal accounts with per-action permissions; **only SuperAdmin grants/revokes Admin or transfers ownership**. Role changes do not remove event membership; revoking a disabled Admin leaves it disabled. Password-reset links stay transient, bound to the correct account, expire after 60 minutes, are single-use and supersede unused links; never read a lost secret back. Ownership transfer requires current owner's password plus typed destination username, preserves exactly one owner atomically and invalidates affected sessions | Existing services retained; RC11 proposed; AU22 approved defect fix; AU24 records approved typed confirmation. No create/delete/merge/impersonation or Admin editing of members' saved identity/accounts |
 | Audit | Enabled Admins read sanitized immutable history, with filters and direct entry detail. Hidden-event audit remains visible under the existing exception without granting hidden-workspace access. Specific actions match exactly; recognized areas use prefixes. Whole-day date filters use calendar boundaries in the display timezone, including DST. Preserve truthful historical labels and sensitive-data redaction; no editing/deleting/exporting history | Existing query violates hidden-history contract; RC06 proposed; AU16 approved defect fix. Keep reference filter conveniences; do not invent missing historical names |
@@ -119,16 +119,17 @@ and [shared UI](../../../UI_SYSTEM.md#approved-admin-reference-direction--2-octo
   preserve evidence history, reasons and separate approval. No saved-account or
   roster rewrite is implied.
 
-AU12/AU17a/AU20 decisions are approved, not implemented. Conflict overwrite/re-send and
+AU20 is implemented/remediated, with external recheck pending; AU12/AU17a status
+follows their owning delivery records. Conflict overwrite/re-send and
 scheduled-slot relaxation for WOM remain deferred, not implicitly approved.
 
-### Exact WOM time matching — approved, not implemented
+### Exact WOM time matching — implemented; external recheck pending
 
 Both WOM boundaries must equal the website's **configured** UTC start/end at every
 stage including Final Review; timezone displays may differ, the instants may not.
 Actual lifecycle times remain eligibility/cutoff/review inputs. The approved
-early-end/Resume/retry/fallback rules are pending AU20 in DELIVERY_PLAN. Remove the five-minute tolerance in
-AU20 and update reference validation/copy in RC09, including directly affected
+early-end/Resume/retry/fallback rules are implemented/remediated under AU20 in DELIVERY_PLAN.
+The five-minute tolerance is removed; update reference validation/copy in RC09, including directly affected
 Schedule consumers. Do not confuse this with the separate schedule input's
 five-minute increments. Keep timestamp precision explicit; no silent date import,
 link deletion, historical rewrite or invented zero activity on mismatch.
@@ -136,8 +137,9 @@ link deletion, historical rewrite or invented zero activity on mismatch.
 ### WOM source comparison — 2 October 2026, option 1 subsequently approved
 
 Read-only source comparison; no runtime/provider calls or production changes.
-This describes the current five-minute matching implementation; the later exact-
-window decision above changes that target and is not implemented yet.
+This historical comparison describes the pre-AU20 five-minute implementation.
+The exact-window and option1 behavior above is now implemented/remediated; external
+recheck and reference binding remain pending.
 
 | Action on an externally created competition | Frozen reference | Current application |
 | --- | --- | --- |
@@ -183,7 +185,7 @@ Wom.dc.html:698-707,805-810,899-905; EventCompetitionManagementService.cs:201-24
 
 One intentional behaviour change from the frozen artifact is now approved:
 WOM start/end must match exactly as UTC instants, replacing its five-minute
-allowance (AU20/RC09, pending). This changes validation and explanatory text, not
+allowance (AU20 implemented/remediated, external recheck pending; RC09 reference work pending). This changes validation and explanatory text, not
 layout or the available connection actions. WOM option 1 preserves those actions. The list below
 is provenance for earlier user-requested changes already incorporated in the design,
 not a proposal to remove additional final-artifact features.

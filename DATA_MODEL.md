@@ -763,7 +763,9 @@ An event may have at most one Wise Old Man integration-state record. It owns:
 - opaque synchronization lease owner and expiry;
 - observed request-budget diagnostics needed by Admin projection;
 - end-update status (NotRequired, Pending, Succeeded, Rejected, CouldNotUpdate), UTC
-  target/requested timestamps and a sanitized safe rejection code. The AU20 migration
+  target/requested timestamps and a sanitized safe rejection code. End-update status
+  is persisted by name: NotRequired, Pending, Succeeded, Rejected and CouldNotUpdate
+  are immutable stored names and must never be renamed. The AU20 migration
   backfills existing rows as NotRequired with no inferred target; Down removes only
   the new fields and cannot preserve pending end requests across rollback.
 
