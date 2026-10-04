@@ -43,7 +43,7 @@ public sealed partial class DraftModel
                 .Select(x => new { x.Status, x.LastOperationId, x.UpdatedAt }).SingleOrDefaultAsync(ct);
             var operation = management?.LastOperationId is { } operationId
                 ? await db.EventCompetitionManagementOperations.AsNoTracking().Where(x => x.Id == operationId && x.EventId == id)
-                    .Select(x => new DraftSynchronizationOperation(x.Id, x.Type, x.Phase, x.EventVersion, x.UpdatedAt, x.SafeErrorCode)).SingleOrDefaultAsync(ct)
+                    .Select(x => new DraftSynchronizationOperation(x.Id, x.Type, x.Phase, x.EventVersion, x.UpdatedAt, x.SafeErrorCode, x.CreatedAt)).SingleOrDefaultAsync(ct)
                 : null;
             var status = management is not null && management.Status != EventCompetitionManagementStatus.Deleted
                 ? management.Status.ToString()
@@ -61,7 +61,7 @@ public sealed partial class DraftModel
             var state = new DraftCurrentState(id, ev.Version, ev.State, draft?.Id, draft?.State ?? DraftState.Setup, draft?.Version,
                 draft?.ControllerAccountId, draft?.ControllerLeaseExpiresAt, draft?.ControlVersion, draft?.FirstPickRecordedAt, draft?.RequiresFreshOrder ?? false,
                 teams, memberships, picks, participants, characters, CurrentTurn, Teams.Where(x => x.HasUsableCaptain).Select(x => x.Id).ToList(),
-                publication?.Id, publication?.CycleNumber, new(status, operation, localStatus, localOutcome?.OccurredAt));
+                publication?.Id, publication?.CycleNumber, new(status, operation, localStatus, localOutcome?.OccurredAt), publication?.PublishedAt);
             await tx.CommitAsync(ct);
             return new JsonResult(new DraftReadback(state));
         }
@@ -78,7 +78,7 @@ public sealed partial class DraftModel
         Guid? ControllerId, DateTimeOffset? ControlExpiresAt, long? ControlVersion, DateTimeOffset? FirstPickRecordedAt, bool RequiresFreshOrder,
         IReadOnlyList<DraftTeamState> Teams, IReadOnlyList<DraftMembershipState> Memberships, IReadOnlyList<DraftPickState> Picks, IReadOnlyList<DraftParticipantState> Participants, IReadOnlyList<DraftCharacterState> Characters,
         TurnView? CurrentTurn, IReadOnlyList<Guid> UsableCaptainTeamIds, Guid? RosterPublicationId, int? RosterPublicationCycle,
-        DraftRosterSynchronization Synchronization);
+        DraftRosterSynchronization Synchronization, DateTimeOffset? RosterPublishedAt = null);
     public sealed record DraftTeamState(Guid TeamId, long Version, string Name, string? Affiliation, Guid? ImageAssetId, bool IncludedInDraft, bool Active, int? DraftPosition);
     public sealed record DraftMembershipState(Guid MembershipId, Guid TeamId, Guid ParticipantId, TeamMembershipRole Role, long Version,
         Guid? PickId, DateTimeOffset JoinedAt, DateTimeOffset? LeftAt);
@@ -88,5 +88,5 @@ public sealed partial class DraftModel
     // These are the last recorded outcomes, never proof that today's roster is synchronized.
     public sealed record DraftRosterSynchronization(string ManagementStatus, DraftSynchronizationOperation? LastOperation, string? LastLocalQueueStatus, DateTimeOffset? LastLocalQueueAt);
     public sealed record DraftSynchronizationOperation(Guid OperationId, EventCompetitionManagementOperationType Type, EventCompetitionManagementOperationPhase Phase,
-        long EventVersion, DateTimeOffset UpdatedAt, string? ErrorCode);
+        long EventVersion, DateTimeOffset UpdatedAt, string? ErrorCode, DateTimeOffset CreatedAt);
 }
