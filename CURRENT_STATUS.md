@@ -35,6 +35,19 @@
   B1 local merge-back only after Claude B1 PASS; no push/main merge/deploy.
 - B3–B5, RC/UI integration and rehearsal tooling/execution remain stopped.
 
+## B1 completion — awaiting independent review
+
+- Clean final checkpoint verified by planner: `b38749d`, branch `codex/au-b1-small-fixes`.
+- Ticket commits: AU15 `b5cde26`, AU16 `90ce3f0`, AU22 `b44fa6e`, AU24 `b38749d`.
+  AU15 amendment from `06703fc` is explicitly reconciled in `05ced42`.
+- Worker reports focused PostgreSQL, BrowserTests, Release build, Node overlay and
+  diff checks passed. Planner has not independently rerun these checks.
+- Exceptions: AU15 PG/HTTP schedule assertion remains unverified after identical
+  Step 0 baseline reproduction; AU24 Playwright Chromium launch is blocked by
+  SIGABRT/EPERM. Neither is recorded as passing.
+- Evidence: `docs/references/admin-ui/reviews/2026-10-04/au-b1/` in B1 checkout.
+- B1 stopped for Claude's independent review; not merged into this checkout.
+
 ## B2 completion — awaiting independent review
 
 - Clean implementation checkpoint verified by planner: `d01c08c8528dd85a15a1d04e816b92eccc55466a`.
@@ -67,10 +80,9 @@
 
 ## Next permitted action
 
-Claude reviews B2 commits from Step 0 `3ce941b` through `d01c08c`. B1 continues
-its assigned lane through AU24, then stops for its separate Claude review. B1
-AU15 evidence records the pre-existing PostgreSQL schedule assertion failure;
-that HTTP check is not claimed as passing. B1 was instructed to record its
-unauthorized AU15 evidence amendment (`06703fc` to `b5cde26`) separately, preserve
-current history and use new commits only. Lane evidence remains authoritative
-for worker checkpoints. B1 merge-back still requires Claude B1 PASS.
+Claude reviews each lane independently, commit by commit:
+- B1: `3ce941b..b38749d` in its separate checkout, including `05ced42` reconciliation.
+- B2: `3ce941b..d01c08c` in this checkout; later planner commits change status only.
+Both implementers have stopped. Lane evidence remains authoritative for check
+limitations. B1 local merge-back requires Claude B1 PASS and focused checks on the
+merged result, preserving B2's resource keys. No push, deployment or B3 work.
