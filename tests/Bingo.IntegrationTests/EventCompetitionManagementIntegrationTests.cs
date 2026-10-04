@@ -32,7 +32,7 @@ using Testcontainers.PostgreSql;
 
 namespace Bingo.IntegrationTests;
 
-public sealed class EventCompetitionManagementIntegrationTests : IAsyncLifetime
+public sealed partial class EventCompetitionManagementIntegrationTests : IAsyncLifetime
 {
     private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine")
         .WithDatabase("bingo_wom_management")

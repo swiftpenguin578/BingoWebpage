@@ -30,3 +30,5 @@ Persisted end-update status values are explicit: `NotRequired=0`, `Pending=1`, `
 ## Next boundary
 
 Item 3 must execute these requests through the existing management operations with spaced backoff and publication guards. Planner classification is required by brief item 3 for other 4xx; reported before implementation. Recommendation: preserve existing 429 retry with maximum of provider RetryAt/backoff, 404 permanent missing source, 401/403 credential rejection permanent, and other Validation as stopped explicit rejection carrying its safe code; awaiting planner resolution.
+
+The item 3 classification question was subsequently resolved by the planner; see [item 3](item3-end-update-retries.md#planner-technical-resolution-4-october-2026).

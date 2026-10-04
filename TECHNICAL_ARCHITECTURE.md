@@ -463,6 +463,18 @@ Admin Manage forms and localized feedback. The worker never holds a database
 transaction across HTTP and never invokes the statistics polling path or
 `update-all`.
 
+AU20 end-update requests use these same persisted management operations. Their
+first attempt is due immediately; failures retry after 1, 2, 4, 8, 16 minutes,
+then every 30 minutes, with a later provider retry time honored. Repeated worker
+passes do not reset the due time. Pending end updates and uncertain-outcome
+reconciliation stop at official publication. HTTP 429 is retryable; missing or
+invalid credentials (including mapped 401/403), 404, and other mapped Validation
+responses stop automatic retries with a sanitized safe code, including HTTP 400
+`COMPETITION_START_DATE_AFTER_END_DATE`. Unknown outcomes retain read-only
+reconciliation and are never treated as definite rejection or blindly resent.
+This classification was resolved by the planner under the AU20 brief; source and
+executed evidence: `docs/references/admin-ui/reviews/2026-10-04/au-b3/item3-end-update-retries.md`.
+
 Explicit Create sends one complete team payload and, on success, persists the
 existing event link plus the protected management receipt. Unknown Create
 outcomes are durable and stop automatic retries; a local persistence failure

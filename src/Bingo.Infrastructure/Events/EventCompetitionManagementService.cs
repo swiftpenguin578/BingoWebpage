@@ -16,7 +16,7 @@ using Npgsql;
 
 namespace Bingo.Infrastructure.Events;
 
-public sealed class EventCompetitionManagementService(
+public sealed partial class EventCompetitionManagementService(
     ApplicationDbContext db,
     IWiseOldManCompetitionManagementClient managementClient,
     IWiseOldManCompetitionClient competitionClient,
@@ -251,9 +251,12 @@ public sealed class EventCompetitionManagementService(
     {
         var projection = await BuildProjectionAsync(eventId, cancellationToken);
         if (projection is null) return new(false, "The event was not found.");
+        if (await EndUpdatesStoppedAsync(eventId, cancellationToken)) return new(false, "WOM end updates stop at official publication.", Status: "Stopped", ErrorCode: "ResultsPublished");
+        var endPending = projection.Synchronization?.EndUpdateStatus == EventCompetitionEndUpdateStatus.Pending;
         var management = await db.EventCompetitionManagements.SingleOrDefaultAsync(x => x.EventId == eventId, cancellationToken);
         if (management is null || management.Status == EventCompetitionManagementStatus.Deleted)
         {
+            if (endPending) await RejectPendingEndAsync(eventId, projection.Synchronization!.EndUpdateTargetAt, "MissingCredential", cancellationToken);
             if (projection.Synchronization?.CompetitionId is not null)
                 return new(true, "The linked Wise Old Man competition is read-only: data can be fetched, but local schedule and roster changes cannot be synchronized upstream.", Status: "ReadOnly", ErrorCode: "ReadOnly");
             return new(true, Status: "NotManaged");
@@ -267,10 +270,12 @@ public sealed class EventCompetitionManagementService(
                 EventCompetitionCredentialStatus.Unavailable => ("CredentialUnavailable", "The protected Wise Old Man management code is unavailable; no upstream write was queued.", "Unavailable"),
                 _ => ("ReadOnly", "This Wise Old Man connection is read-only; no upstream write was queued.", "ReadOnly")
             };
+            if (endPending) await RejectPendingEndAsync(eventId, projection.Synchronization!.EndUpdateTargetAt, code, cancellationToken);
             return new(false, message, Status: status, ErrorCode: code);
         }
         if (management.Status is EventCompetitionManagementStatus.Unknown or EventCompetitionManagementStatus.Conflict
-            || management.Status == EventCompetitionManagementStatus.Failed && !string.Equals(management.LastErrorCode, "InvalidConfiguration", StringComparison.Ordinal))
+            || management.Status == EventCompetitionManagementStatus.Failed && !string.Equals(management.LastErrorCode, "InvalidConfiguration", StringComparison.Ordinal)
+                && !(endPending && projection.Synchronization!.EndUpdateRequestedAt > management.LastErrorAt))
             return new(false, management.LastError ?? "Managed WOM synchronization is paused pending Admin recovery.", Status: management.Status.ToString());
         if (projection.Synchronization?.CompetitionId != management.CompetitionId)
         {
@@ -299,7 +304,7 @@ public sealed class EventCompetitionManagementService(
         var fingerprint = includeTeams
             ? projection.Preview.Fingerprint
             : WiseOldManCompetitionRules.Fingerprint(new { projection.Preview.Title, projection.Preview.StartsAt, projection.Preview.EndsAt, RosterLocked = true });
-        if (string.Equals(management.LastAppliedLocalFingerprint, fingerprint, StringComparison.Ordinal))
+        if (!endPending && string.Equals(management.LastAppliedLocalFingerprint, fingerprint, StringComparison.Ordinal))
         {
             if (management.CredentialStatus == EventCompetitionCredentialStatus.Unverified)
                 return new(true, "The protected Wise Old Man management code remains unverified; no synthetic validation write was issued.", Status: "Unverified", ErrorCode: "CredentialUnverified");
@@ -345,6 +350,12 @@ public sealed class EventCompetitionManagementService(
             .OrderByDescending(x => x.UpdatedAt).FirstOrDefaultAsync(cancellationToken);
         if (pending is not null)
         {
+            // Repeated worker/readback requests must not erase a persisted backoff.
+            if (pending.DesiredFingerprint == fingerprint && pending.EventVersion == projection.Event.Version)
+            {
+                await transaction.CommitAsync(cancellationToken);
+                return new(true, OperationId: pending.Id, Status: pending.Phase.ToString(), RetryAt: pending.NextAttemptAt);
+            }
             pending.ReplaceDesired(payloadJson, fingerprint, projection.Event.Version, time.GetUtcNow());
             lockedManagement.MarkPending(pending.Id, time.GetUtcNow());
             await db.SaveChangesAsync(cancellationToken);
@@ -437,6 +448,12 @@ public sealed class EventCompetitionManagementService(
             try { await ExecuteAsync(operationId, cancellationToken); }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
         }
+
+        var pendingEndEvents = await db.EventCompetitionSynchronizations.AsNoTracking()
+            .Where(x => x.EndUpdateStatus == EventCompetitionEndUpdateStatus.Pending)
+            .Select(x => x.EventId).Take(50).ToListAsync(cancellationToken);
+        foreach (var eventId in pendingEndEvents)
+            await QueueUpdateAsync(eventId, cancellationToken);
 
         var managedEventIds = await db.EventCompetitionManagements.AsNoTracking()
             .Where(x => (x.Status == EventCompetitionManagementStatus.Active || x.Status == EventCompetitionManagementStatus.Pending)
@@ -555,6 +572,8 @@ public sealed class EventCompetitionManagementService(
             return await MarkUnknownAsync(operation.Id, RedactProviderText(result.ErrorCode, verificationCode) ?? "UnknownOutcome", RedactProviderText(result.Message, verificationCode) ?? "The WOM update outcome is unknown.", read.RetryAt, cancellationToken);
         }
         if (!result.Succeeded) return await HandleResultFailureAsync(operation.Id, result, cancellationToken, verificationCode);
+        if (result.Competition!.Id != management.CompetitionId || !Matches(result.Competition, updatePayload))
+            return await MarkUnknownAsync(operation.Id, "MismatchedReceipt", "The WOM update response did not confirm the requested window.", null, cancellationToken);
         return await PersistProviderReceiptWithRetryAsync(
             () => CompleteUpdateAsync(operation.Id, operation, updatePayload, result.Competition!, cancellationToken),
             cancellationToken);
@@ -769,6 +788,7 @@ public sealed class EventCompetitionManagementService(
     {
         var operation = await db.EventCompetitionManagementOperations.AsNoTracking().SingleOrDefaultAsync(x => x.Id == operationId, cancellationToken);
         if (operation is null || operation.Phase != EventCompetitionManagementOperationPhase.Unknown) return;
+        if (operation.Type == EventCompetitionManagementOperationType.Update && await EndUpdatesStoppedAsync(operation.EventId, cancellationToken)) return;
         if (operation.Type == EventCompetitionManagementOperationType.Create)
         {
             await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
@@ -838,13 +858,13 @@ public sealed class EventCompetitionManagementService(
             await transaction.CommitAsync(cancellationToken);
             return;
         }
-        if (operation.AttemptCount >= 3)
+        if (operation.AttemptCount >= 3 && !await IsPendingEndOperationAsync(operation, cancellationToken))
         {
             await transaction.CommitAsync(cancellationToken);
             await FailOperationAsync(operationId, "ReconciliationRequired", "The WOM operation outcome remains unresolved; Admin review is required.", EventCompetitionManagementStatus.Conflict, cancellationToken);
             return;
         }
-        var next = retryAt ?? time.GetUtcNow().Add(RetryDelay);
+        var next = await EndRetryAtAsync(operation, retryAt, cancellationToken, attemptOffset: 1);
         operation.ScheduleReconciliation(next, time.GetUtcNow());
         var management = operation.ManagementId is { } managementId
             ? await db.EventCompetitionManagements.SingleOrDefaultAsync(x => x.Id == managementId, cancellationToken)
@@ -908,7 +928,7 @@ public sealed class EventCompetitionManagementService(
         var management = operation.ManagementId is { } managementId
             ? await db.EventCompetitionManagements.SingleOrDefaultAsync(x => x.Id == managementId, cancellationToken)
             : null;
-        var dueAt = retryAt ?? time.GetUtcNow().Add(RetryDelay);
+        var dueAt = await EndRetryAtAsync(operation, retryAt, cancellationToken);
         operation.Retry(dueAt, "SourceCheckUnavailable", message, time.GetUtcNow());
         management?.MarkFailure(operationId, EventCompetitionManagementStatus.Pending, "SourceCheckUnavailable", message, time.GetUtcNow());
         await db.SaveChangesAsync(cancellationToken);
@@ -964,9 +984,17 @@ public sealed class EventCompetitionManagementService(
     {
         await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
         var operation = await db.EventCompetitionManagementOperations.FromSqlInterpolated($"SELECT * FROM event_competition_management_operations WHERE id = {operationId} FOR UPDATE").SingleOrDefaultAsync(cancellationToken);
-        if (operation is null || (operation.Phase != EventCompetitionManagementOperationPhase.Pending && operation.Phase != EventCompetitionManagementOperationPhase.Retry)) return null;
+        if (operation is not null) await db.Entry(operation).ReloadAsync(cancellationToken);
+        if (operation is null || (operation.Phase != EventCompetitionManagementOperationPhase.Pending && operation.Phase != EventCompetitionManagementOperationPhase.Retry)
+            || operation.NextAttemptAt > time.GetUtcNow()) return null;
         var item = await db.Events.FromSqlInterpolated($"SELECT * FROM events WHERE id = {operation.EventId} FOR UPDATE").SingleOrDefaultAsync(cancellationToken);
         if (item is null) return null;
+        if (operation.Type == EventCompetitionManagementOperationType.Update && await EndUpdatesStoppedAsync(operation.EventId, cancellationToken))
+        {
+            operation.Cancel(time.GetUtcNow());
+            await db.SaveChangesAsync(cancellationToken); await transaction.CommitAsync(cancellationToken);
+            return null;
+        }
         var management = operation.ManagementId is { } managementId ? await db.EventCompetitionManagements.SingleOrDefaultAsync(x => x.Id == managementId, cancellationToken) : null;
         operation.Claim(time.GetUtcNow());
         await db.SaveChangesAsync(cancellationToken);
@@ -1024,16 +1052,23 @@ public sealed class EventCompetitionManagementService(
     private async Task<EventCompetitionManagementResult> CompleteUpdateAsync(Guid operationId, EventCompetitionManagementOperation operation, WiseOldManCompetitionWritePayload payload, WiseOldManCompetition competition, CancellationToken cancellationToken)
     {
         await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
+        var item = await db.Events.FromSqlInterpolated($"SELECT * FROM events WHERE id = {operation.EventId} FOR UPDATE").SingleAsync(cancellationToken);
+        await db.Entry(item).ReloadAsync(cancellationToken);
         var state = await db.EventCompetitionSynchronizations.SingleOrDefaultAsync(x => x.EventId == operation.EventId, cancellationToken);
+        if (state is not null) await db.Entry(state).ReloadAsync(cancellationToken);
         var currentOperation = await db.EventCompetitionManagementOperations.SingleOrDefaultAsync(x => x.Id == operationId, cancellationToken);
+        if (currentOperation is not null) await db.Entry(currentOperation).ReloadAsync(cancellationToken);
         var management = operation.ManagementId is { } managementId
             ? await db.EventCompetitionManagements.SingleOrDefaultAsync(x => x.Id == managementId, cancellationToken)
             : null;
         if (currentOperation is null || state is null || management is null) return new(false, "The WOM update receipt could not be saved.", operationId, "Unknown", ErrorCode: "ReceiptSaveFailed");
+        if (currentOperation.Phase is not (EventCompetitionManagementOperationPhase.Sending or EventCompetitionManagementOperationPhase.Unknown)
+            || state.CompetitionId != competition.Id || management.CompetitionId != competition.Id
+            || management.Status == EventCompetitionManagementStatus.Deleted
+            || await EndUpdatesStoppedAsync(operation.EventId, cancellationToken))
+            return new(false, "The WOM update receipt no longer belongs to the current event connection.", operationId, "Stopped", ErrorCode: "StaleReceipt");
         var currentPreview = await BuildProjectionAsync(operation.EventId, cancellationToken);
         var localFingerprint = operation.DesiredFingerprint;
-        if (currentPreview is not null && currentPreview.Event.ActualStartedAt is not null)
-            localFingerprint = WiseOldManCompetitionRules.Fingerprint(new { currentPreview.Preview.Title, currentPreview.Preview.StartsAt, currentPreview.Preview.EndsAt, RosterLocked = true });
         var assignmentFingerprint = payload.IncludeTeams
             ? await EventCompetitionSynchronizationService.StatsAssignmentFingerprintAsync(db, operation.EventId, cancellationToken)
             : state.AssignmentFingerprint;
@@ -1042,7 +1077,16 @@ public sealed class EventCompetitionManagementService(
             || state.CompetitionStartsAt != competition.StartsAt
             || state.CompetitionEndsAt != competition.EndsAt
             || state.AssignmentFingerprint != assignmentFingerprint;
-        if (sourceChanged)
+        if (state.EndUpdateStatus == EventCompetitionEndUpdateStatus.Pending && !payload.IncludeTeams)
+        {
+            state.UpdateMetadata(management.CompetitionId, competition.Title, competition.StartsAt, competition.EndsAt, time.GetUtcNow());
+            if (competition.StartsAt == item.EventStartsAt && competition.EndsAt == item.EventEndsAt)
+            {
+                state.CompleteEndUpdate(competition.EndsAt);
+                state.MakeNormalRefreshDue(time.GetUtcNow());
+            }
+        }
+        else if (sourceChanged)
             state.Reconfigure(management.CompetitionId, competition.Title, competition.StartsAt, competition.EndsAt, assignmentFingerprint, time.GetUtcNow());
         else if (titleChanged)
             state.UpdateMetadata(management.CompetitionId, competition.Title, competition.StartsAt, competition.EndsAt, time.GetUtcNow());
@@ -1091,7 +1135,7 @@ public sealed class EventCompetitionManagementService(
             await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
             var operation = await db.EventCompetitionManagementOperations.SingleAsync(x => x.Id == operationId, cancellationToken);
             var management = operation.ManagementId is { } id ? await db.EventCompetitionManagements.SingleOrDefaultAsync(x => x.Id == id, cancellationToken) : null;
-            var retryAt = result.RetryAt ?? time.GetUtcNow().Add(RetryDelay);
+            var retryAt = await EndRetryAtAsync(operation, result.RetryAt, cancellationToken);
             var retryCode = safeCode ?? (result.Status == WiseOldManCompetitionWriteStatus.RateLimited ? "RateLimited" : "Unavailable");
             var retryMessage = AppendAffected(safeMessage ?? (result.Status == WiseOldManCompetitionWriteStatus.RateLimited ? "Wise Old Man is rate-limited." : "Wise Old Man is temporarily unavailable."), affected);
             operation.Retry(retryAt, retryCode, retryMessage, time.GetUtcNow());
@@ -1178,6 +1222,11 @@ public sealed class EventCompetitionManagementService(
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
         var operation = await db.EventCompetitionManagementOperations.SingleAsync(x => x.Id == operationId, cancellationToken);
         operation.Fail(code, message, time.GetUtcNow());
+        if (operation.Type == EventCompetitionManagementOperationType.Update)
+        {
+            var state = await db.EventCompetitionSynchronizations.SingleOrDefaultAsync(x => x.EventId == operation.EventId, cancellationToken);
+            state?.RejectEndUpdate(DeserializePayload(operation.DesiredPayloadJson).EndsAt, code);
+        }
         if (operation.ManagementId is { } managementId)
         {
             var management = await db.EventCompetitionManagements.SingleOrDefaultAsync(x => x.Id == managementId, cancellationToken);
@@ -1197,7 +1246,8 @@ public sealed class EventCompetitionManagementService(
             await transaction.CommitAsync(cancellationToken);
             return new(true, OperationId: operationId, Status: operation.Phase.ToString());
         }
-        operation.MarkUnknown(code, message, time.GetUtcNow(), retryAt ?? time.GetUtcNow().Add(RetryDelay));
+        var next = await EndRetryAtAsync(operation, retryAt, cancellationToken);
+        operation.MarkUnknown(code, message, time.GetUtcNow(), next);
         if (operation.ManagementId is { } managementId)
         {
             var management = await db.EventCompetitionManagements.SingleOrDefaultAsync(x => x.Id == managementId, cancellationToken);
@@ -1205,7 +1255,7 @@ public sealed class EventCompetitionManagementService(
         }
         await db.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
-        return new(false, message, operationId, "Unknown", retryAt, code);
+        return new(false, message, operationId, "Unknown", next, code);
     }
 
     private Task<EventCompetitionManagementResult> MarkExpiredClaimUnknownAsync(Guid operationId, CancellationToken cancellationToken)

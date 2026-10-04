@@ -306,6 +306,23 @@ public sealed class Slice10Pass101WiseOldManTests
     }
 
     [Fact]
+    public async Task Au20NamedHttp400RetainsItsSafeCodeForPermanentEndRejection()
+    {
+        var clock = new TestClock(new DateTimeOffset(2026, 10, 4, 12, 0, 0, TimeSpan.Zero));
+        using var http = new HttpClient(new DelegateHandler((_, _) => Task.FromResult(new HttpResponseMessage(HttpStatusCode.BadRequest)
+        {
+            Content = JsonContent.Create(new { code = "COMPETITION_START_DATE_AFTER_END_DATE", message = "Rejected secret" })
+        }))) { BaseAddress = new Uri("https://fake.test/") };
+        var client = new WiseOldManCompetitionManagementClient(new SingleClientFactory(http),
+            new WiseOldManRequestLimiter(clock, NullLogger<WiseOldManRequestLimiter>.Instance), clock,
+            new DataProtectionCompetitionCredentialProtector(new EphemeralDataProtectionProvider()));
+        var result = await client.UpdateAsync(42, new("AU20", clock.GetUtcNow().AddHours(-2), clock.GetUtcNow().AddHours(-1), [], false), "secret");
+        Assert.Equal(WiseOldManCompetitionWriteStatus.Validation, result.Status);
+        Assert.Equal("COMPETITION_START_DATE_AFTER_END_DATE", result.ErrorCode);
+        Assert.DoesNotContain("secret", result.Message);
+    }
+
+    [Fact]
     public async Task ManagedScheduleOnlyUpdateOmitsTeamsAndParticipantsFromPutBody()
     {
         var clock = new TestClock(DateTimeOffset.UtcNow);

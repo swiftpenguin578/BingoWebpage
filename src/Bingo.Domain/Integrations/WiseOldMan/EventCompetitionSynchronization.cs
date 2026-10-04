@@ -44,6 +44,20 @@ public sealed class EventCompetitionSynchronization
         EndUpdateErrorCode = null;
     }
 
+    public void RejectEndUpdate(DateTimeOffset target, string code)
+    {
+        if (EndUpdateStatus != EventCompetitionEndUpdateStatus.Pending || EndUpdateTargetAt != target) return;
+        EndUpdateStatus = EventCompetitionEndUpdateStatus.Rejected;
+        EndUpdateErrorCode = code.Length <= 100 ? code : code[..100];
+    }
+
+    public void CompleteEndUpdate(DateTimeOffset target)
+    {
+        if (EndUpdateStatus != EventCompetitionEndUpdateStatus.Pending || EndUpdateTargetAt != target) return;
+        EndUpdateStatus = EventCompetitionEndUpdateStatus.Succeeded;
+        EndUpdateErrorCode = null;
+    }
+
     public Guid Id { get; private set; }
     public Guid EventId { get; private set; }
     public int Generation { get; private set; }
