@@ -1626,6 +1626,9 @@
   <data name="Item name" xml:space="preserve"><value>Genstandsnavn</value></data>
   <data name="New Super Admin" xml:space="preserve"><value>Ny Super Admin</value></data>
   <data name="Your current password" xml:space="preserve"><value>Din nuværende adgangskode</value></data>
+  <data name="Destination username confirmation" xml:space="preserve"><value>Bekræftelse af destinationsbrugernavn</value></data>
+  <data name="Type the selected account's public username to confirm this transfer." xml:space="preserve"><value>Skriv den valgte kontos offentlige brugernavn for at bekræfte overførslen.</value></data>
+  <data name="The destination username confirmation does not match the selected account." xml:space="preserve"><value>Bekræftelsen af destinationsbrugernavnet matcher ikke den valgte konto.</value></data>
   <data name="Efficient completions per hour" xml:space="preserve"><value>Effektive gennemførelser pr. time</value></data>
   <data name="Data source" xml:space="preserve"><value>Datakilde</value></data>
   <data name="Image URL" xml:space="preserve"><value>Billed-URL</value></data>

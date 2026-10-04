@@ -41,12 +41,21 @@ public sealed class AccountAdministrationService(ApplicationDbContext db, IPassw
         await TransferOwnershipAsync(actorId, actorPassword, destination.Id, destination.AuthorizationVersion, ct);
     }
 
-    public async Task TransferOwnershipAsync(Guid actorId, string actorPassword, Guid destinationId, long expectedAuthorizationVersion, CancellationToken ct)
+    public Task TransferOwnershipAsync(Guid actorId, string actorPassword, Guid destinationId, long expectedAuthorizationVersion, CancellationToken ct) =>
+        TransferOwnershipAsyncCore(actorId, actorPassword, destinationId, expectedAuthorizationVersion, null, ct);
+
+    public Task TransferOwnershipAsync(Guid actorId, string actorPassword, Guid destinationId, long expectedAuthorizationVersion, string destinationUsernameConfirmation, CancellationToken ct) =>
+        TransferOwnershipAsyncCore(actorId, actorPassword, destinationId, expectedAuthorizationVersion, destinationUsernameConfirmation, ct);
+
+    private async Task TransferOwnershipAsyncCore(Guid actorId, string actorPassword, Guid destinationId, long expectedAuthorizationVersion, string? destinationUsernameConfirmation, CancellationToken ct)
     {
         await using var tx = await db.Database.BeginTransactionAsync(ct);
         var (actor, destination) = await LoadPair(actorId, destinationId, ct);
         RequireOwner(actor);
         RequireFreshTarget(destination, expectedAuthorizationVersion);
+        if (destinationUsernameConfirmation is not null &&
+            !string.Equals(AccountAuthenticationService.NormalizeUsername(destination.PublicUsername ?? string.Empty), AccountAuthenticationService.NormalizeUsername(destinationUsernameConfirmation), StringComparison.Ordinal))
+            throw new AccountActionException("The destination username confirmation does not match the selected account.");
         if (actor.PasswordHash is null || passwords.VerifyHashedPassword(actor, actor.PasswordHash, actorPassword) == PasswordVerificationResult.Failed) throw new AccountActionException("The current password is incorrect.");
         if (destination.Id == actor.Id || destination.GlobalRole == GlobalRole.SuperAdmin) throw new AccountActionException("Choose another active website account.");
         if (!destination.Active) throw new AccountActionException("The selected account is disabled. Restore it before transferring ownership.");

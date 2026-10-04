@@ -125,10 +125,14 @@ public sealed class AccountsUiTests
         Assert.Contains("_ => \"is-muted\"", manage);
         Assert.DoesNotContain("account-manage-dialog.js", transfer);
         Assert.Contains("<select asp-for=\"Input.DestinationId\"", transfer);
+        Assert.Contains("asp-for=\"Input.DestinationUsernameConfirmation\"", transfer);
+        Assert.Contains("Type the selected account's public username to confirm this transfer.", transfer);
         Assert.Contains("data-account-transfer", transfer);
         Assert.Contains("account-transfer.js", transfer);
         Assert.Contains("GlobalRole != GlobalRole.SuperAdmin", transferModel);
-        Assert.Contains("TransferOwnershipAsync", transferModel);
+        Assert.Contains("Input.DestinationUsernameConfirmation", transferModel);
+        Assert.Contains("Input.DestinationId, Input.ExpectedAuthorizationVersion, Input.DestinationUsernameConfirmation, ct", transferModel);
+        Assert.DoesNotContain("TransferOwnershipAsync(User.GetAccountId()!.Value, Input.CurrentPassword, Input.DestinationUsernameConfirmation", transferModel);
         Assert.Contains("former owner remains an Admin", transfer);
         Assert.Contains("grid-template-columns: 7rem minmax(0, 1fr)", styles);
         Assert.Contains(".admin-accounts-page .admin-events-directory-controls { grid-template-columns: minmax(14rem, 18rem) minmax(0, 1fr) auto; gap: 0.75rem; align-items: center; }", styles);

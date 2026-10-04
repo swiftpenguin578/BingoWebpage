@@ -11,6 +11,7 @@
                 <div asp-validation-summary="ModelOnly" class="validation-summary"></div>
                 <div class="admin-field"><label asp-for="Input.DestinationId"></label><select asp-for="Input.DestinationId" class="form-select" required><option value="">@T["Choose an eligible active website account"]</option>@foreach (var destination in Model.Destinations) { <option value="@destination.Id" data-authorization-version="@destination.AuthorizationVersion">@destination.Username</option> }</select><span asp-validation-for="Input.DestinationId" class="field-error"></span></div>
                 <input asp-for="Input.ExpectedAuthorizationVersion" type="hidden" />
+                <div class="admin-field"><label asp-for="Input.DestinationUsernameConfirmation"></label><input asp-for="Input.DestinationUsernameConfirmation" class="form-control" autocomplete="off" required /><small>@T["Type the selected account's public username to confirm this transfer."]</small><span asp-validation-for="Input.DestinationUsernameConfirmation" class="field-error"></span></div>
                 <div class="admin-field"><label asp-for="Input.CurrentPassword"></label><input asp-for="Input.CurrentPassword" class="form-control" autocomplete="current-password" /><span asp-validation-for="Input.CurrentPassword" class="field-error"></span></div>
                 <div class="event-confirmation-actions"><a class="admin-button-secondary" asp-page="Index">@T["Cancel"]</a><button class="action-danger-outline" type="submit">@T["Transfer ownership"]</button></div>
             </form>
