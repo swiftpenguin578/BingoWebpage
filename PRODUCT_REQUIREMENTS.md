@@ -83,13 +83,13 @@ pending-decision notes below; implementation remains queued, not complete.
   persistence timestamp precision explicitly, without rounding away genuine time
   differences. Existing links must not be silently disconnected or their historical
   snapshots rewritten. Application behavior is implemented under AU20; reference updates remain pending in RC09.
-- **Evidence correction (AU17a):** Admin metadata correction must offer all players
-  from the event pool, not only currently active Playing assignments. The concrete
-  use case is correcting attribution when someone forgot to change the account.
-  Do not retain the current-only restriction merely because the existing service
-  enforces it. Resolve player/character identities and team attribution explicitly
-  at ticket readiness, including retained/non-current pool entries; do not silently
-  reinterpret the pool as only current Playing accounts or all website users.
+- **Evidence correction (AU17a):** D11 option b narrows the pool to current or
+  released Playing assignments in the event belonging to current or former members
+  of the submission’s own team. Informational accounts are never selectable.
+  Derive one unambiguous participant from the selected character; never move the
+  submission to another team. Retained identities must survive readiness/results.
+  B5 backend implemented; external Claude review and RC07 binding remain pending.
+  Decision source: [08-decisions.md, B5 brief decisions](/Users/christopher/Documents/BingoWebpage/review-notes/08-decisions.md#b5-brief-decisions).
   Preserve reason, audit, pending-correction/version rules and original evidence.
   This corrects evidence attribution; it does not rewrite saved accounts, rosters
   or grant participant access. Correct then approve remains two separate actions.
@@ -1122,7 +1122,7 @@ An admin can:
 Editable metadata includes:
 
 - Tile or requirement
-- Credited account from the full event pool, including non-current entries, with validated participant/team attribution (AU17a approved, pending)
+- Credited account from current/released Playing event assignments of current/former members of the submission’s own team, with unambiguous derived participant attribution (AU17a/D11 option b; backend implemented, review/UI binding pending; Informational excluded)
 - Qualifying drop and its derived boss/activity
 
 These material corrections require a written reason, revalidate the complete submission, and store the original and new values. Credited participant is not independently editable. Immutable server submission time, calculated contribution, and the submitted evidence image are not administrator-editable. Snapshot contribution weight is not manually editable; changing requirement/drop replaces it with the authoritative frozen weight of the selected destination.

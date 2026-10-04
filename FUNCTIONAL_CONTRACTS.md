@@ -152,11 +152,11 @@ the later UI integration pass; backend completion does not approve them.
 ### Later UI review decisions — 2026-10-02
 
 The [approved UI review decisions](PRODUCT_REQUIREMENTS.md#ui-review-decisions--approved-2026-10-02)
-qualify the contracts below: AU12 applies only to new events; AU17 expands Admin
-evidence correction to the event pool rather than current
-Playing assignments only. Existing implementation restrictions are gaps to resolve,
-not authority to remove these accepted reference capabilities. Delivery remains
-stopped after AU10; approved intent is not implemented or verified status. WOM
+qualify the contracts below: AU12 applies only to new events; AU17a/D11 option b
+permits current/released Playing event assignments of current/former members of
+the submission’s own team, excluding Informational accounts. B5 backend contracts
+for AU17a/AU17/AU19/AU14 are implemented; external Claude review and UI binding
+remain pending. WOM
 option 1 is now explicitly approved: preserve local external disconnect before first
 Live and matching replacement before/during Live with or without stored credentials,
 subject to active/unresolved-operation guards. Never delete the external competition
@@ -647,7 +647,9 @@ team IDs, expected version/control and immutable intended fields through pending
 stale and uncertain outcomes. Matching pick numbers or orders cannot prove a timed-
 out action's result. A read failure keeps uncertainty and does not authorize replay.
 Local roster publication success is separate from actual queued/failed/unknown WOM
-synchronization. AU14 owns the remaining bounded readback contract; RC04 fixes mocks.
+synchronization. AU14 provides the backend readback contract (B5, review pending);
+RC04/DRF binding remains pending. Its nullable persisted draft identity, immutable
+picks, retained memberships and full team/account fields never identify a request.
 
 Public roster/pick publication never starts the event or publishes the Board.
 Original/undone picks and past publications remain retained; private control identity
@@ -836,6 +838,14 @@ must not expose private event context or redirect a viewed event's action to ano
 **Authoritative happy path:** An Admin approves or rejects. Rejection requires a reason and leaves an immutable historical attempt; any later attempt through the active/reopened upload window is an ordinary new submission with a new image, immutable server time, and normal review. Before approval, a reasoned correction may change tile, requirement, drop, or credited account from current or released Playing assignments in the event belonging to current or former members of the submission’s own team when evidence supports it (AU17a; D11 option b, Informational accounts excluded); participant is derived from the account and a changed target receives its authoritative frozen weight. Approval reversal requires strong confirmation and a reason, then recalculates all affected progress/rankings. The Reversed attempt remains immutable. Historical predecessor links and the `Resubmit` enum are retained for display-only legacy history and are not used to create or constrain new attempts.
 
 **Permissions and history:** Submission time, destination-derived board snapshot weight, calculated contribution, original image, review actions, and any historical predecessor links are preserved. Admins cannot upload or replace another user's evidence image. Retained ReviewAction history is authoritative for evidence decisions and corrections; the shared Audit presentation renders it once and uses the immutable audit entry as a fallback for records without a retained ReviewAction. Notifications reach the credited participant and current team captains where applicable, without notifying another team or exposing private evidence.
+
+B5 AU17 backend exposes structured add/weight/remaining/used/target/completes from
+the same allocation path as approval. Refined BR-1 returns its existing blocker
+identity/time instead of a contribution claim. No-store readback returns coherent
+current identity/version/status/full corrected fields and latest review attribution,
+not a request receipt. Failed reads stay unknown; equal-time legacy actions without
+reliable ordering do not invent latest-action attribution. No replay or per-account
+context is added. RC07 binding and external Claude review remain pending.
 
 Approved G1–G2 correction scope (3 October 2026; implemented and rechecked):
 approval of a later upload is blocked only when it reduces the credit available

@@ -519,6 +519,17 @@ Evidence review has only `Approve` and `Reject` decisions. Approval needs no not
 
 Before approval, a reviewer may correct tile/requirement, qualifying drop, or credited character from current or released Playing assignments in the event belonging to current or former members of the submission’s own team with a required reason (AU17a; D11 option b). Informational accounts are excluded. Derive unambiguous participant attribution from that event identity; never change the submission’s team. The command locks or version-checks the pending submission, revalidates authorization and every structured allocation/account rule, records before/after values, and rejects stale decisions. It never changes the immutable server submission time, calculated contribution, or evidence asset; a changed target replaces snapshot weight with that destination's frozen authoritative value. Approval records the human decision that the screenshot time satisfies event/account eligibility. Reversal is a separate reasoned transaction that preserves history and recalculates authoritative progress.
 
+B5 backend readback contracts use authorized, no-store, Repeatable Read projections
+for Review, Board and Teams. They reuse allocation, leases, snapshots, versions and
+immutable pick/member identities; they do not persist request receipts or replay
+commands. Current-state matches never identify the request/actor that caused them,
+and unavailable reads remain unknown. Review uses its existing action snapshots for
+versioned attribution. Board compares full tile content and retains distinct active
+snapshot identities for publish versus discard. Teams exposes the last recorded
+roster synchronization outcomes separately from local roster publication. Backend
+implementation awaits external Claude review and RC07/RC05/RC04 binding; evidence:
+`docs/references/admin-ui/reviews/2026-10-04/au-b5/`.
+
 Duplicate-disabled contribution uses immutable shared catalogue-item identity frozen
 into event and approval drop snapshots, scoped to one requirement. It never relies
 on mutable current `SourceDrop` mapping or treats sibling objectives as shared

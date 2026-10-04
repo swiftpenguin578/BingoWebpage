@@ -15,3 +15,5 @@ Commands (assigned worktree):
 The seven cases prove retained reassignment, released/former-member correction and result mapping, Informational/never-member/ambiguous/outside-event rejection with unchanged persisted evidence/history/audit/event state, and a role change after picker load. The valid case also refuses non-admin picker access. Fixture instants are deterministic microsecond-aligned UTC. Full affected classes and final Release build remain the batch-end gate.
 
 Reference check: Review.dc.html correction picker (`acctOpts`, Playing accounts on this team) has no released/left markers. AU17a requires an actual register row in item 5. No reference edits or UI/manual acceptance claimed.
+
+Batch-end result and saved correction status: [item-5 gate evidence](docs-register.md). The full gate failed; this focused result is not a final batch pass.

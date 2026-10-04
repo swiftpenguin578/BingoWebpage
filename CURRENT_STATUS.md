@@ -1,38 +1,27 @@
 # Current project status
 
-## Active assignment — B4 / Catalogue follow-up 29, 4 October 2026
+## Active assignment — B5 readback/review, 4 October 2026
 
-- Checkout `/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage`, branch `codex/participants-functionality`; follow-up 29 started from the separately verified clean `2049fb252d6d482efde6ccd7c063e227b2a7d276` after the earlier B4 remediation.
-- Planner `/root`, replacement chat `01a10660-cc8a-7843-abb4-6cc1ebbb2bf2`; sole implementer `/root/au_b4_implementer`, `gpt-5.6-luna` / max. No extra workers or visible chats.
-- B3/AU20 is accepted as the prerequisite per the supplied B4 brief. Its R1 conversion, R3 rehearsal and operator migration-count gates remain future obligations; no production or user-owned database access was used here.
-- Earlier B4 implementation commits remain `c4c52a4` (AU21), `c2d2220` (CAT-1 binding), `c2b00b2` (D8), and `2049fb2` (initial docs/register). Follow-up 29 commits are `e955284` (D10 preflight), `a372a5c` (restore-boundary docs), and `7d89ddf` (predecessor-schema fixture); the current Low/docs checkpoint is the fourth follow-up commit. Evidence is under `docs/references/admin-ui/reviews/2026-10-04/au-b4/remediation/`.
-- Worker-reported follow-up checks: Slice6 Catalogue 167/167; AU21 7/7; AU23 2/2; CAT-1 team-size binding 2/2 plus migration fail-closed 1/1; D8 1/1; predecessor-schema `CataloguePopulationMigrationIntegrationTests` 5/5; preflight tests 5/5; full `FullyQualifiedName~Snapshot` 49/49; Release build 0 warnings/errors; `git diff --check` and deploy-script syntax passed. The prior five migration-fixture failures and one snapshot failure are resolved by the test-only predecessor context. These are worker results pending external review.
-- The CAT-1 migration fails closed for any non-default per-drop context and the runbook now requires read-only production counts for `conditional_on_parent` and non-default `assumed_participants`/`probability_scope`. The user's 4 October evidence, recorded in [08-decisions.md, B4 brief decisions](/Users/christopher/Documents/BingoWebpage/review-notes/08-decisions.md#b4-catalogue-brief-decisions), reported **0** for each query; this worker did not run those production queries. The decision and remediation provenance are also recorded in the [authorized B4 brief](/Users/christopher/Documents/BingoWebpage/review-notes/27-codex-brief-b4-catalogue.md) and [review decisions](/Users/christopher/Documents/BingoWebpage/review-notes/08-decisions.md#b4-catalogue-review-decisions).
-- Current-page UI and WA-5/RC10 binding are deferred. No new current-page display, B5 work, rehearsal execution, main merge, push or deployment is authorized.
+- Checkout `/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage`, branch `codex/participants-functionality`; verified clean baseline `fdc73dcc5605e582c11866947bd54cc54fc7a4e7`.
+- Planner `/root`, chat `01a10660-cc8a-7843-abb4-6cc1ebbb2bf2`; sole implementer `/root/au_b5_implementer`, explicitly assigned `gpt-6-astra` / high. No orchestrator, extra worker or visible chat.
+- Assignment: [brief 30](/Users/christopher/Documents/BingoWebpage/review-notes/30-codex-brief-b5-readback-review.md); D11 Playing-only scope and approval attribution are retained in [08-decisions.md](/Users/christopher/Documents/BingoWebpage/review-notes/08-decisions.md#b5-brief-decisions). Prior broad full-pool wording is narrowed to current/released Playing assignments of current/former members of the submission’s own team, excluding Informational accounts.
+- B4 accepted at baseline per the supplied brief and [Claude’s appended follow-up 29 PASS](/Users/christopher/Documents/BingoWebpage/review-notes/29-b4-remediation-recheck.md#follow-up-recheck-2049fb2fdc73dc-direct-claude-4-october). Claude’s source recheck reused worker execution evidence; this worker did not rerun production queries.
+- Four scoped backend checkpoints: AU17a `ebd0ef2c8c559fa47eb2b691ddb461a214a2e449`; AU17 `397d4c96538004731652fe9948babc19c4ff8f5a`; AU19 `992f6b1dc10fffea0aa4a65d93f6389814e7db2c`; AU14 `d3f2d886d6e60bb87b87765de355165901776d96`. The user then approved one extra corrective commit: `e63546149dbd400a257d063d4dfbdc07bc72c703`; this final docs/register checkpoint is the sixth commit. Exact final SHA/range are in the terminal delivery report.
+- Evidence: [B5 item files](docs/references/admin-ui/reviews/2026-10-04/au-b5/). Implementer-reported focused PostgreSQL results: AU17a 7/7, AU17 16/16, AU19 62/62, AU14 7/7. Initial full-class gate: **662 PASS / 3 FAIL / 0 skipped (665 total)**; Catalogue migration **5/5 PASS**. After the approved correction, full Review **92/92** plus both endpoint authorization cases **2/2 PASS** (94/94 total); clean Release rebuild 0 warnings/errors; diff check PASS. Reused unaffected passing evidence is itemized in [docs-register.md](docs/references/admin-ui/reviews/2026-10-04/au-b5/docs-register.md).
+- **Overall required gate remains failing:** `C11FinalizedRosterIntegrationTests.StaleRolePostAfterWithdrawalOrActualStartCannotPublishOrChangeRoles(startInstead: True)` and `Slice10Pass102CompetitionSynchronizationTests.StatsPass4RealFinalReviewRefreshFailureDoesNotBlockPublicationAndIsRecorded` reproduce at exact baseline `fdc73dc` (1 PASS / 2 FAIL / 0 skipped). Neither was waived or authorized for repair; protected lifecycle/WOM code and these tests were not changed.
+- Automatic approval review initially rejected the precise rebalance assertion change; nothing executed and the worker stopped. The human later replied “I approve” to that exact change plus the extra corrective commit in planner chat `01a10660-cc8a-7843-abb4-6cc1ebbb2bf2`. [Correction evidence](docs/references/admin-ui/reviews/2026-10-04/au-b5/corrections.md) records scope and final execution. No broader test weakening or technical acceptance was authorized.
+- Backend only: shared Review allocation/BR-1 block and current-state readback; retained Playing correction with explicit result identity mapping; Board structured issues/full-content version comparisons; Teams immutable pick/member/team readback and confirmed-captain projection. No migrations or new current-page display. No request-success attribution, automatic replay or safe-retry claim.
+- Independent Claude review is pending for all B5 tickets. No source-review pass or manual UI acceptance claimed. RC07/RC05/RC04–DRF binding remains pending; actual absent-reference outputs are recorded in DELIVERY_PLAN’s existing register.
 
-## Retained B1/B2 evidence and limits
+## Retained release gates and prior evidence
 
-- B1/B2 merge `4065cb0`, evidence `40e624a`; Claude merge scope PASS per supplied B3 assignment. Prior checks are reused, not rerun or independently reviewed here.
-- B1 follow-ups `404524d` / `a9399b2` and B2 `5545845` passed Claude source recheck. Execution evidence remains workers'.
-- Evidence: `docs/references/admin-ui/reviews/2026-10-04/au-b1/remediation/` and `au-b2/remediation/`; merge evidence `au-b1/remediation/merge-back.md`.
-- Approval attribution: `docs/references/admin-ui/reviews/2026-10-04/au-step0/approval-record.md`, supplied `assignment.md` and `decisions.md` beside it.
-- Snapshot override equal to automatic remains indistinguishable; cleanup Down cannot restore cleared values. Operator pre/post migration counts remain due. No production access assigned.
-
-## Prior outcomes / corrected approvals
-
-- F1–F9/R2 and G1–G6 passed Claude source review; historical evidence retained.
-- H cleanup accepted by Claude source recheck (`cleanup-recheck.md` beside the
-  Step 0 assignment), subject to attribution corrections now included here.
-- H4-2 procedure/limits approved by user after Claude review on 4 October, as
-  directed by the quoted Step 0 assignment and supplied planner decisions.
-  Earlier at-writing attribution is corrected. Tooling unbuilt/untested, R3 unrun.
-- H3-4 `6b8331d`: not user-approved, per the current assignment’s attribution
-  correction. Accurate code-description correction stands; Git history unchanged.
-- R1 conversion failure remains blocking; R3 is required on final candidate.
-- AU23 precheck and CAT-1 migration gate are approved in the B4 assignment; production counts remain unrun by this worker.
-- AU17 Contribution/readback only, AU18 WOM outcome/version history only, AU19
-  approved. No additional Review context/current-event readiness UI is authorized.
+- B1/B2 merge `4065cb0`, evidence `40e624a`; Claude merge scope PASS per supplied B3 assignment. B1 follow-ups `404524d` / `a9399b2` and B2 `5545845` passed Claude source recheck. Their execution evidence remains workers’.
+- Evidence: `docs/references/admin-ui/reviews/2026-10-04/au-b1/remediation/`, `au-b2/remediation/`, `au-b3/` and `au-b4/remediation/`; approval provenance in `au-step0/approval-record.md` and supplied assignment/decisions beside it.
+- B3/AU20 is accepted as B4’s prerequisite. R1 conversion failure remains blocking; R3 isolated rehearsal is still required on the final candidate. Harness/transfer/rehearsal execution are unassigned; no production or user-owned database access here.
+- Snapshot override equal to automatic remains indistinguishable; cleanup Down cannot restore cleared values. Preserve operator pre/post migration-count gates. The user’s 4 October zero counts for conditional-on-parent and non-default per-drop context are recorded in [08-decisions.md, B4 brief decisions](/Users/christopher/Documents/BingoWebpage/review-notes/08-decisions.md#b4-catalogue-brief-decisions); this worker did not execute them.
+- F1–F9/R2, G1–G6 and H cleanup source-review evidence remains retained. H4-2 written procedure and its coverage limits were approved after Claude review on 4 October as recorded in the supplied decisions; tooling remains unbuilt/untested and R3 unrun. H3-4 `6b8331d` was not user-approved; accurate code-description correction and Git history remain.
+- AU17 scope stays Contribution/readback only beyond AU17a; AU18 stays WOM outcome/version history only. No extra per-account Review context or current-event readiness UI.
 
 ## Next permitted action
 
-Stop after the four follow-up-29 commits for external Claude direct recheck of the stable range. No independent review or manual UI acceptance is claimed. Preserve the B3/AU20 R1/R3 and operator migration-count gates; do not start B5, WA-5/RC10 binding, rehearsal execution, main merge, push or deployment.
+Stop for external Claude independent review of implemented B5. Planner `/root` must route the two inherited gate failures separately; the overall gate is not passed and no technical acceptance is claimed. Six local checkpoints preserve the four original commits, separate corrections from documentation, and leave UI/RC binding pending. No further assignment, UI/RC binding, rehearsal, push, merge to any branch, or deployment is authorized.
