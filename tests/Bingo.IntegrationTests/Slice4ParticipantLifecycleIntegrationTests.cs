@@ -173,7 +173,7 @@ public sealed class Slice4ParticipantLifecycleIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task PreformedRosterMembersStayOutOfSignupCountsAndPromotionWithoutExcludingAdminSignups()
+    public async Task PreformedRosterMembersCountTowardCapacityAndPromotionAlongsideAdminSignups()
     {
         var setup = await SeedAsync(capacity: 1, confirmed: 1, waiting: 1);
         var now = DateTimeOffset.UtcNow;
@@ -199,7 +199,7 @@ public sealed class Slice4ParticipantLifecycleIntegrationTests : IAsyncLifetime
         await using (var db = new ApplicationDbContext(options))
         {
             var version = await db.Events.Where(x => x.Id == setup.EventId).Select(x => x.Version).SingleAsync();
-            var result = await Service(db).UpdateSignupAdministrationAsync(setup.EventId, version, 2, true, setup.EnabledAdminId, "admin");
+            var result = await Service(db).UpdateSignupAdministrationAsync(setup.EventId, version, 3, true, setup.EnabledAdminId, "admin");
             Assert.True(result.Succeeded);
             Assert.Equal(0, result.PromotedParticipants);
         }
@@ -207,7 +207,7 @@ public sealed class Slice4ParticipantLifecycleIntegrationTests : IAsyncLifetime
         await using (var db = new ApplicationDbContext(options))
         {
             var version = await db.Events.Where(x => x.Id == setup.EventId).Select(x => x.Version).SingleAsync();
-            var result = await Service(db).UpdateSignupAdministrationAsync(setup.EventId, version, 3, true, setup.EnabledAdminId, "admin");
+            var result = await Service(db).UpdateSignupAdministrationAsync(setup.EventId, version, 4, true, setup.EnabledAdminId, "admin");
             Assert.True(result.Succeeded);
             Assert.Equal(1, result.PromotedParticipants);
         }
@@ -225,7 +225,7 @@ public sealed class Slice4ParticipantLifecycleIntegrationTests : IAsyncLifetime
         };
         Assert.True((await model.OnGetAsync(setup.EventId, CancellationToken.None)) is PageResult);
         Assert.DoesNotContain(model.Participants, row => row.Id == externalId);
-        Assert.Equal(3, model.Event!.Confirmed);
+        Assert.Equal(4, model.Event!.Confirmed);
     }
 
     [Fact]

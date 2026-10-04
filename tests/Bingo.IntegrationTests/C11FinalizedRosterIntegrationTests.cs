@@ -866,7 +866,7 @@ public sealed class C11FinalizedRosterIntegrationTests : IAsyncLifetime
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task StaleRolePostAfterWithdrawalOrActualStartCannotPublishOrChangeRoles(bool startInstead)
+    public async Task RolePostAfterWithdrawalIsRefusedButAfterActualStartPublishesCurrentRole(bool startInstead)
     {
         var seed = await SeedAsync(); if (startInstead) await PublishBoardAsync(seed);
         var barrier = new BeforeEventLock();
@@ -896,9 +896,11 @@ public sealed class C11FinalizedRosterIntegrationTests : IAsyncLifetime
             }
             else await WithdrawAsync(seed);
             var beforeResume = await StateHashAsync();
+            var liveBefore = startInstead ? await CaptureRoleChangeAsync() : null;
             barrier.Release.TrySetResult();
             using var response = await pending; Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
-            Assert.Equal(beforeResume, await StateHashAsync());
+            if (liveBefore is null) Assert.Equal(beforeResume, await StateHashAsync());
+            else await AssertExactLiveRoleChangeAsync(seed, liveBefore, await CaptureRoleChangeAsync());
         }
         finally { barrier.Release.TrySetResult(); }
     }
@@ -1720,6 +1722,83 @@ public sealed class C11FinalizedRosterIntegrationTests : IAsyncLifetime
         new Dictionary<Guid, AdminAccountAnswer> { [seed.PrimaryQuestionId] = new("Internal fixture", 35) }, new Dictionary<Guid, string> { [seed.AnswerQuestionId] = "fixture answer" });
     private async Task<Guid> CurrentCycleAsync() { await using var db = Db(); return await db.DraftPublicationCycles.Where(x => x.SupersededAt == null).Select(x => x.Id).SingleAsync(); }
     private async Task AssertOldRosterAsync(Seed seed, string original) => Assert.Equal(original, await RowsAsync("draft_publication_rosters", $"draft_publication_cycle_id = '{seed.InitialCycleId}'"));
+    private sealed record RoleChangeState(string UnchangedRows, List<TeamMembership> Members,
+        List<TeamMembershipRoleTransition> Transitions, List<DraftPublicationCycle> Cycles,
+        List<DraftPublicationRoster> Rosters, List<AuditEntry> Audits, List<PersonalNotification> Notifications);
+
+    private async Task<RoleChangeState> CaptureRoleChangeAsync()
+    {
+        // Together with the six fully compared entity collections below, these
+        // are every table/field covered by StateHashAsync; none is excluded.
+        var unchanged = new StringBuilder();
+        foreach (var table in new[] { "events", "event_participants", "event_participant_characters", "osrs_characters",
+                     "signup_answers", "draft_sessions", "draft_picks", "waiting_list_promotion_follow_ups", "event_participant_character_swaps" })
+            unchanged.Append(await RowsAsync(table));
+        await using var db = Db();
+        return new(unchanged.ToString(), await db.TeamMemberships.AsNoTracking().ToListAsync(),
+            await db.TeamMembershipRoleTransitions.AsNoTracking().ToListAsync(),
+            await db.DraftPublicationCycles.AsNoTracking().ToListAsync(),
+            await db.DraftPublicationRosters.AsNoTracking().ToListAsync(),
+            await db.AuditEntries.AsNoTracking().Where(x => x.EventId != null).ToListAsync(),
+            await db.PersonalNotifications.AsNoTracking().ToListAsync());
+    }
+
+    private Task AssertExactLiveRoleChangeAsync(Seed seed, RoleChangeState expected, RoleChangeState actual)
+    {
+        Assert.Equal(expected.UnchangedRows, actual.UnchangedRows);
+        var member = expected.Members.Single(x => x.Id == seed.DepartedMembershipId);
+        var oldRole = member.Role;
+        member.ChangeRole(TeamMembershipRole.Participant);
+        member.AdvanceVersion(); // Existing persistence hook advances the modified row once.
+        var transition = Assert.Single(actual.Transitions, x => expected.Transitions.All(y => y.Id != x.Id));
+        Assert.NotEqual(Guid.Empty, transition.Id);
+        expected.Transitions.Add(new(transition.Id, member.Id, oldRole, TeamMembershipRole.Participant, seed.AdminId, clock.Now));
+
+        var oldCycle = Assert.Single(expected.Cycles, x => x.SupersededAt == null);
+        var replacement = Assert.Single(actual.Cycles, x => expected.Cycles.All(y => y.Id != x.Id));
+        Assert.NotEqual(Guid.Empty, replacement.Id);
+        var nextCycleNumber = expected.Cycles.Max(x => x.CycleNumber) + 1;
+        oldCycle.Supersede(clock.Now, seed.AdminId, "Live role correction");
+        expected.Cycles.Add(new(replacement.Id, oldCycle.DraftSessionId, nextCycleNumber, clock.Now, seed.AdminId, oldCycle.PublicationMethod));
+        var newRosterRows = actual.Rosters.Where(x => expected.Rosters.All(y => y.Id != x.Id)).ToList();
+        var oldRosterRows = expected.Rosters.Where(x => x.DraftPublicationCycleId == oldCycle.Id).ToList();
+        Assert.Equal(oldRosterRows.Count, newRosterRows.Count);
+        foreach (var row in oldRosterRows)
+        {
+            var created = Assert.Single(newRosterRows, x => x.EventParticipantId == row.EventParticipantId);
+            Assert.NotEqual(Guid.Empty, created.Id);
+            expected.Rosters.Add(new(created.Id, replacement.Id, row.TeamId, row.EventParticipantId,
+                row.EventParticipantId == member.EventParticipantId ? TeamMembershipRole.Participant : row.Role,
+                row.EffectivePickNumber, row.PublicCharacterName));
+        }
+
+        var newAudits = actual.Audits.Where(x => expected.Audits.All(y => y.Id != x.Id)).ToList();
+        Assert.Equal(2, newAudits.Count);
+        var roleAudit = Assert.Single(newAudits, x => x.Action == "team.membership_role_changed");
+        var publicationAudit = Assert.Single(newAudits, x => x.Action == "team.role_roster_published");
+        Assert.NotEqual(Guid.Empty, roleAudit.Id); Assert.NotEqual(Guid.Empty, publicationAudit.Id);
+        expected.Audits.Add(new(roleAudit.Id, clock.Now, seed.AdminId, "c11-admin", "team.membership_role_changed", "membership",
+            member.Id.ToString(), null, seed.EventId, JsonSerializer.Serialize(new { role = oldRole.ToString() }),
+            JsonSerializer.Serialize(new { role = TeamMembershipRole.Participant.ToString(), teamId = member.TeamId })));
+        expected.Audits.Add(new(publicationAudit.Id, clock.Now, seed.AdminId, "c11-admin", "team.role_roster_published", "draft_publication",
+            member.Id.ToString(), $"Superseded publication cycle {oldCycle.CycleNumber}: Live role correction.", seed.EventId));
+        var notice = Assert.Single(actual.Notifications, x => expected.Notifications.All(y => y.Id != x.Id));
+        Assert.NotEqual(Guid.Empty, notice.Id);
+        expected.Notifications.Add(new(notice.Id, seed.DepartedOwnerId, "Team role updated", "Your team role was updated by an administrator.",
+            TeamsPath(seed), clock.Now, seed.EventId));
+
+        Same(expected.Members.OrderBy(x => x.Id), actual.Members.OrderBy(x => x.Id));
+        Same(expected.Transitions.OrderBy(x => x.Id), actual.Transitions.OrderBy(x => x.Id));
+        Same(expected.Cycles.OrderBy(x => x.Id), actual.Cycles.OrderBy(x => x.Id));
+        Same(expected.Rosters.OrderBy(x => x.Id), actual.Rosters.OrderBy(x => x.Id));
+        Same(expected.Audits.OrderBy(x => x.Id), actual.Audits.OrderBy(x => x.Id));
+        Same(expected.Notifications.OrderBy(x => x.Id), actual.Notifications.OrderBy(x => x.Id));
+        return Task.CompletedTask;
+
+        static void Same<T>(T expectedValue, T actualValue) => Assert.True(JsonElement.DeepEquals(
+            JsonSerializer.SerializeToElement(expectedValue), JsonSerializer.SerializeToElement(actualValue)));
+    }
+
     private async Task<string> StateHashAsync()
     {
         var tables = new[] { "events", "event_participants", "event_participant_characters", "osrs_characters", "signup_answers", "team_memberships", "team_membership_role_transitions", "draft_sessions", "draft_picks", "draft_publication_cycles", "draft_publication_rosters", "audit_entries", "personal_notifications", "waiting_list_promotion_follow_ups", "event_participant_character_swaps" };

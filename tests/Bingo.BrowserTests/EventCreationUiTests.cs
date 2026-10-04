@@ -83,6 +83,7 @@ public sealed class EventCreationUiTests
         var repositoryRoot = FindRepositoryRoot();
         var creation = File.ReadAllText(Path.Combine(repositoryRoot, "src", "Bingo.Web", "Pages", "Admin", "Events", "Create.cshtml"));
         var createHandler = File.ReadAllText(Path.Combine(repositoryRoot, "src", "Bingo.Web", "Pages", "Admin", "Events", "Create.cshtml.cs"));
+        var creationService = File.ReadAllText(Path.Combine(repositoryRoot, "src", "Bingo.Infrastructure", "Events", "EventCreationService.cs"));
         var identity = File.ReadAllText(Path.Combine(repositoryRoot, "src", "Bingo.Web", "Pages", "Admin", "Events", "Identity.cshtml"));
         var identityScript = File.ReadAllText(Path.Combine(repositoryRoot, "src", "Bingo.Web", "wwwroot", "js", "event-identity.js"));
         var identityHandler = File.ReadAllText(Path.Combine(repositoryRoot, "src", "Bingo.Web", "Pages", "Admin", "Events", "Identity.cshtml.cs"));
@@ -110,17 +111,18 @@ public sealed class EventCreationUiTests
 
         Assert.Contains("public async Task<IActionResult> OnPostAsync(CancellationToken ct)", createHandler);
         Assert.Contains("ContainsRetiredWizardInputAsync", createHandler);
-        Assert.Contains("BeginTransactionAsync(IsolationLevel.ReadCommitted, ct)", createHandler);
-        Assert.Contains("item.ConfigureSignup(", createHandler);
-        Assert.Contains("new Board(Guid.NewGuid(), item.Id, \"Main board\", 5, 5)", createHandler);
-        Assert.Contains("DefaultQuestions(form.Id, item.Id)", createHandler);
-        Assert.Contains("IX_events_slug", createHandler);
+        Assert.Contains("BeginTransactionAsync(IsolationLevel.ReadCommitted, ct)", creationService);
+        Assert.Contains("item.ConfigureSignup(", creationService);
+        Assert.Contains("new Board(Guid.NewGuid(), item.Id, \"Main board\", 5, 5)", creationService);
+        Assert.Contains("DefaultQuestions(form.Id, item.Id)", creationService);
+        Assert.Contains("IX_events_slug", creationService);
         Assert.DoesNotContain("ConfigureInitialSchedule(", createHandler);
         Assert.DoesNotContain("ConfigurePlanning(", createHandler);
         Assert.DoesNotContain("storage.", createHandler);
         Assert.DoesNotContain("competitionClient.", createHandler);
-        Assert.Contains("\"event.created\"", createHandler);
-        Assert.Contains("return RedirectToPage(\"Manage\", new { id = item.Id });", createHandler);
+        Assert.Contains("\"event.created\"", creationService);
+        Assert.Contains("return RedirectToPage(\"Manage\", new { id = result.EventId });", createHandler);
+        Assert.Contains("creation.CreateAsync(Input.RequestId, Input.Name, Input.Timezone,", createHandler);
 
         Assert.Contains("@page \"{id:guid}\"", identity);
         Assert.Contains("<form method=\"post\" class=\"identity-editor-form\">", identity);
@@ -157,9 +159,12 @@ public sealed class EventCreationUiTests
         Assert.Contains("aria-label=\"@T[\"Copy public signup table link\"]\"", identity);
         Assert.Contains("aria-label=\"@T[\"Copy public board link\"]\"", identity);
 
-        Assert.Contains("if (Input.Version != snapshot.Version)", identityHandler);
-        Assert.Contains("var requiresPreview = timezoneChanged && supportedTimezone && snapshot.FirstPublicAt is not null", identityHandler);
-        Assert.Contains("item.UpdateIdentity(name, item.Slug, description, buyInDescription, timezone)", identityHandler);
+        Assert.Contains("if (!Input.HasBaseline && Input.Version != item.Version) AddStaleError();", identityHandler);
+        Assert.Contains("EventIdentityComparison.Compare(", identityHandler);
+        Assert.Contains("new(Input.OriginalName!, Input.OriginalDescription, Input.OriginalBuyInDescription, Input.OriginalTimezone!), proposed, Values(item)", identityHandler);
+        Assert.Contains("if (timezoneChanged && supportedTimezone && item.FirstPublicAt is not null)", identityHandler);
+        Assert.Contains("!string.Equals(Input.TimezoneConfirmationSchedule, ScheduleFingerprint(item), StringComparison.Ordinal)", identityHandler);
+        Assert.Contains("item.UpdateIdentity(proposed.Name, item.Slug, proposed.Description, proposed.BuyInDescription, proposed.Timezone)", identityHandler);
         Assert.Contains("EventCapability.ConfigureIdentity", identityHandler);
         Assert.DoesNotContain("TimezoneReason", identity);
         Assert.DoesNotContain("TimezoneReason", identityHandler);
