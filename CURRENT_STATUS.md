@@ -1,6 +1,6 @@
 # Current project status
 
-## Active assignment — brief 22 B1/B2 follow-up, 4 October 2026
+## Active assignment — reviewed B1 local merge-back, 4 October 2026
 
 - Base verified clean: `5cf9081b458a573baa0c32fe423f88375f49534d`.
 - Main feature checkout: `/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage`,
@@ -38,8 +38,8 @@
 ## Claude recheck and assigned follow-ups — brief 22
 
 - Source: `/Users/christopher/Documents/BingoWebpage/review-notes/22-b1-b2-remediation-recheck.md`.
-  Claude reviewed source only; nothing built or run during that recheck.
-- B1 `b38749d..ea60b64`: FAIL on R1; all five brief 21 remediation items pass.
+  Claude initial and appended direct follow-up reviews are source-only; no execution.
+- Initial B1 `b38749d..ea60b64`: FAIL on R1; all five brief 21 fixes passed.
   Confirmed account actions save but lose the response because the confirmation
   temporarily closes the editor. The line-62 browser failure was this real bug.
 - B2 `f932893..52be2b6`: PASS with R2 rounding follow-up. The field-specific Danish
@@ -62,8 +62,9 @@
     Evidence: `au-b2/remediation/brief22-r2.md`. Planner verified clean checkpoint
     and durable report, not independently rerun tests or reviewed implementation.
     Completion callback delivered to this planner after direct user authorization.
-- Both follow-ups complete and stopped for Claude direct recheck; independent
-  follow-up review and manual acceptance remain pending. No merge performed.
+- Claude appended direct recheck: B1 `404524d`/`a9399b2` PASS; B2 `5545845` PASS.
+  User forwarded both passes and authorized local merge-back. Execution evidence
+  remains workers'; no new visual acceptance claimed. Merge not yet performed.
 - Durable evidence: `docs/references/admin-ui/reviews/2026-10-04/au-b1/remediation/`
   and corresponding `au-b2/remediation/`. Reuse prior applicable passing evidence.
 - B1 owns SharedResource; B2 owns migrations. Preserve B2 constructor arguments and
@@ -71,8 +72,8 @@
 - Existing limits remain: snapshot override equal to automatic is indistinguishable;
   cleanup Down cannot restore cleared values. Operator pre/post migration counts
   are still due. No production access is assigned.
-- Both workers must report completion/blockers to this planner and stop for Claude.
-  No merge, push, main merge, deploy or B3–B5/RC/UI/rehearsal work assigned now.
+- Reuse `/root/au_b1_followup` as packager for the authorized local merge and checks;
+  B2 stopped. Preserve lane content; report completion/blockers to this planner.
 
 ## Prior outcomes / corrected approvals
 
@@ -91,9 +92,8 @@
 
 ## Next permitted action
 
-Claude directly rechecks B1 `ea60b64..a9399b2` and B2 `0417b53..5545845`.
-Both workers are stopped; do not dispatch additional work before the review result.
-After Claude B1 PASS, coordinate local merge into `codex/participants-functionality`
-(not `main`), preserving both lanes, then rerun B1 focused checks including AU15 and
-account-support.browser.js. Stop after rechecks and authorized merge. No push,
+Merge clean B1 `a9399b2` into `codex/participants-functionality` locally with a merge
+commit. Preserve both lanes and rerun focused B1 checks including AU15, Accounts,
+Audit, ownership, Node dialog and account-support.browser.js plus Release build.
+Report merge SHA/evidence and stop for Claude's merge-only scope check. No push,
 main merge, deployment or B3 work. R1 conversion/R3 rehearsal release gates remain.
