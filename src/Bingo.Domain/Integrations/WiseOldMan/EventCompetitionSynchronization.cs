@@ -1,5 +1,10 @@
 namespace Bingo.Domain.Integrations.WiseOldMan;
 
+public enum EventCompetitionEndUpdateStatus
+{
+    NotRequired = 0, Pending = 1, Succeeded = 2, Rejected = 3, CouldNotUpdate = 4
+}
+
 public sealed class EventCompetitionSynchronization
 {
     private static readonly TimeSpan NormalSlotInterval = TimeSpan.FromHours(1);
@@ -23,6 +28,20 @@ public sealed class EventCompetitionSynchronization
         Provenance = provenance;
         CycleStartedAt = now.ToUniversalTime();
         NormalDueAt = competitionId is null ? null : now.ToUniversalTime();
+    }
+
+    public EventCompetitionEndUpdateStatus EndUpdateStatus { get; private set; }
+    public DateTimeOffset? EndUpdateTargetAt { get; private set; }
+    public DateTimeOffset? EndUpdateRequestedAt { get; private set; }
+    public string? EndUpdateErrorCode { get; private set; }
+
+    public void RequestEndUpdate(DateTimeOffset target, DateTimeOffset now)
+    {
+        if (CompetitionId is null) return;
+        EndUpdateTargetAt = target.ToUniversalTime();
+        EndUpdateRequestedAt = now.ToUniversalTime();
+        EndUpdateStatus = EventCompetitionEndUpdateStatus.Pending;
+        EndUpdateErrorCode = null;
     }
 
     public Guid Id { get; private set; }

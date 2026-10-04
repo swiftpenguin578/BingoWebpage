@@ -177,7 +177,7 @@ public sealed partial class Slice3ScheduledLifecycleIntegrationTests
         }
         Assert.True((await service.EndNowAsync(eventId, await VersionAsync(eventId), true, "Premature", actor)).Succeeded);
         clock.Set(now.AddHours(1));
-        Assert.True((await service.ResumePrematureEndAsync(eventId, await VersionAsync(eventId), true, "Resume", null, actor)).Succeeded);
+        Assert.True((await service.ResumePrematureEndAsync(eventId, await VersionAsync(eventId), true, "Resume", now.AddDays(2), actor)).Succeeded);
         Assert.Equal(before, JsonSerializer.Serialize(await db.EventItemPrices.AsNoTracking().OrderBy(x => x.ItemId).ToListAsync()));
     }
 

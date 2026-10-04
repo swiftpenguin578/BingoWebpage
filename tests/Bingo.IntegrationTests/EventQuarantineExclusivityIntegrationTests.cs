@@ -96,7 +96,7 @@ public sealed partial class EventQuarantineIntegrationTests
         Task<EventQuarantineResult> Restore() => new EventQuarantineService(restoreDb, new FixedClock(now))
             .RestoreAsync(hidden.Id, hidden.Version, hidden.Name, null, actor);
         Task<EventStartResult> Transition() => resume
-            ? new EventLifecycleService(lifecycleDb, null!, new FixedClock(now)).ResumePrematureEndAsync(other.Id, other.Version, true, "Controlled resume", null, actor)
+            ? new EventLifecycleService(lifecycleDb, null!, new FixedClock(now)).ResumePrematureEndAsync(other.Id, other.Version, true, "Controlled resume", other.EventEndsAt, actor)
             : new EventLifecycleService(lifecycleDb, null!, new FixedClock(now)).StartNowAsync(other.Id, other.Version, true, null, actor);
         Task<EventQuarantineResult> restore;
         Task<EventStartResult> transition;

@@ -413,6 +413,14 @@ public sealed class BingoEvent
         State = EventState.Live;
     }
 
+    public void EndEarly(DateTimeOffset clickedAt)
+    {
+        clickedAt = clickedAt.ToUniversalTime();
+        EndEvent(clickedAt);
+        var remainder = clickedAt.Ticks % TimeSpan.TicksPerMinute;
+        EventEndsAt = remainder == 0 ? clickedAt : clickedAt.AddTicks(TimeSpan.TicksPerMinute - remainder);
+    }
+
     public void EndEvent() => EndEvent(EventEndsAt ?? throw new InvalidOperationException("An event end time is required."));
     public void EndEvent(DateTimeOffset effectiveEndedAt)
     {

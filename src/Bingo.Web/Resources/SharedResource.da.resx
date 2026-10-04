@@ -3011,4 +3011,6 @@
   <data name="Skipped: the refresh service is unavailable." xml:space="preserve"><value>Sprunget over: opdateringstjenesten er utilgængelig.</value></data>
   <data name="Skipped: the event is not available for final refresh." xml:space="preserve"><value>Sprunget over: eventet er ikke tilgængeligt for en afsluttende opdatering.</value></data>
   <data name="The linked Wise Old Man competition must match the configured website UTC window exactly." xml:space="preserve"><value>Den tilknyttede Wise Old Man-konkurrence skal matche hjemmesidens konfigurerede UTC-tidsrum præcist.</value></data>
+  <data name="Choose a future replacement event end." xml:space="preserve"><value>Vælg et nyt sluttidspunkt for eventet i fremtiden.</value></data>
+  <data name="Choose a future replacement end and provide a reason to return this event to live play." xml:space="preserve"><value>Vælg et nyt sluttidspunkt i fremtiden, og angiv en begrundelse for at genoptage eventet.</value></data>
 </root>

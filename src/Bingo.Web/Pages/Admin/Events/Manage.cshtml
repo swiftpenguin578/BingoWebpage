@@ -333,7 +333,7 @@ else
                         <section class="event-admin-control-group event-control-subsection" aria-labelledby="resume-event-heading">
                             <div class="event-control-copy">
                                 <h3 id="resume-event-heading">@T["Resume premature end"]</h3>
-                                <p>@(Model.ResumeRequiresReplacement ? T["The retained end is missing or expired. Choose a future replacement end to return this event to live play."] : T["The retained future end will be reused. Confirm it and provide a reason to return this event to live play."])</p>
+                                <p>@T["Choose a future replacement end and provide a reason to return this event to live play."]</p>
                             </div>
                             <div class="event-admin-event-actions">
                                 <form method="post" asp-page-handler="ResumeEvent" class="form-stack" data-lifecycle-confirm data-confirm-title="@T["Resume event"]" data-confirm-description="@T["Resume prospective Live play while preserving the prior end in immutable history?"]" data-confirm-action="@T["Resume event"]" data-confirm-field="ConfirmResumeEvent" data-confirm-reason-field="ResumeReason" data-confirm-require-reason="true" data-update-targets="@partialUpdateTargets">

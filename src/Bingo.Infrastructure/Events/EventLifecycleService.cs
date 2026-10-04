@@ -135,7 +135,12 @@ public sealed class EventLifecycleService(
                 return new(false, "Enter a reason when ending the event before its configured end.");
             var from = item.State;
             var effectiveEnd = item.EventEndsAt is { } configuredEnd && now >= configuredEnd ? configuredEnd : now;
-            item.EndEvent(effectiveEnd);
+            if (item.EventEndsAt is null || now < item.EventEndsAt)
+            {
+                item.EndEarly(now);
+                await RecordPendingEndUpdateAsync(item, now, ct);
+            }
+            else item.EndEvent(effectiveEnd);
             item.CloseSubmissionsIfDue(now);
             AddTransitionAndAudit(item, from, actor.Id, actor.Username, false, "event.ended", reason, now, effectiveEnd);
             await db.SaveChangesAsync(ct);
@@ -169,12 +174,13 @@ public sealed class EventLifecycleService(
                 return new(false, "Only an event in final review can be resumed.");
             if (await db.EventFinalizations.AnyAsync(x => x.EventId == eventId, ct))
                 return new(false, "An event with official finalization history cannot be resumed through this action.");
-            var retainedEnd = item.EventEndsAt is { } configuredEnd && configuredEnd > now ? configuredEnd : (DateTimeOffset?)null;
-            var effectiveEnd = retainedEnd ?? replacementEventEndsAt?.ToUniversalTime();
+            var effectiveEnd = replacementEventEndsAt?.ToUniversalTime();
             if (effectiveEnd is null)
-                return new(false, "The retained event end has expired or is missing; choose a future replacement event end.");
+                return new(false, "Choose a future replacement event end.");
             if (effectiveEnd <= now)
                 return new(false, "The replacement event end must be in the future.");
+            if (effectiveEnd.Value.Minute % 5 != 0 || effectiveEnd.Value.Ticks % TimeSpan.TicksPerMinute != 0)
+                return new(false, "Choose a time in five-minute increments.");
             if (item.EventStartsAt is not { } startsAt || effectiveEnd <= startsAt)
                 return new(false, "The replacement event end must be after the event start.");
             var singleton = await EventCurrentBoundary.OtherCurrentEvents(db, eventId)
@@ -189,6 +195,7 @@ public sealed class EventLifecycleService(
 
             var from = item.State;
             item.ResumePrematureEnd(effectiveEnd.Value, now);
+            await RecordPendingEndUpdateAsync(item, now, ct);
             AddTransitionAndAudit(item, from, actor.Id, actor.Username, false, "event.resumed", reason.Trim(), now, now);
             await db.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);
@@ -404,14 +411,15 @@ public sealed class EventLifecycleService(
             .FirstOrDefaultAsync(ct);
         if (overlap is not null) return $"The replacement lifecycle window overlaps {overlap}.";
 
-        var competition = await db.EventCompetitionSynchronizations.AsNoTracking()
-            .SingleOrDefaultAsync(x => x.EventId == item.Id && x.CompetitionId != null, ct);
-        if (competition is not null &&
-            (competition.CompetitionStartsAt is not { } competitionStart || competition.CompetitionEndsAt is not { } competitionEnd ||
-             start != competitionStart || replacementEnd != competitionEnd))
-            return "The linked Wise Old Man competition must match the configured website UTC window exactly.";
-
         return null;
+    }
+
+    private async Task RecordPendingEndUpdateAsync(BingoEvent item, DateTimeOffset now, CancellationToken ct)
+    {
+        var synchronization = await db.EventCompetitionSynchronizations
+            .FromSqlInterpolated($"SELECT * FROM event_competition_synchronizations WHERE event_id = {item.Id} FOR UPDATE")
+            .SingleOrDefaultAsync(ct);
+        synchronization?.RequestEndUpdate(item.EventEndsAt!.Value, now);
     }
 
     private static bool IsDevelopmentMode() => string.Equals(Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT"), "Development", StringComparison.OrdinalIgnoreCase);

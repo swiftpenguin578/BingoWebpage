@@ -7,7 +7,10 @@
 - Planner `/root`, replacement chat `01a10660-cc8a-7843-abb4-6cc1ebbb2bf2`. Sole implementer `/root/au_b3_implementer`, `gpt-6-astra` / high; no orchestrator or extra workers.
 - User supplied assignment: [B3 brief](docs/references/admin-ui/reviews/2026-10-04/au-b3/supplied-brief.md). Section 6's old planner chat is retired by the current assignment.
 - Six ordered implementation items, one scoped local commit each; all await external Claude review. No current-page display, B4/B5, RC/UI integration, rehearsal, push, main merge or deployment.
-- Item 1 implemented and focused checks passed (external review pending): exact configured UTC window at all three validation sites; extend AU18 outcome/readback mechanism. No review or acceptance claimed.
+- Item 1 checkpoint `52f0af6`: exact configured UTC checks and AU18 structured readback; focused checks passed, Claude review pending. Evidence: `au-b3/item1-exact-window.md`.
+- Item 2 implemented: local early-end/Resume and pending-state migration; focused PostgreSQL and Release build passed. Evidence: `au-b3/item2-local-end-resume.md`.
+- Item 3 other-4xx classification reported to planner before implementation; resolution pending. Items 3–6 are not complete.
+- Unrelated broad-check finding retained in item 1 evidence: StatsPass4Boundary fixture expects an open submission window after configured cutoff; no silent Stats fix.
 - AU20 absent-reference binding is recorded once in DELIVERY_PLAN's register; placement remains for UI integration.
 
 ## Retained B1/B2 evidence and limits

@@ -457,7 +457,9 @@ public sealed partial class EventCompetitionSynchronizationService(
         state.LatestComplete, ParseMissing(state.MissingAccountsJson), state.LastErrorKind, state.LastError, state.NormalDueAt, state.RetryDueAt, state.RetryCount, womStatus.GetStatus(),
         state.Provenance,
         management?.WriteCapability ?? (state.CompetitionId is null ? EventCompetitionWriteCapability.Unknown : EventCompetitionWriteCapability.ReadOnly),
-        management?.CredentialStatus ?? EventCompetitionCredentialStatus.NotApplicable);
+        management?.CredentialStatus ?? EventCompetitionCredentialStatus.NotApplicable,
+        EndUpdateStatus: state.EndUpdateStatus, EndUpdateTargetAt: state.EndUpdateTargetAt,
+        EndUpdateRequestedAt: state.EndUpdateRequestedAt, EndUpdateErrorCode: state.EndUpdateErrorCode);
 
     private static List<string> ParseMissing(string? json)
     {

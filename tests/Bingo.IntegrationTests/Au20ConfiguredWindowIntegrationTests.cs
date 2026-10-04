@@ -51,7 +51,7 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests
     }
 
     [Fact]
-    public async Task Au20ResumeRejectsEvenOneSecondOfWindowMismatchBeforePendingUpdateSupport()
+    public async Task Au20ResumePersistsReplacementAndPendingUpdateDespiteProviderMismatch()
     {
         var now = new DateTimeOffset(2026, 10, 4, 12, 0, 0, TimeSpan.Zero);
         var admin = Account.CreateWebsite(Guid.NewGuid(), "au20-resume", "AU20-RESUME", now);
@@ -66,7 +66,14 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests
         db.AddRange(admin, item, state); await db.SaveChangesAsync();
         var result = await new EventLifecycleService(db, null!, new TestClock(now)).ResumePrematureEndAsync(item.Id, item.Version,
             true, "Resume", replacement, new(admin.Id, admin.LoginName));
-        Assert.False(result.Succeeded);
-        Assert.Contains("exactly", result.Error);
+        Assert.True(result.Succeeded, result.Error);
+        db.ChangeTracker.Clear();
+        var saved = await db.Events.SingleAsync(x => x.Id == item.Id);
+        Assert.Equal(replacement, saved.EventEndsAt);
+        Assert.Null(saved.ActualEndedAt);
+        var pending = await db.EventCompetitionSynchronizations.SingleAsync(x => x.EventId == item.Id);
+        Assert.Equal(EventCompetitionEndUpdateStatus.Pending, pending.EndUpdateStatus);
+        Assert.Equal(replacement, pending.EndUpdateTargetAt);
+        Assert.Equal(replacement.AddSeconds(1), pending.CompetitionEndsAt);
     }
 }

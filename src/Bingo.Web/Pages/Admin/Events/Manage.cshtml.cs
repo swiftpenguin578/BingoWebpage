@@ -422,7 +422,7 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
             overviewBlockers.AddRange(ScheduledAction.Blockers);
         OverviewBlockers = overviewBlockers.DistinctBy(x => (x.Code, x.Description, x.Route)).ToList();
         var now = timeProvider.GetUtcNow();
-        ResumeRequiresReplacement = item.EventEndsAt is not { } configuredEnd || configuredEnd <= now;
+        ResumeRequiresReplacement = true;
         EventVersion = item.Version; NewCap = item.ParticipantCap ?? 0; NewSignupOpening = item.SignupOpensAt ?? now; NewSignupClosing = item.SignupClosesAt ?? now.AddDays(1); EvidenceCodeActivatesAt = now; EvidenceCodeActivatesAtLocal = DateTimePresentation.Format(EvidenceCodeActivatesAt.Value, "yyyy-MM-ddTHH:mm", item.Timezone, CultureInfo.InvariantCulture); ReopenUntil = now.AddHours(1); ReopenUntilLocal = DateTimePresentation.Format(ReopenUntil.Value, "yyyy-MM-ddTHH:mm", item.Timezone, CultureInfo.InvariantCulture); ReplacementEventEndsAt = item.EventEndsAt ?? now.AddHours(1); ReplacementEventEndsAtLocal = DateTimePresentation.Format(ReplacementEventEndsAt, "yyyy-MM-ddTHH:mm", item.Timezone, CultureInfo.InvariantCulture); return true;
     }
     private LifecycleActor Actor => new(User.GetAccountId()!.Value, User.Identity!.Name!);

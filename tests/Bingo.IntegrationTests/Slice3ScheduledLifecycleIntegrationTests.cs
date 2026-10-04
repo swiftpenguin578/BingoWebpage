@@ -274,7 +274,7 @@ public sealed partial class Slice3ScheduledLifecycleIntegrationTests : IAsyncLif
     }
 
     [Fact]
-    public async Task ResumeReusesRetainedFutureEndAndRedrivesCutoff()
+    public async Task ResumeUsesExplicitFutureEndAndRedrivesCutoff()
     {
         var eventId = Guid.NewGuid();
         var actor = new LifecycleActor(Guid.NewGuid(), "admin");
@@ -294,7 +294,7 @@ public sealed partial class Slice3ScheduledLifecycleIntegrationTests : IAsyncLif
 
         await using var db = new ApplicationDbContext(options);
         var before = await db.Events.AsNoTracking().SingleAsync(x => x.Id == eventId);
-        var resumed = await Services(db, new MutableTimeProvider(now)).ResumePrematureEndAsync(eventId, before.Version, true, "Resume with the retained end.", null, actor);
+        var resumed = await Services(db, new MutableTimeProvider(now)).ResumePrematureEndAsync(eventId, before.Version, true, "Resume with the selected future end.", before.EventEndsAt, actor);
         Assert.True(resumed.Succeeded, resumed.Error);
         var after = await db.Events.AsNoTracking().SingleAsync(x => x.Id == eventId);
         Assert.Equal(before.EventEndsAt, after.EventEndsAt);
@@ -326,7 +326,7 @@ public sealed partial class Slice3ScheduledLifecycleIntegrationTests : IAsyncLif
         var before = await db.Events.AsNoTracking().SingleAsync(x => x.Id == eventId);
         var missing = await Services(db, clock).ResumePrematureEndAsync(eventId, before.Version, true, "Need a replacement end.", null, actor);
         Assert.False(missing.Succeeded);
-        Assert.Contains("expired", missing.Error, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("future replacement", missing.Error, StringComparison.OrdinalIgnoreCase);
         var replacement = await Services(db, clock).ResumePrematureEndAsync(eventId, before.Version, true, "Set a replacement end.", now.AddHours(2), actor);
         Assert.True(replacement.Succeeded, replacement.Error);
         var after = await db.Events.AsNoTracking().SingleAsync(x => x.Id == eventId);

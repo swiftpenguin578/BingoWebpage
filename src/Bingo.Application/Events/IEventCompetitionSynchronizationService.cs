@@ -40,7 +40,11 @@ public sealed record EventCompetitionView(
     EventCompetitionWriteCapability WriteCapability = EventCompetitionWriteCapability.ReadOnly,
     EventCompetitionCredentialStatus CredentialStatus = EventCompetitionCredentialStatus.NotApplicable,
     EventCompetitionRefreshSkipReason? RefreshSkipReason = null,
-    DateTimeOffset? NextEligibleAt = null)
+    DateTimeOffset? NextEligibleAt = null,
+    EventCompetitionEndUpdateStatus EndUpdateStatus = EventCompetitionEndUpdateStatus.NotRequired,
+    DateTimeOffset? EndUpdateTargetAt = null,
+    DateTimeOffset? EndUpdateRequestedAt = null,
+    string? EndUpdateErrorCode = null)
 {
     public bool Configured => CompetitionId is not null;
     public bool CanRefresh => Configured && RefreshSkipReason is null;
