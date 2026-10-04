@@ -325,10 +325,13 @@ public sealed class Slice7Pass71IntegrationTests : IAsyncLifetime
         var initial = await focus.SetFocusAsync(new(fixture.EventId, fixture.TeamId, TeamFocusTargetKind.Tile, fixture.TileId, null, null, true, 0, fixture.OwnerId));
         Assert.True(initial.Succeeded, initial.Error);
 
-        var first = new Submission(Guid.NewGuid(), fixture.EventId, fixture.TeamId, fixture.TileId, fixture.RequirementId, null, fixture.ParticipantId, fixture.CharacterId, "Progress player", fixture.CaptainId, 2, now, "first", null);
+        var first = new Submission(Guid.NewGuid(), fixture.EventId, fixture.TeamId, fixture.TileId, fixture.RequirementId, null, fixture.ParticipantId, fixture.CharacterId, "Progress player", fixture.CaptainId, 2, now.AddMicroseconds(-1), "first", null);
         var second = new Submission(Guid.NewGuid(), fixture.EventId, fixture.TeamId, fixture.TileId, fixture.RequirementId, null, fixture.ParticipantId, fixture.CharacterId, "Progress player", fixture.CaptainId, 3, now, "second", null);
         db.Submissions.AddRange(first, second);
         await db.SaveChangesAsync();
+        // BR-1 uses upload time, then immutable ID. Establish intended order at PostgreSQL precision.
+        Assert.Equal(now.AddMicroseconds(-1), await db.Submissions.AsNoTracking().Where(x => x.Id == first.Id).Select(x => x.SubmittedAt).SingleAsync());
+        Assert.Equal(now, await db.Submissions.AsNoTracking().Where(x => x.Id == second.Id).Select(x => x.SubmittedAt).SingleAsync());
         var submissions = new Bingo.Infrastructure.Evidence.SubmissionService(db, new NoopEvidenceStorage(), new FixedTimeProvider(now), focus: focus, focusNotifier: notifier);
 
         Assert.Equal(2, (await submissions.ApproveAsync(first.Id, fixture.OwnerId)).ApprovedContribution);
