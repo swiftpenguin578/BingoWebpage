@@ -1,6 +1,6 @@
 # Current project status
 
-## Active assignment — Step 0 and AU lanes B1/B2, 4 October 2026
+## Active assignment — brief 21 B1/B2 remediation, 4 October 2026
 
 - Base verified clean: `5cf9081b458a573baa0c32fe423f88375f49534d`.
 - Main feature checkout: `/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage`,
@@ -35,33 +35,36 @@
   B1 local merge-back only after Claude B1 PASS; no push/main merge/deploy.
 - B3–B5, RC/UI integration and rehearsal tooling/execution remain stopped.
 
-## B1 completion — awaiting independent review
+## Remediation completion — both lanes awaiting Claude recheck
 
-- Clean final checkpoint verified by planner: `b38749d`, branch `codex/au-b1-small-fixes`.
-- Ticket commits: AU15 `b5cde26`, AU16 `90ce3f0`, AU22 `b44fa6e`, AU24 `b38749d`.
-  AU15 amendment from `06703fc` is explicitly reconciled in `05ced42`.
-- Worker reports focused PostgreSQL, BrowserTests, Release build, Node overlay and
-  diff checks passed. Planner has not independently rerun these checks.
-- Exceptions: AU15 PG/HTTP schedule assertion remains unverified after identical
-  Step 0 baseline reproduction; AU24 Playwright Chromium launch is blocked by
-  SIGABRT/EPERM. Neither is recorded as passing.
-- Evidence: `docs/references/admin-ui/reviews/2026-10-04/au-b1/` in B1 checkout.
-- B1 stopped for Claude's independent review; not merged into this checkout.
-
-## B2 completion — awaiting independent review
-
-- Clean implementation checkpoint verified by planner: `d01c08c8528dd85a15a1d04e816b92eccc55466a`.
-- Ticket commits: AU11 `a628cda`, AU12 `0f79ede`, AU18 `d01c08c`.
-- Worker reports focused checks passed: AU11 PostgreSQL 12 + mechanics 10 and
-  calculator 14; AU12 PostgreSQL 6 + ranking 19 + regressions 2; AU18 PostgreSQL
-  7 + rendered/localization/manual-refresh/reopening regressions 3. Final Release
-  build: zero warnings/errors. Planner has not independently rerun these checks.
-- Durable evidence: `docs/references/admin-ui/reviews/2026-10-04/au-b2/`
-  (`au11.md`, `au12.md`, `au18.md`). AU12 includes populated migration Up/Down.
-- Outcome-only sync dependency and temporary resource ownership were planner
-  technical resolutions, not user approvals. Resource ownership returns to B1.
-- B2 stopped: Claude commit-by-commit review pending; manual acceptance deferred.
-  No B3, integration, merge, push or deploy is authorized by this completion.
+- Assignment: `/Users/christopher/Documents/BingoWebpage/review-notes/21-codex-brief-b1-b2-remediation.md`.
+  Decisions: `08-decisions.md`, section "B1/B2 lane review decisions (user, 4 October)".
+  B2 preserves supplied copies in `au-b2/remediation/assignment.md` and `decisions.md`.
+- B1 clean checkpoint verified: `ea60b644aca91789c0e51600cc31ab63f047305b`.
+  Recheck range: `b38749d..ea60b64`. Commits: `c32acea`, `95d9fdb`, `8c59d41`,
+  `d4b2631`, `f49bf65`; handoff `ea60b64`.
+- B1 reports focused PostgreSQL/HTTP checks, Release builds and diff checks passed.
+  AU15 fixture test now passes. Chromium launches, but account-support.browser.js
+  stops at line 62 (expected 8, observed 7); four AU24 assertions remain unverified.
+  Exact limits: `au-b1/remediation/browser-account-support.md` in B1 checkout.
+- B2 clean checkpoint verified: `52be2b6`. Recheck range: `f932893..52be2b6`.
+  Eight item commits: `043eeb4`, `e3851b7`, `2498917`, `8fa7800`, `c47b086`,
+  `882b780`, `d7c3e04`, `52be2b6`.
+- B2 reports all focused HTTP/PostgreSQL, ranking, constructor and outcome-history
+  checks passed; final Release build zero warnings/errors and diff checks passed.
+  Planner verified Git checkpoints; has not independently rerun worker checks.
+- Durable evidence root: `docs/references/admin-ui/reviews/2026-10-04/`;
+  lane-specific evidence under `au-b1/remediation/` and `au-b2/remediation/`.
+- B2 constructor-call edits in shared test paths were a planner technical routing
+  exception; combine with B1 behavior edits at merge, never replace whole files.
+  B1 exclusively owns SharedResource; B2 remediation did not edit it.
+- D2 records user approval after Claude review of the earlier outcome-only WOM
+  dependency, sourced to brief 21 and the supplied decision record.
+- Limits: published snapshot format cannot distinguish a historical override equal
+  to the automatic value; discard uses approved stored-precision comparison.
+  Cleanup migration Down cannot restore cleared values; predeploy count still due.
+- Both lanes stopped. Claude independent rechecks and manual acceptance pending.
+  No production access, merge, push or deployment performed in this round.
 
 ## Prior outcomes / corrected approvals
 
@@ -80,9 +83,8 @@
 
 ## Next permitted action
 
-Claude reviews each lane independently, commit by commit:
-- B1: `3ce941b..b38749d` in its separate checkout, including `05ced42` reconciliation.
-- B2: `3ce941b..d01c08c` in this checkout; later planner commits change status only.
-Both implementers have stopped. Lane evidence remains authoritative for check
-limitations. B1 local merge-back requires Claude B1 PASS and focused checks on the
-merged result, preserving B2's resource keys. No push, deployment or B3 work.
+Claude rechecks B1 `b38749d..ea60b64` and B2 `f932893..52be2b6` separately against
+brief 21 and original findings. After Claude B1 PASS, planner may coordinate local
+merge-back into `codex/participants-functionality`, preserving both lanes' fixes,
+explicit constructor arguments and resource keys, then rerun B1 focused checks.
+No merge to main, push, deployment or B3 work. R1/R3 release gates remain.
