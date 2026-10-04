@@ -16,7 +16,9 @@ namespace Bingo.Infrastructure.Events;
 
 public sealed class EventFinalizationService(ApplicationDbContext db, IPublicBoardService publicBoards, TimeProvider time, IProgressNotifier? progressNotifier = null, IEventCompetitionSynchronizationService? competitionSynchronization = null) : IEventFinalizationService
 {
-    private static readonly string[] CompetitiveInputNames = ["board completion", "completion time", "completed lines", "completed tiles", "current score time", "EHB"];
+    private static string[] CompetitiveInputNames(PlacementRule rule) => rule == PlacementRule.CreditedEhbThenScoreTime
+        ? ["board completion", "completion time", "completed lines", "completed tiles", "EHB", "current score time"]
+        : ["board completion", "completion time", "completed lines", "completed tiles", "current score time", "EHB"];
 
     public async Task<FinalReviewReadiness?> GetReadinessAsync(Guid eventId, CancellationToken ct = default)
     {
@@ -63,7 +65,7 @@ public sealed class EventFinalizationService(ApplicationDbContext db, IPublicBoa
             {
                 return new UnrankedTeamProgress(team.TeamId, team.TeamName, team.Progress);
             }).ToList();
-            var ranked = PublicProgressCalculator.Rank(unranked);
+            var ranked = PublicProgressCalculator.Rank(unranked, ev.PlacementRule);
             placements = ranked.Select(value =>
             {
                 return new ProvisionalPlacement(value.TeamId, value.TeamName, value.Rank, value.Progress.BoardComplete,
@@ -81,7 +83,7 @@ public sealed class EventFinalizationService(ApplicationDbContext db, IPublicBoa
         var official = finalIds.Count == 0 ? [] : await db.OfficialPlacements.AsNoTracking().Where(x => finalIds.Contains(x.FinalizationId)).OrderBy(x => x.Placement).ThenBy(x => x.TeamName).ToListAsync(ct);
         var history = finals.Select(f => new FinalizationHistoryRow(f.Id, f.Version, f.FinalizedAt, f.UnfinalizedAt is null, f.UnfinalizedAt, f.UnfinalizeReason, official.Where(x => x.FinalizationId == f.Id).Select(x => new OfficialPlacementRow(x.Placement, x.TeamName, x.BoardComplete, x.BoardCompletedAt, x.CompletedLines, x.CompletedTiles, x.EhbTiebreak, x.CurrentScoreReachedAt)).ToList())).ToList();
         if (activeFinal is not null && (ev.State is EventState.Finalized or EventState.Archived)) placements = official.Where(x => x.FinalizationId == activeFinal.Id).Select(x => new ProvisionalPlacement(x.TeamId, x.TeamName, x.Placement, x.BoardComplete, x.BoardCompletedAt, null, x.CompletedLines, x.CompletedTiles, x.EhbTiebreak, x.CurrentScoreReachedAt)).ToList();
-        return new(eventId, ev.Name, ev.State, scheduledStart, scheduledEnd, effectiveCutoff, ev.AcceptsNewSubmissions(now), blockers, placements, history, cycleId, ev.Version);
+        return new(eventId, ev.Name, ev.State, scheduledStart, scheduledEnd, effectiveCutoff, ev.AcceptsNewSubmissions(now), blockers, placements, history, cycleId, ev.Version, ev.PlacementRule);
     }
 
     public Task ResolveBlockerAsync(Guid eventId, string blockerKey, string reason, bool confirmed, Guid adminId, long? expectedVersion = null, Guid? expectedReviewCycleId = null, CancellationToken ct = default)
@@ -173,7 +175,8 @@ public sealed class EventFinalizationService(ApplicationDbContext db, IPublicBoa
                 readiness.EventStartsAt,
                 readiness.EventEndsAt,
                 readiness.SubmissionCutoff,
-                competitiveInputs = CompetitiveInputNames,
+                placementRule = ev.PlacementRule.ToString(),
+                competitiveInputs = CompetitiveInputNames(ev.PlacementRule),
                 teams = readiness.Placements.Select(x => new { x.TeamId, x.TeamName, x.BoardComplete, x.CalculatedCompletedAt, x.CompletedLines, x.CompletedTiles, x.CurrentScoreReachedAt, x.EhbTiebreak }),
                 exactTieExplanations = ties
             });

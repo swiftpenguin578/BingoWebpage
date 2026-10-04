@@ -220,7 +220,7 @@ public sealed class PublicBoardService(ApplicationDbContext db, TimeProvider tim
                 .ToList();
             return new UnrankedTeamProgress(team.Id, team.Name, progress with { Players = players });
         }).ToList();
-        var ranked = PublicProgressCalculator.Rank(unranked);
+        var ranked = PublicProgressCalculator.Rank(unranked, bingoEvent.PlacementRule);
         var now = time.GetUtcNow();
         var activeFinalization = bingoEvent.ResultsPublished
             ? await db.EventFinalizations.AsNoTracking().Where(value => value.EventId == bingoEvent.Id && value.UnfinalizedAt == null).OrderByDescending(value => value.Version).FirstOrDefaultAsync(cancellationToken)

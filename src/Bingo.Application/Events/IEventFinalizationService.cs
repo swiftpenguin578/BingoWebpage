@@ -16,7 +16,7 @@ public interface IEventFinalizationService
     Task ArchiveAsync(Guid eventId, bool confirmed, LifecycleActor actor, CancellationToken ct = default);
 }
 
-public sealed record FinalReviewReadiness(Guid EventId, string EventName, EventState State, DateTimeOffset? EventStartsAt, DateTimeOffset? EventEndsAt, DateTimeOffset? SubmissionCutoff, bool SubmissionWindowOpen, IReadOnlyList<FinalReviewBlocker> Blockers, IReadOnlyList<ProvisionalPlacement> Placements, IReadOnlyList<FinalizationHistoryRow> History, Guid ReviewCycleId = default, long EventVersion = 0)
+public sealed record FinalReviewReadiness(Guid EventId, string EventName, EventState State, DateTimeOffset? EventStartsAt, DateTimeOffset? EventEndsAt, DateTimeOffset? SubmissionCutoff, bool SubmissionWindowOpen, IReadOnlyList<FinalReviewBlocker> Blockers, IReadOnlyList<ProvisionalPlacement> Placements, IReadOnlyList<FinalizationHistoryRow> History, Guid ReviewCycleId = default, long EventVersion = 0, PlacementRule PlacementRule = PlacementRule.LegacyScoreTimeThenEhb)
 {
     /// <summary>
     /// A blocker is an authoritative prerequisite, not a task an administrator

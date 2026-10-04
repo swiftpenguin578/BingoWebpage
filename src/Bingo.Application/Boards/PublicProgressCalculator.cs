@@ -1,3 +1,4 @@
+using Bingo.Domain.Events;
 namespace Bingo.Application.Boards;
 
 public static class PublicProgressCalculator
@@ -195,17 +196,20 @@ public static class PublicProgressCalculator
     private static int EffectiveCap(ProgressRequirementDefinition requirement, ProgressContribution contribution) =>
         requirement.DuplicatesAllowed ? contribution.MaximumContribution ?? int.MaxValue : contribution.MaximumContribution ?? 1;
 
-    public static IReadOnlyList<RankedTeamProgress> Rank(IReadOnlyList<UnrankedTeamProgress> teams)
+    public static IReadOnlyList<RankedTeamProgress> Rank(IReadOnlyList<UnrankedTeamProgress> teams, PlacementRule rule = PlacementRule.LegacyScoreTimeThenEhb)
     {
-        var ordered = teams
+        if (!Enum.IsDefined(rule)) throw new ArgumentOutOfRangeException(nameof(rule));
+        var primary = teams
             .OrderByDescending(value => value.Progress.BoardComplete)
             .ThenBy(value => value.Progress.BoardComplete ? value.Progress.BoardCompletedAt : DateTimeOffset.MaxValue)
             .ThenByDescending(value => value.Progress.CompletedRows.Count + value.Progress.CompletedColumns.Count)
-            .ThenByDescending(value => value.Progress.CompletedTiles)
-            .ThenBy(value => ScoreTime(value.Progress) ?? DateTimeOffset.MaxValue)
-            .ThenByDescending(value => value.Progress.EhbTiebreak)
-            .ThenBy(value => value.TeamName)
-            .ToList();
+            .ThenByDescending(value => value.Progress.CompletedTiles);
+        var ordered = (rule == PlacementRule.CreditedEhbThenScoreTime
+            ? primary.ThenByDescending(value => value.Progress.EhbTiebreak)
+                .ThenBy(value => ScoreTime(value.Progress) ?? DateTimeOffset.MaxValue)
+            : primary.ThenBy(value => ScoreTime(value.Progress) ?? DateTimeOffset.MaxValue)
+                .ThenByDescending(value => value.Progress.EhbTiebreak))
+            .ThenBy(value => value.TeamName).ToList();
         var result = new List<RankedTeamProgress>(ordered.Count);
         for (var index = 0; index < ordered.Count; index++)
         {

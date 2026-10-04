@@ -871,7 +871,7 @@ previous versions and returns to Final Review without reopening uploads. Competi
 input/version checks reject stale publication and review mutations. Historical
 resolutions remain read-only and never satisfy current gates.
 
-Current-score time is the latest immutable completion time among currently complete active-generation tiles, null when none is complete. Retained completion-time correction rows are historical only and are ignored by current readiness and ranking; existing official snapshots preserve their stored order and fields. Do not rerank old versions or reactivate time-edit/inspection controls. AU12 applies only to new events after explicit activation.
+Current-score time is the latest immutable completion time among currently complete active-generation tiles, null when none is complete. Retained completion-time correction rows are historical only and are ignored by current readiness and ranking; existing official snapshots preserve their stored order and fields. Do not rerank old versions or reactivate time-edit/inspection controls. AU12 applies only to new events via immutable `events.placement_rule`: ordinary creation explicitly selects `CreditedEhbThenScoreTime` (1); all pre-migration rows and historical imports retain `LegacyScoreTimeThenEhb` (0). Provisional and final calculation use that persisted value, never dates.
 
 **Failure and recovery:** Stale readiness, concurrent finalization, or an unresolved mandatory blocker fails before official mutation. Captain website roles remain historical but cannot mutate closed/finalized events. Assignment of a Captain never auto-generates a password; retained emergency credentials cannot authenticate or regain authority.
 

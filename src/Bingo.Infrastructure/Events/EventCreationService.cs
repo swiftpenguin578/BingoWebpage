@@ -42,7 +42,7 @@ public sealed class EventCreationService(ApplicationDbContext db, TimeProvider t
             }
 
             var now = time.GetUtcNow();
-            var item = new BingoEvent(Guid.NewGuid(), name, EventSlugGenerator.GenerateCandidate(name, sequence), timezone, actor.Id, now);
+            var item = new BingoEvent(Guid.NewGuid(), name, EventSlugGenerator.GenerateCandidate(name, sequence), timezone, actor.Id, now, PlacementRule.CreditedEhbThenScoreTime);
             var form = new SignupForm(Guid.NewGuid(), item.Id, now);
             var board = new Board(Guid.NewGuid(), item.Id, "Main board", 5, 5);
             item.ConfigureSignup(waitingListEnabled: true, requireCode: false, codeHash: null);

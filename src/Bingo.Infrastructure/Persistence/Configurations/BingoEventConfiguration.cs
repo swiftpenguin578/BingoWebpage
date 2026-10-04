@@ -19,6 +19,8 @@ public sealed class BingoEventConfiguration : IEntityTypeConfiguration<BingoEven
         entity.HasIndex(item => item.Slug).IsUnique();
         entity.Property(item => item.Description).HasColumnName("description").HasMaxLength(4_000);
         entity.Property(item => item.Timezone).HasColumnName("timezone").HasMaxLength(100);
+        entity.Property(item => item.PlacementRule).HasColumnName("placement_rule").HasConversion<int>().ValueGeneratedNever()
+            .Metadata.SetAfterSaveBehavior(Microsoft.EntityFrameworkCore.Metadata.PropertySaveBehavior.Throw);
         entity.Property(item => item.State).HasColumnName("state").HasConversion<string>().HasMaxLength(40);
         entity.Property(item => item.HiddenAt).HasColumnName("hidden_at");
         entity.Property(item => item.HiddenByAccountId).HasColumnName("hidden_by_account_id");

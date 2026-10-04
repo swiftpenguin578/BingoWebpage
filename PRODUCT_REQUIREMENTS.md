@@ -749,7 +749,7 @@ Ranking priority is:
 4. Highest credited EHB tie-break value, including existing proportional partial progress
 5. Earlier current-score completion time
 
-This is the approved AU12 target, not the currently implemented ordering. Only new events created after activation adopt AU12; all existing events keep
+AU12 selects this order through an explicit persisted event-creation rule. Only new events created through the ordinary creation service adopt AU12; all existing events keep
 their prior rule, including those without official results. Retain old official
 snapshots without reranking. A separate points model
 is deferred.

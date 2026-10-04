@@ -79,7 +79,7 @@
             <div>
                 <p class="finalize-kicker">@T["Results ledger"]</p>
                 <h2 id="finalize-placements-heading">@(Model.Readiness.State is EventState.Finalized or EventState.Archived ? T["Official placements"] : T["Provisional placements"])</h2>
-                <p>@T["Rank order: completed boards by effective finish time, then completed rows and columns, completed tiles, current score time, and EHB."]</p>
+                <p>@T[Model.Readiness.PlacementRule == PlacementRule.CreditedEhbThenScoreTime ? "Rank order: completed boards by effective finish time, then completed rows and columns, completed tiles, EHB, and current score time." : "Rank order: completed boards by effective finish time, then completed rows and columns, completed tiles, current score time, and EHB."]</p>
             </div>
             <span class="finalize-section-note">@Model.Readiness.Placements.Count teams</span>
         </header>

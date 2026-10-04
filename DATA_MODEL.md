@@ -2092,7 +2092,12 @@ Review mutations advance relevant competitive freshness atomically.
 Within one transaction, recheck gates and versions, calculate using the event's
 applicable ranking rule, store immutable official placements and actor/time/audit,
 and transition to Archived. Existing events retain their rule; AU12 applies only to
-new events after explicit activation. Shared ranks require exact equality across
+new events via immutable `events.placement_rule`: `0` = LegacyScoreTimeThenEhb,
+`1` = CreditedEhbThenScoreTime. The AU12 migration backfills every retained row to 0
+and removes its temporary database default. EventCreationService explicitly inserts 1;
+historical import/compatibility construction explicitly retain 0. No date inference.
+The domain exposes no rule mutation and EF rejects changing a saved rule. Each new
+official snapshot records the rule in its calculation inputs. Shared ranks require exact equality across
 all applicable inputs. Optional WOM refresh failure does not block publication.
 Prior official versions are never silently recomputed. There is no separate Archive.
 At upload closure ordinary roles remain historical; authorization stops mutations.

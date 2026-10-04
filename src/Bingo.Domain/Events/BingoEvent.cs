@@ -7,11 +7,13 @@ public sealed class BingoEvent
     private BingoEvent() { }
 
     /// <summary>Creates the smallest permitted private event draft.</summary>
-    public BingoEvent(Guid id, string name, string slug, string timezone, Guid createdByAccountId, DateTimeOffset createdAt)
+    public BingoEvent(Guid id, string name, string slug, string timezone, Guid createdByAccountId, DateTimeOffset createdAt, PlacementRule placementRule = PlacementRule.LegacyScoreTimeThenEhb)
     {
         if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("An event name is required.", nameof(name));
         if (string.IsNullOrWhiteSpace(slug)) throw new ArgumentException("An event slug is required.", nameof(slug));
         if (string.IsNullOrWhiteSpace(timezone)) throw new ArgumentException("A timezone is required.", nameof(timezone));
+        if (!Enum.IsDefined(placementRule)) throw new ArgumentOutOfRangeException(nameof(placementRule));
+        PlacementRule = placementRule;
         Id = id;
         Name = name.Trim();
         Slug = slug.Trim();
@@ -74,6 +76,7 @@ public sealed class BingoEvent
     public string? Description { get; private set; }
     public string Timezone { get; private set; } = string.Empty;
     public EventState State { get; private set; }
+    public PlacementRule PlacementRule { get; private set; }
     public DateTimeOffset? HiddenAt { get; private set; }
     public Guid? HiddenByAccountId { get; private set; }
     public string? HiddenReason { get; private set; }

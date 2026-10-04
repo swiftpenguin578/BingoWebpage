@@ -854,7 +854,11 @@ board completion, full-board finish time, lines and tiles retain precedence; equ
 EHB falls back to score time; exact ties/null times deterministic and truthful;
 partial progress still contributes; provisional/final placement parity; earlier
 immutable official versions and historical events unchanged. Preserve PostgreSQL
-microsecond timestamp precision at persisted ranking boundaries. No code started.
+microsecond timestamp precision at persisted ranking boundaries.
+B2 implementation uses immutable `events.placement_rule`, legacy 0 / new 1, per
+planner technical resolution on 4 October. Existing rows backfill to 0; ordinary
+creation explicitly selects 1 and historical imports retain 0. Evidence:
+`docs/references/admin-ui/reviews/2026-10-04/au-b2/au12.md`. Claude review pending.
 
 ### AU13 — Retain editable planning team-size estimate
 
