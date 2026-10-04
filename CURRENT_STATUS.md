@@ -1,11 +1,11 @@
 # Current project status
 
-## Active assignment — brief 21 B1/B2 remediation, 4 October 2026
+## Active assignment — brief 22 B1/B2 follow-up, 4 October 2026
 
 - Base verified clean: `5cf9081b458a573baa0c32fe423f88375f49534d`.
 - Main feature checkout: `/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage`,
   branch `codex/participants-functionality`.
-- Planner `/root`, UI Planner `01a0ec9a-76e3-7252-9850-3f260c612e59`.
+- Planner `/root`, chat `01a10660-cc8a-7843-abb4-6cc1ebbb2bf2`, replaces old UI Planner.
 - Exact user authorization and attribution policy:
   `docs/references/admin-ui/reviews/2026-10-04/au-step0/approval-record.md`.
   Full assignment: `assignment.md` beside it; supplied decisions: `decisions.md`.
@@ -35,36 +35,37 @@
   B1 local merge-back only after Claude B1 PASS; no push/main merge/deploy.
 - B3–B5, RC/UI integration and rehearsal tooling/execution remain stopped.
 
-## Remediation completion — both lanes awaiting Claude recheck
+## Claude recheck and assigned follow-ups — brief 22
 
-- Assignment: `/Users/christopher/Documents/BingoWebpage/review-notes/21-codex-brief-b1-b2-remediation.md`.
-  Decisions: `08-decisions.md`, section "B1/B2 lane review decisions (user, 4 October)".
-  B2 preserves supplied copies in `au-b2/remediation/assignment.md` and `decisions.md`.
-- B1 clean checkpoint verified: `ea60b644aca91789c0e51600cc31ab63f047305b`.
-  Recheck range: `b38749d..ea60b64`. Commits: `c32acea`, `95d9fdb`, `8c59d41`,
-  `d4b2631`, `f49bf65`; handoff `ea60b64`.
-- B1 reports focused PostgreSQL/HTTP checks, Release builds and diff checks passed.
-  AU15 fixture test now passes. Chromium launches, but account-support.browser.js
-  stops at line 62 (expected 8, observed 7); four AU24 assertions remain unverified.
-  Exact limits: `au-b1/remediation/browser-account-support.md` in B1 checkout.
-- B2 clean checkpoint verified: `52be2b6`. Recheck range: `f932893..52be2b6`.
-  Eight item commits: `043eeb4`, `e3851b7`, `2498917`, `8fa7800`, `c47b086`,
-  `882b780`, `d7c3e04`, `52be2b6`.
-- B2 reports all focused HTTP/PostgreSQL, ranking, constructor and outcome-history
-  checks passed; final Release build zero warnings/errors and diff checks passed.
-  Planner verified Git checkpoints; has not independently rerun worker checks.
-- Durable evidence root: `docs/references/admin-ui/reviews/2026-10-04/`;
-  lane-specific evidence under `au-b1/remediation/` and `au-b2/remediation/`.
-- B2 constructor-call edits in shared test paths were a planner technical routing
-  exception; combine with B1 behavior edits at merge, never replace whole files.
-  B1 exclusively owns SharedResource; B2 remediation did not edit it.
-- D2 records user approval after Claude review of the earlier outcome-only WOM
-  dependency, sourced to brief 21 and the supplied decision record.
-- Limits: published snapshot format cannot distinguish a historical override equal
-  to the automatic value; discard uses approved stored-precision comparison.
-  Cleanup migration Down cannot restore cleared values; predeploy count still due.
-- Both lanes stopped. Claude independent rechecks and manual acceptance pending.
-  No production access, merge, push or deployment performed in this round.
+- Source: `/Users/christopher/Documents/BingoWebpage/review-notes/22-b1-b2-remediation-recheck.md`.
+  Claude reviewed source only; nothing built or run during that recheck.
+- B1 `b38749d..ea60b64`: FAIL on R1; all five brief 21 remediation items pass.
+  Confirmed account actions save but lose the response because the confirmation
+  temporarily closes the editor. The line-62 browser failure was this real bug.
+- B2 `f932893..52be2b6`: PASS with R2 rounding follow-up. The field-specific Danish
+  decimal binder is a Claude-accepted planner technical resolution, not product approval.
+- Follow-ups dispatched 4 October; no orchestrator, Claude rechecks directly:
+  - B1 `/root/au_b1_followup`, `gpt-5.6-luna` / max, replaces unavailable old-tree
+    worker; starts at clean `ea60b644aca91789c0e51600cc31ab63f047305b` in B1 checkout.
+    Item 1: fix R1 and rerun account-support.browser.js. Item 2: malformed Audit
+    date/entry feedback plus three Accounts/Audit test gaps named in brief 22.
+    Two new local commits, one per item. No completed work rediscovery.
+  - B2 existing chat `01a10444-ca79-71a1-8841-07e1d926ac2d`, local,
+    `gpt-6-astra` / high; clean start `c557139` (status only after `52be2b6`).
+    Item 3: AwayFromZero at four named stored-EHB comparisons; midpoint ranking
+    and PostgreSQL discard tests. One new local commit.
+- Workers own focused execution, Release build and diff checks. Results pending;
+  no follow-up independent review or manual acceptance claimed. B1's four AU24
+  browser assertions remain unverified until the new browser run reaches them.
+- Durable evidence: `docs/references/admin-ui/reviews/2026-10-04/au-b1/remediation/`
+  and corresponding `au-b2/remediation/`. Reuse prior applicable passing evidence.
+- B1 owns SharedResource; B2 owns migrations. Preserve B2 constructor arguments and
+  B1 behavior edits when merging shared tests; never replace whole files.
+- Existing limits remain: snapshot override equal to automatic is indistinguishable;
+  cleanup Down cannot restore cleared values. Operator pre/post migration counts
+  are still due. No production access is assigned.
+- Both workers must report completion/blockers to this planner and stop for Claude.
+  No merge, push, main merge, deploy or B3–B5/RC/UI/rehearsal work assigned now.
 
 ## Prior outcomes / corrected approvals
 
@@ -83,8 +84,8 @@
 
 ## Next permitted action
 
-Claude rechecks B1 `b38749d..ea60b64` and B2 `f932893..52be2b6` separately against
-brief 21 and original findings. After Claude B1 PASS, planner may coordinate local
-merge-back into `codex/participants-functionality`, preserving both lanes' fixes,
-explicit constructor arguments and resource keys, then rerun B1 focused checks.
-No merge to main, push, deployment or B3 work. R1/R3 release gates remain.
+Complete only the assigned brief 22 follow-ups, then Claude directly rechecks both.
+After Claude B1 PASS, coordinate local merge into `codex/participants-functionality`
+(not `main`), preserving both lanes, then rerun B1 focused checks including AU15 and
+account-support.browser.js. Stop after rechecks and authorized merge. No push,
+main merge, deployment or B3 work. R1 conversion/R3 rehearsal release gates remain.
