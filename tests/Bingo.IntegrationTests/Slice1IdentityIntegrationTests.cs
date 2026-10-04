@@ -829,7 +829,7 @@ public sealed partial class Slice1IdentityIntegrationTests : IAsyncLifetime
         await db.SaveChangesAsync();
         var administration = new AccountAdministrationService(db, passwords, time);
 
-        await administration.TransferOwnershipAsync(owner.Id, "long-test-password", destination.LoginName, CancellationToken.None);
+        await administration.TransferOwnershipAsync(owner.Id, "long-test-password", destination.Id, destination.AuthorizationVersion, destination.PublicUsername!, CancellationToken.None);
         Assert.Equal(GlobalRole.Admin, owner.GlobalRole);
         Assert.Equal(GlobalRole.SuperAdmin, destination.GlobalRole);
         Assert.Single(await db.Accounts.Where(x => x.GlobalRole == GlobalRole.SuperAdmin).ToListAsync());
@@ -1825,12 +1825,12 @@ public sealed partial class Slice1IdentityIntegrationTests : IAsyncLifetime
 
         var ownerSession = authentication.CreatePrincipal(owner);
         var destinationSession = authentication.CreatePrincipal(destination);
-        await Assert.ThrowsAsync<AccountActionException>(() => administration.TransferOwnershipAsync(owner.Id, "wrong-password", destination.LoginName, CancellationToken.None));
-        await Assert.ThrowsAsync<AccountActionException>(() => administration.TransferOwnershipAsync(owner.Id, "long-test-password", "not-the-destination", CancellationToken.None));
+        await Assert.ThrowsAsync<AccountActionException>(() => administration.TransferOwnershipAsync(owner.Id, "wrong-password", destination.Id, destination.AuthorizationVersion, destination.PublicUsername!, CancellationToken.None));
+        await Assert.ThrowsAsync<AccountActionException>(() => administration.TransferOwnershipAsync(owner.Id, "long-test-password", destination.Id, destination.AuthorizationVersion, "not-the-destination", CancellationToken.None));
         Assert.Equal(GlobalRole.SuperAdmin, owner.GlobalRole);
         Assert.Equal(GlobalRole.User, destination.GlobalRole);
 
-        await administration.TransferOwnershipAsync(owner.Id, "long-test-password", destination.LoginName, CancellationToken.None);
+        await administration.TransferOwnershipAsync(owner.Id, "long-test-password", destination.Id, destination.AuthorizationVersion, destination.PublicUsername!, CancellationToken.None);
         await AssertStaleSessionGetsAccessChangedOutcome(ownerSession);
         await AssertStaleSessionGetsAccessChangedOutcome(destinationSession);
     }
@@ -1867,22 +1867,24 @@ public sealed partial class Slice1IdentityIntegrationTests : IAsyncLifetime
     public async Task OwnershipTransferRaceRetainsExactlyOneOwner()
     {
         Guid ownerId;
-        string firstDestination;
-        string secondDestination;
+        (Guid Id, long Version, string Username) firstDestination;
+        (Guid Id, long Version, string Username) secondDestination;
         await using (var seed = new ApplicationDbContext(options))
         {
             var owner = Website("slice1-owner-race", GlobalRole.SuperAdmin);
             var first = Website("slice1-owner-race-first");
             var second = Website("slice1-owner-race-second");
-            ownerId = owner.Id; firstDestination = first.LoginName; secondDestination = second.LoginName;
+            ownerId = owner.Id;
+            firstDestination = (first.Id, first.AuthorizationVersion, first.PublicUsername!);
+            secondDestination = (second.Id, second.AuthorizationVersion, second.PublicUsername!);
             seed.AddRange(owner, first, second);
             await seed.SaveChangesAsync();
         }
 
-        async Task<bool> Transfer(string destination)
+        async Task<bool> Transfer((Guid Id, long Version, string Username) destination)
         {
             await using var attempt = new ApplicationDbContext(options);
-            try { await new AccountAdministrationService(attempt, new PasswordHasher<Account>(), time).TransferOwnershipAsync(ownerId, "long-test-password", destination, CancellationToken.None); return true; }
+            try { await new AccountAdministrationService(attempt, new PasswordHasher<Account>(), time).TransferOwnershipAsync(ownerId, "long-test-password", destination.Id, destination.Version, destination.Username, CancellationToken.None); return true; }
             catch (Exception exception) when (exception is DbUpdateException or InvalidOperationException) { return false; }
         }
 
