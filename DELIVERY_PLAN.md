@@ -1093,6 +1093,35 @@ were implemented. The complete 47-finding map is in the functionality register;
 report links below preserve reproduction details. Existing server protection is
 not rebuilt just because the reference mock omitted it.
 
+### Bindings not shown in the design references
+
+Established by the user's 4 October instruction: “From now on, every ticket that adds
+functionality the references don't show adds its row.” Seeded from `review-notes/08-decisions.md`,
+“Known UI differences from the frozen design references”, with Catalogue decisions
+owned by the section linked below. This register includes missing bindings and
+intentional differences from a reference; it does not authorize implementation,
+reference edits or new displays on the current pages. All AU work targets the new UI.
+
+Every ticket that adds functionality the design references do not show must add or
+update its row here, including backend-only outputs awaiting binding. The UI
+integration plan must make every row a required item in the affected page's
+route/handler/binding inventory, resolve its open decisions before binding, and
+include it in binding review. Keep decisions in their existing owner and link them
+here; do not silently omit a row because the reference has no corresponding control.
+
+| What it is | Page and design reference | Source ticket/decision | Binding ticket | Open decisions |
+| --- | --- | --- | --- | --- |
+| Blocked-approval feedback with a direct link to the earlier pending upload, preserving queue/filter context | Review — [Review.dc.html](docs/references/admin-ui/Review.dc.html) does not show it | BR-1/G1; structured blocking submission ID/upload time; `08-decisions.md` “Step 3 decisions” | RC07 / BR-10 | None; preserve the approved navigation and return context |
+| Omit the “another event is current” readiness row despite the reference; retain server lifecycle/finalization guards | Final Review — [FinalReview.dc.html](docs/references/admin-ui/FinalReview.dc.html) shows the row | Narrowed AU18 / Step 0 decision; no additional current-event readiness UI authorized | RC08 / BR-10 | None; omission is decided |
+| Manual-team members in participant lists and waiting positions | Participants — compare with [Participants.dc.html](docs/references/admin-ui/Participants.dc.html) during binding | TD-2 option B; G3b-3 | P-1 | Verify the existing reference against the decided membership behavior during P-1 |
+| Authorized single-entry Audit read, including “This entry isn't available” | Audit — check [Audit.dc.html](docs/references/admin-ui/Audit.dc.html) | AU16; B1/B2 decision D4 | RC06 / WA-5 | Check the reference and settle the single-entry binding in the integration plan |
+| Audit event dropdown filter with hidden events marked | Audit — check [Audit.dc.html](docs/references/admin-ui/Audit.dc.html) | AU16; B1/B2 decision D4 | RC06 / WA-5 | Check the reference and settle the filter binding in the integration plan |
+| WOM refresh outcome follows the reference's unsuccessful-only note; stored next eligible time remains data only | Final Review — [FinalReview.dc.html](docs/references/admin-ui/FinalReview.dc.html) does not display next eligible time | AU18; known UI differences recorded after B1/B2 review | RC08 / BR-10 | No additional next-eligible-time display approved |
+| Tile EHB override set/change/reset with calculated baseline; submit explicit change-override intent | Board — bind the control in [Board.dc.html](docs/references/admin-ui/Board.dc.html) to the reviewed backend contract | AU11 and its explicit-intent remediation | RC05 / BR-10 | None; verify the intent mapping during binding |
+| Catalogue rate entry and “How the rate is counted” panel follow the decided fields and permissions | Catalogue — intentional differences from [Catalogue.dc.html](docs/references/admin-ui/Catalogue.dc.html) | AU23 and [Catalogue decisions — AU23, CAT-1 and WA-5](#catalogue-decisions--au23-cat-1-and-wa-5-4-october-pending-implementation); `08-decisions.md` “Drop-rate mechanics” / “Catalogue layout” | RC10 / WA-5 | None; use the owning decisions, including final-chance input, retired Only-after input, ordinary rate-text rolls and SuperAdmin roll-group editing |
+| Informational activity Team size in Settings and Add activity beside Kills per hour | Catalogue — intentional difference from [Catalogue.dc.html](docs/references/admin-ui/Catalogue.dc.html) | CAT-1 and [Catalogue decisions — AU23, CAT-1 and WA-5](#catalogue-decisions--au23-cat-1-and-wa-5-4-october-pending-implementation); `08-decisions.md` “Catalogue layout” | RC10 / WA-5 | None for binding; preserve the owning ticket's migration pre-check and any resulting data decision |
+| “WOM end could not be updated” state and read-model/service output; AU20 implements backend only, with no new display on current pages | No reference shows it; candidate pages are WOM [Wom.dc.html](docs/references/admin-ui/Wom.dc.html), Overview [Overview.dc.html](docs/references/admin-ui/Overview.dc.html), Final Review [FinalReview.dc.html](docs/references/admin-ui/FinalReview.dc.html) | WA-2 / AU20; `08-decisions.md` “B3 (AU20) brief decisions”; brief 23 item 4 | WA-5 / OS-1 / BR-10 as selected by the UI integration plan | Placement and final binding owner remain open; the UI integration plan must decide before the affected pages are bound |
+
 ### Proposed reference corrections — RC05–RC11, not dispatched
 
 | ID | Page and exact findings | Required correction boundary |
