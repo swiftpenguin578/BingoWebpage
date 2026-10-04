@@ -993,7 +993,8 @@ fail-closed and the competitive record remains unchanged.
 **Authoritative happy path:** Catalogue edits are optimistic-concurrency protected
 and audit before/after values. Referenced records deactivate rather than hard-delete.
 Advanced mechanics are read-only for ordinary Admins; only SuperAdmin may edit the
-existing advanced fields (AU23 approved target, implementation pending). Preserve
+existing advanced fields. B4 delivers the AU23 backend contract; WA-5 still binds
+the decided panel. Preserve
 source-specific validation, affected Draft recalculation and approved/historical
 snapshots. No separate roll-group management or application import workflow.
 Shared-item adoption must be explicit and distinguish shared metadata from source

@@ -344,7 +344,29 @@ approval does not authorize harness implementation, backup transfer or execution
    Resolve the exact predecessor/tooling and any later migrations in the approved
    rehearsal harness. Never downgrade production or the primary rehearsal copy.
    Counts and Down/Up execution are unknown/unexecuted here and required for R3.
-7. **R-3 final-candidate rehearsal — procedure approved, execution pending.** Follow
+7. **Catalogue AU23/CAT-1 migration preflight (read-only, operator obligation).**
+   Immediately before applying the B4 Catalogue migrations on the authorized
+   isolated candidate database, record both counts:
+
+   ```sql
+   SELECT COUNT(*)
+   FROM source_drops
+   WHERE conditional_on_parent;
+
+   SELECT COUNT(*)
+   FROM source_drops
+   WHERE assumed_participants <> 1
+      OR probability_scope <> 'Participant';
+   ```
+
+   Require zero for both queries. Any nonzero result stops the migration for a
+   product/data decision; do not infer a team size, coalesce rows, or rewrite
+   retained context. The `20261004133947_AddBossActivityTeamSize` migration also
+   fails closed on the second condition. The user's 4 October report of zero
+   conditional rows and zero non-default context rows is supplied evidence, not
+   an agent-run production check; re-run these read-only queries at deployment
+   time and record the exact migration history and timestamp.
+8. **R-3 final-candidate rehearsal — procedure approved, execution pending.** Follow
    the accepted procedure below only after separate harness/backup-transfer/execution
    authorization. Require every isolated stage and release-gate check to pass on
    the exact final candidate. R-1 conversion failure still blocks deployment.

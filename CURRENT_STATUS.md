@@ -1,23 +1,14 @@
 # Current project status
 
-## Active assignment — B3 / AU20 review26 follow-up, 4 October 2026
+## Active assignment — B4 / Catalogue AU21 → AU23 → CAT-1, 4 October 2026
 
-- Checkout `/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage`, branch `codex/participants-functionality`.
-- Clean baseline verified `b126c556ccd2e16cb59829837581646a3179847e`; planner's authorized documentation prerequisite `2649008` follows it.
-- Planner `/root`, replacement chat `01a10660-cc8a-7843-abb4-6cc1ebbb2bf2`. Sole implementer `/root/au_b3_implementer`, `gpt-6-astra` / high; no orchestrator or extra workers.
-- User supplied assignment: [B3 brief](docs/references/admin-ui/reviews/2026-10-04/au-b3/supplied-brief.md). Section 6's old planner chat is retired by the current assignment.
-- Original B3 six commits `52f0af6` through `4b9f156` were source-reviewed by Claude in review24: FAIL. No reviewer build or execution; historical implementation evidence remains in `au-b3/`.
-- User authorized [remediation brief25](docs/references/admin-ui/reviews/2026-10-04/au-b3/remediation/supplied-brief.md). Clean baseline `4b9f15657978728160a00960bd45bf41cb04abb3` reverified; six ordered new local commits, no extra workers.
-- Remediation checkpoints: `1a47b5e` temporary failures; `f441134` write receipts; `7be4ba2` external Conflict; `a980609` lifecycle database retries; `b2c3e1c` target isolation; `45a09ad` final item6 documentation/tests checkpoint.
-- Implementer reports (not independently rerun): final whole-AU20 plus authorized Stats test passed 63/63; stored enum/name checks 2/2; Release solution build zero warnings/errors; diff checks clean. Per-item focused counts/commands are in `docs/references/admin-ui/reviews/2026-10-04/au-b3/remediation/item1-temporary-failures.md` through `item6-final-handoff.md`.
-- Temporary HTTP502/timeout/network/408 retries, real PostgreSQL claim expiry and forced40001 lifecycle recovery/exhaustion, stale-target rejection/backoff, all six named proof gaps and publication wording executed. No new schema; prior complete migration Up/Down/backfill evidence reused.
-- The earlier StatsPass4Boundary fixture failure is fixed under brief25's explicit test-only authorization and passed in the final run. No Stats production edits or broad-suite pass claimed.
-- Corrected error classification is planner technical resolution, superseding the earlier item3 resolution. D6 is the user's decision: first publication permanently stops end updates, including after reopen, retaining the same WOM basis; verbatim source in `remediation/supplied-decisions.md`.
-- Claude source-only [review26](docs/references/admin-ui/reviews/2026-10-04/au-b3/remediation/26-b3-remediation-recheck.md) passed remediation items2/3/5/6; items1/4 require R1/R2. No reviewer execution or manual acceptance. User authorized exactly two follow-up commits from reverified clean `45a09ad0b2aa982c8603cd116a6e5d9bfbfa89c6`.
-- Follow-up R1 `19865e3` recognizes an already-applied target before resending; R2 (this checkpoint) tolerates rollback failure in Start/End/Resume conflict catches. Worker-reported focused tests passed8/8 and12/12 respectively, with clean Release builds/diff checks; evidence `remediation/followup1-late-apply.md` and `followup2-commit-conflict.md`.
-- Real PostgreSQL COMMIT40001 reproduced Npgsql10.0.3 rollback InvalidOperationException; original-click recovery, bounded exhaustion and Start try-again response were executed. Follow-ups are implemented/worker-tested, awaiting Claude direct recheck. No new current-page display or Luck production change.
-- Bindings register has the complete end-state/read-model row, structured-outcome row and Resume row; RC01/OS-1 correction queued. UI placement/copy decisions remain for integration.
-- Runbook requires an authorized Final Review (`AwaitingFinalReview`) count before R-3 and deploy: expected0, otherwise stop for decision. Count/rehearsal/deployment not executed.
+- Checkout `/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage`, branch `codex/participants-functionality`; clean B4 baseline was `42e12cf2f0bb6ad5f1eddd28e8ef30aa3f965577`.
+- Planner `/root`, replacement chat `01a10660-cc8a-7843-abb4-6cc1ebbb2bf2`; sole implementer `/root/au_b4_implementer`, `gpt-5.6-luna` / max. No extra workers or visible chats.
+- B3/AU20 is accepted as the prerequisite per the supplied B4 brief. Its R1 conversion, R3 rehearsal and operator migration-count gates remain future obligations; no production or user-owned database access was used here.
+- B4 item 1 AU21 is implemented in `01c5dc2`; item 2 AU23 is implemented in `00dfd40`; item 3 CAT-1 is implemented in `fd3ce10`; item 4 documentation/register updates are this checkpoint. Evidence is under `docs/references/admin-ui/reviews/2026-10-04/au-b4/`.
+- Worker-reported focused checks: AU21 PostgreSQL 2/2; AU23 PostgreSQL 2/2; Cat01 mechanics 2/2; retired metadata refusal 1/1; CAT-1 handler 2/2; CAT-1 migration rehearsal 1/1; Release builds completed with 0 warnings/errors; scoped diff checks passed. These are implementer results pending external review.
+- The CAT-1 migration fails closed for any non-default per-drop context and the runbook now requires read-only production counts for `conditional_on_parent` and non-default `assumed_participants`/`probability_scope`; the user's 4 October zero counts remain user evidence, not agent verification.
+- Current-page UI and WA-5/RC10 binding are deferred. No new current-page display, B5 work, rehearsal execution, main merge, push or deployment is authorized.
 
 ## Retained B1/B2 evidence and limits
 
@@ -38,10 +29,10 @@
 - H3-4 `6b8331d`: not user-approved, per the current assignment’s attribution
   correction. Accurate code-description correction stands; Git history unchanged.
 - R1 conversion failure remains blocking; R3 is required on final candidate.
-- AU23 precheck is approved in this assignment, but AU23 is not started.
+- AU23 precheck and CAT-1 migration gate are approved in the B4 assignment; production counts remain unrun by this worker.
 - AU17 Contribution/readback only, AU18 WOM outcome/version history only, AU19
   approved. No additional Review context/current-event readiness UI is authorized.
 
 ## Next permitted action
 
-Stopped after exactly two review26 follow-up commits. Planner routes Claude direct recheck of `45a09ad0b2aa982c8603cd116a6e5d9bfbfa89c6..HEAD`, without agents. Deferred review26 notes remain unchanged; no independent follow-up pass claimed. No B4/B5, UI/RC implementation, rehearsal, push, main merge, deployment or production access. R1 conversion/R3 and operator migration-count gates remain.
+Stop after the four B4 commits for external Claude review of the stable B4 range. No independent review or manual UI acceptance is claimed. Preserve the B3/AU20 R1/R3 and operator migration-count gates; do not start B5, WA-5/RC10 binding, rehearsal execution, main merge, push or deployment.

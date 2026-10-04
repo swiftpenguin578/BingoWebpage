@@ -779,7 +779,8 @@ EHB is used for board estimation, line balancing, player contribution statistics
 
 Any enabled Admin may create, edit, deactivate, or reactivate catalogue records. Routine changes are audited without requiring a written reason. Only the Super Admin may permanently delete a catalogue record, and only after strong confirmation and a complete dependency check proves that no source drop, board, asset/cache, import review, or historical record references it. Referenced records must be deactivated instead.
 
-**Catalogue decision, 4 October 2026 — pending AU23/CAT-1/WA-5:** ordinary Admins
+**Catalogue decision, 4 October 2026 — AU23/CAT-1 backend delivered by B4; WA-5
+binding pending:** ordinary Admins
 enter and edit the full rate text, including `N x` roll count, on add/edit/reactivation.
 `3/1024` is one roll at 3/1024; `3 x 1/1024` is three rolls at 1/1024. Remove the
 operator-only roll-change refusal. Always enter the final chance of the item in
@@ -788,9 +789,9 @@ entry. Retire “Only after” from editor/panel/new input; retain its database 
 and all historical/snapshot data. No EHB parent-chance fix ticket is authorized.
 Advanced roll-group editing remains SuperAdmin-only, with server-side checks,
 validation, audit and concurrency. New drops use `default`; preserve existing
-production groups. Legacy probability-scope/assumed-participant advanced writes
-remain SuperAdmin-only until CAT-1 moves that informational context to the activity;
-parent input is retired for every role.
+production groups. Legacy probability-scope/assumed-participant columns remain
+historical context after CAT-1 moves the informational value to the activity;
+changed per-drop context input is refused. Parent input is retired for every role.
 
 CAT-1 gives the activity one agreed **Team size**, whole number >=1/default 1,
 editable by every Admin next to Kills per hour in both Settings and Add activity.
@@ -1001,8 +1002,8 @@ size. At 100 kills/hour and 1/1,000, one drop requires 10 EHB. The agreed team s
 balances speed and drops, not simply maximum kills/hour. Team-size/probability-scope
 context is informational, never a calculation input. Valid numerator fractions
 and `N x` repeated rolls remain explicit. Raid/points/purple-table assumptions are
-resolved before entry and may be explained in notes. Pending AU23/CAT-1 implements
-the 4 October input/context changes above; immutable approved/history snapshots
+resolved before entry and may be explained in notes. B4 implements the 4 October
+input/context changes above; immutable approved/history snapshots
 and existing roll groups remain untouched.
 
 Complex requirements are estimated from possible completion outcomes rather than by blindly averaging bosses or adding rates. Weighted drops advance by their configured contribution, duplicate-restricted requirements track shared item identities, and alternative sources are chosen according to the lowest expected remaining person-hours. Multiple objectives are estimated separately and added. A catalogue-backed/drop tile must always produce an automatic estimate. Missing or ambiguous rate mechanics block board approval and must be corrected in the catalogue or requirement configuration; they are never guessed and cannot be bypassed with a manual override. AU11 permits an optional manual TOTAL tile EHB override on a valid calculated

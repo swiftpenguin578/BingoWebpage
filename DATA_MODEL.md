@@ -1354,10 +1354,10 @@ Fields:
 - `item_id`
 - `display_rate`
 - `numeric_probability`
-- `probability_scope` (retained context; final chance is in-name, pending AU23/CAT-1)
-- `conditional_on_parent` (retained; new input retired by pending AU23)
+- `probability_scope` (retained context; final chance is in-name; AU23 backend delivered)
+- `conditional_on_parent` (retained; new input retired by AU23)
 - `parent_probability` (retained with parent flag/history)
-- `assumed_participants` (current per-drop context; activity move pending CAT-1)
+- `assumed_participants` (retained per-drop history; activity context moved to BossActivity by CAT-1)
 - `rolls_per_completion`
 - `roll_group`
 - `rate_condition_note`
@@ -1366,7 +1366,7 @@ Fields:
 - `data_updated_at`
 - `active`
 
-**4 October final-chance decision, pending AU23/CAT-1:** `numeric_probability`
+**4 October final-chance decision, implemented by B4 AU23/CAT-1 backend:** `numeric_probability`
 is paired with the activity's efficient completion rate for the same agreed team
 size/strategy and stores the final in-name chance per roll; `N x` explicitly
 records repeated rolls. Valid fraction numerators are allowed. Enter a raid's
@@ -1384,7 +1384,8 @@ agreed team size to one informational activity value (integer >=1, default 1),
 editable by every Admin beside efficient completions/hour. The production query
 reported zero non-default per-drop contexts on 4 October; recheck set values and
 per-activity conflicts before migration, with no silent loss and no rewriting
-approved/published snapshots. This is a pending schema change, not a current field.
+approved/published snapshots. The activity `team_size` column is now the current
+field; the retired per-drop columns remain for history and snapshots.
 
 `roll_group` remains a real EHB/Luck calculation input for mutually exclusive
 results from one roll; different groups are independent. New drops use `default`;
