@@ -1,6 +1,6 @@
 # Current project status
 
-## Active assignment — B3 / AU20 remediation, 4 October 2026
+## Active assignment — B3 / AU20 review26 follow-up, 4 October 2026
 
 - Checkout `/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage`, branch `codex/participants-functionality`.
 - Clean baseline verified `b126c556ccd2e16cb59829837581646a3179847e`; planner's authorized documentation prerequisite `2649008` follows it.
@@ -13,7 +13,8 @@
 - Temporary HTTP502/timeout/network/408 retries, real PostgreSQL claim expiry and forced40001 lifecycle recovery/exhaustion, stale-target rejection/backoff, all six named proof gaps and publication wording executed. No new schema; prior complete migration Up/Down/backfill evidence reused.
 - The earlier StatsPass4Boundary fixture failure is fixed under brief25's explicit test-only authorization and passed in the final run. No Stats production edits or broad-suite pass claimed.
 - Corrected error classification is planner technical resolution, superseding the earlier item3 resolution. D6 is the user's decision: first publication permanently stops end updates, including after reopen, retaining the same WOM basis; verbatim source in `remediation/supplied-decisions.md`.
-- All remediation is implemented/worker-tested, awaiting external Claude recheck, not manual acceptance. Existing skipped-fetch text corrected; no new current-page display and no Luck production change.
+- Claude source-only [review26](docs/references/admin-ui/reviews/2026-10-04/au-b3/remediation/26-b3-remediation-recheck.md) passed remediation items2/3/5/6; items1/4 require R1/R2. No reviewer execution or manual acceptance. User authorized exactly two follow-up commits from reverified clean `45a09ad0b2aa982c8603cd116a6e5d9bfbfa89c6`.
+- Follow-up R1 recognizes an already-applied target before resending, retaining roster checks and existing receipt fences; worker-reported checks in `remediation/followup1-late-apply.md`. R2 tolerant rollback/commit-conflict proof is next. No new current-page display or Luck production change.
 - Bindings register has the complete end-state/read-model row, structured-outcome row and Resume row; RC01/OS-1 correction queued. UI placement/copy decisions remain for integration.
 - Runbook requires an authorized Final Review (`AwaitingFinalReview`) count before R-3 and deploy: expected0, otherwise stop for decision. Count/rehearsal/deployment not executed.
 
@@ -42,4 +43,4 @@
 
 ## Next permitted action
 
-Stopped after remediation item6. Planner routes Claude external recheck of `4b9f156..HEAD`: one reviewer for items1/2/5, one for3/4, direct item6 check, as brief25 specifies. No B4/B5, UI/RC implementation, rehearsal, push, main merge, deployment or production access. R1 conversion/R3 and operator migration-count gates remain.
+Complete review26 follow-up R2 after the R1 commit, then stop for Claude direct recheck of `45a09ad..HEAD`. Deferred review26 notes remain unchanged. No B4/B5, UI/RC implementation, rehearsal, push, main merge, deployment or production access. R1 conversion/R3 and operator migration-count gates remain.

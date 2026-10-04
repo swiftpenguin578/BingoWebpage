@@ -571,7 +571,7 @@ public sealed partial class EventCompetitionManagementService(
             return await SuspendRosterOperationAsync(operation.Id, "The published draft was reopened before this WOM roster update was dispatched.", cancellationToken);
         if (currentProjection?.Event.ActualStartedAt is not null && updatePayload.IncludeTeams && currentProjection is not null)
             updatePayload = ToPayload(currentProjection.Preview, includeTeams: false);
-        var sourceCheck = await CheckManagedSourceAsync(operation.Id, management, cancellationToken);
+        var sourceCheck = await CheckManagedSourceAsync(operation, management, updatePayload, cancellationToken);
         if (sourceCheck is not null) return sourceCheck;
         result = await managementClient.UpdateAsync(management.CompetitionId, updatePayload, verificationCode, cancellationToken);
         if (result.Status == WiseOldManCompetitionWriteStatus.Unknown)
@@ -924,11 +924,18 @@ public sealed partial class EventCompetitionManagementService(
         => exception is DbUpdateException or NpgsqlException or TimeoutException;
 
     private async Task<EventCompetitionManagementResult?> CheckManagedSourceAsync(
-        Guid operationId,
+        EventCompetitionManagementOperation operation,
         EventCompetitionManagement management,
+        WiseOldManCompetitionWritePayload payload,
         CancellationToken cancellationToken)
     {
+        var operationId = operation.Id;
         var read = await competitionClient.GetCompetitionAsync(management.CompetitionId, cancellationToken);
+        // A timed-out write can finish remotely after the immediate read-back saw the old state.
+        if (read.Succeeded && read.Competition!.Id == management.CompetitionId && Matches(read.Competition, payload))
+            return await PersistProviderReceiptWithRetryAsync(
+                () => CompleteUpdateAsync(operationId, operation, payload, read.Competition, cancellationToken),
+                cancellationToken);
         if (read.Succeeded && RemoteConfigurationMatches(read.Competition!, management)) return null;
         if (read.Status is WiseOldManCompetitionStatus.RateLimited or WiseOldManCompetitionStatus.Unavailable)
             return await RetryReadAsync(operationId, read.Message ?? "Wise Old Man could not be checked before the managed update.", read.RetryAt, cancellationToken);
