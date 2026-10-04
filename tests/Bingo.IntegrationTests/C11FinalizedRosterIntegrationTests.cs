@@ -731,8 +731,8 @@ public sealed class C11FinalizedRosterIntegrationTests : IAsyncLifetime
             await db.SaveChangesAsync();
         }
         var hiddenAuditPage = await admin.GetStringAsync("/Admin/Audit?Action=team.role_roster_published");
-        Assert.Contains("No audit entries found", hiddenAuditPage);
-        Assert.DoesNotContain(actionRow, hiddenAuditPage);
+        Assert.DoesNotContain("No audit entries found", hiddenAuditPage);
+        Assert.Contains(actionRow, hiddenAuditPage);
     }
 
     [Theory]

@@ -398,7 +398,7 @@ public sealed partial class EventQuarantineIntegrationTests : IAsyncLifetime
     private static string InputValue(string page, string name) => Regex.Match(page, $"<input[^>]*name=\"{Regex.Escape(name)}\"[^>]*value=\"([^\"]*)\"").Groups[1].Value;
 
     [Fact]
-    public async Task HiddenEmergencyCredentialsCannotBeInspectedOrMutatedAndEventAuditsAreFiltered()
+    public async Task HiddenEmergencyCredentialsCannotBeInspectedOrMutatedAndEventAuditsRemainVisible()
     {
         var superAdmin = Account.CreateWebsite(Guid.NewGuid(), "hidden-emergency-super", "HIDDEN-EMERGENCY-SUPER", now);
         superAdmin.SetGlobalRole(GlobalRole.SuperAdmin);
@@ -451,7 +451,7 @@ public sealed partial class EventQuarantineIntegrationTests : IAsyncLifetime
             Assert.False(await hiddenDb.AccountEventAccesses.Where(candidate => candidate.Id == access.Id).Select(candidate => candidate.Enabled).SingleAsync());
             var auditPage = new Bingo.Web.Pages.Admin.Audit.IndexModel(hiddenDb);
             await auditPage.OnGetAsync(CancellationToken.None);
-            Assert.DoesNotContain(auditPage.Entries, entry => entry.Id == linkAuditId);
+            Assert.Contains(auditPage.Entries, entry => entry.Id == linkAuditId);
         }
     }
 
