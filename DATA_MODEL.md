@@ -1420,9 +1420,9 @@ Fields:
 - `description_is_automatic`
 - `image_asset_id`
 - `objective_type`
-- `manual_ehb`, currently restricted to `MANUAL`; AU11 approves an optional total
-  event-tile override for calculated objectives too. Exact persistence mapping is
-  pending implementation; this target does not claim an applied schema change.
+- `manual_ehb`: optional total event-tile override, persisted in the existing
+  tile-local `tile_templates.manual_ehb_override` column. Manual objectives require
+  this estimate. AU11 requires no schema migration.
 - `active`
 
 Objective type:
@@ -1434,8 +1434,8 @@ MANUAL
 
 `DROP_REQUIREMENTS` derives EHB from current catalogue/rate mechanics while the board is `DRAFT` and from its immutable approval snapshot once `VALIDATED`. AU11 supersedes the old manual-only restriction: a valid calculated tile may
 have an optional total tile override with its automatic baseline retained/resettable.
-This remains unimplemented; reuse the existing model where sufficient and document
-any necessary migration at implementation. Overrides never bypass missing mechanics,
+The editor readback includes the calculated baseline; clearing the override restores
+the automatic effective value. Approval freezes the effective total. Overrides never bypass missing mechanics,
 change catalogue rates or rewrite evidence-bound/approved/historical scoring. `MANUAL` represents a custom objective and requires its explicitly configured manual EHB before board approval. Every requirement in a tile/template must match that single objective kind; mixed manual/drop requirements are invalid. Reject mixed create/update or new approval attempts without partial changes. Existing approved snapshots and historical competitive results are not rewritten; any retained invalid draft requires an explicit user correction into separate tiles.
 
 `description_is_automatic` records whether the tile description is derived from

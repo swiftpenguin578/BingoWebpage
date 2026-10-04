@@ -190,6 +190,18 @@ public static class BoardEstimateService
         return new(tiles.Count, invalid);
     }
 
+    public static async Task<IReadOnlyDictionary<Guid, decimal?>> CalculatedBaselinesAsync(
+        ApplicationDbContext db, IEnumerable<Guid> tileIds, CancellationToken ct)
+    {
+        var contexts = await LoadContextsAsync(db, tileIds, ct);
+        return contexts.ToDictionary(pair => pair.Key, pair =>
+        {
+            if (pair.Value.Template.ObjectiveType != ObjectiveType.DropRequirements) return (decimal?)null;
+            var estimate = Calculate(pair.Value, out var valid, applyOverride: false);
+            return valid ? estimate : (decimal?)null;
+        });
+    }
+
     private static bool IsWorkingState(BoardState state, bool correction) => state == BoardState.Draft || correction;
 
     private static async Task<Dictionary<Guid, TileContext>> LoadContextsAsync(
@@ -288,7 +300,7 @@ public static class BoardEstimateService
             });
     }
 
-    private static decimal Calculate(TileContext context, out bool valid)
+    private static decimal Calculate(TileContext context, out bool valid, bool applyOverride = true)
     {
         valid = true;
         var estimates = new List<decimal?>();
@@ -340,7 +352,7 @@ public static class BoardEstimateService
 
         var tileEstimate = EhbCalculator.CalculateTileEstimate(context.Template.ObjectiveType,
             context.Requirements.Zip(estimates, (requirement, estimate) => (requirement.ManualObjective, estimate)),
-            context.Template.ManualEhbOverride);
+            applyOverride ? context.Template.ManualEhbOverride : null);
         if (tileEstimate <= 0) valid = false;
         return tileEstimate;
     }

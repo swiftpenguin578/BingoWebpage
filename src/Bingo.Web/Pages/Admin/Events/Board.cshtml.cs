@@ -117,7 +117,8 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
                 requirementDrops.Where(x => x.RequirementId == requirement.Id).ToDictionary(x => x.SourceDropId, x => x.CreditedWeight),
                 requirementDrops.Where(x => x.RequirementId == requirement.Id).Select(drop => new RequirementDropView(drop.SourceDropId, drop.BossName, drop.ItemName, drop.DisplayRate, drop.CreditedWeight)).ToList())).ToList();
             tile = new TileEditorView(current.Id, current.NameSnapshot, current.DescriptionIsAutomatic ? string.Empty : current.DescriptionSnapshot,
-                image, template.ObjectiveType == ObjectiveType.Manual ? template.ManualEhbOverride : null, editorRequirements);
+                image, template.ManualEhbOverride, editorRequirements,
+                (await BoardEstimateService.CalculatedBaselinesAsync(db, [current.Id], ct)).GetValueOrDefault(current.Id));
         }
         var revision = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new
         {
@@ -250,8 +251,6 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
         }
         if (TileDraft.Requirements.Select(x => x.IsManual).Distinct().Count() > 1)
             ModelState.AddModelError(string.Empty, Localize("Use separate tiles for catalogue drops and custom challenges. Every objective in a tile must have the same kind."));
-        if (TileDraft.Requirements.Any(x => !x.IsManual) && TileDraft.ManualEhb is not null)
-            ModelState.AddModelError(string.Empty, Localize("Catalogue tiles use automatic EHB. Remove the manual estimate and correct any missing catalogue rates."));
         if (TileDraft.Requirements.All(x => x.IsManual) && TileDraft.ManualEhb is not > 0) ModelState.AddModelError(string.Empty, Localize("A custom challenge needs an explicit manual EHB estimate."));
         if (!ModelState.IsValid) { SetStatus(string.Join(" ", ModelState.Values.SelectMany(x => x.Errors).Select(x => x.ErrorMessage)), UiMessageType.Warning); return RedirectToPage(new { id }); }
 
@@ -339,8 +338,6 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
             }
             if (TileDraft.Requirements.Select(x => x.IsManual).Distinct().Count() > 1)
                 ModelState.AddModelError(string.Empty, Localize("Use separate tiles for catalogue drops and custom challenges. Every objective in a tile must have the same kind."));
-            if (TileDraft.Requirements.Any(x => !x.IsManual) && TileDraft.ManualEhb is not null)
-                ModelState.AddModelError(string.Empty, Localize("Catalogue tiles use automatic EHB. Remove the manual estimate and correct any missing catalogue rates."));
             if (TileDraft.Requirements.All(x => x.IsManual) && TileDraft.ManualEhb is not > 0) ModelState.AddModelError(string.Empty, Localize("A custom challenge needs an explicit manual EHB estimate."));
             if (!ModelState.IsValid) { SetStatus(string.Join(" ", ModelState.Values.SelectMany(x => x.Errors).Select(x => x.ErrorMessage)), UiMessageType.Warning); return RedirectToPage(new { id }); }
 
@@ -1562,11 +1559,12 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
                 : Localize("{0} needs a valid estimate. Catalogue tiles require automatic EHB; custom tiles require manual EHB. Keep the objective kinds in separate tiles.", tile.Name)).ToList()
             : [];
         var managedImages = await db.BoardTileImageAssets.AsNoTracking().Where(image => tileIds.Contains(image.BoardTileId) && image.ReplacedAt == null).ToDictionaryAsync(image => image.Id, ct);
+        var calculatedBaselines = await BoardEstimateService.CalculatedBaselinesAsync(db, boardTilesForEditors.Select(tile => tile.Id), ct);
         TileEditors = boardTilesForEditors.Select(tile => new TileEditorView(tile.Id,
             useLiveDerivation ? tile.NameSnapshot : frozenTiles[tile.Id].Name,
             tile.DescriptionIsAutomatic ? string.Empty : useLiveDerivation ? tile.DescriptionSnapshot : frozenTiles[tile.Id].Description,
             tile.ActiveImageAssetId is { } imageId && managedImages.TryGetValue(imageId, out var image) && image.BoardTileId == tile.Id && image.EventId == id ? Url.Page("Board", "TileImage", new { id, tileId = tile.Id }) : null,
-            editorTemplates.GetValueOrDefault(tile.TileTemplateId) is { ObjectiveType: ObjectiveType.Manual } manualTemplate ? manualTemplate.ManualEhbOverride : null,
+            editorTemplates.GetValueOrDefault(tile.TileTemplateId)?.ManualEhbOverride,
             requirementsByTile.GetValueOrDefault(tile.Id, []).Select(requirement => new RequirementEditorView(requirement.Id, requirement.ManualObjective ? "challenge" : "drops", requirement.Description, requirement.TargetContribution, requirement.DuplicatesAllowed,
                 bossesByRequirement.GetValueOrDefault(requirement.Id, []).Select(value => value.BossActivityId).ToList(),
                 dropsByRequirement.GetValueOrDefault(requirement.Id, []).Select(value => value.SourceDropId).ToList(),
@@ -1576,7 +1574,7 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
                     if (useLiveDerivation && liveDropsById.TryGetValue(drop.SourceDropId, out var live)) return new RequirementDropView(drop.SourceDropId, live.Boss.Name, live.Item.Name, live.Drop.DisplayRate, drop.CreditedWeight);
                     if (!useLiveDerivation && frozenDropsByBoardRequirementAndDrop.TryGetValue((requirement.Id, drop.SourceDropId), out var frozen)) return new RequirementDropView(drop.SourceDropId, frozen.BossName, frozen.ItemName, frozen.DisplayRate, drop.CreditedWeight);
                     return new RequirementDropView(drop.SourceDropId, "Unavailable boss", "Unavailable item", "Catalogue entry unavailable", drop.CreditedWeight);
-                }).ToList())).ToList())).ToList();
+                }).ToList())).ToList(), calculatedBaselines.GetValueOrDefault(tile.Id))).ToList();
         var lines = new List<LineView>(); for (var row = 0; row < board.Rows; row++) lines.Add(new($"Row {row + 1}", "row", row, Tiles.Where(x => x.Position / board.Columns == row).Sum(x => x.Ehb))); for (var column = 0; column < board.Columns; column++) lines.Add(new($"Column {column + 1}", "column", column, Tiles.Where(x => x.Position % board.Columns == column).Sum(x => x.Ehb))); Lines = lines; BalanceSpread = lines.Count == 0 ? 0 : lines.Max(x => x.Ehb) - lines.Min(x => x.Ehb);
         var eventTeams = await db.Teams.AsNoTracking().Where(x => x.EventId == id && x.Active).OrderBy(x => x.DraftPosition).ThenBy(x => x.Name).ToListAsync(ct);
         var rosterSizes = new Dictionary<Guid, int>();
@@ -1779,7 +1777,7 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
         }).ToList();
     private static string RequirementDescription(RequirementInput input) => input.IsManual ? input.Description!.Trim() : $"Collect {input.Target} eligible drop{(input.Target == 1 ? string.Empty : "s")}";
 
-    public sealed class TileDraftInput { public Guid? TileId { get; set; } public int Position { get; set; } public string? Name { get; set; } [StringLength(TileDescriptionFormatter.MaximumManualDescriptionLength, ErrorMessage = "Tile description cannot be longer than 4000 characters.")] public string? Description { get; set; } public IFormFile? Image { get; set; } public bool RemoveImage { get; set; } [Range(0, 100000)] public decimal? ManualEhb { get; set; } public List<RequirementInput> Requirements { get; set; } = [new()]; }
+    public sealed class TileDraftInput { public Guid? TileId { get; set; } public int Position { get; set; } public string? Name { get; set; } [StringLength(TileDescriptionFormatter.MaximumManualDescriptionLength, ErrorMessage = "Tile description cannot be longer than 4000 characters.")] public string? Description { get; set; } public IFormFile? Image { get; set; } public bool RemoveImage { get; set; } [Range(typeof(decimal), "0.0001", "100000")] public decimal? ManualEhb { get; set; } public List<RequirementInput> Requirements { get; set; } = [new()]; }
     public sealed class RequirementInput { public Guid? RequirementId { get; set; } public string Kind { get; set; } = "drops"; public string? Description { get; set; } [Range(1, 10000)] public int Target { get; set; } = 1; public bool DuplicatesAllowed { get; set; } = true; public Dictionary<Guid, int> DropWeights { get; set; } = []; public List<Guid> BossIds { get; set; } = []; public List<Guid> DropIds { get; set; } = []; public bool IsManual => string.Equals(Kind, "challenge", StringComparison.OrdinalIgnoreCase); public int WeightFor(Guid dropId) => Math.Max(1, DropWeights.GetValueOrDefault(dropId, 1)); public bool HasHigherWeights => DropIds.Any(x => WeightFor(x) > 1); }
     public sealed record BoardDetails(int Rows, int Columns, BoardState State, decimal TotalEhb, long Version, bool PublishedCorrectionInProgress);
     public sealed record BoardStatistics(decimal TotalEhb, int? TeamSize, decimal? EhbPerPlayer, decimal? EhbPerPlayerPerDay, decimal AverageTileEhb, decimal LowestLineEhb, decimal HighestLineEhb, int MissingEhbTiles, decimal DurationDays);
@@ -1807,7 +1805,7 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
     }
 
     private sealed record ApprovalLiveDrop(SourceDrop Drop, BossActivity Boss, CatalogueItem Item);
-    public sealed record TileEditorView(Guid Id, string Name, string Description, string? ImageUrl, decimal? ManualEhb, IReadOnlyList<RequirementEditorView> Requirements);
+    public sealed record TileEditorView(Guid Id, string Name, string Description, string? ImageUrl, decimal? ManualEhb, IReadOnlyList<RequirementEditorView> Requirements, decimal? CalculatedEhb = null);
     public sealed record RequirementEditorView(Guid RequirementId, string Kind, string Description, int Target, bool DuplicatesAllowed, IReadOnlyList<Guid> BossIds, IReadOnlyList<Guid> DropIds, IReadOnlyDictionary<Guid, int> DropWeights, IReadOnlyList<RequirementDropView> Drops);
     public sealed record RequirementDropView(Guid Id, string BossName, string ItemName, string DisplayRate, int CreditedWeight);
     public sealed record TeamWorkloadView(string TeamName, TeamFormationType FormationType, int ActualRosterSize, int? SizeUsed, decimal? EhbPerPlayer);

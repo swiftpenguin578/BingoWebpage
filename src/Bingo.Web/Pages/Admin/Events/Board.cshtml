@@ -628,7 +628,7 @@ function syncObjectiveKinds() {
     });
     const manual = kinds.length > 0 && kinds.every(kind => kind.value === 'challenge');
     const input = document.getElementById('TileDraft_ManualEhb');
-    if (input) { input.disabled = !manual; input.required = manual; }
+    if (input) { input.disabled = false; input.required = manual; }
     const section = document.querySelector('.manual-ehb-override');
     if (section) section.hidden = !manual;
 }

@@ -828,7 +828,9 @@ manual estimate, invalid values, multiple objectives and weighted/partial alloca
 with no double-counting, line/board/player totals, approval round trip, stale editor,
 submitted-evidence rejection and isolated event/catalogue/history preservation.
 Use executable boundary checks and PostgreSQL where persistence/concurrency matters.
-New editor controls and manual visual acceptance remain deferred. No code started.
+AU11 implemented in B2 using the existing tile-local persisted field; evidence:
+`docs/references/admin-ui/reviews/2026-10-04/au-b2/au11.md`.
+New editor controls and manual visual acceptance remain deferred; Claude independent review pending.
 
 ### AU12 — EHB before current-score completion time
 
