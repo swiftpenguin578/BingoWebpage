@@ -746,8 +746,19 @@ public sealed partial class SubmissionWorkflowTests : IAsyncLifetime
         var localHistory = await committed.ReviewActions.SingleAsync(value => value.SubmissionId == second.SubmissionId && value.Action == ReviewActionType.RebalanceContribution);
         using var localBefore = JsonDocument.Parse(localHistory.BeforeSnapshot!);
         using var localAfter = JsonDocument.Parse(localHistory.AfterSnapshot!);
-        Assert.True(JsonElement.DeepEquals(before.RootElement, localBefore.RootElement));
-        Assert.True(JsonElement.DeepEquals(after.RootElement, localAfter.RootElement));
+        var committedChildVersion = await committed.Submissions.Where(value => value.Id == second.SubmissionId).Select(value => value.Version).SingleAsync();
+        Assert.Equal(committedChildVersion - 1, localBefore.RootElement.GetProperty("Version").GetInt32());
+        Assert.Equal(committedChildVersion, localAfter.RootElement.GetProperty("Version").GetInt32());
+        Assert.False(before.RootElement.TryGetProperty("Version", out _));
+        Assert.False(after.RootElement.TryGetProperty("Version", out _));
+        // ReviewAction alone retains the version used to order same-time actions.
+        // Every behavior field must still exactly match the redacted Audit snapshot.
+        var localBeforeBehavior = JsonSerializer.SerializeToElement(localBefore.RootElement.EnumerateObject()
+            .Where(value => value.Name != "Version").ToDictionary(value => value.Name, value => value.Value));
+        var localAfterBehavior = JsonSerializer.SerializeToElement(localAfter.RootElement.EnumerateObject()
+            .Where(value => value.Name != "Version").ToDictionary(value => value.Name, value => value.Value));
+        Assert.True(JsonElement.DeepEquals(before.RootElement, localBeforeBehavior));
+        Assert.True(JsonElement.DeepEquals(after.RootElement, localAfterBehavior));
         Assert.Equal(auditCount + 2, await committed.AuditEntries.CountAsync());
         Assert.Equal(actionCount + 2, await committed.ReviewActions.CountAsync());
         Assert.Equal(originalAssets, await committed.EvidenceAssets.OrderBy(value => value.Id).Select(value => value.Id).ToListAsync());

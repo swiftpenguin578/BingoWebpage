@@ -1,6 +1,7 @@
 using System.Data.Common;
 using System.Text.Json;
 using Bingo.Domain.Auditing;
+using Bingo.Domain.Access;
 using Bingo.Domain.Integrations.WiseOldMan;
 using Bingo.Domain.Signups;
 using Bingo.Domain.Teams;
@@ -82,6 +83,11 @@ public sealed partial class DraftOperationsIntegrationTests
             await db.SaveChangesAsync();
         }
         Assert.DoesNotContain(team.TeamId, (await B5DraftReadAsync(setup)).UsableCaptainTeamIds);
+        await using (var elevate = new ApplicationDbContext(options))
+        {
+            (await elevate.Accounts.SingleAsync(x => x.Id == setup.FirstAdminId)).SetGlobalRole(GlobalRole.SuperAdmin); await elevate.SaveChangesAsync();
+        }
+        Assert.True((await B5DraftReadAsync(setup)).Teams.Count > 0);
         await using (var db = new ApplicationDbContext(options))
         {
             (await db.Accounts.SingleAsync(x => x.Id == setup.FirstAdminId)).Disable(now); await db.SaveChangesAsync();

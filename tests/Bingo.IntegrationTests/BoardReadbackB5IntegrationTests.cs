@@ -128,6 +128,8 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests
         }
         await using var verify = new ApplicationDbContext(options);
         Assert.Empty(await verify.AuditEntries.ToListAsync()); Assert.Empty(await verify.BoardApprovalSnapshots.ToListAsync());
+        (await verify.Accounts.SingleAsync()).SetGlobalRole(GlobalRole.SuperAdmin); await verify.SaveChangesAsync();
+        Assert.IsType<JsonResult>(await Page(verify, fixture.Admin.Id).OnGetReadbackAsync(fixture.Event.Id, CancellationToken.None));
         (await verify.Accounts.SingleAsync()).Disable(CompletionFixtureNow); await verify.SaveChangesAsync();
         Assert.IsType<ForbidResult>(await Page(verify, fixture.Admin.Id).OnGetReadbackAsync(fixture.Event.Id, CancellationToken.None));
     }

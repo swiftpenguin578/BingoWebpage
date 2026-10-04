@@ -38,7 +38,7 @@ public sealed partial class BoardModel
     }
 
     private Task<bool> CanReadBoardStateAsync(CancellationToken ct) => User.GetAccountId() is { } actor
-        ? db.Accounts.AsNoTracking().AnyAsync(x => x.Id == actor && x.Active && x.GlobalRole == GlobalRole.Admin, ct)
+        ? db.Accounts.AsNoTracking().AnyAsync(x => x.Id == actor && x.Active && (x.GlobalRole == GlobalRole.Admin || x.GlobalRole == GlobalRole.SuperAdmin), ct)
         : Task.FromResult(false);
 
     private async Task<BoardReadback> ReadBoardStateAsync(Guid eventId, CancellationToken ct)

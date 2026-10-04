@@ -481,7 +481,17 @@ public sealed partial class SubmissionService(
     {
         db.AuditEntries.Add(new AuditEntry(
             Guid.NewGuid(), occurredAt, actorAccountId, actorName, action, "submission", submission.Id.ToString("D"), details,
-            submission.EventId, before, after));
+            submission.EventId, AuditSnapshot(before), AuditSnapshot(after)));
+    }
+
+    private static string? AuditSnapshot(string? snapshot)
+    {
+        if (snapshot is null) return null;
+        // ReviewAction needs ordering metadata; Audit keeps its existing redacted
+        // behavior snapshot without optimistic-concurrency implementation fields.
+        using var document = JsonDocument.Parse(snapshot);
+        return JsonSerializer.Serialize(document.RootElement.EnumerateObject()
+            .Where(x => x.Name != "Version").ToDictionary(x => x.Name, x => x.Value));
     }
 
     private async Task<bool> IsEligibleTeamCreditAsync(Guid teamId, Guid participantId, DateTimeOffset submittedAt, CancellationToken cancellationToken)

@@ -17,7 +17,7 @@ public sealed partial class DraftModel
 {
     public async Task<IActionResult> OnGetReadbackAsync(Guid id, CancellationToken ct)
     {
-        if (User.GetAccountId() is not { } actor || !await db.Accounts.AsNoTracking().AnyAsync(x => x.Id == actor && x.Active && x.GlobalRole == GlobalRole.Admin, ct)) return Forbid();
+        if (User.GetAccountId() is not { } actor || !await db.Accounts.AsNoTracking().AnyAsync(x => x.Id == actor && x.Active && (x.GlobalRole == GlobalRole.Admin || x.GlobalRole == GlobalRole.SuperAdmin), ct)) return Forbid();
         Response.Headers.CacheControl = "no-store";
         try
         {
