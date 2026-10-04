@@ -527,8 +527,12 @@ and unavailable reads remain unknown. Review uses its existing action snapshots 
 versioned attribution. Board compares full tile content and retains distinct active
 snapshot identities for publish versus discard. Teams exposes the last recorded
 roster synchronization outcomes separately from local roster publication. Backend
-implementation awaits external Claude review and RC07/RC05/RC04 binding; evidence:
-`docs/references/admin-ui/reviews/2026-10-04/au-b5/`.
+contracts are backend implemented, remediation done, Claude recheck pending, binding pending (RC07/RC05/RC04).
+Review exposes nullable before/after versions for old actions and the credited
+participant’s team-leave time. Board compares the actual publish projection,
+including retained frozen names/rates. Teams separates roster PublishedAt from
+WOM operation CreatedAt/UpdatedAt. Evidence:
+`docs/references/admin-ui/reviews/2026-10-04/au-b5-remediation/`.
 
 Duplicate-disabled contribution uses immutable shared catalogue-item identity frozen
 into event and approval drop snapshots, scoped to one requirement. It never relies

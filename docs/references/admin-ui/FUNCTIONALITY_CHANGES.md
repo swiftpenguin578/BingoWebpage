@@ -121,8 +121,7 @@ and [shared UI](../../../UI_SYSTEM.md#approved-admin-reference-direction--2-octo
   preserve evidence history, reasons and separate approval. No saved-account or
   roster rewrite is implied.
 
-AU17a/AU17/AU19/AU14 are backend implemented in B5 with external Claude review
-and UI binding pending; evidence under `reviews/2026-10-04/au-b5/`. AU20/AU12 status
+AU17a/AU17/AU19/AU14 are backend implemented, remediation done, Claude recheck pending, binding pending; original evidence under `reviews/2026-10-04/au-b5/`, remediation evidence under `reviews/2026-10-04/au-b5-remediation/`. AU20/AU12 status
 follows their owning delivery records. Conflict overwrite/re-send and
 scheduled-slot relaxation for WOM remain deferred, not implicitly approved.
 
@@ -247,7 +246,7 @@ the report's earlier all-read-only recommendation; ownership confirmation is set
 | Review R3 | Protect cancel/stale correction and reason drafts | RC07 |
 | Review R4 | Reversal mock reflects real contribution reallocation | RC07; existing service |
 | Review R5 | Unknown event never selects another event's queue | RC07 |
-| Review R6 | Credited account correction refreshes its own context | RC07 + AU17 |
+| Review R6 | Credited account correction refreshes existing data and the S9 team-leave warning | RC07; AU17 excludes per-account prior-approved counts |
 | Review R7 | Objective selectors distinguish multiple objectives on a tile | RC07; existing data |
 | Review R8 | Completed manual objective rejects correction like other types | RC07; existing validation |
 | Final Review F1 | Negative readback cannot claim no historical change | RC08 + AU18 |
@@ -311,13 +310,13 @@ Luck, Participants and Dashboard backend work is complete, not queued to rebuild
 | AU11 | Board: tile-local manual EHB override for all objective types | Agreed; queued, not implemented |
 | AU12 | Rankings: credited EHB before score time; preserve first full-board finish and history | Agreed; queued, new events only; existing events keep prior rule |
 | AU13 | Board: manually adjustable planning team size after draft finalization | Complete through F8 (`6d33ce6`); removed lock originated in `525d5d1`; manual planning estimate stays authoritative |
-| AU14 | Teams: safe authoritative readback after uncertain actions | B5 backend `d3f2d88`; PostgreSQL 7/7; external Claude review and RC04/DRF binding pending |
+| AU14 | Teams: safe authoritative readback after uncertain actions | B5 backend implemented, remediation done, Claude recheck pending, binding pending; original backend `d3f2d88`; PostgreSQL 7/7; external Claude recheck and RC04/DRF binding pending |
 | AU15 | WOM: remove typed FETCH confirmation; preserve refresh protections | Approved 2 October; queued, not dispatched |
 | AU16 | Audit: restore approved hidden-event history and exact filters | Approved defect fix; queued, not dispatched |
-| AU17a | Review: D11 Playing-only retained event attribution | B5 backend `ebd0ef2`; PostgreSQL 7/7; external Claude review and RC07 binding pending |
-| AU17 | Review: Contribution line and uncertain-save readback only | B5 backend `397d4c9`; focused PostgreSQL 16/16; external Claude review and RC07 binding pending; no per-account context |
+| AU17a | Review: D11 Playing-only retained event attribution | B5 backend implemented, remediation done, Claude recheck pending, binding pending; original backend `ebd0ef2`; PostgreSQL 7/7; external Claude recheck and RC07 binding pending |
+| AU17 | Review: Contribution line and uncertain-save readback only | B5 backend implemented, remediation done, Claude recheck pending, binding pending; original backend `397d4c9`; focused PostgreSQL 16/16; external Claude recheck and RC07 binding pending; no per-account context |
 | AU18 | Final Review: per-version final WOM outcome and reopen/version history | Approved, narrowed; assigned B2; no current-event readiness row; publish/reopen refusal unchanged |
-| AU19 | Board: tile-targeted approval issues, preview comparison and uncertain-action readback | B5 backend `992f6b1`; PostgreSQL 62/62; external Claude review and RC05 binding pending |
+| AU19 | Board: tile-targeted approval issues, preview comparison and uncertain-action readback | B5 backend implemented, remediation done, Claude recheck pending, binding pending; original backend `992f6b1`; PostgreSQL 62/62; external Claude recheck and RC05 binding pending |
 | AU20 | WOM: exact configured-window matching, structured outcomes and replacement/recovery | Approved; queued, not dispatched; transport and scope details remain in the ticket |
 | AU21 | Catalogue: explicit shared-item adoption, rename and recovery scope | B4 remediation implemented in `c4c52a4`; external Claude review pending; structured confirmation and Add-drop image coverage in `reviews/2026-10-04/au-b4/remediation/` |
 | AU22 | Accounts: accurate projections and target-bound reset response | Approved defect fix; queued, not dispatched |
@@ -611,7 +610,7 @@ complete. Reuse existing supported behavior where it already satisfies them.
 | Item | Decision / boundary |
 | --- | --- |
 | Toast Undo | Explicitly deferred. Remove its prototype affordance/callback; do not add backend reversal now. |
-| General manual waiting-list reordering | Not approved. Directly confirming a person is not approval for queue editing. Leave this separate reference item pending discussion and identify where it remains. |
+| General manual waiting-list reordering | Closed — not approved (08-decisions.md, S13). Queue follows signup order; remove Move up/Move down from the Participants reference at P-1 binding. Direct confirmation/cap override remains separate. |
 | Technical account/question-slot mapping | Resolved in the completed backend pass: existing protected PrimaryRegularAccount question and answer remain the authority; UI binding must use that mapping. |
 | Exact Add route shape | Resolve as part of the routing integration; no final query format is specified here. |
 

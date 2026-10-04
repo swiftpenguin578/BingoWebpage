@@ -58,7 +58,8 @@ The implementation scope, checks and deferred UI boundary are in
 ## UI review decisions — approved 2026-10-02
 
 These later user decisions supersede conflicting current-only eligibility and
-pending-decision notes below; implementation remains queued, not complete.
+pending-decision notes below. Implementation status follows each owning ticket;
+AU14/AU17a/AU17/AU19 are backend implemented, remediation done, Claude recheck pending, binding pending.
 
 - **Ranking (AU12):** EHB-before-score-time applies to new events only. Existing
   events retain their prior ranking rule, including those without official results.
@@ -85,10 +86,12 @@ pending-decision notes below; implementation remains queued, not complete.
   snapshots rewritten. Application behavior is implemented under AU20; reference updates remain pending in RC09.
 - **Evidence correction (AU17a):** D11 option b narrows the pool to current or
   released Playing assignments in the event belonging to current or former members
-  of the submission’s own team. Informational accounts are never selectable.
+  of the submission’s own team. Under D12, former membership must cover the
+  upload time (joined at or before it, not ended before it); current members still
+  count and the latest assignment must be Playing. Informational accounts are never selectable.
   Derive one unambiguous participant from the selected character; never move the
   submission to another team. Retained identities must survive readiness/results.
-  B5 backend implemented; external Claude review and RC07 binding remain pending.
+  B5 backend implemented, remediation done, Claude recheck pending, binding pending (RC07).
   Decision source: [08-decisions.md, B5 brief decisions](/Users/christopher/Documents/BingoWebpage/review-notes/08-decisions.md#b5-brief-decisions).
   Preserve reason, audit, pending-correction/version rules and original evidence.
   This corrects evidence attribution; it does not rewrite saved accounts, rosters
@@ -1122,7 +1125,7 @@ An admin can:
 Editable metadata includes:
 
 - Tile or requirement
-- Credited account from current/released Playing event assignments of current/former members of the submission’s own team, with unambiguous derived participant attribution (AU17a/D11 option b; backend implemented, review/UI binding pending; Informational excluded)
+- Credited account from current/released Playing event assignments of current/former members of the submission’s own team, with unambiguous derived participant attribution (AU17a/D11 option b; backend implemented, remediation done, Claude recheck pending, binding pending; Informational excluded)
 - Qualifying drop and its derived boss/activity
 
 These material corrections require a written reason, revalidate the complete submission, and store the original and new values. Credited participant is not independently editable. Immutable server submission time, calculated contribution, and the submitted evidence image are not administrator-editable. Snapshot contribution weight is not manually editable; changing requirement/drop replaces it with the authoritative frozen weight of the selected destination.

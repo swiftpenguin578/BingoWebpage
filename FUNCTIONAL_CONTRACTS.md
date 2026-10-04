@@ -156,8 +156,7 @@ qualify the contracts below: AU12 applies only to new events; AU17a/D11 option b
 permits current/released Playing event assignments of current members of the
 submission’s own team or former members whose membership covered the upload time
 (D12). The latest assignment must be Playing; Informational accounts are excluded. B5 backend contracts
-for AU17a/AU17/AU19/AU14 are implemented; external Claude review and UI binding
-remain pending. WOM
+for AU17a/AU17/AU19/AU14 are backend implemented, remediation done, Claude recheck pending, binding pending. WOM
 option 1 is now explicitly approved: preserve local external disconnect before first
 Live and matching replacement before/during Live with or without stored credentials,
 subject to active/unresolved-operation guards. Never delete the external competition
@@ -652,7 +651,7 @@ team IDs, expected version/control and immutable intended fields through pending
 stale and uncertain outcomes. Matching pick numbers or orders cannot prove a timed-
 out action's result. A read failure keeps uncertainty and does not authorize replay.
 Local roster publication success is separate from actual queued/failed/unknown WOM
-synchronization. AU14 provides the backend readback contract (B5, review pending);
+synchronization. AU14 provides the backend readback contract (B5; backend implemented, remediation done, Claude recheck pending, binding pending);
 RC04/DRF binding remains pending. Its nullable persisted draft identity, immutable
 picks, retained memberships and full team/account fields never identify a request.
 
@@ -850,7 +849,10 @@ identity/time instead of a contribution claim. No-store readback returns coheren
 current identity/version/status/full corrected fields and latest review attribution,
 not a request receipt. Failed reads stay unknown; equal-time legacy actions without
 reliable ordering do not invent latest-action attribution. No replay or per-account
-context is added. RC07 binding and external Claude review remain pending.
+prior-approved count is added. S9 supplies the credited participant’s team-leave
+time for later warning binding. Review-action before/after versions are nullable
+for old rows. Backend implemented, remediation done, Claude recheck pending,
+binding pending (RC07).
 
 Approved G1–G2 correction scope (3 October 2026; implemented and rechecked):
 approval of a later upload is blocked only when it reduces the credit available

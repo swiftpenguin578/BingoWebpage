@@ -17,3 +17,5 @@ The seven cases prove retained reassignment, released/former-member correction a
 Reference check: Review.dc.html correction picker (`acctOpts`, Playing accounts on this team) has no released/left markers. AU17a requires an actual register row in item 5. No reference edits or UI/manual acceptance claimed.
 
 Batch-end result and saved correction status: [item-5 gate evidence](docs-register.md). The full gate failed; this focused result is not a final batch pass.
+
+Existing-test expectation change: `ReleasedPlayingAssignmentCannotBeUsedForAdminCorrectionAfterReassignment` was renamed to `ReleasedPlayingAssignmentCanBeUsedForAdminCorrectionAfterReassignment`: refusal became successful retained Playing correction under recorded D11 option b. The test checks both retained and replacement corrected character identities; D12 membership-at-upload refinement and latest-role checks are proved in [remediation item2](../au-b5-remediation/02-correction-eligibility.md).

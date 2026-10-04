@@ -23,7 +23,7 @@ Baseline: `fdc73dcc5605e582c11866947bd54cc54fc7a4e7`.
 2. AU17 `397d4c96538004731652fe9948babc19c4ff8f5a` — [item evidence](au17.md), focused PostgreSQL 16/16 PASS.
 3. AU19 `992f6b1dc10fffea0aa4a65d93f6389814e7db2c` — [item evidence](au19.md), focused PostgreSQL 62/62 PASS.
 4. AU14 `d3f2d886d6e60bb87b87765de355165901776d96` — [item evidence](au14.md), focused PostgreSQL 7/7 PASS.
-5. Approved corrective checkpoint `e63546149dbd400a257d063d4dfbdc07bc72c703` — [scope, direct human approval and final checks](corrections.md), 94/94 PASS.
+5. Approved corrective checkpoint `e63546149dbd400a257d063d4dfbdc07bc72c703` — [scope, approval relayed by /root and final checks](corrections.md), 94/94 PASS.
 6. This final documentation/register/status checkpoint; exact SHA and final range are reported after commit.
 
 Final review range includes item 1: `fdc73dcc5605e582c11866947bd54cc54fc7a4e7..HEAD` at the sixth checkpoint. The terminal delivery report provides its exact ending SHA.

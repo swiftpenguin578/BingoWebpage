@@ -1,8 +1,8 @@
 # B5 approved final-gate corrections
 
-## Direct authorization and scope
+## Relayed authorization and scope
 
-After automatic approval review rejected the proposed rebalance assertion change, the planner recommended that exact scoped change plus one additional corrective commit. The human replied **“I approve”** in planner chat `01a10660-cc8a-7843-abb4-6cc1ebbb2bf2`; `/root` relayed that direct approval to `/root/au_b5_implementer` on 4 October 2026. This is new authorization after rejection, not an older approval or a waiver of failures. Six B5 commits are now authorized: retain four existing item commits, commit these corrections, then commit final documentation separately. No amend/rewrite.
+After automatic approval review rejected the proposed rebalance assertion change, the planner recommended that exact scoped change plus one additional corrective commit. The human replied **“I approve”** in planner chat `01a10660-cc8a-7843-abb4-6cc1ebbb2bf2`; `/root` relayed that approval to `/root/au_b5_implementer` on 4 October 2026. This is new authorization after rejection, not an older approval or a waiver of failures. Six B5 commits are now authorized: retain four existing item commits, commit these corrections, then commit final documentation separately. No amend/rewrite.
 
 Approved assertion change in `ApprovalCapsContributionAndReversalRebalancesLaterApprovedEvidence`:
 
@@ -34,3 +34,5 @@ dotnet test tests/Bingo.IntegrationTests/Bingo.IntegrationTests.csproj --no-buil
 **94/94 PASS, 0 failed, 0 skipped**, duration 2m36s; TRX `/tmp/au-b5-approved-corrections/au-b5-approved-corrections.trx`. Full Review is 92/92 and the two endpoint authorization cases are 2/2. This covers the full Review class and both changed authorization endpoints in disposable PostgreSQL, including direct consequences for allocation/rebalancing/history/readback ordering and unchanged failure injection. Other passing full-class evidence from [docs-register.md](docs-register.md) is reused because those code paths are unchanged. No final all-gate pass is implied.
 
 `git diff --check`: PASS. Independent external Claude review remains pending; this is implementer-reported execution evidence.
+
+Provenance confirmation: [08-decisions.md, B5 review D15](/Users/christopher/Documents/BingoWebpage/review-notes/08-decisions.md#b5-review-decisions-user-4-october) confirms the user approval. The implementer received it through `/root`; the quoted reply above remains the approval record.
