@@ -106,32 +106,35 @@ For every deploy it:
 
 1. Captures the current running web container's immutable image and OCI source
    revision, then stops `web`. The stop remains in force through the authoritative
-   pre-change backup, migration, catalogue/bootstrap, preflight, and new-web
-   readiness; a short public interruption is accepted.
+   pre-change backup, migration, owner bootstrap, preflight, and new-web readiness;
+   a short public interruption is accepted.
 2. Validates Compose and all five physical volumes, starts only PostgreSQL if
    necessary, and creates a PostgreSQL custom-format dump. The backup manifest
    binds the captured running image/source, dump, migration history, Data
    Protection keys, both configs, explicit bootstrap state, and every checksum.
    Restic tags bind the backup ID and manifest checksum; the local receipt is
    secret-free corroboration, never a restore prerequisite.
-3. On `new` or `interrupted` state, restores the reviewed production database
-   backup after `--migrate`, then runs the selected-owner
-   `--slice1-bootstrap-owner` and `--production-preflight`. An interrupted
-   owner command that already succeeded is skipped only after the explicit
-   active-owner check. On `completed` state, it runs the legacy migration
-   preflight only when `BINGO_RETAINED_LEGACY_PREFLIGHT=required`, then
-   `--migrate` and `--production-preflight`. On a completed/retained database,
+3. On `new` or `interrupted` state, runs `--migrate` against the empty schema,
+   then runs the selected-owner `--slice1-bootstrap-owner` and
+   `--production-preflight`. The migration/bootstrap path leaves the catalogue
+   empty, so a new database is not a supported production rebuild: D10 preflight
+   requires at least one active activity, one active item, and one active drop.
+   An interrupted owner command that already succeeded is skipped only after the
+   explicit active-owner check. To rebuild production, first use the existing
+   `bingo-restore --full-restore` procedure with a reviewed backup, then run the
+   normal completed/retained deploy. On `completed` state, the script runs the
+   legacy migration preflight only when `BINGO_RETAINED_LEGACY_PREFLIGHT=required`,
+   then `--migrate` and `--production-preflight`. On a completed/retained database,
    `--migrate` executes the one-time `20260916100000_PopulateRetainedCatalogue`
    operation when it is pending. That migration carries the reviewed payload,
    resolves exact item normalized-name/name and boss slug/name identities, fills
    only missing eligible mapping and pricing fields, preserves operator and frozen
    event data, and writes system-actor before/after audits. It fails atomically on
    missing or ambiguous identities. Never apply the full catalogue snapshot to
-   completed/retained data. Before any catalogue/bootstrap mutation, a
-   `new` marker with non-empty migration history is rejected for operator
-   reconciliation; the marker is not changed. Any failure before replacement
-   leaves `web` stopped; changed or unknown migration history never permits old
-   code to run.
+   completed/retained data. Before any owner-bootstrap mutation, a `new` marker
+   with non-empty migration history is rejected for operator reconciliation; the
+   marker is not changed. Any failure before replacement leaves `web` stopped;
+   changed or unknown migration history never permits old code to run.
 4. Replaces only `web` with `docker compose up -d --no-deps web`; Caddy and
    PostgreSQL are not pulled, refreshed, or replaced. After new web health, it
    starts Caddy only when no Caddy container exists, then verifies public HTTPS
@@ -489,9 +492,9 @@ under a later assignment before any R3 execution.
 4. On the main rehearsal DB run `--convert-luck-checkpoints`; require exit 0 and
    `Could not convert=0`, record summary counts. R1 remains blocking on failure.
 5. Run `--production-preflight` with local HTTPS S3 fixture; require exit 0. This
-   validates migrations, catalogue baseline, exactly one active SuperAdmin and
-   local storage availability/data-protection round-trip. It proves no real R2
-   credential, object, permission or availability property.
+   validates migrations, at least one active activity/item/drop, exactly one
+   active SuperAdmin and local storage availability/data-protection round-trip.
+   It proves no real R2 credential, object, permission or availability property.
 6. Start web from the same candidate/configuration. Require the native
    `--health-probe` (ready), plus `/health/live` and `/health/ready` through the
    isolated network. Record worker heartbeat health and bounded startup logs,
