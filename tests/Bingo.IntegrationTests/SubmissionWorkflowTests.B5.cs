@@ -111,6 +111,114 @@ public sealed partial class SubmissionWorkflowTests
         Assert.Equal(baseline, await B5EvidenceStateAsync());
     }
 
+    [Theory]
+    [InlineData(5, false, 2, 0, 5, false)]
+    [InlineData(3, true, 1, 2, 1, true)]
+    [InlineData(2, false, 2, 0, 2, true)]
+    [InlineData(2, true, 0, 2, 0, true)]
+    public async Task B5ContributionMatchesApprovalAllocation(int target, bool earlierApproval, int add, int used, int remaining, bool completes)
+    {
+        var setup = await SeedAsync(target, true);
+        await using var db = new ApplicationDbContext(options);
+        var first = earlierApproval ? await Service(db).CreateAsync(Command(setup)) : null;
+        var created = await Service(db, new FixedTimeProvider(now.AddSeconds(1))).CreateAsync(Command(setup));
+        if (first is not null) await Service(db).ApproveAsync(first.SubmissionId, setup.AdminId);
+        var read = await Service(db).GetReviewReadbackAsync(created.SubmissionId, setup.AdminId);
+        Assert.True(read.Known);
+        var state = read.State!;
+        Assert.Null(state.Contribution.BlockingSubmission);
+        Assert.Equal(new SubmissionContributionNumbers(add, 2, remaining, used, target, completes), state.Contribution.Values);
+        if (add == 0)
+            await Assert.ThrowsAsync<InvalidOperationException>(() => Service(db).ApproveAsync(created.SubmissionId, setup.AdminId));
+        else
+        {
+            Assert.Equal(add, (await Service(db).ApproveAsync(created.SubmissionId, setup.AdminId)).ApprovedContribution);
+            var approved = (await Service(db).GetReviewReadbackAsync(created.SubmissionId, setup.AdminId)).State!;
+            Assert.Equal(SubmissionStatus.Approved, approved.Status);
+            Assert.Equal(state.Contribution.Values, approved.Contribution.Values);
+            Assert.Equal(ReviewActionType.Approve, approved.LatestAction!.Type);
+            Assert.False(approved.LatestAction.ReasonPresent);
+        }
+    }
+
+    [Fact]
+    public async Task B5ContributionReturnsExistingBlockInsteadOfAnApprovalClaim()
+    {
+        var setup = await SeedAsync(3, true);
+        await using var db = new ApplicationDbContext(options);
+        var first = await Service(db).CreateAsync(Command(setup));
+        var later = await Service(db, new FixedTimeProvider(now.AddSeconds(1))).CreateAsync(Command(setup));
+        var read = (await Service(db).GetReviewReadbackAsync(later.SubmissionId, setup.AdminId)).State!;
+        Assert.Null(read.Contribution.Values);
+        Assert.Equal(new SubmissionApprovalBlock(first.SubmissionId, now), read.Contribution.BlockingSubmission);
+        var approval = await Service(db).ApproveAsync(later.SubmissionId, setup.AdminId);
+        Assert.Equal(read.Contribution.BlockingSubmission, approval.BlockingSubmission);
+        Assert.Equal(0, approval.ApprovedContribution);
+    }
+
+    [Fact]
+    public async Task B5ReviewReadbackReportsOtherAdminAndAllCorrectedFieldsWithoutAttributionToRequest()
+    {
+        var setup = await SeedAsync(8, true, createAlternateWeightDrop: true);
+        await using var db = new ApplicationDbContext(options);
+        var actor = Account.CreateWebsite(Guid.NewGuid(), "other-reviewer", "OTHER-REVIEWER", now);
+        actor.SetGlobalRole(GlobalRole.Admin); db.Accounts.Add(actor); await db.SaveChangesAsync();
+        var service = Service(db);
+        var created = await service.CreateAsync(Command(setup));
+        var original = (await service.GetReviewReadbackAsync(created.SubmissionId, setup.AdminId)).State!;
+        await service.EditMetadataAsync(new(created.SubmissionId, actor.Id, setup.TileId, setup.RequirementId, setup.AlternateDropId, original.CreditedCharacterId, "Other admin correction", original.Version));
+        var corrected = (await service.GetReviewReadbackAsync(created.SubmissionId, setup.AdminId)).State!;
+        Assert.Equal(setup.EventId, corrected.EventId); Assert.Equal(setup.TeamId, corrected.TeamId);
+        Assert.Equal(setup.TileId, corrected.BoardTileId); Assert.Equal(setup.RequirementId, corrected.RequirementId);
+        Assert.Equal(setup.AlternateDropId, corrected.DropSnapshotId); Assert.Equal(2, corrected.Weight);
+        Assert.Equal(original.CreditedCharacterId, corrected.CreditedCharacterId); Assert.Equal(setup.ParticipantId, corrected.CreditedParticipantId);
+        Assert.True(corrected.Version > original.Version);
+        Assert.Equal(ReviewActionType.EditMetadata, corrected.LatestAction!.Type);
+        Assert.Equal(actor.Id, corrected.LatestAction.ActorId); Assert.Equal("other-reviewer", corrected.LatestAction.ActorName);
+        Assert.True(corrected.LatestAction.ReasonPresent); Assert.Equal(now, corrected.LatestAction.At);
+        await service.ApproveAsync(created.SubmissionId, actor.Id, expectedVersion: corrected.Version);
+        var approved = (await service.GetReviewReadbackAsync(created.SubmissionId, setup.AdminId)).State!;
+        Assert.Equal(SubmissionStatus.Approved, approved.Status); Assert.Equal(actor.Id, approved.LatestAction!.ActorId);
+        await service.ReverseAsync(created.SubmissionId, actor.Id, "Other admin reversal", expectedVersion: approved.Version);
+        var reversed = (await service.GetReviewReadbackAsync(created.SubmissionId, setup.AdminId)).State!;
+        Assert.Equal(SubmissionStatus.Reversed, reversed.Status); Assert.Equal(ReviewActionType.ReverseApproval, reversed.LatestAction!.Type);
+        Assert.True(reversed.LatestAction.ReasonPresent); Assert.Equal(0, reversed.Contribution.Values!.Add);
+        var rejectedId = (await service.CreateAsync(Command(setup))).SubmissionId;
+        await service.RejectAsync(rejectedId, actor.Id, "Other admin rejection");
+        var rejected = (await service.GetReviewReadbackAsync(rejectedId, setup.AdminId)).State!;
+        Assert.Equal(SubmissionStatus.Rejected, rejected.Status); Assert.Equal(ReviewActionType.Reject, rejected.LatestAction!.Type);
+        Assert.Equal(actor.Id, rejected.LatestAction.ActorId); Assert.True(rejected.LatestAction.ReasonPresent);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.GetReviewReadbackAsync(created.SubmissionId, setup.CaptainId));
+        var baseline = await B5EvidenceStateAsync();
+        await service.GetReviewReadbackAsync(created.SubmissionId, setup.AdminId);
+        Assert.Equal(baseline, await B5EvidenceStateAsync());
+    }
+
+    [Fact]
+    public async Task B5ReviewFailedReadbackIsUnknownAndDoesNotReplay()
+    {
+        var setup = await SeedAsync(3, true);
+        await using var db = new ApplicationDbContext(options);
+        var created = await Service(db).CreateAsync(Command(setup));
+        var baseline = await B5EvidenceStateAsync();
+        var failingOptions = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetConnectionString()).AddInterceptors(new B5ReadFailure()).Options;
+        await using var failing = new ApplicationDbContext(failingOptions);
+        var result = await Service(failing).GetReviewReadbackAsync(created.SubmissionId, setup.AdminId);
+        Assert.False(result.Known); Assert.Null(result.State);
+        Assert.Equal(baseline, await B5EvidenceStateAsync());
+    }
+
+    private sealed class B5ReadFailure : Microsoft.EntityFrameworkCore.Diagnostics.DbCommandInterceptor
+    {
+        public override ValueTask<Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult<System.Data.Common.DbDataReader>> ReaderExecutingAsync(
+            System.Data.Common.DbCommand command, Microsoft.EntityFrameworkCore.Diagnostics.CommandEventData eventData,
+            Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult<System.Data.Common.DbDataReader> result, CancellationToken cancellationToken = default)
+        {
+            if (command.CommandText.Contains("FROM submissions", StringComparison.Ordinal)) throw new TimeoutException("Controlled read failure");
+            return base.ReaderExecutingAsync(command, eventData, result, cancellationToken);
+        }
+    }
+
     private async Task<string> B5EvidenceStateAsync()
     {
         await using var db = new ApplicationDbContext(options);

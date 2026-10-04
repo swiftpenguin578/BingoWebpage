@@ -11,6 +11,7 @@ public interface ISubmissionService
     Task RejectAsync(Guid submissionId, Guid adminAccountId, string reason, CancellationToken cancellationToken = default, int? expectedVersion = null);
     Task<SubmissionApprovalResult> ApproveAsync(Guid submissionId, Guid adminAccountId, CancellationToken cancellationToken = default, int? expectedVersion = null);
     Task ReverseAsync(Guid submissionId, Guid adminAccountId, string reason, CancellationToken cancellationToken = default, int? expectedVersion = null);
+    Task<SubmissionReviewReadback> GetReviewReadbackAsync(Guid submissionId, Guid adminAccountId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<SubmissionCorrectionCharacter>> GetCorrectionCharactersAsync(Guid submissionId, Guid adminAccountId, CancellationToken cancellationToken = default);
     Task EditMetadataAsync(EditSubmissionMetadataCommand command, CancellationToken cancellationToken = default);
 }
@@ -36,3 +37,18 @@ public sealed record SubmissionCorrectionCharacter(Guid CharacterId, Guid Partic
 {
     public bool Current => !Released && !LeftTeam;
 }
+
+// Current authoritative state only. A match never identifies a request or permits replay.
+// Unknown has no state and must never be rendered as "not saved".
+public sealed record SubmissionReviewReadback(SubmissionReviewState? State)
+{
+    public bool Known => State is not null;
+}
+public sealed record SubmissionReviewState(Guid SubmissionId, Guid EventId, Guid TeamId, int Version,
+    SubmissionStatus Status, Guid BoardTileId, Guid RequirementId, Guid? DropSnapshotId,
+    Guid CreditedParticipantId, Guid CreditedCharacterId, string CreditedCharacterName, int Weight,
+    int ApprovedContribution, SubmissionLatestReviewAction? LatestAction, SubmissionContributionRead Contribution);
+public sealed record SubmissionLatestReviewAction(Guid Id, ReviewActionType Type, Guid ActorId,
+    string? ActorName, DateTimeOffset At, bool ReasonPresent);
+public sealed record SubmissionContributionRead(SubmissionContributionNumbers? Values, SubmissionApprovalBlock? BlockingSubmission = null);
+public sealed record SubmissionContributionNumbers(int Add, int Weight, int Remaining, int Used, int Target, bool Completes);

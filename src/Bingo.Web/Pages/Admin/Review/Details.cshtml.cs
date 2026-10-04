@@ -26,6 +26,12 @@ public sealed class DetailsModel(ApplicationDbContext db, ISubmissionService ser
     [BindProperty(SupportsGet = true)] public SubmissionStatus? Status { get; set; }
     [BindProperty] public ReviewInput Input { get; set; } = new();
     public async Task<IActionResult> OnGetAsync(Guid id, CancellationToken ct) { if (!await Load(id, ct)) return NotFound(); Input = new() { BoardTileId = Details.TileId, RequirementId = Details.RequirementId, DropSnapshotId = Details.DropId, CreditedOsrsCharacterId = Details.CharacterId, Reason = Details.Note, ExpectedVersion = Details.Version }; return Page(); }
+    public async Task<IActionResult> OnGetReadbackAsync(Guid id, CancellationToken ct)
+    {
+        if (User.GetAccountId() is not { } adminId) return Forbid();
+        Response.Headers.CacheControl = "no-store";
+        return new JsonResult(await service.GetReviewReadbackAsync(id, adminId, ct));
+    }
     public async Task<IActionResult> OnGetCorrectionCharactersAsync(Guid id, CancellationToken ct)
     {
         if (User.GetAccountId() is not { } adminId) return Forbid();

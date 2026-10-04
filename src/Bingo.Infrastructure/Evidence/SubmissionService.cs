@@ -17,7 +17,7 @@ using Npgsql;
 
 namespace Bingo.Infrastructure.Evidence;
 
-public sealed class SubmissionService(
+public sealed partial class SubmissionService(
     ApplicationDbContext db,
     IEvidenceStorage storage,
     TimeProvider time,
@@ -153,18 +153,10 @@ public sealed class SubmissionService(
         var s = await LockedAdminReviewSubmissionAsync(submissionId, cancellationToken); EnsureExpectedVersion(s, expectedVersion); if (s.Status != SubmissionStatus.Pending) throw new InvalidOperationException("Only a pending submission can be approved.");
         var publication = await LockedPublicationAsync(s.EventId, cancellationToken);
         var requirement = publication.Requirements.SingleOrDefault(x => x.Id == s.RequirementId && x.BoardTileId == s.BoardTileId) ?? throw new InvalidOperationException("The published objective is unavailable.");
-        var used = await db.SubmissionContributions.Where(x => x.TeamId == s.TeamId && x.RequirementId == s.RequirementId && x.ReversedAt == null).SumAsync(x => (int?)x.Amount, cancellationToken) ?? 0;
-        var remaining = Math.Max(0, requirement.TargetContribution - used); var allowed = s.ClaimedWeight;
-        if (s.DropSnapshotId is not null)
-        {
-            var drop = publication.Drops.Single(x => x.Id == s.DropSnapshotId && x.RequirementId == s.RequirementId);
-            var maximum = MaximumContribution(requirement, drop, publication.Drops);
-            var dropUsed = await UsedDropContributionAsync(s.TeamId, s.RequirementId, drop, requirement.DuplicatesAllowed, cancellationToken);
-            allowed = Math.Min(allowed, Math.Max(0, maximum - dropUsed));
-        }
-        var amount = Math.Min(remaining, allowed);
-        if (amount < 1) throw new InvalidOperationException("This objective has no remaining eligible contribution for this submission. It cannot be approved under the published objective rules.");
-        var blockingSubmission = await FindEarlierApprovalBlockAsync(s, requirement, publication, amount, cancellationToken);
+        var allocation = await ContributionAsync(s, publication, requirement, cancellationToken);
+        var blockingSubmission = allocation.BlockingSubmission;
+        var amount = allocation.Values?.Add ?? 0;
+        if (blockingSubmission is null && amount < 1) throw new InvalidOperationException("This objective has no remaining eligible contribution for this submission. It cannot be approved under the published objective rules.");
         if (blockingSubmission is not null)
         {
             // LockedAdminReviewSubmissionAsync advances the event version in the
@@ -583,5 +575,11 @@ public sealed class SubmissionService(
         }
     }
 
-    private static string Snapshot(Submission s) => JsonSerializer.Serialize(new { s.BoardTileId, s.RequirementId, s.DropSnapshotId, s.CreditedParticipantId, s.CreditedOsrsCharacterId, s.CreditedCharacterName, CaptainNotePresent = s.CaptainNote is not null, s.ClaimedWeight, s.ApprovedContribution, s.Status, CurrentReviewerNotePresent = s.CurrentReviewerNote is not null, s.ResubmissionOfSubmissionId });
+    private string Snapshot(Submission s)
+    {
+        db.ChangeTracker.DetectChanges();
+        // ApplicationDbContext advances modified submission versions during SaveChanges.
+        var version = s.Version + (db.Entry(s).State == EntityState.Modified ? 1 : 0);
+        return JsonSerializer.Serialize(new { Version = version, s.BoardTileId, s.RequirementId, s.DropSnapshotId, s.CreditedParticipantId, s.CreditedOsrsCharacterId, s.CreditedCharacterName, CaptainNotePresent = s.CaptainNote is not null, s.ClaimedWeight, s.ApprovedContribution, s.Status, CurrentReviewerNotePresent = s.CurrentReviewerNote is not null, s.ResubmissionOfSubmissionId });
+    }
 }
