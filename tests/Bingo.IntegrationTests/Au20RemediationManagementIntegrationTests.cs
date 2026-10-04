@@ -100,6 +100,30 @@ public sealed partial class EventCompetitionManagementIntegrationTests
         Assert.Equal(EventCompetitionEndUpdateStatus.Succeeded, (await final.EventCompetitionSynchronizations.SingleAsync()).EndUpdateStatus);
     }
 
+    [Fact]
+    public async Task Au20RemediationRealHttpRosterReceiptCompletesWithoutReconciliation()
+    {
+        var clock = new TestClock(new DateTimeOffset(2026, 10, 4, 12, 0, 0, TimeSpan.Zero));
+        var f = await SeedEventAsync(clock, false, competitionId: 2099);
+        var writes = 0;
+        using var http = new HttpClient(new Au20HttpHandler(async request =>
+        {
+            writes++;
+            using var body = JsonDocument.Parse(await request.Content!.ReadAsStringAsync());
+            Assert.NotEmpty(body.RootElement.GetProperty("teams").EnumerateArray());
+            return Au20HttpReceipt(f.RemoteCompetition!); // Real adapter parses an empty participant list.
+        })) { BaseAddress = new Uri("https://controlled.invalid/") };
+        var reads = new RecordingCompetitionClient(_ => new(WiseOldManCompetitionStatus.Success, f.RemoteCompetition));
+        await using var db = CreateDb();
+        var result = await new EventCompetitionManagementService(db, Au20HttpClient(http, clock), reads, new PassthroughCredentialProtector(), clock).QueueUpdateAsync(f.EventId);
+        Assert.True(result.Succeeded, result.Error);
+        Assert.Equal("Succeeded", result.Status);
+        Assert.Equal(1, writes);
+        Assert.Equal(1, reads.Calls); // The required source check only, no reconciliation.
+        Assert.Equal(EventCompetitionManagementOperationPhase.Succeeded, (await db.EventCompetitionManagementOperations.SingleAsync()).Phase);
+        Assert.Contains(await PublishedCharacterNameAsync(f.EventId), (await db.EventCompetitionManagements.SingleAsync()).LastAcknowledgedRosterJson, StringComparison.OrdinalIgnoreCase);
+    }
+
     private static HttpResponseMessage Au20HttpReceipt(WiseOldManCompetition remote) => new(HttpStatusCode.OK)
     {
         Content = new StringContent(JsonSerializer.Serialize(new { id = remote.Id, title = remote.Title, startsAt = remote.StartsAt, endsAt = remote.EndsAt }))

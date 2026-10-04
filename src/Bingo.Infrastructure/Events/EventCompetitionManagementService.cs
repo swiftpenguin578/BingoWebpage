@@ -588,7 +588,7 @@ public sealed partial class EventCompetitionManagementService(
             return await MarkUnknownAsync(operation.Id, RedactProviderText(result.ErrorCode, verificationCode) ?? "UnknownOutcome", RedactProviderText(result.Message, verificationCode) ?? "The WOM update outcome is unknown.", read.RetryAt, cancellationToken);
         }
         if (!result.Succeeded) return await HandleResultFailureAsync(operation.Id, result, cancellationToken, verificationCode);
-        if (result.Competition!.Id != management.CompetitionId || !Matches(result.Competition, updatePayload))
+        if (result.Competition!.Id != management.CompetitionId || !MatchesWriteReceipt(result.Competition, updatePayload))
             return await MarkUnknownAsync(operation.Id, "MismatchedReceipt", "The WOM update response did not confirm the requested window.", null, cancellationToken);
         return await PersistProviderReceiptWithRetryAsync(
             () => CompleteUpdateAsync(operation.Id, operation, updatePayload, result.Competition!, cancellationToken),
@@ -1411,10 +1411,15 @@ public sealed partial class EventCompetitionManagementService(
     private static string RemoteFingerprint(WiseOldManCompetition competition)
         => WiseOldManCompetitionRules.Fingerprint(new { competition.Id, competition.Title, competition.StartsAt, competition.EndsAt });
 
+    // The write adapter's receipt carries title/window, not a participant snapshot.
+    private static bool MatchesWriteReceipt(WiseOldManCompetition actual, WiseOldManCompetitionWritePayload expected)
+        => string.Equals(actual.Title.Trim(), expected.Title.Trim(), StringComparison.OrdinalIgnoreCase)
+            && actual.StartsAt.ToUniversalTime() == expected.StartsAt.ToUniversalTime()
+            && actual.EndsAt.ToUniversalTime() == expected.EndsAt.ToUniversalTime();
+
     private static bool Matches(WiseOldManCompetition actual, WiseOldManCompetitionWritePayload expected)
     {
-        if (!string.Equals(actual.Title.Trim(), expected.Title.Trim(), StringComparison.OrdinalIgnoreCase)) return false;
-        if (actual.StartsAt.ToUniversalTime() != expected.StartsAt.ToUniversalTime() || actual.EndsAt.ToUniversalTime() != expected.EndsAt.ToUniversalTime()) return false;
+        if (!MatchesWriteReceipt(actual, expected)) return false;
         if (!expected.IncludeTeams) return true;
         var actualNames = actual.Participants.Select(x => WiseOldManCompetitionRules.NormalizePlayerName(x.Username)).Order(StringComparer.Ordinal).ToArray();
         var expectedNames = expected.Teams.SelectMany(x => x.Participants).Select(WiseOldManCompetitionRules.NormalizePlayerName).Order(StringComparer.Ordinal).ToArray();
