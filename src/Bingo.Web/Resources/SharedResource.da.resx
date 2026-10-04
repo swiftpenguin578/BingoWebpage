@@ -1626,6 +1626,9 @@
   <data name="Item name" xml:space="preserve"><value>Genstandsnavn</value></data>
   <data name="New Super Admin" xml:space="preserve"><value>Ny Super Admin</value></data>
   <data name="Your current password" xml:space="preserve"><value>Din nuværende adgangskode</value></data>
+  <data name="Destination username confirmation" xml:space="preserve"><value>Bekræftelse af destinationsbrugernavn</value></data>
+  <data name="Type the selected account's public username to confirm this transfer." xml:space="preserve"><value>Skriv den valgte kontos offentlige brugernavn for at bekræfte overførslen.</value></data>
+  <data name="The destination username confirmation does not match the selected account." xml:space="preserve"><value>Bekræftelsen af destinationsbrugernavnet matcher ikke den valgte konto.</value></data>
   <data name="Efficient completions per hour" xml:space="preserve"><value>Effektive gennemførelser pr. time</value></data>
   <data name="Data source" xml:space="preserve"><value>Datakilde</value></data>
   <data name="Image URL" xml:space="preserve"><value>Billed-URL</value></data>
@@ -2191,6 +2194,7 @@
   <data name="Any role" xml:space="preserve"><value>Alle roller</value></data>
   <data name="Website accounts" xml:space="preserve"><value>Webstedskonti</value></data>
   <data name="Normal website identities and their global roles." xml:space="preserve"><value>Almindelige webstedsidentiteter og deres globale roller.</value></data>
+  <data name="{0} accounts · {1} disabled" xml:space="preserve"><value>{0} konti · {1} deaktiveret</value></data>
   <data name="Last login" xml:space="preserve"><value>Seneste login</value></data>
   <data name="Current event roles" xml:space="preserve"><value>Nuværende eventroller</value></data>
   <data name="Manage" xml:space="preserve"><value>Administrer</value></data>
@@ -2241,9 +2245,17 @@
   <data name="One-time setup or reset link" xml:space="preserve"><value>Engangslink til opsætning eller nulstilling</value></data>
   <data name="Audit log filters" xml:space="preserve"><value>Filtre til ændringslog</value></data>
   <data name="Action" xml:space="preserve"><value>Handling</value></data>
+  <data name="Hidden" xml:space="preserve"><value>Skjult</value></data>
   <data name="Event ID" xml:space="preserve"><value>Event-id</value></data>
   <data name="Filter" xml:space="preserve"><value>Filtrer</value></data>
   <data name="Audit entries" xml:space="preserve"><value>Logposter</value></data>
+  <data name="Audit entry" xml:space="preserve"><value>Auditpost</value></data>
+  <data name="Open entry" xml:space="preserve"><value>Åbn post</value></data>
+  <data name="This entry isn't available" xml:space="preserve"><value>Denne post er ikke tilgængelig</value></data>
+  <data name="The entry may be missing or unavailable for this account." xml:space="preserve"><value>Posten mangler muligvis eller er ikke tilgængelig for denne konto.</value></data>
+  <data name="The start date must be on or before the end date." xml:space="preserve"><value>Startdatoen skal være på eller før slutdatoen.</value></data>
+  <data name="The start date is out of range." xml:space="preserve"><value>Startdatoen er uden for det gyldige interval.</value></data>
+  <data name="The end date is out of range." xml:space="preserve"><value>Slutdatoen er uden for det gyldige interval.</value></data>
   <data name="Administrative history, ordered newest first." xml:space="preserve"><value>Administrativ historik, nyeste først.</value></data>
   <data name="Page {0}" xml:space="preserve"><value>Side {0}</value></data>
   <data name="No audit entries found" xml:space="preserve"><value>Ingen logposter fundet</value></data>

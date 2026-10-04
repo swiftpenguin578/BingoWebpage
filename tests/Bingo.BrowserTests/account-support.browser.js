@@ -27,7 +27,7 @@ const partial = fs.readFileSync(`${root}Pages/Shared/_AdminConfirmation.cshtml`,
         posts.push({ handler: url.searchParams.get("handler"), body: request.postData() });
         if (releasePost) await new Promise(resolve => { releasePost = resolve; });
       }
-      if (url.pathname.endsWith("Transfer")) return route.fulfill({ contentType: "text/html", body: shell(`<form method="post" data-account-transfer data-confirm-title="Transfer?" data-confirm-description="Both accounts must sign in again." data-confirm-action="Transfer ownership"><select name="Input.DestinationId" required><option value="">Choose</option><option value="recipient-id" data-authorization-version="9">Recipient</option></select><input type="hidden" name="Input.ExpectedAuthorizationVersion"><input type="password" name="Input.CurrentPassword" required><button>Transfer ownership</button></form>`, "account-transfer.js") });
+      if (url.pathname.endsWith("Transfer")) return route.fulfill({ contentType: "text/html", body: shell(`<form method="post" data-account-transfer data-confirm-title="Transfer?" data-confirm-description="Both accounts must sign in again." data-confirm-action="Transfer ownership"><select name="Input.DestinationId" required><option value="">Choose</option><option value="recipient-id" data-authorization-version="9">Recipient</option></select><input type="hidden" name="Input.ExpectedAuthorizationVersion"><input name="Input.DestinationUsernameConfirmation" required><input type="password" name="Input.CurrentPassword" required><button>Transfer ownership</button></form>`, "account-transfer.js") });
       return route.fulfill({ contentType: "text/html", body: shell(url.pathname.includes("/Manage/") ? manage() : directory, "account-manage-dialog.js") });
     });
     await page.goto("https://bingo.test/Admin/Accounts/Index");
@@ -82,18 +82,20 @@ const partial = fs.readFileSync(`${root}Pages/Shared/_AdminConfirmation.cshtml`,
 
     await page.goto("https://bingo.test/Admin/Accounts/Transfer");
     await page.locator("select").selectOption("recipient-id");
+    await page.locator("input[name='Input.DestinationUsernameConfirmation']").fill("Recipient");
     await page.locator("input[type=password]").fill("current-password");
     await page.getByText("Transfer ownership", { exact: true }).first().click();
     await modal.waitFor({ state: "visible" });
     assert.match(await modal.textContent(), /Recipient/);
-    assert.equal(await modal.locator("input:visible").count(), 0, "no typed name confirmation");
     await page.locator("[data-admin-confirmation-cancel]").click();
     assert.equal(await page.locator("input[type=password]").inputValue(), "current-password");
+    assert.equal(await page.locator("input[name='Input.DestinationUsernameConfirmation']").inputValue(), "Recipient");
     await page.getByText("Transfer ownership", { exact: true }).first().click();
     await confirm.click();
     await page.waitForLoadState();
     assert.match(posts.at(-1).body, /Input.ExpectedAuthorizationVersion=9/);
     assert.match(posts.at(-1).body, /Input.DestinationId=recipient-id/);
+    assert.match(posts.at(-1).body, /Input.DestinationUsernameConfirmation=Recipient/);
     assert.deepEqual(errors, []);
     console.log("Account support Chromium checks passed.");
   } finally { await browser.close(); }

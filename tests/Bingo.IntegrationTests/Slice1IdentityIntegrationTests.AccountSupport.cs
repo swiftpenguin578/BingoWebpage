@@ -98,13 +98,13 @@ public sealed partial class Slice1IdentityIntegrationTests
         db.AddRange(owner, target);
         await db.SaveChangesAsync();
         var service = new AccountAdministrationService(db, passwords, time);
-        var wrongPassword = await Assert.ThrowsAsync<AccountActionException>(() => service.TransferOwnershipAsync(owner.Id, "wrong", target.Id, target.AuthorizationVersion, CancellationToken.None));
+        var wrongPassword = await Assert.ThrowsAsync<AccountActionException>(() => service.TransferOwnershipAsync(owner.Id, "wrong", target.Id, target.AuthorizationVersion, target.PublicUsername!, CancellationToken.None));
         Assert.Equal("The current password is incorrect.", wrongPassword.Message);
         var previousVersion = target.AuthorizationVersion;
         target.Disable(time.GetUtcNow());
         await db.SaveChangesAsync();
-        await Assert.ThrowsAsync<StaleAccountChangeException>(() => service.TransferOwnershipAsync(owner.Id, "long-test-password", target.Id, previousVersion, CancellationToken.None));
-        var disabled = await Assert.ThrowsAsync<AccountActionException>(() => service.TransferOwnershipAsync(owner.Id, "long-test-password", target.Id, target.AuthorizationVersion, CancellationToken.None));
+        await Assert.ThrowsAsync<StaleAccountChangeException>(() => service.TransferOwnershipAsync(owner.Id, "long-test-password", target.Id, previousVersion, target.PublicUsername!, CancellationToken.None));
+        var disabled = await Assert.ThrowsAsync<AccountActionException>(() => service.TransferOwnershipAsync(owner.Id, "long-test-password", target.Id, target.AuthorizationVersion, target.PublicUsername!, CancellationToken.None));
         Assert.Contains("disabled", disabled.Message);
         Assert.Empty(await db.AuditEntries.ToListAsync());
         Assert.Equal(GlobalRole.SuperAdmin, owner.GlobalRole);
@@ -230,7 +230,7 @@ public sealed partial class Slice1IdentityIntegrationTests
         await AssertResetRejectedForTestAsync(disabledIssuerToken, disabledIssuerTarget.Id, superseded: false);
 
         var transferToken = await GenerateResetForTestAsync(owner.Id, transferTarget.Id);
-        await MutateAccountForTestAsync(service => service.TransferOwnershipAsync(owner.Id, "long-test-password", transferTarget.Id, transferTarget.AuthorizationVersion, CancellationToken.None));
+        await MutateAccountForTestAsync(service => service.TransferOwnershipAsync(owner.Id, "long-test-password", transferTarget.Id, transferTarget.AuthorizationVersion, transferTarget.PublicUsername!, CancellationToken.None));
         await AssertResetRejectedForTestAsync(transferToken, transferTarget.Id, superseded: true);
     }
 

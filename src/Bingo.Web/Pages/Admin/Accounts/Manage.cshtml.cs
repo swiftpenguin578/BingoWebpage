@@ -20,6 +20,7 @@ public sealed class ManageModel(ApplicationDbContext db, AccountAdministrationSe
         if (context.HandlerMethod is null) context.Result = NotFound();
     }
     public AccountDetails? AccountView { get; private set; }
+    public string? CredentialLink { get; private set; }
     [BindProperty, StringLength(500)] public string Reason { get; set; } = string.Empty;
     [BindProperty] public long ExpectedAuthorizationVersion { get; set; }
     public bool AccountChangeStale { get; private set; }
@@ -98,6 +99,7 @@ public sealed class ManageModel(ApplicationDbContext db, AccountAdministrationSe
     {
         var account = await db.Accounts.AsNoTracking().SingleOrDefaultAsync(x => x.Id == id, ct);
         if (account is null || account.AccountType != AccountType.WebsiteAccount) return false;
+        LoadCredentialLink(id);
         var characters = await (from link in db.AccountOsrsCharacters.AsNoTracking()
                                 join character in db.OsrsCharacters.AsNoTracking() on link.OsrsCharacterId equals character.Id
                                 where link.AccountId == id
@@ -116,6 +118,30 @@ public sealed class ManageModel(ApplicationDbContext db, AccountAdministrationSe
         var disableHistory = await db.AuditEntries.AsNoTracking().Where(x => x.TargetType == "account" && x.TargetId == id.ToString() && (x.Action == "account.disabled" || x.Action == "account.restored")).OrderByDescending(x => x.OccurredAt).Select(x => new DisableHistoryView(x.Action == "account.disabled" ? "Disabled" : "Restored", x.OccurredAt, x.ActorUsername, x.Action == "account.disabled" ? x.Details : null)).ToListAsync(ct);
         AccountView = new AccountDetails(account.Id, account.AuthorizationVersion, account.LoginName, account.AccountType, account.GlobalRole, account.Active, account.DiscordUserId is not null, account.DiscordDisplayName, account.LastLoginAt, account.DisabledAt, account.PasswordHash is not null, characters, roles, disableHistory);
         return true;
+    }
+
+    private void LoadCredentialLink(Guid id)
+    {
+        CredentialLink = null;
+        var hasCredentialPayload = TempData.ContainsKey("CredentialLink")
+            || TempData.ContainsKey("CredentialLinkTargetId")
+            || TempData.ContainsKey("CredentialLinkPurpose");
+        var targetId = TempData["CredentialLinkTargetId"]?.ToString();
+        var purpose = TempData["CredentialLinkPurpose"]?.ToString();
+        if (targetId == id.ToString() && purpose == "reset")
+        {
+            CredentialLink = TempData["CredentialLink"] as string;
+            return;
+        }
+
+        TempData.Remove("CredentialLink");
+        TempData.Remove("CredentialLinkTargetId");
+        TempData.Remove("CredentialLinkPurpose");
+        if (hasCredentialPayload)
+        {
+            TempData.Remove("StatusMessage");
+            TempData.Remove(Bingo.Web.UI.UiMessage.TypeKey);
+        }
     }
 
     private bool ResolveSubmittedOverlay(bool overlay)

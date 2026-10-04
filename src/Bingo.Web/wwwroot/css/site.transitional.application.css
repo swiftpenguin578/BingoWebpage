@@ -3593,9 +3593,10 @@ body.admin-shell-body {
 /* Pass 10 Accounts / Roles */
 .admin-accounts-page { display: grid; gap: 1.5rem; min-width: 0; width: 100%; padding: 1.25rem 0 3rem; }
 .admin-accounts-section { display: grid; gap: 0.75rem; min-width: 0; }
-.admin-accounts-section-heading { padding: 0.85rem 1rem; }
+.admin-accounts-section-heading { display: flex; justify-content: space-between; gap: 1rem; align-items: flex-start; padding: 0.85rem 1rem; }
 .admin-accounts-section-heading h2 { margin: 0; color: var(--admin-text); font-family: inherit; font-size: 0.8125rem; font-weight: 600; line-height: 1.35; }
 .admin-accounts-section-heading p { margin: 0.2rem 0 0; color: var(--admin-muted); font-size: 0.6875rem; line-height: 1.4; }
+.admin-accounts-section-count { flex: 0 0 auto; color: var(--admin-muted); font-size: 0.625rem; line-height: 1.4; text-align: right; }
 .admin-accounts-page .admin-events-directory-controls { grid-template-columns: minmax(14rem, 18rem) minmax(0, 1fr) auto; gap: 0.75rem; align-items: center; }
 .admin-accounts-page .admin-events-directory-controls > .admin-events-toolbar { display: contents; }
 .admin-accounts-page .admin-events-toolbar > .admin-search-field { grid-column: 1; min-width: 0; }

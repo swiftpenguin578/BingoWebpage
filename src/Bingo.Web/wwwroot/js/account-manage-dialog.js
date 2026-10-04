@@ -34,6 +34,8 @@
     return url.href;
   };
   const hasConfirmation = () => window.adminConfirmation?.active === true;
+  const canApplyManageResponse = (requestId, sharedConfirmation) =>
+    requestId === loadId && hasOverlay() && (dialog?.open || (sharedConfirmation && hasConfirmation()));
 
   const build = () => {
     if (!(dialog instanceof HTMLDialogElement) && hasOverlay()) {
@@ -296,11 +298,13 @@
     action.searchParams.set("overlay", "1");
     const data = new FormData(form);
     data.set("overlay", "1");
+    const requestId = ++loadId;
     const finish = guard.begin(form);
     try {
       const response = await window.fetch(action.href, { method: "POST", body: data, credentials: "same-origin", headers: { "X-Requested-With": "XMLHttpRequest" } });
       if (!response.ok) throw new Error("Account request failed.");
       const html = await response.text();
+      if (!canApplyManageResponse(requestId, sharedConfirmation)) return;
       if (validationMessage(html)) {
         const stale = new DOMParser().parseFromString(html, "text/html").querySelector('[data-account-change-stale="true"]');
         if (stale && replaceContent(html)) {
@@ -320,6 +324,7 @@
       }
       history.replaceState(history.state, "", response.url || action.href);
       await refreshDirectory();
+      if (!canApplyManageResponse(requestId, sharedConfirmation)) return;
       finish();
       closeConfirmation(false);
       const reportSuccess = () => {
@@ -529,7 +534,7 @@
       trigger.dataset.accountManageBound = "true";
       trigger.addEventListener("click", (event) => {
           event.preventDefault();
-        load(trigger, true);
+        guarded(() => load(trigger, true));
       });
     });
   };

@@ -28,22 +28,53 @@
             <span asp-validation-for="Entity" class="admin-audit-validation"></span>
         </div>
         <div class="admin-field">
-            <label asp-for="EventId">@T["Event ID"]</label>
-            <input asp-for="EventId" class="form-control" />
+            <label asp-for="EventId">@T["Event"]</label>
+            <select asp-for="EventId" class="form-select">
+                <option value="">@T["All events"]</option>
+                @foreach (var eventOption in Model.EventOptions)
+                {
+                    <option value="@eventOption.Id">@eventOption.Name@if (eventOption.IsHidden) { <text> (@T["Hidden"])</text> }</option>
+                }
+            </select>
         </div>
         <div class="admin-field">
             <label asp-for="From"></label>
-            <input asp-for="From" class="form-control" />
+            <input asp-for="From" type="date" class="form-control" />
+            <span asp-validation-for="From" class="admin-audit-validation"></span>
         </div>
         <div class="admin-field">
             <label asp-for="To"></label>
-            <input asp-for="To" class="form-control" />
+            <input asp-for="To" type="date" class="form-control" />
+            <span asp-validation-for="To" class="admin-audit-validation"></span>
         </div>
         <div class="admin-audit-toolbar-actions">
             <button class="admin-button-primary" type="submit">@T["Filter"]</button>
             <a class="admin-button-secondary" asp-page="Index">@T["Clear"]</a>
         </div>
     </form>
+
+    @if (Model.EntryId is not null || Model.EntryUnavailable)
+    {
+        <section class="admin-audit-entry" aria-labelledby="admin-audit-entry-title">
+            @if (Model.EntryUnavailable)
+            {
+                <div class="admin-audit-empty" role="status">
+                    <h2 id="admin-audit-entry-title">@T["This entry isn't available"]</h2>
+                    <p>@T["The entry may be missing or unavailable for this account."]</p>
+                </div>
+            }
+            else if (Model.SelectedEntry is { } selectedEntry)
+            {
+                <header class="admin-audit-surface-heading">
+                    <div>
+                        <p class="admin-audit-eyebrow">@T["Audit entry"]</p>
+                        <h2 id="admin-audit-entry-title">@DateTimePresentation.Format(selectedEntry.OccurredAt, "dd MMM yyyy, HH:mm", provider: CultureInfo.CurrentCulture)</h2>
+                    </div>
+                </header>
+                <partial name="/Pages/Shared/_AuditEntry.cshtml" model="selectedEntry" />
+            }
+        </section>
+    }
 
     <section class="admin-audit-surface" aria-labelledby="admin-audit-entries-title">
         <header class="admin-audit-surface-heading">
@@ -78,6 +109,7 @@
                             <td data-label="Time">@DateTimePresentation.Format(entry.OccurredAt, "dd MMM yyyy, HH:mm", provider: CultureInfo.CurrentCulture)</td>
                             <td data-label="Details">
                                 <partial name="_AuditEntry" model="entry" />
+                                <a class="admin-audit-entry-link" asp-route-entry="@entry.Id" asp-route-action="@Model.Action" asp-route-actor="@Model.Actor" asp-route-entity="@Model.Entity" asp-route-eventId="@Model.EventId" asp-route-from="@Model.FromQuery" asp-route-to="@Model.ToQuery" asp-route-pageNumber="@Model.PageNumber">@T["Open entry"]</a>
                             </td>
                         </tr>
                     }
@@ -90,7 +122,7 @@
     <nav class="admin-audit-pagination" aria-label="@T["Audit log pages"]">
         @if (Model.PageNumber > 1)
         {
-            <a class="admin-button-secondary" asp-route-action="@Model.Action" asp-route-actor="@Model.Actor" asp-route-entity="@Model.Entity" asp-route-eventId="@Model.EventId" asp-route-from="@Model.From" asp-route-to="@Model.To" asp-route-pageNumber="@(Model.PageNumber - 1)">@T["Previous"]</a>
+            <a class="admin-button-secondary" asp-route-action="@Model.Action" asp-route-actor="@Model.Actor" asp-route-entity="@Model.Entity" asp-route-eventId="@Model.EventId" asp-route-from="@Model.FromQuery" asp-route-to="@Model.ToQuery" asp-route-pageNumber="@(Model.PageNumber - 1)">@T["Previous"]</a>
         }
         else
         {
@@ -99,7 +131,7 @@
         <span class="admin-audit-page-count">@T["Page {0}", Model.PageNumber]</span>
         @if (Model.HasNextPage)
         {
-            <a class="admin-button-secondary" asp-route-action="@Model.Action" asp-route-actor="@Model.Actor" asp-route-entity="@Model.Entity" asp-route-eventId="@Model.EventId" asp-route-from="@Model.From" asp-route-to="@Model.To" asp-route-pageNumber="@(Model.PageNumber + 1)">@T["Next"]</a>
+            <a class="admin-button-secondary" asp-route-action="@Model.Action" asp-route-actor="@Model.Actor" asp-route-entity="@Model.Entity" asp-route-eventId="@Model.EventId" asp-route-from="@Model.FromQuery" asp-route-to="@Model.ToQuery" asp-route-pageNumber="@(Model.PageNumber + 1)">@T["Next"]</a>
         }
         else
         {

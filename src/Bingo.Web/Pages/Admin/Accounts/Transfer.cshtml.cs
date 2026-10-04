@@ -29,7 +29,7 @@ public sealed class TransferModel(AccountAdministrationService administration, A
 
         try
         {
-            await administration.TransferOwnershipAsync(User.GetAccountId()!.Value, Input.CurrentPassword, Input.DestinationId, Input.ExpectedAuthorizationVersion, ct);
+            await administration.TransferOwnershipAsync(User.GetAccountId()!.Value, Input.CurrentPassword, Input.DestinationId, Input.ExpectedAuthorizationVersion, Input.DestinationUsernameConfirmation, ct);
             TempData["StatusMessage"] = Localize("Super Admin ownership was transferred. Your account is now an Admin account.");
             TempData[Bingo.Web.UI.UiMessage.TypeKey] = Bingo.Web.UI.UiMessageType.Success.ToString();
             return RedirectToPage("/Index");
@@ -72,6 +72,8 @@ public sealed class TransferModel(AccountAdministrationService administration, A
 
         [Required, Display(Name = "New Super Admin")]
         public Guid DestinationId { get; set; }
+        [Required, StringLength(100), Display(Name = "Destination username confirmation")]
+        public string DestinationUsernameConfirmation { get; set; } = string.Empty;
         public long ExpectedAuthorizationVersion { get; set; }
     }
 
