@@ -1,6 +1,6 @@
 # Current project status
 
-## Active assignment — reviewed B1 local merge-back, 4 October 2026
+## Active assignment — merged B1/B2 awaiting scope check, 4 October 2026
 
 - Base verified clean: `5cf9081b458a573baa0c32fe423f88375f49534d`.
 - Main feature checkout: `/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage`,
@@ -64,7 +64,7 @@
     Completion callback delivered to this planner after direct user authorization.
 - Claude appended direct recheck: B1 `404524d`/`a9399b2` PASS; B2 `5545845` PASS.
   User forwarded both passes and authorized local merge-back. Execution evidence
-  remains workers'; no new visual acceptance claimed. Merge not yet performed.
+  remains workers'; no new visual acceptance claimed. Local merge completed below.
 - Durable evidence: `docs/references/admin-ui/reviews/2026-10-04/au-b1/remediation/`
   and corresponding `au-b2/remediation/`. Reuse prior applicable passing evidence.
 - B1 owns SharedResource; B2 owns migrations. Preserve B2 constructor arguments and
@@ -72,8 +72,10 @@
 - Existing limits remain: snapshot override equal to automatic is indistinguishable;
   cleanup Down cannot restore cleared values. Operator pre/post migration counts
   are still due. No production access is assigned.
-- Reuse `/root/au_b1_followup` as packager for the authorized local merge and checks;
-  B2 stopped. Preserve lane content; report completion/blockers to this planner.
+- Packager `/root/au_b1_followup` completed; both workers stopped. Merge `4065cb0`
+  has parents `43ce865` and `a9399b2`; no conflicts. Evidence commit `40e624a`.
+  Planner verified clean checkpoint, parents and au-b1/remediation/merge-back.md;
+  no independent test rerun or merge scope review claimed.
 
 ## Prior outcomes / corrected approvals
 
@@ -92,8 +94,7 @@
 
 ## Next permitted action
 
-Merge clean B1 `a9399b2` into `codex/participants-functionality` locally with a merge
-commit. Preserve both lanes and rerun focused B1 checks including AU15, Accounts,
-Audit, ownership, Node dialog and account-support.browser.js plus Release build.
-Report merge SHA/evidence and stop for Claude's merge-only scope check. No push,
-main merge, deployment or B3 work. R1 conversion/R3 rehearsal release gates remain.
+Claude's merge-only scope check of `4065cb0` is pending. Packager reports merged
+checks passed: AU15 1, Audit 5, Accounts 3, ownership 6, reset HTTP 1, Accounts UI 2;
+Node dialog/Chromium passed; Release solution build zero warnings/errors; diff passed.
+No new work, push, main merge, deploy or B3. R1 conversion/R3 release gates remain.
