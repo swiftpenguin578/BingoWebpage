@@ -269,7 +269,7 @@ public sealed partial class SignupQuestionCreationRetryIntegrationTests : IAsync
         Assert.True(laterReplay.Succeeded); Assert.Equal(first.QuestionId, laterReplay.QuestionId);
         fields["addRequestId"] = Guid.NewGuid().ToString();
         fields["expectedFormVersion"] = first.FormVersion!.Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
-        Assert.Equal(SignupQuestionCreationOutcome.Locked, (await PostAsync(client, postRoute, fields)).Outcome);
+        await AssertTerminalReadOnlyAsync(client, seed.EventId, postRoute, fields);
         // The replay exemption does not open edit/move/system-field mutations.
         fields["questionId"] = first.QuestionId!.Value.ToString(); fields["up"] = "true";
         using (var move = await client.PostAsync(route + "?handler=Move", new FormUrlEncodedContent(fields)))

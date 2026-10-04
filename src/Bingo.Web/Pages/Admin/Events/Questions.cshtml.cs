@@ -77,10 +77,13 @@ public sealed class QuestionsModel(ApplicationDbContext dbContext, TimeProvider 
         return AddResponse(result, id, overlay, "Account field added.");
     }
 
+    internal bool HasExactCommittedAddReplay { get; private set; }
+
     private bool WantsAddJson() => Request.GetTypedHeaders().Accept?.Any(x => x.MediaType.Value == "application/json") == true;
 
     private IActionResult AddResponse(SignupQuestionCreationResult result, Guid id, bool overlay, string successMessage = "Question added.")
     {
+        HasExactCommittedAddReplay = result.Replayed && result.QuestionId is not null;
         if (WantsAddJson()) return new JsonResult(result);
         SetStatus(Localize(result.Succeeded ? result.Message ?? successMessage : result.Error ?? "The add result could not be confirmed."),
             result.Succeeded ? result.RequiredNormalizedToOptional ? UiMessageType.Information : UiMessageType.Success : UiMessageType.Error);

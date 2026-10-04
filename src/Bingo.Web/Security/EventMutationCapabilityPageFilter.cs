@@ -62,6 +62,26 @@ public sealed class EventMutationCapabilityPageFilter(ApplicationDbContext db, I
             await next();
             return;
         }
+        // Terminal Questions POSTs may only return an exact, already committed
+        // add result. The service verifies request/actor/event/intent under its lock;
+        // malformed, conflicting and genuinely new requests keep the route refusal.
+        if (HttpMethods.IsPost(context.HttpContext.Request.Method)
+            && path.EndsWith("/Questions.cshtml", StringComparison.OrdinalIgnoreCase)
+            && eventView.State is EventState.Cancelled or EventState.Finalized or EventState.Archived)
+        {
+            if (context.HandlerInstance is Bingo.Web.Pages.Admin.Events.QuestionsModel questions
+                && context.HandlerMethod is { } handler && handler.Name is null or "AddAccount"
+                && string.Equals(context.HttpContext.Request.Query["handler"].ToString(), handler.Name ?? string.Empty, StringComparison.OrdinalIgnoreCase))
+            {
+                var executed = await next();
+                if (questions.HasExactCommittedAddReplay) return;
+                executed.Result = new RedirectResult($"/Admin/Events/Manage/{eventId}");
+            }
+            else context.Result = new RedirectResult($"/Admin/Events/Manage/{eventId}");
+            if (context.HandlerInstance is PageModel page)
+                page.TempData["StatusMessage"] = text["This event is read-only in its current lifecycle state."].Value;
+            return;
+        }
         if (context.HandlerMethod is null)
         {
             await next();
