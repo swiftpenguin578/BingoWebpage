@@ -3,6 +3,9 @@ using System.Net;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Bingo.Application.Events;
+using Bingo.Application.Evidence;
+using Bingo.Web.Pages.Admin.Review;
+using Microsoft.AspNetCore.Mvc.RazorPages;
 using Bingo.Domain.Events;
 using Bingo.Domain.Access;
 using Bingo.Domain.Evidence;
@@ -137,6 +140,81 @@ public sealed partial class SubmissionWorkflowTests
         Assert.Equal(setup.TeamId, corrected.TeamId);
         Assert.Equal(submission.SubmittedAt, corrected.SubmittedAt);
         Assert.Equal(submission.Version + 1, corrected.Version);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task B5RemediationReviewActionVersionsPreserveLegacyUnknown(bool legacy)
+    {
+        var setup = await SeedAsync(3, true);
+        await using var db = new ApplicationDbContext(options);
+        var service = Service(db);
+        var created = await service.CreateAsync(Command(setup));
+        var before = await db.Submissions.AsNoTracking().SingleAsync(x => x.Id == created.SubmissionId);
+        if (legacy)
+        {
+            await db.Database.ExecuteSqlInterpolatedAsync($"UPDATE review_actions SET before_snapshot = before_snapshot - 'Version', after_snapshot = after_snapshot - 'Version' WHERE submission_id = {before.Id}");
+            db.ReviewActions.Add(new ReviewAction(Guid.NewGuid(), before.Id, ReviewActionType.EditMetadata, setup.AdminId, now.AddSeconds(1), "Legacy correction", "{}", "{}"));
+            await db.SaveChangesAsync();
+        }
+        else await service.ApproveAsync(before.Id, setup.AdminId, expectedVersion: before.Version);
+        var state = (await service.GetReviewReadbackAsync(before.Id, setup.AdminId)).State!;
+        Assert.NotNull(state.LatestAction);
+        Assert.Equal(setup.AdminId, state.LatestAction.ActorId);
+        Assert.Equal(legacy ? ReviewActionType.EditMetadata : ReviewActionType.Approve, state.LatestAction.Type);
+        Assert.Equal(legacy ? null : (int?)before.Version, state.LatestAction.BeforeVersion);
+        Assert.Equal(legacy ? null : (int?)state.Version, state.LatestAction.AfterVersion);
+        Assert.Equal(legacy ? before.Version : before.Version + 1, state.Version);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task B5RemediationReviewDetailsExposeTeamLeaveTimeOnlyForFormerMember(bool left)
+    {
+        var setup = await SeedAsync(3, true);
+        await using var db = new ApplicationDbContext(options);
+        var created = await Service(db).CreateAsync(Command(setup));
+        var leaveAt = now.AddMinutes(1);
+        if (left)
+        {
+            (await db.TeamMemberships.SingleAsync(x => x.TeamId == setup.TeamId && x.EventParticipantId == setup.ParticipantId)).Leave(leaveAt, "Left team");
+            await db.SaveChangesAsync();
+        }
+        var page = new DetailsModel(db, Service(db));
+        Assert.IsType<PageResult>(await page.OnGetAsync(created.SubmissionId, CancellationToken.None));
+        Assert.Equal(left ? leaveAt : null, page.Details.CreditedParticipantLeftTeamAt);
+        Assert.Equal(setup.TeamId, page.Details.TeamId);
+        Assert.Equal(setup.ParticipantId, page.Details.PlayerId);
+    }
+
+    [Theory]
+    [InlineData(2, 0)]
+    [InlineData(3, 1)]
+    public async Task B5RemediationContributionRespectsExhaustedAndPartialDropCap(int cap, int expectedAdd)
+    {
+        var setup = await SeedAsync(8, true, dropMaximum: cap);
+        await using var db = new ApplicationDbContext(options);
+        var first = await Service(db).CreateAsync(Command(setup));
+        var second = await Service(db, new FixedTimeProvider(now.AddSeconds(1))).CreateAsync(Command(setup));
+        Assert.Equal(2, (await Service(db).ApproveAsync(first.SubmissionId, setup.AdminId)).ApprovedContribution);
+        var read = (await Service(db).GetReviewReadbackAsync(second.SubmissionId, setup.AdminId)).State!;
+        Assert.Null(read.Contribution.BlockingSubmission);
+        Assert.Equal(new SubmissionContributionNumbers(expectedAdd, 2, 6, 2, 8, false), read.Contribution.Values);
+        if (expectedAdd == 0)
+        {
+            var baseline = await B5EvidenceStateAsync();
+            await Assert.ThrowsAsync<InvalidOperationException>(() => Service(db).ApproveAsync(second.SubmissionId, setup.AdminId));
+            Assert.Equal(baseline, await B5EvidenceStateAsync());
+        }
+        else
+        {
+            Assert.Equal(expectedAdd, (await Service(db).ApproveAsync(second.SubmissionId, setup.AdminId)).ApprovedContribution);
+            var approved = (await Service(db).GetReviewReadbackAsync(second.SubmissionId, setup.AdminId)).State!;
+            Assert.Equal(SubmissionStatus.Approved, approved.Status);
+            Assert.Equal(read.Contribution.Values, approved.Contribution.Values);
+        }
     }
 
     private static async Task AssertCrossTeamPagesAsync(HttpClient client, string slug, Guid participantId)

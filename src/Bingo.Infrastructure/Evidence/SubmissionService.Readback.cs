@@ -36,7 +36,8 @@ public sealed partial class SubmissionService
             {
                 var actor = await db.Accounts.AsNoTracking().Where(x => x.Id == latest.PerformedByAccountId).Select(x => x.PublicUsername).SingleAsync(cancellationToken);
                 action = new(latest.Id, latest.Action, latest.PerformedByAccountId, actor, latest.PerformedAt,
-                    latest.Action is ReviewActionType.Reject or ReviewActionType.EditMetadata or ReviewActionType.ReverseApproval && !string.IsNullOrWhiteSpace(latest.Note));
+                    latest.Action is ReviewActionType.Reject or ReviewActionType.EditMetadata or ReviewActionType.ReverseApproval && !string.IsNullOrWhiteSpace(latest.Note),
+                    SnapshotVersion(latest.BeforeSnapshot), SnapshotVersion(latest.AfterSnapshot));
             }
             var state = new SubmissionReviewState(s.Id, s.EventId, s.TeamId, s.Version, s.Status, s.BoardTileId, s.RequirementId,
                 s.DropSnapshotId, s.CreditedParticipantId, s.CreditedOsrsCharacterId, s.CreditedCharacterName, s.ClaimedWeight,
@@ -50,11 +51,11 @@ public sealed partial class SubmissionService
         }
     }
 
-    private static int SnapshotVersion(string? json)
+    private static int? SnapshotVersion(string? json)
     {
-        if (json is null) return 0;
-        try { using var document = JsonDocument.Parse(json); return document.RootElement.TryGetProperty("Version", out var version) && version.TryGetInt32(out var value) ? value : 0; }
-        catch (JsonException) { return 0; }
+        if (json is null) return null;
+        try { using var document = JsonDocument.Parse(json); return document.RootElement.TryGetProperty("Version", out var version) && version.TryGetInt32(out var value) ? value : null; }
+        catch (JsonException) { return null; }
     }
 
     private async Task<SubmissionContributionRead> ContributionAsync(Submission s, PublishedBoardData publication, BoardRequirementSnapshot requirement, CancellationToken ct)

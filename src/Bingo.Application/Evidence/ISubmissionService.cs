@@ -49,6 +49,6 @@ public sealed record SubmissionReviewState(Guid SubmissionId, Guid EventId, Guid
     Guid CreditedParticipantId, Guid CreditedCharacterId, string CreditedCharacterName, int Weight,
     int ApprovedContribution, SubmissionLatestReviewAction? LatestAction, SubmissionContributionRead Contribution);
 public sealed record SubmissionLatestReviewAction(Guid Id, ReviewActionType Type, Guid ActorId,
-    string? ActorName, DateTimeOffset At, bool ReasonPresent);
+    string? ActorName, DateTimeOffset At, bool ReasonPresent, int? BeforeVersion = null, int? AfterVersion = null);
 public sealed record SubmissionContributionRead(SubmissionContributionNumbers? Values, SubmissionApprovalBlock? BlockingSubmission = null);
 public sealed record SubmissionContributionNumbers(int Add, int Weight, int Remaining, int Used, int Target, bool Completes);
