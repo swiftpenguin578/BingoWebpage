@@ -163,7 +163,8 @@ public sealed class EventMutationCapabilityPageFilter(ApplicationDbContext db, I
 
     private static bool AllowsWiseOldManMutation(EventState state, string method) => method switch
     {
-        "FetchCompetition" or "MakeDevelopmentCompetitionDue" => state == EventState.Live,
+        "FetchCompetition" => state is EventState.Live or EventState.AwaitingFinalReview,
+        "MakeDevelopmentCompetitionDue" => state == EventState.Live,
         "Competition" or "DisconnectCompetition" or "CreateManagedCompetition" or "AdoptCompetitionCredential" or "DeleteManagedCompetition"
             => state is EventState.Draft or EventState.SignupOpen or EventState.SignupClosed or EventState.Live,
         _ => false
@@ -222,6 +223,12 @@ public sealed class EventMutationCapabilityPageFilter(ApplicationDbContext db, I
              name.Contains("Payment", StringComparison.Ordinal) ||
              name.Contains("AdminNote", StringComparison.Ordinal) ||
              name.Contains("TransferOwnership", StringComparison.Ordinal)))
+        {
+            capability = default; // Participant lifecycle services perform their own state and authorization checks.
+            return false;
+        }
+        if (path.EndsWith("/Participants.cshtml", StringComparison.OrdinalIgnoreCase) &&
+            name.Contains("Payment", StringComparison.Ordinal))
         {
             capability = default; // Participant lifecycle services perform their own state and authorization checks.
             return false;

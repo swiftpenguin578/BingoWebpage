@@ -14,7 +14,7 @@
     var integrationEditable = eventView?.State is (EventState.Draft or EventState.SignupOpen or EventState.SignupClosed or EventState.Live);
     var canManageCredential = integration?.Configured == true && integrationEditable && integration.Provenance is (EventCompetitionProvenance.WebsiteCreated or EventCompetitionProvenance.External) && managed?.Status is not ("Pending" or "Unknown");
     var canDisconnect = integration?.Configured == true && integration.Provenance == EventCompetitionProvenance.External && eventView?.State is (EventState.Draft or EventState.SignupOpen or EventState.SignupClosed);
-    var canFetch = integration?.Configured == true && eventView?.State == EventState.Live;
+    var canFetch = integration?.Configured == true && eventView?.State is EventState.Live or EventState.AwaitingFinalReview;
     var preview = managed?.Preview;
     var canCreate = preLive && preview?.Valid == true && managed?.Status is ("NotManaged" or "Failed" or "Cancelled") && (managed.LastOperationType is null or "Create");
     var nextFetch = integration?.RetryDueAt ?? integration?.NormalDueAt;
