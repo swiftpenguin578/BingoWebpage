@@ -58,6 +58,7 @@ export async function init(region, ui = window.AdminUI) {
   const listen = (element, type, handler) => element?.addEventListener(type, handler, { signal: lifetime.signal });
   let pending = false, uncertain = null, layer = null, retained = value('HasReviewedValues').toLowerCase() === 'true' || root.dataset.identityReviewRequired === 'true';
   const save = root.querySelector('[data-identity-save]'), state = root.querySelector('[data-identity-state]'), feedback = root.querySelector('[data-identity-feedback]');
+  let cleanNote = state?.textContent || '';
   const labels = Object.fromEntries(fields.map(field => [field, text(`label${field}`)]));
   const editable = root.dataset.identityEditable !== 'false';
   const snapshot = () => JSON.stringify(fields.map(field => value(field)));
@@ -70,9 +71,8 @@ export async function init(region, ui = window.AdminUI) {
       const control = get(field);
       if (control && control.type !== 'hidden') control.disabled = pending || !!uncertain;
     }
-    if (save) { save.disabled = pending || (!uncertain && !changed()); save.title = !uncertain && !changed() ? text('noChanges') : ''; save.textContent = uncertain ? text('checkAgain') : text('save'); save.setAttribute('aria-busy', String(pending)); }
-    if (state && dirty()) state.textContent = changed() || uncertain ? text('unsaved') : text('noChanges');
-    else if (state && !state.textContent) state.textContent = text('noChanges');
+    if (save) { save.disabled = false; save.setAttribute('aria-disabled', String(pending || (!uncertain && !changed()))); save.title = !uncertain && !changed() ? text('noChanges') : ''; save.textContent = uncertain ? text('checkAgain') : text('save'); save.setAttribute('aria-busy', String(pending)); }
+    if (state) state.textContent = changed() || uncertain ? text('unsaved') : cleanNote;
     ui.refreshDirty();
   }
   function conflict(field, theirs) {
@@ -139,7 +139,7 @@ export async function init(region, ui = window.AdminUI) {
       uncertain = null; retained = false;
       for (const field of fields) { set(field, result.current.values[key(field)]); set(`Original${field}`, result.current.values[key(field)]); set(`${field}Resolution`, 'None'); }
       set('Version', result.current.version); set('HasBaseline', 'true'); set('HasReviewedValues', 'false'); root.dataset.identityCurrentVersion = String(result.current.version);
-      baseline = snapshot(); report(text('upToDate'), 'is-info'); if (state) state.textContent = text('upToDateNote');
+      baseline = snapshot(); report(text('upToDate'), 'is-info'); cleanNote = text('upToDateNote');
     } else if (result.state === 'notApplied') { uncertain = null; retained = true; report(text('notApplied'), 'is-info'); }
     else if (result.state === 'different') { uncertain = null; mergeCurrent(result.current); }
     else report(result.outcome?.kind === 'refused' ? text('refused') : text('unknown'));
@@ -194,7 +194,7 @@ export async function init(region, ui = window.AdminUI) {
     const other = fields.slice(0, 3).filter(field => canonical(field, wire(value(field))) !== canonical(field, wire(value(`Original${field}`)))).map(field => root.querySelector(`label[for="${get(field)?.id}"]`)?.textContent || field);
     if (other.length) { const together = document.createElement('p'); together.dataset.savedTogether = ''; together.textContent = text('savedTogether').replace('{0}', other.join(', ')); content.append(together); }
     const actions = document.createElement('div'); actions.className = 'm-actions';
-    const cancel = document.createElement('button'); cancel.type = 'button'; cancel.className = 'btn'; cancel.textContent = text('keepEditing'); cancel.autofocus = true; cancel.dataset.identityReviewCancel = '';
+    const cancel = document.createElement('button'); cancel.type = 'button'; cancel.className = 'btn'; cancel.textContent = text('cancel'); cancel.autofocus = true; cancel.dataset.identityReviewCancel = '';
     const confirm = document.createElement('button'); confirm.type = 'button'; confirm.className = 'btn btn-primary'; confirm.textContent = text('timezoneAction').replace('{0}', value('Timezone')); confirm.dataset.identityReviewConfirm = '';
     actions.append(cancel, confirm); content.append(actions);
     layer = ui.openLayer({ title: heading.textContent, content, confirmation: true, pending: () => pending, opener: save, onClose: () => { layer = null; } });
@@ -215,6 +215,7 @@ export async function init(region, ui = window.AdminUI) {
   function edited(event) {
     const field = event.target.name?.replace(/^Input\./, '');
     if (!fields.includes(field)) return;
+    cleanNote = '';
     if (['UseCurrent', '2'].includes(value(`${field}Resolution`)))
       set(`${field}Resolution`, canonical(field, wire(value(field))) === canonical(field, wire(value(`Original${field}`))) ? 'None' : 'KeepMine');
     clearFieldError(field);
