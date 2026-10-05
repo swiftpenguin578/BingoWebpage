@@ -142,6 +142,21 @@ public sealed partial class AdminDesignShellIntegrationTests
         Assert.Equal(2, await verify.AuditEntries.CountAsync(entry => entry.Action == "event.identity_updated"));
     }
 
+    [Fact]
+    public async Task DanishIdentityAndShellUseEventTerminologyWithoutChangingLegacyPages()
+    {
+        var admin = Admin(); var item = Event(admin, EventState.Draft, "Sproglig kontrol", 2);
+        await using (var db = new ApplicationDbContext(options)) { db.AddRange(admin, item); await db.SaveChangesAsync(); }
+        await using var factory = IdentityFactory(); using var client = await IdentityClientAsync(factory);
+        client.DefaultRequestHeaders.AcceptLanguage.ParseAdd("da");
+        var html = WebUtility.HtmlDecode(await client.GetStringAsync($"/Admin/Events/Identity/{item.Id}?culture=da&ui-culture=da"));
+        Assert.Contains("<html lang=\"da\"", html); Assert.Contains(">Events</span>", html); Assert.Contains(">Alle events</a>", html);
+        Assert.Contains("Navn på event", html); Assert.Contains("Permanent eventlink", html);
+        Assert.DoesNotContain("AdminDesign.", html); Assert.DoesNotContain("Bingoer", html); Assert.DoesNotContain("begivenhed", html, StringComparison.OrdinalIgnoreCase);
+        var old = WebUtility.HtmlDecode(await client.GetStringAsync("/Admin/Events/Index?culture=da&ui-culture=da"));
+        Assert.Contains("Bingoer", old); Assert.DoesNotContain("data-admin-design", old);
+    }
+
     private WebApplicationFactory<Program> IdentityFactory(params IInterceptor[] interceptors) => new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder
         .UseEnvironment("Testing").UseSetting("ConnectionStrings:Database", database.GetConnectionString())
         .ConfigureServices(services => { services.RemoveAll<IHostedService>(); services.AddDataProtection().UseEphemeralDataProtectionProvider(); if (interceptors.Length > 0) services.AddDbContext<ApplicationDbContext>(configuration => configuration.AddInterceptors(interceptors)); }));

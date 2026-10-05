@@ -2,7 +2,7 @@
 @{ var language = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName; }
 <header class="topbar" data-shell-topbar>
     <button class="icon-btn menu-toggle" data-side-toggle aria-label="@T["Open navigation"]" aria-expanded="false"><svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 4h10M3 8h10M3 12h10"/></svg></button>
-    <nav class="crumbs" aria-label="@T["Breadcrumbs"]" data-shell-breadcrumbs><a href="/Admin/Events/Index" data-shell-link>@T["Events"]</a>
+    <nav class="crumbs" aria-label="@T["Breadcrumbs"]" data-shell-breadcrumbs><a href="/Admin/Events/Index" data-shell-link>@T["AdminDesign.Events"]</a>
         @if (Model.SelectedEvent is { } selected) { <span aria-hidden="true">/</span><span class="design-event-crumb">@selected.Name</span> }
         <span aria-hidden="true">/</span><span aria-current="page">@T[ViewData["Title"]?.ToString() ?? "Admin"]</span>
     </nav>

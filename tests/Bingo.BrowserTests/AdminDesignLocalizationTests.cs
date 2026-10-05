@@ -8,6 +8,23 @@ namespace Bingo.BrowserTests;
 public sealed class AdminDesignLocalizationTests
 {
     [Fact]
+    public void ScopedAdminEventWordingHasEnglishFallbackAndDanishEventTerminology()
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "Bingo.slnx"))) directory = directory.Parent;
+        var resources = Path.Combine(Assert.IsType<DirectoryInfo>(directory).FullName, "src", "Bingo.Web", "Resources");
+        var english = XDocument.Load(Path.Combine(resources, "SharedResource.resx")).Descendants("data").ToDictionary(item => item.Attribute("name")!.Value, item => item.Element("value")!.Value);
+        var danish = XDocument.Load(Path.Combine(resources, "SharedResource.da.resx")).Descendants("data").ToDictionary(item => item.Attribute("name")!.Value, item => item.Element("value")!.Value);
+        Assert.Equal("Events", danish["AdminDesign.Events"]); Assert.Equal("Event", danish["AdminDesign.Event"]); Assert.Equal("Alle events", danish["All events"]);
+        Assert.Equal("Bingoer", danish["Events"]); Assert.Equal("Bingo", danish["Event"]); // Legacy pages unchanged.
+        foreach (var (key, value) in english)
+        {
+            Assert.StartsWith("AdminDesign.", key); Assert.Equal(key["AdminDesign.".Length..], value);
+            Assert.DoesNotMatch("(?i)bingo|begivenhed", danish[key]);
+        }
+    }
+
+    [Fact]
     public void EveryNewShellAndOptedInPageLiteralHasANonEmptyDanishEntry()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
