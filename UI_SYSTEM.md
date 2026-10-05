@@ -58,7 +58,8 @@ Approved production shell decisions (plan42 group A, 5 October 2026):
 - A3/A4: account menu contains Account settings, Change password, View public site
   and Sign out. Notifications bell is in the top bar; its Admin actions overview
   opens that section of `/notifications`. English/Danish is a two-state switch
-  beside the theme switch. Drop the blocker chip and page description.
+  beside the theme switch. Drop the blocker chip and the old admin header description;
+  retain the reference summary line under each page title (5 October clarification).
 - A6: theme initially follows the OS; remember a manual choice per browser and
   apply it before first paint. Keep the switch in the reference top-bar position.
 - A7/A11: switcher includes only the current Live/Final-review event and upcoming
@@ -96,7 +97,9 @@ U1 review decisions (user approval, 5 October 2026; brief50 / decisions08):
 - U-E: event breadcrumb is plain text; failed loads show the reference icon/title;
   menus use reference placement and exit animation; collapse labels toggle. Pages
   may provide their own loading skeleton, with a generic fallback. Use the existing
-  DK Legacy mark image in the reference logo position. Hide event-specific nav
+  DK Legacy mark image in the reference logo position. The sidebar header shows
+  the signed-in public username, localized role and chevron; the account menu adds
+  the name / @handle · role header (visual-check Q1/Q2). Hide event-specific nav
   links when no event is selected. The reference nav label is Teams / Draft (R17).
 - U-F: Identity makes unchanged Save inert with `aria-disabled`, remaining focusable
   with the No changes to save tooltip and no visible no-change status. Reverting
@@ -105,8 +108,24 @@ U1 review decisions (user approval, 5 October 2026; brief50 / decisions08):
   zones. Scheduled moments are rows; unset moments share one Not scheduled yet:
   … line (or Nothing is scheduled yet, so no shown times change.). The quiet note
   after successful readback is Up to date, without attributing a save request.
+  Follow the complete reference presentation, including title summary, icons,
+  shared busy spinner/labels, field notes/counters, dialog structure and banners.
+  The timezone select shows zone ID with current UTC offset (Q4); Description
+  and Buy-in accept over-limit typing with counter/error, while server refusal
+  remains mandatory (Q6).
 - U-G: Danish new-shell/Identity terminology is event/events (Events, Alle events),
   not Bingoer. Scoped resource keys preserve legacy-page translations.
+
+U1 visual-check clarifications (5 October; brief55): language changes save through
+existing `/language` POST then swap translated page/shell without a skeleton,
+retaining sidebar, scroll and focus. Highlight after the dirty guard; use the theme
+segment transition and a `--dk-dur-theme` text cross-fade (none with reduced motion).
+Keep editing preserves draft and language; unavailable swaps fall back to reload.
+Loading/failed navigation already shows the destination event in switcher/crumb
+(Q7, as the reference); Back and cancelled guards restore the correct context.
+Toasts use finite reference lifetime and animated exit, without hover pause; on
+phones they sit above the sticky save bar (Q5). Every save/action uses shared
+`AdminUI.busy` (600 ms, quick 250 ms only for one-click live-draft actions).
 
 There is no U-D decision. Shared navigation retains sidebar DOM/collapse state,
 updates current/event-dependent links, closes clean layers before swaps and guards
