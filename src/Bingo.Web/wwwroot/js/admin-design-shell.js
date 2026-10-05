@@ -194,7 +194,7 @@
 
   const drafts = new Map();
   const isDirty = () => [...drafts.values()].some(draft => draft.isDirty()) || layers.some(layer => layer.dirty());
-  const isPending = () => [...drafts.values()].some(draft => draft.isPending?.()) || layers.some(layer => layer.pending());
+  const isPending = () => languagePending || [...drafts.values()].some(draft => draft.isPending?.()) || layers.some(layer => layer.pending());
   const beforeUnload = event => { if (isDirty() || isPending()) { event.preventDefault(); event.returnValue = ''; } };
   let watching = false;
   function refreshDirty() {
@@ -266,19 +266,70 @@
     for (const template of doc.querySelectorAll('template[data-page-loading-template]')) skeletons.set(template.dataset.pageLoadingTemplate, template.content.cloneNode(true));
   }
   rememberSkeletons(document);
-  function skeleton(url) {
-    const main = document.querySelector('[data-page-region]');
-    const kind = new URL(url).pathname.split('/').at(-2)?.toLowerCase() || 'page';
-    const placeholder = document.createElement('div'); placeholder.className = 'page'; placeholder.dataset.pageSkeleton = kind; placeholder.setAttribute('role', 'status'); placeholder.setAttribute('aria-label', text('loading'));
-    const provided = skeletons.get(kind); placeholder.dataset.skeletonLayout = provided ? 'page' : 'generic';
-    if (provided) placeholder.append(provided.cloneNode(true));
-    else for (let row = 0; row < 6; row++) { const bar = document.createElement('div'); bar.className = 'sk-row'; placeholder.append(bar); }
-    main.replaceChildren(placeholder); main.setAttribute('aria-busy', 'true');
+  let overlay = null;
+  const contexts = new Map();
+  function contextSnapshot() {
+    const snapshot = document.implementation.createHTMLDocument();
+    for (const element of document.querySelectorAll('[data-shell-sidebar],[data-shell-topbar],[data-shell-menu]')) snapshot.body.append(element.cloneNode(true));
+    return snapshot;
   }
-  function refreshSidebar(doc) {
+  function clearOverlay(restore = true) {
+    if (!overlay) return;
+    const previous = overlay; overlay = null;
+    previous.element.remove();
+    for (const saved of previous.children) {
+      saved.element.hidden = saved.hidden; saved.element.inert = saved.inert;
+      if (saved.aria === null) saved.element.removeAttribute('aria-hidden'); else saved.element.setAttribute('aria-hidden', saved.aria);
+    }
+    if (previous.busy === null) previous.main.removeAttribute('aria-busy'); else previous.main.setAttribute('aria-busy', previous.busy);
+    if (restore) { refreshContext(previous.context); restorePosition(previous.position); }
+  }
+  function destinationContext(url) {
+    const cached = contexts.get(url);
+    if (cached) { refreshContext(cached); return; }
+    const choice = [...document.querySelectorAll('[data-event-id]')].find(link => link.href === url);
+    if (!choice) return;
+    const context = document.querySelector('[data-shell-event-context]');
+    const oldId = context?.dataset.selectedEventId;
+    const name = choice.dataset.eventName;
+    const setText = (selector, value) => { const node = document.querySelector(selector); if (node && value !== undefined) node.textContent = value; };
+    setText('.ev-name', name); setText('.design-event-crumb', name);
+    setText('.ev-meta-text', `${choice.dataset.eventStage} · ${choice.dataset.eventWhen}`);
+    const dot = context?.querySelector('.dot'); if (dot) dot.className = `dot ${choice.dataset.eventTone}`;
+    if (context) {
+      context.dataset.selectedEventId = choice.dataset.eventId;
+      if (oldId) for (const link of context.querySelectorAll('a[data-shell-link]')) link.href = link.href.replace(oldId, choice.dataset.eventId);
+    }
+  }
+  function skeleton(url) {
+    clearOverlay();
+    const main = document.querySelector('[data-page-region]'), context = contextSnapshot(), position = rememberPosition();
+    contexts.set(activeUrl, context);
+    const children = [...main.children].map(element => ({ element, hidden: element.hidden, inert: element.inert, aria: element.getAttribute('aria-hidden') }));
+    const busy = main.getAttribute('aria-busy');
+    for (const saved of children) { saved.element.hidden = true; saved.element.inert = true; saved.element.setAttribute('aria-hidden', 'true'); }
+    destinationContext(url);
+    const kind = new URL(url).pathname.split('/').at(-2)?.toLowerCase() || 'page';
+    const placeholder = document.createElement('div'); placeholder.className = 'page'; placeholder.dataset.pageSkeleton = kind;
+    placeholder.setAttribute('role', 'status'); placeholder.setAttribute('aria-label', text('loading')); placeholder.setAttribute('aria-busy', 'true');
+    const head = main.querySelector('.page-head')?.cloneNode(true);
+    if (head) {
+      head.hidden = false; head.inert = false; head.removeAttribute('aria-hidden');
+      head.querySelectorAll('[id]').forEach(element => element.removeAttribute('id'));
+      const summary = head.querySelector('[data-summary-template]');
+      if (summary) summary.textContent = summary.dataset.summaryTemplate.replace('{0}', document.querySelector('.ev-name')?.textContent || '');
+      placeholder.append(head);
+    }
+    const provided = skeletons.get(kind); placeholder.dataset.skeletonLayout = provided ? 'page' : 'generic';
+    placeholder.append(provided ? provided.cloneNode(true) : template('loading'));
+    main.append(placeholder); main.setAttribute('aria-busy', 'true');
+    overlay = { element: placeholder, main, children, busy, context, position };
+  }
+  function refreshSidebar(doc, translated = false) {
     const side = document.querySelector('[data-shell-sidebar]'), next = doc.querySelector('[data-shell-sidebar]');
+    if (translated) { const scroll = side.scrollTop; side.replaceChildren(...document.importNode(next, true).childNodes); side.scrollTop = scroll; return; }
     const context = side.querySelector('[data-shell-event-context]'), nextContext = next.querySelector('[data-shell-event-context]');
-    if (context && nextContext) context.replaceChildren(...document.importNode(nextContext, true).childNodes);
+    if (context && nextContext) { context.replaceChildren(...document.importNode(nextContext, true).childNodes); context.dataset.selectedEventId = nextContext.dataset.selectedEventId || ''; }
     const links = [...side.querySelectorAll('a[data-shell-link]')], replacements = [...next.querySelectorAll('a[data-shell-link]')];
     if (links.length !== replacements.length) throw new Error('Unexpected sidebar navigation');
     links.forEach((link, index) => {
@@ -298,79 +349,121 @@
     }
     window.adminDesignTheme?.apply();
   }
+  function rememberPosition() {
+    const active = document.activeElement;
+    const selector = active?.id ? `#${CSS.escape(active.id)}`
+      : active?.matches('[data-shell-language] button') ? `[data-shell-language] button[value="${CSS.escape(active.value)}"]`
+      : active?.name ? `[name="${CSS.escape(active.name)}"]` : null;
+    const scroller = document.querySelector('[data-page-region]');
+    return { active, selector, top: scroller?.scrollTop || 0, left: scroller?.scrollLeft || 0 };
+  }
+  function restorePosition(position) {
+    const scroller = document.querySelector('[data-page-region]');
+    if (scroller) { scroller.scrollTop = position.top; scroller.scrollLeft = position.left; }
+    focus(position.active?.isConnected ? position.active : position.selector ? document.querySelector(position.selector) : document.querySelector('.h1'));
+  }
   async function closeNavigationLayers() {
     while (layers.length) if (!await closeLayer(layers.at(-1), false, true)) return false;
     return true;
   }
-  async function navigate(url, { mode = 'push', targetIndex, check = true } = {}) {
+  function validatePage(doc, response, language) {
+    if (!doc.querySelector('[data-page-region]') || !doc.querySelector('body[data-admin-design]')
+        || !doc.querySelector('[data-shell-sidebar]') || !doc.querySelector('[data-shell-topbar]')
+        || !doc.querySelector('[data-shell-antiforgery]') || (response.redirected && !language)) return false;
+    if ([...doc.querySelectorAll('script')].some(script => !script.hasAttribute('data-admin-page-script') && !script.hasAttribute('data-admin-shell-script'))) return false;
+    if ([...doc.querySelectorAll('script[src],link[data-admin-page-style]')].some(node => new URL(node.getAttribute('src') || node.getAttribute('href'), location.href).origin !== location.origin)) return false;
+    return ['[data-page-region]', '[data-shell-topbar]', '[data-shell-menu]', '[data-shell-antiforgery]'].every(selector => document.querySelectorAll(selector).length === doc.querySelectorAll(selector).length);
+  }
+  async function navigate(url, { mode = 'push', targetIndex, check = true, language = false, response: suppliedResponse, position: suppliedPosition, rollbackContext } = {}) {
     url = new URL(url, location.href).href;
     if (check && !await guard()) return false;
     if (!await closeNavigationLayers()) return false;
+    navigation?.abort(); clearOverlay();
     if (body.dataset.navigationEnabled.toLowerCase() === 'false') { fullLoad(url); return true; }
     const ticket = ++sequence;
-    navigation?.abort(); navigation = new AbortController();
+    navigation = new AbortController();
     closeMenu(false);
     if (mobile) toggleSide(false);
-    await disposePage();
-    if (mode === 'pop') { index = targetIndex; activeUrl = url; }
-    skeleton(url);
+    const position = suppliedPosition || rememberPosition();
+    if (!language) skeleton(url);
     let receivedPage = false;
+    const fallback = destination => { clearOverlay(); if (rollbackContext) { refreshContext(rollbackContext); restorePosition(position); } fullLoad(destination); return true; };
     try {
-      const response = await fetch(url, { credentials: 'same-origin', signal: navigation.signal, headers: { 'X-Admin-Navigation': 'true' } });
+      const response = suppliedResponse || await fetch(url, { credentials: 'same-origin', signal: navigation.signal, headers: { 'X-Admin-Navigation': 'true' } });
       if (!response.ok) throw new Error('Page load failed');
-      const html = await response.text();
-      receivedPage = true;
+      const html = await response.text(); receivedPage = true;
       const doc = new DOMParser().parseFromString(html, 'text/html');
       if (ticket !== sequence) return false;
-      const region = doc.querySelector('[data-page-region]'), nextBody = doc.querySelector('body[data-admin-design]');
-      if (!region || !nextBody || response.redirected || !doc.querySelector('[data-shell-sidebar]') || !doc.querySelector('[data-shell-topbar]')) { fullLoad(response.url || url); return true; }
-      const tokenHost = doc.querySelector('[data-shell-antiforgery]');
-      const unexpectedScripts = [...doc.querySelectorAll('script')].some(script => !script.hasAttribute('data-admin-page-script') && !script.hasAttribute('data-admin-shell-script') && new URL(script.getAttribute('src') || '/', location.href).pathname !== '/js/admin-design-theme.js');
-      if (!tokenHost || unexpectedScripts) { fullLoad(url); return true; }
-      const styles = [...doc.querySelectorAll('link[data-admin-page-style]')];
-      if (styles.some(style => new URL(style.href, location.href).origin !== location.origin)) { fullLoad(url); return true; }
+      if (!validatePage(doc, response, language)) return fallback(response.url || url);
       const nextModules = await loadModules(doc);
       if (ticket !== sequence) return false;
+      // Compatibility and imports are known before any old module is disposed.
+      await disposePage();
+      clearOverlay(false);
       rememberSkeletons(doc);
-      document.title = doc.title;
-      document.documentElement.lang = doc.documentElement.lang;
+      document.title = doc.title; document.documentElement.lang = doc.documentElement.lang;
+      const nextBody = doc.querySelector('body[data-admin-design]');
       for (const [key, value] of Object.entries(nextBody.dataset)) body.dataset[key] = value;
-      refreshSidebar(doc);
-      for (const selector of ['[data-page-region]', '[data-shell-topbar]', '[data-shell-menu]']) {
+      refreshSidebar(doc, language);
+      for (const selector of ['[data-page-region]', '[data-shell-topbar]', '[data-shell-menu]', '[data-shell-antiforgery]', 'template[data-admin-template]']) {
         const old = [...document.querySelectorAll(selector)], replacements = [...doc.querySelectorAll(selector)];
-        if (old.length !== replacements.length) { fullLoad(url); return true; }
-        old.forEach((element, i) => element.replaceWith(document.importNode(replacements[i], true)));
+        old.forEach((element, i) => { if (replacements[i]) element.replaceWith(document.importNode(replacements[i], true)); });
       }
-      document.querySelector('[data-shell-antiforgery]')?.replaceWith(document.importNode(tokenHost, true));
       document.querySelectorAll('link[data-admin-page-style]').forEach(style => style.remove());
-      styles.forEach(style => document.head.append(document.importNode(style, true)));
+      doc.querySelectorAll('link[data-admin-page-style]').forEach(style => document.head.append(document.importNode(style, true)));
       for (const notice of doc.querySelectorAll('[data-toast-host] [data-toast]')) toast(notice.querySelector('.grow')?.textContent || notice.textContent, { error: notice.classList.contains('is-error') });
-      window.adminDesignTheme?.apply();
+      window.adminDesignTheme?.apply(); paintSideLabel();
       if (mode === 'push') { index++; history.pushState({ adminDesignIndex: index }, '', url); }
       else if (mode === 'pop') index = targetIndex;
       activeUrl = url;
       await initModules(nextModules);
-      focus(document.querySelector('.h1'));
+      if (language) {
+        restorePosition(position);
+        if (!reducedMotion()) for (const element of document.querySelectorAll('[data-shell-sidebar],[data-shell-topbar],[data-page-region]')) {
+          element.dataset.languageTransition = '';
+          element.addEventListener('animationend', () => element.removeAttribute('data-language-transition'), { once: true });
+        }
+      } else focus(document.querySelector('.h1'));
       document.dispatchEvent(new CustomEvent('admin:page-changed', { detail: { url } }));
       return true;
     } catch (error) {
       if (error.name === 'AbortError' || ticket !== sequence) return false;
-      if (receivedPage) { await disposePage(); fullLoad(url); return true; }
-      const main = document.querySelector('[data-page-region]');
-      main.removeAttribute('aria-busy');
-      const failed = document.createElement('div'); failed.className = 'empty is-error'; failed.setAttribute('role', 'alert');
-      const icon = document.createElement('div'); icon.className = 'empty-ic'; icon.setAttribute('aria-hidden', 'true');
-      icon.innerHTML = '<svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 5v3.5M8 11h.01"/></svg>';
-      const heading = document.createElement('div'); heading.className = 'empty-title'; heading.textContent = text('loadErrorTitle');
-      const message = document.createElement('p'); message.className = 'empty-text'; message.textContent = text('loadError');
-      const retry = document.createElement('button'); retry.className = 'btn'; retry.textContent = text('retry');
+      if (receivedPage || language) { console.warn('Admin page swap could not finish.', error); return fallback(url); }
+      const placeholder = overlay?.element;
+      if (!placeholder) return false;
+      placeholder.setAttribute('aria-busy', 'false'); overlay.main.removeAttribute('aria-busy');
+      for (const child of [...placeholder.children]) if (!child.classList.contains('page-head')) child.remove();
+      const failed = template('load-failure');
+      const retry = failed.querySelector('[data-load-retry]');
       retry.addEventListener('click', () => void navigate(url, { mode, targetIndex, check: false }));
-      failed.append(icon, heading, message, retry); main.replaceChildren(failed); focus(retry);
+      placeholder.append(failed); focus(retry);
       return false;
     }
   }
+  let languagePending = false;
+  async function changeLanguage(form, button) {
+    if (languagePending || !button || button.classList.contains('is-on')) return;
+    if (!await guard() || !await closeNavigationLayers()) return;
+    navigation?.abort(); clearOverlay();
+    const rollbackContext = contextSnapshot();
+    languagePending = true; refreshDirty();
+    const position = rememberPosition(); position.active = button; position.selector = `[data-shell-language] button[value="${CSS.escape(button.value)}"]`;
+    const oldLanguage = document.documentElement.lang;
+    const buttons = [...form.querySelectorAll('button[name="culture"]')];
+    const highlight = value => buttons.forEach(item => { item.classList.toggle('is-on', item.value === value); item.setAttribute('aria-pressed', String(item.value === value)); });
+    highlight(button.value);
+    buttons.forEach(item => item.disabled = true);
+    try {
+      const data = new FormData(form); data.set(button.name, button.value); data.set('returnUrl', location.pathname + location.search);
+      const response = await fetch(form.action, { method: 'POST', credentials: 'same-origin', body: data });
+      await navigate(location.href, { mode: 'replace', check: false, language: true, response, position, rollbackContext });
+    } catch {
+      highlight(oldLanguage); clearOverlay(); location.reload();
+    } finally { languagePending = false; buttons.forEach(item => item.disabled = false); refreshDirty(); }
+  }
   function goTo(target) { return new Promise(resolve => { travel = { target, resolve }; history.go(target - (history.state?.adminDesignIndex ?? index)); }); }
   async function onPop(event) {
+    if (overlay) { navigation?.abort(); sequence++; clearOverlay(); }
     const target = event.state?.adminDesignIndex, url = location.href;
     if (travel) { if (target === travel.target) { const resolve = travel.resolve; travel = null; resolve(); } return; }
     const currentDocument = new URL(activeUrl), destinationDocument = new URL(url);
@@ -400,6 +493,7 @@
     history[record ? 'pushState' : 'replaceState']({ adminDesignIndex: index }, '', url); activeUrl = url.href;
   }
   const api = window.AdminUI = { template, trapTab, openLayer, closeLayer, confirm, confirmDiscard, toast, busy, reducedMotion, registerDraft, trackForm, refreshDirty, guard, query, setUrl, navigate, refreshContext };
+  document.addEventListener('submit', event => { if (event.target.matches('[data-shell-language]')) { event.preventDefault(); void changeLanguage(event.target, event.submitter); } });
   document.addEventListener('input', refreshDirty);
   document.addEventListener('change', refreshDirty);
   document.addEventListener('pointerdown', () => body.classList.remove('using-keyboard'));
@@ -428,6 +522,7 @@
     event.preventDefault(); void navigate(url.href);
   });
   window.addEventListener('popstate', event => void onPop(event));
+  window.addEventListener('pageshow', event => { if (event.persisted) { navigation?.abort(); sequence++; clearOverlay(); location.reload(); } });
   document.querySelectorAll('[data-toast]').forEach(element => startToast(element, 4500));
   paintSideLabel();
   void loadModules(document).then(initModules).catch(() => toast(text('loadError'), { error: true }));

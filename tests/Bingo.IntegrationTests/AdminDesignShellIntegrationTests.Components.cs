@@ -23,7 +23,7 @@ public sealed partial class AdminDesignShellIntegrationTests
         using var client = await IdentityClientAsync(factory);
         var html = await client.GetStringAsync($"/Admin/Events/Identity/{item.Id}");
         var templates = string.Join('\n', Regex.Matches(html, "<template data-admin-template=\"[^\"]+\">.*?</template>", RegexOptions.Singleline).Select(match => match.Value));
-        Assert.Equal(9, Regex.Count(templates, "<template "));
+        Assert.Equal(11, Regex.Count(templates, "<template "));
         Assert.Contains("data-icon=\"check\"", templates);
         Assert.Contains("data-icon=\"error\"", templates);
         Assert.Contains("class=\"m-body\"", templates);

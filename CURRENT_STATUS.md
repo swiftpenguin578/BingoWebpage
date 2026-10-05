@@ -5,6 +5,8 @@
 - Brief55 starts at verified clean `49ae49cf0e9abe606ecfea4d68fdcfb8cb6bf2dc`. Claude round2 named recheck passed and whole .NET suite passed **2031/0/0**, Release **0 warnings** (supplied planner evidence; not rerun by this implementer). User visual acceptance **failed**; strict comparison54 found 56 differences, five High. Items0–7 are authorized sequentially, one local commit each. Fresh rendered recheck/user acceptance and final whole .NET suite remain required.
 - Reproducible baseline archive preserved before edits; see [round3 item0](docs/references/admin-ui/reviews/2026-10-05/u1/remediation-3/item0-authority.md).
 
+- Round3 checkpoint: item0 `7f832d7`, item1 `68d8281`, authorized docs prerequisite `72c1e24`; this commit completes item2 under planner ruling56. Focused shell and language checks passed in Chromium/WebKit; controlled PostgreSQL/HTTP checks 2/0/0. See [item2 navigation](docs/references/admin-ui/reviews/2026-10-05/u1/remediation-3/item2-navigation.md). Continue items3–7; final rendered parity, full cross-browser runner and review/visual gates remain pending.
+
 ### Round2 implementation evidence (historical; review/suite status superseded above)
 
 - Authority: [brief53](/Users/christopher/Documents/BingoWebpage/review-notes/53-codex-brief-u1-remediation-2.md), [recheck52](/Users/christopher/Documents/BingoWebpage/review-notes/52-u1-recheck.md), named 52a/52b findings and U-F in [decisions08](/Users/christopher/Documents/BingoWebpage/review-notes/08-decisions.md). Brief43/50 protected scope and precise test-change rules remain.
