@@ -1,0 +1,12 @@
+{
+  "name": "bingo-browser-checks",
+  "private": true,
+  "packageManager": "pnpm@11.25.0",
+  "scripts": {
+    "test": "node scripts/run-browser-tests.cjs",
+    "test:js": "node scripts/run-browser-tests.cjs"
+  },
+  "devDependencies": {
+    "playwright": "1.62.1"
+  }
+}

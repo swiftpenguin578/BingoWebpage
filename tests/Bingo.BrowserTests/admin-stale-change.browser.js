@@ -4,6 +4,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 const { chromium } = require("playwright");
+const confirmationPartial = fs.readFileSync("src/Bingo.Web/Pages/Shared/_AdminConfirmation.cshtml", "utf8").replace(/@T\["([^"]+)"\]/g, "$1");
 
 (async () => {
   const fixtureDirectory = process.env.BINGO_ADMIN_STALE_EVIDENCE_DIRECTORY;
@@ -27,7 +28,7 @@ const { chromium } = require("playwright");
         }
         if (url.pathname === accountPath) return route.fulfill({ contentType: "text/html", body: opened });
         if (url.pathname.startsWith("/js/")) return route.fulfill({ contentType: "text/javascript", body: fs.readFileSync(`src/Bingo.Web/wwwroot${url.pathname}`, "utf8") });
-        return route.fulfill({ contentType: "text/html", body: `<html><body data-admin-account-action-error="Account request failed."><main id="main-content"><section class="admin-accounts-page"><a data-account-manage-trigger="true" href="${accountPath}">Manage</a></section></main><script src="/js/admin-editor-guard.js"></script><script src="/js/account-manage-dialog.js"></script></body></html>` });
+        return route.fulfill({ contentType: "text/html", body: `<html><body data-admin-account-action-error="Account request failed."><main id="main-content"><section class="admin-accounts-page"><a data-account-manage-trigger="true" href="${accountPath}">Manage</a></section></main>${confirmationPartial}<script src="/js/admin-confirmation.js"></script><script src="/js/admin-editor-guard.js"></script><script src="/js/account-manage-dialog.js"></script></body></html>` });
       });
       await page.goto("https://bingo.test/Admin/Accounts");
       await page.locator("[data-account-manage-trigger]").click();
@@ -36,21 +37,16 @@ const { chromium } = require("playwright");
       const originalForm = modal.locator(`form[action*="handler=${action}"]`);
       const expected = await originalForm.locator('[name="ExpectedAuthorizationVersion"]').inputValue();
       const openConfirmation = async () => {
-        if (action === "Disable" || action === "Restore") {
-          await modal.locator(`[data-account-final-action][data-account-handler="${action}"]`).click();
-          const confirmation = modal.locator(".admin-account-inline-confirmation");
-          await confirmation.waitFor({ state: "visible" });
-          return confirmation.locator("form");
-        }
-        const details = modal.locator(`details:has(form[action*="handler=${action}"])`);
-        await details.locator("summary").click();
-        return details.locator("form");
+        await modal.locator(`[data-account-final-action][data-account-handler="${action}"]`).click();
+        const dialog = page.locator("[data-admin-confirmation]");
+        await dialog.waitFor({ state: "visible" });
+        return { dialog, form: modal.locator(`form[action*="handler=${action}"]`) };
       };
       let confirmation = await openConfirmation();
       assert.equal(requests.length, 0, `${action}: revealing confirmation has no side effects`);
-      assert.equal(await confirmation.locator('[name="ExpectedAuthorizationVersion"]').inputValue(), expected);
-      if (action === "Disable") await confirmation.locator('[name="Reason"]').fill("Browser fixture reason");
-      await confirmation.locator('[type="submit"]').click();
+      assert.equal(await confirmation.form.locator('[name="ExpectedAuthorizationVersion"]').inputValue(), expected);
+      if (action === "Disable") await confirmation.dialog.locator("textarea").fill("Browser fixture reason");
+      await confirmation.dialog.locator("[data-admin-confirmation-action]").click();
       await modal.locator('[data-account-change-stale="true"]').waitFor();
       assert.equal(requests.length, 1, `${action}: one confirmation posts once`);
       assert.equal(requests[0].url.searchParams.get("handler"), action);
@@ -60,9 +56,10 @@ const { chromium } = require("playwright");
       assert.equal(await feedback.isVisible(), true);
       assert.match(await feedback.innerText(), /changed by another administrator/);
       assert.equal(await modal.locator(".validation-summary").evaluate(element => element.classList.contains("visually-hidden")), true, "the replacement summary does not duplicate feedback");
+      assert.equal(await confirmation.dialog.evaluate(element => element.open), false, "shared stale confirmation closes before a new decision");
       assert.equal(await modal.locator(".admin-account-inline-confirmation:not([hidden]), details[open]").count(), 0, "stale confirmation closes before a new decision");
       confirmation = await openConfirmation();
-      const refreshed = await confirmation.locator('[name="ExpectedAuthorizationVersion"]').inputValue();
+      const refreshed = await confirmation.form.locator('[name="ExpectedAuthorizationVersion"]').inputValue();
       assert.notEqual(refreshed, expected, `${action}: new confirmation uses current target freshness`);
       assert.equal(requests.length, 1, "reopening does not auto-submit the action");
       assert.deepEqual(errors, []);
