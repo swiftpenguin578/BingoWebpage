@@ -33,9 +33,18 @@ const {chromium}=require('playwright'),fixture=require('./fixtures/identity.cjs'
   await name.fill('Edited after theirs');
   const savedHtml=fixture.page(fixture.editor({url:base+first,preview:false,name:'Edited after theirs',originalName:'Edited after theirs',description:'Their description',timezone:'UTC',originalTimezone:'UTC'}).replace('name="Input.OriginalDescription" value=""','name="Input.OriginalDescription" value="Their description"'),{eventName:'Edited after theirs'});
   await page.evaluate(({html,url})=>{window.posted=[];window.beforeSaveDocument=document;window.AdminFetch.request=async(target,options)=>{window.posted.push(Object.fromEntries(options.body));return{kind:'handler',data:html,response:{redirected:true,url}};};},{html:savedHtml,url:base+first});
+  await page.locator('[data-theme="dark"]').click();
   await save.click();await page.waitForFunction(()=>document.querySelector('.design-event-crumb').textContent==='Edited after theirs');
+  assert.equal(await page.locator('[data-theme="dark"]').getAttribute('aria-pressed'),'true');assert.equal(await page.locator('[data-theme="dark"]').evaluate(el=>el.classList.contains('is-on')),true);assert.equal(await page.locator('[data-theme="light"]').getAttribute('aria-pressed'),'false');
   assert.equal(await name.inputValue(),'Edited after theirs');assert.equal(await page.locator('.ev-name').textContent(),'Edited after theirs');assert.equal(await page.evaluate(()=>document===window.beforeSaveDocument),true);
   assert.equal(await page.evaluate(()=>window.posted.length),1);assert.equal(await page.evaluate(()=>window.posted[0]['Input.NameResolution']),'KeepMine');assert.equal(await page.evaluate(()=>window.posted[0]['Input.Name']),'Edited after theirs');assert.equal(await save.isDisabled(),true);
+  // A successful saved editor/toast survives an actual malformed shell context.
+  await name.fill('Edited after theirs again');
+  const badContext=savedHtml.replace('<header data-shell-topbar>','<header>').replace('<div data-toast-host></div>','<div data-toast-host><div data-toast><span class="grow">Saved</span></div></div>');
+  const warnings=[];page.on('console',message=>{if(message.type()==='warning')warnings.push(message.text());});
+  await page.evaluate(({html,url})=>{window.AdminFetch.request=async()=>({kind:'handler',data:html,response:{redirected:true,url}});},{html:badContext,url:base+first});
+  await save.click();await page.locator('[data-toast]').waitFor();assert.equal(await page.locator('[data-toast] .grow').textContent(),'Saved');assert.equal(await name.inputValue(),'Edited after theirs');assert.equal(await name.isEnabled(),true);assert.equal(await page.evaluate(()=>document.querySelector('.main').inert),false);assert.equal(warnings.length,1);assert.match(warnings[0],/shell context could not be refreshed/);
+  await name.fill('Still editable');assert.equal(await save.getAttribute('aria-disabled'),'false');assert.equal(await page.locator('[data-identity-state]').textContent(),'Unsaved changes');
   // Returning to the original resets a UseCurrent choice to None.
   await page.goto(base+first);await page.locator('[data-use-theirs="Name"]').click();await name.fill('First event');assert.equal(await page.locator('[name="Input.NameResolution"]').inputValue(),'None');
   // Page consumes classified refusal/session loss without navigating or claiming success.
