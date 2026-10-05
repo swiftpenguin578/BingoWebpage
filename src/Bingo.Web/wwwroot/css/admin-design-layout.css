@@ -20,3 +20,5 @@ body:not(.using-keyboard) :focus-visible{outline:none}.design-drawer-layer{posit
 [data-language-transition]{animation:adminLanguageFade var(--dk-dur-theme) ease-out}
 @keyframes adminLanguageFade{from{opacity:.45}to{opacity:1}}
 @media(prefers-reduced-motion:reduce){[data-language-transition]{animation:none}}
+
+.toasts{bottom:var(--admin-toast-bottom,20px)}

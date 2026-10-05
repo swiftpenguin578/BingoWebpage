@@ -239,11 +239,26 @@ export function dispose() { window.disposes=(window.disposes||0)+1;window.active
     await page.evaluate(()=>{for(let i=0;i<4;i++)AdminUI.toast(`Message ${i}`);});
     assert.equal(await page.locator('[data-toast]').count(),3);
     await page.locator('[data-toast]').last().dispatchEvent('mouseenter');
-    await page.clock.fastForward(5000); assert.equal(await page.locator('[data-toast]').count(),1,'hover pauses toast expiry');
-    await page.locator('[data-toast]').dispatchEvent('mouseleave'); await page.clock.fastForward(4501); assert.equal(await page.locator('[data-toast]').count(),0);
+    await page.clock.fastForward(4499); assert.equal(await page.locator('[data-toast]').count(),3);
+    await page.clock.fastForward(1); assert.equal(await page.locator('[data-toast]').count(),0,'hover does not extend the reference lifetime');
     await page.evaluate(()=>AdminUI.toast('With action',{actionLabel:'Open',action:()=>{}}));
     await page.clock.fastForward(6999); assert.equal(await page.locator('[data-toast]').count(),1);
     await page.clock.fastForward(1); assert.equal(await page.locator('[data-toast]').count(),0);
+    await page.emulateMedia({reducedMotion:'no-preference'});
+    await page.evaluate(()=>AdminUI.toast('Dismiss me'));await page.locator('[data-toast-close]').click();
+    assert.equal(await page.locator('[data-toast]').evaluate(el=>el.classList.contains('is-leaving')),true);
+    const exitMs=await page.locator('[data-toast]').evaluate(el=>parseFloat(getComputedStyle(el).animationDuration)*1000+20);
+    await page.clock.fastForward(exitMs);assert.equal(await page.locator('[data-toast]').count(),0);
+    await page.setViewportSize({width:390,height:844});await page.emulateMedia({reducedMotion:'reduce'});
+    await page.evaluate(()=>{
+      document.querySelector('[data-page-region]').innerHTML='<div class="page"><div class="card form-card"><div style="height:1200px"></div><div class="form-bar"><button class="btn btn-primary" id="phone-save">Save changes</button></div></div></div>';
+      window.phoneSaves=0;document.querySelector('#phone-save').addEventListener('click',()=>window.phoneSaves++);AdminUI.toast('Identity saved.');
+    });
+    await page.locator('#phone-save').scrollIntoViewIfNeeded();
+    await page.evaluate(()=>dispatchEvent(new Event('resize')));
+    assert.equal(await page.locator('#phone-save').evaluate(el=>{const r=el.getBoundingClientRect();return el.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2));}),true);
+    assert.equal(await page.evaluate(()=>document.querySelector('[data-toast]').getBoundingClientRect().bottom<document.querySelector('.form-bar').getBoundingClientRect().top),true);
+    await page.locator('#phone-save').click();assert.equal(await page.evaluate(()=>window.phoneSaves),1);
     assert.deepEqual(errors,[]);
     console.log('PASS shell focus/layers/menus, dirty sidebar/crumb/switcher/Back/Forward, module disposal, URL state, swap/failure/fallback/off, busy/motion/toasts');
   } finally { await browser.close(); }

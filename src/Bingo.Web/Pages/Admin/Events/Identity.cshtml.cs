@@ -167,7 +167,7 @@ public sealed class IdentityModel(
             return Page();
         }
 
-        TempData["StatusMessage"] = Localize("Event identity updated.");
+        TempData["StatusMessage"] = Localize("AdminDesign.Identity saved.");
         TempData[UiMessage.TypeKey] = UiMessageType.Success.ToString();
         return RedirectToPage("Identity", new { id });
     }

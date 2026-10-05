@@ -67,4 +67,5 @@
   <data name="AdminDesign.Leave before checking your save?" xml:space="preserve"><value>Leave before checking your save?</value></data>
   <data name="AdminDesign.We couldn’t confirm your last save, and it may already have gone through. Check again to find out, or leave now: anything that wasn’t saved will be lost, and you won’t know which until you come back." xml:space="preserve"><value>We couldn’t confirm your last save, and it may already have gone through. Check again to find out, or leave now: anything that wasn’t saved will be lost, and you won’t know which until you come back.</value></data>
   <data name="AdminDesign.Use {0} characters or fewer." xml:space="preserve"><value>Use {0} characters or fewer.</value></data>
+  <data name="AdminDesign.Identity saved." xml:space="preserve"><value>Identity saved.</value></data>
 </root>

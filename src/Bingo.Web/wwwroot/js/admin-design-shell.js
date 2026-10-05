@@ -191,19 +191,34 @@
     clearTimeout(state?.timer); toastTimers.delete(element);
     element.remove();
   }
+  function dismissToast(element) {
+    if (!toastTimers.has(element) || element.classList.contains('is-leaving')) return false;
+    clearTimeout(toastTimers.get(element).timer); element.classList.add('is-leaving');
+    void afterExit(element).then(() => removeToast(element)); return true;
+  }
+  let toastBar = null;
+  const toastBarObserver = new ResizeObserver(() => placeToasts());
+  function placeToasts() {
+    const host = document.querySelector('[data-toast-host]'), bar = document.querySelector('[data-page-region] .form-bar');
+    if (bar !== toastBar) { toastBarObserver.disconnect(); toastBar = bar; if (bar) toastBarObserver.observe(bar); }
+    if (!host) return;
+    const rect = bar?.getBoundingClientRect();
+    const clearance = matchMedia('(max-width:640px)').matches && rect?.height && rect.top < innerHeight && rect.bottom > 0 ? Math.max(20, innerHeight - rect.top + 12) : 20;
+    host.style.setProperty('--admin-toast-bottom', `${clearance}px`);
+  }
+  document.addEventListener('scroll', placeToasts, { capture: true, passive: true });
+  window.addEventListener('resize', placeToasts);
   function startToast(element, duration) {
-    const state = { remaining: duration, started: performance.now(), timer: null };
-    const resume = () => { state.started = performance.now(); state.timer = setTimeout(async () => { element.classList.add('is-leaving'); await afterExit(element); removeToast(element); }, state.remaining); };
-    element.addEventListener('mouseenter', () => { clearTimeout(state.timer); state.remaining = Math.max(0, state.remaining - (performance.now() - state.started)); });
-    element.addEventListener('mouseleave', resume);
-    element.querySelector('[data-toast-close]')?.addEventListener('click', () => removeToast(element));
-    toastTimers.set(element, state); resume();
+    element.querySelector('[data-toast-close]')?.addEventListener('click', () => dismissToast(element));
+    toastTimers.set(element, { timer: setTimeout(() => dismissToast(element), duration) });
+    for (const toast of [...toastTimers.keys()]) if (toast.classList.contains('is-leaving')) removeToast(toast);
     while (toastTimers.size > 3) removeToast(toastTimers.keys().next().value);
+    placeToasts();
   }
   function toast(message, { error = false, actionLabel, action } = {}) {
     const element = template(error ? 'toast-error' : 'toast').firstElementChild;
     element.querySelector('[data-component-text]').textContent = message;
-    if (actionLabel && action) { const button = element.querySelector('.toast-act'); button.hidden = false; button.textContent = actionLabel; button.addEventListener('click', action); }
+    if (actionLabel && action) { const button = element.querySelector('.toast-act'); button.hidden = false; button.textContent = actionLabel; button.addEventListener('click', () => { if (dismissToast(element)) action(); }); }
     document.querySelector('[data-toast-host]').append(element);
     startToast(element, actionLabel && action ? 7000 : 4500);
     return element;
@@ -215,6 +230,7 @@
   const beforeUnload = event => { if (isDirty() || isPending()) { event.preventDefault(); event.returnValue = ''; } };
   let watching = false;
   function refreshDirty() {
+    placeToasts();
     const needed = isDirty() || isPending();
     if (needed === watching) return;
     watching = needed;
