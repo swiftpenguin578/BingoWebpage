@@ -76,7 +76,7 @@ public sealed partial class AdminDesignShellIntegrationTests : IAsyncLifetime
         {
             routes["id"] = terminal.Id;
             var selected = (await service.GetAdminDesignAsync(User("Admin"), routes, CancellationToken.None)).SelectedEvent!;
-            Assert.Equal("ended " + terminal.EventEndsAt!.Value.ToString("d MMM", System.Globalization.CultureInfo.CurrentCulture), selected.When);
+            Assert.Equal((terminal.State == EventState.Cancelled ? "on " + terminal.CancelledAt!.Value.ToString("d MMM", System.Globalization.CultureInfo.CurrentCulture) : "ended " + terminal.EventEndsAt!.Value.ToString("d MMM", System.Globalization.CultureInfo.CurrentCulture)), selected.When);
         }
         routes["id"] = past.Id;
         var super = await service.GetAdminDesignAsync(User("SuperAdmin"), routes, CancellationToken.None);

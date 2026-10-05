@@ -69,4 +69,5 @@
   <data name="AdminDesign.Use {0} characters or fewer." xml:space="preserve"><value>Use {0} characters or fewer.</value></data>
   <data name="AdminDesign.Identity saved." xml:space="preserve"><value>Identity saved.</value></data>
   <data name="AdminDesign. Your other changes ({0}) are saved at the same time." xml:space="preserve"><value> Your other changes ({0}) are saved at the same time.</value></data>
+  <data name="AdminDesign.on {0}" xml:space="preserve"><value>on {0}</value></data>
 </root>
