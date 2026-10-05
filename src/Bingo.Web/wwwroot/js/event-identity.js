@@ -5,7 +5,7 @@ const key = field => field[0].toLowerCase() + field.slice(1);
 const trim = value => value.replace(/^[\u0009-\u000d\u0020\u0085\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]+|[\u0009-\u000d\u0020\u0085\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]+$/g, '');
 const canonical = (field, value) => { const result = trim(value ?? ''); return field === 'Description' || field === 'BuyInDescription' ? result || null : result; };
 const wire = value => value.replace(/\r\n|\r|\n/g, '\r\n');
-export function createIdentityReadbackSession(data, action, eventId, version) {
+export function createIdentityReadbackSession(data, action, eventId, version, labels = {}) {
   const yes = name => String(data.get(name)).toLowerCase() === 'true';
   const reviewed = yes('Input.HasReviewedValues'), baseline = yes('Input.HasBaseline');
   const expected = {}, draft = {};
@@ -30,7 +30,7 @@ export function createIdentityReadbackSession(data, action, eventId, version) {
   const unknown = outcome => ({ state: 'unknown', expected, outcome });
   return Object.freeze({ expected, version: basis, draft, async checkAgain(signal) {
     if (!complete) return unknown();
-    const outcome = await window.AdminFetch.request(url.href, { cache: 'no-store', signal, draft });
+    const outcome = await window.AdminFetch.request(url.href, { cache: 'no-store', signal, draft, labels, readback: true });
     if (outcome.kind !== 'handler') return unknown(outcome);
     const current = outcome.data;
     if (current?.eventId !== eventId || !current.values || !Number.isSafeInteger(current.version) || current.version < basis) return unknown();
@@ -58,6 +58,7 @@ export async function init(region, ui = window.AdminUI) {
   const listen = (element, type, handler) => element?.addEventListener(type, handler, { signal: lifetime.signal });
   let pending = false, uncertain = null, layer = null, retained = value('HasReviewedValues').toLowerCase() === 'true' || root.dataset.identityReviewRequired === 'true';
   const save = root.querySelector('[data-identity-save]'), state = root.querySelector('[data-identity-state]'), feedback = root.querySelector('[data-identity-feedback]');
+  const labels = Object.fromEntries(fields.map(field => [field, text(`label${field}`)]));
   const editable = root.dataset.identityEditable !== 'false';
   const snapshot = () => JSON.stringify(fields.map(field => value(field)));
   let baseline = snapshot();
@@ -156,13 +157,13 @@ export async function init(region, ui = window.AdminUI) {
     if (!confirmed && needsTimezoneReview()) { openReview(); return; }
     const data = new FormData(form);
     if (confirmed) { data.set('Input.ConfirmTimezoneChange', 'true'); data.set('Input.TimezoneConfirmationProposed', value('Timezone')); }
-    const session = createIdentityReadbackSession(data, form.action, root.dataset.identityEventId, root.dataset.identityCurrentVersion);
+    const session = createIdentityReadbackSession(data, form.action, root.dataset.identityEventId, root.dataset.identityCurrentVersion, labels);
     pending = true; paint();
     const outcome = await ui.busy(() => window.AdminFetch.request(form.action, { method: 'POST', body: data, expect: 'html', allowRedirectTo: form.action, notice: false, signal: request.signal, draft: session.draft }));
     if (lifetime.signal.aborted) return;
     pending = false;
     if (layer) { await layer.close(false); layer = null; }
-    if (outcome.kind === 'session-lost') { retained = true; window.AdminFetch.sessionNotice(session.draft, outcome.destination); paint(); return; }
+    if (outcome.kind === 'session-lost') { retained = true; window.AdminFetch.sessionNotice(session.draft, outcome.destination, { labels }); paint(); return; }
     if (outcome.kind === 'refused') { retained = true; report(text('refused'), 'is-error'); paint(); return; }
     const parsed = outcome.kind === 'handler' ? new DOMParser().parseFromString(outcome.data, 'text/html') : null;
     const next = parsed?.querySelector('[data-identity-editor]');
@@ -204,7 +205,7 @@ export async function init(region, ui = window.AdminUI) {
     }
     if (initialConflicts.some(Boolean) || root.dataset.identityScheduleStale === 'true') report(text('stale'));
   }
-  if (root.dataset.identitySaveUncertain === 'true') { uncertain = createIdentityReadbackSession(new FormData(form), form.action, root.dataset.identityEventId, root.dataset.identityCurrentVersion); report(text('unknown')); }
+  if (root.dataset.identitySaveUncertain === 'true') { uncertain = createIdentityReadbackSession(new FormData(form), form.action, root.dataset.identityEventId, root.dataset.identityCurrentVersion, labels); report(text('unknown')); }
   listen(form, 'submit', event => { event.preventDefault(); void submit(); });
   listen(form, 'input', event => { const field = event.target.name?.replace(/^Input\./, ''); if (fields.includes(field)) clearFieldError(field); validate(); paint(); });
   listen(form, 'change', () => {
