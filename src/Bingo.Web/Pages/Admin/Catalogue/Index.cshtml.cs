@@ -190,15 +190,30 @@ public sealed partial class IndexModel(ApplicationDbContext dbContext, TimeProvi
     public async Task<IActionResult> OnPostUpdateBossAsync(Guid recordId, long expectedVersion, string name, string category, decimal? efficientRate, string? dataSource, string? imageUrl, CancellationToken ct, int? teamSize = null)
     {
         if (HasOperatorFields("dataSource") || dataSource is not null) return OperatorFieldsUnavailable();
-        if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(category)) return BadRequest();
         if (HasInvalidTeamSizeBinding("teamSize", teamSize)) { SetStatus(Localize("Enter a whole number for team size."), UiMessageType.Error); return CataloguePage(); }
         if (teamSize is < 1) { SetStatus(Localize("Team size must be at least 1."), UiMessageType.Error); return CataloguePage(); }
         var entity = await dbContext.BossActivities.SingleAsync(x => x.Id == recordId, ct);
-        if (entity.Version != expectedVersion) return Stale(); var before = State(entity); var cleanName = name.Trim();
-        var efficientRateChanged = efficientRate != entity.EfficientCompletionsPerHour;
+        if (entity.Version != expectedVersion) return Stale();
+        var validationInput = new BossInput
+        {
+            Name = name ?? string.Empty,
+            Category = category ?? string.Empty,
+            EfficientRate = efficientRate,
+            TeamSize = teamSize ?? entity.TeamSize,
+            ImageUrl = imageUrl
+        };
+        ModelState.Clear();
+        if (!TryValidateModel(validationInput, nameof(Boss)))
+        {
+            SetStatus(string.Join(" ", ModelState.Values.SelectMany(x => x.Errors).Select(x => x.ErrorMessage)), UiMessageType.Error);
+            return CataloguePage();
+        }
+
+        var before = State(entity); var cleanName = validationInput.Name.Trim();
+        var efficientRateChanged = validationInput.EfficientRate != entity.EfficientCompletionsPerHour;
         var otherNames = await dbContext.BossActivities.Where(x => x.Id != recordId).Select(x => x.Name).ToListAsync(ct);
         if (otherNames.Any(x => string.Equals(x, cleanName, StringComparison.OrdinalIgnoreCase))) { SetStatus(Localize("A boss or activity named {0} already exists.", cleanName), UiMessageType.Warning); return CataloguePage(); }
-        entity.Update(cleanName, category.Trim(), efficientRate, entity.ExternalIdentifier, entity.DataSource, entity.Notes, timeProvider.GetUtcNow(), OsrsWikiImageUrl.Normalize(imageUrl));
+        entity.Update(cleanName, validationInput.Category.Trim(), validationInput.EfficientRate, entity.ExternalIdentifier, entity.DataSource, entity.Notes, timeProvider.GetUtcNow(), OsrsWikiImageUrl.Normalize(validationInput.ImageUrl));
         if (teamSize is { } requestedTeamSize) entity.SetTeamSize(requestedTeamSize);
         var drops = await dbContext.SourceDrops.Where(x => x.BossActivityId == recordId).ToListAsync(ct);
         if (teamSize is null || efficientRateChanged)
@@ -206,7 +221,7 @@ public sealed partial class IndexModel(ApplicationDbContext dbContext, TimeProvi
             foreach (var drop in drops)
             {
                 var effective = drop.EffectiveProbabilityPerCompletion();
-                drop.Update(drop.DisplayRate, drop.NumericProbability, drop.RateConditionNote, efficientRate is > 0 && effective is > 0 ? 1 / (efficientRate.Value * effective.Value) : null, drop.DataSource, timeProvider.GetUtcNow());
+                drop.Update(drop.DisplayRate, drop.NumericProbability, drop.RateConditionNote, validationInput.EfficientRate is > 0 && effective is > 0 ? 1 / (validationInput.EfficientRate.Value * effective.Value) : null, drop.DataSource, timeProvider.GetUtcNow());
             }
         }
         return await SaveAsync("catalogue.boss_updated", "boss_activity", entity.Id, entity.Name, before, State(entity), $"{entity.Name} updated.", ct);
