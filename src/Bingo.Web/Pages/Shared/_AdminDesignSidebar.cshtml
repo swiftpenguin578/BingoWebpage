@@ -19,7 +19,7 @@
         <a class="nav-item @(currentPage == "/Admin/Audit/Index" ? "is-current" : null)" href="/Admin/Audit/Index" data-shell-link aria-current="@(currentPage == "/Admin/Audit/Index" ? "page" : null)" title="@T["Audit"]"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("audit", "ic")' /><span class="nav-text">@T["Audit"]</span></a>
     </nav>
     <div class="side-rule" aria-hidden="true"></div>
-    <nav class="nav" aria-label="@T["AdminDesign.Event"]" data-shell-event-context>
+    <nav class="nav" aria-label="@T["AdminDesign.Event"]" data-shell-event-context data-selected-event-id="@selected?.Id">
         <button class="event-switch" data-menu-target="admin-event-menu" aria-haspopup="menu" aria-expanded="false" title="@(selected?.Name ?? T["Select an event"].Value)">
             <partial name="_AdminDesignIcon" model='new AdminDesignIcon("events", "ic ev-ic")' />
             <span class="ev-text"><span class="ev-lbl">@T["AdminDesign.Event"]</span><span class="ev-name">@(selected?.Name ?? T["Select an event"].Value)</span>
@@ -52,7 +52,7 @@
     <div class="design-event-options">
         @foreach (var item in Model.Events)
         {
-            <a class="menu-item" role="menuitem" href="@item.Url" data-shell-link aria-current="@(item.Id == selected?.Id ? "page" : null)">@if (item.Id == selected?.Id) { <partial name="_AdminDesignIcon" model='new AdminDesignIcon("check", "ic")' /> }<span class="grow">@item.Name</span><span class="menu-hint">@item.Stage</span>@if (item.Hidden) { <span>@T["Hidden"]</span> }</a>
+            <a class="menu-item" role="menuitem" href="@item.Url" data-shell-link data-event-id="@item.Id" data-event-name="@item.Name" data-event-stage="@item.Stage" data-event-when="@item.When" data-event-tone="@item.Tone" aria-current="@(item.Id == selected?.Id ? "page" : null)">@if (item.Id == selected?.Id) { <partial name="_AdminDesignIcon" model='new AdminDesignIcon("check", "ic")' /> }<span class="grow">@item.Name</span><span class="menu-hint">@item.Stage</span>@if (item.Hidden) { <span>@T["Hidden"]</span> }</a>
         }
     </div>
     <div class="menu-sep" role="separator"></div><a class="menu-item" role="menuitem" href="/Admin/Events/Index" data-shell-link>@T["All events"]</a>
