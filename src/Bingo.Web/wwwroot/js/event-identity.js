@@ -79,9 +79,10 @@ export async function init(region, ui = window.AdminUI) {
     const note = root.querySelector(`[data-conflict-for="${field}"]`);
     if (!note) return;
     note.replaceChildren(); note.hidden = false;
-    const copy = document.createElement('span'); copy.textContent = text('theirs').replace('{0}', theirs ?? '');
-    const use = document.createElement('button'); use.type = 'button'; use.className = 'text-btn'; use.textContent = text('useTheirs'); use.dataset.useTheirs = field;
-    note.append(copy, ' ', use);
+    const contents = ui.template('field-note').firstElementChild;
+    contents.querySelector('[data-component-text]').textContent = text('theirs').replace('{0}', theirs ?? '');
+    const use = contents.querySelector('[data-use-theirs]'); use.textContent = text('useTheirs'); use.dataset.useTheirs = field;
+    note.append(...contents.childNodes);
     set(`${field}Resolution`, 'KeepMine');
     listen(use, 'click', () => { set(field, theirs); set(`${field}Resolution`, 'UseCurrent'); note.hidden = true; clearFieldError(field); validate(); paint(); });
   }
@@ -189,15 +190,14 @@ export async function init(region, ui = window.AdminUI) {
     if (layer || pending) return;
     const template = root.querySelector(`template[data-identity-timezone-preview][data-zone="${CSS.escape(value('Timezone'))}"]`);
     if (!template) return;
-    const content = document.createElement('div');
-    const heading = document.createElement('h2'); heading.className = 'm-title'; heading.textContent = text('timezoneTitle').replace('{0}', value('Timezone'));
-    content.append(heading, template.content.cloneNode(true));
+    const content = ui.template('confirmation');
+    const heading = content.querySelector('[data-confirm-title]'); heading.textContent = text('timezoneTitle').replace('{0}', value('Timezone'));
+    content.querySelector('[data-confirm-description]').replaceWith(template.content.cloneNode(true));
     const other = fields.slice(0, 3).filter(field => canonical(field, wire(value(field))) !== canonical(field, wire(value(`Original${field}`)))).map(field => root.querySelector(`label[for="${get(field)?.id}"]`)?.textContent || field);
-    if (other.length) { const together = document.createElement('p'); together.dataset.savedTogether = ''; together.textContent = text('savedTogether').replace('{0}', other.join(', ')); content.append(together); }
-    const actions = document.createElement('div'); actions.className = 'm-actions';
-    const cancel = document.createElement('button'); cancel.type = 'button'; cancel.className = 'btn'; cancel.textContent = text('cancel'); cancel.autofocus = true; cancel.dataset.identityReviewCancel = '';
-    const confirm = document.createElement('button'); confirm.type = 'button'; confirm.className = 'btn btn-primary'; confirm.textContent = text('timezoneAction').replace('{0}', value('Timezone')); confirm.dataset.identityReviewConfirm = '';
-    actions.append(cancel, confirm); content.append(actions);
+    const actions = content.querySelector('.m-actions');
+    if (other.length) { const together = document.createElement('p'); together.dataset.savedTogether = ''; together.textContent = text('savedTogether').replace('{0}', other.join(', ')); actions.before(together); }
+    const cancel = content.querySelector('[data-confirm-cancel]'); cancel.textContent = text('cancel'); cancel.dataset.identityReviewCancel = '';
+    const confirm = content.querySelector('[data-confirm-accept]'); confirm.querySelector('[data-component-text]').textContent = text('timezoneAction').replace('{0}', value('Timezone')); confirm.dataset.identityReviewConfirm = '';
     layer = ui.openLayer({ title: heading.textContent, content, confirmation: true, pending: () => pending, opener: save, onClose: () => { layer = null; } });
     layer.element.classList.add('is-wide');
     listen(cancel, 'click', () => { if (!pending) void layer?.close(false); });

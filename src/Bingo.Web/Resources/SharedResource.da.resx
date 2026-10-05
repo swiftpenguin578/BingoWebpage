@@ -3124,4 +3124,5 @@
   <data name="AdminDesign.The public event link is permanent and cannot be changed." xml:space="preserve"><value>Det offentlige eventlink er permanent og kan ikke ændres.</value></data>
   <data name="AdminDesign.The timezone cannot change after the event first goes Live." xml:space="preserve"><value>Tidszonen kan ikke ændres, efter eventet første gang er startet.</value></data>
   <data name="AdminDesign.This event has not been public yet. A timezone change saves directly without a confirmation." xml:space="preserve"><value>Eventet har endnu ikke været offentligt. En ændring af tidszonen gemmes direkte uden bekræftelse.</value></data>
+  <data name="Dismiss notification" xml:space="preserve"><value>Luk meddelelse</value></data>
 </root>

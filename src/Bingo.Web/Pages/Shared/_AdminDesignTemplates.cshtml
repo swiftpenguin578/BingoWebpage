@@ -1,0 +1,10 @@
+@* JS clones the same partials used by server-rendered components. *@
+<template data-admin-template="confirmation"><partial name="_AdminDesignConfirmation" /></template>
+<template data-admin-template="toast"><partial name="_AdminDesignToast" model='new AdminDesignToast()' /></template>
+<template data-admin-template="toast-error"><partial name="_AdminDesignToast" model='new AdminDesignToast(Error: true)' /></template>
+<template data-admin-template="field-note"><partial name="_AdminDesignFieldNote" model='new AdminDesignFieldNote(UseCurrent: true)' /></template>
+<template data-admin-template="field-error"><partial name="_AdminDesignFieldError" model='new AdminDesignFieldError("")' /></template>
+<template data-admin-template="banner-info"><partial name="_AdminDesignBanner" model='new AdminDesignBanner("is-info", "info")' /></template>
+<template data-admin-template="banner-error"><partial name="_AdminDesignBanner" model='new AdminDesignBanner("is-error", "error")' /></template>
+<template data-admin-template="banner-warning"><partial name="_AdminDesignBanner" model='new AdminDesignBanner("is-warning", "warning")' /></template>
+<template data-admin-template="banner-uncertain"><partial name="_AdminDesignBanner" model='new AdminDesignBanner("is-warning", "uncertain")' /></template>

@@ -1,0 +1,2 @@
+@model Bingo.Web.UI.AdminDesignFieldLabel
+<div class="lbl-row"><label class="lbl" for="@Model.For" id="label-@Model.Field">@Model.Text@if (Model.Optional is not null) { <text> </text><span class="opt">· @Model.Optional</span> }</label>@if (Model.Counter) { <span class="field-count" data-count-for="@Model.Field" aria-live="polite" hidden></span> }</div>

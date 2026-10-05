@@ -1,0 +1,2 @@
+@model Bingo.Web.UI.AdminDesignToast
+<div class="toast @(Model.Error ? "is-error" : null)" data-toast role="@(Model.Error ? "alert" : "status")"><partial name="_AdminDesignIcon" model='new AdminDesignIcon(Model.Error ? "error" : "check", "ic t-ic")' /><span class="grow" data-component-text>@Model.Text</span><button type="button" class="toast-act" hidden></button><button type="button" class="toast-x" data-toast-close aria-label="@T["Dismiss notification"]"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("close")' /></button></div>
