@@ -77,10 +77,26 @@ Approved production shell decisions (plan42 group A, 5 October 2026):
   Page scripts provide `init(root)` and `dispose()` removing listeners, timers and
   connections; repeated event switches must leave no stale work running.
 
+U1 page-script contract: each opted-in page supplies a same-origin ES module with
+`<script type="module" data-admin-page-script src="…">`. It exports
+`init(root, ui)` and `dispose()`; top-level module evaluation must not initialize
+the page. `root` is `[data-page-region]` and `ui` is `window.AdminUI`. Register
+owned drafts through `registerDraft(owner, { isDirty, discard, isPending })` or
+`trackForm(form)`; dispose the returned registration as well as all owned event
+listeners, timers and connections. Async work must be aborted or ignored after
+disposal. Optional page CSS links carry `data-admin-page-style`. The shell keeps
+its own controls/listeners alive, disposes the previous page before fetch/swap,
+and initializes only the new page. Configuration `AdminUi:InPageNavigation`
+defaults to `true`; `false` retains the shared dirty guard but uses full loads.
+Filter/search updates use `AdminUI.setUrl` (replace); record opening passes
+`{ record: true }` (push). Query schemas validate and omit defaults. Page owners
+supply the appropriate loading composition when extending the shell's target
+skeleton mapping. A discarded draft is never stored in browser history.
+
 Exit timing derives from computed shared CSS animation and completes even when no
 animation runs. U1's selected shared busy minimum is 600 ms for saves and 250 ms
-for one-click actions; reduced motion removes the wait (item4 will implement and
-prove it). It never delays the backend operation or shows success before its
+for one-click actions; reduced motion removes the wait (implemented and
+proved by U1 item4). It never delays the backend operation or shows success before its
 response. Block repeat submission while pending. No toast Undo is approved.
 
 ## Rule promotion and ownership
