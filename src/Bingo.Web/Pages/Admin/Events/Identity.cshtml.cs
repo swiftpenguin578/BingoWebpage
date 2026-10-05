@@ -10,6 +10,7 @@ using Bingo.Domain.Auditing;
 using Bingo.Domain.Events;
 using Bingo.Infrastructure.Persistence;
 using Bingo.Web.Events;
+using Bingo.Web.Navigation;
 using Bingo.Web.Security;
 using Bingo.Web.UI;
 using Microsoft.AspNetCore.Authorization;
@@ -23,11 +24,13 @@ using Npgsql;
 namespace Bingo.Web.Pages.Admin.Events;
 
 [Authorize(Policy = AuthorizationPolicies.Admin)]
+[AdminDesign]
 public sealed class IdentityModel(
     ApplicationDbContext db,
     TimeProvider time,
     IStringLocalizer<SharedResource>? text = null,
-    ILogger<IdentityModel>? logger = null) : PageModel
+    ILogger<IdentityModel>? logger = null,
+    SharedShellService? shell = null) : PageModel
 {
     private static readonly Action<ILogger, string, Exception?> LogIdentityFailure =
         LoggerMessage.Define<string>(LogLevel.Error, new EventId(630102), "Event identity update failed. Diagnostic reference {DiagnosticReference}.");
@@ -55,7 +58,8 @@ public sealed class IdentityModel(
     public bool SaveOutcomeUncertain { get; private set; }
     public long CurrentVersion { get; private set; }
     public IReadOnlyList<TimePreview> TimezonePreview { get; private set; } = [];
-    public IReadOnlyList<ManageModel.TimelineRow> EffectiveTimeline { get; private set; } = [];
+    public bool HasPublicExposure { get; private set; }
+    public IReadOnlyDictionary<string, List<TimePreview>> TimezonePreviews { get; private set; } = new Dictionary<string, List<TimePreview>>();
 
     public async Task<IActionResult> OnGetAsync(Guid id, CancellationToken ct)
     {
@@ -72,7 +76,7 @@ public sealed class IdentityModel(
         Response.Headers.CacheControl = "no-store";
         var item = await db.Events.AsNoTracking().SingleOrDefaultAsync(x => x.Id == id, ct);
         if (item is null) return NotFound();
-        return new JsonResult(new { eventId = item.Id, values = Values(item).Canonical() });
+        return new JsonResult(new { eventId = item.Id, values = Values(item).Canonical(), version = item.Version });
     }
 
     public async Task<IActionResult> OnPostAsync(Guid id, CancellationToken ct)
@@ -96,6 +100,10 @@ public sealed class IdentityModel(
             return Page();
         }
 
+        // Capture the shell before attempting the write: an uncertain response must
+        // render even when the connection (including rollback) is no longer usable.
+        if (shell is not null)
+            ViewData["AdminDesignShell"] = await shell.GetAdminDesignAsync(User, RouteData.Values, ct);
         var actor = User.GetAccountId()!.Value;
         var now = time.GetUtcNow();
         await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
@@ -117,7 +125,7 @@ public sealed class IdentityModel(
                 await transaction.CommitAsync(ct);
                 TempData["StatusMessage"] = Localize("No identity changes were made.");
                 TempData[UiMessage.TypeKey] = UiMessageType.Information.ToString();
-                return RedirectToPage("Manage", new { id });
+                return RedirectToPage("Identity", new { id });
             }
 
             var before = AuditState(item);
@@ -144,20 +152,24 @@ public sealed class IdentityModel(
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            await transaction.RollbackAsync(CancellationToken.None);
+            try { await transaction.RollbackAsync(CancellationToken.None); }
+            catch (Exception rollbackException) when (rollbackException is not OperationCanceledException)
+            {
+                // The original outcome is still unknown; rollback failure must not
+                // destroy the posted draft or require another database operation.
+            }
             db.ChangeTracker.Clear();
             var reference = Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture);
             if (logger is not null) LogIdentityFailure(logger, reference, exception);
             SaveOutcomeUncertain = true;
             ModelState.AddModelError(string.Empty, Localize("The save outcome is uncertain. Check the current values before trying another save. Diagnostic reference: {0}.", reference));
-            var latest = await db.Events.AsNoTracking().SingleAsync(x => x.Id == id, ct);
-            Populate(latest, preserveInput: true);
+            Populate(snapshot, preserveInput: true);
             return Page();
         }
 
         TempData["StatusMessage"] = Localize("Event identity updated.");
         TempData[UiMessage.TypeKey] = UiMessageType.Success.ToString();
-        return RedirectToPage("Manage", new { id });
+        return RedirectToPage("Identity", new { id });
     }
 
     private EventIdentityValues? Prepare(BingoEvent item)
@@ -284,19 +296,8 @@ public sealed class IdentityModel(
         HasUnresolvableTimezone = !TryFind(item.Timezone, out _);
         IsSlugLocked = true;
         DisplayTimezone = item.Timezone;
-        EffectiveTimeline = ManageModel.EffectiveTimelineFor(new(
-            item.SignupOpensAt,
-            item.SignupClosesAt,
-            item.DraftAt,
-            item.EventStartsAt,
-            item.EventEndsAt,
-            item.ActualSignupOpenedAt,
-            item.ActualSignupClosedAt,
-            item.ActualStartedAt,
-            item.ActualEndedAt,
-            item.SubmissionCutoffAt,
-            item.SubmissionsClosedAt,
-            item.CancelledAt));
+        HasPublicExposure = item.FirstPublicAt is not null;
+        TimezonePreviews = Defaults.ToDictionary(option => option.Id, option => Preview(item, item.Timezone, option.Id));
         if (!preserveInput)
         {
             Input = new InputModel
@@ -373,29 +374,18 @@ public sealed class IdentityModel(
         return prefix + "…";
     }
 
-    private static List<TimePreview> Preview(BingoEvent item, string oldId, string newId)
+    private List<TimePreview> Preview(BingoEvent item, string oldId, string newId)
     {
-        var input = new ManageModel.EffectiveTimelineInput(
-            item.SignupOpensAt,
-            item.SignupClosesAt,
-            item.DraftAt,
-            item.EventStartsAt,
-            item.EventEndsAt,
-            item.ActualSignupOpenedAt,
-            item.ActualSignupClosedAt,
-            item.ActualStartedAt,
-            item.ActualEndedAt,
-            item.SubmissionCutoffAt,
-            item.SubmissionsClosedAt,
-            item.CancelledAt);
-        var rows = ManageModel.EffectiveTimelineFor(input).Select(row => (row.Label, row.At));
-        if (item.FirstPublicAt is { } firstPublicAt)
-            rows = rows.Prepend(("First public", firstPublicAt));
-        return rows.Select(value => new TimePreview(value.Label, Format(value.At, oldId), Format(value.At, newId))).ToList();
+        (string Label, DateTimeOffset? At)[] rows =
+        [
+            ("Signups open", item.SignupOpensAt), ("Signups close", item.SignupClosesAt),
+            ("Team draft", item.DraftAt), ("Event starts", item.EventStartsAt), ("Event ends", item.EventEndsAt)
+        ];
+        return rows.Select(row => new TimePreview(row.Label, Format(row.At, oldId), Format(row.At, newId))).ToList();
     }
 
-    private static string Format(DateTimeOffset? value, string timezone) => value is null
-        ? "Not set"
+    private string Format(DateTimeOffset? value, string timezone) => value is null
+        ? Localize("Not scheduled yet")
         : DateTimePresentation.Format(value.Value, "dd MMM yyyy, HH:mm (zzz)", timezone, CultureInfo.CurrentCulture);
 
     private void AddPermanentSlugError()
@@ -420,11 +410,11 @@ public sealed class IdentityModel(
         return false;
     }
 
-    private static List<TimezoneOption> Options(string? selected)
+    private List<TimezoneOption> Options(string? selected)
     {
-        var options = Defaults.Select(option => new TimezoneOption(option.Id, Label(option.Id, option.Label))).ToList();
+        var options = Defaults.Select(option => new TimezoneOption(option.Id, Label(option.Id, Localize(option.Label)))).ToList();
         if (!string.IsNullOrWhiteSpace(selected) && options.All(option => option.Id != selected))
-            options.Add(new TimezoneOption(selected, $"Stored timezone ({selected})"));
+            options.Add(new TimezoneOption(selected, Localize("{0} · current", selected)));
         return options;
     }
 

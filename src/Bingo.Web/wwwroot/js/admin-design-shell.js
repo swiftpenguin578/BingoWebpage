@@ -177,7 +177,9 @@
   async function guard() {
     if (isPending()) return false;
     if (!isDirty()) return true;
-    if (!await confirmDiscard()) return false;
+    const dirtyDrafts = [...drafts.values()].filter(draft => draft.isDirty());
+    const custom = dirtyDrafts.find(draft => draft.confirmLeave);
+    if (!await (custom ? custom.confirmLeave() : confirmDiscard())) return false;
     for (const draft of drafts.values()) draft.discard?.();
     refreshDirty();
     return true;

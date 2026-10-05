@@ -369,8 +369,11 @@ there is no event banner capability. Text fields remain editable through Live an
 Final Review; timezone locks permanently at the first Live transition.
 
 **Entry and reachability:** Use the event Identity route from Admin Manage or the
-setup progression. Existing forms carry original field baselines and timezone-review
-state; full conflict-choice UI integration remains deferred.
+setup progression. U1 binds this route to the opt-in reference shell. Forms retain
+original field baselines and timezone-review state; conflicts keep the draft and
+show the current value with Use theirs. Saving after review explicitly submits
+KeepMine for each unresolved choice. Success and no-change PRG stay on Identity
+with a toast and quiet Saved state, without an added client history entry.
 
 **Authoritative happy path:** Compare canonical original, intended and current values
 for each Identity field. Untouched fields retain another Admin's changes; an intended
@@ -383,12 +386,17 @@ fail closed and require reload.
 
 **Permissions and history:** Identity changes remain Admin-authorized, phase-checked,
 Serializable, concurrency-protected and audited atomically. Stored UTC instants never
-move because the display timezone changes. Permanent slug, 50-code-point name and
-UTF-16 description/buy-in limits remain authoritative.
+move because the display timezone changes. The permanent slug remains fixed; the
+50-code-point name limit applies only when the name changes (A-Identity-1).
+Description/buy-in limits count UTF-16 units. Cancelled, Finalized and Archived
+Identity GET/Current requests are read-only; every mutation remains refused (D16).
+Hidden or discarded events return 404.
 
 **Failure and recovery:** Unsupported timezone, slug mutation, malformed baseline,
 unresolved field conflict or stale timezone review leaves all prior values active.
-After public exposure, a timezone change reviews its participant-facing timeline.
+After public exposure, a timezone change reviews all five scheduled moments: Signups
+open, Signups close, Team draft, Event starts and Event ends, with old/new offsets
+and explicit unscheduled rows. Other changed fields saved together are named.
 Confirmation binds the original/proposed zones and current timeline consequences
 at persisted timestamp precision. A schedule-only change returns separate stale
 feedback and fresh consequences requiring confirmation again. Recomparison occurs
@@ -397,17 +405,20 @@ AU09 dispatch contract: freeze the complete canonical Name, Description,
 BuyInDescription and Timezone expected tuple separately from the original edit
 intent/baseline. Use current takes exactly the explicitly reviewed value; untouched
 fields take the latest values actually observed and used at dispatch. Never derive
-expected values from a later read. Check again uses the existing authorized Identity
-read boundary and compares all four full values. A match means only Up to date now,
-never that this request saved them. An unseen disjoint server merge or later edit
-may therefore remain Different/uncertain even after an applied save. Different or
-failed reads preserve the frozen tuple and editing draft without retry, rebase,
-overwrite or discard; failed reads are Unknown. No receipt or reconstruction of
-the server's effective merged tuple is introduced. Backend/transport integration
-is sufficient for AU09; full new-reference UI binding and manual acceptance remain
-deferred. Existing timezone confirmation transport switches an uncertain mutation
-to read-only checks; it must never blindly send that mutation again.
-Full Use theirs frontend binding remains deferred.
+expected values from a later read. U1/A14 readback is no-store JSON containing
+exactly eventId, values and the persisted event version. Matching values with a
+moved version mean Up to date, never proof that this request saved them. A moved
+version with differing values enters the field-conflict flow; an unchanged version
+means changes were not applied, with the draft retained and Save available. Failed,
+unavailable or malformed reads remain uncertain with the immutable tuple/draft
+retained. No automatic POST retry or receipt system is introduced. While uncertain,
+fields lock and Save becomes Check again; departure offers Check again by default
+or Leave anyway, warning that the change may already have happened. A lost session
+retains and displays the unsaved input before sign-in; route refusal is never
+success. The uncertain server response renders the posted draft from pre-write
+context without a database read and tolerates rollback failure. Manual acceptance
+of this U1 binding remains pending in UI_PAGE_MATRIX.md.
+
 
 **Acceptance outcome:** Concurrent edits retain untouched current values, same-field
 conflicts require an explicit current resolution, and stale schedule consequences

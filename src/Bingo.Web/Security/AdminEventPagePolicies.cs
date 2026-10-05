@@ -69,7 +69,7 @@ public static class AdminEventPagePolicies
                 ("POST:EnableEvidenceCodes", AdminEventHandlerGate.EvidenceCodes),
                 ("POST:DisableEvidenceCodes", AdminEventHandlerGate.EvidenceCodes),
                 ("POST:CreateEvidenceCode", AdminEventHandlerGate.EvidenceCodes)),
-            [typeof(IdentityModel)] = Page(AdminEventPageKind.Identity, true, false,
+            [typeof(IdentityModel)] = Page(AdminEventPageKind.Identity, true, true,
                 ("GET:", AdminEventHandlerGate.Read),
                 ("GET:Current", AdminEventHandlerGate.Read),
                 ("POST:", AdminEventHandlerGate.Identity)),

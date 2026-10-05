@@ -1,21 +1,21 @@
 # Current project status
 
-## U1 foundation + Identity — items 0–6 implemented; item7 test-fixture scope pending, 5 October 2026
+## U1 foundation + Identity — items 0–7 implemented; review, visual acceptance and whole .NET gate pending, 5 October 2026
 
 - Authority: [brief43](/Users/christopher/Documents/BingoWebpage/review-notes/43-codex-brief-u1-foundation-identity.md), [plan42](/Users/christopher/Documents/BingoWebpage/review-notes/42-ui-integration-plan.md), and [decisions](/Users/christopher/Documents/BingoWebpage/review-notes/08-decisions.md).
 - Checkout `/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage`, branch `codex/participants-functionality`; clean starting HEAD `89d938292a2a22e0648d12f3885731c768244905` verified. Sole implementer `/root/u1_implementer`, `gpt-6-astra` / high; dispatcher actual parent `/root` in the fresh U1 chat supersedes brief43's historical chat ID. Claude is planner and independent reviewer through the user.
-- Items 0–7 run sequentially, one scoped local commit each. Item0 records approved ownership and shell decisions only; frozen reference assets stay unchanged. No page is bound or visually accepted yet. Durable evidence: [U1](docs/references/admin-ui/reviews/2026-10-05/u1/).
+- Items 0–7 run sequentially, one scoped local commit each. Item0 records approved ownership and shell decisions only; frozen reference assets stay unchanged. Identity is now bound; no U1 page is visually accepted yet. Durable evidence: [U1](docs/references/admin-ui/reviews/2026-10-05/u1/).
 - Baseline accepted by [Claude review41](/Users/christopher/Documents/BingoWebpage/review-notes/41-sweep-server-fixes-recheck.md) at `89d9382`: Release build 0 warnings/errors; Domain 265, Application 118, Browser 148, Integration 1,459 — **1,990 passed / 0 failed / 0 skipped** in Claude's scratch PostgreSQL run. No baseline rerun required. Earlier accepted test-health/B5 evidence remains in Git and the linked reviews.
 - Item0 committed `1e5848d11661c9912a406908e56f0bbabc050a5c`; item1 committed `7a5c15b67fe9034c4b5599f15d350bfd4c4e5bf5`. Item1 has **44 focused passes / 0 failures / 0 skips**, including unchanged test #14 and S4/S6. Existing tests unchanged.
 - Item2 original baseline: controlled fixture generation 8/8; unchanged full JS runner **35 files passed / 1 failed**. Original evidence remains in [baseline checkpoint](docs/references/admin-ui/reviews/2026-10-05/u1/item2-js-runner-blocked.md).
 - Brief45 item2a committed `0d8306ca9a3e4cb08da4cbde567c399b699f6e60`: authorized two-file stale-close fix, new dismissal regression PASS and unchanged brief44-corrected test PASS for all four actions. [Fix evidence](docs/references/admin-ui/reviews/2026-10-05/u1/item2a-stale-close-fix.md).
 - Item2c committed `63ce639` (brief47): after an unsuccessful shared confirmation, the transport-only `Reason` input is removed/restored so the next action opens its own confirmation; real edits still prompt to discard. [Evidence](docs/references/admin-ui/reviews/2026-10-05/u1/item2c-transport-reason-fix.md).
-- **Item2 done:** runner, CI job `javascript-tests`, README, brief44/46 test corrections. Full JS runner **37 files passed / 0 failed / 37 total**, exit 0; CI itself has not run. Implemented by a Claude agent assigned by the user (Codex implementer unavailable). [Completion evidence](docs/references/admin-ui/reviews/2026-10-05/u1/item2-completion.md). Item3 implemented by resumed Codex worker; item7 remains.
-- Item3: opt-in shell/layout and local reference CSS, theme, new event switcher projection; no production page opted in. PostgreSQL/HTTP 2/2 plus final affected HTTP rerun 1/1; unchanged shell/toast 4/4; full JS 38/38. [Evidence](docs/references/admin-ui/reviews/2026-10-05/u1/item3-shell.md).
+- **Item2 done:** runner, CI job `javascript-tests`, README, brief44/46 test corrections. Full JS runner **37 files passed / 0 failed / 37 total**, exit 0; CI itself has not run. Implemented by a Claude agent assigned by the user (Codex implementer unavailable). [Completion evidence](docs/references/admin-ui/reviews/2026-10-05/u1/item2-completion.md). Items3–7 implemented by resumed Codex worker.
+- Item3: opt-in shell/layout and local reference CSS, theme, new event switcher projection; no production page opted in at that checkpoint (Identity opts in at item7). PostgreSQL/HTTP 2/2 plus final affected HTTP rerun 1/1; unchanged shell/toast 4/4; full JS 38/38. [Evidence](docs/references/admin-ui/reviews/2026-10-05/u1/item3-shell.md).
 - Item4: shared interactions, draft/history guard, server HTML swaps and module disposal implemented; full JS **39/39**, Release Web build **0 warnings/errors**, diff clean. [Evidence](docs/references/admin-ui/reviews/2026-10-05/u1/item4-shell-interactions.md).
 - Item5: shared fetch/session-preservation helper implemented; lost/disabled Identity POST/Current HTTP **4/4**, full JS **40/40**, Release compilation/diff clean. [Evidence](docs/references/admin-ui/reviews/2026-10-05/u1/item5-fetch-session.md).
 - Item6: new-shell Danish entries and automatic opted-in-page coverage test; focused **5/5**, full JS **40/40**, Release compilation/diff clean. [Evidence](docs/references/admin-ui/reviews/2026-10-05/u1/item6-danish.md).
-- Item7 not started: [test-fixture scope question](docs/references/admin-ui/reviews/2026-10-05/u1/item7-test-fixture-scope-question.md) sent to dispatcher; existing legacy JS fixtures need adaptation to the mandated new runtime/versioned readback, beyond the brief's explicit success-target line scope.
+- Item7 implemented in this commit: Identity reference form, AU08 choices, A14 versioned readback, EI-3 no-read uncertain render, five scheduled timezone rows, D17 reads with D16/hidden protections, shared module lifecycle and Danish strings. Brief48/addendum fixture scope resolved. Focused Integration **47/0/0**, Browser **33/0/0**, full JS **41 files/0 failed**, Release solution **0 warnings/errors**, diff/reference checks clean. [Evidence](docs/references/admin-ui/reviews/2026-10-05/u1/item7-identity.md), [test-change map](docs/references/admin-ui/reviews/2026-10-05/u1/item7-test-change-map.md), [route note](docs/references/admin-ui/reviews/2026-10-05/u1/item7-page-routes.md). Final-commit build/JS result is returned in dispatcher callback; no separate packaging commit.
 - Final whole-suite gate remains **pending user execution** on U1's final commit. User/Claude executes the unfiltered .NET suite; implementer runs focused applicable checks, Release build, diff checks and the full new JS runner. A passing checkpoint is not independent review or manual acceptance.
 
 ## Retained release gates and prior evidence
@@ -29,7 +29,15 @@
 
 ## Next permitted action
 
-Items0–6 await Claude's independent review. Resolve the bounded item7 fixture scope, then resume the same Codex implementer
-at item7. The batch gate includes the JS runner at0 failed.
-No U2–U10, lane T, rehearsal, push, main merge or deployment. Eventual U1 boundary:
-Claude review and user visual acceptance, with the final whole .NET suite run by user/Claude.
+U1 implementation stops here under brief43 sections4–5. Claude independently reviews
+the stable item0–7 diff; the user checks the shell and Identity in both themes,
+Danish/English and phone width, including confirmations/errors/toasts. UI_PAGE_MATRIX
+owns acceptance and remains awaiting approval. User/Claude runs on the reported
+final SHA (zero failed and zero skipped required per project):
+
+```sh
+dotnet test Bingo.slnx --configuration Release --no-restore --results-directory /private/tmp/bingo-u1-final-suite-trx --logger "trx"
+```
+
+No U2–U10, lane T, rehearsal, push, main merge or deployment. CI has not run.
+Optional carried note: `.github/workflows/ci.yml` still uses `actions/setup-node@v4`.
