@@ -21,7 +21,7 @@
 </head>
 <body data-admin-design data-navigation-enabled="@(Configuration.GetValue<bool?>("AdminUi:InPageNavigation") ?? true)"
       data-close="@T["Close"]" data-discard-title="@T["Discard unsaved changes?"]"
-      data-discard-description="@T["Continuing will discard unsaved changes in this editor."]"
+      data-discard-description="@T["AdminDesign.Your changes to {0} haven’t been saved.", title]"
       data-keep-editing="@T["Keep editing"]" data-discard="@T["Discard"]"
       data-session-title="@T["Your changes were not saved"]" data-session-message="@T["Your session is no longer available. What you entered is still here. Sign in before trying again."]" data-sign-in="@T["Sign in"]" data-empty-value="@T["Empty"]"
       data-readback-session-title="@T["You were signed out"]" data-readback-session-message="@T["You were signed out, so we could not check whether the change went through. Your draft is still here. Sign in and use Check again."]"
@@ -35,7 +35,7 @@
             <partial name="_AdminDesignTopbar" model="shell" />
             <main class="scroller" id="main-content" data-page-region>
                 <div class="page">
-                    <header class="page-head"><h1 class="h1" tabindex="-1">@T[title]</h1>@await RenderSectionAsync("HeaderActions", required: false)</header>
+                    <header class="page-head"><div style="min-width:0"><h1 class="h1" id="page-h1" tabindex="-1">@T[title]</h1>@if (ViewData["Summary"] is { } summary) { <p class="summary"><span data-summary-template="@ViewData["SummaryTemplate"]">@summary</span></p> }</div>@await RenderSectionAsync("HeaderActions", required: false)</header>
                     @RenderBody()
                 </div>
             </main>

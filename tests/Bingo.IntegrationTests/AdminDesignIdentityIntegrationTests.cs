@@ -30,9 +30,9 @@ public sealed partial class AdminDesignShellIntegrationTests
         await using var factory = IdentityFactory(); using var client = await IdentityClientAsync(factory);
         var route = $"/Admin/Events/Identity/{item.Id}";
         var html = await client.GetStringAsync(route);
-        Assert.Contains("data-admin-design", html); Assert.Contains("data-identity-readonly", html);
+        Assert.Contains("data-admin-design", html); Assert.Contains("id=\"identity-readonly\"", html);
         Assert.Contains("class=\"ro-value\"", html); Assert.DoesNotContain("data-identity-save>", html);
-        Assert.Contains("so its identity cannot be changed", html);
+        Assert.Contains("so its identity can’t be changed", WebUtility.HtmlDecode(html));
         using var read = await client.GetAsync(route + "?handler=Current");
         Assert.Equal(HttpStatusCode.OK, read.StatusCode); Assert.True(read.Headers.CacheControl!.NoStore);
         var json = await read.Content.ReadFromJsonAsync<JsonElement>(); Assert.Equal(item.Version, json.GetProperty("version").GetInt64());
@@ -69,7 +69,7 @@ public sealed partial class AdminDesignShellIntegrationTests
         {
             using var post = await client.PostAsync(route, new FormUrlEncodedContent(form));
             Assert.Equal(HttpStatusCode.Redirect, post.StatusCode); Assert.Equal(route, post.Headers.Location!.ToString());
-            var html = await client.GetStringAsync(route); Assert.Contains("data-identity-state role=\"status\">Saved", html); Assert.Contains("data-toast", html); form = IdentityFields(html);
+            var html = await client.GetStringAsync(route); Assert.Matches("data-identity-state role=\"status\">[\\s\\S]*?data-icon=\"check\"[\\s\\S]*?<span data-component-text>Saved</span></span>", html); Assert.Contains("data-toast", html); form = IdentityFields(html);
         }
         await using var verify = new ApplicationDbContext(options); Assert.Equal("Saved identity", (await verify.Events.SingleAsync()).Name); Assert.Single(await verify.AuditEntries.Where(entry => entry.Action == "event.identity_updated").ToListAsync());
     }
@@ -88,7 +88,7 @@ public sealed partial class AdminDesignShellIntegrationTests
         Assert.Equal(HttpStatusCode.OK, post.StatusCode);
         var html = WebUtility.HtmlDecode(await post.Content.ReadAsStringAsync());
         Assert.Contains("data-identity-save-uncertain=\"true\"", html); Assert.Contains("Posted draft", html); Assert.Contains("First line", html); Assert.Contains("Second line", html);
-        Assert.Contains("save outcome is uncertain", html); Assert.DoesNotContain("Event identity updated.", html);
+        Assert.Contains("We couldn’t confirm whether your changes were saved.", html); Assert.DoesNotContain("Event identity updated.", html);
         Assert.True(failure.Lost); Assert.Equal(1, failure.Rollbacks); Assert.Equal(0, failure.ReadsAfterLoss);
         await using var verify = new ApplicationDbContext(options); var saved = await verify.Events.SingleAsync();
         Assert.Equal("Posted draft", saved.Name); Assert.Equal("First line\r\nSecond line", saved.Description); Assert.True(saved.Version > item.Version); Assert.Single(await verify.AuditEntries.ToListAsync());
@@ -110,8 +110,8 @@ public sealed partial class AdminDesignShellIntegrationTests
         Assert.Contains("Not scheduled yet: Team draft.", template);
         Assert.Contains("Now · UTC", template); Assert.Contains("After · Europe/Copenhagen", template);
         Assert.Contains("Signups open", template); Assert.Contains("Signups close", template); Assert.Contains("Team draft", template); Assert.Contains("Event starts", template); Assert.Contains("Event ends", template);
-        Assert.Contains("Not scheduled yet", template); Assert.Contains("13:00 (+01:00)", template); Assert.Contains("14:00 (+02:00)", template); Assert.Contains("12:00 (+00:00)", template); Assert.DoesNotContain("First public", template);
-        Assert.Contains("https://localhost/Events/timezone-fixture/Signups", html); Assert.DoesNotContain("identity-event-information-rail", html); Assert.Contains("saves directly without a confirmation", html);
+        Assert.Contains("Not scheduled yet", template); Assert.Contains("13:00<span class=\"compare-off\">UTC+01:00</span>", template); Assert.Contains("14:00<span class=\"compare-off\">UTC+02:00</span>", template); Assert.Contains("12:00<span class=\"compare-off\">UTC+00:00</span>", template); Assert.DoesNotContain("First public", template);
+        Assert.Contains("https://localhost/Events/timezone-fixture/Signups", html); Assert.DoesNotContain("identity-event-information-rail", html); Assert.Contains("Scheduled moments stay the same; they’ll be shown in {0} after you save.", html); Assert.Contains("data-timezone-note role=\"status\" hidden", html);
     }
 
     [Fact]
@@ -151,7 +151,7 @@ public sealed partial class AdminDesignShellIntegrationTests
         client.DefaultRequestHeaders.AcceptLanguage.ParseAdd("da");
         var html = WebUtility.HtmlDecode(await client.GetStringAsync($"/Admin/Events/Identity/{item.Id}?culture=da&ui-culture=da"));
         Assert.Contains("<html lang=\"da\"", html); Assert.Contains(">Events</span>", html); Assert.Contains(">Alle events</a>", html);
-        Assert.Contains("Navn på event", html); Assert.Contains("Permanent eventlink", html);
+        Assert.Contains("Navn på event", html); Assert.Contains("Eventlink", html);
         Assert.DoesNotContain("AdminDesign.", html); Assert.DoesNotContain("Bingoer", html); Assert.DoesNotContain("begivenhed", html, StringComparison.OrdinalIgnoreCase);
         var old = WebUtility.HtmlDecode(await client.GetStringAsync("/Admin/Events/Index?culture=da&ui-culture=da"));
         Assert.Contains("Bingoer", old); Assert.DoesNotContain("data-admin-design", old);

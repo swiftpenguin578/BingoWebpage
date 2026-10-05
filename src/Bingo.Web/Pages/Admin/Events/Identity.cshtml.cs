@@ -255,7 +255,7 @@ public sealed class IdentityModel(
 
     public string EventDate(DateTimeOffset value)
     {
-        var formatted = DateTimePresentation.Format(value, "dd MMM yyyy, HH:mm (zzz)", DisplayTimezone, CultureInfo.CurrentCulture);
+        var formatted = DateTimePresentation.Format(value, "d MMM yyyy, HH:mm", DisplayTimezone, CultureInfo.CurrentCulture);
         return HasUnresolvableTimezone ? $"{formatted} — UTC fallback" : formatted;
     }
 
@@ -381,12 +381,14 @@ public sealed class IdentityModel(
             ("Signups open", item.SignupOpensAt), ("Signups close", item.SignupClosesAt),
             ("Team draft", item.DraftAt), ("AdminDesign.Event starts", item.EventStartsAt), ("AdminDesign.Event ends", item.EventEndsAt)
         ];
-        return rows.Select(row => new TimePreview(row.Label, Format(row.At, oldId), Format(row.At, newId), row.At.HasValue)).ToList();
+        return rows.Select(row => new TimePreview(row.Label, Format(row.At, oldId), Format(row.At, newId), row.At.HasValue, Offset(row.At, oldId), Offset(row.At, newId))).ToList();
     }
 
     private string Format(DateTimeOffset? value, string timezone) => value is null
         ? Localize("Not scheduled yet")
-        : DateTimePresentation.Format(value.Value, "dd MMM yyyy, HH:mm (zzz)", timezone, CultureInfo.CurrentCulture);
+        : DateTimePresentation.Format(value.Value, "d MMM yyyy, HH:mm", timezone, CultureInfo.CurrentCulture);
+
+    private static string Offset(DateTimeOffset? value, string timezone) => value is null ? string.Empty : "UTC" + DateTimePresentation.Format(value.Value, "zzz", timezone, CultureInfo.InvariantCulture);
 
     private void AddPermanentSlugError()
     {
@@ -412,7 +414,7 @@ public sealed class IdentityModel(
 
     private List<TimezoneOption> Options(string? selected)
     {
-        var options = Defaults.Select(option => new TimezoneOption(option.Id, Label(option.Id, Localize(option.Label)))).ToList();
+        var options = Defaults.Select(option => new TimezoneOption(option.Id, Label(option.Id))).ToList();
         if (!string.IsNullOrWhiteSpace(selected) && options.All(option => option.Id != selected))
             options.Add(new TimezoneOption(selected, Localize("{0} · current", selected)));
         return options;
@@ -445,11 +447,11 @@ public sealed class IdentityModel(
         }
     }
 
-    private static string Label(string timezoneId, string place)
+    private static string Label(string timezoneId)
     {
-        if (!TryFind(timezoneId, out var timezone)) return place;
+        if (!TryFind(timezoneId, out var timezone)) return timezoneId;
         var offset = timezone.GetUtcOffset(DateTimeOffset.UtcNow);
-        return $"{place} (UTC{(offset < TimeSpan.Zero ? "-" : "+")}{offset.Duration():hh\\:mm})";
+        return $"{timezoneId} (UTC{(offset < TimeSpan.Zero ? "-" : "+")}{offset.Duration():hh\\:mm})";
     }
 
     private string Localize(string key, params object[] arguments) =>
@@ -458,7 +460,7 @@ public sealed class IdentityModel(
     private string DisplayTimezone { get; set; } = DateTimePresentation.DefaultTimezoneId;
 
     public sealed record TimezoneOption(string Id, string Label);
-    public sealed record TimePreview(string Label, string Current, string New, bool Scheduled);
+    public sealed record TimePreview(string Label, string Current, string New, bool Scheduled, string CurrentOffset, string NewOffset);
 
     public sealed class InputModel
     {

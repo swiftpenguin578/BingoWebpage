@@ -3,40 +3,60 @@
 @using Bingo.Domain.Events
 @{
     ViewData["Title"] = T["Identity"];
+    ViewData["SummaryTemplate"] = T["AdminDesign.Name, description, buy-in and timezone for {0}."].Value;
+    ViewData["Summary"] = T["AdminDesign.Name, description, buy-in and timezone for {0}.", Model.EventName].Value;
     var signupTableUrl = Url.Page("/Events/Signups", null, new { slug = Model.EventSlug }, Request.Scheme, Request.Host.Value);
     var status = TempData.Peek("StatusMessage") as string;
     var saved = status == T["Event identity updated."].Value || status == T["No identity changes were made."].Value;
+}
+@if (!Model.CanEditIdentity)
+{
+    var message = Model.EventState switch
+    {
+        EventState.Cancelled => T["AdminDesign.{0} was cancelled, so its identity can’t be changed.", Model.EventName].Value,
+        EventState.Finalized => T["AdminDesign.{0} is finished, so its identity can’t be changed.", Model.EventName].Value,
+        _ => T["AdminDesign.{0} is archived, so its identity can’t be changed.", Model.EventName].Value
+    };
+    <partial name="_AdminDesignBanner" model='new AdminDesignBanner("is-info page-banner form-card", "lock", message, Id: "identity-readonly")' />
 }
 <section class="card form-card" data-identity-editor data-identity-event-id="@Model.EventId" data-identity-current-version="@Model.CurrentVersion"
     data-identity-editable="@Model.CanEditIdentity.ToString().ToLowerInvariant()" data-identity-public="@Model.HasPublicExposure.ToString().ToLowerInvariant()"
     data-identity-save-uncertain="@Model.SaveOutcomeUncertain.ToString().ToLowerInvariant()" data-identity-schedule-stale="@Model.TimezoneScheduleStale.ToString().ToLowerInvariant()"
     data-identity-review-required="@((Model.TimezonePreview.Count > 0).ToString().ToLowerInvariant())"
+    data-saving="@T["AdminDesign.Saving…"]"
+    data-checking="@T["AdminDesign.Checking…"]"
+    data-uncertain-lead="@T["AdminDesign.We couldn’t confirm whether your changes were saved."]"
+    data-checking-lead="@T["AdminDesign.Checking whether your changes were saved…"]"
+    data-stale-lead="@T["AdminDesign.Another admin saved this event while you were editing."]"
+    data-stale-merged="@T["AdminDesign. Their changes are now in the form alongside yours. Nothing has been saved yet; review, then save again."]"
+    data-stale-clean="@T["AdminDesign. The form now shows their saved changes."]"
+    data-stale-schedule="@T["AdminDesign. Only its schedule changed, so the times you reviewed were out of date. Nothing was saved."]"
+    data-stale-review="@T["AdminDesign. Saving again opens a fresh review of the timezone change with the latest times."]"
+    data-merged="@T["AdminDesign.Updated to their saved version."]"
+    data-empty-quote="@T["AdminDesign.empty"]"
+    data-timezone-theirs="@T["AdminDesign.You both changed this. Theirs: {0}."]"
+    data-timezone-private-note="@T["AdminDesign.Scheduled moments stay the same; they’ll be shown in {0} after you save."]"
+    data-timezone-public-note="@T["AdminDesign.This event has been public, so you’ll review the affected times before saving."]"
+    data-copy="@T["AdminDesign.Copy"]"
+    data-copy-done="@T["AdminDesign.Copied"]"
     data-name-required="@T["AdminDesign.Enter an event name."]" data-validation-summary="@T["{0} fields need attention before you can save."]"
-    data-name-limit="@T["Event names must be 50 characters or fewer."]" data-description-limit="@T["Description must be 4000 characters or fewer."]" data-buy-in-description-limit="@T["Buy-in information must be 2000 characters or fewer."]"
+    data-name-limit="@T["AdminDesign.Use {0} characters or fewer.", 50.ToString("N0", CultureInfo.CurrentCulture)]" data-description-limit="@T["AdminDesign.Use {0} characters or fewer.", 4000.ToString("N0", CultureInfo.CurrentCulture)]" data-buy-in-description-limit="@T["AdminDesign.Use {0} characters or fewer.", 2000.ToString("N0", CultureInfo.CurrentCulture)]"
     data-identity-conflicts="@string.Join(",", Model.FieldConflicts)" data-label-name="@T["AdminDesign.Event name"]" data-label-description="@T["Description"]" data-label-buy-in-description="@T["Buy-in information"]" data-label-timezone="@T["Timezone"]" data-save="@T["Save changes"]" data-saved="@T["Saved"]"
-    data-no-changes="@T["No changes to save"]" data-up-to-date-note="@T["Up to date"]" data-check-again="@T["Check again"]" data-unknown="@T["The save outcome is uncertain. Check again to read the current values; your draft is retained."]"
-    data-up-to-date="@T["AdminDesign.Up to date. The event now has the expected values. This does not confirm which request saved them."]"
-    data-not-applied="@T["AdminDesign.The event still has its earlier values, so your changes weren't applied. They are still here; save again when you are ready."]"
-    data-stale="@T["AdminDesign.Another admin saved this event while you were editing. Where you both changed a field, yours is kept and theirs is shown beside it. Review, then save again."]"
-    data-refused="@T["This event is read-only in its current lifecycle state."]" data-use-theirs="@T["Use theirs"]" data-theirs="@T["Their value: {0}"]"
-    data-leave-title="@T["Leave before checking?"]" data-leave-message="@T["Your changes may already have been saved. Check again before leaving, or leave anyway without retrying the save."]" data-leave="@T["Leave anyway"]"
+    data-no-changes="@T["No changes to save"]" data-up-to-date-note="@T["Up to date"]" data-check-again="@T["Check again"]" data-unknown="@T["AdminDesign. Check before saving again, so you don’t overwrite anything by mistake."]"
+    data-up-to-date="@T["AdminDesign.The event now has the values you entered."]"
+    data-not-applied="@T["AdminDesign.The event still has its earlier values, so your changes weren’t applied. They’re still here; save again when you’re ready."]"
+    data-stale="@T["AdminDesign. Where you both changed a field, yours is kept and theirs is shown beside it. Nothing has been saved yet; review, then save again."]"
+    data-refused="@T["This event is read-only in its current lifecycle state."]" data-use-theirs="@T["Use theirs"]" data-theirs="@T["AdminDesign.You both changed this. Their saved version: {0}. Yours is kept until you choose."]"
+    data-leave-title="@T["AdminDesign.Leave before checking your save?"]" data-leave-message="@T["AdminDesign.We couldn’t confirm your last save, and it may already have gone through. Check again to find out, or leave now: anything that wasn’t saved will be lost, and you won’t know which until you come back."]" data-leave="@T["Leave anyway"]"
     data-cancel="@T["Cancel"]" data-keep-editing="@T["Keep editing"]" data-timezone-title="@T["Show this event’s times in {0}?"]" data-timezone-action="@T["Save with {0}"]"
     data-timezone-consequence="@T["Stored UTC instants will not move. Participants will see the same moments in the new timezone, including each UTC offset."]"
-    data-saved-together="@T["Also saved with this change: {0}."]" data-unsaved="@T["Unsaved changes"]" data-copied="@T["Link copied"]" data-copy-failed="@T["The link could not be copied. Select and copy it manually."]">
+    data-saved-together="@T["Also saved with this change: {0}."]" data-unsaved="@T["Unsaved changes"]" data-copied="@T["AdminDesign.Event link copied."]" data-copy-failed="@T["AdminDesign.Couldn’t copy automatically. The link is selected so you can copy it."]">
     <form method="post" class="identity-editor-form">
         <div class="form-banners">
-            <div asp-validation-summary="ModelOnly" class="validation-summary banner is-error"></div>
+            <partial name="_AdminDesignBanner" model='new AdminDesignBanner("is-error validation-summary", "error", string.Join(" ", ViewData.ModelState[string.Empty]?.Errors.Select(error => error.ErrorMessage) ?? []), Hidden: !(ViewData.ModelState[string.Empty]?.Errors.Any() ?? false))' />
             <div class="banner is-error" data-client-validation role="alert" hidden></div>
             <div class="banner is-warning" data-identity-feedback role="status" tabindex="-1" hidden></div>
-            @if (!Model.CanEditIdentity)
-            {
-                <p class="banner is-info" data-identity-readonly>@(Model.EventState switch
-                {
-                    EventState.Cancelled => T["{0} was cancelled, so its identity cannot be changed.", Model.EventName],
-                    EventState.Finalized => T["{0} is finalized, so its identity cannot be changed.", Model.EventName],
-                    _ => T["{0} is archived, so its identity cannot be changed.", Model.EventName]
-                })</p>
-            }
+
         </div>
         <input asp-for="Input.Version" type="hidden" />
         <input asp-for="Input.HasBaseline" type="hidden" />
@@ -57,81 +77,81 @@
         <input asp-for="Input.TimezoneConfirmationOriginal" type="hidden" />
         <input asp-for="Input.TimezoneConfirmationProposed" type="hidden" />
         <section class="form-sec" aria-labelledby="identity-details">
-            <div class="form-sec-head"><h2 class="form-sec-title" id="identity-details">@T["Public details"]</h2><p class="form-sec-sub">@T["AdminDesign.The event's name and the text players read about it."]</p></div>
+            <div class="form-sec-head"><h2 class="form-sec-title" id="identity-details">@T["Public details"]</h2><p class="form-sec-sub">@T["AdminDesign.The event’s name and the text players read about it."]</p></div>
             <div class="form-fields">
                 <div class="field" data-identity-field="Name">
-                    <div class="lbl-row"><label class="lbl" asp-for="Input.Name">@T["AdminDesign.Event name"]</label><span class="field-count" data-count-for="Name" aria-live="polite" hidden></span></div>
+                    <partial name="_AdminDesignFieldLabel" model='new AdminDesignFieldLabel("Name", "Input_Name", T["AdminDesign.Event name"].Value)' />
                     @if (Model.CanEditIdentity)
                     {
-                        <input asp-for="Input.Name" class="input id-name" data-codepoint-limit="50" autocomplete="off" aria-describedby="error-Name" />
+                        <input asp-for="Input.Name" class="input id-name" aria-required="true" data-codepoint-limit="50" autocomplete="off" aria-describedby="error-Name" />
                     }
                     else
                     {
-                        <div class="ro-value" data-readonly-value="Name">@Model.Input.Name</div>
+                        <div class="ro-value" aria-labelledby="label-Name" data-readonly-value="Name">@Model.Input.Name</div>
                     }
-                    <span asp-validation-for="Input.Name" class="field-err" id="error-Name"></span>
-                    <div class="field-note" data-conflict-for="Name" hidden></div>
+                    <partial name="_AdminDesignFieldError" model='new AdminDesignFieldError("Name", ViewData.ModelState["Input.Name"]?.Errors.FirstOrDefault()?.ErrorMessage ?? "")' />
+                    <div class="field-note" id="conflict-Name" data-conflict-for="Name" hidden></div>
                 </div>
                 <div class="field" data-identity-field="Description">
-                    <div class="lbl-row"><label class="lbl" asp-for="Input.Description">@T["Description"]</label><span class="field-count" data-count-for="Description" aria-live="polite" hidden></span></div>
+                    <partial name="_AdminDesignFieldLabel" model='new AdminDesignFieldLabel("Description", "Input_Description", T["Description"].Value, T["AdminDesign.optional"].Value)' />
                     @if (Model.CanEditIdentity)
                     {
-                        <textarea asp-for="Input.Description" class="textarea id-desc" maxlength="4000" aria-describedby="error-Description"></textarea>
+                        <textarea asp-for="Input.Description" class="textarea id-desc" placeholder="@T["AdminDesign.What the event is about, how teams are formed and anything players should know before signing up."]" aria-describedby="error-Description"></textarea>
                     }
                     else
                     {
-                        <div class="ro-value" data-readonly-value="Description">@Model.Input.Description</div>
+                        <div class="ro-value @(string.IsNullOrEmpty(Model.Input.Description) ? "is-empty" : null)" aria-labelledby="label-Description" data-readonly-value="Description">@(string.IsNullOrEmpty(Model.Input.Description) ? T["AdminDesign.None"].Value : Model.Input.Description)</div>
                     }
-                    <span asp-validation-for="Input.Description" class="field-err" id="error-Description"></span>
-                    <div class="field-note" data-conflict-for="Description" hidden></div>
+                    <partial name="_AdminDesignFieldError" model='new AdminDesignFieldError("Description", ViewData.ModelState["Input.Description"]?.Errors.FirstOrDefault()?.ErrorMessage ?? "")' />
+                    <div class="field-note" id="conflict-Description" data-conflict-for="Description" hidden></div>
                 </div>
                 <div class="field" data-identity-field="BuyInDescription">
-                    <div class="lbl-row"><label class="lbl" asp-for="Input.BuyInDescription">@T["Buy-in information"]</label><span class="field-count" data-count-for="BuyInDescription" aria-live="polite" hidden></span></div>
+                    <partial name="_AdminDesignFieldLabel" model='new AdminDesignFieldLabel("BuyInDescription", "Input_BuyInDescription", T["Buy-in information"].Value, T["AdminDesign.optional"].Value)' />
                     @if (Model.CanEditIdentity)
                     {
-                        <textarea asp-for="Input.BuyInDescription" class="textarea id-buyin" maxlength="2000" aria-describedby="error-BuyInDescription"></textarea>
+                        <textarea asp-for="Input.BuyInDescription" class="textarea id-buyin" placeholder="@T["AdminDesign.e.g. 5M GP per player, sent to Nils in game before the draft."]" aria-describedby="error-BuyInDescription"></textarea>
                     }
                     else
                     {
-                        <div class="ro-value" data-readonly-value="BuyInDescription">@Model.Input.BuyInDescription</div>
+                        <div class="ro-value @(string.IsNullOrEmpty(Model.Input.BuyInDescription) ? "is-empty" : null)" aria-labelledby="label-BuyInDescription" data-readonly-value="BuyInDescription">@(string.IsNullOrEmpty(Model.Input.BuyInDescription) ? T["AdminDesign.None"].Value : Model.Input.BuyInDescription)</div>
                     }
-                    <span asp-validation-for="Input.BuyInDescription" class="field-err" id="error-BuyInDescription"></span>
-                    <div class="field-note" data-conflict-for="BuyInDescription" hidden></div>
-                    @if (Model.CanEditIdentity) { <div class="field-hint">@T["Explain the entry payment in words: how much, and how to pay. It is not a price field and takes no payments; payments are tracked on Participants."]</div> }
+                    <partial name="_AdminDesignFieldError" model='new AdminDesignFieldError("BuyInDescription", ViewData.ModelState["Input.BuyInDescription"]?.Errors.FirstOrDefault()?.ErrorMessage ?? "")' />
+                    <div class="field-note" id="conflict-BuyInDescription" data-conflict-for="BuyInDescription" hidden></div>
+                    @if (Model.CanEditIdentity) { <div class="field-hint" id="hint-BuyInDescription">@T["AdminDesign.Explain the entry payment in words: how much, and how to pay. It isn’t a price field and takes no payments; payments are tracked on Participants."]</div> }
                 </div>
             </div>
         </section>
         <section class="form-sec" aria-labelledby="identity-timezone">
-            <div class="form-sec-head"><h2 class="form-sec-title" id="identity-timezone">@T["Timezone"]</h2><p class="form-sec-sub">@T["AdminDesign.How this event's dates and times are shown. Changing it never moves a scheduled moment."]</p></div>
+            <div class="form-sec-head"><h2 class="form-sec-title" id="identity-timezone">@T["Timezone"]</h2><p class="form-sec-sub">@T["AdminDesign.How this event’s dates and times are shown. Changing it never moves a scheduled moment."]</p></div>
             <div class="field field-narrow" data-identity-field="Timezone">
-                <label class="lbl" asp-for="Input.Timezone">@T["Timezone"]</label>
+                <label class="lbl" id="label-Timezone" asp-for="Input.Timezone">@T["Timezone"]</label>
                 @if (Model.CanEditTimezone)
                 {
-                    <select asp-for="Input.Timezone" class="select select-field" aria-describedby="error-Timezone">
+                    <div class="select-wrap"><select asp-for="Input.Timezone" class="select select-field" aria-describedby="error-Timezone">
                         @foreach (var timezone in Model.Timezones) { <option value="@timezone.Id">@timezone.Label</option> }
-                    </select>
+                    </select><partial name="_AdminDesignIcon" model='new AdminDesignIcon("chevron")' /></div>
                 }
                 else
                 {
-                    <div class="ro-value">@Model.Timezones.First(option => option.Id == Model.Input.Timezone).Label</div>
+                    <div class="ro-value" aria-labelledby="label-Timezone">@Model.Timezones.First(option => option.Id == Model.Input.Timezone).Label</div>
                     <input type="hidden" name="Input.Timezone" value="@Model.Input.Timezone" />
-                    @if (Model.CanEditIdentity) { <p class="field-lock">@T["AdminDesign.The timezone cannot change after the event first goes Live."]</p> }
+                    @if (Model.CanEditIdentity) { <partial name="_AdminDesignFieldLock" model='new AdminDesignFieldLock(T["AdminDesign.Locked because the event has gone Live. It stays locked in every later phase."].Value)' /> }
                 }
-                @if (!Model.HasPublicExposure && Model.CanEditTimezone) { <div class="field-note">@T["AdminDesign.This event has not been public yet. A timezone change saves directly without a confirmation."]</div> }
+                <div class="field-note" id="note-Timezone" data-timezone-note role="status" hidden><partial name="_AdminDesignIcon" model='new AdminDesignIcon("info")' /><span data-component-text></span></div>
                 @if (Model.HasUnresolvableTimezone) { <div class="field-note">@T["The stored timezone ID {0} is retained. Dates below use an explicit UTC fallback until a supported timezone is selected.", Model.StoredTimezoneId]</div> }
-                <span asp-validation-for="Input.Timezone" class="field-err" id="error-Timezone"></span>
-                <span asp-validation-for="Input.ConfirmTimezoneChange" class="field-err"></span>
-                <div class="field-note" data-conflict-for="Timezone" hidden></div>
+                <partial name="_AdminDesignFieldError" model='new AdminDesignFieldError("Timezone", ViewData.ModelState["Input.Timezone"]?.Errors.FirstOrDefault()?.ErrorMessage ?? "")' />
+                <partial name="_AdminDesignFieldError" model='new AdminDesignFieldError("ConfirmTimezoneChange", ViewData.ModelState["Input.ConfirmTimezoneChange"]?.Errors.FirstOrDefault()?.ErrorMessage ?? "")' />
+                <div class="field-note" id="conflict-Timezone" data-conflict-for="Timezone" hidden></div>
             </div>
         </section>
-        <section class="form-sec" aria-labelledby="identity-link">
-            <div class="form-sec-head"><h2 class="form-sec-title" id="identity-link">@T["AdminDesign.Permanent event link"]</h2><p class="form-sec-sub">@T["AdminDesign.Permanent. It was created with the event and stays the same when you rename it."]</p></div>
-            <div class="copy-field" role="group" aria-label="@T["Event link"]"><span class="mono" id="event-link">@signupTableUrl</span><button type="button" class="btn btn-sm btn-quiet" data-copy-url="@signupTableUrl" aria-describedby="event-link">@T["Copy"]</button></div>
-            <div class="field-hint">@T["AdminDesign.The one link to share. It opens the signup list, which moves visitors on to teams and the board as the event is published. While the event is private, it is not publicly available."]</div>
+        <section class="form-sec @(!Model.CanEditIdentity ? "is-last" : null)" aria-labelledby="identity-link">
+            <div class="form-sec-head"><h2 class="form-sec-title" id="identity-link">@T["AdminDesign.Event link"]</h2><p class="form-sec-sub">@T["AdminDesign.Permanent. It was created with the event and stays the same when you rename it."]</p></div>
+            <div class="field"><div class="copy-field" role="group" aria-label="@T["Event link"]"><span class="mono" id="event-link" title="@signupTableUrl">@signupTableUrl</span><button type="button" class="btn btn-sm btn-quiet" data-copy-url="@signupTableUrl" aria-describedby="event-link"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("copy")' /><span data-component-text>@T["Copy"]</span></button></div>
+            <div class="field-hint">@T["AdminDesign.The one link to share. It opens the signup list, which moves visitors on to teams and the board as the event is published. While the event is private, it isn’t publicly available."]</div></div>
         </section>
         @if (Model.CanEditIdentity)
         {
-            <div class="form-bar"><span class="saved-note" data-identity-state role="status">@(saved ? T["Saved"] : "")</span><button type="submit" class="btn btn-primary" data-identity-save>@T["Save changes"]</button></div>
+            <partial name="_AdminDesignSaveBar" model='new AdminDesignSaveBar(T["Save changes"].Value, T["No changes to save"].Value, T["Unsaved changes"].Value, saved ? T["Saved"].Value : null)' />
         }
         @foreach (var pair in Model.TimezonePreviews)
         {
@@ -139,17 +159,17 @@
             var unset = pair.Value.Where(row => !row.Scheduled).Select(row => T[row.Label].Value.ToLower(System.Globalization.CultureInfo.CurrentCulture)).ToList();
             var unsetNames = string.Join(", ", unset);
             if (unsetNames.Length > 0) { unsetNames = char.ToUpper(unsetNames[0], System.Globalization.CultureInfo.CurrentCulture) + unsetNames[1..]; }
-            <template data-identity-timezone-preview data-zone="@pair.Key"><div class="m-body"><p>@T["{0} has been public, so players may already have seen its times. Every scheduled moment stays the same; only how it’s shown changes.", Model.EventName]</p>
+            <template data-identity-timezone-preview data-zone="@pair.Key"><p class="m-body" data-confirm-description>@T["{0} has been public, so players may already have seen its times. Every scheduled moment stays the same; only how it’s shown changes.", Model.EventName]</p>
                 @if (scheduled.Count > 0)
                 {
                     <div class="compare" role="table" aria-label="@T["Scheduled times before and after the change"]">
                         <div class="compare-head" role="row"><span role="columnheader">@T["Scheduled"]</span><span role="columnheader">@T["Now"] · @Model.Input.TimezoneConfirmationOriginal</span><span role="columnheader">@T["After"] · @pair.Key</span></div>
-                        @foreach (var row in scheduled) { <div class="compare-row" role="row" data-identity-timezone-row><span class="compare-label" role="rowheader">@T[row.Label]</span><span class="compare-old" role="cell"><span class="compare-k">@T["Now"]</span>@row.Current</span><span class="compare-new" role="cell"><span class="compare-k">@T["After"]</span>@row.New</span></div> }
+                        @foreach (var row in scheduled) { <div class="compare-row" role="row" data-identity-timezone-row><span class="compare-label" role="rowheader">@T[row.Label]</span><span class="compare-old" role="cell"><span class="compare-k">@T["Now"]</span>@row.Current<span class="compare-off">@row.CurrentOffset</span></span><span class="compare-new" role="cell"><span class="compare-k">@T["After"]</span>@row.New<span class="compare-off">@row.NewOffset</span></span></div> }
                     </div>
                 }
                 @if (scheduled.Count == 0) { <p class="compare-foot" data-identity-timezone-unset>@T["Nothing is scheduled yet, so no shown times change."]</p> }
                 else if (unset.Count > 0) { <p class="compare-foot" data-identity-timezone-unset>@T["Not scheduled yet: {0}.", unsetNames]</p> }
-            </div></template>
+            </template>
         }
     </form>
 </section>

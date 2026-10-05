@@ -3127,4 +3127,45 @@
   <data name="Dismiss notification" xml:space="preserve"><value>Luk meddelelse</value></data>
   <data name="AdminDesign.ended {0}" xml:space="preserve"><value>sluttede {0}</value></data>
   <data name="AdminDesign.Super admin" xml:space="preserve"><value>Superadministrator</value></data>
+  <data name="AdminDesign.Name, description, buy-in and timezone for {0}." xml:space="preserve"><value>Navn, beskrivelse, buy-in og tidszone for {0}.</value></data>
+  <data name="AdminDesign.The event’s name and the text players read about it." xml:space="preserve"><value>Eventets navn og den tekst, spillerne læser om det.</value></data>
+  <data name="AdminDesign.How this event’s dates and times are shown. Changing it never moves a scheduled moment." xml:space="preserve"><value>Sådan vises eventets datoer og tidspunkter. En ændring flytter aldrig et planlagt tidspunkt.</value></data>
+  <data name="AdminDesign.Explain the entry payment in words: how much, and how to pay. It isn’t a price field and takes no payments; payments are tracked on Participants." xml:space="preserve"><value>Beskriv deltagerbetalingen: beløb og betalingsmetode. Det er ikke et prisfelt og modtager ikke betalinger; betalinger følges under Deltagere.</value></data>
+  <data name="AdminDesign.The one link to share. It opens the signup list, which moves visitors on to teams and the board as the event is published. While the event is private, it isn’t publicly available." xml:space="preserve"><value>Det ene link, du skal dele. Det åbner tilmeldingslisten, som sender besøgende videre til holdene og pladen, efterhånden som eventet offentliggøres. Mens eventet er privat, er det ikke offentligt tilgængeligt.</value></data>
+  <data name="AdminDesign.optional" xml:space="preserve"><value>valgfrit</value></data>
+  <data name="AdminDesign.None" xml:space="preserve"><value>Ingen</value></data>
+  <data name="AdminDesign.Event link" xml:space="preserve"><value>Eventlink</value></data>
+  <data name="AdminDesign.Copied" xml:space="preserve"><value>Kopieret</value></data>
+  <data name="AdminDesign.Copy" xml:space="preserve"><value>Kopiér</value></data>
+  <data name="AdminDesign.Event link copied." xml:space="preserve"><value>Eventlink kopieret.</value></data>
+  <data name="AdminDesign.Couldn’t copy automatically. The link is selected so you can copy it." xml:space="preserve"><value>Kunne ikke kopiere automatisk. Linket er markeret, så du kan kopiere det.</value></data>
+  <data name="AdminDesign.What the event is about, how teams are formed and anything players should know before signing up." xml:space="preserve"><value>Hvad eventet handler om, hvordan holdene dannes, og hvad spillerne bør vide før tilmelding.</value></data>
+  <data name="AdminDesign.e.g. 5M GP per player, sent to Nils in game before the draft." xml:space="preserve"><value>F.eks. 5M GP pr. spiller, sendt til Nils i spillet før draften.</value></data>
+  <data name="AdminDesign.Scheduled moments stay the same; they’ll be shown in {0} after you save." xml:space="preserve"><value>Planlagte tidspunkter forbliver de samme; de vises i {0}, når du gemmer.</value></data>
+  <data name="AdminDesign.This event has been public, so you’ll review the affected times before saving." xml:space="preserve"><value>Eventet har været offentligt, så du gennemgår de berørte tidspunkter, før du gemmer.</value></data>
+  <data name="AdminDesign.Locked because the event has gone Live. It stays locked in every later phase." xml:space="preserve"><value>Låst, fordi eventet er gået Live. Det forbliver låst i alle senere faser.</value></data>
+  <data name="AdminDesign.{0} is finished, so its identity can’t be changed." xml:space="preserve"><value>{0} er afsluttet, så dets identitet kan ikke ændres.</value></data>
+  <data name="AdminDesign.{0} is archived, so its identity can’t be changed." xml:space="preserve"><value>{0} er arkiveret, så dets identitet kan ikke ændres.</value></data>
+  <data name="AdminDesign.{0} was cancelled, so its identity can’t be changed." xml:space="preserve"><value>{0} blev annulleret, så dets identitet kan ikke ændres.</value></data>
+  <data name="AdminDesign.Saving…" xml:space="preserve"><value>Gemmer…</value></data>
+  <data name="AdminDesign.Checking…" xml:space="preserve"><value>Kontrollerer…</value></data>
+  <data name="AdminDesign.We couldn’t confirm whether your changes were saved." xml:space="preserve"><value>Vi kunne ikke bekræfte, om dine ændringer blev gemt.</value></data>
+  <data name="AdminDesign.Checking whether your changes were saved…" xml:space="preserve"><value>Kontrollerer, om dine ændringer blev gemt…</value></data>
+  <data name="AdminDesign. Check before saving again, so you don’t overwrite anything by mistake." xml:space="preserve"><value> Kontrollér, før du gemmer igen, så du ikke overskriver noget ved en fejl.</value></data>
+  <data name="AdminDesign.The event now has the values you entered." xml:space="preserve"><value>Eventet har nu de værdier, du indtastede.</value></data>
+  <data name="AdminDesign.The event still has its earlier values, so your changes weren’t applied. They’re still here; save again when you’re ready." xml:space="preserve"><value>Eventet har stadig sine tidligere værdier, så dine ændringer blev ikke anvendt. De er stadig her; gem igen, når du er klar.</value></data>
+  <data name="AdminDesign.Another admin saved this event while you were editing." xml:space="preserve"><value>En anden administrator gemte eventet, mens du redigerede.</value></data>
+  <data name="AdminDesign. Where you both changed a field, yours is kept and theirs is shown beside it. Nothing has been saved yet; review, then save again." xml:space="preserve"><value> Hvor I begge ændrede et felt, bevares dit, og deres vises ved siden af. Intet er gemt endnu; gennemgå, og gem så igen.</value></data>
+  <data name="AdminDesign. Their changes are now in the form alongside yours. Nothing has been saved yet; review, then save again." xml:space="preserve"><value> Deres ændringer står nu i formularen sammen med dine. Intet er gemt endnu; gennemgå, og gem så igen.</value></data>
+  <data name="AdminDesign. The form now shows their saved changes." xml:space="preserve"><value> Formularen viser nu deres gemte ændringer.</value></data>
+  <data name="AdminDesign. Only its schedule changed, so the times you reviewed were out of date. Nothing was saved." xml:space="preserve"><value> Kun tidsplanen blev ændret, så de tidspunkter, du gennemgik, var forældede. Intet blev gemt.</value></data>
+  <data name="AdminDesign. Saving again opens a fresh review of the timezone change with the latest times." xml:space="preserve"><value> Når du gemmer igen, åbnes en ny gennemgang af tidszoneændringen med de seneste tidspunkter.</value></data>
+  <data name="AdminDesign.You both changed this. Their saved version: {0}. Yours is kept until you choose." xml:space="preserve"><value>I ændrede begge dette. Deres gemte version: {0}. Din bevares, indtil du vælger.</value></data>
+  <data name="AdminDesign.You both changed this. Theirs: {0}." xml:space="preserve"><value>I ændrede begge dette. Deres: {0}.</value></data>
+  <data name="AdminDesign.Updated to their saved version." xml:space="preserve"><value>Opdateret til deres gemte version.</value></data>
+  <data name="AdminDesign.empty" xml:space="preserve"><value>tom</value></data>
+  <data name="AdminDesign.Your changes to {0} haven’t been saved." xml:space="preserve"><value>Dine ændringer til {0} er ikke gemt.</value></data>
+  <data name="AdminDesign.Leave before checking your save?" xml:space="preserve"><value>Forlad siden, før din gemning er kontrolleret?</value></data>
+  <data name="AdminDesign.We couldn’t confirm your last save, and it may already have gone through. Check again to find out, or leave now: anything that wasn’t saved will be lost, and you won’t know which until you come back." xml:space="preserve"><value>Vi kunne ikke bekræfte din seneste gemning, og den kan allerede være gennemført. Kontrollér igen for at finde ud af det, eller forlad siden nu: alt, der ikke blev gemt, går tabt, og du ved ikke hvad, før du kommer tilbage.</value></data>
+  <data name="AdminDesign.Use {0} characters or fewer." xml:space="preserve"><value>Brug højst {0} tegn.</value></data>
 </root>
