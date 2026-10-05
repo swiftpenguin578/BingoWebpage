@@ -53,11 +53,35 @@ appropriately dimmed, scroll locked and focus returned. Keep existing accessibil
 dirty/pending/conflict/uncertainty and security contracts. New-reference visual
 acceptance is not application binding or acceptance of newly exposed feedback.
 
+Approved production shell decisions (plan42 group A, 5 October 2026):
+
+- A3/A4: account menu contains Account settings, Change password, View public site
+  and Sign out. Notifications bell is in the top bar; its Admin actions overview
+  opens that section of `/notifications`. English/Danish is a two-state switch
+  beside the theme switch. Drop the blocker chip and page description.
+- A6: theme initially follows the OS; remember a manual choice per browser and
+  apply it before first paint. Keep the switch in the reference top-bar position.
+- A7/A11: switcher includes only the current Live/Final-review event and upcoming
+  Draft/Signups-open/Signups-closed events, soonest start first. Exclude Cancelled,
+  finished, Archived and Discarded. A past event still names the button but is not
+  listed. SuperAdmins additionally see qualifying hidden events marked Hidden;
+  those open Overview's limited view. Other choices keep the current page. Scroll
+  after about eight rows; All events stays below the list.
+- A12: outside click closes only a layer without input. Confirmations and layers
+  with unsaved input stay open. Preserve layered focus trapping and restoration.
+- A13: no sidebar item counts. Use DK Legacy as the product brand.
+- A16: new-shell links use a shared dirty guard, target-page skeleton, normal HTML
+  fetch and content/title/breadcrumb/nav/script swap, with Back/Forward and a
+  failed-load Try again state. Unexpected responses and old-layout targets fall
+  back to a full load. One site-wide setting, on by default, disables swaps.
+  Page scripts provide `init(root)` and `dispose()` removing listeners, timers and
+  connections; repeated event switches must leave no stale work running.
+
 Exit timing derives from computed shared CSS animation and completes even when no
-animation runs. A brief shared visible saving/spinner minimum is allowed as approved
-presentation; exact duration is not yet fixed. It never delays the backend operation
-or shows success before confirmation. Respect reduced motion and block repeat
-submission while pending. No toast Undo is added by this visual policy.
+animation runs. U1's selected shared busy minimum is 600 ms for saves and 250 ms
+for one-click actions; reduced motion removes the wait (item4 will implement and
+prove it). It never delays the backend operation or shows success before its
+response. Block repeat submission while pending. No toast Undo is approved.
 
 ## Rule promotion and ownership
 

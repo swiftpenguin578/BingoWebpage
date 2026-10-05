@@ -1,26 +1,12 @@
 # Current project status
 
-## Brief40 server-fix batch — implemented, Claude recheck pending, 5 October 2026
+## U1 foundation + Identity — in progress, 5 October 2026
 
-- Authority: [brief40](/Users/christopher/Documents/BingoWebpage/review-notes/40-codex-brief-sweep-server-fixes.md), [reference sweep](/Users/christopher/Documents/BingoWebpage/review-notes/33-reference-sweep.md), and [decisions](/Users/christopher/Documents/BingoWebpage/review-notes/08-decisions.md). Dispatcher `/root`, chat `01a10660-cc8a-7843-abb4-6cc1ebbb2bf2`; sole implementer `gpt-5.6-luna` / max; assigned worktree `/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage`, branch `codex/participants-functionality`.
-- Clean required starting HEAD `01935c1ba7e852ccc19577decf52ff4285a908eb` was verified. Implementation commits, in brief order, are `c174f03` (S4 route exemption plus S6 route/page source), `73e4145` (S6 proof), `610926e` (S8), `4a0c3ec` (F3), and `4fa8b8a` (F4). The final documentation/register commit is this batch’s final commit.
-- [Brief40 evidence](docs/references/admin-ui/reviews/2026-10-05/sweep-server-fixes/) records each real PostgreSQL proof, exact commands/results, and test-change mappings. Final focused proofs passed with zero failures/skips: S4 1/1, S6 1/1, S8 1/1, F3 1/1, and F4 reproduction 1/1 plus fixed behavior 1/1. F4’s pre-fix reproduction passed before the guard was restored.
-- Baseline B5 is accepted by `review-notes/39-b5-remediation-2-recheck.md`. The user’s prior whole-suite run on baseline `01935c1` passed **1985/1985 with 0 failures and 0 skipped**: Application 118, Domain 265, Browser 148, Integration 1454; Release build had 0 warnings/errors. No baseline rerun is required.
-- The clean Release build and `git diff --check` passed and are recorded in the final docs register. Claude’s independent read-only recheck follows that commit. No UI binding, migration, rehearsal, push, merge, deployment, or final-suite claim is made here.
-- **Whole-suite gate: pending user execution.** The user will run the unfiltered command `dotnet test Bingo.slnx --configuration Release --no-restore --results-directory /private/tmp/bingo-brief40-final-suite-trx --logger "trx"` and report per-project TRX counters. Requirement remains 0 failures and 0 skipped; this batch does not launch or poll that 30-minute gate.
-
-## Accepted test-health batch — 4 October 2026
-
-- Checkout `/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage`, branch `codex/participants-functionality`; clean starting HEAD `0179b9b3f4d4dff00a401f642e6a80374b5dc807` verified.
-- Planner `/root`, chat `01a10660-cc8a-7843-abb4-6cc1ebbb2bf2`; sole implementer `/root/au_b5_implementer`, explicitly assigned `gpt-6-astra` / high. No orchestrator, extra worker or self-review.
-- Authority: [brief 32](/Users/christopher/Documents/BingoWebpage/review-notes/32-codex-brief-test-health.md), [08-decisions.md B5 review D14 and approved test-change rule](/Users/christopher/Documents/BingoWebpage/review-notes/08-decisions.md#b5-review-decisions-user-4-october). Only the 16 failures and one flaky test are in scope; B5 remediation was excluded from that accepted batch.
-- Clean-baseline reproduction: Integration 16 FAIL / 1 PASS / 0 skipped (includes F and the withdrawal theory case); Browser 1 FAIL / 0 PASS / 0 skipped. All listed failures reproduced.
-- Cause-group commits: outdated tests `3f519429a2f645d1db93592088c24e6814841b22`; D16 code fix `f87e51865d62527dd1cc75155ef07cedd0a53252`; setup/migration fixtures `6a1f3af0479fd809f298282fe289fc06dcaa51a3`; deterministic flaky fixture `ae48c69d9cd42d039ceb48ce8b9921c6f32c1bf9`.
-- Full corrected classes passed: C11 59, capacity 23, creation Browser 28; seven setup/migration classes 361; D16 lifecycle/retry classes 43. All zero failures/skips. The flaky 16-test class passed five consecutive runs. Existing migrations and test14 remain unchanged. Controlled PostgreSQL/provider doubles only.
-- The initially unclear #14 was stopped until the user recorded **D16 option a**. Terminal Questions now returns only an exact committed-add replay; every other POST gets the exact Manage/read-only refusal. Its first added proof exposed unknown-handler fallback (3 failures); the corrected full classes passed 43/43. No failure was waived.
-- **Final-commit whole-suite gate PASS on `26e243436ce096a2e4b02561249b53d83e710c44`**, run by the user in their own terminal on 4 October: `dotnet build Bingo.slnx -c Release && dotnet test Bingo.slnx --no-build -c Release`. Application **118/118**, Domain **265/265**, Browser **148/148**, Integration **1390/1390**: **1,921 passed, 0 failed, 0 skipped**. Build succeeded. The worker's clean Release build also passed with 0 warnings/errors. Codex's earlier final-commit PostgreSQL connection timeout in `DropAnnouncementPersistenceIntegrationTests.ExactAcknowledgementAndGenerationBoundaryKeepLaterApprovalsNew.InitializeAsync:36` remains recorded as a sandbox environment failure, not reproduced outside the sandbox; its interrupted Integration run is not counted as passing.
-- **Claude independently reviewed and accepted the test-health batch at `26e2434`**, per [review 34](/Users/christopher/Documents/BingoWebpage/review-notes/34-test-health-review.md). [Evidence](docs/references/admin-ui/reviews/2026-10-04/test-health/evidence.md) records the user-run final gate, the environment failure and test #1's rename. This final documentation-only follow-up records that acceptance; it changes no code or tests.
-- B5 implementation remains at six commits ending `0179b9b`; [Claude review 31](/Users/christopher/Documents/BingoWebpage/review-notes/31-b5-review.md) identifies separately routed B5 remediation A1/C1/C2/B1/B2/E1. Those findings belong to the separate remediation above. RC07/RC05/RC04–DRF binding remains pending. B4 remains accepted at `fdc73dc` per [review 29 appended PASS](/Users/christopher/Documents/BingoWebpage/review-notes/29-b4-remediation-recheck.md#follow-up-recheck-2049fb2fdc73dc-direct-claude-4-october).
+- Authority: [brief43](/Users/christopher/Documents/BingoWebpage/review-notes/43-codex-brief-u1-foundation-identity.md), [plan42](/Users/christopher/Documents/BingoWebpage/review-notes/42-ui-integration-plan.md), and [decisions](/Users/christopher/Documents/BingoWebpage/review-notes/08-decisions.md).
+- Checkout `/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage`, branch `codex/participants-functionality`; clean starting HEAD `89d938292a2a22e0648d12f3885731c768244905` verified. Sole implementer `/root/u1_implementer`, `gpt-6-astra` / high; dispatcher actual parent `/root` in the fresh U1 chat supersedes brief43's historical chat ID. Claude is planner and independent reviewer through the user.
+- Items 0–7 run sequentially, one scoped local commit each. Item0 records approved ownership and shell decisions only; frozen reference assets stay unchanged. No page is bound or visually accepted yet. Durable evidence: [U1](docs/references/admin-ui/reviews/2026-10-05/u1/).
+- Baseline accepted by [Claude review41](/Users/christopher/Documents/BingoWebpage/review-notes/41-sweep-server-fixes-recheck.md) at `89d9382`: Release build 0 warnings/errors; Domain 265, Application 118, Browser 148, Integration 1,459 — **1,990 passed / 0 failed / 0 skipped** in Claude's scratch PostgreSQL run. No baseline rerun required. Earlier accepted test-health/B5 evidence remains in Git and the linked reviews.
+- Final whole-suite gate remains **pending user execution** on U1's final commit. User/Claude executes the unfiltered .NET suite; implementer runs focused applicable checks, Release build, diff checks and the full new JS runner. A passing checkpoint is not independent review or manual acceptance.
 
 ## Retained release gates and prior evidence
 
@@ -33,8 +19,8 @@
 
 ## Next permitted action
 
-Execute the final-commit clean Release/diff checks and the unfiltered whole suite
-once. Stop dependent execution on an environment failure and route the exact
-command/checkpoint for user-terminal execution; never retry around it or claim a
-pass. Report six commits/range and per-project results, then stop for Claude’s
-independent recheck. No next batch, push, merge or deployment is authorized.
+Complete brief43 items in order through item7, then stop for Claude independent
+review and user visual acceptance (both themes, English/Danish, phone width).
+Item2 baseline JS failures stop that item for a recorded decision; existing test
+expectations stay unchanged. Environment failure stops dependent checks. No U2–U10,
+lane T, rehearsal, push, main merge or deployment is authorized.
