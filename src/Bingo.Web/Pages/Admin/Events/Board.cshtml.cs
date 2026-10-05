@@ -1010,6 +1010,9 @@ public sealed partial class BoardModel(ApplicationDbContext db, TimeProvider tim
         foreach (var duplicate in tiles.GroupBy(x => (x.RowIndex, x.ColumnIndex)).Where(x => x.Count() > 1).SelectMany(x => x))
             issues.Add(Invalid("board-positions", "The board has conflicting tile positions. Reload and correct the layout before approving it.", duplicate).Issue);
 
+        foreach (var tile in tiles.Where(x => x.RowIndex < 0 || x.RowIndex >= board.Rows || x.ColumnIndex < 0 || x.ColumnIndex >= board.Columns))
+            issues.Add(Invalid("board-positions", "The board has conflicting tile positions. Reload and correct the layout before approving it.", tile).Issue);
+
         var tileIds = tiles.Select(x => x.Id).ToList();
         var templateIds = tiles.Select(x => x.TileTemplateId).Distinct().ToList();
         var templates = await db.TileTemplates.Where(x => templateIds.Contains(x.Id)).ToDictionaryAsync(x => x.Id, ct);

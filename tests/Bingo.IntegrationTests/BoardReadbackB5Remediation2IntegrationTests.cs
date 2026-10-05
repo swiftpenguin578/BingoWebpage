@@ -77,4 +77,29 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests
         Assert.Equal(baseline, await B5RemediationBoardPersistenceAsync());
         await AssertApprovalBatchUnchangedAsync(fixture);
     }
+
+    [Theory]
+    [InlineData(1, 0)]
+    [InlineData(0, 1)]
+    public async Task B5Round2ApprovalRefusesTileOutsideFullGrid(int row, int column)
+    {
+        var fixture = await SeedApprovalBatchAsync(manual: true);
+        await using var db = new ApplicationDbContext(options);
+        var outside = new BoardTile(Guid.NewGuid(), fixture.Board.Id, fixture.Template.Id, row, column, "Outside grid", "Manual", "", 7);
+        db.AddRange(outside, new BoardRequirementSnapshot(Guid.NewGuid(), outside.Id, 1, 1, true, false, "Manual", true));
+        await db.SaveChangesAsync();
+        var baseline = await B5RemediationBoardPersistenceAsync();
+        var page = Page(db, fixture.Admin.Id);
+        await page.OnGetAsync(fixture.Event.Id, CancellationToken.None);
+        var response = Assert.IsType<BoardModel.BoardActionState>(Assert.IsType<JsonResult>(await page.OnPostApproveStateAsync(fixture.Event.Id, false, CancellationToken.None)).Value);
+        var issue = Assert.Single(response.Issues);
+        Assert.Equal("board-positions", issue.Code);
+        Assert.Equal(outside.Id, issue.TileId);
+        Assert.Equal(row * fixture.Board.Columns + column, issue.Position);
+        Assert.Equal("Outside grid", issue.TileName);
+        Assert.Equal("The board has conflicting tile positions. Reload and correct the layout before approving it.", issue.ResourceKey);
+        Assert.Empty(issue.Arguments);
+        Assert.Equal(baseline, await B5RemediationBoardPersistenceAsync());
+        await AssertApprovalBatchUnchangedAsync(fixture);
+    }
 }
