@@ -11,3 +11,7 @@ button.theme-opt{border:0;background:transparent}button.theme-opt.is-on{backgrou
 @media(max-width:600px){.design-top-actions{gap:4px}.topbar{gap:6px}.crumbs{flex:1}.design-event-crumb{max-width:12vw}}
 
 body:not(.using-keyboard) :focus-visible{outline:none}.design-drawer-layer{position:fixed;inset:0;pointer-events:none;z-index:var(--dk-z-drawer)}.design-drawer-layer>.drawer{pointer-events:auto}.page[data-page-skeleton] .sk-row{height:64px;margin-bottom:16px}
+
+.logo img{display:block;width:28px;height:28px;object-fit:contain;border-radius:inherit}
+[data-menu-target="admin-notifications-menu"]{position:relative}
+.design-notification-count{position:absolute;right:-4px;top:-4px;min-width:16px;height:16px;padding:0 4px;border-radius:var(--dk-radius-pill);background:var(--dk-primary);color:var(--dk-on-primary);font-size:10px;line-height:16px;text-align:center}

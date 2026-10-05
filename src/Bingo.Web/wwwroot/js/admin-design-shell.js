@@ -34,6 +34,7 @@
   }
 
   let menu = null;
+  const menuExits = new WeakMap();
   const layers = [];
   let mobile = false;
   const mobileQuery = matchMedia('(max-width: 860px)');
@@ -46,23 +47,39 @@
   }
   function closeMenu(restore = true) {
     if (!menu) return;
-    menu.element.hidden = true;
-    menu.opener.setAttribute('aria-expanded', 'false');
-    if (restore) focus(menu.opener);
-    menu = null;
+    const closing = menu, token = Symbol(); menu = null;
+    menuExits.set(closing.element, token);
+    closing.element.classList.add('is-closing');
+    closing.opener.setAttribute('aria-expanded', 'false');
+    if (restore) focus(closing.opener);
+    void afterExit(closing.element).then(() => {
+      if (menuExits.get(closing.element) !== token) return;
+      closing.element.hidden = true; closing.element.classList.remove('is-closing'); menuExits.delete(closing.element);
+    });
   }
   function openMenu(opener) {
     const element = document.getElementById(opener.dataset.menuTarget);
     if (!element) return;
     if (menu?.element === element) { closeMenu(); return; }
     closeMenu(false);
-    element.hidden = false;
+    menuExits.delete(element); element.classList.remove('is-closing'); element.hidden = false;
     const bounds = opener.getBoundingClientRect();
-    element.style.left = `${Math.max(8, Math.min(bounds.left, innerWidth - element.offsetWidth - 8))}px`;
-    element.style.top = `${Math.max(8, Math.min(bounds.bottom + 6, innerHeight - element.offsetHeight - 8))}px`;
+    const side = opener.closest('[data-shell-sidebar]');
+    const align = side?.classList.contains('is-collapsed') && !mobileQuery.matches ? 'side' : opener.dataset.menuAlign || 'start';
+    if (side) element.style.width = `${Math.min(innerWidth - 16, Math.max(256, bounds.width))}px`;
+    const width = element.offsetWidth, height = element.offsetHeight;
+    let x = align === 'side' ? bounds.right + 8 : align === 'end' ? bounds.right - width : bounds.left;
+    let y = align === 'side' ? bounds.top : bounds.bottom + (align === 'end' ? 4 : 6);
+    if (align === 'end' && y + height > innerHeight - 8) y = bounds.top - height - 4;
+    x = Math.max(8, Math.min(x, innerWidth - width - 8)); y = Math.max(8, y);
+    element.style.left = `${Math.round(x)}px`; element.style.top = `${Math.round(y)}px`;
     opener.setAttribute('aria-expanded', 'true');
     menu = { element, opener };
     focus(controls(element)[0]);
+  }
+  function paintSideLabel() {
+    const collapsed = document.querySelector('[data-shell-sidebar]')?.classList.contains('is-collapsed');
+    document.querySelectorAll('.collapse-btn').forEach(button => button.setAttribute('aria-label', text(mobileQuery.matches ? 'closeNavigation' : collapsed ? 'expandNavigation' : 'collapseNavigation')));
   }
   function toggleSide(force) {
     const side = document.querySelector('[data-shell-sidebar]');
@@ -78,8 +95,10 @@
       side?.classList.toggle('is-collapsed');
       document.querySelectorAll('[data-side-toggle]').forEach(button => button.setAttribute('aria-expanded', String(!side?.classList.contains('is-collapsed'))));
     }
+    paintSideLabel();
   }
   mobileQuery.addEventListener('change', event => {
+    paintSideLabel();
     if (event.matches || !mobile) return;
     mobile = false;
     document.querySelector('[data-shell-sidebar]')?.classList.remove('is-mobile-open');
@@ -240,12 +259,18 @@
     modules = next;
     for (const module of modules) await module.init(document.querySelector('[data-page-region]'), api);
   }
+  const skeletons = new Map();
+  function rememberSkeletons(doc) {
+    for (const template of doc.querySelectorAll('template[data-page-loading-template]')) skeletons.set(template.dataset.pageLoadingTemplate, template.content.cloneNode(true));
+  }
+  rememberSkeletons(document);
   function skeleton(url) {
     const main = document.querySelector('[data-page-region]');
     const kind = new URL(url).pathname.split('/').at(-2)?.toLowerCase() || 'page';
     const placeholder = document.createElement('div'); placeholder.className = 'page'; placeholder.dataset.pageSkeleton = kind; placeholder.setAttribute('role', 'status'); placeholder.setAttribute('aria-label', text('loading'));
-    const rows = kind === 'identity' ? 4 : 6;
-    for (let row = 0; row < rows; row++) { const bar = document.createElement('div'); bar.className = 'sk-row'; placeholder.append(bar); }
+    const provided = skeletons.get(kind); placeholder.dataset.skeletonLayout = provided ? 'page' : 'generic';
+    if (provided) placeholder.append(provided.cloneNode(true));
+    else for (let row = 0; row < 6; row++) { const bar = document.createElement('div'); bar.className = 'sk-row'; placeholder.append(bar); }
     main.replaceChildren(placeholder); main.setAttribute('aria-busy', 'true');
   }
   function refreshSidebar(doc) {
@@ -303,6 +328,7 @@
       if (styles.some(style => new URL(style.href, location.href).origin !== location.origin)) { fullLoad(url); return true; }
       const nextModules = await loadModules(doc);
       if (ticket !== sequence) return false;
+      rememberSkeletons(doc);
       document.title = doc.title;
       document.documentElement.lang = doc.documentElement.lang;
       for (const [key, value] of Object.entries(nextBody.dataset)) body.dataset[key] = value;
@@ -330,10 +356,13 @@
       const main = document.querySelector('[data-page-region]');
       main.removeAttribute('aria-busy');
       const failed = document.createElement('div'); failed.className = 'empty is-error'; failed.setAttribute('role', 'alert');
-      const message = document.createElement('p'); message.textContent = text('loadError');
+      const icon = document.createElement('div'); icon.className = 'empty-ic'; icon.setAttribute('aria-hidden', 'true');
+      icon.innerHTML = '<svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 5v3.5M8 11h.01"/></svg>';
+      const heading = document.createElement('div'); heading.className = 'empty-title'; heading.textContent = text('loadErrorTitle');
+      const message = document.createElement('p'); message.className = 'empty-text'; message.textContent = text('loadError');
       const retry = document.createElement('button'); retry.className = 'btn'; retry.textContent = text('retry');
       retry.addEventListener('click', () => void navigate(url, { mode, targetIndex, check: false }));
-      failed.append(message, retry); main.replaceChildren(failed); focus(retry);
+      failed.append(icon, heading, message, retry); main.replaceChildren(failed); focus(retry);
       return false;
     }
   }
@@ -394,5 +423,6 @@
   });
   window.addEventListener('popstate', event => void onPop(event));
   document.querySelectorAll('[data-toast]').forEach(element => startToast(element, 4500));
+  paintSideLabel();
   void loadModules(document).then(initModules).catch(() => toast(text('loadError'), { error: true }));
 })();
