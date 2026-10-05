@@ -13,7 +13,7 @@
     data-identity-review-required="@((Model.TimezonePreview.Count > 0).ToString().ToLowerInvariant())"
     data-name-required="@T["Enter an event name."]" data-validation-summary="@T["{0} fields need attention before you can save."]"
     data-name-limit="@T["Event names must be 50 characters or fewer."]" data-description-limit="@T["Description must be 4000 characters or fewer."]" data-buy-in-description-limit="@T["Buy-in information must be 2000 characters or fewer."]"
-    data-identity-conflicts="@string.Join(",", Model.FieldConflicts)" data-save="@T["Save changes"]" data-saved="@T["Saved"]"
+    data-identity-conflicts="@string.Join(",", Model.FieldConflicts)" data-label-name="@T["Event name"]" data-label-description="@T["Description"]" data-label-buy-in-description="@T["Buy-in information"]" data-label-timezone="@T["Timezone"]" data-save="@T["Save changes"]" data-saved="@T["Saved"]"
     data-check-again="@T["Check again"]" data-unknown="@T["The save outcome is uncertain. Check again to read the current values; your draft is retained."]"
     data-up-to-date="@T["Up to date. The event now has the expected values. This does not confirm which request saved them."]"
     data-not-applied="@T["The event still has its earlier values, so your changes weren't applied. They are still here; save again when you are ready."]"

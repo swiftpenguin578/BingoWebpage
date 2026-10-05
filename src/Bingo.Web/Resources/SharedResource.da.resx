@@ -3086,4 +3086,6 @@
   <data name="Copenhagen (Europe/Copenhagen)" xml:space="preserve"><value>København (Europe/Copenhagen)</value></data>
   <data name="Team draft" xml:space="preserve"><value>Holdfordeling</value></data>
   <data name="{0} fields need attention before you can save." xml:space="preserve"><value>{0} felter kræver opmærksomhed, før du kan gemme.</value></data>
+  <data name="You were signed out" xml:space="preserve"><value>Du blev logget ud</value></data>
+  <data name="You were signed out, so we could not check whether the change went through. Your draft is still here. Sign in and use Check again." xml:space="preserve"><value>Du blev logget ud, så vi kunne ikke kontrollere, om ændringen blev gennemført. Dit udkast er stadig her. Log ind, og vælg Kontrollér igen.</value></data>
 </root>
