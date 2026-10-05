@@ -1,0 +1,4999 @@
+{
+  "actual": [
+    {
+      "name": "side",
+      "text": "parity-admin Administrator Administration Dashboard Events Catalogue Accounts Audit EventAutumn Bingo 2027 Signups open · closes 15 Jun Overview Identity Schedule Participants Signup setup Teams / Draft Board WOM Review Final review",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "14px",
+        "fontWeight": "400",
+        "lineHeight": "20.3px",
+        "color": "rgb(28, 29, 31)",
+        "backgroundColor": "rgb(239, 239, 235)",
+        "paddingTop": "14px",
+        "paddingRight": "12px",
+        "paddingBottom": "16px",
+        "paddingLeft": "12px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "16px",
+        "borderRadius": "0px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 0,
+        "y": 0,
+        "width": 252,
+        "height": 900
+      },
+      "spacing": null,
+      "options": {
+        "text": false,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "side-top",
+      "text": "parity-admin Administrator",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "14px",
+        "fontWeight": "400",
+        "lineHeight": "20.3px",
+        "color": "rgb(28, 29, 31)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "6px",
+        "borderRadius": "0px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 12,
+        "y": 14,
+        "width": 227,
+        "height": 44.0625
+      },
+      "spacing": null,
+      "options": {
+        "text": false,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "account-btn",
+      "text": "parity-admin Administrator",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "14px",
+        "fontWeight": "400",
+        "lineHeight": "20.3px",
+        "color": "rgb(28, 29, 31)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "5px",
+        "paddingRight": "6px",
+        "paddingBottom": "5px",
+        "paddingLeft": "6px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "10px",
+        "borderRadius": "9px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 12,
+        "y": 14,
+        "width": 189,
+        "height": 44.0625
+      },
+      "spacing": null,
+      "options": {
+        "text": false,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "logo",
+      "text": "",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "14px",
+        "fontWeight": "400",
+        "lineHeight": "20.3px",
+        "color": "rgb(255, 255, 255)",
+        "backgroundColor": "rgb(43, 96, 105)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "normal",
+        "borderRadius": "8px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 18,
+        "y": 22.03125,
+        "width": 28,
+        "height": 28
+      },
+      "spacing": null,
+      "options": {
+        "text": false,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "brand-name",
+      "text": "parity-admin",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "14.5px",
+        "fontWeight": "600",
+        "lineHeight": "16.675px",
+        "color": "rgb(28, 29, 31)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "4px",
+        "borderRadius": "0px"
+      },
+      "icons": [
+        {
+          "tag": "path",
+          "attrs": {
+            "d": "M4.5 6.5 8 10l3.5-3.5"
+          }
+        }
+      ],
+      "rect": {
+        "x": 56,
+        "y": 19,
+        "width": 105.734375,
+        "height": 16.671875
+      },
+      "spacing": null,
+      "options": {
+        "text": false,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "brand-name svg",
+      "text": "",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "14.5px",
+        "fontWeight": "600",
+        "lineHeight": "16.675px",
+        "color": "rgb(116, 118, 124)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "normal",
+        "borderRadius": "0px"
+      },
+      "icons": [
+        {
+          "tag": "path",
+          "attrs": {
+            "d": "M4.5 6.5 8 10l3.5-3.5"
+          }
+        }
+      ],
+      "rect": {
+        "x": 147.734375,
+        "y": 20.328125,
+        "width": 14,
+        "height": 14
+      },
+      "spacing": null,
+      "options": {
+        "text": false,
+        "icon": true,
+        "dimensions": [
+          "width",
+          "height"
+        ]
+      }
+    },
+    {
+      "name": "brand-sub",
+      "text": "Administrator",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "12px",
+        "fontWeight": "400",
+        "lineHeight": "17.4px",
+        "color": "rgb(116, 118, 124)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "normal",
+        "borderRadius": "0px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 56,
+        "y": 35.671875,
+        "width": 105.734375,
+        "height": 17.390625
+      },
+      "spacing": null,
+      "options": {
+        "text": false,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "collapse-btn",
+      "text": "",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "14px",
+        "fontWeight": "400",
+        "lineHeight": "20.3px",
+        "color": "rgb(116, 118, 124)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "1px",
+        "paddingRight": "6px",
+        "paddingBottom": "1px",
+        "paddingLeft": "6px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "normal",
+        "borderRadius": "7px"
+      },
+      "icons": [
+        {
+          "tag": "rect",
+          "attrs": {
+            "x": "2.5",
+            "y": "2.5",
+            "width": "11",
+            "height": "11",
+            "rx": "1.5"
+          }
+        },
+        {
+          "tag": "path",
+          "attrs": {
+            "d": "M6 2.5v11"
+          }
+        },
+        {
+          "tag": "path",
+          "attrs": {
+            "d": "M10.6 6.2 8.8 8l1.8 1.8"
+          }
+        }
+      ],
+      "rect": {
+        "x": 207,
+        "y": 20.03125,
+        "width": 32,
+        "height": 32
+      },
+      "spacing": null,
+      "options": {
+        "text": false,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "nav-label",
+      "text": "Administration",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "11.5px",
+        "fontWeight": "500",
+        "lineHeight": "16.675px",
+        "color": "rgb(116, 118, 124)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "10px",
+        "paddingBottom": "6px",
+        "paddingLeft": "10px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "normal",
+        "borderRadius": "0px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 12,
+        "y": 74.0625,
+        "width": 227,
+        "height": 22.671875
+      },
+      "spacing": null,
+      "options": {
+        "text": true,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "nav-item first",
+      "text": "Dashboard",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "14px",
+        "fontWeight": "400",
+        "lineHeight": "20.3px",
+        "color": "rgb(28, 29, 31)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "10px",
+        "paddingBottom": "0px",
+        "paddingLeft": "10px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "10px",
+        "borderRadius": "7px"
+      },
+      "icons": [
+        {
+          "tag": "path",
+          "attrs": {
+            "d": "M2.5 12a5.5 5.5 0 1 1 11 0"
+          }
+        },
+        {
+          "tag": "path",
+          "attrs": {
+            "d": "M8 12l2.6-3.4"
+          }
+        },
+        {
+          "tag": "path",
+          "attrs": {
+            "d": "M8 12h.01"
+          }
+        }
+      ],
+      "rect": {
+        "x": 12,
+        "y": 97.734375,
+        "width": 227,
+        "height": 32
+      },
+      "spacing": null,
+      "options": {
+        "text": false,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "nav-item text",
+      "text": "Dashboard",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "14px",
+        "fontWeight": "400",
+        "lineHeight": "20.3px",
+        "color": "rgb(28, 29, 31)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "normal",
+        "borderRadius": "0px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 48,
+        "y": 103.578125,
+        "width": 181,
+        "height": 20.296875
+      },
+      "spacing": null,
+      "options": {
+        "text": true,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "nav-item svg",
+      "text": "",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "14px",
+        "fontWeight": "400",
+        "lineHeight": "20.3px",
+        "color": "rgb(116, 118, 124)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "normal",
+        "borderRadius": "0px"
+      },
+      "icons": [
+        {
+          "tag": "path",
+          "attrs": {
+            "d": "M2.5 12a5.5 5.5 0 1 1 11 0"
+          }
+        },
+        {
+          "tag": "path",
+          "attrs": {
+            "d": "M8 12l2.6-3.4"
+          }
+        },
+        {
+          "tag": "path",
+          "attrs": {
+            "d": "M8 12h.01"
+          }
+        }
+      ],
+      "rect": {
+        "x": 22,
+        "y": 105.734375,
+        "width": 16,
+        "height": 16
+      },
+      "spacing": null,
+      "options": {
+        "text": false,
+        "icon": true,
+        "dimensions": [
+          "width",
+          "height"
+        ]
+      }
+    },
+    {
+      "name": "side-rule",
+      "text": "",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "14px",
+        "fontWeight": "400",
+        "lineHeight": "20.3px",
+        "color": "rgb(28, 29, 31)",
+        "backgroundColor": "rgb(226, 226, 220)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "normal",
+        "borderRadius": "0px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 18,
+        "y": 277.734375,
+        "width": 215,
+        "height": 1
+      },
+      "spacing": null,
+      "options": {
+        "text": false,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "event-switch",
+      "text": "EventAutumn Bingo 2027 Signups open · closes 15 Jun",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "14px",
+        "fontWeight": "400",
+        "lineHeight": "20.3px",
+        "color": "rgb(28, 29, 31)",
+        "backgroundColor": "rgb(255, 255, 255)",
+        "paddingTop": "9px",
+        "paddingRight": "10px",
+        "paddingBottom": "9px",
+        "paddingLeft": "12px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "10px",
+        "borderRadius": "10px"
+      },
+      "icons": [
+        {
+          "tag": "rect",
+          "attrs": {
+            "x": "2.5",
+            "y": "3.5",
+            "width": "11",
+            "height": "10",
+            "rx": "1.5"
+          }
+        },
+        {
+          "tag": "path",
+          "attrs": {
+            "d": "M2.5 6.5h11M5.5 2v3M10.5 2v3"
+          }
+        }
+      ],
+      "rect": {
+        "x": 12,
+        "y": 294.734375,
+        "width": 227,
+        "height": 72.609375
+      },
+      "spacing": null,
+      "options": {
+        "box": {
+          "y": 1
+        },
+        "text": false,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "ev-ic",
+      "missing": true
+    },
+    {
+      "name": "ev-lbl",
+      "text": "Event",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "11.5px",
+        "fontWeight": "400",
+        "lineHeight": "16.675px",
+        "color": "rgb(116, 118, 124)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "normal",
+        "borderRadius": "0px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 25,
+        "y": 304.734375,
+        "width": 177,
+        "height": 16.671875
+      },
+      "spacing": null,
+      "options": {
+        "text": true,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "ev-name",
+      "text": "Autumn Bingo 2027",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "13.5px",
+        "fontWeight": "600",
+        "lineHeight": "17.55px",
+        "color": "rgb(28, 29, 31)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "normal",
+        "borderRadius": "0px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 25,
+        "y": 321.40625,
+        "width": 177,
+        "height": 17.546875
+      },
+      "spacing": null,
+      "options": {
+        "text": true,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "ev-meta",
+      "text": "Signups open · closes 15 Jun",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "12px",
+        "fontWeight": "400",
+        "lineHeight": "17.4px",
+        "color": "rgb(84, 86, 91)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "1px",
+        "marginBottom": "0px",
+        "gap": "6px",
+        "borderRadius": "0px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 25,
+        "y": 339.953125,
+        "width": 177,
+        "height": 17.390625
+      },
+      "spacing": null,
+      "options": {
+        "text": false,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "ev-meta dot",
+      "text": "",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "12px",
+        "fontWeight": "400",
+        "lineHeight": "17.4px",
+        "color": "rgb(84, 86, 91)",
+        "backgroundColor": "rgb(37, 106, 69)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "normal",
+        "borderRadius": "50%"
+      },
+      "icons": null,
+      "rect": {
+        "x": 25,
+        "y": 345.140625,
+        "width": 7,
+        "height": 7
+      },
+      "spacing": null,
+      "options": {
+        "text": false,
+        "icon": true,
+        "dimensions": [
+          "width",
+          "height"
+        ]
+      }
+    },
+    {
+      "name": "ev-meta-text",
+      "text": "Signups open · closes 15 Jun",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "12px",
+        "fontWeight": "400",
+        "lineHeight": "17.4px",
+        "color": "rgb(84, 86, 91)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "normal",
+        "borderRadius": "0px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 38,
+        "y": 339.953125,
+        "width": 158,
+        "height": 17.390625
+      },
+      "spacing": null,
+      "options": {
+        "text": true,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "ev-chev",
+      "text": "",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "14px",
+        "fontWeight": "400",
+        "lineHeight": "20.3px",
+        "color": "rgb(116, 118, 124)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "normal",
+        "borderRadius": "0px"
+      },
+      "icons": [
+        {
+          "tag": "path",
+          "attrs": {
+            "d": "M4.5 6.5 8 10l3.5-3.5"
+          }
+        }
+      ],
+      "rect": {
+        "x": 212,
+        "y": 323.03125,
+        "width": 16,
+        "height": 16
+      },
+      "spacing": null,
+      "options": {
+        "text": false,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "overview item",
+      "text": "Overview",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "14px",
+        "fontWeight": "400",
+        "lineHeight": "20.3px",
+        "color": "rgb(28, 29, 31)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "10px",
+        "paddingBottom": "0px",
+        "paddingLeft": "10px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "10px",
+        "borderRadius": "7px"
+      },
+      "icons": [
+        {
+          "tag": "rect",
+          "attrs": {
+            "x": "2.5",
+            "y": "2.5",
+            "width": "4.5",
+            "height": "4.5",
+            "rx": "1"
+          }
+        },
+        {
+          "tag": "rect",
+          "attrs": {
+            "x": "9",
+            "y": "2.5",
+            "width": "4.5",
+            "height": "4.5",
+            "rx": "1"
+          }
+        },
+        {
+          "tag": "rect",
+          "attrs": {
+            "x": "2.5",
+            "y": "9",
+            "width": "4.5",
+            "height": "4.5",
+            "rx": "1"
+          }
+        },
+        {
+          "tag": "rect",
+          "attrs": {
+            "x": "9",
+            "y": "9",
+            "width": "4.5",
+            "height": "4.5",
+            "rx": "1"
+          }
+        }
+      ],
+      "rect": {
+        "x": 12,
+        "y": 377.34375,
+        "width": 227,
+        "height": 32
+      },
+      "spacing": 10,
+      "options": {
+        "box": {
+          "y": 1
+        },
+        "spacing": {
+          "reference": "#event-switch",
+          "app": ".event-switch",
+          "from": "bottom",
+          "to": "top",
+          "tolerancePx": 1,
+          "label": "V6 event-to-first-nav"
+        },
+        "text": false,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "current item",
+      "text": "Identity",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "14px",
+        "fontWeight": "550",
+        "lineHeight": "20.3px",
+        "color": "rgb(28, 29, 31)",
+        "backgroundColor": "rgba(28, 29, 31, 0.067)",
+        "paddingTop": "0px",
+        "paddingRight": "10px",
+        "paddingBottom": "0px",
+        "paddingLeft": "10px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "10px",
+        "borderRadius": "7px"
+      },
+      "icons": [
+        {
+          "tag": "path",
+          "attrs": {
+            "d": "M3.5 14V2.5M3.5 3h8l-1.5 3 1.5 3h-8"
+          }
+        }
+      ],
+      "rect": {
+        "x": 12,
+        "y": 410.34375,
+        "width": 227,
+        "height": 32
+      },
+      "spacing": null,
+      "options": {
+        "text": false,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "topbar",
+      "text": "Events /Autumn Bingo 2027 /Identity ENDA",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "14px",
+        "fontWeight": "400",
+        "lineHeight": "20.3px",
+        "color": "rgb(28, 29, 31)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "28px",
+        "paddingBottom": "0px",
+        "paddingLeft": "28px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "12px",
+        "borderRadius": "0px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 252,
+        "y": 0,
+        "width": 1028,
+        "height": 54
+      },
+      "spacing": null,
+      "options": {
+        "text": false,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "menu-toggle",
+      "text": "",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "14px",
+        "fontWeight": "400",
+        "lineHeight": "20.3px",
+        "color": "rgb(116, 118, 124)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "1px",
+        "paddingRight": "6px",
+        "paddingBottom": "1px",
+        "paddingLeft": "6px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "normal",
+        "borderRadius": "7px"
+      },
+      "icons": [
+        {
+          "tag": "path",
+          "attrs": {
+            "d": "M2.5 4.5h11M2.5 8h11M2.5 11.5h11"
+          }
+        }
+      ],
+      "rect": {
+        "x": 280,
+        "y": 10.5,
+        "width": 32,
+        "height": 32
+      },
+      "spacing": null,
+      "options": {
+        "text": false,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "crumbs",
+      "text": "Events /Autumn Bingo 2027 /Identity",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "13px",
+        "fontWeight": "400",
+        "lineHeight": "18.85px",
+        "color": "rgb(116, 118, 124)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "6px",
+        "borderRadius": "0px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 324,
+        "y": 14.078125,
+        "width": 241.546875,
+        "height": 24.84375
+      },
+      "spacing": null,
+      "options": {
+        "box": {
+          "x": 1,
+          "y": 1,
+          "height": 1
+        },
+        "text": false,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "crumb first",
+      "text": "Events",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "13px",
+        "fontWeight": "400",
+        "lineHeight": "18.85px",
+        "color": "rgb(116, 118, 124)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "3px",
+        "paddingRight": "6px",
+        "paddingBottom": "3px",
+        "paddingLeft": "6px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "normal",
+        "borderRadius": "6px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 318,
+        "y": 14.078125,
+        "width": 52.0625,
+        "height": 24.84375
+      },
+      "spacing": null,
+      "options": {
+        "text": true,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "crumb sep",
+      "text": "/",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "13px",
+        "fontWeight": "400",
+        "lineHeight": "18.85px",
+        "color": "rgb(207, 207, 200)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "normal",
+        "borderRadius": "0px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 370.0625,
+        "y": 17.078125,
+        "width": 6.25,
+        "height": 18.84375
+      },
+      "spacing": null,
+      "options": {
+        "text": true,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "crumb mid",
+      "text": "Autumn Bingo 2027",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "13px",
+        "fontWeight": "400",
+        "lineHeight": "18.85px",
+        "color": "rgb(116, 118, 124)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "normal",
+        "borderRadius": "0px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 382.3125,
+        "y": 17.078125,
+        "width": 118.78125,
+        "height": 18.84375
+      },
+      "spacing": null,
+      "options": {
+        "text": true,
+        "icon": false,
+        "dimensions": [
+          "width"
+        ]
+      }
+    },
+    {
+      "name": "crumb cur",
+      "text": "Identity",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "13px",
+        "fontWeight": "500",
+        "lineHeight": "18.85px",
+        "color": "rgb(28, 29, 31)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "normal",
+        "borderRadius": "0px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 519.34375,
+        "y": 17.078125,
+        "width": 46.203125,
+        "height": 18.84375
+      },
+      "spacing": null,
+      "options": {
+        "text": true,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "theme-seg",
+      "text": "",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "14px",
+        "fontWeight": "400",
+        "lineHeight": "20.3px",
+        "color": "rgb(28, 29, 31)",
+        "backgroundColor": "rgb(234, 234, 229)",
+        "paddingTop": "2px",
+        "paddingRight": "2px",
+        "paddingBottom": "2px",
+        "paddingLeft": "2px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "2px",
+        "borderRadius": "8px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 1064,
+        "y": 11.5,
+        "width": 66,
+        "height": 30
+      },
+      "spacing": null,
+      "options": {
+        "text": false,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "theme-opt on",
+      "text": "",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "14px",
+        "fontWeight": "400",
+        "lineHeight": "20.3px",
+        "color": "rgb(28, 29, 31)",
+        "backgroundColor": "rgb(255, 255, 255)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "normal",
+        "borderRadius": "6px"
+      },
+      "icons": [
+        {
+          "tag": "circle",
+          "attrs": {
+            "cx": "8",
+            "cy": "8",
+            "r": "2.8"
+          }
+        },
+        {
+          "tag": "path",
+          "attrs": {
+            "d": "M8 1.8v1.4M8 12.8v1.4M1.8 8h1.4M12.8 8h1.4M3.6 3.6l1 1M11.4 11.4l1 1M3.6 12.4l1-1M11.4 4.6l1-1"
+          }
+        }
+      ],
+      "rect": {
+        "x": 1066,
+        "y": 13.5,
+        "width": 30,
+        "height": 26
+      },
+      "spacing": null,
+      "options": {
+        "text": false,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "theme-opt svg",
+      "text": "",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "14px",
+        "fontWeight": "400",
+        "lineHeight": "20.3px",
+        "color": "rgb(28, 29, 31)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "normal",
+        "borderRadius": "0px"
+      },
+      "icons": [
+        {
+          "tag": "circle",
+          "attrs": {
+            "cx": "8",
+            "cy": "8",
+            "r": "2.8"
+          }
+        },
+        {
+          "tag": "path",
+          "attrs": {
+            "d": "M8 1.8v1.4M8 12.8v1.4M1.8 8h1.4M12.8 8h1.4M3.6 3.6l1 1M11.4 11.4l1 1M3.6 12.4l1-1M11.4 4.6l1-1"
+          }
+        }
+      ],
+      "rect": {
+        "x": 1073,
+        "y": 18.5,
+        "width": 16,
+        "height": 16
+      },
+      "spacing": null,
+      "options": {
+        "text": false,
+        "icon": true,
+        "dimensions": [
+          "width",
+          "height"
+        ]
+      }
+    },
+    {
+      "name": "scroller",
+      "text": "Identity Name, description, buy-in and timezone for Autumn Bingo 2027. Public detailsThe event’s name and the text players read about it. Event name 17 / 50 Description · optional 191 / 4,000 Nine days of team bingo across PvM, skilling and clues. Captains draft teams on 20 June, and every tile needs screenshot evidence. All accounts are welcome; ironmen play on their own boards. Buy-in information · optional 96 / 2,000 5M GP per player, sent to Nils in game before the draft. The whole pot goes to the winning team. Explain the entry payment in words: how much, and how to pay. It isn’t a price field and takes no payments; payments are tracked on Participants. TimezoneHow this event’s dates and times are shown. Changing it never moves a scheduled moment. Timezone Europe/Copenhagen (UTC+02:00) UTC (UTC+00:00) This event has been public, so you’ll review the affected times before saving. Event linkPermanent. It was created with the event and stays the same when you rename it. http://127.0.0.1:49612/Events/autumn-bingo-2027/Signups Copy The one link to share. It opens the signup list, which moves visitors on to teams and the board as the event is published. While the event is private, it isn’t publicly available. Unsaved changes Save changes",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "14px",
+        "fontWeight": "400",
+        "lineHeight": "20.3px",
+        "color": "rgb(28, 29, 31)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "normal",
+        "borderRadius": "0px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 252,
+        "y": 54,
+        "width": 1028,
+        "height": 846
+      },
+      "spacing": null,
+      "options": {
+        "text": false,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "page",
+      "text": "Identity Name, description, buy-in and timezone for Autumn Bingo 2027. Public detailsThe event’s name and the text players read about it. Event name 17 / 50 Description · optional 191 / 4,000 Nine days of team bingo across PvM, skilling and clues. Captains draft teams on 20 June, and every tile needs screenshot evidence. All accounts are welcome; ironmen play on their own boards. Buy-in information · optional 96 / 2,000 5M GP per player, sent to Nils in game before the draft. The whole pot goes to the winning team. Explain the entry payment in words: how much, and how to pay. It isn’t a price field and takes no payments; payments are tracked on Participants. TimezoneHow this event’s dates and times are shown. Changing it never moves a scheduled moment. Timezone Europe/Copenhagen (UTC+02:00) UTC (UTC+00:00) This event has been public, so you’ll review the affected times before saving. Event linkPermanent. It was created with the event and stays the same when you rename it. http://127.0.0.1:49612/Events/autumn-bingo-2027/Signups Copy The one link to share. It opens the signup list, which moves visitors on to teams and the board as the event is published. While the event is private, it isn’t publicly available. Unsaved changes Save changes",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "14px",
+        "fontWeight": "400",
+        "lineHeight": "20.3px",
+        "color": "rgb(28, 29, 31)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "28px",
+        "paddingRight": "32px",
+        "paddingBottom": "56px",
+        "paddingLeft": "32px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "normal",
+        "borderRadius": "0px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 252,
+        "y": 54,
+        "width": 1028,
+        "height": 1102.8125
+      },
+      "spacing": null,
+      "options": {
+        "text": false,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "page-head",
+      "text": "Identity Name, description, buy-in and timezone for Autumn Bingo 2027.",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "14px",
+        "fontWeight": "400",
+        "lineHeight": "20.3px",
+        "color": "rgb(28, 29, 31)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "0px",
+        "marginBottom": "20px",
+        "gap": "24px",
+        "borderRadius": "0px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 284,
+        "y": 82,
+        "width": 964,
+        "height": 53.15625
+      },
+      "spacing": null,
+      "options": {
+        "box": {
+          "x": 1,
+          "y": 1
+        },
+        "text": false,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "h1",
+      "text": "Identity",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "23px",
+        "fontWeight": "600",
+        "lineHeight": "27.6px",
+        "color": "rgb(28, 29, 31)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "normal",
+        "borderRadius": "0px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 284,
+        "y": 82,
+        "width": 392.796875,
+        "height": 27.59375
+      },
+      "spacing": null,
+      "options": {
+        "text": true,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "summary",
+      "text": "Name, description, buy-in and timezone for Autumn Bingo 2027.",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "13.5px",
+        "fontWeight": "400",
+        "lineHeight": "19.575px",
+        "color": "rgb(84, 86, 91)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "6px",
+        "marginBottom": "0px",
+        "gap": "4px 14px",
+        "borderRadius": "0px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 284,
+        "y": 115.59375,
+        "width": 392.796875,
+        "height": 19.5625
+      },
+      "spacing": null,
+      "options": {
+        "text": true,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "card",
+      "text": "Public detailsThe event’s name and the text players read about it. Event name 17 / 50 Description · optional 191 / 4,000 Nine days of team bingo across PvM, skilling and clues. Captains draft teams on 20 June, and every tile needs screenshot evidence. All accounts are welcome; ironmen play on their own boards. Buy-in information · optional 96 / 2,000 5M GP per player, sent to Nils in game before the draft. The whole pot goes to the winning team. Explain the entry payment in words: how much, and how to pay. It isn’t a price field and takes no payments; payments are tracked on Participants. TimezoneHow this event’s dates and times are shown. Changing it never moves a scheduled moment. Timezone Europe/Copenhagen (UTC+02:00) UTC (UTC+00:00) This event has been public, so you’ll review the affected times before saving. Event linkPermanent. It was created with the event and stays the same when you rename it. http://127.0.0.1:49612/Events/autumn-bingo-2027/Signups Copy The one link to share. It opens the signup list, which moves visitors on to teams and the board as the event is published. While the event is private, it isn’t publicly available. Unsaved changes Save changes",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "14px",
+        "fontWeight": "400",
+        "lineHeight": "20.3px",
+        "color": "rgb(28, 29, 31)",
+        "backgroundColor": "rgb(255, 255, 255)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "0px",
+        "marginBottom": "40px",
+        "gap": "normal",
+        "borderRadius": "12px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 284,
+        "y": 155.15625,
+        "width": 760,
+        "height": 905.65625
+      },
+      "spacing": 20,
+      "options": {
+        "box": {
+          "x": 1,
+          "y": 1
+        },
+        "spacing": {
+          "reference": ".page-head",
+          "app": ".page-head",
+          "from": "bottom",
+          "to": "top",
+          "tolerancePx": 1,
+          "label": "head-to-card"
+        },
+        "text": false,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "form-banners",
+      "missing": true
+    },
+    {
+      "name": "form-sec 1",
+      "text": "Public detailsThe event’s name and the text players read about it. Event name 17 / 50 Description · optional 191 / 4,000 Nine days of team bingo across PvM, skilling and clues. Captains draft teams on 20 June, and every tile needs screenshot evidence. All accounts are welcome; ironmen play on their own boards. Buy-in information · optional 96 / 2,000 5M GP per player, sent to Nils in game before the draft. The whole pot goes to the winning team. Explain the entry payment in words: how much, and how to pay. It isn’t a price field and takes no payments; payments are tracked on Participants.",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "14px",
+        "fontWeight": "400",
+        "lineHeight": "20.3px",
+        "color": "rgb(28, 29, 31)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "20px",
+        "paddingRight": "24px",
+        "paddingBottom": "24px",
+        "paddingLeft": "24px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "normal",
+        "borderRadius": "0px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 285,
+        "y": 156.15625,
+        "width": 758,
+        "height": 507.90625
+      },
+      "spacing": null,
+      "options": {
+        "text": false,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "form-sec-head",
+      "text": "Public detailsThe event’s name and the text players read about it.",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "14px",
+        "fontWeight": "400",
+        "lineHeight": "20.3px",
+        "color": "rgb(28, 29, 31)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "0px",
+        "marginBottom": "16px",
+        "gap": "normal",
+        "borderRadius": "0px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 309,
+        "y": 176.15625,
+        "width": 710,
+        "height": 40.6875
+      },
+      "spacing": null,
+      "options": {
+        "text": false,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "form-sec-title",
+      "text": "Public details",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "13.5px",
+        "fontWeight": "600",
+        "lineHeight": "19.575px",
+        "color": "rgb(28, 29, 31)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "normal",
+        "borderRadius": "0px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 309,
+        "y": 176.15625,
+        "width": 710,
+        "height": 19.5625
+      },
+      "spacing": 21,
+      "options": {
+        "box": {
+          "x": 1,
+          "y": 1
+        },
+        "spacing": {
+          "reference": ".card.form-card",
+          "app": ".card.form-card",
+          "from": "top",
+          "to": "top",
+          "tolerancePx": 1,
+          "label": "V19 card-to-first-heading"
+        },
+        "text": true,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "form-sec-sub",
+      "text": "The event’s name and the text players read about it.",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "12.5px",
+        "fontWeight": "400",
+        "lineHeight": "18.125px",
+        "color": "rgb(116, 118, 124)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "3px",
+        "marginBottom": "0px",
+        "gap": "normal",
+        "borderRadius": "0px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 309,
+        "y": 198.71875,
+        "width": 710,
+        "height": 18.125
+      },
+      "spacing": null,
+      "options": {
+        "text": true,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "lbl name",
+      "text": "Event name",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "12.5px",
+        "fontWeight": "500",
+        "lineHeight": "18.125px",
+        "color": "rgb(84, 86, 91)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "0px",
+        "marginBottom": "6px",
+        "gap": "normal",
+        "borderRadius": "0px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 309,
+        "y": 232.84375,
+        "width": 68.53125,
+        "height": 18.125
+      },
+      "spacing": null,
+      "options": {
+        "text": true,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "lbl desc",
+      "text": "Description · optional",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "12.5px",
+        "fontWeight": "500",
+        "lineHeight": "18.125px",
+        "color": "rgb(84, 86, 91)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "0px",
+        "marginBottom": "6px",
+        "gap": "normal",
+        "borderRadius": "0px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 309,
+        "y": 310.96875,
+        "width": 121.890625,
+        "height": 18.125
+      },
+      "spacing": null,
+      "options": {
+        "text": true,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "lbl .opt",
+      "text": "· optional",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "12.5px",
+        "fontWeight": "400",
+        "lineHeight": "18.125px",
+        "color": "rgb(116, 118, 124)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "normal",
+        "borderRadius": "0px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 379.25,
+        "y": 310.96875,
+        "width": 51.640625,
+        "height": 17
+      },
+      "spacing": null,
+      "options": {
+        "text": true,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "input name",
+      "text": "Autumn Bingo 2027",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "14px",
+        "fontWeight": "400",
+        "lineHeight": "20.3px",
+        "color": "rgb(28, 29, 31)",
+        "backgroundColor": "rgb(255, 255, 255)",
+        "paddingTop": "0px",
+        "paddingRight": "10px",
+        "paddingBottom": "0px",
+        "paddingLeft": "10px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "normal",
+        "borderRadius": "8px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 309,
+        "y": 256.96875,
+        "width": 480,
+        "height": 34
+      },
+      "spacing": null,
+      "options": {
+        "text": true,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "textarea desc",
+      "text": "Nine days of team bingo across PvM, skilling and clues. Captains draft teams on 20 June, and every tile needs screenshot evidence. All accounts are welcome; ironmen play on their own boards.",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "14px",
+        "fontWeight": "400",
+        "lineHeight": "21px",
+        "color": "rgb(28, 29, 31)",
+        "backgroundColor": "rgb(255, 255, 255)",
+        "paddingTop": "9px",
+        "paddingRight": "10px",
+        "paddingBottom": "9px",
+        "paddingLeft": "10px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "normal",
+        "borderRadius": "8px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 309,
+        "y": 335.09375,
+        "width": 710,
+        "height": 132
+      },
+      "spacing": null,
+      "options": {
+        "text": true,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "textarea buyin",
+      "text": "5M GP per player, sent to Nils in game before the draft. The whole pot goes to the winning team.",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "14px",
+        "fontWeight": "400",
+        "lineHeight": "21px",
+        "color": "rgb(28, 29, 31)",
+        "backgroundColor": "rgb(255, 255, 255)",
+        "paddingTop": "9px",
+        "paddingRight": "10px",
+        "paddingBottom": "9px",
+        "paddingLeft": "10px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "normal",
+        "borderRadius": "8px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 309,
+        "y": 516.515625,
+        "width": 710,
+        "height": 76
+      },
+      "spacing": null,
+      "options": {
+        "text": true,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "field-hint buyin",
+      "text": "Explain the entry payment in words: how much, and how to pay. It isn’t a price field and takes no payments; payments are tracked on Participants.",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "12.5px",
+        "fontWeight": "400",
+        "lineHeight": "18.125px",
+        "color": "rgb(116, 118, 124)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "5px",
+        "marginBottom": "0px",
+        "gap": "normal",
+        "borderRadius": "0px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 309,
+        "y": 602.8125,
+        "width": 710,
+        "height": 36.25
+      },
+      "spacing": null,
+      "options": {
+        "text": true,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "form-sec tz",
+      "text": "TimezoneHow this event’s dates and times are shown. Changing it never moves a scheduled moment. Timezone Europe/Copenhagen (UTC+02:00) UTC (UTC+00:00) This event has been public, so you’ll review the affected times before saving.",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "14px",
+        "fontWeight": "400",
+        "lineHeight": "20.3px",
+        "color": "rgb(28, 29, 31)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "20px",
+        "paddingRight": "24px",
+        "paddingBottom": "24px",
+        "paddingLeft": "24px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "normal",
+        "borderRadius": "0px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 285,
+        "y": 664.0625,
+        "width": 758,
+        "height": 159.8125
+      },
+      "spacing": null,
+      "options": {
+        "text": false,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "lbl tz",
+      "text": "Timezone",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "12.5px",
+        "fontWeight": "500",
+        "lineHeight": "18.125px",
+        "color": "rgb(84, 86, 91)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "0px",
+        "marginBottom": "6px",
+        "gap": "normal",
+        "borderRadius": "0px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 309,
+        "y": 740.75,
+        "width": 380,
+        "height": 18.125
+      },
+      "spacing": null,
+      "options": {
+        "text": true,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "select-wrap",
+      "text": "Europe/Copenhagen (UTC+02:00) UTC (UTC+00:00)",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "14px",
+        "fontWeight": "400",
+        "lineHeight": "20.3px",
+        "color": "rgb(28, 29, 31)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "normal",
+        "borderRadius": "0px"
+      },
+      "icons": [
+        {
+          "tag": "path",
+          "attrs": {
+            "d": "M4.5 6.5 8 10l3.5-3.5"
+          }
+        }
+      ],
+      "rect": {
+        "x": 309,
+        "y": 764.875,
+        "width": 380,
+        "height": 34
+      },
+      "spacing": null,
+      "options": {
+        "text": false,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "select",
+      "text": "Europe/Copenhagen",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "13.5px",
+        "fontWeight": "400",
+        "lineHeight": "19.575px",
+        "color": "rgb(28, 29, 31)",
+        "backgroundColor": "rgb(255, 255, 255)",
+        "paddingTop": "0px",
+        "paddingRight": "32px",
+        "paddingBottom": "0px",
+        "paddingLeft": "10px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "normal",
+        "borderRadius": "8px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 309,
+        "y": 764.875,
+        "width": 380,
+        "height": 34
+      },
+      "spacing": null,
+      "options": {
+        "text": false,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "select chevron",
+      "text": "",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "14px",
+        "fontWeight": "400",
+        "lineHeight": "20.3px",
+        "color": "rgb(116, 118, 124)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "-7px",
+        "marginBottom": "0px",
+        "gap": "normal",
+        "borderRadius": "0px"
+      },
+      "icons": [
+        {
+          "tag": "path",
+          "attrs": {
+            "d": "M4.5 6.5 8 10l3.5-3.5"
+          }
+        }
+      ],
+      "rect": {
+        "x": 665,
+        "y": 774.875,
+        "width": 14,
+        "height": 14
+      },
+      "spacing": null,
+      "options": {
+        "text": false,
+        "icon": true,
+        "dimensions": [
+          "width",
+          "height"
+        ]
+      }
+    },
+    {
+      "name": "form-sec link",
+      "text": "Event linkPermanent. It was created with the event and stays the same when you rename it. http://127.0.0.1:49612/Events/autumn-bingo-2027/Signups Copy The one link to share. It opens the signup list, which moves visitors on to teams and the board as the event is published. While the event is private, it isn’t publicly available.",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "14px",
+        "fontWeight": "400",
+        "lineHeight": "20.3px",
+        "color": "rgb(28, 29, 31)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "20px",
+        "paddingRight": "24px",
+        "paddingBottom": "24px",
+        "paddingLeft": "24px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "normal",
+        "borderRadius": "0px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 285,
+        "y": 823.875,
+        "width": 758,
+        "height": 176.9375
+      },
+      "spacing": null,
+      "options": {
+        "text": false,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "link title",
+      "text": "Event link",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "13.5px",
+        "fontWeight": "600",
+        "lineHeight": "19.575px",
+        "color": "rgb(28, 29, 31)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "normal",
+        "borderRadius": "0px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 309,
+        "y": 843.875,
+        "width": 710,
+        "height": 19.5625
+      },
+      "spacing": null,
+      "options": {
+        "text": true,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "link field",
+      "text": "http://127.0.0.1:49612/Events/autumn-bingo-2027/Signups Copy The one link to share. It opens the signup list, which moves visitors on to teams and the board as the event is published. While the event is private, it isn’t publicly available.",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "14px",
+        "fontWeight": "400",
+        "lineHeight": "20.3px",
+        "color": "rgb(28, 29, 31)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "normal",
+        "borderRadius": "0px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 309,
+        "y": 900.5625,
+        "width": 710,
+        "height": 75.25
+      },
+      "spacing": null,
+      "options": {
+        "text": false,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "copy-field",
+      "text": "http://127.0.0.1:49612/Events/autumn-bingo-2027/Signups Copy",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "14px",
+        "fontWeight": "400",
+        "lineHeight": "20.3px",
+        "color": "rgb(28, 29, 31)",
+        "backgroundColor": "rgb(250, 250, 248)",
+        "paddingTop": "0px",
+        "paddingRight": "3px",
+        "paddingBottom": "0px",
+        "paddingLeft": "12px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "8px",
+        "borderRadius": "8px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 309,
+        "y": 900.5625,
+        "width": 710,
+        "height": 34
+      },
+      "spacing": null,
+      "options": {
+        "text": false,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "mono",
+      "text": "http://127.0.0.1:49612/Events/autumn-bingo-2027/Signups",
+      "styles": {
+        "fontFamily": "\"Geist Mono\", ui-monospace, monospace",
+        "fontSize": "12.5px",
+        "fontWeight": "400",
+        "lineHeight": "18.125px",
+        "color": "rgb(28, 29, 31)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "normal",
+        "borderRadius": "0px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 322,
+        "y": 908.5,
+        "width": 608.5625,
+        "height": 18.125
+      },
+      "spacing": null,
+      "options": {
+        "text": false,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "copy btn",
+      "text": "Copy",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "13px",
+        "fontWeight": "500",
+        "lineHeight": "18.85px",
+        "color": "rgb(84, 86, 91)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "10px",
+        "paddingBottom": "0px",
+        "paddingLeft": "10px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "7px",
+        "borderRadius": "7px"
+      },
+      "icons": [
+        {
+          "tag": "rect",
+          "attrs": {
+            "x": "5.5",
+            "y": "5.5",
+            "width": "8",
+            "height": "8",
+            "rx": "1.5"
+          }
+        },
+        {
+          "tag": "path",
+          "attrs": {
+            "d": "M10.5 5.5V4a1.5 1.5 0 0 0-1.5-1.5H4A1.5 1.5 0 0 0 2.5 4v5A1.5 1.5 0 0 0 4 10.5h1.5"
+          }
+        }
+      ],
+      "rect": {
+        "x": 938.5625,
+        "y": 903.5625,
+        "width": 76.4375,
+        "height": 28
+      },
+      "spacing": null,
+      "options": {
+        "text": true,
+        "icon": true,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "copy btn svg",
+      "text": "",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "13px",
+        "fontWeight": "500",
+        "lineHeight": "18.85px",
+        "color": "rgb(84, 86, 91)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "normal",
+        "borderRadius": "0px"
+      },
+      "icons": [
+        {
+          "tag": "rect",
+          "attrs": {
+            "x": "5.5",
+            "y": "5.5",
+            "width": "8",
+            "height": "8",
+            "rx": "1.5"
+          }
+        },
+        {
+          "tag": "path",
+          "attrs": {
+            "d": "M10.5 5.5V4a1.5 1.5 0 0 0-1.5-1.5H4A1.5 1.5 0 0 0 2.5 4v5A1.5 1.5 0 0 0 4 10.5h1.5"
+          }
+        }
+      ],
+      "rect": {
+        "x": 949.5625,
+        "y": 909.5625,
+        "width": 16,
+        "height": 16
+      },
+      "spacing": null,
+      "options": {
+        "text": false,
+        "icon": true,
+        "dimensions": [
+          "width",
+          "height"
+        ]
+      }
+    },
+    {
+      "name": "link hint",
+      "text": "The one link to share. It opens the signup list, which moves visitors on to teams and the board as the event is published. While the event is private, it isn’t publicly available.",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "12.5px",
+        "fontWeight": "400",
+        "lineHeight": "18.125px",
+        "color": "rgb(116, 118, 124)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "5px",
+        "marginBottom": "0px",
+        "gap": "normal",
+        "borderRadius": "0px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 309,
+        "y": 939.5625,
+        "width": 710,
+        "height": 36.25
+      },
+      "spacing": null,
+      "options": {
+        "text": true,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "form-bar",
+      "text": "Unsaved changes Save changes",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "14px",
+        "fontWeight": "400",
+        "lineHeight": "20.3px",
+        "color": "rgb(28, 29, 31)",
+        "backgroundColor": "rgb(255, 255, 255)",
+        "paddingTop": "12px",
+        "paddingRight": "24px",
+        "paddingBottom": "12px",
+        "paddingLeft": "24px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "10px",
+        "borderRadius": "0px 0px 12px 12px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 285,
+        "y": 841,
+        "width": 758,
+        "height": 59
+      },
+      "spacing": null,
+      "options": {
+        "box": {
+          "x": 1,
+          "y": 1,
+          "width": 1,
+          "height": 1
+        },
+        "text": false,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "save",
+      "text": "Save changes",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "14px",
+        "fontWeight": "550",
+        "lineHeight": "20.3px",
+        "color": "rgb(116, 118, 124)",
+        "backgroundColor": "rgb(234, 234, 229)",
+        "paddingTop": "0px",
+        "paddingRight": "14px",
+        "paddingBottom": "0px",
+        "paddingLeft": "14px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "7px",
+        "borderRadius": "8px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 887,
+        "y": 854,
+        "width": 132,
+        "height": 34
+      },
+      "spacing": null,
+      "options": {
+        "text": true,
+        "icon": false,
+        "dimensions": []
+      }
+    }
+  ],
+  "expected": [
+    {
+      "name": "side",
+      "text": "Iron PactAdministrator Administration Dashboard Events Catalogue Accounts Audit Event Autumn Bingo 2027 Signups open · closes 15 Jun Overview Identity Schedule Participants Signup setup Teams / Draft Board WOM Review Final review",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "14px",
+        "fontWeight": "400",
+        "lineHeight": "20.3px",
+        "color": "rgb(28, 29, 31)",
+        "backgroundColor": "rgb(239, 239, 235)",
+        "paddingTop": "14px",
+        "paddingRight": "12px",
+        "paddingBottom": "16px",
+        "paddingLeft": "12px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "16px",
+        "borderRadius": "0px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 0,
+        "y": 0,
+        "width": 252,
+        "height": 900
+      },
+      "spacing": null,
+      "options": {
+        "text": false,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "side-top",
+      "text": "Iron PactAdministrator",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "14px",
+        "fontWeight": "400",
+        "lineHeight": "20.3px",
+        "color": "rgb(28, 29, 31)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "6px",
+        "borderRadius": "0px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 12,
+        "y": 14,
+        "width": 227,
+        "height": 44.0625
+      },
+      "spacing": null,
+      "options": {
+        "text": false,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "account-btn",
+      "text": "Iron PactAdministrator",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "14px",
+        "fontWeight": "400",
+        "lineHeight": "20.3px",
+        "color": "rgb(28, 29, 31)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "5px",
+        "paddingRight": "6px",
+        "paddingBottom": "5px",
+        "paddingLeft": "6px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "10px",
+        "borderRadius": "9px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 12,
+        "y": 14,
+        "width": 189,
+        "height": 44.0625
+      },
+      "spacing": null,
+      "options": {
+        "text": false,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "logo",
+      "text": "",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "14px",
+        "fontWeight": "400",
+        "lineHeight": "20.3px",
+        "color": "rgb(255, 255, 255)",
+        "backgroundColor": "rgb(43, 96, 105)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "normal",
+        "borderRadius": "8px"
+      },
+      "icons": [
+        {
+          "tag": "path",
+          "attrs": {
+            "d": "M3 12.5V5.2L8 2.5l5 2.7v7.3"
+          }
+        },
+        {
+          "tag": "path",
+          "attrs": {
+            "d": "M6 12.5V8.5h4v4"
+          }
+        }
+      ],
+      "rect": {
+        "x": 18,
+        "y": 22.03125,
+        "width": 28,
+        "height": 28
+      },
+      "spacing": null,
+      "options": {
+        "text": false,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "brand-name",
+      "text": "Iron Pact",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "14.5px",
+        "fontWeight": "600",
+        "lineHeight": "16.675px",
+        "color": "rgb(28, 29, 31)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "4px",
+        "borderRadius": "0px"
+      },
+      "icons": [
+        {
+          "tag": "path",
+          "attrs": {
+            "d": "M4.5 6.5 8 10l3.5-3.5"
+          }
+        }
+      ],
+      "rect": {
+        "x": 56,
+        "y": 19,
+        "width": 78.890625,
+        "height": 16.671875
+      },
+      "spacing": null,
+      "options": {
+        "text": false,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "brand-name svg",
+      "text": "",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "14.5px",
+        "fontWeight": "600",
+        "lineHeight": "16.675px",
+        "color": "rgb(116, 118, 124)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "normal",
+        "borderRadius": "0px"
+      },
+      "icons": [
+        {
+          "tag": "path",
+          "attrs": {
+            "d": "M4.5 6.5 8 10l3.5-3.5"
+          }
+        }
+      ],
+      "rect": {
+        "x": 120.890625,
+        "y": 20.328125,
+        "width": 14,
+        "height": 14
+      },
+      "spacing": null,
+      "options": {
+        "text": false,
+        "icon": true,
+        "dimensions": [
+          "width",
+          "height"
+        ]
+      }
+    },
+    {
+      "name": "brand-sub",
+      "text": "Administrator",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "12px",
+        "fontWeight": "400",
+        "lineHeight": "17.4px",
+        "color": "rgb(116, 118, 124)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "normal",
+        "borderRadius": "0px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 56,
+        "y": 35.671875,
+        "width": 78.890625,
+        "height": 17.390625
+      },
+      "spacing": null,
+      "options": {
+        "text": false,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "collapse-btn",
+      "text": "",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "14px",
+        "fontWeight": "400",
+        "lineHeight": "20.3px",
+        "color": "rgb(116, 118, 124)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "1px",
+        "paddingRight": "6px",
+        "paddingBottom": "1px",
+        "paddingLeft": "6px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "normal",
+        "borderRadius": "7px"
+      },
+      "icons": [
+        {
+          "tag": "rect",
+          "attrs": {
+            "x": "2.5",
+            "y": "2.5",
+            "width": "11",
+            "height": "11",
+            "rx": "1.5"
+          }
+        },
+        {
+          "tag": "path",
+          "attrs": {
+            "d": "M6 2.5v11"
+          }
+        },
+        {
+          "tag": "path",
+          "attrs": {
+            "d": "M10.6 6.2 8.8 8l1.8 1.8"
+          }
+        }
+      ],
+      "rect": {
+        "x": 207,
+        "y": 20.03125,
+        "width": 32,
+        "height": 32
+      },
+      "spacing": null,
+      "options": {
+        "text": false,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "nav-label",
+      "text": "Administration",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "11.5px",
+        "fontWeight": "500",
+        "lineHeight": "16.675px",
+        "color": "rgb(116, 118, 124)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "10px",
+        "paddingBottom": "6px",
+        "paddingLeft": "10px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "normal",
+        "borderRadius": "0px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 12,
+        "y": 74.0625,
+        "width": 227,
+        "height": 22.671875
+      },
+      "spacing": null,
+      "options": {
+        "text": true,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "nav-item first",
+      "text": "Dashboard",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "14px",
+        "fontWeight": "400",
+        "lineHeight": "20.3px",
+        "color": "rgb(28, 29, 31)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "10px",
+        "paddingBottom": "0px",
+        "paddingLeft": "10px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "10px",
+        "borderRadius": "7px"
+      },
+      "icons": [
+        {
+          "tag": "path",
+          "attrs": {
+            "d": "M2.5 12a5.5 5.5 0 1 1 11 0"
+          }
+        },
+        {
+          "tag": "path",
+          "attrs": {
+            "d": "M8 12l2.6-3.4"
+          }
+        },
+        {
+          "tag": "path",
+          "attrs": {
+            "d": "M8 12h.01"
+          }
+        }
+      ],
+      "rect": {
+        "x": 12,
+        "y": 97.734375,
+        "width": 227,
+        "height": 32
+      },
+      "spacing": null,
+      "options": {
+        "text": false,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "nav-item text",
+      "text": "Dashboard",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "14px",
+        "fontWeight": "400",
+        "lineHeight": "20.3px",
+        "color": "rgb(28, 29, 31)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "normal",
+        "borderRadius": "0px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 48,
+        "y": 103.578125,
+        "width": 171,
+        "height": 20.296875
+      },
+      "spacing": null,
+      "options": {
+        "text": true,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "nav-item svg",
+      "text": "",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "14px",
+        "fontWeight": "400",
+        "lineHeight": "20.3px",
+        "color": "rgb(116, 118, 124)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "normal",
+        "borderRadius": "0px"
+      },
+      "icons": [
+        {
+          "tag": "path",
+          "attrs": {
+            "d": "M2.5 12a5.5 5.5 0 1 1 11 0"
+          }
+        },
+        {
+          "tag": "path",
+          "attrs": {
+            "d": "M8 12l2.6-3.4"
+          }
+        },
+        {
+          "tag": "path",
+          "attrs": {
+            "d": "M8 12h.01"
+          }
+        }
+      ],
+      "rect": {
+        "x": 22,
+        "y": 105.734375,
+        "width": 16,
+        "height": 16
+      },
+      "spacing": null,
+      "options": {
+        "text": false,
+        "icon": true,
+        "dimensions": [
+          "width",
+          "height"
+        ]
+      }
+    },
+    {
+      "name": "side-rule",
+      "text": "",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "14px",
+        "fontWeight": "400",
+        "lineHeight": "20.3px",
+        "color": "rgb(28, 29, 31)",
+        "backgroundColor": "rgb(226, 226, 220)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "normal",
+        "borderRadius": "0px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 18,
+        "y": 277.734375,
+        "width": 215,
+        "height": 1
+      },
+      "spacing": null,
+      "options": {
+        "text": false,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "event-switch",
+      "text": "Event Autumn Bingo 2027 Signups open · closes 15 Jun",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "14px",
+        "fontWeight": "400",
+        "lineHeight": "20.3px",
+        "color": "rgb(28, 29, 31)",
+        "backgroundColor": "rgb(255, 255, 255)",
+        "paddingTop": "9px",
+        "paddingRight": "10px",
+        "paddingBottom": "9px",
+        "paddingLeft": "12px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "10px",
+        "borderRadius": "10px"
+      },
+      "icons": [
+        {
+          "tag": "rect",
+          "attrs": {
+            "x": "2.5",
+            "y": "3.5",
+            "width": "11",
+            "height": "10",
+            "rx": "1.5"
+          }
+        },
+        {
+          "tag": "path",
+          "attrs": {
+            "d": "M2.5 6.5h11M5.5 2v3M10.5 2v3"
+          }
+        }
+      ],
+      "rect": {
+        "x": 12,
+        "y": 294.734375,
+        "width": 227,
+        "height": 72.609375
+      },
+      "spacing": null,
+      "options": {
+        "box": {
+          "y": 1
+        },
+        "text": false,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "ev-ic",
+      "missing": true
+    },
+    {
+      "name": "ev-lbl",
+      "text": "Event",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "11.5px",
+        "fontWeight": "400",
+        "lineHeight": "16.675px",
+        "color": "rgb(116, 118, 124)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "normal",
+        "borderRadius": "0px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 25,
+        "y": 304.734375,
+        "width": 177,
+        "height": 16.671875
+      },
+      "spacing": null,
+      "options": {
+        "text": true,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "ev-name",
+      "text": "Autumn Bingo 2027",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "13.5px",
+        "fontWeight": "600",
+        "lineHeight": "17.55px",
+        "color": "rgb(28, 29, 31)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "normal",
+        "borderRadius": "0px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 25,
+        "y": 321.40625,
+        "width": 177,
+        "height": 17.546875
+      },
+      "spacing": null,
+      "options": {
+        "text": true,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "ev-meta",
+      "text": "Signups open · closes 15 Jun",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "12px",
+        "fontWeight": "400",
+        "lineHeight": "17.4px",
+        "color": "rgb(84, 86, 91)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "1px",
+        "marginBottom": "0px",
+        "gap": "6px",
+        "borderRadius": "0px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 25,
+        "y": 339.953125,
+        "width": 177,
+        "height": 17.390625
+      },
+      "spacing": null,
+      "options": {
+        "text": false,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "ev-meta dot",
+      "text": "",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "12px",
+        "fontWeight": "400",
+        "lineHeight": "17.4px",
+        "color": "rgb(84, 86, 91)",
+        "backgroundColor": "rgb(37, 106, 69)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "normal",
+        "borderRadius": "50%"
+      },
+      "icons": null,
+      "rect": {
+        "x": 25,
+        "y": 345.140625,
+        "width": 7,
+        "height": 7
+      },
+      "spacing": null,
+      "options": {
+        "text": false,
+        "icon": true,
+        "dimensions": [
+          "width",
+          "height"
+        ]
+      }
+    },
+    {
+      "name": "ev-meta-text",
+      "text": "Signups open · closes 15 Jun",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "12px",
+        "fontWeight": "400",
+        "lineHeight": "17.4px",
+        "color": "rgb(84, 86, 91)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "normal",
+        "borderRadius": "0px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 38,
+        "y": 339.953125,
+        "width": 158.015625,
+        "height": 17.390625
+      },
+      "spacing": null,
+      "options": {
+        "text": true,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "ev-chev",
+      "text": "",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "14px",
+        "fontWeight": "400",
+        "lineHeight": "20.3px",
+        "color": "rgb(116, 118, 124)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "normal",
+        "borderRadius": "0px"
+      },
+      "icons": [
+        {
+          "tag": "path",
+          "attrs": {
+            "d": "M4.5 6.5 8 10l3.5-3.5"
+          }
+        }
+      ],
+      "rect": {
+        "x": 212,
+        "y": 323.03125,
+        "width": 16,
+        "height": 16
+      },
+      "spacing": null,
+      "options": {
+        "text": false,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "overview item",
+      "text": "Overview",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "14px",
+        "fontWeight": "400",
+        "lineHeight": "20.3px",
+        "color": "rgb(28, 29, 31)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "10px",
+        "paddingBottom": "0px",
+        "paddingLeft": "10px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "10px",
+        "borderRadius": "7px"
+      },
+      "icons": [
+        {
+          "tag": "rect",
+          "attrs": {
+            "x": "2.5",
+            "y": "2.5",
+            "width": "4.5",
+            "height": "4.5",
+            "rx": "1"
+          }
+        },
+        {
+          "tag": "rect",
+          "attrs": {
+            "x": "9",
+            "y": "2.5",
+            "width": "4.5",
+            "height": "4.5",
+            "rx": "1"
+          }
+        },
+        {
+          "tag": "rect",
+          "attrs": {
+            "x": "2.5",
+            "y": "9",
+            "width": "4.5",
+            "height": "4.5",
+            "rx": "1"
+          }
+        },
+        {
+          "tag": "rect",
+          "attrs": {
+            "x": "9",
+            "y": "9",
+            "width": "4.5",
+            "height": "4.5",
+            "rx": "1"
+          }
+        }
+      ],
+      "rect": {
+        "x": 12,
+        "y": 377.34375,
+        "width": 227,
+        "height": 32
+      },
+      "spacing": 10,
+      "options": {
+        "box": {
+          "y": 1
+        },
+        "spacing": {
+          "reference": "#event-switch",
+          "app": ".event-switch",
+          "from": "bottom",
+          "to": "top",
+          "tolerancePx": 1,
+          "label": "V6 event-to-first-nav"
+        },
+        "text": false,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "current item",
+      "text": "Identity",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "14px",
+        "fontWeight": "550",
+        "lineHeight": "20.3px",
+        "color": "rgb(28, 29, 31)",
+        "backgroundColor": "rgba(28, 29, 31, 0.067)",
+        "paddingTop": "0px",
+        "paddingRight": "10px",
+        "paddingBottom": "0px",
+        "paddingLeft": "10px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "10px",
+        "borderRadius": "7px"
+      },
+      "icons": [
+        {
+          "tag": "path",
+          "attrs": {
+            "d": "M3.5 14V2.5M3.5 3h8l-1.5 3 1.5 3h-8"
+          }
+        }
+      ],
+      "rect": {
+        "x": 12,
+        "y": 410.34375,
+        "width": 227,
+        "height": 32
+      },
+      "spacing": null,
+      "options": {
+        "text": false,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "topbar",
+      "text": "Events /Autumn Bingo 2027 / Identity Light theme Dark theme",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "14px",
+        "fontWeight": "400",
+        "lineHeight": "20.3px",
+        "color": "rgb(28, 29, 31)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "28px",
+        "paddingBottom": "0px",
+        "paddingLeft": "28px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "12px",
+        "borderRadius": "0px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 252,
+        "y": 0,
+        "width": 1028,
+        "height": 54
+      },
+      "spacing": null,
+      "options": {
+        "text": false,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "menu-toggle",
+      "text": "",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "14px",
+        "fontWeight": "400",
+        "lineHeight": "20.3px",
+        "color": "rgb(116, 118, 124)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "1px",
+        "paddingRight": "6px",
+        "paddingBottom": "1px",
+        "paddingLeft": "6px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "normal",
+        "borderRadius": "7px"
+      },
+      "icons": [
+        {
+          "tag": "path",
+          "attrs": {
+            "d": "M2.5 4.5h11M2.5 8h11M2.5 11.5h11"
+          }
+        }
+      ],
+      "rect": {
+        "x": 280,
+        "y": 10.5,
+        "width": 32,
+        "height": 32
+      },
+      "spacing": null,
+      "options": {
+        "text": false,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "crumbs",
+      "text": "Events /Autumn Bingo 2027 / Identity",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "13px",
+        "fontWeight": "400",
+        "lineHeight": "18.85px",
+        "color": "rgb(116, 118, 124)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "6px",
+        "borderRadius": "0px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 324,
+        "y": 14.078125,
+        "width": 241.546875,
+        "height": 24.84375
+      },
+      "spacing": null,
+      "options": {
+        "box": {
+          "x": 1,
+          "y": 1,
+          "height": 1
+        },
+        "text": false,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "crumb first",
+      "text": "Events",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "13px",
+        "fontWeight": "400",
+        "lineHeight": "18.85px",
+        "color": "rgb(116, 118, 124)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "3px",
+        "paddingRight": "6px",
+        "paddingBottom": "3px",
+        "paddingLeft": "6px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "normal",
+        "borderRadius": "6px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 318,
+        "y": 14.078125,
+        "width": 52.0625,
+        "height": 24.84375
+      },
+      "spacing": null,
+      "options": {
+        "text": true,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "crumb sep",
+      "text": "/",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "13px",
+        "fontWeight": "400",
+        "lineHeight": "18.85px",
+        "color": "rgb(207, 207, 200)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "normal",
+        "borderRadius": "0px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 370.0625,
+        "y": 17.078125,
+        "width": 6.25,
+        "height": 18.84375
+      },
+      "spacing": null,
+      "options": {
+        "text": true,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "crumb mid",
+      "text": "Autumn Bingo 2027",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "13px",
+        "fontWeight": "400",
+        "lineHeight": "18.85px",
+        "color": "rgb(116, 118, 124)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "normal",
+        "borderRadius": "0px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 382.3125,
+        "y": 17.078125,
+        "width": 118.78125,
+        "height": 18.84375
+      },
+      "spacing": null,
+      "options": {
+        "text": true,
+        "icon": false,
+        "dimensions": [
+          "width"
+        ]
+      }
+    },
+    {
+      "name": "crumb cur",
+      "text": "Identity",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "13px",
+        "fontWeight": "500",
+        "lineHeight": "18.85px",
+        "color": "rgb(28, 29, 31)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "normal",
+        "borderRadius": "0px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 519.34375,
+        "y": 17.078125,
+        "width": 46.203125,
+        "height": 18.84375
+      },
+      "spacing": null,
+      "options": {
+        "text": true,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "theme-seg",
+      "text": "Light theme Dark theme",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "14px",
+        "fontWeight": "400",
+        "lineHeight": "20.3px",
+        "color": "rgb(28, 29, 31)",
+        "backgroundColor": "rgb(234, 234, 229)",
+        "paddingTop": "2px",
+        "paddingRight": "2px",
+        "paddingBottom": "2px",
+        "paddingLeft": "2px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "2px",
+        "borderRadius": "8px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 1186,
+        "y": 11.5,
+        "width": 66,
+        "height": 30
+      },
+      "spacing": null,
+      "options": {
+        "text": false,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "theme-opt on",
+      "text": "Light theme",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "14px",
+        "fontWeight": "400",
+        "lineHeight": "20.3px",
+        "color": "rgb(28, 29, 31)",
+        "backgroundColor": "rgb(255, 255, 255)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "normal",
+        "borderRadius": "6px"
+      },
+      "icons": [
+        {
+          "tag": "circle",
+          "attrs": {
+            "cx": "8",
+            "cy": "8",
+            "r": "2.8"
+          }
+        },
+        {
+          "tag": "path",
+          "attrs": {
+            "d": "M8 1.8v1.4M8 12.8v1.4M1.8 8h1.4M12.8 8h1.4M3.6 3.6l1 1M11.4 11.4l1 1M3.6 12.4l1-1M11.4 4.6l1-1"
+          }
+        }
+      ],
+      "rect": {
+        "x": 1188,
+        "y": 13.5,
+        "width": 30,
+        "height": 26
+      },
+      "spacing": null,
+      "options": {
+        "text": false,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "theme-opt svg",
+      "text": "",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "14px",
+        "fontWeight": "400",
+        "lineHeight": "20.3px",
+        "color": "rgb(28, 29, 31)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "normal",
+        "borderRadius": "0px"
+      },
+      "icons": [
+        {
+          "tag": "circle",
+          "attrs": {
+            "cx": "8",
+            "cy": "8",
+            "r": "2.8"
+          }
+        },
+        {
+          "tag": "path",
+          "attrs": {
+            "d": "M8 1.8v1.4M8 12.8v1.4M1.8 8h1.4M12.8 8h1.4M3.6 3.6l1 1M11.4 11.4l1 1M3.6 12.4l1-1M11.4 4.6l1-1"
+          }
+        }
+      ],
+      "rect": {
+        "x": 1195,
+        "y": 18.5,
+        "width": 16,
+        "height": 16
+      },
+      "spacing": null,
+      "options": {
+        "text": false,
+        "icon": true,
+        "dimensions": [
+          "width",
+          "height"
+        ]
+      }
+    },
+    {
+      "name": "scroller",
+      "text": "Identity Name, description, buy-in and timezone for Autumn Bingo 2027. Public details The event’s name and the text players read about it. Event name Description · optional Nine days of team bingo across PvM, skilling and clues. Captains draft teams on 20 June, and every tile needs screenshot evidence. All accounts are welcome; ironmen play on their own boards. Buy-in information · optional 5M GP per player, sent to Nils in game before the draft. The whole pot goes to the winning team. Explain the entry payment in words: how much, and how to pay. It isn’t a price field and takes no payments; payments are tracked on Participants. Timezone How this event’s dates and times are shown. Changing it never moves a scheduled moment. Timezone Europe/Copenhagen (UTC+02:00) UTC (UTC+00:00) Event link Permanent. It was created with the event and stays the same when you rename it. https://bingo.example/Events/autumn-bingo-2027/Signups Copy The one link to share. It opens the signup list, which moves visitors on to teams and the board as the event is published. While the event is private, it isn’t publicly available. Save changes",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "14px",
+        "fontWeight": "400",
+        "lineHeight": "20.3px",
+        "color": "rgb(28, 29, 31)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "normal",
+        "borderRadius": "0px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 252,
+        "y": 54,
+        "width": 1028,
+        "height": 846
+      },
+      "spacing": null,
+      "options": {
+        "text": false,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "page",
+      "text": "Identity Name, description, buy-in and timezone for Autumn Bingo 2027. Public details The event’s name and the text players read about it. Event name Description · optional Nine days of team bingo across PvM, skilling and clues. Captains draft teams on 20 June, and every tile needs screenshot evidence. All accounts are welcome; ironmen play on their own boards. Buy-in information · optional 5M GP per player, sent to Nils in game before the draft. The whole pot goes to the winning team. Explain the entry payment in words: how much, and how to pay. It isn’t a price field and takes no payments; payments are tracked on Participants. Timezone How this event’s dates and times are shown. Changing it never moves a scheduled moment. Timezone Europe/Copenhagen (UTC+02:00) UTC (UTC+00:00) Event link Permanent. It was created with the event and stays the same when you rename it. https://bingo.example/Events/autumn-bingo-2027/Signups Copy The one link to share. It opens the signup list, which moves visitors on to teams and the board as the event is published. While the event is private, it isn’t publicly available. Save changes",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "14px",
+        "fontWeight": "400",
+        "lineHeight": "20.3px",
+        "color": "rgb(28, 29, 31)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "28px",
+        "paddingRight": "32px",
+        "paddingBottom": "56px",
+        "paddingLeft": "32px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "normal",
+        "borderRadius": "0px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 252,
+        "y": 54,
+        "width": 1028,
+        "height": 1102.8125
+      },
+      "spacing": null,
+      "options": {
+        "text": false,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "page-head",
+      "text": "Identity Name, description, buy-in and timezone for Autumn Bingo 2027.",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "14px",
+        "fontWeight": "400",
+        "lineHeight": "20.3px",
+        "color": "rgb(28, 29, 31)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "0px",
+        "marginBottom": "20px",
+        "gap": "24px",
+        "borderRadius": "0px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 284,
+        "y": 82,
+        "width": 964,
+        "height": 53.15625
+      },
+      "spacing": null,
+      "options": {
+        "box": {
+          "x": 1,
+          "y": 1
+        },
+        "text": false,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "h1",
+      "text": "Identity",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "23px",
+        "fontWeight": "600",
+        "lineHeight": "27.6px",
+        "color": "rgb(28, 29, 31)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "normal",
+        "borderRadius": "0px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 284,
+        "y": 82,
+        "width": 392.796875,
+        "height": 27.59375
+      },
+      "spacing": null,
+      "options": {
+        "text": true,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "summary",
+      "text": "Name, description, buy-in and timezone for Autumn Bingo 2027.",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "13.5px",
+        "fontWeight": "400",
+        "lineHeight": "19.575px",
+        "color": "rgb(84, 86, 91)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "6px",
+        "marginBottom": "0px",
+        "gap": "4px 14px",
+        "borderRadius": "0px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 284,
+        "y": 115.59375,
+        "width": 392.796875,
+        "height": 19.5625
+      },
+      "spacing": null,
+      "options": {
+        "text": true,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "card",
+      "text": "Public details The event’s name and the text players read about it. Event name Description · optional Nine days of team bingo across PvM, skilling and clues. Captains draft teams on 20 June, and every tile needs screenshot evidence. All accounts are welcome; ironmen play on their own boards. Buy-in information · optional 5M GP per player, sent to Nils in game before the draft. The whole pot goes to the winning team. Explain the entry payment in words: how much, and how to pay. It isn’t a price field and takes no payments; payments are tracked on Participants. Timezone How this event’s dates and times are shown. Changing it never moves a scheduled moment. Timezone Europe/Copenhagen (UTC+02:00) UTC (UTC+00:00) Event link Permanent. It was created with the event and stays the same when you rename it. https://bingo.example/Events/autumn-bingo-2027/Signups Copy The one link to share. It opens the signup list, which moves visitors on to teams and the board as the event is published. While the event is private, it isn’t publicly available. Save changes",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "14px",
+        "fontWeight": "400",
+        "lineHeight": "20.3px",
+        "color": "rgb(28, 29, 31)",
+        "backgroundColor": "rgb(255, 255, 255)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "0px",
+        "marginBottom": "40px",
+        "gap": "normal",
+        "borderRadius": "12px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 284,
+        "y": 155.15625,
+        "width": 760,
+        "height": 905.65625
+      },
+      "spacing": 20,
+      "options": {
+        "box": {
+          "x": 1,
+          "y": 1
+        },
+        "spacing": {
+          "reference": ".page-head",
+          "app": ".page-head",
+          "from": "bottom",
+          "to": "top",
+          "tolerancePx": 1,
+          "label": "head-to-card"
+        },
+        "text": false,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "form-banners",
+      "missing": true
+    },
+    {
+      "name": "form-sec 1",
+      "text": "Public details The event’s name and the text players read about it. Event name Description · optional Nine days of team bingo across PvM, skilling and clues. Captains draft teams on 20 June, and every tile needs screenshot evidence. All accounts are welcome; ironmen play on their own boards. Buy-in information · optional 5M GP per player, sent to Nils in game before the draft. The whole pot goes to the winning team. Explain the entry payment in words: how much, and how to pay. It isn’t a price field and takes no payments; payments are tracked on Participants.",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "14px",
+        "fontWeight": "400",
+        "lineHeight": "20.3px",
+        "color": "rgb(28, 29, 31)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "20px",
+        "paddingRight": "24px",
+        "paddingBottom": "24px",
+        "paddingLeft": "24px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "normal",
+        "borderRadius": "0px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 285,
+        "y": 156.15625,
+        "width": 758,
+        "height": 507.90625
+      },
+      "spacing": null,
+      "options": {
+        "text": false,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "form-sec-head",
+      "text": "Public details The event’s name and the text players read about it.",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "14px",
+        "fontWeight": "400",
+        "lineHeight": "20.3px",
+        "color": "rgb(28, 29, 31)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "0px",
+        "marginBottom": "16px",
+        "gap": "normal",
+        "borderRadius": "0px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 309,
+        "y": 176.15625,
+        "width": 710,
+        "height": 40.6875
+      },
+      "spacing": null,
+      "options": {
+        "text": false,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "form-sec-title",
+      "text": "Public details",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "13.5px",
+        "fontWeight": "600",
+        "lineHeight": "19.575px",
+        "color": "rgb(28, 29, 31)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "normal",
+        "borderRadius": "0px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 309,
+        "y": 176.15625,
+        "width": 710,
+        "height": 19.5625
+      },
+      "spacing": 21,
+      "options": {
+        "box": {
+          "x": 1,
+          "y": 1
+        },
+        "spacing": {
+          "reference": ".card.form-card",
+          "app": ".card.form-card",
+          "from": "top",
+          "to": "top",
+          "tolerancePx": 1,
+          "label": "V19 card-to-first-heading"
+        },
+        "text": true,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "form-sec-sub",
+      "text": "The event’s name and the text players read about it.",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "12.5px",
+        "fontWeight": "400",
+        "lineHeight": "18.125px",
+        "color": "rgb(116, 118, 124)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "3px",
+        "marginBottom": "0px",
+        "gap": "normal",
+        "borderRadius": "0px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 309,
+        "y": 198.71875,
+        "width": 710,
+        "height": 18.125
+      },
+      "spacing": null,
+      "options": {
+        "text": true,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "lbl name",
+      "text": "Event name",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "12.5px",
+        "fontWeight": "500",
+        "lineHeight": "18.125px",
+        "color": "rgb(84, 86, 91)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "0px",
+        "marginBottom": "6px",
+        "gap": "normal",
+        "borderRadius": "0px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 309,
+        "y": 232.84375,
+        "width": 68.53125,
+        "height": 18.125
+      },
+      "spacing": null,
+      "options": {
+        "text": true,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "lbl desc",
+      "text": "Description · optional",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "12.5px",
+        "fontWeight": "500",
+        "lineHeight": "18.125px",
+        "color": "rgb(84, 86, 91)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "0px",
+        "marginBottom": "6px",
+        "gap": "normal",
+        "borderRadius": "0px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 309,
+        "y": 310.96875,
+        "width": 121.890625,
+        "height": 18.125
+      },
+      "spacing": null,
+      "options": {
+        "text": true,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "lbl .opt",
+      "text": "· optional",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "12.5px",
+        "fontWeight": "400",
+        "lineHeight": "18.125px",
+        "color": "rgb(116, 118, 124)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "normal",
+        "borderRadius": "0px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 379.25,
+        "y": 310.96875,
+        "width": 51.640625,
+        "height": 17
+      },
+      "spacing": null,
+      "options": {
+        "text": true,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "input name",
+      "text": "Autumn Bingo 2027",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "14px",
+        "fontWeight": "400",
+        "lineHeight": "20.3px",
+        "color": "rgb(28, 29, 31)",
+        "backgroundColor": "rgb(255, 255, 255)",
+        "paddingTop": "0px",
+        "paddingRight": "10px",
+        "paddingBottom": "0px",
+        "paddingLeft": "10px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "normal",
+        "borderRadius": "8px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 309,
+        "y": 256.96875,
+        "width": 480,
+        "height": 34
+      },
+      "spacing": null,
+      "options": {
+        "text": true,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "textarea desc",
+      "text": "Nine days of team bingo across PvM, skilling and clues. Captains draft teams on 20 June, and every tile needs screenshot evidence. All accounts are welcome; ironmen play on their own boards.",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "14px",
+        "fontWeight": "400",
+        "lineHeight": "21px",
+        "color": "rgb(28, 29, 31)",
+        "backgroundColor": "rgb(255, 255, 255)",
+        "paddingTop": "9px",
+        "paddingRight": "10px",
+        "paddingBottom": "9px",
+        "paddingLeft": "10px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "normal",
+        "borderRadius": "8px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 309,
+        "y": 335.09375,
+        "width": 710,
+        "height": 132
+      },
+      "spacing": null,
+      "options": {
+        "text": true,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "textarea buyin",
+      "text": "5M GP per player, sent to Nils in game before the draft. The whole pot goes to the winning team.",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "14px",
+        "fontWeight": "400",
+        "lineHeight": "21px",
+        "color": "rgb(28, 29, 31)",
+        "backgroundColor": "rgb(255, 255, 255)",
+        "paddingTop": "9px",
+        "paddingRight": "10px",
+        "paddingBottom": "9px",
+        "paddingLeft": "10px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "normal",
+        "borderRadius": "8px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 309,
+        "y": 516.515625,
+        "width": 710,
+        "height": 76
+      },
+      "spacing": null,
+      "options": {
+        "text": true,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "field-hint buyin",
+      "text": "Explain the entry payment in words: how much, and how to pay. It isn’t a price field and takes no payments; payments are tracked on Participants.",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "12.5px",
+        "fontWeight": "400",
+        "lineHeight": "18.125px",
+        "color": "rgb(116, 118, 124)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "5px",
+        "marginBottom": "0px",
+        "gap": "normal",
+        "borderRadius": "0px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 309,
+        "y": 602.8125,
+        "width": 710,
+        "height": 36.25
+      },
+      "spacing": null,
+      "options": {
+        "text": true,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "form-sec tz",
+      "text": "Timezone How this event’s dates and times are shown. Changing it never moves a scheduled moment. Timezone Europe/Copenhagen (UTC+02:00) UTC (UTC+00:00)",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "14px",
+        "fontWeight": "400",
+        "lineHeight": "20.3px",
+        "color": "rgb(28, 29, 31)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "20px",
+        "paddingRight": "24px",
+        "paddingBottom": "24px",
+        "paddingLeft": "24px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "normal",
+        "borderRadius": "0px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 285,
+        "y": 664.0625,
+        "width": 758,
+        "height": 159.8125
+      },
+      "spacing": null,
+      "options": {
+        "text": false,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "lbl tz",
+      "text": "Timezone",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "12.5px",
+        "fontWeight": "500",
+        "lineHeight": "18.125px",
+        "color": "rgb(84, 86, 91)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "0px",
+        "marginBottom": "6px",
+        "gap": "normal",
+        "borderRadius": "0px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 309,
+        "y": 740.75,
+        "width": 380,
+        "height": 18.125
+      },
+      "spacing": null,
+      "options": {
+        "text": true,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "select-wrap",
+      "text": "Europe/Copenhagen (UTC+02:00) UTC (UTC+00:00)",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "14px",
+        "fontWeight": "400",
+        "lineHeight": "20.3px",
+        "color": "rgb(28, 29, 31)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "normal",
+        "borderRadius": "0px"
+      },
+      "icons": [
+        {
+          "tag": "path",
+          "attrs": {
+            "d": "M4.5 6.5 8 10l3.5-3.5"
+          }
+        }
+      ],
+      "rect": {
+        "x": 309,
+        "y": 764.875,
+        "width": 380,
+        "height": 34
+      },
+      "spacing": null,
+      "options": {
+        "text": false,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "select",
+      "text": "Europe/Copenhagen",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "13.5px",
+        "fontWeight": "400",
+        "lineHeight": "19.575px",
+        "color": "rgb(28, 29, 31)",
+        "backgroundColor": "rgb(255, 255, 255)",
+        "paddingTop": "0px",
+        "paddingRight": "32px",
+        "paddingBottom": "0px",
+        "paddingLeft": "10px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "normal",
+        "borderRadius": "8px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 309,
+        "y": 764.875,
+        "width": 380,
+        "height": 34
+      },
+      "spacing": null,
+      "options": {
+        "text": false,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "select chevron",
+      "text": "",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "14px",
+        "fontWeight": "400",
+        "lineHeight": "20.3px",
+        "color": "rgb(116, 118, 124)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "-7px",
+        "marginBottom": "0px",
+        "gap": "normal",
+        "borderRadius": "0px"
+      },
+      "icons": [
+        {
+          "tag": "path",
+          "attrs": {
+            "d": "M4.5 6.5 8 10l3.5-3.5"
+          }
+        }
+      ],
+      "rect": {
+        "x": 665,
+        "y": 774.875,
+        "width": 14,
+        "height": 14
+      },
+      "spacing": null,
+      "options": {
+        "text": false,
+        "icon": true,
+        "dimensions": [
+          "width",
+          "height"
+        ]
+      }
+    },
+    {
+      "name": "form-sec link",
+      "text": "Event link Permanent. It was created with the event and stays the same when you rename it. https://bingo.example/Events/autumn-bingo-2027/Signups Copy The one link to share. It opens the signup list, which moves visitors on to teams and the board as the event is published. While the event is private, it isn’t publicly available.",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "14px",
+        "fontWeight": "400",
+        "lineHeight": "20.3px",
+        "color": "rgb(28, 29, 31)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "20px",
+        "paddingRight": "24px",
+        "paddingBottom": "24px",
+        "paddingLeft": "24px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "normal",
+        "borderRadius": "0px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 285,
+        "y": 823.875,
+        "width": 758,
+        "height": 176.9375
+      },
+      "spacing": null,
+      "options": {
+        "text": false,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "link title",
+      "text": "Event link",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "13.5px",
+        "fontWeight": "600",
+        "lineHeight": "19.575px",
+        "color": "rgb(28, 29, 31)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "normal",
+        "borderRadius": "0px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 309,
+        "y": 843.875,
+        "width": 710,
+        "height": 19.5625
+      },
+      "spacing": null,
+      "options": {
+        "text": true,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "link field",
+      "text": "https://bingo.example/Events/autumn-bingo-2027/Signups Copy The one link to share. It opens the signup list, which moves visitors on to teams and the board as the event is published. While the event is private, it isn’t publicly available.",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "14px",
+        "fontWeight": "400",
+        "lineHeight": "20.3px",
+        "color": "rgb(28, 29, 31)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "normal",
+        "borderRadius": "0px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 309,
+        "y": 900.5625,
+        "width": 710,
+        "height": 75.25
+      },
+      "spacing": null,
+      "options": {
+        "text": false,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "copy-field",
+      "text": "https://bingo.example/Events/autumn-bingo-2027/Signups Copy",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "14px",
+        "fontWeight": "400",
+        "lineHeight": "20.3px",
+        "color": "rgb(28, 29, 31)",
+        "backgroundColor": "rgb(250, 250, 248)",
+        "paddingTop": "0px",
+        "paddingRight": "3px",
+        "paddingBottom": "0px",
+        "paddingLeft": "12px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "8px",
+        "borderRadius": "8px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 309,
+        "y": 900.5625,
+        "width": 710,
+        "height": 34
+      },
+      "spacing": null,
+      "options": {
+        "text": false,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "mono",
+      "text": "https://bingo.example/Events/autumn-bingo-2027/Signups",
+      "styles": {
+        "fontFamily": "\"Geist Mono\", ui-monospace, monospace",
+        "fontSize": "12.5px",
+        "fontWeight": "400",
+        "lineHeight": "18.125px",
+        "color": "rgb(28, 29, 31)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "normal",
+        "borderRadius": "0px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 322,
+        "y": 908.5,
+        "width": 608.5625,
+        "height": 18.125
+      },
+      "spacing": null,
+      "options": {
+        "text": false,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "copy btn",
+      "text": "Copy",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "13px",
+        "fontWeight": "500",
+        "lineHeight": "18.85px",
+        "color": "rgb(84, 86, 91)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "10px",
+        "paddingBottom": "0px",
+        "paddingLeft": "10px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "7px",
+        "borderRadius": "7px"
+      },
+      "icons": [
+        {
+          "tag": "rect",
+          "attrs": {
+            "x": "5.5",
+            "y": "5.5",
+            "width": "8",
+            "height": "8",
+            "rx": "1.5"
+          }
+        },
+        {
+          "tag": "path",
+          "attrs": {
+            "d": "M10.5 5.5V4a1.5 1.5 0 0 0-1.5-1.5H4A1.5 1.5 0 0 0 2.5 4v5A1.5 1.5 0 0 0 4 10.5h1.5"
+          }
+        }
+      ],
+      "rect": {
+        "x": 938.5625,
+        "y": 903.5625,
+        "width": 76.4375,
+        "height": 28
+      },
+      "spacing": null,
+      "options": {
+        "text": true,
+        "icon": true,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "copy btn svg",
+      "text": "",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "13px",
+        "fontWeight": "500",
+        "lineHeight": "18.85px",
+        "color": "rgb(84, 86, 91)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "normal",
+        "borderRadius": "0px"
+      },
+      "icons": [
+        {
+          "tag": "rect",
+          "attrs": {
+            "x": "5.5",
+            "y": "5.5",
+            "width": "8",
+            "height": "8",
+            "rx": "1.5"
+          }
+        },
+        {
+          "tag": "path",
+          "attrs": {
+            "d": "M10.5 5.5V4a1.5 1.5 0 0 0-1.5-1.5H4A1.5 1.5 0 0 0 2.5 4v5A1.5 1.5 0 0 0 4 10.5h1.5"
+          }
+        }
+      ],
+      "rect": {
+        "x": 949.5625,
+        "y": 909.5625,
+        "width": 16,
+        "height": 16
+      },
+      "spacing": null,
+      "options": {
+        "text": false,
+        "icon": true,
+        "dimensions": [
+          "width",
+          "height"
+        ]
+      }
+    },
+    {
+      "name": "link hint",
+      "text": "The one link to share. It opens the signup list, which moves visitors on to teams and the board as the event is published. While the event is private, it isn’t publicly available.",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "12.5px",
+        "fontWeight": "400",
+        "lineHeight": "18.125px",
+        "color": "rgb(116, 118, 124)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "5px",
+        "marginBottom": "0px",
+        "gap": "normal",
+        "borderRadius": "0px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 309,
+        "y": 939.5625,
+        "width": 710,
+        "height": 36.25
+      },
+      "spacing": null,
+      "options": {
+        "text": true,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "form-bar",
+      "text": "Save changes",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "14px",
+        "fontWeight": "400",
+        "lineHeight": "20.3px",
+        "color": "rgb(28, 29, 31)",
+        "backgroundColor": "rgb(255, 255, 255)",
+        "paddingTop": "12px",
+        "paddingRight": "24px",
+        "paddingBottom": "12px",
+        "paddingLeft": "24px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "10px",
+        "borderRadius": "0px 0px 12px 12px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 285,
+        "y": 841,
+        "width": 758,
+        "height": 59
+      },
+      "spacing": null,
+      "options": {
+        "box": {
+          "x": 1,
+          "y": 1,
+          "width": 1,
+          "height": 1
+        },
+        "text": false,
+        "icon": false,
+        "dimensions": []
+      }
+    },
+    {
+      "name": "save",
+      "text": "Save changes",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "14px",
+        "fontWeight": "550",
+        "lineHeight": "20.3px",
+        "color": "rgb(116, 118, 124)",
+        "backgroundColor": "rgb(234, 234, 229)",
+        "paddingTop": "0px",
+        "paddingRight": "14px",
+        "paddingBottom": "0px",
+        "paddingLeft": "14px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "7px",
+        "borderRadius": "8px"
+      },
+      "icons": null,
+      "rect": {
+        "x": 887,
+        "y": 854,
+        "width": 132,
+        "height": 34
+      },
+      "spacing": null,
+      "options": {
+        "text": true,
+        "icon": false,
+        "dimensions": []
+      }
+    }
+  ],
+  "classes": {
+    "used": [
+      "account-btn",
+      "app",
+      "banner",
+      "brand-name",
+      "brand-sub",
+      "brand-text",
+      "btn",
+      "btn-primary",
+      "btn-quiet",
+      "btn-sm",
+      "card",
+      "collapse-btn",
+      "compare",
+      "compare-head",
+      "compare-k",
+      "compare-label",
+      "compare-new",
+      "compare-off",
+      "compare-old",
+      "compare-row",
+      "copy-field",
+      "crumb-btn",
+      "crumb-cur",
+      "crumb-mid",
+      "crumb-sep",
+      "crumbs",
+      "design-event-menu",
+      "design-event-options",
+      "design-mobile-preferences",
+      "design-notifications-menu",
+      "design-preferences",
+      "design-skip",
+      "design-top-actions",
+      "dirty",
+      "dk-theme",
+      "dot",
+      "empty",
+      "empty-ic",
+      "empty-text",
+      "empty-title",
+      "ev-chev",
+      "ev-ic",
+      "ev-lbl",
+      "ev-meta",
+      "ev-meta-text",
+      "ev-name",
+      "ev-text",
+      "event-switch",
+      "fade-in",
+      "field",
+      "field-count",
+      "field-err",
+      "field-hint",
+      "field-narrow",
+      "field-note",
+      "field-validation-valid",
+      "form-banners",
+      "form-bar",
+      "form-card",
+      "form-fields",
+      "form-sec",
+      "form-sec-head",
+      "form-sec-sub",
+      "form-sec-title",
+      "grow",
+      "h1",
+      "ic",
+      "icon-btn",
+      "id-buyin",
+      "id-desc",
+      "id-name",
+      "identity-editor-form",
+      "input",
+      "is-current",
+      "is-error",
+      "is-info",
+      "is-on",
+      "is-warning",
+      "lbl",
+      "lbl-row",
+      "logo",
+      "m-actions",
+      "m-body",
+      "m-title",
+      "main",
+      "menu",
+      "menu-check",
+      "menu-head",
+      "menu-hint",
+      "menu-item",
+      "menu-sep",
+      "menu-toggle",
+      "mono",
+      "nav",
+      "nav-item",
+      "nav-label",
+      "nav-scrim",
+      "nav-text",
+      "opt",
+      "page",
+      "page-head",
+      "saved-note",
+      "scroller",
+      "select",
+      "select-field",
+      "select-wrap",
+      "side",
+      "side-rule",
+      "side-top",
+      "sk",
+      "sk-block",
+      "spin",
+      "summary",
+      "t-ic",
+      "text-btn",
+      "textarea",
+      "theme-opt",
+      "theme-seg",
+      "toast",
+      "toast-act",
+      "toast-x",
+      "toasts",
+      "tone-open",
+      "topbar"
+    ],
+    "undefined": []
+  },
+  "differences": []
+}

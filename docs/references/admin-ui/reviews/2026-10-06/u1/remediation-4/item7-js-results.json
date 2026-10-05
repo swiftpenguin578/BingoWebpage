@@ -1,0 +1,415 @@
+{
+  "total": 51,
+  "passed": 51,
+  "failed": 0,
+  "results": [
+    {
+      "file": "account-manage-dialog.test.js",
+      "browser": "default",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "milliseconds": 49
+    },
+    {
+      "file": "account-support.browser.js",
+      "browser": "default",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "milliseconds": 2836
+    },
+    {
+      "file": "admin-confirmation-dismiss.browser.js",
+      "browser": "default",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "milliseconds": 730
+    },
+    {
+      "file": "admin-confirmation-navigation.browser.js",
+      "browser": "default",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "milliseconds": 1432
+    },
+    {
+      "file": "admin-confirmation.browser.js",
+      "browser": "default",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "milliseconds": 1247
+    },
+    {
+      "file": "admin-design-fetch.browser.js",
+      "browser": "chromium",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "milliseconds": 1087
+    },
+    {
+      "file": "admin-design-fetch.browser.js",
+      "browser": "webkit",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "milliseconds": 10738
+    },
+    {
+      "file": "admin-design-language.browser.js",
+      "browser": "chromium",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "milliseconds": 1177
+    },
+    {
+      "file": "admin-design-language.browser.js",
+      "browser": "webkit",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "milliseconds": 1030
+    },
+    {
+      "file": "admin-design-shell.browser.js",
+      "browser": "chromium",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "milliseconds": 12923
+    },
+    {
+      "file": "admin-design-shell.browser.js",
+      "browser": "webkit",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "milliseconds": 12220
+    },
+    {
+      "file": "admin-design-theme.browser.js",
+      "browser": "chromium",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "milliseconds": 898
+    },
+    {
+      "file": "admin-design-theme.browser.js",
+      "browser": "webkit",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "milliseconds": 661
+    },
+    {
+      "file": "admin-lifecycle-confirmation.browser.js",
+      "browser": "default",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "milliseconds": 925
+    },
+    {
+      "file": "admin-review-queue.test.js",
+      "browser": "default",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "milliseconds": 27
+    },
+    {
+      "file": "admin-stale-change.browser.js",
+      "browser": "default",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "milliseconds": 2062
+    },
+    {
+      "file": "board-dialog.test.js",
+      "browser": "default",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "milliseconds": 33
+    },
+    {
+      "file": "board-objective-kind.test.js",
+      "browser": "default",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "milliseconds": 26
+    },
+    {
+      "file": "captain-ledger.test.js",
+      "browser": "default",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "milliseconds": 50
+    },
+    {
+      "file": "catalogue-admin.test.js",
+      "browser": "default",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "milliseconds": 50
+    },
+    {
+      "file": "catalogue-deletion.browser.js",
+      "browser": "default",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "milliseconds": 1096
+    },
+    {
+      "file": "draft-add-team-dialog.test.js",
+      "browser": "default",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "milliseconds": 40
+    },
+    {
+      "file": "draft-roster-dialog.test.js",
+      "browser": "default",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "milliseconds": 58
+    },
+    {
+      "file": "drop-announcement-races.test.js",
+      "browser": "default",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "milliseconds": 47
+    },
+    {
+      "file": "drop-announcement-reconciliation.test.js",
+      "browser": "default",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "milliseconds": 39
+    },
+    {
+      "file": "drop-announcement.test.js",
+      "browser": "default",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "milliseconds": 31
+    },
+    {
+      "file": "event-create-datetime.test.js",
+      "browser": "default",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "milliseconds": 29
+    },
+    {
+      "file": "identity-binding.browser.js",
+      "browser": "chromium",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "milliseconds": 1326
+    },
+    {
+      "file": "identity-binding.browser.js",
+      "browser": "webkit",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "milliseconds": 1286
+    },
+    {
+      "file": "identity-pointer-save.browser.js",
+      "browser": "chromium",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "milliseconds": 838
+    },
+    {
+      "file": "identity-pointer-save.browser.js",
+      "browser": "webkit",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "milliseconds": 764
+    },
+    {
+      "file": "identity-readback.transport.js",
+      "browser": "chromium",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "milliseconds": 1570
+    },
+    {
+      "file": "identity-readback.transport.js",
+      "browser": "webkit",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "milliseconds": 1082
+    },
+    {
+      "file": "identity-timezone-confirmation.browser.js",
+      "browser": "chromium",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "milliseconds": 1549
+    },
+    {
+      "file": "identity-timezone-confirmation.browser.js",
+      "browser": "webkit",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "milliseconds": 1383
+    },
+    {
+      "file": "onboarding-wom-fetch.test.js",
+      "browser": "default",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "milliseconds": 32
+    },
+    {
+      "file": "participant-add-dialog.test.js",
+      "browser": "default",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "milliseconds": 39
+    },
+    {
+      "file": "participant-edit-dialog.test.js",
+      "browser": "default",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "milliseconds": 37
+    },
+    {
+      "file": "participants-ui.test.js",
+      "browser": "default",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "milliseconds": 38
+    },
+    {
+      "file": "public-countdown.test.js",
+      "browser": "default",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "milliseconds": 33
+    },
+    {
+      "file": "public-evidence.test.js",
+      "browser": "default",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "milliseconds": 30
+    },
+    {
+      "file": "public-header-popover.test.js",
+      "browser": "default",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "milliseconds": 27
+    },
+    {
+      "file": "public-leaderboards.test.js",
+      "browser": "default",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "milliseconds": 68
+    },
+    {
+      "file": "public-recent-drops-live.test.js",
+      "browser": "default",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "milliseconds": 157
+    },
+    {
+      "file": "public-recent-drops.test.js",
+      "browser": "default",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "milliseconds": 1139
+    },
+    {
+      "file": "schedule-readback.transport.js",
+      "browser": "default",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "milliseconds": 95
+    },
+    {
+      "file": "signup-code-settings.browser.js",
+      "browser": "default",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "milliseconds": 704
+    },
+    {
+      "file": "signup-questions-overlay.test.js",
+      "browser": "default",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "milliseconds": 34
+    },
+    {
+      "file": "stats-production.test.js",
+      "browser": "default",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "milliseconds": 11328
+    },
+    {
+      "file": "team-board-overlay.test.js",
+      "browser": "default",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "milliseconds": 64
+    },
+    {
+      "file": "transient-toast.test.js",
+      "browser": "default",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "milliseconds": 23
+    }
+  ]
+}

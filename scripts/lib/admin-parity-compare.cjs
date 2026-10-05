@@ -10,10 +10,13 @@ async function capture(page,pairs,index) {
   return page.evaluate(({pairs,index,properties})=>pairs.map(([name,r,a,options={}])=>{
     const el=[...document.querySelectorAll(index===1?r:a)].find(el=>el.checkVisibility());
     if(!el)return {name,missing:true};
-    const css=getComputedStyle(el);
+    const css=getComputedStyle(el),bounds=el.getBoundingClientRect();
+    const relation=options.spacing;
+    const anchor=relation?document.querySelector(index===1?relation.reference:relation.app):null;
+    const spacing=anchor?bounds[relation.to]-anchor.getBoundingClientRect()[relation.from]:null;
     const svg=el.matches('svg')?el:el.querySelector(':scope > svg');
     const icons=svg?[...svg.children].map(child=>({tag:child.tagName,attrs:Object.fromEntries([...child.attributes].filter(a=>a.name!=='class'&&!a.name.startsWith('data-')).map(a=>[a.name,a.value]))})):null;
-    return {name,text:(el.matches('input,textarea,select')?el.value:el.textContent).replace(/\s+/g,' ').trim(),styles:Object.fromEntries(properties.map(key=>[key,css[key]])),icons,rect:{width:el.getBoundingClientRect().width,height:el.getBoundingClientRect().height},options};
+    return {name,text:(el.matches('input,textarea,select')?el.value:el.textContent).replace(/\s+/g,' ').trim(),styles:Object.fromEntries(properties.map(key=>[key,css[key]])),icons,rect:{x:bounds.x,y:bounds.y,width:bounds.width,height:bounds.height},spacing,options};
   }),{pairs,index,properties});
 }
 async function classInventory(page) {
@@ -35,6 +38,8 @@ function comparator(output,results) {
       for(const key of properties)if(a.styles[key]!==r.styles[key])differences.push({element:r.name,property:key,actual:a.styles[key],expected:r.styles[key]});
       if(options.text && a.text!==r.text)differences.push({element:r.name,property:'text',actual:a.text,expected:r.text});
       if(options.icon && JSON.stringify(a.icons)!==JSON.stringify(r.icons))differences.push({element:r.name,property:'icon geometry',actual:a.icons,expected:r.icons});
+      for(const [key,tolerancePx] of Object.entries(options.box||{}))if(Math.abs(a.rect[key]-r.rect[key])>tolerancePx)differences.push({element:r.name,property:'box '+key,actual:a.rect[key],expected:r.rect[key],tolerancePx});
+      if(options.spacing && (a.spacing===null || r.spacing===null || Math.abs(a.spacing-r.spacing)>options.spacing.tolerancePx))differences.push({element:r.name,property:'spacing '+options.spacing.label,actual:a.spacing,expected:r.spacing,tolerancePx:options.spacing.tolerancePx});
       for(const key of options.minimumDimensions||[])if(a.rect[key]<r.rect[key])differences.push({element:r.name,property:'minimum '+key,actual:a.rect[key],expected:r.rect[key]});
       for(const key of options.dimensions||[])if(a.rect[key]!==r.rect[key])differences.push({element:r.name,property:key,actual:a.rect[key],expected:r.rect[key]});
     }
