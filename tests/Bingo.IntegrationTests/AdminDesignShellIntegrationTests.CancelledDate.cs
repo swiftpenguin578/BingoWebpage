@@ -31,5 +31,6 @@ public sealed partial class AdminDesignShellIntegrationTests
         var metadata = Regex.Match(html, "<div class=\"ev-meta-text\">(?<text>.*?)</div>", RegexOptions.Singleline);
         Assert.True(metadata.Success);
         Assert.Equal($"{stage} · {expected}", metadata.Groups["text"].Value);
+        if (language == "da") Assert.Contains("Cancelled early blev aflyst, så dets identitet ikke kan ændres.", html);
     }
 }

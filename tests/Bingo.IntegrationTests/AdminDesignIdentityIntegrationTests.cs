@@ -152,6 +152,7 @@ public sealed partial class AdminDesignShellIntegrationTests
         var html = WebUtility.HtmlDecode(await client.GetStringAsync($"/Admin/Events/Identity/{item.Id}?culture=da&ui-culture=da"));
         Assert.Contains("<html lang=\"da\"", html); Assert.Contains(">Events</span>", html); Assert.Contains(">Alle events</a>", html);
         Assert.Contains("Navn på event", html); Assert.Contains("Eventlink", html);
+        Assert.Contains("Tilmelding åbner", html); Assert.Contains("Tilmelding lukker", html);
         Assert.DoesNotContain("AdminDesign.", html); Assert.DoesNotContain("Bingoer", html); Assert.DoesNotContain("begivenhed", html, StringComparison.OrdinalIgnoreCase);
         var old = WebUtility.HtmlDecode(await client.GetStringAsync("/Admin/Events/Index?culture=da&ui-culture=da"));
         Assert.Contains("Bingoer", old); Assert.DoesNotContain("data-admin-design", old);

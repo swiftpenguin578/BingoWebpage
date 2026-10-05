@@ -70,4 +70,6 @@
   <data name="AdminDesign.Identity saved." xml:space="preserve"><value>Identity saved.</value></data>
   <data name="AdminDesign. Your other changes ({0}) are saved at the same time." xml:space="preserve"><value> Your other changes ({0}) are saved at the same time.</value></data>
   <data name="AdminDesign.on {0}" xml:space="preserve"><value>on {0}</value></data>
+  <data name="AdminDesign.Signups open" xml:space="preserve"><value>Signups open</value></data>
+  <data name="AdminDesign.Signups close" xml:space="preserve"><value>Signups close</value></data>
 </root>

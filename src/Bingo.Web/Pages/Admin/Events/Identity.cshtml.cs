@@ -378,7 +378,7 @@ public sealed class IdentityModel(
     {
         (string Label, DateTimeOffset? At)[] rows =
         [
-            ("Signups open", item.SignupOpensAt), ("Signups close", item.SignupClosesAt),
+            ("AdminDesign.Signups open", item.SignupOpensAt), ("AdminDesign.Signups close", item.SignupClosesAt),
             ("Team draft", item.DraftAt), ("AdminDesign.Event starts", item.EventStartsAt), ("AdminDesign.Event ends", item.EventEndsAt)
         ];
         return rows.Select(row => new TimePreview(row.Label, Format(row.At, oldId), Format(row.At, newId), row.At.HasValue, Offset(row.At, oldId), Offset(row.At, newId), row.At)).ToList();
