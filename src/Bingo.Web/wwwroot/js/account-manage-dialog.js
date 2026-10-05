@@ -363,13 +363,26 @@
       danger: trigger.dataset.accountConfirmationStyle === "danger",
       requireReason: trigger.dataset.accountConfirmationReason === "true",
       opener: trigger,
-      onConfirm: ({ reason }) => {
+      onConfirm: async ({ reason }) => {
+        let field = null;
+        let created = false;
+        let previous = "";
         if (trigger.dataset.accountConfirmationReason === "true") {
-          let field = form.querySelector("[name='Reason']");
-          if (!field) { field = document.createElement("input"); field.type = "hidden"; field.name = "Reason"; form.append(field); }
+          field = form.querySelector("[name='Reason']");
+          created = !field;
+          if (created) { field = document.createElement("input"); field.type = "hidden"; field.name = "Reason"; form.append(field); }
+          else previous = field.value;
           field.value = reason;
         }
-        return submitManage(form, true);
+        const result = await submitManage(form, true);
+        // Reason only carries the confirmation's text in the POST. After an
+        // unsuccessful submit, return the form to its baseline so the editor
+        // guard does not mistake it for an unsaved editor draft.
+        if (field && !(result === true || result?.succeeded === true)) {
+          if (created) field.remove();
+          else field.value = previous;
+        }
+        return result;
       }
     });
   }
