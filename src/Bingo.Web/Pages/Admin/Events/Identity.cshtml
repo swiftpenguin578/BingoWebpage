@@ -19,7 +19,7 @@
     };
     <partial name="_AdminDesignBanner" model='new AdminDesignBanner("is-info page-banner form-card", "lock", message, Id: "identity-readonly")' />
 }
-<section class="card form-card" data-identity-editor data-identity-event-id="@Model.EventId" data-identity-current-version="@Model.CurrentVersion"
+<section class="card form-card fade-in" data-identity-editor data-identity-event-id="@Model.EventId" data-identity-current-version="@Model.CurrentVersion"
     data-identity-editable="@Model.CanEditIdentity.ToString().ToLowerInvariant()" data-identity-public="@Model.HasPublicExposure.ToString().ToLowerInvariant()"
     data-identity-save-uncertain="@Model.SaveOutcomeUncertain.ToString().ToLowerInvariant()" data-identity-schedule-stale="@Model.TimezoneScheduleStale.ToString().ToLowerInvariant()"
     data-identity-review-required="@((Model.TimezonePreview.Count > 0).ToString().ToLowerInvariant())"
@@ -50,10 +50,10 @@
     data-leave-title="@T["AdminDesign.Leave before checking your save?"]" data-leave-message="@T["AdminDesign.We couldn’t confirm your last save, and it may already have gone through. Check again to find out, or leave now: anything that wasn’t saved will be lost, and you won’t know which until you come back."]" data-leave="@T["Leave anyway"]"
     data-cancel="@T["Cancel"]" data-keep-editing="@T["Keep editing"]" data-timezone-title="@T["Show this event’s times in {0}?"]" data-timezone-action="@T["Save with {0}"]"
     data-timezone-consequence="@T["Stored UTC instants will not move. Participants will see the same moments in the new timezone, including each UTC offset."]"
-    data-saved-together="@T["Also saved with this change: {0}."]" data-unsaved="@T["Unsaved changes"]" data-copied="@T["AdminDesign.Event link copied."]" data-copy-failed="@T["AdminDesign.Couldn’t copy automatically. The link is selected so you can copy it."]">
+    data-saved-together="@T["AdminDesign. Your other changes ({0}) are saved at the same time."]" data-unsaved="@T["Unsaved changes"]" data-copied="@T["AdminDesign.Event link copied."]" data-copy-failed="@T["AdminDesign.Couldn’t copy automatically. The link is selected so you can copy it."]">
     <form method="post" class="identity-editor-form">
         <div class="form-banners">
-            <partial name="_AdminDesignBanner" model='new AdminDesignBanner("is-error validation-summary", "error", string.Join(" ", ViewData.ModelState[string.Empty]?.Errors.Select(error => error.ErrorMessage) ?? []), Hidden: !(ViewData.ModelState[string.Empty]?.Errors.Any() ?? false))' />
+            <partial name="_AdminDesignBanner" model='new AdminDesignBanner("is-error", "error", string.Join(" ", ViewData.ModelState[string.Empty]?.Errors.Select(error => error.ErrorMessage) ?? []), Hidden: !(ViewData.ModelState[string.Empty]?.Errors.Any() ?? false))' />
             <div class="banner is-error" data-client-validation role="alert" hidden></div>
             <div class="banner is-warning" data-identity-feedback role="status" tabindex="-1" hidden></div>
 
@@ -164,7 +164,7 @@
                 {
                     <div class="compare" role="table" aria-label="@T["Scheduled times before and after the change"]">
                         <div class="compare-head" role="row"><span role="columnheader">@T["Scheduled"]</span><span role="columnheader">@T["Now"] · @Model.Input.TimezoneConfirmationOriginal</span><span role="columnheader">@T["After"] · @pair.Key</span></div>
-                        @foreach (var row in scheduled) { <div class="compare-row" role="row" data-identity-timezone-row><span class="compare-label" role="rowheader">@T[row.Label]</span><span class="compare-old" role="cell"><span class="compare-k">@T["Now"]</span>@row.Current<span class="compare-off">@row.CurrentOffset</span></span><span class="compare-new" role="cell"><span class="compare-k">@T["After"]</span>@row.New<span class="compare-off">@row.NewOffset</span></span></div> }
+                        @foreach (var row in scheduled) { <div class="compare-row" role="row" data-identity-timezone-row><span class="compare-label" role="rowheader">@T[row.Label]</span><span class="compare-old" role="cell" data-preview-instant="@row.Instant?.ToString("O", CultureInfo.InvariantCulture)" data-preview-zone="@Model.Input.TimezoneConfirmationOriginal"><span class="compare-k">@T["Now"]</span>@row.Current<span class="compare-off">@row.CurrentOffset</span></span><span class="compare-new" role="cell" data-preview-instant="@row.Instant?.ToString("O", CultureInfo.InvariantCulture)" data-preview-zone="@pair.Key"><span class="compare-k">@T["After"]</span>@row.New<span class="compare-off">@row.NewOffset</span></span></div> }
                     </div>
                 }
                 @if (scheduled.Count == 0) { <p class="compare-foot" data-identity-timezone-unset>@T["Nothing is scheduled yet, so no shown times change."]</p> }

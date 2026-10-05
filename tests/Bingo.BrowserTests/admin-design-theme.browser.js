@@ -1,8 +1,8 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const { chromium } = require('playwright');
+const { chromium, webkit } = require('playwright');
 (async () => {
-  const browser = await chromium.launch({ headless: true, channel: process.env.PLAYWRIGHT_CHANNEL || 'chrome' });
+  const browser = await (process.env.PLAYWRIGHT_BROWSER === 'webkit' ? webkit.launch({headless:true}) : chromium.launch({ headless: true, channel: process.env.PLAYWRIGHT_CHANNEL || 'chrome' }));
   try {
     const page = await browser.newPage({ colorScheme: 'dark' });
     const script = fs.readFileSync('src/Bingo.Web/wwwroot/js/admin-design-theme.js', 'utf8');

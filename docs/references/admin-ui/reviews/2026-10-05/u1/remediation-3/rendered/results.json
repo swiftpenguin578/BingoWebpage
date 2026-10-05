@@ -1,0 +1,330 @@
+{
+  "passed": 66,
+  "failed": 0,
+  "results": [
+    {
+      "name": "chromium-desktop-light",
+      "passed": true,
+      "differences": []
+    },
+    {
+      "name": "chromium-desktop-dark",
+      "passed": true,
+      "differences": []
+    },
+    {
+      "name": "chromium-phone-light",
+      "passed": true,
+      "differences": []
+    },
+    {
+      "name": "chromium-mobile-preferences",
+      "passed": true,
+      "differences": []
+    },
+    {
+      "name": "chromium-mobile-language-keyboard-breakpoint",
+      "passed": true
+    },
+    {
+      "name": "chromium-dirty",
+      "passed": true,
+      "differences": []
+    },
+    {
+      "name": "chromium-discard",
+      "passed": true,
+      "differences": []
+    },
+    {
+      "name": "chromium-timezone-note",
+      "passed": true,
+      "differences": []
+    },
+    {
+      "name": "chromium-timezone-dialog",
+      "passed": true,
+      "differences": []
+    },
+    {
+      "name": "chromium-validation",
+      "passed": true,
+      "differences": []
+    },
+    {
+      "name": "chromium-busy",
+      "passed": true,
+      "differences": []
+    },
+    {
+      "name": "chromium-saved-toast",
+      "passed": true,
+      "differences": []
+    },
+    {
+      "name": "chromium-finalized",
+      "passed": true,
+      "differences": []
+    },
+    {
+      "name": "chromium-archived",
+      "passed": true,
+      "differences": []
+    },
+    {
+      "name": "chromium-cancelled",
+      "passed": true,
+      "differences": []
+    },
+    {
+      "name": "chromium-live",
+      "passed": true,
+      "differences": []
+    },
+    {
+      "name": "chromium-collapsed",
+      "passed": true,
+      "differences": []
+    },
+    {
+      "name": "chromium-event-menu",
+      "passed": true,
+      "differences": []
+    },
+    {
+      "name": "chromium-account-menu",
+      "passed": true,
+      "differences": []
+    },
+    {
+      "name": "chromium-uncertain",
+      "passed": true,
+      "differences": []
+    },
+    {
+      "name": "chromium-uncertain-leave",
+      "passed": true,
+      "differences": []
+    },
+    {
+      "name": "chromium-checking",
+      "passed": true,
+      "differences": []
+    },
+    {
+      "name": "chromium-not-applied",
+      "passed": true,
+      "differences": []
+    },
+    {
+      "name": "chromium-up-to-date",
+      "passed": true,
+      "differences": []
+    },
+    {
+      "name": "chromium-conflict",
+      "passed": true,
+      "differences": []
+    },
+    {
+      "name": "chromium-phone-toast",
+      "passed": true,
+      "differences": []
+    },
+    {
+      "name": "chromium-skeleton",
+      "passed": true,
+      "differences": []
+    },
+    {
+      "name": "chromium-failed-load",
+      "passed": true,
+      "differences": []
+    },
+    {
+      "name": "chromium-copied",
+      "passed": true,
+      "differences": []
+    },
+    {
+      "name": "chromium-copy-failed",
+      "passed": true,
+      "differences": []
+    },
+    {
+      "name": "chromium-language-guard",
+      "passed": true,
+      "differences": []
+    },
+    {
+      "name": "chromium-served-language",
+      "passed": true
+    },
+    {
+      "name": "chromium-served-navigation",
+      "passed": true
+    },
+    {
+      "name": "webkit-desktop-light",
+      "passed": true,
+      "differences": []
+    },
+    {
+      "name": "webkit-desktop-dark",
+      "passed": true,
+      "differences": []
+    },
+    {
+      "name": "webkit-phone-light",
+      "passed": true,
+      "differences": []
+    },
+    {
+      "name": "webkit-mobile-preferences",
+      "passed": true,
+      "differences": []
+    },
+    {
+      "name": "webkit-mobile-language-keyboard-breakpoint",
+      "passed": true
+    },
+    {
+      "name": "webkit-dirty",
+      "passed": true,
+      "differences": []
+    },
+    {
+      "name": "webkit-discard",
+      "passed": true,
+      "differences": []
+    },
+    {
+      "name": "webkit-timezone-note",
+      "passed": true,
+      "differences": []
+    },
+    {
+      "name": "webkit-timezone-dialog",
+      "passed": true,
+      "differences": []
+    },
+    {
+      "name": "webkit-validation",
+      "passed": true,
+      "differences": []
+    },
+    {
+      "name": "webkit-busy",
+      "passed": true,
+      "differences": []
+    },
+    {
+      "name": "webkit-saved-toast",
+      "passed": true,
+      "differences": []
+    },
+    {
+      "name": "webkit-finalized",
+      "passed": true,
+      "differences": []
+    },
+    {
+      "name": "webkit-archived",
+      "passed": true,
+      "differences": []
+    },
+    {
+      "name": "webkit-cancelled",
+      "passed": true,
+      "differences": []
+    },
+    {
+      "name": "webkit-live",
+      "passed": true,
+      "differences": []
+    },
+    {
+      "name": "webkit-collapsed",
+      "passed": true,
+      "differences": []
+    },
+    {
+      "name": "webkit-event-menu",
+      "passed": true,
+      "differences": []
+    },
+    {
+      "name": "webkit-account-menu",
+      "passed": true,
+      "differences": []
+    },
+    {
+      "name": "webkit-uncertain",
+      "passed": true,
+      "differences": []
+    },
+    {
+      "name": "webkit-uncertain-leave",
+      "passed": true,
+      "differences": []
+    },
+    {
+      "name": "webkit-checking",
+      "passed": true,
+      "differences": []
+    },
+    {
+      "name": "webkit-not-applied",
+      "passed": true,
+      "differences": []
+    },
+    {
+      "name": "webkit-up-to-date",
+      "passed": true,
+      "differences": []
+    },
+    {
+      "name": "webkit-conflict",
+      "passed": true,
+      "differences": []
+    },
+    {
+      "name": "webkit-phone-toast",
+      "passed": true,
+      "differences": []
+    },
+    {
+      "name": "webkit-skeleton",
+      "passed": true,
+      "differences": []
+    },
+    {
+      "name": "webkit-failed-load",
+      "passed": true,
+      "differences": []
+    },
+    {
+      "name": "webkit-copied",
+      "passed": true,
+      "differences": []
+    },
+    {
+      "name": "webkit-copy-failed",
+      "passed": true,
+      "differences": []
+    },
+    {
+      "name": "webkit-language-guard",
+      "passed": true,
+      "differences": []
+    },
+    {
+      "name": "webkit-served-language",
+      "passed": true
+    },
+    {
+      "name": "webkit-served-navigation",
+      "passed": true
+    }
+  ]
+}

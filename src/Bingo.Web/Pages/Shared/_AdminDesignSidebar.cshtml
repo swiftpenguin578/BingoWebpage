@@ -41,6 +41,7 @@
             <a class="nav-item @(currentPage == "/Admin/Events/Finalize" ? "is-current" : null)" href="@Bingo.Web.Navigation.SharedShellService.AdminDesignEventUrl("/Admin/Events/Finalize", selected.Id)" data-shell-link aria-current="@(currentPage == "/Admin/Events/Finalize" ? "page" : null)" data-collapsed-title="@T["Final review"]"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("final", "ic")' /><span class="nav-text">@T["Final review"]</span></a>
         }
     </nav>
+    <div class="design-mobile-preferences" data-mobile-preferences></div>
 </aside>
 <div class="menu" id="admin-account-menu" role="menu" hidden data-shell-menu>
     <partial name="_AdminDesignMenuHeader" model='new AdminDesignMenuHeader(Model.AccountName, $"@{Model.AccountName} · {Model.AccountRole}")' />

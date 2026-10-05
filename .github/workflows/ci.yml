@@ -34,17 +34,23 @@ jobs:
           pnpm install --frozen-lockfile
       - name: Install Playwright browsers
         # One unchanged legacy test explicitly selects Chrome.
-        run: pnpm exec playwright install --with-deps chromium chrome
+        run: pnpm exec playwright install --with-deps chromium chrome webkit
       - name: Generate controlled account HTML fixtures
         run: dotnet test tests/Bingo.IntegrationTests/Bingo.IntegrationTests.csproj --configuration Release --filter FullyQualifiedName~AccountConfirmationRejectsCompletedInterveningChangesThenAcceptsFreshAction
+      - name: Build controlled real-layout fixture
+        run: dotnet build tests/AdminDesignParityFixture/AdminDesignParityFixture.csproj --configuration Release
       - name: Run every JavaScript test
         run: pnpm test:js
+      - name: Compare rendered reference and real layout in both engines
+        run: pnpm test:parity
       - name: Upload JavaScript results
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: javascript-results-${{ github.run_id }}
-          path: artifacts/js-tests/
+          path: |
+            artifacts/js-tests/
+            artifacts/admin-parity/
           if-no-files-found: warn
           retention-days: 7
 

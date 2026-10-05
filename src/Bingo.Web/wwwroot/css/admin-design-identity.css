@@ -8,3 +8,7 @@
 @media(max-width:640px){.id-name{max-width:none}.identity-editor-form .form-bar .btn-primary{flex:1}}
 
 .form-banners:not(:has(.banner:not([hidden]):not(.validation-summary-valid))){display:none}
+
+/* MVC server errors use the same visible error row and input border as client validation. */
+.identity-editor-form .field-validation-error{display:flex}
+.identity-editor-form .input-validation-error{border-color:var(--dk-danger)}

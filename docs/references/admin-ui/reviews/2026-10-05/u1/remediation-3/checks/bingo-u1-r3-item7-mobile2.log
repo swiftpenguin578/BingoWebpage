@@ -1,0 +1,4 @@
+PASS chromium-phone-light: 0 differences
+PASS chromium-mobile-preferences: 0 differences
+PASS webkit-phone-light: 0 differences
+PASS webkit-mobile-preferences: 0 differences
