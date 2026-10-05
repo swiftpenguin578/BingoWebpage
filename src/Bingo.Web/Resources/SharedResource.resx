@@ -26,4 +26,45 @@
   <data name="AdminDesign.This event has not been public yet. A timezone change saves directly without a confirmation." xml:space="preserve"><value>This event has not been public yet. A timezone change saves directly without a confirmation.</value></data>
   <data name="AdminDesign.ended {0}" xml:space="preserve"><value>ended {0}</value></data>
   <data name="AdminDesign.Super admin" xml:space="preserve"><value>Super admin</value></data>
+  <data name="AdminDesign.Name, description, buy-in and timezone for {0}." xml:space="preserve"><value>Name, description, buy-in and timezone for {0}.</value></data>
+  <data name="AdminDesign.The event’s name and the text players read about it." xml:space="preserve"><value>The event’s name and the text players read about it.</value></data>
+  <data name="AdminDesign.How this event’s dates and times are shown. Changing it never moves a scheduled moment." xml:space="preserve"><value>How this event’s dates and times are shown. Changing it never moves a scheduled moment.</value></data>
+  <data name="AdminDesign.Explain the entry payment in words: how much, and how to pay. It isn’t a price field and takes no payments; payments are tracked on Participants." xml:space="preserve"><value>Explain the entry payment in words: how much, and how to pay. It isn’t a price field and takes no payments; payments are tracked on Participants.</value></data>
+  <data name="AdminDesign.The one link to share. It opens the signup list, which moves visitors on to teams and the board as the event is published. While the event is private, it isn’t publicly available." xml:space="preserve"><value>The one link to share. It opens the signup list, which moves visitors on to teams and the board as the event is published. While the event is private, it isn’t publicly available.</value></data>
+  <data name="AdminDesign.optional" xml:space="preserve"><value>optional</value></data>
+  <data name="AdminDesign.None" xml:space="preserve"><value>None</value></data>
+  <data name="AdminDesign.Event link" xml:space="preserve"><value>Event link</value></data>
+  <data name="AdminDesign.Copied" xml:space="preserve"><value>Copied</value></data>
+  <data name="AdminDesign.Copy" xml:space="preserve"><value>Copy</value></data>
+  <data name="AdminDesign.Event link copied." xml:space="preserve"><value>Event link copied.</value></data>
+  <data name="AdminDesign.Couldn’t copy automatically. The link is selected so you can copy it." xml:space="preserve"><value>Couldn’t copy automatically. The link is selected so you can copy it.</value></data>
+  <data name="AdminDesign.What the event is about, how teams are formed and anything players should know before signing up." xml:space="preserve"><value>What the event is about, how teams are formed and anything players should know before signing up.</value></data>
+  <data name="AdminDesign.e.g. 5M GP per player, sent to Nils in game before the draft." xml:space="preserve"><value>e.g. 5M GP per player, sent to Nils in game before the draft.</value></data>
+  <data name="AdminDesign.Scheduled moments stay the same; they’ll be shown in {0} after you save." xml:space="preserve"><value>Scheduled moments stay the same; they’ll be shown in {0} after you save.</value></data>
+  <data name="AdminDesign.This event has been public, so you’ll review the affected times before saving." xml:space="preserve"><value>This event has been public, so you’ll review the affected times before saving.</value></data>
+  <data name="AdminDesign.Locked because the event has gone Live. It stays locked in every later phase." xml:space="preserve"><value>Locked because the event has gone Live. It stays locked in every later phase.</value></data>
+  <data name="AdminDesign.{0} is finished, so its identity can’t be changed." xml:space="preserve"><value>{0} is finished, so its identity can’t be changed.</value></data>
+  <data name="AdminDesign.{0} is archived, so its identity can’t be changed." xml:space="preserve"><value>{0} is archived, so its identity can’t be changed.</value></data>
+  <data name="AdminDesign.{0} was cancelled, so its identity can’t be changed." xml:space="preserve"><value>{0} was cancelled, so its identity can’t be changed.</value></data>
+  <data name="AdminDesign.Saving…" xml:space="preserve"><value>Saving…</value></data>
+  <data name="AdminDesign.Checking…" xml:space="preserve"><value>Checking…</value></data>
+  <data name="AdminDesign.We couldn’t confirm whether your changes were saved." xml:space="preserve"><value>We couldn’t confirm whether your changes were saved.</value></data>
+  <data name="AdminDesign.Checking whether your changes were saved…" xml:space="preserve"><value>Checking whether your changes were saved…</value></data>
+  <data name="AdminDesign. Check before saving again, so you don’t overwrite anything by mistake." xml:space="preserve"><value> Check before saving again, so you don’t overwrite anything by mistake.</value></data>
+  <data name="AdminDesign.The event now has the values you entered." xml:space="preserve"><value>The event now has the values you entered.</value></data>
+  <data name="AdminDesign.The event still has its earlier values, so your changes weren’t applied. They’re still here; save again when you’re ready." xml:space="preserve"><value>The event still has its earlier values, so your changes weren’t applied. They’re still here; save again when you’re ready.</value></data>
+  <data name="AdminDesign.Another admin saved this event while you were editing." xml:space="preserve"><value>Another admin saved this event while you were editing.</value></data>
+  <data name="AdminDesign. Where you both changed a field, yours is kept and theirs is shown beside it. Nothing has been saved yet; review, then save again." xml:space="preserve"><value> Where you both changed a field, yours is kept and theirs is shown beside it. Nothing has been saved yet; review, then save again.</value></data>
+  <data name="AdminDesign. Their changes are now in the form alongside yours. Nothing has been saved yet; review, then save again." xml:space="preserve"><value> Their changes are now in the form alongside yours. Nothing has been saved yet; review, then save again.</value></data>
+  <data name="AdminDesign. The form now shows their saved changes." xml:space="preserve"><value> The form now shows their saved changes.</value></data>
+  <data name="AdminDesign. Only its schedule changed, so the times you reviewed were out of date. Nothing was saved." xml:space="preserve"><value> Only its schedule changed, so the times you reviewed were out of date. Nothing was saved.</value></data>
+  <data name="AdminDesign. Saving again opens a fresh review of the timezone change with the latest times." xml:space="preserve"><value> Saving again opens a fresh review of the timezone change with the latest times.</value></data>
+  <data name="AdminDesign.You both changed this. Their saved version: {0}. Yours is kept until you choose." xml:space="preserve"><value>You both changed this. Their saved version: {0}. Yours is kept until you choose.</value></data>
+  <data name="AdminDesign.You both changed this. Theirs: {0}." xml:space="preserve"><value>You both changed this. Theirs: {0}.</value></data>
+  <data name="AdminDesign.Updated to their saved version." xml:space="preserve"><value>Updated to their saved version.</value></data>
+  <data name="AdminDesign.empty" xml:space="preserve"><value>empty</value></data>
+  <data name="AdminDesign.Your changes to {0} haven’t been saved." xml:space="preserve"><value>Your changes to {0} haven’t been saved.</value></data>
+  <data name="AdminDesign.Leave before checking your save?" xml:space="preserve"><value>Leave before checking your save?</value></data>
+  <data name="AdminDesign.We couldn’t confirm your last save, and it may already have gone through. Check again to find out, or leave now: anything that wasn’t saved will be lost, and you won’t know which until you come back." xml:space="preserve"><value>We couldn’t confirm your last save, and it may already have gone through. Check again to find out, or leave now: anything that wasn’t saved will be lost, and you won’t know which until you come back.</value></data>
+  <data name="AdminDesign.Use {0} characters or fewer." xml:space="preserve"><value>Use {0} characters or fewer.</value></data>
 </root>

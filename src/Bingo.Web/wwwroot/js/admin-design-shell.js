@@ -115,9 +115,10 @@
     lock();
   });
   const inputSelector = 'input:not([type=hidden]):not([type=submit]):not([type=button]),select,textarea,[contenteditable="true"]';
+  let layerId = 0;
   function openLayer({ kind = 'modal', title, content, confirmation = false, dirty = () => false, pending = () => false, onClose = () => {}, opener = document.activeElement }) {
     closeMenu(false);
-    const wrapper = document.createElement('div'), scrim = document.createElement('div'), panel = document.createElement('section');
+    const wrapper = document.createElement('div'), scrim = document.createElement('div'), panel = document.createElement('div');
     wrapper.className = kind === 'drawer' ? 'design-drawer-layer' : 'm-wrap';
     scrim.className = kind === 'drawer' ? 'scrim' : 'm-scrim';
     panel.className = kind === 'drawer' ? 'drawer' : `modal${layers.length ? ' is-stacked' : ''}`;
@@ -126,6 +127,12 @@
     panel.setAttribute('aria-modal', 'true');
     panel.setAttribute('aria-label', title);
     panel.append(content);
+    const heading = panel.querySelector('[data-confirm-title]'), description = panel.querySelector('[data-confirm-description]');
+    if (heading) {
+      const id = ++layerId; heading.id = `admin-dialog-title-${id}`;
+      panel.removeAttribute('aria-label'); panel.setAttribute('aria-labelledby', heading.id);
+      if (description) { description.id = `admin-dialog-description-${id}`; panel.setAttribute('aria-describedby', description.id); }
+    }
     wrapper.append(panel);
     const host = document.querySelector(kind === 'drawer' ? '[data-drawer-host]' : '[data-modal-host]');
     host.append(scrim, wrapper);
@@ -162,19 +169,21 @@
     if (!source) throw new Error(`Missing shared Admin template: ${name}`);
     return source.content.cloneNode(true);
   }
-  function confirm({ title, description, actionLabel, cancelLabel }) {
+  function confirm({ title, description, actionLabel, cancelLabel, actionClass = 'btn-primary', cancelClass = '', focusAction = false, cancelResult = false }) {
     return new Promise(resolve => {
       const content = template('confirmation');
       content.querySelector('[data-confirm-title]').textContent = title;
       content.querySelector('[data-confirm-description]').textContent = description;
       const cancel = content.querySelector('[data-confirm-cancel]'), accept = content.querySelector('[data-confirm-accept]');
+      cancel.className = `btn ${cancelClass}`; accept.className = `btn ${actionClass}`;
+      if (focusAction) { cancel.removeAttribute('autofocus'); accept.setAttribute('autofocus', ''); }
       cancel.textContent = cancelLabel; accept.querySelector('[data-component-text]').textContent = actionLabel;
       const layer = openLayer({ title, content, confirmation: true, onClose: resolve });
-      cancel.addEventListener('click', () => void layer.close(false));
+      cancel.addEventListener('click', () => void layer.close(cancelResult));
       accept.addEventListener('click', () => void layer.close(true));
     });
   }
-  const confirmDiscard = () => confirm({ title: text('discardTitle'), description: text('discardDescription'), actionLabel: text('discard'), cancelLabel: text('keepEditing') });
+  const confirmDiscard = () => confirm({ title: text('discardTitle'), description: text('discardDescription'), actionLabel: text('discard'), cancelLabel: text('keepEditing'), actionClass: 'btn-danger' });
 
   const toastTimers = new Map();
   function removeToast(element) {

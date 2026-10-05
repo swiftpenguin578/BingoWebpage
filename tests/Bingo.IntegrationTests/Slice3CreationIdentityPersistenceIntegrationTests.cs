@@ -536,7 +536,7 @@ public sealed class Slice3CreationIdentityPersistenceIntegrationTests : IAsyncLi
             Assert.IsType<PageResult>(await preview.OnPostAsync(previewId, CancellationToken.None));
             Assert.True(preview.ModelState.ContainsKey("Input.ConfirmTimezoneChange"));
             Assert.NotEmpty(preview.TimezonePreview);
-            Assert.Contains(preview.TimezonePreview, row => row.Current.Contains('(') && row.New.Contains('('));
+            Assert.Contains(preview.TimezonePreview, row => row.Scheduled && row.CurrentOffset == "UTC+02:00" && row.NewOffset == "UTC+00:00");
 
             var invalidTimezone = Identity(db, actor, new IdentityModel.InputModel
             {
