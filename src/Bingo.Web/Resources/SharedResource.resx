@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <!-- Opt-in Admin wording. Other shared keys keep their existing fallback. -->
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms</value></resheader>
+  <data name="AdminDesign.Events" xml:space="preserve"><value>Events</value></data>
+  <data name="AdminDesign.Event" xml:space="preserve"><value>Event</value></data>
+  <data name="AdminDesign.Event name" xml:space="preserve"><value>Event name</value></data>
+  <data name="AdminDesign.Event starts" xml:space="preserve"><value>Event starts</value></data>
+  <data name="AdminDesign.Event ends" xml:space="preserve"><value>Event ends</value></data>
+  <data name="AdminDesign.Up to date. The event now has the expected values. This does not confirm which request saved them." xml:space="preserve"><value>Up to date. The event now has the expected values. This does not confirm which request saved them.</value></data>
+  <data name="AdminDesign.Another admin saved this event while you were editing. Where you both changed a field, yours is kept and theirs is shown beside it. Review, then save again." xml:space="preserve"><value>Another admin saved this event while you were editing. Where you both changed a field, yours is kept and theirs is shown beside it. Review, then save again.</value></data>
+  <data name="AdminDesign.Enter an event name." xml:space="preserve"><value>Enter an event name.</value></data>
+  <data name="AdminDesign.Event banners are no longer supported. Reload the page and submit only identity fields." xml:space="preserve"><value>Event banners are no longer supported. Reload the page and submit only identity fields.</value></data>
+  <data name="AdminDesign.Event identity cannot be changed in its current state." xml:space="preserve"><value>Event identity cannot be changed in its current state.</value></data>
+  <data name="AdminDesign.How this event's dates and times are shown. Changing it never moves a scheduled moment." xml:space="preserve"><value>How this event's dates and times are shown. Changing it never moves a scheduled moment.</value></data>
+  <data name="AdminDesign.Permanent event link" xml:space="preserve"><value>Permanent event link</value></data>
+  <data name="AdminDesign.Permanent. It was created with the event and stays the same when you rename it." xml:space="preserve"><value>Permanent. It was created with the event and stays the same when you rename it.</value></data>
+  <data name="AdminDesign.The event still has its earlier values, so your changes weren't applied. They are still here; save again when you are ready." xml:space="preserve"><value>The event still has its earlier values, so your changes weren't applied. They are still here; save again when you are ready.</value></data>
+  <data name="AdminDesign.The event's name and the text players read about it." xml:space="preserve"><value>The event's name and the text players read about it.</value></data>
+  <data name="AdminDesign.The one link to share. It opens the signup list, which moves visitors on to teams and the board as the event is published. While the event is private, it is not publicly available." xml:space="preserve"><value>The one link to share. It opens the signup list, which moves visitors on to teams and the board as the event is published. While the event is private, it is not publicly available.</value></data>
+  <data name="AdminDesign.The public event link is permanent and cannot be changed." xml:space="preserve"><value>The public event link is permanent and cannot be changed.</value></data>
+  <data name="AdminDesign.The timezone cannot change after the event first goes Live." xml:space="preserve"><value>The timezone cannot change after the event first goes Live.</value></data>
+  <data name="AdminDesign.This event has not been public yet. A timezone change saves directly without a confirmation." xml:space="preserve"><value>This event has not been public yet. A timezone change saves directly without a confirmation.</value></data>
+</root>

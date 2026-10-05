@@ -86,7 +86,7 @@ public sealed class IdentityModel(
 
         if (await HasRetiredBannerMutationAsync(ct))
         {
-            ModelState.AddModelError(string.Empty, Localize("Event banners are no longer supported. Reload the page and submit only identity fields."));
+            ModelState.AddModelError(string.Empty, Localize("AdminDesign.Event banners are no longer supported. Reload the page and submit only identity fields."));
             Populate(snapshot, preserveInput: true);
             return Page();
         }
@@ -177,7 +177,7 @@ public sealed class IdentityModel(
         FieldConflicts = [];
         TimezoneScheduleStale = false;
         if (!CanEditIdentityState(item))
-            ModelState.AddModelError(string.Empty, Localize("Event identity cannot be changed in its current state."));
+            ModelState.AddModelError(string.Empty, Localize("AdminDesign.Event identity cannot be changed in its current state."));
         if (!Input.HasBaseline && Input.Version != item.Version) AddStaleError();
         if (Input.HasBaseline && (string.IsNullOrWhiteSpace(Input.OriginalName) || string.IsNullOrWhiteSpace(Input.OriginalTimezone)))
             ModelState.AddModelError(string.Empty, Localize("The identity comparison baseline is incomplete. Reload the page before trying again."));
@@ -199,7 +199,7 @@ public sealed class IdentityModel(
                 ModelState.AddModelError($"Input.{field}", Localize("Another administrator changed this field. Resolve it against the latest value before saving."));
         }
         if (string.IsNullOrWhiteSpace(proposed.Name))
-            ModelState.AddModelError("Input.Name", Localize("Enter an event name."));
+            ModelState.AddModelError("Input.Name", Localize("AdminDesign.Enter an event name."));
         else if (!string.Equals(item.Name, proposed.Name, StringComparison.Ordinal)
                  && WiseOldManCompetitionRules.ProviderCharacterCount(proposed.Name) > WiseOldManCompetitionRules.MaximumCompetitionTitleLength)
             ModelState.AddModelError("Input.Name", Localize("Event names must be 50 characters or fewer."));
@@ -214,7 +214,7 @@ public sealed class IdentityModel(
         if (!supportedTimezone && timezoneChanged)
             ModelState.AddModelError("Input.Timezone", Localize("Choose a supported timezone."));
         if (timezoneChanged && item.ActualStartedAt is not null)
-            ModelState.AddModelError("Input.Timezone", Localize("The timezone cannot change after the event first goes Live."));
+            ModelState.AddModelError("Input.Timezone", Localize("AdminDesign.The timezone cannot change after the event first goes Live."));
         if (timezoneChanged && supportedTimezone && item.FirstPublicAt is not null)
         {
             TimezoneScheduleStale = !string.IsNullOrEmpty(Input.TimezoneConfirmationSchedule)
@@ -379,7 +379,7 @@ public sealed class IdentityModel(
         (string Label, DateTimeOffset? At)[] rows =
         [
             ("Signups open", item.SignupOpensAt), ("Signups close", item.SignupClosesAt),
-            ("Team draft", item.DraftAt), ("Event starts", item.EventStartsAt), ("Event ends", item.EventEndsAt)
+            ("Team draft", item.DraftAt), ("AdminDesign.Event starts", item.EventStartsAt), ("AdminDesign.Event ends", item.EventEndsAt)
         ];
         return rows.Select(row => new TimePreview(row.Label, Format(row.At, oldId), Format(row.At, newId), row.At.HasValue)).ToList();
     }
@@ -390,7 +390,7 @@ public sealed class IdentityModel(
 
     private void AddPermanentSlugError()
     {
-        var message = Localize("The public event link is permanent and cannot be changed.");
+        var message = Localize("AdminDesign.The public event link is permanent and cannot be changed.");
         ModelState.AddModelError("Input.Slug", message);
         ModelState.AddModelError(string.Empty, message);
     }

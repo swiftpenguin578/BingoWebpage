@@ -11,13 +11,13 @@
     data-identity-editable="@Model.CanEditIdentity.ToString().ToLowerInvariant()" data-identity-public="@Model.HasPublicExposure.ToString().ToLowerInvariant()"
     data-identity-save-uncertain="@Model.SaveOutcomeUncertain.ToString().ToLowerInvariant()" data-identity-schedule-stale="@Model.TimezoneScheduleStale.ToString().ToLowerInvariant()"
     data-identity-review-required="@((Model.TimezonePreview.Count > 0).ToString().ToLowerInvariant())"
-    data-name-required="@T["Enter an event name."]" data-validation-summary="@T["{0} fields need attention before you can save."]"
+    data-name-required="@T["AdminDesign.Enter an event name."]" data-validation-summary="@T["{0} fields need attention before you can save."]"
     data-name-limit="@T["Event names must be 50 characters or fewer."]" data-description-limit="@T["Description must be 4000 characters or fewer."]" data-buy-in-description-limit="@T["Buy-in information must be 2000 characters or fewer."]"
-    data-identity-conflicts="@string.Join(",", Model.FieldConflicts)" data-label-name="@T["Event name"]" data-label-description="@T["Description"]" data-label-buy-in-description="@T["Buy-in information"]" data-label-timezone="@T["Timezone"]" data-save="@T["Save changes"]" data-saved="@T["Saved"]"
+    data-identity-conflicts="@string.Join(",", Model.FieldConflicts)" data-label-name="@T["AdminDesign.Event name"]" data-label-description="@T["Description"]" data-label-buy-in-description="@T["Buy-in information"]" data-label-timezone="@T["Timezone"]" data-save="@T["Save changes"]" data-saved="@T["Saved"]"
     data-no-changes="@T["No changes to save"]" data-up-to-date-note="@T["Up to date"]" data-check-again="@T["Check again"]" data-unknown="@T["The save outcome is uncertain. Check again to read the current values; your draft is retained."]"
-    data-up-to-date="@T["Up to date. The event now has the expected values. This does not confirm which request saved them."]"
-    data-not-applied="@T["The event still has its earlier values, so your changes weren't applied. They are still here; save again when you are ready."]"
-    data-stale="@T["Another admin saved this event while you were editing. Where you both changed a field, yours is kept and theirs is shown beside it. Review, then save again."]"
+    data-up-to-date="@T["AdminDesign.Up to date. The event now has the expected values. This does not confirm which request saved them."]"
+    data-not-applied="@T["AdminDesign.The event still has its earlier values, so your changes weren't applied. They are still here; save again when you are ready."]"
+    data-stale="@T["AdminDesign.Another admin saved this event while you were editing. Where you both changed a field, yours is kept and theirs is shown beside it. Review, then save again."]"
     data-refused="@T["This event is read-only in its current lifecycle state."]" data-use-theirs="@T["Use theirs"]" data-theirs="@T["Their value: {0}"]"
     data-leave-title="@T["Leave before checking?"]" data-leave-message="@T["Your changes may already have been saved. Check again before leaving, or leave anyway without retrying the save."]" data-leave="@T["Leave anyway"]"
     data-keep-editing="@T["Keep editing"]" data-timezone-title="@T["Show this event’s times in {0}?"]" data-timezone-action="@T["Save with {0}"]"
@@ -57,10 +57,10 @@
         <input asp-for="Input.TimezoneConfirmationOriginal" type="hidden" />
         <input asp-for="Input.TimezoneConfirmationProposed" type="hidden" />
         <section class="form-sec" aria-labelledby="identity-details">
-            <div class="form-sec-head"><h2 class="form-sec-title" id="identity-details">@T["Public details"]</h2><p class="form-sec-sub">@T["The event's name and the text players read about it."]</p></div>
+            <div class="form-sec-head"><h2 class="form-sec-title" id="identity-details">@T["Public details"]</h2><p class="form-sec-sub">@T["AdminDesign.The event's name and the text players read about it."]</p></div>
             <div class="form-fields">
                 <div class="field" data-identity-field="Name">
-                    <div class="lbl-row"><label class="lbl" asp-for="Input.Name">@T["Event name"]</label><span class="field-count" data-count-for="Name" aria-live="polite" hidden></span></div>
+                    <div class="lbl-row"><label class="lbl" asp-for="Input.Name">@T["AdminDesign.Event name"]</label><span class="field-count" data-count-for="Name" aria-live="polite" hidden></span></div>
                     @if (Model.CanEditIdentity)
                     {
                         <input asp-for="Input.Name" class="input id-name" data-codepoint-limit="50" autocomplete="off" aria-describedby="error-Name" />
@@ -102,7 +102,7 @@
             </div>
         </section>
         <section class="form-sec" aria-labelledby="identity-timezone">
-            <div class="form-sec-head"><h2 class="form-sec-title" id="identity-timezone">@T["Timezone"]</h2><p class="form-sec-sub">@T["How this event's dates and times are shown. Changing it never moves a scheduled moment."]</p></div>
+            <div class="form-sec-head"><h2 class="form-sec-title" id="identity-timezone">@T["Timezone"]</h2><p class="form-sec-sub">@T["AdminDesign.How this event's dates and times are shown. Changing it never moves a scheduled moment."]</p></div>
             <div class="field field-narrow" data-identity-field="Timezone">
                 <label class="lbl" asp-for="Input.Timezone">@T["Timezone"]</label>
                 @if (Model.CanEditTimezone)
@@ -115,9 +115,9 @@
                 {
                     <div class="ro-value">@Model.Timezones.First(option => option.Id == Model.Input.Timezone).Label</div>
                     <input type="hidden" name="Input.Timezone" value="@Model.Input.Timezone" />
-                    @if (Model.CanEditIdentity) { <p class="field-lock">@T["The timezone cannot change after the event first goes Live."]</p> }
+                    @if (Model.CanEditIdentity) { <p class="field-lock">@T["AdminDesign.The timezone cannot change after the event first goes Live."]</p> }
                 }
-                @if (!Model.HasPublicExposure && Model.CanEditTimezone) { <div class="field-note">@T["This event has not been public yet. A timezone change saves directly without a confirmation."]</div> }
+                @if (!Model.HasPublicExposure && Model.CanEditTimezone) { <div class="field-note">@T["AdminDesign.This event has not been public yet. A timezone change saves directly without a confirmation."]</div> }
                 @if (Model.HasUnresolvableTimezone) { <div class="field-note">@T["The stored timezone ID {0} is retained. Dates below use an explicit UTC fallback until a supported timezone is selected.", Model.StoredTimezoneId]</div> }
                 <span asp-validation-for="Input.Timezone" class="field-err" id="error-Timezone"></span>
                 <span asp-validation-for="Input.ConfirmTimezoneChange" class="field-err"></span>
@@ -125,9 +125,9 @@
             </div>
         </section>
         <section class="form-sec" aria-labelledby="identity-link">
-            <div class="form-sec-head"><h2 class="form-sec-title" id="identity-link">@T["Permanent event link"]</h2><p class="form-sec-sub">@T["Permanent. It was created with the event and stays the same when you rename it."]</p></div>
+            <div class="form-sec-head"><h2 class="form-sec-title" id="identity-link">@T["AdminDesign.Permanent event link"]</h2><p class="form-sec-sub">@T["AdminDesign.Permanent. It was created with the event and stays the same when you rename it."]</p></div>
             <div class="copy-field" role="group" aria-label="@T["Event link"]"><span class="mono" id="event-link">@signupTableUrl</span><button type="button" class="btn btn-sm btn-quiet" data-copy-url="@signupTableUrl" aria-describedby="event-link">@T["Copy"]</button></div>
-            <div class="field-hint">@T["The one link to share. It opens the signup list, which moves visitors on to teams and the board as the event is published. While the event is private, it is not publicly available."]</div>
+            <div class="field-hint">@T["AdminDesign.The one link to share. It opens the signup list, which moves visitors on to teams and the board as the event is published. While the event is private, it is not publicly available."]</div>
         </section>
         @if (Model.CanEditIdentity)
         {

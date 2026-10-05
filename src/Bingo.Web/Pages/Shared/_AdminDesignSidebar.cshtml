@@ -13,16 +13,16 @@
     </div>
     <nav class="nav" aria-label="@T["Administration"]"><div class="nav-label">@T["Administration"]</div>
         <a class="nav-item @(currentPage is "/Admin" or "/Admin/Index" ? "is-current" : null)" href="/Admin" data-shell-link aria-current="@(currentPage is "/Admin" or "/Admin/Index" ? "page" : null)" title="@T["Dashboard"]"><svg aria-hidden="true" class="ic" viewBox="0 0 16 16"><path d="M2.5 12a5.5 5.5 0 1 1 11 0"/><path d="M8 12l2.6-3.4"/><path d="M8 12h.01"/></svg><span class="nav-text">@T["Dashboard"]</span></a>
-        <a class="nav-item @(currentPage == "/Admin/Events/Index" ? "is-current" : null)" href="/Admin/Events/Index" data-shell-link aria-current="@(currentPage == "/Admin/Events/Index" ? "page" : null)" title="@T["Events"]"><svg aria-hidden="true" class="ic" viewBox="0 0 16 16"><rect x="2.5" y="3.5" width="11" height="10" rx="1.5"/><path d="M2.5 6.5h11M5.5 2v3M10.5 2v3"/></svg><span class="nav-text">@T["Events"]</span></a>
+        <a class="nav-item @(currentPage == "/Admin/Events/Index" ? "is-current" : null)" href="/Admin/Events/Index" data-shell-link aria-current="@(currentPage == "/Admin/Events/Index" ? "page" : null)" title="@T["AdminDesign.Events"]"><svg aria-hidden="true" class="ic" viewBox="0 0 16 16"><rect x="2.5" y="3.5" width="11" height="10" rx="1.5"/><path d="M2.5 6.5h11M5.5 2v3M10.5 2v3"/></svg><span class="nav-text">@T["AdminDesign.Events"]</span></a>
         <a class="nav-item @(currentPage == "/Admin/Catalogue/Index" ? "is-current" : null)" href="/Admin/Catalogue/Index" data-shell-link aria-current="@(currentPage == "/Admin/Catalogue/Index" ? "page" : null)" title="@T["Catalogue"]"><svg aria-hidden="true" class="ic" viewBox="0 0 16 16"><path d="M8 2.5 2.5 5.5 8 8.5l5.5-3z"/><path d="M2.5 8.2 8 11.2l5.5-3M2.5 10.8 8 13.8l5.5-3"/></svg><span class="nav-text">@T["Catalogue"]</span></a>
         <a class="nav-item @(currentPage == "/Admin/Accounts/Index" ? "is-current" : null)" href="/Admin/Accounts/Index" data-shell-link aria-current="@(currentPage == "/Admin/Accounts/Index" ? "page" : null)" title="@T["Accounts"]"><svg aria-hidden="true" class="ic" viewBox="0 0 16 16"><rect x="3" y="2.5" width="10" height="11" rx="1.5"/><circle cx="8" cy="7" r="1.8"/><path d="M5.3 11.5c.5-1.3 1.5-2 2.7-2s2.2.7 2.7 2"/></svg><span class="nav-text">@T["Accounts"]</span></a>
         <a class="nav-item @(currentPage == "/Admin/Audit/Index" ? "is-current" : null)" href="/Admin/Audit/Index" data-shell-link aria-current="@(currentPage == "/Admin/Audit/Index" ? "page" : null)" title="@T["Audit"]"><svg aria-hidden="true" class="ic" viewBox="0 0 16 16"><path d="M4 2.5h8v11H4z"/><path d="M6 5.5h4M6 8h4M6 10.5h2.5"/></svg><span class="nav-text">@T["Audit"]</span></a>
     </nav>
     <div class="side-rule" aria-hidden="true"></div>
-    <nav class="nav" aria-label="@T["Event"]" data-shell-event-context>
+    <nav class="nav" aria-label="@T["AdminDesign.Event"]" data-shell-event-context>
         <button class="event-switch" data-menu-target="admin-event-menu" aria-haspopup="menu" aria-expanded="false" title="@(selected?.Name ?? T["Select an event"].Value)">
             <svg class="ic ev-ic" aria-hidden="true" viewBox="0 0 16 16"><rect x="2.5" y="3.5" width="11" height="10" rx="1.5"/><path d="M2.5 6.5h11M5.5 2v3M10.5 2v3"/></svg>
-            <span class="ev-text"><span class="ev-lbl">@T["Event"]</span><span class="ev-name">@(selected?.Name ?? T["Select an event"].Value)</span>
+            <span class="ev-text"><span class="ev-lbl">@T["AdminDesign.Event"]</span><span class="ev-name">@(selected?.Name ?? T["Select an event"].Value)</span>
             @if (selected is not null) { <span class="ev-meta"><span class="dot @selected.Tone"></span><span class="ev-meta-text">@selected.Stage · @selected.When</span></span> }
             </span><svg class="ic ev-chev" aria-hidden="true" viewBox="0 0 16 16"><path d="M4.5 6.5 8 10l3.5-3.5"/></svg>
         </button>
