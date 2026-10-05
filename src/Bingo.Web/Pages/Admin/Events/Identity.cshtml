@@ -7,7 +7,7 @@
     ViewData["Summary"] = T["AdminDesign.Name, description, buy-in and timezone for {0}.", Model.EventName].Value;
     var signupTableUrl = Url.Page("/Events/Signups", null, new { slug = Model.EventSlug }, Request.Scheme, Request.Host.Value);
     var status = TempData.Peek("StatusMessage") as string;
-    var saved = status == T["Event identity updated."].Value || status == T["No identity changes were made."].Value;
+    var saved = status == T["AdminDesign.Identity saved."].Value || status == T["No identity changes were made."].Value;
 }
 @if (!Model.CanEditIdentity)
 {

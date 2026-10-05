@@ -69,7 +69,7 @@ public sealed partial class AdminDesignShellIntegrationTests
         {
             using var post = await client.PostAsync(route, new FormUrlEncodedContent(form));
             Assert.Equal(HttpStatusCode.Redirect, post.StatusCode); Assert.Equal(route, post.Headers.Location!.ToString());
-            var html = await client.GetStringAsync(route); Assert.Matches("data-identity-state role=\"status\">[\\s\\S]*?data-icon=\"check\"[\\s\\S]*?<span data-component-text>Saved</span></span>", html); Assert.Contains("data-toast", html); form = IdentityFields(html);
+            var html = await client.GetStringAsync(route); Assert.Matches("data-identity-state role=\"status\">[\\s\\S]*?data-icon=\"check\"[\\s\\S]*?<span data-component-text>Saved</span></span>", html); Assert.Contains("data-toast", html); if (attempt == 0) Assert.Contains("Identity saved.", html); form = IdentityFields(html);
         }
         await using var verify = new ApplicationDbContext(options); Assert.Equal("Saved identity", (await verify.Events.SingleAsync()).Name); Assert.Single(await verify.AuditEntries.Where(entry => entry.Action == "event.identity_updated").ToListAsync());
     }
@@ -88,7 +88,7 @@ public sealed partial class AdminDesignShellIntegrationTests
         Assert.Equal(HttpStatusCode.OK, post.StatusCode);
         var html = WebUtility.HtmlDecode(await post.Content.ReadAsStringAsync());
         Assert.Contains("data-identity-save-uncertain=\"true\"", html); Assert.Contains("Posted draft", html); Assert.Contains("First line", html); Assert.Contains("Second line", html);
-        Assert.Contains("We couldn’t confirm whether your changes were saved.", html); Assert.DoesNotContain("Event identity updated.", html);
+        Assert.Contains("We couldn’t confirm whether your changes were saved.", html); Assert.DoesNotContain("Event identity updated.", html); Assert.DoesNotContain("Identity saved.", html);
         Assert.True(failure.Lost); Assert.Equal(1, failure.Rollbacks); Assert.Equal(0, failure.ReadsAfterLoss);
         await using var verify = new ApplicationDbContext(options); var saved = await verify.Events.SingleAsync();
         Assert.Equal("Posted draft", saved.Name); Assert.Equal("First line\r\nSecond line", saved.Description); Assert.True(saved.Version > item.Version); Assert.Single(await verify.AuditEntries.ToListAsync());
