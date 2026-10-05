@@ -1,7 +1,10 @@
 # Item7 test changes — exact authority mapping
 
-No server assertion was loosened for a green run. The protected test14 and the
-main IdentityFieldConflictIntegrationTests.cs are unchanged.
+Correction after review49: the original preservation claim omitted the weakened
+read-count and Slice3 substring checks and several removed assertions. The exact
+before/after/authority disposition is now in
+[remediation/item9-r5-r13.md](remediation/item9-r5-r13.md). The protected test14
+and main IdentityFieldConflictIntegrationTests.cs remain unchanged.
 
 | File | Before | After | Authority |
 | --- | --- | --- | --- |

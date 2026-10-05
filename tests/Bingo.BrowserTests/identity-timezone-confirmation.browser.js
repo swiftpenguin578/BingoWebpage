@@ -22,7 +22,7 @@ const {chromium}=require('playwright'),fixture=require('./fixtures/identity.cjs'
   const page=await browser.newPage({reducedMotion:'reduce'}),errors=[];page.on('pageerror',e=>errors.push(e.message));
   const modal=page.getByRole('alertdialog'),confirm=page.locator('[data-identity-review-confirm]'),cancel=page.locator('[data-identity-review-cancel]'),save=page.locator('[data-identity-save]');
   await page.goto(`${origin}/before`);await page.locator(`a[href="/Admin/Events/Identity/${fixture.eventId}"]`).click();await modal.waitFor();assert.equal(await modal.count(),1);assert.equal(await page.locator('input[name="TimezoneReason"]').count(),0,'no new reason field');
-  assert.equal(await modal.locator('[data-identity-timezone-row]').count(),5);assert.match(await modal.textContent(),/Also saved: Name/);
+  assert.equal(await modal.locator('[data-identity-timezone-row]').count(),5);assert.equal(await modal.textContent(),'Show this event’s times in Europe/Copenhagen?Original has been public, so players may already have seen its times. Every scheduled moment stays the same; only how it’s shown changes.Signups open UTC 12:00 to Copenhagen 14:00Signups close UTC 12:00 to Copenhagen 14:00Team draft UTC 12:00 to Copenhagen 14:00Event starts UTC 12:00 to Copenhagen 14:00Event ends UTC 12:00 to Copenhagen 14:00Also saved: Name, Description.Keep editingSave with Europe/Copenhagen');
   assert.equal(await cancel.evaluate(el=>document.activeElement===el),true);await page.keyboard.press('Escape');await modal.waitFor({state:'hidden'});assert.equal(await save.evaluate(el=>document.activeElement===el),true);
   assert.equal(await page.locator('[name="Input.Name"]').inputValue(),'Preview event');
   await page.locator('a[href="/before"]').click();await modal.waitFor();await modal.getByRole('button',{name:'Keep editing',exact:true}).click();await modal.waitFor({state:'hidden'});assert.equal(page.url(),url);
@@ -35,6 +35,7 @@ const {chromium}=require('playwright'),fixture=require('./fixtures/identity.cjs'
   assert.equal(page.url(),url,'I-1 PRG stays on Identity');assert.equal(posts,2);assert.match(bodies[0],/name="Input.Version"[\s\S]*?\r\n\r\n7\r\n/);assert.match(bodies[1],/name="Input.Version"[\s\S]*?\r\n\r\n8\r\n/);assert.match(bodies[1],/name="Input.ConfirmTimezoneChange"[\s\S]*?\r\n\r\ntrue\r\n/);
   // A preview-free error still retains its draft and navigation guard.
   saved=false;fail=true;noPreview=true;await page.goto(url);await modal.waitFor();await confirm.click();await page.waitForFunction(()=>document.querySelector('[name="Input.Name"]')?.value==='Authoritative event');await modal.waitFor({state:'hidden'});
+  assert.equal(await page.locator('.validation-summary').textContent(),'This event changed while you were editing it.');
   await page.locator('a[href="/before"]').click();await modal.waitFor();await modal.getByRole('button',{name:'Keep editing',exact:true}).click();assert.equal(page.url(),url);assert.equal(await page.locator('[name="Input.Name"]').inputValue(),'Authoritative event');
   // Back/Forward use the shared in-page history and module lifecycle.
   await page.locator('a[href="/before"]').click();await modal.getByRole('button',{name:'Discard',exact:true}).click();await page.waitForURL(`${origin}/before`);
