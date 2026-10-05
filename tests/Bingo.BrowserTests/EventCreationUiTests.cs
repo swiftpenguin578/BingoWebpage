@@ -126,10 +126,13 @@ public sealed class EventCreationUiTests
 
         Assert.Contains("@page \"{id:guid}\"", identity);
         Assert.Contains("<form method=\"post\" class=\"identity-editor-form\">", identity);
-        Assert.Contains("asp-validation-summary=\"ModelOnly\"", identity);
+        // A10 / brief60 item1: the shared banner retains model-level server errors.
+        Assert.Contains("<partial name=\"_AdminDesignBanner\"", identity);
+        Assert.Contains("new AdminDesignBanner(\"is-error\", \"error\", string.Join(\" \", ViewData.ModelState[string.Empty]?.Errors.Select(error => error.ErrorMessage) ?? [])", identity);
+        Assert.Contains("Hidden: !(ViewData.ModelState[string.Empty]?.Errors.Any() ?? false)", identity);
         Assert.Contains("<input asp-for=\"Input.Version\" type=\"hidden\" />", identity);
         Assert.Contains("asp-for=\"Input.Name\"", identity);
-        Assert.Contains("Permanent event link", identity);
+        Assert.Contains("@T[\"AdminDesign.Event link\"]", identity);
         Assert.Contains("asp-for=\"Input.Timezone\"", identity);
         Assert.Contains("asp-for=\"Input.Description\"", identity);
         Assert.Contains("asp-for=\"Input.BuyInDescription\"", identity);
@@ -148,7 +151,7 @@ public sealed class EventCreationUiTests
         Assert.DoesNotContain("event-confirmation-box identity-timezone-confirmation", identity);
         Assert.Contains("UTC fallback", identity);
         Assert.Contains("@if (Model.CanEditTimezone)", identity);
-        Assert.Contains("asp-validation-for=\"Input.ConfirmTimezoneChange\"", identity);
+        Assert.Contains("<partial name=\"_AdminDesignFieldError\" model='new AdminDesignFieldError(\"ConfirmTimezoneChange\", ViewData.ModelState[\"Input.ConfirmTimezoneChange\"]?.Errors.FirstOrDefault()?.ErrorMessage ?? \"\")' />", identity);
         Assert.Contains("data.set('Input.ConfirmTimezoneChange', 'true')", identityScript);
 
         Assert.DoesNotContain("Url.Page(\"/Events/Signup\"", identity);
