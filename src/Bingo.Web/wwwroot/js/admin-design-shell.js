@@ -125,6 +125,11 @@
     lock();
   });
   const inputSelector = 'input:not([type=hidden]):not([type=submit]):not([type=button]),select,textarea,[contenteditable="true"]';
+  let lastPageEditable = null;
+  document.addEventListener('focusin', event => {
+    const element = event.target;
+    if (element.matches?.(inputSelector) && element.closest('[data-page-region]') && !element.disabled && !element.readOnly) lastPageEditable = element;
+  });
   let layerId = 0;
   function openLayer({ kind = 'modal', title, content, confirmation = false, dirty = () => false, pending = () => false, onClose = () => {}, opener = document.activeElement }) {
     closeMenu(false);
@@ -258,7 +263,15 @@
     if (!isDirty()) return true;
     const dirtyDrafts = [...drafts.values()].filter(draft => draft.isDirty());
     const custom = dirtyDrafts.find(draft => draft.confirmLeave);
-    if (!await (custom ? custom.confirmLeave() : confirmDiscard())) return false;
+    const returnTarget = lastPageEditable;
+    if (!await (custom ? custom.confirmLeave() : confirmDiscard())) {
+      if (!layers.length && returnTarget?.isConnected && returnTarget.closest('[data-page-region]')) {
+        // A mobile drawer makes the page inert; Keep editing must make it usable.
+        if (mobile) toggleSide(false);
+        focus(returnTarget);
+      }
+      return false;
+    }
     for (const draft of drafts.values()) draft.discard?.();
     refreshDirty();
     return true;

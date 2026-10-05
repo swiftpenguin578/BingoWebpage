@@ -38,6 +38,7 @@ let url,server;
   await page.locator('[name="Input.Name"]').fill('Retained draft');await en.click();await page.getByRole('alertdialog').waitFor();
   await page.getByRole('button',{name:'Keep editing',exact:true}).click();await page.getByRole('alertdialog').waitFor({state:'hidden'});
   assert.equal(posts,1);assert.equal(await da.getAttribute('aria-pressed'),'true');assert.equal(await page.locator('[name="Input.Name"]').inputValue(),'Retained draft');
+  assert.equal(await page.locator('[name="Input.Name"]').evaluate(el=>el===document.activeElement),true,'Keep editing after language returns to edited field');
   await en.click();await page.getByRole('button',{name:'Discard',exact:true}).click();while(!release)await new Promise(resolve=>setTimeout(resolve,10));
   assert.equal(posts,2);release();release=null;await page.waitForFunction(()=>document.documentElement.lang==='en');
   assert.equal(await page.locator('[name="Input.Name"]').inputValue(),'First event');assert.equal(await page.evaluate(()=>!!window.marker),true);

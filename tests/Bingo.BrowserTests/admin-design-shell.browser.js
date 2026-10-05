@@ -113,6 +113,7 @@ export function dispose() { window.disposes=(window.disposes||0)+1;window.active
       await action('Keep editing').click();
       await page.getByRole('alertdialog').waitFor({ state: 'hidden' });
       assert.equal(await page.locator('#draft input').inputValue(), 'Retained draft');
+      assert.equal(await page.locator('#draft input').evaluate(el=>el===document.activeElement),true,'Keep editing returns to the last edited field after navigation');
       assert.ok(page.url().endsWith('/a'));
       if (selector === '#switcher-link') await page.locator('#event-opener').click();
       await page.locator(selector).click(); await action('Discard').click();

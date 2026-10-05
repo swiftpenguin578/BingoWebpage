@@ -53,7 +53,8 @@ const modal=[P('modal','.modal','.modal',{text:false}),P('dialog title','.m-titl
     await app.locator('[data-theme=light]').click();await state(ref,{theme:'light',mobileNav:true});
     await compare(engine+'-mobile-preferences',app,ref,basePairs.filter(p=>p[0].startsWith('theme-')));
     await app.locator('[name=culture][value=da]').focus();await app.keyboard.press('Enter');await app.getByRole('alertdialog').waitFor();
-    await app.getByRole('button',{name:'Keep editing',exact:true}).click();assert.equal(posts,0);assert.equal(await app.locator('#Input_Name').inputValue(),'Mobile language draft');
+    await app.getByRole('button',{name:'Keep editing',exact:true}).click();await app.getByRole('alertdialog').waitFor({state:'hidden'});assert.equal(posts,0);assert.equal(await app.locator('#Input_Name').inputValue(),'Mobile language draft');
+    assert.equal(await app.locator('#Input_Name').evaluate(el=>el===document.activeElement),true);assert.equal(await app.locator('.main').evaluate(el=>el.inert),false);await app.locator('.menu-toggle').click();
     await app.locator('[name=culture][value=da]').click();await app.getByRole('button',{name:'Discard',exact:true}).click();await app.waitForFunction(()=>document.documentElement.lang==='da');
     assert.equal(posts,1);assert.equal(await app.evaluate(()=>window.__mobileDocument),'retained');assert.equal(await app.locator('[data-mobile-preferences] [name=culture][value=da]').isVisible(),true);
     await app.locator('[name=culture][value=en]').click();await app.waitForFunction(()=>document.documentElement.lang==='en');assert.equal(posts,2);
