@@ -68,14 +68,48 @@ Approved production shell decisions (plan42 group A, 5 October 2026):
   those open Overview's limited view. Other choices keep the current page. Scroll
   after about eight rows; All events stays below the list.
 - A12: outside click closes only a layer without input. Confirmations and layers
-  with unsaved input stay open. Preserve layered focus trapping and restoration.
-- A13: no sidebar item counts. Use DK Legacy as the product brand.
+  with unsaved input stay open. Everything that can lose progress must be a modal
+  that does not close on an outside click. If a reference shows editable input in
+  a layer that closes on an outside click, bind it as not closing and report that
+  reference exception. Preserve layered focus trapping and restoration.
+- A13: no sidebar item counts.
+- Product brand (brief43 item3.5, not A13): DK Legacy.
 - A16: new-shell links use a shared dirty guard, target-page skeleton, normal HTML
   fetch and content/title/breadcrumb/nav/script swap, with Back/Forward and a
   failed-load Try again state. Unexpected responses and old-layout targets fall
   back to a full load. One site-wide setting, on by default, disables swaps.
   Page scripts provide `init(root)` and `dispose()` removing listeners, timers and
   connections; repeated event switches must leave no stale work running.
+
+U1 review decisions (user approval, 5 October 2026; brief50 / decisions08):
+
+- U-A: Check again encountering session loss says signed out / could not check
+  whether the change went through / sign in and Check again. Keep the draft;
+  never say not saved for an unknown write outcome. Ordinary save-session loss
+  retains its separate not-saved notice. Both show localized field labels.
+- U-B: the top-bar bell shows the existing unread-item number badge and announces
+  that count to screen readers. This does not introduce sidebar counts.
+- U-C: switcher stage · when follows the reference: closes plus signup closing date
+  while signups are open, starts plus event start before play, ends plus event end
+  in Live/final review, or not announced when unset. Unsupported stored timezone
+  uses UTC for that date text.
+- U-E: event breadcrumb is plain text; failed loads show the reference icon/title;
+  menus use reference placement and exit animation; collapse labels toggle. Pages
+  may provide their own loading skeleton, with a generic fallback. Use the existing
+  DK Legacy mark image in the reference logo position. Hide event-specific nav
+  links when no event is selected. The reference nav label is Teams / Draft (R17).
+- U-F: Identity disables Save with No changes to save when unchanged. Timezone
+  review uses Show this event’s times in ‹zone›? / Save with ‹zone› and names both
+  zones. Scheduled moments are rows; unset moments share one Not scheduled yet:
+  … line (or Nothing is scheduled yet, so no shown times change.). The quiet note
+  after successful readback is Up to date, without attributing a save request.
+- U-G: Danish new-shell/Identity terminology is event/events (Events, Alle events),
+  not Bingoer. Scoped resource keys preserve legacy-page translations.
+
+There is no U-D decision. Shared navigation retains sidebar DOM/collapse state,
+updates current/event-dependent links, closes clean layers before swaps and guards
+layers with unsaved input. Fragment-only history changes stay native; widening
+past 860 px closes mobile navigation and releases content interaction.
 
 U1 page-script contract: each opted-in page supplies a same-origin ES module with
 `<script type="module" data-admin-page-script src="…">`. It exports
@@ -90,11 +124,15 @@ and initializes only the new page. Configuration `AdminUi:InPageNavigation`
 defaults to `true`; `false` retains the shared dirty guard but uses full loads.
 Filter/search updates use `AdminUI.setUrl` (replace); record opening passes
 `{ record: true }` (push). Query schemas validate and omit defaults. Page owners
-supply the appropriate loading composition when extending the shell's target
-skeleton mapping. A discarded draft is never stored in browser history.
+supply a `<template data-page-loading-template="identity">` (using their page
+kind) for their loading composition. The shell remembers those templates and
+uses a generic skeleton when none is available. A discarded draft is never stored in browser history.
 
-New pages use `AdminFetch.request(url, { expect, draft, …fetchOptions })` for their
-handler traffic. Localized `draft` labels/values populate the session notice.
+New pages use `AdminFetch.request(url, { expect, draft, labels, readback, …fetchOptions })`
+for their handler traffic. Field-keyed draft values and a separate localized labels
+map populate the session notice; readback selects U-A's uncertain-outcome wording.
+Non-2xx responses are unknown with their status before HTML/session classification;
+only successful HTML in place of expected JSON can indicate a lost session.
 Handle `handler`, `session-lost`, `refused` and `unknown` separately; unknown writes
 require the owning page's readback contract, never automatic resend. Only an
 explicit same-page PRG destination may be allowed through `allowRedirectTo`, and
