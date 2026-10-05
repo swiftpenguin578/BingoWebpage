@@ -3025,4 +3025,27 @@
   <data name="Choose a future replacement end and provide a reason to return this event to live play." xml:space="preserve"><value>Vælg et nyt sluttidspunkt i fremtiden, og angiv en begrundelse for at genoptage eventet.</value></data>
   <data name="Skipped: WOM end could not be updated; the last pre-end data was retained." xml:space="preserve"><value>Sprunget over: WOM-sluttidspunktet kunne ikke opdateres; de seneste data fra før afslutningen blev bevaret.</value></data>
   <data name="Skipped: the WOM end did not match the configured end." xml:space="preserve"><value>Sprunget over: WOM-sluttidspunktet matchede ikke det konfigurerede sluttidspunkt.</value></data>
+  <data name="Admin actions could not be loaded." xml:space="preserve"><value>Administratorhandlinger kunne ikke indlæses.</value></data>
+  <data name="Admin actions overview" xml:space="preserve"><value>Oversigt over administratorhandlinger</value></data>
+  <data name="Administrator" xml:space="preserve"><value>Administrator</value></data>
+  <data name="All notifications" xml:space="preserve"><value>Alle notifikationer</value></data>
+  <data name="Breadcrumbs" xml:space="preserve"><value>Brødkrummer</value></data>
+  <data name="Catalogue" xml:space="preserve"><value>Katalog</value></data>
+  <data name="Close navigation" xml:space="preserve"><value>Luk navigation</value></data>
+  <data name="Collapse navigation" xml:space="preserve"><value>Fold navigationen sammen</value></data>
+  <data name="Dark theme" xml:space="preserve"><value>Mørkt tema</value></data>
+  <data name="Discard" xml:space="preserve"><value>Kassér</value></data>
+  <data name="Keep editing" xml:space="preserve"><value>Fortsæt redigering</value></data>
+  <data name="Light theme" xml:space="preserve"><value>Lyst tema</value></data>
+  <data name="Loading" xml:space="preserve"><value>Indlæser</value></data>
+  <data name="Not scheduled yet" xml:space="preserve"><value>Ikke planlagt endnu</value></data>
+  <data name="Signup setup" xml:space="preserve"><value>Tilmeldingsopsætning</value></data>
+  <data name="Switch event" xml:space="preserve"><value>Skift event</value></data>
+  <data name="The page could not be loaded." xml:space="preserve"><value>Siden kunne ikke indlæses.</value></data>
+  <data name="View public site" xml:space="preserve"><value>Vis det offentlige site</value></data>
+  <data name="Your changes were not saved" xml:space="preserve"><value>Dine ændringer blev ikke gemt</value></data>
+  <data name="Your session is no longer available. What you entered is still here. Sign in before trying again." xml:space="preserve"><value>Din session er ikke længere tilgængelig. Det, du indtastede, er stadig her. Log ind, før du prøver igen.</value></data>
+  <data name="DK" xml:space="preserve"><value>DK</value></data>
+  <data name="EN" xml:space="preserve"><value>EN</value></data>
+  <data name="DA" xml:space="preserve"><value>DA</value></data>
 </root>
