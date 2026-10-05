@@ -15,7 +15,7 @@ public sealed class AdminEventHandlerClassificationTests
 Index|false|false|Read=GET:
 Create|false|false|Read=GET:,GET:CheckAgain;Service=POST:
 Manage|true|true|Read=GET:;Signup=POST:State,POST:OpenSignup,POST:CloseSignup,POST:ReopenSignup,POST:Capacity,POST:SignupWindow,POST:ConfirmSignup,POST:RestoreHidden,POST:PrepareSignupConfirmation,POST:PrepareStartConfirmation,POST:PrepareEndConfirmation,POST:PrepareResumeConfirmation,POST:PrepareDestructiveConfirmation;Service=POST:StartEvent,POST:EndEvent,POST:Discard,POST:Cancel;Hide=POST:Hide;Resume=POST:ResumeEvent;Review=POST:ReopenSubmissions;EvidenceCodes=POST:EnableEvidenceCodes,POST:DisableEvidenceCodes,POST:CreateEvidenceCode
-Identity|true|false|Read=GET:,GET:Current;Identity=POST:
+Identity|true|true|Read=GET:,GET:Current;Identity=POST:
 Schedule|true|false|Read=GET:,GET:Current;Schedule=POST:
 Questions|true|false|Read=GET:;QuestionAdd=POST:,POST:AddAccount;Signup=POST:EditAccount,POST:Deactivate,POST:CoCaptain,POST:Move,POST:Edit,POST:Replace
 Participants|true|true|Read=GET:,GET:SearchOwnerAccounts;Setup=POST:Withdraw,POST:CancelWomValidation,POST:SignupAdministration,POST:SignupCode,POST:CreateInternalParticipant;Service=POST:Payment
