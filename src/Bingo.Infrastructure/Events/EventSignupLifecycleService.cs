@@ -409,6 +409,8 @@ public sealed class EventSignupLifecycleService(ApplicationDbContext db, IEventR
         }
         if (item.State != EventState.Draft && openingChanged) return "Signup opening is locked after signup has opened.";
         if (item.State == EventState.SignupClosed && closingChanged) return "Signup closing is read-only after signup has closed; use Reopen to establish a new closing time.";
+        if (item.State == EventState.SignupOpen && closingChanged && proposedClosing is null)
+            return "Signups are open, so they need a closing time. Set a new closing time or close signups now.";
         if (item.FirstPublicAt is not null && (proposedStart is null || proposedEnd is null)) return "Published event start and end times cannot be cleared.";
         var participantConsequenceChanged = openingChanged || closingChanged || startChanged || endChanged || capacityChanged || scheduledOpeningChanged;
         if (participantConsequenceChanged && item.FirstPublicAt is not null && !confirmChanges) return "Confirm the schedule consequence before saving.";

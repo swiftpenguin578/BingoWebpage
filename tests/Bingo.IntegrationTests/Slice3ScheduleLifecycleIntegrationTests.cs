@@ -314,6 +314,41 @@ public sealed class Slice3ScheduleLifecycleIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task OpenSignupsCannotClearSignupCloseAndValidReplacementRemainsAllowed()
+    {
+        var actor = await SeedAdminActorAsync();
+        var eventId = await SeedReadyDraftAsync("open-signup-close-clear", waitingList: true);
+        await using var db = new ApplicationDbContext(options);
+        var evaluator = new EventReadinessEvaluator(db, configuration);
+        var service = new EventSignupLifecycleService(db, evaluator, new FixedTimeProvider(now));
+        var draft = await db.Events.SingleAsync(x => x.Id == eventId);
+        var opened = await service.OpenAsync(eventId, draft.Version, [], true, actor);
+        Assert.True(opened.Succeeded, opened.Error);
+        db.ChangeTracker.Clear();
+
+        var openedItem = await db.Events.AsNoTracking().SingleAsync(x => x.Id == eventId);
+        var cleared = Values(openedItem, openedItem.EventEndsAt!.Value) with { SignupClosesAt = null };
+        var clearedResult = await service.SaveScheduleAsync(eventId, openedItem.Version, cleared, true, actor);
+        Assert.False(clearedResult.Succeeded);
+        Assert.Equal("Signups are open, so they need a closing time. Set a new closing time or close signups now.", clearedResult.Error);
+        db.ChangeTracker.Clear();
+        var clearedEvent = await db.Events.AsNoTracking().SingleAsync(x => x.Id == eventId);
+        Assert.Equal(EventState.SignupOpen, clearedEvent.State);
+        Assert.Equal(openedItem.SignupClosesAt, clearedEvent.SignupClosesAt);
+        Assert.Equal(openedItem.Version, clearedEvent.Version);
+        Assert.Equal(1, await db.AuditEntries.CountAsync(x => x.EventId == eventId && x.Action == "event.signup_opened"));
+
+        var replacementClose = now.AddDays(1).AddHours(1);
+        var replacement = Values(clearedEvent, clearedEvent.EventEndsAt!.Value) with { SignupClosesAt = replacementClose };
+        var replacementResult = await service.SaveScheduleAsync(eventId, clearedEvent.Version, replacement, true, actor);
+        Assert.True(replacementResult.Succeeded, replacementResult.Error);
+        db.ChangeTracker.Clear();
+        var replacedEvent = await db.Events.AsNoTracking().SingleAsync(x => x.Id == eventId);
+        Assert.Equal(replacementClose, replacedEvent.SignupClosesAt);
+        Assert.Equal(1, await db.AuditEntries.CountAsync(x => x.EventId == eventId && x.Action == "event.schedule_updated"));
+    }
+
+    [Fact]
     public async Task ManualOpeningUsesActualBoundaryWithoutRewritingScheduledOpening()
     {
         var actor = await SeedAdminActorAsync();
