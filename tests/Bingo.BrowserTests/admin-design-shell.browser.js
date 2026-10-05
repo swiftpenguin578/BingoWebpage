@@ -22,7 +22,7 @@ export function dispose() { window.disposes=(window.disposes||0)+1;window.active
       if (url.pathname.endsWith('/old')) return route.fulfill({ contentType: 'text/html', body: '<title>Old layout</title><h1>Old layout</h1>' });
       if (url.pathname.endsWith('/failure') && failed) return route.fulfill({ status: 503, contentType: 'text/html', body: 'Unavailable' });
       if (url.pathname.endsWith('/slow')) await new Promise(resolve => { release = resolve; });
-      pageRequests++;
+      if (['document','fetch'].includes(route.request().resourceType())) pageRequests++;
       return route.fulfill({ contentType: 'text/html', body: shell(url.pathname.split('/').at(-1)) });
     });
     const start = async (name = 'a') => { await page.goto(`https://bingo.test/Admin/Events/Identity/${name}`); await page.waitForFunction(() => window.fixtureReady); };
@@ -37,6 +37,27 @@ export function dispose() { window.disposes=(window.disposes||0)+1;window.active
       assert.equal(await page.evaluate(()=>history.length),length+1,'only the native fragment entry exists');
       assert.equal(await page.locator('#draft input').inputValue(),dirty?'Fragment draft':'Original a');
     }
+    for (const dirty of [false,true]) {
+      await start();await page.locator('#skip').click();await page.waitForFunction(()=>location.hash==='#main-content');
+      await page.locator('#event-opener').click();await page.locator('#switcher-link').click();await page.waitForFunction(()=>document.title==='b'&&window.fixtureReady);
+      if(dirty)await page.locator('#draft input').fill('Fragment Back draft');
+      const requests=pageRequests,length=await page.evaluate(()=>{window.backPops=0;addEventListener('popstate',()=>window.backPops++);return history.length;});
+      await page.goBack();
+      if(dirty){
+        await action('Keep editing').waitFor();assert.equal(await page.getByRole('alertdialog').count(),1);assert.ok(page.url().endsWith('/b'));
+        await action('Keep editing').click();await page.getByRole('alertdialog').waitFor({state:'hidden'});
+        assert.equal(await page.locator('#draft input').inputValue(),'Fragment Back draft');assert.ok(page.url().endsWith('/b'));assert.equal(pageRequests,requests);assert.equal(await page.evaluate(()=>history.length),length);assert.equal(await page.evaluate(()=>window.backPops),2);
+        await page.goBack();await action('Discard').waitFor();assert.equal(await page.getByRole('alertdialog').count(),1);await action('Discard').click();
+      }
+      await page.waitForFunction(()=>document.title==='a'&&window.fixtureReady&&location.hash==='#main-content');
+      await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+      assert.equal(pageRequests,requests+1,'Back loads the first event exactly once');assert.equal(await page.evaluate(()=>window.backPops),dirty?5:1,'only requested traversals occur');assert.equal(await page.evaluate(()=>history.length),length);assert.equal(await page.getByRole('alertdialog').count(),0);assert.equal(await page.locator('#draft input').inputValue(),'Original a');
+    }
+    // A pre-existing foreign stateless fragment also reloads once, never assigns its current URL.
+    await start();await page.locator('#skip').click();await page.evaluate(()=>history.replaceState(null,'',location.href));await navigate('b');
+    const foreignRequests=pageRequests,foreignLength=await page.evaluate(()=>history.length);
+    await page.goBack();await page.waitForFunction(()=>document.title==='a'&&window.fixtureReady&&location.hash==='#main-content');
+    assert.equal(pageRequests,foreignRequests+1);assert.equal(await page.evaluate(()=>history.length),foreignLength);
     await start(); await page.evaluate(()=>{window.retainedSide=document.querySelector('[data-shell-sidebar]');retainedSide.classList.add('is-collapsed');});
     await navigate('b');assert.equal(await page.evaluate(()=>retainedSide===document.querySelector('[data-shell-sidebar]')),true);assert.equal(await page.locator('[data-shell-sidebar]').evaluate(el=>el.classList.contains('is-collapsed')),true);
     await page.evaluate(()=>{const content=document.createElement('p');content.textContent='Read only';AdminUI.openLayer({kind:'drawer',title:'Read only',content});});
