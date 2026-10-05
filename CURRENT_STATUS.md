@@ -1,11 +1,14 @@
 # Current project status
 
-## U1 foundation + Identity — in progress, 5 October 2026
+## U1 foundation + Identity — item2a fixed; item2 gate in progress, 5 October 2026
 
 - Authority: [brief43](/Users/christopher/Documents/BingoWebpage/review-notes/43-codex-brief-u1-foundation-identity.md), [plan42](/Users/christopher/Documents/BingoWebpage/review-notes/42-ui-integration-plan.md), and [decisions](/Users/christopher/Documents/BingoWebpage/review-notes/08-decisions.md).
 - Checkout `/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage`, branch `codex/participants-functionality`; clean starting HEAD `89d938292a2a22e0648d12f3885731c768244905` verified. Sole implementer `/root/u1_implementer`, `gpt-6-astra` / high; dispatcher actual parent `/root` in the fresh U1 chat supersedes brief43's historical chat ID. Claude is planner and independent reviewer through the user.
 - Items 0–7 run sequentially, one scoped local commit each. Item0 records approved ownership and shell decisions only; frozen reference assets stay unchanged. No page is bound or visually accepted yet. Durable evidence: [U1](docs/references/admin-ui/reviews/2026-10-05/u1/).
 - Baseline accepted by [Claude review41](/Users/christopher/Documents/BingoWebpage/review-notes/41-sweep-server-fixes-recheck.md) at `89d9382`: Release build 0 warnings/errors; Domain 265, Application 118, Browser 148, Integration 1,459 — **1,990 passed / 0 failed / 0 skipped** in Claude's scratch PostgreSQL run. No baseline rerun required. Earlier accepted test-health/B5 evidence remains in Git and the linked reviews.
+- Item0 committed `1e5848d11661c9912a406908e56f0bbabc050a5c`; item1 committed `7a5c15b67fe9034c4b5599f15d350bfd4c4e5bf5`. Item1 has **44 focused passes / 0 failures / 0 skips**, including unchanged test #14 and S4/S6. Existing tests unchanged.
+- Item2 original baseline: controlled fixture generation 8/8; unchanged full JS runner **35 files passed / 1 failed**. Original evidence remains in [baseline checkpoint](docs/references/admin-ui/reviews/2026-10-05/u1/item2-js-runner-blocked.md).
+- Brief44's exact test correction exposed the stale-close defect. Brief45's authorized two-file fix now passes the new shared-dismissal regression and the unchanged corrected test for all four actions. [Item2a evidence](docs/references/admin-ui/reviews/2026-10-05/u1/item2a-stale-close-fix.md). Prior failure evidence retained. Item2 runner/test correction still awaits its full runner pass and separate commit; items3–7 unstarted.
 - Final whole-suite gate remains **pending user execution** on U1's final commit. User/Claude executes the unfiltered .NET suite; implementer runs focused applicable checks, Release build, diff checks and the full new JS runner. A passing checkpoint is not independent review or manual acceptance.
 
 ## Retained release gates and prior evidence
@@ -19,8 +22,7 @@
 
 ## Next permitted action
 
-Complete brief43 items in order through item7, then stop for Claude independent
-review and user visual acceptance (both themes, English/Danish, phone width).
-Item2 baseline JS failures stop that item for a recorded decision; existing test
-expectations stay unchanged. Environment failure stops dependent checks. No U2–U10,
-lane T, rehearsal, push, main merge or deployment is authorized.
+Complete item2 full JS runner and scoped commit, then brief43 items3–7 in order.
+Preserve prior gates and stop boundaries. No U2–U10, lane T, rehearsal, push, main
+merge or deployment. Eventual U1 boundary: Claude independent review and user
+visual acceptance, with the final whole .NET suite executed by user/Claude.
