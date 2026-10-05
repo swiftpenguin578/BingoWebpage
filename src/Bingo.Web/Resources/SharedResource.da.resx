@@ -3144,9 +3144,9 @@
   <data name="AdminDesign.Scheduled moments stay the same; they’ll be shown in {0} after you save." xml:space="preserve"><value>Planlagte tidspunkter forbliver de samme; de vises i {0}, når du gemmer.</value></data>
   <data name="AdminDesign.This event has been public, so you’ll review the affected times before saving." xml:space="preserve"><value>Eventet har været offentligt, så du gennemgår de berørte tidspunkter, før du gemmer.</value></data>
   <data name="AdminDesign.Locked because the event has gone Live. It stays locked in every later phase." xml:space="preserve"><value>Låst, fordi eventet er gået Live. Det forbliver låst i alle senere faser.</value></data>
-  <data name="AdminDesign.{0} is finished, so its identity can’t be changed." xml:space="preserve"><value>{0} er afsluttet, så dets identitet kan ikke ændres.</value></data>
-  <data name="AdminDesign.{0} is archived, so its identity can’t be changed." xml:space="preserve"><value>{0} er arkiveret, så dets identitet kan ikke ændres.</value></data>
-  <data name="AdminDesign.{0} was cancelled, so its identity can’t be changed." xml:space="preserve"><value>{0} blev annulleret, så dets identitet kan ikke ændres.</value></data>
+  <data name="AdminDesign.{0} is finished, so its identity can’t be changed." xml:space="preserve"><value>{0} er afsluttet, så dets identitet ikke kan ændres.</value></data>
+  <data name="AdminDesign.{0} is archived, so its identity can’t be changed." xml:space="preserve"><value>{0} er arkiveret, så dets identitet ikke kan ændres.</value></data>
+  <data name="AdminDesign.{0} was cancelled, so its identity can’t be changed." xml:space="preserve"><value>{0} blev aflyst, så dets identitet ikke kan ændres.</value></data>
   <data name="AdminDesign.Saving…" xml:space="preserve"><value>Gemmer…</value></data>
   <data name="AdminDesign.Checking…" xml:space="preserve"><value>Kontrollerer…</value></data>
   <data name="AdminDesign.We couldn’t confirm whether your changes were saved." xml:space="preserve"><value>Vi kunne ikke bekræfte, om dine ændringer blev gemt.</value></data>
@@ -3171,4 +3171,6 @@
   <data name="AdminDesign.Identity saved." xml:space="preserve"><value>Identitet gemt.</value></data>
   <data name="AdminDesign. Your other changes ({0}) are saved at the same time." xml:space="preserve"><value> Dine andre ændringer ({0}) gemmes samtidig.</value></data>
   <data name="AdminDesign.on {0}" xml:space="preserve"><value>den {0}</value></data>
+  <data name="AdminDesign.Signups open" xml:space="preserve"><value>Tilmelding åbner</value></data>
+  <data name="AdminDesign.Signups close" xml:space="preserve"><value>Tilmelding lukker</value></data>
 </root>

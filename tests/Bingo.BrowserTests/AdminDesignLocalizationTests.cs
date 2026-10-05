@@ -20,6 +20,13 @@ public sealed class AdminDesignLocalizationTests
         Assert.EndsWith("omdøber det.", danish["AdminDesign.Permanent. It was created with the event and stays the same when you rename it."]);
         Assert.EndsWith("læser om det.", danish["AdminDesign.The event's name and the text players read about it."]);
         Assert.Equal(" Dine andre ændringer ({0}) gemmes samtidig.", danish["AdminDesign. Your other changes ({0}) are saved at the same time."]); // Planner58-4: exact reference sentence binding.
+        Assert.Equal("{0} er afsluttet, så dets identitet ikke kan ændres.", danish["AdminDesign.{0} is finished, so its identity can’t be changed."]);
+        Assert.Equal("{0} er arkiveret, så dets identitet ikke kan ændres.", danish["AdminDesign.{0} is archived, so its identity can’t be changed."]);
+        Assert.Equal("{0} blev aflyst, så dets identitet ikke kan ændres.", danish["AdminDesign.{0} was cancelled, so its identity can’t be changed."]);
+        Assert.Equal("Tilmelding åbner", danish["AdminDesign.Signups open"]);
+        Assert.Equal("Tilmelding lukker", danish["AdminDesign.Signups close"]);
+        Assert.Equal("Tilmelding åben", danish["Signups open"]); Assert.Equal("Tilmeldinger lukker", danish["Signups close"]); // Legacy keys remain unchanged.
+        Assert.Equal("Aflyst", danish["Cancelled"]); Assert.Equal("Annuller", danish["Cancel"]);
         Assert.Equal("Bingoer", danish["Events"]); Assert.Equal("Bingo", danish["Event"]); // Legacy pages unchanged.
         foreach (var (key, value) in english)
         {
