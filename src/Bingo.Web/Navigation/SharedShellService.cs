@@ -66,7 +66,7 @@ public sealed class SharedShellService(ApplicationDbContext db, IStringLocalizer
                 && (item.Id == selected || item.State == EventState.Draft || item.State == EventState.SignupOpen
                     || item.State == EventState.SignupClosed || item.State == EventState.Live || item.State == EventState.AwaitingFinalReview))
             .OrderBy(item => item.EventStartsAt == null).ThenBy(item => item.EventStartsAt).ThenBy(item => item.Id)
-            .Select(item => new { item.Id, item.Name, item.State, item.HiddenAt, item.SignupClosesAt, item.EventStartsAt, item.EventEndsAt, item.Timezone })
+            .Select(item => new { item.Id, item.Name, item.State, item.HiddenAt, item.SignupClosesAt, item.EventStartsAt, item.EventEndsAt, item.CancelledAt, item.Timezone })
             .ToListAsync(cancellationToken);
         var now = timeProvider.GetUtcNow();
         var options = rows.Select(item =>
@@ -74,16 +74,18 @@ public sealed class SharedShellService(ApplicationDbContext db, IStringLocalizer
             var date = item.State switch
             {
                 EventState.SignupOpen => item.SignupClosesAt,
-                EventState.Live or EventState.AwaitingFinalReview or EventState.Finalized or EventState.Archived or EventState.Cancelled => item.EventEndsAt,
+                EventState.Cancelled => item.CancelledAt,
+                EventState.Live or EventState.AwaitingFinalReview or EventState.Finalized or EventState.Archived => item.EventEndsAt,
                 _ => item.EventStartsAt
             };
             var shownDate = date.HasValue
                 ? DateTimePresentation.Format(date.Value, "d MMM", string.IsNullOrWhiteSpace(item.Timezone) ? "UTC" : item.Timezone, CultureInfo.CurrentCulture)
                 : null;
-            var ended = item.State is EventState.Finalized or EventState.Archived or EventState.Cancelled
+            var ended = item.State is EventState.Finalized or EventState.Archived
                 || (item.State is EventState.Live or EventState.AwaitingFinalReview && item.EventEndsAt <= now);
             var when = shownDate is null ? text["not announced"].Value : ended ? text["AdminDesign.ended {0}", shownDate].Value : item.State switch
             {
+                EventState.Cancelled => text["AdminDesign.on {0}", shownDate].Value,
                 EventState.SignupOpen => text["closes {0}", shownDate].Value,
                 EventState.Live or EventState.AwaitingFinalReview => text["Ends {0}", shownDate].Value,
                 _ => text["Starts {0}", shownDate].Value
