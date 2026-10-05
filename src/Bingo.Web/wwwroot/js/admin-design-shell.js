@@ -460,6 +460,8 @@
       document.title = doc.title; document.documentElement.lang = doc.documentElement.lang;
       const nextBody = doc.querySelector('body[data-admin-design]');
       for (const [key, value] of Object.entries(nextBody.dataset)) body.dataset[key] = value;
+      // Translated content is the same page, so only the language cross-fade runs.
+      if (language) doc.querySelectorAll('[data-page-region] .fade-in').forEach(element => element.classList.remove('fade-in'));
       refreshSidebar(doc, language);
       for (const selector of ['[data-page-region]', '[data-shell-topbar]', '[data-shell-menu]', '[data-shell-antiforgery]', 'template[data-admin-template]']) {
         const old = [...document.querySelectorAll(selector)], replacements = [...doc.querySelectorAll(selector)];
