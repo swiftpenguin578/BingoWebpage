@@ -644,6 +644,81 @@ public sealed class C11FinalizedRosterIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task ParticipantListPaymentRemainsEditableThroughFinalReviewAndFinalizedButNotDiscarded()
+    {
+        var seed = await SeedAsync();
+        await using (var db = Db())
+        {
+            var item = await db.Events.SingleAsync(x => x.Id == seed.EventId);
+            item.StartEvent(clock.Now.AddHours(-2));
+            await db.SaveChangesAsync();
+        }
+
+        await using var factory = Factory();
+        using var admin = await LoginAsync(factory, "c11-admin");
+        var path = $"/Admin/Events/Participants/{seed.EventId}";
+
+        var livePage = await admin.GetStringAsync(path);
+        using (var paid = await PostAsync(admin, path, "Payment", livePage, new()
+        {
+            ["participantId"] = seed.DepartedId.ToString(),
+            ["payment"] = PaymentStatus.Paid.ToString()
+        })) Assert.Equal(HttpStatusCode.Redirect, paid.StatusCode);
+        await using (var db = Db())
+        {
+            var participant = await db.EventParticipants.SingleAsync(x => x.Id == seed.DepartedId);
+            Assert.True(participant.PaymentReceived);
+            Assert.Single(await db.AuditEntries.Where(x => x.EventId == seed.EventId && x.Action == "participant.payment_updated").ToListAsync());
+        }
+
+        livePage = await admin.GetStringAsync(path);
+        using (var unrelated = await PostAsync(admin, path, "SignupAdministration", livePage, new()))
+        {
+            Assert.Equal(HttpStatusCode.Redirect, unrelated.StatusCode);
+            Assert.Contains($"/Admin/Events/Manage/{seed.EventId}", unrelated.Headers.Location?.OriginalString);
+        }
+
+        await using (var db = Db())
+        {
+            var item = await db.Events.SingleAsync(x => x.Id == seed.EventId);
+            item.EndEvent(clock.Now.AddMinutes(-30));
+            item.FinalizeResults(clock.Now.AddMinutes(-20));
+            await db.SaveChangesAsync();
+        }
+
+        var finalReviewPage = await admin.GetStringAsync(path);
+        using (var unpaid = await PostAsync(admin, path, "Payment", finalReviewPage, new()
+        {
+            ["participantId"] = seed.DepartedId.ToString(),
+            ["payment"] = PaymentStatus.Unpaid.ToString()
+        })) Assert.Equal(HttpStatusCode.Redirect, unpaid.StatusCode);
+        await using (var db = Db())
+        {
+            var participant = await db.EventParticipants.SingleAsync(x => x.Id == seed.DepartedId);
+            Assert.False(participant.PaymentReceived);
+            Assert.Equal(2, await db.AuditEntries.CountAsync(x => x.EventId == seed.EventId && x.Action == "participant.payment_updated"));
+        }
+
+        await using (var db = Db())
+        {
+            var item = await db.Events.SingleAsync(x => x.Id == seed.EventId);
+            db.Entry(item).Property(x => x.State).CurrentValue = EventState.Discarded;
+            await db.SaveChangesAsync();
+        }
+
+        using (var discarded = await PostAsync(admin, path, "Payment", finalReviewPage, new()
+        {
+            ["participantId"] = seed.DepartedId.ToString(),
+            ["payment"] = PaymentStatus.Paid.ToString()
+        })) Assert.Equal(HttpStatusCode.NotFound, discarded.StatusCode);
+        await using (var db = Db())
+        {
+            Assert.False((await db.EventParticipants.SingleAsync(x => x.Id == seed.DepartedId)).PaymentReceived);
+            Assert.Equal(2, await db.AuditEntries.CountAsync(x => x.EventId == seed.EventId && x.Action == "participant.payment_updated"));
+        }
+    }
+
+    [Fact]
     public async Task HttpAuthAntiforgeryConfirmationAndStaleVersionsFailBeforeAnyMutation()
     {
         var seed = await SeedAsync();
