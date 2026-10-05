@@ -1,5 +1,9 @@
 # Current project status
 
+## U1 remediation round 4 — in progress, 6 October 2026
+
+Brief60 starts from clean `4aca5a119d91cf811b405382fc14c8aae0c4e4bf`. Claude's whole .NET run there was **2031 passed / 1 failed / 0 skipped**, so the batch gate was not met: EventCreationUiTests still expected the retired Identity validation-summary tag. Independent rendered recheck59: **54 PASS / 2 PARTIAL / 0 FAIL**, no High findings. The user's round3 inspection found no mistakes; final round4 visual acceptance remains pending, including desktop Safari Save and Back. Seven ordered local commits are authorized. Whole Bingo.BrowserTests is now a required implementer gate at every stop; final whole .NET remains user/Claude execution on the final SHA. Prior round3 pending-review/suite statements below are historical and superseded here. Item1 is complete under planner ruling61: exact shared-banner/link/field-error assertion corrections, executed model-level and field-level PostgreSQL/HTTP proofs each1/0/0, whole BrowserTests150/0/0. See round4/item1 evidence; duplicate baseline-message observation remains unchanged. Continue item2.
+
 ## U1 remediation round 3 — implemented, awaiting review and visual acceptance, 5 October 2026
 
 - Brief55 starts at verified clean `49ae49cf0e9abe606ecfea4d68fdcfb8cb6bf2dc`. Claude round2 named recheck passed and whole .NET suite passed **2031/0/0**, Release **0 warnings** (supplied planner evidence; not rerun by this implementer). User visual acceptance **failed**; strict comparison54 found 56 differences, five High. Items0–7 are authorized sequentially, one local commit each. Fresh rendered recheck/user acceptance and final whole .NET suite remain required.
