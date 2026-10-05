@@ -1,3 +1,7 @@
 @{
     Layout = "_AdminLayout";
+    if (Bingo.Web.UI.AdminDesignAttribute.AppliesTo(ViewContext.ActionDescriptor))
+    {
+        Layout = "_AdminDesignLayout";
+    }
 }

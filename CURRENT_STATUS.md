@@ -1,6 +1,6 @@
 # Current project status
 
-## U1 foundation + Identity — items 0–2 done; items 3–7 not started, 5 October 2026
+## U1 foundation + Identity — items 0–3 implemented; item4 next, 5 October 2026
 
 - Authority: [brief43](/Users/christopher/Documents/BingoWebpage/review-notes/43-codex-brief-u1-foundation-identity.md), [plan42](/Users/christopher/Documents/BingoWebpage/review-notes/42-ui-integration-plan.md), and [decisions](/Users/christopher/Documents/BingoWebpage/review-notes/08-decisions.md).
 - Checkout `/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage`, branch `codex/participants-functionality`; clean starting HEAD `89d938292a2a22e0648d12f3885731c768244905` verified. Sole implementer `/root/u1_implementer`, `gpt-6-astra` / high; dispatcher actual parent `/root` in the fresh U1 chat supersedes brief43's historical chat ID. Claude is planner and independent reviewer through the user.
@@ -10,7 +10,8 @@
 - Item2 original baseline: controlled fixture generation 8/8; unchanged full JS runner **35 files passed / 1 failed**. Original evidence remains in [baseline checkpoint](docs/references/admin-ui/reviews/2026-10-05/u1/item2-js-runner-blocked.md).
 - Brief45 item2a committed `0d8306ca9a3e4cb08da4cbde567c399b699f6e60`: authorized two-file stale-close fix, new dismissal regression PASS and unchanged brief44-corrected test PASS for all four actions. [Fix evidence](docs/references/admin-ui/reviews/2026-10-05/u1/item2a-stale-close-fix.md).
 - Item2c committed `63ce639` (brief47): after an unsuccessful shared confirmation, the transport-only `Reason` input is removed/restored so the next action opens its own confirmation; real edits still prompt to discard. [Evidence](docs/references/admin-ui/reviews/2026-10-05/u1/item2c-transport-reason-fix.md).
-- **Item2 done:** runner, CI job `javascript-tests`, README, brief44/46 test corrections. Full JS runner **37 files passed / 0 failed / 37 total**, exit 0; CI itself has not run. Implemented by a Claude agent assigned by the user (Codex implementer unavailable). [Completion evidence](docs/references/admin-ui/reviews/2026-10-05/u1/item2-completion.md). Items 3–7 not started.
+- **Item2 done:** runner, CI job `javascript-tests`, README, brief44/46 test corrections. Full JS runner **37 files passed / 0 failed / 37 total**, exit 0; CI itself has not run. Implemented by a Claude agent assigned by the user (Codex implementer unavailable). [Completion evidence](docs/references/admin-ui/reviews/2026-10-05/u1/item2-completion.md). Item3 implemented by resumed Codex worker; items4–7 remain.
+- Item3: opt-in shell/layout and local reference CSS, theme, new event switcher projection; no production page opted in. PostgreSQL/HTTP 2/2 plus final affected HTTP rerun 1/1; unchanged shell/toast 4/4; full JS 38/38. [Evidence](docs/references/admin-ui/reviews/2026-10-05/u1/item3-shell.md).
 - Final whole-suite gate remains **pending user execution** on U1's final commit. User/Claude executes the unfiltered .NET suite; implementer runs focused applicable checks, Release build, diff checks and the full new JS runner. A passing checkpoint is not independent review or manual acceptance.
 
 ## Retained release gates and prior evidence
@@ -24,7 +25,7 @@
 
 ## Next permitted action
 
-Items 0–2 await Claude's independent review. Next: U1 item3, awaiting an implementer
-(brief43 items 3–7 in order). The batch gate now includes the JS runner at 0 failed.
+Items0–3 await Claude's independent review. The same Codex implementer continues
+with item4, then items5–7 in order. The batch gate includes the JS runner at0 failed.
 No U2–U10, lane T, rehearsal, push, main merge or deployment. Eventual U1 boundary:
 Claude review and user visual acceptance, with the final whole .NET suite run by user/Claude.
