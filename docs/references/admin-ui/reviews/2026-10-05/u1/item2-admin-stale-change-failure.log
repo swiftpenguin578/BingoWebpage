@@ -1,0 +1,11 @@
+locator.waitFor: Timeout 30000ms exceeded.
+Call log:
+  - waiting for locator('dialog.account-manage-route-dialog').locator('.admin-account-inline-confirmation') to be visible
+
+    at openConfirmation (/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/tests/Bingo.BrowserTests/admin-stale-change.browser.js:42:30)
+    at async /Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/tests/Bingo.BrowserTests/admin-stale-change.browser.js:49:26 {
+  log: [
+    "  - waiting for locator('dialog.account-manage-route-dialog').locator('.admin-account-inline-confirmation') to be visible"
+  ],
+  name: 'TimeoutError'
+}

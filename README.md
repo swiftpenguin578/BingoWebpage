@@ -314,3 +314,23 @@ connection fields support ordinary punctuation such as `@`, `#`, `!`, `$`,
 - [Current status](CURRENT_STATUS.md)
 - [Delivery plan](DELIVERY_PLAN.md)
 - [Manual test checklist](MANUAL_TEST_CHECKLIST.md)
+
+### JavaScript and Playwright checks
+
+The UI batch gate also runs **every** `tests/Bingo.BrowserTests/*.js` file in an
+isolated Node process. Install Node 22, pnpm 11.25.0 and the pinned dependencies:
+
+```sh
+pnpm install --frozen-lockfile
+pnpm exec playwright install --with-deps chromium chrome
+export BINGO_ADMIN_STALE_EVIDENCE_DIRECTORY="$PWD/artifacts/js-fixtures"
+dotnet test tests/Bingo.IntegrationTests/Bingo.IntegrationTests.csproj --configuration Release --filter FullyQualifiedName~AccountConfirmationRejectsCompletedInterveningChangesThenAcceptsFreshAction
+pnpm test:js
+```
+
+Docker is required for the controlled PostgreSQL fixture-generation step. No
+running application or user database is used. The runner defaults to Playwright
+Chromium; `PLAYWRIGHT_CHANNEL=chrome` can select an installed Chrome locally.
+One legacy test selects Chrome explicitly, so CI installs both browsers. Existing
+test expectations remain unchanged. The runner records each file's output and an
+aggregate result in `artifacts/js-tests/`; any failed file fails the gate.

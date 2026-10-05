@@ -17,7 +17,7 @@ const partial = fs.readFileSync(`${root}Pages/Shared/_AdminConfirmation.cshtml`,
     let releasePost;
     let editable = false;
     const action = (handler, reason = false) => `<form method="post" action="/Admin/Accounts/Manage/target?handler=${handler}"><input type="hidden" name="ExpectedAuthorizationVersion" value="${stale ? 8 : 7}"><button type="submit" data-account-final-action="true" data-account-confirmation-title="${handler}?" data-account-confirmation-support="Account access changes." data-account-confirmation-label="${handler}" data-account-confirmation-reason="${reason}">${handler}</button></form>`;
-    const manage = () => `<section data-account-dialog-page data-account-dialog-kind="manage" data-account-manage-page data-account-dialog-overlay="true" data-account-change-stale="${stale}" data-account-validation-message="${failure ? "Account changed. Review current values." : ""}" data-account-status-message="${failure ? "" : "Account updated."}" aria-labelledby="manage-title"><h2 id="manage-title">Support account</h2><button data-account-dialog-close>Close</button><p data-account-editor-feedback hidden></p><form method="post" action="/Admin/Accounts/Manage/target?handler=GenerateResetLink"><button>Generate reset link</button></form>${editable ? `<form method="post" action="/Admin/Accounts/Manage/target?handler=Note"><input name="Note" value="Original note"></form>` : ""}${action("GrantAdmin")}${action("Disable", true)}${action("Restore")}</section>`;
+    const manage = () => `<section data-account-dialog-page data-account-dialog-kind="manage" data-account-manage-page data-account-dialog-overlay="true" data-account-change-stale="${stale}" data-account-validation-message="${failure || stale ? "Account changed. Review current values." : ""}" data-account-status-message="${failure || stale ? "" : "Account updated."}" aria-labelledby="manage-title"><h2 id="manage-title">Support account</h2><button data-account-dialog-close>Close</button><p data-account-editor-feedback hidden></p><form method="post" action="/Admin/Accounts/Manage/target?handler=GenerateResetLink"><button>Generate reset link</button></form>${editable ? `<form method="post" action="/Admin/Accounts/Manage/target?handler=Note"><input name="Note" value="Original note"></form>` : ""}${action("GrantAdmin")}${action("Disable", true)}${action("Restore")}</section>`;
     const directory = `<section class="admin-accounts-page"><a data-account-manage-trigger="true" href="/Admin/Accounts/Manage/target">Manage</a></section>`;
     const shell = (body, script) => `<!doctype html><html><body data-admin-account-action-error="Try again."><main id="main-content">${body}</main>${partial}<script>window.showBingoToast=(message,type)=>{window.lastToast={message,type,editorOpen:!!document.querySelector('dialog.account-manage-route-dialog[open]')};};</script><script src="/js/admin-confirmation.js"></script><script src="/js/admin-editor-guard.js"></script><script src="/js/${script}"></script></body></html>`;
     await page.route("https://bingo.test/**", async route => {
@@ -52,7 +52,7 @@ const partial = fs.readFileSync(`${root}Pages/Shared/_AdminConfirmation.cshtml`,
     await editor.getByText("Disable", { exact: true }).click();
     await modal.locator("textarea").fill("Support request");
     failure = true;
-    stale = true;
+    stale = false;
     await confirm.click();
     await modal.locator("[data-admin-confirmation-feedback]").waitFor({ state: "visible" });
     assert.match(posts[1].body, /Support request/);
@@ -60,8 +60,23 @@ const partial = fs.readFileSync(`${root}Pages/Shared/_AdminConfirmation.cshtml`,
     assert.equal(await modal.locator("textarea").inputValue(), "Support request");
     await page.locator("[data-admin-confirmation-cancel]").click();
     await editor.waitFor({ state: "visible" });
-    assert.equal(await editor.locator("input[name=ExpectedAuthorizationVersion]").first().inputValue(), "8", "stale values refresh behind confirmation");
+    assert.equal(await editor.locator("input[name=ExpectedAuthorizationVersion]").first().inputValue(), "7", "ordinary failure keeps the editor version unchanged");
 
+    failure = false;
+    stale = true;
+    await editor.getByText("Disable", { exact: true }).click();
+    await modal.locator("textarea").fill("Stale support request");
+    await confirm.click();
+    await editor.waitFor({ state: "visible" });
+    assert.equal(posts.length, 3, "stale confirmation adds exactly one POST");
+    assert.match(posts[2].body, /Stale support request/);
+    assert.equal(await modal.isVisible(), false, "stale response closes confirmation without Cancel");
+    assert.equal(await editor.locator("input[name=ExpectedAuthorizationVersion]").first().inputValue(), "8", "stale response resumes the refreshed editor");
+    await editor.locator("[data-account-editor-feedback]").waitFor({ state: "visible" });
+    assert.equal(await editor.locator("[data-account-editor-feedback]").textContent(), "Account changed. Review current values.");
+    assert.equal(await modal.locator("[data-admin-confirmation-feedback]").isVisible(), false, "stale feedback is not duplicated in the closed modal");
+
+    stale = false;
     failure = false;
     await editor.getByText("Disable", { exact: true }).click();
     await modal.locator("textarea").fill("Reviewed change");
@@ -70,7 +85,7 @@ const partial = fs.readFileSync(`${root}Pages/Shared/_AdminConfirmation.cshtml`,
     await page.waitForFunction(() => document.querySelector('[data-admin-confirmation-action]').disabled);
     await page.evaluate(() => document.querySelector('[data-admin-confirmation-form]').dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })));
     await page.waitForTimeout(50);
-    assert.equal(posts.length, 3, "pending confirmation posts once");
+    assert.equal(posts.length, 4, "pending confirmation posts once");
     await page.evaluate(() => history.back());
     await page.waitForURL(/overlay=1/);
     assert.equal(await modal.isVisible(), true, "Back cannot abandon a pending mutation");

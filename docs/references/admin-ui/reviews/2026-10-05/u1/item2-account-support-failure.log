@@ -1,0 +1,12 @@
+locator.waitFor: Timeout 30000ms exceeded.
+Call log:
+  - waiting for locator('[data-admin-confirmation]').locator('[data-admin-confirmation-feedback]') to be visible
+    63 × locator resolved to hidden <p hidden="" role="alert" tabindex="-1" data-admin-confirmation-feedback=""></p>
+
+    at /Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/tests/Bingo.BrowserTests/account-support.browser.js:56:63 {
+  log: [
+    "  - waiting for locator('[data-admin-confirmation]').locator('[data-admin-confirmation-feedback]') to be visible",
+    '    63 × locator resolved to hidden <p hidden="" role="alert" tabindex="-1" data-admin-confirmation-feedback=""></p>'
+  ],
+  name: 'TimeoutError'
+}
