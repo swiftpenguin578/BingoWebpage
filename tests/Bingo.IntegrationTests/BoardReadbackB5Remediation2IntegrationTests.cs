@@ -1,6 +1,7 @@
 using Bingo.Domain.Boards;
 using Bingo.Domain.Catalogue;
 using Bingo.Infrastructure.Persistence;
+using Bingo.Web.Pages.Admin.Events;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -37,6 +38,42 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests
         Assert.Equal("item-price-missing", second.Code);
         Assert.Equal(tile.Id, second.TileId);
         Assert.Equal("Second unpriced item", Assert.Single(second.Arguments));
+        Assert.Equal(baseline, await B5RemediationBoardPersistenceAsync());
+        await AssertApprovalBatchUnchangedAsync(fixture);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task B5Round2EmptyPositionPrecedesStaleCatalogue(bool stateEndpoint)
+    {
+        var fixture = await SeedApprovalBatchAsync();
+        await using var db = new ApplicationDbContext(options);
+        (await db.Boards.SingleAsync()).Resize(1, 2, 1);
+        await db.SaveChangesAsync();
+        var page = Page(db, fixture.Admin.Id);
+        await page.OnGetAsync(fixture.Event.Id, CancellationToken.None);
+        await using (var edit = new ApplicationDbContext(options))
+        {
+            (await edit.BossActivities.SingleAsync(x => x.Id == fixture.Boss.Id)).Update("Changed boss", "Boss", 20m, null, null, null, CompletionFixtureNow);
+            await edit.SaveChangesAsync();
+        }
+        var baseline = await B5RemediationBoardPersistenceAsync();
+        if (stateEndpoint)
+        {
+            var response = Assert.IsType<BoardModel.BoardActionState>(Assert.IsType<JsonResult>(await page.OnPostApproveStateAsync(fixture.Event.Id, false, CancellationToken.None)).Value);
+            Assert.Equal("board-incomplete", Assert.Single(response.Issues).Code);
+            Assert.True(response.Current.Known);
+        }
+        else
+        {
+            Assert.IsType<RedirectToPageResult>(await page.OnPostApproveAsync(fixture.Event.Id, false, CancellationToken.None));
+            Assert.Equal("Fill every board position before approving the board.", page.TempData["StatusMessage"]);
+        }
+        var issue = Assert.Single(page.ValidationIssues);
+        Assert.Equal("board-incomplete", issue.Code);
+        Assert.Equal(1, issue.Position);
+        Assert.Null(issue.TileId);
         Assert.Equal(baseline, await B5RemediationBoardPersistenceAsync());
         await AssertApprovalBatchUnchangedAsync(fixture);
     }

@@ -1037,7 +1037,11 @@ public sealed partial class BoardModel(ApplicationDbContext db, TimeProvider tim
         var evidenced = await db.EvidencedObjectiveIdsAsync(board.EventId, ct);
         var prior = allowPublished && board.ActiveApprovalSnapshotId is { } activeId
             ? await db.ApprovalObjectivesAsync(board.Id, activeId, ct) : null;
-        if (allowPublished && prior is null) throw new InvalidOperationException("The active publication has unavailable objective identities. No replacement was published.");
+        if (allowPublished && prior is null)
+        {
+            if (issues.Count > 0) throw CollectedIssues();
+            throw new InvalidOperationException("The active publication has unavailable objective identities. No replacement was published.");
+        }
         if (prior is not null)
         {
             foreach (var requirementId in evidenced)
@@ -1047,7 +1051,10 @@ public sealed partial class BoardModel(ApplicationDbContext db, TimeProvider tim
                 if (old is null || current is null || old.BoardTileId != current.BoardTileId ||
                     !old.HasSameRules(current.TargetContribution, current.DuplicatesAllowed, current.AllowHigherWeightings, current.ManualObjective, current.CreditedWeight) ||
                     !SameDropRules(prior.Drops.Where(x => x.RequirementId == requirementId), requirementDrops.Where(x => x.RequirementId == requirementId)))
+                {
+                    if (issues.Count > 0) throw CollectedIssues();
                     throw Invalid("evidence-objective-locked", "Submitted evidence now references an objective changed or removed by this correction. The active publication has been preserved.", tiles.FirstOrDefault(x => x.Id == old?.BoardTileId));
+                }
             }
         }
         if (prior is not null)
@@ -1058,7 +1065,10 @@ public sealed partial class BoardModel(ApplicationDbContext db, TimeProvider tim
                 if (old is not null && (old.BoardTileId != current.BoardTileId ||
                     !old.HasSameRules(current.TargetContribution, current.DuplicatesAllowed, current.AllowHigherWeightings, current.ManualObjective, current.CreditedWeight) ||
                     !SameDropRules(prior.Drops.Where(x => x.RequirementId == current.Id), requirementDrops.Where(x => x.RequirementId == current.Id))))
+                {
+                    if (issues.Count > 0) throw CollectedIssues();
                     throw new InvalidOperationException("An approved objective identity cannot be reused for different rules.");
+                }
             }
         }
         var priorRequirementIds = prior?.Requirements.Select(x => x.Id).ToHashSet() ?? [];
@@ -1071,7 +1081,10 @@ public sealed partial class BoardModel(ApplicationDbContext db, TimeProvider tim
         {
             if (!priorBosses.Where(x => x.ApprovalRequirementSnapshotId == locked.Id).Select(x => x.BossActivityId).ToHashSet()
                 .SetEquals(requirementBosses.Where(x => x.RequirementId == locked.BoardRequirementSnapshotId).Select(x => x.BossActivityId)))
+            {
+                if (issues.Count > 0) throw CollectedIssues();
                 throw new InvalidOperationException("An objective with submitted evidence cannot change its eligible sources.");
+            }
         }
         var requiredCurrentBossIds = requirementBosses.Where(x => !priorRequirementIds.Contains(x.RequirementId)).Select(x => x.BossActivityId).Distinct().ToArray();
         var bossIds = requirementBosses.Select(x => x.BossActivityId).Distinct().ToArray();
@@ -1100,7 +1113,10 @@ public sealed partial class BoardModel(ApplicationDbContext db, TimeProvider tim
             issues.Add(Invalid("drop-inactive", "A referenced catalogue drop is no longer active. Correct the board before approval.", tile).Issue);
 
         if (!string.Equals(ApprovalCatalogueFingerprint, CatalogueFingerprint(currentBosses.Values, currentDrops.Values), StringComparison.Ordinal))
+        {
+            if (issues.Count > 0) throw CollectedIssues();
             throw Invalid("catalogue-stale", "The catalogue changed after you opened this board. Reload and review the current values before approving it.");
+        }
 
         var images = await db.BoardTileImageAssets.Where(x => tileIds.Contains(x.BoardTileId) && x.ReplacedAt == null).ToListAsync(ct);
         var imagesById = images.ToDictionary(x => x.Id);
