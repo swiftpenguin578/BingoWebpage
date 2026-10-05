@@ -31,7 +31,7 @@ const {chromium}=require('playwright'),fixture=require('./fixtures/identity.cjs'
   assert.equal(await save.isDisabled(),true,'all values now match current server values');
   await name.fill('Original');assert.equal(await page.locator('[name="Input.NameResolution"]').inputValue(),'KeepMine');
   await name.fill('Edited after theirs');
-  const savedHtml=fixture.page(fixture.editor({url:base+first,preview:false,name:'Edited after theirs',originalName:'Edited after theirs',description:'Their description',timezone:'UTC',originalTimezone:'UTC'}).replace('name="Input.OriginalDescription" value=""','name="Input.OriginalDescription" value="Their description"'),{eventName:'Edited after theirs'});
+  const savedHtml=fixture.page(fixture.editor({url:base+first,preview:false,name:'Edited after theirs',originalName:'Edited after theirs',description:'Their description',originalDescription:'Their description',timezone:'UTC',originalTimezone:'UTC'}),{eventName:'Edited after theirs'});
   await page.evaluate(({html,url})=>{window.posted=[];window.beforeSaveDocument=document;window.AdminFetch.request=async(target,options)=>{window.posted.push(Object.fromEntries(options.body));return{kind:'handler',data:html,response:{redirected:true,url}};};},{html:savedHtml,url:base+first});
   await page.locator('[data-theme="dark"]').click();
   await save.click();await page.waitForFunction(()=>document.querySelector('.design-event-crumb').textContent==='Edited after theirs');

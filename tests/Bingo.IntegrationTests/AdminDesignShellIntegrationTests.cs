@@ -107,6 +107,32 @@ public sealed partial class AdminDesignShellIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task SwitcherConvertsCopenhagenDatesAcrossSpringDst()
+    {
+        var previousCulture = System.Globalization.CultureInfo.CurrentCulture;
+        System.Globalization.CultureInfo.CurrentCulture = System.Globalization.CultureInfo.GetCultureInfo("en-GB");
+        try
+        {
+            var admin = Admin(); await using var db = new ApplicationDbContext(options); db.Add(admin);
+            foreach (var day in new[] { 27, 28 })
+            {
+                var start = new DateTimeOffset(2027, 3, day, 22, 30, 0, TimeSpan.Zero);
+                var item = new BingoEvent(Guid.NewGuid(), $"DST fixture {day}", $"dst-{day}", "Europe/Copenhagen", admin.Id, Now, PlacementRule.LegacyScoreTimeThenEhb);
+                item.ConfigureSchedule(start.AddDays(-3), start.AddDays(-2), null, start, start.AddDays(1), 10);
+                db.Add(item);
+            }
+            await db.SaveChangesAsync(); db.ChangeTracker.Clear();
+            var persisted = await db.Events.OrderBy(item => item.EventStartsAt).ToListAsync();
+            Assert.All(persisted, item => Assert.Equal("Europe/Copenhagen", item.Timezone));
+            Assert.Equal("27,28", string.Join(',', persisted.Select(item => item.EventStartsAt!.Value.UtcDateTime.Day)));
+            var service = new SharedShellService(db, new Text(), null!, null!, null!, TimeProvider.System);
+            var shell = await service.GetAdminDesignAsync(User("Admin"), new RouteValueDictionary { ["page"] = "/Admin/Events/Identity" }, CancellationToken.None);
+            Assert.Equal("starts 27 Mar|starts 29 Mar", string.Join('|', shell.Events.Select(item => item.When)));
+        }
+        finally { System.Globalization.CultureInfo.CurrentCulture = previousCulture; }
+    }
+
+    [Fact]
     public async Task BoundIdentityUsesNewLayoutAndRendersLocalAssetsTokenAndTempData()
     {
         var admin = Admin();
