@@ -15,8 +15,9 @@ const partial = fs.readFileSync(`${root}Pages/Shared/_AdminConfirmation.cshtml`,
     let failure = false;
     let stale = false;
     let releasePost;
+    let editable = false;
     const action = (handler, reason = false) => `<form method="post" action="/Admin/Accounts/Manage/target?handler=${handler}"><input type="hidden" name="ExpectedAuthorizationVersion" value="${stale ? 8 : 7}"><button type="submit" data-account-final-action="true" data-account-confirmation-title="${handler}?" data-account-confirmation-support="Account access changes." data-account-confirmation-label="${handler}" data-account-confirmation-reason="${reason}">${handler}</button></form>`;
-    const manage = () => `<section data-account-dialog-page data-account-dialog-kind="manage" data-account-manage-page data-account-dialog-overlay="true" data-account-change-stale="${stale}" data-account-validation-message="${failure ? "Account changed. Review current values." : ""}" data-account-status-message="${failure ? "" : "Account updated."}" aria-labelledby="manage-title"><h2 id="manage-title">Support account</h2><button data-account-dialog-close>Close</button><p data-account-editor-feedback hidden></p><form method="post" action="/Admin/Accounts/Manage/target?handler=GenerateResetLink"><button>Generate reset link</button></form>${action("GrantAdmin")}${action("Disable", true)}${action("Restore")}</section>`;
+    const manage = () => `<section data-account-dialog-page data-account-dialog-kind="manage" data-account-manage-page data-account-dialog-overlay="true" data-account-change-stale="${stale}" data-account-validation-message="${failure ? "Account changed. Review current values." : ""}" data-account-status-message="${failure ? "" : "Account updated."}" aria-labelledby="manage-title"><h2 id="manage-title">Support account</h2><button data-account-dialog-close>Close</button><p data-account-editor-feedback hidden></p><form method="post" action="/Admin/Accounts/Manage/target?handler=GenerateResetLink"><button>Generate reset link</button></form>${editable ? `<form method="post" action="/Admin/Accounts/Manage/target?handler=Note"><input name="Note" value="Original note"></form>` : ""}${action("GrantAdmin")}${action("Disable", true)}${action("Restore")}</section>`;
     const directory = `<section class="admin-accounts-page"><a data-account-manage-trigger="true" href="/Admin/Accounts/Manage/target">Manage</a></section>`;
     const shell = (body, script) => `<!doctype html><html><body data-admin-account-action-error="Try again."><main id="main-content">${body}</main>${partial}<script>window.showBingoToast=(message,type)=>{window.lastToast={message,type,editorOpen:!!document.querySelector('dialog.account-manage-route-dialog[open]')};};</script><script src="/js/admin-confirmation.js"></script><script src="/js/admin-editor-guard.js"></script><script src="/js/${script}"></script></body></html>`;
     await page.route("https://bingo.test/**", async route => {
@@ -96,6 +97,41 @@ const partial = fs.readFileSync(`${root}Pages/Shared/_AdminConfirmation.cshtml`,
     assert.match(posts.at(-1).body, /Input.ExpectedAuthorizationVersion=9/);
     assert.match(posts.at(-1).body, /Input.DestinationId=recipient-id/);
     assert.match(posts.at(-1).body, /Input.DestinationUsernameConfirmation=Recipient/);
+
+    // Brief47: the confirmation's hidden Reason is transport only. After an
+    // ordinary failure and Cancel, the next action reaches its own confirmation;
+    // a genuinely edited editor field still asks to discard unsaved changes.
+    editable = true;
+    failure = true;
+    stale = false;
+    await page.goto("https://bingo.test/Admin/Accounts/Index");
+    await page.getByText("Manage", { exact: true }).click();
+    await editor.waitFor({ state: "visible" });
+    const transportPosts = posts.length;
+    await editor.getByText("Disable", { exact: true }).click();
+    await modal.locator("textarea").fill("Transport reason");
+    await confirm.click();
+    await modal.locator("[data-admin-confirmation-feedback]").waitFor({ state: "visible" });
+    assert.equal(posts.length, transportPosts + 1, "failed Disable posts once");
+    assert.match(posts.at(-1).body, /Transport reason/);
+    await page.locator("[data-admin-confirmation-cancel]").click();
+    await editor.waitFor({ state: "visible" });
+    assert.equal(await editor.locator("form[action*='handler=Disable'] [name=Reason]").count(), 0, "failed confirmation leaves no transport Reason in the editor form");
+    await editor.getByText("Disable", { exact: true }).click();
+    await modal.waitFor({ state: "visible" });
+    assert.equal(await modal.locator("#admin-confirmation-title").textContent(), "Disable?", "next action opens its own confirmation, not the discard prompt");
+    assert.equal(await modal.locator("textarea").isVisible(), true, "next action's confirmation shows the reason field");
+    await page.locator("[data-admin-confirmation-cancel]").click();
+    await editor.waitFor({ state: "visible" });
+    await editor.locator("input[name=Note]").fill("Edited note");
+    await editor.getByText("Disable", { exact: true }).click();
+    await modal.waitFor({ state: "visible" });
+    assert.equal(await modal.locator("#admin-confirmation-title").textContent(), "Discard unsaved changes?", "a genuinely edited field still triggers the discard prompt");
+    assert.equal(await modal.locator("textarea").isVisible(), false, "discard prompt has no reason field");
+    await page.locator("[data-admin-confirmation-cancel]").click();
+    await editor.waitFor({ state: "visible" });
+    assert.equal(await editor.locator("input[name=Note]").inputValue(), "Edited note", "cancelling the discard prompt keeps the edit");
+    assert.equal(posts.length, transportPosts + 1, "cancelled confirmations do not post");
     assert.deepEqual(errors, []);
     console.log("Account support Chromium checks passed.");
   } finally { await browser.close(); }
