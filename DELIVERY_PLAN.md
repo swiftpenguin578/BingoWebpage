@@ -396,6 +396,37 @@ inference. This applies the existing integration requirement at
 | D2 | **R-3 — restored-backup rehearsal** | H4-2 procedure and coverage limits approved by the user on 4 October 2026 after Claude’s review, as recorded in the planner decisions; attribution corrected by the quoted Step 0 user assignment; harness not built/tested and R3 unexecuted. Separately authorize tooling/backup transfer/execution, then follow the runbook isolated procedure on the final candidate. Never use the production host wrapper as rehearsal. |
 | D3 | **DEPLOY — explicit release action** | Requires passing final candidate/R-3 plus explicit production approval. No deployment authority in this ledger. |
 
+#### UI integration batches (plan 42, approved 5 October 2026)
+
+[Plan 42](/Users/christopher/Documents/BingoWebpage/review-notes/42-ui-integration-plan.md)
+section 2 supersedes the historical C1–C7 slots above. Those slots retain their
+finding provenance, not an alternative execution order. D20 also supersedes B1's
+reference-edit sequence: RC01–RC11 findings are required page-binding items.
+
+| Batch | Pages / scope | Implementer model / reasoning |
+| --- | --- | --- |
+| U1 | Foundation + Identity (EI-2 Identity, AU08/AU09, RL-1/EI-3) | `gpt-6-astra` / high |
+| U2 | Events directory + Create; Dashboard | `gpt-5.6-luna` / max |
+| U3 | Schedule; Signup setup | `gpt-6-astra` / high |
+| U4 | Overview | `gpt-6-astra` / high |
+| U5 | Participants | `gpt-6-astra` / high |
+| U6 | Teams / Draft | `gpt-6-astra` / high |
+| U7 | Board | `gpt-6-astra` / high |
+| U8 | Review | `gpt-6-astra` / high |
+| U9 | Final Review; WOM | `gpt-6-astra` / high |
+| T1 (lane T) | Accounts; Audit | `gpt-5.6-luna` / max |
+| T2 (lane T) | Catalogue | `gpt-5.6-luna` / max |
+| U10 | Retirement sweep and page-matrix reconciliation | `gpt-5.6-luna` / max |
+| C8 | LKP-1 Luck mixed-outcome proof | `gpt-5.6-luna` / max |
+
+Main lane U1–U9 runs in order. Lane T starts from accepted U1 in its own
+worktree/branch, runs T1 then T2, and merges back only after independent review;
+T1 must be merged before U8. Only lane T may add the contemplated Audit migration.
+U10 follows acceptance of every page. C8 may run any time after U1 without UI edits.
+One implementer per batch, one commit per page/item, then Claude independent review;
+remediation returns to the same implementer. This ledger approves no later dispatch,
+rehearsal, push, merge to main or deployment. Brief43 authorizes U1 only.
+
 #### Active AU lanes — Step 0 assignment, 4 October 2026
 
 Authority: [the user's quoted message](docs/references/admin-ui/reviews/2026-10-04/au-step0/approval-record.md)
@@ -999,26 +1030,20 @@ unapproved; do not add them to implementation just because prototypes contain th
 
 
 
-### Reference corrections — Codex ownership, approved 1 October 2026
+### Reference corrections — RC01–RC04 binding obligations (D20, 5 October 2026)
 
-These are separate from AU application tickets and the active Luck assignment.
-The named scopes were approved, but execution is stopped after AU10. No worker
-is dispatched by this planning update; a new user resume is required.
-Use the current routing policy in `AGENTS.md`. Do not silently change models or
-create another visible chat. Reuse established source evidence and keep remediation
-and named rechecks within that ticket’s same worker pair. No broad extraction/review pass.
+D20 supersedes the earlier reference-edit queue. RC01–RC11 are **not** run as
+mock-up edits: frozen `docs/references/admin-ui/` design assets stay unchanged.
+Their findings are required items in the affected real-page bindings, with page
+review and user visual acceptance. No Claude canvas sync per RC. The historical
+finding details below define integration obligations, not permission to edit mocks.
 
-Reference edits now belong to `docs/references/admin-ui/` in the assigned
-`participants-functionality` checkout/branch, alongside the application baseline.
-The synced freeze is committed at `be0014e`; Documents is a retained source copy,
-not the execution checkout. Reference mocks must not become production services.
-
-| ID | Scope | Implementation / checks | Independent review | Canvas sync |
-| --- | --- | --- | --- | --- |
-| RC01 | Overview R1–R4, cancelled-Stats README fact, AU20 Resume/early-end contract | Queued; not started | Named recheck pending | Claude, after verified correction |
-| RC02 | Signup setup R1–R4 and matching README statements | Queued; not started | Named recheck pending | Claude, after verified correction |
-| RC03 | Schedule R1–R4, direct Overview picker consumers and README | Queued; not started | Named recheck pending | Claude, after verified correction |
-| RC04 | Teams uncertain-action/team-save recovery and truthful WOM outcomes | Queued; not started | Named recheck pending | Claude, after verified correction |
+| ID | Scope | Binding owner | Review / acceptance |
+| --- | --- | --- | --- |
+| RC01 | Overview R1–R4 and AU20 Resume/early end | U4 / OS-1 | Page binding review and user visual check |
+| RC02 | Signup setup R1–R4 | U3 / OS-1 | Page binding review and user visual check |
+| RC03 | Schedule R1–R4 and direct picker consumers | U3 / OS-1 (Overview consumers U4) | Page binding review and user visual check |
+| RC04 | Teams uncertainty/team-save recovery and WOM outcomes | U6 / TD-6 | Page binding review and user visual check |
 
 **RC01:** correct public-link destination copy against actual Signups/Teams handlers;
 make evidence-code failure/stale/uncertain mocks truthful and reconcile before
@@ -1031,7 +1056,7 @@ Source evidence: `docs/references/admin-ui/reviews/2026-10-02/earlier-pages/over
 require the validated future replacement end, even if the retained end has not
 passed. Correct early-end reference behavior to preserve precise actual end and
 store configured end rounded up to a minute. Carry the required register row into
-OS-1's inventory; choose final copy before binding. Reference editing remains queued.
+OS-1's inventory; choose final copy before binding. The finding is required in U4; reference editing is not authorized (D20).
 
 **RC02:** compare the complete intended question definition including ordered
 choices; never resolve an uncertain add by another admin's same-label question;
@@ -1159,10 +1184,10 @@ here; do not silently omit a row because the reference has no corresponding cont
 | Catalogue rate entry and “How the rate is counted” panel follow the decided fields and permissions | Catalogue — intentional differences from [Catalogue.dc.html](docs/references/admin-ui/Catalogue.dc.html) | AU23 backend delivered in B4; [Catalogue decisions — AU23, CAT-1 and WA-5](#catalogue-decisions--au23-cat-1-and-wa-5-4-october-b4-backend-delivered-wa-5-binding-pending); `08-decisions.md` “Drop-rate mechanics” / “Catalogue layout” | RC10 / WA-5 | None; bind the delivered final-chance input, retired Only-after input, ordinary rate-text rolls and SuperAdmin roll-group editing |
 | Informational activity Team size in Settings and Add activity beside Kills per hour | Catalogue — intentional difference from [Catalogue.dc.html](docs/references/admin-ui/Catalogue.dc.html) | CAT-1 backend delivered in B4; [Catalogue decisions — AU23, CAT-1 and WA-5](#catalogue-decisions--au23-cat-1-and-wa-5-4-october-b4-backend-delivered-wa-5-binding-pending); `08-decisions.md` “Catalogue layout” | RC10 / WA-5 | Bind the delivered field; preserve the migration pre-check and any resulting data decision |
 | Structured confirmation naming every affected activity before a shared item rename or image change, including Add-drop adoption with a different normalized image; no per-activity split | Catalogue — the reference only shows a generic “also used by” indication and does not show the named-activity confirmation | AU21/D7 option (a) and D9 option (a); [08-decisions.md, B4 review decisions](/Users/christopher/Documents/BingoWebpage/review-notes/08-decisions.md#b4-catalogue-review-decisions); B4 remediation item 1 | RC10 / WA-5 | Return affected activity IDs and names; accept a submitted set only when it equals the current set; current-page binding remains refused until the new UI supplies the intent |
-| WOM end-update status NotRequired/Pending/Succeeded/Rejected/CouldNotUpdate (“WOM end could not be updated”); EndUpdateTargetAt, EndUpdateRequestedAt and sanitized EndUpdateErrorCode; FinalReviewReadiness.WomEndUpdateStatus and FinalizationOperationResult.WomEndUpdateStatus. Backend only, no new current-page display | No reference shows it; candidate pages are WOM [Wom.dc.html](docs/references/admin-ui/Wom.dc.html), Overview [Overview.dc.html](docs/references/admin-ui/Overview.dc.html), Final Review [FinalReview.dc.html](docs/references/admin-ui/FinalReview.dc.html) | WA-2 / AU20; `08-decisions.md` “B3 (AU20) brief decisions”; brief 23 item 4 | WA-5 / OS-1 / BR-10 as selected by the UI integration plan | Placement and final binding owner remain open; the UI integration plan must decide before the affected pages are bound |
+| WOM end-update status NotRequired/Pending/Succeeded/Rejected/CouldNotUpdate, target end and sanitized failure. A15: WOM shows Pending/Rejected/could-not-update with target end and corrects paused-fetch wording; Overview shows Needs attention in Final review for Pending/Rejected linking WOM; Final Review publish confirmation warns that the last fetch becomes official and retains the per-version note after publication. Publication is never blocked | WOM — Wom.dc.html; Overview — Overview.dc.html; Final Review — FinalReview.dc.html (existing component patterns) | WA-2 / AU20; Plan 42 A15 | WOM U9 / WA-5; Overview U4 / OS-1; Final Review U9 / BR-10 | None for A15 placement; other WOM fetch outcomes remain the U9 group-B question |
 | Structured fetch eligibility, AU18 skip reason and next permitted time; typed credential/current-operation identity, phase and next attempt | WOM — [Wom.dc.html](docs/references/admin-ui/Wom.dc.html); these backend outputs exceed the generic Fetch wording. Final Review retains its separate AU18 data-only next-time decision above | WA-6 / AU20; Step 4 D4 and B1/B2 D2 in [B3 source attribution](docs/references/admin-ui/reviews/2026-10-04/au-b3/item6-documentation.md); brief 23 items 1 and 6 | WA-5 / RC09, as settled in the UI integration plan | Decide which structured WOM outcomes are displayed and their binding before integration; keep current-page generic Fetch wording and no new Final Review next-time display |
 | Resume always requires a validated future replacement end, even when the retained configured end is future; early end stores the ceiling-minute configured end and precise actual end | Overview — [Overview.dc.html](docs/references/admin-ui/Overview.dc.html) currently conditionally asks for the replacement only after the retained end has passed | WA-2 corrected Resume rule; AU20 item2; [remediation brief](docs/references/admin-ui/reviews/2026-10-04/au-b3/remediation/supplied-brief.md) item6 / review24f R1 | RC01 / OS-1 | Always-present replacement end is decided; settle dialog text and bind its validation before OS-1 acceptance |
-| Cancelled/Finalized/Archived admin pages open read-only; each page binding removes its view redirect from EventMutationCapabilityPageFilter; all changes remain refused under D16 | All event admin pages — Identity, Schedule, Signup setup, WOM, Final Review, Participants references | D17 / D16 in [08-decisions.md](/Users/christopher/Documents/BingoWebpage/review-notes/08-decisions.md) | Each page integration inventory | Decided future obligation; no current-page redirect removal |
+| Cancelled/Finalized/Archived admin pages open read-only; each page binding removes its view redirect from EventMutationCapabilityPageFilter (baseline view redirect `:90-101`); all changes remain refused under D16 | All event admin pages — Identity, Schedule, Signup setup, WOM, Final Review, Participants references | D17 / D16 in [08-decisions.md](/Users/christopher/Documents/BingoWebpage/review-notes/08-decisions.md) | Each page integration inventory | Decided future obligation; no current-page redirect removal |
 | Signup answers shows every custom question as question: answer, editable until draft start then read-only; drop Participant’s note and its row flag | Participants — Participants.dc.html | S1 in [08-decisions.md](/Users/christopher/Documents/BingoWebpage/review-notes/08-decisions.md) | P-1 | Decided future binding; no new field |
 | Start checklist and postponed automatic start, when another event is still current (Live or in Final review): “Publish the results of ‹other event› first”, linking to that event | Overview — Overview.dc.html | S2 in [08-decisions.md](/Users/christopher/Documents/BingoWebpage/review-notes/08-decisions.md) | OS-1 | Decided future binding |
 | Failed automatic signup opening attention: “Signups didn’t open automatically: ‹reason›”, styled like “Automatic start postponed”, with normal Open signups now and existing checks | Overview — Overview.dc.html | S3 in [08-decisions.md](/Users/christopher/Documents/BingoWebpage/review-notes/08-decisions.md) | OS-1 | Decided future binding |
@@ -1174,17 +1199,36 @@ here; do not silently omit a row because the reference has no corresponding cont
 | Open/Reopen checklist includes every applicable server refusal with repair links (Discord configuration, usable code, valid questions, public-event overlap, future close); confirmation warns text answers are public when applicable, and the “reopening keeps existing signups” warning is dropped; Live WOM-sync-failed attention links WOM and says lifecycle actions aren’t affected | Overview — Overview.dc.html | A-Overview-3/6/7 in [08-decisions.md](/Users/christopher/Documents/BingoWebpage/review-notes/08-decisions.md) | OS-1 | Decided future binding; no Events-directory attention item |
 | Readiness includes any missing server blocker, including Submission cutoff required and Final-review cycle is missing, with server text | Final Review — FinalReview.dc.html | B-Final-1 in [08-decisions.md](/Users/christopher/Documents/BingoWebpage/review-notes/08-decisions.md) | RC08 / BR-10 | Decided future binding; preserve narrowed AU18 omission |
 | Create checklist retains its three rows and adds each further applicable server refusal | WOM — Wom.dc.html | C-WOM-2 in [08-decisions.md](/Users/christopher/Documents/BingoWebpage/review-notes/08-decisions.md) | RC09 / WA-5 | Decided future binding |
-| AU17a picker and Review/Board/Teams JSON readbacks answer a lost or disabled session with302 to login, not JSON; detect the redirect and show what wasn’t saved before sign-out (C-CMP-2) | Review — Review.dc.html; Board — Board.dc.html; Teams — TeamsDraft.dc.html | B5 remediation item7 planner wording correction (planner’s, not the user’s); C-CMP-2 in [08-decisions.md](/Users/christopher/Documents/BingoWebpage/review-notes/08-decisions.md) | RC07 / BR-10 / RC04–DRF | Future binding obligation; existing authentication unchanged; handler Forbid is not an HTTP403 claim |
+| Every bound fetch/JSON endpoint detects session loss (302/login HTML or enhanced navigation), keeps and shows unsaved input before sign-in, and distinguishes route refusal from an uncertain handler outcome | Events/Create, Overview, Identity, Schedule, Participants/detail, Signup setup, Board, Teams, Review, Catalogue, Accounts and shell notifications; form/fetch consumers WOM, Final Review, Audit and Transfer; respective frozen page references (42a §3.2) | C-CMP-2; B5 remediation item7 authentication correction; plan42/brief43 | U1 shared helper and Identity; each later owning U2–U9/T1–T2 binding | None; authentication stays unchanged; 302 is not an HTTP403 claim |
 | Participant-list Paid/Unpaid `Payment` handler delegates to the existing service policy in every state except Discarded; list display remains unchanged | Participants — Participants.dc.html | S4 option (a) in [08-decisions.md](/Users/christopher/Documents/BingoWebpage/review-notes/08-decisions.md); brief40 S4 | P-1 | **Server part done (brief40); binding pending** |
 | WOM `FetchCompetition` is available in Live and Awaiting Final Review, while WA-2 unmatched-end and all existing synchronization guards remain authoritative; development due stays Live-only | WOM — Wom.dc.html | S6 option (a) and WA-2 in [08-decisions.md](/Users/christopher/Documents/BingoWebpage/review-notes/08-decisions.md); brief40 S6 | WA-5 / RC09 | **Server part done (brief40); binding pending** |
 | Direct Teams roster setup allows a missing configured end before actual start and refuses only a configured past end, with action messages naming the start and end | Teams — TeamsDraft.dc.html | S8 option (a) in [08-decisions.md](/Users/christopher/Documents/BingoWebpage/review-notes/08-decisions.md); brief40 S8 | RC04 / DRF | **Server part done (brief40); binding pending** |
 | Catalogue activity edits use the add form’s validation rules and messages before any write or audit | Catalogue — Catalogue.dc.html | brief40 F3; add/edit validation decision | RC10 / WA-5 | **Server part done (brief40); binding pending** |
-| Schedule refuses clearing `Signup close` while signups are open, while a different valid future close remains allowed | Schedule — Schedule.dc.html | brief40 F4; decided Part 3 F4 in [08-decisions.md](/Users/christopher/Documents/BingoWebpage/review-notes/08-decisions.md) | EI-2 / Schedule | **Server part done (brief40); binding pending** |
+| Schedule refuses clearing `Signup close` while signups are open, while a different valid future close remains allowed | Schedule — Schedule.dc.html | brief40 F4; decided Part 3 F4 in [08-decisions.md](/Users/christopher/Documents/BingoWebpage/review-notes/08-decisions.md) | OS-1 (U3) | **Server part done (brief40); binding pending** |
+| B-Board-1: players per team is editable only before Live; read-only from Live, including corrections | Board — Board.dc.html | B-Board-1 | U7 / BR-10 | None |
+| B-Board-2: enforce correction reason ≤ 2,000, tile name ≤ 80 and weight 1–10,000 on the server | Board — Board.dc.html | B-Board-2 | U7 / BR-10 | None |
+| B-Review-2: refuse no-op correction with “Change at least one detail, or cancel.” | Review — Review.dc.html | B-Review-2 | U8 / BR-10 | None |
+| B-Final-2: Reopen requires expected version; RL-1/BR-12 must not bypass checks when missing | Review / Final Review — Review.dc.html / FinalReview.dc.html | B-Final-2; RL-1/BR-12; plan42 §5 | U8 Review / U9 Final Review | None for mandatory version; U9 reopen-with-another-current-event is group B |
+| A-SignupSetup-1: enforce player-cap maximum 10,000 in the service with a clear message | Signup setup — SignupSetup.dc.html | A-SignupSetup-1 | U3 / OS-1 | None |
+| A-Events-3: drop an invalid link filter/view/phase with a short notice | Events — Events.dc.html | A-Events-3 | U2 / EI-2 | None |
+| A-Identity-1: 50-character name limit applies only when the name changes (intentional difference) | Identity — Identity.dc.html | A-Identity-1 | U1 / EI-2 | None |
+| C-WOM-3: locked Unknown origin safety state says “Unknown origin; contact an operator”; R-3 must confirm zero Unknown management rows after migration | WOM — Wom.dc.html | C-WOM-3 | U9 / WA-5 (R-3 separately authorized) | None |
+| S11: Audit adds Participants and Signups areas | Audit — Audit.dc.html | S11 | T1 / WA-5 | Group B: exact action-prefix mapping |
+| B-Participants-3: withdrawn participant is read-only with “Restore to edit” | Participants — Participants.dc.html | B-Participants-3 | U5 / P-1 | None |
+| B-Participants-5: list search includes all account RSNs, username and Discord name; Add search includes username, Discord name or RSN; no recently-joined list | Participants — Participants.dc.html | B-Participants-5 | U5 / P-1 | None |
+| Saving an existing team preserves stored affiliation | Teams — TeamsDraft.dc.html; reference README:1679 | Plan42 §5; inventory42d | U6 / TD-6 | None |
+| S5 service path: retire list Withdraw→roster removal in SignupService.cs:1793-1803; lock Withdraw/Restore after draft starts; finalized roster removal belongs to Teams confirmation | Participants / Teams — Participants.dc.html / TeamsDraft.dc.html | S5; plan42 §5 | U5 / P-1 (Teams UI U6) | None |
+| S10 server read: supply draft boards using the activity/drop for deactivate confirmation with event Board links | Catalogue — Catalogue.dc.html | S10; plan42 §5 | T2 / WA-5 | Group B: hidden-event inclusion |
+| C-CAT-2 leftovers: category membership validation and drop-edit item-name length check | Catalogue — Catalogue.dc.html | C-CAT-2; plan42 §5 | T2 / WA-5 | Group B: settle the remaining validation rules before binding |
 
 These sweep rows are future binding obligations, not implemented UI claims.
 The five brief40 server fixes are complete with binding pending. F1 belongs to Teams binding.
 
-### Proposed reference corrections — RC05–RC11, not dispatched
+### Proposed reference corrections — RC05–RC11 now required binding findings (D20)
+
+The former proposal is carried into U7 (RC05), T1 (RC06/RC11), U8 (RC07),
+U9 (RC08/RC09) and T2 (RC10). Implement and check each finding in its page
+binding; frozen references remain unchanged and no per-RC canvas sync runs.
 
 | ID | Page and exact findings | Required correction boundary |
 | --- | --- | --- |
@@ -1211,8 +1255,8 @@ Common acceptance: reproduce the named normal/failure/stale/uncertain/navigation
 paths with controlled fixtures, verify directly affected shared consumers and
 reduced motion, retain approved layout and motion feel, then one independent source
 review/named recheck. Do not replace production scoring/security with mock logic.
-Record implementation, executed checks, review and canvas sync separately. Claude
-syncs the reviewed file hashes after correction; no broad design/extraction pass.
+Record implementation, executed checks, independent review and visual acceptance
+separately. No reference edits or per-RC canvas sync (D20).
 Use [Board/Audit](docs/references/admin-ui/reviews/2026-10-02/remaining-seven/board-audit-review.md),
 [Review/Final Review](docs/references/admin-ui/reviews/2026-10-02/remaining-seven/review-finalreview-review.md),
 [WOM/Catalogue](docs/references/admin-ui/reviews/2026-10-02/remaining-seven/wom-catalogue-review.md)
