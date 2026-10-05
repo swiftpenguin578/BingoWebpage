@@ -16,6 +16,11 @@ public sealed class EventMutationCapabilityPageFilter(ApplicationDbContext db, I
     public async Task OnPageHandlerExecutionAsync(PageHandlerExecutingContext context, PageHandlerExecutionDelegate next)
     {
         var policy = AdminEventPagePolicies.For(context.HandlerInstance.GetType());
+        if (policy is null && context.ActionDescriptor.RelativePath.StartsWith("/Pages/Admin/Events/", StringComparison.OrdinalIgnoreCase))
+        {
+            context.Result = new NotFoundResult();
+            return;
+        }
         if (policy is null || !policy.HasEventContext || !TryEventId(context, out var eventId))
         {
             await next();
