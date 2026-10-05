@@ -4,7 +4,8 @@
   "packageManager": "pnpm@11.25.0",
   "scripts": {
     "test": "node scripts/run-browser-tests.cjs",
-    "test:js": "node scripts/run-browser-tests.cjs"
+    "test:js": "node scripts/run-browser-tests.cjs",
+    "test:parity": "node scripts/check-admin-design-parity.cjs"
   },
   "devDependencies": {
     "playwright": "1.62.1"

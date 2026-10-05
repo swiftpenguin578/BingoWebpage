@@ -7,8 +7,10 @@
         <span class="crumb-sep" aria-hidden="true">/</span><span class="crumb-cur" aria-current="page">@T[ViewData["Title"]?.ToString() ?? "Admin"]</span>
     </nav>
     <div class="design-top-actions">
+        <div data-desktop-preferences><div class="design-preferences" data-shell-preferences>
         <div class="theme-seg" role="group" aria-label="@T["Theme"]"><button class="theme-opt" data-theme="light" aria-label="@T["Light theme"]" title="@T["Light theme"]"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("sun", "ic")' /></button><button class="theme-opt" data-theme="dark" aria-label="@T["Dark theme"]" title="@T["Dark theme"]"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("moon", "ic")' /></button></div>
         <form class="theme-seg" data-shell-language method="post" asp-page="/Language" aria-label="@T["Language"]"><input type="hidden" name="returnUrl" value="@(Context.Request.Path + Context.Request.QueryString)" /><button class="theme-opt @(language == "en" ? "is-on" : null)" name="culture" value="en" aria-label="@T["English"]" aria-pressed="@(language == "en" ? "true" : "false")">@T["EN"]</button><button class="theme-opt @(language == "da" ? "is-on" : null)" name="culture" value="da" aria-label="@T["Danish"]" aria-pressed="@(language == "da" ? "true" : "false")">@T["DA"]</button></form>
+        </div></div>
         <button class="icon-btn" data-menu-target="admin-notifications-menu" data-menu-align="end" aria-haspopup="menu" aria-expanded="false" aria-label="@T["Notifications, {0} unread", Model.Notifications.Count]"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("bell", "ic")' />@if (Model.Notifications.Count > 0) { <span class="design-notification-count" aria-hidden="true">@Model.Notifications.Count</span> }</button>
     </div>
 </header>

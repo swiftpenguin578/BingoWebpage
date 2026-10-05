@@ -1,8 +1,8 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const { chromium } = require('playwright');
+const { chromium, webkit } = require('playwright');
 (async()=>{
-  const browser=await chromium.launch({headless:true,channel:process.env.PLAYWRIGHT_CHANNEL||'chrome'});
+  const browser=await (process.env.PLAYWRIGHT_BROWSER === 'webkit' ? webkit.launch({headless:true}) : chromium.launch({headless:true,channel:process.env.PLAYWRIGHT_CHANNEL||'chrome'}));
   try {
     const page=await browser.newPage();
     const errors=[];page.on('pageerror',error=>errors.push(error.message));
@@ -37,7 +37,11 @@ const { chromium } = require('playwright');
     },{url,options});
     let result=await request('/json',{method:'POST',body:'fixture'});
     assert.equal(result.kind,'handler');assert.deepEqual(result.data,{version:7});
-    assert.equal(lastHeaders.accept,'application/json');assert.equal(lastHeaders.requestverificationtoken,'controlled-token');assert.equal(lastHeaders['x-requested-with'],'XMLHttpRequest');assert.match(lastHeaders.cookie,/FixtureSession=controlled/);assert.equal(lastHeaders['x-bingo-enhanced-post'],undefined);
+    assert.equal(lastHeaders.accept,'application/json');assert.equal(lastHeaders.requestverificationtoken,'controlled-token');assert.equal(lastHeaders['x-requested-with'],'XMLHttpRequest');if(process.env.PLAYWRIGHT_BROWSER==='webkit'){
+      // Planner ruling58-2: WebKit hides this synthetic-origin intercepted header;
+      // require the same credentials behavior at real authenticated Kestrel instead.
+      await require('../../scripts/lib/admin-parity-auth.cjs').proveAuthenticatedFetch(browser);
+    }else assert.match(lastHeaders.cookie,/FixtureSession=controlled/);assert.equal(lastHeaders['x-bingo-enhanced-post'],undefined);
     for(const destination of ['/Account/Login?accessChanged=true','/Account/AccessDenied','/Account/ChangePassword']) {
       for(const mode of ['redirect','navigation']) {
         result=await request(`/${mode}?to=${encodeURIComponent(destination)}`,{method:'POST'});

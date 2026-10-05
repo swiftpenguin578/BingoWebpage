@@ -1,7 +1,7 @@
 const assert=require('node:assert/strict');
-const {chromium}=require('playwright'),fixture=require('./fixtures/identity.cjs');
+const {chromium,webkit}=require('playwright'),fixture=require('./fixtures/identity.cjs');
 (async()=>{
- const browser=await chromium.launch({headless:true,channel:process.env.PLAYWRIGHT_CHANNEL||'chrome'});
+ const browser=await (process.env.PLAYWRIGHT_BROWSER === 'webkit' ? webkit.launch({headless:true}) : chromium.launch({headless:true,channel:process.env.PLAYWRIGHT_CHANNEL||'chrome'}));
  try{
   const page=await browser.newPage({reducedMotion:'reduce'}),errors=[];page.on('pageerror',e=>errors.push(e.message));
   const first=fixture.eventId,second='22222222-2222-2222-2222-222222222222',base='https://bingo.test/Admin/Events/Identity/';let mode='ordinary';

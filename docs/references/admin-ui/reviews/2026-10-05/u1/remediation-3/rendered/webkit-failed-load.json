@@ -1,0 +1,526 @@
+{
+  "actual": [
+    {
+      "name": "failure head",
+      "text": "Identity Name, description, buy-in and timezone for Winter Bingo 2027.",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "14px",
+        "fontWeight": "400",
+        "lineHeight": "20.299999px",
+        "color": "rgb(28, 29, 31)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "0px",
+        "marginBottom": "20px",
+        "gap": "24px",
+        "borderRadius": "0px"
+      },
+      "icons": null,
+      "rect": {
+        "width": 964,
+        "height": 53.15625
+      },
+      "options": {
+        "text": true,
+        "icon": true,
+        "required": true
+      }
+    },
+    {
+      "name": "failure",
+      "text": "Couldn’t load this eventCheck your connection and try again. Nothing was changed.Try again",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "14px",
+        "fontWeight": "400",
+        "lineHeight": "20.299999px",
+        "color": "rgb(28, 29, 31)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "64px",
+        "paddingRight": "24px",
+        "paddingBottom": "64px",
+        "paddingLeft": "24px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "6px",
+        "borderRadius": "0px"
+      },
+      "icons": null,
+      "rect": {
+        "width": 758,
+        "height": 279.3125
+      },
+      "options": {
+        "text": false,
+        "icon": true,
+        "required": true
+      }
+    },
+    {
+      "name": "failure title",
+      "text": "Couldn’t load this event",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "15px",
+        "fontWeight": "600",
+        "lineHeight": "21.75px",
+        "color": "rgb(28, 29, 31)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "normal",
+        "borderRadius": "0px"
+      },
+      "icons": null,
+      "rect": {
+        "width": 170.765625,
+        "height": 21.75
+      },
+      "options": {
+        "text": true,
+        "icon": true,
+        "required": true
+      }
+    },
+    {
+      "name": "failure message",
+      "text": "Check your connection and try again. Nothing was changed.",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "13.5px",
+        "fontWeight": "400",
+        "lineHeight": "19.575001px",
+        "color": "rgb(84, 86, 91)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "0px",
+        "marginBottom": "10px",
+        "gap": "normal",
+        "borderRadius": "0px"
+      },
+      "icons": null,
+      "rect": {
+        "width": 369.875,
+        "height": 19.5625
+      },
+      "options": {
+        "text": true,
+        "icon": true,
+        "required": true
+      }
+    },
+    {
+      "name": "retry",
+      "text": "Try again",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "14px",
+        "fontWeight": "500",
+        "lineHeight": "20.299999px",
+        "color": "rgb(28, 29, 31)",
+        "backgroundColor": "rgb(255, 255, 255)",
+        "paddingTop": "0px",
+        "paddingRight": "14px",
+        "paddingBottom": "0px",
+        "paddingLeft": "14px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "7px",
+        "borderRadius": "8px"
+      },
+      "icons": null,
+      "rect": {
+        "width": 89.6875,
+        "height": 34
+      },
+      "options": {
+        "text": true,
+        "icon": true,
+        "required": true
+      }
+    },
+    {
+      "name": "failure icon",
+      "text": "",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "14px",
+        "fontWeight": "400",
+        "lineHeight": "20.299999px",
+        "color": "rgb(162, 61, 51)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "normal",
+        "borderRadius": "0px"
+      },
+      "icons": [
+        {
+          "tag": "circle",
+          "attrs": {
+            "cx": "8",
+            "cy": "8",
+            "r": "6"
+          }
+        },
+        {
+          "tag": "path",
+          "attrs": {
+            "d": "M8 5v3.5M8 11h.01"
+          }
+        }
+      ],
+      "rect": {
+        "width": 20,
+        "height": 20
+      },
+      "options": {
+        "text": true,
+        "icon": true,
+        "required": true
+      }
+    }
+  ],
+  "expected": [
+    {
+      "name": "failure head",
+      "text": "Identity Name, description, buy-in and timezone for Winter Bingo 2027.",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "14px",
+        "fontWeight": "400",
+        "lineHeight": "20.299999px",
+        "color": "rgb(28, 29, 31)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "0px",
+        "marginBottom": "20px",
+        "gap": "24px",
+        "borderRadius": "0px"
+      },
+      "icons": null,
+      "rect": {
+        "width": 964,
+        "height": 53.15625
+      },
+      "options": {
+        "text": true,
+        "icon": true,
+        "required": true
+      }
+    },
+    {
+      "name": "failure",
+      "text": "Couldn’t load this event Check your connection and try again. Nothing was changed. Try again",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "14px",
+        "fontWeight": "400",
+        "lineHeight": "20.299999px",
+        "color": "rgb(28, 29, 31)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "64px",
+        "paddingRight": "24px",
+        "paddingBottom": "64px",
+        "paddingLeft": "24px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "6px",
+        "borderRadius": "0px"
+      },
+      "icons": null,
+      "rect": {
+        "width": 758,
+        "height": 279.3125
+      },
+      "options": {
+        "text": false,
+        "icon": true,
+        "required": true
+      }
+    },
+    {
+      "name": "failure title",
+      "text": "Couldn’t load this event",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "15px",
+        "fontWeight": "600",
+        "lineHeight": "21.75px",
+        "color": "rgb(28, 29, 31)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "normal",
+        "borderRadius": "0px"
+      },
+      "icons": null,
+      "rect": {
+        "width": 170.765625,
+        "height": 21.75
+      },
+      "options": {
+        "text": true,
+        "icon": true,
+        "required": true
+      }
+    },
+    {
+      "name": "failure message",
+      "text": "Check your connection and try again. Nothing was changed.",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "13.5px",
+        "fontWeight": "400",
+        "lineHeight": "19.575001px",
+        "color": "rgb(84, 86, 91)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "0px",
+        "marginBottom": "10px",
+        "gap": "normal",
+        "borderRadius": "0px"
+      },
+      "icons": null,
+      "rect": {
+        "width": 369.875,
+        "height": 19.5625
+      },
+      "options": {
+        "text": true,
+        "icon": true,
+        "required": true
+      }
+    },
+    {
+      "name": "retry",
+      "text": "Try again",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "14px",
+        "fontWeight": "500",
+        "lineHeight": "20.299999px",
+        "color": "rgb(28, 29, 31)",
+        "backgroundColor": "rgb(255, 255, 255)",
+        "paddingTop": "0px",
+        "paddingRight": "14px",
+        "paddingBottom": "0px",
+        "paddingLeft": "14px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "7px",
+        "borderRadius": "8px"
+      },
+      "icons": null,
+      "rect": {
+        "width": 89.6875,
+        "height": 34
+      },
+      "options": {
+        "text": true,
+        "icon": true,
+        "required": true
+      }
+    },
+    {
+      "name": "failure icon",
+      "text": "",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "14px",
+        "fontWeight": "400",
+        "lineHeight": "20.299999px",
+        "color": "rgb(162, 61, 51)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "normal",
+        "borderRadius": "0px"
+      },
+      "icons": [
+        {
+          "tag": "circle",
+          "attrs": {
+            "cx": "8",
+            "cy": "8",
+            "r": "6"
+          }
+        },
+        {
+          "tag": "path",
+          "attrs": {
+            "d": "M8 5v3.5M8 11h.01"
+          }
+        }
+      ],
+      "rect": {
+        "width": 20,
+        "height": 20
+      },
+      "options": {
+        "text": true,
+        "icon": true,
+        "required": true
+      }
+    }
+  ],
+  "classes": {
+    "used": [
+      "account-btn",
+      "app",
+      "banner",
+      "brand-name",
+      "brand-sub",
+      "brand-text",
+      "btn",
+      "btn-primary",
+      "btn-quiet",
+      "btn-sm",
+      "card",
+      "collapse-btn",
+      "compare",
+      "compare-head",
+      "compare-k",
+      "compare-label",
+      "compare-new",
+      "compare-off",
+      "compare-old",
+      "compare-row",
+      "copy-field",
+      "crumb-btn",
+      "crumb-cur",
+      "crumb-mid",
+      "crumb-sep",
+      "crumbs",
+      "design-event-menu",
+      "design-event-options",
+      "design-mobile-preferences",
+      "design-notifications-menu",
+      "design-preferences",
+      "design-skip",
+      "design-top-actions",
+      "dirty",
+      "dk-theme",
+      "dot",
+      "empty",
+      "empty-ic",
+      "empty-text",
+      "empty-title",
+      "ev-chev",
+      "ev-ic",
+      "ev-lbl",
+      "ev-meta",
+      "ev-meta-text",
+      "ev-name",
+      "ev-text",
+      "event-switch",
+      "fade-in",
+      "field",
+      "field-count",
+      "field-err",
+      "field-hint",
+      "field-narrow",
+      "field-note",
+      "field-validation-valid",
+      "form-banners",
+      "form-bar",
+      "form-card",
+      "form-fields",
+      "form-sec",
+      "form-sec-head",
+      "form-sec-sub",
+      "form-sec-title",
+      "grow",
+      "h1",
+      "ic",
+      "icon-btn",
+      "id-buyin",
+      "id-desc",
+      "id-name",
+      "identity-editor-form",
+      "input",
+      "is-current",
+      "is-error",
+      "is-info",
+      "is-on",
+      "is-warning",
+      "lbl",
+      "lbl-row",
+      "logo",
+      "m-actions",
+      "m-body",
+      "m-title",
+      "main",
+      "menu",
+      "menu-check",
+      "menu-head",
+      "menu-hint",
+      "menu-item",
+      "menu-sep",
+      "menu-toggle",
+      "mono",
+      "nav",
+      "nav-item",
+      "nav-label",
+      "nav-scrim",
+      "nav-text",
+      "opt",
+      "page",
+      "page-head",
+      "saved-note",
+      "scroller",
+      "select",
+      "select-field",
+      "select-wrap",
+      "side",
+      "side-rule",
+      "side-top",
+      "sk",
+      "sk-block",
+      "spin",
+      "summary",
+      "t-ic",
+      "text-btn",
+      "textarea",
+      "theme-opt",
+      "theme-seg",
+      "toast",
+      "toast-act",
+      "toast-x",
+      "toasts",
+      "tone-draft",
+      "topbar"
+    ],
+    "undefined": []
+  },
+  "differences": []
+}

@@ -250,9 +250,21 @@ export async function init(region, ui = window.AdminUI) {
     const content = ui.template('confirmation');
     const heading = content.querySelector('[data-confirm-title]'); heading.textContent = text('timezoneTitle').replace('{0}', value('Timezone'));
     content.querySelector('[data-confirm-description]').replaceWith(template.content.cloneNode(true));
-    const other = fields.slice(0, 3).filter(field => canonical(field, wire(value(field))) !== canonical(field, wire(value(`Original${field}`)))).map(field => labels[field]);
+    // Use the reference's Intl display formatter: browser locale data can use
+    // different date/time separators. The server's text remains the fallback.
+    for (const cell of content.querySelectorAll('[data-preview-instant]')) {
+      try {
+        const dateText = [...cell.childNodes].find(node => node.nodeType === Node.TEXT_NODE && node.textContent.trim());
+        if (!dateText) continue;
+        dateText.textContent = new Intl.DateTimeFormat(document.documentElement.lang === 'da' ? 'da-DK' : 'en-GB', {
+          timeZone: cell.dataset.previewZone, day: 'numeric', month: 'short', year: 'numeric',
+          hour: '2-digit', minute: '2-digit', hourCycle: 'h23'
+        }).format(new Date(cell.dataset.previewInstant));
+      } catch { /* Retain the server's explicit timezone fallback. */ }
+    }
+    const other = fields.slice(0, 3).filter(field => canonical(field, wire(value(field))) !== canonical(field, wire(value(`Original${field}`)))).map(field => labels[field].toLocaleLowerCase(document.documentElement.lang || 'en'));
     const actions = content.querySelector('.m-actions');
-    if (other.length) { const together = document.createElement('p'); together.className = 'compare-foot'; together.dataset.savedTogether = ''; together.textContent = text('savedTogether').replace('{0}', other.join(', ')); actions.before(together); }
+    if (other.length) { const together = document.createElement('span'); together.dataset.savedTogether = ''; together.textContent = text('savedTogether').replace('{0}', other.join(', ')); content.querySelector('[data-confirm-description]').append(together); }
     const cancel = content.querySelector('[data-confirm-cancel]'); cancel.textContent = text('cancel'); cancel.dataset.identityReviewCancel = '';
     const confirm = content.querySelector('[data-confirm-accept]'); confirm.querySelector('[data-component-text]').textContent = text('timezoneAction').replace('{0}', value('Timezone')); confirm.dataset.identityReviewConfirm = '';
     layer = ui.openLayer({ title: heading.textContent, content, confirmation: true, pending: () => pending, opener: save, onClose: () => { layer = null; } });

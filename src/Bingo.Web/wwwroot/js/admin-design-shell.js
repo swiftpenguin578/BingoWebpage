@@ -79,7 +79,17 @@
     focus(checked || controls(element)[0]);
     checked?.scrollIntoView({ block: 'nearest' });
   }
+  function placePreferences() {
+    const topbar = document.querySelector('[data-shell-topbar]');
+    // Prefer newly translated/refreshed controls to the retained mobile instance.
+    const preferences = topbar?.querySelector('[data-shell-preferences]') || document.querySelector('[data-shell-preferences]');
+    const target = mobileQuery.matches ? document.querySelector('[data-mobile-preferences]') : topbar?.querySelector('[data-desktop-preferences]');
+    if (!preferences || !target) return;
+    document.querySelectorAll('[data-shell-preferences]').forEach(other => { if (other !== preferences) other.remove(); });
+    if (preferences.parentElement !== target) target.append(preferences);
+  }
   function paintSideLabel() {
+    placePreferences();
     const collapsed = document.querySelector('[data-shell-sidebar]')?.classList.contains('is-collapsed');
     const label = text(mobileQuery.matches ? 'closeNavigation' : collapsed ? 'expandNavigation' : 'collapseNavigation');
     document.querySelectorAll('.collapse-btn').forEach(button => { button.setAttribute('aria-label', label); button.title = label; });
@@ -416,7 +426,7 @@
     const ticket = ++sequence;
     navigation = new AbortController();
     closeMenu(false);
-    if (mobile) toggleSide(false);
+    if (mobile && !language) toggleSide(false);
     const position = suppliedPosition || rememberPosition();
     if (!language) skeleton(url);
     let receivedPage = false;
@@ -446,7 +456,12 @@
       doc.querySelectorAll('link[data-admin-page-style]').forEach(style => document.head.append(document.importNode(style, true)));
       for (const notice of doc.querySelectorAll('[data-toast-host] [data-toast]')) toast(notice.querySelector('.grow')?.textContent || notice.textContent, { error: notice.classList.contains('is-error') });
       window.adminDesignTheme?.apply(); paintSideLabel();
-      if (mode === 'push') { index++; history.pushState({ adminDesignIndex: index }, '', url); }
+      if (mode === 'push') {
+        // A new navigation can replace an in-flight pop load. Its physical history
+        // entry already moved, even though that old load has not committed index.
+        index = (history.state?.adminDesignIndex ?? index) + 1;
+        history.pushState({ adminDesignIndex: index }, '', url);
+      }
       else if (mode === 'pop') index = targetIndex;
       activeUrl = url;
       await initModules(nextModules);

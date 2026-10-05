@@ -322,15 +322,23 @@ isolated Node process. Install Node 22, pnpm 11.25.0 and the pinned dependencies
 
 ```sh
 pnpm install --frozen-lockfile
-pnpm exec playwright install --with-deps chromium chrome
+pnpm exec playwright install --with-deps chromium chrome webkit
 export BINGO_ADMIN_STALE_EVIDENCE_DIRECTORY="$PWD/artifacts/js-fixtures"
 dotnet test tests/Bingo.IntegrationTests/Bingo.IntegrationTests.csproj --configuration Release --filter FullyQualifiedName~AccountConfirmationRejectsCompletedInterveningChangesThenAcceptsFreshAction
+dotnet build tests/AdminDesignParityFixture/AdminDesignParityFixture.csproj --configuration Release
 pnpm test:js
+pnpm test:parity
 ```
 
 Docker is required for the controlled PostgreSQL fixture-generation step. No
 running application or user database is used. The runner defaults to Playwright
 Chromium; `PLAYWRIGHT_CHANNEL=chrome` can select an installed Chrome locally.
-One legacy test selects Chrome explicitly, so CI installs both browsers. Existing
-test expectations remain unchanged. The runner records each file's output and an
-aggregate result in `artifacts/js-tests/`; any failed file fails the gate.
+The shell and Identity browser files also run in WebKit. One legacy test selects
+Chrome explicitly. Each execution is recorded by file and engine in
+`artifacts/js-tests/`; any failure fails the gate. `test:parity` compares the frozen
+Identity reference with actual Kestrel-served Razor and fingerprinted assets in both
+engines, using only its own PostgreSQL container and synthetic account. Its exact
+text/icon/style reports and screenshot pairs are written to `artifacts/admin-parity/`.
+It never reads review credentials or uses an existing app/database. Set
+`BINGO_PARITY_ROOT` to an extracted baseline with the same standalone fixture built
+to run the identical assertions against that source; no baseline assertions are waived.

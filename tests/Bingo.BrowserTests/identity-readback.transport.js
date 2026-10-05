@@ -1,9 +1,9 @@
 // AU09/A14: native multipart tuple and versioned readback through the new runtime.
 const assert=require('node:assert/strict');
-const {chromium}=require('playwright'),fixture=require('./fixtures/identity.cjs');
+const {chromium,webkit}=require('playwright'),fixture=require('./fixtures/identity.cjs');
 const eventId=fixture.eventId,routeUrl=`https://bingo.test/Admin/Events/Identity/${eventId}`;
 (async()=>{
- const browser=await chromium.launch({headless:true,channel:process.env.PLAYWRIGHT_CHANNEL||'chrome'});
+ const browser=await (process.env.PLAYWRIGHT_BROWSER === 'webkit' ? webkit.launch({headless:true}) : chromium.launch({headless:true,channel:process.env.PLAYWRIGHT_CHANNEL||'chrome'}));
  try{
   const page=await browser.newPage({reducedMotion:'reduce'}),errors=[];page.on('pageerror',e=>errors.push(e.message));
   let posts=0,reads=0,readFailure=false,values,version=8,appliedValues;

@@ -127,6 +127,8 @@ Toasts use finite reference lifetime and animated exit, without hover pause; on
 phones they sit above the sticky save bar (Q5). Every save/action uses shared
 `AdminUI.busy` (600 ms, quick 250 ms only for one-click live-draft actions).
 
+User decision, 5 October 2026: “Move the light switch and language switch into the hamburger”, clarified “This is obviously only on mobile widths.” At the existing mobile/off-canvas breakpoint (max-width: 860px), both controls live inside navigation; the bell remains in the topbar. Above that breakpoint their topbar placement is unchanged. Theme/language behavior, dirty guards and keyboard access remain unchanged. This approved mobile placement gives the event breadcrumb at least the reference reading width.
+
 There is no U-D decision. Shared navigation retains sidebar DOM/collapse state,
 updates current/event-dependent links, closes clean layers before swaps and guards
 layers with unsaved input. Fragment-only history changes stay native; widening

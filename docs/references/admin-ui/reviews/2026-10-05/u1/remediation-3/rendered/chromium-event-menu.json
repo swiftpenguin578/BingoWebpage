@@ -1,0 +1,270 @@
+{
+  "actual": [
+    {
+      "name": "menu title",
+      "text": "Switch event",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "13px",
+        "fontWeight": "600",
+        "lineHeight": "18.85px",
+        "color": "rgb(28, 29, 31)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "normal",
+        "borderRadius": "0px"
+      },
+      "icons": null,
+      "rect": {
+        "width": 224,
+        "height": 18.84375
+      },
+      "options": {
+        "text": true,
+        "icon": true,
+        "required": true
+      }
+    },
+    {
+      "name": "current check",
+      "text": "",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "13.5px",
+        "fontWeight": "400",
+        "lineHeight": "19.575px",
+        "color": "rgb(47, 106, 116)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "normal",
+        "borderRadius": "0px"
+      },
+      "icons": [
+        {
+          "tag": "path",
+          "attrs": {
+            "d": "M3.8 8.4 6.6 11.2 12.2 5"
+          }
+        }
+      ],
+      "rect": {
+        "width": 14,
+        "height": 14
+      },
+      "options": {
+        "text": true,
+        "icon": true,
+        "required": true
+      }
+    }
+  ],
+  "expected": [
+    {
+      "name": "menu title",
+      "text": "Switch event",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "13px",
+        "fontWeight": "600",
+        "lineHeight": "18.85px",
+        "color": "rgb(28, 29, 31)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "normal",
+        "borderRadius": "0px"
+      },
+      "icons": null,
+      "rect": {
+        "width": 224,
+        "height": 18.84375
+      },
+      "options": {
+        "text": true,
+        "icon": true,
+        "required": true
+      }
+    },
+    {
+      "name": "current check",
+      "text": "",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "13.5px",
+        "fontWeight": "400",
+        "lineHeight": "19.575px",
+        "color": "rgb(47, 106, 116)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "normal",
+        "borderRadius": "0px"
+      },
+      "icons": [
+        {
+          "tag": "path",
+          "attrs": {
+            "d": "M3.8 8.4 6.6 11.2 12.2 5"
+          }
+        }
+      ],
+      "rect": {
+        "width": 14,
+        "height": 14
+      },
+      "options": {
+        "text": true,
+        "icon": true,
+        "required": true
+      }
+    }
+  ],
+  "classes": {
+    "used": [
+      "account-btn",
+      "app",
+      "banner",
+      "brand-name",
+      "brand-sub",
+      "brand-text",
+      "btn",
+      "btn-primary",
+      "btn-quiet",
+      "btn-sm",
+      "card",
+      "collapse-btn",
+      "compare",
+      "compare-head",
+      "compare-k",
+      "compare-label",
+      "compare-new",
+      "compare-off",
+      "compare-old",
+      "compare-row",
+      "copy-field",
+      "crumb-btn",
+      "crumb-cur",
+      "crumb-mid",
+      "crumb-sep",
+      "crumbs",
+      "design-event-menu",
+      "design-event-options",
+      "design-mobile-preferences",
+      "design-notifications-menu",
+      "design-preferences",
+      "design-skip",
+      "design-top-actions",
+      "dirty",
+      "dk-theme",
+      "dot",
+      "empty",
+      "empty-ic",
+      "empty-text",
+      "empty-title",
+      "ev-chev",
+      "ev-ic",
+      "ev-lbl",
+      "ev-meta",
+      "ev-meta-text",
+      "ev-name",
+      "ev-text",
+      "event-switch",
+      "fade-in",
+      "field",
+      "field-count",
+      "field-err",
+      "field-hint",
+      "field-narrow",
+      "field-note",
+      "field-validation-valid",
+      "form-banners",
+      "form-bar",
+      "form-card",
+      "form-fields",
+      "form-sec",
+      "form-sec-head",
+      "form-sec-sub",
+      "form-sec-title",
+      "grow",
+      "h1",
+      "ic",
+      "icon-btn",
+      "id-buyin",
+      "id-desc",
+      "id-name",
+      "identity-editor-form",
+      "input",
+      "is-current",
+      "is-error",
+      "is-info",
+      "is-on",
+      "is-warning",
+      "lbl",
+      "lbl-row",
+      "logo",
+      "m-actions",
+      "m-body",
+      "m-title",
+      "main",
+      "menu",
+      "menu-check",
+      "menu-head",
+      "menu-hint",
+      "menu-item",
+      "menu-sep",
+      "menu-toggle",
+      "mono",
+      "nav",
+      "nav-item",
+      "nav-label",
+      "nav-scrim",
+      "nav-text",
+      "opt",
+      "page",
+      "page-head",
+      "saved-note",
+      "scroller",
+      "select",
+      "select-field",
+      "select-wrap",
+      "side",
+      "side-rule",
+      "side-top",
+      "sk",
+      "sk-block",
+      "spin",
+      "summary",
+      "t-ic",
+      "text-btn",
+      "textarea",
+      "theme-opt",
+      "theme-seg",
+      "toast",
+      "toast-act",
+      "toast-x",
+      "toasts",
+      "tone-open",
+      "topbar"
+    ],
+    "undefined": []
+  },
+  "differences": []
+}

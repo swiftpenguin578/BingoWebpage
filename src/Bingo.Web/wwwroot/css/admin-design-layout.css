@@ -7,7 +7,7 @@ button.theme-opt{border:0;padding:0;background:transparent}button.theme-opt:focu
 .ev-text{flex:1;min-width:0}.design-top-actions{margin-left:auto;display:flex;align-items:center;gap:12px}
 .design-event-menu{width:min(360px,calc(100vw - 24px))}.design-event-options{max-height:272px;overflow-y:auto}
 .design-notifications-menu{width:min(380px,calc(100vw - 24px));max-height:70vh;overflow:auto}
-@media(max-width:600px){.design-top-actions{gap:4px}.topbar{gap:6px}.crumbs{flex:1}}
+@media(max-width:600px){.design-top-actions{gap:4px}.crumbs{flex:1}}
 
 body:not(.using-keyboard) :focus-visible{outline:none}.design-drawer-layer{position:fixed;inset:0;pointer-events:none;z-index:var(--dk-z-drawer)}.design-drawer-layer>.drawer{pointer-events:auto}
 
@@ -22,3 +22,12 @@ body:not(.using-keyboard) :focus-visible{outline:none}.design-drawer-layer{posit
 @media(prefers-reduced-motion:reduce){[data-language-transition]{animation:none}}
 
 .toasts{bottom:var(--admin-toast-bottom,20px)}
+
+/* User-approved mobile preference placement; a single live set moves at 860px. */
+.design-preferences { display: flex; align-items: center; gap: 12px; }
+[data-desktop-preferences] { display: contents; }
+.design-mobile-preferences { display: none; }
+@media (max-width: 860px) {
+  .design-mobile-preferences { display: flex; padding: 12px 6px; margin-top: auto; }
+  .design-top-actions [data-shell-preferences] { display: none; }
+}

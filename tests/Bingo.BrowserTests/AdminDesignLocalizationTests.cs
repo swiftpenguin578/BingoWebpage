@@ -19,6 +19,7 @@ public sealed class AdminDesignLocalizationTests
         Assert.Equal("Eventet har endnu ikke været offentligt. En ændring af tidszonen gemmes direkte uden bekræftelse.", danish["AdminDesign.This event has not been public yet. A timezone change saves directly without a confirmation."]);
         Assert.EndsWith("omdøber det.", danish["AdminDesign.Permanent. It was created with the event and stays the same when you rename it."]);
         Assert.EndsWith("læser om det.", danish["AdminDesign.The event's name and the text players read about it."]);
+        Assert.Equal(" Dine andre ændringer ({0}) gemmes samtidig.", danish["AdminDesign. Your other changes ({0}) are saved at the same time."]); // Planner58-4: exact reference sentence binding.
         Assert.Equal("Bingoer", danish["Events"]); Assert.Equal("Bingo", danish["Event"]); // Legacy pages unchanged.
         foreach (var (key, value) in english)
         {

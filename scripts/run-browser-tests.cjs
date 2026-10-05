@@ -19,24 +19,27 @@ for (const action of ['Disable', 'Restore', 'GrantAdmin', 'RevokeAdmin']) {
 }
 fs.mkdirSync(output, { recursive: true });
 const results = [];
-for (const file of files) {
-  console.log(`Running ${file}`);
+const runs = files.flatMap(file => /^(admin-design-|identity-)/.test(file)
+  ? [{ file, browser: 'chromium' }, { file, browser: 'webkit' }]
+  : [{ file, browser: 'default' }]);
+for (const { file, browser } of runs) {
+  console.log(`Running ${file} [${browser}]`);
   const started = Date.now();
   const result = spawnSync(process.execPath, [path.join(directory, file)], {
     cwd: root,
-    env: { ...process.env, PLAYWRIGHT_CHANNEL: process.env.PLAYWRIGHT_CHANNEL || 'chromium' },
+    env: { ...process.env, PLAYWRIGHT_BROWSER: browser, PLAYWRIGHT_CHANNEL: process.env.PLAYWRIGHT_CHANNEL || 'chromium' },
     encoding: 'utf8',
     timeout: 120000,
     maxBuffer: 8 * 1024 * 1024
   });
   const passed = !result.error && result.status === 0;
   const log = `${result.stdout || ''}${result.stderr || ''}${result.error ? `${result.error.stack}\n` : ''}`;
-  fs.writeFileSync(path.join(output, `${file}.log`), log);
-  results.push({ file, passed, exitCode: result.status, signal: result.signal, milliseconds: Date.now() - started });
-  console.log(`${passed ? 'PASS' : 'FAIL'} ${file}`);
+  fs.writeFileSync(path.join(output, `${file}.${browser}.log`), log);
+  results.push({ file, browser, passed, exitCode: result.status, signal: result.signal, milliseconds: Date.now() - started });
+  console.log(`${passed ? 'PASS' : 'FAIL'} ${file} [${browser}]`);
   if (!passed) process.stdout.write(log);
 }
 const summary = { total: results.length, passed: results.filter(result => result.passed).length, failed: results.filter(result => !result.passed).length, results };
 fs.writeFileSync(path.join(output, 'results.json'), `${JSON.stringify(summary, null, 2)}\n`);
-console.log(`JavaScript files: ${summary.passed} passed, ${summary.failed} failed, ${summary.total} total.`);
+console.log(`JavaScript executions: ${summary.passed} passed, ${summary.failed} failed, ${summary.total} total.`);
 process.exitCode = summary.failed ? 1 : 0;
