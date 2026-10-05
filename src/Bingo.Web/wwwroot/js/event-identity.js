@@ -177,7 +177,8 @@ export async function init(region, ui = window.AdminUI) {
     const nextRoot = document.importNode(next, true);
     await dispose(); root.replaceWith(nextRoot); await init(nextRoot, ui);
     if (succeeded) {
-      ui.refreshContext(parsed);
+      try { ui.refreshContext(parsed); }
+      catch (error) { console.warn('Saved identity, but shell context could not be refreshed.', error); }
       for (const toast of parsed.querySelectorAll('[data-toast-host] [data-toast]')) ui.toast(toast.querySelector('.grow')?.textContent || toast.textContent);
     }
   }

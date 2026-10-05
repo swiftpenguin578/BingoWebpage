@@ -16,6 +16,9 @@ public sealed class AdminDesignLocalizationTests
         var english = XDocument.Load(Path.Combine(resources, "SharedResource.resx")).Descendants("data").ToDictionary(item => item.Attribute("name")!.Value, item => item.Element("value")!.Value);
         var danish = XDocument.Load(Path.Combine(resources, "SharedResource.da.resx")).Descendants("data").ToDictionary(item => item.Attribute("name")!.Value, item => item.Element("value")!.Value);
         Assert.Equal("Events", danish["AdminDesign.Events"]); Assert.Equal("Event", danish["AdminDesign.Event"]); Assert.Equal("Alle events", danish["All events"]);
+        Assert.Equal("Eventet har endnu ikke været offentligt. En ændring af tidszonen gemmes direkte uden bekræftelse.", danish["AdminDesign.This event has not been public yet. A timezone change saves directly without a confirmation."]);
+        Assert.EndsWith("omdøber det.", danish["AdminDesign.Permanent. It was created with the event and stays the same when you rename it."]);
+        Assert.EndsWith("læser om det.", danish["AdminDesign.The event's name and the text players read about it."]);
         Assert.Equal("Bingoer", danish["Events"]); Assert.Equal("Bingo", danish["Event"]); // Legacy pages unchanged.
         foreach (var (key, value) in english)
         {

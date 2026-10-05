@@ -294,6 +294,7 @@
       if (old.length !== replacements.length) throw new Error('Unexpected shell context');
       old.forEach((element, index) => element.replaceWith(document.importNode(replacements[index], true)));
     }
+    window.adminDesignTheme?.apply();
   }
   async function closeNavigationLayers() {
     while (layers.length) if (!await closeLayer(layers.at(-1), false, true)) return false;
