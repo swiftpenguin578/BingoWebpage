@@ -1,23 +1,23 @@
 @model Bingo.Web.Navigation.AdminDesignShell
 @{ var language = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName; }
 <header class="topbar" data-shell-topbar>
-    <button class="icon-btn menu-toggle" data-side-toggle aria-label="@T["Open navigation"]" aria-expanded="false"><svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 4h10M3 8h10M3 12h10"/></svg></button>
+    <button class="icon-btn menu-toggle" data-side-toggle aria-label="@T["Open navigation"]" aria-expanded="false"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("menu", "ic")' /></button>
     <nav class="crumbs" aria-label="@T["Breadcrumbs"]" data-shell-breadcrumbs><a href="/Admin/Events/Index" data-shell-link>@T["AdminDesign.Events"]</a>
         @if (Model.SelectedEvent is { } selected) { <span aria-hidden="true">/</span><span class="design-event-crumb">@selected.Name</span> }
         <span aria-hidden="true">/</span><span aria-current="page">@T[ViewData["Title"]?.ToString() ?? "Admin"]</span>
     </nav>
     <div class="design-top-actions">
-        <div class="theme-seg" role="group" aria-label="@T["Theme"]"><button class="theme-opt" data-theme="light" aria-label="@T["Light theme"]" title="@T["Light theme"]"><svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="2.8"/><path d="M8 1.8v1.4M8 12.8v1.4M1.8 8h1.4M12.8 8h1.4M3.6 3.6l1 1M11.4 11.4l1 1M3.6 12.4l1-1M11.4 4.6l1-1"/></svg></button><button class="theme-opt" data-theme="dark" aria-label="@T["Dark theme"]" title="@T["Dark theme"]"><svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><path d="M13 9.6A5.4 5.4 0 0 1 6.4 3 5.4 5.4 0 1 0 13 9.6z"/></svg></button></div>
+        <div class="theme-seg" role="group" aria-label="@T["Theme"]"><button class="theme-opt" data-theme="light" aria-label="@T["Light theme"]" title="@T["Light theme"]"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("sun", "ic")' /></button><button class="theme-opt" data-theme="dark" aria-label="@T["Dark theme"]" title="@T["Dark theme"]"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("moon", "ic")' /></button></div>
         <form class="theme-seg" method="post" asp-page="/Language" aria-label="@T["Language"]"><input type="hidden" name="returnUrl" value="@(Context.Request.Path + Context.Request.QueryString)" /><button class="theme-opt @(language == "en" ? "is-on" : null)" name="culture" value="en" aria-label="@T["English"]" aria-pressed="@(language == "en" ? "true" : "false")">@T["EN"]</button><button class="theme-opt @(language == "da" ? "is-on" : null)" name="culture" value="da" aria-label="@T["Danish"]" aria-pressed="@(language == "da" ? "true" : "false")">@T["DA"]</button></form>
-        <button class="icon-btn" data-menu-target="admin-notifications-menu" data-menu-align="end" aria-haspopup="menu" aria-expanded="false" aria-label="@T["Notifications, {0} unread", Model.Notifications.Count]"><svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 11h10l-1.5-2V6a3.5 3.5 0 0 0-7 0v3L3 11m3 2h4"/></svg>@if (Model.Notifications.Count > 0) { <span class="design-notification-count" aria-hidden="true">@Model.Notifications.Count</span> }</button>
+        <button class="icon-btn" data-menu-target="admin-notifications-menu" data-menu-align="end" aria-haspopup="menu" aria-expanded="false" aria-label="@T["Notifications, {0} unread", Model.Notifications.Count]"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("bell", "ic")' />@if (Model.Notifications.Count > 0) { <span class="design-notification-count" aria-hidden="true">@Model.Notifications.Count</span> }</button>
     </div>
 </header>
 <div class="menu design-notifications-menu" id="admin-notifications-menu" role="menu" hidden data-shell-menu>
-    <div class="menu-head">@T["Notifications"]</div>
+    <partial name="_AdminDesignMenuHeader" model='new AdminDesignMenuHeader(T["Notifications"].Value)' />
     @foreach (var item in Model.Notifications.Items) { <a class="menu-item" role="menuitem" href="@item.Url" title="@item.Detail">@item.Title</a> }
     @if (Model.Notifications.Items.Count == 0) { <p>@Model.Notifications.EmptyText</p> }
     <a class="menu-item" role="menuitem" href="/notifications">@T["All notifications"]</a>
-    <div class="menu-sep" role="separator"></div><div class="menu-head">@T["Admin actions"]</div>
+    <div class="menu-sep" role="separator"></div><partial name="_AdminDesignMenuHeader" model='new AdminDesignMenuHeader(T["Admin actions"].Value)' />
     @foreach (var item in Model.Notifications.AdminItems) { <a class="menu-item" role="menuitem" href="@item.Url" title="@item.Detail">@item.Title</a> }
     @if (Model.Notifications.AdminItems.Count == 0) { <p>@(Model.Notifications.AdminActionsUnavailable ? T["Admin actions could not be loaded."].Value : Model.Notifications.AdminEmptyText)</p> }
     <a class="menu-item" role="menuitem" href="/notifications#admin-actions-heading">@T["Admin actions overview"]</a>

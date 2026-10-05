@@ -149,15 +149,18 @@
     layer.resolveClosed(true);
     return true;
   }
+  function template(name) {
+    const source = document.querySelector(`template[data-admin-template="${CSS.escape(name)}"]`);
+    if (!source) throw new Error(`Missing shared Admin template: ${name}`);
+    return source.content.cloneNode(true);
+  }
   function confirm({ title, description, actionLabel, cancelLabel }) {
     return new Promise(resolve => {
-      const content = document.createElement('div');
-      const heading = document.createElement('h2'); heading.className = 'm-title'; heading.textContent = title;
-      const support = document.createElement('p'); support.className = 'm-sub'; support.textContent = description;
-      const footer = document.createElement('div'); footer.className = 'm-actions';
-      const cancel = document.createElement('button'); cancel.className = 'btn'; cancel.textContent = cancelLabel; cancel.autofocus = true;
-      const accept = document.createElement('button'); accept.className = 'btn btn-primary'; accept.textContent = actionLabel;
-      footer.append(cancel, accept); content.append(heading, support, footer);
+      const content = template('confirmation');
+      content.querySelector('[data-confirm-title]').textContent = title;
+      content.querySelector('[data-confirm-description]').textContent = description;
+      const cancel = content.querySelector('[data-confirm-cancel]'), accept = content.querySelector('[data-confirm-accept]');
+      cancel.textContent = cancelLabel; accept.querySelector('[data-component-text]').textContent = actionLabel;
       const layer = openLayer({ title, content, confirmation: true, onClose: resolve });
       cancel.addEventListener('click', () => void layer.close(false));
       accept.addEventListener('click', () => void layer.close(true));
@@ -181,10 +184,9 @@
     while (toastTimers.size > 3) removeToast(toastTimers.keys().next().value);
   }
   function toast(message, { error = false, actionLabel, action } = {}) {
-    const element = document.createElement('div'); element.className = `toast${error ? ' is-error' : ''}`; element.dataset.toast = ''; element.setAttribute('role', error ? 'alert' : 'status');
-    const copy = document.createElement('span'); copy.className = 'grow'; copy.textContent = message; element.append(copy);
-    if (actionLabel && action) { const button = document.createElement('button'); button.className = 'toast-act'; button.textContent = actionLabel; button.addEventListener('click', action); element.append(button); }
-    const close = document.createElement('button'); close.className = 'toast-x'; close.dataset.toastClose = ''; close.setAttribute('aria-label', text('close')); close.textContent = '×'; element.append(close);
+    const element = template(error ? 'toast-error' : 'toast').firstElementChild;
+    element.querySelector('[data-component-text]').textContent = message;
+    if (actionLabel && action) { const button = element.querySelector('.toast-act'); button.hidden = false; button.textContent = actionLabel; button.addEventListener('click', action); }
     document.querySelector('[data-toast-host]').append(element);
     startToast(element, actionLabel && action ? 7000 : 4500);
     return element;
@@ -397,7 +399,7 @@
     if (record) index++;
     history[record ? 'pushState' : 'replaceState']({ adminDesignIndex: index }, '', url); activeUrl = url.href;
   }
-  const api = window.AdminUI = { trapTab, openLayer, closeLayer, confirm, confirmDiscard, toast, busy, reducedMotion, registerDraft, trackForm, refreshDirty, guard, query, setUrl, navigate, refreshContext };
+  const api = window.AdminUI = { template, trapTab, openLayer, closeLayer, confirm, confirmDiscard, toast, busy, reducedMotion, registerDraft, trackForm, refreshDirty, guard, query, setUrl, navigate, refreshContext };
   document.addEventListener('input', refreshDirty);
   document.addEventListener('change', refreshDirty);
   document.addEventListener('pointerdown', () => body.classList.remove('using-keyboard'));

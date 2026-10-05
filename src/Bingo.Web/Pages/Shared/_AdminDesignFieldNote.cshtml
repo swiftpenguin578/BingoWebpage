@@ -1,0 +1,2 @@
+@model Bingo.Web.UI.AdminDesignFieldNote
+<div class="field-note" data-conflict-for="@Model.Field" hidden="@Model.Hidden"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("info")' /><span><span data-component-text>@Model.Text</span>@if (Model.UseCurrent) { <text> </text><button type="button" class="text-btn" data-use-theirs="@Model.Field">@Model.ActionLabel</button> }</span></div>

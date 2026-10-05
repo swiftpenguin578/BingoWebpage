@@ -1,0 +1,2 @@
+@model Bingo.Web.UI.AdminDesignFieldError
+<div class="field-err @(string.IsNullOrEmpty(Model.Text) ? "field-validation-valid" : "field-validation-error")" id="error-@Model.Field"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("error")' /><span data-component-text>@Model.Text</span></div>

@@ -6,8 +6,10 @@
 <div class="toasts" data-toast-host aria-live="polite">
     @if (!string.IsNullOrWhiteSpace(message))
     {
-        <div class="toast @(type == UiMessageType.Error ? "is-error" : null)" data-toast role="@(type == UiMessageType.Error ? "alert" : "status")"><span class="grow">@T[message]</span><button class="toast-x" data-toast-close aria-label="@T["Dismiss message"]">×</button></div>
+        <partial name="_AdminDesignToast" model="new AdminDesignToast(T[message].Value, type == UiMessageType.Error)" />
     }
 </div>
 <div data-modal-host></div>
 <div data-drawer-host></div>
+
+<partial name="_AdminDesignTemplates" />

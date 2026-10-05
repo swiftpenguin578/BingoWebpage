@@ -6,3 +6,5 @@
 .identity-editor-form .field-err:empty{display:none}
 @media(min-width:1200px){.page .card.form-card{margin-bottom:40px}}
 @media(max-width:640px){.id-name{max-width:none}.identity-editor-form .form-bar .btn-primary{flex:1}}
+
+.sk-block{padding:var(--dk-space-5) var(--dk-space-6);border-bottom:1px solid var(--dk-border-subtle)}
