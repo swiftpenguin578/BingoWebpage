@@ -23,7 +23,7 @@ using Testcontainers.PostgreSql;
 
 namespace Bingo.IntegrationTests;
 
-public sealed class AdminDesignShellIntegrationTests : IAsyncLifetime
+public sealed partial class AdminDesignShellIntegrationTests : IAsyncLifetime
 {
     private static readonly DateTimeOffset Now = new(2026, 10, 5, 12, 0, 0, TimeSpan.Zero);
     private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine")

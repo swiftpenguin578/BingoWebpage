@@ -93,6 +93,13 @@ Filter/search updates use `AdminUI.setUrl` (replace); record opening passes
 supply the appropriate loading composition when extending the shell's target
 skeleton mapping. A discarded draft is never stored in browser history.
 
+New pages use `AdminFetch.request(url, { expect, draft, …fetchOptions })` for their
+handler traffic. Localized `draft` labels/values populate the session notice.
+Handle `handler`, `session-lost`, `refused` and `unknown` separately; unknown writes
+require the owning page's readback contract, never automatic resend. Only an
+explicit same-page PRG destination may be allowed through `allowRedirectTo`, and
+the page still validates the returned data before showing a result.
+
 Exit timing derives from computed shared CSS animation and completes even when no
 animation runs. U1's selected shared busy minimum is 600 ms for saves and 250 ms
 for one-click actions; reduced motion removes the wait (implemented and
