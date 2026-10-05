@@ -2,7 +2,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const { chromium } = require('playwright');
 const root = 'src/Bingo.Web/wwwroot';
-const shell = name => `<!doctype html><html class="dk-theme"><head><title>${name}</title><link rel="stylesheet" href="/css/admin-design-tokens.css"><link rel="stylesheet" href="/css/admin-design-components.css"><link rel="stylesheet" href="/css/admin-design-layout.css"></head><body data-admin-design data-navigation-enabled="${name === 'off' ? 'false' : 'true'}" data-close="Close" data-discard-title="Discard unsaved changes?" data-discard-description="Continuing will discard unsaved changes in this editor." data-keep-editing="Keep editing" data-discard="Discard" data-loading="Loading" data-load-error="The page could not be loaded." data-retry="Try again"><div class="app"><aside class="side" data-shell-sidebar><button data-menu-target="events-menu" id="event-opener" aria-expanded="false">Switch event</button><a data-shell-link id="sidebar-link" href="/Admin/Events/Identity/b">Other event</a></aside><button class="nav-scrim" data-side-scrim>Close nav</button><div class="main"><header class="topbar" data-shell-topbar><button class="menu-toggle" data-side-toggle>Open nav</button><a data-shell-link id="crumb-link" href="/Admin/Events/Identity/b">Event crumb</a></header><main class="scroller" data-page-region><div class="page"><h1 class="h1" tabindex="-1">${name}</h1><form id="draft"><input name="name" value="Original ${name}"></form><button id="layer-opener">Layer</button></div></main></div></div><div class="menu" id="events-menu" data-shell-menu hidden><a role="menuitem" data-shell-link id="switcher-link" href="/Admin/Events/Identity/b">B</a><button role="menuitem" id="last-menu">Last</button></div><div data-modal-host></div><div data-drawer-host></div><div class="toasts" data-toast-host></div><form hidden data-shell-antiforgery><input name="__RequestVerificationToken" value="fixture"></form><script src="/js/admin-design-shell.js" defer data-admin-shell-script></script><script type="module" data-admin-page-script src="/fixture-page.mjs"></script></body></html>`;
+const shell = name => `<!doctype html><html class="dk-theme"><head><title>${name}</title><link rel="stylesheet" href="/css/admin-design-tokens.css"><link rel="stylesheet" href="/css/admin-design-components.css"><link rel="stylesheet" href="/css/admin-design-layout.css"></head><body data-admin-design data-navigation-enabled="${name === 'off' ? 'false' : 'true'}" data-close="Close" data-discard-title="Discard unsaved changes?" data-discard-description="Continuing will discard unsaved changes in this editor." data-keep-editing="Keep editing" data-discard="Discard" data-loading="Loading" data-load-error="The page could not be loaded." data-retry="Try again"><a id="skip" href="#main-content">Skip to main content</a><div class="app"><aside class="side" data-shell-sidebar><button data-menu-target="events-menu" id="event-opener" aria-expanded="false">Switch event</button><a data-shell-link id="sidebar-link" href="/Admin/Events/Identity/b">Other event</a></aside><button class="nav-scrim" data-side-scrim>Close nav</button><div class="main"><header class="topbar" data-shell-topbar><button class="menu-toggle" data-side-toggle>Open nav</button><a data-shell-link id="crumb-link" href="/Admin/Events/Identity/b">Event crumb</a></header><main id="main-content" class="scroller" data-page-region><div class="page"><h1 class="h1" tabindex="-1">${name}</h1><form id="draft"><input name="name" value="Original ${name}"></form><button id="layer-opener">Layer</button></div></main></div></div><div class="menu" id="events-menu" data-shell-menu hidden><a role="menuitem" data-shell-link id="switcher-link" href="/Admin/Events/Identity/b">B</a><button role="menuitem" id="last-menu">Last</button></div><div data-modal-host></div><div data-drawer-host></div><div class="toasts" data-toast-host></div><form hidden data-shell-antiforgery><input name="__RequestVerificationToken" value="fixture"></form><script src="/js/admin-design-shell.js" defer data-admin-shell-script></script><script type="module" data-admin-page-script src="/fixture-page.mjs"></script></body></html>`;
 const pageModule = `let controller, timer, draft;
 export function init(root, ui) { window.inits=(window.inits||0)+1;window.activeModules=(window.activeModules||0)+1;controller=new AbortController();document.addEventListener('fixture:ping',()=>window.pings=(window.pings||0)+1,{signal:controller.signal});timer=setInterval(()=>window.ticks=(window.ticks||0)+1,1000);draft=ui.trackForm(root.querySelector('form'));window.fixtureReady=true; }
 export function dispose() { window.disposes=(window.disposes||0)+1;window.activeModules--;controller.abort();clearInterval(timer);draft.dispose();window.fixtureReady=false; }`;
@@ -13,7 +13,7 @@ export function dispose() { window.disposes=(window.disposes||0)+1;window.active
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
     let release;
-    let failed = true;
+    let failed = true, pageRequests = 0;
     await page.route('https://bingo.test/**', async route => {
       const url = new URL(route.request().url());
       if (url.pathname.startsWith('/js/') || url.pathname.startsWith('/css/')) return route.fulfill({ contentType: url.pathname.endsWith('.js') ? 'text/javascript' : 'text/css', body: fs.readFileSync(root + url.pathname, 'utf8') });
@@ -22,11 +22,28 @@ export function dispose() { window.disposes=(window.disposes||0)+1;window.active
       if (url.pathname.endsWith('/old')) return route.fulfill({ contentType: 'text/html', body: '<title>Old layout</title><h1>Old layout</h1>' });
       if (url.pathname.endsWith('/failure') && failed) return route.fulfill({ status: 503, contentType: 'text/html', body: 'Unavailable' });
       if (url.pathname.endsWith('/slow')) await new Promise(resolve => { release = resolve; });
+      pageRequests++;
       return route.fulfill({ contentType: 'text/html', body: shell(url.pathname.split('/').at(-1)) });
     });
     const start = async (name = 'a') => { await page.goto(`https://bingo.test/Admin/Events/Identity/${name}`); await page.waitForFunction(() => window.fixtureReady); };
     const navigate = async name => { await page.evaluate(name => window.AdminUI.navigate(`/Admin/Events/Identity/${name}`), name); await page.waitForFunction(() => window.fixtureReady); };
     const action = label => page.getByRole('alertdialog').getByRole('button', { name: label, exact: true });
+    for (const dirty of [false, true]) {
+      await start(); if (dirty) await page.locator('#draft input').fill('Fragment draft');
+      const requests = pageRequests, length = await page.evaluate(() => { window.fragmentPops=0; addEventListener('popstate',()=>window.fragmentPops++); return history.length; });
+      await page.locator('#skip').click(); await page.waitForFunction(()=>location.hash==='#main-content' && window.fragmentPops===1);
+      await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+      assert.equal(pageRequests, requests, 'skip link does not reload'); assert.equal(await page.getByRole('alertdialog').count(),0);
+      assert.equal(await page.evaluate(()=>history.length),length+1,'only the native fragment entry exists');
+      assert.equal(await page.locator('#draft input').inputValue(),dirty?'Fragment draft':'Original a');
+    }
+    await start(); await page.evaluate(()=>{window.retainedSide=document.querySelector('[data-shell-sidebar]');retainedSide.classList.add('is-collapsed');});
+    await navigate('b');assert.equal(await page.evaluate(()=>retainedSide===document.querySelector('[data-shell-sidebar]')),true);assert.equal(await page.locator('[data-shell-sidebar]').evaluate(el=>el.classList.contains('is-collapsed')),true);
+    await page.evaluate(()=>{const content=document.createElement('p');content.textContent='Read only';AdminUI.openLayer({kind:'drawer',title:'Read only',content});});
+    await page.goBack();await page.waitForFunction(()=>document.title==='a'&&window.fixtureReady);assert.equal(await page.getByRole('dialog').count(),0);assert.equal(await page.locator('.main').evaluate(el=>el.inert),false);
+    await navigate('b');await page.evaluate(()=>{const content=document.createElement('div');content.innerHTML='<input id="layer-draft" value="Original">';AdminUI.openLayer({kind:'drawer',title:'Draft',content});});await page.locator('#layer-draft').fill('Unsaved layer');
+    await page.goBack();await action('Keep editing').click();await page.getByRole('alertdialog').waitFor({state:'hidden'});assert.equal(await page.locator('#layer-draft').inputValue(),'Unsaved layer');assert.ok(page.url().endsWith('/b'));
+    await page.goBack();await action('Discard').click();await page.waitForFunction(()=>document.title==='a'&&window.fixtureReady);assert.equal(await page.getByRole('dialog').count(),0);
     await start();
     await page.locator('#event-opener').click();
     assert.equal(await page.locator('#switcher-link').evaluate(el => el === document.activeElement), true);
@@ -103,7 +120,11 @@ export function dispose() { window.disposes=(window.disposes||0)+1;window.active
     assert.equal(await page.locator('#event-opener').evaluate(el=>el===document.activeElement),true,'mobile sidebar traps focus');
     await page.keyboard.press('Escape');
     assert.equal(await page.getByRole('button',{name:'Open nav',exact:true}).getAttribute('aria-expanded'),'false');
+    await page.getByRole('button',{name:'Open nav',exact:true}).click();
     await page.setViewportSize({width:1280,height:800});
+    await page.waitForFunction(()=>!document.querySelector('.main').inert);
+    assert.equal(await page.locator('[data-shell-sidebar]').evaluate(el=>el.classList.contains('is-mobile-open')),false);
+    assert.equal(await page.locator('[data-side-scrim]').evaluate(el=>el.classList.contains('is-on')),false);
 
     await page.evaluate(()=>{void AdminUI.navigate('/Admin/Events/Identity/slow');});
     await page.locator('[data-page-skeleton="identity"]').waitFor({state:'visible'});
