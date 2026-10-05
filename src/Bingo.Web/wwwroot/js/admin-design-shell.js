@@ -373,11 +373,14 @@
     const currentDocument = new URL(activeUrl), destinationDocument = new URL(url);
     if ((target === undefined || target === index) && currentDocument.origin === destinationDocument.origin
         && currentDocument.pathname === destinationDocument.pathname && currentDocument.search === destinationDocument.search) {
-      activeUrl = url; // Native same-document fragment navigation owns its own history.
+      // Adopt the native fragment entry without adding another history entry.
+      // Its distinct index lets later Back/Forward restore dirty pages correctly.
+      if (target === undefined) history.replaceState({ adminDesignIndex: ++index }, '', url);
+      activeUrl = url;
       return;
     }
     if (handlingPop) return;
-    if (target === undefined) { if (await guard()) fullLoad(url); else history.pushState({ adminDesignIndex: index }, '', activeUrl); return; }
+    if (target === undefined) { if (await guard()) location.reload(); else history.pushState({ adminDesignIndex: index }, '', activeUrl); return; }
     handlingPop = true;
     try {
       if (isDirty() || isPending()) {
