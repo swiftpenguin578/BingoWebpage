@@ -1,14 +1,14 @@
 # Current project status
 
-## B5 remediation — implemented, Claude recheck pending, 5 October 2026
+## B5 remediation round 2 — implemented, Claude recheck pending, 5 October 2026
 
-- Brief [35](/Users/christopher/Documents/BingoWebpage/review-notes/35-codex-brief-b5-remediation.md), sole implementer `/root/au_b5_implementer`, explicitly assigned `gpt-6-astra` / high, direct planner `/root`. Assigned worktree `/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage`, branch `codex/participants-functionality`; clean baseline `7b0be3bf9f27d38a1e5c5f30107441b29e2bd84b` verified. No extra workers/self-review.
-- AU14/AU17a/AU17/AU19: **backend implemented, remediation done, Claude recheck pending, binding pending**. Seven implementation commits in order: `88157f8` public identities; `6f56317` D12 eligibility; `39eeb8f` Review metadata/caps; `c271ca0` Board issues; `dbf900a` publish projection; `f67fcfd` roster/WOM times; `d5f7f99` endpoint robustness. This eighth commit owns final documentation/register updates.
-- Focused evidence: item1 Integration1 + Browser4; item2 Integration12; item3 Integration13; item4 user-executed15 + implementer11; item5 corrected comparison9 + five unaffected approval/description passes reused; item6 Integration3; item7 Integration20 + four HTTP session-refusal cases. All those passing runs had zero failures/skips; earlier failures remain in [per-item evidence](docs/references/admin-ui/reviews/2026-10-04/au-b5-remediation/08-docs-register.md).
-- Item4’s sandbox PostgreSQL28P01 initialization failure is retained, precise cause unproven. The user ran its exact command against the updated checkpoint:15 passed/0 failed/0 skipped. Planner authorized continuation; no identical sandbox retry. This user evidence is distinct from implementer execution.
-- Item7 wording correction preserves authentication: handlers return ForbidResult; disabled/changed cookies receive existing HTTP302 to login with accessChanged=true and no endpoint data. Four real HTTP proofs passed; no middleware changes. The planner decision delivered by the user is recorded in [08-decisions.md item7](/Users/christopher/Documents/BingoWebpage/review-notes/08-decisions.md#b5-remediation-item-7-planner-decision-5-october-2026).
-- **Final-commit gate is pending at this documentation checkpoint:** clean Release build0warnings/errors, diff check, then unfiltered whole suite on this final commit with0failed/0skipped. Focused evidence is not the whole-suite gate or technical acceptance. Exact final SHA/results must be reported in the worker handoff after execution; no ninth commit/amend merely to package counts.
-- Register rows are future binding obligations, not implemented UI. D17 read-only GET changes belong to each page’s binding; C-CMP-2 unsaved-input handling remains binding work. No migrations, UI integration beyond D13’s existing display rows, sweep server fixes S4/S6/S8/F3/F4, rehearsal, push, merge or deployment.
+- Brief [38](/Users/christopher/Documents/BingoWebpage/review-notes/38-codex-brief-b5-remediation-2.md), fresh sole implementer `/root/au_b5_remediation_2`, `gpt-6-astra` / high; dispatcher `/root`, chat `01a10660-cc8a-7843-abb4-6cc1ebbb2bf2`; external Claude planner owns independent recheck. Assigned worktree `/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage`, branch `codex/participants-functionality`, clean baseline `5676b1d5b3035838eb349608f6596a4de698db10` verified and preserved. No extra workers/self-review.
+- AU14/AU17a/AU17/AU19: **backend implemented, remediation round 2 done, Claude recheck pending, binding pending**. Per-item commits: `aae31f4` board-wide GP message; `81de7ca` collected-issue precedence; `7a36303` grid safety; `2ac69f5` AU19 proofs/deduplication; `4080e61` D12 join boundaries. This sixth commit owns documentation/register corrections.
+- [Round 2 evidence](docs/references/admin-ui/reviews/2026-10-05/au-b5-remediation-2/06-docs-register.md): item1 Integration2; item2 Integration3; item3 Integration2; item4 three new proofs (two first-run passes plus one corrected-fixture rerun); item5 Integration2. All final focused proofs passed with zero skipped. The initial item4 decimal-format assertion failure and item5 missing-import compile failure are retained in their evidence. No existing test expectations changed; prior Position null→1 citation is corrected to recorded AU19.
+- Item6 records D19 frozen unedited automatic item names, CreatedAt-only WOM operation relevance, corrected statuses/register rows and AU19 binding open points. D18(b) preserves current-member eligibility whenever joined. Authentication remains handler Forbid and HTTP302 to login?accessChanged=true with no endpoint data; the wording correction is the planner’s, not the user’s.
+- Prior remediation at `a4f8463` has worker-reported final suite **1975/1975 (Application118, Domain265, Browser148, Integration1444), zero failures/skips**, Release zero warnings/errors and clean/diff checks. Claude’s independent Integration run on that commit remains pending/unreported; user explicitly authorized brief38 without waiting. Prior evidence, including the earlier environment failure and user-terminal continuation, remains under [round 1](docs/references/admin-ui/reviews/2026-10-04/au-b5-remediation/08-docs-register.md).
+- **Final-commit gate is pending at this documentation checkpoint:** clean Release build zero warnings/errors, diff check, then one unfiltered whole-suite run on this sixth commit with zero failures/skips and per-project counts. Exact final SHA/results follow in the implementer handoff; no seventh commit/amend solely to package results. Focused evidence is not independent review or manual acceptance.
+- Register rows are future binding obligations. AU19 rate notes and multiple publish reasons remain open BR-10 points; empty-issue grouping is a binding requirement. No migrations, UI binding, authentication changes, sweep server fixes S4/S6/S8/F3/F4, rehearsal, push, merge or deployment.
 
 ## Accepted test-health batch — 4 October 2026
 
@@ -34,8 +34,8 @@
 
 ## Next permitted action
 
-Execute the final-commit clean Release/diff and unfiltered whole-suite gate. Any
-new environment failure stops dependent execution for user-terminal routing;
-never retry around it or call it a pass. Report exact eight commits/range and
-results, then stop for external Claude recheck. No self-review, extra commit,
-amend, new batch, UI binding, sweep fixes, rehearsal, push, merge or deployment.
+Execute the final-commit clean Release/diff checks and the unfiltered whole suite
+once. Stop dependent execution on an environment failure and route the exact
+command/checkpoint for user-terminal execution; never retry around it or claim a
+pass. Report six commits/range and per-project results, then stop for Claude’s
+independent recheck. No next batch, push, merge or deployment is authorized.

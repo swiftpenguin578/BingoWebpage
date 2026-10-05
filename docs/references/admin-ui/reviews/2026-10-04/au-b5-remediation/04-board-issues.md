@@ -46,8 +46,9 @@ git diff --check
 Remaining item 4 work: finish coverage of publication lifecycle/refusal paths,
 verify every structured refusal/per-tile issue path, execute the latest changes,
 record completed evidence and create commit 4. Items 5–8 and final gates have not
-started. No independent review performed. The multi-issue list already exists in
-Board.dc.html lines 866–880/1186/1439; C1 needs no absent-reference gap row.
+started. No independent review performed. The multi-issue list exists in Board.dc.html lines866–880/1186/1439.
+Brief38 item6 corrects the original gap assessment: AU19 needs a register row for
+empty-issue grouping, absent per-drop rate notes and first-only publish reasons.
 
 ## User-terminal continuation
 

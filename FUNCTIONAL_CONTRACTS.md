@@ -679,6 +679,10 @@ objectives follow stored order. Approval freezes both rendered text and mode;
 catalogue or working edits do not change old approvals, and discarding a private
 correction restores the prior mode and approved copy. Existing nonblank
 descriptions stay manual, even if they match the former generator.
+On a correction publish, automatic descriptions for objectives carried over
+unchanged keep the item names frozen in the published snapshot. A catalogue
+rename never changes tiles nobody edited (D19(a), `08-decisions.md`, “B5
+remediation recheck decisions”, 5 October 2026).
 
 **Permissions and history:** Any enabled Admin may approve. Editing competitive content invalidates an unpublished approval and retains its history. Initial publication and publication of a corrected replacement both require server-enforced confirmation. Publication uses the active snapshot without recalculating from mutable catalogue data. Post-publication correction requires confirmation, a reason, a replacement snapshot, and preserved prior history; it is available only in SignupClosed, Live, or AwaitingFinalReview and is unavailable in terminal, Cancelled, Hidden, or Discarded states.
 
