@@ -75,11 +75,19 @@
     element.style.left = `${Math.round(x)}px`; element.style.top = `${Math.round(y)}px`;
     opener.setAttribute('aria-expanded', 'true');
     menu = { element, opener };
-    focus(controls(element)[0]);
+    const checked = element.querySelector('[role="menuitemradio"][aria-checked="true"]');
+    focus(checked || controls(element)[0]);
+    checked?.scrollIntoView({ block: 'nearest' });
   }
   function paintSideLabel() {
     const collapsed = document.querySelector('[data-shell-sidebar]')?.classList.contains('is-collapsed');
-    document.querySelectorAll('.collapse-btn').forEach(button => button.setAttribute('aria-label', text(mobileQuery.matches ? 'closeNavigation' : collapsed ? 'expandNavigation' : 'collapseNavigation')));
+    const label = text(mobileQuery.matches ? 'closeNavigation' : collapsed ? 'expandNavigation' : 'collapseNavigation');
+    document.querySelectorAll('.collapse-btn').forEach(button => { button.setAttribute('aria-label', label); button.title = label; });
+    document.querySelectorAll('[data-collapse-arrow]').forEach(arrow => arrow.classList.toggle('is-flip', !!collapsed && !mobileQuery.matches));
+    document.querySelectorAll('[data-collapsed-title]').forEach(element => {
+      if (collapsed && !mobileQuery.matches) element.title = element.dataset.collapsedTitle;
+      else element.removeAttribute('title');
+    });
   }
   function toggleSide(force) {
     const side = document.querySelector('[data-shell-sidebar]');
@@ -293,7 +301,7 @@
     const oldId = context?.dataset.selectedEventId;
     const name = choice.dataset.eventName;
     const setText = (selector, value) => { const node = document.querySelector(selector); if (node && value !== undefined) node.textContent = value; };
-    setText('.ev-name', name); setText('.design-event-crumb', name);
+    setText('.ev-name', name); setText('.crumb-mid', name);
     setText('.ev-meta-text', `${choice.dataset.eventStage} · ${choice.dataset.eventWhen}`);
     const dot = context?.querySelector('.dot'); if (dot) dot.className = `dot ${choice.dataset.eventTone}`;
     if (context) {
@@ -347,7 +355,7 @@
       if (old.length !== replacements.length) throw new Error('Unexpected shell context');
       old.forEach((element, index) => element.replaceWith(document.importNode(replacements[index], true)));
     }
-    window.adminDesignTheme?.apply();
+    window.adminDesignTheme?.apply(); paintSideLabel();
   }
   function rememberPosition() {
     const active = document.activeElement;

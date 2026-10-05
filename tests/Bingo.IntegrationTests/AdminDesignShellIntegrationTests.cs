@@ -61,16 +61,24 @@ public sealed partial class AdminDesignShellIntegrationTests : IAsyncLifetime
         db.AddRange(review, live, closed, open, draft, unscheduled, past, cancelled, finished, hidden, hiddenPast, discarded);
         db.Entry(discarded).Property(item => item.State).CurrentValue = EventState.Discarded;
         await db.SaveChangesAsync();
-        var service = new SharedShellService(db, new Text(), null!, null!, null!, TimeProvider.System);
+        var service = new SharedShellService(db, new Text(), null!, null!, null!, new ShellClock());
         var routes = new RouteValueDictionary { ["page"] = "/Admin/Events/Identity", ["id"] = past.Id };
         var ordinary = await service.GetAdminDesignAsync(User("Admin"), routes, CancellationToken.None);
         Assert.Equal(past.Id, ordinary.SelectedEvent!.Id);
+        Assert.Equal("ended " + past.EventEndsAt!.Value.ToString("d MMM", System.Globalization.CultureInfo.CurrentCulture), ordinary.SelectedEvent.When);
         Assert.Equal(new[] { review.Id, live.Id, closed.Id, open.Id, draft.Id, unscheduled.Id }, ordinary.Events.Select(item => item.Id));
         Assert.All(ordinary.Events, item => Assert.Equal($"/Admin/Events/Identity/{item.Id}", item.Url));
         Assert.Equal("not announced", ordinary.Events[^1].When);
-        Assert.Equal(new[] { "ends " + review.EventEndsAt!.Value.ToString("d MMM", System.Globalization.CultureInfo.CurrentCulture), "ends " + live.EventEndsAt!.Value.ToString("d MMM", System.Globalization.CultureInfo.CurrentCulture),
+        Assert.Equal(new[] { "ended " + review.EventEndsAt!.Value.ToString("d MMM", System.Globalization.CultureInfo.CurrentCulture), "ended " + live.EventEndsAt!.Value.ToString("d MMM", System.Globalization.CultureInfo.CurrentCulture),
             "starts " + closed.EventStartsAt!.Value.ToString("d MMM", System.Globalization.CultureInfo.CurrentCulture), "closes " + open.SignupClosesAt!.Value.ToString("d MMM", System.Globalization.CultureInfo.CurrentCulture),
             "starts " + draft.EventStartsAt!.Value.ToString("d MMM", System.Globalization.CultureInfo.CurrentCulture), "not announced" }, ordinary.Events.Select(item => item.When));
+        foreach (var terminal in new[] { past, cancelled, finished })
+        {
+            routes["id"] = terminal.Id;
+            var selected = (await service.GetAdminDesignAsync(User("Admin"), routes, CancellationToken.None)).SelectedEvent!;
+            Assert.Equal("ended " + terminal.EventEndsAt!.Value.ToString("d MMM", System.Globalization.CultureInfo.CurrentCulture), selected.When);
+        }
+        routes["id"] = past.Id;
         var super = await service.GetAdminDesignAsync(User("SuperAdmin"), routes, CancellationToken.None);
         var hiddenOption = Assert.Single(super.Events, item => item.Hidden);
         Assert.Equal(hidden.Id, hiddenOption.Id);
@@ -96,7 +104,7 @@ public sealed partial class AdminDesignShellIntegrationTests : IAsyncLifetime
         {
             var persisted = await db.Events.SingleAsync();
             Assert.Equal("Unsupported/Fixture", persisted.Timezone);
-            var service = new SharedShellService(db, new Text(), null!, null!, null!, TimeProvider.System);
+            var service = new SharedShellService(db, new Text(), null!, null!, null!, new ShellClock());
             var shell = await service.GetAdminDesignAsync(User("Admin"), new RouteValueDictionary { ["page"] = "/Admin/Events/Identity", ["id"] = item.Id }, CancellationToken.None);
             Assert.Equal("starts " + persisted.EventStartsAt!.Value.ToUniversalTime().ToString("d MMM", System.Globalization.CultureInfo.CurrentCulture), Assert.Single(shell.Events).When);
         }
@@ -125,7 +133,7 @@ public sealed partial class AdminDesignShellIntegrationTests : IAsyncLifetime
             var persisted = await db.Events.OrderBy(item => item.EventStartsAt).ToListAsync();
             Assert.All(persisted, item => Assert.Equal("Europe/Copenhagen", item.Timezone));
             Assert.Equal("27,28", string.Join(',', persisted.Select(item => item.EventStartsAt!.Value.UtcDateTime.Day)));
-            var service = new SharedShellService(db, new Text(), null!, null!, null!, TimeProvider.System);
+            var service = new SharedShellService(db, new Text(), null!, null!, null!, new ShellClock());
             var shell = await service.GetAdminDesignAsync(User("Admin"), new RouteValueDictionary { ["page"] = "/Admin/Events/Identity" }, CancellationToken.None);
             Assert.Equal("starts 27 Mar|starts 29 Mar", string.Join('|', shell.Events.Select(item => item.When)));
         }
@@ -164,6 +172,12 @@ public sealed partial class AdminDesignShellIntegrationTests : IAsyncLifetime
         }));
         Assert.Equal(HttpStatusCode.Redirect, signedIn.StatusCode);
         var html = await client.GetStringAsync($"/Admin/Events/Identity/{item.Id}");
+        Assert.Contains("<title>Identity · DK Legacy Admin</title>", System.Net.WebUtility.HtmlDecode(html));
+        Assert.Contains("<span class=\"brand-name\">shell-admin", html);
+        Assert.Contains("@shell-admin · Administrator", System.Net.WebUtility.HtmlDecode(html));
+        Assert.Contains("class=\"crumb-btn\"", html); Assert.Contains("class=\"crumb-sep\"", html); Assert.Contains("class=\"crumb-cur\"", html);
+        Assert.Contains("role=\"menuitemradio\" aria-checked=\"true\"", html);
+        Assert.Contains("class=\"ic menu-check\"", html);
         Assert.Contains("data-admin-design", html);
         Assert.Contains("data-shell-antiforgery", html);
         Assert.Contains("This event is read-only in its current lifecycle state.", html);
@@ -171,8 +185,8 @@ public sealed partial class AdminDesignShellIntegrationTests : IAsyncLifetime
         Assert.Contains("/notifications#admin-actions-heading", html);
         Assert.Contains("aria-label=\"Notifications, 1 unread\"", html);
         Assert.Contains("class=\"design-notification-count\" aria-hidden=\"true\">1</span>", html);
-        Assert.Contains("<span class=\"design-event-crumb\">Shell fixture</span>", html);
-        Assert.DoesNotContain("<a class=\"design-event-crumb\"", html);
+        Assert.Contains("<span class=\"crumb-mid\">Shell fixture</span>", html);
+        Assert.DoesNotContain("<a class=\"crumb-mid\"", html);
         Assert.Contains("Teams / Draft", html); Assert.Matches("src=\"/images/branding/dk-legacy-admin-mark(?:\\.[A-Za-z0-9_-]+)?\\.png(?:\\?v=[A-Za-z0-9_-]+)?\"", html);
         Assert.Contains("data-page-loading-template=\"identity\"", html); Assert.Contains("aria-label=\"Loading identity\"", html);
         Assert.Contains($"/Admin/Events/Identity/{item.Id}", html);
@@ -238,10 +252,12 @@ public sealed partial class AdminDesignShellIntegrationTests : IAsyncLifetime
             await next();
         }
     }
+    private sealed class ShellClock : TimeProvider { public override DateTimeOffset GetUtcNow() => Now; }
+
     private sealed class Text : IStringLocalizer<Bingo.Web.SharedResource>
     {
         public LocalizedString this[string name] => new(name, name);
-        public LocalizedString this[string name, params object[] arguments] => new(name, string.Format(System.Globalization.CultureInfo.InvariantCulture, name, arguments));
+        public LocalizedString this[string name, params object[] arguments] => new(name, string.Format(System.Globalization.CultureInfo.InvariantCulture, name.Replace("AdminDesign.", string.Empty, StringComparison.Ordinal), arguments));
         public IEnumerable<LocalizedString> GetAllStrings(bool includeParentCultures) => [];
     }
 }

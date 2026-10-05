@@ -2,9 +2,9 @@
 @{ var language = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName; }
 <header class="topbar" data-shell-topbar>
     <button class="icon-btn menu-toggle" data-side-toggle aria-label="@T["Open navigation"]" aria-expanded="false"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("menu", "ic")' /></button>
-    <nav class="crumbs" aria-label="@T["Breadcrumbs"]" data-shell-breadcrumbs><a href="/Admin/Events/Index" data-shell-link>@T["AdminDesign.Events"]</a>
-        @if (Model.SelectedEvent is { } selected) { <span aria-hidden="true">/</span><span class="design-event-crumb">@selected.Name</span> }
-        <span aria-hidden="true">/</span><span aria-current="page">@T[ViewData["Title"]?.ToString() ?? "Admin"]</span>
+    <nav class="crumbs" aria-label="@T["Breadcrumbs"]" data-shell-breadcrumbs><a class="crumb-btn" href="/Admin/Events/Index" data-shell-link>@T["AdminDesign.Events"]</a>
+        @if (Model.SelectedEvent is { } selected) { <span class="crumb-sep" aria-hidden="true">/</span><span class="crumb-mid">@selected.Name</span> }
+        <span class="crumb-sep" aria-hidden="true">/</span><span class="crumb-cur" aria-current="page">@T[ViewData["Title"]?.ToString() ?? "Admin"]</span>
     </nav>
     <div class="design-top-actions">
         <div class="theme-seg" role="group" aria-label="@T["Theme"]"><button class="theme-opt" data-theme="light" aria-label="@T["Light theme"]" title="@T["Light theme"]"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("sun", "ic")' /></button><button class="theme-opt" data-theme="dark" aria-label="@T["Dark theme"]" title="@T["Dark theme"]"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("moon", "ic")' /></button></div>

@@ -3125,4 +3125,6 @@
   <data name="AdminDesign.The timezone cannot change after the event first goes Live." xml:space="preserve"><value>Tidszonen kan ikke ændres, efter eventet første gang er startet.</value></data>
   <data name="AdminDesign.This event has not been public yet. A timezone change saves directly without a confirmation." xml:space="preserve"><value>Eventet har endnu ikke været offentligt. En ændring af tidszonen gemmes direkte uden bekræftelse.</value></data>
   <data name="Dismiss notification" xml:space="preserve"><value>Luk meddelelse</value></data>
+  <data name="AdminDesign.ended {0}" xml:space="preserve"><value>sluttede {0}</value></data>
+  <data name="AdminDesign.Super admin" xml:space="preserve"><value>Superadministrator</value></data>
 </root>

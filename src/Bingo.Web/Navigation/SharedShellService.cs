@@ -69,18 +69,21 @@ public sealed class SharedShellService(ApplicationDbContext db, IStringLocalizer
             .OrderBy(item => item.EventStartsAt == null).ThenBy(item => item.EventStartsAt).ThenBy(item => item.Id)
             .Select(item => new { item.Id, item.Name, item.State, item.HiddenAt, item.SignupClosesAt, item.EventStartsAt, item.EventEndsAt, item.Timezone })
             .ToListAsync(cancellationToken);
+        var now = timeProvider.GetUtcNow();
         var options = rows.Select(item =>
         {
             var date = item.State switch
             {
                 EventState.SignupOpen => item.SignupClosesAt,
-                EventState.Live or EventState.AwaitingFinalReview => item.EventEndsAt,
+                EventState.Live or EventState.AwaitingFinalReview or EventState.Finalized or EventState.Archived or EventState.Cancelled => item.EventEndsAt,
                 _ => item.EventStartsAt
             };
             var shownDate = date.HasValue
                 ? DateTimePresentation.Format(date.Value, "d MMM", string.IsNullOrWhiteSpace(item.Timezone) ? "UTC" : item.Timezone, CultureInfo.CurrentCulture)
                 : null;
-            var when = shownDate is null ? text["not announced"].Value : item.State switch
+            var ended = item.State is EventState.Finalized or EventState.Archived or EventState.Cancelled
+                || (item.State is EventState.Live or EventState.AwaitingFinalReview && item.EventEndsAt <= now);
+            var when = shownDate is null ? text["not announced"].Value : ended ? text["AdminDesign.ended {0}", shownDate].Value : item.State switch
             {
                 EventState.SignupOpen => text["closes {0}", shownDate].Value,
                 EventState.Live or EventState.AwaitingFinalReview => text["Ends {0}", shownDate].Value,
@@ -92,9 +95,15 @@ public sealed class SharedShellService(ApplicationDbContext db, IStringLocalizer
                 AdminEventStatePresentation.For(item.State, text).Label, tone, when,
                 AdminDesignEventUrl(page, item.Id, item.HiddenAt.HasValue));
         }).ToList();
+        var accountId = user.GetAccountId();
+        var accountName = accountId.HasValue
+            ? await db.Accounts.AsNoTracking().Where(account => account.Id == accountId.Value)
+                .Select(account => account.PublicUsername).SingleOrDefaultAsync(cancellationToken)
+            : null;
         return new(options.SingleOrDefault(item => item.Id == selected),
             options.Where(item => item.State is EventState.Draft or EventState.SignupOpen or EventState.SignupClosed or EventState.Live or EventState.AwaitingFinalReview).ToList(),
-            await GetNotificationsAsync(user, cancellationToken));
+            await GetNotificationsAsync(user, cancellationToken))
+        { AccountName = accountName ?? string.Empty, AccountRole = superAdmin ? text["AdminDesign.Super admin"].Value : text["Administrator"].Value };
     }
 
     public static string AdminDesignEventUrl(string page, Guid eventId, bool hidden = false)
@@ -540,5 +549,9 @@ internal static class NotificationPresentation
     }
 }
 
-public sealed record AdminDesignShell(AdminDesignEvent? SelectedEvent, IReadOnlyList<AdminDesignEvent> Events, NotificationInbox Notifications);
+public sealed record AdminDesignShell(AdminDesignEvent? SelectedEvent, IReadOnlyList<AdminDesignEvent> Events, NotificationInbox Notifications)
+{
+    public string AccountName { get; init; } = string.Empty;
+    public string AccountRole { get; init; } = string.Empty;
+}
 public sealed record AdminDesignEvent(Guid Id, string Name, EventState State, bool Hidden, string Stage, string Tone, string When, string Url);
