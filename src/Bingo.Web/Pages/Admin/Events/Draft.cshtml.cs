@@ -97,7 +97,7 @@ public sealed partial class DraftModel(ApplicationDbContext db, TimeProvider tim
         if (draft.State is DraftState.Running or DraftState.Paused) { SetStatus(Localize("Team structure is locked while a private draft is active; cancel the private draft to return to setup."), UiMessageType.Error); return RedirectToPage(new { id }); }
         if (string.IsNullOrWhiteSpace(name)) { SetStatus(Localize("A team name is required."), UiMessageType.Error); return RedirectToPage(new { id }); }
         if (WiseOldManCompetitionRules.ProviderCharacterCount(name.Trim()) > WiseOldManCompetitionRules.MaximumTeamNameLength) { SetStatus(Localize("Team names must be 30 characters or fewer."), UiMessageType.Error); return RedirectToPage(new { id }); }
-        if (!CanDirectPreEventRosterMutation(ev) && !CanCreateInitialPrivateTeam(ev, draft)) { SetStatus(Localize("Direct roster changes are available only before the configured event start."), UiMessageType.Error); return RedirectToPage(new { id }); }
+        if (!CanDirectPreEventRosterMutation(ev) && !CanCreateInitialPrivateTeam(ev, draft)) { SetStatus(Localize("Direct roster changes are available only before the event starts and before its configured end."), UiMessageType.Error); return RedirectToPage(new { id }); }
         // Keep the retired enum parameter only for old direct callers; new team
         // participation is controlled exclusively by IncludedInDraft.
         var includeInDraft = includedInDraft;
@@ -166,7 +166,7 @@ public sealed partial class DraftModel(ApplicationDbContext db, TimeProvider tim
             return RedirectToPage(new { id, rosterTeamId });
         }
         if (inclusionChanged && draft is { State: not DraftState.Setup }) { SetStatus(Localize("Website-draft inclusion can only change during team setup."), UiMessageType.Error); return RedirectToPage(new { id, rosterTeamId }); }
-        if (inclusionChanged && !CanDirectPreEventRosterMutation(ev)) { SetStatus(Localize("Website-draft inclusion can only change before the configured event start."), UiMessageType.Error); return RedirectToPage(new { id, rosterTeamId }); }
+        if (inclusionChanged && !CanDirectPreEventRosterMutation(ev)) { SetStatus(Localize("Website-draft inclusion can only change before the event starts and before its configured end."), UiMessageType.Error); return RedirectToPage(new { id, rosterTeamId }); }
         var affectedParticipantIds = inclusionChanged
             ? await db.TeamMemberships.AsNoTracking().Where(membership => membership.TeamId == team.Id && membership.LeftAt == null).Select(membership => membership.EventParticipantId).ToListAsync(ct)
             : [];
@@ -220,7 +220,7 @@ public sealed partial class DraftModel(ApplicationDbContext db, TimeProvider tim
         if (draft?.State == DraftState.Paused) { SetStatus(Localize("This historical paused draft is read-only; no roster changes are available."), UiMessageType.Error); return RedirectToPage(new { id, rosterTeamId }); }
         if (draft?.State == DraftState.Running && !team.IncludedInDraft) { SetStatus(Localize("Manual roster additions are locked while the draft is running."), UiMessageType.Error); return RedirectToPage(new { id, rosterTeamId }); }
         var draftedSetupAssignment = team.IncludedInDraft && CanDirectDraftedSetupAssignment(ev, draft);
-        if (!CanDirectPreEventRosterMutation(ev) || (!draftedSetupAssignment && team.IncludedInDraft)) { SetStatus(Localize("Direct roster additions are available only before event start, or for an included team before the first pick."), UiMessageType.Error); return RedirectToPage(new { id, rosterTeamId }); }
+        if (!CanDirectPreEventRosterMutation(ev) || (!draftedSetupAssignment && team.IncludedInDraft)) { SetStatus(Localize("Direct roster additions are available only before the event starts and before its configured end, or for an included team before the first pick."), UiMessageType.Error); return RedirectToPage(new { id, rosterTeamId }); }
         if (draft?.State == DraftState.Finalized && !team.IncludedInDraft && !confirmed) { SetStatus(Localize("Confirm this published roster correction."), UiMessageType.Error); return RedirectToPage(new { id, rosterTeamId }); }
         if (participantId is null) { SetStatus(Localize("Choose a participant."), UiMessageType.Error); return RedirectToPage(new { id, rosterTeamId }); }
         if (!await db.EventParticipants.AnyAsync(participant => participant.Id == participantId.Value && participant.EventId == id && participant.SignupStatus == SignupStatus.Confirmed, ct)) { SetStatus(Localize("Only confirmed participants can be assigned to a roster team."), UiMessageType.Error); return RedirectToPage(new { id, rosterTeamId }); }
@@ -277,7 +277,7 @@ public sealed partial class DraftModel(ApplicationDbContext db, TimeProvider tim
         var membership = await db.TeamMemberships.SingleOrDefaultAsync(x => x.Id == membershipId && x.LeftAt == null, ct);
         if (ev is null || membership is null) return NotFound();
         var team = await db.Teams.SingleAsync(x => x.Id == membership.TeamId, ct);
-        if (team.EventId != id || !CanDirectPreEventRosterMutation(ev)) { SetStatus(Localize("Direct roster removal is available only before the configured event start."), UiMessageType.Error); return RedirectToPage(new { id, rosterTeamId }); }
+        if (team.EventId != id || !CanDirectPreEventRosterMutation(ev)) { SetStatus(Localize("Direct roster removal is available only before the event starts and before its configured end."), UiMessageType.Error); return RedirectToPage(new { id, rosterTeamId }); }
         var draft = await db.DraftSessions.SingleOrDefaultAsync(x => x.EventId == id, ct);
         if (draft?.State == DraftState.Paused) { SetStatus(Localize("This historical paused draft is read-only; no roster changes are available."), UiMessageType.Error); return RedirectToPage(new { id, rosterTeamId }); }
         if (draft?.State == DraftState.Running && !team.IncludedInDraft) { SetStatus(Localize("Manual roster changes are locked while the draft is running."), UiMessageType.Error); return RedirectToPage(new { id, rosterTeamId }); }
@@ -377,7 +377,7 @@ public sealed partial class DraftModel(ApplicationDbContext db, TimeProvider tim
         var source = await db.Teams.SingleOrDefaultAsync(x => x.Id == membership.TeamId && x.EventId == id && x.Active, ct);
         var target = await db.Teams.SingleOrDefaultAsync(x => x.Id == targetTeamId && x.EventId == id && x.Active, ct);
         if (source is null || target is null || !await db.EventParticipants.AnyAsync(x => x.Id == membership.EventParticipantId && x.EventId == id, ct)) return NotFound();
-        if (!CanDirectPreEventRosterMutation(ev) || source.IncludedInDraft || target.IncludedInDraft) { SetStatus(Localize("Direct roster movement is available only between manually assembled teams before the configured event start."), UiMessageType.Error); return RedirectToPage(new { id, rosterTeamId }); }
+        if (!CanDirectPreEventRosterMutation(ev) || source.IncludedInDraft || target.IncludedInDraft) { SetStatus(Localize("Direct roster movement is available only between manually assembled teams before the event starts and before its configured end."), UiMessageType.Error); return RedirectToPage(new { id, rosterTeamId }); }
         var draft = await db.DraftSessions.SingleOrDefaultAsync(x => x.EventId == id, ct);
         if (draft?.State == DraftState.Finalized)
         {
@@ -877,7 +877,8 @@ public sealed partial class DraftModel(ApplicationDbContext db, TimeProvider tim
     }
     private bool CanDirectPreEventRosterMutation(Bingo.Domain.Events.BingoEvent bingoEvent) =>
         (bingoEvent.State is Bingo.Domain.Events.EventState.Draft or Bingo.Domain.Events.EventState.SignupOpen or Bingo.Domain.Events.EventState.SignupClosed)
-        && bingoEvent.ActualStartedAt is null && bingoEvent.EventEndsAt is { } ends && time.GetUtcNow() < ends;
+        && bingoEvent.ActualStartedAt is null
+        && (bingoEvent.EventEndsAt is not { } ends || time.GetUtcNow() < ends);
 
     private static bool CanCreateInitialPrivateTeam(Bingo.Domain.Events.BingoEvent bingoEvent, DraftSession draft) =>
         draft.State == DraftState.Setup
