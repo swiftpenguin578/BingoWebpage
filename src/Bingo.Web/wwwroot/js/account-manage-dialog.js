@@ -309,6 +309,16 @@
         const stale = new DOMParser().parseFromString(html, "text/html").querySelector('[data-account-change-stale="true"]');
         if (stale && replaceContent(html)) {
           finish();
+          if (sharedConfirmation) {
+            // The shared owner clears pending and resumes Manage after this
+            // result. Present one stale message in that resumed editor.
+            window.setTimeout(() => {
+              focusAccountContent("manage");
+              hideInlineValidation();
+              guard.showFailure(validationMessage(html));
+            }, 0);
+            return { succeeded: false, dismiss: true };
+          }
           closeConfirmation(false);
           focusAccountContent("manage");
           hideInlineValidation();

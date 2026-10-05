@@ -53,6 +53,7 @@
       const result = await request.onConfirm({ reason: reason.value.trim(), confirmation: typed.value });
       setPending(false);
       if (result === true || result?.succeeded === true) finish(true);
+      else if (result?.dismiss === true) finish(false);
       else {
         feedback.textContent = result?.message || dialog.dataset.failure;
         feedback.hidden = false;
