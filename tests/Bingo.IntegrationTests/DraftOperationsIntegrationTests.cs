@@ -1376,6 +1376,49 @@ public sealed partial class DraftOperationsIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task DirectRosterSetupAllowsNoEndAndRejectsPastEndOrActualStart()
+    {
+        var noEnd = await SeedAsync(initialPrivate: true);
+        var noEndTeamName = $"No end team {Guid.NewGuid():N}"[..30];
+        var createdStatus = await ExecuteAndReadStatusAsync(noEnd.EventId, noEnd.FirstAdminId,
+            page => page.OnPostAddTeamAsync(noEnd.EventId, noEndTeamName, TeamFormationType.Drafted, null, CancellationToken.None));
+        Assert.Contains($"{noEndTeamName} created.", createdStatus, StringComparison.Ordinal);
+        var noEndTeamId = await TeamIdAsync(noEnd.EventId, noEndTeamName);
+        var addedStatus = await ExecuteAndReadStatusAsync(noEnd.EventId, noEnd.FirstAdminId,
+            page => page.OnPostAddMemberAsync(noEnd.EventId, noEndTeamId, noEnd.PlayerIds[2], "No configured end", CancellationToken.None));
+        Assert.Contains("added", addedStatus, StringComparison.OrdinalIgnoreCase);
+        await using (var verify = new ApplicationDbContext(options))
+            Assert.True(await verify.TeamMemberships.AnyAsync(value => value.TeamId == noEndTeamId && value.EventParticipantId == noEnd.PlayerIds[2] && value.LeftAt == null));
+
+        var pastEnd = await SeedAsync(initialPrivate: true);
+        await using (var configure = new ApplicationDbContext(options))
+        {
+            var item = await configure.Events.SingleAsync(value => value.Id == pastEnd.EventId);
+            item.ConfigureSchedule(null, null, null, null, now.AddHours(-1), null);
+            await configure.SaveChangesAsync();
+        }
+        var beforePastEnd = await RosterMutationCountsAsync(pastEnd.EventId);
+        var pastEndStatus = await ExecuteAndReadStatusAsync(pastEnd.EventId, pastEnd.FirstAdminId,
+            page => page.OnPostAddTeamAsync(pastEnd.EventId, "Past end team", TeamFormationType.Drafted, null, CancellationToken.None));
+        Assert.Equal("Direct roster changes are available only before the event starts and before its configured end.", pastEndStatus);
+        Assert.Equal(beforePastEnd, await RosterMutationCountsAsync(pastEnd.EventId));
+
+        var afterStart = await SeedAsync();
+        await using (var start = new ApplicationDbContext(options))
+        {
+            var item = await start.Events.SingleAsync(value => value.Id == afterStart.EventId);
+            item.StartEvent(now);
+            await start.SaveChangesAsync();
+        }
+        var afterStartTeamId = await TeamIdAsync(afterStart.EventId, "First");
+        var beforeAfterStart = await RosterMutationCountsAsync(afterStart.EventId);
+        var afterStartStatus = await ExecuteAndReadStatusAsync(afterStart.EventId, afterStart.FirstAdminId,
+            page => page.OnPostAddMemberAsync(afterStart.EventId, afterStartTeamId, afterStart.PlayerIds[2], "After actual start", CancellationToken.None));
+        Assert.Equal("Direct roster additions are available only before the event starts and before its configured end, or for an included team before the first pick.", afterStartStatus);
+        Assert.Equal(beforeAfterStart, await RosterMutationCountsAsync(afterStart.EventId));
+    }
+
+    [Fact]
     public async Task FinalizationFreezesPublicationAndRetiredReopenDoesNotMutateHistory()
     {
         var setup = await SeedAsync();
