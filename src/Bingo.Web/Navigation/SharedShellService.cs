@@ -16,11 +16,12 @@ using Microsoft.Extensions.Localization;
 
 namespace Bingo.Web.Navigation;
 
-public sealed class SharedShellService(ApplicationDbContext db, IStringLocalizer<SharedResource> text, IEventReadinessEvaluator readinessEvaluator, IEventLifecycleService eventLifecycle, IEventFinalizationService finalizationService, TimeProvider timeProvider)
+public sealed class SharedShellService(ApplicationDbContext db, IStringLocalizer<SharedResource> text, IEventReadinessEvaluator readinessEvaluator, IEventLifecycleService eventLifecycle, IEventFinalizationService finalizationService, TimeProvider timeProvider, IHttpContextAccessor? httpContextAccessor = null)
 {
     public async Task<SharedShellData> GetAsync(ClaimsPrincipal user, RouteValueDictionary routeValues, CancellationToken cancellationToken, string? selectedEventId = null, Guid? contextEventId = null, Guid? contextTeamId = null)
     {
         var page = routeValues["page"]?.ToString() ?? string.Empty;
+        await ResolveAdminEventAsync(user, routeValues, selectedEventId, cancellationToken);
         var breadcrumbs = await BuildBreadcrumbs(page, routeValues, cancellationToken);
         var adminEvent = await GetAdminEventContextAsync(page, routeValues, selectedEventId, cancellationToken);
         var adminEvents = user.IsInRole("Admin") || user.IsInRole("SuperAdmin")
@@ -58,10 +59,8 @@ public sealed class SharedShellService(ApplicationDbContext db, IStringLocalizer
     {
         var page = routes["page"]?.ToString() ?? string.Empty;
         var superAdmin = user.IsInRole("SuperAdmin");
+        var selected = await ResolveAdminEventAsync(user, routes, selectedEventId, cancellationToken);
         if (!superAdmin && !user.IsInRole("Admin")) return new(null, [], NotificationInbox.Empty);
-        Guid? selected = null;
-        if (page.StartsWith("/Admin/Events/", StringComparison.Ordinal) && Guid.TryParse(routes["id"]?.ToString(), out var id)) selected = id;
-        else if (page.StartsWith("/Admin/Review/", StringComparison.Ordinal) && Guid.TryParse(selectedEventId, out id)) selected = id;
         var rows = await db.Events.AsNoTracking()
             .Where(item => item.State != EventState.Discarded && (item.HiddenAt == null || superAdmin)
                 && (item.Id == selected || item.State == EventState.Draft || item.State == EventState.SignupOpen
@@ -103,7 +102,29 @@ public sealed class SharedShellService(ApplicationDbContext db, IStringLocalizer
         return new(options.SingleOrDefault(item => item.Id == selected),
             options.Where(item => item.State is EventState.Draft or EventState.SignupOpen or EventState.SignupClosed or EventState.Live or EventState.AwaitingFinalReview).ToList(),
             await GetNotificationsAsync(user, cancellationToken))
-        { AccountName = accountName ?? string.Empty, AccountRole = superAdmin ? text["AdminDesign.Super admin"].Value : text["Administrator"].Value };
+        { ShowEventBreadcrumb = IsAdminEventPage(page, routes, selectedEventId), AccountName = accountName ?? string.Empty, AccountRole = superAdmin ? text["AdminDesign.Super admin"].Value : text["Administrator"].Value };
+    }
+
+    private static bool IsAdminEventPage(string page, RouteValueDictionary routes, string? selectedEventId) =>
+        (page.StartsWith("/Admin/Events/", StringComparison.Ordinal) && Guid.TryParse(routes["id"]?.ToString(), out _))
+        || (page.StartsWith("/Admin/Review/", StringComparison.Ordinal) && Guid.TryParse(selectedEventId, out _));
+
+    private async Task<Guid?> ResolveAdminEventAsync(ClaimsPrincipal user, RouteValueDictionary routes, string? selectedEventId, CancellationToken ct)
+    {
+        var context = httpContextAccessor?.HttpContext;
+        var remembered = context?.Request.Cookies[AdminEventSession.CookieName];
+        var page = routes["page"]?.ToString() ?? string.Empty;
+        var explicitEvent = IsAdminEventPage(page, routes, selectedEventId);
+        var raw = explicitEvent ? (page.StartsWith("/Admin/Review/", StringComparison.Ordinal) ? selectedEventId : routes["id"]?.ToString()) : remembered;
+        var admin = user.IsInRole("Admin") || user.IsInRole("SuperAdmin");
+        if (admin && Guid.TryParse(raw, out var id) && await db.Events.AsNoTracking().AnyAsync(item =>
+                item.Id == id && item.State != EventState.Discarded && (item.HiddenAt == null || user.IsInRole("SuperAdmin")), ct))
+        {
+            if (context is not null && explicitEvent && remembered != id.ToString("D")) AdminEventSession.Remember(context, id);
+            return id;
+        }
+        if (context is not null && remembered is not null) AdminEventSession.Clear(context);
+        return null;
     }
 
     public static string AdminDesignEventUrl(string page, Guid eventId, bool hidden = false)
@@ -551,6 +572,7 @@ internal static class NotificationPresentation
 
 public sealed record AdminDesignShell(AdminDesignEvent? SelectedEvent, IReadOnlyList<AdminDesignEvent> Events, NotificationInbox Notifications)
 {
+    public bool ShowEventBreadcrumb { get; init; }
     public string AccountName { get; init; } = string.Empty;
     public string AccountRole { get; init; } = string.Empty;
 }

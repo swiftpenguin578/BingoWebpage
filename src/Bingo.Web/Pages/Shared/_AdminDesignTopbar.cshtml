@@ -3,7 +3,7 @@
 <header class="topbar" data-shell-topbar>
     <button class="icon-btn menu-toggle" data-side-toggle aria-label="@T["Open navigation"]" aria-expanded="false"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("menu", "ic")' /></button>
     <nav class="crumbs" aria-label="@T["Breadcrumbs"]" data-shell-breadcrumbs><a class="crumb-btn" href="/Admin/Events/Index" data-shell-link>@T["AdminDesign.Events"]</a>
-        @if (Model.SelectedEvent is { } selected) { <span class="crumb-sep" aria-hidden="true">/</span><span class="crumb-mid">@selected.Name</span> }
+        @if (Model.ShowEventBreadcrumb && Model.SelectedEvent is { } selected) { <span class="crumb-sep" aria-hidden="true">/</span><span class="crumb-mid">@selected.Name</span> }
         <span class="crumb-sep" aria-hidden="true">/</span><span class="crumb-cur" aria-current="page">@T[ViewData["Title"]?.ToString() ?? "Admin"]</span>
     </nav>
     <div class="design-top-actions">
