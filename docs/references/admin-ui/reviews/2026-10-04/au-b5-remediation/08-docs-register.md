@@ -25,10 +25,16 @@ No older approval is invented or extended.
 - Register rows cover D17; S1/S2/S3/S9/S10/S13; C-ACC-1/C-ACC-2; cap-limited B2;
   A-Overview-3/6/7, B-Final-1, C-WOM-2; plus the one authorized session-loss row
   across picker/Review/Board/Teams requiring C-CMP-2 before sign-out.
-  Existing AU14 row carries roster PublishedAt and WOM CreatedAt/UpdatedAt.
+  The AU14 row compares roster PublishedAt only with WOM operation CreatedAt;
+  UpdatedAt cannot establish relevance to that roster, and merged pending updates
+  retain older CreatedAt (conservative under-reporting).
   S13 unresolved queue-reorder text is closed as not approved.
-- **AU19 C1 needs no new gap row:** the multi-issue list already exists in the
-  Board reference (label/text/go); codes/IDs are transport. No artificial row added.
+- **AU19 requires a gap row (corrected by brief38 item6 after review36c F6):**
+  the earlier assessment overlooked three binding differences. Per-position empty
+  issues need grouping into the reference’s single “(N empty)” item targeting the
+  first empty position. Per-drop rate notes are absent from the contract, and
+  publish returns one reason while the reference lists all applicable reasons;
+  those last two remain open BR-10 points. The DELIVERY_PLAN row now records them.
 - Sweep rows are future binding obligations, not implementation claims. D17 view
   redirect removal happens in each page's binding. S4/S6/S8/F3/F4 server fixes
   remain stopped; F1 stays Teams binding. No frozen reference, middleware,
