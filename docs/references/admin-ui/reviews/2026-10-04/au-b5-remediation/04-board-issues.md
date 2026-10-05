@@ -13,8 +13,9 @@ failure was observed; they have not been compiled or executed yet.
 
 Existing expectation change: `B5BoardApprovalIssuesCarryStableCodeAndTileOrBoardTarget`
 empty-position case `Position == null` → `Position == 1`. Recorded behavior
-authority is user-authorized brief35 section 2 item 4: "Fill every board position"
-carries each empty position. The fixture is a 1×2 board with only position 0
+authority is `review-notes/08-decisions.md`, “AU phase plan”, Decision 1
+AU19: “structured approval issues that jump to the affected tile”. Brief35
+item4 applies that decision to each empty position. The fixture is a 1×2 board with only position 0
 occupied. The new exact assertion passed, as did the new proof checking both empty
 positions 2/3 and missing catalogue/manual estimates at positions 0/1. Every other
 existing assertion is unchanged. No cases removed/skipped.
