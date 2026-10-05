@@ -98,8 +98,10 @@ U1 review decisions (user approval, 5 October 2026; brief50 / decisions08):
   may provide their own loading skeleton, with a generic fallback. Use the existing
   DK Legacy mark image in the reference logo position. Hide event-specific nav
   links when no event is selected. The reference nav label is Teams / Draft (R17).
-- U-F: Identity disables Save with No changes to save when unchanged. Timezone
-  review uses Show this event’s times in ‹zone›? / Save with ‹zone› and names both
+- U-F: Identity makes unchanged Save inert with `aria-disabled`, remaining focusable
+  with the No changes to save tooltip and no visible no-change status. Reverting
+  typed edits restores the clean status. Timezone
+  review uses Cancel and Show this event’s times in ‹zone›? / Save with ‹zone› and names both
   zones. Scheduled moments are rows; unset moments share one Not scheduled yet:
   … line (or Nothing is scheduled yet, so no shown times change.). The quiet note
   after successful readback is Up to date, without attributing a save request.
