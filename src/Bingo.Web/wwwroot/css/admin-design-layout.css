@@ -9,3 +9,5 @@ button.theme-opt{border:0;background:transparent}button.theme-opt.is-on{backgrou
 .design-event-menu{width:min(360px,calc(100vw - 24px))}.design-event-options{max-height:272px;overflow-y:auto}
 .design-notifications-menu{width:min(380px,calc(100vw - 24px));max-height:70vh;overflow:auto}
 @media(max-width:600px){.design-top-actions{gap:4px}.topbar{gap:6px}.crumbs{flex:1}.design-event-crumb{max-width:12vw}}
+
+body:not(.using-keyboard) :focus-visible{outline:none}.design-drawer-layer{position:fixed;inset:0;pointer-events:none;z-index:var(--dk-z-drawer)}.design-drawer-layer>.drawer{pointer-events:auto}.page[data-page-skeleton] .sk-row{height:64px;margin-bottom:16px}
