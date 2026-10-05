@@ -67,7 +67,10 @@ public sealed partial class AdminDesignShellIntegrationTests : IAsyncLifetime
         Assert.Equal(past.Id, ordinary.SelectedEvent!.Id);
         Assert.Equal(new[] { review.Id, live.Id, closed.Id, open.Id, draft.Id, unscheduled.Id }, ordinary.Events.Select(item => item.Id));
         Assert.All(ordinary.Events, item => Assert.Equal($"/Admin/Events/Identity/{item.Id}", item.Url));
-        Assert.Equal("Not scheduled yet", ordinary.Events[^1].When);
+        Assert.Equal("not announced", ordinary.Events[^1].When);
+        Assert.Equal(new[] { "ends " + review.EventEndsAt!.Value.ToString("d MMM", System.Globalization.CultureInfo.CurrentCulture), "ends " + live.EventEndsAt!.Value.ToString("d MMM", System.Globalization.CultureInfo.CurrentCulture),
+            "starts " + closed.EventStartsAt!.Value.ToString("d MMM", System.Globalization.CultureInfo.CurrentCulture), "closes " + open.SignupClosesAt!.Value.ToString("d MMM", System.Globalization.CultureInfo.CurrentCulture),
+            "starts " + draft.EventStartsAt!.Value.ToString("d MMM", System.Globalization.CultureInfo.CurrentCulture), "not announced" }, ordinary.Events.Select(item => item.When));
         var super = await service.GetAdminDesignAsync(User("SuperAdmin"), routes, CancellationToken.None);
         var hiddenOption = Assert.Single(super.Events, item => item.Hidden);
         Assert.Equal(hidden.Id, hiddenOption.Id);
@@ -77,6 +80,30 @@ public sealed partial class AdminDesignShellIntegrationTests : IAsyncLifetime
         Assert.Null((await service.GetAdminDesignAsync(User("Admin"), routes, CancellationToken.None)).SelectedEvent);
         Assert.Equal(hidden.Id, (await service.GetAdminDesignAsync(User("SuperAdmin"), routes, CancellationToken.None)).SelectedEvent!.Id);
         Assert.Equal($"/Admin/Review/Index?eventId={draft.Id}", SharedShellService.AdminDesignEventUrl("/Admin/Review/Index", draft.Id));
+    }
+
+    [Fact]
+    public async Task SwitcherInvalidStoredTimezoneUsesUtcAndIdentityStillRenders()
+    {
+        var admin = Admin(); var item = Event(admin, EventState.Draft, "Invalid timezone fixture", 2);
+        await using (var db = new ApplicationDbContext(options))
+        {
+            db.AddRange(admin, item);
+            db.Entry(item).Property(value => value.Timezone).CurrentValue = "Unsupported/Fixture";
+            await db.SaveChangesAsync();
+        }
+        await using (var db = new ApplicationDbContext(options))
+        {
+            var persisted = await db.Events.SingleAsync();
+            Assert.Equal("Unsupported/Fixture", persisted.Timezone);
+            var service = new SharedShellService(db, new Text(), null!, null!, null!, TimeProvider.System);
+            var shell = await service.GetAdminDesignAsync(User("Admin"), new RouteValueDictionary { ["page"] = "/Admin/Events/Identity", ["id"] = item.Id }, CancellationToken.None);
+            Assert.Equal("starts " + persisted.EventStartsAt!.Value.ToUniversalTime().ToString("d MMM", System.Globalization.CultureInfo.CurrentCulture), Assert.Single(shell.Events).When);
+        }
+        await using var factory = IdentityFactory(); using var client = await IdentityClientAsync(factory);
+        using var response = await client.GetAsync($"/Admin/Events/Identity/{item.Id}");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains("data-admin-design", await response.Content.ReadAsStringAsync());
     }
 
     [Fact]

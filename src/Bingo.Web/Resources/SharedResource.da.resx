@@ -3088,4 +3088,6 @@
   <data name="{0} fields need attention before you can save." xml:space="preserve"><value>{0} felter kræver opmærksomhed, før du kan gemme.</value></data>
   <data name="You were signed out" xml:space="preserve"><value>Du blev logget ud</value></data>
   <data name="You were signed out, so we could not check whether the change went through. Your draft is still here. Sign in and use Check again." xml:space="preserve"><value>Du blev logget ud, så vi kunne ikke kontrollere, om ændringen blev gennemført. Dit udkast er stadig her. Log ind, og vælg Kontrollér igen.</value></data>
+  <data name="not announced" xml:space="preserve"><value>ikke annonceret</value></data>
+  <data name="closes {0}" xml:space="preserve"><value>lukker {0}</value></data>
 </root>

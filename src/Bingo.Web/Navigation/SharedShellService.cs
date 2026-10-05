@@ -67,14 +67,26 @@ public sealed class SharedShellService(ApplicationDbContext db, IStringLocalizer
                 && (item.Id == selected || item.State == EventState.Draft || item.State == EventState.SignupOpen
                     || item.State == EventState.SignupClosed || item.State == EventState.Live || item.State == EventState.AwaitingFinalReview))
             .OrderBy(item => item.EventStartsAt == null).ThenBy(item => item.EventStartsAt).ThenBy(item => item.Id)
-            .Select(item => new { item.Id, item.Name, item.State, item.HiddenAt, item.EventStartsAt, item.EventEndsAt, item.Timezone })
+            .Select(item => new { item.Id, item.Name, item.State, item.HiddenAt, item.SignupClosesAt, item.EventStartsAt, item.EventEndsAt, item.Timezone })
             .ToListAsync(cancellationToken);
         var options = rows.Select(item =>
         {
-            var date = item.State is EventState.Live or EventState.AwaitingFinalReview ? item.EventEndsAt : item.EventStartsAt;
-            var when = date.HasValue
-                ? TimeZoneInfo.ConvertTime(date.Value, TimeZoneInfo.FindSystemTimeZoneById(item.Timezone)).ToString("d MMM yyyy", CultureInfo.CurrentCulture)
-                : text["Not scheduled yet"].Value;
+            var date = item.State switch
+            {
+                EventState.SignupOpen => item.SignupClosesAt,
+                EventState.Live or EventState.AwaitingFinalReview => item.EventEndsAt,
+                _ => item.EventStartsAt
+            };
+            var shownDate = date.HasValue
+                ? DateTimePresentation.Format(date.Value, "d MMM", string.IsNullOrWhiteSpace(item.Timezone) ? "UTC" : item.Timezone, CultureInfo.CurrentCulture)
+                : null;
+            var when = shownDate is null ? text["not announced"].Value : item.State switch
+            {
+                EventState.SignupOpen => text["closes {0}", shownDate].Value,
+                EventState.Live or EventState.AwaitingFinalReview => text["Ends {0}", shownDate].Value,
+                _ => text["Starts {0}", shownDate].Value
+            };
+            when = char.ToLower(when[0], CultureInfo.CurrentCulture) + when[1..];
             var tone = item.State switch { EventState.Live or EventState.AwaitingFinalReview => "tone-live", EventState.SignupOpen => "tone-open", _ => "tone-draft" };
             return new AdminDesignEvent(item.Id, item.Name, item.State, item.HiddenAt.HasValue,
                 AdminEventStatePresentation.For(item.State, text).Label, tone, when,
