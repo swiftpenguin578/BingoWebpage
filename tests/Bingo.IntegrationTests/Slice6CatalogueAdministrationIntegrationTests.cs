@@ -28,6 +28,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
@@ -150,6 +151,70 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests : IAsy
         Assert.Equal(decimal.Round(EhbCalculator.CalculateDropRequirement(1,
             [new EligibleDropRate(10m, persisted.NumericProbability, persisted.ItemId, persisted.BossActivityId, RollsPerCompletion: persisted.RollsPerCompletion)])!.Value, 4),
             persisted.DefaultEhbEstimate);
+    }
+
+    [Fact]
+    public async Task CatalogueActivityEditUsesAddValidationAndWritesOnlyValidChanges()
+    {
+        var now = new DateTimeOffset(2026, 10, 5, 12, 0, 0, TimeSpan.Zero);
+        var owner = Website("f3-catalogue-owner", now);
+        owner.SetGlobalRole(GlobalRole.SuperAdmin);
+        var boss = new BossActivity(Guid.NewGuid(), "F3 original activity", "f3-original-activity", "Boss", 10m, now);
+        var item = new CatalogueItem(Guid.NewGuid(), "F3 drop", "F3 DROP");
+        var drop = new SourceDrop(Guid.NewGuid(), boss.Id, item.Id, "1/100", .01m, 10m, now);
+        await using (var setup = new ApplicationDbContext(options))
+        {
+            setup.AddRange(owner, boss, item, drop);
+            await setup.SaveChangesAsync();
+        }
+
+        async Task<string?> AddMessage(CatalogueIndexModel.BossInput input)
+        {
+            await using var db = new ApplicationDbContext(options);
+            var page = CataloguePage(db, owner.Id, superAdmin: true, clock: new FixedTimeProvider(now));
+            page.Boss = input;
+            await page.OnPostBossAsync(CancellationToken.None);
+            return page.TempData["StatusMessage"]?.ToString();
+        }
+
+        async Task<string?> EditMessage(string name, decimal? rate, long expectedVersion, int? requestedTeamSize = null)
+        {
+            await using var db = new ApplicationDbContext(options);
+            var page = CataloguePage(db, owner.Id, superAdmin: true, clock: new FixedTimeProvider(now));
+            await page.OnPostUpdateBossAsync(boss.Id, expectedVersion, name, "Boss", rate, null, null, CancellationToken.None, requestedTeamSize);
+            return page.TempData["StatusMessage"]?.ToString();
+        }
+
+        var addNegativeMessage = await AddMessage(new CatalogueIndexModel.BossInput { Name = "F3 invalid negative", Category = "Boss", EfficientRate = -1m, TeamSize = 1 });
+        var editNegativeMessage = await EditMessage("F3 original activity", -1m, 1);
+        Assert.Equal(addNegativeMessage, editNegativeMessage);
+        await using (var afterNegative = new ApplicationDbContext(options))
+        {
+            var saved = await afterNegative.BossActivities.SingleAsync(x => x.Id == boss.Id);
+            Assert.Equal("F3 original activity", saved.Name);
+            Assert.Equal(10m, saved.EfficientCompletionsPerHour);
+            Assert.Equal(0, await afterNegative.AuditEntries.CountAsync(x => x.Action == "catalogue.boss_created" && x.TargetId == boss.Id.ToString()));
+        }
+
+        var overlongName = new string('X', 201);
+        var addOverlongMessage = await AddMessage(new CatalogueIndexModel.BossInput { Name = overlongName, Category = "Boss", EfficientRate = 10m, TeamSize = 1 });
+        var editOverlongMessage = await EditMessage(overlongName, 10m, 1);
+        Assert.Equal(addOverlongMessage, editOverlongMessage);
+        await using (var afterOverlong = new ApplicationDbContext(options))
+        {
+            Assert.Equal(1, await afterOverlong.BossActivities.CountAsync(x => x.Id == boss.Id));
+            Assert.Equal(0, await afterOverlong.AuditEntries.CountAsync(x => x.Action == "catalogue.boss_created" && x.TargetId == boss.Id.ToString()));
+        }
+
+        var valid = await EditMessage("F3 edited activity", 12m, 1, requestedTeamSize: 2);
+        Assert.Equal("F3 edited activity updated.", valid);
+        await using var verify = new ApplicationDbContext(options);
+        var edited = await verify.BossActivities.SingleAsync(x => x.Id == boss.Id);
+        Assert.Equal("F3 edited activity", edited.Name);
+        Assert.Equal(12m, edited.EfficientCompletionsPerHour);
+        Assert.Equal(2, edited.TeamSize);
+        Assert.Equal(decimal.Round(1m / (12m * .01m), 4), await verify.SourceDrops.Where(x => x.Id == drop.Id).Select(x => x.DefaultEhbEstimate).SingleAsync());
+        Assert.Equal(1, await verify.AuditEntries.CountAsync(x => x.Action == "catalogue.boss_updated" && x.TargetId == boss.Id.ToString()));
     }
 
     [Theory]
@@ -1514,7 +1579,7 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests : IAsy
         public string? RouteUrl(Microsoft.AspNetCore.Mvc.Routing.UrlRouteContext route) => "/fixture-tile-image";
     }
 
-    private static CatalogueIndexModel CataloguePage(ApplicationDbContext db, Guid accountId, bool superAdmin, ICatalogueApiClient? api = null)
+    private static CatalogueIndexModel CataloguePage(ApplicationDbContext db, Guid accountId, bool superAdmin, ICatalogueApiClient? api = null, TimeProvider? clock = null)
     {
         var claims = new List<Claim>
         {
@@ -1522,12 +1587,18 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests : IAsy
             new(ClaimTypes.Name, "owner")
         };
         if (superAdmin) claims.Add(new Claim(ClaimTypes.Role, GlobalRole.SuperAdmin.ToString()));
-        var context = new DefaultHttpContext { User = new ClaimsPrincipal(new ClaimsIdentity(claims, "test")) };
-        return new CatalogueIndexModel(db, TimeProvider.System, catalogueApi: api)
+        var context = new DefaultHttpContext
+        {
+            User = new ClaimsPrincipal(new ClaimsIdentity(claims, "test")),
+            RequestServices = new ServiceCollection().AddMvcCore().AddDataAnnotations().Services.BuildServiceProvider()
+        };
+        var page = new CatalogueIndexModel(db, clock ?? TimeProvider.System, catalogueApi: api)
         {
             PageContext = new PageContext(new ActionContext(context, new RouteData(), new PageActionDescriptor())),
             TempData = new TempDataDictionary(context, new TestTempDataProvider())
         };
+        page.PageContext.ViewData = new ViewDataDictionary(new EmptyModelMetadataProvider(), new ModelStateDictionary());
+        return page;
     }
 
     private sealed class TestTempDataProvider : ITempDataProvider
@@ -1657,5 +1728,10 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests : IAsy
     private sealed class WallClock : TimeProvider
     {
         public override DateTimeOffset GetUtcNow() => DateTimeOffset.UtcNow;
+    }
+
+    private sealed class FixedTimeProvider(DateTimeOffset value) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => value;
     }
 }
