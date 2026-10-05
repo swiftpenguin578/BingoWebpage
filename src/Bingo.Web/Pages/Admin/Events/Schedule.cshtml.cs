@@ -184,7 +184,8 @@ public sealed class ScheduleModel(ApplicationDbContext db, IEventSignupLifecycle
             "Automatic signup opening requires a signup closing time." or "Signup closing must be in the future." or
             "Signup closing must be after the scheduled opening." or "Signup closing must be after signup opening." or
             "Signup closing must be no later than event start." or
-            "Signup closing is read-only after signup has closed; use Reopen to establish a new closing time." => ["Input.SignupClosesLocal"],
+            "Signup closing is read-only after signup has closed; use Reopen to establish a new closing time." or
+            "Signups are open, so they need a closing time. Set a new closing time or close signups now." => ["Input.SignupClosesLocal"],
             "An event start is required." => ["Input.EventStartsLocal"],
             "An event end is required." or "The event end must be in the future." or "Event end must be after event start." => ["Input.EventEndsLocal"],
             _ => [string.Empty] // Cross-event overlap, authorization and stale saves remain form errors.
