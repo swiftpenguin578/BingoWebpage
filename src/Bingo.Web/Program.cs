@@ -153,6 +153,7 @@ builder.Services.AddScoped<CataloguePriceSyncService>();
 builder.Services.AddScoped<ProductionPreflight>();
 builder.Services.AddScoped<DevelopmentScenarioSeeder>();
 builder.Services.AddScoped<HistoricalEventImporter>();
+builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<SharedShellService>();
 builder.Services.AddScoped<PublicTeamImageService>();
 builder.Services.AddScoped<PublicBoardImageService>();

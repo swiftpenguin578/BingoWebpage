@@ -24,6 +24,7 @@ public sealed class LogoutModel(IAuditWriter auditWriter, IStringLocalizer<Share
             "account",
             User.GetAccountId()?.ToString(),
             cancellationToken: cancellationToken);
+        Bingo.Web.Navigation.AdminEventSession.Clear(HttpContext);
         await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
         TempData["StatusMessage"] = text["You have signed out."].Value;
         TempData[Bingo.Web.UI.UiMessage.TypeKey] = Bingo.Web.UI.UiMessageType.Success.ToString();

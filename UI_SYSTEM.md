@@ -100,7 +100,12 @@ U1 review decisions (user approval, 5 October 2026; brief50 / decisions08):
   DK Legacy mark image in the reference logo position. The sidebar header shows
   the signed-in public username, localized role and chevron; the account menu adds
   the name / @handle · role header (visual-check Q1/Q2). Hide event-specific nav
-  links when no event is selected. The reference nav label is Teams / Draft (R17).
+  links when no event is selected or remembered. The reference nav label is Teams / Draft (R17).
+  User decision, 5 October (brief60 item2): a browser-session cookie stores only the
+  last Admin event ID, revalidated against current visibility/access on every render.
+  Community pages retain its sidebar navigation without an event breadcrumb; public
+  navigation keeps it, selecting another replaces it, and sign-out clears it. Past
+  events remain selectable context; discarded/deleted/inaccessible context is dropped.
 - U-F: Identity makes unchanged Save inert with `aria-disabled`, remaining focusable
   with the No changes to save tooltip and no visible no-change status. Reverting
   typed edits restores the clean status. Timezone
