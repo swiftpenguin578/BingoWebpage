@@ -65,7 +65,13 @@ Machine-readable results: `item7-checks.json`.
   Regex.Matches.Count) were corrected without changing expectations. Initial new
   fixture failures were missing production defer/reviewed-values attributes and
   a predicate reading through the temporary navigation skeleton. No timeout was
-  increased, existing safety assertion weakened, or environment retry performed.
+  increased or environment retry performed. **Correction after review49:** the
+  rewrite did weaken the exact read count to `reads >= 4`, remove the preview-free
+  validation-summary and exact modal-text assertions, omit the later-draft check,
+  and broaden the Slice3 labels to substrings. The original no-weakened-assertion
+  claim was incorrect. Brief50 item9 restores/tightens these checks and records
+  the precise A10/A14/I-3/U-F disposition in
+  [remediation/item9-r5-r13.md](remediation/item9-r5-r13.md).
 
 Commands (all from the assigned worktree):
 

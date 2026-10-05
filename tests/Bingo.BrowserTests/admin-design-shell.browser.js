@@ -151,8 +151,9 @@ export function dispose() { window.disposes=(window.disposes||0)+1;window.active
     await start('off'); await page.locator('#sidebar-link').click(); await page.waitForURL('**/b'); await page.waitForFunction(()=>window.fixtureReady);
     assert.equal(await page.evaluate(()=>window.inits),1,'off switch performs full page load');
 
-    await page.clock.install();
+    await page.clock.install({time:new Date("2026-10-05T00:00:00Z")});
     for(let i=0;i<3;i++) { await page.evaluate(()=>document.body.dataset.navigationEnabled='true'); await navigate(i%2?'a':'b'); }
+    await page.clock.pauseAt(new Date("2026-10-05T01:00:00Z"));
     const ticksBefore=await page.evaluate(()=>window.ticks||0);
     await page.clock.fastForward(1000);
     assert.equal(await page.evaluate(()=>window.ticks)-ticksBefore,1,'disposed page timers stop after repeated swaps');
