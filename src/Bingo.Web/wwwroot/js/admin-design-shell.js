@@ -36,6 +36,7 @@
   let menu = null;
   const layers = [];
   let mobile = false;
+  const mobileQuery = matchMedia('(max-width: 860px)');
   function lock() {
     document.querySelector('.scroller')?.classList.toggle('is-locked', !!layers.length || mobile);
     const main = document.querySelector('.main'), side = document.querySelector('[data-shell-sidebar]');
@@ -65,7 +66,7 @@
   }
   function toggleSide(force) {
     const side = document.querySelector('[data-shell-sidebar]');
-    if (matchMedia('(max-width: 860px)').matches) {
+    if (mobileQuery.matches) {
       mobile = force ?? !mobile;
       side?.classList.toggle('is-mobile-open', mobile);
       document.querySelector('[data-side-scrim]')?.classList.toggle('is-on', mobile);
@@ -78,6 +79,14 @@
       document.querySelectorAll('[data-side-toggle]').forEach(button => button.setAttribute('aria-expanded', String(!side?.classList.contains('is-collapsed'))));
     }
   }
+  mobileQuery.addEventListener('change', event => {
+    if (event.matches || !mobile) return;
+    mobile = false;
+    document.querySelector('[data-shell-sidebar]')?.classList.remove('is-mobile-open');
+    document.querySelector('[data-side-scrim]')?.classList.remove('is-on');
+    document.querySelectorAll('[data-side-toggle]').forEach(button => button.setAttribute('aria-expanded', String(!document.querySelector('[data-shell-sidebar]')?.classList.contains('is-collapsed'))));
+    lock();
+  });
   const inputSelector = 'input:not([type=hidden]):not([type=submit]):not([type=button]),select,textarea,[contenteditable="true"]';
   function openLayer({ kind = 'modal', title, content, confirmation = false, dirty = () => false, pending = () => false, onClose = () => {}, opener = document.activeElement }) {
     closeMenu(false);
@@ -93,17 +102,22 @@
     wrapper.append(panel);
     const host = document.querySelector(kind === 'drawer' ? '[data-drawer-host]' : '[data-modal-host]');
     host.append(scrim, wrapper);
-    const layer = { wrapper, scrim, panel, confirmation, dirty, pending, opener, onClose, closing: false };
+    const inputValues = () => JSON.stringify([...panel.querySelectorAll(inputSelector)].map(input => [input.name || input.id, input.type === 'checkbox' || input.type === 'radio' ? input.checked : input.isContentEditable ? input.textContent : input.value]));
+    const baseline = inputValues();
+    const layer = { wrapper, scrim, panel, confirmation, dirty: () => dirty() || inputValues() !== baseline, pending, opener, onClose, closing: false };
+    layer.closed = new Promise(resolve => { layer.resolveClosed = resolve; });
     layers.push(layer);
     lock();
     focus(panel.querySelector('[autofocus]') || controls(panel)[0] || panel);
-    const outside = event => { if ((event.target === scrim || event.target === wrapper) && layers.at(-1) === layer && !confirmation && !panel.querySelector(inputSelector) && !dirty()) void closeLayer(layer); };
+    const outside = event => { if ((event.target === scrim || event.target === wrapper) && layers.at(-1) === layer && !confirmation && !panel.querySelector(inputSelector) && !layer.dirty()) void closeLayer(layer); };
     scrim.addEventListener('click', outside);
     wrapper.addEventListener('click', outside);
     return { element: panel, close: result => closeLayer(layer, result, true) };
   }
   async function closeLayer(layer = layers.at(-1), result = false, confirmed = false) {
-    if (!layer || layer.closing || layer !== layers.at(-1) || layer.pending()) return false;
+    if (!layer) return false;
+    if (layer.closing) return layer.closed;
+    if (layer !== layers.at(-1) || layer.pending()) return false;
     if (!confirmed && layer.dirty() && !await confirmDiscard()) return false;
     layer.closing = true;
     layer.panel.classList.add('is-closing');
@@ -113,6 +127,7 @@
     layer.wrapper.remove(); layer.scrim.remove(); lock();
     focus(layer.opener);
     layer.onClose(result);
+    layer.resolveClosed(true);
     return true;
   }
   function confirm({ title, description, actionLabel, cancelLabel }) {
@@ -157,8 +172,8 @@
   }
 
   const drafts = new Map();
-  const isDirty = () => [...drafts.values()].some(draft => draft.isDirty());
-  const isPending = () => [...drafts.values()].some(draft => draft.isPending?.());
+  const isDirty = () => [...drafts.values()].some(draft => draft.isDirty()) || layers.some(layer => layer.dirty());
+  const isPending = () => [...drafts.values()].some(draft => draft.isPending?.()) || layers.some(layer => layer.pending());
   const beforeUnload = event => { if (isDirty() || isPending()) { event.preventDefault(); event.returnValue = ''; } };
   let watching = false;
   function refreshDirty() {
@@ -233,9 +248,27 @@
     for (let row = 0; row < rows; row++) { const bar = document.createElement('div'); bar.className = 'sk-row'; placeholder.append(bar); }
     main.replaceChildren(placeholder); main.setAttribute('aria-busy', 'true');
   }
+  function refreshSidebar(doc) {
+    const side = document.querySelector('[data-shell-sidebar]'), next = doc.querySelector('[data-shell-sidebar]');
+    const context = side.querySelector('[data-shell-event-context]'), nextContext = next.querySelector('[data-shell-event-context]');
+    if (context && nextContext) context.replaceChildren(...document.importNode(nextContext, true).childNodes);
+    const links = [...side.querySelectorAll('a[data-shell-link]')], replacements = [...next.querySelectorAll('a[data-shell-link]')];
+    if (links.length !== replacements.length) throw new Error('Unexpected sidebar navigation');
+    links.forEach((link, index) => {
+      const replacement = replacements[index];
+      link.href = replacement.href;
+      link.classList.toggle('is-current', replacement.classList.contains('is-current'));
+      if (replacement.hasAttribute('aria-current')) link.setAttribute('aria-current', replacement.getAttribute('aria-current')); else link.removeAttribute('aria-current');
+    });
+  }
+  async function closeNavigationLayers() {
+    while (layers.length) if (!await closeLayer(layers.at(-1), false, true)) return false;
+    return true;
+  }
   async function navigate(url, { mode = 'push', targetIndex, check = true } = {}) {
     url = new URL(url, location.href).href;
     if (check && !await guard()) return false;
+    if (!await closeNavigationLayers()) return false;
     if (body.dataset.navigationEnabled.toLowerCase() === 'false') { fullLoad(url); return true; }
     const ticket = ++sequence;
     navigation?.abort(); navigation = new AbortController();
@@ -264,7 +297,8 @@
       document.title = doc.title;
       document.documentElement.lang = doc.documentElement.lang;
       for (const [key, value] of Object.entries(nextBody.dataset)) body.dataset[key] = value;
-      for (const selector of ['[data-page-region]', '[data-shell-sidebar]', '[data-shell-topbar]', '[data-shell-menu]']) {
+      refreshSidebar(doc);
+      for (const selector of ['[data-page-region]', '[data-shell-topbar]', '[data-shell-menu]']) {
         const old = [...document.querySelectorAll(selector)], replacements = [...doc.querySelectorAll(selector)];
         if (old.length !== replacements.length) { fullLoad(url); return true; }
         old.forEach((element, i) => element.replaceWith(document.importNode(replacements[i], true)));
@@ -298,6 +332,12 @@
   async function onPop(event) {
     const target = event.state?.adminDesignIndex, url = location.href;
     if (travel) { if (target === travel.target) { const resolve = travel.resolve; travel = null; resolve(); } return; }
+    const currentDocument = new URL(activeUrl), destinationDocument = new URL(url);
+    if ((target === undefined || target === index) && currentDocument.origin === destinationDocument.origin
+        && currentDocument.pathname === destinationDocument.pathname && currentDocument.search === destinationDocument.search) {
+      activeUrl = url; // Native same-document fragment navigation owns its own history.
+      return;
+    }
     if (handlingPop) return;
     if (target === undefined) { if (await guard()) fullLoad(url); else history.pushState({ adminDesignIndex: index }, '', activeUrl); return; }
     handlingPop = true;
