@@ -182,7 +182,7 @@ public sealed partial class BoardModel
             {
                 var issue = new BoardApprovalValidationException("objective-positions", tile.Id, tile.RowIndex * columns + tile.ColumnIndex, tile.NameSnapshot, "A tile has duplicate objective positions. Edit the tile before approving it.");
                 if (issues is null) throw issue;
-                issues.Add(issue.Issue);
+                if (!issues.Any(x => x.TileId == tile.Id && x.Code == issue.Issue.Code)) issues.Add(issue.Issue);
             }
             var tileTemplateRequirements = templateGroups.Where(x => x.Count() == 1).ToDictionary(x => x.Key, x => x.Single());
             foreach (var positionGroup in allRequirements
@@ -205,7 +205,7 @@ public sealed partial class BoardModel
                 {
                     var issue = new BoardApprovalValidationException("objective-positions", tile.Id, tile.RowIndex * columns + tile.ColumnIndex, tile.NameSnapshot, "A tile has duplicate objective positions. Edit the tile before approving it.");
                     if (issues is null) throw issue;
-                    issues.Add(issue.Issue);
+                    if (!issues.Any(x => x.TileId == tile.Id && x.Code == issue.Issue.Code)) issues.Add(issue.Issue);
                     if (includeAmbiguous) requirements.AddRange(candidates.OrderBy(x => x.Id));
                     continue;
                 }
