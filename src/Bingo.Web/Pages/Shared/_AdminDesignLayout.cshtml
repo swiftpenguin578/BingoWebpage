@@ -3,7 +3,7 @@
 @inject SharedShellService SharedShell
 @inject Microsoft.Extensions.Configuration.IConfiguration Configuration
 @{
-    var shell = await SharedShell.GetAdminDesignAsync(User, ViewContext.RouteData.Values, Context.RequestAborted, Context.Request.Query["eventId"].ToString());
+    var shell = ViewData["AdminDesignShell"] as AdminDesignShell ?? await SharedShell.GetAdminDesignAsync(User, ViewContext.RouteData.Values, Context.RequestAborted, Context.Request.Query["eventId"].ToString());
     ViewData["AdminDesignShell"] = shell;
     var title = ViewData["Title"]?.ToString() ?? "Admin";
 }

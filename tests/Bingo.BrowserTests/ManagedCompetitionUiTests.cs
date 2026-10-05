@@ -55,7 +55,7 @@ public sealed class ManagedCompetitionUiTests
         var handlers = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "Pages", "Admin", "Events", "Draft.cshtml.cs"));
 
         Assert.Contains("maxlength=\"50\"", create);
-        Assert.Contains("maxlength=\"50\"", identity);
+        Assert.Contains("data-codepoint-limit=\"50\"", identity);
         Assert.Contains("maxlength=\"30\"", draft);
         Assert.Contains("MaximumTeamNameLength", handlers);
         Assert.Contains("!string.Equals(team.Name, name.Trim()", handlers);

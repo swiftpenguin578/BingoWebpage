@@ -210,10 +210,11 @@ table record management.
 
 ### Detail/form with optional information rail
 
-The canonical rendered references are Manage/Overview, Identity, and Schedule.
-`.event-manage-layout`, `.identity-editor-layout`, and
-`.schedule-editor-layout` are page-local compositions with CSS owners in the
-transitional stylesheet set; no shared rail partial exists.
+The retained rendered rail references are Manage/Overview and Schedule.
+`.event-manage-layout` and `.schedule-editor-layout` are page-local compositions
+with CSS owners in the transitional stylesheet set; no shared rail partial exists.
+U1 Identity uses the frozen reference form-card composition in the opt-in Admin
+shell; it has no information rail. Its binding awaits the matrix acceptance gate.
 
 On wide desktop, a detail/form page may use a sticky information rail. At
 constrained widths the rail is removed, not moved below or into the form.
@@ -640,7 +641,7 @@ current uses, permitted variants, and forbidden legacy residue.
 | State/lifecycle pills | `.admin-status-pill` and `.is-*` modifiers in the transitional stylesheet set; Manage/Events directory are references | Lifecycle, role, setup, cutoff, and readiness states; text accompanies color | Color-only meaning, invented modifier semantics, or page-local pill geometry |
 | Headings/support | Shared Admin typography tokens; markup owners are each page heading/component heading; Manage is the hierarchy reference | Page, component, row label, and support roles | Promoting a page selector to global or duplicating headings inside nested surfaces |
 | Rows/panels/callouts | `.event-overview-section`, `.event-overview-row`, `.event-confirmation-box`, and `.information-callout` CSS; Manage/Board references | Operational row, tonal panel, compact confirmation, and informational note | Unnamed nested boxes, legacy card wrappers, or decorative dividers without owner |
-| Information rail | No shared markup owner; Manage `.event-overview-dates-panel`, Identity `.identity-event-information-rail`, and Schedule `.schedule-event-information-rail` are canonical patterns | Detail/form only on wide desktop; page-local content may differ | Adding it to full-width/table pages or relocating it below constrained forms |
+| Information rail | No shared markup owner; Manage `.event-overview-dates-panel` and Schedule `.schedule-event-information-rail` are canonical patterns | Detail/form only on wide desktop; page-local content may differ | Adding it to full-width/table pages or relocating it below constrained forms |
 | Route dialogs | Questions uses `_AdminLayout.cshtml` + `signup-questions-overlay.js`; Participant uses the dialog section of `event-manage.js`; both use `admin-editor-guard.js` for dirty/pending/failure safeguards. Accounts/Catalogue retain their existing owners | Questions/Participant share the accepted modal policy at every width with fullscreen at <=900; explicit routes/reload/recovery remain. Other owners retain their current behavior until authorized rollout | A second page shell, opaque host surface, generalized overlay framework, or new route-dialog variant |
 | Admin confirmations | ADM-02 establishes the shared confirmation owner using existing dialog/guard/toast components; current `event-confirmation-box` and inline owners are migration sources | One centered consequence-specific confirmation, dimmed backdrop, Cancel before semantic action; editor hands off and resumes preserved state | Product-action native confirms, inline/`details` confirmations, stacked dialogs, duplicate prompts, unsupported reason fields |
 | Backdrop/focus/scroll/history | Admin route CSS plus `site.js`, `signup-questions-overlay.js`, `account-manage-dialog.js`, and `catalogue-admin.js`; public Board retains its evidence viewer and submission drawer but no team-board popup | Modal/drawer backdrop, body-scroll lock, trigger focus restore where applicable, route history, bounded overlay content scroll | A page-local duplicate modal policy, lost focus, background scrolling, or realtime interrupting an active submission/result |
@@ -1028,3 +1029,14 @@ that actor's current event/team.
 The canonical submission workspace remains a separate approval unit; legacy
 Captain routes are compatibility aliases rather than a standalone workspace.
 This Board approval does not claim whole-application production readiness.
+
+### U1 Identity page lifecycle and uncertain departure
+
+Identity is the first `[AdminDesign]` page. Its ES module exports asynchronous
+`init(root, ui)` and `dispose()`; disposal aborts requests, unregisters its draft
+and awaits closure of its layer before another page initialises. Saves and Current
+reads use AdminFetch. A registered dirty draft may supply `confirmLeave()` to use
+its page-specific uncertain-save warning; the shared guard still refuses pending
+navigation and owns sidebar, switcher, breadcrumb and history transitions. Identity
+uses Check again / Leave anyway while uncertain, otherwise the normal discard
+confirmation. This binding changes no other page's guard or layout.

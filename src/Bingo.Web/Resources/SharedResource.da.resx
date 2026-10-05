@@ -3048,4 +3048,42 @@
   <data name="DK" xml:space="preserve"><value>DK</value></data>
   <data name="EN" xml:space="preserve"><value>EN</value></data>
   <data name="DA" xml:space="preserve"><value>DA</value></data>
+  <data name="Also saved with this change: {0}." xml:space="preserve"><value>Gemmes også med denne ændring: {0}.</value></data>
+  <data name="Another admin saved this event while you were editing. Where you both changed a field, yours is kept and theirs is shown beside it. Review, then save again." xml:space="preserve"><value>En anden administrator gemte begivenheden, mens du redigerede. Hvor I begge ændrede et felt, beholdes din værdi, og den andens vises ved siden af. Gennemgå værdierne, og gem igen.</value></data>
+  <data name="Buy-in information must be 2000 characters or fewer." xml:space="preserve"><value>Oplysninger om indskud må højst være 2000 tegn.</value></data>
+  <data name="Copy" xml:space="preserve"><value>Kopiér</value></data>
+  <data name="Description must be 4000 characters or fewer." xml:space="preserve"><value>Beskrivelsen må højst være 4000 tegn.</value></data>
+  <data name="Enter an event name." xml:space="preserve"><value>Indtast et navn til begivenheden.</value></data>
+  <data name="Event banners are no longer supported. Reload the page and submit only identity fields." xml:space="preserve"><value>Bannere til begivenheder understøttes ikke længere. Genindlæs siden, og indsend kun identitetsfelterne.</value></data>
+  <data name="Event identity cannot be changed in its current state." xml:space="preserve"><value>Begivenhedens identitet kan ikke ændres i dens nuværende tilstand.</value></data>
+  <data name="Explain the entry payment in words: how much, and how to pay. It is not a price field and takes no payments; payments are tracked on Participants." xml:space="preserve"><value>Beskriv indskuddet med ord: hvor meget og hvordan man betaler. Feltet modtager ingen betalinger; betalinger registreres under Deltagere.</value></data>
+  <data name="How this event's dates and times are shown. Changing it never moves a scheduled moment." xml:space="preserve"><value>Sådan vises begivenhedens datoer og tidspunkter. En ændring flytter aldrig et planlagt tidspunkt.</value></data>
+  <data name="Leave anyway" xml:space="preserve"><value>Forlad alligevel</value></data>
+  <data name="Leave before checking?" xml:space="preserve"><value>Forlad siden uden at kontrollere?</value></data>
+  <data name="Link copied" xml:space="preserve"><value>Link kopieret</value></data>
+  <data name="No identity changes were made." xml:space="preserve"><value>Der blev ikke foretaget ændringer i identiteten.</value></data>
+  <data name="Permanent event link" xml:space="preserve"><value>Permanent begivenhedslink</value></data>
+  <data name="Permanent. It was created with the event and stays the same when you rename it." xml:space="preserve"><value>Permanent. Det blev oprettet sammen med begivenheden og ændres ikke, når du omdøber den.</value></data>
+  <data name="Public details" xml:space="preserve"><value>Offentlige oplysninger</value></data>
+  <data name="Saved" xml:space="preserve"><value>Gemt</value></data>
+  <data name="Stored UTC instants will not move. Participants will see the same moments in the new timezone, including each UTC offset." xml:space="preserve"><value>De gemte UTC-tidspunkter flyttes ikke. Deltagerne ser de samme tidspunkter i den nye tidszone med den tilhørende UTC-forskydning.</value></data>
+  <data name="The event still has its earlier values, so your changes weren't applied. They are still here; save again when you are ready." xml:space="preserve"><value>Begivenheden har stadig de tidligere værdier, så dine ændringer blev ikke anvendt. De er stadig her; gem igen, når du er klar.</value></data>
+  <data name="The event's name and the text players read about it." xml:space="preserve"><value>Begivenhedens navn og teksten, spillerne læser om den.</value></data>
+  <data name="The link could not be copied. Select and copy it manually." xml:space="preserve"><value>Linket kunne ikke kopieres. Markér og kopiér det manuelt.</value></data>
+  <data name="The one link to share. It opens the signup list, which moves visitors on to teams and the board as the event is published. While the event is private, it is not publicly available." xml:space="preserve"><value>Linket, du skal dele. Det åbner tilmeldingslisten, som fører besøgende videre til hold og spillepladen, når begivenheden offentliggøres. Linket er ikke offentligt tilgængeligt, mens begivenheden er privat.</value></data>
+  <data name="The public event link is permanent and cannot be changed." xml:space="preserve"><value>Det offentlige begivenhedslink er permanent og kan ikke ændres.</value></data>
+  <data name="The stored timezone ID {0} is retained. Dates below use an explicit UTC fallback until a supported timezone is selected." xml:space="preserve"><value>Det gemte tidszone-id {0} beholdes. Datoerne nedenfor vises i UTC, indtil en understøttet tidszone vælges.</value></data>
+  <data name="The timezone cannot change after the event first goes Live." xml:space="preserve"><value>Tidszonen kan ikke ændres, efter begivenheden første gang er startet.</value></data>
+  <data name="Their value: {0}" xml:space="preserve"><value>Den andens værdi: {0}</value></data>
+  <data name="This event has not been public yet. A timezone change saves directly without a confirmation." xml:space="preserve"><value>Begivenheden har endnu ikke været offentlig. En ændring af tidszonen gemmes direkte uden bekræftelse.</value></data>
+  <data name="Unsaved changes" xml:space="preserve"><value>Ikke-gemte ændringer</value></data>
+  <data name="Use theirs" xml:space="preserve"><value>Brug den andens</value></data>
+  <data name="Your changes may already have been saved. Check again before leaving, or leave anyway without retrying the save." xml:space="preserve"><value>Dine ændringer kan allerede være gemt. Kontrollér igen, før du forlader siden, eller forlad den uden at forsøge at gemme igen.</value></data>
+  <data name="{0} is archived, so its identity cannot be changed." xml:space="preserve"><value>{0} er arkiveret, så identiteten kan ikke ændres.</value></data>
+  <data name="{0} is finalized, so its identity cannot be changed." xml:space="preserve"><value>{0} er afsluttet, så identiteten kan ikke ændres.</value></data>
+  <data name="{0} was cancelled, so its identity cannot be changed." xml:space="preserve"><value>{0} blev annulleret, så identiteten kan ikke ændres.</value></data>
+  <data name="{0} · current" xml:space="preserve"><value>{0} · nuværende</value></data>
+  <data name="Copenhagen (Europe/Copenhagen)" xml:space="preserve"><value>København (Europe/Copenhagen)</value></data>
+  <data name="Team draft" xml:space="preserve"><value>Holdfordeling</value></data>
+  <data name="{0} fields need attention before you can save." xml:space="preserve"><value>{0} felter kræver opmærksomhed, før du kan gemme.</value></data>
 </root>

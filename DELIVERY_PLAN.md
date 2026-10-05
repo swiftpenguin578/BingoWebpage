@@ -800,7 +800,8 @@ Use existing authorized current-state reads to support Check again after an
 uncertain save. Compare the relevant full intended values and report whether the
 event now has them, without claiming this request saved them. No new Identity
 request receipts are required. Preserve editing drafts and truthful ambiguity on
-read failure or different values; do not blindly resubmit the mutation.
+read failure; do not blindly resubmit the mutation. U1/A14 adds the versioned
+three-outcome binding described below.
 
 Proof: applied/lost-response, unapplied, another-admin matching/different update,
 authorization and read failure. UI wording is Up to date, not proof of Saved.
@@ -809,16 +810,15 @@ AU09 dispatch contract: freeze the complete canonical Name, Description,
 BuyInDescription and Timezone expected tuple separately from the original edit
 intent/baseline. Use current takes exactly the explicitly reviewed value; untouched
 fields take the latest values actually observed and used at dispatch. Never derive
-expected values from a later read. Check again uses the existing authorized Identity
-read boundary and compares all four full values. A match means only Up to date now,
-never that this request saved them. An unseen disjoint server merge or later edit
-may therefore remain Different/uncertain even after an applied save. Different or
-failed reads preserve the frozen tuple and editing draft without retry, rebase,
-overwrite or discard; failed reads are Unknown. No receipt or reconstruction of
-the server's effective merged tuple is introduced. Backend/transport integration
-is sufficient for AU09; full new-reference UI binding and manual acceptance remain
-deferred. Existing timezone confirmation transport switches an uncertain mutation
-to read-only checks; it must never blindly send that mutation again.
+expected values from a later read. U1/A14 now binds the authorized Identity read
+boundary to no-store JSON {eventId, values, version}: matching values with a moved
+version mean Up to date (no request attribution); moved version/different values
+enter field conflicts; unchanged version retains the draft and restores Save with
+"not applied" wording. Failed/unavailable reads preserve uncertainty, draft and
+frozen tuple. No blind POST retry, request receipt or inferred effective merge is
+introduced. The U1 shared shell/module binds ordinary saves, conflict choices,
+timezone review and Check again. Independent review and page visual acceptance
+remain pending; whole-suite execution remains the user/Claude final-SHA gate.
 
 ### AU10 — Schedule preservation and integration gaps, source-reviewed
 
@@ -1187,7 +1187,7 @@ here; do not silently omit a row because the reference has no corresponding cont
 | WOM end-update status NotRequired/Pending/Succeeded/Rejected/CouldNotUpdate, target end and sanitized failure. A15: WOM shows Pending/Rejected/could-not-update with target end and corrects paused-fetch wording; Overview shows Needs attention in Final review for Pending/Rejected linking WOM; Final Review publish confirmation warns that the last fetch becomes official and retains the per-version note after publication. Publication is never blocked | WOM — Wom.dc.html; Overview — Overview.dc.html; Final Review — FinalReview.dc.html (existing component patterns) | WA-2 / AU20; Plan 42 A15 | WOM U9 / WA-5; Overview U4 / OS-1; Final Review U9 / BR-10 | None for A15 placement; other WOM fetch outcomes remain the U9 group-B question |
 | Structured fetch eligibility, AU18 skip reason and next permitted time; typed credential/current-operation identity, phase and next attempt | WOM — [Wom.dc.html](docs/references/admin-ui/Wom.dc.html); these backend outputs exceed the generic Fetch wording. Final Review retains its separate AU18 data-only next-time decision above | WA-6 / AU20; Step 4 D4 and B1/B2 D2 in [B3 source attribution](docs/references/admin-ui/reviews/2026-10-04/au-b3/item6-documentation.md); brief 23 items 1 and 6 | WA-5 / RC09, as settled in the UI integration plan | Decide which structured WOM outcomes are displayed and their binding before integration; keep current-page generic Fetch wording and no new Final Review next-time display |
 | Resume always requires a validated future replacement end, even when the retained configured end is future; early end stores the ceiling-minute configured end and precise actual end | Overview — [Overview.dc.html](docs/references/admin-ui/Overview.dc.html) currently conditionally asks for the replacement only after the retained end has passed | WA-2 corrected Resume rule; AU20 item2; [remediation brief](docs/references/admin-ui/reviews/2026-10-04/au-b3/remediation/supplied-brief.md) item6 / review24f R1 | RC01 / OS-1 | Always-present replacement end is decided; settle dialog text and bind its validation before OS-1 acceptance |
-| Cancelled/Finalized/Archived admin pages open read-only; each page binding removes its view redirect from EventMutationCapabilityPageFilter (baseline view redirect `:90-101`); all changes remain refused under D16 | All event admin pages — Identity, Schedule, Signup setup, WOM, Final Review, Participants references | D17 / D16 in [08-decisions.md](/Users/christopher/Documents/BingoWebpage/review-notes/08-decisions.md) | Each page integration inventory | Decided future obligation; no current-page redirect removal |
+| Cancelled/Finalized/Archived admin pages open read-only; each page binding removes its view redirect from EventMutationCapabilityPageFilter (baseline view redirect `:90-101`); all changes remain refused under D16 | All event admin pages — Identity, Schedule, Signup setup, WOM, Final Review, Participants references | D17 / D16 in [08-decisions.md](/Users/christopher/Documents/BingoWebpage/review-notes/08-decisions.md) | Each page integration inventory | Identity GET/Current bound in U1; remaining page removals stay with their assigned bindings |
 | Signup answers shows every custom question as question: answer, editable until draft start then read-only; drop Participant’s note and its row flag | Participants — Participants.dc.html | S1 in [08-decisions.md](/Users/christopher/Documents/BingoWebpage/review-notes/08-decisions.md) | P-1 | Decided future binding; no new field |
 | Start checklist and postponed automatic start, when another event is still current (Live or in Final review): “Publish the results of ‹other event› first”, linking to that event | Overview — Overview.dc.html | S2 in [08-decisions.md](/Users/christopher/Documents/BingoWebpage/review-notes/08-decisions.md) | OS-1 | Decided future binding |
 | Failed automatic signup opening attention: “Signups didn’t open automatically: ‹reason›”, styled like “Automatic start postponed”, with normal Open signups now and existing checks | Overview — Overview.dc.html | S3 in [08-decisions.md](/Users/christopher/Documents/BingoWebpage/review-notes/08-decisions.md) | OS-1 | Decided future binding |

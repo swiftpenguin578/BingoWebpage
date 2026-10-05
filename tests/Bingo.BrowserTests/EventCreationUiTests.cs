@@ -138,26 +138,26 @@ public sealed class EventCreationUiTests
         Assert.DoesNotContain("identity-remove-banner-form", identity);
         Assert.Contains("data-identity-editor", identity);
         Assert.Contains("data-identity-timezone-preview", identity);
-        Assert.Contains("data-identity-cancel", identity);
+        Assert.DoesNotContain("data-identity-cancel", identity);
         Assert.Contains("event-identity.js", identity);
-        Assert.Contains("window.adminConfirmation.open", identityScript);
-        Assert.Contains("guard?.initialize(form)", identityScript);
-        Assert.Contains("history.pushState", identityScript);
-        Assert.Contains("replaceEditorFromResponse", identityScript);
-        Assert.Contains("guard?.begin(submittedForm)", identityScript);
+        Assert.Contains("ui.openLayer", identityScript);
+        Assert.Contains("ui.registerDraft", identityScript);
+        Assert.DoesNotContain("history.pushState", identityScript);
+        Assert.Contains("root.replaceWith(nextRoot)", identityScript);
+        Assert.Contains("window.AdminFetch.request", identityScript);
         Assert.DoesNotContain("event-confirmation-box identity-timezone-confirmation", identity);
         Assert.Contains("UTC fallback", identity);
-        Assert.Contains("disabled=\"@(!Model.CanEditTimezone ? \"disabled\" : null)\"", identity);
+        Assert.Contains("@if (Model.CanEditTimezone)", identity);
         Assert.Contains("asp-validation-for=\"Input.ConfirmTimezoneChange\"", identity);
-        Assert.Contains("name=\"Input.ConfirmTimezoneChange\" value=\"true\"", identity);
+        Assert.Contains("data.set('Input.ConfirmTimezoneChange', 'true')", identityScript);
 
-        Assert.Contains("Url.Page(\"/Events/Signup\"", identity);
+        Assert.DoesNotContain("Url.Page(\"/Events/Signup\"", identity);
         Assert.Contains("Url.Page(\"/Events/Signups\"", identity);
-        Assert.Contains("Url.Page(\"/Events/Board\"", identity);
-        Assert.Contains("@if (Model.ShowPublicBoard)", identity);
-        Assert.Contains("aria-label=\"@T[\"Copy signup form link\"]\"", identity);
-        Assert.Contains("aria-label=\"@T[\"Copy public signup table link\"]\"", identity);
-        Assert.Contains("aria-label=\"@T[\"Copy public board link\"]\"", identity);
+        Assert.DoesNotContain("Url.Page(\"/Events/Board\"", identity);
+        Assert.DoesNotContain("Model.ShowPublicBoard", identity);
+        Assert.DoesNotContain("Copy signup form link", identity);
+        Assert.Contains("data-copy-url=\"@signupTableUrl\"", identity);
+        Assert.DoesNotContain("Copy public board link", identity);
 
         Assert.Contains("if (!Input.HasBaseline && Input.Version != item.Version) AddStaleError();", identityHandler);
         Assert.Contains("EventIdentityComparison.Compare(", identityHandler);
@@ -172,7 +172,7 @@ public sealed class EventCreationUiTests
         Assert.DoesNotContain("OnPostRemoveBannerAsync", identityHandler);
         Assert.Contains("HasRetiredBannerMutationAsync", identityHandler);
         Assert.Contains("\"event.identity_updated\"", identityHandler);
-        Assert.Contains("return RedirectToPage(\"Manage\", new { id });", identityHandler);
+        Assert.Contains("return RedirectToPage(\"Identity\", new { id });", identityHandler);
 
         Assert.Contains("@page \"{id:guid}\"", manage);
         Assert.Contains("aria-label=\"@T[\"Operational overview\"]\" data-manage-overview", manage);

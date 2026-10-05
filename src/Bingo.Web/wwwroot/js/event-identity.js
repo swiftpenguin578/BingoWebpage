@@ -1,265 +1,220 @@
-(() => {
-  "use strict";
-  // Client expectation, not a reconstruction of the server's eventual three-way merge.
-  // Keep this session separate from the original draft used by AU08 conflict handling.
-  window.createIdentityReadbackSession = (data, action, eventId) => {
-    const fields = ["Name", "Description", "BuyInDescription", "Timezone"];
-    // Match .NET String.Trim (including U+0085, excluding U+FEFF).
-    const trim = value => value.replace(/^[\u0009-\u000d\u0020\u0085\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]+|[\u0009-\u000d\u0020\u0085\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]+$/g, "");
-    const canonical = (field, value) => {
-      const result = trim(value);
-      return field === "Description" || field === "BuyInDescription" ? result || null : result;
+// Identity's page module: lifecycle owned by the shared shell, transport by AdminFetch.
+const fields = ['Name', 'Description', 'BuyInDescription', 'Timezone'];
+const key = field => field[0].toLowerCase() + field.slice(1);
+// Match .NET String.Trim (including U+0085, excluding U+FEFF).
+const trim = value => value.replace(/^[\u0009-\u000d\u0020\u0085\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]+|[\u0009-\u000d\u0020\u0085\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]+$/g, '');
+const canonical = (field, value) => { const result = trim(value ?? ''); return field === 'Description' || field === 'BuyInDescription' ? result || null : result; };
+const wire = value => value.replace(/\r\n|\r|\n/g, '\r\n');
+export function createIdentityReadbackSession(data, action, eventId, version) {
+  const yes = name => String(data.get(name)).toLowerCase() === 'true';
+  const reviewed = yes('Input.HasReviewedValues'), baseline = yes('Input.HasBaseline');
+  const expected = {}, draft = {};
+  const basis = Number(version ?? data.get('Input.Version'));
+  let complete = Boolean(eventId) && Number.isSafeInteger(basis) && basis >= 0;
+  for (const field of fields) {
+    const get = (prefix, submitted = false) => {
+      const value = data.get(`Input.${prefix}${field}`);
+      if (typeof value !== 'string') { complete = false; return null; }
+      return canonical(field, submitted ? wire(value) : value);
     };
-    const yes = key => String(data.get(key)).toLowerCase() === "true";
-    const reviewed = yes("Input.HasReviewedValues");
-    const baseline = yes("Input.HasBaseline");
-    const expected = {};
-    let complete = Boolean(eventId);
-    for (const field of fields) {
-      const get = (prefix, submitted = false) => {
-        const value = data.get(`Input.${prefix}${field}`);
-        if (typeof value !== "string") { complete = false; return null; }
-        // Native multipart serialization sends CRLF, even when a textarea supplies LF.
-        return canonical(field, submitted ? value.replace(/\r\n|\r|\n/g, "\r\n") : value);
-      };
-      const draft = get("", true);
-      const original = baseline ? get("Original", true) : draft;
-      // Retained/current values are observed state, not text we intend to write.
-      const observed = reviewed ? get("Reviewed") : baseline ? get("Original") : draft;
-      const choice = data.get(`Input.${field}Resolution`);
-      if (choice && !["None", "KeepMine", "UseCurrent", "0", "1", "2"].includes(choice)) complete = false;
-      if (["UseCurrent", "2"].includes(choice) && !reviewed) complete = false;
-      expected[field[0].toLowerCase() + field.slice(1)] = draft === original
-        || ["UseCurrent", "2"].includes(choice) ? observed : draft;
-    }
-    Object.freeze(expected);
-    const url = new URL(action, window.location.href);
-    url.searchParams.set("handler", "Current");
-    const unknown = () => ({ state: "unknown", expected });
-    return Object.freeze({
-      expected,
-      async checkAgain() {
-        if (!complete) return unknown();
-        try {
-          const response = await window.fetch(url.href, { method: "GET", credentials: "same-origin", cache: "no-store", redirect: "error", headers: { Accept: "application/json" } });
-          if (!response.ok || response.redirected) return unknown();
-          const current = await response.json();
-          if (current.eventId !== eventId || !current.values) return unknown();
-          for (const field of fields) {
-            const key = field[0].toLowerCase() + field.slice(1);
-            const value = current.values[key];
-            if (typeof value !== "string" && !((field === "Description" || field === "BuyInDescription") && value === null)) return unknown();
-          }
-          return { state: Object.keys(expected).every(key => expected[key] === current.values[key]) ? "upToDate" : "different", expected };
-        } catch { return unknown(); }
-      }
-    });
-  };
-  const root = document.querySelector("[data-identity-editor]");
-  if (!(root instanceof HTMLElement)) return;
-
-  let form = root.querySelector("form");
-  let review = root.querySelector("[data-identity-timezone-preview]");
-  let confirmButton = review?.querySelector("[data-identity-timezone-confirm]");
-  if (!(form instanceof HTMLFormElement)) return;
-
-  const guard = typeof window.createAdminEditorGuard === "function"
-    ? window.createAdminEditorGuard({ editor: () => root, prefix: "identity-editor", saveError: () => root.dataset.identitySaveError || "" })
-    : null;
-  guard?.initialize(form);
-
-  let previewProposalPending = review instanceof HTMLElement && confirmButton instanceof HTMLButtonElement;
-  const hasDirtyChanges = () => previewProposalPending || Boolean(guard?.dirtyForms().length);
-  const discardPendingProposal = () => {
-    previewProposalPending = false;
-    guard?.initialize();
-  };
-  const stopWatchingUnsaved = typeof window.watchAdminUnsavedChanges === "function"
-    ? window.watchAdminUnsavedChanges(() => hasDirtyChanges())
-    : null;
-  void stopWatchingUnsaved;
-
-  const hideInlineConfirmation = () => {
-    if (!(review instanceof HTMLElement) || !(confirmButton instanceof HTMLButtonElement)) return;
-    review.hidden = true;
-    confirmButton.hidden = true;
-    confirmButton.disabled = true;
-  };
-
-  const keepInlineConfirmationHidden = () => hideInlineConfirmation();
-
-  const bindNavigationLinks = () => {
-    root.querySelectorAll("[data-identity-cancel]").forEach(link => {
-      if (!(link instanceof HTMLAnchorElement) || link.dataset.identityCancelReady === "true") return;
-      link.dataset.identityCancelReady = "true";
-      link.addEventListener("click", event => {
-        if (event.defaultPrevented || !guard || !window.adminConfirmation || !hasDirtyChanges()) return;
-        const destination = link.href;
-        event.preventDefault();
-        guard.confirmDiscard(() => {
-          discardPendingProposal();
-          window.location.assign(destination);
-        });
-      });
-    });
-  };
-
-  bindNavigationLinks();
-
-  let allowHistoryNavigation = false;
-  if (guard && window.adminConfirmation && typeof window.history.pushState === "function") {
-    const state = window.history.state;
-    if (!state?.identityEditorSentinel) {
-      const baseState = { ...(state || {}), identityEditorBase: true };
-      window.history.replaceState(baseState, "", window.location.href);
-      window.history.pushState({ ...baseState, identityEditorSentinel: true }, "", window.location.href);
-    }
-
-    window.addEventListener("popstate", event => {
-      if (allowHistoryNavigation) {
-        allowHistoryNavigation = false;
-        return;
-      }
-      if (!event.state?.identityEditorBase) return;
-      if (!hasDirtyChanges() || !window.adminConfirmation) {
-        window.history.back();
-        return;
-      }
-
-      window.history.pushState({ ...event.state, identityEditorSentinel: true }, "", window.location.href);
-      guard.confirmDiscard(() => {
-        discardPendingProposal();
-        allowHistoryNavigation = true;
-        window.history.go(-2);
-      });
-    });
+    const proposed = get('', true), original = baseline ? get('Original', true) : proposed;
+    const observed = reviewed ? get('Reviewed') : baseline ? get('Original') : proposed;
+    const choice = data.get(`Input.${field}Resolution`);
+    if (choice && !['None', 'KeepMine', 'UseCurrent', '0', '1', '2'].includes(choice)) complete = false;
+    if (['UseCurrent', '2'].includes(choice) && !reviewed) complete = false;
+    expected[key(field)] = proposed === original || ['UseCurrent', '2'].includes(choice) ? observed : proposed;
+    draft[field] = data.get(`Input.${field}`);
   }
-
-  const confirmationDetails = currentReview => {
-    const rows = [...currentReview.querySelectorAll("[data-identity-timezone-row]")]
-      .map(row => row.textContent.trim().replace(/\s+/g, " "));
-    return {
-      title: currentReview.dataset.title,
-      actionLabel: currentReview.dataset.actionLabel,
-      description: [currentReview.querySelector("[data-identity-timezone-consequence]")?.textContent?.trim(), ...rows]
-        .filter(Boolean)
-        .join(" ")
-    };
-  };
-
-  const updateOpenConfirmation = currentReview => {
-    if (!(currentReview instanceof HTMLElement)) return;
-    const details = confirmationDetails(currentReview);
-    const dialog = document.querySelector("[data-admin-confirmation]");
-    dialog?.querySelector("#admin-confirmation-title")?.replaceChildren(document.createTextNode(details.title || ""));
-    dialog?.querySelector("#admin-confirmation-description")?.replaceChildren(document.createTextNode(details.description));
-    const action = dialog?.querySelector("[data-admin-confirmation-action]");
-    if (action instanceof HTMLElement) action.textContent = details.actionLabel || "";
-  };
-
-  const replaceEditorFromResponse = (html, responseUrl) => {
-    const parsed = new DOMParser().parseFromString(html, "text/html");
-    const nextRoot = parsed.querySelector("[data-identity-editor]");
-    const nextForm = nextRoot?.querySelector("form");
-    if (!(nextRoot instanceof HTMLElement) || !(nextForm instanceof HTMLFormElement)) {
-      window.location.assign(responseUrl);
-      return { navigated: true, message: "" };
+  Object.freeze(expected); Object.freeze(draft);
+  const url = new URL(action, location.href); url.searchParams.set('handler', 'Current');
+  const unknown = outcome => ({ state: 'unknown', expected, outcome });
+  return Object.freeze({ expected, version: basis, draft, async checkAgain(signal) {
+    if (!complete) return unknown();
+    const outcome = await window.AdminFetch.request(url.href, { cache: 'no-store', signal, draft });
+    if (outcome.kind !== 'handler') return unknown(outcome);
+    const current = outcome.data;
+    if (current?.eventId !== eventId || !current.values || !Number.isSafeInteger(current.version) || current.version < basis) return unknown();
+    for (const field of fields) {
+      const value = current.values[key(field)];
+      if (typeof value !== 'string' && !((field === 'Description' || field === 'BuyInDescription') && value === null)) return unknown();
     }
+    const state = current.version === basis ? 'notApplied' : Object.keys(expected).every(name => expected[name] === current.values[name]) ? 'upToDate' : 'different';
+    return { state, expected, current };
+  } });
+}
 
-    root.dataset.identitySaveError = nextRoot.dataset.identitySaveError || root.dataset.identitySaveError || "";
-    for (const key of ["identityCurrentVersion", "identityScheduleStale", "identityConflicts"])
-      root.dataset[key] = nextRoot.dataset[key] || "";
-    const importedRoot = document.importNode(nextRoot, true);
-    const previousSave = root.querySelector("[data-identity-save]");
-    const importedSave = importedRoot.querySelector("[data-identity-save]");
-    if (previousSave instanceof HTMLElement && importedSave instanceof HTMLElement)
-      importedSave.replaceWith(previousSave);
-    root.replaceChildren(...importedRoot.childNodes);
-    form = root.querySelector("form");
-    review = root.querySelector("[data-identity-timezone-preview]");
-    confirmButton = review?.querySelector("[data-identity-timezone-confirm]");
-    if (!(form instanceof HTMLFormElement)) {
-      window.location.assign(responseUrl);
-      return { navigated: true, message: "" };
+let release = null;
+export function dispose() { const cleanup = release; release = null; return cleanup?.(); }
+export async function init(region, ui = window.AdminUI) {
+  await dispose();
+  const root = region.matches?.('[data-identity-editor]') ? region : region.querySelector('[data-identity-editor]');
+  const form = root?.querySelector('form');
+  if (!form) return;
+  const lifetime = new AbortController(), request = new AbortController();
+  const text = name => root.dataset[name] || '';
+  const get = name => form.elements.namedItem(`Input.${name}`);
+  const value = name => get(name)?.value ?? '';
+  const set = (name, content) => { let input = get(name); if (!input) { input = document.createElement('input'); input.type = 'hidden'; input.name = `Input.${name}`; form.append(input); } input.value = content ?? ''; };
+  const listen = (element, type, handler) => element?.addEventListener(type, handler, { signal: lifetime.signal });
+  let pending = false, uncertain = null, layer = null, retained = value('HasReviewedValues').toLowerCase() === 'true' || root.dataset.identityReviewRequired === 'true';
+  const save = root.querySelector('[data-identity-save]'), state = root.querySelector('[data-identity-state]'), feedback = root.querySelector('[data-identity-feedback]');
+  const editable = root.dataset.identityEditable !== 'false';
+  const snapshot = () => JSON.stringify(fields.map(field => value(field)));
+  let baseline = snapshot();
+  const dirty = () => retained || uncertain !== null || snapshot() !== baseline;
+  const report = (message, tone = 'is-warning') => { if (!feedback) return; feedback.textContent = message; feedback.className = `banner ${tone}`; feedback.hidden = !message; };
+  function paint() {
+    for (const field of fields) {
+      const control = get(field);
+      if (control && control.type !== 'hidden') control.disabled = pending || !!uncertain;
     }
-
-    guard?.initialize(form);
-    previewProposalPending = true;
-    bindNavigationLinks();
-    hideInlineConfirmation();
-    updateOpenConfirmation(review);
-    const messages = [...root.querySelectorAll(".validation-summary, .field-error")]
-      .map(element => element.textContent.trim()).filter(Boolean);
-    return { navigated: false, message: messages.join(" ") };
-  };
-
-  let uncertainSubmission = null;
-  const readbackMessage = state => state === "upToDate"
-    ? root.dataset.identityUpToDate
-    : state === "different" ? root.dataset.identityDifferent : root.dataset.identityUnknown;
-  const checkAgain = async () => {
-    const result = await uncertainSubmission.checkAgain();
-    return { succeeded: false, message: readbackMessage(result.state) || root.dataset.identitySaveError || "" };
-  };
-  const bindUncertainSubmit = () => form.addEventListener("submit", event => {
-    if (!uncertainSubmission) return;
-    event.preventDefault();
-    window.adminConfirmation?.open({
-      title: root.dataset.identityCheckAgain,
-      description: root.dataset.identityUnknown,
-      actionLabel: root.dataset.identityCheckAgain,
-      opener: root.querySelector("[data-identity-save]"),
-      onConfirm: checkAgain
-    });
-  });
-  bindUncertainSubmit();
-
-  const submitConfirmation = async () => {
-    if (uncertainSubmission) return checkAgain();
-    if (!(form instanceof HTMLFormElement)) return { succeeded: false, message: root.dataset.identitySaveError || "" };
-    const submittedForm = form;
-    const data = new FormData(submittedForm);
-    data.set("Input.ConfirmTimezoneChange", "true");
-    const submitted = window.createIdentityReadbackSession(data, submittedForm.action || window.location.href, root.dataset.identityEventId);
-    const markUncertain = () => {
-      uncertainSubmission = submitted;
-      const action = document.querySelector("[data-admin-confirmation-action]");
-      if (action) action.textContent = root.dataset.identityCheckAgain || "";
-      return { succeeded: false, message: readbackMessage("unknown") || root.dataset.identitySaveError || "" };
-    };
-    const finish = guard?.begin(submittedForm);
-    try {
-      const response = await window.fetch(submittedForm.action || window.location.href, { method: "POST", body: data, credentials: "same-origin" });
-      if (!response.ok) return markUncertain();
-      if (response.redirected) {
-        if (new URL(response.url).pathname !== `/Admin/Events/Manage/${root.dataset.identityEventId}`) return markUncertain();
-        window.location.assign(response.url);
-        return true;
+    if (save) { save.disabled = pending; save.textContent = uncertain ? text('checkAgain') : text('save'); save.setAttribute('aria-busy', String(pending)); }
+    if (state && dirty()) state.textContent = text('unsaved');
+    ui.refreshDirty();
+  }
+  function conflict(field, theirs) {
+    const note = root.querySelector(`[data-conflict-for="${field}"]`);
+    if (!note) return;
+    note.replaceChildren(); note.hidden = false;
+    const copy = document.createElement('span'); copy.textContent = text('theirs').replace('{0}', theirs ?? '');
+    const use = document.createElement('button'); use.type = 'button'; use.className = 'text-btn'; use.textContent = text('useTheirs'); use.dataset.useTheirs = field;
+    note.append(copy, ' ', use);
+    set(`${field}Resolution`, 'KeepMine');
+    listen(use, 'click', () => { set(field, theirs); set(`${field}Resolution`, 'UseCurrent'); note.hidden = true; clearFieldError(field); validate(); paint(); });
+  }
+  function mergeCurrent(current) {
+    for (const field of fields) {
+      const theirs = current.values[key(field)], original = canonical(field, wire(value(`Original${field}`))), mine = canonical(field, wire(value(field)));
+      set(`Reviewed${field}`, theirs);
+      set(`${field}Resolution`, 'None');
+      const note = root.querySelector(`[data-conflict-for="${field}"]`); if (note) note.hidden = true;
+      if (mine === original) set(field, theirs);
+      else if (canonical(field, theirs) !== original && canonical(field, theirs) !== mine) conflict(field, theirs);
+    }
+    set('HasReviewedValues', 'true'); root.dataset.identityCurrentVersion = String(current.version);
+    retained = true; report(text('stale'));
+  }
+  function clearFieldError(field) {
+    get(field)?.classList.remove('input-validation-error');
+    const error = root.querySelector(`#error-${field}`);
+    if (error) { error.textContent = ''; error.classList.remove('field-validation-error'); error.classList.add('field-validation-valid'); }
+  }
+  function validate() {
+    let errors = 0;
+    for (const field of fields.slice(0, 3)) {
+      const input = get(field); if (!input || input.type === 'hidden') continue;
+      const limit = field === 'Name' ? 50 : field === 'Description' ? 4000 : 2000;
+      const count = field === 'Name' ? [...trim(input.value)].length : input.value.length;
+      const unchangedName = field === 'Name' && canonical(field, input.value) === canonical(field, value('HasReviewedValues') === 'true' ? value('ReviewedName') : value('OriginalName'));
+      const tooLong = count > limit && !unchangedName;
+      // Name is limited in Unicode code points; HTML maxlength counts UTF-16 units.
+      if (field === 'Name') input.removeAttribute('maxlength');
+      const message = field === 'Name' && !trim(input.value) ? text('nameRequired') : tooLong ? root.dataset[`${key(field)}Limit`] || '' : '';
+      input.setCustomValidity(message);
+      if (message) errors++;
+      const error = root.querySelector(`#error-${field}`);
+      if (error && (message || error.dataset.clientError === 'true')) {
+        error.textContent = message; error.dataset.clientError = String(!!message);
+        error.classList.toggle('field-validation-valid', !message);
+        error.classList.toggle('field-validation-error', !!message);
       }
-      const html = await response.text();
-      const parsed = new DOMParser().parseFromString(html, "text/html");
-      const returned = parsed.querySelector("[data-identity-editor]");
-      if (!returned || returned.dataset.identitySaveUncertain === "true") return markUncertain();
-      const result = replaceEditorFromResponse(html, response.url);
-      bindUncertainSubmit();
-      if (result.navigated) return true;
-      return { succeeded: false, message: result.message || root.dataset.identitySaveError || "" };
-    } catch {
-      return markUncertain();
-    } finally {
-      finish?.();
+      const counter = root.querySelector(`[data-count-for="${field}"]`);
+      if (counter) { counter.textContent = `${count} / ${limit}`; counter.hidden = count < limit * .8; counter.classList.toggle('is-error', tooLong); }
+      input.setAttribute('aria-invalid', String(!!message || input.classList.contains('input-validation-error')));
     }
-  };
-
-  if (!(review instanceof HTMLElement) || !(confirmButton instanceof HTMLButtonElement) || !window.adminConfirmation) return;
-
-  hideInlineConfirmation();
-  const details = confirmationDetails(review);
-  window.adminConfirmation.open({
-    title: details.title,
-    description: details.description,
-    actionLabel: details.actionLabel,
-    opener: root.querySelector("[data-identity-save]") || confirmButton,
-    onConfirm: submitConfirmation
-  }).then(keepInlineConfirmationHidden);
-})();
+    const summary = root.querySelector('[data-client-validation]');
+    if (summary) { summary.hidden = errors < 2; summary.textContent = errors > 1 ? text('validationSummary').replace('{0}', String(errors)) : ''; }
+  }
+  async function checkAgain() {
+    if (!uncertain || pending) return;
+    pending = true; paint();
+    const session = uncertain;
+    const result = await ui.busy(() => session.checkAgain(request.signal));
+    if (lifetime.signal.aborted) return;
+    pending = false;
+    if (result.state === 'upToDate') {
+      uncertain = null; retained = false;
+      for (const field of fields) { set(field, result.current.values[key(field)]); set(`Original${field}`, result.current.values[key(field)]); set(`${field}Resolution`, 'None'); }
+      set('Version', result.current.version); set('HasBaseline', 'true'); set('HasReviewedValues', 'false'); root.dataset.identityCurrentVersion = String(result.current.version);
+      baseline = snapshot(); report(text('upToDate'), 'is-info'); if (state) state.textContent = text('upToDate');
+    } else if (result.state === 'notApplied') { uncertain = null; retained = true; report(text('notApplied'), 'is-info'); }
+    else if (result.state === 'different') { uncertain = null; mergeCurrent(result.current); }
+    else report(result.outcome?.kind === 'refused' ? text('refused') : text('unknown'));
+    validate(); paint();
+  }
+  async function confirmLeave() {
+    if (!uncertain) return ui.confirmDiscard();
+    const leave = await ui.confirm({ title: text('leaveTitle'), description: text('leaveMessage'), cancelLabel: text('checkAgain'), actionLabel: text('leave') });
+    if (!leave) await checkAgain();
+    return leave;
+  }
+  const unregister = ui.registerDraft(root, { isDirty: dirty, isPending: () => pending, confirmLeave, discard: () => { retained = false; uncertain = null; baseline = snapshot(); } });
+  async function submit(confirmed = false) {
+    if (pending) return;
+    if (uncertain) { await checkAgain(); return; }
+    validate(); if (!form.reportValidity()) return;
+    if (!confirmed && needsTimezoneReview()) { openReview(); return; }
+    const data = new FormData(form);
+    if (confirmed) { data.set('Input.ConfirmTimezoneChange', 'true'); data.set('Input.TimezoneConfirmationProposed', value('Timezone')); }
+    const session = createIdentityReadbackSession(data, form.action, root.dataset.identityEventId, root.dataset.identityCurrentVersion);
+    pending = true; paint();
+    const outcome = await ui.busy(() => window.AdminFetch.request(form.action, { method: 'POST', body: data, expect: 'html', allowRedirectTo: form.action, notice: false, signal: request.signal, draft: session.draft }));
+    if (lifetime.signal.aborted) return;
+    pending = false;
+    if (layer) { await layer.close(false); layer = null; }
+    if (outcome.kind === 'session-lost') { retained = true; window.AdminFetch.sessionNotice(session.draft, outcome.destination); paint(); return; }
+    if (outcome.kind === 'refused') { retained = true; report(text('refused'), 'is-error'); paint(); return; }
+    const parsed = outcome.kind === 'handler' ? new DOMParser().parseFromString(outcome.data, 'text/html') : null;
+    const next = parsed?.querySelector('[data-identity-editor]');
+    if (!next || next.dataset.identityEventId !== root.dataset.identityEventId || next.dataset.identitySaveUncertain === 'true') {
+      uncertain = session; retained = true; report(text('unknown')); paint(); return;
+    }
+    const succeeded = outcome.response.redirected && new URL(outcome.response.url).pathname === new URL(form.action).pathname;
+    const nextRoot = document.importNode(next, true);
+    await dispose(); root.replaceWith(nextRoot); await init(nextRoot, ui);
+    if (succeeded) {
+      for (const toast of parsed.querySelectorAll('[data-toast-host] [data-toast]')) ui.toast(toast.querySelector('.grow')?.textContent || toast.textContent);
+    }
+  }
+  function needsTimezoneReview() {
+    return root.dataset.identityPublic === 'true' && value('Timezone') !== value('TimezoneConfirmationOriginal');
+  }
+  function openReview() {
+    if (layer || pending) return;
+    const template = root.querySelector(`template[data-identity-timezone-preview][data-zone="${CSS.escape(value('Timezone'))}"]`);
+    if (!template) return;
+    const content = document.createElement('div');
+    const heading = document.createElement('h2'); heading.className = 'm-title'; heading.textContent = text('timezoneTitle');
+    content.append(heading, template.content.cloneNode(true));
+    const other = fields.slice(0, 3).filter(field => canonical(field, wire(value(field))) !== canonical(field, wire(value(`Original${field}`)))).map(field => root.querySelector(`label[for="${get(field)?.id}"]`)?.textContent || field);
+    if (other.length) { const together = document.createElement('p'); together.dataset.savedTogether = ''; together.textContent = text('savedTogether').replace('{0}', other.join(', ')); content.append(together); }
+    const actions = document.createElement('div'); actions.className = 'm-actions';
+    const cancel = document.createElement('button'); cancel.type = 'button'; cancel.className = 'btn'; cancel.textContent = text('keepEditing'); cancel.autofocus = true; cancel.dataset.identityReviewCancel = '';
+    const confirm = document.createElement('button'); confirm.type = 'button'; confirm.className = 'btn btn-primary'; confirm.textContent = text('timezoneAction'); confirm.dataset.identityReviewConfirm = '';
+    actions.append(cancel, confirm); content.append(actions);
+    layer = ui.openLayer({ title: text('timezoneTitle'), content, confirmation: true, pending: () => pending, opener: save, onClose: () => { layer = null; } });
+    listen(cancel, 'click', () => { if (!pending) void layer?.close(false); });
+    listen(confirm, 'click', () => void submit(true));
+  }
+  const initialConflicts = (root.dataset.identityConflicts || '').split(',');
+  if (retained) {
+    for (const field of fields) {
+      if (initialConflicts.includes(field)) conflict(field, value(`Reviewed${field}`));
+      else if (canonical(field, wire(value(field))) === canonical(field, wire(value(`Original${field}`)))) set(field, value(`Reviewed${field}`));
+    }
+    if (initialConflicts.some(Boolean) || root.dataset.identityScheduleStale === 'true') report(text('stale'));
+  }
+  if (root.dataset.identitySaveUncertain === 'true') { uncertain = createIdentityReadbackSession(new FormData(form), form.action, root.dataset.identityEventId, root.dataset.identityCurrentVersion); report(text('unknown')); }
+  listen(form, 'submit', event => { event.preventDefault(); void submit(); });
+  listen(form, 'input', event => { const field = event.target.name?.replace(/^Input\./, ''); if (fields.includes(field)) clearFieldError(field); validate(); paint(); });
+  listen(form, 'change', () => {
+    const select = get('Timezone');
+    if (select instanceof HTMLSelectElement) for (const option of select.options) if (!['UTC', 'Europe/Copenhagen', select.value].includes(option.value)) option.disabled = true;
+    validate(); paint();
+  });
+  listen(root.querySelector('[data-copy-url]'), 'click', async event => { try { await navigator.clipboard.writeText(event.currentTarget.dataset.copyUrl); ui.toast(text('copied')); } catch { ui.toast(text('copyFailed'), { error: true }); } });
+  release = () => { lifetime.abort(); request.abort(); unregister(); return layer && !pending ? layer.close(false) : undefined; };
+  validate(); paint();
+  if (editable && root.dataset.identityReviewRequired === 'true' && root.dataset.identityScheduleStale !== 'true' && !uncertain) openReview();
+  else root.querySelector('.input-validation-error')?.focus();
+}

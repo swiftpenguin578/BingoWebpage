@@ -1,134 +1,149 @@
 @page "{id:guid}"
 @model Bingo.Web.Pages.Admin.Events.IdentityModel
 @using Bingo.Domain.Events
-@using Bingo.Web.UI
 @{
     ViewData["Title"] = T["Identity"];
-    ViewData["AdminPageDescription"] = T["Edit the event details and public presentation."];
-    var eventStatus = AdminEventStatePresentation.For(Model.EventState, T);
-    var signupUrl = Url.Page("/Events/Signup", null, new { slug = Model.EventSlug }, Request.Scheme, Request.Host.Value);
     var signupTableUrl = Url.Page("/Events/Signups", null, new { slug = Model.EventSlug }, Request.Scheme, Request.Host.Value);
-    var publicBoardUrl = Url.Page("/Events/Board", null, new { slug = Model.EventSlug }, Request.Scheme, Request.Host.Value);
+    var status = TempData.Peek("StatusMessage") as string;
+    var saved = status == T["Event identity updated."].Value || status == T["No identity changes were made."].Value;
 }
-
-<section data-identity-save-uncertain="@Model.SaveOutcomeUncertain.ToString().ToLowerInvariant()" data-identity-event-id="@Model.EventId" data-identity-check-again="@T["Check again"]" data-identity-up-to-date="@T["Up to date. The event now has the expected values. This does not confirm which request saved them."]" data-identity-different="@T["The current event values differ from this submission. Its outcome is still uncertain; your draft is retained."]" data-identity-unknown="@T["The save outcome is uncertain. Check again to read the current values; your draft is retained."]" class="identity-editor-page" data-identity-current-version="@Model.CurrentVersion" data-identity-schedule-stale="@Model.TimezoneScheduleStale.ToString().ToLowerInvariant()" data-identity-conflicts="@string.Join(",", Model.FieldConflicts)" data-identity-editor data-identity-save-error="@T["The identity update could not be confirmed. Check your connection and try again."]">
-    <div class="identity-editor-layout">
-        <main class="identity-editor-main">
-            <form method="post" class="identity-editor-form">
-                <div asp-validation-summary="ModelOnly" class="validation-summary app-notice notice-error"></div>
-                <input asp-for="Input.Version" type="hidden" />
-                <input asp-for="Input.HasBaseline" type="hidden" />
-                <input asp-for="Input.OriginalName" type="hidden" />
-                <input asp-for="Input.OriginalDescription" type="hidden" />
-                <input asp-for="Input.OriginalBuyInDescription" type="hidden" />
-                <input asp-for="Input.OriginalTimezone" type="hidden" />
-                <input asp-for="Input.HasReviewedValues" type="hidden" />
-                <input asp-for="Input.ReviewedName" type="hidden" />
-                <input asp-for="Input.ReviewedDescription" type="hidden" />
-                <input asp-for="Input.ReviewedBuyInDescription" type="hidden" />
-                <input asp-for="Input.ReviewedTimezone" type="hidden" />
-                <input asp-for="Input.NameResolution" type="hidden" />
-                <input asp-for="Input.DescriptionResolution" type="hidden" />
-                <input asp-for="Input.BuyInDescriptionResolution" type="hidden" />
-                <input asp-for="Input.TimezoneResolution" type="hidden" />
-                <input asp-for="Input.TimezoneConfirmationSchedule" type="hidden" />
-                <input asp-for="Input.TimezoneConfirmationOriginal" type="hidden" />
-                <input asp-for="Input.TimezoneConfirmationProposed" type="hidden" />
-
-                @if (Model.HasUnresolvableTimezone)
+<section class="card form-card" data-identity-editor data-identity-event-id="@Model.EventId" data-identity-current-version="@Model.CurrentVersion"
+    data-identity-editable="@Model.CanEditIdentity.ToString().ToLowerInvariant()" data-identity-public="@Model.HasPublicExposure.ToString().ToLowerInvariant()"
+    data-identity-save-uncertain="@Model.SaveOutcomeUncertain.ToString().ToLowerInvariant()" data-identity-schedule-stale="@Model.TimezoneScheduleStale.ToString().ToLowerInvariant()"
+    data-identity-review-required="@((Model.TimezonePreview.Count > 0).ToString().ToLowerInvariant())"
+    data-name-required="@T["Enter an event name."]" data-validation-summary="@T["{0} fields need attention before you can save."]"
+    data-name-limit="@T["Event names must be 50 characters or fewer."]" data-description-limit="@T["Description must be 4000 characters or fewer."]" data-buy-in-description-limit="@T["Buy-in information must be 2000 characters or fewer."]"
+    data-identity-conflicts="@string.Join(",", Model.FieldConflicts)" data-save="@T["Save changes"]" data-saved="@T["Saved"]"
+    data-check-again="@T["Check again"]" data-unknown="@T["The save outcome is uncertain. Check again to read the current values; your draft is retained."]"
+    data-up-to-date="@T["Up to date. The event now has the expected values. This does not confirm which request saved them."]"
+    data-not-applied="@T["The event still has its earlier values, so your changes weren't applied. They are still here; save again when you are ready."]"
+    data-stale="@T["Another admin saved this event while you were editing. Where you both changed a field, yours is kept and theirs is shown beside it. Review, then save again."]"
+    data-refused="@T["This event is read-only in its current lifecycle state."]" data-use-theirs="@T["Use theirs"]" data-theirs="@T["Their value: {0}"]"
+    data-leave-title="@T["Leave before checking?"]" data-leave-message="@T["Your changes may already have been saved. Check again before leaving, or leave anyway without retrying the save."]" data-leave="@T["Leave anyway"]"
+    data-keep-editing="@T["Keep editing"]" data-timezone-title="@T["Confirm timezone change"]" data-timezone-action="@T["Confirm timezone change"]"
+    data-timezone-consequence="@T["Stored UTC instants will not move. Participants will see the same moments in the new timezone, including each UTC offset."]"
+    data-saved-together="@T["Also saved with this change: {0}."]" data-unsaved="@T["Unsaved changes"]" data-copied="@T["Link copied"]" data-copy-failed="@T["The link could not be copied. Select and copy it manually."]">
+    <form method="post" class="identity-editor-form">
+        <div class="form-banners">
+            <div asp-validation-summary="ModelOnly" class="validation-summary banner is-error"></div>
+            <div class="banner is-error" data-client-validation role="alert" hidden></div>
+            <div class="banner is-warning" data-identity-feedback role="status" tabindex="-1" hidden></div>
+            @if (!Model.CanEditIdentity)
+            {
+                <p class="banner is-info" data-identity-readonly>@(Model.EventState switch
                 {
-                    <div class="app-notice notice-warning identity-timezone-warning" role="status">
-                        <strong>@T["Stored timezone unavailable"]</strong>
-                        <span>@T["The stored timezone ID {0} is retained. Dates below use an explicit UTC fallback until a supported timezone is selected.", Model.StoredTimezoneId]</span>
-                    </div>
-                }
-
-                <fieldset class="identity-editor-group identity-primary-group" disabled="@(!Model.CanEditIdentity ? "disabled" : null)">
-                    <legend>@T["Public identity"]</legend>
-                    <p class="identity-group-description">@T["Name, description, buy-in information and the permanent event link are managed here."]</p>
-                    <div class="identity-primary-fields">
-                        <div class="admin-field"><label asp-for="Input.Name">@T["Event name"]</label><input asp-for="Input.Name" class="form-control" maxlength="50" /><span asp-validation-for="Input.Name" class="field-error"></span></div>
-                        <div class="admin-field"><label>@T["Permanent event link"]</label><div class="form-control identity-permanent-slug" aria-readonly="true"><code>@Model.EventSlug</code></div><small>@T["This link is server-owned and remains stable when the name changes."]</small></div>
-                        <div class="admin-field identity-timezone-field">
-                            <label asp-for="Input.Timezone">@T["Timezone"]</label>
-                            <select asp-for="Input.Timezone" class="form-select" disabled="@(!Model.CanEditTimezone ? "disabled" : null)">
-                                @foreach (var timezone in Model.Timezones)
-                                {
-                                    <option value="@timezone.Id">@timezone.Label</option>
-                                }
-                            </select>
-                            <span asp-validation-for="Input.Timezone" class="field-error"></span>
-                            <small>@T["Stored UTC instants are preserved when this display timezone changes. It locks after the first Live transition."]</small>
-                        </div>
-                        <div class="admin-field identity-description-field"><label asp-for="Input.Description">@T["Description"]</label><textarea asp-for="Input.Description" class="form-control" rows="5"></textarea><span asp-validation-for="Input.Description" class="field-error"></span></div>
-                        <div class="admin-field identity-description-field"><label asp-for="Input.BuyInDescription">@T["Buy-in information"]</label><textarea asp-for="Input.BuyInDescription" class="form-control" rows="3"></textarea><span asp-validation-for="Input.BuyInDescription" class="field-error"></span></div>
-                    </div>
-                </fieldset>
-                @if (!Model.CanEditTimezone)
-                {
-                    <input type="hidden" name="Input.Timezone" value="@Model.Input.Timezone" />
-                }
-
-                @if (Model.TimezonePreview.Count > 0)
-                {
-                    <section class="identity-timezone-review" data-identity-timezone-preview data-title="@T["Confirm timezone change"]" data-action-label="@T["Confirm timezone change"]" aria-labelledby="identity-timezone-review-heading">
-                        <h2 id="identity-timezone-review-heading">@T["Review timezone change"]</h2>
-                        <p data-identity-timezone-consequence>@T["Stored UTC instants will not move. Participants will see the same moments in the new timezone, including each UTC offset."]</p>
-                        <ul class="identity-timezone-review-list">
-                            @foreach (var preview in Model.TimezonePreview)
-                            {
-                                <li data-identity-timezone-row><span>@T[preview.Label]</span><strong>@preview.Current</strong><small>@preview.New</small></li>
-                            }
-                        </ul>
-                        <span asp-validation-for="Input.ConfirmTimezoneChange" class="field-error"></span>
-                        <div class="identity-timezone-review-actions"><button class="admin-button-secondary" type="submit" name="Input.ConfirmTimezoneChange" value="true" data-identity-timezone-confirm>@T["Confirm timezone change"]</button><a class="admin-button-secondary" data-identity-timezone-cancel data-identity-cancel asp-page="Manage" asp-route-id="@RouteData.Values["id"]">@T["Cancel"]</a></div>
-                    </section>
-                }
-
-                <div class="identity-editor-actions">
-                    <a class="admin-button-secondary" data-identity-cancel asp-page="Manage" asp-route-id="@RouteData.Values["id"]">@T["Cancel"]</a>
+                    EventState.Cancelled => T["{0} was cancelled, so its identity cannot be changed.", Model.EventName],
+                    EventState.Finalized => T["{0} is finalized, so its identity cannot be changed.", Model.EventName],
+                    _ => T["{0} is archived, so its identity cannot be changed.", Model.EventName]
+                })</p>
+            }
+        </div>
+        <input asp-for="Input.Version" type="hidden" />
+        <input asp-for="Input.HasBaseline" type="hidden" />
+        <input asp-for="Input.OriginalName" type="hidden" />
+        <input asp-for="Input.OriginalDescription" type="hidden" />
+        <input asp-for="Input.OriginalBuyInDescription" type="hidden" />
+        <input asp-for="Input.OriginalTimezone" type="hidden" />
+        <input asp-for="Input.HasReviewedValues" type="hidden" />
+        <input asp-for="Input.ReviewedName" type="hidden" />
+        <input asp-for="Input.ReviewedDescription" type="hidden" />
+        <input asp-for="Input.ReviewedBuyInDescription" type="hidden" />
+        <input asp-for="Input.ReviewedTimezone" type="hidden" />
+        <input asp-for="Input.NameResolution" type="hidden" />
+        <input asp-for="Input.DescriptionResolution" type="hidden" />
+        <input asp-for="Input.BuyInDescriptionResolution" type="hidden" />
+        <input asp-for="Input.TimezoneResolution" type="hidden" />
+        <input asp-for="Input.TimezoneConfirmationSchedule" type="hidden" />
+        <input asp-for="Input.TimezoneConfirmationOriginal" type="hidden" />
+        <input asp-for="Input.TimezoneConfirmationProposed" type="hidden" />
+        <section class="form-sec" aria-labelledby="identity-details">
+            <div class="form-sec-head"><h2 class="form-sec-title" id="identity-details">@T["Public details"]</h2><p class="form-sec-sub">@T["The event's name and the text players read about it."]</p></div>
+            <div class="form-fields">
+                <div class="field" data-identity-field="Name">
+                    <div class="lbl-row"><label class="lbl" asp-for="Input.Name">@T["Event name"]</label><span class="field-count" data-count-for="Name" aria-live="polite" hidden></span></div>
                     @if (Model.CanEditIdentity)
                     {
-                        <button class="admin-button-secondary" type="submit" data-identity-save>@T["Save identity"]</button>
+                        <input asp-for="Input.Name" class="input id-name" data-codepoint-limit="50" autocomplete="off" aria-describedby="error-Name" />
                     }
                     else
                     {
-                        <span class="admin-form-note">@T["Identity editing is unavailable in this event state."]</span>
+                        <div class="ro-value" data-readonly-value="Name">@Model.Input.Name</div>
                     }
+                    <span asp-validation-for="Input.Name" class="field-err" id="error-Name"></span>
+                    <div class="field-note" data-conflict-for="Name" hidden></div>
                 </div>
-            </form>
-        </main>
-
-        <aside class="event-overview-section event-overview-dates-panel identity-event-information-rail" aria-labelledby="event-information-heading">
-            <div class="event-overview-section-heading"><div class="event-overview-heading-label"><h2 id="event-information-heading">@T["Event information"]</h2></div></div>
-            <dl class="event-overview-dates">
-                <div class="event-overview-date-row event-overview-information-summary"><div class="event-overview-information-name"><dt class="visually-hidden">@T["Event name"]</dt><dd>@Model.EventName</dd></div><div class="event-overview-information-status"><dt class="visually-hidden">@T["Status"]</dt><dd><span class="admin-status-pill @eventStatus.Modifier">@eventStatus.Label</span></dd></div></div>
-                @foreach (var row in Model.EffectiveTimeline)
-                {
-                    var timelineTone = row.Label switch
+                <div class="field" data-identity-field="Description">
+                    <div class="lbl-row"><label class="lbl" asp-for="Input.Description">@T["Description"]</label><span class="field-count" data-count-for="Description" aria-live="polite" hidden></span></div>
+                    @if (Model.CanEditIdentity)
                     {
-                        "Signup opens" or "Signup closes" => "is-cyan",
-                        "Submission cutoff" => "is-yellow",
-                        "Signups opened" or "Signups closed" or "Event starts" or "Event started" or "Event ends" or "Event ended" or "Submissions closed" => "is-green",
-                        _ => "is-muted"
-                    };
-                    <div class="event-overview-date-row @timelineTone"><div class="event-overview-date-copy"><dt>@T[row.Label]</dt><dd>@Model.EventDate(row.At)</dd></div></div>
-                }
-            </dl>
-            <div class="event-public-pages" aria-labelledby="event-public-pages-heading">
-                <h3 id="event-public-pages-heading">@T["Public pages"]</h3>
-                <div class="event-public-page-row"><a href="@signupUrl">@T["Signup form"]</a><button type="button" class="icon-button event-copy-link" data-copy-url="@signupUrl" aria-label="@T["Copy signup form link"]">⧉</button></div>
-                <div class="event-public-page-row"><a href="@signupTableUrl">@T["Public signup table"]</a><button type="button" class="icon-button event-copy-link" data-copy-url="@signupTableUrl" aria-label="@T["Copy public signup table link"]">⧉</button></div>
-                @if (Model.ShowPublicBoard)
-                {
-                    <div class="event-public-page-row"><a href="@publicBoardUrl">@T["Public board"]</a><button type="button" class="icon-button event-copy-link" data-copy-url="@publicBoardUrl" aria-label="@T["Copy public board link"]">⧉</button></div>
-                }
+                        <textarea asp-for="Input.Description" class="textarea id-desc" maxlength="4000" aria-describedby="error-Description"></textarea>
+                    }
+                    else
+                    {
+                        <div class="ro-value" data-readonly-value="Description">@Model.Input.Description</div>
+                    }
+                    <span asp-validation-for="Input.Description" class="field-err" id="error-Description"></span>
+                    <div class="field-note" data-conflict-for="Description" hidden></div>
+                </div>
+                <div class="field" data-identity-field="BuyInDescription">
+                    <div class="lbl-row"><label class="lbl" asp-for="Input.BuyInDescription">@T["Buy-in information"]</label><span class="field-count" data-count-for="BuyInDescription" aria-live="polite" hidden></span></div>
+                    @if (Model.CanEditIdentity)
+                    {
+                        <textarea asp-for="Input.BuyInDescription" class="textarea id-buyin" maxlength="2000" aria-describedby="error-BuyInDescription"></textarea>
+                    }
+                    else
+                    {
+                        <div class="ro-value" data-readonly-value="BuyInDescription">@Model.Input.BuyInDescription</div>
+                    }
+                    <span asp-validation-for="Input.BuyInDescription" class="field-err" id="error-BuyInDescription"></span>
+                    <div class="field-note" data-conflict-for="BuyInDescription" hidden></div>
+                    @if (Model.CanEditIdentity) { <div class="field-hint">@T["Explain the entry payment in words: how much, and how to pay. It is not a price field and takes no payments; payments are tracked on Participants."]</div> }
+                </div>
             </div>
-        </aside>
-    </div>
+        </section>
+        <section class="form-sec" aria-labelledby="identity-timezone">
+            <div class="form-sec-head"><h2 class="form-sec-title" id="identity-timezone">@T["Timezone"]</h2><p class="form-sec-sub">@T["How this event's dates and times are shown. Changing it never moves a scheduled moment."]</p></div>
+            <div class="field field-narrow" data-identity-field="Timezone">
+                <label class="lbl" asp-for="Input.Timezone">@T["Timezone"]</label>
+                @if (Model.CanEditTimezone)
+                {
+                    <select asp-for="Input.Timezone" class="select select-field" aria-describedby="error-Timezone">
+                        @foreach (var timezone in Model.Timezones) { <option value="@timezone.Id">@timezone.Label</option> }
+                    </select>
+                }
+                else
+                {
+                    <div class="ro-value">@Model.Timezones.First(option => option.Id == Model.Input.Timezone).Label</div>
+                    <input type="hidden" name="Input.Timezone" value="@Model.Input.Timezone" />
+                    @if (Model.CanEditIdentity) { <p class="field-lock">@T["The timezone cannot change after the event first goes Live."]</p> }
+                }
+                @if (!Model.HasPublicExposure && Model.CanEditTimezone) { <div class="field-note">@T["This event has not been public yet. A timezone change saves directly without a confirmation."]</div> }
+                @if (Model.HasUnresolvableTimezone) { <div class="field-note">@T["The stored timezone ID {0} is retained. Dates below use an explicit UTC fallback until a supported timezone is selected.", Model.StoredTimezoneId]</div> }
+                <span asp-validation-for="Input.Timezone" class="field-err" id="error-Timezone"></span>
+                <span asp-validation-for="Input.ConfirmTimezoneChange" class="field-err"></span>
+                <div class="field-note" data-conflict-for="Timezone" hidden></div>
+            </div>
+        </section>
+        <section class="form-sec" aria-labelledby="identity-link">
+            <div class="form-sec-head"><h2 class="form-sec-title" id="identity-link">@T["Permanent event link"]</h2><p class="form-sec-sub">@T["Permanent. It was created with the event and stays the same when you rename it."]</p></div>
+            <div class="copy-field" role="group" aria-label="@T["Event link"]"><span class="mono" id="event-link">@signupTableUrl</span><button type="button" class="btn btn-sm btn-quiet" data-copy-url="@signupTableUrl" aria-describedby="event-link">@T["Copy"]</button></div>
+            <div class="field-hint">@T["The one link to share. It opens the signup list, which moves visitors on to teams and the board as the event is published. While the event is private, it is not publicly available."]</div>
+        </section>
+        @if (Model.CanEditIdentity)
+        {
+            <div class="form-bar"><span class="saved-note" data-identity-state role="status">@(saved ? T["Saved"] : "")</span><button type="submit" class="btn btn-primary" data-identity-save>@T["Save changes"]</button></div>
+        }
+        @foreach (var pair in Model.TimezonePreviews)
+        {
+            <template data-identity-timezone-preview data-zone="@pair.Key"><div class="m-body"><p>@T["Stored UTC instants will not move. Participants will see the same moments in the new timezone, including each UTC offset."]</p><dl class="kv">
+                @foreach (var row in pair.Value) { <div data-identity-timezone-row><dt>@T[row.Label]</dt><dd>@row.Current → @row.New</dd></div> }
+            </dl></div></template>
+        }
+    </form>
 </section>
-
+@section Styles {
+    <link rel="stylesheet" href="~/css/admin-design-identity.css" asp-append-version="true" data-admin-page-style />
+}
 @section Scripts {
-    <script src="~/js/event-manage.js" asp-append-version="true"></script>
-    <script src="~/js/event-identity.js" asp-append-version="true"></script>
+    <script type="module" src="~/js/event-identity.js" asp-append-version="true" data-admin-page-script></script>
 }

@@ -80,7 +80,7 @@ public sealed partial class AdminDesignShellIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task OnlyMetadataFixtureUsesNewLayoutAndRendersLocalAssetsTokenAndTempData()
+    public async Task BoundIdentityUsesNewLayoutAndRendersLocalAssetsTokenAndTempData()
     {
         var admin = Admin();
         var item = Event(admin, EventState.Draft, "Shell fixture", 2);
@@ -120,7 +120,8 @@ public sealed partial class AdminDesignShellIntegrationTests : IAsyncLifetime
         var old = await client.GetStringAsync("/Admin/Events/Index");
         Assert.DoesNotContain("data-admin-design", old);
         Assert.Contains("admin-shell-body", old);
-        Assert.False(AdminDesignAttribute.AppliesTo(new CompiledPageActionDescriptor { ModelTypeInfo = typeof(Bingo.Web.Pages.Admin.Events.IdentityModel).GetTypeInfo() }));
+        Assert.True(AdminDesignAttribute.AppliesTo(new CompiledPageActionDescriptor { ModelTypeInfo = typeof(Bingo.Web.Pages.Admin.Events.IdentityModel).GetTypeInfo() }));
+        Assert.False(AdminDesignAttribute.AppliesTo(new CompiledPageActionDescriptor { ModelTypeInfo = typeof(Bingo.Web.Pages.Admin.Events.ScheduleModel).GetTypeInfo() }));
     }
 
     private static ClaimsPrincipal User(string role) => new(new ClaimsIdentity([new Claim(ClaimTypes.Role, role)], "fixture"));

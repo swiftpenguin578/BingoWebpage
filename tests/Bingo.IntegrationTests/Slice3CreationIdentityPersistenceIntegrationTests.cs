@@ -150,8 +150,8 @@ public sealed class Slice3CreationIdentityPersistenceIntegrationTests : IAsyncLi
         {
             Assert.Equal(HttpStatusCode.OK, preview.StatusCode);
             var html = WebUtility.HtmlDecode(await preview.Content.ReadAsStringAsync());
-            Assert.Contains("Signups opened", html);
-            Assert.Contains("Signups closed", html);
+            Assert.Contains("Signups open", html);
+            Assert.Contains("Signups close", html);
             Assert.Contains("name=\"Input.Version\"", html);
             Assert.Contains("value=\"" + identityVersion.ToString(CultureInfo.InvariantCulture) + "\"", html);
             Assert.Contains("name=\"Input.TimezoneConfirmationOriginal\"", html);

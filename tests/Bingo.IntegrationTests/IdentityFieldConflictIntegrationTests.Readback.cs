@@ -60,7 +60,8 @@ public sealed partial class IdentityFieldConflictIntegrationTests
             Assert.Equal(HttpStatusCode.OK, read.StatusCode);
             Assert.True(read.Headers.CacheControl!.NoStore);
             var json = await read.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
-            Assert.Equal(2, json.EnumerateObject().Count()); // No receipts, secrets or save attribution.
+            Assert.Equal("eventId,values,version", string.Join(",", json.EnumerateObject().Select(property => property.Name).Order())); // No receipts, secrets or save attribution.
+            Assert.Equal(before.Version, json.GetProperty("version").GetInt64());
             Assert.Equal(eventId, json.GetProperty("eventId").GetGuid());
             var values = json.GetProperty("values"); Assert.Equal(4, values.EnumerateObject().Count());
             var current = new EventIdentityValues(values.GetProperty("name").GetString()!, values.GetProperty("description").GetString(),
