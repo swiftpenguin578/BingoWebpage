@@ -1,4 +1,14 @@
 using System.Reflection;
+using System.Text.RegularExpressions;
+using Bingo.Infrastructure.Persistence;
+using Bingo.Web;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Filters;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
+using Microsoft.AspNetCore.Routing;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Localization;
 using Bingo.Domain.Events;
 using Bingo.Web.Pages.Admin.Events;
 using Bingo.Web.Security;
@@ -30,8 +40,13 @@ WiseOldMan|true|true|Read=GET:;WomSetup=POST:Competition,POST:DisconnectCompetit
     [Fact]
     public void EveryEventPageAndHttpHandlerHasItsExplicitGateAndTerminalViewContract()
     {
-        var models = typeof(ManageModel).Assembly.GetTypes()
-            .Where(type => type.Namespace == typeof(ManageModel).Namespace && typeof(PageModel).IsAssignableFrom(type))
+        // Enumerate actual Razor page files recursively, independent of their model namespace.
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "Bingo.slnx"))) directory = directory.Parent;
+        var root = Assert.IsType<DirectoryInfo>(directory).FullName;
+        var models = Directory.EnumerateFiles(Path.Combine(root, "src/Bingo.Web/Pages/Admin/Events"), "*.cshtml", SearchOption.AllDirectories)
+            .Select(File.ReadAllText).Where(source => Regex.IsMatch(source, @"(?m)^@page(?:\s|$)"))
+            .Select(source => Assert.IsAssignableFrom<Type>(typeof(ManageModel).Assembly.GetType(Regex.Match(source, @"(?m)^@model\s+(\S+)").Groups[1].Value)))
             .OrderBy(type => type.Name).ToArray();
         Assert.Equal(models, AdminEventPagePolicies.All.OrderBy(entry => entry.Key.Name).Select(entry => entry.Key));
         var expectedPages = Expected.Split('\n', StringSplitOptions.RemoveEmptyEntries)
@@ -66,6 +81,30 @@ WiseOldMan|true|true|Read=GET:;WomSetup=POST:Competition,POST:DisconnectCompetit
             }
             Assert.Throws<InvalidOperationException>(() => policy.Handler("POST", "UnclassifiedPaymentWithdraw"));
         }
+    }
+
+    [Theory]
+    [InlineData("/Pages/Admin/Events/Unclassified.cshtml", false)]
+    [InlineData("/Pages/Admin/Events/Nested/Unclassified.cshtml", false)]
+    [InlineData("/Pages/Admin/Elsewhere/Unclassified.cshtml", true)]
+    public async Task UnclassifiedEventPageFailsClosedIndependentOfModelNamespace(string path, bool allowed)
+    {
+        await using var db = new ApplicationDbContext(new DbContextOptionsBuilder<ApplicationDbContext>().Options);
+        var filter = new EventMutationCapabilityPageFilter(db, new NoText());
+        var action = new CompiledPageActionDescriptor { RelativePath = path };
+        var page = new PageContext(new ActionContext(new DefaultHttpContext(), new RouteData(), action, new ModelStateDictionary()));
+        var context = new PageHandlerExecutingContext(page, [], null, new Dictionary<string, object?>(), new UnclassifiedPage());
+        var called = false;
+        await filter.OnPageHandlerExecutionAsync(context, () => { called = true; return Task.FromResult(new PageHandlerExecutedContext(page, [], null, context.HandlerInstance)); });
+        Assert.Equal(allowed, called);
+        if (allowed) Assert.Null(context.Result); else Assert.IsType<NotFoundResult>(context.Result);
+    }
+    private sealed class UnclassifiedPage : PageModel;
+    private sealed class NoText : IStringLocalizer<SharedResource>
+    {
+        public LocalizedString this[string name] => throw new InvalidOperationException("No localization or data access is needed to refuse an unclassified page.");
+        public LocalizedString this[string name, params object[] arguments] => this[name];
+        public IEnumerable<LocalizedString> GetAllStrings(bool includeParentCultures) => [];
     }
 
     [Theory]
