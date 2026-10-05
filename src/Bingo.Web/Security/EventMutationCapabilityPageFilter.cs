@@ -15,13 +15,15 @@ public sealed class EventMutationCapabilityPageFilter(ApplicationDbContext db, I
 
     public async Task OnPageHandlerExecutionAsync(PageHandlerExecutingContext context, PageHandlerExecutionDelegate next)
     {
-        if (context.ActionDescriptor.RelativePath is not { } path ||
-            !path.Contains("Admin/Events/", StringComparison.OrdinalIgnoreCase) ||
-            !TryEventId(context, out var eventId))
+        var policy = AdminEventPagePolicies.For(context.HandlerInstance.GetType());
+        if (policy is null || !policy.HasEventContext || !TryEventId(context, out var eventId))
         {
             await next();
             return;
         }
+
+        if (context.HandlerMethod is { } selected)
+            _ = policy.Handler(selected.HttpMethod, selected.Name);
 
         var eventView = await db.Events.AsNoTracking().Where(item => item.Id == eventId).Select(item => new { item.State, item.HiddenAt }).SingleOrDefaultAsync(context.HttpContext.RequestAborted);
         if (eventView is null || eventView.State == EventState.Discarded)
@@ -31,7 +33,7 @@ public sealed class EventMutationCapabilityPageFilter(ApplicationDbContext db, I
         }
         if (eventView.HiddenAt is not null)
         {
-            var limitedInspection = IsLimitedHiddenManage(context);
+            var limitedInspection = IsLimitedHiddenManage(context, policy);
             if (!limitedInspection || (HttpMethods.IsPost(context.HttpContext.Request.Method) && !string.Equals(context.HandlerMethod?.Name, "RestoreHidden", StringComparison.Ordinal)))
             {
                 context.Result = new NotFoundResult();
@@ -44,9 +46,9 @@ public sealed class EventMutationCapabilityPageFilter(ApplicationDbContext db, I
         // lifecycle matrix even when an unknown POST handler leaves HandlerMethod
         // unset. Otherwise a forged handler name could bypass the route boundary
         // and reach the page model without any mutation capability decision.
-        if (IsWiseOldManPath(path) && HttpMethods.IsPost(context.HttpContext.Request.Method))
+        if (policy.Kind == AdminEventPageKind.WiseOldMan && HttpMethods.IsPost(context.HttpContext.Request.Method))
         {
-            if (context.HandlerMethod is null || !AllowsWiseOldManMutation(eventView.State, context.HandlerMethod.Name ?? string.Empty))
+            if (context.HandlerMethod is null || !AdminEventPagePolicies.Allows(policy.Handler("POST", context.HandlerMethod.Name), eventView.State))
             {
                 if (context.HandlerInstance is PageModel page)
                     page.TempData["StatusMessage"] = text["This event is read-only in its current lifecycle state."].Value;
@@ -66,7 +68,7 @@ public sealed class EventMutationCapabilityPageFilter(ApplicationDbContext db, I
         // add result. The service verifies request/actor/event/intent under its lock;
         // malformed, conflicting and genuinely new requests keep the route refusal.
         if (HttpMethods.IsPost(context.HttpContext.Request.Method)
-            && path.EndsWith("/Questions.cshtml", StringComparison.OrdinalIgnoreCase)
+            && policy.Kind == AdminEventPageKind.Questions
             && eventView.State is EventState.Cancelled or EventState.Finalized or EventState.Archived)
         {
             if (context.HandlerInstance is Bingo.Web.Pages.Admin.Events.QuestionsModel questions
@@ -89,10 +91,10 @@ public sealed class EventMutationCapabilityPageFilter(ApplicationDbContext db, I
         }
         if (!HttpMethods.IsPost(context.HttpContext.Request.Method))
         {
-            var retainedArtworkRead = path.EndsWith("/Board.cshtml", StringComparison.OrdinalIgnoreCase) &&
+            var retainedArtworkRead = policy.Kind == AdminEventPageKind.Board &&
                 string.Equals(context.HandlerMethod.Name, "TileImage", StringComparison.Ordinal) &&
                 context.HandlerArguments.TryGetValue("approvalId", out var approvalId) && approvalId is Guid;
-            if (IsTerminalReadOnlyRoute(path, eventView.State) && !retainedArtworkRead && !IsWiseOldManPath(path))
+            if (IsTerminalReadOnlyRoute(policy, eventView.State) && !retainedArtworkRead)
             {
                 context.Result = new RedirectResult($"/Admin/Events/Manage/{eventId}");
                 return;
@@ -103,33 +105,26 @@ public sealed class EventMutationCapabilityPageFilter(ApplicationDbContext db, I
         // Field-add POSTs also reconcile a previously committed request. The signup
         // service rechecks current Admin/visibility and gates every genuinely new
         // write; later lifecycle state must not prevent an authorized success replay.
-        if (path.EndsWith("/Questions.cshtml", StringComparison.OrdinalIgnoreCase)
+        if (policy.Kind == AdminEventPageKind.Questions
             && context.HandlerMethod.Name is null or "AddAccount")
         {
             await next();
             return;
         }
-        if (IsExactHideHandler(context))
+        var gate = policy.Handler("POST", context.HandlerMethod.Name);
+        if (gate == AdminEventHandlerGate.Hide && IsExactHideHandler(context))
         {
             await next();
             return;
         }
-        if (eventView.State == EventState.Live &&
-            path.EndsWith("/Schedule.cshtml", StringComparison.OrdinalIgnoreCase))
-        {
-            await next();
-            return;
-        }
-        if (!TryCapability(path, context.HandlerMethod?.Name, out var capability))
-        {
-            await next();
-            return;
-        }
+        // Hide's exact query check is retained; a case-mismatched query follows
+        // the same ConfigureSignup route gate as before.
+        if (gate == AdminEventHandlerGate.Hide) gate = AdminEventHandlerGate.Signup;
         // A published-board correction is an exceptional, separately confirmed
         // lifecycle operation. Its private working copy is editable only while
         // the event remains operational.
-        if (IsPublishedBoardCorrection(path, context.HandlerMethod?.Name) ||
-            await HasPublishedBoardCorrectionWorkspaceAsync(path, eventId, context.HttpContext.RequestAborted))
+        if (gate == AdminEventHandlerGate.BoardCorrection ||
+            await HasPublishedBoardCorrectionWorkspaceAsync(policy, eventId, context.HttpContext.RequestAborted))
         {
             if (eventView.State is EventState.SignupClosed or EventState.Live or EventState.AwaitingFinalReview)
             {
@@ -141,7 +136,7 @@ public sealed class EventMutationCapabilityPageFilter(ApplicationDbContext db, I
             context.Result = new RedirectResult($"/Admin/Events/Manage/{eventId}");
             return;
         }
-        if (!EventStatePolicy.Allows(eventView.State, capability))
+        if (!AdminEventPagePolicies.Allows(gate, eventView.State))
         {
             if (context.HandlerInstance is PageModel page)
                 page.TempData["StatusMessage"] = text["This event is read-only in its current lifecycle state."].Value;
@@ -151,24 +146,9 @@ public sealed class EventMutationCapabilityPageFilter(ApplicationDbContext db, I
         await next();
     }
 
-    private static bool IsTerminalReadOnlyRoute(string path, EventState state) =>
+    private static bool IsTerminalReadOnlyRoute(AdminEventPagePolicy policy, EventState state) =>
         state is (EventState.Cancelled or EventState.Finalized or EventState.Archived) &&
-        !path.EndsWith("/Manage.cshtml", StringComparison.OrdinalIgnoreCase) &&
-        !path.EndsWith("/Finalize.cshtml", StringComparison.OrdinalIgnoreCase) &&
-        !path.EndsWith("/Participants.cshtml", StringComparison.OrdinalIgnoreCase) &&
-        !path.EndsWith("/Participant.cshtml", StringComparison.OrdinalIgnoreCase);
-
-    private static bool IsWiseOldManPath(string path) =>
-        path.EndsWith("/WiseOldMan.cshtml", StringComparison.OrdinalIgnoreCase);
-
-    private static bool AllowsWiseOldManMutation(EventState state, string method) => method switch
-    {
-        "FetchCompetition" => state is EventState.Live or EventState.AwaitingFinalReview,
-        "MakeDevelopmentCompetitionDue" => state == EventState.Live,
-        "Competition" or "DisconnectCompetition" or "CreateManagedCompetition" or "AdoptCompetitionCredential" or "DeleteManagedCompetition"
-            => state is EventState.Draft or EventState.SignupOpen or EventState.SignupClosed or EventState.Live,
-        _ => false
-    };
+        !policy.ViewableOnTerminalEvents;
 
     private static bool TryEventId(PageHandlerExecutingContext context, out Guid eventId)
     {
@@ -178,79 +158,17 @@ public sealed class EventMutationCapabilityPageFilter(ApplicationDbContext db, I
         return false;
     }
 
-    private static bool IsLimitedHiddenManage(PageHandlerExecutingContext context) =>
-        context.ActionDescriptor.RelativePath is { } path &&
-        path.EndsWith("/Manage.cshtml", StringComparison.OrdinalIgnoreCase) &&
+    private static bool IsLimitedHiddenManage(PageHandlerExecutingContext context, AdminEventPagePolicy policy) =>
+        policy.Kind == AdminEventPageKind.Manage &&
         context.HttpContext.User.IsInRole("SuperAdmin") &&
         string.Equals(context.HttpContext.Request.Query["hidden"].ToString(), "true", StringComparison.Ordinal);
 
     private static bool IsExactHideHandler(PageHandlerExecutingContext context) =>
-        context.ActionDescriptor.RelativePath is { } path &&
-        path.EndsWith("/Manage.cshtml", StringComparison.OrdinalIgnoreCase) &&
         string.Equals(context.HttpContext.Request.Query["handler"].ToString(), "Hide", StringComparison.Ordinal) &&
         string.Equals(context.HandlerMethod?.Name, "Hide", StringComparison.Ordinal);
 
-    private static bool TryCapability(string path, string? method, out EventCapability capability)
-    {
-        var name = method ?? string.Empty;
-        if (path.EndsWith("/Finalize.cshtml", StringComparison.OrdinalIgnoreCase))
-        {
-            capability = default; return false; // Publish/reopen own transactional guards.
-        }
-        if (path.EndsWith("/Manage.cshtml", StringComparison.OrdinalIgnoreCase))
-        {
-            if (name.Contains("StartEvent", StringComparison.Ordinal) || name.Contains("EndEvent", StringComparison.Ordinal) || name.Contains("Discard", StringComparison.Ordinal) || name.Contains("Cancel", StringComparison.Ordinal)) { capability = default; return false; }
-            if (name.Contains("Competition", StringComparison.Ordinal) &&
-                !name.Contains("RefreshCompetition", StringComparison.Ordinal) &&
-                !name.Contains("MakeDevelopmentCompetitionDue", StringComparison.Ordinal)) { capability = default; return false; }
-            capability = name.Contains("ResumeEvent", StringComparison.Ordinal) ? EventCapability.ResumeEvent
-                : name.Contains("ReopenSubmissions", StringComparison.Ordinal) ? EventCapability.ReviewEvidence
-                : name.Contains("EvidenceCode", StringComparison.Ordinal) ? EventCapability.ConfigureEvidenceCodes
-                : name.Contains("RefreshCompetition", StringComparison.Ordinal) || name.Contains("MakeDevelopmentCompetitionDue", StringComparison.Ordinal) ? EventCapability.CompetitionSynchronization
-                : EventCapability.ConfigureSignup;
-            return true;
-        }
-        if (path.EndsWith("/Draft.cshtml", StringComparison.OrdinalIgnoreCase) &&
-            name.Contains("ChangeRole", StringComparison.Ordinal))
-        {
-            capability = default; // roster role boundary performs its own operational-state checks.
-            return false;
-        }
-        if (path.EndsWith("/Participant.cshtml", StringComparison.OrdinalIgnoreCase) &&
-            (name.Contains("Withdraw", StringComparison.Ordinal) ||
-             name.Contains("FillVacancy", StringComparison.Ordinal) ||
-             name.Contains("CompletePromotionFollowUp", StringComparison.Ordinal) ||
-             name.Contains("Payment", StringComparison.Ordinal) ||
-             name.Contains("AdminNote", StringComparison.Ordinal) ||
-             name.Contains("TransferOwnership", StringComparison.Ordinal)))
-        {
-            capability = default; // Participant lifecycle services perform their own state and authorization checks.
-            return false;
-        }
-        if (path.EndsWith("/Participants.cshtml", StringComparison.OrdinalIgnoreCase) &&
-            name.Contains("Payment", StringComparison.Ordinal))
-        {
-            capability = default; // Participant lifecycle services perform their own state and authorization checks.
-            return false;
-        }
-        if (path.EndsWith("/Identity.cshtml", StringComparison.OrdinalIgnoreCase))
-        {
-            capability = EventCapability.ConfigureIdentity;
-            return true;
-        }
-        capability = path.EndsWith("/Questions.cshtml", StringComparison.OrdinalIgnoreCase) ||
-                     path.EndsWith("/Participant.cshtml", StringComparison.OrdinalIgnoreCase)
-            ? EventCapability.ConfigureSignup
-            : EventCapability.ConfigureIdentityOrSchedule;
-        return true;
-    }
-
-    private static bool IsPublishedBoardCorrection(string path, string? method) =>
-        path.EndsWith("/Board.cshtml", StringComparison.OrdinalIgnoreCase) &&
-        string.Equals(method, "CorrectPublished", StringComparison.Ordinal);
-
-    private Task<bool> HasPublishedBoardCorrectionWorkspaceAsync(string path, Guid eventId, CancellationToken ct) =>
-        path.EndsWith("/Board.cshtml", StringComparison.OrdinalIgnoreCase)
+    private Task<bool> HasPublishedBoardCorrectionWorkspaceAsync(AdminEventPagePolicy policy, Guid eventId, CancellationToken ct) =>
+        policy.Kind == AdminEventPageKind.Board
             ? db.Boards.AsNoTracking().AnyAsync(board => board.EventId == eventId && board.PublishedCorrectionInProgress, ct)
             : Task.FromResult(false);
 }
