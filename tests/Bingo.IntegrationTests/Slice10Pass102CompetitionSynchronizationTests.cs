@@ -91,6 +91,106 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests : IAsy
     }
 
     [Fact]
+    public async Task ManualRefreshRunsInFinalReviewButSkipsAnUnmatchedEndAndFinalizedEvent()
+    {
+        var clock = new TestClock(new DateTimeOffset(2026, 10, 4, 12, 0, 0, TimeSpan.Zero));
+        var now = clock.GetUtcNow();
+        var admin = Account.CreateWebsite(Guid.NewGuid(), "final-review-refresh-admin", "FINAL-REVIEW-REFRESH-ADMIN", now);
+        admin.SetGlobalRole(GlobalRole.Admin);
+        var eventItem = new BingoEvent(Guid.NewGuid(), "Final review refresh", $"final-review-refresh-{Guid.NewGuid():N}", "", "UTC",
+            now.AddHours(-2), now.AddHours(-1), now.AddHours(-1), now.AddHours(1), now.AddHours(1), 20, admin.Id, now);
+        eventItem.OpenSignups(now.AddHours(-2));
+        eventItem.CloseSignups(now.AddHours(-1));
+        eventItem.StartEvent(now);
+        await using (var setup = new ApplicationDbContext(options))
+        {
+            setup.AddRange(admin, eventItem);
+            await setup.SaveChangesAsync();
+        }
+
+        var competition = new WiseOldManCompetition(52, "Final review competition", eventItem.EventStartsAt!.Value, eventItem.EventEndsAt!.Value, now, []);
+        var fake = new FakeCompetitionClient([
+            new(WiseOldManCompetitionStatus.Success, competition),
+            new(WiseOldManCompetitionStatus.Success, competition)
+        ]);
+        var actor = new LifecycleActor(admin.Id, admin.LoginName);
+        await using (var configureDb = new ApplicationDbContext(options))
+        {
+            var service = new EventCompetitionSynchronizationService(configureDb, fake, new FixedStatus(), clock);
+            var configured = await service.ConfigureAsync(eventItem.Id, eventItem.Version, competition.Id, false, actor);
+            Assert.True(configured.Succeeded, configured.Error);
+        }
+
+        await using (var endDb = new ApplicationDbContext(options))
+        {
+            var item = await endDb.Events.SingleAsync(x => x.Id == eventItem.Id);
+            item.EndEvent(now);
+            await endDb.SaveChangesAsync();
+        }
+
+        await using (var refreshDb = new ApplicationDbContext(options))
+        {
+            var service = new EventCompetitionSynchronizationService(refreshDb, fake, new FixedStatus(), clock);
+            var refreshed = await service.RefreshAsync(eventItem.Id, actor);
+            Assert.True(refreshed.Succeeded, refreshed.Message);
+            Assert.False(refreshed.Skipped);
+        }
+
+        DateTimeOffset lastAttempt;
+        DateTimeOffset lastSuccessful;
+        await using (var verify = new ApplicationDbContext(options))
+        {
+            var item = await verify.Events.AsNoTracking().SingleAsync(x => x.Id == eventItem.Id);
+            Assert.Equal(EventState.AwaitingFinalReview, item.State);
+            var state = await verify.EventCompetitionSynchronizations.AsNoTracking().SingleAsync(x => x.EventId == eventItem.Id);
+            lastAttempt = Assert.IsType<DateTimeOffset>(state.LastAttemptAt);
+            lastSuccessful = Assert.IsType<DateTimeOffset>(state.LastSuccessfulAt);
+            Assert.Equal(EventCompetitionEndUpdateStatus.NotRequired, state.EndUpdateStatus);
+            Assert.Equal(1, await verify.AuditEntries.CountAsync(x => x.EventId == eventItem.Id && x.Action == "event.competition_linked"));
+        }
+        Assert.Equal(2, fake.Calls);
+
+        await using (var unmatchedDb = new ApplicationDbContext(options))
+        {
+            var item = await unmatchedDb.Events.SingleAsync(x => x.Id == eventItem.Id);
+            var state = await unmatchedDb.EventCompetitionSynchronizations.SingleAsync(x => x.EventId == eventItem.Id);
+            state.RequestEndUpdate(item.EventEndsAt!.Value.AddMinutes(1), now);
+            await unmatchedDb.SaveChangesAsync();
+        }
+
+        await using (var skippedDb = new ApplicationDbContext(options))
+        {
+            var service = new EventCompetitionSynchronizationService(skippedDb, fake, new FixedStatus(), clock);
+            var skipped = await service.RefreshAsync(eventItem.Id, actor);
+            Assert.True(skipped.Skipped);
+            Assert.Equal(EventCompetitionRefreshSkipReason.EndWindowUnmatched, skipped.SkipReason);
+        }
+        await using (var verify = new ApplicationDbContext(options))
+        {
+            var state = await verify.EventCompetitionSynchronizations.AsNoTracking().SingleAsync(x => x.EventId == eventItem.Id);
+            Assert.Equal(lastAttempt, state.LastAttemptAt);
+            Assert.Equal(lastSuccessful, state.LastSuccessfulAt);
+        }
+        Assert.Equal(2, fake.Calls);
+
+        await using (var finalizeDb = new ApplicationDbContext(options))
+        {
+            var item = await finalizeDb.Events.SingleAsync(x => x.Id == eventItem.Id);
+            item.FinalizeResults(now.AddMinutes(1));
+            await finalizeDb.SaveChangesAsync();
+        }
+
+        await using (var finalizedDb = new ApplicationDbContext(options))
+        {
+            var service = new EventCompetitionSynchronizationService(finalizedDb, fake, new FixedStatus(), clock);
+            var refused = await service.RefreshAsync(eventItem.Id, actor);
+            Assert.True(refused.Skipped);
+            Assert.Equal(EventCompetitionRefreshSkipReason.EventUnavailable, refused.SkipReason);
+        }
+        Assert.Equal(2, fake.Calls);
+    }
+
+    [Fact]
     public async Task ManualRefreshDistinguishesSuccessFromPerformedUpstreamFailures()
     {
         var clock = new TestClock(new DateTimeOffset(2026, 10, 4, 12, 0, 0, TimeSpan.Zero));
