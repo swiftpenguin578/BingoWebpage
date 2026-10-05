@@ -1,22 +1,25 @@
 # Current project status
 
-## U1 foundation + Identity — items 0–7 implemented; review, visual acceptance and whole .NET gate pending, 5 October 2026
+## U1 named remediation — items 1–10 implemented; named recheck, visual acceptance and final whole .NET gate pending, 5 October 2026
 
-- Authority: [brief43](/Users/christopher/Documents/BingoWebpage/review-notes/43-codex-brief-u1-foundation-identity.md), [plan42](/Users/christopher/Documents/BingoWebpage/review-notes/42-ui-integration-plan.md), and [decisions](/Users/christopher/Documents/BingoWebpage/review-notes/08-decisions.md).
-- Checkout `/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage`, branch `codex/participants-functionality`; clean starting HEAD `89d938292a2a22e0648d12f3885731c768244905` verified. Sole implementer `/root/u1_implementer`, `gpt-6-astra` / high; dispatcher actual parent `/root` in the fresh U1 chat supersedes brief43's historical chat ID. Claude is planner and independent reviewer through the user.
-- Items 0–7 run sequentially, one scoped local commit each. Item0 records approved ownership and shell decisions only; frozen reference assets stay unchanged. Identity is now bound; no U1 page is visually accepted yet. Durable evidence: [U1](docs/references/admin-ui/reviews/2026-10-05/u1/).
-- Baseline accepted by [Claude review41](/Users/christopher/Documents/BingoWebpage/review-notes/41-sweep-server-fixes-recheck.md) at `89d9382`: Release build 0 warnings/errors; Domain 265, Application 118, Browser 148, Integration 1,459 — **1,990 passed / 0 failed / 0 skipped** in Claude's scratch PostgreSQL run. No baseline rerun required. Earlier accepted test-health/B5 evidence remains in Git and the linked reviews.
-- Item0 committed `1e5848d11661c9912a406908e56f0bbabc050a5c`; item1 committed `7a5c15b67fe9034c4b5599f15d350bfd4c4e5bf5`. Item1 has **44 focused passes / 0 failures / 0 skips**, including unchanged test #14 and S4/S6. Existing tests unchanged.
-- Item2 original baseline: controlled fixture generation 8/8; unchanged full JS runner **35 files passed / 1 failed**. Original evidence remains in [baseline checkpoint](docs/references/admin-ui/reviews/2026-10-05/u1/item2-js-runner-blocked.md).
-- Brief45 item2a committed `0d8306ca9a3e4cb08da4cbde567c399b699f6e60`: authorized two-file stale-close fix, new dismissal regression PASS and unchanged brief44-corrected test PASS for all four actions. [Fix evidence](docs/references/admin-ui/reviews/2026-10-05/u1/item2a-stale-close-fix.md).
-- Item2c committed `63ce639` (brief47): after an unsuccessful shared confirmation, the transport-only `Reason` input is removed/restored so the next action opens its own confirmation; real edits still prompt to discard. [Evidence](docs/references/admin-ui/reviews/2026-10-05/u1/item2c-transport-reason-fix.md).
-- **Item2 done:** runner, CI job `javascript-tests`, README, brief44/46 test corrections. Full JS runner **37 files passed / 0 failed / 37 total**, exit 0; CI itself has not run. Implemented by a Claude agent assigned by the user (Codex implementer unavailable). [Completion evidence](docs/references/admin-ui/reviews/2026-10-05/u1/item2-completion.md). Items3–7 implemented by resumed Codex worker.
-- Item3: opt-in shell/layout and local reference CSS, theme, new event switcher projection; no production page opted in at that checkpoint (Identity opts in at item7). PostgreSQL/HTTP 2/2 plus final affected HTTP rerun 1/1; unchanged shell/toast 4/4; full JS 38/38. [Evidence](docs/references/admin-ui/reviews/2026-10-05/u1/item3-shell.md).
-- Item4: shared interactions, draft/history guard, server HTML swaps and module disposal implemented; full JS **39/39**, Release Web build **0 warnings/errors**, diff clean. [Evidence](docs/references/admin-ui/reviews/2026-10-05/u1/item4-shell-interactions.md).
-- Item5: shared fetch/session-preservation helper implemented; lost/disabled Identity POST/Current HTTP **4/4**, full JS **40/40**, Release compilation/diff clean. [Evidence](docs/references/admin-ui/reviews/2026-10-05/u1/item5-fetch-session.md).
-- Item6: new-shell Danish entries and automatic opted-in-page coverage test; focused **5/5**, full JS **40/40**, Release compilation/diff clean. [Evidence](docs/references/admin-ui/reviews/2026-10-05/u1/item6-danish.md).
-- Item7 implemented in this commit: Identity reference form, AU08 choices, A14 versioned readback, EI-3 no-read uncertain render, five scheduled timezone rows, D17 reads with D16/hidden protections, shared module lifecycle and Danish strings. Brief48/addendum fixture scope resolved. Focused Integration **47/0/0**, Browser **33/0/0**, full JS **41 files/0 failed**, Release solution **0 warnings/errors**, diff/reference checks clean. [Evidence](docs/references/admin-ui/reviews/2026-10-05/u1/item7-identity.md), [test-change map](docs/references/admin-ui/reviews/2026-10-05/u1/item7-test-change-map.md), [route note](docs/references/admin-ui/reviews/2026-10-05/u1/item7-page-routes.md). Final-commit build/JS result is returned in dispatcher callback; no separate packaging commit.
-- Final whole-suite gate remains **pending user execution** on U1's final commit. User/Claude executes the unfiltered .NET suite; implementer runs focused applicable checks, Release build, diff checks and the full new JS runner. A passing checkpoint is not independent review or manual acceptance.
+- Authority: [brief50](/Users/christopher/Documents/BingoWebpage/review-notes/50-codex-brief-u1-remediation.md), [review49](/Users/christopher/Documents/BingoWebpage/review-notes/49-u1-review.md), U-A/B/C/E/F/G in [decisions08](/Users/christopher/Documents/BingoWebpage/review-notes/08-decisions.md), and [brief51 clock ruling](/Users/christopher/Documents/BingoWebpage/review-notes/51-u1-rem-item9-clock.md). Brief43's protected scope remains; no U-D decision exists.
+- Checkout `/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage`, branch `codex/participants-functionality`. Sole implementer `/root/u1_implementer`, `gpt-6-astra` / high; actual dispatcher parent `/root` supersedes historical chat IDs. Claude owns independent review through the user.
+- Remediation started from verified clean `ecbb947a1f24a43462df3a9ab3437c20c56e0e82`. Claude's whole .NET run there was **2021 passed / 1 failed / 0 skipped**, exit1: Application118, Domain265, Browser149, Integration1489 passed/1 failed. The failure was R1's stale Identity terminal-view expectation. Review49 was **FAIL**. Earlier status saying that baseline suite/review was still pending was stale; that suite was not a pass.
+- Accepted pre-U1 backend baseline remains `89d9382`, Claude review41 and 1990/0/0. Original U1 items0–7 ended at `ecbb947`; evidence remains in [U1](docs/references/admin-ui/reviews/2026-10-05/u1/). Claude implemented items2c/2 under the user's assignment; their run provenance remains in item2-completion.md.
+- Ten ordered local remediation commits, no amendments or packaging commit:
+  1. `7f9eb42` R1 Identity terminal row (18 focused passes).
+  2. `dd4fbe2` R12 recursive fail-closed event policy inventory (22 focused passes, including unchanged test14).
+  3. `ff8b667` R3/U-A/R10 status classification, readback session notice and localized field labels (focused JS and localization pass).
+  4. `e9b8401` R2/R8/R9/R6 fragment history, layer guard/cleanup, mobile resize, retained sidebar (focused JS pass).
+  5. `51dcd09` R7/U-C safe timezone fallback and phase/date wording (PG/HTTP2/0/0, localization1/0/0).
+  6. `a08d1cc` R4/U-F/R16 edited conflict choice, unchanged Save, reference timezone/readback text and shell name refresh (binding/timezone/readback JS pass; PG/HTTP2/0/0).
+  7. `9afd895` R11/U-B/R17/U-E accessible bell, shell details/reference loading/menu/logo (JS pass; PG/HTTP2/0/0).
+  8. `29d80ae` U-G scoped Danish event terminology, preserving old pages (localization2/0/0, PG/HTTP2/0/0).
+  9. `11fd274` R5/R13 exact reads/dialog/validation/labels and evidence correction; brief51 deterministic fake clock (five explicit stability passes; full JS41/0; affected Slice3 PG/HTTP1/0/0; affected .NET UI34/0/0).
+  10. This commit: R14/R15 authority/doc corrections, immutable setup-node pin, matrix/status handoff.
+- Durable [remediation evidence](docs/references/admin-ui/reviews/2026-10-05/u1/remediation/) has one file per item and precise assertion-change authority. The original claim that no assertions were weakened was incorrect and is explicitly corrected in item7 evidence and item9 mapping.
+- Executed candidate gates: full JS **41 passed / 0 failed**, complete non-incremental Release build **0 warnings / 0 errors**, diff check and frozen CSS comparisons clean. Initial item9 full JS40/1 timing failure is retained as history; brief51's paused clock resolved it without changing exact timing expectations. Final-commit build/JS results are reported in the dispatcher callback, without a separate evidence-only commit.
+- The **final whole .NET gate remains pending user/Claude execution** on the reported final SHA; zero failures and zero skips are required per project. The implementer has not run that suite. CI has not run. No independent recheck or visual acceptance is claimed.
 
 ## Retained release gates and prior evidence
 
@@ -29,15 +32,16 @@
 
 ## Next permitted action
 
-U1 implementation stops here under brief43 sections4–5. Claude independently reviews
-the stable item0–7 diff; the user checks the shell and Identity in both themes,
-Danish/English and phone width, including confirmations/errors/toasts. UI_PAGE_MATRIX
-owns acceptance and remains awaiting approval. User/Claude runs on the reported
-final SHA (zero failed and zero skipped required per project):
+Stop under brief50 after item10. Claude rechecks the named R1–R17 findings and
+recorded U decisions against the stable remediation diff; the user checks the
+shell and Identity in light/dark, Danish/English and phone width, including
+confirmations/errors/toasts. UI_PAGE_MATRIX owns acceptance and remains awaiting
+approval. User/Claude runs on the reported final SHA (zero failed/zero skipped):
 
 ```sh
+cd /Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage
 dotnet test Bingo.slnx --configuration Release --no-restore --results-directory /private/tmp/bingo-u1-final-suite-trx --logger "trx"
 ```
 
-No U2–U10, lane T, rehearsal, push, main merge or deployment. CI has not run.
-Optional carried note: `.github/workflows/ci.yml` still uses `actions/setup-node@v4`.
+No U2–U10, lane T, rehearsal, push, main merge or deployment. CI is unrun;
+setup-node now uses the verified immutable v4.4.0 commit instead of a mutable tag.
