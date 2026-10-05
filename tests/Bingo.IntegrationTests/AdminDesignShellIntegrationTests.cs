@@ -111,7 +111,12 @@ public sealed partial class AdminDesignShellIntegrationTests : IAsyncLifetime
     {
         var admin = Admin();
         var item = Event(admin, EventState.Draft, "Shell fixture", 2);
-        await using (var db = new ApplicationDbContext(options)) { db.AddRange(admin, item); await db.SaveChangesAsync(); }
+        await using (var db = new ApplicationDbContext(options))
+        {
+            db.AddRange(admin, item);
+            db.Add(new PersonalNotification(Guid.NewGuid(), admin.Id, "account.admin_granted", "", "/Account/Settings", Now));
+            await db.SaveChangesAsync();
+        }
         await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder
             .UseEnvironment("Testing").UseSetting("ConnectionStrings:Database", database.GetConnectionString())
             .ConfigureServices(services =>
@@ -138,6 +143,12 @@ public sealed partial class AdminDesignShellIntegrationTests : IAsyncLifetime
         Assert.Contains("This event is read-only in its current lifecycle state.", html);
         Assert.Matches("class=\"toast(?: [^\"]*)?\"[^>]*data-toast", html);
         Assert.Contains("/notifications#admin-actions-heading", html);
+        Assert.Contains("aria-label=\"Notifications, 1 unread\"", html);
+        Assert.Contains("class=\"design-notification-count\" aria-hidden=\"true\">1</span>", html);
+        Assert.Contains("<span class=\"design-event-crumb\">Shell fixture</span>", html);
+        Assert.DoesNotContain("<a class=\"design-event-crumb\"", html);
+        Assert.Contains("Teams / Draft", html); Assert.Matches("src=\"/images/branding/dk-legacy-admin-mark(?:\\.[A-Za-z0-9_-]+)?\\.png(?:\\?v=[A-Za-z0-9_-]+)?\"", html);
+        Assert.Contains("data-page-loading-template=\"identity\"", html); Assert.Contains("aria-label=\"Loading identity\"", html);
         Assert.Contains($"/Admin/Events/Identity/{item.Id}", html);
         foreach (Match link in Regex.Matches(html, "<link[^>]+href=\"([^\"]+)\"")) Assert.StartsWith("/", link.Groups[1].Value);
         Assert.DoesNotContain("fonts.googleapis", html);
@@ -149,6 +160,24 @@ public sealed partial class AdminDesignShellIntegrationTests : IAsyncLifetime
         Assert.Contains("admin-shell-body", old);
         Assert.True(AdminDesignAttribute.AppliesTo(new CompiledPageActionDescriptor { ModelTypeInfo = typeof(Bingo.Web.Pages.Admin.Events.IdentityModel).GetTypeInfo() }));
         Assert.False(AdminDesignAttribute.AppliesTo(new CompiledPageActionDescriptor { ModelTypeInfo = typeof(Bingo.Web.Pages.Admin.Events.ScheduleModel).GetTypeInfo() }));
+    }
+
+    [Fact]
+    public async Task NewShellWithoutSelectedEventHidesEventNavigation()
+    {
+        var admin = Admin(); await using (var db = new ApplicationDbContext(options)) { db.Add(admin); await db.SaveChangesAsync(); }
+        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder
+            .UseEnvironment("Testing").UseSetting("ConnectionStrings:Database", database.GetConnectionString())
+            .ConfigureServices(services =>
+            {
+                services.RemoveAll<IHostedService>(); services.AddDataProtection().UseEphemeralDataProtectionProvider();
+                services.Configure<RazorPagesOptions>(settings => settings.Conventions.AddPageApplicationModelConvention("/Admin/Events/Index", model => model.EndpointMetadata.Add(new AdminDesignAttribute())));
+            }));
+        using var client = await IdentityClientAsync(factory);
+        var html = await client.GetStringAsync("/Admin/Events/Index");
+        var nav = Regex.Match(html, "<nav[^>]*data-shell-event-context[^>]*>(.*?)</nav>", RegexOptions.Singleline).Groups[1].Value;
+        Assert.NotEmpty(nav); Assert.Contains("Select an event", nav); Assert.DoesNotContain("<a ", nav);
+        Assert.Contains("aria-label=\"Notifications, 0 unread\"", html); Assert.DoesNotContain("class=\"design-notification-count\"", html);
     }
 
     private static ClaimsPrincipal User(string role) => new(new ClaimsIdentity([new Claim(ClaimTypes.Role, role)], "fixture"));

@@ -3099,4 +3099,10 @@
   <data name="Now" xml:space="preserve"><value>Nu</value></data>
   <data name="Nothing is scheduled yet, so no shown times change." xml:space="preserve"><value>Intet er planlagt endnu, så ingen viste tidspunkter ændres.</value></data>
   <data name="Not scheduled yet: {0}." xml:space="preserve"><value>Ikke planlagt endnu: {0}.</value></data>
+  <data name="Collapse sidebar" xml:space="preserve"><value>Fold sidepanelet sammen</value></data>
+  <data name="Expand sidebar" xml:space="preserve"><value>Udvid sidepanelet</value></data>
+  <data name="Notifications, {0} unread" xml:space="preserve"><value>Notifikationer, {0} ulæste</value></data>
+  <data name="Couldn’t load this event" xml:space="preserve"><value>Kunne ikke indlæse dette event</value></data>
+  <data name="Check your connection and try again. Nothing was changed." xml:space="preserve"><value>Kontrollér din forbindelse, og prøv igen. Intet blev ændret.</value></data>
+  <data name="Loading identity" xml:space="preserve"><value>Indlæser identitet</value></data>
 </root>
