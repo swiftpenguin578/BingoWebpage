@@ -406,7 +406,8 @@ reference-edit sequence: RC01–RC11 findings are required page-binding items.
 | Batch | Pages / scope | Implementer model / reasoning |
 | --- | --- | --- |
 | U1 | Foundation + Identity (EI-2 Identity, AU08/AU09, RL-1/EI-3) | `gpt-6-astra` / high |
-| U2 | Events directory + Create; Dashboard | `gpt-5.6-luna` / max |
+| UR | UI review environment — after accepted U1, before U2 | `gpt-6.1-sol` / high |
+| U2 | Events directory + Create; Dashboard | `gpt-6.1-sol` / high |
 | U3 | Schedule; Signup setup | `gpt-6-astra` / high |
 | U4 | Overview | `gpt-6-astra` / high |
 | U5 | Participants | `gpt-6-astra` / high |
@@ -414,12 +415,14 @@ reference-edit sequence: RC01–RC11 findings are required page-binding items.
 | U7 | Board | `gpt-6-astra` / high |
 | U8 | Review | `gpt-6-astra` / high |
 | U9 | Final Review; WOM | `gpt-6-astra` / high |
-| T1 (lane T) | Accounts; Audit | `gpt-5.6-luna` / max |
-| T2 (lane T) | Catalogue | `gpt-5.6-luna` / max |
-| U10 | Retirement sweep and page-matrix reconciliation | `gpt-5.6-luna` / max |
-| C8 | LKP-1 Luck mixed-outcome proof | `gpt-5.6-luna` / max |
+| T1 (lane T) | Accounts; Audit | `gpt-6.1-sol` / high |
+| T2 (lane T) | Catalogue | `gpt-6.1-sol` / high |
+| U10 | Retirement sweep and page-matrix reconciliation | `gpt-6.1-sol` / high |
+| C8 | LKP-1 Luck mixed-outcome proof | `gpt-6.1-sol` / high |
 
-Main lane U1–U9 runs in order. Lane T starts from accepted U1 in its own
+Main lane U1–U9 runs in order, with UR after accepted U1 and before U2.
+Future-model assignments follow the user’s 5 October 2026
+[Implementer model change](/Users/christopher/Documents/BingoWebpage/review-notes/08-decisions.md#implementer-model-change-user-5-october-2026); historical Luna records remain unchanged. Lane T starts from accepted U1 in its own
 worktree/branch, runs T1 then T2, and merges back only after independent review;
 T1 must be merged before U8. Only lane T may add the contemplated Audit migration.
 U10 follows acceptance of every page. C8 may run any time after U1 without UI edits.
