@@ -23,6 +23,7 @@
       data-close="@T["Close"]" data-discard-title="@T["Discard unsaved changes?"]"
       data-discard-description="@T["Continuing will discard unsaved changes in this editor."]"
       data-keep-editing="@T["Keep editing"]" data-discard="@T["Discard"]"
+      data-session-title="@T["Your changes were not saved"]" data-session-message="@T["Your session is no longer available. What you entered is still here. Sign in before trying again."]" data-sign-in="@T["Sign in"]" data-empty-value="@T["Empty"]"
       data-load-error="@T["The page could not be loaded."]" data-retry="@T["Try again"]" data-loading="@T["Loading"]">
     <a class="design-skip" href="#main-content">@T["Skip to main content"]</a>
     <div class="app" id="admin-design-app">
@@ -41,6 +42,7 @@
     <partial name="_AdminDesignHosts" />
     <form hidden data-shell-antiforgery>@Html.AntiForgeryToken()</form>
     <script src="~/js/admin-design-shell.js" asp-append-version="true" defer data-admin-shell-script></script>
+    <script src="~/js/admin-design-fetch.js" asp-append-version="true" defer data-admin-shell-script></script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>
