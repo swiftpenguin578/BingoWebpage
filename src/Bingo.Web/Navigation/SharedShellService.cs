@@ -54,6 +54,50 @@ public sealed class SharedShellService(ApplicationDbContext db, IStringLocalizer
         return new SharedShellData(breadcrumbs, notifications, adminEvent, adminEvents, captainNavigation, submissionNavigation, currentEvent);
     }
 
+    public async Task<AdminDesignShell> GetAdminDesignAsync(ClaimsPrincipal user, RouteValueDictionary routes, CancellationToken cancellationToken, string? selectedEventId = null)
+    {
+        var page = routes["page"]?.ToString() ?? string.Empty;
+        var superAdmin = user.IsInRole("SuperAdmin");
+        if (!superAdmin && !user.IsInRole("Admin")) return new(null, [], NotificationInbox.Empty);
+        Guid? selected = null;
+        if (page.StartsWith("/Admin/Events/", StringComparison.Ordinal) && Guid.TryParse(routes["id"]?.ToString(), out var id)) selected = id;
+        else if (page.StartsWith("/Admin/Review/", StringComparison.Ordinal) && Guid.TryParse(selectedEventId, out id)) selected = id;
+        var rows = await db.Events.AsNoTracking()
+            .Where(item => item.State != EventState.Discarded && (item.HiddenAt == null || superAdmin)
+                && (item.Id == selected || item.State == EventState.Draft || item.State == EventState.SignupOpen
+                    || item.State == EventState.SignupClosed || item.State == EventState.Live || item.State == EventState.AwaitingFinalReview))
+            .OrderBy(item => item.EventStartsAt == null).ThenBy(item => item.EventStartsAt).ThenBy(item => item.Id)
+            .Select(item => new { item.Id, item.Name, item.State, item.HiddenAt, item.EventStartsAt, item.EventEndsAt, item.Timezone })
+            .ToListAsync(cancellationToken);
+        var options = rows.Select(item =>
+        {
+            var date = item.State is EventState.Live or EventState.AwaitingFinalReview ? item.EventEndsAt : item.EventStartsAt;
+            var when = date.HasValue
+                ? TimeZoneInfo.ConvertTime(date.Value, TimeZoneInfo.FindSystemTimeZoneById(item.Timezone)).ToString("d MMM yyyy", CultureInfo.CurrentCulture)
+                : text["Not scheduled yet"].Value;
+            var tone = item.State switch { EventState.Live or EventState.AwaitingFinalReview => "tone-live", EventState.SignupOpen => "tone-open", _ => "tone-draft" };
+            return new AdminDesignEvent(item.Id, item.Name, item.State, item.HiddenAt.HasValue,
+                AdminEventStatePresentation.For(item.State, text).Label, tone, when,
+                AdminDesignEventUrl(page, item.Id, item.HiddenAt.HasValue));
+        }).ToList();
+        return new(options.SingleOrDefault(item => item.Id == selected),
+            options.Where(item => item.State is EventState.Draft or EventState.SignupOpen or EventState.SignupClosed or EventState.Live or EventState.AwaitingFinalReview).ToList(),
+            await GetNotificationsAsync(user, cancellationToken));
+    }
+
+    public static string AdminDesignEventUrl(string page, Guid eventId, bool hidden = false)
+    {
+        if (hidden) return $"/Admin/Events/Manage/{eventId}?hidden=true";
+        return page switch
+        {
+            "/Admin/Events/Identity" or "/Admin/Events/Schedule" or "/Admin/Events/Participants"
+                or "/Admin/Events/Questions" or "/Admin/Events/Draft" or "/Admin/Events/Board"
+                or "/Admin/Events/WiseOldMan" or "/Admin/Events/Finalize" => $"{page}/{eventId}",
+            "/Admin/Review/Index" or "/Admin/Review/Details" => $"/Admin/Review/Index?eventId={eventId}",
+            _ => $"/Admin/Events/Manage/{eventId}"
+        };
+    }
+
     private async Task<SubmissionNavigation?> GetSubmissionNavigationAsync(ClaimsPrincipal user, Guid? contextEventId, Guid? contextTeamId, CancellationToken cancellationToken)
     {
         if (!Guid.TryParse(user.FindFirstValue(ClaimTypes.NameIdentifier), out var accountId)) return null;
@@ -483,3 +527,6 @@ internal static class NotificationPresentation
         }
     }
 }
+
+public sealed record AdminDesignShell(AdminDesignEvent? SelectedEvent, IReadOnlyList<AdminDesignEvent> Events, NotificationInbox Notifications);
+public sealed record AdminDesignEvent(Guid Id, string Name, EventState State, bool Hidden, string Stage, string Tone, string When, string Url);

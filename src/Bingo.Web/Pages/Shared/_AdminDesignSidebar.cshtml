@@ -1,0 +1,58 @@
+@model Bingo.Web.Navigation.AdminDesignShell
+@{
+    var currentPage = ViewContext.RouteData.Values["page"]?.ToString();
+    var selected = Model.SelectedEvent;
+}
+<aside class="side" id="admin-design-sidebar" aria-label="@T["Administration"]" data-shell-sidebar>
+    <div class="side-top">
+        <button class="account-btn" data-menu-target="admin-account-menu" aria-haspopup="menu" aria-expanded="false" title="@T["Account"]">
+            <span class="logo" aria-hidden="true">DK</span><span class="brand-text"><span class="brand-name">@T["DK Legacy"]</span><span class="brand-sub">@T["Administrator"]</span></span>
+        </button>
+        <button class="icon-btn collapse-btn" data-side-toggle aria-label="@T["Collapse navigation"]" aria-expanded="true"><svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><rect x="2.5" y="2.5" width="11" height="11" rx="1.5"/><path d="M6 2.5v11M10.6 6.2 8.8 8l1.8 1.8"/></svg></button>
+    </div>
+    <nav class="nav" aria-label="@T["Administration"]"><div class="nav-label">@T["Administration"]</div>
+        <a class="nav-item @(currentPage is "/Admin" or "/Admin/Index" ? "is-current" : null)" href="/Admin" data-shell-link aria-current="@(currentPage is "/Admin" or "/Admin/Index" ? "page" : null)" title="@T["Dashboard"]"><svg aria-hidden="true" class="ic" viewBox="0 0 16 16"><path d="M2.5 12a5.5 5.5 0 1 1 11 0"/><path d="M8 12l2.6-3.4"/><path d="M8 12h.01"/></svg><span class="nav-text">@T["Dashboard"]</span></a>
+        <a class="nav-item @(currentPage == "/Admin/Events/Index" ? "is-current" : null)" href="/Admin/Events/Index" data-shell-link aria-current="@(currentPage == "/Admin/Events/Index" ? "page" : null)" title="@T["Events"]"><svg aria-hidden="true" class="ic" viewBox="0 0 16 16"><rect x="2.5" y="3.5" width="11" height="10" rx="1.5"/><path d="M2.5 6.5h11M5.5 2v3M10.5 2v3"/></svg><span class="nav-text">@T["Events"]</span></a>
+        <a class="nav-item @(currentPage == "/Admin/Catalogue/Index" ? "is-current" : null)" href="/Admin/Catalogue/Index" data-shell-link aria-current="@(currentPage == "/Admin/Catalogue/Index" ? "page" : null)" title="@T["Catalogue"]"><svg aria-hidden="true" class="ic" viewBox="0 0 16 16"><path d="M8 2.5 2.5 5.5 8 8.5l5.5-3z"/><path d="M2.5 8.2 8 11.2l5.5-3M2.5 10.8 8 13.8l5.5-3"/></svg><span class="nav-text">@T["Catalogue"]</span></a>
+        <a class="nav-item @(currentPage == "/Admin/Accounts/Index" ? "is-current" : null)" href="/Admin/Accounts/Index" data-shell-link aria-current="@(currentPage == "/Admin/Accounts/Index" ? "page" : null)" title="@T["Accounts"]"><svg aria-hidden="true" class="ic" viewBox="0 0 16 16"><rect x="3" y="2.5" width="10" height="11" rx="1.5"/><circle cx="8" cy="7" r="1.8"/><path d="M5.3 11.5c.5-1.3 1.5-2 2.7-2s2.2.7 2.7 2"/></svg><span class="nav-text">@T["Accounts"]</span></a>
+        <a class="nav-item @(currentPage == "/Admin/Audit/Index" ? "is-current" : null)" href="/Admin/Audit/Index" data-shell-link aria-current="@(currentPage == "/Admin/Audit/Index" ? "page" : null)" title="@T["Audit"]"><svg aria-hidden="true" class="ic" viewBox="0 0 16 16"><path d="M4 2.5h8v11H4z"/><path d="M6 5.5h4M6 8h4M6 10.5h2.5"/></svg><span class="nav-text">@T["Audit"]</span></a>
+    </nav>
+    <div class="side-rule" aria-hidden="true"></div>
+    <nav class="nav" aria-label="@T["Event"]">
+        <button class="event-switch" data-menu-target="admin-event-menu" aria-haspopup="menu" aria-expanded="false" title="@(selected?.Name ?? T["Select an event"].Value)">
+            <svg class="ic ev-ic" aria-hidden="true" viewBox="0 0 16 16"><rect x="2.5" y="3.5" width="11" height="10" rx="1.5"/><path d="M2.5 6.5h11M5.5 2v3M10.5 2v3"/></svg>
+            <span class="ev-text"><span class="ev-lbl">@T["Event"]</span><span class="ev-name">@(selected?.Name ?? T["Select an event"].Value)</span>
+            @if (selected is not null) { <span class="ev-meta"><span class="dot @selected.Tone"></span><span class="ev-meta-text">@selected.Stage · @selected.When</span></span> }
+            </span><svg class="ic ev-chev" aria-hidden="true" viewBox="0 0 16 16"><path d="M4.5 6.5 8 10l3.5-3.5"/></svg>
+        </button>
+        @if (selected is not null)
+        {
+            <a class="nav-item @(currentPage == "/Admin/Events/Manage" ? "is-current" : null)" href="@Bingo.Web.Navigation.SharedShellService.AdminDesignEventUrl("/Admin/Events/Manage", selected.Id, selected.Hidden)" data-shell-link aria-current="@(currentPage == "/Admin/Events/Manage" ? "page" : null)" title="@T["Overview"]"><svg aria-hidden="true" class="ic" viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="4.5" height="4.5" rx="1"/><rect x="9" y="2.5" width="4.5" height="4.5" rx="1"/><rect x="2.5" y="9" width="4.5" height="4.5" rx="1"/><rect x="9" y="9" width="4.5" height="4.5" rx="1"/></svg><span class="nav-text">@T["Overview"]</span></a>
+            <a class="nav-item @(currentPage == "/Admin/Events/Identity" ? "is-current" : null)" href="@Bingo.Web.Navigation.SharedShellService.AdminDesignEventUrl("/Admin/Events/Identity", selected.Id)" data-shell-link aria-current="@(currentPage == "/Admin/Events/Identity" ? "page" : null)" title="@T["Identity"]"><svg aria-hidden="true" class="ic" viewBox="0 0 16 16"><path d="M3.5 14V2.5M3.5 3h8l-1.5 3 1.5 3h-8"/></svg><span class="nav-text">@T["Identity"]</span></a>
+            <a class="nav-item @(currentPage == "/Admin/Events/Schedule" ? "is-current" : null)" href="@Bingo.Web.Navigation.SharedShellService.AdminDesignEventUrl("/Admin/Events/Schedule", selected.Id)" data-shell-link aria-current="@(currentPage == "/Admin/Events/Schedule" ? "page" : null)" title="@T["Schedule"]"><svg aria-hidden="true" class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5"/><path d="M8 5v3l2 1.5"/></svg><span class="nav-text">@T["Schedule"]</span></a>
+            <a class="nav-item @(currentPage == "/Admin/Events/Participants" ? "is-current" : null)" href="@Bingo.Web.Navigation.SharedShellService.AdminDesignEventUrl("/Admin/Events/Participants", selected.Id)" data-shell-link aria-current="@(currentPage == "/Admin/Events/Participants" ? "page" : null)" title="@T["Participants"]"><svg aria-hidden="true" class="ic" viewBox="0 0 16 16"><circle cx="6" cy="5.8" r="2.4"/><path d="M1.8 13.3c.5-2.4 2.2-3.5 4.2-3.5s3.7 1.1 4.2 3.5"/><path d="M10.6 3.7a2.3 2.3 0 0 1 0 4.3M11.9 10.1c1.2.5 2 1.5 2.3 3.2"/></svg><span class="nav-text">@T["Participants"]</span></a>
+            <a class="nav-item @(currentPage == "/Admin/Events/Questions" ? "is-current" : null)" href="@Bingo.Web.Navigation.SharedShellService.AdminDesignEventUrl("/Admin/Events/Questions", selected.Id)" data-shell-link aria-current="@(currentPage == "/Admin/Events/Questions" ? "page" : null)" title="@T["Signup setup"]"><svg aria-hidden="true" class="ic" viewBox="0 0 16 16"><rect x="3.5" y="3" width="9" height="11" rx="1.5"/><path d="M6 3V2h4v1M6 7h4M6 9.5h4M6 12h2"/></svg><span class="nav-text">@T["Signup setup"]</span></a>
+            <a class="nav-item @(currentPage == "/Admin/Events/Draft" ? "is-current" : null)" href="@Bingo.Web.Navigation.SharedShellService.AdminDesignEventUrl("/Admin/Events/Draft", selected.Id)" data-shell-link aria-current="@(currentPage == "/Admin/Events/Draft" ? "page" : null)" title="@T["Teams"]"><svg aria-hidden="true" class="ic" viewBox="0 0 16 16"><rect x="6" y="2" width="4" height="3" rx=".8"/><rect x="2" y="11" width="4" height="3" rx=".8"/><rect x="10" y="11" width="4" height="3" rx=".8"/><path d="M8 5v3M4 11V8h8v3"/></svg><span class="nav-text">@T["Teams"]</span></a>
+            <a class="nav-item @(currentPage == "/Admin/Events/Board" ? "is-current" : null)" href="@Bingo.Web.Navigation.SharedShellService.AdminDesignEventUrl("/Admin/Events/Board", selected.Id)" data-shell-link aria-current="@(currentPage == "/Admin/Events/Board" ? "page" : null)" title="@T["Board"]"><svg aria-hidden="true" class="ic" viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="11" height="11" rx="1.5"/><path d="M6.2 2.5v11M9.8 2.5v11M2.5 6.2h11M2.5 9.8h11"/></svg><span class="nav-text">@T["Board"]</span></a>
+            <a class="nav-item @(currentPage == "/Admin/Events/WiseOldMan" ? "is-current" : null)" href="@Bingo.Web.Navigation.SharedShellService.AdminDesignEventUrl("/Admin/Events/WiseOldMan", selected.Id)" data-shell-link aria-current="@(currentPage == "/Admin/Events/WiseOldMan" ? "page" : null)" title="@T["WOM"]"><svg aria-hidden="true" class="ic" viewBox="0 0 16 16"><path d="M2.5 13.5h11"/><path d="M4 11l3-3.5 2.2 2L12.5 5"/></svg><span class="nav-text">@T["WOM"]</span></a>
+            <a class="nav-item @(currentPage == "/Admin/Review/Index" ? "is-current" : null)" href="@Bingo.Web.Navigation.SharedShellService.AdminDesignEventUrl("/Admin/Review/Index", selected.Id)" data-shell-link aria-current="@(currentPage == "/Admin/Review/Index" ? "page" : null)" title="@T["Review"]"><svg aria-hidden="true" class="ic" viewBox="0 0 16 16"><path d="M2.5 9 4.3 3.5h7.4L13.5 9v4.5h-11z"/><path d="M2.5 9h3l.8 1.5h3.4l.8-1.5h3"/></svg><span class="nav-text">@T["Review"]</span></a>
+            <a class="nav-item @(currentPage == "/Admin/Events/Finalize" ? "is-current" : null)" href="@Bingo.Web.Navigation.SharedShellService.AdminDesignEventUrl("/Admin/Events/Finalize", selected.Id)" data-shell-link aria-current="@(currentPage == "/Admin/Events/Finalize" ? "page" : null)" title="@T["Final review"]"><svg aria-hidden="true" class="ic" viewBox="0 0 16 16"><path d="M2.5 4l1 1 2-2M2.5 9l1 1 2-2"/><path d="M7.5 4.5h6M7.5 9.5h6M7.5 13h6"/></svg><span class="nav-text">@T["Final review"]</span></a>
+        }
+    </nav>
+</aside>
+<div class="menu" id="admin-account-menu" role="menu" hidden data-shell-menu>
+    <a class="menu-item" role="menuitem" href="/Account/Settings">@T["Account settings"]</a>
+    <a class="menu-item" role="menuitem" href="/Account/ChangePassword">@T["Change password"]</a>
+    <a class="menu-item" role="menuitem" href="/">@T["View public site"]</a>
+    <form method="post" asp-page="/Account/Logout"><button class="menu-item" role="menuitem" type="submit">@T["Sign out"]</button></form>
+</div>
+<div class="menu design-event-menu" id="admin-event-menu" role="menu" hidden data-shell-menu>
+    <div class="menu-head">@T["Switch event"]</div>
+    <div class="design-event-options">
+        @foreach (var item in Model.Events)
+        {
+            <a class="menu-item" role="menuitem" href="@item.Url" data-shell-link aria-current="@(item.Id == selected?.Id ? "page" : null)">@if (item.Id == selected?.Id) { <svg class="ic" aria-hidden="true" viewBox="0 0 16 16"><path d="m3 8 3 3 7-7"/></svg> }<span class="grow">@item.Name</span><span class="menu-hint">@item.Stage</span>@if (item.Hidden) { <span>@T["Hidden"]</span> }</a>
+        }
+    </div>
+    <div class="menu-sep" role="separator"></div><a class="menu-item" role="menuitem" href="/Admin/Events/Index" data-shell-link>@T["All events"]</a>
+</div>
