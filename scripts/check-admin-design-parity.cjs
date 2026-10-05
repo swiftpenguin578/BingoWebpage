@@ -5,7 +5,18 @@ const fs=require('node:fs'),path=require('node:path'),assert=require('node:asser
 const {chromium,webkit}=require('playwright');
 const {startFixture,referencePage,login}=require('./lib/admin-parity-fixture.cjs');
 const {comparator,settle}=require('./lib/admin-parity-compare.cjs');
-const basePairs=require('./lib/admin-parity-pairs.cjs').map(pair=>[...pair,{text:/^(nav-label|nav-item text|ev-lbl|ev-name|ev-meta-text|crumb first|crumb sep|crumb mid|crumb cur|h1|summary|form-sec-title|form-sec-sub|lbl|input name|textarea|field-hint|link title|link hint|copy btn$|save$)/.test(pair[0]),icon:/svg|chevron|dot|copy btn$/.test(pair[0]),dimensions:pair[0]==='crumb mid'?['width']:/svg|dot|chevron/.test(pair[0])?['width','height']:[]}]);
+// Brief60 item7: explicit tolerances in CSS px, allowing subpixel rounding only.
+// V6's missing8px spacer and V19's extra20px banner padding must both fail.
+const geometry={
+ 'page-head':{box:{x:1,y:1}},
+ 'card':{box:{x:1,y:1},spacing:{reference:'.page-head',app:'.page-head',from:'bottom',to:'top',tolerancePx:1,label:'head-to-card'}},
+ 'form-sec-title':{box:{x:1,y:1},spacing:{reference:'.card.form-card',app:'.card.form-card',from:'top',to:'top',tolerancePx:1,label:'V19 card-to-first-heading'}},
+ 'event-switch':{box:{y:1}},
+ 'overview item':{box:{y:1},spacing:{reference:'#event-switch',app:'.event-switch',from:'bottom',to:'top',tolerancePx:1,label:'V6 event-to-first-nav'}},
+ 'form-bar':{box:{x:1,y:1,width:1,height:1}},
+ 'crumbs':{box:{x:1,y:1,height:1}}
+};
+const basePairs=require('./lib/admin-parity-pairs.cjs').map(pair=>[...pair,{...geometry[pair[0]],text:/^(nav-label|nav-item text|ev-lbl|ev-name|ev-meta-text|crumb first|crumb sep|crumb mid|crumb cur|h1|summary|form-sec-title|form-sec-sub|lbl|input name|textarea|field-hint|link title|link hint|copy btn$|save$)/.test(pair[0]),icon:/svg|chevron|dot|copy btn$/.test(pair[0]),dimensions:pair[0]==='crumb mid'?['width']:/svg|dot|chevron/.test(pair[0])?['width','height']:[]}]);
 const root=path.resolve(process.env.BINGO_PARITY_ROOT||process.cwd()),output=path.resolve(process.env.BINGO_PARITY_OUTPUT||'artifacts/admin-parity');
 const state=(page,values)=>page.evaluate(values=>new Promise(resolve=>window.__parityReference.setState(values,resolve)),values);
 const P=(name,ref,app,options={})=>[name,ref,app,{text:true,icon:true,required:true,...options}];

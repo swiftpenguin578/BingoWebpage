@@ -93,7 +93,9 @@ U1 review decisions (user approval, 5 October 2026; brief50 / decisions08):
 - U-C: switcher stage · when follows the reference: closes plus signup closing date
   while signups are open, starts plus event start before play, ends plus event end
   in Live/final review, or not announced when unset. Unsupported stored timezone
-  uses UTC for that date text.
+  uses UTC for that date text. Finalized/Archived use ended plus the end date.
+  User decision, 6 October (brief60 item3): Cancelled uses on plus CancelledAt
+  in the event timezone, even when its planned end remains in the future.
 - U-E: event breadcrumb is plain text; failed loads show the reference icon/title;
   menus use reference placement and exit animation; collapse labels toggle. Pages
   may provide their own loading skeleton, with a generic fallback. Use the existing
@@ -125,7 +127,13 @@ U1 visual-check clarifications (5 October; brief55): language changes save throu
 existing `/language` POST then swap translated page/shell without a skeleton,
 retaining sidebar, scroll and focus. Highlight after the dirty guard; use the theme
 segment transition and a `--dk-dur-theme` text cross-fade (none with reduced motion).
-Keep editing preserves draft and language; unavailable swaps fall back to reload.
+Keep editing preserves draft and language and returns focus to the last edited page
+control, closing mobile navigation first when needed to release its inert state.
+Language swaps suppress card entrance animation; only the theme-duration cross-fade
+runs (none under reduced motion). Unavailable swaps fall back to reload.
+The temporary skeleton before full-load fallback to old-layout pages is user-accepted
+until those pages are bound. The address bar changes only after a successful swap;
+this timing is also user-accepted (5 October).
 Loading/failed navigation already shows the destination event in switcher/crumb
 (Q7, as the reference); Back and cancelled guards restore the correct context.
 Toasts use finite reference lifetime and animated exit, without hover pause; on
