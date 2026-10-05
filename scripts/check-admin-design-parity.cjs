@@ -154,13 +154,17 @@ const modal=[P('modal','.modal','.modal',{text:false}),P('dialog title','.m-titl
     await app.locator('[data-copy-url]').click();await ref.locator('#copy-link').click();await compare(engine+'-copy-failed',app,ref,[P('copy failure toast','.toast','.toast')]);assert.equal(await app.evaluate(()=>getSelection().toString()),await app.locator('#event-link').textContent());
    });
    await scenario('served-language',async()=>{
-    await load();await resetRef();await app.evaluate(()=>{window.__documentMarker='language-retained';window.__sidebar=document.querySelector('[data-shell-sidebar]');});
+    await load();await resetRef();await settle(app);await app.evaluate(()=>{window.languageAnimations=[];document.addEventListener('animationstart',event=>{if(event.target.matches('[data-language-transition],.fade-in'))window.languageAnimations.push({name:event.animationName,duration:getComputedStyle(event.target).animationDuration,theme:getComputedStyle(event.target).getPropertyValue('--dk-dur-theme').trim()});});});await app.evaluate(()=>{window.__documentMarker='language-retained';window.__sidebar=document.querySelector('[data-shell-sidebar]');});
     await app.locator('#Input_Name').fill('Language draft');await ref.locator('#f-name').fill('Language draft');let posts=0;const count=request=>{if(request.method()==='POST'&&new URL(request.url()).pathname.toLowerCase()==='/language')posts++;};app.on('request',count);
     await app.locator('[name=culture][value=da]').click();await ref.locator('.crumb-btn').click();await app.getByRole('alertdialog').waitFor();await compare(engine+'-language-guard',app,ref,modal);
     await app.getByRole('button',{name:'Keep editing',exact:true}).click();assert.equal(posts,0);assert.equal(await app.locator('html').getAttribute('lang'),'en');assert.equal(await app.locator('#Input_Name').inputValue(),'Language draft');
     await app.locator('[name=culture][value=da]').click();await app.getByRole('button',{name:'Discard',exact:true}).click();await app.waitForFunction(()=>document.documentElement.lang==='da');assert.equal(await app.evaluate(()=>window.__documentMarker),'language-retained');assert.equal(await app.evaluate(()=>window.__sidebar===document.querySelector('[data-shell-sidebar]')),true);assert.equal(posts,1);assert.equal(await app.locator('[data-page-skeleton]').count(),0);
+    await settle(app);const animations=await app.evaluate(()=>window.languageAnimations);assert.deepEqual(animations.map(a=>a.name),['adminLanguageFade','adminLanguageFade','adminLanguageFade']);
+    const milliseconds=value=>parseFloat(value)*(value.endsWith('ms')?1:1000);
+    for(const animation of animations)assert.equal(milliseconds(animation.duration),milliseconds(animation.theme),'language uses exactly the theme duration');
     await app.screenshot({path:path.join(output,engine+'-language-danish-app.png'),fullPage:true});
-    await app.locator('[name=culture][value=en]').click();await app.waitForFunction(()=>document.documentElement.lang==='en');assert.equal(posts,2);app.removeListener('request',count);results.push({name:engine+'-served-language',passed:true});
+    await app.emulateMedia({reducedMotion:'reduce'});await app.evaluate(()=>window.languageAnimations=[]);
+    await app.locator('[name=culture][value=en]').click();await app.waitForFunction(()=>document.documentElement.lang==='en');assert.equal(posts,2);await settle(app);const reducedAnimations=await app.evaluate(()=>window.languageAnimations);assert.deepEqual(reducedAnimations,[],'reduced motion has no entrance or language animation');app.removeListener('request',count);results.push({name:engine+'-served-language',passed:true,animations,reducedAnimations});
    });
    await scenario('served-navigation',async()=>{
     await load('winter-bingo-2027');await app.evaluate(()=>window.__documentMarker='retained');
