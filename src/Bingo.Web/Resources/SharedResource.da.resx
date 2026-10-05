@@ -3090,4 +3090,13 @@
   <data name="You were signed out, so we could not check whether the change went through. Your draft is still here. Sign in and use Check again." xml:space="preserve"><value>Du blev logget ud, så vi kunne ikke kontrollere, om ændringen blev gennemført. Dit udkast er stadig her. Log ind, og vælg Kontrollér igen.</value></data>
   <data name="not announced" xml:space="preserve"><value>ikke annonceret</value></data>
   <data name="closes {0}" xml:space="preserve"><value>lukker {0}</value></data>
+  <data name="No changes to save" xml:space="preserve"><value>Ingen ændringer at gemme</value></data>
+  <data name="Up to date" xml:space="preserve"><value>Opdateret</value></data>
+  <data name="Show this event’s times in {0}?" xml:space="preserve"><value>Vis eventets tidspunkter i {0}?</value></data>
+  <data name="Save with {0}" xml:space="preserve"><value>Gem med {0}</value></data>
+  <data name="{0} has been public, so players may already have seen its times. Every scheduled moment stays the same; only how it’s shown changes." xml:space="preserve"><value>{0} har været offentligt, så spillere kan allerede have set tidspunkterne. Alle planlagte tidspunkter forbliver de samme; kun visningen ændres.</value></data>
+  <data name="Scheduled times before and after the change" xml:space="preserve"><value>Planlagte tidspunkter før og efter ændringen</value></data>
+  <data name="Now" xml:space="preserve"><value>Nu</value></data>
+  <data name="Nothing is scheduled yet, so no shown times change." xml:space="preserve"><value>Intet er planlagt endnu, så ingen viste tidspunkter ændres.</value></data>
+  <data name="Not scheduled yet: {0}." xml:space="preserve"><value>Ikke planlagt endnu: {0}.</value></data>
 </root>

@@ -105,10 +105,41 @@ public sealed partial class AdminDesignShellIntegrationTests
         await using var factory = IdentityFactory(); using var client = await IdentityClientAsync(factory);
         var html = WebUtility.HtmlDecode(await client.GetStringAsync($"/Admin/Events/Identity/{item.Id}"));
         var template = Regex.Match(html, "<template[^>]*data-zone=\"Europe/Copenhagen\"[^>]*>(.*?)</template>", RegexOptions.Singleline).Groups[1].Value;
-        Assert.Equal(5, Regex.Count(template, "data-identity-timezone-row"));
+        Assert.Equal(4, Regex.Count(template, "data-identity-timezone-row"));
+        Assert.Equal(1, Regex.Count(template, "data-identity-timezone-unset"));
+        Assert.Contains("Not scheduled yet: Team draft.", template);
+        Assert.Contains("Now · UTC", template); Assert.Contains("After · Europe/Copenhagen", template);
         Assert.Contains("Signups open", template); Assert.Contains("Signups close", template); Assert.Contains("Team draft", template); Assert.Contains("Event starts", template); Assert.Contains("Event ends", template);
         Assert.Contains("Not scheduled yet", template); Assert.Contains("13:00 (+01:00)", template); Assert.Contains("14:00 (+02:00)", template); Assert.Contains("12:00 (+00:00)", template); Assert.DoesNotContain("First public", template);
         Assert.Contains("https://localhost/Events/timezone-fixture/Signups", html); Assert.DoesNotContain("identity-event-information-rail", html); Assert.Contains("saves directly without a confirmation", html);
+    }
+
+    [Fact]
+    public async Task EditingAfterUseTheirsSavesNewIntentAgainstReviewedCurrentValue()
+    {
+        var admin = Admin(); var item = Event(admin, EventState.Draft, "Original", 2);
+        await using (var db = new ApplicationDbContext(options)) { db.AddRange(admin, item); await db.SaveChangesAsync(); }
+        await using var factory = IdentityFactory(); using var client = await IdentityClientAsync(factory);
+        var route = $"/Admin/Events/Identity/{item.Id}";
+        var mine = IdentityFields(await client.GetStringAsync(route));
+        var theirs = new Dictionary<string, string>(mine) { ["Input.Name"] = "Their name" };
+        using var theirSave = await client.PostAsync(route, new FormUrlEncodedContent(theirs));
+        Assert.Equal(HttpStatusCode.Redirect, theirSave.StatusCode);
+        mine["Input.Name"] = "My first draft";
+        using var conflict = await client.PostAsync(route, new FormUrlEncodedContent(mine));
+        Assert.Equal(HttpStatusCode.OK, conflict.StatusCode);
+        var html = await conflict.Content.ReadAsStringAsync(); Assert.Contains("data-identity-conflicts=\"Name\"", html);
+        var resolved = IdentityFields(html);
+        Assert.Equal("Their name", resolved["Input.ReviewedName"]);
+        // Browser proof checks UseCurrent -> KeepMine; this request exercises that merge on PostgreSQL.
+        resolved["Input.Name"] = "Edited after theirs"; resolved["Input.NameResolution"] = "KeepMine";
+        using var saved = await client.PostAsync(route, new FormUrlEncodedContent(resolved));
+        Assert.Equal(HttpStatusCode.Redirect, saved.StatusCode); Assert.Equal(route, saved.Headers.Location!.ToString());
+        await using var verify = new ApplicationDbContext(options);
+        var current = await verify.Events.SingleAsync();
+        Assert.Equal("Edited after theirs", current.Name); Assert.Null(current.Description); Assert.Equal("UTC", current.Timezone);
+        Assert.Equal(item.Version + 2, current.Version);
+        Assert.Equal(2, await verify.AuditEntries.CountAsync(entry => entry.Action == "event.identity_updated"));
     }
 
     private WebApplicationFactory<Program> IdentityFactory(params IInterceptor[] interceptors) => new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder
