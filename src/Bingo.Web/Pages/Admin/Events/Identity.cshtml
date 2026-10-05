@@ -14,13 +14,13 @@
     data-name-required="@T["Enter an event name."]" data-validation-summary="@T["{0} fields need attention before you can save."]"
     data-name-limit="@T["Event names must be 50 characters or fewer."]" data-description-limit="@T["Description must be 4000 characters or fewer."]" data-buy-in-description-limit="@T["Buy-in information must be 2000 characters or fewer."]"
     data-identity-conflicts="@string.Join(",", Model.FieldConflicts)" data-label-name="@T["Event name"]" data-label-description="@T["Description"]" data-label-buy-in-description="@T["Buy-in information"]" data-label-timezone="@T["Timezone"]" data-save="@T["Save changes"]" data-saved="@T["Saved"]"
-    data-check-again="@T["Check again"]" data-unknown="@T["The save outcome is uncertain. Check again to read the current values; your draft is retained."]"
+    data-no-changes="@T["No changes to save"]" data-up-to-date-note="@T["Up to date"]" data-check-again="@T["Check again"]" data-unknown="@T["The save outcome is uncertain. Check again to read the current values; your draft is retained."]"
     data-up-to-date="@T["Up to date. The event now has the expected values. This does not confirm which request saved them."]"
     data-not-applied="@T["The event still has its earlier values, so your changes weren't applied. They are still here; save again when you are ready."]"
     data-stale="@T["Another admin saved this event while you were editing. Where you both changed a field, yours is kept and theirs is shown beside it. Review, then save again."]"
     data-refused="@T["This event is read-only in its current lifecycle state."]" data-use-theirs="@T["Use theirs"]" data-theirs="@T["Their value: {0}"]"
     data-leave-title="@T["Leave before checking?"]" data-leave-message="@T["Your changes may already have been saved. Check again before leaving, or leave anyway without retrying the save."]" data-leave="@T["Leave anyway"]"
-    data-keep-editing="@T["Keep editing"]" data-timezone-title="@T["Confirm timezone change"]" data-timezone-action="@T["Confirm timezone change"]"
+    data-keep-editing="@T["Keep editing"]" data-timezone-title="@T["Show this event’s times in {0}?"]" data-timezone-action="@T["Save with {0}"]"
     data-timezone-consequence="@T["Stored UTC instants will not move. Participants will see the same moments in the new timezone, including each UTC offset."]"
     data-saved-together="@T["Also saved with this change: {0}."]" data-unsaved="@T["Unsaved changes"]" data-copied="@T["Link copied"]" data-copy-failed="@T["The link could not be copied. Select and copy it manually."]">
     <form method="post" class="identity-editor-form">
@@ -135,9 +135,21 @@
         }
         @foreach (var pair in Model.TimezonePreviews)
         {
-            <template data-identity-timezone-preview data-zone="@pair.Key"><div class="m-body"><p>@T["Stored UTC instants will not move. Participants will see the same moments in the new timezone, including each UTC offset."]</p><dl class="kv">
-                @foreach (var row in pair.Value) { <div data-identity-timezone-row><dt>@T[row.Label]</dt><dd>@row.Current → @row.New</dd></div> }
-            </dl></div></template>
+            var scheduled = pair.Value.Where(row => row.Scheduled).ToList();
+            var unset = pair.Value.Where(row => !row.Scheduled).Select(row => T[row.Label].Value.ToLower(System.Globalization.CultureInfo.CurrentCulture)).ToList();
+            var unsetNames = string.Join(", ", unset);
+            if (unsetNames.Length > 0) { unsetNames = char.ToUpper(unsetNames[0], System.Globalization.CultureInfo.CurrentCulture) + unsetNames[1..]; }
+            <template data-identity-timezone-preview data-zone="@pair.Key"><div class="m-body"><p>@T["{0} has been public, so players may already have seen its times. Every scheduled moment stays the same; only how it’s shown changes.", Model.EventName]</p>
+                @if (scheduled.Count > 0)
+                {
+                    <div class="compare" role="table" aria-label="@T["Scheduled times before and after the change"]">
+                        <div class="compare-head" role="row"><span role="columnheader">@T["Scheduled"]</span><span role="columnheader">@T["Now"] · @Model.Input.TimezoneConfirmationOriginal</span><span role="columnheader">@T["After"] · @pair.Key</span></div>
+                        @foreach (var row in scheduled) { <div class="compare-row" role="row" data-identity-timezone-row><span class="compare-label" role="rowheader">@T[row.Label]</span><span class="compare-old" role="cell"><span class="compare-k">@T["Now"]</span>@row.Current</span><span class="compare-new" role="cell"><span class="compare-k">@T["After"]</span>@row.New</span></div> }
+                    </div>
+                }
+                @if (scheduled.Count == 0) { <p class="compare-foot" data-identity-timezone-unset>@T["Nothing is scheduled yet, so no shown times change."]</p> }
+                else if (unset.Count > 0) { <p class="compare-foot" data-identity-timezone-unset>@T["Not scheduled yet: {0}.", unsetNames]</p> }
+            </div></template>
         }
     </form>
 </section>

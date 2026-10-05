@@ -256,10 +256,19 @@
     if (links.length !== replacements.length) throw new Error('Unexpected sidebar navigation');
     links.forEach((link, index) => {
       const replacement = replacements[index];
-      link.href = replacement.href;
+      link.setAttribute('href', replacement.getAttribute('href'));
       link.classList.toggle('is-current', replacement.classList.contains('is-current'));
       if (replacement.hasAttribute('aria-current')) link.setAttribute('aria-current', replacement.getAttribute('aria-current')); else link.removeAttribute('aria-current');
     });
+  }
+  function refreshContext(doc) {
+    closeMenu(false);
+    refreshSidebar(doc);
+    for (const selector of ['[data-shell-topbar]', '[data-shell-menu]']) {
+      const old = [...document.querySelectorAll(selector)], replacements = [...doc.querySelectorAll(selector)];
+      if (old.length !== replacements.length) throw new Error('Unexpected shell context');
+      old.forEach((element, index) => element.replaceWith(document.importNode(replacements[index], true)));
+    }
   }
   async function closeNavigationLayers() {
     while (layers.length) if (!await closeLayer(layers.at(-1), false, true)) return false;
@@ -355,7 +364,7 @@
     if (record) index++;
     history[record ? 'pushState' : 'replaceState']({ adminDesignIndex: index }, '', url); activeUrl = url.href;
   }
-  const api = window.AdminUI = { trapTab, openLayer, closeLayer, confirm, confirmDiscard, toast, busy, reducedMotion, registerDraft, trackForm, refreshDirty, guard, query, setUrl, navigate };
+  const api = window.AdminUI = { trapTab, openLayer, closeLayer, confirm, confirmDiscard, toast, busy, reducedMotion, registerDraft, trackForm, refreshDirty, guard, query, setUrl, navigate, refreshContext };
   document.addEventListener('input', refreshDirty);
   document.addEventListener('change', refreshDirty);
   document.addEventListener('pointerdown', () => body.classList.remove('using-keyboard'));

@@ -62,6 +62,7 @@ export async function init(region, ui = window.AdminUI) {
   const editable = root.dataset.identityEditable !== 'false';
   const snapshot = () => JSON.stringify(fields.map(field => value(field)));
   let baseline = snapshot();
+  const changed = () => fields.some(field => canonical(field, wire(value(field))) !== canonical(field, wire(value(`${value('HasReviewedValues').toLowerCase() === 'true' ? 'Reviewed' : 'Original'}${field}`))));
   const dirty = () => retained || uncertain !== null || snapshot() !== baseline;
   const report = (message, tone = 'is-warning') => { if (!feedback) return; feedback.textContent = message; feedback.className = `banner ${tone}`; feedback.hidden = !message; };
   function paint() {
@@ -69,8 +70,9 @@ export async function init(region, ui = window.AdminUI) {
       const control = get(field);
       if (control && control.type !== 'hidden') control.disabled = pending || !!uncertain;
     }
-    if (save) { save.disabled = pending; save.textContent = uncertain ? text('checkAgain') : text('save'); save.setAttribute('aria-busy', String(pending)); }
-    if (state && dirty()) state.textContent = text('unsaved');
+    if (save) { save.disabled = pending || (!uncertain && !changed()); save.title = !uncertain && !changed() ? text('noChanges') : ''; save.textContent = uncertain ? text('checkAgain') : text('save'); save.setAttribute('aria-busy', String(pending)); }
+    if (state && dirty()) state.textContent = changed() || uncertain ? text('unsaved') : text('noChanges');
+    else if (state && !state.textContent) state.textContent = text('noChanges');
     ui.refreshDirty();
   }
   function conflict(field, theirs) {
@@ -137,7 +139,7 @@ export async function init(region, ui = window.AdminUI) {
       uncertain = null; retained = false;
       for (const field of fields) { set(field, result.current.values[key(field)]); set(`Original${field}`, result.current.values[key(field)]); set(`${field}Resolution`, 'None'); }
       set('Version', result.current.version); set('HasBaseline', 'true'); set('HasReviewedValues', 'false'); root.dataset.identityCurrentVersion = String(result.current.version);
-      baseline = snapshot(); report(text('upToDate'), 'is-info'); if (state) state.textContent = text('upToDate');
+      baseline = snapshot(); report(text('upToDate'), 'is-info'); if (state) state.textContent = text('upToDateNote');
     } else if (result.state === 'notApplied') { uncertain = null; retained = true; report(text('notApplied'), 'is-info'); }
     else if (result.state === 'different') { uncertain = null; mergeCurrent(result.current); }
     else report(result.outcome?.kind === 'refused' ? text('refused') : text('unknown'));
@@ -153,6 +155,7 @@ export async function init(region, ui = window.AdminUI) {
   async function submit(confirmed = false) {
     if (pending) return;
     if (uncertain) { await checkAgain(); return; }
+    if (!changed()) return;
     validate(); if (!form.reportValidity()) return;
     if (!confirmed && needsTimezoneReview()) { openReview(); return; }
     const data = new FormData(form);
@@ -174,6 +177,7 @@ export async function init(region, ui = window.AdminUI) {
     const nextRoot = document.importNode(next, true);
     await dispose(); root.replaceWith(nextRoot); await init(nextRoot, ui);
     if (succeeded) {
+      ui.refreshContext(parsed);
       for (const toast of parsed.querySelectorAll('[data-toast-host] [data-toast]')) ui.toast(toast.querySelector('.grow')?.textContent || toast.textContent);
     }
   }
@@ -185,15 +189,16 @@ export async function init(region, ui = window.AdminUI) {
     const template = root.querySelector(`template[data-identity-timezone-preview][data-zone="${CSS.escape(value('Timezone'))}"]`);
     if (!template) return;
     const content = document.createElement('div');
-    const heading = document.createElement('h2'); heading.className = 'm-title'; heading.textContent = text('timezoneTitle');
+    const heading = document.createElement('h2'); heading.className = 'm-title'; heading.textContent = text('timezoneTitle').replace('{0}', value('Timezone'));
     content.append(heading, template.content.cloneNode(true));
     const other = fields.slice(0, 3).filter(field => canonical(field, wire(value(field))) !== canonical(field, wire(value(`Original${field}`)))).map(field => root.querySelector(`label[for="${get(field)?.id}"]`)?.textContent || field);
     if (other.length) { const together = document.createElement('p'); together.dataset.savedTogether = ''; together.textContent = text('savedTogether').replace('{0}', other.join(', ')); content.append(together); }
     const actions = document.createElement('div'); actions.className = 'm-actions';
     const cancel = document.createElement('button'); cancel.type = 'button'; cancel.className = 'btn'; cancel.textContent = text('keepEditing'); cancel.autofocus = true; cancel.dataset.identityReviewCancel = '';
-    const confirm = document.createElement('button'); confirm.type = 'button'; confirm.className = 'btn btn-primary'; confirm.textContent = text('timezoneAction'); confirm.dataset.identityReviewConfirm = '';
+    const confirm = document.createElement('button'); confirm.type = 'button'; confirm.className = 'btn btn-primary'; confirm.textContent = text('timezoneAction').replace('{0}', value('Timezone')); confirm.dataset.identityReviewConfirm = '';
     actions.append(cancel, confirm); content.append(actions);
-    layer = ui.openLayer({ title: text('timezoneTitle'), content, confirmation: true, pending: () => pending, opener: save, onClose: () => { layer = null; } });
+    layer = ui.openLayer({ title: heading.textContent, content, confirmation: true, pending: () => pending, opener: save, onClose: () => { layer = null; } });
+    layer.element.classList.add('is-wide');
     listen(cancel, 'click', () => { if (!pending) void layer?.close(false); });
     listen(confirm, 'click', () => void submit(true));
   }
@@ -207,8 +212,16 @@ export async function init(region, ui = window.AdminUI) {
   }
   if (root.dataset.identitySaveUncertain === 'true') { uncertain = createIdentityReadbackSession(new FormData(form), form.action, root.dataset.identityEventId, root.dataset.identityCurrentVersion, labels); report(text('unknown')); }
   listen(form, 'submit', event => { event.preventDefault(); void submit(); });
-  listen(form, 'input', event => { const field = event.target.name?.replace(/^Input\./, ''); if (fields.includes(field)) clearFieldError(field); validate(); paint(); });
-  listen(form, 'change', () => {
+  function edited(event) {
+    const field = event.target.name?.replace(/^Input\./, '');
+    if (!fields.includes(field)) return;
+    if (['UseCurrent', '2'].includes(value(`${field}Resolution`)))
+      set(`${field}Resolution`, canonical(field, wire(value(field))) === canonical(field, wire(value(`Original${field}`))) ? 'None' : 'KeepMine');
+    clearFieldError(field);
+  }
+  listen(form, 'input', event => { edited(event); validate(); paint(); });
+  listen(form, 'change', event => {
+    edited(event);
     const select = get('Timezone');
     if (select instanceof HTMLSelectElement) for (const option of select.options) if (!['UTC', 'Europe/Copenhagen', select.value].includes(option.value)) option.disabled = true;
     validate(); paint();

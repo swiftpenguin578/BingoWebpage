@@ -381,7 +381,7 @@ public sealed class IdentityModel(
             ("Signups open", item.SignupOpensAt), ("Signups close", item.SignupClosesAt),
             ("Team draft", item.DraftAt), ("Event starts", item.EventStartsAt), ("Event ends", item.EventEndsAt)
         ];
-        return rows.Select(row => new TimePreview(row.Label, Format(row.At, oldId), Format(row.At, newId))).ToList();
+        return rows.Select(row => new TimePreview(row.Label, Format(row.At, oldId), Format(row.At, newId), row.At.HasValue)).ToList();
     }
 
     private string Format(DateTimeOffset? value, string timezone) => value is null
@@ -458,7 +458,7 @@ public sealed class IdentityModel(
     private string DisplayTimezone { get; set; } = DateTimePresentation.DefaultTimezoneId;
 
     public sealed record TimezoneOption(string Id, string Label);
-    public sealed record TimePreview(string Label, string Current, string New);
+    public sealed record TimePreview(string Label, string Current, string New, bool Scheduled);
 
     public sealed class InputModel
     {
