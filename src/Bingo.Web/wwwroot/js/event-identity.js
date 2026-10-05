@@ -5,6 +5,16 @@ const key = field => field[0].toLowerCase() + field.slice(1);
 const trim = value => value.replace(/^[\u0009-\u000d\u0020\u0085\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]+|[\u0009-\u000d\u0020\u0085\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]+$/g, '');
 const canonical = (field, value) => { const result = trim(value ?? ''); return field === 'Description' || field === 'BuyInDescription' ? result || null : result; };
 const wire = value => value.replace(/\r\n|\r|\n/g, '\r\n');
+const setText = (element, value) => { if (element && element.textContent !== value) element.textContent = value; };
+const attribute = (element, name, value) => {
+  if (!element) return;
+  if (value == null) { if (element.hasAttribute(name)) element.removeAttribute(name); }
+  else if (element.getAttribute(name) !== String(value)) element.setAttribute(name, String(value));
+};
+const hidden = (element, value) => { if (element && element.hidden !== !!value) element.hidden = !!value; };
+const disabled = (element, value) => { if (element && element.disabled !== !!value) element.disabled = !!value; };
+const classOn = (element, name, value) => { if (element && element.classList.contains(name) !== !!value) element.classList.toggle(name, !!value); };
+
 export function createIdentityReadbackSession(data, action, eventId, version, labels = {}) {
   const yes = name => String(data.get(name)).toLowerCase() === 'true';
   const reviewed = yes('Input.HasReviewedValues'), baseline = yes('Input.HasBaseline');
@@ -54,7 +64,7 @@ export async function init(region, ui = window.AdminUI) {
   const text = name => root.dataset[name] || '';
   const get = name => form.elements.namedItem(`Input.${name}`);
   const value = name => get(name)?.value ?? '';
-  const set = (name, content) => { let input = get(name); if (!input) { input = document.createElement('input'); input.type = 'hidden'; input.name = `Input.${name}`; form.append(input); } input.value = content ?? ''; };
+  const set = (name, content) => { let input = get(name); if (!input) { input = document.createElement('input'); input.type = 'hidden'; input.name = `Input.${name}`; form.append(input); } if (input.value !== String(content ?? '')) input.value = content ?? ''; };
   const listen = (element, type, handler) => element?.addEventListener(type, handler, { signal: lifetime.signal });
   let pending = false, uncertain = null, layer = null, retained = value('HasReviewedValues').toLowerCase() === 'true' || root.dataset.identityReviewRequired === 'true';
   const save = root.querySelector('[data-identity-save]'), state = root.querySelector('[data-identity-state]'), feedback = root.querySelector('[data-identity-feedback]');
@@ -82,30 +92,30 @@ export async function init(region, ui = window.AdminUI) {
   function paint() {
     for (const field of fields) {
       const control = get(field);
-      if (control && control.type !== 'hidden') control.disabled = pending || !!uncertain;
+      if (control && control.type !== 'hidden') disabled(control, pending || !!uncertain);
     }
     if (save) {
-      save.disabled = pending; save.setAttribute('aria-disabled', String(!pending && !uncertain && !changed()));
-      save.title = !uncertain && !changed() ? text('noChanges') : '';
-      save.querySelector('[data-component-text]').textContent = pending ? text(uncertain ? 'checking' : 'saving') : text(uncertain ? 'checkAgain' : 'save');
-      save.querySelector('.spin').hidden = !pending; save.classList.toggle('is-busy', pending); save.setAttribute('aria-busy', String(pending));
+      disabled(save, pending); attribute(save, 'aria-disabled', !pending && !uncertain && !changed());
+      attribute(save, 'title', !uncertain && !changed() ? text('noChanges') : null);
+      setText(save.querySelector('[data-component-text]'), pending ? text(uncertain ? 'checking' : 'saving') : text(uncertain ? 'checkAgain' : 'save'));
+      hidden(save.querySelector('.spin'), !pending); classOn(save, 'is-busy', pending); attribute(save, 'aria-busy', pending);
     }
-    if (state) { state.hidden = pending || changed() || !!uncertain || !cleanNote; state.querySelector('[data-component-text]').textContent = cleanNote; }
-    const dirtyNote = root.querySelector('[data-identity-dirty]'); if (dirtyNote) dirtyNote.hidden = pending || (!changed() && !uncertain);
+    if (state) { hidden(state, pending || changed() || !!uncertain || !cleanNote); setText(state.querySelector('[data-component-text]'), cleanNote); }
+    const dirtyNote = root.querySelector('[data-identity-dirty]'); hidden(dirtyNote, pending || (!changed() && !uncertain));
     const note = root.querySelector('[data-timezone-note]');
-    if (note) { note.hidden = !(get('Timezone') instanceof HTMLSelectElement) || value('Timezone') === value('TimezoneConfirmationOriginal'); note.querySelector('[data-component-text]').textContent = root.dataset.identityPublic === 'true' ? text('timezonePublicNote') : text('timezonePrivateNote').replace('{0}', value('Timezone')); }
+    if (note) { hidden(note, !(get('Timezone') instanceof HTMLSelectElement) || value('Timezone') === value('TimezoneConfirmationOriginal')); setText(note.querySelector('[data-component-text]'), root.dataset.identityPublic === 'true' ? text('timezonePublicNote') : text('timezonePrivateNote').replace('{0}', value('Timezone'))); }
     if (layer) {
-      layer.element.setAttribute('aria-busy', String(pending));
-      layer.element.querySelectorAll('button').forEach(button => { button.disabled = pending; });
+      attribute(layer.element, 'aria-busy', pending);
+      layer.element.querySelectorAll('button').forEach(button => { disabled(button, pending); });
       const confirm = layer.element.querySelector('[data-identity-review-confirm]');
-      if (confirm) { confirm.classList.toggle('is-busy', pending); confirm.querySelector('.spin').hidden = !pending; confirm.querySelector('[data-component-text]').textContent = pending ? text('saving') : text('timezoneAction').replace('{0}', value('Timezone')); }
+      if (confirm) { classOn(confirm, 'is-busy', pending); hidden(confirm.querySelector('.spin'), !pending); setText(confirm.querySelector('[data-component-text]'), pending ? text('saving') : text('timezoneAction').replace('{0}', value('Timezone'))); }
     }
     for (const field of fields) {
       const input = get(field); if (!input || input.type === 'hidden') continue;
       const ids = [`error-${field}`, `conflict-${field}`, `hint-${field}`, `note-${field}`].filter(id => {
         const element = root.querySelector(`#${id}`); return element && !element.hidden && !element.classList.contains('field-validation-valid');
       });
-      if (ids.length) input.setAttribute('aria-describedby', ids.join(' ')); else input.removeAttribute('aria-describedby');
+      attribute(input, 'aria-describedby', ids.length ? ids.join(' ') : null);
     }
     ui.refreshDirty();
   }
@@ -139,9 +149,9 @@ export async function init(region, ui = window.AdminUI) {
     retained = true; staleReport();
   }
   function clearFieldError(field) {
-    get(field)?.classList.remove('input-validation-error', 'is-invalid');
+    classOn(get(field), 'input-validation-error', false); classOn(get(field), 'is-invalid', false);
     const error = root.querySelector(`#error-${field}`);
-    if (error) { error.querySelector('[data-component-text]').textContent = ''; error.classList.remove('field-validation-error'); error.classList.add('field-validation-valid'); }
+    if (error) { setText(error.querySelector('[data-component-text]'), ''); classOn(error, 'field-validation-error', false); classOn(error, 'field-validation-valid', true); }
   }
   function validate() {
     let errors = 0;
@@ -152,23 +162,23 @@ export async function init(region, ui = window.AdminUI) {
       const unchangedName = field === 'Name' && canonical(field, input.value) === canonical(field, value('HasReviewedValues') === 'true' ? value('ReviewedName') : value('OriginalName'));
       const tooLong = count > limit && !unchangedName;
       // Name is limited in Unicode code points; HTML maxlength counts UTF-16 units.
-      input.removeAttribute('maxlength');
+      attribute(input, 'maxlength', null);
       const message = field === 'Name' && !trim(input.value) ? text('nameRequired') : tooLong ? root.dataset[`${key(field)}Limit`] || '' : '';
       input.setCustomValidity(message);
       if (message) errors++;
       const error = root.querySelector(`#error-${field}`);
       if (error && (message || error.dataset.clientError === 'true')) {
-        error.querySelector('[data-component-text]').textContent = message; error.dataset.clientError = String(!!message);
-        error.classList.toggle('field-validation-valid', !message);
-        error.classList.toggle('field-validation-error', !!message);
+        setText(error.querySelector('[data-component-text]'), message); attribute(error, 'data-client-error', !!message);
+        classOn(error, 'field-validation-valid', !message);
+        classOn(error, 'field-validation-error', !!message);
       }
       const counter = root.querySelector(`[data-count-for="${field}"]`);
-      if (counter) { counter.textContent = `${count.toLocaleString(document.documentElement.lang)} / ${limit.toLocaleString(document.documentElement.lang)}`; counter.hidden = count <= limit * .85; counter.classList.toggle('is-over', tooLong); }
-      input.classList.toggle('is-invalid', !!message || input.classList.contains('input-validation-error'));
-      input.setAttribute('aria-invalid', String(!!message || input.classList.contains('input-validation-error')));
+      if (counter) { setText(counter, `${count.toLocaleString(document.documentElement.lang)} / ${limit.toLocaleString(document.documentElement.lang)}`); hidden(counter, count <= limit * .85); classOn(counter, 'is-over', tooLong); }
+      classOn(input, 'is-invalid', !!message || input.classList.contains('input-validation-error'));
+      attribute(input, 'aria-invalid', !!message || input.classList.contains('input-validation-error'));
     }
     const summary = root.querySelector('[data-client-validation]');
-    if (summary) { const component = ui.template('banner-error').firstElementChild; component.querySelector('[data-component-text]').textContent = errors > 1 ? text('validationSummary').replace('{0}', String(errors)) : ''; summary.replaceChildren(...component.childNodes); summary.hidden = errors < 2; }
+    if (summary) { const message = errors > 1 ? text('validationSummary').replace('{0}', String(errors)) : ''; if (summary.querySelector('[data-component-text]')?.textContent !== message) { const component = ui.template('banner-error').firstElementChild; setText(component.querySelector('[data-component-text]'), message); summary.replaceChildren(...component.childNodes); } hidden(summary, errors < 2); }
   }
   async function checkAgain() {
     if (!uncertain || pending) return;
@@ -270,6 +280,9 @@ export async function init(region, ui = window.AdminUI) {
   }
   listen(form, 'input', event => { edited(event); validate(); paint(); });
   listen(form, 'change', event => {
+    // Text input was painted on input. Its blur/change must not replace the
+    // Save content between Safari's pointerdown and pointerup.
+    if (['Input.Name', 'Input.Description', 'Input.BuyInDescription'].includes(event.target.name)) return;
     edited(event);
     const select = get('Timezone');
     if (select instanceof HTMLSelectElement) for (const option of select.options) if (!['UTC', 'Europe/Copenhagen', select.value].includes(option.value)) option.disabled = true;
