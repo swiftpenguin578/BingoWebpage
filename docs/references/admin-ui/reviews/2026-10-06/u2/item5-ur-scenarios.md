@@ -65,17 +65,18 @@ no broad rediscovery. Its earlier stop was not an item5 implementation/pass.
   each with an owned Playing character/answer from before cancellation. Directory
   shows3 confirmed / when it was cancelled, not a reconstructed played count.
 - Existing private setup now has a due postponed-start boundary and a matching,
-  unresolved failed attempt (BOARD_NOT_PUBLISHED / CURRENT_EVENT_EXISTS); its
   state remains Draft and it remains the earliest preparation card in final-review.
-  A new Draft has due failed signup opening with DESCRIPTION_REQUIRED; enabled
-  schedule and persisted attempt agree. Both attention categories are rendered.
-- Existing WOM-unavailable Archived row also exercises supported legacy imported
-  finalization provenance (`sourceEventId`, `manifestHash`, `inputHash`, `importHash`).
-  Synthetic SHA256 provenance is captured when the immutable snapshot is created;
-  no frozen snapshot is rewritten and no fictitious import-applied audit is added.
-  Retained synthetic rosters/website identities remain; this is the legacy metadata
-  import variant, not a new production importer feature. Mixed-history headline
-  stays measured while that row's evidence-submission count is unavailable.
+  A new Draft has due failed signup opening. **Corrected by brief70 item7**:
+  production disables that schedule; the earlier “enabled schedule and persisted
+  attempt agree” claim was wrong. The remediated seed derives actual blockers
+  from production evaluators and adds both System audits and Admin notifications.
+- **Superseded import claim, corrected by brief70 item7:** attaching provenance to
+  the platform WOM-unavailable lifecycle did not reproduce any production writer.
+  That platform scenario now stays unmodified platform history. A separate
+  archived import uses CsvImport participants, frozen board/rosters/results,
+  distinct manifest/input/combined hashes, a single Frozen historical import
+  transition and historical_import.applied audit. No existing frozen snapshot is
+  rewritten; the owned fresh seed reproduces the importer's supported shape.
 - Existing visible archived roster history has two official shared first-place
   snapshots, matching identical line/tile/EHB scores. Both winners render. Existing
   current-phase row follows the clarified profile; no second visible current row.
