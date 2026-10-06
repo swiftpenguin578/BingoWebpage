@@ -84,7 +84,10 @@ public sealed class Slice3CreationIdentityPersistenceIntegrationTests(PostgreSql
         }));
         Assert.Equal(HttpStatusCode.Redirect, login.StatusCode);
 
-        var createPage = await client.GetStringAsync("/Admin/Events/Create");
+        using var createEntry = await client.GetAsync("/Admin/Events/Create");
+        Assert.Equal(HttpStatusCode.Redirect, createEntry.StatusCode);
+        Assert.Equal("/Admin/Events?create=1", createEntry.Headers.Location!.OriginalString);
+        var createPage = await client.GetStringAsync(createEntry.Headers.Location);
         var token = Token(createPage);
         using (var retired = await PostAsync(new()
         {
