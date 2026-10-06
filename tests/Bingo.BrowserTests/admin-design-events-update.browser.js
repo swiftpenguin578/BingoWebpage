@@ -28,6 +28,7 @@ async function until(page,predicate){for(let i=0;i<200;i++)if(await page.evaluat
     window.retained=selectors.map(selector=>({selector,node:document.querySelector(selector)}));
     window.initialSummary=document.querySelector('.summary').textContent;
     window.initialCounts=[...document.querySelectorAll('.tab-count')].map(e=>e.textContent);
+    window.oldResults=document.querySelector('[data-directory-results] .rows');window.sawSkeleton=false;
     window.badFrames=[];window.requests=[];window.timers=[];window.nextHTML=next;
     const timer=window.setTimeout;window.setTimeout=(fn,ms,...args)=>{timers.push(ms);return timer(fn,ms,...args);};
     const fetch=window.fetch;
@@ -36,7 +37,9 @@ async function until(page,predicate){for(let i=0;i<200;i++)if(await page.evaluat
      requests.push(request);request.fail=()=>reject(new TypeError('Offline'));request.session=()=>resolve(new Response('<html>Sign in</html>',{headers:{'Content-Type':'text/html','X-Bingo-Post-Navigation':'/Account/Login'}}));request.fulfill=()=>resolve(new Response(window.nextHTML,{headers:{'Content-Type':'text/html'}}));
      options.signal.addEventListener('abort',()=>{request.aborted=true;reject(new DOMException('Aborted','AbortError'));},{once:true});
     }):fetch(url,options);
-    new MutationObserver(()=>{for(const saved of retained)if(!saved.node.isConnected||saved.node!==document.querySelector(saved.selector)||!saved.node.checkVisibility())badFrames.push(saved.selector);}).observe(document.querySelector('[data-page-region]'),{childList:true,subtree:true,attributes:true});
+    new MutationObserver(()=>{if(document.querySelector('[data-update-skeleton]'))sawSkeleton=true;
+     if(sawSkeleton&&oldResults?.isConnected&&oldResults.checkVisibility())badFrames.push('old results reappeared');
+     for(const saved of retained)if(!saved.node.isConnected||saved.node!==document.querySelector(saved.selector)||!saved.node.checkVisibility())badFrames.push(saved.selector);}).observe(document.querySelector('[data-page-region]'),{childList:true,subtree:true,attributes:true});
    },html[key]);
   };
   const identities=async()=>assert.deepEqual(await page.evaluate(()=>badFrames),[]);
@@ -94,11 +97,31 @@ async function until(page,predicate){for(let i=0;i<200;i++)if(await page.evaluat
   await page.evaluate(()=>requests[0].fulfill());await until(page,()=>timers.includes(400));
   await page.clock.runFor(400);await until(page,()=>new URL(location.href).searchParams.get('view')!=='current');
   assert.deepEqual(await page.evaluate(()=>({top:document.querySelector('[data-page-region]').scrollTop,left:document.querySelector('[data-directory-wrap]').scrollLeft})),scroll);await identities();
+  for(const kind of ['second-shown','abort-hold','failure-hold']) {
+   await reset('all');await page.evaluate(()=>document.querySelector('.tabs input').click());await until(page,()=>requests.length===1);
+   await page.clock.runFor(150);await page.clock.runFor(50);
+   if(kind==='failure-hold'){await page.evaluate(()=>requests[0].fail());await until(page,()=>timers.includes(350));}
+   else {
+    if(kind==='abort-hold'){await page.evaluate(()=>requests[0].fulfill());await until(page,()=>timers.includes(350));}
+    await page.evaluate(()=>{const button=document.querySelector('#directory-sort-identity');button.focus();button.click();});await until(page,()=>requests.length===2);
+    assert.equal(await page.evaluate(()=>requests[0].aborted),true);
+    assert.equal(await page.locator('[data-update-skeleton]').count(),1,'second results skeleton is immediate');
+    await page.evaluate(next=>{nextHTML=next;requests[1].fulfill();},html.sort);await until(page,()=>timers.includes(350));
+   }
+   await page.clock.runFor(349);assert.equal(await page.locator('[data-update-skeleton]').count(),1);
+   assert.equal(await page.locator('[data-load-retry]').count(),0);
+   await page.clock.runFor(1);await until(page,()=>!document.querySelector('[data-update-skeleton]'));
+   if(kind==='failure-hold')assert.equal(await page.locator('[data-load-retry]').count(),1);
+   else assert.equal(await page.locator('#directory-sort-identity').evaluate(e=>document.activeElement===e),true);
+   await identities();
+  }
   // A new settled query cancels the old request; characters typed mid-flight survive.
   await reset('search');await page.locator('#search-input').fill('alpha');await page.clock.runFor(250);await until(page,()=>requests.length===1);
   await page.locator('#search-input').press('End');await page.locator('#search-input').pressSequentially('X');await page.clock.runFor(250);await until(page,()=>requests.length===2);
   assert.equal(await page.evaluate(()=>requests[0].aborted),true);
   await page.evaluate(next=>{window.nextHTML=next;requests[1].fulfill();},html.late);
+  await until(page,()=>timers.includes(300));await page.clock.runFor(299);
+  assert.equal(await page.locator('[data-update-skeleton]').count(),1);await page.clock.runFor(1);
   await until(page,()=>new URL(location.href).searchParams.get('search')==='alphaX');
   assert.equal(await page.locator('#search-input').inputValue(),'alphaX');assert.equal(await page.locator('#search-input').evaluate(e=>document.activeElement===e),true);await identities();
   await reset('search');await page.locator('#search-input').fill('alpha');await page.locator('#search-input').press('Enter');await until(page,()=>requests.length===1);

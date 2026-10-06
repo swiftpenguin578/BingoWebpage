@@ -26,11 +26,12 @@
   }
   const BUSY_MINIMUM_MS = 600, QUICK_BUSY_MINIMUM_MS = 250;
   const LOADING_DELAY_MS = 150, LOADING_MINIMUM_MS = 400;
-  function delayedLoading(show, signal) {
-    let shownAt = null, timer, release;
+  function delayedLoading(show, signal, inheritedAt = null) {
+    let shownAt = inheritedAt, timer, release;
     const cancel = () => { clearTimeout(timer); release?.(); };
     signal.addEventListener('abort', cancel, { once: true });
-    timer = setTimeout(() => { if (!signal.aborted) { show(); shownAt = performance.now(); } }, LOADING_DELAY_MS);
+    if (shownAt !== null) show(shownAt);
+    else timer = setTimeout(() => { if (!signal.aborted) { shownAt = performance.now(); show(shownAt); } }, LOADING_DELAY_MS);
     return {
       async complete() {
         clearTimeout(timer);
@@ -312,7 +313,8 @@
     }
   };
 
-  let modules = [], navigation = null, sequence = 0, updating = null;
+  let modules = [], navigation = null, sequence = 0, updating = null, updateOverlay = null;
+  const positions = new Map();
   let index = history.state?.adminDesignIndex ?? 0;
   let activeUrl = location.href;
   history.replaceState({ ...history.state, adminDesignIndex: index }, '', activeUrl);
@@ -426,12 +428,13 @@
       if (oldId) for (const link of context.querySelectorAll('a[data-shell-link]')) link.href = link.href.replace(oldId, choice.dataset.eventId);
     }
   }
-  function skeleton(url) {
-    clearOverlay();
-    const main = document.querySelector('[data-page-region]'), context = contextSnapshot(), position = rememberPosition();
+  function skeleton(url, originalPosition = rememberPosition(), shownAt = performance.now()) {
+    pendingEvents?.abort(); pendingEvents = null;
+    const previous = overlay;
+    const main = document.querySelector('[data-page-region]'), context = previous?.context || contextSnapshot(), position = previous?.position || originalPosition;
     contexts.set(activeUrl, context);
-    const children = [...main.children].map(element => ({ element, hidden: element.hidden, inert: element.inert, aria: element.getAttribute('aria-hidden') }));
-    const busy = main.getAttribute('aria-busy');
+    const children = previous?.children || [...main.children].map(element => ({ element, hidden: element.hidden, inert: element.inert, aria: element.getAttribute('aria-hidden') }));
+    const busy = previous ? previous.busy : main.getAttribute('aria-busy');
     for (const saved of children) { saved.element.hidden = true; saved.element.inert = true; saved.element.setAttribute('aria-hidden', 'true'); }
     destinationContext(url);
     const kind = pageKind(url);
@@ -454,8 +457,9 @@
     }
     const provided = skeletons.get(kind); placeholder.dataset.skeletonLayout = provided ? 'page' : 'generic';
     placeholder.append(provided ? provided.cloneNode(true) : template('loading'));
-    main.append(placeholder); main.setAttribute('aria-busy', 'true');
-    overlay = { element: placeholder, main, children, busy, context, position };
+    if (previous) previous.element.replaceWith(placeholder); else main.append(placeholder);
+    main.setAttribute('aria-busy', 'true');
+    overlay = { element: placeholder, main, children, busy, context, position, shownAt };
     if (kind === 'events') bindPendingEvents(placeholder, url);
   }
   function refreshSidebar(doc, translated = false) {
@@ -489,7 +493,7 @@
       : active?.name ? `[name="${CSS.escape(active.name)}"]`
       : active?.getAttribute('aria-label') ? `[aria-label="${CSS.escape(active.getAttribute('aria-label'))}"]` : null;
     const scroller = document.querySelector('[data-page-region]');
-    return { active, selector, selection: typeof active?.selectionStart === 'number' ? [active.selectionStart, active.selectionEnd, active.selectionDirection] : null, top: scroller?.scrollTop || 0, left: scroller?.scrollLeft || 0 };
+    return { active, selector, regions: [...document.querySelectorAll('[data-admin-scroll-region][id]')].map(element => ({ id: element.id, top: element.scrollTop, left: element.scrollLeft })), selection: typeof active?.selectionStart === 'number' ? [active.selectionStart, active.selectionEnd, active.selectionDirection] : null, top: scroller?.scrollTop || 0, left: scroller?.scrollLeft || 0 };
   }
   function restorePosition(position) {
     const scroller = document.querySelector('[data-page-region]');
@@ -497,6 +501,7 @@
     const target = position.active?.isConnected ? position.active : position.selector ? document.querySelector(position.selector) : document.querySelector('.h1');
     focus(target);
     if (position.selection && typeof target?.setSelectionRange === 'function') target.setSelectionRange(...position.selection);
+    for (const saved of position.regions || []) { const element = document.getElementById(saved.id); if (element) { element.scrollTop = saved.top; element.scrollLeft = saved.left; } }
   }
   async function closeNavigationLayers() {
     while (layers.length) if (!await closeLayer(layers.at(-1), false, true, true)) return false;
@@ -514,13 +519,15 @@
     url = new URL(url, location.href).href;
     if (check && !await guard()) return false;
     if (!await closeNavigationLayers()) return false;
-    updating?.abort(); navigation?.abort(); clearOverlay();
+    updating?.abort(); navigation?.abort();
+    if (language) clearOverlay();
     if (body.dataset.navigationEnabled.toLowerCase() === 'false') { fullLoad(url); return true; }
     const ticket = ++sequence;
     navigation = new AbortController();
     closeMenu(false);
     if (mobile && !language) toggleSide(false);
-    const position = suppliedPosition || rememberPosition();
+    const position = suppliedPosition || overlay?.position || rememberPosition();
+    if (!language) positions.set(index, position);
     const currentMain = document.querySelector('[data-page-region]'), wasInert = currentMain.inert;
     let restored = false;
     const restoreMain = () => { if (!restored) { currentMain.inert = wasInert; restored = true; } };
@@ -528,7 +535,7 @@
     // could be lost by the already-guarded navigation.
     if (!language) currentMain.inert = true;
     navigation.signal.addEventListener('abort', restoreMain, { once: true });
-    const loading = !language ? delayedLoading(() => { skeleton(url); restoreMain(); }, navigation.signal) : null;
+    const loading = !language ? delayedLoading(shownAt => { skeleton(url, position, shownAt); restoreMain(); }, navigation.signal, overlay?.element.getAttribute('aria-busy') === 'true' ? overlay.shownAt : null) : null;
     let receivedPage = false;
     const fallback = destination => { restoreMain(); clearOverlay(); if (rollbackContext) { refreshContext(rollbackContext); restorePosition(position); } fullLoad(destination); return true; };
     try {
@@ -577,7 +584,8 @@
           element.dataset.languageTransition = '';
           element.addEventListener('animationend', () => element.removeAttribute('data-language-transition'), { once: true });
         }
-      } else focus(document.querySelector('.h1'));
+      } else if (mode === 'pop' && positions.has(targetIndex)) restorePosition(positions.get(targetIndex));
+      else focus(document.querySelector('.h1'));
       document.dispatchEvent(new CustomEvent('admin:page-changed', { detail: { url } }));
       return true;
     } catch (error) {
@@ -586,7 +594,7 @@
       await loading?.complete();
       if (ticket !== sequence) return false;
       loading?.cancel();
-      if (!overlay) skeleton(url); // Fast failures show only the decided failure state.
+      if (!overlay) skeleton(url, position); // Fast failures show only the decided failure state.
       restoreMain();
       const placeholder = overlay.element;
       placeholder.setAttribute('aria-busy', 'false'); overlay.main.removeAttribute('aria-busy');
@@ -608,14 +616,20 @@
   // never their own transport, delayed-loading clock or URL/focus/scroll rules.
   async function update(url, { root, results, patch, pending, failed, fallbackFocus, signal, scrollRegions = [], current = () => true, draft = {} }) {
     if (!await guard()) return false;
+    const inherited = updateOverlay?.results === results ? updateOverlay : null;
+    if (inherited) updateOverlay = null; // Transfer display ownership before abort cleanup.
     updating?.abort();
     const controller = updating = new AbortController();
     const cancel = () => controller.abort();
     signal?.addEventListener('abort', cancel, { once: true });
     const before = rememberPosition();
-    let restore, shown = false;
-    const loading = delayedLoading(() => {
+    let restore, shown = false, display;
+    const loading = delayedLoading(shownAt => {
       shown = true;
+      if (inherited) {
+        inherited.placeholder.replaceChildren(pending());
+        display = updateOverlay = { ...inherited }; restore = inherited.restore; return;
+      }
       const children = [...results.children].map(element => ({ element, hidden: element.hidden }));
       const minimum = results.style.minHeight, busy = results.getAttribute('aria-busy');
       results.style.minHeight = results.getBoundingClientRect().height + 'px';
@@ -627,13 +641,15 @@
         results.style.minHeight = minimum;
         if (busy === null) results.removeAttribute('aria-busy'); else results.setAttribute('aria-busy', busy);
       };
-    }, controller.signal);
-    controller.signal.addEventListener('abort', () => { restore?.(); restore = null; }, { once: true });
+      display = updateOverlay = { results, placeholder, restore, shownAt };
+    }, controller.signal, inherited?.shownAt ?? null);
+    const clear = () => { if (!display || updateOverlay === display) { restore?.(); updateOverlay = null; } restore = null; };
+    controller.signal.addEventListener('abort', clear, { once: true });
     const preserve = action => {
       const position = rememberPosition();
       if (position.active === body && shown) Object.assign(position, { active: before.active, selector: before.selector, selection: before.selection });
       const scroll = scrollRegions.map(element => ({ element, left: element.scrollLeft, top: element.scrollTop }));
-      restore?.(); restore = null;
+      clear();
       action();
       if (!position.active?.isConnected && !document.querySelector(position.selector || ':not(*)')) {
         position.active = fallbackFocus(); position.selector = null;
@@ -645,7 +661,7 @@
       const outcome = await window.AdminFetch.request(url, { expect: 'html', signal: controller.signal, headers: { 'X-Admin-Navigation': 'true' }, notice: false });
       if (controller.signal.aborted || !root.isConnected || !current()) return false;
       if (outcome.kind === 'session-lost') {
-        restore?.(); restore = null;
+        clear();
         window.AdminFetch.sessionNotice(typeof draft === 'function' ? draft() : draft, outcome.destination);
         return false;
       }
@@ -670,7 +686,7 @@
       });
       return false;
     } finally {
-      loading.cancel(); restore?.(); signal?.removeEventListener('abort', cancel);
+      loading.cancel(); clear(); signal?.removeEventListener('abort', cancel);
       if (updating === controller) updating = null;
     }
   }
@@ -697,9 +713,9 @@
   }
   function goTo(target) { return new Promise(resolve => { travel = { target, resolve }; history.go(target - (history.state?.adminDesignIndex ?? index)); }); }
   async function onPop(event) {
-    if (overlay) { navigation?.abort(); sequence++; clearOverlay(); }
     const target = event.state?.adminDesignIndex, url = location.href;
     if (travel) { if (target === travel.target) { const resolve = travel.resolve; travel = null; resolve(); } return; }
+    if (overlay && url === activeUrl) { navigation?.abort(); sequence++; clearOverlay(); return; }
     const currentDocument = new URL(activeUrl), destinationDocument = new URL(url);
     if ((target === undefined || target === index) && currentDocument.origin === destinationDocument.origin
         && currentDocument.pathname === destinationDocument.pathname && currentDocument.search === destinationDocument.search) {

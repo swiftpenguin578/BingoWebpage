@@ -92,6 +92,69 @@ async function until(page, predicate) {
       outcomes.push({mode,endAt,transitions});
       await page.close();
     }
+    for (const kind of ['failure-hold','abort-hold','second-shown','back-shown','cancel-back']) {
+      const page=await browser.newPage({reducedMotion:'reduce'}),errors=[];
+      page.on('pageerror',e=>errors.push(e.message));
+      await page.clock.install({time:new Date('2030-01-01T00:00:00Z')});
+      await page.route('https://bingo.test/**',route=>{
+        const url=new URL(route.request().url());
+        if(url.pathname.startsWith('/js/')||url.pathname.startsWith('/css/'))return route.fulfill({contentType:url.pathname.endsWith('.js')?'text/javascript':'text/css',body:fs.readFileSync(root+url.pathname,'utf8')});
+        if(url.pathname==='/fixture-page.mjs')return route.fulfill({contentType:'text/javascript',body:moduleSource});
+        return route.fulfill({contentType:'text/html',body:shell('a')});
+      });
+      await page.goto('https://bingo.test/Admin/Events/Identity/a');await until(page,()=>window.fixtureReady);
+      await page.locator('input[name="name"]').focus();
+      if(kind==='back-shown') {
+        await page.evaluate(()=>{const main=document.querySelector('[data-page-region]');const wrap=document.createElement('div');wrap.id='fixture-scroll';wrap.dataset.adminScrollRegion='';wrap.style.cssText='width:50px;height:50px;overflow:auto';wrap.innerHTML='<div style="width:500px;height:500px"></div>';main.append(wrap);wrap.scrollLeft=80;wrap.scrollTop=50;});
+        await page.evaluate(()=>AdminUI.navigate('/Admin/Events/Identity/c'));
+        await page.locator('input[name="name"]').focus();
+      }
+      await page.clock.pauseAt(new Date('2030-01-01T00:01:00Z'));
+      await page.evaluate(html=>{
+        window.requests=[];window.timerLog=[];window.old=document.querySelector('#draft');window.flickers=[];
+        const timer=window.setTimeout;window.setTimeout=(fn,ms,...args)=>{timerLog.push(ms);return timer(fn,ms,...args);};
+        window.fetch=(_url,options)=>new Promise((resolve,reject)=>{
+          const entry={resolve:()=>resolve(new Response(html,{headers:{'Content-Type':'text/html'}})),reject:()=>reject(new TypeError('Offline')),aborted:false};
+          requests.push(entry);options.signal.addEventListener('abort',()=>{entry.aborted=true;reject(new DOMException('Aborted','AbortError'));});
+        });
+        window.started=performance.now();
+        new MutationObserver(()=>{if(old.isConnected&&old.checkVisibility()&&performance.now()-started>=150)flickers.push(performance.now()-started);}).observe(document.querySelector('[data-page-region]').parentNode,{childList:true,subtree:true,attributes:true});
+        window.first=AdminUI.navigate('/Admin/Events/Identity/b');
+      },shell('b').replace('</main>','<div id="fixture-scroll" data-admin-scroll-region style="width:50px;height:50px;overflow:auto"><div style="width:500px;height:500px"></div></div></main>'));
+      await until(page,()=>requests.length===1);await page.clock.runFor(150);
+      assert.equal(await page.locator('[data-page-skeleton]').count(),1);
+      await page.clock.runFor(50);
+      if(kind==='failure-hold') {await page.evaluate(()=>requests[0].reject());await until(page,()=>timerLog.includes(350));}
+      else if(kind==='cancel-back') {
+        await page.evaluate(()=>{history.pushState({adminDesignIndex:0},'',location.href);history.back();});
+        await until(page,()=>!document.querySelector('[data-page-skeleton]'));
+        assert.equal(await page.evaluate(()=>document.activeElement===document.querySelector('input[name="name"]')),true,'cancel restores pre-inert input');
+        assert.equal(await page.evaluate(()=>document.querySelector('[data-page-region]').inert),false);
+        assert.equal(await page.evaluate(()=>requests[0].aborted),true);
+        await page.clock.runFor(400);assert.equal(await page.locator('[data-page-skeleton]').count(),0);
+        await page.close();continue;
+      } else {
+        if(kind==='abort-hold'){await page.evaluate(()=>requests[0].resolve());await until(page,()=>timerLog.includes(350));}
+        if(kind==='back-shown')await page.evaluate(()=>history.back());
+        else await page.evaluate(()=>{window.second=AdminUI.navigate('/Admin/Events/Identity/c');});
+        await until(page,()=>requests.length===2);
+        assert.equal(await page.evaluate(()=>requests[0].aborted),true);
+        assert.equal(await page.evaluate(()=>window.first),false);
+        assert.equal(await page.locator('[data-page-skeleton]').count(),1,'replacement is immediate, not delayed another150ms');
+        await page.evaluate(()=>requests[1].resolve());await until(page,()=>timerLog.includes(350));
+      }
+      await page.clock.runFor(349);assert.equal(await page.locator('[data-page-skeleton]').count(),1);
+      assert.equal(await page.locator('[data-load-retry]').count(),0);
+      await page.clock.runFor(1);
+      if(kind==='failure-hold')await until(page,()=>!!document.querySelector('[data-load-retry]'));
+      else await until(page,()=>!document.querySelector('[data-page-skeleton]'));
+      assert.deepEqual(await page.evaluate(()=>flickers),[],'old content never reappears between skeletons');
+      if(kind==='back-shown') {
+       assert.equal(await page.evaluate(()=>document.activeElement===document.querySelector('input[name="name"]')),true,'Back restores saved input focus');
+       assert.deepEqual(await page.locator('#fixture-scroll').evaluate(e=>({left:e.scrollLeft,top:e.scrollTop})),{left:80,top:50});
+      }
+      assert.deepEqual(errors,[]);await page.close();
+    }
     // Fast failure is the same decided failure UI, not a flashed loading state.
     const page=await browser.newPage({reducedMotion:'reduce'});
     await page.route('https://bingo.test/**',route=>{
@@ -107,6 +170,6 @@ async function until(page, predicate) {
     assert.equal(await page.locator('[data-load-retry]').count(),1);
     assert.equal(new URL(page.url()).pathname,'/Admin/Events/Identity/a');
     assert.equal(await page.locator('[data-page-region]').evaluate(el=>el.inert),false);
-    console.log('PASS shared loading fake clock: '+outcomes.length+' exact fast/slow/boundary cases, failure state/URL retained');
+    console.log('PASS shared loading fake clock: '+outcomes.length+' exact fast/slow/boundary cases plus5 hold/abort/Back/focus cases, failure state/URL retained');
   } finally {await browser.close();}
 })().catch(error=>{console.error(error);process.exitCode=1;});
