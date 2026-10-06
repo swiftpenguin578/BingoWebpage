@@ -15,9 +15,9 @@ public sealed class Slice5MigrationRejectionTests : IAsyncLifetime
 {
     private const string PreviousMigration = "20260728145446_NormalizeRetainedLegacyDiscordSystemField";
     private const string Slice5FoundationMigration = "20260729132140_AddSlice5PersistenceFoundation";
-    private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine").WithDatabase("bingo_slice5_migration_rejections").WithUsername("bingo").WithPassword("bingo_test_password").Build();
+    private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine").WithLoopbackPort().WithDatabase("bingo_slice5_migration_rejections").WithUsername("bingo").WithPassword("bingo_test_password").Build();
     private DbContextOptions<ApplicationDbContext> options = null!;
-    public async Task InitializeAsync() { await PostgreSqlReadiness.StartAsync(database); options = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetConnectionString()).Options; }
+    public async Task InitializeAsync() { await PostgreSqlReadiness.StartAsync(database); options = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetOwnedConnectionString()).Options; }
     public Task DisposeAsync() => database.DisposeAsync().AsTask();
 
     [Theory]

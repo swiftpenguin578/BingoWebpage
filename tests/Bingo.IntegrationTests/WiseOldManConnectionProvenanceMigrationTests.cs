@@ -9,7 +9,7 @@ namespace Bingo.IntegrationTests;
 
 public sealed class WiseOldManConnectionProvenanceMigrationTests : IAsyncLifetime
 {
-    private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine")
+    private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine").WithLoopbackPort()
         .WithDatabase("bingo_wom_provenance")
         .WithUsername("bingo")
         .WithPassword("bingo_test_password")
@@ -23,7 +23,7 @@ public sealed class WiseOldManConnectionProvenanceMigrationTests : IAsyncLifetim
     public async Task BackfillUsesCreateReceiptAndNeverInfersOwnershipFromCredentialPresence()
     {
         var options = new DbContextOptionsBuilder<ApplicationDbContext>()
-            .UseNpgsql(database.GetConnectionString())
+            .UseNpgsql(database.GetOwnedConnectionString())
             .Options;
         const string migrationBeforeWomProvenance = "20260926135604_AddDraftPublicationMethod";
 

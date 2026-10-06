@@ -10,7 +10,7 @@ namespace Bingo.IntegrationTests;
 
 public sealed class ProductionCataloguePreflightIntegrationTests : IAsyncLifetime
 {
-    private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine")
+    private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine").WithLoopbackPort()
         .WithDatabase("bingo_catalogue_preflight")
         .WithUsername("bingo")
         .WithPassword("bingo_test_password")
@@ -22,7 +22,7 @@ public sealed class ProductionCataloguePreflightIntegrationTests : IAsyncLifetim
     {
         await PostgreSqlReadiness.StartAsync(database);
         options = new DbContextOptionsBuilder<ApplicationDbContext>()
-            .UseNpgsql(database.GetConnectionString())
+            .UseNpgsql(database.GetOwnedConnectionString())
             .Options;
     }
 

@@ -44,7 +44,7 @@ namespace Bingo.IntegrationTests;
 
 public sealed partial class Slice6CatalogueAdministrationIntegrationTests : IAsyncLifetime
 {
-    private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine")
+    private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine").WithLoopbackPort()
         .WithDatabase("bingo_slice6_catalogue_administration")
         .WithUsername("bingo")
         .WithPassword("bingo_test_password")
@@ -54,7 +54,7 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests : IAsy
     public async Task InitializeAsync()
     {
         await PostgreSqlReadiness.StartAsync(database);
-        options = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetConnectionString()).Options;
+        options = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetOwnedConnectionString()).Options;
         await using var db = new ApplicationDbContext(options);
         await db.Database.MigrateAsync();
     }
@@ -78,7 +78,7 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests : IAsy
             await setup.SaveChangesAsync();
         }
 
-        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString()));
+        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetOwnedConnectionString()));
         using var adminClient = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         using var superClient = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         await LoginAsync(adminClient, admin.LoginName);
@@ -750,7 +750,7 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests : IAsy
             Assert.Contains(readiness!.Blockers, x => x.Code == "BOARD_NOT_PUBLISHED");
             Assert.True((await prePublication.Events.Where(x => x.Id == bingoEvent.Id).Select(x => x.EventStartsAt).SingleAsync()) < now);
         }
-        await using (var missingConfirmationFactory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString())))
+        await using (var missingConfirmationFactory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetOwnedConnectionString())))
         {
             using var missingConfirmationClient = missingConfirmationFactory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
             await LoginAsync(missingConfirmationClient, admin.LoginName);
@@ -816,7 +816,7 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests : IAsy
         var liveEvent = await verify.Events.SingleAsync(value => value.Id == bingoEvent.Id);
         liveEvent.StartEvent(now);
         await verify.SaveChangesAsync();
-        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString()));
+        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetOwnedConnectionString()));
         using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         await LoginAsync(client, admin.LoginName);
         var boardPage = await client.GetStringAsync($"/Admin/Events/Board/{bingoEvent.Id}");
@@ -1398,7 +1398,7 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests : IAsy
             }
         }
 
-        using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString()));
+        using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetOwnedConnectionString()));
         using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         await LoginAsync(client, admin.LoginName);
         var managePage = await client.GetStringAsync($"/Admin/Events/Manage/{eventId}");

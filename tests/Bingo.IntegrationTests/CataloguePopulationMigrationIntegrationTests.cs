@@ -30,7 +30,7 @@ public sealed class CataloguePopulationMigrationIntegrationTests : IAsyncLifetim
     {
         Converters = { new JsonStringEnumConverter() }
     };
-    private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine")
+    private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine").WithLoopbackPort()
         .WithDatabase("bingo_catalogue_population")
         .WithUsername("bingo")
         .WithPassword("bingo_test_password")
@@ -42,10 +42,10 @@ public sealed class CataloguePopulationMigrationIntegrationTests : IAsyncLifetim
     {
         await PostgreSqlReadiness.StartAsync(database);
         options = new DbContextOptionsBuilder<ApplicationDbContext>()
-            .UseNpgsql(database.GetConnectionString())
+            .UseNpgsql(database.GetOwnedConnectionString())
             .Options;
         historicalOptions = new DbContextOptionsBuilder<HistoricalApplicationDbContext>()
-            .UseNpgsql(database.GetConnectionString())
+            .UseNpgsql(database.GetOwnedConnectionString())
             .Options;
     }
 

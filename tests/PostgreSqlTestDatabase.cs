@@ -23,7 +23,7 @@ public sealed class PostgreSqlTestFixture : IAsyncLifetime
     {
         lock (gate)
         {
-            container ??= builder.Build();
+            container ??= builder.WithLoopbackPort().Build();
         }
         return new PostgreSqlTestDatabase(this);
     }
@@ -39,7 +39,7 @@ public sealed class PostgreSqlTestFixture : IAsyncLifetime
         }
         await ready;
 
-        var settings = new NpgsqlConnectionStringBuilder(database.GetConnectionString());
+        var settings = new NpgsqlConnectionStringBuilder(database.GetOwnedConnectionString());
         var template = settings.Database ?? throw new InvalidOperationException("The template database must be named.");
         await using (var connection = new NpgsqlConnection(AdminConnectionString(database)))
         {
@@ -57,7 +57,7 @@ public sealed class PostgreSqlTestFixture : IAsyncLifetime
     {
         await PostgreSqlReadiness.StartAsync(database);
         // No pooled session may keep the template open while it is cloned.
-        var settings = new NpgsqlConnectionStringBuilder(database.GetConnectionString()) { Pooling = false };
+        var settings = new NpgsqlConnectionStringBuilder(database.GetOwnedConnectionString()) { Pooling = false };
         var options = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(settings.ConnectionString).Options;
         await using (var db = new ApplicationDbContext(options))
         {
@@ -85,7 +85,7 @@ public sealed class PostgreSqlTestFixture : IAsyncLifetime
 
     private static string AdminConnectionString(PostgreSqlContainer database)
     {
-        var settings = new NpgsqlConnectionStringBuilder(database.GetConnectionString()) { Pooling = false };
+        var settings = new NpgsqlConnectionStringBuilder(database.GetOwnedConnectionString()) { Pooling = false };
         // The original builder may name postgres as its migrated template. The
         // administrative connection must remain outside that closed database.
         settings.Database = settings.Database == "postgres" ? "template1" : "postgres";
@@ -124,7 +124,7 @@ public static class PostgreSqlReadiness
     public static async Task StartAsync(PostgreSqlContainer database)
     {
         await database.StartAsync();
-        await WaitAsync(database.GetConnectionString());
+        await WaitAsync(database.GetOwnedConnectionString());
     }
 
     public static async Task WaitAsync(string connectionString)

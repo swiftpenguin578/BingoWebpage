@@ -13,7 +13,7 @@ public sealed class BannerRetirementMigrationTests : IAsyncLifetime
 {
     private const string BeforeRetirement = "20260926215725_AddBoardEstimateFreshness";
     private const string Retirement = "20260926233834_RetireEventBanners";
-    private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine")
+    private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine").WithLoopbackPort()
         .WithDatabase("bingo_banner_retirement")
         .WithUsername("bingo")
         .WithPassword("bingo_test_password")
@@ -25,7 +25,7 @@ public sealed class BannerRetirementMigrationTests : IAsyncLifetime
     {
         await PostgreSqlReadiness.StartAsync(database);
         options = new DbContextOptionsBuilder<ApplicationDbContext>()
-            .UseNpgsql(database.GetConnectionString())
+            .UseNpgsql(database.GetOwnedConnectionString())
             .Options;
     }
 

@@ -1,14 +1,14 @@
 # Current project status
 
-## U2 brief72 round2 — items1–4 committed, item5 reference-first geometry — 7 October2026
+## U2 brief72 round2 — item8 stop-boundary handoff — 7 October2026
 
-- Same assigned checkout `/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage`, branch `codex/participants-functionality`; exact clean start05f95d844adeba18e8e7fd8854e040315c96a03e. Implementer gpt-6.1-sol/high only; no workers/reviewer/orchestrator/new branch/worktree/push/merge/deploy/self-review.
-- Scoped checkpoints:1 `7bd6660c6f7dc3984170fa35f12f1617c2ebff06` retained Events results controls;2 `f1caca5ee47645b4017deebeb3d7dcb81e15a12d` inherited skeleton hold/focus/Back scroll;3 `5555c25d9b19a06ad3b6cec4b59f2c4dde75a4ae` Create close/history/literal names;4 `a6d208268db444bb4b8cb511fa88c91b94de2d7c` Dashboard text/counts/sort/Danish labels. HEAD at item4.
-- [Per-item evidence](docs/references/admin-ui/reviews/2026-10-06/u2/remediation-2/):paired exact-clock Events14 connected cases PASS;shared loading12 boundary+5 additional hold/Back cases PASS both;unchanged shared shell PASS both;Events rendered26/0;Create rendered10/0 and actual HTTP3/0/0;Dashboard focused.NET13/0/0 and rendered18/0. Builds0warnings/errors,diff/frozen comparisons0. Failed authoring checkpoints/no-test filter distinguished in evidence.
-- Phase-focus ruling7 October applied:close phase menu,retain Phase opener through update. Both UI_PAGE_MATRIX rows remain awaiting Claude review,then user visual acceptance;no independent/manual acceptance claimed.
-- Item5 Q-H1 resolved by planner 7 October: exact loaded reference flow takes precedence; no fixed anchors. Fresh loading header has empty one-line summary and placeholder card. Intrinsic loading group and metadata flex children now match reference. Register updated. [Item5 evidence](docs/references/admin-ui/reviews/2026-10-06/u2/remediation-2/item5-header-question.md) and [16-record positions](docs/references/admin-ui/reviews/2026-10-06/u2/remediation-2/item5-header-positions.json): both engines ×390/861/1280/1440 ×normal/narrow; loaded/loading reference and flow proof16/0, no arbitrary sleeps. Frozen files unchanged.
-- Items6–8 and final gates remain pending, not passed. Next: commit item5 after its Dashboard regression, then items6–8 sequentially, including three concurrent Integration runs and whole final-SHA suite. No U3+/palette/packaging/push/merge/deploy.
-
+- Assigned checkout `/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage`, branch `codex/participants-functionality`; exact clean start05f95d844adeba18e8e7fd8854e040315c96a03e. Implementer gpt-6.1-sol/high only; no workers/reviewer/orchestrator/new branch/worktree/push/merge/deploy/self-review.
+- Scoped commits:1 `7bd6660c6f7dc3984170fa35f12f1617c2ebff06`;2 `f1caca5ee47645b4017deebeb3d7dcb81e15a12d`;3 `5555c25d9b19a06ad3b6cec4b59f2c4dde75a4ae`;4 `a6d208268db444bb4b8cb511fa88c91b94de2d7c`;5 `bd0254a7bfaf8fff93b06d7df7e3478df997d6f3`;6 `9bdf614498bbceda4bf8ddf05b22133bdc97ba27`;7 `71a5e6a87aa80301a0103620a81d98584c828564`. Item8 endpoint fix and durable evidence are in this owning stop-boundary commit; no further item authorized.
+- [Per-item evidence](docs/references/admin-ui/reviews/2026-10-06/u2/remediation-2/): exact-clock Events14 connected cases and shared loading12+5 hold/Back cases PASS both; Events rendered26/0; Create10/0 and HTTP3/0/0; Dashboard18/0 and focused.NET13/0/0; Q-H1 reference-first geometry16/0 at390/861/1280/1440 normal/narrow; stored-link real PG10/0/0; importer-shaped UR real PG2/0/0 and rendered4/0. Named phase focus and header rulings promoted to register. Frozen CSS/reference HTML unchanged.
+- [Item8 endpoint evidence](docs/references/admin-ui/reviews/2026-10-06/u2/remediation-2/item8-postgres-endpoints.md): native Docker wildcard vs loopback same-port collision reproduced28P01 before infrastructure changes; fixed owned loopback publication/connection reaches intended server. Focused endpoint + historically failing classes7/0/0, exact TRX in evidence; deterministic probe exit0. Existing assertions/timeouts/readiness/template/parallelism unchanged; no retry fix. UI review command checks13/0; owned live environment remains available at5310/reference5320.
+- **User override:** whole .NET suite NOT RUN; planner will run it. Concurrent whole-Integration candidate run1 STOPPED at user direction, driver exit143, no completed TRX. Runs2–3 NOT RUN. Last observed529 passed lines is not a completed count. Item8 concurrent gate remains incomplete; no whole-suite pass, final-SHA TRX or independent review claimed.
+- Final JS runner **63 passed/0 failed** (35 default,14 Chromium,14 WebKit), durable per-run exits/timings in item8-js-results.json. Clean Release **0 warnings/errors**,12.40s; shared design checks1–6 rerun with exact commands/exits. Final diff/frozen checks passed; existing26 mechanical fixtures normalize exactly to the parent. No source edits after these checks.
+- Both pages remain **awaiting Claude review, then user visual acceptance** in UI_PAGE_MATRIX. Remote Docker/DinD/Linux CI unrun; historical disposed failing endpoint maps unavailable. No unresolved product/reference question.
 
 ## TS brief66 delivered — retained evidence
 
@@ -31,4 +31,4 @@
 
 ## Next permitted action
 
-Finish item5 scoped check/commit, then brief72 items6–8 and all final gates. No U3+, palette work, packaging, push, merge or deployment.
+Planner runs the delegated whole .NET suite on the final SHA and completes item8's three concurrent Integration proofs as needed; independent Claude review and user visual inspection follow. Implementer stops after item8. No U3+, palette work, packaging, push, merge or deployment.

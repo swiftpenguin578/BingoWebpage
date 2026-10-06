@@ -9,7 +9,7 @@ namespace Bingo.IntegrationTests;
 public sealed class BoardEstimateFreshnessMigrationTests : IAsyncLifetime
 {
     private const string BeforeFreshness = "20260926201553_AddWiseOldManConnectionProvenance";
-    private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine")
+    private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine").WithLoopbackPort()
         .WithDatabase("bingo_board_estimate_freshness")
         .WithUsername("bingo")
         .WithPassword("bingo_test_password")
@@ -21,7 +21,7 @@ public sealed class BoardEstimateFreshnessMigrationTests : IAsyncLifetime
     {
         await PostgreSqlReadiness.StartAsync(database);
         options = new DbContextOptionsBuilder<ApplicationDbContext>()
-            .UseNpgsql(database.GetConnectionString())
+            .UseNpgsql(database.GetOwnedConnectionString())
             .Options;
     }
 

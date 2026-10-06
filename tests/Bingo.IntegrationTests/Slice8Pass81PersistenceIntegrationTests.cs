@@ -14,7 +14,7 @@ namespace Bingo.IntegrationTests;
 public sealed class Slice8Pass81PersistenceIntegrationTests : IAsyncLifetime
 {
     private const string PreviousMigration = "20260731180603_NormalizeCompletedTileFocusMarkers";
-    private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine")
+    private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine").WithLoopbackPort()
         .WithDatabase("bingo_slice8_pass81_persistence")
         .WithUsername("bingo")
         .WithPassword("bingo_test_password")
@@ -24,7 +24,7 @@ public sealed class Slice8Pass81PersistenceIntegrationTests : IAsyncLifetime
     public async Task InitializeAsync()
     {
         await PostgreSqlReadiness.StartAsync(database);
-        options = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetConnectionString()).Options;
+        options = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetOwnedConnectionString()).Options;
     }
 
     public Task DisposeAsync() => database.DisposeAsync().AsTask();

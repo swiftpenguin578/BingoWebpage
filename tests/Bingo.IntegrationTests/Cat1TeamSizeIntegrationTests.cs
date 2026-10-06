@@ -120,7 +120,7 @@ public sealed class Cat1TeamSizeMigrationIntegrationTests : IAsyncLifetime
 {
     private const string PreviousMigration = "20261004112050_AddCompetitionEndUpdateState";
     private const string TeamSizeMigration = "20261004133947_AddBossActivityTeamSize";
-    private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine")
+    private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine").WithLoopbackPort()
         .WithDatabase("bingo_cat1_team_size_migration")
         .WithUsername("bingo")
         .WithPassword("bingo_test_password")
@@ -130,7 +130,7 @@ public sealed class Cat1TeamSizeMigrationIntegrationTests : IAsyncLifetime
     public async Task InitializeAsync()
     {
         await PostgreSqlReadiness.StartAsync(database);
-        options = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetConnectionString()).Options;
+        options = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetOwnedConnectionString()).Options;
     }
 
     public Task DisposeAsync() => database.DisposeAsync().AsTask();
