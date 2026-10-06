@@ -176,6 +176,11 @@ class ReviewSafetyTests(unittest.TestCase):
             self.assertEqual(env["WiseOldMan__BaseUrl"], "http://127.0.0.1:1/")
             self.assertEqual(env["EvidenceStorage__Provider"], "Local")
 
+    def test_review_environment_overrides_exact_ef_command_category(self):
+        category = "Logging__LogLevel__Microsoft.EntityFrameworkCore.Database.Command"
+        with patch.dict(review.os.environ, {category: "Information"}):
+            self.assertEqual(review.environment()[category], "Warning")
+
 
 if __name__ == "__main__":
     unittest.main()

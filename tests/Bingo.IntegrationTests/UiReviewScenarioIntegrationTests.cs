@@ -1,4 +1,5 @@
 using System.Net;
+using System.Globalization;
 using System.Reflection;
 using System.Reflection.Emit;
 using System.Text.Json;
@@ -14,6 +15,7 @@ using Xunit.Abstractions;
 using Bingo.Application.Events;
 using Bingo.Domain.Access;
 using Bingo.Domain.Events;
+using Bingo.Domain.Signups;
 using Bingo.Domain.Integrations.WiseOldMan;
 using Bingo.Infrastructure.Persistence;
 using Bingo.Web.Catalogue;
@@ -32,6 +34,7 @@ namespace Bingo.IntegrationTests;
 public sealed class UiReviewScenarioIntegrationTests(ITestOutputHelper output, PostgreSqlTestFixture databaseFixture) : IAsyncLifetime, IClassFixture<PostgreSqlTestFixture>
 {
     private static readonly DateTimeOffset Now = new DateTimeOffset(2026, 10, 6, 12, 34, 56, TimeSpan.Zero).AddTicks(1234567);
+    private static readonly string[] SharedWinnerNames = ["Amber Owls", "Silver Foxes"];
     private readonly PostgreSqlTestDatabase database = databaseFixture.CreateDatabase(new PostgreSqlBuilder("postgres:17-alpine")
         .WithDatabase("bingo_ur_tests").WithUsername("bingo").WithPassword("bingo_test_password"));
     private readonly string evidence = Path.Combine(Path.GetTempPath(), "bingo-ur-tests-" + Guid.NewGuid());
@@ -145,7 +148,89 @@ public sealed class UiReviewScenarioIntegrationTests(ITestOutputHelper output, P
         Assert.Equal(HttpStatusCode.OK, localResponse.StatusCode); // 127.0.0.1:1 is unserved: only the local handler can answer.
         await AssertPrintedUrlsAsync(factory, result, discardAudit.Id);
         await AssertSeededHistoryAsync(db, events);
+        await AssertU2ScenariosAsync(factory, scope.ServiceProvider, db, events, result);
 
+    }
+
+    private static async Task AssertU2ScenariosAsync(WebApplicationFactory<Program> factory, IServiceProvider services,
+        ApplicationDbContext db, IReadOnlyList<BingoEvent> events, UiReviewScenarios scenarios)
+    {
+        var currentRows = events.Where(value => !value.IsHidden && value.State is EventState.Draft or EventState.SignupOpen or EventState.SignupClosed or EventState.Live).ToArray();
+        Assert.True(currentRows.Length > 25);
+        foreach (var name in new[] { "alpha", "Alpha", "Ægir", "Ørn", "År" }) Assert.Contains(currentRows, value => value.Name == name);
+        var noCapacity = events.Single(value => value.Slug == "ur-upcoming-15");
+        Assert.Null(noCapacity.ParticipantCap);
+        var noDates = events.Single(value => value.Slug == "ur-upcoming-16");
+        Assert.Null(noDates.SignupOpensAt); Assert.Null(noDates.SignupClosesAt);
+        Assert.Null(noDates.EventStartsAt); Assert.Null(noDates.EventEndsAt); Assert.Null(noDates.SubmissionCutoffAt);
+        var cancelled = events.Single(value => value.Slug == "ur-cancelled");
+        Assert.Equal(3, await db.EventParticipants.CountAsync(value => value.EventId == cancelled.Id && value.SignupStatus == SignupStatus.Confirmed));
+        var postponed = events.Single(value => value.Slug == "ur-draft");
+        var failed = events.Single(value => value.Slug == "ur-opening-failed");
+        var actions = await services.GetRequiredService<SharedShellService>().GetAdminActionsAsync(CancellationToken.None);
+        Assert.True(actions.ActionsByEvent[postponed.Id].ScheduledStartPostponed);
+        Assert.True(actions.ActionsByEvent[failed.Id].ScheduledOpeningFailed);
+        var attempt = await db.ScheduledEventStartAttempts.SingleAsync(value => value.EventId == postponed.Id);
+        Assert.Equal(postponed.EventStartsAt, attempt.ScheduledFor);
+        Assert.Equal(scenarios.BuiltAt.AddHours(-1), attempt.AttemptedAt);
+        var opening = await db.ScheduledSignupOpeningAttempts.SingleAsync(value => value.EventId == failed.Id);
+        Assert.Equal(failed.SignupOpensAt, opening.ScheduledFor);
+        Assert.Equal(scenarios.BuiltAt.AddHours(-1), opening.AttemptedAt);
+
+        foreach (var username in new[] { "ReviewAdmin", "ReviewOwner" })
+        {
+            var actor = await db.Accounts.SingleAsync(value => value.LoginName == username);
+            var dashboard = await services.GetRequiredService<IAdminDashboardService>().GetAsync(actor.Id);
+            var phase = Assert.Single(dashboard.History, value => value.EventId == scenarios.CurrentEventId);
+            Assert.Equal(scenarios.Profile == "live" ? EventState.Live : EventState.AwaitingFinalReview, phase.State);
+            Assert.True(phase.Provisional);
+            var imported = Assert.Single(dashboard.History, value => value.EventId == events.Single(item => item.Slug == "ur-wom-unavailable").Id);
+            Assert.True(imported.IsHistoricalImport);
+            Assert.False(imported.ApprovedSubmissions.IsAvailable);
+            Assert.True(dashboard.Statistics.ApprovedSubmissions.IsAvailable); // Mixed platform/import history.
+            var shared = Assert.Single(dashboard.History, value => value.EventId == events.Single(item => item.Slug == "ur-archived").Id);
+            Assert.Equal(SharedWinnerNames, shared.Winners.Select(value => value.TeamName).Order(StringComparer.Ordinal));
+            Assert.All(shared.Winners, value => Assert.Equal(1, value.Placement));
+
+            var login = await LoginAsync(factory, username, disabled: false);
+            using var client = login.Client;
+            Guid[] Rows(string html) => Regex.Matches(html, "<div class=\"tr row[^\"]*\"[^>]*data-event-id=\"([^\"]+)\"").Select(value => Guid.Parse(value.Groups[1].Value)).ToArray();
+            var page1 = await client.GetStringAsync("/Admin/Events?view=current");
+            var page2 = await client.GetStringAsync("/Admin/Events?view=current&page=2");
+            Assert.Equal(25, Rows(page1).Length); Assert.Equal(currentRows.Length - 25, Rows(page2).Length);
+            Assert.Equal(currentRows.Select(value => value.Id).Order(), Rows(page1).Concat(Rows(page2)).Order());
+            Assert.Contains("aria-label=\"Page 2\"", page1, StringComparison.Ordinal);
+            var cancelledHtml = WebUtility.HtmlDecode(await client.GetStringAsync("/Admin/Events?view=past&phase=cancelled"));
+            Assert.Equal(cancelled.Id, Assert.Single(Rows(cancelledHtml)));
+            Assert.Contains("3 confirmed", cancelledHtml, StringComparison.Ordinal);
+            Assert.Contains("when it was cancelled", cancelledHtml, StringComparison.Ordinal);
+            var attentionHtml = WebUtility.HtmlDecode(await client.GetStringAsync("/Admin/Events?view=current&attention=1"));
+            Assert.Contains(postponed.Id, Rows(attentionHtml)); Assert.Contains(failed.Id, Rows(attentionHtml));
+            Assert.Contains("Start postponed", attentionHtml, StringComparison.Ordinal);
+            Assert.Contains("Signup opening failed", attentionHtml, StringComparison.Ordinal);
+            var emptyDetails = WebUtility.HtmlDecode(await client.GetStringAsync("/Admin/Events?view=current&search=No"));
+            Assert.Contains(noCapacity.Id, Rows(emptyDetails)); Assert.Contains(noDates.Id, Rows(emptyDetails));
+            Assert.Contains("No capacity set", emptyDetails, StringComparison.Ordinal);
+            Assert.Contains("Not scheduled", emptyDetails, StringComparison.Ordinal);
+            var historyHtml = WebUtility.HtmlDecode(await client.GetStringAsync("/Admin"));
+            Assert.Contains("Imported", historyHtml, StringComparison.Ordinal);
+            Assert.Contains(string.Join(" · ", shared.Winners.Select(value => value.TeamName)), historyHtml, StringComparison.Ordinal);
+
+            foreach (var culture in new[] { "en", "da" })
+            {
+                var token = WebUtility.HtmlDecode(Regex.Match(page1, "name=\"__RequestVerificationToken\"[^>]*value=\"([^\"]+)\"").Groups[1].Value);
+                using var language = await client.PostAsync("/Language", new FormUrlEncodedContent(new Dictionary<string, string>
+                {
+                    ["culture"] = culture, ["returnUrl"] = "/Admin/Events", ["__RequestVerificationToken"] = token
+                }));
+                Assert.Equal(HttpStatusCode.Redirect, language.StatusCode);
+                Assert.Contains(language.Headers.GetValues("Set-Cookie"), value => value.StartsWith(".AspNetCore.Culture=", StringComparison.Ordinal));
+                var query = "/Admin/Events?view=current&sort=identity&direction=asc";
+                var ordered = Rows(await client.GetStringAsync(query)).Concat(Rows(await client.GetStringAsync(query + "&page=2")));
+                var expected = currentRows.OrderBy(value => value.Name, StringComparer.Create(CultureInfo.GetCultureInfo(culture), true)).ThenBy(value => value.Id).Select(value => value.Id);
+                Assert.Equal(expected, ordered);
+            }
+        }
     }
 
     private static async Task AssertSeededHistoryAsync(ApplicationDbContext db, IReadOnlyList<BingoEvent> events)

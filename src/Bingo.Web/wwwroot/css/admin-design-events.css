@@ -7,6 +7,8 @@
 .ev-tbl .cell-main{font-size:var(--dk-fs-control-sm)}
 .ev-tbl .cell-main.is-muted{color:var(--dk-text-3)}
 .tfoot-note{color:var(--dk-text-3)}
+.events-sk-phase{height:20px;border-radius:var(--dk-radius-xl)}
+.events-sk-start{margin-bottom:var(--dk-space-2)}
 .ev-tbl .hint.is-dismissed .hint-tip{opacity:0;visibility:hidden}
 /* U2 loading decision: reserve data-independent boxes on every visit. */
 [data-page-family="events"]>div:first-child{flex:1;min-width:0;width:100%}

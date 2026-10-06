@@ -151,6 +151,7 @@ def environment():
         "UiReviewEnvironment__Enabled": "true",
         "UiReviewEnvironment__ScenarioList": str(STATE / "scenarios.md"),
         "Logging__LogLevel__Microsoft.EntityFrameworkCore": "Warning",
+        "Logging__LogLevel__Microsoft.EntityFrameworkCore.Database.Command": "Warning",
         "EvidenceStorage__Provider": "Local", "EvidenceStorage__LocalPath": str(STATE / "evidence"),
         "CatalogueImageCache__LocalPath": str(STATE / "catalogue-images"),
         "WiseOldMan__BaseUrl": "http://127.0.0.1:1/",

@@ -11,6 +11,8 @@ using Bingo.Domain.Events;
 using Bingo.Domain.Signups;
 using Bingo.Domain.Teams;
 using Bingo.Infrastructure.Persistence;
+using Bingo.Web.Catalogue;
+using Bingo.Web.TestData;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Hosting;
@@ -33,6 +35,8 @@ internal static class FixtureHost
     public static async Task Main()
     {
         var root = Environment.GetEnvironmentVariable("BINGO_PARITY_ROOT") ?? throw new InvalidOperationException("Set BINGO_PARITY_ROOT to the tested checkout.");
+        var urProfile = Environment.GetEnvironmentVariable("BINGO_PARITY_UR_PROFILE");
+        if (urProfile is not null && urProfile is not ("live" or "final-review")) throw new InvalidOperationException("Unknown controlled UR profile.");
         await using var database = new PostgreSqlBuilder("postgres:17-alpine").WithDatabase("bingo_parity").WithUsername("bingo").WithPassword("synthetic_parity_database").Build();
         await database.StartAsync();
         // Planner ruling58-1: pg_isready inside the container does not establish
@@ -66,12 +70,15 @@ internal static class FixtureHost
         var account = Account.CreateWebsite(Guid.NewGuid(), "parity-admin", "PARITY-ADMIN", Now.AddYears(-1));
         var directoryFault = Environment.GetEnvironmentVariable("BINGO_PARITY_DIRECTORY_FAULT") == "1";
         account.SetGlobalRole(directoryFault ? GlobalRole.SuperAdmin : GlobalRole.Admin);
-        const string password = "Synthetic-parity-password-2026";
+        var password = "Synthetic-parity-password-2026";
         account.SetPassword(new PasswordHasher<Account>().HashPassword(account, password), false, Now, incrementVersion: false);
         var ids = new Dictionary<string, Guid>();
         await using (var db = new ApplicationDbContext(options))
         {
-            await db.Database.MigrateAsync(); db.Add(account);
+            await db.Database.MigrateAsync();
+            if (urProfile is null)
+            {
+            db.Add(account);
             void Add(string slug, string name, EventState state, string timezone, string? description, string? buyIn, string? opens, string? closes, string? draft, string? starts, string? ends)
             {
                 static DateTimeOffset? At(string? value) => value is null ? null : DateTimeOffset.Parse(value, CultureInfo.InvariantCulture);
@@ -125,11 +132,17 @@ internal static class FixtureHost
                     TeamMembershipRole.Participant, item.ActualStartedAt.Value, null, "Controlled parity membership"));
             }
             await db.SaveChangesAsync();
+            }
         }
         await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder
             .ConfigureKestrel(settings => settings.Listen(IPAddress.Loopback, 0))
-            .UseStaticWebAssets().UseEnvironment("Testing").UseContentRoot(Path.Combine(root, "src/Bingo.Web"))
+            .UseStaticWebAssets().UseEnvironment(urProfile is null ? "Testing" : "Development").UseContentRoot(Path.Combine(root, "src/Bingo.Web"))
             .UseSetting("ConnectionStrings:Database", database.GetConnectionString())
+            .UseSetting("UiReviewEnvironment:Enabled", "false")
+            .UseSetting("DevelopmentAdminBootstrap:Enabled", "false")
+            .UseSetting("EvidenceStorage:Provider", "Local")
+            .UseSetting("EvidenceStorage:LocalPath", Path.Combine(root, "artifacts", "u2-ur", urProfile ?? "parity", "evidence"))
+            .UseSetting("CatalogueImageCache:LocalPath", Path.Combine(root, "artifacts", "u2-ur", urProfile ?? "parity", "catalogue-images"))
             .ConfigureLogging(logging => logging.SetMinimumLevel(LogLevel.Warning))
             .ConfigureServices(services =>
             {
@@ -148,6 +161,15 @@ internal static class FixtureHost
         factory.UseKestrel(0);
         using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         using var dashboardScope = factory.Services.CreateScope();
+        if (urProfile is not null)
+        {
+            await dashboardScope.ServiceProvider.GetRequiredService<CatalogueSnapshotService>()
+                .ApplyAsync(Path.Combine(root, "src/Bingo.Web", CatalogueSnapshotService.DefaultRelativePath));
+            var scenarios = await dashboardScope.ServiceProvider.GetRequiredService<UiReviewScenarioSeeder>().SeedAsync(urProfile);
+            foreach (var item in scenarios.Events) ids[item.Slug] = item.Id;
+            account = await dashboardScope.ServiceProvider.GetRequiredService<ApplicationDbContext>().Accounts.SingleAsync(value => value.LoginName == "ReviewAdmin");
+            password = UiReviewScenarioSeeder.Password;
+        }
         var dashboard = await dashboardScope.ServiceProvider.GetRequiredService<IAdminDashboardService>().GetAsync(account.Id);
         var directory = ActivatorUtilities.CreateInstance<Bingo.Web.Pages.Admin.Events.IndexModel>(dashboardScope.ServiceProvider);
         directory.PageContext = new Microsoft.AspNetCore.Mvc.RazorPages.PageContext(new Microsoft.AspNetCore.Mvc.ActionContext(new DefaultHttpContext
