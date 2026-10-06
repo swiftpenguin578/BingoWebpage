@@ -130,8 +130,10 @@ public sealed class UiReviewScenarioSeeder(
         // Use the production evaluators for the actual synthetic field state.
         // Persist only the rows written by their failed scheduled-execution paths.
         var opening = (await signupReadiness.GetSignupReadinessAsync(failed.Id, SignupOpeningMode.ScheduledExecution, at, ct))!;
-        var openingCodes = opening.Blockers.Select(value => value.Code).ToArray();
-        var descriptions = opening.Blockers.Select(value => value.Description).ToArray();
+        var overlap = await EventSignupLifecycleService.CurrentEventBoundaryConflictAsync(db, failed, ct);
+        var openingBlockers = opening.Blockers.Concat(overlap is null ? [] : [overlap]).ToArray();
+        var openingCodes = openingBlockers.Select(value => value.Code).ToArray();
+        var descriptions = openingBlockers.Select(value => value.Description).ToArray();
         failed.ConfigureScheduledSignupOpening(false, []);
         db.ScheduledSignupOpeningAttempts.Add(new ScheduledSignupOpeningAttempt(Guid.NewGuid(), failed.Id,
             failed.SignupOpensAt!.Value, at, false, openingCodes, descriptions));
@@ -287,9 +289,9 @@ public sealed class UiReviewScenarioSeeder(
             var description = $"Complete the synthetic {name.ToLowerInvariant()} objective.";
             var template = new TileTemplate(Guid.NewGuid(), name, description, ObjectiveType.Manual, "Upload an invented screenshot.", 2);
             var tile = new BoardTile(Guid.NewGuid(), board.Id, template.Id, index / 2, index % 2, name, description, "Upload an invented screenshot.", 2);
-            var requirement = new BoardRequirementSnapshot(Guid.NewGuid(), tile.Id, 0, 1, true, false, description, true);
+            var requirement = new BoardRequirementSnapshot(Guid.NewGuid(), tile.Id, frozenImport ? 1 : 0, 1, true, false, description, true);
             db.TileTemplates.Add(template); db.BoardTiles.Add(tile); db.BoardRequirementSnapshots.Add(requirement);
-            db.TileTemplateRequirements.Add(new TileTemplateRequirement(Guid.NewGuid(), template.Id, 0, 1, true, false, description, true));
+            db.TileTemplateRequirements.Add(new TileTemplateRequirement(Guid.NewGuid(), template.Id, frozenImport ? 1 : 0, 1, true, false, description, true));
         }
         board.SetTotalEhb(8);
         await db.SaveChangesAsync(ct);
@@ -299,7 +301,7 @@ public sealed class UiReviewScenarioSeeder(
         db.BoardApprovalSnapshots.Add(approval);
         foreach (var tile in db.BoardTiles.Local.Where(value => value.BoardId == board.Id))
         {
-            var frozenTile = new BoardApprovalTileSnapshot(Guid.NewGuid(), approval.Id, tile.Id, tile.TileTemplateId, tile.RowIndex, tile.ColumnIndex, tile.NameSnapshot, tile.DescriptionSnapshot, tile.EvidenceInstructionsSnapshot, tile.EstimatedEhbSnapshot, null);
+            var frozenTile = new BoardApprovalTileSnapshot(Guid.NewGuid(), approval.Id, tile.Id, tile.TileTemplateId, tile.RowIndex, tile.ColumnIndex, tile.NameSnapshot, tile.DescriptionSnapshot, frozenImport ? HistoricalImport.HistoricalEventImporter.Disclosure : tile.EvidenceInstructionsSnapshot, tile.EstimatedEhbSnapshot, null);
             db.BoardApprovalTileSnapshots.Add(frozenTile);
             var requirement = db.BoardRequirementSnapshots.Local.Single(value => value.BoardTileId == tile.Id);
             db.BoardApprovalRequirementSnapshots.Add(new BoardApprovalRequirementSnapshot(Guid.NewGuid(), frozenTile.Id, requirement.Id, requirement.Position, requirement.TargetContribution, requirement.DuplicatesAllowed, requirement.AllowHigherWeightings, requirement.CreditedWeight, requirement.Description, requirement.ManualObjective));
@@ -340,7 +342,7 @@ public sealed class UiReviewScenarioSeeder(
         var owner = accounts["ReviewOwner"];
         var start = now.AddDays(-60);
         var end = start.AddDays(5);
-        const string disclosure = "Synthetic historical record — evidence not retained; attribution reconstructed.";
+        const string disclosure = HistoricalImport.HistoricalEventImporter.Disclosure;
         var item = BingoEvent.CreateArchivedHistorical(Guid.NewGuid(), "Imported — frozen synthetic history", "ur-imported",
             disclosure, "Europe/Copenhagen", start.AddDays(-7), start.AddDays(-2), start, end, owner.Id, now,
             disclosure, 2, 3, 2, 2);
@@ -376,9 +378,9 @@ public sealed class UiReviewScenarioSeeder(
         var tile = db.BoardTiles.Local.First(value => value.BoardId == board.Id);
         var requirement = db.BoardRequirementSnapshots.Local.Single(value => value.BoardTileId == tile.Id);
         var primary = characters[accounts[names[0]].Id];
-        var approvedAt = start.AddHours(1).AddMinutes(1);
+        var approvedAt = start.AddSeconds(1);
         var submission = new Submission(Guid.NewGuid(), item.Id, teams[0].Id, tile.Id, requirement.Id, null,
-            participants[0].Id, primary.Id, primary.DisplayName, owner.Id, 1, start.AddHours(1), disclosure, null);
+            participants[0].Id, primary.Id, primary.DisplayName, owner.Id, 1, start, disclosure, null);
         submission.Approve(1, approvedAt); db.Submissions.Add(submission);
         db.SubmissionContributions.Add(new SubmissionContribution(Guid.NewGuid(), submission.Id, teams[0].Id, requirement.Id, null, participants[0].Id, 1, approvedAt));
         db.ReviewActions.Add(new ReviewAction(Guid.NewGuid(), submission.Id, ReviewActionType.Submitted, owner.Id, submission.SubmittedAt, disclosure, null, null));
@@ -390,7 +392,7 @@ public sealed class UiReviewScenarioSeeder(
         sync.MarkHistoricalSuccess(end, end); db.EventCompetitionSynchronizations.Add(sync);
         foreach (var assignment in assignments)
             db.EventCompetitionCharacterActivities.Add(new EventCompetitionCharacterActivity(Guid.NewGuid(), item.Id, 1, 91004,
-                assignment.OsrsCharacterId, 1, end, end, fingerprint, 25, 26));
+                assignment.OsrsCharacterId, 1, end, null, fingerprint, 25, 26));
         var counters = new[] { new[] { 1, 0, 0, 0 }, new[] { 0, 0, 0, 0 } };
         var manifest = JsonSerializer.Serialize(new { @event = new { sourceEventId = item.Slug, item.Name, start, end },
             teams = teams.Select((team, index) => new { team.Slug, team.Name, counters = counters[index], placement = index + 1 }) });
