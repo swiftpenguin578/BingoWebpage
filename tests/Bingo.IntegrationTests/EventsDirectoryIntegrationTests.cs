@@ -87,8 +87,7 @@ public sealed class EventsDirectoryIntegrationTests(PostgreSqlTestFixture databa
         Assert.Equal(unscheduled.Id, page.Events[^1].Id);
         page.Sort = "signups";
         await page.OnGetAsync(default);
-        Assert.Equal(cancelled.Id, page.Events[^1].Id);
-        Assert.Null(page.Events[^1].ParticipantCount);
+        Assert.Equal(0L, page.Events.Single(row => row.Id == cancelled.Id).ParticipantCount);
     }
 
     [Fact]

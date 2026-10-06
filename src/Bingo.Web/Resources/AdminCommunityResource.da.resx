@@ -121,4 +121,74 @@
   <data name="created after {0}" xml:space="preserve"><value>oprettet efter {0}</value></data>
   <data name="{0}% of accounts" xml:space="preserve"><value>{0}% af kontiene</value></data>
   <data name="{0}: participant count unavailable, {1} teams." xml:space="preserve"><value>{0}: deltagerantal ikke tilgængeligt, {1} hold.</value></data>
+  <data name="Events" xml:space="preserve"><value>Events</value></data>
+  <data name="All" xml:space="preserve"><value>Alle</value></data>
+  <data name="Current &amp; upcoming" xml:space="preserve"><value>Aktuelle og kommende</value></data>
+  <data name="Past" xml:space="preserve"><value>Tidligere</value></data>
+  <data name="Hidden" xml:space="preserve"><value>Skjulte</value></data>
+  <data name="Cancelled" xml:space="preserve"><value>Annulleret</value></data>
+  <data name="Phase" xml:space="preserve"><value>Fase</value></data>
+  <data name="Dates" xml:space="preserve"><value>Datoer</value></data>
+  <data name="Participants" xml:space="preserve"><value>Deltagere</value></data>
+  <data name="Needs attention" xml:space="preserve"><value>Kræver opmærksomhed</value></data>
+  <data name="All phases" xml:space="preserve"><value>Alle faser</value></data>
+  <data name="No events yet" xml:space="preserve"><value>Ingen events endnu</value></data>
+  <data name="upcoming or in setup" xml:space="preserve"><value>kommende eller under opsætning</value></data>
+  <data name="need attention" xml:space="preserve"><value>kræver opmærksomhed</value></data>
+  <data name="Nothing needs attention" xml:space="preserve"><value>Intet kræver opmærksomhed</value></data>
+  <data name="Create event" xml:space="preserve"><value>Opret event</value></data>
+  <data name="Events view" xml:space="preserve"><value>Eventvisning</value></data>
+  <data name="SuperAdmin only: quarantined events" xml:space="preserve"><value>Kun SuperAdmin: events i karantæne</value></data>
+  <data name="Search event names" xml:space="preserve"><value>Søg efter eventnavne</value></data>
+  <data name="Clear search" xml:space="preserve"><value>Ryd søgning</value></data>
+  <data name="Filter by phase" xml:space="preserve"><value>Filtrer efter fase</value></data>
+  <data name="Remove filter: needs attention" xml:space="preserve"><value>Fjern filter: kræver opmærksomhed</value></data>
+  <data name="Some parts of this link weren’t available and were cleared. The remaining filters still apply." xml:space="preserve"><value>Nogle dele af dette link var ikke tilgængelige og blev fjernet. De resterende filtre gælder stadig.</value></data>
+  <data name="Some attention counts could not be loaded. Events are shown, but attention information may be incomplete." xml:space="preserve"><value>Nogle opmærksomhedstal kunne ikke indlæses. Events vises, men oplysninger om opmærksomhed kan være ufuldstændige.</value></data>
+  <data name="Sort by {0}, {1}" xml:space="preserve"><value>Sorter efter {0}, {1}</value></data>
+  <data name="Hidden {0}" xml:space="preserve"><value>Skjult {0}</value></data>
+  <data name="Imported history from before the platform" xml:space="preserve"><value>Importeret historik fra før platformen</value></data>
+  <data name="{0} of {1} places confirmed" xml:space="preserve"><value>{0} af {1} pladser bekræftet</value></data>
+  <data name="{0} more: {1}" xml:space="preserve"><value>{0} yderligere: {1}</value></data>
+  <data name="Also: {0}. The event’s Overview explains everything." xml:space="preserve"><value>Desuden: {0}. Eventets Oversigt forklarer det hele.</value></data>
+  <data name="No matching events" xml:space="preserve"><value>Ingen matchende events</value></data>
+  <data name="No hidden events" xml:space="preserve"><value>Ingen skjulte events</value></data>
+  <data name="Nothing current or upcoming" xml:space="preserve"><value>Ingen aktuelle eller kommende events</value></data>
+  <data name="No past events yet" xml:space="preserve"><value>Ingen tidligere events endnu</value></data>
+  <data name="Try a different search or clear the filters." xml:space="preserve"><value>Prøv en anden søgning, eller ryd filtrene.</value></data>
+  <data name="Quarantined events appear here. They’re excluded from every other view, count and the Dashboard." xml:space="preserve"><value>Events i karantæne vises her. De er udeladt fra alle andre visninger, optællinger og Dashboard.</value></data>
+  <data name="Create your first event. It starts as a private draft, so you can set it up before anyone sees it." xml:space="preserve"><value>Opret dit første event. Det starter som en privat kladde, så du kan sætte det op, før andre ser det.</value></data>
+  <data name="Live events and events in setup or signups appear here." xml:space="preserve"><value>Live-events og events under opsætning eller tilmelding vises her.</value></data>
+  <data name="Events appear here once they reach final review, finish, are archived or are cancelled." xml:space="preserve"><value>Events vises her, når de når afsluttende gennemgang, afsluttes, arkiveres eller annulleres.</value></data>
+  <data name="Clear filters" xml:space="preserve"><value>Ryd filtre</value></data>
+  <data name="{0}–{1} of {2} events" xml:space="preserve"><value>{0}–{1} af {2} events</value></data>
+  <data name="Sorted by {0}" xml:space="preserve"><value>Sorteret efter {0}</value></data>
+  <data name="Default order" xml:space="preserve"><value>Standardrækkefølge</value></data>
+  <data name="Pagination" xml:space="preserve"><value>Sideinddeling</value></data>
+  <data name="Previous page" xml:space="preserve"><value>Forrige side</value></data>
+  <data name="Next page" xml:space="preserve"><value>Næste side</value></data>
+  <data name="Page {0}" xml:space="preserve"><value>Side {0}</value></data>
+  <data name="Loading events…" xml:space="preserve"><value>Indlæser events…</value></data>
+  <data name="Couldn’t load events" xml:space="preserve"><value>Kunne ikke indlæse events</value></data>
+  <data name="Not scheduled" xml:space="preserve"><value>Ikke planlagt</value></data>
+  <data name="in {0} days" xml:space="preserve"><value>om {0} dage</value></data>
+  <data name="Signups close {0}" xml:space="preserve"><value>Tilmelding lukker {0}</value></data>
+  <data name="Signups open {0}" xml:space="preserve"><value>Tilmelding åbner {0}</value></data>
+  <data name="Ended {0} days ago" xml:space="preserve"><value>Sluttede for {0} dage siden</value></data>
+  <data name="Didn’t take place" xml:space="preserve"><value>Fandt ikke sted</value></data>
+  <data name="{0} confirmed" xml:space="preserve"><value>{0} bekræftede</value></data>
+  <data name="{0} player" xml:space="preserve"><value>{0} spiller</value></data>
+  <data name="{0} players" xml:space="preserve"><value>{0} spillere</value></data>
+  <data name="{0} played" xml:space="preserve"><value>{0} spillede</value></data>
+  <data name="when it was cancelled" xml:space="preserve"><value>ved annulleringen</value></data>
+  <data name="Participant count unavailable" xml:space="preserve"><value>Deltagerantal ikke tilgængeligt</value></data>
+  <data name="No capacity set" xml:space="preserve"><value>Ingen kapacitet angivet</value></data>
+  <data name="Full" xml:space="preserve"><value>Fuldt</value></data>
+  <data name="{0} waiting" xml:space="preserve"><value>{0} på venteliste</value></data>
+  <data name="Signups not open" xml:space="preserve"><value>Tilmelding ikke åben</value></data>
+  <data name="{0} spots left" xml:space="preserve"><value>{0} ledige pladser</value></data>
+  <data name="Start postponed" xml:space="preserve"><value>Start udsat</value></data>
+  <data name="Signup opening failed" xml:space="preserve"><value>Åbning af tilmelding mislykkedes</value></data>
+  <data name="{0} to review" xml:space="preserve"><value>{0} til gennemgang</value></data>
+  <data name="Finished" xml:space="preserve"><value>Afsluttet</value></data>
 </root>

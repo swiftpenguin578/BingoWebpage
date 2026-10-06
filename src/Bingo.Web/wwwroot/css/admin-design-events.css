@@ -1,0 +1,21 @@
+.tbl.ev-tbl{--table-cols:minmax(230px,1.5fr) 152px minmax(190px,1.1fr) minmax(170px,1fr) minmax(224px,1.3fr);--table-min:990px}
+@media(max-width:640px){.tbl.ev-tbl{--table-cols:minmax(168px,1fr) 148px 188px 164px 214px;--table-min:900px}.ev-tbl .th.c-name,.ev-tbl .td.c-name{padding-left:16px}}
+.ev-tbl .row.is-cancelled .td-dates .cell-main{color:var(--dk-text-3)}
+.ev-tbl .td .meter{max-width:100%}
+.ev-tbl .meter-label{color:var(--dk-text);font-size:var(--dk-fs-control-sm)}
+.ev-tbl .meter-label.is-muted{color:var(--dk-text-3)}
+.ev-tbl .cell-main{font-size:var(--dk-fs-control-sm)}
+.ev-tbl .cell-main.is-muted{color:var(--dk-text-3)}
+.tfoot-note{color:var(--dk-text-3)}
+.ev-tbl .hint.is-dismissed .hint-tip{opacity:0;visibility:hidden}
+/* U2 loading decision: reserve data-independent boxes on every visit. */
+[data-page-family="events"]>div:first-child{flex:1;min-width:0;width:100%}
+[data-page-family="events"] .summary{min-height:calc(var(--dk-fs-control)*var(--dk-lh-body));position:relative}
+[data-events-directory] .tab-count,[data-events-pending] .tab-count{display:inline-flex;align-items:center;justify-content:center;min-width:2ch;width:2ch;height:calc(var(--dk-fs-control-sm)*var(--dk-lh-body));text-align:center}
+[data-pending-count]>.sk{display:block;width:100%;height:10px}
+[data-events-summary-placeholder]{width:100%;height:calc(var(--dk-fs-control)*var(--dk-lh-body))}
+[data-events-summary-placeholder]>.sk{position:absolute;top:5px;width:80%}
+[data-events-load-failed] .summary{min-height:0}
+[data-events-summary-placeholder]>.sk+ .sk{display:none}
+@media(max-width:860px){[data-page-family="events"] .summary{min-height:calc(2*var(--dk-fs-control)*var(--dk-lh-body) + 4px)}[data-events-summary-placeholder]{height:calc(2*var(--dk-fs-control)*var(--dk-lh-body) + 4px)}[data-events-summary-placeholder]>.sk+ .sk{display:block;top:calc(var(--dk-fs-control)*var(--dk-lh-body) + 9px);width:52%}[data-events-load-failed] .summary{min-height:0}}
+@media(max-width:640px){.tbar-right{width:100%}.tbar-right .search{flex:1;width:auto;min-width:0}.page-head .btn-primary{width:100%}}

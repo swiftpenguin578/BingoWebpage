@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Data.Common;
 using Npgsql;
 using System.Net;
 using Microsoft.AspNetCore.Hosting.Server;
@@ -17,6 +18,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
@@ -62,7 +64,8 @@ internal static class FixtureHost
         }
         var options = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetConnectionString()).Options;
         var account = Account.CreateWebsite(Guid.NewGuid(), "parity-admin", "PARITY-ADMIN", Now.AddYears(-1));
-        account.SetGlobalRole(GlobalRole.Admin);
+        var directoryFault = Environment.GetEnvironmentVariable("BINGO_PARITY_DIRECTORY_FAULT") == "1";
+        account.SetGlobalRole(directoryFault ? GlobalRole.SuperAdmin : GlobalRole.Admin);
         const string password = "Synthetic-parity-password-2026";
         account.SetPassword(new PasswordHasher<Account>().HashPassword(account, password), false, Now, incrementVersion: false);
         var ids = new Dictionary<string, Guid>();
@@ -104,6 +107,13 @@ internal static class FixtureHost
             foreach (var state in new[] { EventState.Finalized, EventState.Archived, EventState.Cancelled })
                 Add("spring-" + state.ToString().ToLowerInvariant(), "Spring Bingo 2027", state, "Europe/Copenhagen", "Seven teams, one board, a photo finish.", null, "2027-02-15T17:00:00Z", "2027-03-01T19:00:00Z", "2027-03-05T18:00:00Z", "2027-03-12T17:00:00Z", "2027-03-21T21:00:00Z");
             for (var i = 0; i < 15; i++) Add("scroll-" + i, "Scroll fixture " + i, EventState.Draft, "UTC", null, null, null, null, null, "2027-04-01T12:00:00Z", "2027-04-02T12:00:00Z");
+            if (directoryFault)
+            {
+                Add("hidden-old", "Zulu older hidden", EventState.Finalized, "UTC", null, null, "2027-02-01T12:00:00Z", "2027-02-02T12:00:00Z", null, "2027-02-03T12:00:00Z", "2027-02-04T12:00:00Z");
+                Add("hidden-new", "Alpha newer hidden", EventState.Finalized, "UTC", null, null, "2027-02-01T12:00:00Z", "2027-02-02T12:00:00Z", null, "2027-02-03T12:00:00Z", "2027-02-04T12:00:00Z");
+                foreach (var entry in db.ChangeTracker.Entries<BingoEvent>().Where(entry => entry.Entity.Slug.StartsWith("hidden-", StringComparison.Ordinal)))
+                    entry.Entity.Hide(account.Id, Now.AddDays(entry.Entity.Slug == "hidden-old" ? -2 : -1), entry.Entity.Name, "Controlled parity quarantine");
+            }
             foreach (var item in db.ChangeTracker.Entries<BingoEvent>().Select(entry => entry.Entity)
                          .Where(item => item.ActualStartedAt is not null).ToArray())
             {
@@ -133,16 +143,32 @@ internal static class FixtureHost
                     settings.TimeProvider = TimeProvider.System;
                 });
                 services.AddHttpClient("WiseOldMan").ConfigurePrimaryHttpMessageHandler(() => new NoProviderCalls());
+                if (directoryFault) services.AddDbContext<ApplicationDbContext>(settings => settings.AddInterceptors(new AttentionFailure()));
             }));
         factory.UseKestrel(0);
         using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         using var dashboardScope = factory.Services.CreateScope();
         var dashboard = await dashboardScope.ServiceProvider.GetRequiredService<IAdminDashboardService>().GetAsync(account.Id);
-        Console.WriteLine("PARITY_READY " + JsonSerializer.Serialize(new { origin = factory.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.Single(), username = account.PublicUsername, password, events = ids, dashboard }));
+        var directory = ActivatorUtilities.CreateInstance<Bingo.Web.Pages.Admin.Events.IndexModel>(dashboardScope.ServiceProvider);
+        directory.PageContext = new Microsoft.AspNetCore.Mvc.RazorPages.PageContext(new Microsoft.AspNetCore.Mvc.ActionContext(new DefaultHttpContext
+        {
+            User = new System.Security.Claims.ClaimsPrincipal(new System.Security.Claims.ClaimsIdentity([new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.NameIdentifier, account.Id.ToString())], "fixture"))
+        }, new Microsoft.AspNetCore.Routing.RouteData(), new Microsoft.AspNetCore.Mvc.RazorPages.PageActionDescriptor()));
+        await directory.OnGetAsync(default);
+        Console.WriteLine("PARITY_READY " + JsonSerializer.Serialize(new { origin = factory.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.Single(), username = account.PublicUsername, password, events = ids, dashboard, directory = new { directory.Events } }));
         // Only this process owns the container; closing stdin disposes host and database.
         await Console.In.ReadLineAsync();
     }
     private sealed class FixtureClock : TimeProvider { public override DateTimeOffset GetUtcNow() => Now; }
+    private sealed class AttentionFailure : DbCommandInterceptor
+    {
+        public override ValueTask<InterceptionResult<DbDataReader>> ReaderExecutingAsync(DbCommand command, CommandEventData eventData, InterceptionResult<DbDataReader> result, CancellationToken cancellationToken = default)
+        {
+            if (command.CommandText.Contains("FROM scheduled_signup_opening_attempts", StringComparison.Ordinal))
+                throw new InvalidOperationException("Controlled read-only attention failure");
+            return ValueTask.FromResult(result);
+        }
+    }
     private sealed class NoProviderCalls : HttpMessageHandler
     {
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) => throw new InvalidOperationException("No live provider requests are allowed in the parity fixture.");

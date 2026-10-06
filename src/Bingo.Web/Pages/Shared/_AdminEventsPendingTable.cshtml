@@ -1,0 +1,27 @@
+@model bool
+@inject IStringLocalizer<AdminCommunityResource> D
+@{
+    var views = new[] { ("all", "All"), ("current", "Current & upcoming"), ("past", "Past") };
+    var columns = new[] { ("identity", "Event", "c-name"), ("state", "Phase", ""), ("dates", "Dates", ""), ("signups", "Participants", ""), ("attention", "Needs attention", "") };
+}
+<div data-events-pending>
+<div class="toolbar">
+    <div class="tabs" role="radiogroup" aria-label="@D["Events view"]">
+    @foreach (var (key, label) in views) { <label class="tab"><input class="sr" type="radio" name="pending-view" data-pending-view="@key" disabled="@(!Model)" /><span>@D[label]</span><span class="tab-count" data-pending-count>@if (!Model) { <span class="sk" aria-hidden="true"></span> }</span></label> }
+    @if (User.IsInRole("SuperAdmin")) { <span class="tab-sep" aria-hidden="true"></span><label class="tab"><input class="sr" type="radio" name="pending-view" data-pending-view="hidden" disabled="@(!Model)" /><partial name="_AdminDesignIcon" model='new AdminDesignIcon("hidden")' /><span>@D["Hidden"]</span><span class="tab-count" data-pending-count>@if (!Model) { <span class="sk" aria-hidden="true"></span> }</span></label> }
+    </div>
+    <div class="tbar-right">
+        <button type="button" class="filter-chip" data-pending-attention hidden disabled="@(!Model)">@D["Needs attention"]<partial name="_AdminDesignIcon" model='new AdminDesignIcon("close")' /></button>
+        <div class="search"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("search")' /><input class="input" type="search" data-pending-search placeholder="@D["Search event names"]" aria-label="@D["Search event names"]" disabled="@(!Model)" /></div>
+        <button type="button" class="btn filter-btn" data-pending-phase-button aria-haspopup="menu" aria-expanded="false" disabled="@(!Model)"><span class="fb-lbl">@D["Phase"]</span><span data-pending-phase-value>@D["All"]</span><partial name="_AdminDesignIcon" model='new AdminDesignIcon("chevron-down")' /></button>
+        <div class="menu" role="menu" hidden data-pending-phase-menu aria-label="@D["Filter by phase"]">
+        @foreach (var (key, label) in new[] { ("all", "All"), ("draft", "Setup"), ("signupopen", "Signups open"), ("signupclosed", "Signups closed"), ("live", "Live"), ("awaitingfinalreview", "Final review"), ("finalized", "Finished"), ("archived", "Archived"), ("cancelled", "Cancelled") }) { <button type="button" class="menu-item" role="menuitemradio" data-pending-phase="@key"><span class="grow">@D[label]</span></button> }
+        </div>
+    </div>
+</div>
+<div class="card"><div class="tbl-wrap is-scroll"><div class="tbl ev-tbl sticky-first" role="table" aria-label="@D["Events"]" aria-busy="@(!Model ? "true" : "false")">
+    <div class="tr th-row" role="row">@foreach (var (key, label, cls) in columns) { <div class="th @cls" role="columnheader" data-pending-column="@key" aria-sort="none"><button class="th-btn" type="button" data-pending-sort="@key" disabled="@(!Model)">@D[label]<svg class="ic sort-ic" viewBox="0 0 16 16"><path d="M4.5 10 8 6.5l3.5 3.5"/></svg></button></div> }</div>
+    @if (Model) { <div class="empty is-error" role="row"><div role="cell" style="display:contents"><div class="empty-ic"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("error")' /></div><div class="empty-title">@D["Couldn’t load events"]</div><div class="empty-text">@D["Check your connection and try again. Nothing was changed."]</div><button class="btn" type="button" data-load-retry>@D["Try again"]</button></div></div> }
+    else { @foreach (var width in new[] { 52, 38, 46, 60, 34, 48, 42 }) { <div class="tr sk-row" role="row" aria-hidden="true"><div class="td c-name"><div class="sk" style="width:@(width)%"></div></div><div class="td"><div class="sk" style="width:62%;height:20px;border-radius:10px"></div></div><div class="td"><div class="sk" style="width:70%;margin-bottom:8px"></div><div class="sk" style="width:44%;height:8px"></div></div><div class="td"><div class="sk" style="width:56%"></div></div><div class="td"><div class="sk" style="width:40%"></div></div></div> } }
+</div></div></div>
+</div>
