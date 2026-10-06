@@ -20,6 +20,7 @@ DB = "bingo_ui_review"
 PORT = 54339
 LABEL = "dev.bingo.ui-review.owner"
 PASSWORD = "LocalReview!1234"
+IMAGE = "postgres:17-alpine"
 MARKER = STATE / "owner.json"
 PROCESSES = STATE / "processes.json"
 
@@ -109,6 +110,9 @@ def stop_processes():
 
 def port_free(port):
     with socket.socket() as probe:
+        # Closed owned HTTP connections may remain in TIME_WAIT. This permits their
+        # address reuse, but cannot bind over an active listener (no SO_REUSEPORT).
+        probe.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         try:
             probe.bind(("127.0.0.1", port))
         except OSError as error:
@@ -176,6 +180,8 @@ def main():
         if not owner:
             raise RuntimeError("Refusing: container exists without this checkout's ownership marker.")
         verify_container(info, owner)
+        if args.action != "stop" and info["Config"].get("Image") != IMAGE:
+            raise RuntimeError(f"Refusing: owned review image differs from {IMAGE}; verify and replace only the disposable owned review container.")
         if info["State"]["Running"] and owner.get("marker_ready", False):
             verify_database(owner)
     elif owner:
@@ -195,7 +201,7 @@ def main():
         owner = {"token": str(uuid.uuid4()), "marker_ready": False}
         run("docker", "run", "-d", "--name", NAME, "--label", LABEL + "=" + owner["token"],
             "-p", f"127.0.0.1:{PORT}:5432", "-e", "POSTGRES_USER=" + DB,
-            "-e", "POSTGRES_PASSWORD=" + PASSWORD, "-e", "POSTGRES_DB=" + DB, "postgres:16-alpine")
+            "-e", "POSTGRES_PASSWORD=" + PASSWORD, "-e", "POSTGRES_DB=" + DB, IMAGE)
         owner["container_id"] = inspect()["Id"]
         MARKER.write_text(json.dumps(owner))
     else:

@@ -1,6 +1,6 @@
 # Current project status
 
-## UR remediation65 R1 complete; R2 and stop gates next — 6 October 2026
+## UR remediation65 R1/R2 implemented; recheck/suite/walkthrough pending — 6 October 2026
 
 - Checkout `/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage`, branch `codex/participants-functionality`; U1 implementation HEAD `18a9669201bae2aa71a6057e5ef53c160cea2aba` was clean before the supplied U1 acceptance checkpoint.
 - Supplied acceptance authority: [decisions08](/Users/christopher/Documents/BingoWebpage/review-notes/08-decisions.md), “U1 visual acceptance” and “U1 accepted”, and [brief62](/Users/christopher/Documents/BingoWebpage/review-notes/62-codex-brief-ur-review-environment.md). The user accepted shell + Identity on **6 October 2026**, including light/dark, EN/DA, phone, in-app browser and desktop Safari. The timezone-dialog question was a seed-data gap, not a U1 defect. `UI_PAGE_MATRIX.md` owns the two page approval records.
@@ -14,7 +14,8 @@
 - [Item4 proof](docs/references/admin-ui/reviews/2026-10-06/ur/item4.md): final real PostgreSQL/HTTP **2/0/0**, all printed URLs **69 live / 70 final-review** returned 200 for listed accounts, hidden event routes 404 plain Admin, discarded public/direct routes 404 and audit links 200. Safety **7 passed**, actual create→refresh rebuilt 21 event dates/20 starts, matching stop succeeded. Review app/reference/container remain stopped. Full JS **51/0** Chromium/WebKit and whole BrowserTests **150/0/0** passed on item4 candidate before the ruling64-only test clarification; passing unaffected evidence reused. Final clean nonincremental Release **0 warnings/errors**, diff/frozen-CSS checks passed. Earlier unsuccessful fixture executions are recorded distinctly in item4. No whole-.NET suite launched.
 - README owns create/refresh/stop, ports, safety, synthetic credentials and accounts. DELIVERY_PLAN's pass8a requires every later page brief to add its scenarios/working account links to UR. Independent Claude review, final-SHA unfiltered whole .NET **0 failed / 0 skipped**, and user review-environment walkthrough are **pending**. UR implementation is not page visual acceptance; UI_PAGE_MATRIX is unchanged.
 
-- Remediation65 is authorized from clean `0ec7e9c`, same `gpt-6.1-sol` / high implementer, R1 then R2, one local commit each. [Remediation evidence](docs/references/admin-ui/reviews/2026-10-06/ur/remediation-1.md): R1 is this scoped commit, exact event/Board history and complete state transitions in the separate seeder; extended PostgreSQL/HTTP **2/0/0**, Release compile **0 warnings/errors**, diff/protected checks passed. Accepted review65 clarification preserves event entries as `event` and Board entries as `board`/board.Id, matching real writers. Earlier partial 0/2/0 Description comparison failure is retained distinctly; corrected creation defaults passed final proof. Review65 source labels 7 October; actual client evidence date is 6 October. No production change or R2 execution yet.
+- Remediation65 starts from clean `0ec7e9c`, same `gpt-6.1-sol` / high implementer, one local commit/item: R1 `471b94e` aligns separate seed event/Board audit and complete lifecycle history; R2 is this commit, fixed postgres:17-alpine and old-image refusal. [Remediation evidence](docs/references/admin-ui/reviews/2026-10-06/ur/remediation-1.md) records actual-writer action/JSON/target assertions, accepted Board `board`/board.Id clarification, and exact provenance (planner source labelled 7 October, actual client 6 October). No production output/behavior changes; old reset seed/frozen CSS unchanged.
+- Remediation gates: extended PostgreSQL/HTTP **2/0/0**, whole BrowserTests **150/0/0**, clean Release **0 warnings/errors**, safety **10 passed**, diff/protected checks passed. Real owned PostgreSQL17.10 create/live→refresh/final-review→stop printed **69/70** links; 21 dates/20 starts rebuilt exactly **174,533,493 microseconds**, event audit59/60, Board audit21/21, transitions35/36. Verified owned16 only was replaced. First refresh's closed-socket port false positive was reproduced and corrected; original foreign-port assertion retained, separate active-listener/closed-socket tests added. Earlier R1 0/2/0 Description failure and scratch date-parser error are recorded distinctly. Matching stop confirmed container stopped, process records cleared and ports free. JS not rerun per review65 conditional gate because covered behavior/fixtures unchanged; earlier JS51/0 is prior UR evidence. No whole .NET run/CI.
 
 
 ## Round3 historical handoff — superseded by round4 above
@@ -50,11 +51,10 @@
 
 ## Next permitted action
 
-Continue the same implementer with R2 postgres:17-alpine and owned
-create→refresh→stop, whole BrowserTests, clean Release and diff gates. JS only if
-covered behavior changes. Stop after the R2 local commit. Claude/user independently
-rechecks and executes the unfiltered whole .NET gate on the final reported SHA
-(zero failed/zero skipped), followed by user walkthrough:
+Stop after R2; no further implementation authorized. Claude/user independently
+rechecks review65 remediation and executes the unfiltered whole .NET gate on the
+final reported SHA (zero failed/zero skipped), followed by user walkthrough.
+These gates remain pending; U1 acceptance is retained. Exact command:
 
 ```sh
 cd /Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage

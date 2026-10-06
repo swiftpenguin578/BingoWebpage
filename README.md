@@ -362,10 +362,12 @@ repository .NET SDK are required. The older `--reset-test-data` scenario set is
 unchanged.
 
 The app runs at <http://127.0.0.1:5310> and references at
-<http://127.0.0.1:5320>. The fixed PostgreSQL container `bingo-ui-review` binds only
+<http://127.0.0.1:5320>. The fixed PostgreSQL 17 container `bingo-ui-review`
+(`postgres:17-alpine`) binds only
 `127.0.0.1:54339`, using database/user `bingo_ui_review`. Its local-only synthetic
 password is `LocalReview!1234`. Owner label, exact container name/ID/port, local
 marker and PostgreSQL marker must agree before destructive review rebuilding.
+Create/refresh refuses an existing container with a different image.
 The command refuses databases named in `appsettings.Local.json` and user containers
 `bingowebpage-postgres-1`, `bingo-admin-acceptance-20260928` and
 `bingo-ticket-manual-20260914`. Occupied app/reference ports fail with a diagnostic;
