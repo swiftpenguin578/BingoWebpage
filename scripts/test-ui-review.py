@@ -28,6 +28,22 @@ class ReviewSafetyTests(unittest.TestCase):
             with self.subTest(changed=changed), self.assertRaises(RuntimeError):
                 review.verify_container({**info, **changed}, owner)
 
+    def test_refresh_refuses_old_runtime_before_any_mutation(self):
+        with tempfile.TemporaryDirectory(prefix="bingo-ur-version-") as directory:
+            state = Path(directory)
+            marker = state / "owner.json"
+            marker.write_text(json.dumps({"token": "owned-token", "container_id": "owned-id", "marker_ready": True}))
+            info = {"Name": "/bingo-ui-review", "Id": "owned-id", "Config": {"Image": "postgres:16-alpine", "Labels": {review.LABEL: "owned-token"}},
+                    "HostConfig": {"PortBindings": {"5432/tcp": [{"HostIp": "127.0.0.1", "HostPort": "54339"}]}}, "State": {"Running": False}}
+            with patch.object(review, "STATE", state), patch.object(review, "MARKER", marker), patch.object(review, "inspect", return_value=info), \
+                    patch.object(review, "local_database_guard"), patch.object(review, "run") as run, patch.object(review, "stop_processes") as stop, \
+                    patch.object(review.sys, "argv", ["ui-review.py", "refresh"]):
+                self.assertEqual(review.IMAGE, "postgres:17-alpine")
+                with self.assertRaisesRegex(RuntimeError, "image differs from postgres:17-alpine"):
+                    review.main()
+                run.assert_not_called()
+                stop.assert_not_called()
+
     def test_database_marker_mismatch_is_refused(self):
         with patch.object(review, "sql", return_value=SimpleNamespace(stdout="foreign-owner\n")) as sql:
             with self.assertRaises(RuntimeError):
@@ -49,6 +65,28 @@ class ReviewSafetyTests(unittest.TestCase):
             listener.bind(("127.0.0.1", 0))
             with self.assertRaisesRegex(RuntimeError, "No foreign process"):
                 review.port_free(listener.getsockname()[1])
+
+    def test_active_reusable_foreign_listener_is_refused(self):
+        with socket.socket() as listener:
+            listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            listener.bind(("127.0.0.1", 0))
+            listener.listen()
+            with self.assertRaisesRegex(RuntimeError, "No foreign process"):
+                review.port_free(listener.getsockname()[1])
+
+    def test_recently_closed_socket_does_not_block_refresh(self):
+        with socket.socket() as listener:
+            listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            listener.bind(("127.0.0.1", 0))
+            port = listener.getsockname()[1]
+            listener.listen()
+            with socket.create_connection(("127.0.0.1", port)) as client:
+                accepted, _ = listener.accept()
+                with accepted:
+                    accepted.shutdown(socket.SHUT_WR)
+                    self.assertEqual(client.recv(1), b"")
+                client.shutdown(socket.SHUT_WR)
+        review.port_free(port)
 
     def test_changed_process_is_never_signalled(self):
         with tempfile.TemporaryDirectory(prefix="bingo-ur-safety-") as directory:
