@@ -40,7 +40,7 @@
     @if (data.CurrentEvent is { } card)
     {
         <div class="next-event" aria-label="@D[card.State == EventState.Live ? "Current event" : "Next event"]">
-            <div class="grow"><div class="next-label">@D[card.State == EventState.Live ? "Current event" : "Next event"]</div><div class="next-name">@card.EventName</div><div class="next-meta"><span class="dot @(card.State == EventState.Live ? "tone-live" : card.State == EventState.SignupOpen ? "tone-open" : "tone-draft")"></span>@Model.Phase(card.State) · @Model.NextDate(card)</div></div>
+            <div class="grow"><div class="next-label">@D[card.State == EventState.Live ? "Current event" : "Next event"]</div><div class="next-name">@card.EventName</div><div class="next-meta"><span class="dot @(card.State == EventState.Live ? "tone-live" : card.State == EventState.SignupOpen ? "tone-open" : "tone-draft")"></span><span>@Model.Phase(card.State)</span> · <span>@Model.NextDate(card)</span></div></div>
             @if (card.Capacity is { } cap)
             {
                 <div class="meter" title="@D["{0} of {1} places filled", N(card.ConfirmedParticipants), N(cap)]"><div class="meter-track" style="--meter-w:56px"><div class="meter-fill" style="width:@(Bingo.Web.Pages.Admin.IndexModel.Percent(cap > 0 ? Math.Min(1m, (decimal)card.ConfirmedParticipants / cap) : 0))%"></div></div><span class="meter-label">@N(card.ConfirmedParticipants)/@N(cap)</span></div>

@@ -12,7 +12,6 @@
 /* Approved fresh header reservation; never affects the loaded header. */
 [data-dashboard-loading-card]{width:420px}
 [data-page-header-loading] .summary{min-height:calc(var(--dk-fs-control)*var(--dk-lh-body))}
-[data-page-header-loading]>div:first-child{min-width:0;flex:1}
 .dash-sk-header-line{position:relative}
 .dash-sk-header-line>.sk{position:absolute;top:var(--dk-space-1)}
 .dash-sk-header-label{width:30%}.dash-sk-header-name{width:75%}.dash-sk-header-meta{width:55%}

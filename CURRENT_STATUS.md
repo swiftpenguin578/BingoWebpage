@@ -1,13 +1,14 @@
 # Current project status
 
-## U2 brief72 remediation round2 — item1 checkpoint — 7 October 2026
+## U2 brief72 round2 — items1–4 committed, item5 reference-first geometry — 7 October2026
 
-- Same assigned checkout `/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage`, branch `codex/participants-functionality`; clean start verified at exact `05f95d844adeba18e8e7fd8854e040315c96a03e`. HEAD at item1 parent before checkpoint. Implementer only, gpt-6.1-sol/high as assigned; no workers/reviewer/orchestrator/new worktree/branch/publication/self-review.
-- Read full brief72 and complete 08-decisions section “U2 remediation round1 recheck and visual check round2”, current AGENTS and relevant plan. Q-C1/C2 palette is explicitly outside72; frozen tokens/components untouched.
-- Item1 working draft: shared C-CMP-2 results update and single150/400 loading rule; server-owned fragments/values, retained header/summary/tabs/toolbar/search/table nodes, focus/caret/selection, edit revisions and aborts, URL replace and vertical/horizontal scroll. [Item1 evidence/changed files/exact question](docs/references/admin-ui/reviews/2026-10-06/u2/remediation-2/item1-events-update.md).
-- Executed: exact paused fake-clock proof PASS Chromium/WebKit (11 connected cases each, no sleeps), Events rendered26/0 with0 differences, shared shell PASS both, unchanged PG/HTTP1/0/0, fixture Release0 warnings/errors, diff check0, frozen CSS cmp0. Authoring/static-manifest readiness failures recorded distinctly in evidence; no assertions relaxed.
-- Planner ruling7 October corrected phase focus: match reference, close on choice and retain Phase opener focus. Revised paired fake-clock slow phase case passes both engines. Item1 scoped checkpoint authorized; no new reference exception.
-- Items2–8 and final gates remain next. No new round2 whole-suite/three-concurrent-Integration runs performed, no pass claimed. Previous brief70 waiver does not waive72 gates. UI_PAGE_MATRIX remains awaiting Claude review, then user visual acceptance. No push/merge/deploy.
+- Same assigned checkout `/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage`, branch `codex/participants-functionality`; exact clean start05f95d844adeba18e8e7fd8854e040315c96a03e. Implementer gpt-6.1-sol/high only; no workers/reviewer/orchestrator/new branch/worktree/push/merge/deploy/self-review.
+- Scoped checkpoints:1 `7bd6660c6f7dc3984170fa35f12f1617c2ebff06` retained Events results controls;2 `f1caca5ee47645b4017deebeb3d7dcb81e15a12d` inherited skeleton hold/focus/Back scroll;3 `5555c25d9b19a06ad3b6cec4b59f2c4dde75a4ae` Create close/history/literal names;4 `a6d208268db444bb4b8cb511fa88c91b94de2d7c` Dashboard text/counts/sort/Danish labels. HEAD at item4.
+- [Per-item evidence](docs/references/admin-ui/reviews/2026-10-06/u2/remediation-2/):paired exact-clock Events14 connected cases PASS;shared loading12 boundary+5 additional hold/Back cases PASS both;unchanged shared shell PASS both;Events rendered26/0;Create rendered10/0 and actual HTTP3/0/0;Dashboard focused.NET13/0/0 and rendered18/0. Builds0warnings/errors,diff/frozen comparisons0. Failed authoring checkpoints/no-test filter distinguished in evidence.
+- Phase-focus ruling7 October applied:close phase menu,retain Phase opener through update. Both UI_PAGE_MATRIX rows remain awaiting Claude review,then user visual acceptance;no independent/manual acceptance claimed.
+- Item5 Q-H1 resolved by planner 7 October: exact loaded reference flow takes precedence; no fixed anchors. Fresh loading header has empty one-line summary and placeholder card. Intrinsic loading group and metadata flex children now match reference. Register updated. [Item5 evidence](docs/references/admin-ui/reviews/2026-10-06/u2/remediation-2/item5-header-question.md) and [16-record positions](docs/references/admin-ui/reviews/2026-10-06/u2/remediation-2/item5-header-positions.json): both engines ×390/861/1280/1440 ×normal/narrow; loaded/loading reference and flow proof16/0, no arbitrary sleeps. Frozen files unchanged.
+- Items6–8 and final gates remain pending, not passed. Next: commit item5 after its Dashboard regression, then items6–8 sequentially, including three concurrent Integration runs and whole final-SHA suite. No U3+/palette/packaging/push/merge/deploy.
+
 
 ## TS brief66 delivered — retained evidence
 
@@ -30,4 +31,4 @@
 
 ## Next permitted action
 
-Continue brief72 items2–8 sequentially from the item1 checkpoint, then all required final gates including whole-suite on final SHA and three concurrent Integration proofs. No U3+, palette work, packaging, push, merge or deployment.
+Finish item5 scoped check/commit, then brief72 items6–8 and all final gates. No U3+, palette work, packaging, push, merge or deployment.

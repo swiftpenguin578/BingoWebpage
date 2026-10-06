@@ -85,7 +85,7 @@ const P=(name,selector,options={})=>[name,selector,selector,{required:true,box:{
    const headerBox=()=>app.evaluate(()=>{
     const page=document.querySelector('[data-page-skeleton]')||document.querySelector('[data-page-region] > .page:not([hidden])');
     const rect=selector=>{const b=page.querySelector(selector).getBoundingClientRect();return {x:b.x,y:b.y,width:b.width,height:b.height};};
-    return {head:rect('.page-head'),summary:rect('.summary'),card:rect('.next-event'),first:rect('.card')};
+    return {head:rect('.page-head'),title:rect('.h1'),summary:rect('.summary'),card:rect('.next-event'),first:rect('.card')};
    });
    for(const width of [1280,860,390]){
     await app.setViewportSize({width,height:1000});await app.goto(identity);await app.waitForFunction(()=>window.AdminUI);
@@ -95,15 +95,18 @@ const P=(name,selector,options={})=>[name,selector,selector,{required:true,box:{
     await app.evaluate(url=>{window.headerNavigation=window.AdminUI.navigate(url);},target);
     await app.locator('[data-dashboard-loading-card]').waitFor();
     await app.waitForFunction(()=>getComputedStyle(document.querySelector('[data-page-skeleton] .dash-grid')).display==='grid');
-    await settle(app);const loading=await headerBox();const lineHeight=await app.locator('[data-page-skeleton] .summary').evaluate(e=>parseFloat(getComputedStyle(e).lineHeight));proceed();
+    await settle(app);const loading=await headerBox();proceed();
     await app.evaluate(()=>window.headerNavigation);await app.locator('[data-dashboard]').waitFor();await settle(app);const loaded=await headerBox();
     await ref.setViewportSize({width,height:1000});await compare(engine+'-loaded-reference-'+width,app,ref,[P('loaded header','.page-head'),P('loaded summary','.summary',{text:true}),P('loaded next card','.next-event')]);
-    for(const key of ['head','summary','card'])for(const coordinate of ['x','y','width','height']){
-      if(key==='summary'&&coordinate==='width')continue; // Fresh empty text slot has no data-dependent intrinsic width.
-      const bound=width===390&&(coordinate==='y'||coordinate==='height')?lineHeight+0.01:1;
-      assert.ok(Math.abs(loaded[key][coordinate]-loading[key][coordinate])<=bound,engine+' '+width+' '+key+'.'+coordinate+' '+JSON.stringify({loading,loaded,lineHeight}));
+    // Q-H1: no fixed anchors. Geometry follows the reference's summary/card flow.
+    for(const [state,value] of Object.entries({loading,loaded})){
+      const groupHeight=value.title.height+6+value.summary.height;
+      const height=width<=860?groupHeight+24+value.card.height:Math.max(groupHeight,value.card.height);
+      const close=(actual,expected)=>assert.ok(Math.abs(actual-expected)<=0.1,engine+' '+width+' '+state+' reference flow');
+      close(value.head.height,height);close(value.title.y,value.head.y+(width<=860?0:height-groupHeight));
+      close(value.card.y,value.head.y+(width<=860?groupHeight+24:height-value.card.height));
+      close(value.first.y,value.head.y+height+20);
     }
-    for(const coordinate of ['x','y','width'])assert.ok(Math.abs(loaded.first[coordinate]-loading.first[coordinate])<=(width===390&&coordinate==='y'?lineHeight+0.01:1));
     results.push({name:engine+'-header-loading-loaded-'+width,passed:true,loading,loaded});
     await app.unroute(target);
    }
