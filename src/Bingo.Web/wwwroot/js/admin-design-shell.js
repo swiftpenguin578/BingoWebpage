@@ -520,7 +520,9 @@
     url = new URL(url, location.href).href;
     if (check && !await guard()) return false;
     if (!await closeNavigationLayers()) return false;
+    const inheritedUpdate = updateOverlay; updateOverlay = null;
     updating?.abort(); navigation?.abort();
+    if (language) inheritedUpdate?.restore();
     if (language) clearOverlay();
     if (body.dataset.navigationEnabled.toLowerCase() === 'false') { fullLoad(url); return true; }
     const ticket = ++sequence;
@@ -536,7 +538,7 @@
     // could be lost by the already-guarded navigation.
     if (!language) currentMain.inert = true;
     navigation.signal.addEventListener('abort', restoreMain, { once: true });
-    const loading = !language ? delayedLoading(shownAt => { skeleton(url, position, shownAt); restoreMain(); }, navigation.signal, overlay?.element.getAttribute('aria-busy') === 'true' ? overlay.shownAt : null) : null;
+    const loading = !language ? delayedLoading(shownAt => { skeleton(url, position, shownAt); inheritedUpdate?.restore(); restoreMain(); }, navigation.signal, overlay?.element.getAttribute('aria-busy') === 'true' ? overlay.shownAt : inheritedUpdate?.shownAt ?? null) : null;
     let receivedPage = false;
     const fallback = destination => { restoreMain(); clearOverlay(); if (rollbackContext) { refreshContext(rollbackContext); restorePosition(position); } fullLoad(destination); return true; };
     try {
@@ -615,6 +617,12 @@
   }
   // Shared in-page reads: page adapters supply only fragments/presentation,
   // never their own transport, delayed-loading clock or URL/focus/scroll rules.
+  function supersedeUpdate() {
+    const inherited = updateOverlay; updateOverlay = null;
+    updating?.abort(); updating = null;
+    // A fresh owner prevents the cancelled request's finally from clearing it.
+    if (inherited) updateOverlay = { ...inherited };
+  }
   async function update(url, { root, results, patch, pending, failed, fallbackFocus, signal, scrollRegions = [], current = () => true, draft = {} }) {
     if (!await guard()) return false;
     const inherited = updateOverlay?.results === results ? updateOverlay : null;
@@ -644,7 +652,7 @@
       };
       display = updateOverlay = { results, placeholder, restore, shownAt };
     }, controller.signal, inherited?.shownAt ?? null);
-    const clear = () => { if (!display || updateOverlay === display) { restore?.(); updateOverlay = null; } restore = null; };
+    const clear = () => { if (display && updateOverlay === display) { restore?.(); updateOverlay = null; } restore = null; };
     controller.signal.addEventListener('abort', clear, { once: true });
     const preserve = action => {
       const position = rememberPosition();
@@ -745,7 +753,7 @@
     if (record) index++;
     history[record ? 'pushState' : 'replaceState']({ adminDesignIndex: index }, '', url); activeUrl = url.href;
   }
-  const api = window.AdminUI = { template, trapTab, openLayer, closeLayer, closeMenu, confirm, confirmDiscard, toast, busy, reducedMotion, registerDraft, trackForm, refreshDirty, guard, query, setUrl, backUrl, registerUrlState, navigate, update, refreshContext };
+  const api = window.AdminUI = { template, trapTab, openLayer, closeLayer, closeMenu, confirm, confirmDiscard, toast, busy, reducedMotion, registerDraft, trackForm, refreshDirty, guard, query, setUrl, backUrl, registerUrlState, navigate, update, supersedeUpdate, refreshContext };
   document.addEventListener('submit', event => { if (event.target.matches('[data-shell-language]')) { event.preventDefault(); void changeLanguage(event.target, event.submitter); } });
   document.addEventListener('input', refreshDirty);
   document.addEventListener('change', refreshDirty);
