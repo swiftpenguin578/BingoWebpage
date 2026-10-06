@@ -12,7 +12,7 @@ async function until(page,predicate){for(let i=0;i<200;i++)if(await page.evaluat
   const context=await browser.newContext({viewport:{width:390,height:600},reducedMotion:'reduce'});
   let page=await login(context,fixture);const errors=[];page.on('pageerror',e=>errors.push(e.message));
   const base='/Admin/Events?view=current';
-  const urls={search:base+'&search=alpha&page=1',all:'/Admin/Events?view=all',phase:base+'&phase=signupopen',sort:base+'&sort=identity&direction=asc',page:base+'&page=2',attention:base+'&attention=1',late:base+'&search=alphaX&page=1',dashboard:'/Admin',allSearch:'/Admin/Events?view=all&search=alpha&page=1',sortedSearch:base+'&search=alpha&sort=identity&direction=asc&page=1',onePage:base+'&phase=live',firstPage:base};
+  const urls={search:base+'&search=alpha&page=1',all:'/Admin/Events?view=all',phase:base+'&phase=signupopen',sort:base+'&sort=identity&direction=asc',page:base+'&page=2',attention:base+'&attention=1',late:base+'&search=alphaX&page=1',dashboard:'/Admin',allSearch:'/Admin/Events?view=all&search=alpha&page=1',sortedSearch:base+'&search=alpha&sort=identity&direction=asc&page=1',onePage:base+'&phase=live',firstPage:base,sortSignups:base+'&sort=signups&direction=desc',sortAttention:base+'&sort=attention&direction=desc'};
   const html={};
   for(const [key,url]of Object.entries(urls)){const response=await context.request.get(fixture.origin+url);assert.equal(response.status(),200);html[key]=await response.text();}
   const reset=async key=>{
@@ -87,6 +87,34 @@ async function until(page,predicate){for(let i=0;i<200;i++)if(await page.evaluat
    assert.equal(await page.evaluate(()=>document.activeElement===started||(startedLabel&&document.activeElement.getAttribute('aria-label')===startedLabel)),true,key+' starting control keeps focus');
    await identities();
   }
+  // Attempted controls paint before a slow response, using server-owned labels/defaults.
+  for(const [key,selector]of[['all','.tabs input'],['phase','#directory-phase-menu button[data-directory-url*="signupopen"]'],['sort','#directory-sort-identity'],['page','.pager button[aria-label="Page 2"]'],['sortSignups','#directory-sort-signups'],['sortAttention','#directory-sort-attention']]){
+   await reset(key);if(key==='phase')await page.locator('#phase-btn').click();
+   await page.evaluate(selector=>{const node=document.querySelector(selector);node.focus();node.click();},selector);await until(page,()=>requests.length===1);
+   const state=async()=>{
+    if(key==='all')assert.equal(await page.locator('.tab.is-on input').evaluate(node=>new URL(node.dataset.directoryUrl,location.href).searchParams.get('view')),'all');
+    else if(key==='phase'){assert.equal(await page.locator('[data-directory-phase-value]').textContent(),'Signups open');assert.equal(await page.locator('#phase-btn').evaluate(node=>node.classList.contains('is-active')),true);}
+    else if(key==='page'){assert.equal(await page.locator('.pg.is-current').textContent(),'2');assert.equal(await page.locator('.pager button:last-child').isDisabled(),true);assert.equal(await page.locator('.pager button:first-child').isEnabled(),true);}
+    else{const direction=key==='sort'?'ascending':'descending';assert.equal(await page.locator(selector).evaluate(node=>node.closest('.th').getAttribute('aria-sort')),direction);assert.equal(await page.locator(selector+' .sort-ic').evaluate((node,direction)=>node.classList.contains(direction==='ascending'?'is-asc':'is-desc'),direction),true);}
+   };
+   await state();await page.clock.runFor(150);await state();assert.equal(await page.locator('[data-update-skeleton]').count(),1);
+   await page.evaluate(()=>requests[0].fulfill());await until(page,()=>timers.includes(400));await page.clock.runFor(400);await until(page,()=>!document.querySelector('[data-update-skeleton]'));await state();await identities();
+  }
+  await reset('all');await page.evaluate(()=>document.querySelector('.tabs input').click());await until(page,()=>requests.length===1);await page.clock.runFor(150);
+  await page.evaluate(()=>requests[0].fail());await until(page,()=>timers.includes(400));await page.clock.runFor(400);await until(page,()=>!!document.querySelector('[data-load-retry]'));
+  assert.equal(await page.locator('.tab.is-on input').evaluate(node=>new URL(node.dataset.directoryUrl,location.href).searchParams.get('view')),'all');
+  assert.equal(new URL(page.url()).searchParams.get('view'),'current','URL remains server-owned on failure');
+  await page.locator('[data-load-retry]').click();await until(page,()=>requests.length===2);
+  assert.equal(await page.evaluate(()=>new URL(requests[1].url).searchParams.get('view')),'all','retry same attempted choice');
+  await page.evaluate(()=>requests[1].fulfill());await until(page,()=>new URL(location.href).searchParams.get('view')==='all');
+
+  await reset('firstPage');await page.evaluate(()=>document.querySelector('.tabs input').click());await until(page,()=>requests.length===1);await page.clock.runFor(150);await page.clock.runFor(50);
+  await page.evaluate(()=>[...document.querySelectorAll('.tabs input')].find(node=>new URL(node.dataset.directoryUrl,location.href).searchParams.get('view')==='current').click());await until(page,()=>requests.length===2);
+  assert.equal(await page.evaluate(()=>requests[0].aborted),true);
+  assert.equal(await page.locator('.tab.is-on input').evaluate(node=>new URL(node.dataset.directoryUrl,location.href).searchParams.get('view')),'current','latest choice paints at once');
+  await page.evaluate(()=>{requests[0].fulfill();requests[1].fulfill();});await until(page,()=>timers.includes(350));await page.clock.runFor(350);await until(page,()=>!document.querySelector('[data-update-skeleton]'));
+  assert.equal(await page.locator('.tab.is-on input').evaluate(node=>new URL(node.dataset.directoryUrl,location.href).searchParams.get('view')),'current');
+  await identities();
   // Browser scrolling is preserved; no shorter-results clamp in this view change.
   await reset('all');
   const scroll=await page.evaluate(()=>{const main=document.querySelector('[data-page-region]'),wrap=document.querySelector('[data-directory-wrap]');main.scrollTop=100;wrap.scrollLeft=140;return{top:main.scrollTop,left:wrap.scrollLeft};});
