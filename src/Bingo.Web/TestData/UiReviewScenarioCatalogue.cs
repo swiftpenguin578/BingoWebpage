@@ -35,7 +35,8 @@ public static class UiReviewScenarioCatalogue
         {
             Add("Overview / Participants / Teams", item.Name + " — overview", $"/Admin/Events/Manage/{item.Id}");
             Add("Overview / Participants / Teams", item.Name + " — participants and former members", $"/Admin/Events/Participants/{item.Id}");
-            Add("Overview / Participants / Teams", item.Name + " — finalized affiliated rosters", $"/Admin/Events/Draft/{item.Id}");
+            Add("Overview / Participants / Teams", item.Name + " — finalized affiliated rosters",
+                item.State == EventState.Archived ? $"/Events/{item.Slug}/Teams" : $"/Admin/Events/Draft/{item.Id}");
             Add("Public board / affiliated teams", item.Name + " — public teams", $"/Events/{item.Slug}/Teams", "ReviewParticipant");
             Add("Public board / affiliated teams", item.Name + " — public board", $"/Events/{item.Slug}/Board", "ReviewParticipant");
         }
@@ -46,12 +47,12 @@ public static class UiReviewScenarioCatalogue
             Add("Final review / WOM", "Current final review — pending evidence and WOM end update", $"/Admin/Events/Finalize/{current.Id}");
         Add("Final review / WOM", "WOM end update Pending", $"/Admin/Events/WiseOldMan/{current.Id}");
         Add("Final review / WOM", "WOM end update Rejected — archived history", $"/Admin/Events/WiseOldMan/{archived.Id}");
-        var unavailable = scenarios.Events.Single(value => value.Slug == "ur-hidden-archived");
-        Add("Final review / WOM", "WOM end could-not-update — hidden Archived overview", $"/Admin/Events/Manage/{unavailable.Id}?hidden=true", "ReviewOwner", hidden: true);
+        var unavailable = scenarios.Events.Single(value => value.Slug == "ur-wom-unavailable");
+        Add("Final review / WOM", "WOM end could-not-update — archived history", $"/Admin/Events/WiseOldMan/{unavailable.Id}");
         Add("Accounts / Catalogue / Audit", "Every global role and disabled account", "/Admin/Accounts/Index", "ReviewOwner");
         Add("Accounts / Catalogue / Audit", "Reviewed local catalogue", "/Admin/Catalogue/Index");
         Add("Hidden / Audit", "Audit including hidden events", "/Admin/Audit/Index", "ReviewOwner");
-        Add("Hidden / Audit", "Plain Admin audit excludes hidden events", "/Admin/Audit/Index");
+        Add("Hidden / Audit", "Plain Admin retained audit — including hidden-event history", "/Admin/Audit/Index");
         foreach (var account in scenarios.Accounts)
         {
             if (account.Disabled)
@@ -82,7 +83,7 @@ public static class UiReviewScenarioCatalogue
     private static string RoleDescription(string username) => username switch
     {
         "ReviewOwner" => "SuperAdmin", "ReviewAdmin" => "plain Admin", "ReviewCaptain" or "ReviewSecondCaptain" => "captain",
-        "ReviewCoCaptain" => "co-captain", "ReviewParticipant" or "ReviewSecondMember" => "participant", "ReviewFormer" => "former team member",
+        "ReviewCoCaptain" or "ReviewSecondCoCaptain" => "co-captain", "ReviewParticipant" or "ReviewSecondMember" => "participant", "ReviewFormer" => "former team member",
         _ => "plain website account"
     };
 }

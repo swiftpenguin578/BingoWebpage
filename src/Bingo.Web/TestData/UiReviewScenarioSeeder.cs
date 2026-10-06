@@ -8,6 +8,8 @@ using Bingo.Domain.Integrations.WiseOldMan;
 using Bingo.Domain.Signups;
 using Bingo.Domain.Teams;
 using Bingo.Infrastructure.Persistence;
+using Bingo.Infrastructure.Events;
+using Bingo.Domain.Catalogue;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using SixLabors.ImageSharp;
@@ -38,7 +40,7 @@ public sealed class UiReviewScenarioSeeder(
         await using var transaction = await db.Database.BeginTransactionAsync(ct);
         AddAccount("ReviewOwner", GlobalRole.SuperAdmin, now);
         AddAccount("ReviewAdmin", GlobalRole.Admin, now);
-        foreach (var name in new[] { "ReviewCaptain", "ReviewCoCaptain", "ReviewParticipant", "ReviewWebsite", "ReviewDisabled", "ReviewFormer", "ReviewSecondCaptain", "ReviewSecondMember" })
+        foreach (var name in new[] { "ReviewCaptain", "ReviewCoCaptain", "ReviewParticipant", "ReviewWebsite", "ReviewDisabled", "ReviewFormer", "ReviewSecondCaptain", "ReviewSecondCoCaptain", "ReviewSecondMember" })
             AddAccount(name, GlobalRole.User, now);
         accounts["ReviewDisabled"].Disable(now.AddDays(-1), accounts["ReviewOwner"].Id, "Synthetic disabled-account review.");
         await db.SaveChangesAsync(ct);
@@ -53,6 +55,8 @@ public sealed class UiReviewScenarioSeeder(
         // Reach and retain historical states before creating the sole visible current event.
         var archived = await AddEventAsync("Archived — affiliated roster history", "ur-archived", EventState.Archived, now, -14, ct, roster: true);
         events.Add(archived);
+        var unavailableHistory = await AddEventAsync("Archived — WOM end could not update", "ur-wom-unavailable", EventState.Archived, now, -35, ct, roster: true);
+        events.Add(unavailableHistory);
         foreach (var (name, slug, state) in new[] {
             ("Hidden final review", "ur-hidden-review", EventState.AwaitingFinalReview),
             ("Hidden legacy Finalized", "ur-hidden-finalized", EventState.Finalized),
@@ -84,7 +88,7 @@ public sealed class UiReviewScenarioSeeder(
         var blocked = await AddBlockedReviewAsync(active, now, ct);
         AddEndOutcome(active, EventCompetitionEndUpdateStatus.Pending, now, 91001);
         AddEndOutcome(archived, EventCompetitionEndUpdateStatus.Rejected, now, 91002);
-        AddEndOutcome(events.Single(value => value.Slug == "ur-hidden-archived"), EventCompetitionEndUpdateStatus.CouldNotUpdate, now, 91003);
+        AddEndOutcome(unavailableHistory, EventCompetitionEndUpdateStatus.CouldNotUpdate, now, 91003);
         await db.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
         return new UiReviewScenarios(profile, now, active.Id, discarded.Id, blocked,
@@ -144,7 +148,9 @@ public sealed class UiReviewScenarioSeeder(
         if (state is EventState.Live or EventState.AwaitingFinalReview or EventState.Finalized or EventState.Archived)
         {
             item.StartEvent(start);
-            item.MarkItemPricesCaptured();
+            await new EventItemPriceService(db, time).CaptureStartAsync(item,
+                new PreparedEventItemPrices(CataloguePricing.LastCompletedHour(start), null), ct,
+                new Bingo.Application.Events.LifecycleActor(owner.Id, owner.LoginName));
             Audit(item, "event.started", start, "SignupClosed", "Live");
             if (state != EventState.Live)
             {
@@ -178,7 +184,7 @@ public sealed class UiReviewScenarioSeeder(
         item.SetDraftRosterPublication(true);
         var cycle = new DraftPublicationCycle(Guid.NewGuid(), session.Id, 1, at, accounts["ReviewOwner"].Id, DraftPublicationMethod.DirectRoster);
         db.DraftPublicationCycles.Add(cycle);
-        var names = new[] { "ReviewCaptain", "ReviewCoCaptain", "ReviewParticipant", "ReviewSecondCaptain", "ReviewSecondMember", "ReviewWebsite", "ReviewFormer" };
+        var names = new[] { "ReviewCaptain", "ReviewCoCaptain", "ReviewParticipant", "ReviewSecondCaptain", "ReviewSecondCoCaptain", "ReviewSecondMember", "ReviewFormer" };
         for (var index = 0; index < names.Length; index++)
         {
             var account = accounts[names[index]];
@@ -190,7 +196,7 @@ public sealed class UiReviewScenarioSeeder(
             db.SignupAnswers.Add(new SignupAnswer(Guid.NewGuid(), participant.Id, questionId, "Playing account", string.Empty, character.Id));
             db.EventParticipantCharacters.Add(new EventParticipantCharacter(Guid.NewGuid(), item.Id, participant.Id, character.Id, 0, at.AddDays(-2), account.Id, questionId, EventCharacterRole.Playing, 25, EhbSource.Manual, null));
             var team = index < 3 || index == 6 ? teams[0] : teams[1];
-            var role = index is 0 or 3 ? TeamMembershipRole.Captain : index == 1 ? TeamMembershipRole.CoCaptain : TeamMembershipRole.Participant;
+            var role = index is 0 or 3 ? TeamMembershipRole.Captain : index is 1 or 4 ? TeamMembershipRole.CoCaptain : TeamMembershipRole.Participant;
             var membership = new TeamMembership(Guid.NewGuid(), team.Id, participant.Id, role, at.AddHours(-6), null, "Synthetic direct roster.");
             membership.SetSource(TeamMembershipSource.PreformedManual);
             db.TeamMemberships.Add(membership);

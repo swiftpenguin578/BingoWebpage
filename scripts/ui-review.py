@@ -167,6 +167,8 @@ def main():
     parser.add_argument("action", choices=["create", "refresh", "stop"], nargs="?", default="create")
     parser.add_argument("profile", choices=["live", "final-review"], nargs="?", default="live")
     args = parser.parse_args()
+    if STATE.is_symlink() or STATE.parent.is_symlink():
+        raise RuntimeError("Refusing review storage through a symlink.")
     local_database_guard()
     info = inspect()
     owner = json.loads(MARKER.read_text()) if MARKER.exists() else None
