@@ -83,8 +83,14 @@ public sealed class PostgreSqlTestFixture : IAsyncLifetime
         await command.ExecuteNonQueryAsync();
     }
 
-    private static string AdminConnectionString(PostgreSqlContainer database) =>
-        new NpgsqlConnectionStringBuilder(database.GetConnectionString()) { Database = "postgres", Pooling = false }.ConnectionString;
+    private static string AdminConnectionString(PostgreSqlContainer database)
+    {
+        var settings = new NpgsqlConnectionStringBuilder(database.GetConnectionString()) { Pooling = false };
+        // The original builder may name postgres as its migrated template. The
+        // administrative connection must remain outside that closed database.
+        settings.Database = settings.Database == "postgres" ? "template1" : "postgres";
+        return settings.ConnectionString;
+    }
 
     private static string Quote(string name) => "\"" + name.Replace("\"", "\"\"", StringComparison.Ordinal) + "\"";
 
