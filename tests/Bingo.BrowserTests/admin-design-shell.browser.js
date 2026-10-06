@@ -177,8 +177,9 @@ export function dispose() { window.disposes=(window.disposes||0)+1;window.active
     assert.equal(await page.locator('[data-shell-sidebar]').evaluate(el=>el.classList.contains('is-mobile-open')),false);
     assert.equal(await page.locator('[data-side-scrim]').evaluate(el=>el.classList.contains('is-on')),false);
 
-    await page.evaluate(()=>{void AdminUI.navigate('/Admin/Events/Identity/slow');});
+    await page.evaluate(()=>{const action=document.createElement('div');action.dataset.previousHeaderAction='';action.textContent='Previous page action';document.querySelector('.page-head').append(action);void AdminUI.navigate('/Admin/Events/Identity/slow');});
     await page.locator('[data-page-skeleton="identity"]').waitFor({state:'visible'});
+    assert.equal(await page.locator('[data-page-skeleton] [data-previous-header-action]').count(),0,'fallback skeleton never carries previous page header actions');
     assert.equal(await page.locator('[data-page-skeleton] [data-fixture-skeleton]').count(),1);assert.equal(await page.locator('[data-page-skeleton]').getAttribute('data-skeleton-layout'),'page');
     while (!release) await new Promise(resolve=>setTimeout(resolve,10)); release();
     await page.waitForFunction(()=>document.title==='slow' && window.fixtureReady);

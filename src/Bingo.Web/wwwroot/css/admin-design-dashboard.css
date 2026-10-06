@@ -9,6 +9,15 @@
 .hist-head{padding:var(--dk-space-5) var(--dk-space-6) 0;margin-bottom:12px}
 .recap-name{font-size:var(--dk-fs-title-sm);font-weight:600;line-height:1.3}.recap-when{margin-top:2px;font-size:var(--dk-fs-small);color:var(--dk-text-3)}
 .page-head .next-event{flex:none;max-width:420px}
+/* Approved fresh header reservation; never affects the loaded header. */
+[data-dashboard-loading-card]{width:420px}
+[data-page-header-loading] .summary{min-height:calc(var(--dk-fs-control)*var(--dk-lh-body))}
+[data-page-header-loading]>div:first-child{min-width:0;flex:1}
+.dash-sk-header-line{position:relative}
+.dash-sk-header-line>.sk{position:absolute;top:var(--dk-space-1)}
+.dash-sk-header-label{width:30%}.dash-sk-header-name{width:75%}.dash-sk-header-meta{width:55%}
+.dash-sk-header-meter{width:56px;height:6px;flex:none}
+.dash-sk-header-open{width:52px;height:28px;flex:none;border-radius:var(--dk-radius-xs)}
 .tbl.hist{--table-cols:minmax(240px,2.2fr) 96px 170px 170px 124px minmax(150px,1.3fr);--table-min:960px}
 /* Frozen reference skeleton geometry; spacing lives here, radii use shared tokens. */
 .dash-sk-stat-value{height:20px;margin-top:var(--dk-space-3);border-radius:var(--dk-radius-xs)}
