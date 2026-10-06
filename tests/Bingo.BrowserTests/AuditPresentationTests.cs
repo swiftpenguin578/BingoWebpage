@@ -54,12 +54,9 @@ public sealed class AuditPresentationTests(BrowserTestApplicationFactory factory
         Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
         client.DefaultRequestHeaders.AcceptLanguage.ParseAdd(culture);
         var full = await client.GetStringAsync("/Admin/Audit");
-        var recent = await client.GetStringAsync("/Admin");
         var pattern = $"<div class=\"admin-audit-presentation\" data-audit-entry=\"{entry.Id}\">.*?</div>";
         var fullEntry = Regex.Match(full, pattern, RegexOptions.Singleline).Value;
-        var recentEntry = Regex.Match(recent, pattern, RegexOptions.Singleline).Value;
         Assert.NotEmpty(fullEntry);
-        Assert.Equal(fullEntry, recentEntry);
         var decoded = WebUtility.HtmlDecode(fullEntry);
         Assert.Contains(action, decoded);
         Assert.Contains(technical, decoded);
@@ -161,11 +158,9 @@ public sealed class AuditPresentationTests(BrowserTestApplicationFactory factory
                 await db.SaveChangesAsync();
             }
             var full = await client.GetStringAsync("/Admin/Audit");
-            var recent = await client.GetStringAsync("/Admin");
             var pattern = $"<div class=\"admin-audit-presentation\" data-audit-entry=\"{entry.Id}\">.*?</div>";
             var rendered = Regex.Match(full, pattern, RegexOptions.Singleline).Value;
             Assert.NotEmpty(rendered);
-            Assert.Equal(rendered, Regex.Match(recent, pattern, RegexOptions.Singleline).Value);
             var technicalIndex = rendered.IndexOf("<details", StringComparison.Ordinal);
             Assert.True(technicalIndex > 0);
             var readable = WebUtility.HtmlDecode(rendered[..technicalIndex]);

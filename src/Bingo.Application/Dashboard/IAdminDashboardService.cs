@@ -69,6 +69,11 @@ public sealed record DashboardStatistics(
     public DashboardMetric<long> Events => EventsHeld;
     public DashboardMetric<long> UniqueParticipants => UniqueWebsiteParticipants;
     public DashboardMetric<long> Participations => EventParticipations;
+    public bool Provisional { get; init; }
+    public int ProvisionalEvents { get; init; }
+    public Guid? LatestContributionEventId { get; init; }
+    public string? LatestContributionEventName { get; init; }
+    public bool LatestContributionProvisional { get; init; }
 }
 
 public sealed record DashboardParticipationPoint(
@@ -86,6 +91,9 @@ public sealed record DashboardParticipationPoint(
     DashboardMetric<long> ApprovedSubmissions)
 {
     public DashboardMetric<long> TotalParticipants => Participants;
+    public bool IsHistoricalImport { get; init; }
+    public bool TrackingStarts { get; init; }
+    public int TeamCount { get; init; }
 }
 
 public sealed record DashboardHistoryRow(
@@ -106,6 +114,8 @@ public sealed record DashboardHistoryRow(
 {
     public DashboardMetric<long> Players => Participants;
     public DashboardMetric<long> Submissions => ApprovedSubmissions;
+    public bool IsHistoricalImport { get; init; }
+    public int TeamCount { get; init; }
 }
 
 public sealed record DashboardWinner(Guid TeamId, string TeamName, int Placement);
@@ -129,7 +139,13 @@ public sealed record DashboardRecap(
     DashboardMetric<long> ApprovedSubmissions,
     DashboardWinnerBoard? WinnerBoard,
     IReadOnlyList<DashboardWinner> Winners,
-    string OverviewPath);
+    string OverviewPath)
+{
+    public EventState State { get; init; }
+    public bool Provisional { get; init; }
+    public bool IsHistoricalImport { get; init; }
+    public int TeamCount { get; init; }
+}
 
 public sealed record DashboardEhbSummary(
     decimal? Gain,
@@ -151,7 +167,20 @@ public sealed record DashboardEventCard(
     long ConfirmedParticipants,
     long WaitingParticipants,
     int? Capacity,
-    string OverviewPath);
+    string OverviewPath)
+{
+    public DashboardNextDateKind NextDateKind { get; init; }
+    public DateTimeOffset? NextDate { get; init; }
+    public string Timezone { get; init; } = "UTC";
+}
+
+public enum DashboardNextDateKind
+{
+    EventStarts,
+    SignupsOpen,
+    SignupsClose,
+    EventEnds
+}
 
 public sealed record DashboardCommunitySnapshot(
     DashboardMetric<long> WebsiteAccounts,

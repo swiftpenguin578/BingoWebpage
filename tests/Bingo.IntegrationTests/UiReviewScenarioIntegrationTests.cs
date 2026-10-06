@@ -120,15 +120,26 @@ public sealed class UiReviewScenarioIntegrationTests(ITestOutputHelper output, P
         Assert.DoesNotContain(result.DiscardedEventId, attention.EventIds);
         Assert.False(attention.ActionsByEvent.ContainsKey(result.DiscardedEventId));
         Assert.DoesNotContain(attention.Items, value => value.Url.Contains(result.DiscardedEventId.ToString(), StringComparison.Ordinal));
-        var dashboardPage = ActivatorUtilities.CreateInstance<Bingo.Web.Pages.Admin.IndexModel>(scope.ServiceProvider);
-        await dashboardPage.OnGetAsync(CancellationToken.None);
-        Assert.DoesNotContain(dashboardPage.ActiveEvents, value => value.Id == result.DiscardedEventId);
-        Assert.DoesNotContain(dashboardPage.AttentionEvents, value => value.Id == result.DiscardedEventId);
-        Assert.DoesNotContain(dashboardPage.LifecycleReadiness, value => value.Id == result.DiscardedEventId);
-        Assert.DoesNotContain(dashboardPage.PendingEvidence, value => value.EventId == result.DiscardedEventId);
-        Assert.DoesNotContain(dashboardPage.UpcomingMilestones, value => value.EventId == result.DiscardedEventId);
         var discardAudit = await db.AuditEntries.SingleAsync(value => value.EventId == result.DiscardedEventId && value.Action == "event.discarded");
-        Assert.Contains(dashboardPage.RecentAudits, value => value.Entry.Id == discardAudit.Id);
+        foreach (var username in new[] { "ReviewAdmin", "ReviewOwner" })
+        {
+            var actor = await db.Accounts.SingleAsync(value => value.LoginName == username);
+            var dashboard = await scope.ServiceProvider.GetRequiredService<IAdminDashboardService>().GetAsync(actor.Id);
+            Assert.DoesNotContain(dashboard.History, value => value.EventId == result.DiscardedEventId);
+            Assert.DoesNotContain(dashboard.ParticipationChart, value => value.EventId == result.DiscardedEventId);
+            Assert.NotEqual(result.DiscardedEventId, dashboard.LatestEndedRecap?.EventId);
+            Assert.NotEqual(result.DiscardedEventId, dashboard.CurrentEvent?.EventId);
+            Assert.NotEqual(result.DiscardedEventId, dashboard.Statistics.LatestContributionEventId);
+            Assert.Equal(3L, dashboard.Statistics.EventsHeld.Value);
+            Assert.Equal(dashboard.ParticipationChart.Sum(value => value.Participants.Value), dashboard.Statistics.EventParticipations.Value);
+            var login = await LoginAsync(factory, username, disabled: false);
+            using var client = login.Client;
+            var rendered = WebUtility.HtmlDecode(await client.GetStringAsync("/Admin"));
+            Assert.DoesNotContain(events.Single(value => value.Id == result.DiscardedEventId).Name, rendered, StringComparison.Ordinal);
+            Assert.DoesNotContain(result.DiscardedEventId.ToString(), rendered, StringComparison.Ordinal);
+            var audit = await client.GetStringAsync($"/Admin/Audit?eventId={result.DiscardedEventId}");
+            Assert.Contains($"data-audit-entry=\"{discardAudit.Id}\"", audit, StringComparison.Ordinal);
+        }
         using var localWom = scope.ServiceProvider.GetRequiredService<IHttpClientFactory>().CreateClient("WiseOldMan");
         using var localResponse = await localWom.GetAsync("players/Ur%20Participant");
         Assert.Equal(HttpStatusCode.OK, localResponse.StatusCode); // 127.0.0.1:1 is unserved: only the local handler can answer.
@@ -352,15 +363,7 @@ public sealed class UiReviewScenarioIntegrationTests(ITestOutputHelper output, P
                 foreach (var route in routes)
                 {
                     var html = WebUtility.HtmlDecode(await clients[username].GetStringAsync(route));
-                    if (route == "/Admin/Index")
-                    {
-                        var audit = Regex.Match(html, "<section[^>]*aria-labelledby=\"recent-audit-heading\".*?</section>", RegexOptions.Singleline).Value;
-                        Assert.Contains(discardedName, audit, StringComparison.Ordinal);
-                        Assert.Contains($"data-audit-entry=\"{discardAuditId}\"", audit, StringComparison.Ordinal);
-                        Assert.DoesNotContain($"/Admin/Events/Identity/{scenarios.DiscardedEventId}", audit, StringComparison.Ordinal);
-                        Assert.DoesNotContain(discardedName, html.Replace(audit, string.Empty, StringComparison.Ordinal), StringComparison.Ordinal);
-                    }
-                    else Assert.DoesNotContain(discardedName, html, StringComparison.Ordinal);
+                    Assert.DoesNotContain(discardedName, html, StringComparison.Ordinal);
                     if (username != "ReviewOwner")
                         Assert.All(hidden, value => Assert.DoesNotContain(value.Name, html, StringComparison.Ordinal));
                 }
@@ -381,7 +384,7 @@ public sealed class UiReviewScenarioIntegrationTests(ITestOutputHelper output, P
                     Assert.NotEmpty(auditLink);
                     using var auditEntryResponse = await clients[username].GetAsync(auditLink);
                     Assert.Equal(HttpStatusCode.OK, auditEntryResponse.StatusCode);
-                    output.WriteLine($"{scenarios.Profile} {username}: discard audit link {auditLink} => {(int)auditEntryResponse.StatusCode}; Dashboard discard audit has no event link.");
+                    output.WriteLine($"{scenarios.Profile} {username}: retained discard audit link {auditLink} => {(int)auditEntryResponse.StatusCode}; discarded event absent from Dashboard.");
                     using var discarded = await clients[username].GetAsync($"/Admin/Events/Identity/{scenarios.DiscardedEventId}");
                     Assert.Equal(HttpStatusCode.NotFound, discarded.StatusCode);
                 }

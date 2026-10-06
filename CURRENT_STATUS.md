@@ -1,6 +1,16 @@
 # Current project status
 
-## TS brief66 delivered; U2 authorized — 6 October 2026
+## U2 brief67 item1 checked; Dashboard page next — 6 October 2026
+
+- Assigned implementer checkout `/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage`, branch `codex/participants-functionality`; started clean at exact `8355680a4eee6a74ae905c5c69a8f50c5f021dcf`. No workers/reviewer/orchestrator created. Follow [lean execution](DELIVERY_PLAN.md#421-lean-execution-and-planner-handoff).
+- Item0 committed `edd7bbcd825a9ab6a34864502faa1205c47c1dbd`: authorized design binding register, Cancelled confirmed-count requirement, U2 batch status. [Item0 evidence](docs/references/admin-ui/reviews/2026-10-06/u2/item0-docs.md); documentation consistency/diff checks passed.
+- Item1 candidate remains **uncommitted/incomplete**: DB-2/3/4/5 and U2-1 read-model changes, D-15/S14 Dashboard handler/query retirement, authorized Audit markup assertion changes and new unexecuted PostgreSQL tests. [Exact checkpoint and blocker](docs/references/admin-ui/reviews/2026-10-06/u2/item1-dashboard-backend.md).
+- Initial Release build exit1: **0 warnings / 6 errors** from retired UR properties. User authorized ruling68 rewrite of original :123–131; implemented only that block, keeping :105–107, discardAudit lookup and AssertPrintedUrlsAsync unchanged. Subsequent Release test compilation succeeded after correcting three indexing analyzer errors in new tests.
+- Focused PostgreSQL/HTTP: **26 passed / 3 failed / 0 skipped**. Existing Dashboard **16/0/0**, unchanged EventsDirectory **4/0/0**. New tests six passed, one duplicate-RSN fixture failed; corrected fixture rerun **1/0/0**. Both UR profiles pass the new service/rendered Dashboard/Audit block for both roles before failing the protected helper's retired-audit assertion. No whole-UR/final gate pass claimed. `git diff --check` passed; frozen CSS/references unchanged. Exact commands/TRX identities in item1 evidence.
+- Ruling68 addendum authorized removing only the helper's retired-audit branch and correcting its stale output. UR **2/0/0**; Dashboard/Audit/anonymous HTTP **10/0/0**; history ordering **2/0/0**; Release solution build **0 warnings/errors**. Earlier passing PostgreSQL evidence retained; no whole-batch gate claimed. Items2–5 not started.
+- Dashboard and Events directory remain **awaiting Claude review, then user visual acceptance**; page bindings incomplete. Exact next step: scoped item1 commit, then item2. No later batch/publication authority.
+
+## TS brief66 delivered — retained evidence
 
 - Checkout `/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage`, branch `codex/participants-functionality`; TS started clean at exactly `8fd559c8125592cdefa76c75ea06ab8e667860e9`. Implementer only; no workers, reviewer or orchestrator created. Follow [lean execution](DELIVERY_PLAN.md#421-lean-execution-and-planner-handoff).
 - Test infrastructure only: 41 Integration classes use a native fixture in each existing xUnit class collection, one owned PostgreSQL17 container/migrated template, and a clean unique database per test. 25 conservative dedicated exceptions retain original setup. All affected shared/dedicated fixtures validate real credentials with a bounded connection/query check. Test inputs/assertions/expected values, production code, parallelism and user/UR databases are unchanged.
@@ -21,7 +31,7 @@
 
 ## Next permitted action
 
-TS is closed as delivered. Claude independent source review and one independent
-final-SHA whole-suite run remain in its parallel gate. Proceed with U2 brief67 from
-this committed TS head; no U3–U10, lane T, rehearsal, packaging, push, merge or
-deployment.
+U2 item1 checks passed after ruling68/addendum; commit its scoped checkpoint and
+continue authorized items2–5. TS is closed as
+delivered with Claude independent review/suite in its parallel gate. No U3–U10,
+lane T, rehearsal, packaging, push, merge or deployment.
