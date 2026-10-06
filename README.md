@@ -358,3 +358,10 @@ marker must all agree before a refresh. Databases named in `appsettings.Local.js
 are refused. Occupied app/reference ports fail with a diagnostic; foreign
 processes are never stopped. Storage, logs and the linked scenario list live in
 gitignored `artifacts/ui-review/`. WOM uses the local Development fake exclusively.
+
+After create/refresh, the command prints the same grouped page/state links it
+writes to `artifacts/ui-review/scenarios.md`. Each link names its review account.
+As with the existing Development seed credentials, the invented accounts and
+password `ReviewOnly!1234` are local-only fixtures. `ReviewOwner` is SuperAdmin;
+`ReviewAdmin` is plain Admin. Captain, co-captain, participant, plain website,
+former-member and disabled-account cases are named in the generated guide.

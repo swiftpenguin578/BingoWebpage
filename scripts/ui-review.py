@@ -76,13 +76,25 @@ def process_identity(pid):
     return result.stdout.strip() if result.returncode == 0 else None
 
 
+def stable_identity(value):
+    # macOS Python re-execs itself from the command-line shim into its framework.
+    # Preserve its start instant and exact owned arguments across that transition.
+    parts = value.split(maxsplit=5)
+    if len(parts) != 6:
+        raise RuntimeError("Cannot verify the owned process identity.")
+    executable, _, arguments = parts[5].partition(" ")
+    if executable.endswith(("/python3", "/Python")):
+        executable = "python-runtime"
+    return " ".join(parts[:5]) + " " + executable + " " + arguments
+
+
 def stop_processes():
     if not PROCESSES.exists():
         return
     records = json.loads(PROCESSES.read_text())
     for record in records:
         identity = process_identity(record["pid"])
-        if identity and identity != record["identity"]:
+        if identity and stable_identity(identity) != stable_identity(record["identity"]):
             raise RuntimeError("Refusing to stop a process whose identity no longer matches the owned PID.")
     for record in records:
         if process_identity(record["pid"]):
@@ -111,6 +123,8 @@ def environment():
         "ASPNETCORE_CONTENTROOT": str(ROOT / "src/Bingo.Web"),
         "ConnectionStrings__Database": f"Host=127.0.0.1;Port={PORT};Database={DB};Username={DB};Password={PASSWORD}",
         "UiReviewEnvironment__Enabled": "true",
+        "UiReviewEnvironment__ScenarioList": str(STATE / "scenarios.md"),
+        "Logging__LogLevel__Microsoft.EntityFrameworkCore": "Warning",
         "EvidenceStorage__Provider": "Local", "EvidenceStorage__LocalPath": str(STATE / "evidence"),
         "CatalogueImageCache__LocalPath": str(STATE / "catalogue-images"),
         "WiseOldMan__BaseUrl": "http://127.0.0.1:1/",
