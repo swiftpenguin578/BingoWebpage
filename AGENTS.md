@@ -57,7 +57,7 @@ remain evidence of completed work, not competing defaults.
 | Role | Who / model | Owns |
 | --- | --- | --- |
 | Planner and independent reviewer | Claude planner chat selected by the user | Scope, briefs, decisions with the user, independent review of each batch, delivery reconciliation |
-| Dispatcher | Codex planner chat named in the brief | Starting the implementer, relaying reports and questions |
+| Dispatcher | Codex planner chat named in the brief; `gpt-5.6-luna` / `medium` (user decision, 6 October 2026) | Starting the implementer, relaying reports and questions |
 | Implementer/remediator | Model/reasoning named in the brief (default `gpt-6-astra` / `high`) | Implementation, checks, batch gate, per-item commits, evidence |
 | Orchestrator | `gpt-6.1-sol` / `high`, only when a brief assigns one | Worker dispatch, waits and handoffs for that brief |
 
