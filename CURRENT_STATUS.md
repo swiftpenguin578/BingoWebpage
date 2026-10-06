@@ -1,13 +1,13 @@
 # Current project status
 
-## U1 remediation round 4 — implemented, awaiting recheck and acceptance, 6 October 2026
+## U1 accepted; UR authorized — handoff updated 6 October 2026
 
-- Started at clean `4aca5a119d91cf811b405382fc14c8aae0c4e4bf`. Claude's whole .NET result there was **2031 passed / 1 failed / 0 skipped**, so the baseline batch gate was not met. Independent rendered recheck59: **54 PASS / 2 PARTIAL / 0 FAIL**, no High findings. The user's round3 inspection found no mistakes; this is not final round4 approval.
-- Brief60's seven ordered items are complete: `c753326` shared-markup assertions and real model/field error proofs (ruling61); `47e1fd4` validated session-only remembered event; `e108045` cancellation-date wording; `8143029` Keep editing returns to the edited field; `3d43134` scoped Danish corrections; `dc03454` language cross-fade only; this commit extends positional parity and records final evidence.
-- Final same-content precommit gates: **whole Bingo.BrowserTests 150 passed / 0 failed / 0 skipped**, **full JS 51 passed / 0 failed**, **real served/reference parity 66 passed / 0 failed** in Chromium/WebKit, CSS-class inventory **0 undefined**, clean nonincremental Release **0 warnings / 0 errors**, frozen CSS byte comparisons and diff check passed. Extended positions also pass six desktop/phone comparisons; preserved49ae49c specifically fails V6 (gap1 vs10px) and V19 (offset41 vs21px) in both engines at the explicit1px tolerance.
-- [Round4 evidence](docs/references/admin-ui/reviews/2026-10-06/u1/remediation-4/item7.md) links final logs/results, before/after positional screenshots and one file per item. Focused PostgreSQL/HTTP tests prove model/field refusal rendering, session cookie set/show/replace/past/signout/drop, cancellation timezone date and Danish rendering. Initial fixture/test development failures remain recorded separately from subsequent passes. No server authorization/persistence assertion or protected test14 was weakened.
-- No community page is bound in production yet: remembered context is proved using the real server layout with fixture-only Events opt-in; legacy composition is unchanged. Desktop Safari's actual focus/bfcache behavior still needs the user's check; Playwright WebKit and deterministic persisted-pageshow proof are not a claim of real Safari bfcache execution.
-- **Stop for Claude's named round4 recheck and the user's final visual acceptance**, including desktop Safari focused-field Save/Back, light/dark, EN/DA and phone. **Whole .NET remains pending Claude/user execution at the final SHA**, zero failed/zero skipped required. CI is unrun. No UR/U2+/laneT, migration, push, merge, deployment or rehearsal performed.
+- Checkout `/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage`, branch `codex/participants-functionality`; U1 implementation HEAD `18a9669201bae2aa71a6057e5ef53c160cea2aba` was clean before this documentation-only acceptance checkpoint.
+- Supplied acceptance authority: [decisions08](/Users/christopher/Documents/BingoWebpage/review-notes/08-decisions.md), “U1 visual acceptance” and “U1 accepted”, and [brief62](/Users/christopher/Documents/BingoWebpage/review-notes/62-codex-brief-ur-review-environment.md). The user accepted shell + Identity on **6 October 2026**, including light/dark, EN/DA, phone, in-app browser and desktop Safari. The timezone-dialog question was a seed-data gap, not a U1 defect. `UI_PAGE_MATRIX.md` owns the two page approval records.
+- Claude supplied the whole .NET result at `18a9669` from a `git archive` copy: Application **118**, Domain **265**, BrowserTests **150**, Integration **1,508**, total **2,041 passed / 0 failed / 0 skipped**, `dotnet test` exit **0**, Release **0 warnings**. The source labels this run/acceptance **7 October 2026**; this handoff preserves that provenance despite the current client date of 6 October. This dispatcher did not execute that suite or an independent recheck; U1 acceptance is the supplied planner/user decision.
+- Retained implementation evidence: whole Bingo.BrowserTests **150/0/0**, full JS **51 passed / 0 failed** (43 files + 8 WebKit checks), real served/reference parity **66 passed / 0 failed** in Chromium/WebKit, Release **0 warnings / 0 errors**, frozen CSS and diff checks passed. [Round4 evidence](docs/references/admin-ui/reviews/2026-10-06/u1/remediation-4/item7.md) retains the checks, limitations and one file per item; historical reports are unchanged. CI is unrun.
+- Next authorized batch is **UR items 1–5**, after this acceptance docs commit: fresh `gpt-6.1-sol` / `high` implementer, one local commit per item, then stop and report for Claude's independent review. This new dispatcher's collaboration root owns callbacks; old dispatcher IDs in briefs are superseded. No orchestrator, Codex reviewer or verifier. Follow [lean execution](DELIVERY_PLAN.md#421-lean-execution-and-planner-handoff).
+- UR uses an isolated Development review environment, its own PostgreSQL/storage and local WOM fake, real lifecycle invariants and `live`/`final-review` profiles. Leave `--reset-test-data` and `DevelopmentScenarioSeeder` unchanged. No U2+, lane T, push, merge, deployment or rehearsal is authorized. U1 observations remain unassigned: duplicate incomplete-baseline message and production login/password-change session wall-clock versus injected-clock use.
 
 ## Round3 historical handoff — superseded by round4 above
 
@@ -42,16 +42,17 @@
 
 ## Next permitted action
 
-Brief60 items1–7 are complete. Stop for Claude’s named round4 recheck
-and user visual acceptance including Safari. The user checks
-shell and Identity in light/dark, Danish/English and phone width, including
-confirmations/errors/toasts. User/Claude runs the unfiltered final suite on the
-reported final SHA (zero failed/zero skipped):
+Commit only the U1 acceptance updates to this file and the two U1 shell/Identity
+rows in `UI_PAGE_MATRIX.md`, then dispatch brief62 items1–5 from that clean commit.
+The implementer runs focused checks, clean Release, full JS Chromium/WebKit and
+whole `Bingo.BrowserTests`; Claude/user owns the unfiltered whole .NET gate on the
+final UR SHA (zero failed/zero skipped). Report that SHA and the exact command:
 
 ```sh
 cd /Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage
-dotnet test Bingo.slnx --configuration Release --no-restore --results-directory /private/tmp/bingo-u1-final-suite-trx --logger "trx"
+dotnet test Bingo.slnx --configuration Release --no-restore --results-directory /private/tmp/bingo-ur-final-suite-trx --logger "trx"
 ```
 
-No U2–U10, lane T, rehearsal, push, main merge or deployment. CI is unrun;
+Stop after item5 for independent planner review and the user's review-environment
+walk-through. No U2–U10, lane T, rehearsal, push, merge or deployment. CI is unrun;
 setup-node retains its immutable v4.4.0 commit pin.
