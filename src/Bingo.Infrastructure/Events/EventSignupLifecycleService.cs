@@ -457,10 +457,12 @@ public sealed class EventSignupLifecycleService(ApplicationDbContext db, IEventR
 
     private Task<DraftState?> DraftStateAsync(Guid eventId, CancellationToken ct) =>
         db.DraftSessions.AsNoTracking().Where(x => x.EventId == eventId).Select(x => (DraftState?)x.State).SingleOrDefaultAsync(ct);
-    private static async Task<BoundaryConflict?> CurrentEventBoundaryConflictAsync(ApplicationDbContext db, BingoEvent item, CancellationToken ct)
+    // Review fixtures use this same read-only boundary check before recording a
+    // failed scheduled attempt; do not duplicate or omit the production rule.
+    public static async Task<ReadinessItem?> CurrentEventBoundaryConflictAsync(ApplicationDbContext db, BingoEvent item, CancellationToken ct)
     {
         if (item.EventStartsAt is not { } start || item.EventEndsAt is not { } end)
-            return new(Guid.Empty, string.Empty, "Set an event start and end before opening signup.");
+            return new("EVENT_WINDOW_OVERLAP", "Set an event start and end before opening signup.");
         var states = new[] { EventState.SignupOpen, EventState.SignupClosed, EventState.Live, EventState.AwaitingFinalReview, EventState.Finalized };
         var developmentMode = string.Equals(Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT"), "Development", StringComparison.OrdinalIgnoreCase);
         var candidates = await db.Events.AsNoTracking().Where(x => x.Id != item.Id && x.HiddenAt == null && states.Contains(x.State) && !(x.IsDevelopmentFixture && developmentMode)).ToListAsync(ct);
@@ -471,7 +473,7 @@ public sealed class EventSignupLifecycleService(ApplicationDbContext db, IEventR
             .FirstOrDefault();
         if (overlap is null) return null;
         var window = FormatWindow(overlap.EventStartsAt!.Value, overlap.EventEndsAt!.Value, item.Timezone);
-        return new(overlap.Id, overlap.Name, $"This event window overlaps {overlap.Name} ({window}).");
+        return new("EVENT_WINDOW_OVERLAP", $"This event window overlaps {overlap.Name} ({window}).");
     }
     private static string FormatWindow(DateTimeOffset start, DateTimeOffset end, string timezoneId)
     {
@@ -486,5 +488,4 @@ public sealed class EventSignupLifecycleService(ApplicationDbContext db, IEventR
     private static readonly Action<ILogger, Guid, Exception?> LogScheduleFailure = LoggerMessage.Define<Guid>(LogLevel.Error, new EventId(730301), "Unexpected schedule update failure for event {EventId}");
     private static readonly Action<ILogger, Guid, Exception?> LogLifecycleFailure = LoggerMessage.Define<Guid>(LogLevel.Error, new EventId(730302), "Unexpected signup lifecycle failure for event {EventId}");
     private static object ScheduleState(BingoEvent item) => new { item.SignupOpensAt, item.SignupClosesAt, item.DraftAt, item.EventStartsAt, item.EventEndsAt, item.ParticipantCap, item.SubmissionCutoffAt, item.ScheduledSignupOpeningEnabled, item.ScheduledSignupWarningCodes };
-    private sealed record BoundaryConflict(Guid EventId, string EventName, string Description);
 }

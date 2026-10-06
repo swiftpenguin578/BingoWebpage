@@ -10,12 +10,14 @@ using System.Text.RegularExpressions;
 using Bingo.Application.Dashboard;
 using Bingo.Application.Evidence;
 using Bingo.Infrastructure.Events;
+using Bingo.Web.HistoricalImport;
 using Bingo.Web.Navigation;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Routing;
 using Xunit.Abstractions;
 using Bingo.Application.Events;
 using Bingo.Domain.Access;
+using Bingo.Domain.Evidence;
 using Bingo.Domain.Events;
 using Bingo.Domain.Signups;
 using Bingo.Domain.Integrations.WiseOldMan;
@@ -187,11 +189,23 @@ public sealed class UiReviewScenarioIntegrationTests(ITestOutputHelper output, P
         var openingReadiness = (await services.GetRequiredService<IEventReadinessEvaluator>()
             .GetSignupReadinessAsync(failed.Id, SignupOpeningMode.ScheduledExecution, opening.AttemptedAt))!;
         var startReadiness = (await services.GetRequiredService<IEventLifecycleService>().GetStartReadinessAsync(postponed.Id))!;
-        Assert.Equal(openingReadiness.Blockers.Select(value => value.Code).Order(StringComparer.Ordinal), opening.Blockers);
-        Assert.Equal(openingReadiness.Blockers.Select(value => value.Description), opening.Details);
+        var openingOverlap = await EventSignupLifecycleService.CurrentEventBoundaryConflictAsync(db, failed, CancellationToken.None);
+        Assert.Null(openingOverlap); // This fixture's configured window does not overlap a public event.
+        var openingBlockers = openingReadiness.Blockers.Concat(openingOverlap is null ? [] : [openingOverlap]).ToArray();
+        Assert.Equal(openingBlockers.Select(value => value.Code).Order(StringComparer.Ordinal), opening.Blockers);
+        Assert.Equal(openingBlockers.Select(value => value.Description), opening.Details);
+        var publicWindow = events.Where(value => !value.IsHidden && value.State is EventState.SignupOpen or EventState.SignupClosed or EventState.Live or EventState.AwaitingFinalReview or EventState.Finalized)
+            .OrderBy(value => value.EventStartsAt).ThenBy(value => value.Name).First();
+        var overlapProbe = new BingoEvent(Guid.NewGuid(), "Unpersisted overlap probe", "ur-overlap-probe", null, publicWindow.Timezone,
+            publicWindow.EventStartsAt!.Value.AddDays(-2), publicWindow.EventStartsAt.Value.AddDays(-1),
+            publicWindow.EventStartsAt, publicWindow.EventEndsAt, publicWindow.EventEndsAt!.Value.AddHours(1), null,
+            failed.CreatedByAccountId, scenarios.BuiltAt);
+        var conflict = Assert.IsType<ReadinessItem>(await EventSignupLifecycleService.CurrentEventBoundaryConflictAsync(db, overlapProbe, CancellationToken.None));
+        Assert.Equal("EVENT_WINDOW_OVERLAP", conflict.Code);
+        Assert.Contains(publicWindow.Name, conflict.Description, StringComparison.Ordinal);
         Assert.Equal(startReadiness.Blockers.Select(value => value.Code).Order(StringComparer.Ordinal), attempt.Blockers);
         foreach (var (item, action, title, scheduledFor, descriptions) in new[] {
-            (failed, "event.signup_opening_failed", "Scheduled signup opening failed", opening.ScheduledFor, openingReadiness.Blockers.Select(value => value.Description)),
+            (failed, "event.signup_opening_failed", "Scheduled signup opening failed", opening.ScheduledFor, openingBlockers.Select(value => value.Description)),
             (postponed, "event.start_postponed", "Automatic start postponed", attempt.ScheduledFor, startReadiness.Blockers.Select(value => value.Description)) })
         {
             var audit = await db.AuditEntries.SingleAsync(value => value.EventId == item.Id && value.Action == action);
@@ -225,6 +239,27 @@ public sealed class UiReviewScenarioIntegrationTests(ITestOutputHelper output, P
         Assert.Equal(importedEvent.ActualEndedAt, importedEvent.FinalizedAt); Assert.Equal(importedEvent.FinalizedAt, importedEvent.ArchivedAt);
         var importParticipants = await db.EventParticipants.Where(value => value.EventId == importedEvent.Id).ToListAsync();
         Assert.Equal(6, importParticipants.Count);
+        var reconstructed = await db.Submissions.SingleAsync(value => value.EventId == importedEvent.Id);
+        Assert.Equal(importedEvent.ActualStartedAt, reconstructed.SubmittedAt); // First importer sequence is zero.
+        Assert.Equal(reconstructed.SubmittedAt.AddSeconds(1), reconstructed.ReviewedAt);
+        Assert.Equal(HistoricalEventImporter.Disclosure, reconstructed.CaptainNote);
+        var importActions = await db.ReviewActions.Where(value => value.SubmissionId == reconstructed.Id).OrderBy(value => value.PerformedAt).ToListAsync();
+        Assert.Equal(2, importActions.Count);
+        Assert.Equal(ReviewActionType.Submitted, importActions[0].Action);
+        Assert.Equal(reconstructed.SubmittedAt, importActions[0].PerformedAt);
+        Assert.Equal(ReviewActionType.Approve, importActions[1].Action);
+        Assert.Equal(reconstructed.ReviewedAt, importActions[1].PerformedAt);
+        var importedBoard = await db.Boards.SingleAsync(value => value.EventId == importedEvent.Id);
+        var importRequirements = await db.BoardRequirementSnapshots.Where(value => db.BoardTiles.Any(tile => tile.Id == value.BoardTileId && tile.BoardId == importedBoard.Id)).ToListAsync();
+        Assert.Equal(4, importRequirements.Count); Assert.All(importRequirements, value => Assert.Equal(1, value.Position));
+        var importTemplates = await db.TileTemplateRequirements.Where(value => db.BoardTiles.Any(tile => tile.TileTemplateId == value.TileTemplateId && tile.BoardId == importedBoard.Id)).ToListAsync();
+        Assert.Equal(4, importTemplates.Count); Assert.All(importTemplates, value => Assert.Equal(1, value.Position));
+        var frozenTiles = await db.BoardApprovalTileSnapshots.Where(value => value.ApprovalSnapshotId == importedBoard.ActiveApprovalSnapshotId).ToListAsync();
+        Assert.Equal(4, frozenTiles.Count); Assert.All(frozenTiles, value => Assert.Equal(HistoricalEventImporter.Disclosure, value.EvidenceInstructions));
+        var frozenRequirements = await db.BoardApprovalRequirementSnapshots.Where(value => db.BoardApprovalTileSnapshots.Any(tile => tile.Id == value.ApprovalTileSnapshotId && tile.ApprovalSnapshotId == importedBoard.ActiveApprovalSnapshotId)).ToListAsync();
+        Assert.Equal(4, frozenRequirements.Count); Assert.All(frozenRequirements, value => Assert.Equal(1, value.Position));
+        var importActivities = await db.EventCompetitionCharacterActivities.Where(value => value.EventId == importedEvent.Id).ToListAsync();
+        Assert.Equal(6, importActivities.Count); Assert.All(importActivities, value => Assert.Null(value.UpstreamUpdatedAt));
         Assert.All(importParticipants, value => { Assert.Equal(SignupSource.CsvImport, value.Source); Assert.Null(value.AccountId); });
         var importAudit = await db.AuditEntries.SingleAsync(value => value.EventId == importedEvent.Id);
         Assert.Equal("historical_import.applied", importAudit.Action); Assert.Equal("event", importAudit.TargetType);
