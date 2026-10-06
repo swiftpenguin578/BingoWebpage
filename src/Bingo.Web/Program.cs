@@ -536,6 +536,9 @@ if (args.Contains("--seed-review-scenarios", StringComparer.Ordinal))
     var profile = profileIndex >= 0 && profileIndex + 1 < args.Length ? args[profileIndex + 1] : "live";
     await using var scope = app.Services.CreateAsyncScope();
     var result = await scope.ServiceProvider.GetRequiredService<UiReviewScenarioSeeder>().SeedAsync(profile);
+    var listPath = app.Configuration["UiReviewEnvironment:ScenarioList"]
+        ?? throw new InvalidOperationException("The owned review command must supply its scenario list path.");
+    await File.WriteAllTextAsync(listPath, UiReviewScenarioCatalogue.Markdown(result, new Uri("http://127.0.0.1:5310")));
     Console.WriteLine($"UI review {result.Profile} scenarios rebuilt at {result.BuiltAt:O}: {result.Events.Count} events, {result.Accounts.Count} accounts.");
     return;
 }
