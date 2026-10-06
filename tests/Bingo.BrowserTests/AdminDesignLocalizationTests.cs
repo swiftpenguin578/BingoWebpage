@@ -44,6 +44,9 @@ public sealed class AdminDesignLocalizationTests
         var web = Path.Combine(root, "src", "Bingo.Web");
         var entries = XDocument.Load(Path.Combine(web, "Resources", "SharedResource.da.resx"))
             .Descendants("data").ToDictionary(item => item.Attribute("name")!.Value, item => item.Element("value")?.Value);
+        var communityEntries = XDocument.Load(Path.Combine(web, "Resources", "AdminCommunityResource.da.resx"))
+            .Descendants("data").ToDictionary(item => item.Attribute("name")!.Value, item => item.Element("value")?.Value);
+        Assert.All(communityEntries, entry => Assert.False(string.IsNullOrWhiteSpace(entry.Value), $"Empty Danish community entry: {entry.Key}"));
         var sources = Directory.GetFiles(Path.Combine(web, "Pages", "Shared"), "_AdminDesign*.cshtml").ToDictionary(path => path, File.ReadAllText);
         foreach (var type in typeof(AdminDesignAttribute).Assembly.GetTypes().Where(type => type.GetCustomAttribute<AdminDesignAttribute>() is not null))
         {
@@ -53,6 +56,9 @@ public sealed class AdminDesignLocalizationTests
             sources.Add(markup, File.ReadAllText(markup));
             sources.Add(markup + ".cs", File.ReadAllText(markup + ".cs"));
         }
+        foreach (var partial in Directory.GetFiles(Path.Combine(web, "Pages", "Shared"), "_Admin*.cshtml")
+            .Where(path => File.ReadAllText(path).Contains("IStringLocalizer<AdminCommunityResource>", StringComparison.Ordinal)))
+            sources.TryAdd(partial, File.ReadAllText(partial));
         var service = File.ReadAllText(Path.Combine(web, "Navigation", "SharedShellService.cs"));
         sources.Add("SharedShellService.GetAdminDesignAsync", service.Split("GetAdminDesignAsync", 2)[1].Split("private async Task<SubmissionNavigation", 2)[0]);
         sources.Add("AdminEventStatePresentation", File.ReadAllText(Path.Combine(web, "UI", "AdminEventStatePresentation.cs")));
@@ -64,6 +70,57 @@ public sealed class AdminDesignLocalizationTests
                 var key = match.Groups["key"].Value;
                 if (!entries.TryGetValue(key, out var value) || string.IsNullOrWhiteSpace(value)) missing.Add($"{Path.GetFileName(path)}: {key}");
             }
+        }
+        // D and L belong to AdminCommunityResource; localizer in Events' model
+        // still belongs to SharedResource. Scan conditional first-key expressions,
+        // not only the first literal, and include the current dynamic label sources.
+        foreach (var (path, source) in sources)
+        {
+            foreach (Match call in Regex.Matches(source, """(?<owner>\bD|\bL|\bT|\btext|\blocalizer)\s*[\[(]"""))
+            {
+                var owner = call.Groups["owner"].Value;
+                var resource = owner is "D" or "L" || owner == "text" && source.Contains("IStringLocalizer<AdminCommunityResource>", StringComparison.Ordinal)
+                    ? communityEntries : entries;
+                var start = call.Index + call.Length;
+                var depth = 0;
+                var end = start;
+                for (; end < source.Length; end++)
+                {
+                    var character = source[end];
+                    if (character == '"')
+                    {
+                        for (end++; end < source.Length; end++)
+                        {
+                            if (source[end] == '\\') end++;
+                            else if (source[end] == '"') break;
+                        }
+                    }
+                    else if (character is '(' or '[' or '{') depth++;
+                    else if (character is ')' or ']' or '}') { if (depth == 0) break; depth--; }
+                    else if (character == ',' && depth == 0) break; // First argument is the resource key.
+                }
+                var expression = source[start..end];
+                foreach (Match literal in Regex.Matches(expression, "\"(?:\\\\.|[^\"\\\\])*\""))
+                {
+                    var before = expression[..literal.Index].TrimEnd();
+                    // A literal key or a conditional key branch, not a string
+                    // used inside the condition or another function's arguments.
+                    if (before.Length == 0 || before[^1] is '?' or ':')
+                        Check(path, literal.Value[1..^1], resource);
+                }
+            }
+            if (!source.Contains("IStringLocalizer<AdminCommunityResource>", StringComparison.Ordinal)) continue;
+            foreach (Match declaration in Regex.Matches(source, """(?:var (?:labels|views|columns|emptyTitle|emptyText)\s*=(?:"[^"]*"|[^";])*;|string Phase\([\s\S]*?};)"""))
+                foreach (Match literal in Regex.Matches(declaration.Value, "\"(?<key>[^\"]+)\""))
+                {
+                    var key = literal.Groups["key"].Value;
+                    if (char.IsUpper(key[0])) Check(path, key, communityEntries);
+                }
+        }
+        void Check(string path, string key, Dictionary<string, string?> resource)
+        {
+            if (!resource.TryGetValue(key, out var value) || string.IsNullOrWhiteSpace(value))
+                missing.Add($"{Path.GetFileName(path)}: {key}");
         }
         Assert.True(missing.Count == 0, "Missing Danish entries:\n" + string.Join('\n', missing.Distinct().Order()));
     }
