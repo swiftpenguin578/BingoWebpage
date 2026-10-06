@@ -191,4 +191,23 @@
   <data name="Signup opening failed" xml:space="preserve"><value>Åbning af tilmelding mislykkedes</value></data>
   <data name="{0} to review" xml:space="preserve"><value>{0} til gennemgang</value></data>
   <data name="Finished" xml:space="preserve"><value>Afsluttet</value></data>
+  <data name="Creating…" xml:space="preserve"><value>Opretter…</value></data>
+  <data name="Check again" xml:space="preserve"><value>Tjek igen</value></data>
+  <data name="Checking…" xml:space="preserve"><value>Tjekker…</value></data>
+  <data name="Event name" xml:space="preserve"><value>Eventnavn</value></data>
+  <data name="Timezone" xml:space="preserve"><value>Tidszone</value></data>
+  <data name="Cancel" xml:space="preserve"><value>Annuller</value></data>
+  <data name="Enter an event name." xml:space="preserve"><value>Indtast et eventnavn.</value></data>
+  <data name="Event names must be 50 characters or fewer." xml:space="preserve"><value>Eventnavne må højst være 50 tegn.</value></data>
+  <data name="Couldn’t create the event. Nothing was saved, and your details are still here." xml:space="preserve"><value>Eventet kunne ikke oprettes. Intet blev gemt, og dine oplysninger er stadig her.</value></data>
+  <data name="We couldn’t confirm whether the event was created. Check before trying again, so the event isn’t created twice." xml:space="preserve"><value>Vi kunne ikke bekræfte, om eventet blev oprettet. Tjek, før du prøver igen, så eventet ikke oprettes to gange.</value></data>
+  <data name="The event was not found. It may not have been created, or it may have been removed since. You can start a new creation request with these details." xml:space="preserve"><value>Eventet blev ikke fundet. Det er måske ikke blevet oprettet, eller det kan være fjernet siden. Du kan starte en ny oprettelse med disse oplysninger.</value></data>
+  <data name="An event called “{0}” already exists ({1}). You can still create another; it gets its own link." xml:space="preserve"><value>Der findes allerede et event med navnet “{0}” ({1}). Du kan stadig oprette et nyt; det får sit eget link.</value></data>
+  <data name="It starts as a private draft that players can’t see. You’ll add dates, capacity, artwork and signups in the event afterwards." xml:space="preserve"><value>Det starter som en privat kladde, som spillerne ikke kan se. Bagefter tilføjer du datoer, kapacitet, billeder og tilmelding i eventet.</value></data>
+  <data name="e.g. Autumn Bingo 2027" xml:space="preserve"><value>f.eks. Efterårs-bingo 2027</value></data>
+  <data name="Every date and time in this event uses this timezone. You can change it later." xml:space="preserve"><value>Alle datoer og tidspunkter i dette event bruger denne tidszone. Du kan ændre den senere.</value></data>
+  <data name="The name and timezone you entered haven’t been saved." xml:space="preserve"><value>Det navn og den tidszone, du har indtastet, er ikke blevet gemt.</value></data>
+  <data name="Leave before checking?" xml:space="preserve"><value>Forlad dialogen uden at tjekke?</value></data>
+  <data name="Leave anyway" xml:space="preserve"><value>Forlad alligevel</value></data>
+  <data name="The event may already have been created. Check again before creating another event. Leaving closes this dialog; it does not undo a creation." xml:space="preserve"><value>Eventet kan allerede være oprettet. Tjek igen, før du opretter et nyt event. Når du forlader dialogen, lukkes den; det fortryder ikke en oprettelse.</value></data>
 </root>

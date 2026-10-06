@@ -74,6 +74,7 @@ public sealed class IndexModel(ApplicationDbContext dbContext, IEventLifecycleSe
     public string ActiveSortDirection { get; private set; } = "asc";
     public string SortIconPath => ActiveSortDirection == "desc" ? "m6 9 6 6 6-6" : "m18 15-6-6-6 6";
     public IReadOnlyList<EventRow> Events { get; private set; } = [];
+    public IReadOnlyList<EventRow> DuplicateEvents { get; private set; } = [];
     public IReadOnlyList<StateOption> StateOptions { get; private set; } = [];
     public bool ActionProjectionUnavailable { get; private set; }
 
@@ -158,6 +159,7 @@ public sealed class IndexModel(ApplicationDbContext dbContext, IEventLifecycleSe
         }
 
         DuplicateNames = allEvents.Select(item => item.Name).ToList();
+        DuplicateEvents = allEvents;
         HiddenCount = allEvents.Count(item => item.IsHidden);
         var visible = allEvents.Where(item => !item.IsHidden).ToList();
         VisibleCount = visible.Count;

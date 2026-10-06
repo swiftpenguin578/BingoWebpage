@@ -1,0 +1,32 @@
+@model Bingo.Web.Pages.Admin.Events.IndexModel
+@inject IStringLocalizer<AdminCommunityResource> D
+@inject TimeProvider Clock
+@using System.Text.Json
+@{
+    var labels = new[] {
+        "Create event", "Creating…", "Check again", "Checking…", "Event name", "Timezone", "Cancel", "Enter an event name.", "The name and timezone you entered haven’t been saved.", "Leave before checking?", "Leave anyway", "The event may already have been created. Check again before creating another event. Leaving closes this dialog; it does not undo a creation.",
+        "Event names must be 50 characters or fewer.", "Couldn’t create the event. Nothing was saved, and your details are still here.",
+        "We couldn’t confirm whether the event was created. Check before trying again, so the event isn’t created twice.",
+        "The event was not found. It may not have been created, or it may have been removed since. You can start a new creation request with these details.",
+        "An event called “{0}” already exists ({1}). You can still create another; it gets its own link."
+    }.ToDictionary(key => key, key => D[key].Value);
+    var offset = TimeZoneInfo.FindSystemTimeZoneById("Europe/Copenhagen").GetUtcOffset(Clock.GetUtcNow());
+    string Phase(Bingo.Web.Pages.Admin.Events.IndexModel.EventRow item) => item.IsHidden ? "Hidden" : item.State switch {
+        Bingo.Domain.Events.EventState.Draft => "Setup", Bingo.Domain.Events.EventState.SignupOpen => "Signups open",
+        Bingo.Domain.Events.EventState.SignupClosed => "Signups closed", Bingo.Domain.Events.EventState.Live => "Live",
+        Bingo.Domain.Events.EventState.AwaitingFinalReview => "Final review", Bingo.Domain.Events.EventState.Finalized => "Finished",
+        Bingo.Domain.Events.EventState.Archived => "Archived", _ => "Cancelled"
+    };
+}
+<template data-event-create-template data-create-labels="@JsonSerializer.Serialize(labels)" data-create-names="@JsonSerializer.Serialize(Model.DuplicateEvents.Select(item => new { name = item.Name, phase = D[Phase(item)].Value }))">
+    <input type="hidden" id="Input_RequestId" name="Input.RequestId" value="@Guid.NewGuid()" />
+    <div class="mf-head"><h2 class="m-title" data-confirm-title>@D["Create event"]</h2><p class="m-body" data-confirm-description>@D["It starts as a private draft that players can’t see. You’ll add dates, capacity, artwork and signups in the event afterwards."]</p></div>
+    <div class="mf-body">
+        <partial name="_AdminDesignBanner" model='new AdminDesignBanner("is-error", "error", "", Id: "cm-failure", Hidden: true)' />
+        <partial name="_AdminDesignBanner" model='new AdminDesignBanner("is-warning", "warning", "", Id: "cm-uncertain", Hidden: true)' />
+        <partial name="_AdminDesignBanner" model='new AdminDesignBanner("is-info", "info", "", Id: "cm-not-found", Hidden: true)' />
+        <div class="field"><div class="lbl-row"><label class="lbl" for="cm-name">@D["Event name"]</label><span class="field-count" data-create-count aria-live="polite" hidden></span></div><input class="input" id="cm-name" name="Input.Name" autocomplete="off" aria-required="true" aria-invalid="false" placeholder="@D["e.g. Autumn Bingo 2027"]" autofocus /><div class="field-err" id="cm-name-err" hidden><partial name="_AdminDesignIcon" model='new AdminDesignIcon("error")' /><span data-component-text></span></div><div class="field-note" id="cm-name-dup" role="status" hidden><partial name="_AdminDesignIcon" model='new AdminDesignIcon("info")' /><span data-component-text></span></div></div>
+        <div class="field"><label class="lbl" for="cm-tz">@D["Timezone"]</label><div class="select-wrap"><select class="select select-field" id="cm-tz" name="Input.Timezone" aria-describedby="cm-tz-hint"><option value="Europe/Copenhagen">Europe/Copenhagen (UTC+@offset.ToString("hh\\:mm", CultureInfo.InvariantCulture))</option><option value="UTC">UTC (UTC+00:00)</option></select><partial name="_AdminDesignIcon" model='new AdminDesignIcon("chevron-down")' /></div><div class="field-hint" id="cm-tz-hint">@D["Every date and time in this event uses this timezone. You can change it later."]</div><div class="field-err" id="cm-tz-err" hidden></div></div>
+    </div>
+    <div class="mf-foot"><button class="btn" id="cm-cancel" type="button">@D["Cancel"]</button><button class="btn btn-primary" id="cm-submit" type="button" style="min-width:132px"><span class="spin" hidden></span><span data-component-text>@D["Create event"]</span></button></div>
+</template>
