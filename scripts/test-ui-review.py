@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Focused refusal tests; no Docker mutations or real process signals."""
+"""Focused refusal tests plus one freshly owned /usr/bin/python3 HTTP child; no Docker mutations."""
 import importlib.util
 import json
 from pathlib import Path
@@ -96,6 +96,70 @@ class ReviewSafetyTests(unittest.TestCase):
                 with self.assertRaises(RuntimeError):
                     review.stop_processes()
                 kill.assert_not_called()
+
+    def test_owned_argument_or_start_time_mismatch_is_never_signalled(self):
+        with tempfile.TemporaryDirectory(prefix="bingo-ur-identity-") as directory:
+            records = Path(directory) / "processes.json"
+            command = ["/usr/bin/python3", "-m", "http.server", "5320", "--directory", "/owned/references"]
+            records.write_text(json.dumps([{"pid": 123, "identity": "Tue Oct 6 12:00:00 2026 (python3.9)", "args": command}]))
+            for changed in ("Tue Oct 6 12:00:00 2026 /usr/bin/python3 -m http.server 5320 --directory /foreign/references",
+                            "Tue Oct 6 12:00:01 2026 /usr/bin/python3 -m http.server 5320 --directory /owned/references"):
+                with self.subTest(changed=changed), patch.object(review, "PROCESSES", records), patch.object(review, "process_identity", return_value=changed), patch.object(review.os, "kill") as kill:
+                    with self.assertRaises(RuntimeError):
+                        review.stop_processes()
+                    kill.assert_not_called()
+                    original = records.read_text()
+                    with self.assertRaises(RuntimeError):
+                        review.capture_ready_processes(json.loads(original))
+                    self.assertEqual(records.read_text(), original)
+                    legacy = {"pid": 123, "identity": "Tue Oct 6 12:00:00 2026 (python3.9)"}
+                    self.assertFalse(review.owns_process(legacy, changed))
+
+    def test_command_line_tools_python_captures_ready_identity_and_stops_owned_child(self):
+        with tempfile.TemporaryDirectory(prefix="bingo-ur-clt-") as directory:
+            root = Path(directory)
+            records = root / "processes.json"
+            log = root / "reference.log"
+            with socket.socket() as reservation:
+                reservation.bind(("127.0.0.1", 0))
+                port = reservation.getsockname()[1]
+            args = ["/usr/bin/python3", "-m", "http.server", str(port), "--bind", "127.0.0.1", "--directory", str(root)]
+            actual_identity = review.process_identity
+            actual_popen = review.subprocess.Popen
+            children = []
+            def spawn(*values, **options):
+                child = actual_popen(*values, **options)
+                if values[0][0] == "/usr/bin/python3":
+                    children.append(child)
+                return child
+            def identity(pid):
+                # Retain/reap the fixture child; the real command detaches it when its parent exits.
+                for child in children:
+                    if child.pid == pid:
+                        child.poll()
+                return actual_identity(pid)
+            def transient(pid):
+                value = identity(pid)
+                self.assertIsNotNone(value)
+                return " ".join(value.split(maxsplit=5)[:5]) + " (python3.9)"
+            with patch.object(review, "PROCESSES", records), patch.object(review.subprocess, "Popen", side_effect=spawn), patch.object(review, "process_identity", side_effect=identity):
+                # Force the exact observed startup race while using the real CLT executable/child.
+                with patch.object(review, "process_identity", side_effect=transient):
+                    record = review.start_process(args, review.os.environ.copy(), log)
+                records.write_text(json.dumps([record]))
+                try:
+                    review.ready(f"http://127.0.0.1:{port}/", log)
+                    review.capture_ready_processes([record])
+                    captured = json.loads(records.read_text())[0]
+                    self.assertNotIn("(python3.9)", captured["identity"])
+                    self.assertEqual(captured["args"], args)
+                    self.assertTrue(review.owns_process(captured, actual_identity(captured["pid"])))
+                    review.stop_processes()
+                    self.assertFalse(records.exists())
+                    self.assertIsNone(actual_identity(captured["pid"]))
+                finally:
+                    if records.exists():
+                        review.stop_processes()
 
     def test_mac_python_reexec_retains_exact_arguments_and_start_time(self):
         shim = "Tue Oct 6 12:00:00 2026 /Library/Developer/CommandLineTools/usr/bin/python3 -m http.server 5320 --bind 127.0.0.1 --directory /owned/references"

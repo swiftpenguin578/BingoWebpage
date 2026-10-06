@@ -89,13 +89,35 @@ def stable_identity(value):
     return " ".join(parts[:5]) + " " + executable + " " + arguments
 
 
+def owns_process(record, identity):
+    if "args" not in record:
+        # Legacy records must still match their complete captured command exactly.
+        return stable_identity(identity) == stable_identity(record["identity"])
+    parts = record["identity"].split(maxsplit=5)
+    if len(parts) != 6:
+        raise RuntimeError("Cannot verify the owned process start time.")
+    expected = " ".join(parts[:5]) + " " + " ".join(record["args"])
+    return stable_identity(identity) == stable_identity(expected)
+
+
+def capture_ready_processes(records):
+    # Readiness is reached after Python's re-exec. Never replace a snapshot unless
+    # the PID/start instant and exact command we launched still identify our child.
+    for record in records:
+        identity = process_identity(record["pid"])
+        if not identity or not owns_process(record, identity):
+            raise RuntimeError("Refusing to capture a ready process whose owned identity does not match.")
+        record["identity"] = identity
+    PROCESSES.write_text(json.dumps(records))
+
+
 def stop_processes():
     if not PROCESSES.exists():
         return
     records = json.loads(PROCESSES.read_text())
     for record in records:
         identity = process_identity(record["pid"])
-        if identity and stable_identity(identity) != stable_identity(record["identity"]):
+        if identity and not owns_process(record, identity):
             raise RuntimeError("Refusing to stop a process whose identity no longer matches the owned PID.")
     for record in records:
         if process_identity(record["pid"]):
@@ -152,7 +174,7 @@ def start_process(args, env, log):
     identity = process_identity(process.pid)
     if not identity:
         raise RuntimeError(f"Process exited at startup; see {log}")
-    return {"pid": process.pid, "identity": identity}
+    return {"pid": process.pid, "identity": identity, "args": list(args)}
 
 
 def ready(url, log):
@@ -253,6 +275,7 @@ def main():
         PROCESSES.write_text(json.dumps(records))
         ready("http://127.0.0.1:5310/Account/Login", STATE / "app.log")
         ready("http://127.0.0.1:5320/", STATE / "references.log")
+        capture_ready_processes(records)
     except Exception:
         stop_processes()
         raise
