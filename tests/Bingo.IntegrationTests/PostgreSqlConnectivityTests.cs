@@ -17,7 +17,7 @@ public sealed class PostgreSqlConnectivityTests : IAsyncLifetime
         .WithPassword("bingo_test_password")
         .Build();
 
-    public Task InitializeAsync() => _database.StartAsync();
+    public Task InitializeAsync() => PostgreSqlReadiness.StartAsync(_database);
 
     public Task DisposeAsync() => _database.DisposeAsync().AsTask();
 

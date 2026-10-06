@@ -23,7 +23,7 @@ public sealed class Slice8Pass81PersistenceIntegrationTests : IAsyncLifetime
 
     public async Task InitializeAsync()
     {
-        await database.StartAsync();
+        await PostgreSqlReadiness.StartAsync(database);
         options = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetConnectionString()).Options;
     }
 

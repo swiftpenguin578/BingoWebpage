@@ -25,7 +25,7 @@ public sealed class AccessAndAuditTests : IAsyncLifetime
 
     public async Task InitializeAsync()
     {
-        await _database.StartAsync();
+        await PostgreSqlReadiness.StartAsync(_database);
         _options = new DbContextOptionsBuilder<ApplicationDbContext>()
             .UseNpgsql(_database.GetConnectionString())
             .Options;
