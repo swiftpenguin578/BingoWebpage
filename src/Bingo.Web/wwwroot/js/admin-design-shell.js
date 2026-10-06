@@ -312,7 +312,7 @@
     }
   };
 
-  let modules = [], navigation = null, sequence = 0;
+  let modules = [], navigation = null, sequence = 0, updating = null;
   let index = history.state?.adminDesignIndex ?? 0;
   let activeUrl = location.href;
   history.replaceState({ ...history.state, adminDesignIndex: index }, '', activeUrl);
@@ -486,14 +486,17 @@
     const active = document.activeElement;
     const selector = active?.id ? `#${CSS.escape(active.id)}`
       : active?.matches('[data-shell-language] button') ? `[data-shell-language] button[value="${CSS.escape(active.value)}"]`
-      : active?.name ? `[name="${CSS.escape(active.name)}"]` : null;
+      : active?.name ? `[name="${CSS.escape(active.name)}"]`
+      : active?.getAttribute('aria-label') ? `[aria-label="${CSS.escape(active.getAttribute('aria-label'))}"]` : null;
     const scroller = document.querySelector('[data-page-region]');
-    return { active, selector, top: scroller?.scrollTop || 0, left: scroller?.scrollLeft || 0 };
+    return { active, selector, selection: typeof active?.selectionStart === 'number' ? [active.selectionStart, active.selectionEnd, active.selectionDirection] : null, top: scroller?.scrollTop || 0, left: scroller?.scrollLeft || 0 };
   }
   function restorePosition(position) {
     const scroller = document.querySelector('[data-page-region]');
     if (scroller) { scroller.scrollTop = position.top; scroller.scrollLeft = position.left; }
-    focus(position.active?.isConnected ? position.active : position.selector ? document.querySelector(position.selector) : document.querySelector('.h1'));
+    const target = position.active?.isConnected ? position.active : position.selector ? document.querySelector(position.selector) : document.querySelector('.h1');
+    focus(target);
+    if (position.selection && typeof target?.setSelectionRange === 'function') target.setSelectionRange(...position.selection);
   }
   async function closeNavigationLayers() {
     while (layers.length) if (!await closeLayer(layers.at(-1), false, true, true)) return false;
@@ -511,7 +514,7 @@
     url = new URL(url, location.href).href;
     if (check && !await guard()) return false;
     if (!await closeNavigationLayers()) return false;
-    navigation?.abort(); clearOverlay();
+    updating?.abort(); navigation?.abort(); clearOverlay();
     if (body.dataset.navigationEnabled.toLowerCase() === 'false') { fullLoad(url); return true; }
     const ticket = ++sequence;
     navigation = new AbortController();
@@ -601,11 +604,81 @@
       return false;
     } finally { loading?.cancel(); restoreMain(); }
   }
+  // Shared in-page reads: page adapters supply only fragments/presentation,
+  // never their own transport, delayed-loading clock or URL/focus/scroll rules.
+  async function update(url, { root, results, patch, pending, failed, fallbackFocus, signal, scrollRegions = [], current = () => true, draft = {} }) {
+    if (!await guard()) return false;
+    updating?.abort();
+    const controller = updating = new AbortController();
+    const cancel = () => controller.abort();
+    signal?.addEventListener('abort', cancel, { once: true });
+    const before = rememberPosition();
+    let restore, shown = false;
+    const loading = delayedLoading(() => {
+      shown = true;
+      const children = [...results.children].map(element => ({ element, hidden: element.hidden }));
+      const minimum = results.style.minHeight, busy = results.getAttribute('aria-busy');
+      results.style.minHeight = results.getBoundingClientRect().height + 'px';
+      children.forEach(value => { value.element.hidden = true; });
+      const placeholder = document.createElement('div'); placeholder.dataset.updateSkeleton = '';
+      placeholder.append(pending()); results.append(placeholder); results.setAttribute('aria-busy', 'true');
+      restore = () => {
+        placeholder.remove(); children.forEach(value => { value.element.hidden = value.hidden; });
+        results.style.minHeight = minimum;
+        if (busy === null) results.removeAttribute('aria-busy'); else results.setAttribute('aria-busy', busy);
+      };
+    }, controller.signal);
+    controller.signal.addEventListener('abort', () => { restore?.(); restore = null; }, { once: true });
+    const preserve = action => {
+      const position = rememberPosition();
+      if (position.active === body && shown) Object.assign(position, { active: before.active, selector: before.selector, selection: before.selection });
+      const scroll = scrollRegions.map(element => ({ element, left: element.scrollLeft, top: element.scrollTop }));
+      restore?.(); restore = null;
+      action();
+      if (!position.active?.isConnected && !document.querySelector(position.selector || ':not(*)')) {
+        position.active = fallbackFocus(); position.selector = null;
+      }
+      restorePosition(position);
+      for (const value of scroll) { value.element.scrollLeft = value.left; value.element.scrollTop = value.top; }
+    };
+    try {
+      const outcome = await window.AdminFetch.request(url, { expect: 'html', signal: controller.signal, headers: { 'X-Admin-Navigation': 'true' }, notice: false });
+      if (controller.signal.aborted || !root.isConnected || !current()) return false;
+      if (outcome.kind === 'session-lost') {
+        restore?.(); restore = null;
+        window.AdminFetch.sessionNotice(typeof draft === 'function' ? draft() : draft, outcome.destination);
+        return false;
+      }
+      if (outcome.kind !== 'handler') throw new Error('Results load failed');
+      const doc = new DOMParser().parseFromString(outcome.data, 'text/html');
+      if (!validatePage(doc, outcome.response, false)) throw new Error('Results response is incompatible');
+      await loading.complete();
+      if (controller.signal.aborted || !root.isConnected || !current()) return false;
+      preserve(() => {
+        const canonical = patch(doc);
+        history.replaceState({ ...history.state, adminDesignIndex: index }, '', canonical || url);
+        activeUrl = location.href;
+      });
+      return true;
+    } catch (error) {
+      if (controller.signal.aborted || !root.isConnected || !current()) return false;
+      await loading.complete();
+      if (controller.signal.aborted || !root.isConnected || !current()) return false;
+      preserve(() => {
+        results.replaceChildren(failed());
+        results.querySelector('[data-load-retry]').addEventListener('click', () => void update(url, { root, results, patch, pending, failed, fallbackFocus, signal, scrollRegions, current, draft }));
+      });
+      return false;
+    } finally {
+      loading.cancel(); restore?.(); signal?.removeEventListener('abort', cancel);
+      if (updating === controller) updating = null;
+    }
+  }
   let languagePending = false;
   async function changeLanguage(form, button) {
     if (languagePending || !button || button.classList.contains('is-on')) return;
     if (!await guard() || !await closeNavigationLayers()) return;
-    navigation?.abort(); clearOverlay();
+    updating?.abort(); navigation?.abort(); clearOverlay();
     const rollbackContext = contextSnapshot();
     languagePending = true; refreshDirty();
     const position = rememberPosition(); position.active = button; position.selector = `[data-shell-language] button[value="${CSS.escape(button.value)}"]`;
@@ -653,7 +726,7 @@
     if (record) index++;
     history[record ? 'pushState' : 'replaceState']({ adminDesignIndex: index }, '', url); activeUrl = url.href;
   }
-  const api = window.AdminUI = { template, trapTab, openLayer, closeLayer, confirm, confirmDiscard, toast, busy, reducedMotion, registerDraft, trackForm, refreshDirty, guard, query, setUrl, navigate, refreshContext };
+  const api = window.AdminUI = { template, trapTab, openLayer, closeLayer, closeMenu, confirm, confirmDiscard, toast, busy, reducedMotion, registerDraft, trackForm, refreshDirty, guard, query, setUrl, navigate, update, refreshContext };
   document.addEventListener('submit', event => { if (event.target.matches('[data-shell-language]')) { event.preventDefault(); void changeLanguage(event.target, event.submitter); } });
   document.addEventListener('input', refreshDirty);
   document.addEventListener('change', refreshDirty);
