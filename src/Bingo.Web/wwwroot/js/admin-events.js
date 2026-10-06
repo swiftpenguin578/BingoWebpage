@@ -76,18 +76,58 @@ export function init(region, ui = window.AdminUI) {
     for (const node of content.querySelectorAll(failed ? '.empty' : '.sk-row')) fragment.append(document.importNode(node, true));
     return fragment;
   };
+  const phaseCheck = root.querySelector('#directory-phase-menu [aria-checked="true"] svg')?.cloneNode(true);
+  function pagerFallback(position) {
+    const pager = position.active?.closest('.pager');
+    if (pager) {
+      const other = root.querySelector('.pager button:' + (position.active === pager.querySelector('button') ? 'last-child' : 'first-child'));
+      if (other && !other.disabled) return other;
+    }
+    return root.querySelector('.th-btn');
+  }
+  function paintQuery() {
+    const params = query.searchParams, view = params.get('view') || 'all', phase = params.get('phase') || 'all';
+    for (const input of root.querySelectorAll('.tabs input')) {
+      const selected = new URL(input.dataset.directoryUrl, location.href).searchParams.get('view') === view;
+      input.checked = selected; input.closest('.tab').classList.toggle('is-on', selected);
+    }
+    let phaseLabel = root.dataset.phaseAll;
+    for (const option of root.querySelectorAll('#directory-phase-menu button')) {
+      const selected = new URL(option.dataset.directoryUrl, location.href).searchParams.get('phase') === phase;
+      option.setAttribute('aria-checked', String(selected)); option.querySelector('svg')?.remove();
+      if (selected) { phaseLabel = phase === 'all' ? root.dataset.phaseAll : option.querySelector('.grow').textContent; if (phaseCheck) option.append(phaseCheck.cloneNode(true)); }
+    }
+    root.querySelector('[data-directory-phase-value]').textContent = phaseLabel;
+    root.querySelector('#phase-btn').classList.toggle('is-active', phase !== 'all');
+    for (const column of root.querySelectorAll('.th')) {
+      const button = column.querySelector('button'), selected = button.id === 'directory-sort-' + params.get('sort'), descending = params.get('direction') === 'desc';
+      column.classList.toggle('is-sorted', selected); column.setAttribute('aria-sort', selected ? descending ? 'descending' : 'ascending' : 'none');
+      const icon = column.querySelector('.sort-ic');
+      icon.classList.toggle('is-desc', selected && descending); icon.classList.toggle('is-asc', selected && !descending);
+      const next = selected ? descending ? 'asc' : 'desc' : button.dataset.sortFirst;
+      button.setAttribute('aria-label', button.dataset[next === 'desc' ? 'sortAriaDesc' : 'sortAriaAsc']);
+    }
+    const pager = root.querySelector('.pager'), active = document.activeElement;
+    if (pager) {
+      const buttons = [...pager.querySelectorAll('button')], page = Number(params.get('page') || 1), last = buttons.length - 2;
+      buttons.forEach((button, index) => {
+        const arrow = index === 0 || index === buttons.length - 1, selected = !arrow && index === page;
+        button.classList.toggle('is-current', selected);
+        if (selected) button.setAttribute('aria-current', 'page'); else button.removeAttribute('aria-current');
+        if (arrow) button.disabled = index === 0 ? page <= 1 : page >= last;
+        const url = new URL(query.href); url.searchParams.set('page', String(index === 0 ? page - 1 : index === buttons.length - 1 ? page + 1 : index));
+        button.dataset.directoryUrl = url.href;
+      });
+      if (active?.closest('.pager') && active.disabled) pagerFallback({active})?.focus({preventScroll:true});
+    }
+    const attention = region.querySelector('.summary button[data-directory-url]');
+    if (attention) { attention.setAttribute('aria-pressed', String(params.get('attention') === '1')); const url = new URL(query.href); if (params.get('attention') === '1') url.searchParams.delete('attention'); else url.searchParams.set('attention','1'); attention.dataset.directoryUrl = url.href; }
+  }
   const navigate = target => {
     const url = new URL(target, location.href), revision = edits;
-    query = new URL(url.href);
+    query = new URL(url.href); paintQuery();
     return ui.update(url.href, { root, results, patch, pending: () => fragment(false), failed: () => fragment(true),
-      fallbackFocus: position => {
-        const pager = position.active?.closest('.pager');
-        if (pager) {
-          const other = root.querySelector('.pager button:' + (position.active === pager.querySelector('button') ? 'last-child' : 'first-child'));
-          if (other && !other.disabled) return other;
-        }
-        return root.querySelector('.th-btn');
-      }, signal: life.signal, scrollRegions: [root.querySelector('[data-directory-wrap]')],
+      fallbackFocus: pagerFallback, signal: life.signal, scrollRegions: [root.querySelector('[data-directory-wrap]')],
       current: () => edits === revision, draft: () => ({ [search.getAttribute('aria-label')]: search.value }) });
   };
   function searchNow() {
@@ -109,7 +149,7 @@ export function init(region, ui = window.AdminUI) {
     } else if (control.closest('#directory-phase-menu')) { put('phase'); ui.closeMenu(); }
     else if (control.closest('.th')) {
       const sort = target.searchParams.get('sort');
-      url.searchParams.set('direction', url.searchParams.get('sort') === sort && url.searchParams.get('direction') !== 'desc' ? 'desc' : 'asc');
+      url.searchParams.set('direction', url.searchParams.get('sort') === sort ? url.searchParams.get('direction') === 'asc' ? 'desc' : 'asc' : control.dataset.sortFirst);
       url.searchParams.set('sort', sort);
     } else if (control.closest('.pager')) put('page');
     else if (control.closest('.tfoot')) { url.searchParams.set('sort', ''); url.searchParams.set('direction', 'asc'); }

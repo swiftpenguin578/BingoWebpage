@@ -23,7 +23,7 @@
 @section HeaderActions {
     <div class="head-actions"><a class="btn btn-primary" href="/Admin/Events/Create" data-create-event><partial name="_AdminDesignIcon" model='new AdminDesignIcon("plus")' />@D["Create event"]</a></div>
 }
-<div data-events-directory data-directory-canonical="@Model.DirectoryUrl(page: Model.PageNumber)" data-sort-announcement="@(Model.ActiveSort.Length == 0 ? "" : D["Sorted by {0}, {1}.", D[columns.Single(column => column.Item1 == Model.ActiveSort).Item2].Value, D[Model.ActiveSortDirection == "desc" ? "descending" : "ascending"].Value])">
+<div data-events-directory data-phase-all="@D["All"]" data-directory-canonical="@Model.DirectoryUrl(page: Model.PageNumber)" data-sort-announcement="@(Model.ActiveSort.Length == 0 ? "" : D["Sorted by {0}, {1}.", D[columns.Single(column => column.Item1 == Model.ActiveSort).Item2].Value, D[Model.ActiveSortDirection == "desc" ? "descending" : "ascending"].Value])">
 <span class="sr" aria-live="polite" data-sort-status></span>
 <div data-directory-banners class="directory-fragments">
 @if (Model.DroppedLinkParts) { <div class="banner is-info page-banner" role="status"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("info")' /><span class="grow">@D["Some parts of this link weren’t available and were cleared. The remaining filters still apply."]</span></div> }
@@ -43,7 +43,7 @@
     <div class="search @(Model.ActiveSearch.Length > 0 ? "has-clear" : "")"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("search")' /><input class="input" id="search-input" type="search" placeholder="@D["Search event names"]" aria-label="@D["Search event names"]" value="@Model.ActiveSearch" data-directory-search>
     <button class="icon-btn clear" type="button" data-directory-clear hidden="@(Model.ActiveSearch.Length == 0)" aria-label="@D["Clear search"]"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("close")' /></button>
     </div>
-    <button class="btn filter-btn @(Model.ActiveFilter != "all" ? "is-active" : "")" id="phase-btn" type="button" data-menu-target="directory-phase-menu" data-menu-align="end" aria-haspopup="menu" aria-expanded="false"><span class="fb-lbl">@D["Phase"]</span>@D[Model.ActiveFilter == "all" ? "All" : Model.StateOptions.Single(option => option.Value == Model.ActiveFilter).Label]<partial name="_AdminDesignIcon" model='new AdminDesignIcon("chevron-down")' /></button>
+    <button class="btn filter-btn @(Model.ActiveFilter != "all" ? "is-active" : "")" id="phase-btn" type="button" data-menu-target="directory-phase-menu" data-menu-align="end" aria-haspopup="menu" aria-expanded="false"><span class="fb-lbl">@D["Phase"]</span><span data-directory-phase-value>@D[Model.ActiveFilter == "all" ? "All" : Model.StateOptions.Single(option => option.Value == Model.ActiveFilter).Label]</span><partial name="_AdminDesignIcon" model='new AdminDesignIcon("chevron-down")' /></button>
     <div class="menu" id="directory-phase-menu" role="menu" aria-label="@D["Filter by phase"]" hidden>
     @foreach (var phase in Model.StateOptions) { <button class="menu-item" type="button" role="menuitemradio" aria-checked="@(Model.ActiveFilter == phase.Value ? "true" : "false")" data-phase-views="@string.Join(',', new[] { "all", "current", "past", "hidden" }.Where(view => Model.PhaseAllowed(phase.Value, view)))" data-directory-url="@Model.DirectoryUrl(phase: phase.Value)"><span class="grow">@D[phase.Label]</span>@if (Model.ActiveFilter == phase.Value) { <partial name="_AdminDesignIcon" model='new AdminDesignIcon("check")' /> }</button> }
     </div>
@@ -53,7 +53,7 @@
 <div class="tr th-row" role="row">
 @foreach (var (key, label, cls) in columns) {
     var next = Model.IsActiveSort(key) ? Model.NextSortDirection(key) : key is "attention" or "signups" ? "desc" : "asc";
-    <div class="th @cls @(Model.IsActiveSort(key) ? "is-sorted" : "")" role="columnheader" aria-sort="@Model.AriaSort(key)"><button class="th-btn" id="directory-sort-@key" type="button" data-directory-url="@Model.DirectoryUrl(sort: key, direction: next)" aria-label="@D["Sort by {0}, {1}", D[label].Value, D[next == "desc" ? "descending" : "ascending"].Value]">@D[label]<svg class="ic sort-ic @(Model.IsActiveSort(key) ? Model.ActiveSortDirection == "asc" ? "is-asc" : "is-desc" : "")" viewBox="0 0 16 16"><path d="M4.5 10 8 6.5l3.5 3.5"/></svg></button></div>
+    <div class="th @cls @(Model.IsActiveSort(key) ? "is-sorted" : "")" role="columnheader" aria-sort="@Model.AriaSort(key)"><button class="th-btn" id="directory-sort-@key" type="button" data-sort-first="@(key is "attention" or "signups" ? "desc" : "asc")" data-sort-aria-asc="@D["Sort by {0}, {1}", D[label].Value, D["ascending"].Value]" data-sort-aria-desc="@D["Sort by {0}, {1}", D[label].Value, D["descending"].Value]" data-directory-url="@Model.DirectoryUrl(sort: key, direction: next)" aria-label="@D["Sort by {0}, {1}", D[label].Value, D[next == "desc" ? "descending" : "ascending"].Value]">@D[label]<svg class="ic sort-ic @(Model.IsActiveSort(key) ? Model.ActiveSortDirection == "asc" ? "is-asc" : "is-desc" : "")" viewBox="0 0 16 16"><path d="M4.5 10 8 6.5l3.5 3.5"/></svg></button></div>
 }
 </div>
 <div data-directory-results>
