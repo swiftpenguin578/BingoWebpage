@@ -12,7 +12,7 @@ async function until(page,predicate){for(let i=0;i<200;i++)if(await page.evaluat
   const context=await browser.newContext({viewport:{width:390,height:600},reducedMotion:'reduce'});
   let page=await login(context,fixture);const errors=[];page.on('pageerror',e=>errors.push(e.message));
   const base='/Admin/Events?view=current';
-  const urls={search:base+'&search=alpha&page=1',all:'/Admin/Events?view=all',phase:base+'&phase=signupopen',sort:base+'&sort=identity&direction=asc',page:base+'&page=2',attention:base+'&attention=1',late:base+'&search=alphaX&page=1'};
+  const urls={search:base+'&search=alpha&page=1',all:'/Admin/Events?view=all',phase:base+'&phase=signupopen',sort:base+'&sort=identity&direction=asc',page:base+'&page=2',attention:base+'&attention=1',late:base+'&search=alphaX&page=1',dashboard:'/Admin'};
   const html={};
   for(const [key,url]of Object.entries(urls)){const response=await context.request.get(fixture.origin+url);assert.equal(response.status(),200);html[key]=await response.text();}
   const reset=async key=>{
@@ -32,7 +32,7 @@ async function until(page,predicate){for(let i=0;i<200;i++)if(await page.evaluat
     window.badFrames=[];window.requests=[];window.timers=[];window.nextHTML=next;
     const timer=window.setTimeout;window.setTimeout=(fn,ms,...args)=>{timers.push(ms);return timer(fn,ms,...args);};
     const fetch=window.fetch;
-    window.fetch=(url,options)=>String(url).includes('/Admin/Events?')?new Promise((resolve,reject)=>{
+    window.fetch=(url,options)=>(String(url).includes('/Admin/Events?')||['/Admin','/Admin/Index'].includes(new URL(url,location.href).pathname))?new Promise((resolve,reject)=>{
      const request={url:String(url),aborted:false,classified:new Headers(options.headers).get('X-Requested-With')==='XMLHttpRequest'};
      requests.push(request);request.fail=()=>reject(new TypeError('Offline'));request.session=()=>resolve(new Response('<html>Sign in</html>',{headers:{'Content-Type':'text/html','X-Bingo-Post-Navigation':'/Account/Login'}}));request.fulfill=()=>resolve(new Response(window.nextHTML,{headers:{'Content-Type':'text/html'}}));
      options.signal.addEventListener('abort',()=>{request.aborted=true;reject(new DOMException('Aborted','AbortError'));},{once:true});
@@ -115,14 +115,38 @@ async function until(page,predicate){for(let i=0;i<200;i++)if(await page.evaluat
    else assert.equal(await page.locator('#directory-sort-identity').evaluate(e=>document.activeElement===e),true);
    await identities();
   }
+  // Input aborts immediately; the old response cannot reveal rows during debounce.
+  await reset('search');await page.locator('#search-input').fill('alpha');await page.clock.runFor(250);await until(page,()=>requests.length===1);
+  await page.clock.runFor(150);await page.clock.runFor(50);
+  await page.locator('#search-input').press('End');await page.locator('#search-input').pressSequentially('X');
+  assert.equal(await page.evaluate(()=>requests[0].aborted),true);
+  await page.evaluate(()=>requests[0].fulfill());
+  await page.clock.runFor(249);assert.equal(await page.evaluate(()=>requests.length),1);
+  assert.equal(await page.locator('[data-update-skeleton]').count(),1);await identities();
+  await page.clock.runFor(1);await until(page,()=>requests.length===2);
+  await page.evaluate(next=>{nextHTML=next;requests[1].fulfill();},html.late);await until(page,()=>timers.includes(100));
+  await page.clock.runFor(99);assert.equal(await page.locator('[data-update-skeleton]').count(),1);
+  await page.clock.runFor(1);await until(page,()=>new URL(location.href).searchParams.get('search')==='alphaX');await identities();
+  // Sidebar A16 navigation immediately inherits the shown results hold.
+  await reset('dashboard');await page.evaluate(()=>document.querySelector('#directory-sort-identity').click());await until(page,()=>requests.length===1);
+  await page.clock.runFor(150);await page.clock.runFor(50);
+  await page.evaluate(()=>{document.querySelector('[data-shell-link][href="/Admin"]').click();});
+  await until(page,()=>requests.length===2);
+  assert.equal(await page.evaluate(()=>requests[0].aborted),true);
+  assert.equal(await page.locator('[data-page-skeleton]').count(),1);
+  assert.equal(await page.locator('[data-update-skeleton]').count(),0);
+  assert.deepEqual(await page.evaluate(()=>badFrames.filter(value=>value==='old results reappeared')),[]);
+  await page.evaluate(()=>requests[1].fulfill());await until(page,()=>timers.includes(350));
+  await page.clock.runFor(349);assert.equal(await page.locator('[data-page-skeleton]').count(),1);
+  await page.clock.runFor(1);await until(page,()=>['/Admin','/Admin/Index'].includes(location.pathname));
+  assert.deepEqual(await page.evaluate(()=>badFrames.filter(value=>value==='old results reappeared')),[]);
   // A new settled query cancels the old request; characters typed mid-flight survive.
   await reset('search');await page.locator('#search-input').fill('alpha');await page.clock.runFor(250);await until(page,()=>requests.length===1);
   await page.locator('#search-input').press('End');await page.locator('#search-input').pressSequentially('X');await page.clock.runFor(250);await until(page,()=>requests.length===2);
   assert.equal(await page.evaluate(()=>requests[0].aborted),true);
   await page.evaluate(next=>{window.nextHTML=next;requests[1].fulfill();},html.late);
-  await until(page,()=>timers.includes(300));await page.clock.runFor(299);
-  assert.equal(await page.locator('[data-update-skeleton]').count(),1);await page.clock.runFor(1);
   await until(page,()=>new URL(location.href).searchParams.get('search')==='alphaX');
+  assert.equal(await page.locator('[data-update-skeleton]').count(),0,'aborted-before-show request cannot start a stale skeleton');
   assert.equal(await page.locator('#search-input').inputValue(),'alphaX');assert.equal(await page.locator('#search-input').evaluate(e=>document.activeElement===e),true);await identities();
   await reset('search');await page.locator('#search-input').fill('alpha');await page.locator('#search-input').press('Enter');await until(page,()=>requests.length===1);
   await page.evaluate(()=>requests[0].fail());await until(page,()=>!!document.querySelector('[data-directory-results] [data-load-retry]'));

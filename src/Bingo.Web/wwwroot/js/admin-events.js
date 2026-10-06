@@ -86,7 +86,7 @@ export function init(region, ui = window.AdminUI) {
     url.searchParams.set('search', search.value.trim()); url.searchParams.set('page', '1');
     void navigate(url.href);
   }
-  listen(search, 'input', () => { edits++; clearTimeout(timer); timer = setTimeout(searchNow, 250); });
+  listen(search, 'input', () => { edits++; ui.supersedeUpdate(); clearTimeout(timer); timer = setTimeout(searchNow, 250); });
   listen(search, 'keydown', event => { if (event.key === 'Enter') { event.preventDefault(); searchNow(); } });
   listen(region, 'click', event => {
     const control = event.target.closest('[data-directory-url]');
