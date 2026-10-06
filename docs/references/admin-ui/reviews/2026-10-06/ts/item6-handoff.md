@@ -13,7 +13,11 @@ changed. This checkpoint awaits Claude independent review.
 | 3 exceptions | `c4e00391ee6af4e065831bc11b26038813ecbdd5` |
 | 4 readiness | `63b5a48fb0802fac14ca8162db08ed6e73ddda5e` |
 | 5 CI/discovery | `d8cad2e11a2bfc439c3704cfa3dd12c6e4436919` |
-| 6 docs/gate handoff | This documentation checkpoint; exact SHA in the post-commit record. |
+| 6 docs/gate handoff | `1b237eda27556209743fbc86be268bd8b801de2b` |
+
+That initial candidate failed 16 dashboard setup cases; see the bounded
+[helper correction](remediation-1.md). The corrected final SHA and two fresh
+complete passes are identified in the post-commit record, not this failed candidate.
 
 Candidate results are retained in item1–item5. Discovered counts and identities are
 unchanged: Domain 265, Application 118, Browser 150, Integration 1510 (2043 total).
