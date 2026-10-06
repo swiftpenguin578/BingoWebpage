@@ -19,10 +19,10 @@ using Testcontainers.PostgreSql;
 
 namespace Bingo.IntegrationTests;
 
-public sealed class AdminDashboardRemediationIntegrationTests : IAsyncLifetime
+public sealed class AdminDashboardRemediationIntegrationTests(PostgreSqlTestFixture databaseFixture) : IAsyncLifetime, IClassFixture<PostgreSqlTestFixture>
 {
     private static readonly DateTimeOffset Clock = new(2026, 1, 15, 12, 0, 0, TimeSpan.Zero);
-    private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine").Build();
+    private readonly PostgreSqlTestDatabase database = databaseFixture.CreateDatabase(new PostgreSqlBuilder("postgres:17-alpine"));
     private DbContextOptions<ApplicationDbContext> options = null!;
 
     public async Task InitializeAsync()
@@ -30,7 +30,6 @@ public sealed class AdminDashboardRemediationIntegrationTests : IAsyncLifetime
         await database.StartAsync();
         options = CreateOptions();
         await using var db = new ApplicationDbContext(options);
-        await db.Database.MigrateAsync();
     }
 
     public async Task DisposeAsync() => await database.DisposeAsync();

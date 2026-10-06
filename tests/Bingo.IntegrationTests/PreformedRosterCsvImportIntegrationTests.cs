@@ -12,11 +12,11 @@ using Testcontainers.PostgreSql;
 
 namespace Bingo.IntegrationTests;
 
-public sealed class PreformedRosterCsvImportIntegrationTests : IAsyncLifetime
+public sealed class PreformedRosterCsvImportIntegrationTests(PostgreSqlTestFixture databaseFixture) : IAsyncLifetime, IClassFixture<PostgreSqlTestFixture>
 {
-    private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine").WithDatabase("bingo_preformed_csv").WithUsername("bingo").WithPassword("bingo_test_password").Build();
+    private readonly PostgreSqlTestDatabase database = databaseFixture.CreateDatabase(new PostgreSqlBuilder("postgres:17-alpine").WithDatabase("bingo_preformed_csv").WithUsername("bingo").WithPassword("bingo_test_password"));
     private DbContextOptions<ApplicationDbContext> options = null!;
-    public async Task InitializeAsync() { await database.StartAsync(); options = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetConnectionString()).Options; await using var db = new ApplicationDbContext(options); await db.Database.MigrateAsync(); }
+    public async Task InitializeAsync() { await database.StartAsync(); options = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetConnectionString()).Options; await using var db = new ApplicationDbContext(options); }
     public Task DisposeAsync() => database.DisposeAsync().AsTask();
 
     [Fact]

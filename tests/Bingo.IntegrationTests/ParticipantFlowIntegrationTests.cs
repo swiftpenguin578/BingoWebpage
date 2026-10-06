@@ -31,9 +31,9 @@ using Testcontainers.PostgreSql;
 
 namespace Bingo.IntegrationTests;
 
-public sealed class ParticipantFlowIntegrationTests : IAsyncLifetime
+public sealed class ParticipantFlowIntegrationTests(PostgreSqlTestFixture databaseFixture) : IAsyncLifetime, IClassFixture<PostgreSqlTestFixture>
 {
-    private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine").WithDatabase("bingo_participant_flow").WithUsername("bingo").WithPassword("bingo_test_password").Build();
+    private readonly PostgreSqlTestDatabase database = databaseFixture.CreateDatabase(new PostgreSqlBuilder("postgres:17-alpine").WithDatabase("bingo_participant_flow").WithUsername("bingo").WithPassword("bingo_test_password"));
     private readonly DateTimeOffset now = DateTimeOffset.UtcNow;
     private DbContextOptions<ApplicationDbContext> options = null!;
 
@@ -42,7 +42,6 @@ public sealed class ParticipantFlowIntegrationTests : IAsyncLifetime
         await database.StartAsync();
         options = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetConnectionString()).Options;
         await using var db = new ApplicationDbContext(options);
-        await db.Database.MigrateAsync();
     }
 
     public Task DisposeAsync() => database.DisposeAsync().AsTask();

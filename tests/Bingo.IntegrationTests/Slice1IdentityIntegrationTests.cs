@@ -50,13 +50,13 @@ using Testcontainers.PostgreSql;
 
 namespace Bingo.IntegrationTests;
 
-public sealed partial class Slice1IdentityIntegrationTests : IAsyncLifetime
+public sealed partial class Slice1IdentityIntegrationTests(PostgreSqlTestFixture databaseFixture) : IAsyncLifetime, IClassFixture<PostgreSqlTestFixture>
 {
-    private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine")
+    private readonly PostgreSqlTestDatabase database = databaseFixture.CreateDatabase(new PostgreSqlBuilder("postgres:17-alpine")
         .WithDatabase("bingo_slice1_identity_tests")
         .WithUsername("bingo")
         .WithPassword("bingo_test_password")
-        .Build();
+        );
 
     private DbContextOptions<ApplicationDbContext> options = null!;
     private readonly PasswordHasher<Account> passwords = new();
@@ -67,7 +67,6 @@ public sealed partial class Slice1IdentityIntegrationTests : IAsyncLifetime
         await database.StartAsync();
         options = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetConnectionString()).Options;
         await using var db = new ApplicationDbContext(options);
-        await db.Database.MigrateAsync();
     }
 
     public Task DisposeAsync() => database.DisposeAsync().AsTask();

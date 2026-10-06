@@ -20,13 +20,13 @@ namespace Bingo.IntegrationTests;
 /// fresh-context snapshot so a successful-looking result cannot hide a
 /// mutation or audit row.
 /// </summary>
-public sealed class EventMutationAuthorizationIntegrationTests : IAsyncLifetime
+public sealed class EventMutationAuthorizationIntegrationTests(PostgreSqlTestFixture databaseFixture) : IAsyncLifetime, IClassFixture<PostgreSqlTestFixture>
 {
-    private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine")
+    private readonly PostgreSqlTestDatabase database = databaseFixture.CreateDatabase(new PostgreSqlBuilder("postgres:17-alpine")
         .WithDatabase("ver01_event_authorization")
         .WithUsername("bingo")
         .WithPassword("bingo_test_password")
-        .Build();
+        );
 
     private readonly DateTimeOffset now = new(2026, 7, 27, 20, 0, 0, TimeSpan.Zero);
     private DbContextOptions<ApplicationDbContext> options = null!;
@@ -38,7 +38,6 @@ public sealed class EventMutationAuthorizationIntegrationTests : IAsyncLifetime
             .UseNpgsql(database.GetConnectionString())
             .Options;
         await using var db = new ApplicationDbContext(options);
-        await db.Database.MigrateAsync();
     }
 
     public Task DisposeAsync() => database.DisposeAsync().AsTask();

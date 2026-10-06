@@ -23,10 +23,10 @@ using CatalogueModel = Bingo.Web.Pages.Admin.Catalogue.IndexModel;
 
 namespace Bingo.IntegrationTests;
 
-public sealed class AdminStaleChangeIntegrationTests : IAsyncLifetime
+public sealed class AdminStaleChangeIntegrationTests(PostgreSqlTestFixture databaseFixture) : IAsyncLifetime, IClassFixture<PostgreSqlTestFixture>
 {
-    private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine")
-        .WithDatabase("bingo_admin_stale_change").WithUsername("bingo").WithPassword("bingo_test_password").Build();
+    private readonly PostgreSqlTestDatabase database = databaseFixture.CreateDatabase(new PostgreSqlBuilder("postgres:17-alpine")
+        .WithDatabase("bingo_admin_stale_change").WithUsername("bingo").WithPassword("bingo_test_password"));
     private DbContextOptions<ApplicationDbContext> options = null!;
     private const string StaleMessage = "This record was changed by another administrator.";
 
@@ -35,7 +35,6 @@ public sealed class AdminStaleChangeIntegrationTests : IAsyncLifetime
         await database.StartAsync();
         options = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetConnectionString()).Options;
         await using var db = new ApplicationDbContext(options);
-        await db.Database.MigrateAsync();
     }
 
     public Task DisposeAsync() => database.DisposeAsync().AsTask();

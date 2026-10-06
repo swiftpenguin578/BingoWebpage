@@ -25,10 +25,10 @@ using Testcontainers.PostgreSql;
 
 namespace Bingo.IntegrationTests;
 
-public sealed class AuditAtomicityBatchIntegrationTests : IAsyncLifetime
+public sealed class AuditAtomicityBatchIntegrationTests(PostgreSqlTestFixture databaseFixture) : IAsyncLifetime, IClassFixture<PostgreSqlTestFixture>
 {
-    private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine")
-        .WithDatabase("audit_atomicity_batch").WithUsername("bingo").WithPassword("bingo_test_password").Build();
+    private readonly PostgreSqlTestDatabase database = databaseFixture.CreateDatabase(new PostgreSqlBuilder("postgres:17-alpine")
+        .WithDatabase("audit_atomicity_batch").WithUsername("bingo").WithPassword("bingo_test_password"));
     private readonly DateTimeOffset now = new(2026, 9, 13, 12, 0, 0, TimeSpan.Zero);
     private DbContextOptions<ApplicationDbContext> options = null!;
 
@@ -37,7 +37,6 @@ public sealed class AuditAtomicityBatchIntegrationTests : IAsyncLifetime
         await database.StartAsync();
         options = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetConnectionString()).Options;
         await using var db = new ApplicationDbContext(options);
-        await db.Database.MigrateAsync();
         // A real PostgreSQL audit INSERT fails, including when it shares an EF batch
         // with business writes. Auto-unapproval must reach the database before the
         // mandatory removal audit fails, proving that both roll back together.

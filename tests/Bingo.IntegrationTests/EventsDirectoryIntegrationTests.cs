@@ -21,11 +21,11 @@ using DirectoryPage = Bingo.Web.Pages.Admin.Events.IndexModel;
 
 namespace Bingo.IntegrationTests;
 
-public sealed class EventsDirectoryIntegrationTests : IAsyncLifetime
+public sealed class EventsDirectoryIntegrationTests(PostgreSqlTestFixture databaseFixture) : IAsyncLifetime, IClassFixture<PostgreSqlTestFixture>
 {
     private static readonly DateTimeOffset Now = new(2026, 10, 2, 12, 0, 0, TimeSpan.Zero);
-    private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine")
-        .WithDatabase("bingo_directory").WithUsername("bingo").WithPassword("bingo_test_password").Build();
+    private readonly PostgreSqlTestDatabase database = databaseFixture.CreateDatabase(new PostgreSqlBuilder("postgres:17-alpine")
+        .WithDatabase("bingo_directory").WithUsername("bingo").WithPassword("bingo_test_password"));
     private DbContextOptions<ApplicationDbContext> options = null!;
 
     public async Task InitializeAsync()
@@ -33,7 +33,6 @@ public sealed class EventsDirectoryIntegrationTests : IAsyncLifetime
         await database.StartAsync();
         options = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetConnectionString()).Options;
         await using var db = new ApplicationDbContext(options);
-        await db.Database.MigrateAsync();
     }
 
     public Task DisposeAsync() => database.DisposeAsync().AsTask();

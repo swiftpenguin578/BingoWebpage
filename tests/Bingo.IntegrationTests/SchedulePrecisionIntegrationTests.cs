@@ -18,11 +18,11 @@ using Testcontainers.PostgreSql;
 
 namespace Bingo.IntegrationTests;
 
-public sealed partial class SchedulePrecisionIntegrationTests : IAsyncLifetime
+public sealed partial class SchedulePrecisionIntegrationTests(PostgreSqlTestFixture databaseFixture) : IAsyncLifetime, IClassFixture<PostgreSqlTestFixture>
 {
     private static readonly DateTimeOffset Now = new(2026, 10, 2, 12, 0, 0, TimeSpan.Zero);
-    private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine")
-        .WithDatabase("bingo_schedule_precision").WithUsername("bingo").WithPassword("bingo_test_password").Build();
+    private readonly PostgreSqlTestDatabase database = databaseFixture.CreateDatabase(new PostgreSqlBuilder("postgres:17-alpine")
+        .WithDatabase("bingo_schedule_precision").WithUsername("bingo").WithPassword("bingo_test_password"));
     private DbContextOptions<ApplicationDbContext> options = null!;
     private WebApplicationFactory<Program> factory = null!;
     private Guid eventId;
@@ -33,7 +33,6 @@ public sealed partial class SchedulePrecisionIntegrationTests : IAsyncLifetime
         await database.StartAsync();
         options = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetConnectionString()).Options;
         await using var db = new ApplicationDbContext(options);
-        await db.Database.MigrateAsync();
         foreach (var name in new[] { "first-admin", "second-admin", "ordinary-account" })
         {
             var account = Account.CreateWebsite(Guid.NewGuid(), name, name.ToUpperInvariant(), Now);
