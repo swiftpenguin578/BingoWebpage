@@ -421,6 +421,10 @@ reference-edit sequence: RC01–RC11 findings are required page-binding items.
 | C8 | LKP-1 Luck mixed-outcome proof | `gpt-6.1-sol` / high |
 
 Main lane U1–U9 runs in order, with UR after accepted U1 and before U2.
+UI pass rule **8a**: the page's review scenarios must exist in the UR environment
+and be listed with working links/accounts for the user's check. Every later page
+brief adds its required scenarios here, including any new page states, as part of
+its own binding work; the legacy reset seed remains separate.
 Future-model assignments follow the user’s 5 October 2026
 [Implementer model change](/Users/christopher/Documents/BingoWebpage/review-notes/08-decisions.md#implementer-model-change-user-5-october-2026); historical Luna records remain unchanged. Lane T starts from accepted U1 in its own
 worktree/branch, runs T1 then T2, and merges back only after independent review;

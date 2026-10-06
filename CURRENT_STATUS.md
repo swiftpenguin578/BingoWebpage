@@ -1,13 +1,18 @@
 # Current project status
 
-## U1 accepted; UR authorized — handoff updated 6 October 2026
+## UR items 1–5 implemented; review/suite/walkthrough pending — 6 October 2026
 
-- Checkout `/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage`, branch `codex/participants-functionality`; U1 implementation HEAD `18a9669201bae2aa71a6057e5ef53c160cea2aba` was clean before this documentation-only acceptance checkpoint.
+- Checkout `/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage`, branch `codex/participants-functionality`; U1 implementation HEAD `18a9669201bae2aa71a6057e5ef53c160cea2aba` was clean before the supplied U1 acceptance checkpoint.
 - Supplied acceptance authority: [decisions08](/Users/christopher/Documents/BingoWebpage/review-notes/08-decisions.md), “U1 visual acceptance” and “U1 accepted”, and [brief62](/Users/christopher/Documents/BingoWebpage/review-notes/62-codex-brief-ur-review-environment.md). The user accepted shell + Identity on **6 October 2026**, including light/dark, EN/DA, phone, in-app browser and desktop Safari. The timezone-dialog question was a seed-data gap, not a U1 defect. `UI_PAGE_MATRIX.md` owns the two page approval records.
 - Claude supplied the whole .NET result at `18a9669` from a `git archive` copy: Application **118**, Domain **265**, BrowserTests **150**, Integration **1,508**, total **2,041 passed / 0 failed / 0 skipped**, `dotnet test` exit **0**, Release **0 warnings**. The source labels this run/acceptance **7 October 2026**; this handoff preserves that provenance despite the current client date of 6 October. This dispatcher did not execute that suite or an independent recheck; U1 acceptance is the supplied planner/user decision.
 - Retained implementation evidence: whole Bingo.BrowserTests **150/0/0**, full JS **51 passed / 0 failed** (43 files + 8 WebKit checks), real served/reference parity **66 passed / 0 failed** in Chromium/WebKit, Release **0 warnings / 0 errors**, frozen CSS and diff checks passed. [Round4 evidence](docs/references/admin-ui/reviews/2026-10-06/u1/remediation-4/item7.md) retains the checks, limitations and one file per item; historical reports are unchanged. CI is unrun.
-- Next authorized batch is **UR items 1–5**, after this acceptance docs commit: fresh `gpt-6.1-sol` / `high` implementer, one local commit per item, then stop and report for Claude's independent review. This new dispatcher's collaboration root owns callbacks; old dispatcher IDs in briefs are superseded. No orchestrator, Codex reviewer or verifier. Follow [lean execution](DELIVERY_PLAN.md#421-lean-execution-and-planner-handoff).
+- Authorized batch is **UR items 1–5**, after acceptance docs `4d34d63`: fresh `gpt-6.1-sol` / `high` implementer, one local commit per item, then stop and report for Claude's independent review. This new dispatcher's collaboration root owns callbacks; old dispatcher IDs in briefs are superseded. No orchestrator, Codex reviewer or verifier. Follow [lean execution](DELIVERY_PLAN.md#421-lean-execution-and-planner-handoff).
 - UR uses an isolated Development review environment, its own PostgreSQL/storage and local WOM fake, real lifecycle invariants and `live`/`final-review` profiles. Leave `--reset-test-data` and `DevelopmentScenarioSeeder` unchanged. No U2+, lane T, push, merge, deployment or rehearsal is authorized. U1 observations remain unassigned: duplicate incomplete-baseline message and production login/password-change session wall-clock versus injected-clock use.
+
+- UR commits: item1 `2c14bb1` (owned command), item2 `90c67e4` (realistic scenarios), item3 `ff807ce` (linked guide), item4 `48d3895` (PostgreSQL/route/command proof); item5 is this scoped documentation commit. Sole implementer `/root/ur_implementer`; no push. [UR evidence](docs/references/admin-ui/reviews/2026-10-06/ur/) has one file per item, including the real printed final-review list in item4.
+- Ruling63 (planner source labelled 7 October; accepted/relayed 6 October) permits hidden Final review, legacy Finalized and Archived only, exactly one visible current per profile. Ruling64 (same provenance) preserves discarded audit under FUNCTIONAL_CONTRACTS §9.3 while excluding discarded events from every navigation/population. Production audit/lifecycle rules, old reset seeder and frozen CSS unchanged. A7 current-picker wording remains an unassigned U2 observation.
+- [Item4 proof](docs/references/admin-ui/reviews/2026-10-06/ur/item4.md): final real PostgreSQL/HTTP **2/0/0**, all printed URLs **69 live / 70 final-review** returned 200 for listed accounts, hidden event routes 404 plain Admin, discarded public/direct routes 404 and audit links 200. Safety **7 passed**, actual create→refresh rebuilt 21 event dates/20 starts, matching stop succeeded. Review app/reference/container remain stopped. Full JS **51/0** Chromium/WebKit and whole BrowserTests **150/0/0** passed on item4 candidate before the ruling64-only test clarification; passing unaffected evidence reused. Final clean nonincremental Release **0 warnings/errors**, diff/frozen-CSS checks passed. Earlier unsuccessful fixture executions are recorded distinctly in item4. No whole-.NET suite launched.
+- README owns create/refresh/stop, ports, safety, synthetic credentials and accounts. DELIVERY_PLAN's pass8a requires every later page brief to add its scenarios/working account links to UR. Independent Claude review, final-SHA unfiltered whole .NET **0 failed / 0 skipped**, and user review-environment walkthrough are **pending**. UR implementation is not page visual acceptance; UI_PAGE_MATRIX is unchanged.
 
 ## Round3 historical handoff — superseded by round4 above
 
@@ -42,17 +47,15 @@
 
 ## Next permitted action
 
-Commit only the U1 acceptance updates to this file and the two U1 shell/Identity
-rows in `UI_PAGE_MATRIX.md`, then dispatch brief62 items1–5 from that clean commit.
-The implementer runs focused checks, clean Release, full JS Chromium/WebKit and
-whole `Bingo.BrowserTests`; Claude/user owns the unfiltered whole .NET gate on the
-final UR SHA (zero failed/zero skipped). Report that SHA and the exact command:
+Stop after item5. Next owner is Claude/user for independent UR review, the
+unfiltered whole .NET gate on the reported final UR SHA (zero failed/zero skipped),
+and the user's review-environment walkthrough. Run from the assigned checkout:
 
 ```sh
 cd /Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage
 dotnet test Bingo.slnx --configuration Release --no-restore --results-directory /private/tmp/bingo-ur-final-suite-trx --logger "trx"
 ```
 
-Stop after item5 for independent planner review and the user's review-environment
-walk-through. No U2–U10, lane T, rehearsal, push, merge or deployment. CI is unrun;
+Create/refresh uses README's isolated command when the user begins the walkthrough.
+No U2–U10, lane T, rehearsal, push, merge or deployment. CI is unrun;
 setup-node retains its immutable v4.4.0 commit pin.
