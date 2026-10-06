@@ -24,11 +24,28 @@
     const longest = style.animationName === 'none' ? 0 : Math.max(0, ...duration.map((value, i) => value + delay[i % delay.length]));
     return new Promise(resolve => setTimeout(resolve, longest ? longest + 20 : 0));
   }
+  const BUSY_MINIMUM_MS = 600, QUICK_BUSY_MINIMUM_MS = 250;
+  const LOADING_DELAY_MS = 150, LOADING_MINIMUM_MS = 400;
+  function delayedLoading(show, signal) {
+    let shownAt = null, timer, release;
+    const cancel = () => { clearTimeout(timer); release?.(); };
+    signal.addEventListener('abort', cancel, { once: true });
+    timer = setTimeout(() => { if (!signal.aborted) { show(); shownAt = performance.now(); } }, LOADING_DELAY_MS);
+    return {
+      async complete() {
+        clearTimeout(timer);
+        if (shownAt === null || signal.aborted) return;
+        const remaining = LOADING_MINIMUM_MS - (performance.now() - shownAt);
+        if (remaining > 0) await new Promise(resolve => { release = resolve; timer = setTimeout(resolve, remaining); });
+      },
+      cancel() { cancel(); signal.removeEventListener('abort', cancel); }
+    };
+  }
   async function busy(request, quick = false) {
     const started = performance.now();
     try { return await request(); }
     finally {
-      const remaining = (quick ? 250 : 600) - (performance.now() - started);
+      const remaining = (quick ? QUICK_BUSY_MINIMUM_MS : BUSY_MINIMUM_MS) - (performance.now() - started);
       if (!reducedMotion() && remaining > 0) await new Promise(resolve => setTimeout(resolve, remaining));
     }
   }
@@ -501,9 +518,16 @@
     closeMenu(false);
     if (mobile && !language) toggleSide(false);
     const position = suppliedPosition || rememberPosition();
-    if (!language) skeleton(url);
+    const currentMain = document.querySelector('[data-page-region]'), wasInert = currentMain.inert;
+    let restored = false;
+    const restoreMain = () => { if (!restored) { currentMain.inert = wasInert; restored = true; } };
+    // Preserve the current display during the delay without accepting edits that
+    // could be lost by the already-guarded navigation.
+    if (!language) currentMain.inert = true;
+    navigation.signal.addEventListener('abort', restoreMain, { once: true });
+    const loading = !language ? delayedLoading(() => { skeleton(url); restoreMain(); }, navigation.signal) : null;
     let receivedPage = false;
-    const fallback = destination => { clearOverlay(); if (rollbackContext) { refreshContext(rollbackContext); restorePosition(position); } fullLoad(destination); return true; };
+    const fallback = destination => { restoreMain(); clearOverlay(); if (rollbackContext) { refreshContext(rollbackContext); restorePosition(position); } fullLoad(destination); return true; };
     try {
       const response = suppliedResponse || await fetch(url, { credentials: 'same-origin', signal: navigation.signal, headers: { 'X-Admin-Navigation': 'true' } });
       if (!response.ok) throw new Error('Page load failed');
@@ -513,6 +537,9 @@
       if (!validatePage(doc, response, language)) return fallback(response.url || url);
       const nextModules = await loadModules(doc);
       if (ticket !== sequence) return false;
+      await loading?.complete();
+      if (ticket !== sequence) return false;
+      restoreMain();
       // Compatibility and imports are known before any old module is disposed.
       await disposePage();
       clearOverlay(false);
@@ -553,8 +580,12 @@
     } catch (error) {
       if (error.name === 'AbortError' || ticket !== sequence) return false;
       if (receivedPage || language) { console.warn('Admin page swap could not finish.', error); return fallback(url); }
-      const placeholder = overlay?.element;
-      if (!placeholder) return false;
+      await loading?.complete();
+      if (ticket !== sequence) return false;
+      loading?.cancel();
+      if (!overlay) skeleton(url); // Fast failures show only the decided failure state.
+      restoreMain();
+      const placeholder = overlay.element;
       placeholder.setAttribute('aria-busy', 'false'); overlay.main.removeAttribute('aria-busy');
       placeholder.querySelector('[data-dashboard-loading-card]')?.remove();
       for (const child of [...placeholder.children]) if (!child.classList.contains('page-head')) child.remove();
@@ -568,7 +599,7 @@
         bindPendingEvents(placeholder, url, true);
       }
       return false;
-    }
+    } finally { loading?.cancel(); restoreMain(); }
   }
   let languagePending = false;
   async function changeLanguage(form, button) {
