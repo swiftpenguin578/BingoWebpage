@@ -24,8 +24,13 @@ using Testcontainers.PostgreSql;
 
 namespace Bingo.IntegrationTests;
 
-public sealed partial class C20ObjectiveIdentityIntegrationTests(C20Database fixture) : IClassFixture<C20Database>
+public sealed partial class C20ObjectiveIdentityIntegrationTests(PostgreSqlTestFixture databaseFixture) : IClassFixture<PostgreSqlTestFixture>, IAsyncLifetime
 {
+    private readonly C20Database fixture = new(databaseFixture);
+
+    public Task InitializeAsync() => fixture.InitializeAsync();
+    public Task DisposeAsync() => fixture.DisposeAsync();
+
     [Fact]
     public async Task PublishedAutomaticDescriptionIsPreservedInCaptainDrawerProjection()
     {
@@ -412,19 +417,18 @@ public sealed partial class C20ObjectiveIdentityIntegrationTests(C20Database fix
     private sealed record Fixture(Account Admin, Account Owner, BingoEvent Event, Team Team, EventParticipant Participant, Board Board, BoardTile Tile, BoardRequirementSnapshot Requirement, BoardRequirementDropSnapshot Drop, BossActivity Boss, Guid ApprovalId);
 }
 
-public sealed class C20Database : IAsyncLifetime
+public sealed class C20Database(PostgreSqlTestFixture databaseFixture) : IAsyncLifetime
 {
-    private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine").WithDatabase("c20_disposable").WithUsername("bingo").WithPassword("c20_fixture_only").Build();
+    private readonly PostgreSqlTestDatabase database = databaseFixture.CreateDatabase(new PostgreSqlBuilder("postgres:17-alpine").WithDatabase("c20_disposable").WithUsername("bingo").WithPassword("c20_fixture_only"));
     public C20Storage Storage { get; } = new();
     public WebApplicationFactory<Program> Factory { get; private set; } = null!;
     public ApplicationDbContext Db() => new(new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetConnectionString()).Options);
     public async Task InitializeAsync()
     {
         await database.StartAsync();
-        await using var db = Db(); await db.Database.MigrateAsync();
         Factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString()).ConfigureServices(services => { services.RemoveAll<IEvidenceStorage>(); services.AddSingleton<IEvidenceStorage>(Storage); }));
     }
-    public async Task DisposeAsync() { await Factory.DisposeAsync(); await database.DisposeAsync(); }
+    public async Task DisposeAsync() { if (Factory is not null) await Factory.DisposeAsync(); await database.DisposeAsync(); }
 }
 public sealed class C20Storage : IEvidenceStorage
 {

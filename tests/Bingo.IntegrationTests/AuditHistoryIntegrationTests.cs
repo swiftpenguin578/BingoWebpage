@@ -20,13 +20,13 @@ using Testcontainers.PostgreSql;
 
 namespace Bingo.IntegrationTests;
 
-public sealed class AuditHistoryIntegrationTests : IAsyncLifetime
+public sealed class AuditHistoryIntegrationTests(PostgreSqlTestFixture databaseFixture) : IAsyncLifetime, IClassFixture<PostgreSqlTestFixture>
 {
-    private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine")
+    private readonly PostgreSqlTestDatabase database = databaseFixture.CreateDatabase(new PostgreSqlBuilder("postgres:17-alpine")
         .WithDatabase("bingo_audit_history")
         .WithUsername("bingo")
         .WithPassword("bingo_test_password")
-        .Build();
+        );
 
     private DbContextOptions<ApplicationDbContext> options = null!;
 
@@ -37,7 +37,6 @@ public sealed class AuditHistoryIntegrationTests : IAsyncLifetime
             .UseNpgsql(database.GetConnectionString())
             .Options;
         await using var db = new ApplicationDbContext(options);
-        await db.Database.MigrateAsync();
     }
 
     public Task DisposeAsync() => database.DisposeAsync().AsTask();

@@ -32,11 +32,11 @@ using Testcontainers.PostgreSql;
 
 namespace Bingo.IntegrationTests;
 
-public sealed class DraftStartReadinessIntegrationTests : IAsyncLifetime
+public sealed class DraftStartReadinessIntegrationTests(PostgreSqlTestFixture databaseFixture) : IAsyncLifetime, IClassFixture<PostgreSqlTestFixture>
 {
     private const string Password = "readiness-test-password";
-    private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine")
-        .WithDatabase("bingo_c10_c38").WithUsername("bingo").WithPassword("bingo_test_password").Build();
+    private readonly PostgreSqlTestDatabase database = databaseFixture.CreateDatabase(new PostgreSqlBuilder("postgres:17-alpine")
+        .WithDatabase("bingo_c10_c38").WithUsername("bingo").WithPassword("bingo_test_password"));
     private readonly MutableClock clock = new(new DateTimeOffset(2026, 9, 14, 10, 0, 0, TimeSpan.Zero));
     private readonly RecordingStorage storage = new();
     private DbContextOptions<ApplicationDbContext> options = null!;
@@ -46,7 +46,6 @@ public sealed class DraftStartReadinessIntegrationTests : IAsyncLifetime
         await database.StartAsync();
         options = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetConnectionString()).Options;
         await using var db = new ApplicationDbContext(options);
-        await db.Database.MigrateAsync();
     }
     public Task DisposeAsync() => database.DisposeAsync().AsTask();
 
