@@ -240,8 +240,10 @@ population across phases. Past uses actual end, falling back to the relevant
 finalized/archive/scheduled end; Cancelled uses cancellation time. Missing dates
 sort last and equal keys use stable event ID. Retained participation for Live and
 past reuses Dashboard membership/import identity rules, including departed people;
-missing actual intervals remain unavailable. Preparation uses confirmed/waiting
-counts and capacity stays nullable, including imported events.
+missing actual intervals remain unavailable, except that Cancelled events show
+their retained confirmed count as “N confirmed when it was cancelled”
+(A-Events-4), rather than an unavailable participation count. Preparation uses
+confirmed/waiting counts and capacity stays nullable, including imported events.
 
 Needs attention prioritizes unresolved scheduled failure (start, then opening),
 then pending review. Its +N counts additional issue categories, with the whole

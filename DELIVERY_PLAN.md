@@ -407,7 +407,7 @@ reference-edit sequence: RC01–RC11 findings are required page-binding items.
 | --- | --- | --- |
 | U1 | Foundation + Identity (EI-2 Identity, AU08/AU09, RL-1/EI-3) | `gpt-6-astra` / high |
 | UR | UI review environment — after accepted U1, before U2 | `gpt-6.1-sol` / high |
-| U2 | Events directory + Create; Dashboard | `gpt-6.1-sol` / high |
+| U2 | Events directory + Create; Dashboard — brief67 authorized 6 October 2026; items 0–5 in progress, then Claude review and user visual acceptance | `gpt-6.1-sol` / high |
 | U3 | Schedule; Signup setup | `gpt-6-astra` / high |
 | U4 | Overview | `gpt-6-astra` / high |
 | U5 | Participants | `gpt-6-astra` / high |
@@ -432,7 +432,8 @@ T1 must be merged before U8. Only lane T may add the contemplated Audit migratio
 U10 follows acceptance of every page. C8 may run any time after U1 without UI edits.
 One implementer per batch, one commit per page/item, then Claude independent review;
 remediation returns to the same implementer. This ledger approves no later dispatch,
-rehearsal, push, merge to main or deployment. Brief43 authorizes U1 only.
+rehearsal, push, merge to main or deployment. Brief43 authorized U1; brief67 now
+authorizes U2 items 0–5 only. U3 and later and lane T remain stopped.
 
 #### Active AU lanes — Step 0 assignment, 4 October 2026
 
@@ -1222,7 +1223,13 @@ here; do not silently omit a row because the reference has no corresponding cont
 | B-Review-2: refuse no-op correction with “Change at least one detail, or cancel.” | Review — Review.dc.html | B-Review-2 | U8 / BR-10 | None |
 | B-Final-2: Reopen requires expected version; RL-1/BR-12 must not bypass checks when missing | Review / Final Review — Review.dc.html / FinalReview.dc.html | B-Final-2; RL-1/BR-12; plan42 §5 | U8 Review / U9 Final Review | None for mandatory version; U9 reopen-with-another-current-event is group B |
 | A-SignupSetup-1: enforce player-cap maximum 10,000 in the service with a clear message | Signup setup — SignupSetup.dc.html | A-SignupSetup-1 | U3 / OS-1 | None |
-| A-Events-3: drop an invalid link filter/view/phase with a short notice | Events — Events.dc.html | A-Events-3 | U2 / EI-2 | None |
+| A-Events-3: drop invalid link parts (filter/view/phase, including Hidden for an ordinary Admin) with a short notice; the reference silently drops invalid non-hidden parts | Events — Events.dc.html | A-Events-3; brief67 item0 | U2 / EI-2 | None for behavior; EN/DA wording proposed at binding and approved at visual acceptance |
+| Partial Needs-attention-unavailable banner in the reference banner style; event rows remain usable | Events — Events.dc.html shows whole-page failure, not partial attention failure | U2-5; brief67 item0/3 | U2 / EI-2 | None; bind the retained partial state, awaiting Claude review then user visual acceptance |
+| Live chart/history/statistics are provisional; recap selects only the latest ended event; Live row and provisional-count wording includes Live | Dashboard — Dashboard.dc.html models Final review provisional rows only; its stale sample metric definitions remain frozen | DB-4; D-8; brief67 item1/2 | U2 / DB-1 | Behavior decided; EN/DA wording proposed at binding and approved at visual acceptance |
+| Current label for Live; overdue preparation visibly overdue; unset capacity/date remain unknown rather than a fabricated limit or future date | Dashboard — Dashboard.dc.html card assumes Next event and a set future date/capacity | DB-5; D-9…D-11; brief67 item1/2 | U2 / DB-1 | Behavior decided; EN/DA wording proposed at binding and approved at visual acceptance |
+| All shared first-place winners appear in recap/history instead of one sample winner | Dashboard — Dashboard.dc.html shows one winner | D-12; approved Dashboard metric definitions; brief67 item2 | U2 / DB-1 | Behavior decided; EN/DA wording proposed at binding and approved at visual acceptance |
+| Signup opening failed attention label; Start postponed replaces the sample Start failed label | Events — Events.dc.html has no signup-opening-failure sample | AU04; E-8; brief67 item3 | U2 / EI-2 | Behavior decided; EN/DA wording proposed at binding and approved at visual acceptance |
+| CheckAgain or same-key retry 404 says the event was not found and may have been removed; fresh Create uses a new request key and retains typed values | Events/Create — Events.dc.html assumes not found means not created and permits same-key retry | AU03; E-14; brief67 §2/item4 | U2 / EI-2 | Recovery decided by brief67; EN/DA wording proposed at binding and approved at visual acceptance |
 | A-Identity-1: 50-character name limit applies only when the name changes (intentional difference) | Identity — Identity.dc.html | A-Identity-1 | U1 / EI-2 | None |
 | C-WOM-3: locked Unknown origin safety state says “Unknown origin; contact an operator”; R-3 must confirm zero Unknown management rows after migration | WOM — Wom.dc.html | C-WOM-3 | U9 / WA-5 (R-3 separately authorized) | None |
 | S11: Audit adds Participants and Signups areas | Audit — Audit.dc.html | S11 | T1 / WA-5 | Group B: exact action-prefix mapping |
