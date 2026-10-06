@@ -168,7 +168,10 @@ public sealed class EventCreationRetryIntegrationTests(PostgreSqlTestFixture dat
         await using var factory = Factory();
         using var client = factory.CreateClient(new() { AllowAutoRedirect = false, BaseAddress = new Uri("https://localhost") });
         await LoginAsync(client, admin.LoginName);
-        var page = await client.GetStringAsync("/Admin/Events/Create");
+        using var entry = await client.GetAsync("/Admin/Events/Create");
+        Assert.Equal(HttpStatusCode.Redirect, entry.StatusCode);
+        Assert.Equal("/Admin/Events?create=1", entry.Headers.Location!.OriginalString);
+        var page = await client.GetStringAsync(entry.Headers.Location);
         var key = Guid.Parse(InputValue(page, "Input_RequestId"));
         var token = Token(page);
         var unicode50 = string.Concat(Enumerable.Repeat("😀", 50));

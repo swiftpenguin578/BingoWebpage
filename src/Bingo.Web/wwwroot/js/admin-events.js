@@ -1,6 +1,7 @@
 // Server-owned directory state. The shell owns navigation and module disposal.
+import { initCreate, disposeCreate } from './admin-event-create.js';
 let release;
-export function dispose() { release?.(); release = null; }
+export function dispose() { disposeCreate(); release?.(); release = null; }
 export function init(region, ui = window.AdminUI) {
   dispose();
   const root = region.querySelector('[data-events-directory]');
@@ -47,5 +48,14 @@ export function init(region, ui = window.AdminUI) {
   listen(root, 'focusout', clearHint);
   listen(root, 'keydown', event => { if (event.key === 'Escape' && hint) { hint.classList.add('is-dismissed'); clearHint(); } });
   const frame = requestAnimationFrame(() => { root.querySelector('[data-sort-status]').textContent = root.dataset.sortAnnouncement; });
+  let flash;
+  try {
+    const saved = JSON.parse(sessionStorage.getItem('admin-event-created') || 'null');
+    if (saved?.url === location.pathname + location.search) {
+      sessionStorage.removeItem('admin-event-created');flash = root.querySelector(`[data-event-id="${CSS.escape(saved.id)}"]`);
+      if (flash) { flash.classList.add('is-flash');flash.querySelector('.name-btn')?.focus({preventScroll:true});flash.scrollIntoView({block:'nearest'});if(ui.reducedMotion())requestAnimationFrame(()=>flash.classList.remove('is-flash'));else listen(flash,'animationend',()=>flash.classList.remove('is-flash')); }
+    }
+  } catch { sessionStorage.removeItem('admin-event-created'); }
+  initCreate(region, ui);
   release = () => { life.abort(); clearTimeout(timer); overflow.disconnect(); cancelAnimationFrame(overflowFrame); cancelAnimationFrame(frame); clearHint(); };
 }

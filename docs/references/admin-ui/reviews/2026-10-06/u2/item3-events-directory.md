@@ -253,7 +253,8 @@ tests/Bingo.BrowserTests/admin-design-events.browser.js
 
 Dashboard and Events matrix rows remain **awaiting Claude review, then user
 visual acceptance**. No independent review or manual acceptance claimed.
-Planner resolves the exact Events loading/failure question; resume this preserved
-draft, complete item3's state/parity proofs (including partial-attention and hidden
-rendered states), commit item3 once, then continue items4/5 and final gates.
+The Events loading/failure question is resolved and all resumed proofs above passed.
+Item3 was committed as `90ae954c55805943698408ab4f790336cb53694e`.
+Continue item4/Create, item5/UR and final gates; any new product question belongs
+to its owning item, not this resolved loading rule.
 No U3+, lane T, packaging, push, merge or deployment.

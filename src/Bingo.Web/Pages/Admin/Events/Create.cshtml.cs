@@ -32,7 +32,15 @@ public sealed class CreateModel(
     [BindProperty] public CreateInput Input { get; set; } = new();
     public IReadOnlyList<TimezoneOption> Timezones => Options();
 
-    public void OnGet() => Input.RequestId = Guid.NewGuid();
+    public IActionResult OnGet() => RedirectToPage("Index", new { create = 1 });
+
+    private bool ModalRequest => Request.Headers.Accept.ToString().Contains("application/json", StringComparison.OrdinalIgnoreCase)
+        && Request.Headers["X-Requested-With"] == "XMLHttpRequest";
+
+    private IActionResult InvalidInput() => ModalRequest
+        ? new JsonResult(new { outcome = "invalid", errors = ModelState.Where(entry => entry.Value?.Errors.Count > 0)
+            .ToDictionary(entry => entry.Key, entry => entry.Value!.Errors.Select(error => error.ErrorMessage).ToArray()) })
+        : Page();
 
     public async Task<IActionResult> OnGetCheckAgainAsync(Guid requestId, CancellationToken ct)
     {
@@ -40,10 +48,20 @@ public sealed class CreateModel(
         var result = await creation.CheckAgainAsync(requestId, new(User.GetAccountId()!.Value, User.Identity?.Name ?? "Admin"), ct);
         return result.Outcome switch
         {
-            EventCreationOutcome.Completed => new JsonResult(new { eventId = result.EventId }),
+            EventCreationOutcome.Completed => CompletedLookup(result),
             EventCreationOutcome.Forbidden => Forbid(),
             _ => NotFound()
         };
+    }
+
+    private JsonResult CompletedLookup(EventCreationResult result)
+    {
+        if (ModalRequest)
+        {
+            TempData["StatusMessage"] = Localize("{0} was created as a private draft.", result.Name!);
+            TempData[UiMessage.TypeKey] = UiMessageType.Success.ToString();
+        }
+        return new JsonResult(new { eventId = result.EventId });
     }
 
     public async Task<IActionResult> OnPostAsync(CancellationToken ct)
@@ -51,11 +69,11 @@ public sealed class CreateModel(
         if (await ContainsRetiredWizardInputAsync(ct))
         {
             ModelState.AddModelError(string.Empty, Localize("Event creation now accepts only a name and timezone. Reload the page and try again."));
-            return Page();
+            return InvalidInput();
         }
         if (Input.RequestId == Guid.Empty)
             ModelState.AddModelError(string.Empty, Localize("Reload the page before creating an event."));
-        if (!ModelState.IsValid) return Page();
+        if (!ModelState.IsValid) return InvalidInput();
 
         try
         {
@@ -65,12 +83,13 @@ public sealed class CreateModel(
             if (result.Outcome == EventCreationOutcome.NotFound) return NotFound();
             if (result.Outcome != EventCreationOutcome.Completed)
             {
-                if (result.Outcome == EventCreationOutcome.Conflict) Response.StatusCode = StatusCodes.Status409Conflict;
+                if (!ModalRequest && result.Outcome == EventCreationOutcome.Conflict) Response.StatusCode = StatusCodes.Status409Conflict;
                 ModelState.AddModelError(result.Field is null ? string.Empty : $"Input.{result.Field}", Localize(result.Error!));
-                return Page();
+                return InvalidInput();
             }
             TempData["StatusMessage"] = Localize("{0} was created as a private draft.", result.Name!);
             TempData[UiMessage.TypeKey] = UiMessageType.Success.ToString();
+            if (ModalRequest) return new JsonResult(new { outcome = "completed", eventId = result.EventId });
             return RedirectToPage("Manage", new { id = result.EventId });
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
@@ -78,7 +97,7 @@ public sealed class CreateModel(
             var reference = Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture);
             if (logger is not null) LogCreationFailure(logger, reference, exception);
             ModelState.AddModelError(string.Empty, Localize("The event creation outcome could not be confirmed. Retry this request with the same values. Diagnostic reference: {0}.", reference));
-            return Page();
+            return ModalRequest ? new JsonResult(new { outcome = "uncertain" }) : Page();
         }
     }
 

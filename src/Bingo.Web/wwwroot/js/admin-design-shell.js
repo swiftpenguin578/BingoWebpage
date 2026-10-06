@@ -131,7 +131,7 @@
     if (element.matches?.(inputSelector) && element.closest('[data-page-region]') && !element.disabled && !element.readOnly) lastPageEditable = element;
   });
   let layerId = 0;
-  function openLayer({ kind = 'modal', title, content, confirmation = false, dirty = () => false, pending = () => false, onClose = () => {}, opener = document.activeElement }) {
+  function openLayer({ kind = 'modal', title, content, confirmation = false, dirty = () => false, pending = () => false, confirmLeave, onClose = () => {}, opener = document.activeElement }) {
     closeMenu(false);
     const wrapper = document.createElement('div'), scrim = document.createElement('div'), panel = document.createElement('div');
     wrapper.className = kind === 'drawer' ? 'design-drawer-layer' : 'm-wrap';
@@ -153,7 +153,7 @@
     host.append(scrim, wrapper);
     const inputValues = () => JSON.stringify([...panel.querySelectorAll(inputSelector)].map(input => [input.name || input.id, input.type === 'checkbox' || input.type === 'radio' ? input.checked : input.isContentEditable ? input.textContent : input.value]));
     const baseline = inputValues();
-    const layer = { wrapper, scrim, panel, confirmation, dirty: () => dirty() || inputValues() !== baseline, pending, opener, onClose, closing: false };
+    const layer = { wrapper, scrim, panel, confirmation, dirty: () => dirty() || inputValues() !== baseline, pending, confirmLeave, opener, onClose, closing: false };
     layer.closed = new Promise(resolve => { layer.resolveClosed = resolve; });
     layers.push(layer);
     lock();
@@ -163,11 +163,11 @@
     wrapper.addEventListener('click', outside);
     return { element: panel, close: result => closeLayer(layer, result, true) };
   }
-  async function closeLayer(layer = layers.at(-1), result = false, confirmed = false) {
+  async function closeLayer(layer = layers.at(-1), result = false, confirmed = false, navigating = false) {
     if (!layer) return false;
     if (layer.closing) return layer.closed;
     if (layer !== layers.at(-1) || layer.pending()) return false;
-    if (!confirmed && layer.dirty() && !await confirmDiscard()) return false;
+    if (!confirmed && layer.dirty() && !await (layer.confirmLeave ? layer.confirmLeave() : confirmDiscard())) return false;
     layer.closing = true;
     layer.panel.classList.add('is-closing');
     layer.scrim.classList.add('is-closing');
@@ -175,7 +175,7 @@
     layers.pop();
     layer.wrapper.remove(); layer.scrim.remove(); lock();
     focus(layer.opener);
-    layer.onClose(result);
+    layer.onClose(result, { navigating });
     layer.resolveClosed(true);
     return true;
   }
@@ -477,7 +477,7 @@
     focus(position.active?.isConnected ? position.active : position.selector ? document.querySelector(position.selector) : document.querySelector('.h1'));
   }
   async function closeNavigationLayers() {
-    while (layers.length) if (!await closeLayer(layers.at(-1), false, true)) return false;
+    while (layers.length) if (!await closeLayer(layers.at(-1), false, true, true)) return false;
     return true;
   }
   function validatePage(doc, response, language) {
