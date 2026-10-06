@@ -1,4 +1,5 @@
 // Standalone infrastructure probe; not a discovered xUnit test.
+using System.Diagnostics;
 using Bingo.Domain.Access;
 using Bingo.Infrastructure.Persistence;
 using Bingo.Testing;
@@ -40,6 +41,17 @@ try
             throw new InvalidOperationException("A write leaked between test databases.");
         if (await secondDb.Database.SqlQuery<bool>($"SELECT datallowconn AS \"Value\" FROM pg_database WHERE datname = {"ts_provisioning_template"}").SingleAsync())
             throw new InvalidOperationException("The migrated template must reject ordinary connections.");
+    }
+    var wrongCredentials = new NpgsqlConnectionStringBuilder(second.GetConnectionString()) { Password = "synthetic-wrong-ts-probe" };
+    var readinessTime = Stopwatch.StartNew();
+    try
+    {
+        await PostgreSqlReadiness.WaitAsync(wrongCredentials.ConnectionString);
+        throw new InvalidOperationException("Readiness accepted incorrect credentials on the owned server.");
+    }
+    catch (InvalidOperationException error) when (error.Message == "Test-owned PostgreSQL did not accept its configured credentials within 60 seconds.")
+    {
+        Console.WriteLine($"PASS: wrong credentials rejected by bounded real-connection readiness after {readinessTime.Elapsed.TotalSeconds:F2} seconds.");
     }
     await first.DisposeAsync();
     await using (var secondDb = Db(second.GetConnectionString()))

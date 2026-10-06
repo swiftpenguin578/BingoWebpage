@@ -15,7 +15,7 @@ public sealed class WiseOldManConnectionProvenanceMigrationTests : IAsyncLifetim
         .WithPassword("bingo_test_password")
         .Build();
 
-    public Task InitializeAsync() => database.StartAsync();
+    public Task InitializeAsync() => PostgreSqlReadiness.StartAsync(database);
 
     public Task DisposeAsync() => database.DisposeAsync().AsTask();
 

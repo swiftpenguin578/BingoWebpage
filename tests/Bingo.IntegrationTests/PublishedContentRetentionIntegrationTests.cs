@@ -49,7 +49,7 @@ public sealed class PublishedContentRetentionIntegrationTests : IAsyncLifetime
 
     public async Task InitializeAsync()
     {
-        await database.StartAsync();
+        await PostgreSqlReadiness.StartAsync(database);
         options = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetConnectionString()).Options;
         await using var db = new ApplicationDbContext(options);
         await db.Database.MigrateAsync();
