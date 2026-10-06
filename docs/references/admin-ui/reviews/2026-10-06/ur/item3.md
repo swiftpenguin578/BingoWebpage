@@ -128,4 +128,3 @@ Discarded scenarios have no review link and are excluded from page lists.
 - [Co-captain evidence workspace](http://127.0.0.1:5310/Submissions?eventId=978a811a-57dc-4395-b2de-9c8d6a038212) — sign in: **ReviewCoCaptain**
 - [Participant evidence ledger](http://127.0.0.1:5310/Submissions?eventId=978a811a-57dc-4395-b2de-9c8d6a038212) — sign in: **ReviewParticipant**
 - [Former member history](http://127.0.0.1:5310/Account/MyEvents) — sign in: **ReviewFormer**
-
