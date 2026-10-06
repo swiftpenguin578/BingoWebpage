@@ -55,6 +55,19 @@ if (args.Contains("--health-probe", StringComparer.Ordinal))
 
 var resetTestData = args.Contains("--reset-test-data", StringComparer.Ordinal);
 var builder = WebApplication.CreateBuilder(args);
+var uiReviewEnvironment = builder.Configuration.GetValue<bool>("UiReviewEnvironment:Enabled");
+if (uiReviewEnvironment)
+{
+    var connection = new Npgsql.NpgsqlConnectionStringBuilder(builder.Configuration.GetConnectionString("Database"));
+    if (!builder.Environment.IsDevelopment() || resetTestData || connection.Host != "127.0.0.1" ||
+        connection.Port != 54339 || connection.Database != "bingo_ui_review" || connection.Username != "bingo_ui_review")
+        throw new InvalidOperationException("UI review requires its isolated Development database and cannot use --reset-test-data.");
+    // A review app always uses the local handler, regardless of overridden fake settings.
+    builder.Configuration["WiseOldMan:DevelopmentFake:Enabled"] = "true";
+    builder.Configuration["WiseOldMan:DevelopmentFake:AutomaticSynchronizationEnabled"] = "false";
+    builder.Configuration["WiseOldMan:BaseUrl"] = "http://127.0.0.1:1/";
+    builder.Configuration["WiseOldMan:ApiKey"] = string.Empty;
+}
 
 if (builder.Environment.IsProduction())
 {
