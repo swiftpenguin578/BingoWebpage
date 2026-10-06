@@ -119,6 +119,38 @@ public sealed class U2DashboardIntegrationTests(PostgreSqlTestFixture fixture) :
         Assert.False(mixed.History.Single(row => row.EventId == imported.Id).ApprovedSubmissions.IsAvailable);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task LinkedCompetitionFlagRoundTripsIndependentlyOfCompatibleEhb(bool linked)
+    {
+        var admin = Admin();
+        var item = Archived(Guid.NewGuid(), "Link without usable coverage", admin.Id, Clock.AddDays(-4), Clock.AddDays(-2));
+        var person = Participant(item.Id, 1);
+        var character = new OsrsCharacter(Guid.NewGuid(), "Link fixture", "LINK FIXTURE", Clock.AddDays(-7));
+        var assignment = Assignment(item.Id, person.Id, character.Id, admin.Id);
+        var sync = new EventCompetitionSynchronization(Guid.NewGuid(), item.Id, 1,
+            linked ? 101 : null, "Link fixture", item.EventStartsAt, item.EventEndsAt, "incompatible-fingerprint", Clock);
+        await using (var db = new ApplicationDbContext(options))
+        {
+            db.AddRange(admin, item, person, character, assignment, sync);
+            if (linked)
+                db.Add(new EventCompetitionCharacterActivity(Guid.NewGuid(), item.Id, 1, 101, character.Id,
+                    3m, Clock, Clock, "incompatible-fingerprint", 0m, 3m));
+            await db.SaveChangesAsync();
+        }
+        // Fresh context reads the real PostgreSQL row, not the tracked constructor.
+        await using var read = new ApplicationDbContext(options);
+        var stored = await read.EventCompetitionSynchronizations.SingleAsync(value => value.EventId == item.Id);
+        Assert.Equal(linked, stored.CompetitionId is not null);
+        var row = Assert.Single((await Read(read, admin.Id)).History);
+        Assert.Equal(linked, row.HasLinkedCompetition);
+        Assert.Equal(DashboardEhbCoverage.Unavailable, row.Ehb.Coverage);
+        Assert.Equal(1, row.Ehb.ExpectedAccounts);
+        Assert.Equal(0, row.Ehb.MatchedAccounts);
+        Assert.Null(row.Ehb.Gain);
+    }
+
     [Fact]
     public async Task RecapSelectsLatestActualEndWhileLiveLatestContributionUsesChartTieOrderAndTrackingMetadata()
     {
