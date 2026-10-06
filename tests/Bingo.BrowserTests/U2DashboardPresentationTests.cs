@@ -56,6 +56,28 @@ public sealed class U2DashboardPresentationTests
             model.SubmissionHint(row with { IsHistoricalImport = true, ApprovedSubmissions = DashboardMetric<long>.Unknown("RAW") }));
     }
 
+    [Theory]
+    [InlineData("0.325", "33")]
+    [InlineData("0.315", "32")]
+    [InlineData("0.33333", "33")]
+    [InlineData("-0.325", "-32")]
+    public void PercentMatchesMathRoundTiesTowardPositiveInfinity(string ratio, string expected)
+        => Assert.Equal(expected, Bingo.Web.Pages.Admin.IndexModel.Percent(decimal.Parse(ratio, CultureInfo.InvariantCulture)));
+
+    [Fact]
+    public void ProvisionalEndIncludesYearAndCountsUseCultureSeparatorsWithoutPartialSuffix()
+    {
+        var previous = CultureInfo.CurrentCulture;CultureInfo.CurrentCulture=CultureInfo.GetCultureInfo("en-GB");
+        try {
+            Assert.StartsWith("Ended 2 Apr 2027", model.ChartTipNote(Point() with { Provisional=true }));
+            Assert.Equal("1,234", Bingo.Web.Pages.Admin.IndexModel.Number(1234));
+            Assert.Contains("1,234 players",model.ChartLabel(Point() with {Participants=DashboardMetric<long>.Measured(1234)}));
+            var metric=DashboardMetric<long>.Measured(0);
+            var row=new DashboardHistoryRow(EventId,"Cup","cup",EventState.Archived,false,At,At.AddDays(1),"/fixture",metric,metric,metric,null,new DashboardEhbSummary(1m,DashboardEhbCoverage.Partial,1234,1000),[]);
+            Assert.Equal("Wise Old Man · 1,000 of 1,234 accounts",model.EhbHint(row));
+        } finally { CultureInfo.CurrentCulture=previous; }
+    }
+
     private static DashboardParticipationPoint Point() => new(EventId, "Cup", "cup", EventState.AwaitingFinalReview,
         false, At, At.AddDays(1), DashboardMetric<long>.Measured(15), DashboardMetric<long>.Measured(15),
         DashboardMetric<long>.Measured(10), DashboardMetric<long>.Measured(5), DashboardMetric<long>.Measured(0));

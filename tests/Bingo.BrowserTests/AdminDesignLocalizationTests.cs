@@ -109,6 +109,15 @@ public sealed class AdminDesignLocalizationTests
                         Check(path, literal.Value[1..^1], resource);
                 }
             }
+            // Dashboard uses D[stat.Label]; scan the named tuple label declarations,
+            // not arbitrary literals in metric/hint expressions.
+            if (source.Contains("D[stat.Label]", StringComparison.Ordinal))
+            {
+                var dynamicLabels = Regex.Matches(source, """Label:[ ]*"(?<key>[^"]+)["]""");
+                Assert.NotEmpty(dynamicLabels);
+                foreach (Match label in dynamicLabels)
+                    Check(path, label.Groups["key"].Value, communityEntries);
+            }
             if (!source.Contains("IStringLocalizer<AdminCommunityResource>", StringComparison.Ordinal)) continue;
             foreach (Match declaration in Regex.Matches(source, """(?:var (?:labels|views|columns|emptyTitle|emptyText)\s*=(?:"[^"]*"|[^";])*;|string Phase\([\s\S]*?};)"""))
                 foreach (Match literal in Regex.Matches(declaration.Value, "\"(?<key>[^\"]+)\""))

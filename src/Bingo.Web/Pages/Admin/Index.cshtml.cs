@@ -30,13 +30,13 @@ public sealed class IndexModel(IAdminDashboardService dashboard, IStringLocalize
         {
             if (Dashboard?.History.Count is not > 0) return L("No events held yet");
             var result = L(Dashboard.History.Count == 1 ? "{0} event since {1}" : "{0} events since {1}",
-                Dashboard.History.Count, Month(Dashboard.Chart.Count > 0 ? Dashboard.Chart[0].ActualStartedAt : null, Dashboard.Chart.Count > 0 ? Dashboard.Chart[0].Timezone : null));
+                Number(Dashboard.History.Count), Month(Dashboard.Chart.Count > 0 ? Dashboard.Chart[0].ActualStartedAt : null, Dashboard.Chart.Count > 0 ? Dashboard.Chart[0].Timezone : null));
             if (Dashboard.LatestEndedRecap is { } recap)
             {
                 result += L(" · last ended {0}", Date(recap.ActualEndedAt, Dashboard.History.Single(row => row.EventId == recap.EventId).Timezone));
                 var zone = Dashboard.History.Single(row => row.EventId == recap.EventId).Timezone;
                 var days = (DateTimePresentation.ToTimezone(Dashboard.AsOf, zone).Date - DateTimePresentation.ToTimezone(recap.ActualEndedAt, zone).Date).Days;
-                if (days > 0) result += L(days == 1 ? " ({0} day ago)" : " ({0} days ago)", days);
+                if (days > 0) result += L(days == 1 ? " ({0} day ago)" : " ({0} days ago)", Number(days));
             }
             return result;
         }
@@ -47,10 +47,10 @@ public sealed class IndexModel(IAdminDashboardService dashboard, IStringLocalize
     public string ChartLabel(DashboardParticipationPoint point)
     {
         var label = !point.Participants.IsAvailable
-            ? L("{0}: participant count unavailable, {1} teams.", point.EventName, point.TeamCount)
-            : point.IsHistoricalImport ? L("{0}: {1} players, imported, not linked to website accounts.", point.EventName, point.Participants.Value)
+            ? L("{0}: participant count unavailable, {1} teams.", point.EventName, Number(point.TeamCount))
+            : point.IsHistoricalImport ? L("{0}: {1} players, imported, not linked to website accounts.", point.EventName, Number(point.Participants.Value))
             : point.TrackingStarts ? L("{0}: {1} players, all first tracked.", point.EventName, point.Participants.Value)
-            : L("{0}: {1} players, {2} returning, {3} first time.", point.EventName, point.Participants.Value, point.ReturningWebsiteParticipants.Value, point.NewWebsiteParticipants.Value);
+            : L("{0}: {1} players, {2} returning, {3} first time.", point.EventName, Number(point.Participants.Value), Number(point.ReturningWebsiteParticipants.Value), Number(point.NewWebsiteParticipants.Value));
         if (point.Provisional) label += " " + L(point.State == EventState.Live ? "Live · provisional" : "Provisional, awaiting final review.");
         return label;
     }
@@ -65,18 +65,17 @@ public sealed class IndexModel(IAdminDashboardService dashboard, IStringLocalize
         var format = a.Year != b.Year ? "d MMM yyyy" : a.Month != b.Month ? "d MMM" : "%d";
         return $"{a.ToString(format, CultureInfo.CurrentCulture)}–{b.ToString("d MMM yyyy", CultureInfo.CurrentCulture)}";
     }
-    public static string Percent(decimal? ratio) => ((ratio ?? 0m) * 100m).ToString("0.##", CultureInfo.InvariantCulture);
+    public static string Percent(decimal? ratio) => Math.Floor((ratio ?? 0m) * 100m + 0.5m).ToString("0", CultureInfo.InvariantCulture);
     public string Winners(IReadOnlyList<DashboardWinner> winners) => winners.Count == 0 ? L("Not recorded") : string.Join(" · ", winners.Select(value => value.TeamName));
     public string ChartTipNote(DashboardParticipationPoint point) => point.IsHistoricalImport
         ? L("Imported history. Players aren’t linked to website accounts, so they aren’t split into returning and first time.")
         : point.Provisional ? point.State == EventState.Live ? L("Figures are provisional and may still change.")
-            : L("Ended {0} · awaiting final review. Figures may still change.", DateTimePresentation.Format(point.ActualEndedAt!.Value, "d MMM", point.Timezone, CultureInfo.CurrentCulture))
+            : L("Ended {0} · awaiting final review. Figures may still change.", DateTimePresentation.Format(point.ActualEndedAt!.Value, "d MMM yyyy", point.Timezone, CultureInfo.CurrentCulture))
         : L("Tracked history starts here, so there’s no earlier event to return from.");
     public string EhbHint(DashboardHistoryRow row) => row.Ehb.Coverage == DashboardEhbCoverage.Unavailable
         ? row.HasLinkedCompetition ? L("No compatible stored EHB coverage is available.") : L("Wise Old Man wasn’t linked to this event.")
-        : L("Wise Old Man · {0} of {1} accounts", row.Ehb.MatchedAccounts, row.Ehb.ExpectedAccounts)
-            + (row.IsHistoricalImport ? L(" · frozen snapshot") : "")
-            + (row.Ehb.Coverage == DashboardEhbCoverage.Partial ? L(" · partial coverage") : "");
+        : L("Wise Old Man · {0} of {1} accounts", Number(row.Ehb.MatchedAccounts), Number(row.Ehb.ExpectedAccounts))
+            + (row.IsHistoricalImport ? L(" · frozen snapshot") : "");
     public string SubmissionHint(DashboardHistoryRow row) => row.ApprovedSubmissions.IsAvailable
         ? L("Approved evidence submissions. Reconstructed imported contributions are excluded.")
         : row.IsHistoricalImport ? L("Not available for imported history: contributions were reconstructed, not submitted.")
