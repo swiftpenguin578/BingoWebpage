@@ -660,8 +660,9 @@
       const scroll = scrollRegions.map(element => ({ element, left: element.scrollLeft, top: element.scrollTop }));
       clear();
       action();
-      if (!position.active?.isConnected && !document.querySelector(position.selector || ':not(*)')) {
-        position.active = fallbackFocus(); position.selector = null;
+      const target = position.active?.isConnected ? position.active : document.querySelector(position.selector || ':not(*)');
+      if (!target || target.disabled || !target.getClientRects().length || target.closest('[inert]')) {
+        position.active = fallbackFocus(position); position.selector = null;
       }
       restorePosition(position);
       for (const value of scroll) { value.element.scrollLeft = value.left; value.element.scrollTop = value.top; }
