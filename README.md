@@ -345,23 +345,60 @@ to run the identical assertions against that source; no baseline assertions are 
 
 ### Isolated UI review environment
 
-Run `python3 scripts/ui-review.py create` (or `refresh`) to rebuild the owned
-Development review environment. Add `final-review` to either command to change the
-current-event profile; `live` is the default. The command starts the app at
-<http://127.0.0.1:5310> and the design references at <http://127.0.0.1:5320>.
-`python3 scripts/ui-review.py stop` stops only its own app, reference server and
-PostgreSQL container. Docker, Python 3 and the repository .NET SDK are required.
+From this checkout, run:
 
-The fixed container `bingo-ui-review` binds PostgreSQL to `127.0.0.1:54339`; its
-database is `bingo_ui_review`. Label, container ID, local marker and PostgreSQL
-marker must all agree before a refresh. Databases named in `appsettings.Local.json`
-are refused. Occupied app/reference ports fail with a diagnostic; foreign
-processes are never stopped. Storage, logs and the linked scenario list live in
-gitignored `artifacts/ui-review/`. WOM uses the local Development fake exclusively.
+```sh
+python3 scripts/ui-review.py create
+python3 scripts/ui-review.py refresh final-review
+python3 scripts/ui-review.py refresh live
+python3 scripts/ui-review.py stop
+```
 
-After create/refresh, the command prints the same grouped page/state links it
-writes to `artifacts/ui-review/scenarios.md`. Each link names its review account.
-As with the existing Development seed credentials, the invented accounts and
-password `ReviewOnly!1234` are local-only fixtures. `ReviewOwner` is SuperAdmin;
-`ReviewAdmin` is plain Admin. Captain, co-captain, participant, plain website,
-former-member and disabled-account cases are named in the generated guide.
+`live` is the default profile for create/refresh; `final-review` ends the sole
+visible current event into Final review. Both commands rebuild the owned review
+database from HEAD migrations, the checked-in catalogue snapshot and the separate
+review scenarios. Dates are rebuilt relative to that run. Docker, Python 3 and the
+repository .NET SDK are required. The older `--reset-test-data` scenario set is
+unchanged.
+
+The app runs at <http://127.0.0.1:5310> and references at
+<http://127.0.0.1:5320>. The fixed PostgreSQL container `bingo-ui-review` binds only
+`127.0.0.1:54339`, using database/user `bingo_ui_review`. Its local-only synthetic
+password is `LocalReview!1234`. Owner label, exact container name/ID/port, local
+marker and PostgreSQL marker must agree before destructive review rebuilding.
+The command refuses databases named in `appsettings.Local.json` and user containers
+`bingowebpage-postgres-1`, `bingo-admin-acceptance-20260928` and
+`bingo-ticket-manual-20260914`. Occupied app/reference ports fail with a diagnostic;
+foreign processes are never stopped. `stop` validates and stops only matching
+owned processes/container, retaining review storage and the stopped database.
+
+Storage, ownership markers, logs and `scenarios.md` live in gitignored
+`artifacts/ui-review/`; symlinked review storage is refused. Evidence and catalogue
+images use owned local directories. WOM always uses the local
+`WiseOldManDevelopmentFakeHandler`, with live calls and automatic synchronization
+disabled. This command is Development-only.
+
+Create/refresh prints the grouped page/state list also written to
+`artifacts/ui-review/scenarios.md`. Each full link names its account. The current
+set has 21 events and 11 accounts: Draft/open/closed signup, unknown timezone,
+more than eight upcoming setups, current Live/Final review, published correction,
+blocked evidence approval, affiliated finalized rosters/former members, Archived,
+Cancelled and retained audit. The three hidden scenarios are Final review, legacy
+Finalized and Archived; hidden event pages require ReviewOwner. Discarded events
+have no event link or event population entry; their immutable audit remains visible.
+The WOM pages cover Pending, Rejected and could-not-update end outcomes.
+
+As with the existing Development seed credentials, all invented review accounts
+use the local-only password `ReviewOnly!1234`, without forced password changes.
+Sign out before switching accounts. ReviewDisabled is deliberately refused at login.
+
+| Account | Review role |
+| --- | --- |
+| ReviewOwner | SuperAdmin, including hidden event pages |
+| ReviewAdmin | Plain Admin |
+| ReviewCaptain / ReviewSecondCaptain | Team captains |
+| ReviewCoCaptain / ReviewSecondCoCaptain | Team co-captains |
+| ReviewParticipant / ReviewSecondMember | Team participants |
+| ReviewFormer | Former team member with retained history |
+| ReviewWebsite | Plain website account with no event membership |
+| ReviewDisabled | Disabled website account |
