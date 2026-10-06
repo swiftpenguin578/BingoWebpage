@@ -35,7 +35,7 @@
             <partial name="_AdminDesignTopbar" model="shell" />
             <main class="scroller" id="main-content" data-page-region>
                 <div class="page">
-                    <header class="page-head"><div style="min-width:0"><h1 class="h1" id="page-h1" tabindex="-1">@T[title]</h1>@if (ViewData["Summary"] is { } summary) { <p class="summary"><span data-summary-template="@ViewData["SummaryTemplate"]">@summary</span></p> }</div>@await RenderSectionAsync("HeaderActions", required: false)</header>
+                    <header class="page-head" data-dashboard-header="@(title == "Dashboard" ? "" : null)"><div style="min-width:0"><h1 class="h1" id="page-h1" tabindex="-1">@T[title]</h1>@if (ViewData["Summary"] is { } summary) { <p class="summary"><span data-summary-template="@ViewData["SummaryTemplate"]">@summary</span></p> }</div>@await RenderSectionAsync("HeaderActions", required: false)</header>
                     @RenderBody()
                 </div>
             </main>
