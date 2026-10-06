@@ -407,7 +407,7 @@ reference-edit sequence: RC01–RC11 findings are required page-binding items.
 | --- | --- | --- |
 | U1 | Foundation + Identity (EI-2 Identity, AU08/AU09, RL-1/EI-3) | `gpt-6-astra` / high |
 | UR | UI review environment — after accepted U1, before U2 | `gpt-6.1-sol` / high |
-| U2 | Events directory + Create; Dashboard — brief67 authorized 6 October 2026; items 0–5 in progress, then Claude review and user visual acceptance | `gpt-6.1-sol` / high |
+| U2 | Events directory + Create; Dashboard — brief67 items0–5 implemented, implementer gates passed 6 October 2026; awaiting Claude review/final-SHA whole .NET gate, then user visual acceptance | `gpt-6.1-sol` / high |
 | U3 | Schedule; Signup setup | `gpt-6-astra` / high |
 | U4 | Overview | `gpt-6-astra` / high |
 | U5 | Participants | `gpt-6-astra` / high |

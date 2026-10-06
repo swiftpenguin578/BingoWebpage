@@ -5,7 +5,7 @@
         <div class="next-label" style="position:relative">&nbsp;<span class="sk" style="position:absolute;width:30%;top:5px"></span></div>
         <div class="next-name" style="position:relative">&nbsp;<span class="sk" style="position:absolute;width:75%;top:5px"></span></div>
         <div class="next-meta" style="position:relative">&nbsp;<span class="sk" style="position:absolute;width:55%;top:5px"></span></div>
-    </div><span class="sk" style="width:56px;height:6px;flex:none"></span><span class="sk" style="width:52px;height:28px;flex:none;border-radius:6px"></span></div>
+    </div><span class="sk" style="width:56px;height:6px;flex:none"></span><span class="sk" style="width:52px;height:28px;flex:none;border-radius:var(--dk-radius-xs)"></span></div>
     </header>
 </template>
 <template data-page-loading-template="dashboard" data-page-title="@T["Dashboard"]">
@@ -13,12 +13,12 @@
     <div class="card" aria-busy="true" aria-label="@T["Loading statistics"]"><div class="stat-strip">
     @for (var i = 0; i < 4; i++)
     {
-        <div class="stat"><div class="sk" style="width:46%"></div><div class="sk" style="width:38%;height:20px;margin-top:12px;border-radius:6px"></div><div class="sk" style="width:62%;height:8px;margin-top:12px"></div></div>
+        <div class="stat"><div class="sk" style="width:46%"></div><div class="sk dash-sk-stat-value" style="width:38%"></div><div class="sk dash-sk-stat-note" style="width:62%;height:8px"></div></div>
     }
     </div></div>
     <div class="dash-grid">
-        <div class="card panel"><div class="sk" style="width:30%"></div><div class="sk" style="height:200px;margin-top:20px;border-radius:8px"></div></div>
-        <div class="card panel"><div class="sk" style="width:40%"></div><div class="sk" style="height:64px;margin-top:20px;border-radius:8px"></div><div class="sk" style="width:80%;margin-top:20px"></div><div class="sk" style="width:70%;margin-top:14px"></div><div class="sk" style="width:75%;margin-top:14px"></div></div>
+        <div class="card panel"><div class="sk" style="width:30%"></div><div class="sk dash-sk-chart"></div></div>
+        <div class="card panel"><div class="sk" style="width:40%"></div><div class="sk dash-sk-recap"></div><div class="sk dash-sk-fact-first" style="width:80%"></div><div class="sk dash-sk-fact" style="width:70%"></div><div class="sk dash-sk-fact" style="width:75%"></div></div>
     </div>
 </template>
 <template data-page-failure-template="dashboard">

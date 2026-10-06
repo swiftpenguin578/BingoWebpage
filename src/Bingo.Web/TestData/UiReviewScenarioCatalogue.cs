@@ -14,7 +14,13 @@ public static class UiReviewScenarioCatalogue
             links.Add(new(page, name, new Uri(appUrl, route).AbsoluteUri, username, hidden, anonymous));
         Add("Dashboard / Events", "One visible current event and more than eight upcoming setups", "/Admin/Index");
         Add("Dashboard / Events", "Events directory — discarded excluded", "/Admin/Events/Index");
-        Add("Dashboard / Events", "Create a private draft", "/Admin/Events/Create");
+        Add("Dashboard / Events", "Create a private draft", "/Admin/Events?create=1");
+        Add("Dashboard / Events", "Current and upcoming — more than25 rows, page2", "/Admin/Events?view=current&page=2");
+        Add("Dashboard / Events", "Case-insensitive names including Æ/Ø/Å", "/Admin/Events?view=current&sort=identity&direction=asc");
+        Add("Dashboard / Events", "Postponed start and failed signup opening", "/Admin/Events?view=current&attention=1");
+        Add("Dashboard / Events", "Cancelled with Confirmed participants", "/Admin/Events?view=past&phase=cancelled");
+        Add("Dashboard / Events", "No capacity and no dates", "/Admin/Events?view=current&search=No");
+        Add("Dashboard / Events", "Imported history and shared first; current phase follows this profile", "/Admin");
         foreach (var item in scenarios.Events.Where(value => value.State != EventState.Discarded))
         {
             if (item.Hidden)

@@ -1,6 +1,6 @@
 # Current project status
 
-## U2 brief67 item4 checked; item5 and batch gates next — 6 October 2026
+## U2 brief67 items0–5 delivered at this checkpoint — 6 October 2026
 
 - Assigned checkout `/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage`, branch `codex/participants-functionality`; started clean at `8355680a4eee6a74ae905c5c69a8f50c5f021dcf`. No workers/reviewer/orchestrator or new branch/worktree. Follow [lean execution](DELIVERY_PLAN.md#421-lean-execution-and-planner-handoff).
 - Item0 `edd7bbcd825a9ab6a34864502faa1205c47c1dbd`: [docs evidence](docs/references/admin-ui/reviews/2026-10-06/u2/item0-docs.md).
@@ -9,8 +9,11 @@
 - Resumed proofs: HTTP13/0/0, UR2/0/0; shell/language regressions4 passing browser executions; Dashboard16 passing scenarios in Chromium/WebKit, regular parity0 differences both themes, loading/loaded positions within1px at1440/1280/861/860/390. Fixture Release0 warnings/errors. Earlier failed checkpoints retained as history, superseded by scoped corrections.
 - Item3 `90ae954c55805943698408ab4f790336cb53694e`: [Events evidence](docs/references/admin-ui/reviews/2026-10-06/u2/item3-events-directory.md). Directory/query/paging, culture sort, HiddenAt order, cancelled count and old-hook retirement implemented. Loading/failure ruling resolved and registered: query-bound controls/headings, fresh skeleton counts/summary, empty failure values, no remembered counts.
 - Item3 checks: existing directory/quarantine20/0/0; new PG4/0/0; compatibility HTTP33/0/0; new query HTTP1/0/0. Events26/0: loaded/failure parity0 differences, six loading-position widths within1px in both engines, partial-attention/Hidden proof. Shell/language4 passing browser executions; Dashboard recheck16/0. Fixture Release0 warnings/errors.
-- Item4 implemented and checked: [Create evidence](docs/references/admin-ui/reviews/2026-10-06/u2/item4-create-modal.md). Shared modal/dirty/busy/fetch, authorized duplicate data, unknown readback/new-key404 recovery and Overview replacement/one-time Back highlight. Planner approved uncertain Check again / Leave anyway; ordinary input keeps Keep editing / Discard. Registered and applied to Cancel/Escape/Back, including Escape with focus outside the panel. No automatic resend. Item5 not implemented.
+- Item4 committed `a89ef250b2c1d09fc9453f7a585f6f96a698a0dd`: [Create evidence](docs/references/admin-ui/reviews/2026-10-06/u2/item4-create-modal.md). Shared modal/dirty/busy/fetch, authorized duplicate data, unknown readback/new-key404 recovery and Overview replacement/one-time Back highlight. Planner approved uncertain Check again / Leave anyway; ordinary input keeps Keep editing / Discard. Registered and applied to Cancel/Escape/Back, including Escape with focus outside the panel. No automatic resend.
 - Item4 final focused checks: PG11/0/0 (AU03 seven plus directory four); HTTP32/0/0 including actual POST/CheckAgain lost-session302/no data/no creation and protected native endpoints. Create10/0 in Chromium/WebKit: eight desktop/phone both-theme parity comparisons0 differences plus two complete behavior checks;0 page errors. Shared shell2 passing executions after final Escape correction; language2 passing after navigation integration. Latest fixture build0 warnings/errors. Earlier failed checkpoints superseded, not concealed.
+- Item5 completed in this commit: [UR scenarios, final gates and exact file manifests](docs/references/admin-ui/reviews/2026-10-06/u2/item5-ur-scenarios.md). Planner clarified Live in `live`, Final review in `final-review`; one visible current per profile holds.28/27 current/upcoming rows with paging, Cancelled3 Confirmed, case/ÆØÅ names, matching postponed/failed attempts, legacy imported history, shared first, no capacity/dates. Exact EF command logging Warning in review environment. No existing UR assertion rewritten; guide's Create URL now targets canonical modal. Owned fixtures only; user's DB/app left alone.
+- Item5 focused: UR PostgreSQL/HTTP2/0/0 with full prior assertions retained, new UR browser4/0 both profiles/engines and A16 repeated switches/Back/Forward/disposed listeners, review-command safety13 passed. Final mechanical shared-check3 moved reference skeleton spacing out of inline styles; radii consume frozen tokens with unchanged geometry.
+- Final implementer gates on the source included in this checkpoint: clean Release0 warnings/errors (21.79s); fixture build0 warnings/errors; whole BrowserTests157/0/0 (11s); full JS runner59 passed/0 failed (12 Chromium +12 WebKit +35 legacy/default executions), including Dashboard16/0, Events26/0, Create10/0 and UR4/0. All parity comparisons0 differences; loading positions within1px. Stale-evidence fixture PG8/0/0; shared design checks1–6 and §10 outputs recorded; diff check exit0. Not an independent review or whole .NET pass.
 - Frozen CSS/references unchanged; diff check passed. Item3 changes only the inventory-authorized Cancelled count assertion in the existing directory tests (A10/A-Events-4), not the protected item1 evidence. Both matrix rows await Claude review then user visual acceptance. Whole .NET suite belongs to Claude's final-SHA gate; no pass claimed. No U3+, lane T, packaging, push, merge or deployment.
 
 ## TS brief66 delivered — retained evidence
@@ -27,16 +30,17 @@
 
 - **UR accepted** at `948aeeba04cbfa2a94d03fbe40d62f8fcda63748`: user accepted Claude review65 and the walkthrough on 6 October. [Review65](/Users/christopher/Documents/BingoWebpage/review-notes/65-ur-review.md) records supplied R1/R2 and R3 source passes, planner safety **12 passed**, and successful create/live → refresh/final-review. [UR evidence](docs/references/admin-ui/reviews/2026-10-06/ur/) retains implementation/remediation identities. Its earlier supplied Integration setup failure (`28P01`) plus separate class rerun was accepted by review65; it was never an uninterrupted whole-suite pass and prompted TS readiness.
 - **U1 accepted** at `18a9669`; `UI_PAGE_MATRIX.md` remains the page approval owner. UR/TS do not approve later pages. Rulings63/64 remain: hidden Final review/Finalized/Archived only, exactly one visible current event per profile, discarded events excluded from navigation/populations while immutable audit remains visible. Old reset seeder, lifecycle/audit behavior and frozen CSS stay protected.
-- UR wildcard-listener/port-probe and EF SQL-noise observations, A7 wording (U2), U1 duplicate incomplete-baseline message and session wall-clock observations remain outside TS. No fixes to those observations were made.
+- UR wildcard-listener/port-probe, A7 wording (U2), U1 duplicate incomplete-baseline message and session wall-clock observations were outside TS and remain unchanged. U2 item5 now fixes only the exact EF command SQL-noise category in the review command environment.
 - B1/B2 merge `4065cb0`, evidence `40e624a`, supplied B3 scope PASS and follow-up rechecks remain retained. See `docs/references/admin-ui/reviews/2026-10-04/au-b1/remediation/`, `au-b2/remediation/`, `au-b3/`, `au-b4/remediation/` and `au-step0/approval-record.md`.
 - B3/AU20 is B4's accepted prerequisite. B4 R1 conversion failure remains blocking; R3 isolated rehearsal on the final candidate is still required. Harness/transfer/rehearsal execution is unassigned; no production or user-owned database access is authorized here. Preserve pre/post migration-count gates. Snapshot override equal to automatic remains indistinguishable; cleanup Down cannot restore cleared values.
 - The user's conditional-on-parent / non-default per-drop-context zero counts of 4 October are recorded in [decisions08](/Users/christopher/Documents/BingoWebpage/review-notes/08-decisions.md#b4-catalogue-brief-decisions), not newly executed here. F/G/H historical source-review and H4-2 procedure approval remain retained; tooling is unbuilt/untested, R3 unrun, and H3-4 `6b8331d` was not user-approved. AU17 remains Contribution/readback only; AU18 remains WOM outcome/version history only.
 
 ## Next permitted action
 
-Commit checked item4 once, then continue item5 within the accepted UR/lifecycle
-invariants; raise any product/authority conflict before changing those invariants.
-Whole JS runner, whole BrowserTests and final clean Release
-gate are pending. TS is closed as delivered with Claude independent
-review/suite in its parallel gate. No U3–U10, lane T, rehearsal, packaging, push,
-merge or deployment.
+Stop after item5. Planner/Claude independently reviews this stable U2 checkpoint
+and runs the whole .NET suite on its final SHA; then the user supplies page-specific
+visual acceptance. No unresolved product question. User review environment refresh
+was not executed; the new scenarios are proven in owned fixtures. Both pages remain
+awaiting Claude review, then user visual acceptance. TS is closed as delivered with
+Claude independent review/suite in its parallel gate. No U3–U10, lane T, rehearsal,
+packaging, push, merge or deployment.

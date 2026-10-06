@@ -1,5 +1,7 @@
 using Bingo.Application.Evidence;
 using System.Text.Json;
+using System.Security.Cryptography;
+using System.Text;
 using Bingo.Domain.Access;
 using Bingo.Domain.Auditing;
 using Bingo.Domain.Boards;
@@ -46,17 +48,32 @@ public sealed class UiReviewScenarioSeeder(
         accounts["ReviewDisabled"].Disable(now.AddDays(-1), accounts["ReviewOwner"].Id, "Synthetic disabled-account review.");
         await db.SaveChangesAsync(ct);
         var events = new List<BingoEvent>();
-        events.Add(await AddEventAsync("Private setup", "ur-draft", EventState.Draft, now, 14, ct));
+        var privateSetup = await AddEventAsync("Private setup", "ur-draft", EventState.Draft, now, -2, ct);
+        events.Add(privateSetup);
+        db.ScheduledEventStartAttempts.Add(new ScheduledEventStartAttempt(Guid.NewGuid(), privateSetup.Id,
+            privateSetup.EventStartsAt!.Value, now.AddHours(-1), false, ["BOARD_NOT_PUBLISHED", "CURRENT_EVENT_EXISTS"]));
         events.Add(await AddEventAsync("Signups open", "ur-signups-open", EventState.SignupOpen, now, 15, ct));
         events.Add(await AddEventAsync("Signups closed — finalized affiliated rosters", "ur-signups-closed", EventState.SignupClosed, now, 16, ct, roster: true));
         events.Add(await AddEventAsync("Unknown timezone", "ur-unknown-timezone", EventState.SignupClosed, now, 17, ct, timezone: "Review/Unknown"));
-        for (var index = 1; index <= 9; index++)
-            events.Add(await AddEventAsync($"Upcoming setup {index:00}", $"ur-upcoming-{index:00}", EventState.Draft, now, 20 + index, ct));
+        for (var index = 1; index <= 22; index++)
+        {
+            var name = index switch
+            {
+                10 => "alpha", 11 => "Alpha", 12 => "Ægir", 13 => "Ørn", 14 => "År",
+                15 => "No capacity limit", 16 => "No dates configured", _ => $"Upcoming setup {index:00}"
+            };
+            events.Add(await AddEventAsync(name, $"ur-upcoming-{index:00}", EventState.Draft, now, 20 + index, ct,
+                noCapacity: index == 15, noDates: index == 16));
+        }
+        var failedOpening = await AddEventAsync("Signup opening failed", "ur-opening-failed", EventState.Draft, now, 80, ct, openingFailed: true);
+        events.Add(failedOpening);
+        db.ScheduledSignupOpeningAttempts.Add(new ScheduledSignupOpeningAttempt(Guid.NewGuid(), failedOpening.Id,
+            failedOpening.SignupOpensAt!.Value, now.AddHours(-1), false, ["DESCRIPTION_REQUIRED"], ["A description is required before opening signups."]));
 
         // Reach and retain historical states before creating the sole visible current event.
-        var archived = await AddEventAsync("Archived — affiliated roster history", "ur-archived", EventState.Archived, now, -14, ct, roster: true);
+        var archived = await AddEventAsync("Archived — affiliated roster history", "ur-archived", EventState.Archived, now, -14, ct, roster: true, sharedFirst: true);
         events.Add(archived);
-        var unavailableHistory = await AddEventAsync("Archived — WOM end could not update", "ur-wom-unavailable", EventState.Archived, now, -35, ct, roster: true);
+        var unavailableHistory = await AddEventAsync("Archived — WOM end could not update", "ur-wom-unavailable", EventState.Archived, now, -35, ct, roster: true, historical: true);
         events.Add(unavailableHistory);
         foreach (var (name, slug, state) in new[] {
             ("Hidden final review", "ur-hidden-review", EventState.AwaitingFinalReview),
@@ -73,6 +90,7 @@ public sealed class UiReviewScenarioSeeder(
             events.Add(hidden);
         }
         var cancelled = await AddEventAsync("Cancelled with signup history", "ur-cancelled", EventState.SignupOpen, now, 18, ct);
+        AddConfirmedSignups(cancelled, now.AddDays(-2));
         cancelled.Cancel(accounts["ReviewOwner"].Id, now.AddDays(-1), "Synthetic event called off after signups opened.", protectedHistoryExists: true);
         History(cancelled, EventState.SignupOpen, "event.cancelled", now.AddDays(-1), new { state = cancelled.State }, cancelled.CancellationReason);
         events.Add(cancelled);
@@ -120,16 +138,21 @@ public sealed class UiReviewScenarioSeeder(
     }
 
     private async Task<BingoEvent> AddEventAsync(string name, string slug, EventState state, DateTimeOffset now, int startDays,
-        CancellationToken ct, bool roster = false, string timezone = "Europe/Copenhagen")
+        CancellationToken ct, bool roster = false, string timezone = "Europe/Copenhagen", bool sharedFirst = false,
+        bool historical = false, bool noCapacity = false, bool noDates = false, bool openingFailed = false)
     {
         var owner = accounts["ReviewOwner"];
         var start = now.AddDays(startDays);
         var end = startDays < -1 ? start.AddDays(5) : start.AddDays(7);
         if (state == EventState.AwaitingFinalReview && startDays == -1) end = now.AddHours(-1);
         var item = new BingoEvent(Guid.NewGuid(), name, slug, null, timezone,
-            start.AddDays(-7), state == EventState.SignupOpen ? now.AddDays(7) : start.AddDays(-2), start, end, end.AddMinutes(30), 20, owner.Id, now.AddDays(-90));
+            noDates ? null : openingFailed ? now.AddHours(-2) : start.AddDays(-7),
+            noDates ? null : state == EventState.SignupOpen ? now.AddDays(7) : start.AddDays(-2),
+            noDates ? null : start, noDates ? null : end, noDates ? null : end.AddMinutes(30),
+            noCapacity ? null : 20, owner.Id, now.AddDays(-90));
         item.ConfigurePlanning("Use synthetic evidence only.", "Optional synthetic buy-in", "Local review only", 2, 3, 2, 2);
         item.ConfigureSignup(true, false, null);
+        if (openingFailed) item.ConfigureScheduledSignupOpening(true, []);
         db.Events.Add(item);
         var form = new SignupForm(Guid.NewGuid(), item.Id, now.AddDays(-89));
         var question = new SignupQuestion(Guid.NewGuid(), form.Id, item.Id, "primary_regular_account", "Playing account", SignupQuestionType.Account, true, 0, null, SignupSystemField.PrimaryRegularAccount, EventCharacterRole.Playing);
@@ -172,7 +195,7 @@ public sealed class UiReviewScenarioSeeder(
                 if (state is EventState.Finalized or EventState.Archived)
                 {
                     item.CloseSubmissionsIfDue(end.AddHours(1));
-                    AddOfficialResults(item, transition.Id, end.AddDays(1));
+                    AddOfficialResults(item, transition.Id, end.AddDays(1), sharedFirst, historical);
                     if (state == EventState.Finalized) item.FinalizeResults(end.AddDays(1));
                     else item.PublishOfficialResults(end.AddDays(1));
                     History(item, EventState.AwaitingFinalReview, "event.results_published", end.AddDays(1),
@@ -261,13 +284,36 @@ public sealed class UiReviewScenarioSeeder(
         item.SetBoardPublication(true, approvedAt.AddHours(1));
     }
 
-    private void AddOfficialResults(BingoEvent item, Guid cycle, DateTimeOffset at)
+    private void AddConfirmedSignups(BingoEvent item, DateTimeOffset at)
     {
-        var finalization = new EventFinalizationSnapshot(Guid.NewGuid(), item.Id, 1, at, accounts["ReviewOwner"].Id, cycle);
+        var question = db.SignupQuestions.Local.Single(value => value.EventId == item.Id);
+        var sequence = 0;
+        foreach (var name in new[] { "ReviewCaptain", "ReviewCoCaptain", "ReviewParticipant" })
+        {
+            var account = accounts[name];
+            var character = characters[account.Id];
+            var participant = new EventParticipant(Guid.NewGuid(), item.Id, SignupStatus.Confirmed, ++sequence, at, SignupSource.Website);
+            participant.AssignOwner(account);
+            db.EventParticipants.Add(participant);
+            db.SignupAnswers.Add(new SignupAnswer(Guid.NewGuid(), participant.Id, question.Id, "Playing account", string.Empty, character.Id));
+            db.EventParticipantCharacters.Add(new EventParticipantCharacter(Guid.NewGuid(), item.Id, participant.Id, character.Id, 0, at,
+                account.Id, question.Id, EventCharacterRole.Playing, 25, EhbSource.Manual, null));
+        }
+    }
+
+    private void AddOfficialResults(BingoEvent item, Guid cycle, DateTimeOffset at, bool sharedFirst, bool historical)
+    {
+        // Exercise the supported legacy-import provenance path without inventing an
+        // import-applied audit operation. These are synthetic reconstructed inputs,
+        // captured once when the snapshot is created, never a later snapshot rewrite.
+        var importHash = Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes("synthetic-ur:" + item.Slug)));
+        var provenance = historical ? JsonSerializer.Serialize(new { sourceEventId = item.Slug, manifestHash = importHash, inputHash = importHash, importHash }) : null;
+        var finalization = new EventFinalizationSnapshot(Guid.NewGuid(), item.Id, 1, at, accounts["ReviewOwner"].Id, cycle,
+            calculationInputsJson: provenance);
         db.EventFinalizations.Add(finalization);
         var placement = 0;
         foreach (var team in db.Teams.Local.Where(value => value.EventId == item.Id).OrderBy(value => value.Name, StringComparer.Ordinal))
-            db.OfficialPlacements.Add(new OfficialPlacementSnapshot(Guid.NewGuid(), finalization.Id, item.Id, team.Id, team.Name, ++placement, false, null, 0, 0, 0));
+            db.OfficialPlacements.Add(new OfficialPlacementSnapshot(Guid.NewGuid(), finalization.Id, item.Id, team.Id, team.Name, sharedFirst ? 1 : ++placement, false, null, 0, 0, 0));
     }
 
     private async Task<Guid> AddBlockedReviewAsync(BingoEvent item, DateTimeOffset now, CancellationToken ct)
