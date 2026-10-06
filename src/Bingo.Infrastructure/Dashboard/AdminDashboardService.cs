@@ -142,7 +142,8 @@ public sealed class AdminDashboardService(ApplicationDbContext db, TimeProvider 
             approvalDrops, workingDrops, submissionRows, contributionRows, importInfo);
         var ehb = BuildEhb(dashboardEvents, populations, assignments, synchronizations, activities, participants);
 
-        var teamCounts = teams.GroupBy(value => value.EventId).ToDictionary(group => group.Key, group => group.Count());
+        var teamCounts = teams.Where(value => value.Active).GroupBy(value => value.EventId)
+            .ToDictionary(group => group.Key, group => group.Count());
         var points = BuildChart(populations, approvedCounts, teamCounts);
         var history = BuildHistory(dashboardEvents, populations, approvedCounts, ehb, finalizations, placements, publishedBoards,
             approvalTiles, teamCounts);

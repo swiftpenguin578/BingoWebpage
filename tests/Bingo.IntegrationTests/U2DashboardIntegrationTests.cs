@@ -156,6 +156,29 @@ public sealed class U2DashboardIntegrationTests(PostgreSqlTestFixture fixture) :
         Assert.False(result.History.Single(row => row.EventId == old.Id).Provisional);
     }
 
+    [Fact]
+    public async Task RemovedInactiveTeamDoesNotCountInRecapHistoryOrChart()
+    {
+        var admin = Admin();
+        var item = Archived(Guid.NewGuid(), "Five teams competed", admin.Id, Clock.AddDays(-4), Clock.AddDays(-2));
+        var teams = Enumerable.Range(1, 6).Select(index => new Team(Guid.NewGuid(), item.Id,
+            $"Team {index}", $"team-{index}", "fixture", false, item.ActualStartedAt)).ToArray();
+        teams[^1].SetActive(false);
+        await using (var db = new ApplicationDbContext(options))
+        {
+            db.AddRange(admin, item);
+            db.AddRange(teams);
+            await db.SaveChangesAsync();
+        }
+        await using var read = new ApplicationDbContext(options);
+        Assert.Equal(6, await read.Teams.CountAsync(team => team.EventId == item.Id));
+        Assert.Equal(5, await read.Teams.CountAsync(team => team.EventId == item.Id && team.Active));
+        var result = await Read(read, admin.Id);
+        Assert.Equal(5, Assert.IsType<DashboardRecap>(result.LatestEndedRecap).TeamCount);
+        Assert.Equal(5, Assert.Single(result.History).TeamCount);
+        Assert.Equal(5, Assert.Single(result.Chart).TeamCount);
+    }
+
     [Theory]
     [InlineData(EventState.Draft, DashboardNextDateKind.SignupsOpen)]
     [InlineData(EventState.SignupOpen, DashboardNextDateKind.SignupsClose)]
