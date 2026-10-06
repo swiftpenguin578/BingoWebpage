@@ -342,3 +342,19 @@ text/icon/style reports and screenshot pairs are written to `artifacts/admin-par
 It never reads review credentials or uses an existing app/database. Set
 `BINGO_PARITY_ROOT` to an extracted baseline with the same standalone fixture built
 to run the identical assertions against that source; no baseline assertions are waived.
+
+### Isolated UI review environment
+
+Run `python3 scripts/ui-review.py create` (or `refresh`) to rebuild the owned
+Development review environment. Add `final-review` to either command to change the
+current-event profile; `live` is the default. The command starts the app at
+<http://127.0.0.1:5310> and the design references at <http://127.0.0.1:5320>.
+`python3 scripts/ui-review.py stop` stops only its own app, reference server and
+PostgreSQL container. Docker, Python 3 and the repository .NET SDK are required.
+
+The fixed container `bingo-ui-review` binds PostgreSQL to `127.0.0.1:54339`; its
+database is `bingo_ui_review`. Label, container ID, local marker and PostgreSQL
+marker must all agree before a refresh. Databases named in `appsettings.Local.json`
+are refused. Occupied app/reference ports fail with a diagnostic; foreign
+processes are never stopped. Storage, logs and the linked scenario list live in
+gitignored `artifacts/ui-review/`. WOM uses the local Development fake exclusively.
