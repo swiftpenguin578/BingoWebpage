@@ -2105,14 +2105,11 @@ table {
 
 /* Admin Pass 1B remediation: authoritative dashboard and directory. */
 .admin-module-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 0.5rem; }
-.admin-secondary-action,
-.admin-dashboard-row-action { color: var(--admin-accent-strong); font-size: 0.6875rem; font-weight: 600; text-decoration: none; }
+.admin-secondary-action { color: var(--admin-accent-strong); font-size: 0.6875rem; font-weight: 600; text-decoration: none; }
 .admin-secondary-action { display: inline-flex; min-height: 2rem; align-items: center; gap: 0.45rem; padding: 0.5rem 0.75rem; color: var(--admin-muted); border: 1px solid var(--admin-border-strong); border-radius: var(--admin-radius); }
-.admin-secondary-action:hover,
-.admin-dashboard-row-action:hover { color: var(--admin-text); }
+.admin-secondary-action:hover { color: var(--admin-text); }
 .admin-secondary-action svg { width: 0.875rem; height: 0.875rem; }
-.admin-secondary-action:focus-visible,
-.admin-dashboard-row-action:focus-visible { outline: 2px solid var(--admin-focus-accent-strong); outline-offset: 2px; }
+.admin-secondary-action:focus-visible { outline: 2px solid var(--admin-focus-accent-strong); outline-offset: 2px; }
 .admin-active-events-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.75rem; }
 .admin-active-event { display: grid; gap: 0.625rem; min-width: 0; padding: 0.875rem; background: var(--admin-surface-raised); border: 1px solid var(--admin-border); border-radius: 0.5rem; }
 .admin-active-event-heading { display: flex; min-width: 0; align-items: start; justify-content: space-between; gap: 0.5rem; }
@@ -2133,8 +2130,6 @@ table {
 .admin-active-event-details p { display: flex; min-width: 0; align-items: center; gap: 0.35rem; margin: 0; overflow: hidden; color: var(--admin-muted); font-size: 0.6875rem; line-height: 1.35; text-overflow: ellipsis; white-space: nowrap; }
 .admin-active-event-details p svg { width: 0.875rem; height: 0.875rem; flex: 0 0 auto; color: currentColor; }
 .admin-active-event-footer { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
-.admin-dashboard-row-action { display: inline-flex; align-items: center; gap: 0.25rem; white-space: nowrap; }
-.admin-dashboard-row-action svg { width: 0.875rem; height: 0.875rem; }
 
 @media (max-width: 900px) {
 }

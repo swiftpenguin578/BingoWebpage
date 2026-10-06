@@ -32,7 +32,7 @@ body:not(.using-keyboard) :focus-visible{outline:none}.design-drawer-layer{posit
   .design-top-actions [data-shell-preferences] { display: none; }
 }
 .field-validation-valid{display:none}
-[data-dashboard-header] .next-event{width:420px;max-width:100%;flex:none}
-[data-dashboard-header] .summary{min-height:calc(var(--dk-fs-control)*var(--dk-lh-body));white-space:nowrap;overflow:hidden;display:block;text-overflow:ellipsis}
-[data-dashboard-header]>div:first-child{min-width:0;flex:1}
-@media(max-width:860px){[data-dashboard-header]>div:first-child{width:100%}[data-dashboard-header] .next-event{width:100%;max-width:100%}}
+[data-page-family="dashboard"] .next-event{width:420px;max-width:100%;flex:none}
+[data-page-family="dashboard"] .summary{min-height:calc(var(--dk-fs-control)*var(--dk-lh-body));white-space:nowrap;overflow:hidden;display:block;text-overflow:ellipsis}
+[data-page-family="dashboard"]>div:first-child{min-width:0;flex:1}
+@media(max-width:860px){[data-page-family="dashboard"]>div:first-child{width:100%}[data-page-family="dashboard"] .next-event{width:100%;max-width:100%}}

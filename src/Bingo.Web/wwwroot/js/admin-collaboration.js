@@ -4,8 +4,7 @@
     const boardRoot = document.querySelector('[data-admin-board-event]');
     const boardPage = boardRoot?.closest?.('.board-page');
     const draftRoot = document.querySelector('[data-admin-draft-event]');
-    const eventsControlRoot = document.querySelector('[data-admin-events-control]');
-    if (!boardRoot && !draftRoot && !eventsControlRoot) return;
+    if (!boardRoot && !draftRoot) return;
 
     const connection = new signalR.HubConnectionBuilder()
         .withUrl('/hubs/admin-collaboration')
@@ -62,7 +61,6 @@
     }
 
     if (draftRoot) connection.on('draftChanged', scheduleDraftReload);
-    if (eventsControlRoot) connection.on('eventsControlChanged', () => window.location.reload());
 
     if (draftRoot) {
         document.addEventListener('submit', event => {
@@ -93,7 +91,6 @@
             await connection.invoke('WatchDraft', draftRoot.dataset.adminDraftEvent);
             if (draftRoot.dataset.canControl === 'true') await connection.invoke('RenewDraftControl', draftRoot.dataset.adminDraftEvent);
         }
-        if (eventsControlRoot) await connection.invoke('WatchEventsControl');
     };
 
     connection.onreconnected(() => subscribe().catch(() => {}));

@@ -337,6 +337,43 @@
   }
   rememberSkeletons(document);
   let overlay = null;
+  let pendingEvents = null;
+  function bindPendingEvents(element, url, failed = false) {
+    pendingEvents?.abort(); pendingEvents = new AbortController();
+    const signal = pendingEvents.signal, state = new URL(url), params = state.searchParams;
+    const view = params.get('view') || (params.get('filter') === 'hidden' ? 'hidden' : 'all');
+    const phase = params.get('phase') || 'all', sort = params.get('sort') || 'default';
+    const direction = params.get('direction') === 'desc' ? 'desc' : 'asc';
+    const table = element.querySelector('[data-events-pending]');
+    if (!table) return;
+    table.dataset.query = state.search;
+    const change = values => {
+      const next = new URL(state); for (const [key, value] of Object.entries(values)) value ? next.searchParams.set(key, value) : next.searchParams.delete(key);
+      next.searchParams.delete('filter'); void navigate(next.href, { mode: 'replace' });
+    };
+    for (const input of table.querySelectorAll('[data-pending-view]')) {
+      input.checked = input.dataset.pendingView === view; input.closest('.tab').classList.toggle('is-on', input.checked);
+      if (failed) input.addEventListener('change', () => change({view: input.dataset.pendingView, phase: 'all', page: '1'}), {signal});
+    }
+    const search = table.querySelector('[data-pending-search]'); search.value = params.get('search') || '';
+    if (failed) search.addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); change({search: search.value, page: '1'}); } }, {signal});
+    const attention = table.querySelector('[data-pending-attention]'); attention.hidden = params.get('attention') !== '1';
+    if (failed) attention.addEventListener('click', () => change({attention: null, page: '1'}), {signal});
+    const menu = table.querySelector('[data-pending-phase-menu]'), button = table.querySelector('[data-pending-phase-button]');
+    menu.id = 'pending-events-phase-menu'; button.dataset.menuTarget = menu.id;
+    button.dataset.menuAlign = 'end'; button.classList.toggle('is-active', phase !== 'all');
+    for (const option of menu.querySelectorAll('[data-pending-phase]')) {
+      const selected = option.dataset.pendingPhase === phase; option.setAttribute('aria-checked', String(selected));
+      if (selected) table.querySelector('[data-pending-phase-value]').textContent = option.textContent;
+      if (failed) option.addEventListener('click', () => { closeMenu(false); change({phase: option.dataset.pendingPhase, page: '1'}); }, {signal});
+    }
+    for (const column of table.querySelectorAll('[data-pending-column]')) {
+      const selected = column.dataset.pendingColumn === sort;
+      column.setAttribute('aria-sort', selected ? (direction === 'desc' ? 'descending' : 'ascending') : 'none');
+      column.classList.toggle('is-sorted', selected); column.querySelector('.sort-ic').classList.toggle('is-desc', selected && direction === 'desc'); column.querySelector('.sort-ic').classList.toggle('is-asc', selected && direction === 'asc');
+      if (failed) column.querySelector('button').addEventListener('click', () => change({sort: column.dataset.pendingColumn, direction: selected && direction === 'asc' ? 'desc' : 'asc', page: '1'}), {signal});
+    }
+  }
   const contexts = new Map();
   function contextSnapshot() {
     const snapshot = document.implementation.createHTMLDocument();
@@ -344,6 +381,7 @@
     return snapshot;
   }
   function clearOverlay(restore = true) {
+    pendingEvents?.abort(); pendingEvents = null;
     if (!overlay) return;
     const previous = overlay; overlay = null;
     previous.element.remove();
@@ -399,6 +437,7 @@
     placeholder.append(provided ? provided.cloneNode(true) : template('loading'));
     main.append(placeholder); main.setAttribute('aria-busy', 'true');
     overlay = { element: placeholder, main, children, busy, context, position };
+    if (kind === 'events') bindPendingEvents(placeholder, url);
   }
   function refreshSidebar(doc, translated = false) {
     const side = document.querySelector('[data-shell-sidebar]'), next = doc.querySelector('[data-shell-sidebar]');
@@ -520,6 +559,11 @@
       const retry = failed.querySelector('[data-load-retry]');
       retry.addEventListener('click', () => void navigate(url, { mode, targetIndex, check: false }));
       placeholder.append(failed); focus(retry);
+      if (pageKind(url) === 'events') {
+        placeholder.dataset.eventsLoadFailed = '';
+        placeholder.querySelector('.summary')?.replaceChildren();
+        bindPendingEvents(placeholder, url, true);
+      }
       return false;
     }
   }

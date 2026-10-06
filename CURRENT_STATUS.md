@@ -1,13 +1,15 @@
 # Current project status
 
-## U2 brief67 item2 checked; Events directory next — 6 October 2026
+## U2 brief67 item3 checked; Create and UR next — 6 October 2026
 
 - Assigned checkout `/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage`, branch `codex/participants-functionality`; started clean at `8355680a4eee6a74ae905c5c69a8f50c5f021dcf`. No workers/reviewer/orchestrator or new branch/worktree. Follow [lean execution](DELIVERY_PLAN.md#421-lean-execution-and-planner-handoff).
 - Item0 `edd7bbcd825a9ab6a34864502faa1205c47c1dbd`: [docs evidence](docs/references/admin-ui/reviews/2026-10-06/u2/item0-docs.md).
 - Item1 `6c8037b52fd8281fd9e1a9e869dd146ef4c57e38`: [backend/ruling68 evidence](docs/references/admin-ui/reviews/2026-10-06/u2/item1-dashboard-backend.md). Existing Dashboard16/0/0, unchanged directory4/0/0, new PG7 passing across focused/corrective runs, UR2/0/0, HTTP10/0/0, ordering2/0/0; Release solution0 warnings/errors.
-- Item2 checked for scoped commit: [Dashboard evidence](docs/references/admin-ui/reviews/2026-10-06/u2/item2-dashboard-page.md). User option(b) loading header implemented and registered: reserved summary, fresh card-sized skeleton; failure no card/placeholder; no remembered card. Dashboard binding, localization, hints, chart keyboard/Escape, sorts and A4 destinations implemented.
+- Item2 committed `061ff9bff3e1205ac99257447d73b21a5849a947`: [Dashboard evidence](docs/references/admin-ui/reviews/2026-10-06/u2/item2-dashboard-page.md). User option(b) loading header implemented and registered: reserved summary, fresh card-sized skeleton; failure no card/placeholder; no remembered card. Dashboard binding, localization, hints, chart keyboard/Escape, sorts and A4 destinations implemented.
 - Resumed proofs: HTTP13/0/0, UR2/0/0; shell/language regressions4 passing browser executions; Dashboard16 passing scenarios in Chromium/WebKit, regular parity0 differences both themes, loading/loaded positions within1px at1440/1280/861/860/390. Fixture Release0 warnings/errors. Earlier failed checkpoints retained as history, superseded by scoped corrections.
-- Frozen CSS/references and directory tests unchanged; diff check passed. Item2 awaits Claude review then user visual acceptance, as do Events directory rows. Items3–5 next; final clean Release/full JS/whole BrowserTests gates remain after5. Whole .NET suite belongs to Claude's final-SHA gate; no pass claimed. No U3+, lane T, packaging, push, merge or deployment.
+- Item3 [Events evidence](docs/references/admin-ui/reviews/2026-10-06/u2/item3-events-directory.md): directory/query/paging, culture sort, HiddenAt order, cancelled count and old-hook retirement implemented. User loading/failure ruling resolved and registered: query-bound controls/headings, fresh skeleton counts/summary, empty failure values, no remembered counts. No item4/5 implementation yet.
+- Item3 checks: existing directory/quarantine20/0/0; new PG4/0/0; compatibility HTTP33/0/0; new query HTTP1/0/0. Events26/0: loaded/failure parity0 differences, six loading-position widths within1px in both engines, rendered partial-attention/Hidden proof. Shared shell2 passing browser executions. Fixture Release0 warnings/errors; final batch gates remain.
+- Frozen CSS/references unchanged; diff check passed. Item3 changes only the inventory-authorized Cancelled count assertion in the existing directory tests (A10/A-Events-4), not the protected item1 evidence. Both matrix rows await Claude review then user visual acceptance. Whole .NET suite belongs to Claude's final-SHA gate; no pass claimed. No U3+, lane T, packaging, push, merge or deployment.
 
 ## TS brief66 delivered — retained evidence
 
@@ -30,6 +32,7 @@
 
 ## Next permitted action
 
-Commit checked item2, then continue authorized items3–5. TS is closed as
-delivered with Claude independent review/suite in its parallel gate. No U3–U10,
-lane T, rehearsal, packaging, push, merge or deployment.
+Finish item3 local checkpoint, then continue authorized items4–5 and final gates.
+TS is closed as delivered with Claude independent
+review/suite in its parallel gate. No U3–U10, lane T, rehearsal, packaging, push,
+merge or deployment.

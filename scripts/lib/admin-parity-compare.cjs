@@ -23,7 +23,7 @@ async function classInventory(page) {
   return page.evaluate(()=>{
     const defined=new Set();const rules=list=>{for(const rule of list){if(rule.selectorText)for(const match of rule.selectorText.matchAll(/\.(-?[_a-zA-Z]+[\w-]*)/g))defined.add(match[1]);if(rule.cssRules)rules(rule.cssRules);}};
     for(const sheet of document.styleSheets)rules(sheet.cssRules);
-    const used=new Set();const walk=root=>{for(const el of root.querySelectorAll('*')){for(const name of el.classList)used.add(name);if(el.tagName==='TEMPLATE')walk(el.content);}};walk(document);
+    const used=new Set();const walk=root=>{for(const el of root.querySelectorAll('*')){for(const name of el.classList)used.add(name);if(el.tagName==='TEMPLATE'&&!el.matches('[data-page-loading-template],[data-page-failure-template]'))walk(el.content);}};walk(document);
     return {used:[...used].sort(),undefined:[...used].filter(name=>!defined.has(name)).sort()};
   });
 }
