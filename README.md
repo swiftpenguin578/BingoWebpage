@@ -264,7 +264,15 @@ docker compose down --volumes
 
 ## Test
 
-Docker must be running because the integration suite starts an isolated PostgreSQL container.
+Docker must be running. Ordinary PostgreSQL integration tests reuse one
+`postgres:17-alpine` container and one migrated template per existing xUnit class
+collection. Each test receives a uniquely named clean database cloned from that
+template, then drops it during teardown. Migration, intermediate/fresh-schema and
+server-fact exceptions retain dedicated containers; see the
+[TS exception list](docs/references/admin-ui/reviews/2026-10-06/ts/item3-exceptions.md).
+Both shared and dedicated fixtures validate their actual database credentials on
+a real connection before use, with a bounded 60-second readiness wait. These tests
+use their own Testcontainers databases, not local application or review databases.
 
 ```bash
 dotnet test Bingo.slnx --no-restore
