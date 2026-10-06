@@ -49,7 +49,7 @@
     </div>
     </div>
 </div>
-<div class="card"><div class="tbl-wrap" data-directory-wrap><div class="tbl ev-tbl sticky-first" role="table" aria-label="@D["Events"]" aria-rowcount="@(Model.TotalCount + 1)">
+<div class="card"><div class="tbl-wrap" id="directory-table-scroll" data-admin-scroll-region data-directory-wrap><div class="tbl ev-tbl sticky-first" role="table" aria-label="@D["Events"]" aria-rowcount="@(Model.TotalCount + 1)">
 <div class="tr th-row" role="row">
 @foreach (var (key, label, cls) in columns) {
     var next = Model.IsActiveSort(key) ? Model.NextSortDirection(key) : key is "attention" or "signups" ? "desc" : "asc";
