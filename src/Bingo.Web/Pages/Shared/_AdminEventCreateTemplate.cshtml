@@ -7,7 +7,7 @@
         "Create event", "Creating…", "Check again", "Checking…", "Event name", "Timezone", "Cancel", "Enter an event name.", "The name and timezone you entered haven’t been saved.", "Leave before checking?", "Leave anyway", "The event may already have been created. Check again before creating another event. Leaving closes this dialog; it does not undo a creation.",
         "Event names must be 50 characters or fewer.", "Couldn’t create the event. Nothing was saved, and your details are still here.",
         "We couldn’t confirm whether the event was created. Check before trying again, so the event isn’t created twice.",
-        "The event was not found. It may not have been created, or it may have been removed since. You can start a new creation request with these details.",
+        "We couldn't find it. It may not have been created, or it was removed since. You can create it again with these details.",
         "An event called “{0}” already exists ({1}). You can still create another; it gets its own link."
     }.ToDictionary(key => key, key => D[key].Value);
     var offset = TimeZoneInfo.FindSystemTimeZoneById("Europe/Copenhagen").GetUtcOffset(Clock.GetUtcNow());

@@ -43,11 +43,15 @@ const P=(name,selector,options={})=>[name,selector,selector,{required:true,box:{
      const scope=main.querySelector('[data-page-skeleton]')||main;
      return ['.page-head','.h1','.summary','.head-actions','.toolbar','.tabs','.search','.filter-btn','.th-row','.tab-count'].flatMap(selector=>[...scope.querySelectorAll(selector)].map((e,i)=>({key:selector+i,...Object.fromEntries(['x','y','width','height'].map(k=>[k,e.getBoundingClientRect()[k]]))})));
     });
+    assert.equal(await app.locator('[data-page-skeleton] .summary').textContent(),'','loading summary reserves height but stays empty');
+    assert.equal(await app.locator('[data-page-skeleton] .summary .sk').count(),0);
     const before=await boxes();assert.equal(await app.locator('[data-pending-view=past]').isChecked(),true);
     assert.equal(await app.locator('[data-pending-search]').inputValue(),'Spring');assert.equal(await app.locator('[data-pending-column=identity]').getAttribute('aria-sort'),'descending');
     assert.equal(await app.locator('[data-pending-count]').evaluateAll(nodes=>nodes.every(e=>!e.textContent.trim()&&e.querySelector('.sk'))),true);
-    release();await app.locator('[data-page-skeleton]').waitFor({state:'detached'});await settle(app);const after=await boxes();
-    assert.equal(before.length,after.length);for(let i=0;i<before.length;i++)for(const k of['x','y','width','height'])assert.ok(Math.abs(before[i][k]-after[i][k])<=1,engine+' '+width+' '+before[i].key+' '+k+': '+before[i][k]+' vs '+after[i][k]);
+    release();await app.locator('[data-page-skeleton]').waitFor({state:'detached'});
+    await app.waitForFunction(()=>getComputedStyle(document.querySelector('.ev-tbl')).getPropertyValue('--table-min').trim()==='990px'||getComputedStyle(document.querySelector('.ev-tbl')).getPropertyValue('--table-min').trim()==='900px');
+    await settle(app);const after=await boxes();
+    assert.equal(before.length,after.length);for(let i=0;i<before.length;i++)for(const k of['x','y','width','height'])assert.ok(Math.abs(before[i][k]-after[i][k])<=1,engine+' '+width+' '+before[i].key+' '+k+': '+before[i][k]+' vs '+after[i][k]+' '+JSON.stringify({before,after}));
     results.push({name:engine+'-'+width+'-loading-query-position-parity',passed:true});await app.unroute(target);
    }
    await app.setViewportSize({width:1440,height:1000});await app.goto(fixture.origin+'/Admin/Events');await app.locator('[data-events-directory]').waitFor();

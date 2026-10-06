@@ -1,6 +1,6 @@
 @inject IStringLocalizer<AdminCommunityResource> D
 <template data-page-header-template="events">
-    <header class="page-head" data-page-family="events"><div style="min-width:0"><h1 class="h1" tabindex="-1">@D["Events"]</h1><p class="summary"><span data-events-summary-placeholder aria-hidden="true"><span class="sk"></span><span class="sk"></span></span></p></div><div class="head-actions"><a class="btn btn-primary" href="/Admin/Events/Create" data-create-event><partial name="_AdminDesignIcon" model='new AdminDesignIcon("plus")' />@D["Create event"]</a></div></header>
+    <header class="page-head" data-page-family="events"><div style="min-width:0"><h1 class="h1" tabindex="-1">@D["Events"]</h1><p class="summary" aria-hidden="true"></p></div><div class="head-actions"><a class="btn btn-primary" href="/Admin/Events/Create" data-create-event><partial name="_AdminDesignIcon" model='new AdminDesignIcon("plus")' />@D["Create event"]</a></div></header>
 </template>
 <template data-page-loading-template="events" data-page-title="@D["Events"]">
     <link rel="stylesheet" href="~/css/admin-design-events.css" asp-append-version="true" />

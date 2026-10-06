@@ -155,7 +155,15 @@ export function dispose() { window.disposes=(window.disposes||0)+1;window.active
     await page.evaluate(() => { const content=document.createElement('div');content.innerHTML='<button id="first">First</button><input value="kept"><button id="last">Last</button>';window.layer=AdminUI.openLayer({kind:'drawer',title:'Editor',content}); });
     await page.locator('#last').focus(); await page.keyboard.press('Tab'); assert.equal(await page.locator('#first').evaluate(el => el===document.activeElement),true);
     await page.keyboard.press('Shift+Tab'); assert.equal(await page.locator('#last').evaluate(el => el===document.activeElement),true);
-    await page.locator('.scrim').dispatchEvent('click'); assert.equal(await page.getByRole('dialog').isVisible(),true,'outside click refuses any input layer');
+    await page.locator('.scrim').dispatchEvent('click'); await page.getByRole('dialog').waitFor({state:'hidden'});
+    assert.equal(await page.locator('#layer-opener').evaluate(el=>el===document.activeElement),true,'clean input drawer closes/restores focus');
+    await page.evaluate(() => { const content=document.createElement('div');content.innerHTML='<input id="outside-draft" value="Original">';AdminUI.openLayer({kind:'drawer',title:'Editor',content}); });
+    await page.locator('#outside-draft').fill('Edited');
+    await page.locator('.scrim').dispatchEvent('click'); await page.getByRole('alertdialog').waitFor();
+    await page.getByRole('button',{name:'Keep editing',exact:true}).click();await page.getByRole('alertdialog').waitFor({state:'detached'});
+    assert.equal(await page.locator('#outside-draft').inputValue(),'Edited');
+    await page.locator('.scrim').dispatchEvent('click'); await page.getByRole('button',{name:'Discard',exact:true}).click();await page.getByRole('dialog').waitFor({state:'hidden'});
+    await page.evaluate(() => { const content=document.createElement('div');content.innerHTML='<input value="Original">';AdminUI.openLayer({kind:'drawer',title:'Editor',content}); });
     await page.evaluate(() => { window.confirmed=null;AdminUI.confirm({title:'Confirm',description:'Review',actionLabel:'Accept',cancelLabel:'Cancel'}).then(answer=>window.confirmed=answer); });
     await page.locator('.m-scrim').dispatchEvent('click'); assert.equal(await page.getByRole('alertdialog').isVisible(),true,'outside click never confirms/dismisses confirmation');
     await page.keyboard.press('Escape'); await page.getByRole('alertdialog').waitFor({state:'hidden'});

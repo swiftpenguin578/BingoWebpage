@@ -5,7 +5,7 @@ const {comparator,settle}=require('./lib/admin-parity-compare.cjs');
 const root=process.cwd(),output=path.join(root,'artifacts/u2-create');
 const P=(name,selector,options={})=>[name,selector,selector,{required:true,box:{x:1,y:1,width:1,height:1},...options}];
 (async()=>{
- const fixture=await startFixture(root,output),results=[];let browser;
+ const dollarName="Dollars $& $$ $' $`";const fixture=await startFixture(root,output,{BINGO_PARITY_DOLLAR_NAME:dollarName}),results=[];let browser;
  try{
   for(const engine of(process.env.BINGO_PARITY_ENGINES||'chromium,webkit').split(',')){
    browser=await(engine==='webkit'?webkit.launch({headless:true}):chromium.launch({headless:true,channel:process.env.PLAYWRIGHT_CHANNEL||'chromium'}));
@@ -25,11 +25,24 @@ const P=(name,selector,options={})=>[name,selector,selector,{required:true,box:{
     await compare(engine+'-'+width+'-'+theme,app,ref,pairs);
    }
    await app.setViewportSize({width:1440,height:1000});
-   await app.locator('.m-scrim').click({position:{x:5,y:5},force:true});assert.equal(await app.locator('#cm-name').count(),1,'A12 input modal ignores outside click');
+   const closeLength=await app.evaluate(()=>history.length),closeRequests=[];
+   app.on('request',r=>{if(r.resourceType()==='document')closeRequests.push(r.url());});
+   await app.evaluate(()=>window.directoryBeforeClose=document.querySelector('[data-events-directory]'));
+   await app.locator('.m-scrim').click({position:{x:5,y:5},force:true});await app.locator('#cm-name').waitFor({state:'detached'});
+   assert.equal(new URL(app.url()).searchParams.has('create'),false);
+   assert.equal(await app.evaluate(()=>history.length),closeLength,'close only replaces URL');
+   assert.equal(closeRequests.length,0,'close does not navigate');
+   assert.equal(await app.evaluate(()=>document.querySelector('[data-events-directory]')===window.directoryBeforeClose),true);
+   assert.equal(await app.locator('[data-page-skeleton]').count(),0);
+   await app.goBack();await app.locator('[data-events-directory]').waitFor();assert.equal(await app.locator('#cm-name').count(),0,'Back after close stays closed');
+   await open();
    await app.locator('#cm-submit').focus();await app.keyboard.press('Tab');assert.equal(await app.locator('#cm-name').evaluate(e=>e===document.activeElement),true,'shared keyboard trap wraps to name');
    await app.locator('#cm-submit').click();assert.equal(await app.locator('#cm-name').getAttribute('aria-invalid'),'true');assert.equal(await app.locator('#cm-name').evaluate(e=>e===document.activeElement),true);
    await app.evaluate(()=>{window.createEvents=[];for(const type of['input','change','click'])document.querySelector('.modal-form').addEventListener(type,e=>window.createEvents.push({type,id:e.target.id,length:Array.from(document.querySelector('#cm-name').value.trim()).length,error:document.querySelector('#cm-name-err').textContent.trim()}));});
    await app.locator('#cm-name').fill('😀'.repeat(51));await settle(app);await app.locator('#cm-submit').click();assert.equal(await app.locator('[data-create-count]').textContent(),'51 / 50');assert.match(await app.locator('#cm-name-err').textContent(),/50/,JSON.stringify(await app.evaluate(()=>({events:window.createEvents,disabled:document.querySelector('#cm-submit').disabled,active:document.activeElement.id}))));
+   await app.locator('#cm-name').fill(dollarName);
+   assert.equal((await app.locator('#cm-name-dup [data-component-text]').textContent()),'An event called “'+dollarName+'” already exists (Setup). You can still create another; it gets its own link.');
+   await app.locator('.m-scrim').click({position:{x:5,y:5},force:true});await app.getByRole('alertdialog').waitFor();await app.getByRole('button',{name:'Keep editing',exact:true}).click();assert.equal(await app.locator('#cm-name').inputValue(),dollarName);
    await app.locator('#cm-name').fill('autumn bingo 2027');assert.match(await app.locator('#cm-name-dup').textContent(),/already exists/);
    await app.keyboard.press('Escape');await app.getByRole('alertdialog').waitFor();await app.getByRole('button',{name:'Keep editing',exact:true}).click();assert.equal(await app.locator('#cm-name').inputValue(),'autumn bingo 2027');
    await app.goBack();await app.getByRole('button',{name:'Discard',exact:true}).click();await app.locator('#cm-name').waitFor({state:'detached'});assert.equal(new URL(app.url()).searchParams.has('create'),false);
@@ -42,7 +55,7 @@ const P=(name,selector,options={})=>[name,selector,selector,{required:true,box:{
    assert.equal(await app.evaluate(()=>window.AdminUI.navigate('/Admin')),false,'pending create refuses leaving');await app.keyboard.press('Escape');assert.equal(await app.locator('#cm-name').count(),1);
    finishWrite();await app.getByRole('button',{name:'Check again',exact:true}).waitFor();assert.equal(await app.locator('#cm-name').isDisabled(),true);
    await app.route('**/Admin/Events/Create?handler=CheckAgain*',route=>{checkingKey=new URL(route.request().url()).searchParams.get('requestId');return route.fulfill({status:404,body:''});});
-   await app.locator('#cm-submit').click();await app.locator('#cm-not-found').waitFor();assert.equal(checkingKey,sent.get('Input.RequestId'));assert.equal(await app.locator('#cm-name').inputValue(),'Unknown retained draft');assert.equal(await app.locator('#cm-name').isEnabled(),true);
+   await app.locator('#cm-submit').click();await app.locator('#cm-not-found').waitFor();assert.equal((await app.locator('#cm-not-found [data-component-text]').textContent()),"We couldn't find it. It may not have been created, or it was removed since. You can create it again with these details.");assert.equal(checkingKey,sent.get('Input.RequestId'));assert.equal(await app.locator('#cm-name').inputValue(),'Unknown retained draft');assert.equal(await app.locator('#cm-name').isEnabled(),true);
    let fresh;await app.unroute('**/Admin/Events/Create');await app.route('**/Admin/Events/Create',route=>{fresh=new URLSearchParams(route.request().postData()).get('Input.RequestId');return route.abort();});
    await app.locator('#cm-submit').click();await app.getByRole('button',{name:'Check again',exact:true}).waitFor();assert.notEqual(fresh,checkingKey);
    await app.keyboard.press('Escape');const unknownLeave=app.getByRole('alertdialog');await unknownLeave.waitFor();assert.match(await unknownLeave.textContent(),/may already have been created/);assert.doesNotMatch(await unknownLeave.textContent(),/haven.t been saved/);
@@ -60,7 +73,11 @@ const P=(name,selector,options={})=>[name,selector,selector,{required:true,box:{
    await app.route('**/Admin/Events/Create?handler=CheckAgain*',route=>route.fulfill({status:204,headers:{'X-Bingo-Post-Navigation':'/Account/Login?accessChanged=true'}}));
    await app.locator('#cm-submit').click();await app.getByRole('alertdialog').waitFor();assert.match(await app.getByRole('alertdialog').textContent(),/could not check/);assert.match(await app.getByRole('alertdialog').textContent(),/Session retained name/);
    await app.getByRole('button',{name:'Keep editing',exact:true}).click();await app.goBack();await app.getByRole('button',{name:'Leave anyway',exact:true}).click();await app.locator('#cm-name').waitFor({state:'detached'});await app.unroute('**/Admin/Events/Create?handler=CheckAgain*');
-   await app.locator('[name=culture][value=da]').click();await app.waitForFunction(()=>document.documentElement.lang==='da');await open();assert.equal(await app.locator('label[for=cm-name]').textContent(),'Eventnavn');await app.locator('#cm-submit').click();assert.equal((await app.locator('#cm-name-err').textContent()).trim(),'Indtast et eventnavn.');await app.locator('#cm-cancel').click();
+   await app.locator('[name=culture][value=da]').click();await app.waitForFunction(()=>document.documentElement.lang==='da');await open();assert.equal(await app.locator('label[for=cm-name]').textContent(),'Eventnavn');await app.locator('#cm-submit').click();assert.equal((await app.locator('#cm-name-err').textContent()).trim(),'Indtast et eventnavn.');await app.locator('#cm-name').fill('Dansk usikkert');
+   await app.route('**/Admin/Events/Create',r=>r.abort());await app.locator('#cm-submit').click();await app.waitForFunction(()=>!document.querySelector('#cm-uncertain').hidden);
+   await app.route('**/Admin/Events/Create?handler=CheckAgain*',r=>r.fulfill({status:404,body:''}));await app.locator('#cm-submit').click();await app.locator('#cm-not-found').waitFor();
+   assert.equal(await app.locator('#cm-not-found [data-component-text]').textContent(),'Vi kunne ikke finde det. Det er måske ikke blevet oprettet, eller det er blevet fjernet siden. Du kan oprette det igen med disse oplysninger.');
+   await app.locator('#cm-cancel').click();await app.getByRole('button',{name:'Kassér',exact:true}).click();await app.locator('#cm-name').waitFor({state:'detached'});await app.unroute('**/Admin/Events/Create');await app.unroute('**/Admin/Events/Create?handler=CheckAgain*');
    await app.locator('[name=culture][value=en]').click();await app.waitForFunction(()=>document.documentElement.lang==='en');
    // Real atomic create, Overview replacement, Back consumes one highlight and cannot resubmit.
    for(const lost of[false,true]){

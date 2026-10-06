@@ -158,7 +158,7 @@
     layers.push(layer);
     lock();
     focus(panel.querySelector('[autofocus]') || controls(panel)[0] || panel);
-    const outside = event => { if ((event.target === scrim || event.target === wrapper) && layers.at(-1) === layer && !confirmation && !panel.querySelector(inputSelector) && !layer.dirty()) void closeLayer(layer); };
+    const outside = event => { if ((event.target === scrim || event.target === wrapper) && layers.at(-1) === layer && !confirmation) void closeLayer(layer); };
     scrim.addEventListener('click', outside);
     wrapper.addEventListener('click', outside);
     return { element: panel, close: result => closeLayer(layer, result, true) };

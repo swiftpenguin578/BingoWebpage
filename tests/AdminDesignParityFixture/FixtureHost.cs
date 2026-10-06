@@ -113,6 +113,8 @@ internal static class FixtureHost
             Add("midsummer-skilling-sprint", "Midsummer Skilling Sprint", EventState.Live, "Europe/Copenhagen", "Ten days of skilling tiles. No PvM, no excuses.", "Free to enter.", "2027-05-10T16:00:00Z", "2027-05-25T18:00:00Z", "2027-05-26T17:00:00Z", "2027-05-28T16:00:00Z", "2027-06-06T20:00:00Z");
             foreach (var state in new[] { EventState.Finalized, EventState.Archived, EventState.Cancelled })
                 Add("spring-" + state.ToString().ToLowerInvariant(), "Spring Bingo 2027", state, "Europe/Copenhagen", "Seven teams, one board, a photo finish.", null, "2027-02-15T17:00:00Z", "2027-03-01T19:00:00Z", "2027-03-05T18:00:00Z", "2027-03-12T17:00:00Z", "2027-03-21T21:00:00Z");
+            if (Environment.GetEnvironmentVariable("BINGO_PARITY_DOLLAR_NAME") is { } dollarName)
+                Add("dollar-name", dollarName, EventState.Draft, "UTC", null, null, null, null, null, null, null);
             for (var i = 0; i < 15; i++) Add("scroll-" + i, "Scroll fixture " + i, EventState.Draft, "UTC", null, null, null, null, null, "2027-04-01T12:00:00Z", "2027-04-02T12:00:00Z");
             if (directoryFault)
             {
