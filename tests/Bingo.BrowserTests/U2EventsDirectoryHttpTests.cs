@@ -4,6 +4,7 @@ using Bingo.Domain.Access;
 using Bingo.Domain.Events;
 using Bingo.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -54,5 +55,24 @@ public sealed class U2EventsDirectoryHttpTests(BrowserTestApplicationFactory fac
         var hidden = WebUtility.HtmlDecode(await client.GetStringAsync("/Admin/Events?filter=hidden"));
         Assert.Contains("Some parts of this link weren’t available", hidden);
         Assert.DoesNotContain("data-event-hidden=\"true\"", hidden);
+        var sortName = "Null-last " + Guid.NewGuid().ToString("N");
+        var known = new BingoEvent(Guid.NewGuid(), sortName + " known", $"http-{Guid.NewGuid():N}", "UTC", actor.Id, at, PlacementRule.LegacyScoreTimeThenEhb);
+        var unknown = new BingoEvent(Guid.NewGuid(), sortName + " unknown", $"http-{Guid.NewGuid():N}", "UTC", actor.Id, at, PlacementRule.LegacyScoreTimeThenEhb);
+        unknown.ConfigureSchedule(at.AddDays(-6), at.AddDays(-5), null, at.AddDays(-4), at.AddDays(-3), null);
+        unknown.ConfigureSignup(true, false, null); unknown.OpenSignups(at.AddDays(-6)); unknown.CloseSignups(at.AddDays(-5));
+        unknown.StartEvent(at.AddDays(-4)); unknown.EndEvent(at.AddDays(-3));
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            db.AddRange(known, unknown); await db.SaveChangesAsync();
+            await db.Database.ExecuteSqlInterpolatedAsync($"UPDATE events SET actual_started_at = NULL WHERE id = {unknown.Id}");
+        }
+        foreach (var direction in new[] { "asc", "desc" })
+        {
+            var sorted = WebUtility.HtmlDecode(await client.GetStringAsync("/Admin/Events?search=" + Uri.EscapeDataString(sortName) + "&sort=signups&direction=" + direction));
+            var ids = Regex.Matches(sorted, "<div class=\"tr row[^\"]*\"[^>]*data-event-id=\"([^\"]+)\"").Select(match => Guid.Parse(match.Groups[1].Value)).ToArray();
+            Assert.Equal(new[] { known.Id, unknown.Id }, ids);
+            Assert.Contains("Participant count unavailable", sorted);
+        }
     }
 }

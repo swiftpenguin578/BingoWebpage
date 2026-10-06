@@ -131,6 +131,14 @@ public sealed class EventsDirectoryIntegrationTests(PostgreSqlTestFixture databa
         Assert.Null(importRow.ParticipantCap);
         Assert.True(importRow.Participation!.IsHistoricalImport);
         Assert.Null(page.Events.Single(x => x.Id == broken.Id).ParticipantCount);
+        page.Sort = "signups";
+        foreach (var direction in new[] { "asc", "desc" })
+        {
+            page.Direction = direction;
+            await page.OnGetAsync(default);
+            Assert.Equal(broken.Id, page.Events[^1].Id); // Unavailable is null-last, not zero.
+            Assert.Null(page.Events[^1].ParticipantCount);
+        }
         Assert.False(db.ChangeTracker.HasChanges());
     }
 
