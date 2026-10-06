@@ -5,6 +5,7 @@ import json
 import os
 from pathlib import Path
 import signal
+import shutil
 import socket
 import subprocess
 import sys
@@ -159,7 +160,7 @@ def main():
         if not owner:
             raise RuntimeError("Refusing: container exists without this checkout's ownership marker.")
         verify_container(info, owner)
-        if info["State"]["Running"]:
+        if info["State"]["Running"] and owner.get("marker_ready", False):
             verify_database(owner)
     elif owner:
         raise RuntimeError("Refusing: ownership marker exists but its container is missing.")
@@ -175,32 +176,48 @@ def main():
     STATE.mkdir(parents=True, exist_ok=True)
     if info is None:
         port_free(PORT)
-        owner = {"token": str(uuid.uuid4())}
+        owner = {"token": str(uuid.uuid4()), "marker_ready": False}
         run("docker", "run", "-d", "--name", NAME, "--label", LABEL + "=" + owner["token"],
             "-p", f"127.0.0.1:{PORT}:5432", "-e", "POSTGRES_USER=" + DB,
             "-e", "POSTGRES_PASSWORD=" + PASSWORD, "-e", "POSTGRES_DB=" + DB, "postgres:16-alpine")
         owner["container_id"] = inspect()["Id"]
         MARKER.write_text(json.dumps(owner))
-        new = True
     else:
-        new = False
         if not info["State"]["Running"]:
             port_free(PORT)
             run("docker", "start", NAME)
     for _ in range(100):
-        result = subprocess.run(["docker", "exec", NAME, "pg_isready", "-U", DB], capture_output=True)
+        result = subprocess.run(["docker", "exec", NAME, "pg_isready", "-h", "127.0.0.1", "-U", DB], capture_output=True)
         if result.returncode == 0:
             break
         time.sleep(.2)
     else:
         raise RuntimeError("Owned PostgreSQL did not become ready.")
     verify_container(inspect(), owner)
-    if new:
-        sql("CREATE TABLE public.bingo_ui_review_owner (token text NOT NULL); INSERT INTO public.bingo_ui_review_owner VALUES ('" + owner["token"] + "')")
+    if not owner.get("marker_ready", False):
+        # Finish initial ownership setup only for this already-verified container ID.
+        # Never adopt a populated application database or replace an existing marker.
+        count = sql("SELECT count(*) FROM information_schema.tables WHERE table_schema='public'", DB, capture=True)
+        if count.stdout.strip() != "0":
+            raise RuntimeError("Refusing incomplete initialization: review database is already populated.")
+        sql("CREATE TABLE IF NOT EXISTS public.bingo_ui_review_owner (token text NOT NULL)")
+        existing = sql("SELECT token FROM public.bingo_ui_review_owner", capture=True).stdout.strip()
+        if existing and existing != owner["token"]:
+            raise RuntimeError("Refusing: incomplete PostgreSQL marker has a foreign owner.")
+        if not existing:
+            sql("INSERT INTO public.bingo_ui_review_owner VALUES ('" + owner["token"] + "')")
+        owner["marker_ready"] = True
+        MARKER.write_text(json.dumps(owner))
     verify_database(owner)
     # Only this fixed database on the verified owned container can be rebuilt.
     sql(f"DROP DATABASE IF EXISTS {DB} WITH (FORCE)")
     sql(f"CREATE DATABASE {DB}")
+    for folder in (STATE / "evidence", STATE / "catalogue-images"):
+        if folder.is_symlink():
+            raise RuntimeError("Refusing to rebuild storage through a symlink.")
+        if folder.exists():
+            shutil.rmtree(folder)
+        folder.mkdir()
     env = environment()
     run("dotnet", "build", str(ROOT / "Bingo.slnx"), "--configuration", "Release", cwd=ROOT, env=env)
     dotnet(env, "--migrate")
