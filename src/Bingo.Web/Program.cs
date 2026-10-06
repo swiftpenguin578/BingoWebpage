@@ -165,6 +165,7 @@ builder.Services.AddScoped<CatalogueSnapshotService>();
 builder.Services.AddScoped<CataloguePriceSyncService>();
 builder.Services.AddScoped<ProductionPreflight>();
 builder.Services.AddScoped<DevelopmentScenarioSeeder>();
+builder.Services.AddScoped<UiReviewScenarioSeeder>();
 builder.Services.AddScoped<HistoricalEventImporter>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<SharedShellService>();
@@ -525,6 +526,17 @@ if (args.Contains("--sync-catalogue-images", StringComparer.Ordinal))
         if (sourceIndex < sources.Count - 1) await Task.Delay(syncDelayMilliseconds);
     }
     Console.WriteLine($"Catalogue image synchronization complete. Cached: {cached}; failed: {failed}.");
+    return;
+}
+
+if (args.Contains("--seed-review-scenarios", StringComparer.Ordinal))
+{
+    if (!uiReviewEnvironment) throw new InvalidOperationException("Use the isolated scripts/ui-review.py command to seed review scenarios.");
+    var profileIndex = Array.IndexOf(args, "--review-profile");
+    var profile = profileIndex >= 0 && profileIndex + 1 < args.Length ? args[profileIndex + 1] : "live";
+    await using var scope = app.Services.CreateAsyncScope();
+    var result = await scope.ServiceProvider.GetRequiredService<UiReviewScenarioSeeder>().SeedAsync(profile);
+    Console.WriteLine($"UI review {result.Profile} scenarios rebuilt at {result.BuiltAt:O}: {result.Events.Count} events, {result.Accounts.Count} accounts.");
     return;
 }
 
