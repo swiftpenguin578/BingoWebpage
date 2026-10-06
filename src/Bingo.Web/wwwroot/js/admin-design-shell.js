@@ -193,7 +193,7 @@
     layers.pop();
     layer.wrapper.remove(); layer.scrim.remove(); lock();
     focus(layer.opener);
-    layer.onClose(result, { navigating });
+    await layer.onClose(result, { navigating });
     layer.resolveClosed(true);
     return true;
   }
@@ -314,13 +314,14 @@
   };
 
   let modules = [], navigation = null, sequence = 0, updating = null, updateOverlay = null;
-  const positions = new Map();
+  const positions = new Map(), urlStates = new Set();
+  const registerUrlState = handler => { urlStates.add(handler); return () => urlStates.delete(handler); };
   let index = history.state?.adminDesignIndex ?? 0;
   let activeUrl = location.href;
   history.replaceState({ ...history.state, adminDesignIndex: index }, '', activeUrl);
   let travel = null, handlingPop = false;
   const fullLoad = url => location.assign(url);
-  async function disposePage() { for (const module of modules.reverse()) await module.dispose(); modules = []; drafts.clear(); refreshDirty(); }
+  async function disposePage() { urlStates.clear(); for (const module of modules.reverse()) await module.dispose(); modules = []; drafts.clear(); refreshDirty(); }
   async function loadModules(doc) {
     const result = [];
     for (const script of doc.querySelectorAll('script[data-admin-page-script]')) {
@@ -734,15 +735,17 @@
         if (!await guard()) return;
         await goTo(target);
       }
+      for (const handler of urlStates) if (await handler(url, activeUrl)) { index = target; activeUrl = url; return; }
       await navigate(url, { mode: 'pop', targetIndex: target, check: false });
     } finally { handlingPop = false; }
   }
+  async function backUrl() { const target = index - 1; await goTo(target); index = target; activeUrl = location.href; }
   function setUrl(values, schema, { record = false } = {}) {
     const url = new URL(location.href); url.search = query.build(values, schema);
     if (record) index++;
     history[record ? 'pushState' : 'replaceState']({ adminDesignIndex: index }, '', url); activeUrl = url.href;
   }
-  const api = window.AdminUI = { template, trapTab, openLayer, closeLayer, closeMenu, confirm, confirmDiscard, toast, busy, reducedMotion, registerDraft, trackForm, refreshDirty, guard, query, setUrl, navigate, update, refreshContext };
+  const api = window.AdminUI = { template, trapTab, openLayer, closeLayer, closeMenu, confirm, confirmDiscard, toast, busy, reducedMotion, registerDraft, trackForm, refreshDirty, guard, query, setUrl, backUrl, registerUrlState, navigate, update, refreshContext };
   document.addEventListener('submit', event => { if (event.target.matches('[data-shell-language]')) { event.preventDefault(); void changeLanguage(event.target, event.submitter); } });
   document.addEventListener('input', refreshDirty);
   document.addEventListener('change', refreshDirty);

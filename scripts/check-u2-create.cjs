@@ -5,7 +5,7 @@ const {comparator,settle}=require('./lib/admin-parity-compare.cjs');
 const root=process.cwd(),output=path.join(root,'artifacts/u2-create');
 const P=(name,selector,options={})=>[name,selector,selector,{required:true,box:{x:1,y:1,width:1,height:1},...options}];
 (async()=>{
- const dollarName="Dollars $& $$ $' $`";const fixture=await startFixture(root,output,{BINGO_PARITY_DOLLAR_NAME:dollarName}),results=[];let browser;
+ const dollarName="Literal {1} $& $$ $' $`";const fixture=await startFixture(root,output,{BINGO_PARITY_DOLLAR_NAME:dollarName}),results=[];let browser;
  try{
   for(const engine of(process.env.BINGO_PARITY_ENGINES||'chromium,webkit').split(',')){
    browser=await(engine==='webkit'?webkit.launch({headless:true}):chromium.launch({headless:true,channel:process.env.PLAYWRIGHT_CHANNEL||'chromium'}));
@@ -13,7 +13,7 @@ const P=(name,selector,options={})=>[name,selector,selector,{required:true,box:{
    const app=await login(context,fixture),ref=await referencePage(refContext,fixture,root,'Events.dc.html'),errors=[],responses=[];
    app.on('response',r=>{if(r.url().includes('/Admin/Events/Create')||r.url().includes('/Account/Login'))responses.push({url:r.url(),status:r.status()});});
    app.on('pageerror',e=>errors.push(e.message));app.setDefaultTimeout(10000);
-   await app.goto(fixture.origin+'/Admin/Events');await app.waitForFunction(()=>window.AdminUI&&document.querySelector('[data-events-directory]'));
+   await app.goto(fixture.origin+'/Admin');await app.waitForFunction(()=>window.AdminUI);await app.evaluate(()=>AdminUI.navigate('/Admin/Events'));await app.waitForFunction(()=>window.AdminUI&&document.querySelector('[data-events-directory]'));
    const open=async()=>{await app.locator('[data-create-event]').first().click();await app.locator('#cm-name').waitFor();};
    await open();assert.equal(new URL(app.url()).searchParams.get('create'),'1');
    await ref.evaluate(()=>new Promise(resolve=>window.__parityReference.setState({create:{name:'',tz:'Europe/Copenhagen',key:'parity',status:'idle',showErrors:false}},resolve)));
@@ -25,16 +25,23 @@ const P=(name,selector,options={})=>[name,selector,selector,{required:true,box:{
     await compare(engine+'-'+width+'-'+theme,app,ref,pairs);
    }
    await app.setViewportSize({width:1440,height:1000});
-   const closeLength=await app.evaluate(()=>history.length),closeRequests=[];
-   app.on('request',r=>{if(r.resourceType()==='document')closeRequests.push(r.url());});
-   await app.evaluate(()=>window.directoryBeforeClose=document.querySelector('[data-events-directory]'));
+   const closeLength=await app.evaluate(()=>history.length),closeState=await app.evaluate(()=>history.state.adminDesignIndex),closeRequests=[];
+   app.on('request',r=>{if(r.url().startsWith(fixture.origin+'/Admin'))closeRequests.push(r.url());});
+   await app.evaluate(()=>{window.directoryBeforeClose=document.querySelector('[data-events-directory]');window.closeFetches=0;window.closeSwaps=0;const fetch=window.fetch;window.fetch=(...args)=>{closeFetches++;return fetch(...args);};document.addEventListener('admin:page-changed',()=>closeSwaps++);});
    await app.locator('.m-scrim').click({position:{x:5,y:5},force:true});await app.locator('#cm-name').waitFor({state:'detached'});
-   assert.equal(new URL(app.url()).searchParams.has('create'),false);
-   assert.equal(await app.evaluate(()=>history.length),closeLength,'close only replaces URL');
-   assert.equal(closeRequests.length,0,'close does not navigate');
+   await app.waitForFunction(()=>!new URL(location.href).searchParams.has('create'));
+   assert.equal(await app.evaluate(()=>history.state.adminDesignIndex),closeState-1,'close consumes pushed Create entry');
+   assert.equal(await app.evaluate(()=>history.length),closeLength,'Back does not add or remove history entries');
+   assert.equal(closeRequests.length,0,'close sends no HTTP request');
+   assert.deepEqual(await app.evaluate(()=>({fetches:closeFetches,swaps:closeSwaps})),{fetches:0,swaps:0});
    assert.equal(await app.evaluate(()=>document.querySelector('[data-events-directory]')===window.directoryBeforeClose),true);
    assert.equal(await app.locator('[data-page-skeleton]').count(),0);
-   await app.goBack();await app.locator('[data-events-directory]').waitFor();assert.equal(await app.locator('#cm-name').count(),0,'Back after close stays closed');
+   await app.goForward();await app.locator('#cm-name').waitFor();assert.deepEqual(await app.evaluate(()=>({fetches:closeFetches,swaps:closeSwaps})),{fetches:0,swaps:0});
+   await app.locator('#cm-cancel').click();await app.waitForFunction(()=>!new URL(location.href).searchParams.has('create'));
+   assert.equal(await app.evaluate(()=>history.state.adminDesignIndex),closeState-1);
+   assert.deepEqual(await app.evaluate(()=>({fetches:closeFetches,swaps:closeSwaps})),{fetches:0,swaps:0});
+   await app.goBack();await app.locator('[data-dashboard]').waitFor();assert.equal(await app.locator('#cm-name').count(),0,'one Back after close leaves Events');
+   await app.evaluate(()=>AdminUI.navigate('/Admin/Events'));await app.locator('[data-events-directory]').waitFor();
    await open();
    await app.locator('#cm-submit').focus();await app.keyboard.press('Tab');assert.equal(await app.locator('#cm-name').evaluate(e=>e===document.activeElement),true,'shared keyboard trap wraps to name');
    await app.locator('#cm-submit').click();assert.equal(await app.locator('#cm-name').getAttribute('aria-invalid'),'true');assert.equal(await app.locator('#cm-name').evaluate(e=>e===document.activeElement),true);
@@ -46,7 +53,7 @@ const P=(name,selector,options={})=>[name,selector,selector,{required:true,box:{
    await app.locator('#cm-name').fill('autumn bingo 2027');assert.match(await app.locator('#cm-name-dup').textContent(),/already exists/);
    await app.keyboard.press('Escape');await app.getByRole('alertdialog').waitFor();await app.getByRole('button',{name:'Keep editing',exact:true}).click();assert.equal(await app.locator('#cm-name').inputValue(),'autumn bingo 2027');
    await app.goBack();await app.getByRole('button',{name:'Discard',exact:true}).click();await app.locator('#cm-name').waitFor({state:'detached'});assert.equal(new URL(app.url()).searchParams.has('create'),false);
-   await app.goto(fixture.origin+'/Admin/Events/Create');await app.locator('#cm-name').waitFor();assert.equal(new URL(app.url()).searchParams.get('create'),'1');await app.locator('#cm-cancel').click();assert.equal(new URL(app.url()).searchParams.has('create'),false);
+   await app.goto(fixture.origin+'/Admin/Events/Create');await app.locator('#cm-name').waitFor();assert.equal(new URL(app.url()).searchParams.get('create'),'1');const direct=await app.evaluate(()=>({length:history.length,state:history.state.adminDesignIndex}));await app.evaluate(()=>{closeFetches=0;closeSwaps=0;window.directoryBeforeClose=document.querySelector('[data-events-directory]');});await app.locator('#cm-cancel').click();await app.waitForFunction(()=>!new URL(location.href).searchParams.has('create'));assert.deepEqual(await app.evaluate(()=>({length:history.length,state:history.state.adminDesignIndex})),direct);assert.deepEqual(await app.evaluate(()=>({fetches:closeFetches,swaps:closeSwaps})),{fetches:0,swaps:0});assert.equal(await app.evaluate(()=>document.querySelector('[data-events-directory]')===directoryBeforeClose),true);
    // No write is sent for an intercepted unknown outcome; readback404 unlocks a fresh key with values retained.
    await open();await app.locator('#cm-name').fill('Unknown retained draft');
    let sent,checkingKey,finishWrite;const waiting=new Promise(resolve=>finishWrite=resolve);
