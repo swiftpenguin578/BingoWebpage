@@ -1,4 +1,5 @@
 .tbl.ev-tbl{--table-cols:minmax(230px,1.5fr) 152px minmax(190px,1.1fr) minmax(170px,1fr) minmax(224px,1.3fr);--table-min:990px}
+.directory-fragments{display:contents}
 @media(max-width:640px){.tbl.ev-tbl{--table-cols:minmax(168px,1fr) 148px 188px 164px 214px;--table-min:900px}.ev-tbl .th.c-name,.ev-tbl .td.c-name{padding-left:16px}}
 .ev-tbl .row.is-cancelled .td-dates .cell-main{color:var(--dk-text-3)}
 .ev-tbl .td .meter{max-width:100%}

@@ -25,8 +25,10 @@
 }
 <div data-events-directory data-directory-canonical="@Model.DirectoryUrl(page: Model.PageNumber)" data-sort-announcement="@(Model.ActiveSort.Length == 0 ? "" : D["Sorted by {0}, {1}.", D[columns.Single(column => column.Item1 == Model.ActiveSort).Item2].Value, D[Model.ActiveSortDirection == "desc" ? "descending" : "ascending"].Value])">
 <span class="sr" aria-live="polite" data-sort-status></span>
+<div data-directory-banners class="directory-fragments">
 @if (Model.DroppedLinkParts) { <div class="banner is-info page-banner" role="status"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("info")' /><span class="grow">@D["Some parts of this link weren’t available and were cleared. The remaining filters still apply."]</span></div> }
 @if (Model.ActionProjectionUnavailable) { <div class="banner is-info page-banner" role="status"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("info")' /><span class="grow">@D["Some attention counts could not be loaded. Events are shown, but attention information may be incomplete."]</span><button type="button" class="btn btn-sm" data-directory-url="@Model.DirectoryUrl(page: Model.PageNumber)">@D["Try again"]</button></div> }
+</div>
 <div class="toolbar">
     <div class="tabs" role="radiogroup" aria-label="@D["Events view"]">
     @foreach (var (key, label, count) in views) {
@@ -35,9 +37,11 @@
     @if (Model.IsSuperAdmin) { <span class="tab-sep" aria-hidden="true"></span><label class="tab @(Model.ActiveView == "hidden" ? "is-on" : "")" title="@D["SuperAdmin only: quarantined events"]"><input class="sr" type="radio" name="view-tab" checked="@(Model.ActiveView == "hidden")" data-directory-url="@Model.DirectoryUrl(view: "hidden")"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("hidden")' /><span>@D["Hidden"]</span><span class="tab-count">@Model.HiddenCount</span></label> }
     </div>
     <div class="tbar-right">
+    <span data-directory-chips class="directory-fragments">
     @if (Model.ActiveAttention) { <button class="filter-chip" type="button" data-directory-url="@Model.DirectoryUrl(attention: false)" aria-label="@D["Remove filter: needs attention"]">@D["Needs attention"]<partial name="_AdminDesignIcon" model='new AdminDesignIcon("close")' /></button> }
+    </span>
     <div class="search @(Model.ActiveSearch.Length > 0 ? "has-clear" : "")"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("search")' /><input class="input" id="search-input" type="search" placeholder="@D["Search event names"]" aria-label="@D["Search event names"]" value="@Model.ActiveSearch" data-directory-search>
-    @if (Model.ActiveSearch.Length > 0) { <button class="icon-btn clear" type="button" data-directory-clear aria-label="@D["Clear search"]"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("close")' /></button> }
+    <button class="icon-btn clear" type="button" data-directory-clear hidden="@(Model.ActiveSearch.Length == 0)" aria-label="@D["Clear search"]"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("close")' /></button>
     </div>
     <button class="btn filter-btn @(Model.ActiveFilter != "all" ? "is-active" : "")" id="phase-btn" type="button" data-menu-target="directory-phase-menu" data-menu-align="end" aria-haspopup="menu" aria-expanded="false"><span class="fb-lbl">@D["Phase"]</span>@D[Model.ActiveFilter == "all" ? "All" : Model.StateOptions.Single(option => option.Value == Model.ActiveFilter).Label]<partial name="_AdminDesignIcon" model='new AdminDesignIcon("chevron-down")' /></button>
     <div class="menu" id="directory-phase-menu" role="menu" aria-label="@D["Filter by phase"]" hidden>
@@ -49,9 +53,10 @@
 <div class="tr th-row" role="row">
 @foreach (var (key, label, cls) in columns) {
     var next = Model.IsActiveSort(key) ? Model.NextSortDirection(key) : key is "attention" or "signups" ? "desc" : "asc";
-    <div class="th @cls @(Model.IsActiveSort(key) ? "is-sorted" : "")" role="columnheader" aria-sort="@Model.AriaSort(key)"><button class="th-btn" type="button" data-directory-url="@Model.DirectoryUrl(sort: key, direction: next)" aria-label="@D["Sort by {0}, {1}", D[label].Value, D[next == "desc" ? "descending" : "ascending"].Value]">@D[label]<svg class="ic sort-ic @(Model.IsActiveSort(key) ? Model.ActiveSortDirection == "asc" ? "is-asc" : "is-desc" : "")" viewBox="0 0 16 16"><path d="M4.5 10 8 6.5l3.5 3.5"/></svg></button></div>
+    <div class="th @cls @(Model.IsActiveSort(key) ? "is-sorted" : "")" role="columnheader" aria-sort="@Model.AriaSort(key)"><button class="th-btn" id="directory-sort-@key" type="button" data-directory-url="@Model.DirectoryUrl(sort: key, direction: next)" aria-label="@D["Sort by {0}, {1}", D[label].Value, D[next == "desc" ? "descending" : "ascending"].Value]">@D[label]<svg class="ic sort-ic @(Model.IsActiveSort(key) ? Model.ActiveSortDirection == "asc" ? "is-asc" : "is-desc" : "")" viewBox="0 0 16 16"><path d="M4.5 10 8 6.5l3.5 3.5"/></svg></button></div>
 }
 </div>
+<div data-directory-results>
 @if (Model.Events.Count > 0) {
 <div class="rows" role="rowgroup">
 @foreach (var item in Model.Events) {
@@ -81,9 +86,10 @@
 </div>
 }
 else { <div class="empty" role="row"><div role="cell" style="display:contents"><div class="empty-ic"><partial name="_AdminDesignIcon" model='new AdminDesignIcon(hasFilters ? "search" : Model.ActiveView == "hidden" ? "hidden" : "calendar")' /></div><div class="empty-title">@D[emptyTitle]</div><div class="empty-text">@D[emptyText]</div>@if (hasFilters) { <button type="button" class="btn" data-directory-url="@Model.DirectoryUrl(view: Model.ActiveView == "hidden" ? "hidden" : "all", phase: "all", search: "", attention: false)">@D["Clear filters"]</button> } else if (Model.ActiveView != "hidden" && (Model.VisibleCount == 0 || Model.ActiveView == "current")) { <a class="btn @(Model.VisibleCount == 0 ? "btn-primary" : "")" href="/Admin/Events/Create" data-create-event>@D["Create event"]</a> }</div></div> }
-</div></div>
+</div></div></div>
+<div data-directory-footer>
 @if (Model.TotalCount > 0) { <div class="tfoot"><div class="tfoot-left"><span class="tnum" aria-live="polite">@(Model.PageCount == 1 ? D["{0} events", Model.TotalCount] : D["{0}–{1} of {2} events", Model.FirstRow, Model.LastRow, Model.TotalCount])</span>@if (Model.ActiveSort.Length > 0) { <span class="tfoot-note">· @D["Sorted by {0}", D[columns.Single(column => column.Item1 == Model.ActiveSort).Item2].Value]</span><button type="button" class="btn btn-quiet btn-sm" data-directory-url="@Model.DirectoryUrl(sort: "", direction: "asc")">@D["Default order"]</button> }</div>@if (Model.PageCount > 1) { <nav class="pager" aria-label="@D["Pagination"]"><button type="button" class="pg" aria-label="@D["Previous page"]" disabled="@(Model.PageNumber == 1)" data-directory-url="@Model.DirectoryUrl(page: Model.PageNumber - 1)"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("chevron-left")' /></button>@for (var page = 1; page <= Model.PageCount; page++) { <button type="button" class="pg @(page == Model.PageNumber ? "is-current" : "")" aria-current="@(page == Model.PageNumber ? "page" : null)" aria-label="@D["Page {0}", page]" data-directory-url="@Model.DirectoryUrl(page: page)">@(page)</button> }<button type="button" class="pg" aria-label="@D["Next page"]" disabled="@(Model.PageNumber == Model.PageCount)" data-directory-url="@Model.DirectoryUrl(page: Model.PageNumber + 1)"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("chevron-right")' /></button></nav> }</div> }
-</div></div>
+</div></div></div>
 <partial name="_AdminEventCreateTemplate" model="Model" />
 @section Styles { <link rel="stylesheet" href="~/css/admin-design-events.css" asp-append-version="true" data-admin-page-style /> }
 @section Scripts { <script type="module" src="~/js/admin-events.js" asp-append-version="true" data-admin-page-script></script> }
