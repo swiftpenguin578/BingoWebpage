@@ -423,6 +423,8 @@
     const head = loadingHeads.get(kind)?.cloneNode(true).firstElementChild || main.querySelector('.page-head')?.cloneNode(true);
     if (head) {
       head.hidden = false; head.inert = false; head.removeAttribute('aria-hidden');
+      // A fallback header supplies a title, never the previous page's actions.
+      if (!loadingHeads.has(kind)) [...head.children].slice(1).forEach(element => element.remove());
       head.querySelectorAll('[id]').forEach(element => element.removeAttribute('id'));
       const summary = head.querySelector('[data-summary-template]');
       if (summary) summary.textContent = summary.dataset.summaryTemplate.replace('{0}', document.querySelector('.ev-name')?.textContent || '');
@@ -536,6 +538,7 @@
         history.pushState({ adminDesignIndex: index }, '', url);
       }
       else if (mode === 'pop') index = targetIndex;
+      else if (mode === 'replace') history.replaceState({ ...history.state, adminDesignIndex: index }, '', url);
       activeUrl = url;
       await initModules(nextModules);
       if (language) {

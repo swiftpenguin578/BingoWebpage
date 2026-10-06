@@ -210,4 +210,36 @@
   <data name="Leave before checking?" xml:space="preserve"><value>Forlad dialogen uden at tjekke?</value></data>
   <data name="Leave anyway" xml:space="preserve"><value>Forlad alligevel</value></data>
   <data name="The event may already have been created. Check again before creating another event. Leaving closes this dialog; it does not undo a creation." xml:space="preserve"><value>Eventet kan allerede være oprettet. Tjek igen, før du opretter et nyt event. Når du forlader dialogen, lukkes den; det fortryder ikke en oprettelse.</value></data>
+  <data name="Events that have gone Live, including any awaiting final review." xml:space="preserve"><value>Events, der er startet Live, herunder dem, der afventer afsluttende gennemgang.</value></data>
+  <data name="Counted by website account, tracked since {0}." xml:space="preserve"><value>Talt efter hjemmesidekonto, fulgt siden {0}.</value></data>
+  <data name=" Imported participants aren’t linked to accounts, so they aren’t included." xml:space="preserve"><value> Importerede deltagere er ikke knyttet til konti og tælles derfor ikke med.</value></data>
+  <data name="Imported participants aren’t linked to website accounts, so they can’t be counted as unique people." xml:space="preserve"><value>Importerede deltagere er ikke knyttet til hjemmesidekonti og kan derfor ikke tælles som unikke personer.</value></data>
+  <data name="Platform events only." xml:space="preserve"><value>Kun platformevents.</value></data>
+  <data name=" Reconstructed records from the imported event are excluded." xml:space="preserve"><value> Rekonstruerede poster fra det importerede event er udeladt.</value></data>
+  <data name=" {0} are from an event still in final review and may change." xml:space="preserve"><value> {0} er fra et event, der stadig er til afsluttende gennemgang, og kan ændre sig.</value></data>
+  <data name="The imported event has no evidence submissions." xml:space="preserve"><value>Det importerede event har ingen indsendt dokumentation.</value></data>
+  <data name="no platform events yet" xml:space="preserve"><value>ingen platformevents endnu</value></data>
+  <data name="platform events only" xml:space="preserve"><value>kun platformevents</value></data>
+  <data name="across {0} event" xml:space="preserve"><value>på tværs af {0} event</value></data>
+  <data name="across {0} events" xml:space="preserve"><value>på tværs af {0} events</value></data>
+  <data name="{0}: {1} players, imported, not linked to website accounts." xml:space="preserve"><value>{0}: {1} spillere, importeret, ikke knyttet til hjemmesidekonti.</value></data>
+  <data name="{0}: {1} players, all first tracked." xml:space="preserve"><value>{0}: {1} spillere, alle fulgt for første gang.</value></data>
+  <data name="{0}: {1} players, {2} returning, {3} first time." xml:space="preserve"><value>{0}: {1} spillere, {2} tilbagevendende, {3} for første gang.</value></data>
+  <data name="Provisional, awaiting final review." xml:space="preserve"><value>Foreløbigt, afventer afsluttende gennemgang.</value></data>
+  <data name="Wise Old Man wasn’t linked to this event." xml:space="preserve"><value>Wise Old Man var ikke knyttet til dette event.</value></data>
+  <data name="Not available for imported history: contributions were reconstructed, not submitted." xml:space="preserve"><value>Ikke tilgængeligt for importeret historik: bidragene blev rekonstrueret, ikke indsendt.</value></data>
+  <data name="Participation, results and history appear here once the first event has ended." xml:space="preserve"><value>Deltagelse, resultater og historik vises her, når det første event er afsluttet.</value></data>
+  <data name="Each person counted once per event." xml:space="preserve"><value>Hver person tælles én gang pr. event.</value></data>
+  <data name="Tracking by website account starts with {0}; returning means they played an earlier tracked event." xml:space="preserve"><value>Sporing efter hjemmesidekonto starter med {0}; tilbagevendende betyder, at de spillede i et tidligere sporet event.</value></data>
+  <data name="Tracking by website account starts with {0}; returning players appear from the next tracked event." xml:space="preserve"><value>Sporing efter hjemmesidekonto starter med {0}; tilbagevendende spillere vises fra det næste sporede event.</value></data>
+  <data name="Imported history. Players aren’t linked to website accounts, so they aren’t split into returning and first time." xml:space="preserve"><value>Importeret historik. Spillerne er ikke knyttet til hjemmesidekonti og opdeles derfor ikke i tilbagevendende og første gang.</value></data>
+  <data name="Tracked history starts here, so there’s no earlier event to return from." xml:space="preserve"><value>Den sporede historik starter her, så der er intet tidligere event at vende tilbage fra.</value></data>
+  <data name="Ended {0} · awaiting final review. Figures may still change." xml:space="preserve"><value>Afsluttet {0} · afventer afsluttende gennemgang. Tallene kan stadig ændre sig.</value></data>
+  <data name=" · {0}% returning" xml:space="preserve"><value> · {0}% tilbagevendende</value></data>
+  <data name="Imported history has no evidence submissions; its contributions were reconstructed." xml:space="preserve"><value>Importeret historik har ingen indsendt dokumentation; bidragene blev rekonstrueret.</value></data>
+  <data name="{0} of {1} accounts · Wise Old Man" xml:space="preserve"><value>{0} af {1} konti · Wise Old Man</value></data>
+  <data name=" (frozen)" xml:space="preserve"><value> (frosset)</value></data>
+  <data name="Ended {0}" xml:space="preserve"><value>Afsluttet {0}</value></data>
+  <data name="Participation by event appears once a second event has been held." xml:space="preserve"><value>Deltagelse pr. event vises, når der er afholdt endnu et event.</value></data>
+  <data name="The latest event is still in final review, so its figures are provisional." xml:space="preserve"><value>Det seneste event er stadig til endelig gennemgang, så tallene er foreløbige.</value></data>
 </root>

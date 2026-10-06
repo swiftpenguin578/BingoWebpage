@@ -2,6 +2,7 @@
 @model Bingo.Web.Pages.Admin.IndexModel
 @using Bingo.Application.Dashboard
 @using Bingo.Domain.Events
+@using System.Text.Json
 @inject IStringLocalizer<AdminCommunityResource> D
 @{
     ViewData["Title"] = "Dashboard";
@@ -10,12 +11,19 @@
     var stats = data.Statistics;
     var firstTracked = data.Chart.FirstOrDefault(point => point.TrackingStarts);
     var latest = data.Chart.LastOrDefault();
+    var platformCount = data.History.Count(row => !row.IsHistoricalImport);
+    var hasImported = data.History.Any(row => row.IsHistoricalImport);
+    var reviewApproved = data.History.Where(row => row.State == EventState.AwaitingFinalReview && row.ApprovedSubmissions.IsAvailable).Sum(row => row.ApprovedSubmissions.Value);
+    var approvedHint = platformCount == 0 ? Model.L("The imported event has no evidence submissions.")
+        : !stats.ApprovedSubmissions.IsAvailable ? Model.L("Published board approval or a usable event interval is unavailable.")
+        : Model.L("Platform events only.") + (hasImported ? Model.L(" Reconstructed records from the imported event are excluded.") : "")
+            + (reviewApproved > 0 ? Model.L(" {0} are from an event still in final review and may change.", reviewApproved) : "");
     var noDates = data.History.Any(row => row.ActualStartedAt is null || (row.State != EventState.Live && row.ActualEndedAt is null));
     var statRows = new[] {
-        (Label: "Events held", Metric: stats.EventsHeld, Note: stats.ProvisionalEvents > 0 ? Model.L("{0} live or awaiting final review", stats.ProvisionalEvents) : Model.L("since {0}", Model.Month(data.Chart.FirstOrDefault()?.ActualStartedAt)), Hint: Model.L("Events that have gone Live, including Live and final review. Figures may still change."), Delta: ""),
-        (Label: "Unique participants", Metric: stats.UniqueWebsiteParticipants, Note: firstTracked is null ? Model.L("not tracked yet") : Model.L("tracked since {0}", firstTracked.EventName), Hint: noDates ? Model.L("A usable actual lifecycle interval is unavailable. Unknown is not zero.") : Model.L("Counted by website account. Imported participants are not linked to accounts and are excluded."), Delta: firstTracked is not null && latest is { TrackingStarts: false, IsHistoricalImport: false } && stats.LatestNewParticipants.IsAvailable ? "+" + Bingo.Web.Pages.Admin.IndexModel.Value(stats.LatestNewParticipants) : ""),
+        (Label: "Events held", Metric: stats.EventsHeld, Note: stats.ProvisionalEvents > 0 ? Model.L("{0} live or awaiting final review", stats.ProvisionalEvents) : Model.L("since {0}", Model.Month(data.Chart.FirstOrDefault()?.ActualStartedAt, data.Chart.FirstOrDefault()?.Timezone)), Hint: Model.L("Events that have gone Live, including any awaiting final review.") + (stats.Provisional ? " " + Model.L("Figures are provisional and may still change.") : ""), Delta: ""),
+        (Label: "Unique participants", Metric: stats.UniqueWebsiteParticipants, Note: firstTracked is null ? Model.L("not tracked yet") : Model.L("tracked since {0}", firstTracked.EventName), Hint: noDates ? Model.L("A usable actual lifecycle interval is unavailable. Unknown is not zero.") : firstTracked is null ? Model.L("Imported participants aren’t linked to website accounts, so they can’t be counted as unique people.") : Model.L("Counted by website account, tracked since {0}.", firstTracked.EventName) + (hasImported ? Model.L(" Imported participants aren’t linked to accounts, so they aren’t included.") : ""), Delta: firstTracked is not null && latest is { TrackingStarts: false, IsHistoricalImport: false } && stats.LatestNewParticipants.IsAvailable ? "+" + Bingo.Web.Pages.Admin.IndexModel.Value(stats.LatestNewParticipants) : ""),
         (Label: "Total participations", Metric: stats.EventParticipations, Note: Model.L("each person once per event"), Hint: noDates ? Model.L("A usable actual lifecycle interval is unavailable. Unknown is not zero.") : Model.L("Players summed across every event held, including imported history. Each person counts once per event."), Delta: data.Chart.Count > 1 && latest is { Participants.IsAvailable: true } ? "+" + Bingo.Web.Pages.Admin.IndexModel.Value(latest.Participants) : ""),
-        (Label: "Approved submissions", Metric: stats.ApprovedSubmissions, Note: stats.ApprovedSubmissions.IsAvailable ? Model.L("measured evidence only") : Model.L("not available"), Hint: stats.ApprovedSubmissions.IsAvailable ? Model.L("Approved evidence submissions. Reconstructed imported contributions are excluded.") : data.History.All(row => row.IsHistoricalImport) ? Model.L("Imported history has no measured evidence submissions; its contributions were reconstructed.") : Model.L("Published board approval or a usable event interval is unavailable."), Delta: data.History.Count(row => !row.IsHistoricalImport) > 1 && stats.LatestNewApprovedSubmissions.IsAvailable ? "+" + Bingo.Web.Pages.Admin.IndexModel.Value(stats.LatestNewApprovedSubmissions) : "")
+        (Label: "Approved submissions", Metric: stats.ApprovedSubmissions, Note: platformCount == 0 ? Model.L("no platform events yet") : !stats.ApprovedSubmissions.IsAvailable ? Model.L("not available") : hasImported ? Model.L("platform events only") : Model.L(platformCount == 1 ? "across {0} event" : "across {0} events", platformCount), Hint: approvedHint, Delta: data.History.Count(row => !row.IsHistoricalImport) > 1 && stats.LatestNewApprovedSubmissions.IsAvailable ? "+" + Bingo.Web.Pages.Admin.IndexModel.Value(stats.LatestNewApprovedSubmissions) : "")
     };
     var chartMax = data.Chart.Select(point => point.Participants.Value).DefaultIfEmpty().Max();
     var chartStep = chartMax > 150 ? 50 : 25;
@@ -31,7 +39,7 @@
     @if (data.CurrentEvent is { } card)
     {
         <div class="next-event" aria-label="@D[card.State == EventState.Live ? "Current event" : "Next event"]">
-            <div class="grow"><div class="next-label">@D[card.State == EventState.Live ? "Current event" : "Next event"]</div><div class="next-name">@card.EventName</div><div class="next-meta"><span class="dot @(card.State == EventState.Live ? "tone-live" : "tone-draft")"></span>@Model.Phase(card.State) · @Model.NextDate(card)</div></div>
+            <div class="grow"><div class="next-label">@D[card.State == EventState.Live ? "Current event" : "Next event"]</div><div class="next-name">@card.EventName</div><div class="next-meta"><span class="dot @(card.State == EventState.Live ? "tone-live" : card.State == EventState.SignupOpen ? "tone-open" : "tone-draft")"></span>@Model.Phase(card.State) · @Model.NextDate(card)</div></div>
             @if (card.Capacity is { } cap)
             {
                 <div class="meter" title="@D["{0} of {1} places filled", card.ConfirmedParticipants, cap]"><div class="meter-track" style="--meter-w:56px"><div class="meter-fill" style="width:@(Bingo.Web.Pages.Admin.IndexModel.Percent(cap > 0 ? Math.Min(1m, (decimal)card.ConfirmedParticipants / cap) : 0))%"></div></div><span class="meter-label">@card.ConfirmedParticipants/@cap</span></div>
@@ -41,11 +49,11 @@
         </div>
     }
 }
-<div data-dashboard data-sort-announcement="@D["Sorted by {0}, {1}.", D[columns.Single(column => column.Item1 == Model.Sort).Item2].Value, D[Model.Descending ? "descending" : "ascending"].Value]">
+<div data-dashboard data-history-orders="@JsonSerializer.Serialize(Model.HistoryOrders)" data-sort-template="@D["Sorted by {0}, {1}."]" data-sort-ascending="@D["ascending"]" data-sort-descending="@D["descending"]" data-sort-announcement="@D["Sorted by {0}, {1}.", D[columns.Single(column => column.Item1 == Model.Sort).Item2].Value, D[Model.Descending ? "descending" : "ascending"].Value]">
 <span class="sr" aria-live="polite" data-sort-status></span>
 @if (data.History.Count == 0)
 {
-    <div class="card fade-in"><div class="empty"><div class="empty-ic"><svg class="ic" viewBox="0 0 16 16"><path d="M2.5 13.5h11M4.5 11V8M8 11V4.5M11.5 11V6.5"/></svg></div><div class="empty-title">@D["No events have been held yet"]</div><div class="empty-text">@D["Participation and history appear once the first event goes Live."]</div><a class="btn" href="/Admin/Events">@D["Go to Events"]</a></div></div>
+    <div class="card fade-in"><div class="empty"><div class="empty-ic"><svg class="ic" viewBox="0 0 16 16"><path d="M2.5 13.5h11M4.5 11V8M8 11V4.5M11.5 11V6.5"/></svg></div><div class="empty-title">@D["No events have been held yet"]</div><div class="empty-text">@D["Participation, results and history appear here once the first event has ended."]</div><a class="btn" href="/Admin/Events">@D["Go to Events"]</a></div></div>
 }
 else
 {
@@ -56,7 +64,7 @@ else
         <div class="stat"><div class="stat-label">@D[stat.Label]</div><div class="stat-value @(!stat.Metric.IsAvailable ? "is-empty" : "")" data-stat="@i">@Bingo.Web.Pages.Admin.IndexModel.Value(stat.Metric)</div><div class="stat-note">
         @if (stat.Delta.Length > 0) { <span class="stat-delta"><span class="stat-delta-fig"><svg class="ic" viewBox="0 0 16 16"><path d="M2.5 11.5 6.5 7.5l2.5 2.5 4.5-4.5M10 5.5h3.5V9"/></svg><b>@stat.Delta</b></span><span>@D[i == 1 ? "new in the latest event" : "from the latest event"]</span></span> }
         else { <span>@stat.Note</span> }
-        @{ var hint = stat.Hint + (stats.LatestContributionProvisional && i > 0 ? " " + D["Figures are provisional and may still change."].Value : ""); }
+        @{ var hint = stat.Hint + (stats.LatestContributionProvisional && stat.Delta.Length > 0 && i > 0 ? " " + D[latest?.State == EventState.Live ? "Figures are provisional and may still change." : "The latest event is still in final review, so its figures are provisional."].Value : ""); }
         <span class="hint @(i == 0 ? "tip-start" : i == 3 ? "tip-end" : "")" tabindex="0" aria-label="@hint"><svg class="hint-ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 7.2v3.8M8 5h.01"/></svg><span class="hint-tip" aria-hidden="true">@hint</span></span></div></div>
     }
     </div></section>
@@ -93,7 +101,7 @@ else
                 <div class="chart-x" aria-hidden="true">
                 @foreach (var point in data.Chart)
                 {
-                    <div class="chart-xlabel"><div class="chart-xname" title="@point.EventName">@point.EventName</div><div class="chart-xmeta">@point.ActualStartedAt?.ToString("MMM yyyy", CultureInfo.CurrentCulture)</div><div class="chart-xtiny">@point.ActualStartedAt?.ToString("MMM yy", CultureInfo.CurrentCulture)</div><div class="chart-xnote">
+                    <div class="chart-xlabel"><div class="chart-xname" title="@point.EventName">@point.EventName</div><div class="chart-xmeta">@Model.Month(point.ActualStartedAt, point.Timezone)</div><div class="chart-xtiny">@(point.ActualStartedAt is { } at ? DateTimePresentation.Format(at, "MMM ’yy", point.Timezone, CultureInfo.CurrentCulture) : Model.L("Not recorded"))</div><div class="chart-xnote">
                     @if (point.IsHistoricalImport || point.Provisional || point.TrackingStarts) { <span class="pill @(point.IsHistoricalImport ? "is-neutral" : point.Provisional ? "is-warning" : "")">@D[point.IsHistoricalImport ? "Imported" : point.Provisional ? "Provisional" : "Tracking starts"]</span> }
                     else if (point.Participants.Value > 0) { <span class="chart-xmeta">@Bingo.Web.Pages.Admin.IndexModel.Percent((decimal)point.ReturningWebsiteParticipants.Value / point.Participants.Value)% @D["Returning"].Value.ToLower(CultureInfo.CurrentCulture)</span> }
                     </div></div>
@@ -102,32 +110,33 @@ else
                 @for (var i = 0; i < data.Chart.Count; i++)
                 {
                     var point = data.Chart[i];
-                    <div class="chart-tip" id="tip-@i" role="tooltip" aria-hidden="true" data-chart-tip="@i"><div class="tip-title">@point.EventName</div><div class="tip-meta">@Model.Range(point.ActualStartedAt, point.ActualEndedAt) · @D["{0} teams", point.TeamCount]</div><div class="tip-rows"><div class="tip-row"><span>@D["Players"]</span><b>@Bingo.Web.Pages.Admin.IndexModel.Value(point.Participants)</b></div>
+                    <div class="chart-tip" id="tip-@i" role="tooltip" aria-hidden="true" data-chart-tip="@i"><div class="tip-title">@point.EventName</div><div class="tip-meta">@Model.Range(point.ActualStartedAt, point.ActualEndedAt, point.Timezone) · @D["{0} teams", point.TeamCount]</div><div class="tip-rows"><div class="tip-row"><span>@D["Players"]</span><b>@Bingo.Web.Pages.Admin.IndexModel.Value(point.Participants)</b></div>
                     @if (point.ReturningWebsiteParticipants.IsAvailable) { <div class="tip-row"><span class="tip-key s-1"></span><span>@D["Returning"]</span><b>@Bingo.Web.Pages.Admin.IndexModel.Value(point.ReturningWebsiteParticipants)</b></div><div class="tip-row"><span class="tip-key s-2"></span><span>@D["First time"]</span><b>@Bingo.Web.Pages.Admin.IndexModel.Value(point.NewWebsiteParticipants)</b></div><div class="tip-row"><span>@D["Returning share"]</span><b>@(point.Participants.Value == 0 ? "0" : Bingo.Web.Pages.Admin.IndexModel.Percent((decimal)point.ReturningWebsiteParticipants.Value / point.Participants.Value))%</b></div> }
                     </div>
-                    @if (point.IsHistoricalImport || point.TrackingStarts || point.Provisional) { <div class="tip-note">@D[point.IsHistoricalImport ? "Imported history. Players are not linked to website accounts." : point.Provisional ? "Figures are provisional and may still change." : "Tracked history starts here; there is no earlier event to return from."]</div> }
+                    @if (point.IsHistoricalImport || point.TrackingStarts || point.Provisional) { <div class="tip-note">@Model.ChartTipNote(point)</div> }
                     </div>
                 }
             </div>
-            <div class="panel-foot"><span class="panel-note">@D["Each person counted once per event. Returning means an earlier tracked event."]</span></div>
+            <div class="panel-foot"><span class="panel-note">@D["Each person counted once per event."] @if (firstTracked is not null) { @D[data.Chart.Any(point => point.ReturningWebsiteParticipants.IsAvailable) ? "Tracking by website account starts with {0}; returning means they played an earlier tracked event." : "Tracking by website account starts with {0}; returning players appear from the next tracked event.", firstTracked.EventName] }</span></div>
         </section>
     }
     @if (data.LatestEndedRecap is { } recap)
     {
         var history = data.History.Single(row => row.EventId == recap.EventId);
         var lastOfficial = data.History.FirstOrDefault(row => !row.Provisional && row.Winners.Count > 0);
+        var recapPoint = data.Chart.Single(point => point.EventId == recap.EventId);
         <section class="card panel fade-in recap @(data.Chart.Count < 2 ? "is-wide" : "")" aria-labelledby="recap-title">
         <div class="panel-head"><h2 class="panel-title" id="recap-title">@D["Latest event"]</h2><span class="badge @(recap.Provisional ? "badge-warning" : "badge-neutral")">@D[recap.Provisional ? "Provisional" : recap.IsHistoricalImport ? "Imported · archived" : "Finalized"]</span></div>
-        <div class="recap-name">@recap.EventName</div><div class="recap-when">@Model.Range(recap.ActualStartedAt, recap.ActualEndedAt)</div>
+        <div class="recap-name">@recap.EventName</div><div class="recap-when">@Model.Range(recap.ActualStartedAt, recap.ActualEndedAt, history.Timezone)</div>
         <div class="highlight @(recap.Provisional ? "is-muted" : "")"><div class="highlight-ic"><svg class="ic" viewBox="0 0 16 16">@if (recap.Provisional) { <circle cx="8" cy="8" r="5.5"/><path d="M8 5v3l2 1.5"/> } else { <path d="M5 2.5h6v3.5a3 3 0 0 1-6 0zM5 3.5H3v1a2 2 0 0 0 2 2M11 3.5h2v1a2 2 0 0 1-2 2M8 9v2.5M5.5 13.5h5M6.5 11.5h3"/> }</svg></div><div style="min-width:0;flex:1"><div class="highlight-label">@D[recap.Provisional ? "Results provisional" : "Winner"]</div><div class="highlight-value">@(recap.Provisional ? D["Final review in progress"].Value : Model.Winners(recap.Winners))</div><div class="highlight-sub">@(recap.Provisional ? lastOfficial is null ? D["The winner is shown once results are official."].Value : Model.L("Last official winner: {0} · {1}", Model.Winners(lastOfficial.Winners), lastOfficial.EventName) : Model.L("{0} teams competed", recap.TeamCount))</div></div>
         @if (recap.WinnerBoard is { } board) { <div class="meter" title="@D["Winner completed {0} of {1} tiles", board.CompletedTiles, board.TotalTiles]"><div class="meter-track" style="--meter-w:48px"><div class="meter-fill" style="width:@Bingo.Web.Pages.Admin.IndexModel.Percent(board.CompletionRatio)%"></div></div><span class="meter-label">@board.CompletedTiles/@board.TotalTiles</span></div> }
         </div>
         <dl class="facts">
-        <div class="fact"><dt class="fact-label">@D["Players"]</dt><dd class="fact-value">@Bingo.Web.Pages.Admin.IndexModel.Value(recap.Participants)<span class="fact-sub">@D["{0} teams", recap.TeamCount]</span></dd></div>
-        <div class="fact"><dt class="fact-label">@D["Approved submissions"]</dt><dd class="fact-value"><span class="hint tip-end" tabindex="0" aria-label="@Model.SubmissionHint(history)">@Bingo.Web.Pages.Admin.IndexModel.Value(recap.ApprovedSubmissions)<span class="hint-tip" aria-hidden="true">@Model.SubmissionHint(history)</span></span><span class="fact-sub">@D[!recap.ApprovedSubmissions.IsAvailable ? "not available" : recap.Provisional ? "may change in final review" : "measured evidence only"]</span></dd></div>
-        @if (history.Ehb.IsAvailable) { <div class="fact is-secondary"><dt class="fact-label">@D["EHB gained"]</dt><dd class="fact-value">@history.Ehb.Gain?.ToString("N0", CultureInfo.CurrentCulture)<span class="fact-sub">@Model.EhbHint(history)</span></dd></div> }
+        <div class="fact"><dt class="fact-label">@D["Players"]</dt><dd class="fact-value">@Bingo.Web.Pages.Admin.IndexModel.Value(recap.Participants)<span class="fact-sub">@D["{0} teams", recap.TeamCount]@if (recapPoint.ReturningWebsiteParticipants.IsAvailable) { @D[" · {0}% returning", Bingo.Web.Pages.Admin.IndexModel.Percent(recap.Participants.Value == 0 ? 0m : (decimal)recapPoint.ReturningWebsiteParticipants.Value / recap.Participants.Value)] }</span></dd></div>
+        <div class="fact"><dt class="fact-label">@D["Approved submissions"]</dt><dd class="fact-value">@if (!recap.ApprovedSubmissions.IsAvailable) { <span class="hint tip-end" tabindex="0" aria-label="@(recap.IsHistoricalImport ? D["Imported history has no evidence submissions; its contributions were reconstructed."].Value : Model.SubmissionHint(history))">—<span class="hint-tip" aria-hidden="true">@(recap.IsHistoricalImport ? D["Imported history has no evidence submissions; its contributions were reconstructed."].Value : Model.SubmissionHint(history))</span></span> } else { @Bingo.Web.Pages.Admin.IndexModel.Value(recap.ApprovedSubmissions) }<span class="fact-sub">@(recap.ApprovedSubmissions.IsAvailable ? recap.Provisional ? D["may change in final review"].Value : "" : D["not available"].Value)</span></dd></div>
+        @if (history.Ehb.IsAvailable) { <div class="fact is-secondary"><dt class="fact-label">@D["EHB gained"]</dt><dd class="fact-value">@history.Ehb.Gain?.ToString("N0", CultureInfo.CurrentCulture)<span class="fact-sub">@D["{0} of {1} accounts · Wise Old Man", history.Ehb.MatchedAccounts, history.Ehb.ExpectedAccounts]@(history.IsHistoricalImport ? D[" (frozen)"].Value : "")</span></dd></div> }
         </dl>
-        <div class="panel-foot"><span class="panel-note">@D[recap.Provisional ? "Final review in progress" : recap.IsHistoricalImport ? "Imported history · attribution reconstructed" : "Finalized results"]</span><a class="btn btn-quiet btn-sm" href="@recap.OverviewPath">@D["Open event"]<svg class="ic" viewBox="0 0 16 16"><path d="M6 4l4 4-4 4"/></svg></a></div>
+        <div class="panel-foot"><span class="panel-note">@(recap.Provisional ? Model.L("Ended {0}", DateTimePresentation.Format(recap.ActualEndedAt, "d MMM", history.Timezone, CultureInfo.CurrentCulture)) : D[recap.IsHistoricalImport ? "Imported history · attribution reconstructed" : "Finalized results"].Value)</span>@if (data.Chart.Count < 2) { <span class="panel-note">@D["Participation by event appears once a second event has been held."]</span> }<a class="btn btn-quiet btn-sm" href="@recap.OverviewPath">@D["Open event"]<svg class="ic" viewBox="0 0 16 16"><path d="M6 4l4 4-4 4"/></svg></a></div>
         </section>
     }
     else
@@ -139,18 +148,18 @@ else
     @foreach (var (field, label, cls) in columns)
     {
         var sorted = field == Model.Sort;
-        <div class="th @cls @(sorted ? "is-sorted" : "")" role="columnheader" aria-sort="@(sorted ? Model.Descending ? "descending" : "ascending" : "none")"><a class="th-btn" href="@Model.SortUrl(field)" data-dashboard-sort>@D[label]<svg class="ic sort-ic @(sorted ? Model.Descending ? "is-desc" : "is-asc" : "")" viewBox="0 0 16 16"><path d="M4.5 10 8 6.5l3.5 3.5"/></svg></a></div>
+        <div class="th @cls @(sorted ? "is-sorted" : "")" role="columnheader" aria-sort="@(sorted ? Model.Descending ? "descending" : "ascending" : "none")"><a class="th-btn" href="@Model.SortUrl(field)" id="dashboard-sort-@field" data-dashboard-sort="@field">@D[label]<svg class="ic sort-ic @(sorted ? Model.Descending ? "is-desc" : "is-asc" : "")" viewBox="0 0 16 16"><path d="M4.5 10 8 6.5l3.5 3.5"/></svg></a></div>
     }
     </div><div class="rows" role="rowgroup">
     @foreach (var row in Model.History)
     {
         <div class="tr row" role="row" data-open-url="@row.OverviewPath" data-history-event="@row.EventId">
         <div class="td c-name" role="cell"><div class="name-line"><a class="name-btn" title="@row.EventName" href="@row.OverviewPath">@row.EventName</a>
-        @if (row.IsHistoricalImport || row.Provisional) { <span class="pill @(row.IsHistoricalImport ? "is-neutral" : "is-warning")">@D[row.IsHistoricalImport ? "Imported" : row.State == EventState.Live ? "Live · provisional" : "Final review"]</span> }</div><div class="sub">@Model.Range(row.ActualStartedAt, row.ActualEndedAt)</div></div>
-        <div class="td num" role="cell"><span class="hint tip-end" tabindex="0" aria-label="@D["{0} teams", row.TeamCount]">@Bingo.Web.Pages.Admin.IndexModel.Value(row.Participants)<span class="hint-tip" aria-hidden="true">@D["{0} teams", row.TeamCount]</span></span></div>
-        <div class="td num" role="cell"><span class="hint tip-end @(!row.ApprovedSubmissions.IsAvailable ? "muted" : "")" tabindex="0" aria-label="@Model.SubmissionHint(row)">@Bingo.Web.Pages.Admin.IndexModel.Value(row.ApprovedSubmissions)<span class="hint-tip" aria-hidden="true">@Model.SubmissionHint(row)</span></span></div>
+        @if (row.IsHistoricalImport || row.Provisional) { <span class="pill @(row.IsHistoricalImport ? "is-neutral" : "is-warning")">@D[row.IsHistoricalImport ? "Imported" : row.State == EventState.Live ? "Live · provisional" : "Final review"]</span> }</div><div class="sub">@Model.Range(row.ActualStartedAt, row.ActualEndedAt, row.Timezone)</div></div>
+        <div class="td num" role="cell"><span class="hint tip-end" aria-label="@D["{0} teams", row.TeamCount]">@Bingo.Web.Pages.Admin.IndexModel.Value(row.Participants)<span class="hint-tip" aria-hidden="true">@D["{0} teams", row.TeamCount]</span></span></div>
+        <div class="td num" role="cell">@if (row.ApprovedSubmissions.IsAvailable) { @Bingo.Web.Pages.Admin.IndexModel.Value(row.ApprovedSubmissions) } else { <span class="hint tip-end muted" tabindex="0" aria-label="@Model.SubmissionHint(row)">—<span class="hint-tip" aria-hidden="true">@Model.SubmissionHint(row)</span></span> }</div>
         <div class="td" role="cell">@if (row.WinnerBoard is { } board) { <div class="meter"><div class="meter-track"><div class="meter-fill" style="width:@Bingo.Web.Pages.Admin.IndexModel.Percent(board.CompletionRatio)%"></div></div><span class="meter-label">@board.CompletedTiles/@board.TotalTiles @D["tiles"]</span></div> } else { var hint = D[row.Provisional ? "Shown once results are official." : "Not recorded."].Value; <span class="hint tip-start muted" tabindex="0" aria-label="@hint">—<span class="hint-tip" aria-hidden="true">@hint</span></span> }</div>
-        <div class="td num c-ehb" role="cell"><span class="hint tip-end @(!row.Ehb.IsAvailable ? "muted" : "")" tabindex="0" aria-label="@Model.EhbHint(row)">@(row.Ehb.IsAvailable ? row.Ehb.Gain?.ToString("N0", CultureInfo.CurrentCulture) : "—")<span class="hint-tip" aria-hidden="true">@Model.EhbHint(row)</span></span></div>
+        <div class="td num c-ehb" role="cell"><span class="hint tip-end muted" tabindex="0" aria-label="@Model.EhbHint(row)">@(row.Ehb.IsAvailable ? row.Ehb.Gain?.ToString("N0", CultureInfo.CurrentCulture) : "—")<span class="hint-tip" aria-hidden="true">@Model.EhbHint(row)</span></span></div>
         <div class="td" role="cell">@if (row.Provisional) { <span class="hint tip-end" tabindex="0" aria-label="@D["Official results are published after final review."]"><span class="pill is-warning">@D["Provisional"]</span><span class="hint-tip" aria-hidden="true">@D["Official results are published after final review."]</span></span> } else { <div class="cell-main">@Model.Winners(row.Winners)</div> }</div>
         </div>
     }

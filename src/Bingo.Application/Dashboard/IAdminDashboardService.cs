@@ -93,6 +93,7 @@ public sealed record DashboardParticipationPoint(
     public DashboardMetric<long> TotalParticipants => Participants;
     public bool IsHistoricalImport { get; init; }
     public bool TrackingStarts { get; init; }
+    public string Timezone { get; init; } = "Europe/Copenhagen";
     public int TeamCount { get; init; }
 }
 
@@ -112,6 +113,8 @@ public sealed record DashboardHistoryRow(
     DashboardEhbSummary Ehb,
     IReadOnlyList<DashboardWinner> Winners)
 {
+    public string Timezone { get; init; } = "Europe/Copenhagen";
+    public bool HasLinkedCompetition { get; init; }
     public DashboardMetric<long> Players => Participants;
     public DashboardMetric<long> Submissions => ApprovedSubmissions;
     public bool IsHistoricalImport { get; init; }

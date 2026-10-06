@@ -67,6 +67,26 @@ export function init(region, ui = window.AdminUI) {
     listen(bar, 'click', () => void ui.navigate(bar.dataset.openUrl));
   }
   listen(root, 'click', event => {
+    const sort = event.target.closest('[data-dashboard-sort]');
+    if (sort && event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) {
+      event.preventDefault();
+      const target = new URL(sort.href), field = sort.dataset.dashboardSort, direction = target.searchParams.get('direction');
+      const orders = JSON.parse(root.dataset.historyOrders), rows = root.querySelector('.tbl.hist .rows');
+      const byId = new Map([...rows.children].map(row => [row.dataset.historyEvent, row]));
+      rows.replaceChildren(...orders[field][direction === 'asc' ? 'Asc' : 'Desc'].map(id => byId.get(id)));
+      for (const control of root.querySelectorAll('[data-dashboard-sort]')) {
+        const selected = control === sort, column = control.closest('.th'), next = new URL(control.href);
+        column.classList.toggle('is-sorted', selected);
+        column.setAttribute('aria-sort', selected ? direction === 'asc' ? 'ascending' : 'descending' : 'none');
+        control.querySelector('.sort-ic').classList.toggle('is-asc', selected && direction === 'asc');
+        control.querySelector('.sort-ic').classList.toggle('is-desc', selected && direction === 'desc');
+        next.searchParams.set('direction', selected ? direction === 'asc' ? 'desc' : 'asc' : control.dataset.dashboardSort === 'Winner' ? 'asc' : 'desc');
+        control.href = next.href;
+      }
+      ui.setUrl({sort: field, direction}, {sort: {default: '', valid: () => true}, direction: {default: '', valid: () => true}});
+      root.querySelector('[data-sort-status]').textContent = root.dataset.sortTemplate.replace('{0}', () => sort.textContent.trim()).replace('{1}', () => direction === 'asc' ? root.dataset.sortAscending : root.dataset.sortDescending);
+      return;
+    }
     const row = event.target.closest('[data-history-event]');
     if (row && !event.target.closest('a,button,.hint')) void ui.navigate(row.dataset.openUrl);
   });

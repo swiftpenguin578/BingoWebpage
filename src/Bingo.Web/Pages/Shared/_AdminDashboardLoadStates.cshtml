@@ -1,11 +1,11 @@
 @inject IStringLocalizer<AdminCommunityResource> D
 <template data-page-header-template="dashboard">
-    <header class="page-head" data-page-family="dashboard"><div style="min-width:0"><h1 class="h1" tabindex="-1">@T["Dashboard"]</h1><p class="summary" aria-hidden="true"><span>&nbsp;</span></p></div>
+    <header class="page-head" data-page-family="dashboard" data-page-header-loading><div><h1 class="h1" tabindex="-1">@T["Dashboard"]</h1><p class="summary" aria-hidden="true"><span>&nbsp;</span></p></div>
     <div class="next-event" data-dashboard-loading-card aria-hidden="true"><div class="grow">
-        <div class="next-label" style="position:relative">&nbsp;<span class="sk" style="position:absolute;width:30%;top:5px"></span></div>
-        <div class="next-name" style="position:relative">&nbsp;<span class="sk" style="position:absolute;width:75%;top:5px"></span></div>
-        <div class="next-meta" style="position:relative">&nbsp;<span class="sk" style="position:absolute;width:55%;top:5px"></span></div>
-    </div><span class="sk" style="width:56px;height:6px;flex:none"></span><span class="sk" style="width:52px;height:28px;flex:none;border-radius:var(--dk-radius-xs)"></span></div>
+        <div class="next-label dash-sk-header-line">&nbsp;<span class="sk dash-sk-header-label"></span></div>
+        <div class="next-name dash-sk-header-line">&nbsp;<span class="sk dash-sk-header-name"></span></div>
+        <div class="next-meta dash-sk-header-line">&nbsp;<span class="sk dash-sk-header-meta"></span></div>
+    </div><span class="sk dash-sk-header-meter"></span><span class="sk dash-sk-header-open"></span></div>
     </header>
 </template>
 <template data-page-loading-template="dashboard" data-page-title="@T["Dashboard"]">

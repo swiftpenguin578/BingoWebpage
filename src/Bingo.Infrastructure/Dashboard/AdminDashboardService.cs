@@ -146,7 +146,7 @@ public sealed class AdminDashboardService(ApplicationDbContext db, TimeProvider 
             .ToDictionary(group => group.Key, group => group.Count());
         var points = BuildChart(populations, approvedCounts, teamCounts);
         var history = BuildHistory(dashboardEvents, populations, approvedCounts, ehb, finalizations, placements, publishedBoards,
-            approvalTiles, teamCounts);
+            approvalTiles, teamCounts, synchronizations);
         // Use the same chronological and stable tie order as the chart.
         var latestPoint = points.LastOrDefault();
         var measuredEvents = populations.Values.Where(value => value.HasUsableDates).ToArray();
@@ -524,6 +524,7 @@ public sealed class AdminDashboardService(ApplicationDbContext db, TimeProvider 
                 {
                     IsHistoricalImport = value.IsHistoricalImport,
                     TrackingStarts = trackingStarts,
+                    Timezone = value.Event.Timezone,
                     TeamCount = teamCounts.GetValueOrDefault(value.Event.Id)
                 });
             }
@@ -541,7 +542,8 @@ public sealed class AdminDashboardService(ApplicationDbContext db, TimeProvider 
         IReadOnlyList<OfficialPlacementSnapshot> placements,
         IReadOnlyList<Board> publishedBoards,
         IReadOnlyList<BoardApprovalTileSnapshot> approvalTiles,
-        IReadOnlyDictionary<Guid, int> teamCounts)
+        IReadOnlyDictionary<Guid, int> teamCounts,
+        IReadOnlyList<EventCompetitionSynchronization> synchronizations)
     {
         var rows = events.Select(item =>
         {
@@ -582,6 +584,8 @@ public sealed class AdminDashboardService(ApplicationDbContext db, TimeProvider 
                 ehb.GetValueOrDefault(item.Id) ?? new DashboardEhbSummary(null, DashboardEhbCoverage.Unavailable, 0, 0), winners)
             {
                 IsHistoricalImport = population.IsHistoricalImport,
+                Timezone = item.Timezone,
+                HasLinkedCompetition = synchronizations.Any(sync => sync.EventId == item.Id && sync.CompetitionId is not null),
                 TeamCount = teamCounts.GetValueOrDefault(item.Id)
             };
         }).ToList();

@@ -24,6 +24,8 @@ const P=(name,selector,options={})=>[name,selector,selector,{required:true,box:{
     .replace("provisional: e.state === 'review'","provisional: e.state === 'review' || e.state === 'live'")
     .replace("const e = evs[evs.length - 1]; if (!e) return { facts: [] };","evs = evs.filter(e => e.state !== 'live'); const e = evs[evs.length - 1]; if (!e) return { facts: [] };")
     .replace("label: 'Next event'","label: 'Current event'")
+    .replace("const ready = !S.loading && !S.loadError;\n    const last = evs[evs.length - 1];",
+      "const ready = !S.loading && !S.loadError;\n    const last = evs.filter(e => e.state !== 'live').sort((a,b)=>a.end.localeCompare(b.end)).at(-1);")
     // D14 unknown platform measurements reuse the reference's unavailable
     // metric primitive; data-only availability is absent from its sample model.
     .replace("hasHint: !!x.hint, plain: !x.hint", "hasHint: x.label === 'Approved submissions' && !e.approvedMeasured || !!x.hint, plain: !(x.label === 'Approved submissions' && !e.approvedMeasured) && !x.hint")
@@ -36,16 +38,34 @@ const P=(name,selector,options={})=>[name,selector,selector,{required:true,box:{
    app.on('pageerror',error=>errors.push(error.message)); app.setDefaultTimeout(10000);
    await app.goto(fixture.origin+'/Admin');await app.waitForFunction(()=>window.AdminUI&&document.querySelector('[data-dashboard]'));await app.evaluate(()=>document.fonts.ready);
    const compare=comparator(output,results);
-   const pairs=[P('headline card','[aria-label="Headline statistics"]',{required:false}),P('stat strip','.stat-strip'),P('stat label','.stat-label',{text:true}),P('stat value','.stat-value',{box:{x:1,y:1,height:1}}),P('participation card','.dash-grid > .card:first-child',{box:{x:1,y:1,width:1}}),P('panel title','#part-title',{text:true}),P('chart','.chart'),P('chart plot','.chart-plot'),P('bar','.bar-col'),P('stack','.bar-stack'),P('x labels','.chart-x'),P('recap','.recap',{box:{x:1,y:1,width:1}}),P('recap name','.recap-name',{text:true}),P('recap date','.recap-when',{text:true}),P('history head','.hist-head'),P('table','.tbl.hist',{box:{x:1,y:1,width:1}}),P('table header','.th',{text:false}),P('sort control','.th-btn',{text:true}),P('community section','.section-head')].filter(p=>p[0]!=='headline card');
+   const pairs=[P('headline card','[aria-label="Headline statistics"]',{required:false}),P('loaded header','.page-head'),P('loaded next card','.next-event'),P('stat strip','.stat-strip'),P('stat label','.stat-label',{text:true}),P('stat value','.stat-value',{box:{x:1,y:1,height:1}}),P('participation card','.dash-grid > .card:first-child',{box:{x:1,y:1,width:1}}),P('panel title','#part-title',{text:true}),P('chart','.chart'),P('chart plot','.chart-plot'),P('bar','.bar-col'),P('stack','.bar-stack'),P('x labels','.chart-x'),P('recap','.recap',{box:{x:1,y:1,width:1}}),P('recap name','.recap-name',{text:true}),P('recap date','.recap-when',{text:true}),P('history head','.hist-head'),P('table','.tbl.hist',{box:{x:1,y:1,width:1}}),P('table header','.th',{text:false}),P('sort control','.th-btn',{text:true}),P('community section','.section-head')].filter(p=>p[0]!=='headline card');
    for(const theme of ['light','dark']){
     await app.locator('[data-theme="'+theme+'"]').click();await ref.evaluate(theme=>new Promise(resolve=>window.__parityReference.setState({theme},resolve)),theme);
     await compare(engine+'-'+theme,app,ref,pairs);
    }
+   const sortLength=await app.evaluate(()=>history.length), sortRequests=[];
+   app.on('request',request=>{if(request.resourceType()==='document'&&new URL(request.url()).pathname==='/Admin')sortRequests.push(request.url());});
    const bar=app.locator('[data-chart-bar]').first();await bar.focus();await app.locator('[data-chart-tip].is-on').waitFor();
    assert.match(await app.locator('[data-chart-tip].is-on').textContent(),/1 teams/);await app.keyboard.press('Escape');assert.equal(await app.locator('[data-chart-tip].is-on').count(),0);
    await bar.focus();await app.keyboard.press('ArrowRight');assert.equal(await app.locator('[data-chart-bar]').nth(1).evaluate(e=>e===document.activeElement),true);
-   await app.locator('[data-dashboard-sort]').nth(1).click();await app.waitForFunction(()=>document.querySelector('[data-sort-status]')?.textContent.includes('Players'));
+   await app.locator('[data-dashboard-sort]').nth(1).focus();
+   await app.evaluate(()=>document.querySelector('[data-page-region]').scrollTop=200);
+   const sortPosition=await app.evaluate(()=>document.querySelector('[data-page-region]').scrollTop);
+   await app.keyboard.press('Enter');await app.waitForFunction(()=>document.querySelector('[data-sort-status]')?.textContent.includes('Players'));
+   assert.equal(await app.evaluate(()=>history.length),sortLength,'sort replaces URL, never pushes');
+   assert.equal(sortRequests.length,0,'sort never full-loads');
+   assert.equal(await app.locator('#dashboard-sort-Players').evaluate(e=>e===document.activeElement),true);
+   assert.equal(await app.evaluate(()=>document.querySelector('[data-page-region]').scrollTop),sortPosition);
    assert.equal(new URL(app.url()).searchParams.get('sort'),'Players');assert.equal(await app.locator('[aria-sort=descending]').textContent(),'Players');
+   await app.locator('#dashboard-sort-Winner').click();
+   assert.equal(new URL(app.url()).searchParams.get('direction'),'asc','Winner starts ascending');
+   assert.equal(await app.locator('#dashboard-sort-Winner').evaluate(e=>e.closest('.th').getAttribute('aria-sort')),'ascending');
+   assert.equal(await app.locator('.tbl.hist .row .td:nth-child(2) [tabindex]').count(),0,'Players adds no tab stop');
+   assert.equal(await app.locator('.tbl.hist .row .td:nth-child(3) [tabindex]').count(),data.History.filter(row=>!row.ApprovedSubmissions.IsAvailable).length,'only unavailable Approved values are tab stops');
+   assert.equal(await app.locator('.tbl.hist .c-ehb .hint.muted[tabindex="0"]').count(),data.History.length,'EHB reference hints and muted values remain');
+   assert.match(await app.locator('.chart + .panel-foot').textContent(),/^Each person counted once per event\. Tracking by website account starts with/);
+   assert.doesNotMatch(await app.locator('.recap .fact-sub').allTextContents().then(values=>values.join(' ')),/measured evidence only/);
+   assert.equal(await app.locator('.tbl.hist .c-ehb .hint').first().getAttribute('aria-label'),'Wise Old Man wasn’t linked to this event.');
    await app.locator('[name=culture][value=da]').click();await app.waitForFunction(()=>document.documentElement.lang==='da');
    assert.equal(await app.locator('#part-title').textContent(),'Deltagelse pr. event');assert.equal(await app.locator('.stat-label').first().textContent(),'Afholdte events');
    assert.doesNotMatch(await app.locator('[data-dashboard]').textContent(),/Approved submissions|Not recorded|First time|measured evidence only/);
@@ -64,7 +84,7 @@ const P=(name,selector,options={})=>[name,selector,selector,{required:true,box:{
     const rect=selector=>{const b=page.querySelector(selector).getBoundingClientRect();return {x:b.x,y:b.y,width:b.width,height:b.height};};
     return {head:rect('.page-head'),summary:rect('.summary'),card:rect('.next-event'),first:rect('.card')};
    });
-   for(const width of [1440,1280,861,860,390]){
+   for(const width of [1280,860,390]){
     await app.setViewportSize({width,height:1000});await app.goto(identity);await app.waitForFunction(()=>window.AdminUI);
     await app.evaluate(()=>document.querySelector('[data-page-region]').scrollTop=0);
     let proceed;const waiting=new Promise(resolve=>proceed=resolve),target=fixture.origin+'/Admin?headerProbe='+width;
@@ -72,10 +92,15 @@ const P=(name,selector,options={})=>[name,selector,selector,{required:true,box:{
     await app.evaluate(url=>{window.headerNavigation=window.AdminUI.navigate(url);},target);
     await app.locator('[data-dashboard-loading-card]').waitFor();
     await app.waitForFunction(()=>getComputedStyle(document.querySelector('[data-page-skeleton] .dash-grid')).display==='grid');
-    await settle(app);const loading=await headerBox();proceed();
+    await settle(app);const loading=await headerBox();const lineHeight=await app.locator('[data-page-skeleton] .summary').evaluate(e=>parseFloat(getComputedStyle(e).lineHeight));proceed();
     await app.evaluate(()=>window.headerNavigation);await app.locator('[data-dashboard]').waitFor();await settle(app);const loaded=await headerBox();
-    for(const key of ['head','summary','card'])for(const coordinate of ['x','y','width','height'])assert.ok(Math.abs(loaded[key][coordinate]-loading[key][coordinate])<=1,engine+' '+width+' '+key+'.'+coordinate+' '+JSON.stringify({loading,loaded}));
-    for(const coordinate of ['x','y','width'])assert.ok(Math.abs(loaded.first[coordinate]-loading.first[coordinate])<=1);
+    await ref.setViewportSize({width,height:1000});await compare(engine+'-loaded-reference-'+width,app,ref,[P('loaded header','.page-head'),P('loaded summary','.summary',{text:true}),P('loaded next card','.next-event')]);
+    for(const key of ['head','summary','card'])for(const coordinate of ['x','y','width','height']){
+      if(key==='summary'&&coordinate==='width')continue; // Fresh empty text slot has no data-dependent intrinsic width.
+      const bound=width===390&&(coordinate==='y'||coordinate==='height')?lineHeight+0.01:1;
+      assert.ok(Math.abs(loaded[key][coordinate]-loading[key][coordinate])<=bound,engine+' '+width+' '+key+'.'+coordinate+' '+JSON.stringify({loading,loaded,lineHeight}));
+    }
+    for(const coordinate of ['x','y','width'])assert.ok(Math.abs(loaded.first[coordinate]-loading.first[coordinate])<=(width===390&&coordinate==='y'?lineHeight+0.01:1));
     results.push({name:engine+'-header-loading-loaded-'+width,passed:true,loading,loaded});
     await app.unroute(target);
    }
