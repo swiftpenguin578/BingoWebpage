@@ -140,16 +140,14 @@ public sealed class AdminDashboardService(ApplicationDbContext db, TimeProvider 
         var populations = BuildPopulations(dashboardEvents, teams, participants, memberships, websiteAccountIds, importInfo, requestClock);
         var approvedCounts = BuildApprovedCounts(dashboardEvents, teams, boards, approvalTiles, approvalRequirements,
             approvalDrops, workingDrops, submissionRows, contributionRows, importInfo);
-        var ehb = BuildEhb(dashboardEvents, populations, teams, assignments, synchronizations, activities, memberships, participants, requestClock);
+        var ehb = BuildEhb(dashboardEvents, populations, assignments, synchronizations, activities, participants);
 
-        var points = BuildChart(populations, approvedCounts);
+        var teamCounts = teams.GroupBy(value => value.EventId).ToDictionary(group => group.Key, group => group.Count());
+        var points = BuildChart(populations, approvedCounts, teamCounts);
         var history = BuildHistory(dashboardEvents, populations, approvedCounts, ehb, finalizations, placements, publishedBoards,
-            approvalTiles);
-        var latestEvent = populations.Values.Where(value => value.HasUsableDates)
-            .OrderByDescending(value => value.Event.ActualStartedAt)
-            .ThenBy(value => value.Event.Id)
-            .FirstOrDefault();
-        var latestPoint = latestEvent is null ? null : points.Single(value => value.EventId == latestEvent.Event.Id);
+            approvalTiles, teamCounts);
+        // Use the same chronological and stable tie order as the chart.
+        var latestPoint = points.LastOrDefault();
         var measuredEvents = populations.Values.Where(value => value.HasUsableDates).ToArray();
         var hasUnusableDates = populations.Values.Any(value => !value.HasUsableDates);
         var linkedPeople = measuredEvents.SelectMany(value => value.WebsiteAccountIds).Distinct().LongCount();
@@ -165,11 +163,13 @@ public sealed class AdminDashboardService(ApplicationDbContext db, TimeProvider 
             : measuredEvents.Length == 0
             ? DashboardMetric<long>.Measured(0)
             : DashboardMetric<long>.Measured(measuredEvents.Sum(value => (long)value.People.Count));
+        var platformCounts = approvedCounts.Where(value => !importInfo.ContainsKey(value.Key)).Select(value => value.Value).ToArray();
+        var measuredApproved = approvedCounts.Values.Where(value => value.IsAvailable).ToArray();
         var approvedSubmissions = dashboardEvents.Length == 0
             ? DashboardMetric<long>.Measured(0)
-            : hasUnusableDates || approvedCounts.Values.Any(value => value.Availability == DashboardValueAvailability.Unavailable)
+            : hasUnusableDates || platformCounts.Any(value => !value.IsAvailable) || measuredApproved.Length == 0
                 ? DashboardMetric<long>.Unknown("Approved submission coverage is unavailable for part of the eligible history.")
-                : DashboardMetric<long>.Measured(approvedCounts.Values.Sum(value => value.Value));
+                : DashboardMetric<long>.Measured(measuredApproved.Sum(value => value.Value));
         var latestNewParticipants = latestPoint is null
             ? DashboardMetric<long>.Unknown("No event has an authoritative actual start.")
             : latestPoint.NewWebsiteParticipants;
@@ -188,7 +188,14 @@ public sealed class AdminDashboardService(ApplicationDbContext db, TimeProvider 
             hasUnusableEndedBoundary, requestClock);
         var statistics = new DashboardStatistics(
             DashboardMetric<long>.Measured(dashboardEvents.LongLength), uniqueParticipants, totalParticipations,
-            approvedSubmissions, latestNewParticipants, latestNewSubmissions);
+            approvedSubmissions, latestNewParticipants, latestNewSubmissions)
+        {
+            Provisional = dashboardEvents.Any(value => value.State is EventState.Live or EventState.AwaitingFinalReview),
+            ProvisionalEvents = dashboardEvents.Count(value => value.State is EventState.Live or EventState.AwaitingFinalReview),
+            LatestContributionEventId = latestPoint?.EventId,
+            LatestContributionEventName = latestPoint?.EventName,
+            LatestContributionProvisional = latestPoint?.Provisional ?? false
+        };
 
         return new AdminDashboardResult(requestClock, statistics, points, recap, history, currentEvent, community);
     }
@@ -417,16 +424,12 @@ public sealed class AdminDashboardService(ApplicationDbContext db, TimeProvider 
     private static Dictionary<Guid, DashboardEhbSummary> BuildEhb(
         IReadOnlyList<BingoEvent> events,
         IReadOnlyDictionary<Guid, Population> populations,
-        IReadOnlyList<Team> teams,
         IReadOnlyList<EventParticipantCharacter> assignments,
         IReadOnlyList<EventCompetitionSynchronization> synchronizations,
         IReadOnlyList<EventCompetitionCharacterActivity> activities,
-        IReadOnlyList<TeamMembership> memberships,
-        IReadOnlyList<EventParticipant> participants,
-        DateTimeOffset requestClock)
+        IReadOnlyList<EventParticipant> participants)
     {
         var participantById = participants.ToDictionary(value => value.Id);
-        var teamById = teams.ToDictionary(value => value.Id);
         var result = new Dictionary<Guid, DashboardEhbSummary>();
         foreach (var item in events)
         {
@@ -436,18 +439,11 @@ public sealed class AdminDashboardService(ApplicationDbContext db, TimeProvider 
                 continue;
             }
 
-            var start = item.ActualStartedAt!.Value;
-            var end = item.ActualEndedAt ?? requestClock;
-            var qualifyingParticipantIds = memberships.Where(value => teamById.TryGetValue(value.TeamId, out var team) && team.EventId == item.Id)
-                .Where(value => participantById.TryGetValue(value.EventParticipantId, out var participant) && participant.EventId == item.Id)
-                .Where(value => IsMembershipEligible(value, start, item.ActualEndedAt, requestClock))
-                .Select(value => value.EventParticipantId)
-                .ToHashSet();
+            // Exactly the WOM StatsAssignmentFingerprintAsync population. A
+            // removed or never-placed Confirmed participant remains in this set.
             var expectedAssignments = assignments.Where(value => value.EventId == item.Id && value.EventRole == EventCharacterRole.Playing &&
-                    qualifyingParticipantIds.Contains(value.EventParticipantId))
-                .Where(value => value.RegisteredAt < end && (value.ReleasedAt is null || value.ReleasedAt > start))
-                .GroupBy(value => value.OsrsCharacterId)
-                .Select(value => value.OrderBy(row => row.Id).First())
+                    value.ReleasedAt is null && participantById.TryGetValue(value.EventParticipantId, out var participant) &&
+                    participant.SignupStatus == SignupStatus.Confirmed)
                 .ToArray();
             var expected = expectedAssignments.Select(value => value.OsrsCharacterId).ToHashSet();
             var sync = synchronizations.Where(value => value.EventId == item.Id && value.CompetitionId is not null)
@@ -493,11 +489,13 @@ public sealed class AdminDashboardService(ApplicationDbContext db, TimeProvider 
 
     private static List<DashboardParticipationPoint> BuildChart(
         IReadOnlyDictionary<Guid, Population> populations,
-        IReadOnlyDictionary<Guid, DashboardMetric<long>> approvedCounts)
+        IReadOnlyDictionary<Guid, DashboardMetric<long>> approvedCounts,
+        IReadOnlyDictionary<Guid, int> teamCounts)
     {
         var ordered = populations.Values.Where(value => value.HasUsableDates)
             .OrderBy(value => value.Event.ActualStartedAt).ThenBy(value => value.Event.Id).ToArray();
         var seen = new HashSet<Guid>();
+        var firstTrackedStart = ordered.FirstOrDefault(value => !value.IsHistoricalImport)?.Event.ActualStartedAt;
         var result = new List<DashboardParticipationPoint>(ordered.Length);
         foreach (var cohort in ordered.GroupBy(value => value.Event.ActualStartedAt!.Value))
         {
@@ -511,14 +509,22 @@ public sealed class AdminDashboardService(ApplicationDbContext db, TimeProvider 
                 var freshMetric = value.WebsiteAccountIds.Count == 0 && value.IsHistoricalImport
                     ? DashboardMetric<long>.Unknown("Returning classification has no linked website identities.")
                     : DashboardMetric<long>.Measured(fresh);
-                var returningMetric = value.WebsiteAccountIds.Count == 0 && value.IsHistoricalImport
+                var trackingStarts = !value.IsHistoricalImport && value.Event.ActualStartedAt == firstTrackedStart;
+                var returningMetric = trackingStarts
+                    ? DashboardMetric<long>.Unknown("Tracked history starts here; no earlier tracked event exists.")
+                    : value.WebsiteAccountIds.Count == 0 && value.IsHistoricalImport
                     ? DashboardMetric<long>.Unknown("Returning classification has no linked website identities.")
                     : DashboardMetric<long>.Measured(returning);
                 result.Add(new(value.Event.Id, value.Event.Name, value.Event.Slug, value.Event.State,
                     value.Event.State is EventState.Live or EventState.AwaitingFinalReview,
                     value.Event.ActualStartedAt, value.Event.ActualEndedAt,
                     DashboardMetric<long>.Measured(value.People.Count), unique, freshMetric, returningMetric,
-                    approvedCounts.GetValueOrDefault(value.Event.Id) ?? DashboardMetric<long>.Unknown()));
+                    approvedCounts.GetValueOrDefault(value.Event.Id) ?? DashboardMetric<long>.Unknown())
+                {
+                    IsHistoricalImport = value.IsHistoricalImport,
+                    TrackingStarts = trackingStarts,
+                    TeamCount = teamCounts.GetValueOrDefault(value.Event.Id)
+                });
             }
             foreach (var value in cohort) seen.UnionWith(value.WebsiteAccountIds);
         }
@@ -533,7 +539,8 @@ public sealed class AdminDashboardService(ApplicationDbContext db, TimeProvider 
         IReadOnlyList<EventFinalizationSnapshot> finalizations,
         IReadOnlyList<OfficialPlacementSnapshot> placements,
         IReadOnlyList<Board> publishedBoards,
-        IReadOnlyList<BoardApprovalTileSnapshot> approvalTiles)
+        IReadOnlyList<BoardApprovalTileSnapshot> approvalTiles,
+        IReadOnlyDictionary<Guid, int> teamCounts)
     {
         var rows = events.Select(item =>
         {
@@ -571,7 +578,11 @@ public sealed class AdminDashboardService(ApplicationDbContext db, TimeProvider 
                 item.State is EventState.Live or EventState.AwaitingFinalReview,
                 item.ActualStartedAt, item.ActualEndedAt, OverviewPath(item.Id), people, unique,
                 approvedCounts.GetValueOrDefault(item.Id) ?? DashboardMetric<long>.Unknown(), winnerBoard,
-                ehb.GetValueOrDefault(item.Id) ?? new DashboardEhbSummary(null, DashboardEhbCoverage.Unavailable, 0, 0), winners);
+                ehb.GetValueOrDefault(item.Id) ?? new DashboardEhbSummary(null, DashboardEhbCoverage.Unavailable, 0, 0), winners)
+            {
+                IsHistoricalImport = population.IsHistoricalImport,
+                TeamCount = teamCounts.GetValueOrDefault(item.Id)
+            };
         }).ToList();
 
         // Default history keeps ongoing events together, then ended events by
@@ -592,7 +603,13 @@ public sealed class AdminDashboardService(ApplicationDbContext db, TimeProvider 
         var row = history.Single(value => value.EventId == ended.Id);
         return new(ended.Id, ended.Name, ended.Slug, ended.ActualStartedAt!.Value, ended.ActualEndedAt!.Value,
             row.Participants, approvedCounts.GetValueOrDefault(ended.Id) ?? DashboardMetric<long>.Unknown(),
-            row.WinnerBoard, row.Winners, row.OverviewPath);
+            row.WinnerBoard, row.Winners, row.OverviewPath)
+        {
+            State = row.State,
+            Provisional = row.Provisional,
+            IsHistoricalImport = row.IsHistoricalImport,
+            TeamCount = row.TeamCount
+        };
     }
 
     private static DashboardEventCard? BuildCurrentEvent(
@@ -615,11 +632,23 @@ public sealed class AdminDashboardService(ApplicationDbContext db, TimeProvider 
         }
         if (selected is null) return null;
         var eventParticipants = participants.Where(value => value.EventId == selected.Id).ToArray();
+        var (nextKind, nextDate) = selected.State switch
+        {
+            EventState.Live => (DashboardNextDateKind.EventEnds, selected.EventEndsAt),
+            EventState.SignupOpen => (DashboardNextDateKind.SignupsClose, selected.SignupClosesAt),
+            EventState.Draft when selected.SignupOpensAt > requestClock => (DashboardNextDateKind.SignupsOpen, selected.SignupOpensAt),
+            _ => (DashboardNextDateKind.EventStarts, selected.EventStartsAt)
+        };
         return new(selected.Id, selected.Name, selected.Slug, selected.State, selected.EventStartsAt, selected.ActualStartedAt,
             selected.EventStartsAt is { } scheduled && scheduled < requestClock && selected.State != EventState.Live,
             eventParticipants.LongCount(value => value.SignupStatus == SignupStatus.Confirmed),
             eventParticipants.LongCount(value => value.SignupStatus == SignupStatus.WaitingList), selected.ParticipantCap,
-            OverviewPath(selected.Id));
+            OverviewPath(selected.Id))
+        {
+            NextDateKind = nextKind,
+            NextDate = nextDate,
+            Timezone = selected.Timezone
+        };
     }
 
     private static DashboardCommunitySnapshot BuildCommunity(
