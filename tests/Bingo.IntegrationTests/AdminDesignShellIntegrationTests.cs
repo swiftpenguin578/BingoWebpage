@@ -194,7 +194,13 @@ public sealed partial class AdminDesignShellIntegrationTests(PostgreSqlTestFixtu
         Assert.DoesNotContain("bootstrap.min", html);
         Assert.DoesNotContain("jquery", html, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("flatpickr", html, StringComparison.OrdinalIgnoreCase);
-        var old = await client.GetStringAsync("/Admin/Events/Index");
+        var directory = await client.GetStringAsync("/Admin/Events/Index");
+        Assert.Contains("data-admin-design", directory);
+        Assert.DoesNotContain("admin-shell-body", directory);
+        var dashboard = await client.GetStringAsync("/Admin");
+        Assert.Contains("data-admin-design", dashboard);
+        Assert.DoesNotContain("admin-shell-body", dashboard);
+        var old = await client.GetStringAsync($"/Admin/Events/Schedule/{item.Id}");
         Assert.DoesNotContain("data-admin-design", old);
         Assert.Contains("admin-shell-body", old);
         Assert.True(AdminDesignAttribute.AppliesTo(new CompiledPageActionDescriptor { ModelTypeInfo = typeof(Bingo.Web.Pages.Admin.Events.IdentityModel).GetTypeInfo() }));
