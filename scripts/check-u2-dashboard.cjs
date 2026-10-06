@@ -38,7 +38,7 @@ const P=(name,selector,options={})=>[name,selector,selector,{required:true,box:{
    app.on('pageerror',error=>errors.push(error.message)); app.setDefaultTimeout(10000);
    await app.goto(fixture.origin+'/Admin');await app.waitForFunction(()=>window.AdminUI&&document.querySelector('[data-dashboard]'));await app.evaluate(()=>document.fonts.ready);
    const compare=comparator(output,results);
-   const pairs=[P('headline card','[aria-label="Headline statistics"]',{required:false}),P('loaded header','.page-head'),P('loaded next card','.next-event'),P('stat strip','.stat-strip'),P('stat label','.stat-label',{text:true}),P('stat value','.stat-value',{box:{x:1,y:1,height:1}}),P('participation card','.dash-grid > .card:first-child',{box:{x:1,y:1,width:1}}),P('panel title','#part-title',{text:true}),P('chart','.chart'),P('chart plot','.chart-plot'),P('bar','.bar-col'),P('stack','.bar-stack'),P('x labels','.chart-x'),P('recap','.recap',{box:{x:1,y:1,width:1}}),P('recap name','.recap-name',{text:true}),P('recap date','.recap-when',{text:true}),P('history head','.hist-head'),P('table','.tbl.hist',{box:{x:1,y:1,width:1}}),P('table header','.th',{text:false}),P('sort control','.th-btn',{text:true}),P('community section','.section-head')].filter(p=>p[0]!=='headline card');
+   const pairs=[P('headline card','[aria-label="Headline statistics"]',{required:false}),P('loaded header','.page-head'),P('loaded next card','.next-event'),P('stat strip','.stat-strip'),P('stat label','.stat-label',{text:true}),P('stat value','.stat-value',{box:{x:1,y:1,height:1}}),P('participation card','.dash-grid > .card:first-child',{box:{x:1,y:1,width:1}}),P('panel title','#part-title',{text:true}),P('chart','.chart'),P('chart plot','.chart-plot'),P('bar','.bar-col'),P('stack','.bar-stack'),P('x labels','.chart-x'),P('recap','.recap',{box:{x:1,y:1,width:1}}),P('recap name','.recap-name',{text:true}),P('recap date','.recap-when',{text:true}),P('recap footer','.recap .panel-note',{text:true}),P('history head','.hist-head'),P('table','.tbl.hist',{box:{x:1,y:1,width:1}}),P('table header','.th',{text:false}),P('sort control','.th-btn',{text:true}),P('community section','.section-head')].filter(p=>p[0]!=='headline card');
    for(const theme of ['light','dark']){
     await app.locator('[data-theme="'+theme+'"]').click();await ref.evaluate(theme=>new Promise(resolve=>window.__parityReference.setState({theme},resolve)),theme);
     await compare(engine+'-'+theme,app,ref,pairs);
@@ -56,8 +56,11 @@ const P=(name,selector,options={})=>[name,selector,selector,{required:true,box:{
    assert.equal(sortRequests.length,0,'sort never full-loads');
    assert.equal(await app.locator('#dashboard-sort-Players').evaluate(e=>e===document.activeElement),true);
    assert.equal(await app.evaluate(()=>document.querySelector('[data-page-region]').scrollTop),sortPosition);
+   assert.equal(await app.locator('.tbl.hist .rows').evaluate(e=>e.classList.contains('swap-a')),true);
+   assert.equal(await app.locator('.tbl.hist .row .td:nth-child(2) .hint').count(),0,'no history teams tooltip');
    assert.equal(new URL(app.url()).searchParams.get('sort'),'Players');assert.equal(await app.locator('[aria-sort=descending]').textContent(),'Players');
    await app.locator('#dashboard-sort-Winner').click();
+   assert.equal(await app.locator('.tbl.hist .rows').evaluate(e=>e.classList.contains('swap-b')&&!e.classList.contains('swap-a')),true);
    assert.equal(new URL(app.url()).searchParams.get('direction'),'asc','Winner starts ascending');
    assert.equal(await app.locator('#dashboard-sort-Winner').evaluate(e=>e.closest('.th').getAttribute('aria-sort')),'ascending');
    assert.equal(await app.locator('.tbl.hist .row .td:nth-child(2) [tabindex]').count(),0,'Players adds no tab stop');
@@ -67,7 +70,7 @@ const P=(name,selector,options={})=>[name,selector,selector,{required:true,box:{
    assert.doesNotMatch(await app.locator('.recap .fact-sub').allTextContents().then(values=>values.join(' ')),/measured evidence only/);
    assert.equal(await app.locator('.tbl.hist .c-ehb .hint').first().getAttribute('aria-label'),'Wise Old Man wasn’t linked to this event.');
    await app.locator('[name=culture][value=da]').click();await app.waitForFunction(()=>document.documentElement.lang==='da');
-   assert.equal(await app.locator('#part-title').textContent(),'Deltagelse pr. event');assert.equal(await app.locator('.stat-label').first().textContent(),'Afholdte events');
+   assert.equal(await app.locator('#part-title').textContent(),'Deltagelse pr. event');assert.deepEqual(await app.locator('[aria-label="Nøgletal"] .stat-label').allTextContents(),['Afholdte events','Unikke deltagere','Samlede deltagelser','Godkendte indsendelser']);
    assert.doesNotMatch(await app.locator('[data-dashboard]').textContent(),/Approved submissions|Not recorded|First time|measured evidence only/);
    await app.locator('[name=culture][value=en]').click();await app.waitForFunction(()=>document.documentElement.lang==='en');
    // First-visit and repeated A16 loading/retry; no read JSON endpoint is used.

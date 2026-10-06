@@ -9,7 +9,7 @@ export function init(region, ui = window.AdminUI) {
   const listen = (node, event, action) => node?.addEventListener(event, action, { signal: lifetime.signal });
   const bars = [...root.querySelectorAll('[data-chart-bar]')];
   const wrap = root.querySelector('.tbl-wrap');
-  let overflowFrame;
+  let overflowFrame, swaps = 0;
   const overflow = new ResizeObserver(() => {
     cancelAnimationFrame(overflowFrame);
     overflowFrame = requestAnimationFrame(() => { if (wrap) wrap.classList.toggle('is-scroll', wrap.scrollWidth > wrap.clientWidth + 1); });
@@ -73,6 +73,7 @@ export function init(region, ui = window.AdminUI) {
       const target = new URL(sort.href), field = sort.dataset.dashboardSort, direction = target.searchParams.get('direction');
       const orders = JSON.parse(root.dataset.historyOrders), rows = root.querySelector('.tbl.hist .rows');
       const byId = new Map([...rows.children].map(row => [row.dataset.historyEvent, row]));
+      rows.classList.remove('swap-a', 'swap-b'); rows.classList.add(++swaps % 2 ? 'swap-a' : 'swap-b');
       rows.replaceChildren(...orders[field][direction === 'asc' ? 'Asc' : 'Desc'].map(id => byId.get(id)));
       for (const control of root.querySelectorAll('[data-dashboard-sort]')) {
         const selected = control === sort, column = control.closest('.th'), next = new URL(control.href);
