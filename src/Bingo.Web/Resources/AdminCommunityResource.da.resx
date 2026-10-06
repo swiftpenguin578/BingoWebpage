@@ -242,4 +242,5 @@
   <data name="Ended {0}" xml:space="preserve"><value>Afsluttet {0}</value></data>
   <data name="Participation by event appears once a second event has been held." xml:space="preserve"><value>Deltagelse pr. event vises, når der er afholdt endnu et event.</value></data>
   <data name="The latest event is still in final review, so its figures are provisional." xml:space="preserve"><value>Det seneste event er stadig til endelig gennemgang, så tallene er foreløbige.</value></data>
+  <data name="Loading statistics" xml:space="preserve"><value>Indlæser statistik</value></data>
 </root>
