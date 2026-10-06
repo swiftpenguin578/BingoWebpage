@@ -22,7 +22,7 @@ public sealed class Slice1MigrationRehearsalTests : IAsyncLifetime
     private const string PreviousImmutableItemMigration = "20260831142836_AddEventQuarantine";
     private const string ImmutableItemMigration = "20260905221344_AddImmutableCatalogueItemIdentity";
     private static readonly JsonSerializerOptions MappingJsonOptions = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase, WriteIndented = true };
-    private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine")
+    private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine").WithLoopbackPort()
         .WithDatabase("bingo_slice1_migration_rehearsal")
         .WithUsername("bingo")
         .WithPassword("bingo_test_password")
@@ -33,7 +33,7 @@ public sealed class Slice1MigrationRehearsalTests : IAsyncLifetime
     public async Task InitializeAsync()
     {
         await PostgreSqlReadiness.StartAsync(database);
-        options = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetConnectionString()).Options;
+        options = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetOwnedConnectionString()).Options;
     }
 
     public Task DisposeAsync() => database.DisposeAsync().AsTask();

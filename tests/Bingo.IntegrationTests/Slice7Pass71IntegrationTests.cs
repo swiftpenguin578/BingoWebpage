@@ -35,7 +35,7 @@ public sealed class Slice7Pass71IntegrationTests : IAsyncLifetime
     private const string Slice7FoundationMigration = "20260730212304_AddSlice7LiveAccountAndTeamFocusFoundation";
     private const string FocusConstraintCorrectionMigration = "20260731170051_RemoveTeamFocusEventTeamAlternateKey";
     private const string FocusNormalizationMigration = "20260731180603_NormalizeCompletedTileFocusMarkers";
-    private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine")
+    private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine").WithLoopbackPort()
         .WithDatabase("bingo_slice7_pass71")
         .WithUsername("bingo")
         .WithPassword("bingo_test_password")
@@ -46,7 +46,7 @@ public sealed class Slice7Pass71IntegrationTests : IAsyncLifetime
     public async Task InitializeAsync()
     {
         await PostgreSqlReadiness.StartAsync(database);
-        options = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetConnectionString()).Options;
+        options = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetOwnedConnectionString()).Options;
         await using var db = new ApplicationDbContext(options);
         await db.Database.MigrateAsync();
     }
@@ -56,13 +56,13 @@ public sealed class Slice7Pass71IntegrationTests : IAsyncLifetime
     [Fact]
     public async Task CleanAndRepresentativeRetainedMigrationsSucceed()
     {
-        await using var rehearsal = new PostgreSqlBuilder("postgres:17-alpine")
+        await using var rehearsal = new PostgreSqlBuilder("postgres:17-alpine").WithLoopbackPort()
             .WithDatabase("bingo_slice7_retained")
             .WithUsername("bingo")
             .WithPassword("bingo_test_password")
             .Build();
         await rehearsal.StartAsync();
-        var retainedOptions = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(rehearsal.GetConnectionString()).Options;
+        var retainedOptions = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(rehearsal.GetOwnedConnectionString()).Options;
         var eventId = Guid.NewGuid();
         var teamId = Guid.NewGuid();
         var boardId = Guid.NewGuid();

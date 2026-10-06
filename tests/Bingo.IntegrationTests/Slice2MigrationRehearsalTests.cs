@@ -20,7 +20,7 @@ namespace Bingo.IntegrationTests;
 public sealed class Slice2MigrationRehearsalTests : IAsyncLifetime
 {
     private const string PreviousMigration = "20260725170951_AddEmergencyLifecycleAndPersonalNotifications";
-    private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine")
+    private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine").WithLoopbackPort()
         .WithDatabase("bingo_slice2_migration_rehearsal")
         .WithUsername("bingo")
         .WithPassword("bingo_test_password")
@@ -31,7 +31,7 @@ public sealed class Slice2MigrationRehearsalTests : IAsyncLifetime
     public async Task InitializeAsync()
     {
         await PostgreSqlReadiness.StartAsync(database);
-        options = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetConnectionString()).Options;
+        options = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetOwnedConnectionString()).Options;
     }
 
     public Task DisposeAsync() => database.DisposeAsync().AsTask();
@@ -205,7 +205,7 @@ public sealed class Slice2MigrationRehearsalTests : IAsyncLifetime
             retainedSlug = retainedEvent.Slug;
         }
 
-        await using (var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString())))
+        await using (var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetOwnedConnectionString())))
         {
             using var admin = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
             var login = await admin.GetStringAsync("/Account/Login");

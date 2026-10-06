@@ -28,7 +28,7 @@ namespace Bingo.IntegrationTests;
 
 public sealed partial class Slice3ScheduledLifecycleIntegrationTests : IAsyncLifetime
 {
-    private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine")
+    private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine").WithLoopbackPort()
         .WithDatabase("bingo_slice3_scheduled")
         .WithUsername("bingo")
         .WithPassword("bingo_test_password")
@@ -45,7 +45,7 @@ public sealed partial class Slice3ScheduledLifecycleIntegrationTests : IAsyncLif
     public async Task InitializeAsync()
     {
         await PostgreSqlReadiness.StartAsync(database);
-        options = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetConnectionString()).Options;
+        options = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetOwnedConnectionString()).Options;
         await using var db = new ApplicationDbContext(options);
         await db.Database.MigrateAsync();
     }
@@ -578,7 +578,7 @@ public sealed partial class Slice3ScheduledLifecycleIntegrationTests : IAsyncLif
         }
 
         using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
-            builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString()));
+            builder.UseSetting("ConnectionStrings:Database", database.GetOwnedConnectionString()));
         using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = true });
         var login = await client.GetStringAsync("/Account/Login");
         using var loggedIn = await client.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string>

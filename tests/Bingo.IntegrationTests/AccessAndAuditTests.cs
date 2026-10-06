@@ -15,7 +15,7 @@ namespace Bingo.IntegrationTests;
 
 public sealed class AccessAndAuditTests : IAsyncLifetime
 {
-    private readonly PostgreSqlContainer _database = new PostgreSqlBuilder("postgres:17-alpine")
+    private readonly PostgreSqlContainer _database = new PostgreSqlBuilder("postgres:17-alpine").WithLoopbackPort()
         .WithDatabase("bingo_access_tests")
         .WithUsername("bingo")
         .WithPassword("bingo_test_password")
@@ -27,7 +27,7 @@ public sealed class AccessAndAuditTests : IAsyncLifetime
     {
         await PostgreSqlReadiness.StartAsync(_database);
         _options = new DbContextOptionsBuilder<ApplicationDbContext>()
-            .UseNpgsql(_database.GetConnectionString())
+            .UseNpgsql(_database.GetOwnedConnectionString())
             .Options;
         await using var dbContext = new ApplicationDbContext(_options);
         await dbContext.Database.EnsureCreatedAsync();

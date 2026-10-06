@@ -10,7 +10,7 @@ namespace Bingo.IntegrationTests;
 public sealed class Slice6RateVariantRetirementMigrationTests : IAsyncLifetime
 {
     private const string PreCorrectionMigration = "20260729234011_AddSlice6ManagedBoardTileImages";
-    private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine")
+    private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine").WithLoopbackPort()
         .WithDatabase("bingo_slice6_rate_variant_retirement")
         .WithUsername("bingo")
         .WithPassword("bingo_test_password")
@@ -20,7 +20,7 @@ public sealed class Slice6RateVariantRetirementMigrationTests : IAsyncLifetime
     public async Task InitializeAsync()
     {
         await PostgreSqlReadiness.StartAsync(database);
-        options = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetConnectionString()).Options;
+        options = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetOwnedConnectionString()).Options;
     }
 
     public Task DisposeAsync() => database.DisposeAsync().AsTask();

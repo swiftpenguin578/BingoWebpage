@@ -18,12 +18,12 @@ namespace Bingo.IntegrationTests;
 public sealed partial class Au12PlacementRuleIntegrationTests : IAsyncLifetime
 {
     private static readonly DateTimeOffset Now = new(2026, 10, 4, 12, 0, 0, TimeSpan.Zero);
-    private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine").Build();
+    private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine").WithLoopbackPort().Build();
     private DbContextOptions<ApplicationDbContext> options = null!;
     public async Task InitializeAsync()
     {
         await PostgreSqlReadiness.StartAsync(database);
-        options = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetConnectionString()).Options;
+        options = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetOwnedConnectionString()).Options;
         await using var db = new ApplicationDbContext(options);
         await db.Database.MigrateAsync();
     }

@@ -19,13 +19,13 @@ namespace Bingo.IntegrationTests;
 
 public sealed class AccountOverviewTests : IAsyncLifetime
 {
-    private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine").WithDatabase("bingo_account_overview").WithUsername("bingo").WithPassword("bingo_test_password").Build();
+    private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine").WithLoopbackPort().WithDatabase("bingo_account_overview").WithUsername("bingo").WithPassword("bingo_test_password").Build();
     private DbContextOptions<ApplicationDbContext> options = null!;
 
     public async Task InitializeAsync()
     {
         await PostgreSqlReadiness.StartAsync(database);
-        options = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetConnectionString()).Options;
+        options = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetOwnedConnectionString()).Options;
         await using var db = new ApplicationDbContext(options);
         await db.Database.EnsureCreatedAsync();
         var now = DateTimeOffset.UtcNow;

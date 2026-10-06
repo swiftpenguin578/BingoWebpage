@@ -32,7 +32,7 @@ namespace Bingo.IntegrationTests;
 
 public sealed class C33FinalizationFreshnessTests : IAsyncLifetime
 {
-    private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine")
+    private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine").WithLoopbackPort()
         .WithDatabase("c33_freshness").WithUsername("bingo").WithPassword("bingo_test_password").Build();
     private readonly DateTimeOffset now = new(2026, 9, 14, 12, 0, 0, TimeSpan.Zero);
     private DbContextOptions<ApplicationDbContext> options = null!;
@@ -41,7 +41,7 @@ public sealed class C33FinalizationFreshnessTests : IAsyncLifetime
     public async Task InitializeAsync()
     {
         await PostgreSqlReadiness.StartAsync(database);
-        options = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetConnectionString()).Options;
+        options = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetOwnedConnectionString()).Options;
         await using var db = new ApplicationDbContext(options);
         await db.Database.MigrateAsync();
         fixture = await SeedAsync(db);
@@ -801,7 +801,7 @@ public sealed class C33FinalizationFreshnessTests : IAsyncLifetime
 
     private WebApplicationFactory<Program> Factory(IInterceptor? interceptor = null) => new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
     {
-        builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString());
+        builder.UseSetting("ConnectionStrings:Database", database.GetOwnedConnectionString());
         builder.ConfigureServices(services =>
         {
             services.RemoveAll<IHostedService>();

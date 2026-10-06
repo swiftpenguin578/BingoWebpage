@@ -1,4 +1,5 @@
 using System.Globalization;
+using Bingo.Testing;
 using System.Data.Common;
 using Npgsql;
 using System.Net;
@@ -37,7 +38,7 @@ internal static class FixtureHost
         var root = Environment.GetEnvironmentVariable("BINGO_PARITY_ROOT") ?? throw new InvalidOperationException("Set BINGO_PARITY_ROOT to the tested checkout.");
         var urProfile = Environment.GetEnvironmentVariable("BINGO_PARITY_UR_PROFILE");
         if (urProfile is not null && urProfile is not ("live" or "final-review")) throw new InvalidOperationException("Unknown controlled UR profile.");
-        await using var database = new PostgreSqlBuilder("postgres:17-alpine").WithDatabase("bingo_parity").WithUsername("bingo").WithPassword("synthetic_parity_database").Build();
+        await using var database = new PostgreSqlBuilder("postgres:17-alpine").WithLoopbackPort().WithDatabase("bingo_parity").WithUsername("bingo").WithPassword("synthetic_parity_database").Build();
         await database.StartAsync();
         // Planner ruling58-1: pg_isready inside the container does not establish
         // that its published TCP endpoint accepts this fixture's credentials yet.
@@ -49,7 +50,7 @@ internal static class FixtureHost
                 Console.WriteLine($"PARITY_DATABASE_READY_ATTEMPT {++attempt}");
                 try
                 {
-                    await using var connection = new NpgsqlConnection(database.GetConnectionString());
+                    await using var connection = new NpgsqlConnection(database.GetOwnedConnectionString());
                     await connection.OpenAsync(readiness.Token);
                     await using var command = new NpgsqlCommand("SELECT 1", connection);
                     await command.ExecuteScalarAsync(readiness.Token);
@@ -66,7 +67,7 @@ internal static class FixtureHost
                 }
             }
         }
-        var options = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetConnectionString()).Options;
+        var options = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetOwnedConnectionString()).Options;
         var account = Account.CreateWebsite(Guid.NewGuid(), "parity-admin", "PARITY-ADMIN", Now.AddYears(-1));
         var directoryFault = Environment.GetEnvironmentVariable("BINGO_PARITY_DIRECTORY_FAULT") == "1";
         account.SetGlobalRole(directoryFault ? GlobalRole.SuperAdmin : GlobalRole.Admin);
@@ -139,7 +140,7 @@ internal static class FixtureHost
         await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder
             .ConfigureKestrel(settings => settings.Listen(IPAddress.Loopback, 0))
             .UseStaticWebAssets().UseEnvironment(urProfile is null ? "Testing" : "Development").UseContentRoot(Path.Combine(root, "src/Bingo.Web"))
-            .UseSetting("ConnectionStrings:Database", database.GetConnectionString())
+            .UseSetting("ConnectionStrings:Database", database.GetOwnedConnectionString())
             .UseSetting("UiReviewEnvironment:Enabled", "false")
             .UseSetting("DevelopmentAdminBootstrap:Enabled", "false")
             .UseSetting("EvidenceStorage:Provider", "Local")
