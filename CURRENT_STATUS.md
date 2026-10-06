@@ -1,6 +1,6 @@
 # Current project status
 
-## UR items 1–5 implemented; review/suite/walkthrough pending — 6 October 2026
+## UR remediation65 R1 complete; R2 and stop gates next — 6 October 2026
 
 - Checkout `/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage`, branch `codex/participants-functionality`; U1 implementation HEAD `18a9669201bae2aa71a6057e5ef53c160cea2aba` was clean before the supplied U1 acceptance checkpoint.
 - Supplied acceptance authority: [decisions08](/Users/christopher/Documents/BingoWebpage/review-notes/08-decisions.md), “U1 visual acceptance” and “U1 accepted”, and [brief62](/Users/christopher/Documents/BingoWebpage/review-notes/62-codex-brief-ur-review-environment.md). The user accepted shell + Identity on **6 October 2026**, including light/dark, EN/DA, phone, in-app browser and desktop Safari. The timezone-dialog question was a seed-data gap, not a U1 defect. `UI_PAGE_MATRIX.md` owns the two page approval records.
@@ -13,6 +13,9 @@
 - Ruling63 (planner source labelled 7 October; accepted/relayed 6 October) permits hidden Final review, legacy Finalized and Archived only, exactly one visible current per profile. Ruling64 (same provenance) preserves discarded audit under FUNCTIONAL_CONTRACTS §9.3 while excluding discarded events from every navigation/population. Production audit/lifecycle rules, old reset seeder and frozen CSS unchanged. A7 current-picker wording remains an unassigned U2 observation.
 - [Item4 proof](docs/references/admin-ui/reviews/2026-10-06/ur/item4.md): final real PostgreSQL/HTTP **2/0/0**, all printed URLs **69 live / 70 final-review** returned 200 for listed accounts, hidden event routes 404 plain Admin, discarded public/direct routes 404 and audit links 200. Safety **7 passed**, actual create→refresh rebuilt 21 event dates/20 starts, matching stop succeeded. Review app/reference/container remain stopped. Full JS **51/0** Chromium/WebKit and whole BrowserTests **150/0/0** passed on item4 candidate before the ruling64-only test clarification; passing unaffected evidence reused. Final clean nonincremental Release **0 warnings/errors**, diff/frozen-CSS checks passed. Earlier unsuccessful fixture executions are recorded distinctly in item4. No whole-.NET suite launched.
 - README owns create/refresh/stop, ports, safety, synthetic credentials and accounts. DELIVERY_PLAN's pass8a requires every later page brief to add its scenarios/working account links to UR. Independent Claude review, final-SHA unfiltered whole .NET **0 failed / 0 skipped**, and user review-environment walkthrough are **pending**. UR implementation is not page visual acceptance; UI_PAGE_MATRIX is unchanged.
+
+- Remediation65 is authorized from clean `0ec7e9c`, same `gpt-6.1-sol` / high implementer, R1 then R2, one local commit each. [Remediation evidence](docs/references/admin-ui/reviews/2026-10-06/ur/remediation-1.md): R1 is this scoped commit, exact event/Board history and complete state transitions in the separate seeder; extended PostgreSQL/HTTP **2/0/0**, Release compile **0 warnings/errors**, diff/protected checks passed. Accepted review65 clarification preserves event entries as `event` and Board entries as `board`/board.Id, matching real writers. Earlier partial 0/2/0 Description comparison failure is retained distinctly; corrected creation defaults passed final proof. Review65 source labels 7 October; actual client evidence date is 6 October. No production change or R2 execution yet.
+
 
 ## Round3 historical handoff — superseded by round4 above
 
@@ -47,9 +50,11 @@
 
 ## Next permitted action
 
-Stop after item5. Next owner is Claude/user for independent UR review, the
-unfiltered whole .NET gate on the reported final UR SHA (zero failed/zero skipped),
-and the user's review-environment walkthrough. Run from the assigned checkout:
+Continue the same implementer with R2 postgres:17-alpine and owned
+create→refresh→stop, whole BrowserTests, clean Release and diff gates. JS only if
+covered behavior changes. Stop after the R2 local commit. Claude/user independently
+rechecks and executes the unfiltered whole .NET gate on the final reported SHA
+(zero failed/zero skipped), followed by user walkthrough:
 
 ```sh
 cd /Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage

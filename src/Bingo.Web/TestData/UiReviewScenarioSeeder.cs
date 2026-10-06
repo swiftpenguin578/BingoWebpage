@@ -1,4 +1,5 @@
 using Bingo.Application.Evidence;
+using System.Text.Json;
 using Bingo.Domain.Access;
 using Bingo.Domain.Auditing;
 using Bingo.Domain.Boards;
@@ -63,17 +64,21 @@ public sealed class UiReviewScenarioSeeder(
             ("Hidden Archived", "ur-hidden-archived", EventState.Archived) })
         {
             var hidden = await AddEventAsync(name, slug, state, now, -21, ct, roster: true);
+            var beforeHide = new { hidden.State, hidden.Version, hidden.HiddenAt, hidden.HiddenByAccountId, hidden.HiddenReason };
             hidden.Hide(accounts["ReviewOwner"].Id, now.AddHours(-2), hidden.Name, "Synthetic hidden-history review.");
-            Audit(hidden, "event.hidden", now.AddHours(-2), state.ToString(), "Hidden");
+            // Quarantine records its after snapshot after persistence has advanced Version.
+            await db.SaveChangesAsync(ct);
+            Audit(hidden, "event.hidden", now.AddHours(-2), beforeHide,
+                new { hidden.State, hidden.Version, hidden.HiddenAt, hidden.HiddenByAccountId, hidden.HiddenReason }, hidden.HiddenReason);
             events.Add(hidden);
         }
         var cancelled = await AddEventAsync("Cancelled with signup history", "ur-cancelled", EventState.SignupOpen, now, 18, ct);
         cancelled.Cancel(accounts["ReviewOwner"].Id, now.AddDays(-1), "Synthetic event called off after signups opened.", protectedHistoryExists: true);
-        Audit(cancelled, "event.cancelled", now.AddDays(-1), "SignupOpen", "Cancelled");
+        History(cancelled, EventState.SignupOpen, "event.cancelled", now.AddDays(-1), new { state = cancelled.State }, cancelled.CancellationReason);
         events.Add(cancelled);
         var discarded = await AddEventAsync("Discarded private setup — excluded", "ur-discarded", EventState.Draft, now, 19, ct);
         discarded.Discard(accounts["ReviewOwner"].Id, now, protectedHistoryExists: false);
-        Audit(discarded, "event.discarded", now, "Draft", "Discarded");
+        History(discarded, EventState.Draft, "event.discarded", now, new { state = discarded.State }, "Empty event setup discarded");
         events.Add(discarded);
         var active = await AddEventAsync(profile == "live" ? "Live — published board correction" : "Final review — published board correction",
             "ur-current", profile == "live" ? EventState.Live : EventState.AwaitingFinalReview, now, -1, ct, roster: true);
@@ -84,7 +89,10 @@ public sealed class UiReviewScenarioSeeder(
         var tile = db.BoardTiles.Local.First(value => value.BoardId == board.Id);
         tile.UpdateContent(tile.NameSnapshot, "Exceptional correction working copy; public approval stays unchanged.", tile.EvidenceInstructionsSnapshot, tile.EstimatedEhbSnapshot);
         board.MarkChanged();
-        Audit(active, "board.published_correction_started", now.AddMinutes(-10), "Published", "Correction in progress");
+        const string correctionReason = "Synthetic exceptional correction review.";
+        BoardAudit(board, "board.published_correction_started", now.AddMinutes(-10), correctionReason,
+            new { activeApprovalSnapshotId = board.ActiveApprovalSnapshotId },
+            new { activeApprovalSnapshotId = board.ActiveApprovalSnapshotId, workingCopy = true, reason = correctionReason });
         var blocked = await AddBlockedReviewAsync(active, now, ct);
         AddEndOutcome(active, EventCompetitionEndUpdateStatus.Pending, now, 91001);
         AddEndOutcome(archived, EventCompetitionEndUpdateStatus.Rejected, now, 91002);
@@ -118,7 +126,7 @@ public sealed class UiReviewScenarioSeeder(
         var start = now.AddDays(startDays);
         var end = startDays < -1 ? start.AddDays(5) : start.AddDays(7);
         if (state == EventState.AwaitingFinalReview && startDays == -1) end = now.AddHours(-1);
-        var item = new BingoEvent(Guid.NewGuid(), name, slug, "Invented UI review scenario. Safe local data only.", timezone,
+        var item = new BingoEvent(Guid.NewGuid(), name, slug, null, timezone,
             start.AddDays(-7), state == EventState.SignupOpen ? now.AddDays(7) : start.AddDays(-2), start, end, end.AddMinutes(30), 20, owner.Id, now.AddDays(-90));
         item.ConfigurePlanning("Use synthetic evidence only.", "Optional synthetic buy-in", "Local review only", 2, 3, 2, 2);
         item.ConfigureSignup(true, false, null);
@@ -129,18 +137,21 @@ public sealed class UiReviewScenarioSeeder(
         db.SignupQuestions.Add(question);
         var session = new DraftSession(Guid.NewGuid(), item.Id, 3);
         db.DraftSessions.Add(session);
-        Audit(item, "event.created", item.CreatedAt, null, "Draft");
+        Audit(item, "event.created", item.CreatedAt, null,
+            new { item.Name, item.Slug, Description = item.Description, item.Timezone, item.State }, "Created as a private draft.");
         if (state != EventState.Draft)
         {
             var openedAt = startDays < 0 ? start.AddDays(-7) : now.AddDays(-3);
             item.OpenSignups(openedAt);
             item.MarkFirstPublic(openedAt);
-            Audit(item, "event.signups_opened", openedAt, "Draft", "SignupOpen");
+            History(item, EventState.Draft, "event.signup_opened", openedAt,
+                new { state = item.State, item.ActualSignupOpenedAt, item.ActualSignupClosedAt });
             if (state != EventState.SignupOpen)
             {
                 var closedAt = startDays < 0 ? start.AddDays(-2) : now.AddDays(-2);
                 item.CloseSignups(closedAt);
-                Audit(item, "event.signups_closed", closedAt, "SignupOpen", "SignupClosed");
+                History(item, EventState.SignupOpen, "event.signup_closed", closedAt,
+                    new { state = item.State, item.ActualSignupOpenedAt, item.ActualSignupClosedAt });
             }
         }
         if (roster) AddRosters(item, session, question.Id, now, start);
@@ -151,20 +162,21 @@ public sealed class UiReviewScenarioSeeder(
             await new EventItemPriceService(db, time).CaptureStartAsync(item,
                 new PreparedEventItemPrices(CataloguePricing.LastCompletedHour(start), null), ct,
                 new Bingo.Application.Events.LifecycleActor(owner.Id, owner.LoginName));
-            Audit(item, "event.started", start, "SignupClosed", "Live");
+            History(item, EventState.SignupClosed, "event.started", start,
+                new { state = item.State, item.ActualStartedAt, item.ActualEndedAt });
             if (state != EventState.Live)
             {
                 item.EndEvent(end);
-                var transition = new EventStateTransition(Guid.NewGuid(), item.Id, EventState.Live, EventState.AwaitingFinalReview, owner.Id, end, "Synthetic scheduled end.");
-                db.EventStateTransitions.Add(transition);
-                Audit(item, "event.ended", end, "Live", "AwaitingFinalReview");
+                var transition = History(item, EventState.Live, "event.ended", end,
+                    new { state = item.State, item.ActualStartedAt, item.ActualEndedAt });
                 if (state is EventState.Finalized or EventState.Archived)
                 {
                     item.CloseSubmissionsIfDue(end.AddHours(1));
                     AddOfficialResults(item, transition.Id, end.AddDays(1));
                     if (state == EventState.Finalized) item.FinalizeResults(end.AddDays(1));
                     else item.PublishOfficialResults(end.AddDays(1));
-                    Audit(item, "event.results_published", end.AddDays(1), "AwaitingFinalReview", state.ToString());
+                    History(item, EventState.AwaitingFinalReview, "event.results_published", end.AddDays(1),
+                        new { state = item.State }, "Official placements snapshotted and event archived");
                 }
             }
         }
@@ -239,7 +251,13 @@ public sealed class UiReviewScenarioSeeder(
         }
         await db.SaveChangesAsync(ct);
         board.Approve(approval.Id);
+        BoardAudit(board, "board.approved", approvedAt, $"Approved snapshot {approval.Version}",
+            new { state = "Draft", activeApprovalSnapshotId = (Guid?)null },
+            new { state = "Validated", activeApprovalSnapshotId = approval.Id, approvalVersion = approval.Version });
         board.Publish(approvedAt.AddHours(1));
+        BoardAudit(board, "board.published", approvedAt.AddHours(1), $"Published approval snapshot {board.ActiveApprovalSnapshotId}",
+            new { state = "Validated", activeApprovalSnapshotId = board.ActiveApprovalSnapshotId },
+            new { state = "Published", activeApprovalSnapshotId = board.ActiveApprovalSnapshotId });
         item.SetBoardPublication(true, approvedAt.AddHours(1));
     }
 
@@ -287,8 +305,24 @@ public sealed class UiReviewScenarioSeeder(
         db.EventCompetitionSynchronizations.Add(sync);
     }
 
-    private void Audit(BingoEvent item, string action, DateTimeOffset at, string? before, string after) =>
-        db.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), at, accounts["ReviewOwner"].Id, "ReviewOwner", action, "BingoEvent", item.Id.ToString(), "Invented UI review scenario.", item.Id, before, after));
+    // Match EventSignupLifecycleService / EventLifecycleService / finalization and destructive
+    // history rows exactly. These review operations are manual; EffectiveAt equals PerformedAt.
+    private EventStateTransition History(BingoEvent item, EventState from, string action, DateTimeOffset at, object after, string? reason = null)
+    {
+        var transition = new EventStateTransition(Guid.NewGuid(), item.Id, from, item.State,
+            accounts["ReviewOwner"].Id, at, reason, scheduled: false, effectiveAt: at);
+        db.EventStateTransitions.Add(transition);
+        Audit(item, action, at, new { state = from }, after, reason);
+        return transition;
+    }
+
+    private void BoardAudit(Board board, string action, DateTimeOffset at, string details, object before, object after) =>
+        db.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), at, accounts["ReviewOwner"].Id, "ReviewOwner", action,
+            "board", board.Id.ToString(), details, board.EventId, JsonSerializer.Serialize(before), JsonSerializer.Serialize(after)));
+
+    private void Audit(BingoEvent item, string action, DateTimeOffset at, object? before, object after, string? details = null) =>
+        db.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), at, accounts["ReviewOwner"].Id, "ReviewOwner", action,
+            "event", item.Id.ToString(), details, item.Id, before is null ? null : JsonSerializer.Serialize(before), JsonSerializer.Serialize(after)));
 }
 
 public sealed record UiReviewEvent(Guid Id, string Name, string Slug, EventState State, bool Hidden);

@@ -1,4 +1,7 @@
 using System.Net;
+using System.Reflection;
+using System.Reflection.Emit;
+using System.Text.Json;
 using System.Security.Claims;
 using System.Text.RegularExpressions;
 using Bingo.Application.Dashboard;
@@ -130,7 +133,190 @@ public sealed class UiReviewScenarioIntegrationTests(ITestOutputHelper output) :
         using var localResponse = await localWom.GetAsync("players/Ur%20Participant");
         Assert.Equal(HttpStatusCode.OK, localResponse.StatusCode); // 127.0.0.1:1 is unserved: only the local handler can answer.
         await AssertPrintedUrlsAsync(factory, result, discardAudit.Id);
+        await AssertSeededHistoryAsync(db, events);
 
+    }
+
+    private static async Task AssertSeededHistoryAsync(ApplicationDbContext db, IReadOnlyList<BingoEvent> events)
+    {
+        var actions = ProductionAuditActions();
+        var audits = await db.AuditEntries.AsNoTracking().ToListAsync();
+        var transitions = await db.EventStateTransitions.AsNoTracking().ToListAsync();
+        var boards = await db.Boards.AsNoTracking().ToListAsync();
+        var approvals = await db.BoardApprovalSnapshots.AsNoTracking().ToListAsync();
+        foreach (var entry in audits.Where(value => value.Action.StartsWith("event.", StringComparison.Ordinal) || value.Action.StartsWith("board.", StringComparison.Ordinal)))
+        {
+            Assert.Contains(entry.Action, actions); // Derived from compiled production writers, never the seed or a copied action list.
+            var item = events.Single(value => value.Id == entry.EventId);
+            var boardEntry = entry.Action.StartsWith("board.", StringComparison.Ordinal);
+            Assert.Equal(boardEntry ? "board" : "event", entry.TargetType);
+            var board = boards.Single(value => value.EventId == item.Id);
+            Assert.Equal((boardEntry ? board.Id : item.Id).ToString(), entry.TargetId);
+            using var after = JsonDocument.Parse(entry.AfterState!);
+            using var before = entry.BeforeState is null ? null : JsonDocument.Parse(entry.BeforeState);
+            var afterJson = after.RootElement;
+            if (boardEntry)
+            {
+                var approval = Assert.Single(approvals, value => value.BoardId == board.Id);
+                Assert.Equal(approval.Id, afterJson.GetProperty("activeApprovalSnapshotId").GetGuid());
+                if (entry.Action == "board.approved")
+                {
+                    AssertFields(before!.RootElement, "state", "activeApprovalSnapshotId");
+                    AssertFields(afterJson, "state", "activeApprovalSnapshotId", "approvalVersion");
+                    Assert.Equal("Draft", before.RootElement.GetProperty("state").GetString());
+                    Assert.Equal(JsonValueKind.Null, before.RootElement.GetProperty("activeApprovalSnapshotId").ValueKind);
+                    Assert.Equal("Validated", afterJson.GetProperty("state").GetString());
+                    Assert.Equal(approval.Version, afterJson.GetProperty("approvalVersion").GetInt32());
+                    Assert.Equal(approval.ApprovedAt, entry.OccurredAt);
+                    Assert.Equal($"Approved snapshot {approval.Version}", entry.Details);
+                }
+                else if (entry.Action == "board.published")
+                {
+                    AssertFields(before!.RootElement, "state", "activeApprovalSnapshotId");
+                    AssertFields(afterJson, "state", "activeApprovalSnapshotId");
+                    Assert.Equal("Validated", before.RootElement.GetProperty("state").GetString());
+                    Assert.Equal("Published", afterJson.GetProperty("state").GetString());
+                    Assert.Equal(approval.Id, before.RootElement.GetProperty("activeApprovalSnapshotId").GetGuid());
+                    Assert.Equal(board.PublishedAt, entry.OccurredAt);
+                    Assert.Equal($"Published approval snapshot {approval.Id}", entry.Details);
+                }
+                else
+                {
+                    Assert.Equal("board.published_correction_started", entry.Action);
+                    AssertFields(before!.RootElement, "activeApprovalSnapshotId");
+                    AssertFields(afterJson, "activeApprovalSnapshotId", "workingCopy", "reason");
+                    Assert.Equal(approval.Id, before.RootElement.GetProperty("activeApprovalSnapshotId").GetGuid());
+                    Assert.True(afterJson.GetProperty("workingCopy").GetBoolean());
+                    Assert.Equal(entry.Details, afterJson.GetProperty("reason").GetString());
+                    Assert.True(board.PublishedCorrectionInProgress);
+                }
+            }
+            else if (entry.Action == "event.created")
+            {
+                Assert.Null(before);
+                AssertFields(afterJson, "Name", "Slug", "Description", "Timezone", "State");
+                Assert.Equal(item.Name, afterJson.GetProperty("Name").GetString());
+                Assert.Equal(item.Slug, afterJson.GetProperty("Slug").GetString());
+                Assert.Equal(item.Description, afterJson.GetProperty("Description").GetString());
+                Assert.Equal(item.Timezone, afterJson.GetProperty("Timezone").GetString());
+                Assert.Equal((int)EventState.Draft, afterJson.GetProperty("State").GetInt32());
+                Assert.Equal(item.CreatedAt, entry.OccurredAt);
+                Assert.Equal("Created as a private draft.", entry.Details);
+            }
+            else if (entry.Action == "event.hidden")
+            {
+                AssertFields(before!.RootElement, "State", "Version", "HiddenAt", "HiddenByAccountId", "HiddenReason");
+                AssertFields(afterJson, "State", "Version", "HiddenAt", "HiddenByAccountId", "HiddenReason");
+                Assert.Equal((int)item.State, before.RootElement.GetProperty("State").GetInt32());
+                Assert.Equal((int)item.State, afterJson.GetProperty("State").GetInt32());
+                Assert.Equal(JsonValueKind.Null, before.RootElement.GetProperty("HiddenAt").ValueKind);
+                Assert.Equal(JsonValueKind.Null, before.RootElement.GetProperty("HiddenByAccountId").ValueKind);
+                Assert.Equal(JsonValueKind.Null, before.RootElement.GetProperty("HiddenReason").ValueKind);
+                Assert.Equal(item.HiddenAt, afterJson.GetProperty("HiddenAt").GetDateTimeOffset());
+                Assert.Equal(item.HiddenByAccountId, afterJson.GetProperty("HiddenByAccountId").GetGuid());
+                Assert.Equal(item.HiddenReason, afterJson.GetProperty("HiddenReason").GetString());
+                Assert.Equal(item.Version, afterJson.GetProperty("Version").GetInt64());
+                Assert.Equal(before.RootElement.GetProperty("Version").GetInt64() + 1, afterJson.GetProperty("Version").GetInt64());
+                Assert.Equal(item.HiddenAt, entry.OccurredAt);
+                Assert.Equal(item.HiddenReason, entry.Details);
+            }
+            else
+            {
+                AssertFields(before!.RootElement, "state");
+                var from = (EventState)before.RootElement.GetProperty("state").GetInt32();
+                var to = (EventState)afterJson.GetProperty("state").GetInt32();
+                var row = Assert.Single(transitions, value => value.EventId == item.Id && value.FromState == from && value.ToState == to && value.PerformedAt == entry.OccurredAt);
+                Assert.False(row.Scheduled);
+                Assert.Equal(row.PerformedAt, row.EffectiveAt);
+                Assert.Equal(entry.ActorAccountId, row.PerformedByAccountId);
+                Assert.Equal(entry.Details, row.Reason);
+                if (entry.Action is "event.signup_opened" or "event.signup_closed")
+                {
+                    AssertFields(afterJson, "state", "ActualSignupOpenedAt", "ActualSignupClosedAt");
+                    Assert.Equal(item.ActualSignupOpenedAt, afterJson.GetProperty("ActualSignupOpenedAt").GetDateTimeOffset());
+                    if (entry.Action == "event.signup_opened") Assert.Equal(JsonValueKind.Null, afterJson.GetProperty("ActualSignupClosedAt").ValueKind);
+                    else Assert.Equal(item.ActualSignupClosedAt, afterJson.GetProperty("ActualSignupClosedAt").GetDateTimeOffset());
+                    Assert.Equal(entry.Action == "event.signup_opened" ? item.ActualSignupOpenedAt : item.ActualSignupClosedAt, row.EffectiveAt);
+                }
+                else if (entry.Action is "event.started" or "event.ended")
+                {
+                    AssertFields(afterJson, "state", "ActualStartedAt", "ActualEndedAt");
+                    Assert.Equal(item.ActualStartedAt, afterJson.GetProperty("ActualStartedAt").GetDateTimeOffset());
+                    if (entry.Action == "event.started") Assert.Equal(JsonValueKind.Null, afterJson.GetProperty("ActualEndedAt").ValueKind);
+                    else Assert.Equal(item.ActualEndedAt, afterJson.GetProperty("ActualEndedAt").GetDateTimeOffset());
+                    Assert.Equal(entry.Action == "event.started" ? item.ActualStartedAt : item.ActualEndedAt, row.EffectiveAt);
+                }
+                else AssertFields(afterJson, "state");
+            }
+        }
+        foreach (var board in boards)
+        {
+            var boardAudits = audits.Where(value => value.TargetType == "board" && value.TargetId == board.Id.ToString()).ToArray();
+            if (board.ActiveApprovalSnapshotId is null) Assert.Empty(boardAudits);
+            else
+            {
+                Assert.Single(boardAudits, value => value.Action == "board.approved");
+                Assert.Single(boardAudits, value => value.Action == "board.published");
+                Assert.Equal(board.PublishedCorrectionInProgress ? 1 : 0, boardAudits.Count(value => value.Action == "board.published_correction_started"));
+            }
+        }
+        foreach (var item in events)
+        {
+            var chain = transitions.Where(value => value.EventId == item.Id).OrderBy(value => value.PerformedAt).ToArray();
+            var state = EventState.Draft;
+            foreach (var row in chain)
+            {
+                Assert.Equal(state, row.FromState);
+                state = row.ToState;
+                Assert.Single(audits, value => value.EventId == item.Id && value.TargetType == "event" && value.OccurredAt == row.PerformedAt && value.BeforeState != null
+                    && JsonDocument.Parse(value.BeforeState).RootElement.TryGetProperty("state", out var from) && from.GetInt32() == (int)row.FromState);
+            }
+            Assert.Equal(item.State, state); // Missing open/close/start/end/publication/cancel/discard cannot leave a complete chain.
+        }
+    }
+
+    private static void AssertFields(JsonElement value, params string[] names) =>
+        Assert.Equal(names.Order(StringComparer.Ordinal), value.EnumerateObject().Select(property => property.Name).Order(StringComparer.Ordinal));
+
+    private static HashSet<string> ProductionAuditActions()
+    {
+        // Read ldstr operands in the actual compiled production writers, including async state machines.
+        Type[] writers = [typeof(EventCreationService), typeof(EventSignupLifecycleService), typeof(EventLifecycleService),
+            typeof(EventFinalizationService), typeof(EventDestructiveLifecycleService), typeof(EventQuarantineService),
+            typeof(Bingo.Web.Pages.Admin.Events.BoardModel)];
+        var codes = typeof(OpCodes).GetFields(BindingFlags.Public | BindingFlags.Static).Where(value => value.FieldType == typeof(OpCode))
+            .Select(value => (OpCode)value.GetValue(null)!).ToDictionary(value => unchecked((ushort)value.Value));
+        var result = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var writer in writers) ReadType(writer);
+        return result;
+
+        void ReadType(Type type)
+        {
+            foreach (var nested in type.GetNestedTypes(BindingFlags.Public | BindingFlags.NonPublic)) ReadType(nested);
+            foreach (var method in type.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly))
+            {
+                var il = method.GetMethodBody()?.GetILAsByteArray();
+                if (il is null) continue;
+                for (var at = 0; at < il.Length;)
+                {
+                    var code = il[at++] == 0xfe ? codes[(ushort)(0xfe00 | il[at++])] : codes[il[at - 1]];
+                    if (code == OpCodes.Ldstr)
+                    {
+                        var value = method.Module.ResolveString(BitConverter.ToInt32(il, at));
+                        if (Regex.IsMatch(value, "^(event|board)\\.[a-z_]+$")) result.Add(value);
+                    }
+                    at += code.OperandType switch
+                    {
+                        OperandType.InlineNone => 0,
+                        OperandType.ShortInlineBrTarget or OperandType.ShortInlineI or OperandType.ShortInlineVar => 1,
+                        OperandType.InlineVar => 2,
+                        OperandType.InlineI8 or OperandType.InlineR => 8,
+                        OperandType.InlineSwitch => 4 + 4 * BitConverter.ToInt32(il, at),
+                        _ => 4
+                    };
+                }
+            }
+        }
     }
 
     private async Task AssertPrintedUrlsAsync(WebApplicationFactory<Program> factory, UiReviewScenarios scenarios, Guid discardAuditId)
