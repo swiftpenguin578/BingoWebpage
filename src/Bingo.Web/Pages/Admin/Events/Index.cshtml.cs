@@ -206,7 +206,7 @@ public sealed class IndexModel(ApplicationDbContext dbContext, IEventLifecycleSe
 
     public string SortAriaLabel(string label, string key) => SortAriaLabel(label, key, ActiveSort, ActiveSortDirection);
 
-    private bool PhaseAllowed(string phase, string? view = null) => phase == "all" || (view ?? ActiveView) switch
+    public bool PhaseAllowed(string phase, string? view = null) => phase == "all" || (view ?? ActiveView) switch
     {
         "current" => phase is "draft" or "signupopen" or "signupclosed" or "live",
         "past" => phase is "awaitingfinalreview" or "finalized" or "archived" or "cancelled",

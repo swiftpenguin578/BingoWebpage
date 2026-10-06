@@ -7,6 +7,7 @@ export function init(region, ui = window.AdminUI) {
   const root = region.querySelector('[data-events-directory]');
   if (!root) return;
   const canonical = new URL(root.dataset.directoryCanonical, location.href);
+  let query = new URL(canonical.href);
   if (new URL(location.href).searchParams.get('create') === '1') canonical.searchParams.set('create', '1');
   const values = Object.fromEntries(canonical.searchParams);
   ui.setUrl(values, Object.fromEntries(Object.keys(values).map(key => [key, { valid: () => true, default: '' }])));
@@ -66,6 +67,7 @@ export function init(region, ui = window.AdminUI) {
     clearHint();
     const url = new URL(fresh.dataset.directoryCanonical, location.href);
     if (new URL(location.href).searchParams.get('create') === '1') url.searchParams.set('create', '1');
+    query = new URL(url.href);
     return url.href;
   }
   const fragment = failed => {
@@ -76,33 +78,57 @@ export function init(region, ui = window.AdminUI) {
   };
   const navigate = target => {
     const url = new URL(target, location.href), revision = edits;
+    query = new URL(url.href);
     return ui.update(url.href, { root, results, patch, pending: () => fragment(false), failed: () => fragment(true),
-      fallbackFocus: () => root.querySelector('.th-btn'), signal: life.signal, scrollRegions: [root.querySelector('[data-directory-wrap]')],
+      fallbackFocus: position => {
+        const pager = position.active?.closest('.pager');
+        if (pager) {
+          const other = root.querySelector('.pager button:' + (position.active === pager.querySelector('button') ? 'last-child' : 'first-child'));
+          if (other && !other.disabled) return other;
+        }
+        return root.querySelector('.th-btn');
+      }, signal: life.signal, scrollRegions: [root.querySelector('[data-directory-wrap]')],
       current: () => edits === revision, draft: () => ({ [search.getAttribute('aria-label')]: search.value }) });
   };
   function searchNow() {
     clearTimeout(timer);
-    const url = new URL(location.href); url.searchParams.delete('filter');
+    const url = new URL(query.href); url.searchParams.delete('filter');
     url.searchParams.set('search', search.value.trim()); url.searchParams.set('page', '1');
     void navigate(url.href);
   }
   listen(search, 'input', () => { edits++; ui.supersedeUpdate(); clearTimeout(timer); timer = setTimeout(searchNow, 250); });
   listen(search, 'keydown', event => { if (event.key === 'Enter') { event.preventDefault(); searchNow(); } });
+  function controlNow(control) {
+    clearTimeout(timer);
+    const target = new URL(control.dataset.directoryUrl, location.href), url = new URL(query.href);
+    const put = key => { const value = target.searchParams.get(key); if (value === null) url.searchParams.delete(key); else url.searchParams.set(key, value); };
+    if (control.type === 'radio') {
+      put('view');
+      const phase = [...root.querySelectorAll('#directory-phase-menu button')].find(option => new URL(option.dataset.directoryUrl, location.href).searchParams.get('phase') === (url.searchParams.get('phase') || 'all'));
+      if (!phase?.dataset.phaseViews?.split(',').includes(url.searchParams.get('view'))) url.searchParams.set('phase', 'all');
+    } else if (control.closest('#directory-phase-menu')) { put('phase'); ui.closeMenu(); }
+    else if (control.closest('.th')) {
+      const sort = target.searchParams.get('sort');
+      url.searchParams.set('direction', url.searchParams.get('sort') === sort && url.searchParams.get('direction') !== 'desc' ? 'desc' : 'asc');
+      url.searchParams.set('sort', sort);
+    } else if (control.closest('.pager')) put('page');
+    else if (control.closest('.tfoot')) { url.searchParams.set('sort', ''); url.searchParams.set('direction', 'asc'); }
+    else if (control.closest('.empty')) { for (const key of ['view', 'phase', 'attention']) put(key); search.value = target.searchParams.get('search') || ''; edits++; ui.supersedeUpdate(); }
+    else if (control.closest('.summary') || control.classList.contains('filter-chip')) put('attention');
+    if (!control.closest('.pager, [data-directory-banners]')) url.searchParams.set('page', '1');
+    url.searchParams.set('search', search.value.trim());
+    void navigate(url.href);
+  }
   listen(region, 'click', event => {
     const control = event.target.closest('[data-directory-url]');
     if (control && control.type !== 'radio') {
-      event.preventDefault(); clearTimeout(timer);
-      if (control.closest('#directory-phase-menu')) ui.closeMenu();
-      const url = new URL(control.dataset.directoryUrl, location.href);
-      if (control.closest('.empty')) { search.value = url.searchParams.get('search') || ''; edits++; }
-      else if (search.value.trim()) url.searchParams.set('search', search.value.trim());
-      void navigate(url.href); return;
+      event.preventDefault(); controlNow(control); return;
     }
-    if (event.target.closest('[data-directory-clear]')) { search.value = ''; edits++; search.focus({preventScroll:true}); searchNow(); return; }
+    if (event.target.closest('[data-directory-clear]')) { search.value = ''; edits++; ui.supersedeUpdate(); search.focus({preventScroll:true}); searchNow(); return; }
     const row = event.target.closest('[data-event-id]');
     if (row && !event.target.closest('a,button,.hint')) void ui.navigate(row.dataset.openUrl);
   });
-  listen(root, 'change', event => { if (event.target.matches('input[data-directory-url]')) void navigate(event.target.dataset.directoryUrl); });
+  listen(root, 'change', event => { if (event.target.matches('input[data-directory-url]')) controlNow(event.target); });
   const wrap = root.querySelector('[data-directory-wrap]');
   const overflow = new ResizeObserver(() => { cancelAnimationFrame(overflowFrame); overflowFrame = requestAnimationFrame(() => wrap.classList.toggle('is-scroll', wrap.scrollWidth > wrap.clientWidth + 1)); });
   overflow.observe(wrap);

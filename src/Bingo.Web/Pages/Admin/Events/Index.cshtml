@@ -45,7 +45,7 @@
     </div>
     <button class="btn filter-btn @(Model.ActiveFilter != "all" ? "is-active" : "")" id="phase-btn" type="button" data-menu-target="directory-phase-menu" data-menu-align="end" aria-haspopup="menu" aria-expanded="false"><span class="fb-lbl">@D["Phase"]</span>@D[Model.ActiveFilter == "all" ? "All" : Model.StateOptions.Single(option => option.Value == Model.ActiveFilter).Label]<partial name="_AdminDesignIcon" model='new AdminDesignIcon("chevron-down")' /></button>
     <div class="menu" id="directory-phase-menu" role="menu" aria-label="@D["Filter by phase"]" hidden>
-    @foreach (var phase in Model.StateOptions) { <button class="menu-item" type="button" role="menuitemradio" aria-checked="@(Model.ActiveFilter == phase.Value ? "true" : "false")" data-directory-url="@Model.DirectoryUrl(phase: phase.Value)"><span class="grow">@D[phase.Label]</span>@if (Model.ActiveFilter == phase.Value) { <partial name="_AdminDesignIcon" model='new AdminDesignIcon("check")' /> }</button> }
+    @foreach (var phase in Model.StateOptions) { <button class="menu-item" type="button" role="menuitemradio" aria-checked="@(Model.ActiveFilter == phase.Value ? "true" : "false")" data-phase-views="@string.Join(',', new[] { "all", "current", "past", "hidden" }.Where(view => Model.PhaseAllowed(phase.Value, view)))" data-directory-url="@Model.DirectoryUrl(phase: phase.Value)"><span class="grow">@D[phase.Label]</span>@if (Model.ActiveFilter == phase.Value) { <partial name="_AdminDesignIcon" model='new AdminDesignIcon("check")' /> }</button> }
     </div>
     </div>
 </div>

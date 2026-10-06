@@ -12,7 +12,7 @@ async function until(page,predicate){for(let i=0;i<200;i++)if(await page.evaluat
   const context=await browser.newContext({viewport:{width:390,height:600},reducedMotion:'reduce'});
   let page=await login(context,fixture);const errors=[];page.on('pageerror',e=>errors.push(e.message));
   const base='/Admin/Events?view=current';
-  const urls={search:base+'&search=alpha&page=1',all:'/Admin/Events?view=all',phase:base+'&phase=signupopen',sort:base+'&sort=identity&direction=asc',page:base+'&page=2',attention:base+'&attention=1',late:base+'&search=alphaX&page=1',dashboard:'/Admin'};
+  const urls={search:base+'&search=alpha&page=1',all:'/Admin/Events?view=all',phase:base+'&phase=signupopen',sort:base+'&sort=identity&direction=asc',page:base+'&page=2',attention:base+'&attention=1',late:base+'&search=alphaX&page=1',dashboard:'/Admin',allSearch:'/Admin/Events?view=all&search=alpha&page=1',sortedSearch:base+'&search=alpha&sort=identity&direction=asc&page=1',onePage:base+'&phase=live',firstPage:base};
   const html={};
   for(const [key,url]of Object.entries(urls)){const response=await context.request.get(fixture.origin+url);assert.equal(response.status(),200);html[key]=await response.text();}
   const reset=async key=>{
@@ -148,6 +148,44 @@ async function until(page,predicate){for(let i=0;i<200;i++)if(await page.evaluat
   await until(page,()=>new URL(location.href).searchParams.get('search')==='alphaX');
   assert.equal(await page.locator('[data-update-skeleton]').count(),0,'aborted-before-show request cannot start a stale skeleton');
   assert.equal(await page.locator('#search-input').inputValue(),'alphaX');assert.equal(await page.locator('#search-input').evaluate(e=>document.activeElement===e),true);await identities();
+  // All control paths compose from latest intent and the input as typed now.
+  await reset('allSearch');await page.locator('#search-input').fill('alpha');await page.clock.runFor(100);
+  await page.evaluate(()=>document.querySelector('.tabs input').click());await until(page,()=>requests.length===1);
+  assert.deepEqual(await page.evaluate(()=>{const p=new URL(requests[0].url).searchParams;return[p.get('view'),p.get('search')];}),['all','alpha']);
+  await page.evaluate(()=>requests[0].fulfill());await until(page,()=>new URL(location.href).searchParams.get('view')==='all');
+  await page.clock.runFor(250);assert.equal(await page.evaluate(()=>requests.length),1,'tab cancels debounce');
+
+  await reset('allSearch');await page.locator('#search-input').fill('alpha');await page.clock.runFor(250);await until(page,()=>requests.length===1);
+  await page.clock.runFor(150);await page.clock.runFor(50);
+  await page.evaluate(()=>document.querySelector('.tabs input').click());await until(page,()=>requests.length===2);
+  assert.equal(await page.evaluate(()=>requests[0].aborted),true);
+  assert.deepEqual(await page.evaluate(()=>{const p=new URL(requests[1].url).searchParams;return[p.get('view'),p.get('search')];}),['all','alpha']);
+  await page.evaluate(()=>requests[1].fulfill());await until(page,()=>timers.includes(350));await page.clock.runFor(350);
+  await until(page,()=>new URL(location.href).searchParams.get('view')==='all'&&new URL(location.href).searchParams.get('search')==='alpha');await identities();
+
+  for(const kind of ['sort','page']){
+   await reset(kind==='sort'?'sortedSearch':'search');
+   await page.evaluate(kind=>document.querySelector(kind==='sort'?'#directory-sort-identity':'.pager button[aria-label="Page 2"]').click(),kind);
+   await until(page,()=>requests.length===1);await page.locator('#search-input').fill('alpha');
+   assert.equal(await page.evaluate(()=>requests[0].aborted),true);await page.clock.runFor(250);await until(page,()=>requests.length===2);
+   assert.deepEqual(await page.evaluate(()=>{const p=new URL(requests[1].url).searchParams;return[p.get('view'),p.get('search'),p.get('page')];}),['current','alpha','1'],'new search resets page, retains latest view');
+   if(kind==='sort')assert.equal(await page.evaluate(()=>new URL(requests[1].url).searchParams.get('sort')),'identity');
+   await page.evaluate(()=>{requests[0].fulfill();requests[1].fulfill();});await until(page,()=>new URL(location.href).searchParams.get('search')==='alpha');
+   if(kind==='sort')assert.equal(new URL(page.url()).searchParams.get('sort'),'identity');
+   assert.equal(await page.locator('#search-input').inputValue(),'alpha');await identities();
+  }
+  await reset('page');
+  await page.evaluate(()=>{const next=document.querySelector('.pager button:last-child');next.focus();next.click();});await until(page,()=>requests.length===1);
+  await page.evaluate(()=>requests[0].fulfill());await until(page,()=>new URL(location.href).searchParams.get('page')==='2');
+  assert.equal(await page.locator('.pager button:first-child').evaluate(e=>document.activeElement===e&&!e.disabled),true,'Next at last page -> Previous');
+  await page.evaluate(source=>{nextHTML=source;const previous=document.querySelector('.pager button:first-child');previous.focus();previous.click();},html.firstPage);
+  await until(page,()=>requests.length===2);await page.evaluate(()=>requests[1].fulfill());await until(page,()=>new URL(location.href).searchParams.get('page')!=='2');
+  assert.equal(await page.locator('.pager button:last-child').evaluate(e=>document.activeElement===e&&!e.disabled),true,'Previous at first page -> Next');
+  // Actual single-page response exercises disappearance of both pager controls.
+  await reset('onePage');await page.evaluate(()=>{const next=document.querySelector('.pager button:last-child');next.focus();next.click();});await until(page,()=>requests.length===1);
+  await page.evaluate(()=>requests[0].fulfill());await until(page,()=>document.querySelectorAll('.pager').length===0);
+  assert.equal(await page.evaluate(()=>document.activeElement===document.querySelector('.th-btn')),true,'no other pager -> results heading');
+
   await reset('search');await page.locator('#search-input').fill('alpha');await page.locator('#search-input').press('Enter');await until(page,()=>requests.length===1);
   await page.evaluate(()=>requests[0].fail());await until(page,()=>!!document.querySelector('[data-directory-results] [data-load-retry]'));
   assert.equal(await page.locator('[data-update-skeleton]').count(),0);await identities();
