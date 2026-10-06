@@ -33,21 +33,26 @@ export function init(region, ui = window.AdminUI) {
       else summary.append(document.importNode(next, true));
     });
     while (summary.children.length > nextSummary.children.length) summary.lastElementChild.remove();
-    const sync = (selector, fn) => {
-      const nodes = [...root.querySelectorAll(selector)], next = [...fresh.querySelectorAll(selector)];
-      nodes.forEach((node, index) => fn(node, next[index]));
+    const sync = (parent, nextParent, key, fn) => {
+      const nodes = new Map([...parent.children].map(node => [key(node), node]));
+      [...nextParent.children].forEach((next, index) => {
+        const id = key(next), old = nodes.get(id), node = old || document.importNode(next, true);
+        if (old) { fn(old, next); nodes.delete(id); }
+        if (parent.children[index] !== node) parent.insertBefore(node, parent.children[index] || null);
+      });
+      nodes.forEach(node => node.remove());
     };
-    sync('.tabs input', (node, next) => {
-      node.checked = next.checked; node.dataset.directoryUrl = next.dataset.directoryUrl;
-      node.closest('.tab').className = next.closest('.tab').className;
-      node.closest('.tab').querySelector('.tab-count').textContent = next.closest('.tab').querySelector('.tab-count').textContent;
+    const viewKey = node => node.querySelector('input') ? new URL(node.querySelector('input').dataset.directoryUrl, location.href).searchParams.get('view') : 'separator';
+    sync(root.querySelector('.tabs'), fresh.querySelector('.tabs'), viewKey, (node, next) => {
+      node.className = next.className;
+      const input = node.querySelector('input'), nextInput = next.querySelector('input');
+      if (input) { input.checked = nextInput.checked; input.dataset.directoryUrl = nextInput.dataset.directoryUrl; node.querySelector('.tab-count').textContent = next.querySelector('.tab-count').textContent; }
     });
-    sync('#phase-btn, #directory-phase-menu button', (node, next) => {
-      replace(node, next); node.className = next.className;
-      if (next.dataset.directoryUrl) node.dataset.directoryUrl = next.dataset.directoryUrl;
-      if (next.hasAttribute('aria-checked')) node.setAttribute('aria-checked', next.getAttribute('aria-checked'));
-    });
-    sync('.th', (node, next) => {
+    const phase = root.querySelector('#phase-btn'), nextPhase = fresh.querySelector('#phase-btn');
+    replace(phase, nextPhase); phase.className = nextPhase.className;
+    // Options vary by view; only the menu list is replaceable, not its opener.
+    replace(root.querySelector('#directory-phase-menu'), fresh.querySelector('#directory-phase-menu'));
+    sync(root.querySelector('.th-row'), fresh.querySelector('.th-row'), node => node.querySelector('button').id, (node, next) => {
       node.className = next.className; node.setAttribute('aria-sort', next.getAttribute('aria-sort'));
       const button = node.querySelector('button'), nextButton = next.querySelector('button');
       button.dataset.directoryUrl = nextButton.dataset.directoryUrl; button.setAttribute('aria-label', nextButton.getAttribute('aria-label'));
