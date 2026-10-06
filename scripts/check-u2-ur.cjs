@@ -52,9 +52,22 @@ const root = process.cwd(), output = path.join(root, 'artifacts/u2-ur-browser');
     await navigate('/Admin');
     const current = page.locator('[data-history-event="'+fixture.events['ur-current']+'"]');
     assert.match(await current.textContent(),profile === 'live' ? /Live · provisional/ : /Final review/);
-    assert.match(await page.locator('[data-history-event="'+fixture.events['ur-wom-unavailable']+'"] .name-line').textContent(),/Imported/);
+    assert.match(await page.locator('[data-history-event="'+fixture.events['ur-imported']+'"] .name-line').textContent(),/Imported/);
     const sharedFirst = await page.locator('[data-history-event="'+fixture.events['ur-archived']+'"]').textContent();
     assert.ok(sharedFirst.includes('Amber Owls') && sharedFirst.includes('Silver Foxes'));
+    // Real seeded System/import audits and recipient inbox rows, not just attention labels.
+    for (const [slug,action,actor] of [['ur-opening-failed','event.signup_opening_failed','System'],['ur-draft','event.start_postponed','System'],['ur-imported','historical_import.applied','ReviewOwner']]) {
+     await page.goto(fixture.origin + '/Admin/Audit?eventId=' + fixture.events[slug]);
+     const entry = page.locator('[data-audit-entry]').filter({has:page.locator('code', {hasText:action})});
+     assert.equal(await entry.count(),1); assert.ok((await entry.textContent()).includes(actor));
+    }
+    await page.goto(fixture.origin + '/notifications');
+    for (const type of ['Scheduled signup opening failed','Automatic start postponed']) {
+     const row = page.locator('[data-public-ui-notification-row]').filter({has:page.locator('strong',{hasText:type})});
+     assert.equal(await row.count(),1); assert.equal(await row.getAttribute('data-unread'),'true');
+     assert.ok((await row.locator('.public-pass2-notification-copy').textContent()).length > 0);
+    }
+    await page.goto(fixture.origin + '/Admin'); await page.waitForFunction(() => window.AdminUI && document.querySelector('[data-dashboard]'));
     const identity = '/Admin/Events/Identity/' + fixture.events['ur-draft'];
     for (let cycle=0;cycle<2;cycle++) {
      await navigate('/Admin/Events?view=current');
@@ -66,18 +79,22 @@ const root = process.cwd(), output = path.join(root, 'artifacts/u2-ur-browser');
      await oldCreate.evaluate(button => {button.addEventListener('click',event => event.preventDefault(),{once:true});button.click();}); await settle(page);
      assert.equal(page.url(),before); assert.equal(await page.locator('#cm-name').count(),0);
      await navigate('/Admin');
-     await page.goBack(); await page.waitForURL(url => url.pathname === identity);await settle(page);
-     await page.goBack(); await page.waitForURL(url => url.pathname === '/Admin/Events');await settle(page);
+     await page.goBack(); await page.waitForURL(url => url.pathname === identity);
+     await page.locator('[data-identity-editor]').waitFor({state:'visible'});await settle(page);
+     await page.goBack(); await page.waitForURL(url => url.pathname === '/Admin/Events');
+     await page.locator('[data-events-directory] .rows [data-event-id]').first().waitFor({state:'visible'});await settle(page);
      assert.equal((await ids()).length,25);
-     await page.goForward();await page.waitForURL(url => url.pathname === identity);await settle(page);
-     await page.goForward();await page.waitForURL(url => url.pathname === '/Admin');await settle(page);
+     await page.goForward();await page.waitForURL(url => url.pathname === identity);
+     await page.locator('[data-identity-editor]').waitFor({state:'visible'});await settle(page);
+     await page.goForward();await page.waitForURL(url => url.pathname === '/Admin');
+     await page.locator('[data-dashboard]').waitFor({state:'visible'});await settle(page);
      assert.equal(await page.locator('[data-dashboard]').count(),1);
      assert.equal(await page.locator('[data-admin-page-script]').count(),1);
      assert.equal(await page.locator('#cm-name').count(),0);
     }
     assert.deepEqual(errors,[]);
     results.push({profile,engine,passed:true,currentRows:count,a16Cycles:2,pageErrors:errors});
-    console.log('PASS U2 UR '+profile+' '+engine+': paging, Confirmed cancellation, culture, attention, missing settings, import, shared first, phase and A16/disposal');
+    console.log('PASS U2 UR '+profile+' '+engine+': paging, Confirmed cancellation, culture, attention, missing settings, import, shared first, phase, real audits/inbox and A16/disposal');
     await context.close();await browser.close();browser=null;
    }
   } finally {if(browser)await browser.close();await fixture.close();}

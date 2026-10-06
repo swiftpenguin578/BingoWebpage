@@ -3,6 +3,8 @@ using System.Globalization;
 using System.Reflection;
 using System.Reflection.Emit;
 using System.Text.Json;
+using System.Text;
+using System.Security.Cryptography;
 using System.Security.Claims;
 using System.Text.RegularExpressions;
 using Bingo.Application.Dashboard;
@@ -35,6 +37,7 @@ public sealed class UiReviewScenarioIntegrationTests(ITestOutputHelper output, P
 {
     private static readonly DateTimeOffset Now = new DateTimeOffset(2026, 10, 6, 12, 34, 56, TimeSpan.Zero).AddTicks(1234567);
     private static readonly string[] SharedWinnerNames = ["Amber Owls", "Silver Foxes"];
+    private static readonly string[] ImportHashFields = ["manifestHash", "inputHash", "importHash"];
     private readonly PostgreSqlTestDatabase database = databaseFixture.CreateDatabase(new PostgreSqlBuilder("postgres:17-alpine")
         .WithDatabase("bingo_ur_tests").WithUsername("bingo").WithPassword("bingo_test_password"));
     private readonly string evidence = Path.Combine(Path.GetTempPath(), "bingo-ur-tests-" + Guid.NewGuid());
@@ -88,7 +91,8 @@ public sealed class UiReviewScenarioIntegrationTests(ITestOutputHelper output, P
         var deniedStart = await lifecycle.StartNowAsync(closed.Id, closed.Version, true, "Synthetic boundary check", new LifecycleActor(owner.Id, owner.LoginName));
         Assert.False(deniedStart.Succeeded);
         Assert.Contains(deniedStart.Blockers!, value => value.Code == "CURRENT_EVENT_EXISTS");
-        Assert.False(await db.SubmissionContributions.AnyAsync());
+        var frozenImportId = events.Single(value => value.Slug == "ur-imported").Id;
+        Assert.False(await db.SubmissionContributions.AnyAsync(value => !db.Teams.Any(team => team.Id == value.TeamId && team.EventId == frozenImportId)));
         Assert.True((await db.Boards.SingleAsync(value => value.EventId == current.Id)).PublishedCorrectionInProgress);
         Assert.Equal(2, await db.DraftPublicationRosters.Where(value => db.Teams.Any(team => team.Id == value.TeamId && team.EventId == current.Id && team.AffiliationName != null)).Select(value => value.TeamId).Distinct().CountAsync());
         Assert.True(await db.TeamMemberships.AnyAsync(value => value.LeftAt != null));
@@ -108,7 +112,7 @@ public sealed class UiReviewScenarioIntegrationTests(ITestOutputHelper output, P
             // Existing Dashboard card selects Live, otherwise the next preparation event (PR Dashboard contract).
             var dashboardId = currentState == EventState.Live ? current.Id : events.Single(value => value.Slug == "ur-draft").Id;
             Assert.Equal(dashboardId, dashboard.CurrentEvent!.EventId);
-            Assert.Equal(3L, dashboard.Statistics.EventsHeld.Value); // One visible current plus two visible archived events.
+            Assert.Equal(4L, dashboard.Statistics.EventsHeld.Value); // One current, two platform archives and one frozen import.
             Assert.DoesNotContain(dashboard.History, value => value.EventId == result.DiscardedEventId);
             Assert.DoesNotContain(dashboard.ParticipationChart, value => value.EventId == result.DiscardedEventId);
             var populations = await scope.ServiceProvider.GetRequiredService<IAdminDashboardService>()
@@ -133,7 +137,7 @@ public sealed class UiReviewScenarioIntegrationTests(ITestOutputHelper output, P
             Assert.NotEqual(result.DiscardedEventId, dashboard.LatestEndedRecap?.EventId);
             Assert.NotEqual(result.DiscardedEventId, dashboard.CurrentEvent?.EventId);
             Assert.NotEqual(result.DiscardedEventId, dashboard.Statistics.LatestContributionEventId);
-            Assert.Equal(3L, dashboard.Statistics.EventsHeld.Value);
+            Assert.Equal(4L, dashboard.Statistics.EventsHeld.Value);
             Assert.Equal(dashboard.ParticipationChart.Sum(value => value.Participants.Value), dashboard.Statistics.EventParticipations.Value);
             var login = await LoginAsync(factory, username, disabled: false);
             using var client = login.Client;
@@ -177,6 +181,81 @@ public sealed class UiReviewScenarioIntegrationTests(ITestOutputHelper output, P
         Assert.Equal(failed.SignupOpensAt, opening.ScheduledFor);
         Assert.Equal(scenarios.BuiltAt.AddHours(-1), opening.AttemptedAt);
 
+        Assert.False(failed.ScheduledSignupOpeningEnabled);
+        Assert.False(opening.Opened); Assert.Null(opening.ResolvedAt);
+        Assert.False(attempt.Started); Assert.Null(attempt.ResolvedAt);
+        var openingReadiness = (await services.GetRequiredService<IEventReadinessEvaluator>()
+            .GetSignupReadinessAsync(failed.Id, SignupOpeningMode.ScheduledExecution, opening.AttemptedAt))!;
+        var startReadiness = (await services.GetRequiredService<IEventLifecycleService>().GetStartReadinessAsync(postponed.Id))!;
+        Assert.Equal(openingReadiness.Blockers.Select(value => value.Code).Order(StringComparer.Ordinal), opening.Blockers);
+        Assert.Equal(openingReadiness.Blockers.Select(value => value.Description), opening.Details);
+        Assert.Equal(startReadiness.Blockers.Select(value => value.Code).Order(StringComparer.Ordinal), attempt.Blockers);
+        foreach (var (item, action, title, scheduledFor, descriptions) in new[] {
+            (failed, "event.signup_opening_failed", "Scheduled signup opening failed", opening.ScheduledFor, openingReadiness.Blockers.Select(value => value.Description)),
+            (postponed, "event.start_postponed", "Automatic start postponed", attempt.ScheduledFor, startReadiness.Blockers.Select(value => value.Description)) })
+        {
+            var audit = await db.AuditEntries.SingleAsync(value => value.EventId == item.Id && value.Action == action);
+            Assert.Null(audit.ActorAccountId); Assert.Equal("System", audit.ActorUsername);
+            Assert.Equal("event", audit.TargetType); Assert.Equal(item.Id.ToString(), audit.TargetId);
+            Assert.Equal(scenarios.BuiltAt.AddHours(-1), audit.OccurredAt);
+            Assert.Null(audit.BeforeState); Assert.Null(audit.AfterState);
+            using var details = JsonDocument.Parse(audit.Details!);
+            AssertFields(details.RootElement, "scheduledFor", "blockerCodes");
+            Assert.Equal(scheduledFor, details.RootElement.GetProperty("scheduledFor").GetDateTimeOffset());
+            var expectedCodes = item == failed ? opening.Blockers : attempt.Blockers;
+            Assert.Equal(expectedCodes, details.RootElement.GetProperty("blockerCodes").EnumerateArray().Select(value => value.GetString()!).Order(StringComparer.Ordinal));
+            var notifications = await db.PersonalNotifications.Where(value => value.EventId == item.Id).ToListAsync();
+            Assert.Equal(await db.Accounts.Where(value => value.Active && value.AccountType == AccountType.WebsiteAccount
+                && (value.GlobalRole == GlobalRole.Admin || value.GlobalRole == GlobalRole.SuperAdmin)).Select(value => value.Id).OrderBy(value => value).ToListAsync(),
+                notifications.Select(value => value.RecipientAccountId).Order());
+            Assert.All(notifications, value => {
+                Assert.Equal(title, value.Title);
+                Assert.Equal($"{item.Name}: {string.Join(" ", descriptions)}", value.Detail);
+                Assert.Equal($"/Admin/Events/Manage/{item.Id}", value.Route);
+                Assert.Equal(audit.OccurredAt, value.CreatedAt); Assert.Null(value.ReadAt);
+            });
+        }
+        var importedEvent = events.Single(value => value.Slug == "ur-imported");
+        var importTransition = await db.EventStateTransitions.SingleAsync(value => value.EventId == importedEvent.Id);
+        Assert.Equal(EventState.Draft, importTransition.FromState); Assert.Equal(EventState.Archived, importTransition.ToState);
+        Assert.Equal("Frozen historical import; no live lifecycle transition.", importTransition.Reason);
+        Assert.Equal(importedEvent.ActualEndedAt, importTransition.PerformedAt); Assert.Equal(importTransition.PerformedAt, importTransition.EffectiveAt);
+        Assert.False(importTransition.Scheduled);
+        Assert.Null(importedEvent.ActualSignupOpenedAt); Assert.Null(importedEvent.ActualSignupClosedAt);
+        Assert.Equal(importedEvent.ActualEndedAt, importedEvent.FinalizedAt); Assert.Equal(importedEvent.FinalizedAt, importedEvent.ArchivedAt);
+        var importParticipants = await db.EventParticipants.Where(value => value.EventId == importedEvent.Id).ToListAsync();
+        Assert.Equal(6, importParticipants.Count);
+        Assert.All(importParticipants, value => { Assert.Equal(SignupSource.CsvImport, value.Source); Assert.Null(value.AccountId); });
+        var importAudit = await db.AuditEntries.SingleAsync(value => value.EventId == importedEvent.Id);
+        Assert.Equal("historical_import.applied", importAudit.Action); Assert.Equal("event", importAudit.TargetType);
+        Assert.Equal(importedEvent.CreatedByAccountId, importAudit.ActorAccountId);
+        Assert.Equal("ReviewOwner", importAudit.ActorUsername); Assert.Equal(importedEvent.Id.ToString("D"), importAudit.TargetId);
+        Assert.Equal(scenarios.BuiltAt, importAudit.OccurredAt); Assert.Null(importAudit.BeforeState); Assert.Null(importAudit.AfterState);
+        var importedFinalization = await db.EventFinalizations.SingleAsync(value => value.EventId == importedEvent.Id);
+        Assert.Equal(importTransition.Id, importedFinalization.ReviewCycleId);
+        Assert.Equal(importedEvent.ActualEndedAt, importedFinalization.FinalizedAt);
+        Assert.Equal("[]", importedFinalization.ConsumedResolutionIdsJson);
+        using var frozenResults = JsonDocument.Parse(importedFinalization.CalculationResultsJson!);
+        AssertFields(frozenResults.RootElement, "counters", "placements");
+        Assert.Equal(2, frozenResults.RootElement.GetProperty("counters").GetArrayLength());
+        Assert.All(frozenResults.RootElement.GetProperty("placements").EnumerateArray(), value => AssertFields(value, "Slug", "Placement"));
+        Assert.Equal(1, await db.SubmissionContributions.CountAsync(value => db.Teams.Any(team => team.Id == value.TeamId && team.EventId == importedEvent.Id)));
+        using var provenance = JsonDocument.Parse(importedFinalization.CalculationInputsJson!);
+        AssertFields(provenance.RootElement, "sourceEventId", "manifestHash", "inputHash", "importHash");
+        using var importDetails = JsonDocument.Parse(importAudit.Details!);
+        AssertFields(importDetails.RootElement, "manifestHash", "inputHash", "importHash", "sourceEventId", "counts");
+        Assert.Equal(importedEvent.Slug, provenance.RootElement.GetProperty("sourceEventId").GetString());
+        var hashes = ImportHashFields.Select(key => provenance.RootElement.GetProperty(key).GetString()!).ToArray();
+        Assert.Equal(3, hashes.Distinct(StringComparer.Ordinal).Count()); Assert.All(hashes, hash => Assert.Matches("^[a-f0-9]{64}$", hash));
+        Assert.Equal(Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes($"{hashes[0]}:{hashes[1]}"))), hashes[2]);
+        foreach (var key in new[] { "sourceEventId", "manifestHash", "inputHash", "importHash" })
+            Assert.Equal(provenance.RootElement.GetProperty(key).GetString(), importDetails.RootElement.GetProperty(key).GetString());
+        Assert.Equal(2, importDetails.RootElement.GetProperty("counts").GetProperty("teams").GetInt32());
+        Assert.Equal(6, importDetails.RootElement.GetProperty("counts").GetProperty("participants").GetInt32());
+        Assert.False(await db.AuditEntries.AnyAsync(value => value.EventId == importedEvent.Id && value.Action.StartsWith("event.")));
+
+
+
         foreach (var username in new[] { "ReviewAdmin", "ReviewOwner" })
         {
             var actor = await db.Accounts.SingleAsync(value => value.LoginName == username);
@@ -184,7 +263,7 @@ public sealed class UiReviewScenarioIntegrationTests(ITestOutputHelper output, P
             var phase = Assert.Single(dashboard.History, value => value.EventId == scenarios.CurrentEventId);
             Assert.Equal(scenarios.Profile == "live" ? EventState.Live : EventState.AwaitingFinalReview, phase.State);
             Assert.True(phase.Provisional);
-            var imported = Assert.Single(dashboard.History, value => value.EventId == events.Single(item => item.Slug == "ur-wom-unavailable").Id);
+            var imported = Assert.Single(dashboard.History, value => value.EventId == events.Single(item => item.Slug == "ur-imported").Id);
             Assert.True(imported.IsHistoricalImport);
             Assert.False(imported.ApprovedSubmissions.IsAvailable);
             Assert.True(dashboard.Statistics.ApprovedSubmissions.IsAvailable); // Mixed platform/import history.
@@ -212,6 +291,18 @@ public sealed class UiReviewScenarioIntegrationTests(ITestOutputHelper output, P
             Assert.Contains(noCapacity.Id, Rows(emptyDetails)); Assert.Contains(noDates.Id, Rows(emptyDetails));
             Assert.Contains("No capacity set", emptyDetails, StringComparison.Ordinal);
             Assert.Contains("Not scheduled", emptyDetails, StringComparison.Ordinal);
+            foreach (var seededAudit in await db.AuditEntries.Where(value => value.Action == "event.signup_opening_failed"
+                || value.Action == "event.start_postponed" || value.Action == "historical_import.applied").ToListAsync())
+            {
+                var auditHtml = WebUtility.HtmlDecode(await client.GetStringAsync($"/Admin/Audit?eventId={seededAudit.EventId}"));
+                Assert.Contains($"data-audit-entry=\"{seededAudit.Id}\"", auditHtml, StringComparison.Ordinal);
+                Assert.Contains(seededAudit.Action, auditHtml, StringComparison.Ordinal);
+                Assert.Contains(seededAudit.ActorUsername!, auditHtml, StringComparison.Ordinal);
+            }
+            var notificationHtml = WebUtility.HtmlDecode(await client.GetStringAsync("/notifications"));
+            foreach (var notification in await db.PersonalNotifications.Where(value => value.RecipientAccountId == actor.Id
+                && (value.EventId == failed.Id || value.EventId == postponed.Id)).ToListAsync())
+                Assert.Contains(notification.Detail, notificationHtml, StringComparison.Ordinal);
             var historyHtml = WebUtility.HtmlDecode(await client.GetStringAsync("/Admin"));
             Assert.Contains("Imported", historyHtml, StringComparison.Ordinal);
             Assert.Contains(string.Join(" · ", shared.Winners.Select(value => value.TeamName)), historyHtml, StringComparison.Ordinal);
@@ -248,6 +339,14 @@ public sealed class UiReviewScenarioIntegrationTests(ITestOutputHelper output, P
             Assert.Equal(boardEntry ? "board" : "event", entry.TargetType);
             var board = boards.Single(value => value.EventId == item.Id);
             Assert.Equal((boardEntry ? board.Id : item.Id).ToString(), entry.TargetId);
+            if (entry.Action is "event.start_postponed" or "event.signup_opening_failed")
+            {
+                Assert.Null(entry.BeforeState); Assert.Null(entry.AfterState);
+                Assert.Null(entry.ActorAccountId); Assert.Equal("System", entry.ActorUsername);
+                using var scheduledDetails = JsonDocument.Parse(entry.Details!);
+                AssertFields(scheduledDetails.RootElement, "scheduledFor", "blockerCodes");
+                continue; // Dedicated U2 proof above checks exact persisted attempts/recipients.
+            }
             using var after = JsonDocument.Parse(entry.AfterState!);
             using var before = entry.BeforeState is null ? null : JsonDocument.Parse(entry.BeforeState);
             var afterJson = after.RootElement;
@@ -348,7 +447,9 @@ public sealed class UiReviewScenarioIntegrationTests(ITestOutputHelper output, P
         foreach (var board in boards)
         {
             var boardAudits = audits.Where(value => value.TargetType == "board" && value.TargetId == board.Id.ToString()).ToArray();
-            if (board.ActiveApprovalSnapshotId is null) Assert.Empty(boardAudits);
+            if (audits.Any(value => value.EventId == board.EventId && value.Action == "historical_import.applied"))
+                Assert.Empty(boardAudits); // Importer publishes its frozen board without platform board audits.
+            else if (board.ActiveApprovalSnapshotId is null) Assert.Empty(boardAudits);
             else
             {
                 Assert.Single(boardAudits, value => value.Action == "board.approved");
@@ -359,6 +460,14 @@ public sealed class UiReviewScenarioIntegrationTests(ITestOutputHelper output, P
         foreach (var item in events)
         {
             var chain = transitions.Where(value => value.EventId == item.Id).OrderBy(value => value.PerformedAt).ToArray();
+            if (audits.Any(value => value.EventId == item.Id && value.Action == "historical_import.applied"))
+            {
+                var importedTransition = Assert.Single(chain);
+                Assert.Equal(EventState.Draft, importedTransition.FromState); Assert.Equal(EventState.Archived, importedTransition.ToState);
+                Assert.Equal(item.State, importedTransition.ToState);
+                Assert.Equal("Frozen historical import; no live lifecycle transition.", importedTransition.Reason);
+                continue; // Exact import audit/provenance/transition proof above; platform chain below unchanged.
+            }
             var state = EventState.Draft;
             foreach (var row in chain)
             {
