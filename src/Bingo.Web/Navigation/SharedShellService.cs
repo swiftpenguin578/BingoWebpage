@@ -214,14 +214,14 @@ public sealed class SharedShellService(ApplicationDbContext db, IStringLocalizer
                 : new AdminActionProjection([], [], 0);
             var eventIds = await db.Events.AsNoTracking().Where(item => item.HiddenAt == null && (item.State == EventState.Live || item.State == EventState.AwaitingFinalReview)).Select(item => item.Id).ToListAsync(cancellationToken);
             return new NotificationInbox(eventIds, personalCount + adminActions.Count, text["Notifications"], text["No notifications."], text["Notifications"], "/notifications", personalItems,
-                personalCount, adminActions.Count, text["Admin actions"], text["No unresolved Admin actions."], text["Admin actions"], "/Admin", adminActions.Items, !adminActions.IsAvailable);
+                personalCount, adminActions.Count, text["Admin actions"], text["No unresolved Admin actions."], text["Admin actions"], "/notifications#admin-actions-heading", adminActions.Items, !adminActions.IsAvailable);
         }
         var anonymousAdminActions = user.IsInRole("Admin") || user.IsInRole("SuperAdmin")
             ? await GetAdminActionsSafelyAsync(cancellationToken)
             : new AdminActionProjection([], [], 0);
         var anonymousEventIds = await db.Events.AsNoTracking().Where(item => item.HiddenAt == null && (item.State == EventState.Live || item.State == EventState.AwaitingFinalReview)).Select(item => item.Id).ToListAsync(cancellationToken);
         return new NotificationInbox(anonymousEventIds, anonymousAdminActions.Count, text["Notifications"], text["No notifications."], text["Notifications"], "/notifications", personalItems,
-            0, anonymousAdminActions.Count, text["Admin actions"], text["No unresolved Admin actions."], text["Admin actions"], "/Admin", anonymousAdminActions.Items, !anonymousAdminActions.IsAvailable);
+            0, anonymousAdminActions.Count, text["Admin actions"], text["No unresolved Admin actions."], text["Admin actions"], "/notifications#admin-actions-heading", anonymousAdminActions.Items, !anonymousAdminActions.IsAvailable);
     }
 
     public async Task<AdminActionProjection> GetAdminActionsAsync(CancellationToken cancellationToken)

@@ -26,16 +26,17 @@ async function startFixture(root, output) {
     await new Promise(resolve => app.exitCode !== null ? resolve() : app.once('exit', resolve)); log.end(); refLog.end();
   } };
 }
-async function referencePage(context, fixture, root) {
+async function referencePage(context, fixture, root, filename = 'Identity.dc.html', transform = source => source) {
   const page = await context.newPage();
+  const url = new URL(filename, fixture.reference).href;
   // Expose the original reference component for deterministic state selection;
   // this adds no rendering or behavior and never changes the frozen source file.
-  await page.route(fixture.reference, route => route.fulfill({ contentType: 'text/html', body: fs.readFileSync(path.join(root, 'docs/references/admin-ui/Identity.dc.html'), 'utf8').replace('componentDidMount() {', 'componentDidMount() { window.__parityReference = this;') }));
+  await page.route(url, route => route.fulfill({ contentType: 'text/html', body: transform(fs.readFileSync(path.join(root, 'docs/references/admin-ui', filename), 'utf8')).replace('componentDidMount() {', 'componentDidMount() { window.__parityReference = this;') }));
   // Render both surfaces with the exact self-hosted font bytes, without external calls.
   await page.route('https://fonts.googleapis.com/**', route => route.fulfill({ contentType: 'text/css', body: "@font-face{font-family:Geist;src:url('https://fonts.gstatic.com/parity-geist.woff2');font-weight:100 900}@font-face{font-family:'Geist Mono';src:url('https://fonts.gstatic.com/parity-geist-mono.woff2');font-weight:100 900}" }));
   await page.route('https://fonts.gstatic.com/**', route => route.fulfill({ contentType: 'font/woff2', headers: { 'Access-Control-Allow-Origin': '*' }, body: fs.readFileSync(path.join(path.resolve(__dirname, '../..'), 'src/Bingo.Web/wwwroot/fonts/prototypes', route.request().url().includes('geist-mono') ? 'geist-mono/GeistMono-Variable.woff2' : 'geist/Geist-Variable.woff2')) }));
-  await page.goto(fixture.reference); await page.waitForFunction(() => window.__parityReference);
-  await page.evaluate(() => { const c = window.__parityReference; window.__parityWorld = structuredClone(c.world); return new Promise(resolve => c.setState({ showBar: false }, resolve)); });
+  await page.goto(url); await page.waitForFunction(() => window.__parityReference);
+  await page.evaluate(() => { const c = window.__parityReference; if (c.world) window.__parityWorld = structuredClone(c.world); return new Promise(resolve => c.setState({ showBar: false }, resolve)); });
   await page.evaluate(() => document.fonts.ready); return page;
 }
 async function login(context, fixture) {

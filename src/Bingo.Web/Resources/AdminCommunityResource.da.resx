@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <data name="{0} events held · last ended {1}" xml:space="preserve"><value>{0} afholdte events · senest afsluttet {1}</value></data>
+  <data name="No events held yet" xml:space="preserve"><value>Ingen afholdte events endnu</value></data>
+  <data name="Not announced" xml:space="preserve"><value>Ikke annonceret</value></data>
+  <data name="Not recorded" xml:space="preserve"><value>Ikke registreret</value></data>
+  <data name="No compatible stored EHB coverage is available." xml:space="preserve"><value>Ingen kompatibel gemt EHB-dækning er tilgængelig.</value></data>
+  <data name="Wise Old Man · {0} of {1} accounts" xml:space="preserve"><value>Wise Old Man · {0} af {1} konti</value></data>
+  <data name=" · frozen snapshot" xml:space="preserve"><value> · frosset øjebliksbillede</value></data>
+  <data name=" · partial coverage" xml:space="preserve"><value> · delvis dækning</value></data>
+  <data name="Approved evidence submissions. Reconstructed imported contributions are excluded." xml:space="preserve"><value>Godkendte indsendelser med dokumentation. Rekonstruerede importerede bidrag er ikke medregnet.</value></data>
+  <data name="Imported history has no measured evidence submissions; its contributions were reconstructed." xml:space="preserve"><value>Importeret historik har ingen målte indsendelser med dokumentation; bidragene blev rekonstrueret.</value></data>
+  <data name="Published board approval or a usable event interval is unavailable." xml:space="preserve"><value>Et godkendt offentliggjort Board eller et brugbart eventinterval er ikke tilgængeligt.</value></data>
+  <data name="Start was due {0}" xml:space="preserve"><value>Start var planlagt til {0}</value></data>
+  <data name="opens {0}" xml:space="preserve"><value>åbner {0}</value></data>
+  <data name="closes {0}" xml:space="preserve"><value>lukker {0}</value></data>
+  <data name="ends {0}" xml:space="preserve"><value>slutter {0}</value></data>
+  <data name="starts {0}" xml:space="preserve"><value>starter {0}</value></data>
+  <data name="Setup" xml:space="preserve"><value>Opsætning</value></data>
+  <data name="Signups open" xml:space="preserve"><value>Tilmelding åben</value></data>
+  <data name="Signups closed" xml:space="preserve"><value>Tilmelding lukket</value></data>
+  <data name="Live" xml:space="preserve"><value>Live</value></data>
+  <data name="Final review" xml:space="preserve"><value>Afsluttende gennemgang</value></data>
+  <data name="Finalized" xml:space="preserve"><value>Afsluttet</value></data>
+  <data name="Archived" xml:space="preserve"><value>Arkiveret</value></data>
+  <data name="Events held" xml:space="preserve"><value>Afholdte events</value></data>
+  <data name="{0} live or awaiting final review" xml:space="preserve"><value>{0} live eller til afsluttende gennemgang</value></data>
+  <data name="since {0}" xml:space="preserve"><value>siden {0}</value></data>
+  <data name="Events that have gone Live, including Live and final review. Figures may still change." xml:space="preserve"><value>Events, der er gået Live, inklusive Live og afsluttende gennemgang. Tallene kan stadig ændre sig.</value></data>
+  <data name="Unique participants" xml:space="preserve"><value>Unikke deltagere</value></data>
+  <data name="not tracked yet" xml:space="preserve"><value>ikke registreret endnu</value></data>
+  <data name="tracked since {0}" xml:space="preserve"><value>registreret siden {0}</value></data>
+  <data name="A usable actual lifecycle interval is unavailable. Unknown is not zero." xml:space="preserve"><value>Et brugbart faktisk livscyklusinterval er ikke tilgængeligt. Ukendt er ikke nul.</value></data>
+  <data name="Counted by website account. Imported participants are not linked to accounts and are excluded." xml:space="preserve"><value>Talt efter webstedskonto. Importerede deltagere er ikke knyttet til konti og er ikke medregnet.</value></data>
+  <data name="Total participations" xml:space="preserve"><value>Samlede deltagelser</value></data>
+  <data name="each person once per event" xml:space="preserve"><value>hver person én gang pr. event</value></data>
+  <data name="Players summed across every event held, including imported history. Each person counts once per event." xml:space="preserve"><value>Spillere summeret på tværs af alle afholdte events, inklusive importeret historik. Hver person tæller én gang pr. event.</value></data>
+  <data name="Approved submissions" xml:space="preserve"><value>Godkendte indsendelser</value></data>
+  <data name="measured evidence only" xml:space="preserve"><value>kun målt dokumentation</value></data>
+  <data name="not available" xml:space="preserve"><value>ikke tilgængeligt</value></data>
+  <data name="Event" xml:space="preserve"><value>Event</value></data>
+  <data name="Players" xml:space="preserve"><value>Spillere</value></data>
+  <data name="Winner’s board" xml:space="preserve"><value>Vinderens Board</value></data>
+  <data name="EHB gained" xml:space="preserve"><value>Optjent EHB</value></data>
+  <data name="Winner" xml:space="preserve"><value>Vinder</value></data>
+  <data name="Current event" xml:space="preserve"><value>Aktuelt event</value></data>
+  <data name="Next event" xml:space="preserve"><value>Næste event</value></data>
+  <data name="{0} of {1} places filled" xml:space="preserve"><value>{0} af {1} pladser besat</value></data>
+  <data name="{0} confirmed · No capacity set" xml:space="preserve"><value>{0} bekræftede · Ingen kapacitet angivet</value></data>
+  <data name="Open" xml:space="preserve"><value>Åbn</value></data>
+  <data name="Sorted by {0}, {1}." xml:space="preserve"><value>Sorteret efter {0}, {1}.</value></data>
+  <data name="descending" xml:space="preserve"><value>faldende</value></data>
+  <data name="ascending" xml:space="preserve"><value>stigende</value></data>
+  <data name="No events have been held yet" xml:space="preserve"><value>Der er ikke afholdt nogen events endnu</value></data>
+  <data name="Participation and history appear once the first event goes Live." xml:space="preserve"><value>Deltagelse og historik vises, når det første event går Live.</value></data>
+  <data name="Go to Events" xml:space="preserve"><value>Gå til Events</value></data>
+  <data name="Headline statistics" xml:space="preserve"><value>Nøgletal</value></data>
+  <data name="new in the latest event" xml:space="preserve"><value>nye i det seneste event</value></data>
+  <data name="from the latest event" xml:space="preserve"><value>fra det seneste event</value></data>
+  <data name="Participation by event" xml:space="preserve"><value>Deltagelse pr. event</value></data>
+  <data name="Legend" xml:space="preserve"><value>Signaturforklaring</value></data>
+  <data name="Returning" xml:space="preserve"><value>Tilbagevendende</value></data>
+  <data name="First time" xml:space="preserve"><value>Første gang</value></data>
+  <data name="Imported (not linked)" xml:space="preserve"><value>Importeret (ikke tilknyttet)</value></data>
+  <data name="Provisional" xml:space="preserve"><value>Foreløbig</value></data>
+  <data name="Players per event" xml:space="preserve"><value>Spillere pr. event</value></data>
+  <data name="{0}: {1} players, {2} teams." xml:space="preserve"><value>{0}: {1} spillere, {2} hold.</value></data>
+  <data name="Imported" xml:space="preserve"><value>Importeret</value></data>
+  <data name="Tracking starts" xml:space="preserve"><value>Registrering starter</value></data>
+  <data name="{0} teams" xml:space="preserve"><value>{0} hold</value></data>
+  <data name="Returning share" xml:space="preserve"><value>Tilbagevendende andel</value></data>
+  <data name="Imported history. Players are not linked to website accounts." xml:space="preserve"><value>Importeret historik. Spillere er ikke knyttet til webstedskonti.</value></data>
+  <data name="Figures are provisional and may still change." xml:space="preserve"><value>Tallene er foreløbige og kan stadig ændre sig.</value></data>
+  <data name="Tracked history starts here; there is no earlier event to return from." xml:space="preserve"><value>Registreret historik starter her; der er intet tidligere event at vende tilbage fra.</value></data>
+  <data name="Each person counted once per event. Returning means an earlier tracked event." xml:space="preserve"><value>Hver person tælles én gang pr. event. Tilbagevendende betyder deltagelse i et tidligere registreret event.</value></data>
+  <data name="Latest event" xml:space="preserve"><value>Seneste event</value></data>
+  <data name="Imported · archived" xml:space="preserve"><value>Importeret · arkiveret</value></data>
+  <data name="Results provisional" xml:space="preserve"><value>Foreløbige resultater</value></data>
+  <data name="Final review in progress" xml:space="preserve"><value>Afsluttende gennemgang i gang</value></data>
+  <data name="The winner is shown once results are official." xml:space="preserve"><value>Vinderen vises, når resultaterne er officielle.</value></data>
+  <data name="Last official winner: {0} · {1}" xml:space="preserve"><value>Seneste officielle vinder: {0} · {1}</value></data>
+  <data name="{0} teams competed" xml:space="preserve"><value>{0} hold deltog</value></data>
+  <data name="Winner completed {0} of {1} tiles" xml:space="preserve"><value>Vinderen gennemførte {0} af {1} tiles</value></data>
+  <data name="may change in final review" xml:space="preserve"><value>kan ændres ved afsluttende gennemgang</value></data>
+  <data name="Imported history · attribution reconstructed" xml:space="preserve"><value>Importeret historik · fordeling rekonstrueret</value></data>
+  <data name="Finalized results" xml:space="preserve"><value>Afsluttede resultater</value></data>
+  <data name="Open event" xml:space="preserve"><value>Åbn event</value></data>
+  <data name="No ended event yet" xml:space="preserve"><value>Intet afsluttet event endnu</value></data>
+  <data name="The recap appears after an event has ended." xml:space="preserve"><value>Opsummeringen vises, når et event er afsluttet.</value></data>
+  <data name="Event history" xml:space="preserve"><value>Eventhistorik</value></data>
+  <data name="{0} events" xml:space="preserve"><value>{0} events</value></data>
+  <data name="Live · provisional" xml:space="preserve"><value>Live · foreløbig</value></data>
+  <data name="tiles" xml:space="preserve"><value>tiles</value></data>
+  <data name="Shown once results are official." xml:space="preserve"><value>Vises, når resultaterne er officielle.</value></data>
+  <data name="Not recorded." xml:space="preserve"><value>Ikke registreret.</value></data>
+  <data name="Official results are published after final review." xml:space="preserve"><value>Officielle resultater offentliggøres efter afsluttende gennemgang.</value></data>
+  <data name="Community" xml:space="preserve"><value>Fællesskab</value></data>
+  <data name="Current figures" xml:space="preserve"><value>Aktuelle tal</value></data>
+  <data name="Website accounts" xml:space="preserve"><value>Webstedskonti</value></data>
+  <data name="New accounts" xml:space="preserve"><value>Nye konti</value></data>
+  <data name="Logged in" xml:space="preserve"><value>Logget ind</value></data>
+  <data name="registered in total" xml:space="preserve"><value>registrerede i alt</value></data>
+  <data name="No usable actual ended boundary is available." xml:space="preserve"><value>Ingen brugbar faktisk afslutningsdato er tilgængelig.</value></data>
+  <data name="in the last 30 days" xml:space="preserve"><value>de seneste 30 dage</value></data>
+  <data name="Couldn’t load statistics" xml:space="preserve"><value>Kunne ikke indlæse statistik</value></data>
+  <data name="Check your connection and try again. Nothing was changed." xml:space="preserve"><value>Kontrollér din forbindelse, og prøv igen. Intet blev ændret.</value></data>
+  <data name="Try again" xml:space="preserve"><value>Prøv igen</value></data>
+  <data name="The dashboard figures didn’t load. Events and participants are unaffected." xml:space="preserve"><value>Dashboardets tal kunne ikke indlæses. Events og deltagere er ikke påvirket.</value></data>
+  <data name="{0} event since {1}" xml:space="preserve"><value>{0} event siden {1}</value></data>
+  <data name="{0} events since {1}" xml:space="preserve"><value>{0} events siden {1}</value></data>
+  <data name=" · last ended {0}" xml:space="preserve"><value> · senest afsluttet {0}</value></data>
+  <data name=" ({0} day ago)" xml:space="preserve"><value> (for {0} dag siden)</value></data>
+  <data name=" ({0} days ago)" xml:space="preserve"><value> (for {0} dage siden)</value></data>
+  <data name="Tracked players" xml:space="preserve"><value>Registrerede spillere</value></data>
+  <data name="New in the last 30 days" xml:space="preserve"><value>Nye de seneste 30 dage</value></data>
+  <data name="New since the last event" xml:space="preserve"><value>Nye siden det seneste event</value></data>
+  <data name="Logged in during the last 30 days" xml:space="preserve"><value>Logget ind de seneste 30 dage</value></data>
+  <data name="created recently" xml:space="preserve"><value>oprettet for nylig</value></data>
+  <data name="created after {0}" xml:space="preserve"><value>oprettet efter {0}</value></data>
+  <data name="{0}% of accounts" xml:space="preserve"><value>{0}% af kontiene</value></data>
+  <data name="{0}: participant count unavailable, {1} teams." xml:space="preserve"><value>{0}: deltagerantal ikke tilgængeligt, {1} hold.</value></data>
+</root>

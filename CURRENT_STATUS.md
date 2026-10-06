@@ -1,14 +1,13 @@
 # Current project status
 
-## U2 brief67 item1 checked; Dashboard page next — 6 October 2026
+## U2 brief67 item2 checked; Events directory next — 6 October 2026
 
-- Assigned implementer checkout `/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage`, branch `codex/participants-functionality`; started clean at exact `8355680a4eee6a74ae905c5c69a8f50c5f021dcf`. No workers/reviewer/orchestrator created. Follow [lean execution](DELIVERY_PLAN.md#421-lean-execution-and-planner-handoff).
-- Item0 committed `edd7bbcd825a9ab6a34864502faa1205c47c1dbd`: authorized design binding register, Cancelled confirmed-count requirement, U2 batch status. [Item0 evidence](docs/references/admin-ui/reviews/2026-10-06/u2/item0-docs.md); documentation consistency/diff checks passed.
-- Item1 candidate remains **uncommitted/incomplete**: DB-2/3/4/5 and U2-1 read-model changes, D-15/S14 Dashboard handler/query retirement, authorized Audit markup assertion changes and new unexecuted PostgreSQL tests. [Exact checkpoint and blocker](docs/references/admin-ui/reviews/2026-10-06/u2/item1-dashboard-backend.md).
-- Initial Release build exit1: **0 warnings / 6 errors** from retired UR properties. User authorized ruling68 rewrite of original :123–131; implemented only that block, keeping :105–107, discardAudit lookup and AssertPrintedUrlsAsync unchanged. Subsequent Release test compilation succeeded after correcting three indexing analyzer errors in new tests.
-- Focused PostgreSQL/HTTP: **26 passed / 3 failed / 0 skipped**. Existing Dashboard **16/0/0**, unchanged EventsDirectory **4/0/0**. New tests six passed, one duplicate-RSN fixture failed; corrected fixture rerun **1/0/0**. Both UR profiles pass the new service/rendered Dashboard/Audit block for both roles before failing the protected helper's retired-audit assertion. No whole-UR/final gate pass claimed. `git diff --check` passed; frozen CSS/references unchanged. Exact commands/TRX identities in item1 evidence.
-- Ruling68 addendum authorized removing only the helper's retired-audit branch and correcting its stale output. UR **2/0/0**; Dashboard/Audit/anonymous HTTP **10/0/0**; history ordering **2/0/0**; Release solution build **0 warnings/errors**. Earlier passing PostgreSQL evidence retained; no whole-batch gate claimed. Items2–5 not started.
-- Dashboard and Events directory remain **awaiting Claude review, then user visual acceptance**; page bindings incomplete. Exact next step: scoped item1 commit, then item2. No later batch/publication authority.
+- Assigned checkout `/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage`, branch `codex/participants-functionality`; started clean at `8355680a4eee6a74ae905c5c69a8f50c5f021dcf`. No workers/reviewer/orchestrator or new branch/worktree. Follow [lean execution](DELIVERY_PLAN.md#421-lean-execution-and-planner-handoff).
+- Item0 `edd7bbcd825a9ab6a34864502faa1205c47c1dbd`: [docs evidence](docs/references/admin-ui/reviews/2026-10-06/u2/item0-docs.md).
+- Item1 `6c8037b52fd8281fd9e1a9e869dd146ef4c57e38`: [backend/ruling68 evidence](docs/references/admin-ui/reviews/2026-10-06/u2/item1-dashboard-backend.md). Existing Dashboard16/0/0, unchanged directory4/0/0, new PG7 passing across focused/corrective runs, UR2/0/0, HTTP10/0/0, ordering2/0/0; Release solution0 warnings/errors.
+- Item2 checked for scoped commit: [Dashboard evidence](docs/references/admin-ui/reviews/2026-10-06/u2/item2-dashboard-page.md). User option(b) loading header implemented and registered: reserved summary, fresh card-sized skeleton; failure no card/placeholder; no remembered card. Dashboard binding, localization, hints, chart keyboard/Escape, sorts and A4 destinations implemented.
+- Resumed proofs: HTTP13/0/0, UR2/0/0; shell/language regressions4 passing browser executions; Dashboard16 passing scenarios in Chromium/WebKit, regular parity0 differences both themes, loading/loaded positions within1px at1440/1280/861/860/390. Fixture Release0 warnings/errors. Earlier failed checkpoints retained as history, superseded by scoped corrections.
+- Frozen CSS/references and directory tests unchanged; diff check passed. Item2 awaits Claude review then user visual acceptance, as do Events directory rows. Items3–5 next; final clean Release/full JS/whole BrowserTests gates remain after5. Whole .NET suite belongs to Claude's final-SHA gate; no pass claimed. No U3+, lane T, packaging, push, merge or deployment.
 
 ## TS brief66 delivered — retained evidence
 
@@ -31,7 +30,6 @@
 
 ## Next permitted action
 
-U2 item1 checks passed after ruling68/addendum; commit its scoped checkpoint and
-continue authorized items2–5. TS is closed as
+Commit checked item2, then continue authorized items3–5. TS is closed as
 delivered with Claude independent review/suite in its parallel gate. No U3–U10,
 lane T, rehearsal, packaging, push, merge or deployment.

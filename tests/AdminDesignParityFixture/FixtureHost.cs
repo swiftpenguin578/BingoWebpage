@@ -5,7 +5,10 @@ using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
 using System.Text.Json;
 using Bingo.Domain.Access;
+using Bingo.Application.Dashboard;
 using Bingo.Domain.Events;
+using Bingo.Domain.Signups;
+using Bingo.Domain.Teams;
 using Bingo.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.DataProtection;
@@ -101,6 +104,16 @@ internal static class FixtureHost
             foreach (var state in new[] { EventState.Finalized, EventState.Archived, EventState.Cancelled })
                 Add("spring-" + state.ToString().ToLowerInvariant(), "Spring Bingo 2027", state, "Europe/Copenhagen", "Seven teams, one board, a photo finish.", null, "2027-02-15T17:00:00Z", "2027-03-01T19:00:00Z", "2027-03-05T18:00:00Z", "2027-03-12T17:00:00Z", "2027-03-21T21:00:00Z");
             for (var i = 0; i < 15; i++) Add("scroll-" + i, "Scroll fixture " + i, EventState.Draft, "UTC", null, null, null, null, null, "2027-04-01T12:00:00Z", "2027-04-02T12:00:00Z");
+            foreach (var item in db.ChangeTracker.Entries<BingoEvent>().Select(entry => entry.Entity)
+                         .Where(item => item.ActualStartedAt is not null).ToArray())
+            {
+                var team = new Team(Guid.NewGuid(), item.Id, "Parity team", "parity-team", null, false, item.ActualStartedAt);
+                var person = new EventParticipant(Guid.NewGuid(), item.Id, SignupStatus.Confirmed, 1,
+                    item.ActualStartedAt!.Value.AddDays(-1), SignupSource.AdminCreated);
+                person.AssignOwner(account);
+                db.AddRange(team, person, new TeamMembership(Guid.NewGuid(), team.Id, person.Id,
+                    TeamMembershipRole.Participant, item.ActualStartedAt.Value, null, "Controlled parity membership"));
+            }
             await db.SaveChangesAsync();
         }
         await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder
@@ -123,7 +136,9 @@ internal static class FixtureHost
             }));
         factory.UseKestrel(0);
         using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
-        Console.WriteLine("PARITY_READY " + JsonSerializer.Serialize(new { origin = factory.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.Single(), username = account.PublicUsername, password, events = ids }));
+        using var dashboardScope = factory.Services.CreateScope();
+        var dashboard = await dashboardScope.ServiceProvider.GetRequiredService<IAdminDashboardService>().GetAsync(account.Id);
+        Console.WriteLine("PARITY_READY " + JsonSerializer.Serialize(new { origin = factory.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.Single(), username = account.PublicUsername, password, events = ids, dashboard }));
         // Only this process owns the container; closing stdin disposes host and database.
         await Console.In.ReadLineAsync();
     }

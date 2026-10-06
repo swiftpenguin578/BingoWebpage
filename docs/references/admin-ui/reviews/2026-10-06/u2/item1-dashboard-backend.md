@@ -75,8 +75,9 @@ evidence reused; no broad repetition. Raw repository-local ignored TRX files:
 
 `git diff --check`: exit0. Frozen references/tokens/components and protected
 EventsDirectoryIntegrationTests have no diff from item0. No JS/browser gate,
-whole BrowserTests or whole .NET suite claimed. D-15 HTTP role-loss proof and
-remaining item1 checks still required; item1 is not complete or committed.
+whole BrowserTests or whole .NET suite claimed at that checkpoint. The D-15 and
+remaining focused checks were subsequently completed below; item1 was committed
+as `6c8037b52fd8281fd9e1a9e869dd146ef4c57e38` before item2 began.
 
 ## Required planner decision
 

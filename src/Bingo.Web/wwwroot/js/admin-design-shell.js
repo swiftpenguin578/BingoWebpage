@@ -318,8 +318,22 @@
     for (const module of modules) await module.init(document.querySelector('[data-page-region]'), api);
   }
   const skeletons = new Map();
+  const failures = new Map();
+  const loadingHeads = new Map();
+  const pageTitles = new Map();
+  function pageKind(url) {
+    const path = new URL(url).pathname.replace(/\/$/, '').toLowerCase();
+    if (path === '/admin' || path === '/admin/index') return 'dashboard';
+    if (path === '/admin/events' || path === '/admin/events/index' || path === '/admin/events/create') return 'events';
+    return path.split('/').at(-2) || 'page';
+  }
   function rememberSkeletons(doc) {
-    for (const template of doc.querySelectorAll('template[data-page-loading-template]')) skeletons.set(template.dataset.pageLoadingTemplate, template.content.cloneNode(true));
+    for (const template of doc.querySelectorAll('template[data-page-loading-template]')) {
+      skeletons.set(template.dataset.pageLoadingTemplate, template.content.cloneNode(true));
+      if (template.dataset.pageTitle) pageTitles.set(template.dataset.pageLoadingTemplate, template.dataset.pageTitle);
+    }
+    for (const template of doc.querySelectorAll('template[data-page-failure-template]')) failures.set(template.dataset.pageFailureTemplate, template.content.cloneNode(true));
+    for (const template of doc.querySelectorAll('template[data-page-header-template]')) loadingHeads.set(template.dataset.pageHeaderTemplate, template.content.cloneNode(true));
   }
   rememberSkeletons(document);
   let overlay = null;
@@ -365,15 +379,20 @@
     const busy = main.getAttribute('aria-busy');
     for (const saved of children) { saved.element.hidden = true; saved.element.inert = true; saved.element.setAttribute('aria-hidden', 'true'); }
     destinationContext(url);
-    const kind = new URL(url).pathname.split('/').at(-2)?.toLowerCase() || 'page';
+    const kind = pageKind(url);
     const placeholder = document.createElement('div'); placeholder.className = 'page'; placeholder.dataset.pageSkeleton = kind;
     placeholder.setAttribute('role', 'status'); placeholder.setAttribute('aria-label', text('loading')); placeholder.setAttribute('aria-busy', 'true');
-    const head = main.querySelector('.page-head')?.cloneNode(true);
+    const head = loadingHeads.get(kind)?.cloneNode(true).firstElementChild || main.querySelector('.page-head')?.cloneNode(true);
     if (head) {
       head.hidden = false; head.inert = false; head.removeAttribute('aria-hidden');
       head.querySelectorAll('[id]').forEach(element => element.removeAttribute('id'));
       const summary = head.querySelector('[data-summary-template]');
       if (summary) summary.textContent = summary.dataset.summaryTemplate.replace('{0}', document.querySelector('.ev-name')?.textContent || '');
+      if (pageTitles.has(kind) && !loadingHeads.has(kind)) {
+        head.querySelector('.h1').textContent = pageTitles.get(kind);
+        [...head.children].slice(1).forEach(element => element.remove());
+        head.querySelector('.summary')?.remove();
+      }
       placeholder.append(head);
     }
     const provided = skeletons.get(kind); placeholder.dataset.skeletonLayout = provided ? 'page' : 'generic';
@@ -495,8 +514,9 @@
       const placeholder = overlay?.element;
       if (!placeholder) return false;
       placeholder.setAttribute('aria-busy', 'false'); overlay.main.removeAttribute('aria-busy');
+      placeholder.querySelector('[data-dashboard-loading-card]')?.remove();
       for (const child of [...placeholder.children]) if (!child.classList.contains('page-head')) child.remove();
-      const failed = template('load-failure');
+      const failed = failures.get(pageKind(url))?.cloneNode(true) || template('load-failure');
       const retry = failed.querySelector('[data-load-retry]');
       retry.addEventListener('click', () => void navigate(url, { mode, targetIndex, check: false }));
       placeholder.append(failed); focus(retry);
