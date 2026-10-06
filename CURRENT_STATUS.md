@@ -1,13 +1,13 @@
 # Current project status
 
-## TS brief66 implementation checkpoint — 6 October 2026
+## TS brief66 delivered; U2 authorized — 6 October 2026
 
 - Checkout `/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage`, branch `codex/participants-functionality`; TS started clean at exactly `8fd559c8125592cdefa76c75ea06ab8e667860e9`. Implementer only; no workers, reviewer or orchestrator created. Follow [lean execution](DELIVERY_PLAN.md#421-lean-execution-and-planner-handoff).
 - Test infrastructure only: 41 Integration classes use a native fixture in each existing xUnit class collection, one owned PostgreSQL17 container/migrated template, and a clean unique database per test. 25 conservative dedicated exceptions retain original setup. All affected shared/dedicated fixtures validate real credentials with a bounded connection/query check. Test inputs/assertions/expected values, production code, parallelism and user/UR databases are unchanged.
 - [TS durable evidence](docs/references/admin-ui/reviews/2026-10-06/ts/item6-handoff.md) links the per-item checkpoints, [baseline](docs/references/admin-ui/reviews/2026-10-06/ts/item1-baseline.md), [shared fixture](docs/references/admin-ui/reviews/2026-10-06/ts/item2-shared-fixture.md), [25 exceptions](docs/references/admin-ui/reviews/2026-10-06/ts/item3-exceptions.md), [readiness checks](docs/references/admin-ui/reviews/2026-10-06/ts/item4-readiness.md) and [CI/discovery decision](docs/references/admin-ui/reviews/2026-10-06/ts/item5-ci-discovery.md).
 - Exact before/after discovered counts and case identities match: Domain **265**, Application **118**, Browser **150**, Integration **1510**; total **2043**. Integration baseline **1510/0/0**, **2135.72s** wall-clock. Candidate shared checks **152/0/0**, dedicated checks **8/0/0**, entire Browser **150/0/0**. Real PostgreSQL probe passed concurrent isolation, 85 migrations, credentials and cleanup; wrong credentials failed at the bounded **60.00s** deadline. Candidate clean Release build **0 warnings/errors**. These are explicitly candidate/baseline identities, not final-SHA runs.
-- Final-SHA gate: the checked-in [runner](docs/references/admin-ui/reviews/2026-10-06/ts/run-final-gates.sh) builds the final commit cleanly and runs all four solution test projects twice. Exact tested SHA, commands, counters, timings and identities are retained after execution in [post-commit results](docs/references/admin-ui/reviews/2026-10-06/ts/final-sha-results.json). That execution record remains repository-local and uncommitted so recording it does not move the tested SHA. Preserve it at handoff; the result must show two **2043 passed / 0 failed / 0 skipped** passes before TS execution is complete.
-- [Corrective checkpoint](docs/references/admin-ui/reviews/2026-10-06/ts/remediation-1.md): candidate `1b237ed` failed 16 dashboard setup cases because its original template was `postgres` and the helper also connected there administratively. The helper now uses a distinct test-owned bootstrap database. Both dashboard classes pass **16/0/0**; the failed candidate is not final acceptance. Both whole-suite passes must run anew on the corrective SHA.
+- Tested source SHA **`f32141a45af92fd05bc6249cdbfdd3a003fec563`**: clean Release **0 warnings/errors**, complete final-SHA pass1 **2043/0/0**, Integration wall **1910.80s**. Pass2 Domain **265/0/0**, Application **118/0/0**, Browser **150/0/0**; the user explicitly stopped Integration at **17:02:58 CEST**, after **286.57s**. No completed Integration TRX exists. TS is **closed as delivered by user decision**; the second implementer pass is not required because Claude runs the final gate independently in parallel. Exact commands, counters, timings and evidence identities are in [post-commit results](docs/references/admin-ui/reviews/2026-10-06/ts/final-sha-results.json).
+- [Corrective checkpoint](docs/references/admin-ui/reviews/2026-10-06/ts/remediation-1.md): candidate `1b237ed` failed 16 dashboard setup cases because its original template was `postgres` and the helper also connected there administratively. The helper now uses a distinct test-owned bootstrap database. Both dashboard classes pass **16/0/0**, and fresh whole-suite pass1 passed; the failed candidate is not final acceptance.
 - `ci.yml`, partition script and **10** shards unchanged; local class filters/expected counts/matrix are byte-identical before/after. GitHub Actions/Linux CI is unrun. Source protection and diff checks passed; this is implementer evidence, **not independent review**. Claude independent review and one independent final-SHA suite run remain required.
 
 ## Retained approvals and release constraints
@@ -21,8 +21,7 @@
 
 ## Next permitted action
 
-Complete the two final-commit TS suite passes and return their exact evidence at
-this brief's stop boundary. Then the user relays the stable TS batch to Claude for
-independent source review and one independent final-SHA whole-suite run. Any final
-verification failure remains incomplete and must be reported without weakening a
-test. No U2–U10, lane T, rehearsal, packaging, push, merge or deployment.
+TS is closed as delivered. Claude independent source review and one independent
+final-SHA whole-suite run remain in its parallel gate. Proceed with U2 brief67 from
+this committed TS head; no U3–U10, lane T, rehearsal, packaging, push, merge or
+deployment.

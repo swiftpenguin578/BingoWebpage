@@ -57,7 +57,7 @@ remain evidence of completed work, not competing defaults.
 | Role | Who / model | Owns |
 | --- | --- | --- |
 | Planner and independent reviewer | Claude planner chat selected by the user | Scope, briefs, decisions with the user, independent review of each batch, delivery reconciliation |
-| Dispatcher | Codex planner chat named in the brief; `gpt-5.6-luna` / `medium` (user decision, 6 October 2026) | Starting the implementer, relaying reports and questions |
+| Dispatcher | Codex planner chat; `gpt-5.6-luna` / `medium` (user decision, 6 October 2026) | Starting the implementer, relaying reports and questions |
 | Implementer/remediator | Model/reasoning named in the brief (default `gpt-6-astra` / `high`) | Implementation, checks, batch gate, per-item commits, evidence |
 | Orchestrator | `gpt-6.1-sol` / `high`, only when a brief assigns one | Worker dispatch, waits and handoffs for that brief |
 
@@ -68,10 +68,11 @@ remain evidence of completed work, not competing defaults.
   brief on the same route; the remediation recheck covers the named findings and
   their direct consequences, not a broad re-review. Remediation goes to the same
   implementer chat when it is available.
-- Briefs state the planner and dispatcher chat IDs, worker identity when known, role,
-  model/reasoning, checkout/branch, assigned outcome, protected scope, relevant
-  authorities, checks and stop boundary. Verify recipients; never infer them from
-  pinned or recent tasks.
+- Briefs name the roles (planner, dispatcher, implementer) and the implementer's exact
+  model/reasoning; the user routes them. They also state the checkout/branch, assigned
+  outcome, protected scope, relevant authorities, checks and stop boundary. Verify
+  recipients; never infer them from pinned or recent tasks for any orchestrated
+  hand-off a brief explicitly assigns.
 - No orchestrator, Codex reviewer or separate verifier unless the brief assigns one.
   Never review a changing diff.
 - Run batches sequentially unless the planner's approved plan explicitly names
