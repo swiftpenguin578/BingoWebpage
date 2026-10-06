@@ -6,7 +6,7 @@ export function initCreate(region, ui) {
   const source = region.querySelector('[data-event-create-template]'); if (!source) return;
   const labels = JSON.parse(source.dataset.createLabels), names = JSON.parse(source.dataset.createNames);
   const t = key => labels[key] || key, life = new AbortController();
-  let modal, unregister, status = 'idle', requestId, leaving = false, fieldError = '', validatedName = '';
+  let modal, unregister, status = 'idle', requestId, leaving = false, fieldError = '', validatedName = '', openedFromDirectory = false;
   const schema = values => Object.fromEntries(Object.keys(values).map(key => [key, { valid: () => true, default: '' }]));
   const url = create => { const values = Object.fromEntries(new URL(location.href).searchParams); if (create) values.create = '1'; else delete values.create; ui.setUrl(values, schema(values), {record: create}); };
   const dirty = () => !!modal && (modal.element.querySelector('#cm-name').value !== '' || modal.element.querySelector('#cm-tz').value !== 'Europe/Copenhagen' || status === 'uncertain');
@@ -26,7 +26,7 @@ export function initCreate(region, ui) {
     name.classList.toggle('is-invalid',!!fieldError); name.setAttribute('aria-invalid',String(!!fieldError));
     const dupe = !locked && names.find(item => item.name.toLocaleLowerCase(document.documentElement.lang) === name.value.trim().toLocaleLowerCase(document.documentElement.lang));
     const note = panel.querySelector('#cm-name-dup');note.hidden=!dupe;
-    if(dupe)note.querySelector('[data-component-text]').textContent=t('An event called “{0}” already exists ({1}). You can still create another; it gets its own link.').replace('{0}',()=>dupe.name).replace('{1}',()=>dupe.phase);
+    if(dupe)note.querySelector('[data-component-text]').textContent=t('An event called “{0}” already exists ({1}). You can still create another; it gets its own link.').replace(/\{([01])\}/g,(_match,key)=>key==='0'?dupe.name:dupe.phase);
     const described = [fieldError?'cm-name-err':'',dupe?'cm-name-dup':''].filter(Boolean).join(' '); if(described)name.setAttribute('aria-describedby',described);else name.removeAttribute('aria-describedby');
     const notices = [['cm-failure','failed','Couldn’t create the event. Nothing was saved, and your details are still here.'],['cm-uncertain','uncertain','We couldn’t confirm whether the event was created. Check before trying again, so the event isn’t created twice.'],['cm-not-found','not-found',"We couldn't find it. It may not have been created, or it was removed since. You can create it again with these details."]];
     for(const[id,state,message]of notices){const node=panel.querySelector('#'+id);node.hidden=status!==state && !(id==='cm-uncertain'&&status==='checking');node.querySelector('[data-component-text]').textContent=t(message);}
@@ -71,13 +71,13 @@ export function initCreate(region, ui) {
     // Session notice keeps the unsent details; readback remains available after sign-in.
     status='uncertain';paint();
   }
-  function open(record=false,opener=document.activeElement) {
+  function open(record=false,opener=document.activeElement,fromDirectory=record) {
     if(modal)return;
-    leaving=false;status='idle';fieldError='';requestId=crypto.randomUUID();
+    leaving=false;openedFromDirectory=fromDirectory;status='idle';fieldError='';requestId=crypto.randomUUID();
     const content=source.content.cloneNode(true);content.querySelector('#Input_RequestId').value=requestId;
-    modal=ui.openLayer({title:t('Create event'),content,pending,dirty,confirmLeave:askDiscard,opener,onClose:(_result,{navigating}={})=>{
+    modal=ui.openLayer({title:t('Create event'),content,pending,dirty,confirmLeave:askDiscard,opener,onClose:async(_result,{navigating}={})=>{
       modal=null;unregister?.();unregister=null;ui.refreshDirty();
-      if(!leaving&&!navigating){url(false);}
+      if(!leaving&&!navigating){if(openedFromDirectory)await ui.backUrl();else url(false);}
     }});modal.element.classList.add('modal-form');
     unregister=ui.registerDraft(source,{isDirty:dirty,isPending:pending,confirmLeave:askDiscard,discard:()=>{modal?.element.querySelector('#cm-name')&&(modal.element.querySelector('#cm-name').value='');if(modal)modal.element.querySelector('#cm-tz').value='Europe/Copenhagen';status='idle';}});
     modal.element.addEventListener('input',event=>{if(event.target.id==='cm-name'&&event.target.value!==validatedName)fieldError='';paint();},{signal:life.signal});
@@ -89,6 +89,13 @@ export function initCreate(region, ui) {
     if(record)url(true);paint();
   }
   region.addEventListener('click',event=>{const control=event.target.closest('[data-create-event]');if(control&&event.button===0&&!event.metaKey&&!event.ctrlKey&&!event.shiftKey&&!event.altKey){event.preventDefault();open(true,control);}},{signal:life.signal});
+  const unregisterUrl=ui.registerUrlState(async(next,previous)=>{
+    const a=new URL(next),b=new URL(previous);a.searchParams.delete('create');b.searchParams.delete('create');
+    if(a.href!==b.href)return false;
+    if(new URL(next).searchParams.get('create')==='1')open(false,region.querySelector('[data-create-event]'),true);
+    else if(modal){leaving=true;await modal.close(false);}
+    return true;
+  });
   if(new URL(location.href).searchParams.get('create')==='1')open();
-  cleanup=()=>{life.abort();leaving=true;unregister?.();unregister=null; if(modal){status='idle';void modal.close(false);modal=null;}ui.refreshDirty();};
+  cleanup=()=>{unregisterUrl();life.abort();leaving=true;unregister?.();unregister=null; if(modal){status='idle';void modal.close(false);modal=null;}ui.refreshDirty();};
 }
