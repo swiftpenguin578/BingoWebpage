@@ -243,3 +243,13 @@ function checkAccountSaveTiming(source) {
   }
 }
 module.exports.checkAccountSaveTiming=checkAccountSaveTiming;
+
+function registeredBlockShifts(registration, loading, loaded, headerDelta) {
+  return Object.fromEntries(Object.keys(registration.blocks).map(key => {
+    assert.ok(loading.blocks[key], registration.family + ': missing loading body block ' + key);
+    assert.ok(loaded.blocks[key], registration.family + ': missing loaded body block ' + key);
+    const before = loading.blocks[key], after = loaded.blocks[key];
+    return [key, {x: after.x - before.x, yBeyondHeader: after.y - before.y - headerDelta, width: after.width - before.width}];
+  }));
+}
+module.exports.registeredBlockShifts = registeredBlockShifts;

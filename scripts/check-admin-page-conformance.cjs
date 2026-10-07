@@ -4,7 +4,7 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
 const {chromium,webkit}=require('playwright');
 const {startFixture,login,referencePage}=require('./lib/admin-parity-fixture.cjs');
 const registrations=require('./lib/admin-page-conformance-pages.cjs');
-const {observe,checkFrames,checkLoaded,checkUpdate,checkDanish,checkSources,checkDocument,checkFast,checkLoadingSummary,checkRegisteredLinks}=require('./lib/admin-page-conformance-checks.cjs');
+const {observe,checkFrames,checkLoaded,checkUpdate,checkDanish,checkSources,checkDocument,checkFast,checkLoadingSummary,checkRegisteredLinks,registeredBlockShifts}=require('./lib/admin-page-conformance-checks.cjs');
 async function until(page,fn){for(let i=0;i<200;i++)if(await page.evaluate(fn))return;throw Error('Microtask checkpoint not reached');}
 (async()=>{
  const name=process.env.PLAYWRIGHT_BROWSER||'chromium',engine=name==='webkit'?webkit:chromium,output=path.join(process.cwd(),'artifacts/page-conformance-'+name);
@@ -64,7 +64,7 @@ async function until(page,fn){for(let i=0;i<200;i++)if(await page.evaluate(fn))r
     await ref.evaluate(()=>new Promise(resolve=>__parityReference.setState({loading:false},resolve)));await ref.evaluate(()=>document.fonts.ready);const referenceLoaded=await box(ref,family);
     await ref.evaluate(()=>new Promise(resolve=>__parityReference.setState({loading:true},resolve)));const referenceLoading=await box(ref,family);
     const delta=loaded.head.height-loading.head.height;
-    const shifts=Object.fromEntries(Object.keys(loading.blocks).filter(k=>loading.blocks[k]&&loaded.blocks[k]).map(k=>[k,{x:loaded.blocks[k].x-loading.blocks[k].x,yBeyondHeader:loaded.blocks[k].y-loading.blocks[k].y-delta,width:loaded.blocks[k].width-loading.blocks[k].width}]));
+    const shifts=registeredBlockShifts(registration,loading,loaded,delta);
     records.push({engine:name,family,width,presentation,loading,loaded,delta,shifts,referenceLoading,referenceLoaded});
     const close=(actual,expected,message)=>assert.ok(Math.abs(actual-expected)<=.1,message+': '+actual+' vs '+expected);
     close(loading.summary.height,loading.summaryLine*(width<=640?2:1),'U3-Q6 phone/wide summary reservation');
