@@ -793,7 +793,7 @@ public sealed class C11FinalizedRosterIntegrationTests(PostgreSqlTestFixture dat
             Assert.Null(audit.AfterState);
         }
         const string actionRow = "<dt>Action key</dt><dd><code>team.role_roster_published</code></dd>";
-        var auditPage = await admin.GetStringAsync($"/Admin/Audit?EventId={seed.EventId}");
+        var auditPage = await admin.GetStringAsync($"/Admin/Audit?event={seed.EventId}");
         Assert.Contains("team.role_roster_published", auditPage);
         Assert.Contains(actionRow, auditPage);
         await using (var db = Db())
