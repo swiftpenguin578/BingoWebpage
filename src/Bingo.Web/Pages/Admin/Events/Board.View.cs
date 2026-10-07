@@ -106,6 +106,7 @@ public sealed partial class BoardModel
                 version = Current?.State?.ControlVersion
             },
             me = CurrentAccountId,
+            activeApprovalId = Current?.State?.ActiveApprovalId,
             publishReady = new { roster = DraftFinalized, started = EventStarted, ended = EventEndPassed },
             differences = new
             {
