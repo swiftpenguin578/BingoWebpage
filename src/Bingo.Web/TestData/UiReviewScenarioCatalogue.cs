@@ -60,9 +60,31 @@ public static class UiReviewScenarioCatalogue
         var unavailable = scenarios.Events.Single(value => value.Slug == "ur-wom-unavailable");
         Add("Final review / WOM", "WOM end could-not-update — archived history", $"/Admin/Events/WiseOldMan/{unavailable.Id}");
         Add("Accounts / Catalogue / Audit", "Every global role and disabled account", "/Admin/Accounts/Index", "ReviewOwner");
+        // T1 Accounts binding scenarios (lane T).
+        Guid AccountId(string username) => scenarios.Accounts.Single(value => value.Username == username).Id;
+        Add("Accounts", "Directory as the Super Admin — Transfer ownership in the header", "/Admin/Accounts", "ReviewOwner");
+        Add("Accounts", "Your own drawer as the Super Admin — Ownership row", $"/Admin/Accounts?account={AccountId("ReviewOwner")}", "ReviewOwner");
+        Add("Accounts", "Admin account drawer as the Super Admin — Revoke Admin", $"/Admin/Accounts?account={AccountId("ReviewAdmin")}", "ReviewOwner");
+        Add("Accounts", "Plain Admin, Admin role filter — Admin accounts explained, not offered", "/Admin/Accounts?role=admin", "ReviewAdmin");
+        Add("Accounts", "Plain Admin — the Super Admin account is protected", $"/Admin/Accounts?account={AccountId("ReviewOwner")}", "ReviewAdmin");
+        Add("Accounts", "Disabled account — notice, reason and Restore", $"/Admin/Accounts?account={AccountId("ReviewDisabled")}", "ReviewAdmin");
+        Add("Accounts", "Captain — events, team roles, reset link and Disable", $"/Admin/Accounts?account={AccountId("ReviewCaptain")}", "ReviewAdmin");
+        Add("Accounts", "Former member — ended team role", $"/Admin/Accounts?account={AccountId("ReviewFormer")}", "ReviewAdmin");
+        Add("Accounts", "Search ignores case", "/Admin/Accounts?q=REVIEWSECOND", "ReviewAdmin");
+        Add("Accounts", "No accounts match / Clear search and filter", "/Admin/Accounts?q=nobody-here&role=superadmin", "ReviewAdmin");
+        Add("Accounts", "Link to an account that isn’t available", "/Admin/Accounts?account=00000000-0000-0000-0000-000000000001", "ReviewAdmin");
         Add("Accounts / Catalogue / Audit", "Reviewed local catalogue", "/Admin/Catalogue/Index");
         Add("Hidden / Audit", "Audit including hidden events", "/Admin/Audit/Index", "ReviewOwner");
         Add("Hidden / Audit", "Plain Admin retained audit — including hidden-event history", "/Admin/Audit/Index");
+        // T1 Audit binding scenarios (lane T).
+        var hiddenReview = scenarios.Events.First(value => value.Hidden);
+        Add("Audit", "History, newest first — filters, chips and the entry drawer", "/Admin/Audit");
+        Add("Audit", "Participants area (S11) — moved team membership keys", "/Admin/Audit?action=participant.");
+        Add("Audit", "Signups area (S11) — automatic signup opening failures, Automated", "/Admin/Audit?action=signup.");
+        Add("Audit", "Actor search ignores case and a leading @", "/Admin/Audit?actor=%40reviewowner");
+        Add("Audit", "Hidden event history, marked Hidden", $"/Admin/Audit?event={hiddenReview.Id}", "ReviewOwner");
+        Add("Audit", "Link with unrecognised filters — notice, the rest applies", "/Admin/Audit?type=spaceship&from=2027-13-40&actor=ReviewOwner");
+        Add("Audit", "Entry link that isn’t available", "/Admin/Audit?entry=00000000-0000-0000-0000-000000000001");
         foreach (var account in scenarios.Accounts)
         {
             if (account.Disabled)

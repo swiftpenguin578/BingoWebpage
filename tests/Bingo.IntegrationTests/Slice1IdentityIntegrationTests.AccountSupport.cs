@@ -348,15 +348,9 @@ public sealed partial class Slice1IdentityIntegrationTests
         await administration.RestoreAsync(actor.Id, target.Id, target.AuthorizationVersion, CancellationToken.None);
         db.ChangeTracker.Clear();
 
-        var page = new Bingo.Web.Pages.Admin.Accounts.ManageModel(
-            db,
-            administration,
-            new AccountIdentityService(db, passwords, time))
-        {
-            PageContext = new PageContext(new ActionContext(new DefaultHttpContext(), new RouteData(), new PageActionDescriptor()))
-        };
-        page.TempData = new Microsoft.AspNetCore.Mvc.ViewFeatures.TempDataDictionary(page.HttpContext, new DictionaryTempDataProvider());
-        Assert.IsType<PageResult>(await page.OnGetAsync(target.Id, CancellationToken.None));
+        // A10: the account drawer projection on the Accounts page replaced the Manage page model.
+        var page = AccountsPageTestFactory.Create(db, actor.Id, account: target.Id.ToString());
+        Assert.IsType<PageResult>(await page.OnGetAsync(CancellationToken.None));
         var disabledHistory = Assert.Single(page.AccountView!.DisableHistory, entry => entry.State == "Disabled");
         Assert.Equal(reason, disabledHistory.Reason);
         Assert.Equal(actor.LoginName, disabledHistory.ActorName);

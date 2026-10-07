@@ -1,0 +1,6 @@
+@model Bingo.Web.Pages.Admin.Accounts.AccountChangeRow
+@inject IStringLocalizer<AdminCommunityResource> D
+<div class="chg ac-chg" role="table" aria-label="@D["Change"]">
+    <div class="chg-head" role="row"><span role="columnheader">@D["Account"]</span><span role="columnheader">@D["Now"]</span><span aria-hidden="true"></span><span role="columnheader">@D["After"]</span></div>
+    <div class="chg-row" role="row"><span class="chg-field" role="rowheader">@Model.Who</span><span role="cell"><span class="chg-val is-before"><em class="chg-k">@D["Now"]</em>@Model.Before</span></span><span class="chg-arrow" aria-hidden="true"><svg class="ic" viewBox="0 0 16 16"><path d="M3 8h9.5M8.5 4l4 4-4 4"/></svg></span><span role="cell"><span class="chg-val ac-after"><em class="chg-k">@D["After"]</em>@Model.After</span></span></div>
+</div>

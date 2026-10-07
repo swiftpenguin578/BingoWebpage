@@ -53,9 +53,11 @@ public sealed class AuditPresentationTests(BrowserTestApplicationFactory factory
         }));
         Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
         client.DefaultRequestHeaders.AcceptLanguage.ParseAdd(culture);
+        // A10 (T1): the bound Audit page shows the entry in its drawer template (reference drawer)
+        // instead of the retired inline _AuditEntry block; the same presenter output is asserted.
         var full = await client.GetStringAsync("/Admin/Audit");
-        var pattern = $"<div class=\"admin-audit-presentation\" data-audit-entry=\"{entry.Id}\">.*?</div>";
-        var fullEntry = Regex.Match(full, pattern, RegexOptions.Singleline).Value;
+        Assert.Single(Regex.Matches(full, Regex.Escape($"data-audit-entry=\"{entry.Id}\"")));
+        var fullEntry = Regex.Match(full, $"<template data-audit-detail=\"{entry.Id}\">.*?</template>", RegexOptions.Singleline).Value;
         Assert.NotEmpty(fullEntry);
         var decoded = WebUtility.HtmlDecode(fullEntry);
         Assert.Contains(action, decoded);
@@ -66,7 +68,7 @@ public sealed class AuditPresentationTests(BrowserTestApplicationFactory factory
         Assert.Contains(account.Id.ToString(), decoded);
         Assert.Contains("Organizer request &lt;script&gt;", fullEntry);
         Assert.DoesNotContain("never-display", fullEntry);
-        Assert.True(fullEntry.IndexOf("<details", StringComparison.Ordinal) < fullEntry.IndexOf("account.disabled", StringComparison.Ordinal));
+        Assert.True(fullEntry.IndexOf("data-audit-tech", StringComparison.Ordinal) < fullEntry.IndexOf("account.disabled", StringComparison.Ordinal));
     }
 
     [Theory]
@@ -158,15 +160,18 @@ public sealed class AuditPresentationTests(BrowserTestApplicationFactory factory
                 await db.SaveChangesAsync();
             }
             var full = await client.GetStringAsync("/Admin/Audit");
-            var pattern = $"<div class=\"admin-audit-presentation\" data-audit-entry=\"{entry.Id}\">.*?</div>";
-            var rendered = Regex.Match(full, pattern, RegexOptions.Singleline).Value;
+            var rendered = Regex.Match(full, $"<template data-audit-detail=\"{entry.Id}\">.*?</template>", RegexOptions.Singleline).Value;
             Assert.NotEmpty(rendered);
-            var technicalIndex = rendered.IndexOf("<details", StringComparison.Ordinal);
+            var technicalIndex = rendered.IndexOf("data-audit-tech", StringComparison.Ordinal);
             Assert.True(technicalIndex > 0);
             var readable = WebUtility.HtmlDecode(rendered[..technicalIndex]);
-            Assert.Contains($"{reasonLabel}: {payload.Reason}", readable);
-            Assert.DoesNotContain("Publication cycle", readable);
+            Assert.Contains(reasonLabel, readable);
+            Assert.Contains(payload.Reason, readable);
             Assert.DoesNotContain("blockerKey", readable);
+            // A10 (T1): the reference drawer shows the reopening explanation as context
+            // (README Audit "Reason and context"); the raw payload stays in Technical details.
+            if (payload.Action == "draft.reopened") Assert.Contains("Publication cycle 3.", readable);
+            else Assert.DoesNotContain("Publication cycle", readable);
             Assert.Contains(technicalLabel, WebUtility.HtmlDecode(rendered[technicalIndex..]));
             Assert.Contains(payload.Action, rendered[technicalIndex..]);
             if (payload.Action == "draft.reopened")
