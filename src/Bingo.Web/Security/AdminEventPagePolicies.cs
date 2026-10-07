@@ -112,7 +112,8 @@ public static class AdminEventPagePolicies
                 ("POST:Withdraw", AdminEventHandlerGate.Service),
                 ("POST:FillVacancy", AdminEventHandlerGate.Service),
                 ("POST:CompletePromotionFollowUp", AdminEventHandlerGate.Service)),
-            [typeof(BoardModel)] = Page(AdminEventPageKind.Board, true, false,
+            // D17 (brief 88): Board GETs (page, EditorData, Readback) load read-only on terminal events; POSTs keep D16.
+            [typeof(BoardModel)] = Page(AdminEventPageKind.Board, true, true,
                 ("GET:", AdminEventHandlerGate.Read),
                 ("GET:EditorData", AdminEventHandlerGate.Read),
                 ("GET:Readback", AdminEventHandlerGate.Read),

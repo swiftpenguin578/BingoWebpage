@@ -224,4 +224,107 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests
         Assert.Equal(BoardState.Validated, response.Current.State!.State);
         Assert.Equal(baseline, await B5RemediationBoardPersistenceAsync());
     }
+
+    // D17: Board page, EditorData and Readback load read-only on terminal events;
+    // every POST keeps the D16 route refusal (302 to Manage) with no write.
+    [Theory]
+    [InlineData(EventState.Cancelled)]
+    [InlineData(EventState.Finalized)]
+    [InlineData(EventState.Archived)]
+    public async Task U7TerminalBoardReadsLoadAndPostsStayRefused(EventState state)
+    {
+        var fixture = await SeedApprovalBatchAsync();
+        await using (var prepare = new ApplicationDbContext(options))
+        {
+            prepare.Entry(await prepare.Events.SingleAsync()).Property(x => x.State).CurrentValue = state;
+            await prepare.SaveChangesAsync();
+        }
+        await using var factory = ApprovalBatchFactory();
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        await LoginAsync(client, fixture.Admin.LoginName);
+        using var page = await client.GetAsync(fixture.Path);
+        Assert.Equal(HttpStatusCode.OK, page.StatusCode);
+        var displayed = await page.Content.ReadAsStringAsync();
+        using var editor = await client.GetAsync($"{fixture.Path}?handler=EditorData&tileId={fixture.Tile.Id}");
+        Assert.Equal(HttpStatusCode.OK, editor.StatusCode);
+        using var readback = await client.GetAsync(fixture.Path + "?handler=Readback");
+        Assert.Equal(HttpStatusCode.OK, readback.StatusCode);
+        Assert.Contains("\"known\":true", await readback.Content.ReadAsStringAsync(), StringComparison.Ordinal);
+        foreach (var handler in new[] { "TeamSize", "ApproveState", "Resize", "TakeEditing" })
+        {
+            using var refused = await PostAsync(client, $"{fixture.Path}?handler={handler}", displayed, new Dictionary<string, string>
+            {
+                ["expectedTeamSize"] = "9", ["Rows"] = "2", ["Columns"] = "2",
+                ["BoardVersion"] = ApprovalBatchInput(displayed, "BoardVersion")
+            });
+            Assert.Equal(HttpStatusCode.Redirect, refused.StatusCode);
+            Assert.Equal($"/Admin/Events/Manage/{fixture.Event.Id}", refused.Headers.Location!.OriginalString);
+        }
+        await using var verify = new ApplicationDbContext(options);
+        Assert.Null(await verify.Events.Where(x => x.Id == fixture.Event.Id).Select(x => x.ExpectedTeamSize).SingleAsync());
+        Assert.Equal((1, 1), await verify.Boards.Select(x => new ValueTuple<int, int>(x.Rows, x.Columns)).SingleAsync());
+        Assert.Empty(await verify.AuditEntries.Where(x => x.EventId == fixture.Event.Id).ToListAsync());
+    }
+
+    // D17: a terminal event without a board shows "no board recorded" and never creates one.
+    [Fact]
+    public async Task U7TerminalEventWithoutBoardDoesNotCreateOne()
+    {
+        var fixture = await SeedApprovalBatchAsync();
+        var orphan = new BingoEvent(Guid.NewGuid(), "No board", $"no-board-{Guid.NewGuid():N}", "UTC", fixture.Admin.Id, DateTimeOffset.UtcNow, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
+        await using (var prepare = new ApplicationDbContext(options))
+        {
+            prepare.Add(orphan);
+            await prepare.SaveChangesAsync();
+            prepare.Entry(orphan).Property(x => x.State).CurrentValue = EventState.Cancelled;
+            await prepare.SaveChangesAsync();
+        }
+        await using var factory = ApprovalBatchFactory();
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        await LoginAsync(client, fixture.Admin.LoginName);
+        using var page = await client.GetAsync($"/Admin/Events/Board/{orphan.Id}");
+        Assert.Equal(HttpStatusCode.OK, page.StatusCode);
+        Assert.Contains("data-board-none", await page.Content.ReadAsStringAsync(), StringComparison.Ordinal);
+        using var readback = await client.GetAsync($"/Admin/Events/Board/{orphan.Id}?handler=Readback");
+        Assert.Contains("\"known\":false", await readback.Content.ReadAsStringAsync(), StringComparison.Ordinal);
+        await using var verify = new ApplicationDbContext(options);
+        Assert.False(await verify.Boards.AnyAsync(x => x.EventId == orphan.Id));
+        using var unknown = await client.GetAsync($"/Admin/Events/Board/{Guid.NewGuid()}");
+        Assert.Equal(HttpStatusCode.NotFound, unknown.StatusCode);
+    }
+
+    // In-place transport: a page-module command answers JSON with the definite outcome
+    // and the authoritative readback; a definite refusal is a refusal with the reason.
+    [Fact]
+    public async Task U7InlineCommandsAnswerOutcomeAndReadbackInPlace()
+    {
+        var fixture = await SeedApprovalBatchAsync();
+        await using var factory = ApprovalBatchFactory();
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        await LoginAsync(client, fixture.Admin.LoginName);
+        var displayed = await client.GetStringAsync(fixture.Path);
+        async Task<System.Text.Json.JsonElement> InlineAsync(string handler, Dictionary<string, string> values)
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Post, $"{fixture.Path}?handler={handler}")
+            {
+                Content = new FormUrlEncodedContent(new Dictionary<string, string>(values) { ["__RequestVerificationToken"] = AntiforgeryToken(displayed) })
+            };
+            request.Headers.Add("X-Requested-With", "XMLHttpRequest");
+            using var response = await client.SendAsync(request);
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            Assert.Equal("no-store", response.Headers.CacheControl?.ToString());
+            return System.Text.Json.JsonDocument.Parse(await response.Content.ReadAsStringAsync()).RootElement.Clone();
+        }
+        var version = ApprovalBatchInput(displayed, "BoardVersion");
+        var refused = await InlineAsync("TeamSize", new() { ["expectedTeamSize"] = "0", ["BoardVersion"] = version });
+        Assert.Equal("refused", refused.GetProperty("outcome").GetString());
+        Assert.Equal("Expected team size must be between 1 and 100.", refused.GetProperty("message").GetString());
+        var saved = await InlineAsync("TeamSize", new() { ["expectedTeamSize"] = "7", ["BoardVersion"] = version });
+        Assert.Equal("saved", saved.GetProperty("outcome").GetString());
+        Assert.Equal(7, saved.GetProperty("current").GetProperty("state").GetProperty("expectedTeamSize").GetInt32());
+        var stale = await InlineAsync("Resize", new() { ["Rows"] = "2", ["Columns"] = "2", ["BoardVersion"] = version });
+        Assert.Equal("refused", stale.GetProperty("outcome").GetString());
+        await using var verify = new ApplicationDbContext(options);
+        Assert.Equal((1, 1), await verify.Boards.Select(x => new ValueTuple<int, int>(x.Rows, x.Columns)).SingleAsync());
+    }
 }
