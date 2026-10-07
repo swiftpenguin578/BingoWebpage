@@ -1,218 +1,85 @@
 @page "{id:guid}"
 @model Bingo.Web.Pages.Admin.Events.ScheduleModel
 @using Bingo.Domain.Events
-@using Bingo.Web.UI
+@using System.Text.Json
 @{
     ViewData["Title"] = T["Schedule"];
-    ViewData["AdminPageDescription"] = T["Set the signup, event, and draft times."];
-    var eventStatus = AdminEventStatePresentation.For(Model.EventState, T);
-    var signupUrl = Url.Page("/Events/Signup", null, new { slug = Model.EventSlug }, Request.Scheme, Request.Host.Value);
-    var signupTableUrl = Url.Page("/Events/Signups", null, new { slug = Model.EventSlug }, Request.Scheme, Request.Host.Value);
-    var publicBoardUrl = Url.Page("/Events/Board", null, new { slug = Model.EventSlug }, Request.Scheme, Request.Host.Value);
+    ViewData["PageFamily"] = "schedule";
+    var editable = Model.CanEditEventStart || Model.CanEditEventEnd;
+    var fields = new[] {
+        new { Name = "SignupOpensLocal", Key = "signupOpensAt", Label = "Signup opening", Value = Model.Input.SignupOpensLocal, Editable = Model.CanEditScheduledOpening, Hint = string.IsNullOrEmpty(Model.Input.SignupOpensLocal) ? "Not scheduled. Signups open when you open them on Overview, or set a time to open them automatically." : Model.ScheduledSignupOpeningEnabled ? "Signups open automatically at this time if the event is ready then. Overview lists anything still missing." : "Planned only: automatic opening is off for this older schedule, so signups open when you open them on Overview. Choosing a new time turns automatic opening on." },
+        new { Name = "SignupClosesLocal", Key = "signupClosesAt", Label = "Signup closing", Value = Model.Input.SignupClosesLocal, Editable = Model.CanEditSignupClosing, Hint = string.IsNullOrEmpty(Model.Input.SignupClosesLocal) ? "No closing time. Signups stay open until you close them on Overview." : "Signups close automatically at this time." },
+        new { Name = "DraftLocal", Key = "draftAt", Label = "Team draft", Value = Model.Input.DraftLocal, Editable = Model.CanEditDraftTime, Hint = "For planning and players’ information. It doesn’t start the team draft." },
+        new { Name = "EventStartsLocal", Key = "eventStartsAt", Label = "Event start", Value = Model.Input.EventStartsLocal, Editable = Model.CanEditEventStart, Hint = "The event starts automatically at this time if it’s ready then. If something is missing, the start is postponed and admins are told." },
+        new { Name = "EventEndsLocal", Key = "eventEndsAt", Label = "Event end", Value = Model.Input.EventEndsLocal, Editable = Model.CanEditEventEnd, Hint = Model.EventState == EventState.Live ? "Changing the end while the event is live needs a reason." : "Must be after the event starts." }
+    };
+    var sections = new[] {
+        new { Title = "Signups", Sub = "When players can sign up.", Start = 0, Count = 2 },
+        new { Title = "Team draft", Sub = "When captains draft their teams. Optional, and the draft is still started by hand on Teams / Draft.", Start = 2, Count = 1 },
+        new { Title = "Event", Sub = "When the bingo runs.", Start = 3, Count = 2 }
+    };
 }
-
-<section class="schedule-editor-page" data-schedule-editor>
-    <div class="schedule-editor-layout">
-        <main class="schedule-editor-main">
-            <form method="post" class="schedule-editor-form" data-schedule-form data-participants-rely="@(Model.ParticipantsRelyOnSchedule || Model.EventState == EventState.Live ? "true" : "false")" data-live="@(Model.EventState == EventState.Live ? "true" : "false")"
-                  data-schedule-title="@T["Save schedule changes?"]" data-schedule-live-title="@T["Change the Live event end?"]"
-                  data-schedule-description-prefix="@T["This changes"]" data-schedule-description-suffix="@T["Existing participants will see the new schedule."]" data-schedule-action="@T["Save schedule"]">
-                <div asp-validation-summary="ModelOnly" class="validation-summary app-notice notice-error"></div>
-                <input asp-for="Input.Version" type="hidden" />
-                <input asp-for="Input.ConfirmChanges" type="hidden" value="false" data-schedule-confirm />
-                <input asp-for="Input.EventEndReason" type="hidden" data-schedule-end-reason />
-                <span asp-validation-for="Input.ConfirmChanges" class="field-error"></span>
-                <span asp-validation-for="Input.EventEndReason" class="field-error"></span>
-                @if (Model.Readiness?.Warnings is { Count: > 0 })
-                {
-                    <section class="schedule-editor-warning" aria-labelledby="signup-warning-heading">
-                        <h2 id="signup-warning-heading">@T["Signup warnings"]</h2>
-                        <ul class="admin-signup-warning-list" aria-label="@T["Signup warnings"]">
-                            @foreach (var warning in Model.Readiness.Warnings)
+@section HeaderSummary {
+    <span class="sc-owners">@T["Times are in {0}; change it on", Model.EventTimezoneLabel] <a class="text-btn" asp-page="Identity" asp-route-id="@Model.EventId">@T["Identity"]</a>. @T["Open, close or start by hand on"] <a class="text-btn" asp-page="Manage" asp-route-id="@Model.EventId">@T["Overview"]</a>.</span>
+}
+@if (Model.ScheduleNotice.Length > 0)
+{
+    <partial name="_AdminDesignBanner" model='new AdminDesignBanner("is-info page-banner form-card", "lock", Model.ScheduleNotice)' />
+}
+<section class="card form-card" data-schedule-editor data-now="@Model.CurrentInstant.ToString("O", CultureInfo.InvariantCulture)" data-current="@JsonSerializer.Serialize(Model.CurrentSnapshot)" data-published="@Model.HasPublicExposure.ToString().ToLowerInvariant()"
+ data-save="@T["Save changes"]" data-saved="@T["Saved"]" data-saving="@T["AdminDesign.Saving…"]" data-checking="@T["AdminDesign.Checking…"]" data-check-again="@T["Check again"]"
+ data-unknown="@T["AdminDesign.We couldn’t confirm whether your changes were saved."]" data-stale="@T["AdminDesign.Another admin saved this event while you were editing. Untouched fields have been updated. Your changes are kept; review before saving again."]"
+ data-theirs="@T["You both changed this. Their saved time:"]" data-mine-kept="@T["Yours is kept until you choose."]" data-updated="@T["Updated to their saved time."]" data-use-theirs="@T["Use theirs"]" data-up-to-date="@T["AdminDesign.The event now has the values you entered."]" data-unchanged="@T["Your changes weren’t applied. They’re still here; save again when you’re ready."]"
+ data-readonly="@T["This event is read-only in its current lifecycle state."]" data-no-changes="@T["No changes to save"]" data-none="@T["Not scheduled"]"
+ data-published-title="@T["Change the published schedule?"]" data-live-title="@T["Change when the event ends?"]" data-confirm-body="@T["Players may already have seen these times. Review what changes before saving."]" data-live-body="@T["Teams keep playing until the new end. Uploads close 30 minutes later."]"
+ data-now-label="@T["Now"]" data-after="@T["After saving"]" data-time="@T["Time"]" data-uploads="@T["Uploads close"]" data-keep-editing="@T["Keep editing"]" data-reason="@T["Reason for changing the end"]"
+ data-reason-hint="@T["This reason is recorded in the event’s history."]" data-reason-required="@T["Enter a reason for changing the Live event end."]" data-reason-limit="@T["Use 2,000 characters or fewer."]"
+ data-date-invalid="@T["Choose a valid local date and time."]" data-date-skipped="@T["That local time does not exist because the clocks change at that time."]" data-date-ambiguous="@T["That local time is ambiguous because the clocks change at that time. Choose another time."]"
+ data-leave-title="@T["AdminDesign.Leave before checking your save?"]" data-leave-message="@T["AdminDesign.We couldn’t confirm your last save, and it may already have gone through. Check again to find out, or leave now: anything that wasn’t saved will be lost, and you won’t know which until you come back."]" data-leave="@T["Leave anyway"]"
+ data-draft-together="@T["The team draft time is saved at the same time."]">
+    <form method="post" novalidate>
+        <input asp-for="Input.Version" type="hidden" />
+        <input asp-for="Input.ConfirmChanges" type="hidden" /><span asp-validation-for="Input.ConfirmChanges" hidden></span>
+        <input asp-for="Input.EventEndReason" type="hidden" /><span data-schedule-reason-error asp-validation-for="Input.EventEndReason" hidden>@(ViewData.ModelState["Input.EventEndReason"]?.Errors.FirstOrDefault()?.ErrorMessage)</span>
+        <div class="form-banners"><partial name="_AdminDesignBanner" model='new AdminDesignBanner("is-error", "error", string.Join(" ", ViewData.ModelState[string.Empty]?.Errors.Select(error => error.ErrorMessage) ?? []), Hidden: !(ViewData.ModelState[string.Empty]?.Errors.Any() ?? false))' /><div class="banner is-warning" data-schedule-feedback role="status" tabindex="-1" hidden></div></div>
+        @foreach (var section in sections)
+        {
+            <section class="form-sec @(!editable && section.Start == 3 ? "is-last" : null)" aria-labelledby="section-@(section.Start)">
+                <div class="form-sec-head"><h2 class="form-sec-title" id="section-@(section.Start)">@T[section.Title]</h2><p class="form-sec-sub">@T[section.Sub]</p></div>
+                <div class="sc-pair @(section.Count == 1 ? "is-single" : null)">
+                    @foreach (var field in fields.Skip(section.Start).Take(section.Count))
+                    {
+                        var id = "schedule-" + field.Key;
+                        <div class="field sc-field" data-schedule-field="@field.Key" data-local-name="@field.Name" data-label="@T[field.Label]">
+                            <div class="lbl" id="label-@id">@T[field.Label] @if (field.Key == "draftAt") { <span class="opt">· @T["AdminDesign.optional"]</span> }</div>
+                            <input type="hidden" id="Input_@field.Name" name="Input.@field.Name" value="@field.Value" />
+                            @if (field.Editable)
                             {
-                                <li>@T[warning.Description]</li>
-                            }
-                        </ul>
-                    </section>
-                }
-                <section class="schedule-editor-panel">
-            <div class="event-schedule-groups">
-                <section class="event-schedule-group" aria-labelledby="signup-window-heading">
-                    <div class="event-schedule-group-heading">
-                        <div><h3 id="signup-window-heading">@T["Signup window"]</h3><p>@T["When players can sign up."]</p></div>
-                    </div>
-                    <div class="event-create-fields">
-                        @if (Model.CanEditScheduledOpening)
-                        {
-                            <div class="admin-field event-create-field event-datetime-field" data-datetime-control>
-                                <label asp-for="Input.SignupOpensLocal">@T["Signup opens"]</label>
-                                <div class="event-datetime-visual" aria-label="@T["Signup opens"]">
-                                    <label class="event-datetime-part"><span>@T["Date"]</span><span class="event-datetime-input"><input type="date" data-datetime-date aria-label="@T["Signup opens date"]" /><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><path d="M8 2v4" /><path d="M16 2v4" /><rect width="18" height="18" x="3" y="4" rx="2" /><path d="M3 10h18" /></svg></span></label>
-                                    <label class="event-datetime-part"><span>@T["Time"]</span><span class="event-datetime-input"><input type="time" step="300" data-datetime-time aria-label="@T["Signup opens time"]" /><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg></span></label>
+                                <div class="dtp" id="@id-field" data-date-time="@id" data-label="@T[field.Label]" data-timezone="@Model.EventTimezone" data-now="@Model.CurrentInstant.ToString("O", CultureInfo.InvariantCulture)" data-clearable="@((!Model.HasPublicExposure || field.Key is not ("eventStartsAt" or "eventEndsAt")).ToString().ToLowerInvariant())" role="group" aria-labelledby="label-@id">
+                                    <input class="dtp-date" id="@id-date" placeholder="dd mmm yyyy" autocomplete="off" spellcheck="false" aria-label="@T["{0}, date", T[field.Label]]" aria-describedby="error-@field.Name hint-@id" />
+                                    <span class="dtp-sep" aria-hidden="true"></span>
+                                    <input class="dtp-time" id="@id-time" placeholder="hh:mm" inputmode="numeric" autocomplete="off" aria-label="@T["{0}, time (24-hour)", T[field.Label]]" aria-describedby="error-@field.Name hint-@id" />
+                                    <button class="icon-btn dtp-btn" id="@id-btn" type="button" aria-label="@T["Choose {0} from a calendar", T[field.Label]]" title="@T["Calendar"]" aria-haspopup="dialog" aria-expanded="false"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("calendar")' /></button>
                                 </div>
-                                <input asp-for="Input.SignupOpensLocal" type="datetime-local" step="300" class="form-control event-datetime-canonical" data-datetime-canonical data-schedule-boundary="Signup opens" />
-                                <span asp-validation-for="Input.SignupOpensLocal" class="field-error"></span>
-                            </div>
-                        }
-                        else
-                        {
-                            <div class="schedule-locked-value"><span>@T["Signup opening (read-only)"]</span><strong>@(Model.ActualSignupOpened ?? Model.ScheduledSignupOpening)</strong></div>
-                        }
-                        @if (Model.CanEditSignupClosing)
-                        {
-                        <div class="admin-field event-create-field event-datetime-field" data-datetime-control>
-                            <label asp-for="Input.SignupClosesLocal">@T["Signup closes"]</label>
-                            <div class="event-datetime-visual" aria-label="@T["Signup closes"]">
-                                <label class="event-datetime-part"><span>@T["Date"]</span><span class="event-datetime-input"><input type="date" data-datetime-date aria-label="@T["Signup closes date"]" /><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><path d="M8 2v4" /><path d="M16 2v4" /><rect width="18" height="18" x="3" y="4" rx="2" /><path d="M3 10h18" /></svg></span></label>
-                                <label class="event-datetime-part"><span>@T["Time"]</span><span class="event-datetime-input"><input type="time" step="300" data-datetime-time aria-label="@T["Signup closes time"]" /><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg></span></label>
-                            </div>
-                            <input asp-for="Input.SignupClosesLocal" type="datetime-local" step="300" class="form-control event-datetime-canonical" data-datetime-canonical data-schedule-boundary="Signup closes" />
-                            <span asp-validation-for="Input.SignupClosesLocal" class="field-error"></span>
+                            }
+                            else
+                            {
+                                <div class="ro-value @(string.IsNullOrEmpty(field.Value) ? "is-empty" : null)" aria-labelledby="label-@id">@(string.IsNullOrEmpty(field.Value) ? T["Not scheduled"].Value : Model.LocalDate(field.Value))</div>
+                                <partial name="_AdminDesignFieldLock" model='new AdminDesignFieldLock(Model.FieldLock(field.Key))' />
+                            }
+                            <partial name="_AdminDesignFieldError" model='new AdminDesignFieldError(field.Name, ViewData.ModelState["Input." + field.Name]?.Errors.FirstOrDefault()?.ErrorMessage ?? "")' />
+                            <div class="field-note" data-schedule-conflict hidden><partial name="_AdminDesignIcon" model='new AdminDesignIcon("info")' /><span data-conflict-text></span></div>
+                            @if (field.Key == "eventStartsAt" && field.Editable) { <div class="sc-warn" data-overdue-start hidden><partial name="_AdminDesignIcon" model='new AdminDesignIcon("warning")' /><span>@T["This start time has passed and the event hasn’t started. Choose a new time, or start it on Overview."]</span></div> }
+                            @if (field.Editable) { <div class="field-hint" id="hint-@id">@T[field.Hint]</div> }
                         </div>
-                        }
-                        else
-                        {
-                            <div class="schedule-locked-value"><span>@T["Signup closing (read-only)"]</span><strong>@Model.ScheduledSignupClosing</strong></div>
-                        }
-                    </div>
-                    @if (Model.CanEditScheduledOpening)
-                    {
-                        <p class="schedule-scheduled-state"><strong>@(Model.ScheduledSignupOpeningEnabled ? T["Automatic signup opening scheduled for"] : T["No automatic signup opening scheduled."])</strong>@if (Model.ScheduledSignupOpeningEnabled) { <text> @Model.ScheduledSignupOpening</text> }</p>
                     }
-                    @if (Model.EventState == EventState.SignupClosed)
-                    {
-                        <p class="schedule-actual-time"><strong>@T["Signup closed"]:</strong> @Model.ActualSignupClosed</p>
-                    }
-                </section>
-
-                <section class="event-schedule-group" aria-labelledby="event-window-heading">
-                    <div class="event-schedule-group-heading">
-                        <div><h3 id="event-window-heading">@T["Event schedule"]</h3><p>@T["When the bingo starts, ends, and is drafted."]</p></div>
-                    </div>
-                    <div class="event-create-fields">
-                        <div class="admin-field event-create-field event-datetime-field" data-datetime-control>
-                            <label asp-for="Input.EventStartsLocal">@T["Event starts"]</label>
-                            <div class="event-datetime-visual" aria-label="@T["Event starts"]">
-                                    <label class="event-datetime-part"><span>@T["Date"]</span><span class="event-datetime-input"><input type="date" data-datetime-date aria-label="@T["Event starts date"]" disabled="@(!Model.CanEditEventStart)" /><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><path d="M8 2v4" /><path d="M16 2v4" /><rect width="18" height="18" x="3" y="4" rx="2" /><path d="M3 10h18" /></svg></span></label>
-                                <label class="event-datetime-part"><span>@T["Time"]</span><span class="event-datetime-input"><input type="time" step="300" data-datetime-time aria-label="@T["Event starts time"]" disabled="@(!Model.CanEditEventStart)" /><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg></span></label>
-                            </div>
-                            <input asp-for="Input.EventStartsLocal" type="datetime-local" step="300" class="form-control event-datetime-canonical" data-datetime-canonical data-schedule-boundary="Event starts" disabled="@(!Model.CanEditEventStart)" />
-                            <span asp-validation-for="Input.EventStartsLocal" class="field-error"></span>
-                        </div>
-                        <div class="admin-field event-create-field event-datetime-field" data-datetime-control>
-                            <label asp-for="Input.EventEndsLocal">@T["Event ends"]</label>
-                            <div class="event-datetime-visual" aria-label="@T["Event ends"]">
-                                    <label class="event-datetime-part"><span>@T["Date"]</span><span class="event-datetime-input"><input type="date" data-datetime-date aria-label="@T["Event ends date"]" disabled="@(!Model.CanEditEventEnd)" /><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><path d="M8 2v4" /><path d="M16 2v4" /><rect width="18" height="18" x="3" y="4" rx="2" /><path d="M3 10h18" /></svg></span></label>
-                                <label class="event-datetime-part"><span>@T["Time"]</span><span class="event-datetime-input"><input type="time" step="300" data-datetime-time aria-label="@T["Event ends time"]" disabled="@(!Model.CanEditEventEnd)" /><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg></span></label>
-                            </div>
-                            <input asp-for="Input.EventEndsLocal" type="datetime-local" step="300" class="form-control event-datetime-canonical" data-datetime-canonical data-schedule-boundary="Event ends" disabled="@(!Model.CanEditEventEnd)" />
-                            <span asp-validation-for="Input.EventEndsLocal" class="field-error"></span>
-                        </div>
-                    </div>
-                    <div class="event-create-fields schedule-draft-field">
-                        <div class="admin-field event-create-field event-datetime-field" data-datetime-control>
-                            <label asp-for="Input.DraftLocal">@T["Draft time"]</label>
-                            <div class="event-datetime-visual" aria-label="@T["Draft time"]">
-                                    <label class="event-datetime-part"><span>@T["Date"]</span><span class="event-datetime-input"><input type="date" data-datetime-date aria-label="@T["Draft date"]" disabled="@(!Model.CanEditDraftTime)" /><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><path d="M8 2v4" /><path d="M16 2v4" /><rect width="18" height="18" x="3" y="4" rx="2" /><path d="M3 10h18" /></svg></span></label>
-                                <label class="event-datetime-part"><span>@T["Time"]</span><span class="event-datetime-input"><input type="time" step="300" data-datetime-time aria-label="@T["Draft time"]" disabled="@(!Model.CanEditDraftTime)" /><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg></span></label>
-                            </div>
-                            <input asp-for="Input.DraftLocal" type="datetime-local" step="300" class="form-control event-datetime-canonical" data-datetime-canonical data-schedule-boundary="Draft time" disabled="@(!Model.CanEditDraftTime)" />
-                            <span asp-validation-for="Input.DraftLocal" class="field-error"></span>
-                        </div>
-                    </div>
-                </section>
-
-            </div>
-
-            <div class="schedule-editor-actions">
-                <a class="admin-button-secondary event-create-cancel" asp-page="Manage" asp-route-id="@Model.EventId">@T["Cancel"]</a>
-                <button class="admin-button-secondary" type="submit">@T["Save schedule"]</button>
-            </div>
-
-                </section>
-            </form>
-        </main>
-
-        <aside class="event-overview-section event-overview-dates-panel identity-event-information-rail schedule-event-information-rail" aria-labelledby="event-information-heading">
-            <div class="event-overview-section-heading">
-                <div class="event-overview-heading-label"><h2 id="event-information-heading">@T["Event information"]</h2></div>
-            </div>
-            <dl class="event-overview-dates">
-                <div class="event-overview-date-row event-overview-information-summary">
-                    <div class="event-overview-information-name"><dt class="visually-hidden">@T["Event name"]</dt><dd>@Model.EventName</dd></div>
-                    <div class="event-overview-information-status"><dt class="visually-hidden">@T["Status"]</dt><dd><span class="admin-status-pill @eventStatus.Modifier">@eventStatus.Label</span></dd></div>
                 </div>
-                @foreach (var row in Model.EffectiveTimeline)
-                {
-                    var timelineTone = row.Label switch
-                    {
-                        "Signup opens" or "Signup closes" => "is-cyan",
-                        "Submission cutoff" => "is-yellow",
-                        "Signups opened" or "Signups closed" or "Event starts" or "Event started" or "Event ends" or "Event ended" or "Submissions closed" => "is-green",
-                        _ => "is-muted"
-                    };
-                    <div class="event-overview-date-row @timelineTone"><div class="event-overview-date-copy"><dt>@T[row.Label]</dt><dd>@Model.EventDate(row.At)</dd></div></div>
-                }
-            </dl>
-            <div class="event-public-pages" aria-labelledby="event-public-pages-heading">
-                <h3 id="event-public-pages-heading">@T["Public pages"]</h3>
-                <div class="event-public-page-row"><a href="@signupUrl">@T["Signup form"]</a><button type="button" class="icon-button event-copy-link" data-copy-url="@signupUrl" aria-label="@T["Copy signup form link"]"><svg viewBox="0 0 24 24" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" /><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" /></svg></button></div>
-                <div class="event-public-page-row"><a href="@signupTableUrl">@T["Public signup table"]</a><button type="button" class="icon-button event-copy-link" data-copy-url="@signupTableUrl" aria-label="@T["Copy public signup table link"]"><svg viewBox="0 0 24 24" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" /><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" /></svg></button></div>
-                @if (Model.ShowPublicBoard)
-                {
-                    <div class="event-public-page-row"><a href="@publicBoardUrl">@T["Public board"]</a><button type="button" class="icon-button event-copy-link" data-copy-url="@publicBoardUrl" aria-label="@T["Copy public board link"]"><svg viewBox="0 0 24 24" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" /><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" /></svg></button></div>
-                }
-            </div>
-        </aside>
-    </div>
+                @if (section.Start == 3) { <div class="sc-derived" hidden="@(string.IsNullOrEmpty(Model.Input.EventEndsLocal))"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("upload")' /><span>@T[Model.EventState is EventState.AwaitingFinalReview or EventState.Archived ? "Normal uploads closed" : "Uploads close 30 minutes after the end:"] <b data-uploads-close></b>@T[Model.EventState is EventState.AwaitingFinalReview or EventState.Archived ? ", 30 minutes after the end." : ". This follows the end; it isn’t set separately."]</span></div> }
+            </section>
+        }
+        @if (editable) { <partial name="_AdminDesignSaveBar" model='new AdminDesignSaveBar(T["Save changes"].Value, T["No changes to save"].Value, T["Unsaved changes"].Value, TempData.Peek("StatusMessage") is not null ? T["Saved"].Value : null, MinWidth: 136)' /> }
+    </form>
+    <partial name="_AdminDesignDateTimeTemplates" />
 </section>
-
-@section Scripts {
-    <partial name="_ValidationScriptsPartial" />
-    <script src="~/js/event-create-datetime.js" asp-append-version="true"></script>
-    <script src="~/js/event-schedule.js" asp-append-version="true"></script>
-    <script>
-        window.bingoEventDateTime.initializeControls(document.querySelector("[data-schedule-editor]"), window.flatpickr);
-        (() => {
-            const form = document.querySelector("[data-schedule-form]");
-            if (!form || !window.adminConfirmation) return;
-            let submitting = false;
-            form.addEventListener("submit", async event => {
-                if (submitting || form.dataset.participantsRely !== "true") return;
-                const changed = [...form.querySelectorAll("[data-schedule-boundary]:not([disabled])")]
-                    .filter(field => field.value !== field.defaultValue)
-                    .map(field => ({
-                        label: field.dataset.scheduleBoundary,
-                        oldValue: field.defaultValue,
-                        newValue: field.value
-                    }));
-                const consequenceChanges = changed.filter(change => change.label !== "Draft time");
-                if (consequenceChanges.length === 0) return;
-                event.preventDefault();
-                const isLive = form.dataset.live === "true";
-                const format = value => window.bingoEventDateTime?.format(value) || value || "—";
-                const changes = consequenceChanges
-                    .map(change => `${change.label}: ${format(change.oldValue)} → ${format(change.newValue)}`)
-                    .join("; ");
-                const result = await window.adminConfirmation.open({
-                    title: isLive ? form.dataset.scheduleLiveTitle : form.dataset.scheduleTitle,
-                    description: `${form.dataset.scheduleDescriptionPrefix} ${changes}; ${form.dataset.scheduleDescriptionSuffix}`,
-                    actionLabel: form.dataset.scheduleAction,
-                    requireReason: isLive && consequenceChanges.some(change => change.label === "Event ends"),
-                    onConfirm: ({ reason }) => {
-                        if (isLive && consequenceChanges.some(change => change.label === "Event ends")) {
-                            const reasonField = form.querySelector("[data-schedule-end-reason]");
-                            if (reasonField) reasonField.value = reason;
-                        }
-                        const confirmation = form.querySelector("[data-schedule-confirm]");
-                        if (confirmation) confirmation.value = "true";
-                        submitting = true;
-                        HTMLFormElement.prototype.submit.call(form);
-                        return true;
-                    }
-                });
-                if (result !== true) submitting = false;
-            });
-        })();
-    </script>
-}
+@section Styles { <link rel="stylesheet" href="~/css/admin-design-schedule.css" asp-append-version="true" data-admin-page-style /> }
+@section Scripts { <script type="module" src="~/js/admin-schedule.js" asp-append-version="true" data-admin-page-script></script> }

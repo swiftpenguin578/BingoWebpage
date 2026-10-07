@@ -114,11 +114,12 @@ public sealed partial class SchedulePrecisionIntegrationTests
         for (var repeat = 0; repeat < 2; repeat++)
         {
             var current = await CurrentAsync(first); var values = current.GetProperty("values");
-            Assert.Equal(7, values.EnumerateObject().Count()); Assert.Equal(before.Version.ToString(CultureInfo.InvariantCulture), current.GetProperty("version").GetString());
+            // OS-5 (C4): capacity belongs to Signup setup, not Schedule readback.
+            Assert.Equal(6, values.EnumerateObject().Count()); Assert.Equal(before.Version.ToString(CultureInfo.InvariantCulture), current.GetProperty("version").GetString());
             Assert.Equal("Draft", current.GetProperty("phase").GetString()); Assert.Equal("UTC", current.GetProperty("timezone").GetString());
             Assert.Equal(JsonValueKind.Null, current.GetProperty("draftState").ValueKind); Assert.True(current.GetProperty("editable").GetProperty("eventStartsAt").GetBoolean());
             Assert.Equal(before.EventStartsAt, values.GetProperty("eventStartsAt").GetDateTimeOffset()); Assert.Equal(before.EventEndsAt, values.GetProperty("eventEndsAt").GetDateTimeOffset());
-            Assert.False(values.GetProperty("scheduledSignupOpeningEnabled").GetBoolean()); Assert.Equal(15, values.GetProperty("participantCap").GetInt32());
+            Assert.False(values.GetProperty("scheduledSignupOpeningEnabled").GetBoolean()); Assert.False(values.TryGetProperty("participantCap", out _));
             var matches = values.GetProperty("draftAt").ValueKind != JsonValueKind.Null && values.GetProperty("draftAt").GetDateTimeOffset() == expectedDraft
                 && values.GetProperty("eventStartsAt").GetDateTimeOffset() == baseline.GetProperty("values").GetProperty("eventStartsAt").GetDateTimeOffset();
             Assert.Equal(scenario is "applied-lost-response" or "other-admin-matching", matches);
@@ -152,6 +153,31 @@ public sealed partial class SchedulePrecisionIntegrationTests
         using var hidden = await admin.GetAsync(Route + "?handler=Current"); Assert.Equal(HttpStatusCode.NotFound, hidden.StatusCode); Assert.Equal(0, await AuditCountAsync());
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task TerminalScheduleGetAndCurrentAreReadOnlyWithoutOpeningMutationGate(bool archived)
+    {
+        // D17 permits these reads; the unchanged D16 test covers every terminal POST.
+        await EditAsync(item => {
+            if (!archived) item.Cancel(item.CreatedByAccountId, Now, "Synthetic cancellation", true);
+            else {
+                item.ConfigureSchedule(null, null, null, Now.AddDays(1), Now.AddDays(2), null);
+                item.OpenSignups(Now); item.CloseSignups(Now); item.StartEvent(Now);
+                item.EndEvent(Now.AddHours(1)); item.FinalizeResults(Now.AddHours(2)); item.Archive(Now.AddHours(3));
+            }
+        });
+        using var admin = await ClientAsync("first-admin");
+        var before = await ReadAsync(); var audits = await AuditCountAsync();
+        using var response = await admin.GetAsync(Route); Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var html = await response.Content.ReadAsStringAsync(); Assert.Contains("data-schedule-editor", html);
+        Assert.Contains("page-banner form-card", html); Assert.DoesNotContain("data-date-time=", html);
+        var current = await CurrentAsync(admin);
+        Assert.Equal(archived ? "Archived" : "Cancelled", current.GetProperty("phase").GetString());
+        Assert.All(current.GetProperty("editable").EnumerateObject(), field => Assert.False(field.Value.GetBoolean()));
+        Assert.Equal(before.Version, (await ReadAsync()).Version); Assert.Equal(audits, await AuditCountAsync());
+    }
+
     private async Task<JsonElement> CurrentAsync(HttpClient client)
     {
         using var response = await client.GetAsync(Route + "?handler=Current"); Assert.Equal(HttpStatusCode.OK, response.StatusCode); Assert.True(response.Headers.CacheControl!.NoStore);
@@ -160,6 +186,8 @@ public sealed partial class SchedulePrecisionIntegrationTests
     private static void AssertFieldError(string html, string field, string error)
     {
         var span = Regex.Match(html, $"<span[^>]*data-valmsg-for=\"Input.{field}\"[^>]*>(.*?)</span>", RegexOptions.Singleline);
+        // OS-1 binds ordinary field errors to the shared reference component.
+        if (!span.Success) span = Regex.Match(html, $"<div[^>]*id=\"error-{field}\"[^>]*>(.*?)</div>", RegexOptions.Singleline);
         Assert.True(span.Success); Assert.Contains(error, WebUtility.HtmlDecode(span.Groups[1].Value));
     }
 }

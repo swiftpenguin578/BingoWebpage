@@ -464,7 +464,8 @@ public sealed class Slice3DestructiveLifecycleIntegrationTests(PostgreSqlTestFix
         }));
 
         Assert.Equal(System.Net.HttpStatusCode.Redirect, response.StatusCode);
-        Assert.Equal($"/Admin/Events/Manage/{liveId}", response.Headers.Location!.OriginalString);
+        // OS-1: stay on Schedule after saving (reference README:1172).
+        Assert.Equal($"/Admin/Events/Schedule/{liveId}", response.Headers.Location!.OriginalString);
         await using var verify = new ApplicationDbContext(options);
         var saved = await verify.Events.SingleAsync(value => value.Id == liveId);
         Assert.Equal(changedEnd, saved.EventEndsAt);

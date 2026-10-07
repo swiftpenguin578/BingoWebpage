@@ -156,7 +156,7 @@
     if (element.matches?.(inputSelector) && element.closest('[data-page-region]') && !element.disabled && !element.readOnly) lastPageEditable = element;
   });
   let layerId = 0;
-  function openLayer({ kind = 'modal', title, content, confirmation = false, dirty = () => false, pending = () => false, confirmLeave, onClose = () => {}, opener = document.activeElement }) {
+  function openLayer({ kind = 'modal', title, content, confirmation = false, dismissible = !confirmation, dirty = () => false, pending = () => false, confirmLeave, onClose = () => {}, opener = document.activeElement }) {
     closeMenu(false);
     const wrapper = document.createElement('div'), scrim = document.createElement('div'), panel = document.createElement('div');
     wrapper.className = kind === 'drawer' ? 'design-drawer-layer' : 'm-wrap';
@@ -183,7 +183,7 @@
     layers.push(layer);
     lock();
     focus(panel.querySelector('[autofocus]') || controls(panel)[0] || panel);
-    const outside = event => { if ((event.target === scrim || event.target === wrapper) && layers.at(-1) === layer && !confirmation) void closeLayer(layer); };
+    const outside = event => { if ((event.target === scrim || event.target === wrapper) && layers.at(-1) === layer && dismissible) void closeLayer(layer); };
     scrim.addEventListener('click', outside);
     wrapper.addEventListener('click', outside);
     return { element: panel, close: result => closeLayer(layer, result, true) };
@@ -842,6 +842,9 @@
     if (target === undefined) { if (await guard()) location.reload(); else history.pushState({ adminDesignIndex: index }, '', activeUrl); return; }
     handlingPop = true;
     try {
+      for (const draft of drafts.values()) {
+        if (await draft.closeTransient?.()) { await goTo(index); return; }
+      }
       if (isDirty() || isPending()) {
         await goTo(index);
         if (!await guard()) return;

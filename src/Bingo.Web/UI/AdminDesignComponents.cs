@@ -7,6 +7,6 @@ public sealed record AdminDesignFieldNote(string Text = "", string? Field = null
 public sealed record AdminDesignFieldError(string Field, string Text = "");
 public sealed record AdminDesignFieldLock(string Text);
 public sealed record AdminDesignBanner(string Tone, string Icon, string Text = "", string? Lead = null, string? Id = null, bool Hidden = false);
-public sealed record AdminDesignSaveBar(string Save, string NoChanges, string Unsaved, string? Saved = null);
+public sealed record AdminDesignSaveBar(string Save, string NoChanges, string Unsaved, string? Saved = null, int MinWidth = 132);
 public sealed record AdminDesignToast(string Text = "", bool Error = false);
 public sealed record AdminDesignMenuHeader(string Text, string? Hint = null);

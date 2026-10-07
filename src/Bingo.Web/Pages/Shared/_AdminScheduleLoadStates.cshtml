@@ -1,0 +1,8 @@
+<template data-page-header-template="schedule"><header class="page-head" data-page-family="schedule"><div style="min-width:0"><h1 class="h1" tabindex="-1">@T["Schedule"]</h1><p class="summary"><span data-summary-template=""></span></p></div></header></template>
+<template data-page-loading-template="schedule" data-page-title="@T["Schedule"]">
+<link rel="stylesheet" href="~/css/admin-design-schedule.css" asp-append-version="true" />
+<div class="card form-card" aria-busy="true" aria-label="@T["Loading schedule"]">
+@foreach (var width in new[] { 18, 14, 16 }) {
+<div class="sk-block"><div class="schedule-sk-title"><div class="sk" style="width:@(width)%"></div></div><div class="schedule-sk-pair"><div class="sk"></div>@if (width != 14) { <div class="sk"></div> }</div></div>
+}
+</div></template>

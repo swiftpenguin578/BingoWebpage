@@ -1,0 +1,391 @@
+{
+  "originalReferenceMeasurements": [
+    {
+      "width": 390,
+      "loadingHeight": 39.140625,
+      "loadedHeight": 101.8125,
+      "referenceLoadedHeight": 101.8125,
+      "headerDelta": 62.671875,
+      "followingContentBeyondHeader": 0
+    },
+    {
+      "width": 494,
+      "loadingHeight": 39.140625,
+      "loadedHeight": 82.25,
+      "referenceLoadedHeight": 82.25,
+      "headerDelta": 43.109375,
+      "followingContentBeyondHeader": 0
+    },
+    {
+      "width": 860,
+      "loadingHeight": 19.5625,
+      "loadedHeight": 62.6875,
+      "referenceLoadedHeight": 62.6875,
+      "headerDelta": 43.125,
+      "followingContentBeyondHeader": 0
+    },
+    {
+      "width": 1280,
+      "loadingHeight": 19.5625,
+      "loadedHeight": 43.125,
+      "referenceLoadedHeight": 43.125,
+      "headerDelta": 23.5625,
+      "followingContentBeyondHeader": 0
+    },
+    {
+      "width": 1440,
+      "loadingHeight": 19.5625,
+      "loadedHeight": 43.125,
+      "referenceLoadedHeight": 43.125,
+      "headerDelta": 23.5625,
+      "followingContentBeyondHeader": 0
+    }
+  ],
+  "resolvedBy": "User 7 October 2026: Times are in \u2039timezone\u203a; change it on Identity. Open, close or start by hand on Overview. Keep both links and shared Q6; no override.",
+  "currentMeasurements": {
+    "chromium": [
+      {
+        "language": "en",
+        "width": 390,
+        "text": "Times are in Europe/Copenhagen (UTC+02:00); change it on Identity. Open, close or start by hand on Overview.",
+        "height": 39.125,
+        "lineHeight": 19.575,
+        "links": [
+          {
+            "text": "Identity",
+            "url": "/Admin/Events/Identity/01e07f50-12ac-45d8-9e95-02dcfd91b2cf"
+          },
+          {
+            "text": "Overview",
+            "url": "/Admin/Events/Manage/01e07f50-12ac-45d8-9e95-02dcfd91b2cf"
+          }
+        ]
+      },
+      {
+        "language": "en",
+        "width": 494,
+        "text": "Times are in Europe/Copenhagen (UTC+02:00); change it on Identity. Open, close or start by hand on Overview.",
+        "height": 39.125,
+        "lineHeight": 19.575,
+        "links": [
+          {
+            "text": "Identity",
+            "url": "/Admin/Events/Identity/01e07f50-12ac-45d8-9e95-02dcfd91b2cf"
+          },
+          {
+            "text": "Overview",
+            "url": "/Admin/Events/Manage/01e07f50-12ac-45d8-9e95-02dcfd91b2cf"
+          }
+        ]
+      },
+      {
+        "language": "en",
+        "width": 860,
+        "text": "Times are in Europe/Copenhagen (UTC+02:00); change it on Identity. Open, close or start by hand on Overview.",
+        "height": 19.5625,
+        "lineHeight": 19.575,
+        "links": [
+          {
+            "text": "Identity",
+            "url": "/Admin/Events/Identity/01e07f50-12ac-45d8-9e95-02dcfd91b2cf"
+          },
+          {
+            "text": "Overview",
+            "url": "/Admin/Events/Manage/01e07f50-12ac-45d8-9e95-02dcfd91b2cf"
+          }
+        ]
+      },
+      {
+        "language": "en",
+        "width": 1280,
+        "text": "Times are in Europe/Copenhagen (UTC+02:00); change it on Identity. Open, close or start by hand on Overview.",
+        "height": 19.5625,
+        "lineHeight": 19.575,
+        "links": [
+          {
+            "text": "Identity",
+            "url": "/Admin/Events/Identity/01e07f50-12ac-45d8-9e95-02dcfd91b2cf"
+          },
+          {
+            "text": "Overview",
+            "url": "/Admin/Events/Manage/01e07f50-12ac-45d8-9e95-02dcfd91b2cf"
+          }
+        ]
+      },
+      {
+        "language": "en",
+        "width": 1440,
+        "text": "Times are in Europe/Copenhagen (UTC+02:00); change it on Identity. Open, close or start by hand on Overview.",
+        "height": 19.5625,
+        "lineHeight": 19.575,
+        "links": [
+          {
+            "text": "Identity",
+            "url": "/Admin/Events/Identity/01e07f50-12ac-45d8-9e95-02dcfd91b2cf"
+          },
+          {
+            "text": "Overview",
+            "url": "/Admin/Events/Manage/01e07f50-12ac-45d8-9e95-02dcfd91b2cf"
+          }
+        ]
+      },
+      {
+        "language": "da",
+        "width": 390,
+        "text": "Tider vises i Europe/Copenhagen (UTC+02:00); skift tidszone p\u00e5 Identitet. \u00c5bn, luk eller start manuelt p\u00e5 Oversigt.",
+        "height": 58.6875,
+        "lineHeight": 19.575,
+        "links": [
+          {
+            "text": "Identitet",
+            "url": "/Admin/Events/Identity/01e07f50-12ac-45d8-9e95-02dcfd91b2cf"
+          },
+          {
+            "text": "Oversigt",
+            "url": "/Admin/Events/Manage/01e07f50-12ac-45d8-9e95-02dcfd91b2cf"
+          }
+        ]
+      },
+      {
+        "language": "da",
+        "width": 494,
+        "text": "Tider vises i Europe/Copenhagen (UTC+02:00); skift tidszone p\u00e5 Identitet. \u00c5bn, luk eller start manuelt p\u00e5 Oversigt.",
+        "height": 39.125,
+        "lineHeight": 19.575,
+        "links": [
+          {
+            "text": "Identitet",
+            "url": "/Admin/Events/Identity/01e07f50-12ac-45d8-9e95-02dcfd91b2cf"
+          },
+          {
+            "text": "Oversigt",
+            "url": "/Admin/Events/Manage/01e07f50-12ac-45d8-9e95-02dcfd91b2cf"
+          }
+        ]
+      },
+      {
+        "language": "da",
+        "width": 860,
+        "text": "Tider vises i Europe/Copenhagen (UTC+02:00); skift tidszone p\u00e5 Identitet. \u00c5bn, luk eller start manuelt p\u00e5 Oversigt.",
+        "height": 19.5625,
+        "lineHeight": 19.575,
+        "links": [
+          {
+            "text": "Identitet",
+            "url": "/Admin/Events/Identity/01e07f50-12ac-45d8-9e95-02dcfd91b2cf"
+          },
+          {
+            "text": "Oversigt",
+            "url": "/Admin/Events/Manage/01e07f50-12ac-45d8-9e95-02dcfd91b2cf"
+          }
+        ]
+      },
+      {
+        "language": "da",
+        "width": 1280,
+        "text": "Tider vises i Europe/Copenhagen (UTC+02:00); skift tidszone p\u00e5 Identitet. \u00c5bn, luk eller start manuelt p\u00e5 Oversigt.",
+        "height": 19.5625,
+        "lineHeight": 19.575,
+        "links": [
+          {
+            "text": "Identitet",
+            "url": "/Admin/Events/Identity/01e07f50-12ac-45d8-9e95-02dcfd91b2cf"
+          },
+          {
+            "text": "Oversigt",
+            "url": "/Admin/Events/Manage/01e07f50-12ac-45d8-9e95-02dcfd91b2cf"
+          }
+        ]
+      },
+      {
+        "language": "da",
+        "width": 1440,
+        "text": "Tider vises i Europe/Copenhagen (UTC+02:00); skift tidszone p\u00e5 Identitet. \u00c5bn, luk eller start manuelt p\u00e5 Oversigt.",
+        "height": 19.5625,
+        "lineHeight": 19.575,
+        "links": [
+          {
+            "text": "Identitet",
+            "url": "/Admin/Events/Identity/01e07f50-12ac-45d8-9e95-02dcfd91b2cf"
+          },
+          {
+            "text": "Oversigt",
+            "url": "/Admin/Events/Manage/01e07f50-12ac-45d8-9e95-02dcfd91b2cf"
+          }
+        ]
+      }
+    ],
+    "webkit": [
+      {
+        "language": "en",
+        "width": 390,
+        "text": "Times are in Europe/Copenhagen (UTC+02:00); change it on Identity. Open, close or start by hand on Overview.",
+        "height": 39.125,
+        "lineHeight": 19.575001,
+        "links": [
+          {
+            "text": "Identity",
+            "url": "/Admin/Events/Identity/fa07d03d-f3b9-4236-ae13-c6a7822a14c4"
+          },
+          {
+            "text": "Overview",
+            "url": "/Admin/Events/Manage/fa07d03d-f3b9-4236-ae13-c6a7822a14c4"
+          }
+        ]
+      },
+      {
+        "language": "en",
+        "width": 494,
+        "text": "Times are in Europe/Copenhagen (UTC+02:00); change it on Identity. Open, close or start by hand on Overview.",
+        "height": 39.125,
+        "lineHeight": 19.575001,
+        "links": [
+          {
+            "text": "Identity",
+            "url": "/Admin/Events/Identity/fa07d03d-f3b9-4236-ae13-c6a7822a14c4"
+          },
+          {
+            "text": "Overview",
+            "url": "/Admin/Events/Manage/fa07d03d-f3b9-4236-ae13-c6a7822a14c4"
+          }
+        ]
+      },
+      {
+        "language": "en",
+        "width": 860,
+        "text": "Times are in Europe/Copenhagen (UTC+02:00); change it on Identity. Open, close or start by hand on Overview.",
+        "height": 19.5625,
+        "lineHeight": 19.575001,
+        "links": [
+          {
+            "text": "Identity",
+            "url": "/Admin/Events/Identity/fa07d03d-f3b9-4236-ae13-c6a7822a14c4"
+          },
+          {
+            "text": "Overview",
+            "url": "/Admin/Events/Manage/fa07d03d-f3b9-4236-ae13-c6a7822a14c4"
+          }
+        ]
+      },
+      {
+        "language": "en",
+        "width": 1280,
+        "text": "Times are in Europe/Copenhagen (UTC+02:00); change it on Identity. Open, close or start by hand on Overview.",
+        "height": 19.5625,
+        "lineHeight": 19.575001,
+        "links": [
+          {
+            "text": "Identity",
+            "url": "/Admin/Events/Identity/fa07d03d-f3b9-4236-ae13-c6a7822a14c4"
+          },
+          {
+            "text": "Overview",
+            "url": "/Admin/Events/Manage/fa07d03d-f3b9-4236-ae13-c6a7822a14c4"
+          }
+        ]
+      },
+      {
+        "language": "en",
+        "width": 1440,
+        "text": "Times are in Europe/Copenhagen (UTC+02:00); change it on Identity. Open, close or start by hand on Overview.",
+        "height": 19.5625,
+        "lineHeight": 19.575001,
+        "links": [
+          {
+            "text": "Identity",
+            "url": "/Admin/Events/Identity/fa07d03d-f3b9-4236-ae13-c6a7822a14c4"
+          },
+          {
+            "text": "Overview",
+            "url": "/Admin/Events/Manage/fa07d03d-f3b9-4236-ae13-c6a7822a14c4"
+          }
+        ]
+      },
+      {
+        "language": "da",
+        "width": 390,
+        "text": "Tider vises i Europe/Copenhagen (UTC+02:00); skift tidszone p\u00e5 Identitet. \u00c5bn, luk eller start manuelt p\u00e5 Oversigt.",
+        "height": 58.6875,
+        "lineHeight": 19.575001,
+        "links": [
+          {
+            "text": "Identitet",
+            "url": "/Admin/Events/Identity/fa07d03d-f3b9-4236-ae13-c6a7822a14c4"
+          },
+          {
+            "text": "Oversigt",
+            "url": "/Admin/Events/Manage/fa07d03d-f3b9-4236-ae13-c6a7822a14c4"
+          }
+        ]
+      },
+      {
+        "language": "da",
+        "width": 494,
+        "text": "Tider vises i Europe/Copenhagen (UTC+02:00); skift tidszone p\u00e5 Identitet. \u00c5bn, luk eller start manuelt p\u00e5 Oversigt.",
+        "height": 39.125,
+        "lineHeight": 19.575001,
+        "links": [
+          {
+            "text": "Identitet",
+            "url": "/Admin/Events/Identity/fa07d03d-f3b9-4236-ae13-c6a7822a14c4"
+          },
+          {
+            "text": "Oversigt",
+            "url": "/Admin/Events/Manage/fa07d03d-f3b9-4236-ae13-c6a7822a14c4"
+          }
+        ]
+      },
+      {
+        "language": "da",
+        "width": 860,
+        "text": "Tider vises i Europe/Copenhagen (UTC+02:00); skift tidszone p\u00e5 Identitet. \u00c5bn, luk eller start manuelt p\u00e5 Oversigt.",
+        "height": 19.5625,
+        "lineHeight": 19.575001,
+        "links": [
+          {
+            "text": "Identitet",
+            "url": "/Admin/Events/Identity/fa07d03d-f3b9-4236-ae13-c6a7822a14c4"
+          },
+          {
+            "text": "Oversigt",
+            "url": "/Admin/Events/Manage/fa07d03d-f3b9-4236-ae13-c6a7822a14c4"
+          }
+        ]
+      },
+      {
+        "language": "da",
+        "width": 1280,
+        "text": "Tider vises i Europe/Copenhagen (UTC+02:00); skift tidszone p\u00e5 Identitet. \u00c5bn, luk eller start manuelt p\u00e5 Oversigt.",
+        "height": 19.5625,
+        "lineHeight": 19.575001,
+        "links": [
+          {
+            "text": "Identitet",
+            "url": "/Admin/Events/Identity/fa07d03d-f3b9-4236-ae13-c6a7822a14c4"
+          },
+          {
+            "text": "Oversigt",
+            "url": "/Admin/Events/Manage/fa07d03d-f3b9-4236-ae13-c6a7822a14c4"
+          }
+        ]
+      },
+      {
+        "language": "da",
+        "width": 1440,
+        "text": "Tider vises i Europe/Copenhagen (UTC+02:00); skift tidszone p\u00e5 Identitet. \u00c5bn, luk eller start manuelt p\u00e5 Oversigt.",
+        "height": 19.5625,
+        "lineHeight": 19.575001,
+        "links": [
+          {
+            "text": "Identitet",
+            "url": "/Admin/Events/Identity/fa07d03d-f3b9-4236-ae13-c6a7822a14c4"
+          },
+          {
+            "text": "Oversigt",
+            "url": "/Admin/Events/Manage/fa07d03d-f3b9-4236-ae13-c6a7822a14c4"
+          }
+        ]
+      }
+    ]
+  }
+}

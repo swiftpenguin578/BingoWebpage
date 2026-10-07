@@ -682,7 +682,7 @@ public sealed class Slice3CreationIdentityPersistenceIntegrationTests(PostgreSql
             model = Schedule(db, actor);
             Assert.IsType<PageResult>(await model.OnGetAsync(eventId, CancellationToken.None));
             model.Input.EventEndsLocal = "2026-08-06T14:50";
-            model.Input.ParticipantCap = 25;
+            // OS-5 (C4): Schedule no longer binds a capacity input.
             model.Input.ScheduledSignupOpeningEnabled = true;
             model.Input.ConfirmChanges = true;
             Assert.IsType<RedirectToPageResult>(await model.OnPostAsync(eventId, CancellationToken.None));

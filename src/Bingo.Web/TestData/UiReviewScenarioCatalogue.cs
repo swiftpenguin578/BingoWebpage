@@ -34,6 +34,8 @@ public static class UiReviewScenarioCatalogue
             Add("Schedule / Signup setup", item.Name + " — schedule", $"/Admin/Events/Schedule/{item.Id}");
             Add("Schedule / Signup setup", item.Name + " — questions", $"/Admin/Events/Questions/{item.Id}");
         }
+        foreach (var item in scenarios.Events.Where(value => !value.Hidden && value.State is EventState.Live or EventState.AwaitingFinalReview or EventState.Archived or EventState.Cancelled))
+            Add("Schedule", $"{item.Name} [{item.State}] — end-only or read-only schedule", $"/Admin/Events/Schedule/{item.Id}");
         var current = scenarios.Events.Single(value => value.Id == scenarios.CurrentEventId);
         var closed = scenarios.Events.Single(value => value.Slug == "ur-signups-closed");
         var archived = scenarios.Events.Single(value => value.Slug == "ur-archived");

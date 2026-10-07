@@ -316,8 +316,8 @@ public sealed class BingoEvent
             && ParticipantCap == participantCap;
         if (DraftLocked && !eventWindowOnly) throw new InvalidOperationException("The schedule is locked because the draft has started.");
         if (participantCap is < 1) throw new ArgumentOutOfRangeException(nameof(participantCap));
-        if (FirstPublicAt is not null && ParticipantCap is { } current && (participantCap is null || participantCap < current))
-            throw new InvalidOperationException("The participant cap cannot be lowered after signup has first been public.");
+        // OS-4: Schedule carries the stored capacity through unchanged. Capacity
+        // edits belong to Signup setup and its confirmed-count guard.
         if (normalizedEventStart is { } starts && normalizedEventEnd is { } ends && ends <= starts)
             throw new InvalidOperationException("Event end must be after event start.");
         if (normalizedSignupClosing is { } closing && normalizedEventStart is { } eventStart && closing > eventStart)
@@ -568,11 +568,8 @@ public sealed class BingoEvent
 
     public void IncreaseParticipantCap(int newCap)
     {
-        // Preserve the source-compatible pre-publication helper semantics for
-        // existing callers.  Signup administration uses SetParticipantCap so
-        // the active rule is simply "before draft and not below confirmed".
-        if (FirstPublicAt is not null && ParticipantCap is { } current && newCap < current)
-            throw new InvalidOperationException("The participant cap cannot be lowered after signup has first been public.");
+        // OS-4: retain the legacy entry point without the obsolete first-public
+        // prohibition. Its service caller enforces confirmed count and increases only.
         SetParticipantCap(newCap);
     }
 
