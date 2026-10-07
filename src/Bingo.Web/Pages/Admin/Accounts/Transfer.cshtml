@@ -1,19 +1,2 @@
 @page
 @model Bingo.Web.Pages.Admin.Accounts.TransferModel
-@{
-    ViewData["Title"] = T["Transfer ownership"];
-    ViewData["AdminPageDescription"] = T["Transfer the sole Super Admin role safely."];
-}
-
-<section class="admin-account-route-page" aria-labelledby="transfer-ownership-heading">
-    <header class="admin-account-route-heading"><div><h1 id="transfer-ownership-heading">@T["Transfer ownership"]</h1><p>@T["Choose an existing active website account. The former owner remains an Admin after the transaction."]</p></div></header>
-            <form method="post" class="event-confirmation-form" data-account-transfer data-confirm-title="@T["Confirm ownership transfer"]" data-confirm-description="@T["The selected account becomes Super Admin; your account remains an Admin. Both accounts must sign in again."]" data-confirm-action="@T["Transfer ownership"]">
-                <div asp-validation-summary="ModelOnly" class="validation-summary"></div>
-                <div class="admin-field"><label asp-for="Input.DestinationId"></label><select asp-for="Input.DestinationId" class="form-select" required><option value="">@T["Choose an eligible active website account"]</option>@foreach (var destination in Model.Destinations) { <option value="@destination.Id" data-authorization-version="@destination.AuthorizationVersion">@destination.Username</option> }</select><span asp-validation-for="Input.DestinationId" class="field-error"></span></div>
-                <input asp-for="Input.ExpectedAuthorizationVersion" type="hidden" />
-                <div class="admin-field"><label asp-for="Input.DestinationUsernameConfirmation"></label><input asp-for="Input.DestinationUsernameConfirmation" class="form-control" autocomplete="off" required /><small>@T["Type the selected account's public username to confirm this transfer."]</small><span asp-validation-for="Input.DestinationUsernameConfirmation" class="field-error"></span></div>
-                <div class="admin-field"><label asp-for="Input.CurrentPassword"></label><input asp-for="Input.CurrentPassword" class="form-control" autocomplete="current-password" /><span asp-validation-for="Input.CurrentPassword" class="field-error"></span></div>
-                <div class="event-confirmation-actions"><a class="admin-button-secondary" asp-page="Index">@T["Cancel"]</a><button class="action-danger-outline" type="submit">@T["Transfer ownership"]</button></div>
-            </form>
-</section>
-@section Scripts { <script src="~/js/account-transfer.js" asp-append-version="true"></script> }

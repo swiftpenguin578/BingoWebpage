@@ -243,4 +243,232 @@
   <data name="Participation by event appears once a second event has been held." xml:space="preserve"><value>Deltagelse pr. event vises, når der er afholdt endnu et event.</value></data>
   <data name="The latest event is still in final review, so its figures are provisional." xml:space="preserve"><value>Det seneste event er stadig til endelig gennemgang, så tallene er foreløbige.</value></data>
   <data name="Loading statistics" xml:space="preserve"><value>Indlæser statistik</value></data>
+  <!-- Lane T (T1): Accounts -->
+  <data name="Transfer ownership" xml:space="preserve"><value>Overdrag ejerskab</value></data>
+  <data name="Exceptional: the community always has exactly one Super Admin. This isn’t the same as granting Admin." xml:space="preserve"><value>Undtagelsesvis: fællesskabet har altid præcis én Super Admin. Det er ikke det samme som at give Admin-adgang.</value></data>
+  <data name="New Super Admin" xml:space="preserve"><value>Ny Super Admin</value></data>
+  <data name="Choose an active account" xml:space="preserve"><value>Vælg en aktiv konto</value></data>
+  <data name="{0} · {1}" xml:space="preserve"><value>{0} · {1}</value></data>
+  <data name="Active website accounts other than yours." xml:space="preserve"><value>Aktive hjemmesidekonti ud over din egen.</value></data>
+  <data name="Your current password" xml:space="preserve"><value>Din nuværende adgangskode</value></data>
+  <data name="Role change" xml:space="preserve"><value>Rolleændring</value></data>
+  <data name="Account" xml:space="preserve"><value>Konto</value></data>
+  <data name="Now" xml:space="preserve"><value>Nu</value></data>
+  <data name="After" xml:space="preserve"><value>Efter</value></data>
+  <data name="Type the new owner’s username" xml:space="preserve"><value>Skriv den nye ejers brugernavn</value></data>
+  <data name="Continue" xml:space="preserve"><value>Fortsæt</value></data>
+  <data name="Website account" xml:space="preserve"><value>Hjemmesidekonto</value></data>
+  <data name="Not found" xml:space="preserve"><value>Ikke fundet</value></data>
+  <data name="Close" xml:space="preserve"><value>Luk</value></data>
+  <data name="This account isn’t available" xml:space="preserve"><value>Denne konto er ikke tilgængelig</value></data>
+  <data name="The link may be incomplete, or it isn’t a website account." xml:space="preserve"><value>Linket er måske ufuldstændigt, eller det er ikke en hjemmesidekonto.</value></data>
+  <data name="Owns the community. The only account that manages Admins." xml:space="preserve"><value>Ejer fællesskabet. Den eneste konto, der administrerer Admins.</value></data>
+  <data name="Can use the admin area and manage User accounts." xml:space="preserve"><value>Kan bruge adminområdet og administrere brugerkonti.</value></data>
+  <data name="No admin access." xml:space="preserve"><value>Ingen adminadgang.</value></data>
+  <data name=" and " xml:space="preserve"><value> og </value></data>
+  <data name="Password" xml:space="preserve"><value>Adgangskode</value></data>
+  <data name="Discord" xml:space="preserve"><value>Discord</value></data>
+  <data name="This is your account. Your own role and status can’t be changed here; change your sign-in details in your account settings." xml:space="preserve"><value>Dette er din konto. Din egen rolle og status kan ikke ændres her; skift dine login-oplysninger i dine kontoindstillinger.</value></data>
+  <data name="This is your account. You can’t change your own role or status, or create a reset link for yourself." xml:space="preserve"><value>Dette er din konto. Du kan ikke ændre din egen rolle eller status eller oprette et nulstillingslink til dig selv.</value></data>
+  <data name="The Super Admin account is protected. It can’t be disabled, demoted or reset here; ownership moves only by transfer, and lost access needs Discord sign-in or operator recovery." xml:space="preserve"><value>Super Admin-kontoen er beskyttet. Den kan ikke deaktiveres, nedgraderes eller nulstilles her; ejerskab flyttes kun ved overdragelse, og mistet adgang kræver Discord-login eller gendannelse ved driften.</value></data>
+  <data name="Only the Super Admin manages Admin accounts." xml:space="preserve"><value>Kun Super Admin administrerer Admin-konti.</value></data>
+  <data name="Only the Super Admin can grant or revoke Admin access." xml:space="preserve"><value>Kun Super Admin kan give eller fjerne Admin-adgang.</value></data>
+  <data name="Confirmed" xml:space="preserve"><value>Bekræftet</value></data>
+  <data name="Waiting list" xml:space="preserve"><value>Venteliste</value></data>
+  <data name="Withdrawn" xml:space="preserve"><value>Trukket tilbage</value></data>
+  <data name="Disabled" xml:space="preserve"><value>Deaktiveret</value></data>
+  <data name="You" xml:space="preserve"><value>Dig</value></data>
+  <data name="Dismiss" xml:space="preserve"><value>Luk</value></data>
+  <data name="Disabled {0} by {1}." xml:space="preserve"><value>Deaktiveret {0} af {1}.</value></data>
+  <data name="Disabled {0}." xml:space="preserve"><value>Deaktiveret {0}.</value></data>
+  <data name="They can’t sign in; the account and its records are kept." xml:space="preserve"><value>Personen kan ikke logge ind; kontoen og dens data bevares.</value></data>
+  <data name="Access" xml:space="preserve"><value>Adgang</value></data>
+  <data name="Global role" xml:space="preserve"><value>Global rolle</value></data>
+  <data name="Event Captain roles are separate; see below." xml:space="preserve"><value>Kaptajnroller i events er separate; se nedenfor.</value></data>
+  <data name="Status" xml:space="preserve"><value>Status</value></data>
+  <data name="Active" xml:space="preserve"><value>Aktiv</value></data>
+  <data name="Can sign in." xml:space="preserve"><value>Kan logge ind.</value></data>
+  <data name="Can’t sign in." xml:space="preserve"><value>Kan ikke logge ind.</value></data>
+  <data name="Last login" xml:space="preserve"><value>Seneste login</value></data>
+  <data name="Never" xml:space="preserve"><value>Aldrig</value></data>
+  <data name="Sign-in" xml:space="preserve"><value>Login</value></data>
+  <data name="None set" xml:space="preserve"><value>Ingen angivet</value></data>
+  <data name="Linked" xml:space="preserve"><value>Tilknyttet</value></data>
+  <data name="Not linked" xml:space="preserve"><value>Ikke tilknyttet</value></data>
+  <data name="Last known display name “{0}”; it may be out of date." xml:space="preserve"><value>Senest kendte visningsnavn “{0}”; det kan være forældet.</value></data>
+  <data name="Display name not recorded." xml:space="preserve"><value>Visningsnavn ikke registreret.</value></data>
+  <data name="Manage access" xml:space="preserve"><value>Administrer adgang</value></data>
+  <data name="Admin access" xml:space="preserve"><value>Admin-adgang</value></data>
+  <data name="Lets them use the admin area. Event roles aren’t affected." xml:space="preserve"><value>Giver adgang til adminområdet. Roller i events påvirkes ikke.</value></data>
+  <data name="They’d become a User. Their account stays active, with its events, team roles and characters." xml:space="preserve"><value>Personen bliver Bruger. Kontoen forbliver aktiv med sine events, holdroller og karakterer.</value></data>
+  <data name="They’d become a User. Their account stays disabled, with its events, team roles and characters." xml:space="preserve"><value>Personen bliver Bruger. Kontoen forbliver deaktiveret med sine events, holdroller og karakterer.</value></data>
+  <data name="Grant Admin…" xml:space="preserve"><value>Giv Admin…</value></data>
+  <data name="Revoke Admin…" xml:space="preserve"><value>Fjern Admin…</value></data>
+  <data name="Restore the account before granting Admin access." xml:space="preserve"><value>Genaktiver kontoen, før du giver Admin-adgang.</value></data>
+  <data name="Password-reset link" xml:space="preserve"><value>Link til nulstilling af adgangskode</value></data>
+  <data name="A single-use link they can use within 60 minutes to set a new password. It replaces any earlier link. It doesn’t change the password or contact them; you pass it on." xml:space="preserve"><value>Et engangslink, der kan bruges inden for 60 minutter til at vælge en ny adgangskode. Det erstatter tidligere links. Det ændrer ikke adgangskoden og kontakter ikke personen; du giver det videre.</value></data>
+  <data name="A single-use link they can use within 60 minutes to set a password (they sign in with Discord only today). It replaces any earlier link. It doesn’t change the password or contact them; you pass it on." xml:space="preserve"><value>Et engangslink, der kan bruges inden for 60 minutter til at vælge en adgangskode (personen logger i dag kun ind med Discord). Det erstatter tidligere links. Det ændrer ikke adgangskoden og kontakter ikke personen; du giver det videre.</value></data>
+  <data name="Reset links are only for active accounts. Restore the account first." xml:space="preserve"><value>Nulstillingslinks er kun til aktive konti. Genaktiver kontoen først.</value></data>
+  <data name="Create reset link" xml:space="preserve"><value>Opret nulstillingslink</value></data>
+  <data name="Reset link for {0}" xml:space="preserve"><value>Nulstillingslink til {0}</value></data>
+  <data name="Expires {0}" xml:space="preserve"><value>Udløber {0}</value></data>
+  <data name="Reset link" xml:space="preserve"><value>Nulstillingslink</value></data>
+  <data name="Copy" xml:space="preserve"><value>Kopiér</value></data>
+  <data name="The link stops working after 60 minutes, after one use, or if this account’s role, status or ownership changes." xml:space="preserve"><value>Linket holder op med at virke efter 60 minutter, efter én brug, eller hvis denne kontos rolle, status eller ejerskab ændres.</value></data>
+  <data name="It doesn’t change their password or send them anything. Share it with {0} privately." xml:space="preserve"><value>Det ændrer ikke adgangskoden og sender ikke noget. Del det privat med {0}.</value></data>
+  <data name="Shown only here. Closing this account clears it." xml:space="preserve"><value>Vises kun her. Når du lukker kontoen, forsvinder det.</value></data>
+  <data name="Done" xml:space="preserve"><value>Færdig</value></data>
+  <data name="Disable account" xml:space="preserve"><value>Deaktiver konto</value></data>
+  <data name="Restore account" xml:space="preserve"><value>Genaktiver konto</value></data>
+  <data name="Stops them signing in and ends their sessions. The account, rosters and records are kept." xml:space="preserve"><value>Forhindrer login og afslutter sessioner. Kontoen, holdlister og data bevares.</value></data>
+  <data name="Lets them sign in again. Event signups and roles stay as they are now." xml:space="preserve"><value>Gør login muligt igen. Tilmeldinger og roller i events forbliver, som de er nu.</value></data>
+  <data name="Disable…" xml:space="preserve"><value>Deaktiver…</value></data>
+  <data name="Restore…" xml:space="preserve"><value>Genaktiver…</value></data>
+  <data name="Ownership" xml:space="preserve"><value>Ejerskab</value></data>
+  <data name="You’re the community’s only Super Admin. Ownership can move to another active account; you’d stay an Admin." xml:space="preserve"><value>Du er fællesskabets eneste Super Admin. Ejerskabet kan flyttes til en anden aktiv konto; du forbliver Admin.</value></data>
+  <data name="Transfer ownership…" xml:space="preserve"><value>Overdrag ejerskab…</value></data>
+  <data name="Linked OSRS characters" xml:space="preserve"><value>Tilknyttede OSRS-karakterer</value></data>
+  <data name="No characters linked. The account holder adds them in My Accounts." xml:space="preserve"><value>Ingen karakterer tilknyttet. Kontoindehaveren tilføjer dem under Mine konti.</value></data>
+  <data name="Preferred" xml:space="preserve"><value>Foretrukken</value></data>
+  <data name="Inactive" xml:space="preserve"><value>Inaktiv</value></data>
+  <data name="Events and team roles" xml:space="preserve"><value>Events og holdroller</value></data>
+  <data name="No event participation." xml:space="preserve"><value>Ingen deltagelse i events.</value></data>
+  <data name="No team" xml:space="preserve"><value>Intet hold</value></data>
+  <data name="CC" xml:space="preserve"><value>MK</value></data>
+  <data name="C" xml:space="preserve"><value>K</value></data>
+  <data name="{0} – {1}" xml:space="preserve"><value>{0} – {1}</value></data>
+  <data name="current" xml:space="preserve"><value>nu</value></data>
+  <data name="Disable and restore history" xml:space="preserve"><value>Historik for deaktivering og genaktivering</value></data>
+  <data name="Never disabled." xml:space="preserve"><value>Aldrig deaktiveret.</value></data>
+  <data name="Disabled by {0}" xml:space="preserve"><value>Deaktiveret af {0}</value></data>
+  <data name="Restored by {0}" xml:space="preserve"><value>Genaktiveret af {0}</value></data>
+  <data name="Username, Discord and characters belong to the account holder and are changed in their own settings. Team roles are managed on each event’s Teams page." xml:space="preserve"><value>Brugernavn, Discord og karakterer tilhører kontoindehaveren og ændres i deres egne indstillinger. Holdroller administreres på hvert events Hold-side.</value></data>
+  <data name="Granting…" xml:space="preserve"><value>Giver…</value></data>
+  <data name="Revoking…" xml:space="preserve"><value>Fjerner…</value></data>
+  <data name="Grant Admin access to {0}?" xml:space="preserve"><value>Giv {0} Admin-adgang?</value></data>
+  <data name="Revoke Admin access from {0}?" xml:space="preserve"><value>Fjern Admin-adgang fra {0}?</value></data>
+  <data name="They can use the admin area and manage User accounts. Only you can manage Admins." xml:space="preserve"><value>Personen kan bruge adminområdet og administrere brugerkonti. Kun du kan administrere Admins.</value></data>
+  <data name="Their current sessions end; they sign in again to use it. They’ll see a notification on the website." xml:space="preserve"><value>Personens aktuelle sessioner afsluttes; de logger ind igen for at bruge det. De får en notifikation på hjemmesiden.</value></data>
+  <data name="Their event roles don’t change." xml:space="preserve"><value>Personens roller i events ændres ikke.</value></data>
+  <data name="The account stays active. Event participation, team and Captain roles, and characters stay as they are." xml:space="preserve"><value>Kontoen forbliver aktiv. Deltagelse i events, hold- og kaptajnroller samt karakterer forbliver, som de er.</value></data>
+  <data name="The account stays disabled. Event participation, team and Captain roles, and characters stay as they are." xml:space="preserve"><value>Kontoen forbliver deaktiveret. Deltagelse i events, hold- og kaptajnroller samt karakterer forbliver, som de er.</value></data>
+  <data name="Their current sessions end. They’ll see a notification on the website." xml:space="preserve"><value>Personens aktuelle sessioner afsluttes. De får en notifikation på hjemmesiden.</value></data>
+  <data name="Grant Admin" xml:space="preserve"><value>Giv Admin</value></data>
+  <data name="Revoke Admin" xml:space="preserve"><value>Fjern Admin</value></data>
+  <data name="Disabling…" xml:space="preserve"><value>Deaktiverer…</value></data>
+  <data name="Disable {0}?" xml:space="preserve"><value>Deaktiver {0}?</value></data>
+  <data name="They can’t sign in, and every current session ends now." xml:space="preserve"><value>Personen kan ikke logge ind, og alle aktuelle sessioner afsluttes nu.</value></data>
+  <data name="Nothing is deleted: the account, username, Discord link, characters and history are kept." xml:space="preserve"><value>Intet slettes: kontoen, brugernavnet, Discord-tilknytningen, karaktererne og historikken bevares.</value></data>
+  <data name="Their place on event rosters, team roles, evidence and results are unchanged." xml:space="preserve"><value>Pladsen på holdlister, holdroller, dokumentation og resultater er uændrede.</value></data>
+  <data name="Reason" xml:space="preserve"><value>Begrundelse</value></data>
+  <data name="Why the account is being disabled" xml:space="preserve"><value>Hvorfor kontoen deaktiveres</value></data>
+  <data name="Kept in the account’s history and Audit. Other admins can read it." xml:space="preserve"><value>Gemmes i kontoens historik og i Audit. Andre admins kan læse den.</value></data>
+  <data name="Restoring…" xml:space="preserve"><value>Genaktiverer…</value></data>
+  <data name="Restore {0}?" xml:space="preserve"><value>Genaktiver {0}?</value></data>
+  <data name="They can sign in again with their password or Discord." xml:space="preserve"><value>Personen kan logge ind igen med adgangskode eller Discord.</value></data>
+  <data name="Only the website account is restored. Withdrawn signups and team roles that events have since ended stay as they are." xml:space="preserve"><value>Kun hjemmesidekontoen genaktiveres. Tilbagetrukne tilmeldinger og holdroller, som events siden har afsluttet, forbliver, som de er.</value></data>
+  <data name="They’ll see a notification on the website." xml:space="preserve"><value>Personen får en notifikation på hjemmesiden.</value></data>
+  <data name="Change" xml:space="preserve"><value>Ændring</value></data>
+  <data name="Accounts" xml:space="preserve"><value>Konti</value></data>
+  <data name="Nothing on page {0}" xml:space="preserve"><value>Intet på side {0}</value></data>
+  <data name="No accounts match" xml:space="preserve"><value>Ingen konti matcher</value></data>
+  <data name="There are fewer results now. Go back to the first page." xml:space="preserve"><value>Der er færre resultater nu. Gå tilbage til første side.</value></data>
+  <data name="Search looks at website usernames, not Discord names or OSRS characters." xml:space="preserve"><value>Søgningen ser på brugernavne på hjemmesiden, ikke Discord-navne eller OSRS-karakterer.</value></data>
+  <data name="{0} accounts · {1} disabled" xml:space="preserve"><value>{0} konti · {1} deaktiveret</value></data>
+  <data name="Website accounts and their global access" xml:space="preserve"><value>Hjemmesidekonti og deres globale adgang</value></data>
+  <data name="Ownership wasn’t transferred." xml:space="preserve"><value>Ejerskabet blev ikke overdraget.</value></data>
+  <data name="Find accounts" xml:space="preserve"><value>Find konti</value></data>
+  <data name="Search usernames" xml:space="preserve"><value>Søg i brugernavne</value></data>
+  <data name="Discord · {0}" xml:space="preserve"><value>Discord · {0}</value></data>
+  <data name="Discord linked" xml:space="preserve"><value>Discord tilknyttet</value></data>
+  <data name="No Discord link" xml:space="preserve"><value>Ingen Discord-tilknytning</value></data>
+  <data name="No event participation" xml:space="preserve"><value>Ingen deltagelse i events</value></data>
+  <data name="Today, {0}" xml:space="preserve"><value>I dag, {0}</value></data>
+  <data name="Yesterday, {0}" xml:space="preserve"><value>I går, {0}</value></data>
+  <data name="Go to the first page" xml:space="preserve"><value>Gå til første side</value></data>
+  <data name="Clear search and filter" xml:space="preserve"><value>Ryd søgning og filter</value></data>
+  <data name="Showing {0}–{1} matching · ordered by username" xml:space="preserve"><value>Viser {0}–{1} matchende · sorteret efter brugernavn</value></data>
+  <data name="Showing {0}–{1} · ordered by username" xml:space="preserve"><value>Viser {0}–{1} · sorteret efter brugernavn</value></data>
+  <data name="Pages" xml:space="preserve"><value>Sider</value></data>
+  <data name="Previous" xml:space="preserve"><value>Forrige</value></data>
+  <data name="Next" xml:space="preserve"><value>Næste</value></data>
+  <data name="Loading account" xml:space="preserve"><value>Indlæser konto</value></data>
+  <data name="Couldn’t load this account" xml:space="preserve"><value>Kontoen kunne ikke indlæses</value></data>
+  <data name="Loading…" xml:space="preserve"><value>Indlæser…</value></data>
+  <data name="Admin access granted." xml:space="preserve"><value>Admin-adgang givet.</value></data>
+  <data name="{0} is now an Admin. Their sessions were ended, so they’ll sign in again to use it." xml:space="preserve"><value>{0} er nu Admin. Sessionerne blev afsluttet, så personen logger ind igen for at bruge det.</value></data>
+  <data name="Admin access revoked." xml:space="preserve"><value>Admin-adgang fjernet.</value></data>
+  <data name="{0} is now a User. Their account, events, team roles and characters are unchanged; their sessions were ended." xml:space="preserve"><value>{0} er nu Bruger. Kontoen, events, holdroller og karakterer er uændrede; sessionerne blev afsluttet.</value></data>
+  <data name="Account disabled." xml:space="preserve"><value>Konto deaktiveret.</value></data>
+  <data name="{0} can’t sign in and their sessions were ended. Their account, rosters and records are kept." xml:space="preserve"><value>{0} kan ikke logge ind, og sessionerne blev afsluttet. Kontoen, holdlister og data bevares.</value></data>
+  <data name="Account restored." xml:space="preserve"><value>Konto genaktiveret.</value></data>
+  <data name="{0} can sign in again. Event signups and roles weren’t changed." xml:space="preserve"><value>{0} kan logge ind igen. Tilmeldinger og roller i events blev ikke ændret.</value></data>
+  <data name="That didn’t go through." xml:space="preserve"><value>Det gik ikke igennem.</value></data>
+  <data name="Nothing changed. Try again." xml:space="preserve"><value>Intet blev ændret. Prøv igen.</value></data>
+  <data name="This record was changed by another administrator." xml:space="preserve"><value>Denne post blev ændret af en anden administrator.</value></data>
+  <data name="Current values are shown; review them before trying again." xml:space="preserve"><value>De aktuelle værdier vises; gennemgå dem, før du prøver igen.</value></data>
+  <data name="That couldn’t be done." xml:space="preserve"><value>Det kunne ikke lade sig gøre.</value></data>
+  <data name="We couldn’t confirm the change." xml:space="preserve"><value>Vi kunne ikke bekræfte ændringen.</value></data>
+  <data name="It may have gone through. Check the current status before trying again." xml:space="preserve"><value>Den kan være gået igennem. Tjek den aktuelle status, før du prøver igen.</value></data>
+  <data name="Check current status" xml:space="preserve"><value>Tjek aktuel status</value></data>
+  <data name="It went through." xml:space="preserve"><value>Den gik igennem.</value></data>
+  <data name="It wasn’t changed." xml:space="preserve"><value>Den blev ikke ændret.</value></data>
+  <data name="The current values are shown. You can try again." xml:space="preserve"><value>De aktuelle værdier vises. Du kan prøve igen.</value></data>
+  <data name="The account shows this change now." xml:space="preserve"><value>Kontoen viser nu denne ændring.</value></data>
+  <data name="It may be yours or another administrator’s. The current values are shown; nothing was repeated." xml:space="preserve"><value>Den kan være din eller en anden administrators. De aktuelle værdier vises; intet blev gentaget.</value></data>
+  <data name="The account was changed, but not like this." xml:space="preserve"><value>Kontoen blev ændret, men ikke sådan.</value></data>
+  <data name="Another change happened since. The current values are shown; review them before trying again." xml:space="preserve"><value>En anden ændring er sket siden. De aktuelle værdier vises; gennemgå dem, før du prøver igen.</value></data>
+  <data name="Couldn’t check the current status." xml:space="preserve"><value>Den aktuelle status kunne ikke tjekkes.</value></data>
+  <data name="Nothing was repeated. Check again when you’re back online." xml:space="preserve"><value>Intet blev gentaget. Tjek igen, når du er online.</value></data>
+  <data name="Enter a reason." xml:space="preserve"><value>Skriv en begrundelse.</value></data>
+  <data name="Use 500 characters or fewer." xml:space="preserve"><value>Brug højst 500 tegn.</value></data>
+  <data name="{0} / 500" xml:space="preserve"><value>{0} / 500</value></data>
+  <data name="Copied" xml:space="preserve"><value>Kopieret</value></data>
+  <data name="Selected. Press Ctrl+C or ⌘C to copy." xml:space="preserve"><value>Markeret. Tryk Ctrl+C eller ⌘C for at kopiere.</value></data>
+  <data name="We couldn’t confirm whether a link was created" xml:space="preserve"><value>Vi kunne ikke bekræfte, om der blev oprettet et link</value></data>
+  <data name="If one was, it can’t be shown again; links are never stored in readable form." xml:space="preserve"><value>Hvis der blev, kan det ikke vises igen; links gemmes aldrig i læsbar form.</value></data>
+  <data name="Generate a new link only if {0} still needs one. It replaces any earlier link." xml:space="preserve"><value>Opret kun et nyt link, hvis {0} stadig har brug for et. Det erstatter tidligere links.</value></data>
+  <data name="Not now" xml:space="preserve"><value>Ikke nu</value></data>
+  <data name="Generate a new link" xml:space="preserve"><value>Opret et nyt link</value></data>
+  <data name="No link was created." xml:space="preserve"><value>Der blev ikke oprettet noget link.</value></data>
+  <data name="Action" xml:space="preserve"><value>Handling</value></data>
+  <data name="Grant Admin to {0}" xml:space="preserve"><value>Giv {0} Admin</value></data>
+  <data name="Revoke Admin from {0}" xml:space="preserve"><value>Fjern Admin fra {0}</value></data>
+  <data name="Disable {0}" xml:space="preserve"><value>Deaktiver {0}</value></data>
+  <data name="Restore {0}" xml:space="preserve"><value>Genaktiver {0}</value></data>
+  <data name="Create a reset link for {0}" xml:space="preserve"><value>Opret nulstillingslink til {0}</value></data>
+  <data name="Transfer ownership to {0}?" xml:space="preserve"><value>Overdrag ejerskab til {0}?</value></data>
+  <data name="Back" xml:space="preserve"><value>Tilbage</value></data>
+  <data name="Transferring…" xml:space="preserve"><value>Overdrager…</value></data>
+  <data name="Choose an account." xml:space="preserve"><value>Vælg en konto.</value></data>
+  <data name="Enter your current password." xml:space="preserve"><value>Skriv din nuværende adgangskode.</value></data>
+  <data name="Before" xml:space="preserve"><value>Før</value></data>
+  <data name="{0} (you)" xml:space="preserve"><value>{0} (dig)</value></data>
+  <data name="Super Admin" xml:space="preserve"><value>Super Admin</value></data>
+  <data name="Admin" xml:space="preserve"><value>Admin</value></data>
+  <data name="Both accounts are signed out and must sign in again." xml:space="preserve"><value>Begge konti logges ud og skal logge ind igen.</value></data>
+  <data name="{0} becomes Super Admin; your account remains an Admin." xml:space="preserve"><value>{0} bliver Super Admin; din konto forbliver Admin.</value></data>
+  <data name="Both accounts must sign in again. Only {0} could transfer it back." xml:space="preserve"><value>Begge konti skal logge ind igen. Kun {0} vil kunne overdrage det tilbage.</value></data>
+  <data name="Type {0} to confirm." xml:space="preserve"><value>Skriv {0} for at bekræfte.</value></data>
+  <data name="Type the new owner’s username to confirm." xml:space="preserve"><value>Skriv den nye ejers brugernavn for at bekræfte.</value></data>
+  <data name="This doesn’t match {0}." xml:space="preserve"><value>Det matcher ikke {0}.</value></data>
+  <data name="Choose another active website account. {0} was changed by another administrator a moment ago; choose again to continue." xml:space="preserve"><value>Vælg en anden aktiv hjemmesidekonto. {0} blev ændret af en anden administrator for et øjeblik siden; vælg igen for at fortsætte.</value></data>
+  <data name="Choose another active website account. {0} was disabled a moment ago." xml:space="preserve"><value>Vælg en anden aktiv hjemmesidekonto. {0} blev deaktiveret for et øjeblik siden.</value></data>
+  <data name="We couldn’t confirm the transfer" xml:space="preserve"><value>Vi kunne ikke bekræfte overdragelsen</value></data>
+  <data name="Don’t repeat it." xml:space="preserve"><value>Gentag den ikke.</value></data>
+  <data name="It may have gone through. Check who owns the community now." xml:space="preserve"><value>Den kan være gået igennem. Tjek, hvem der ejer fællesskabet nu.</value></data>
+  <data name="Check ownership" xml:space="preserve"><value>Tjek ejerskab</value></data>
+  <data name="Ownership transferred" xml:space="preserve"><value>Ejerskab overdraget</value></data>
+  <data name="Your session has ended. Sign in again to continue as an Admin." xml:space="preserve"><value>Din session er afsluttet. Log ind igen for at fortsætte som Admin.</value></data>
+  <data name="Sign in again" xml:space="preserve"><value>Log ind igen</value></data>
+  <data name="It didn’t go through." xml:space="preserve"><value>Den gik ikke igennem.</value></data>
+  <data name="You’re still the Super Admin. Nothing changed." xml:space="preserve"><value>Du er stadig Super Admin. Intet blev ændret.</value></data>
+  <data name="{0}: {1}" xml:space="preserve"><value>{0}: {1}</value></data>
+  <data name="User" xml:space="preserve"><value>Bruger</value></data>
+  <data name="Captain" xml:space="preserve"><value>Kaptajn</value></data>
+  <data name="Co-captain" xml:space="preserve"><value>Medkaptajn</value></data>
+  <data name="Member" xml:space="preserve"><value>Medlem</value></data>
+  <data name="Couldn’t load accounts" xml:space="preserve"><value>Konti kunne ikke indlæses</value></data>
+  <data name="Nothing was changed. Try again." xml:space="preserve"><value>Intet blev ændret. Prøv igen.</value></data>
+  <data name="Current event roles" xml:space="preserve"><value>Aktuelle roller i events</value></data>
 </root>

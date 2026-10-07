@@ -151,7 +151,8 @@ public sealed class AdminStaleChangeIntegrationTests(PostgreSqlTestFixture datab
         await Login(secondClient, owner);
         await Login(targetClient, target);
         if (action == "Restore") await ConfirmAccount(secondClient, target.Id, "Disable");
-        var openedPage = await firstClient.GetStringAsync($"/Admin/Accounts/Manage/{target.Id}?overlay=1");
+        // A10 (T1): the account drawer on /Admin/Accounts?account= replaced the Manage overlay route.
+        var openedPage = await firstClient.GetStringAsync($"/Admin/Accounts?account={target.Id}");
         Capture(action, "opened", openedPage);
         var opened = ReadForm(openedPage, action);
         opened["Reason"] = "test reason";
@@ -254,14 +255,13 @@ public sealed class AdminStaleChangeIntegrationTests(PostgreSqlTestFixture datab
         using var adminClient = Client(factory);
         await Login(adminClient, admin);
         var protectedId = action is "Disable" or "Restore" ? admin.Id : target.Id;
-        var manage = await adminClient.GetStringAsync($"/Admin/Accounts/Manage/{protectedId}?overlay=1");
+        var manage = await adminClient.GetStringAsync($"/Admin/Accounts?account={protectedId}");
         await using var db = new ApplicationDbContext(options);
         var protectedAccount = await db.Accounts.AsNoTracking().SingleAsync(x => x.Id == protectedId);
         var forbiddenForm = new Dictionary<string, string>
         {
             ["ExpectedAuthorizationVersion"] = protectedAccount.AuthorizationVersion.ToString(CultureInfo.InvariantCulture),
             ["__RequestVerificationToken"] = Token(manage),
-            ["overlay"] = "1",
             ["Reason"] = "test reason"
         };
         var protectedBefore = await AccountState(protectedId);
@@ -383,13 +383,13 @@ public sealed class AdminStaleChangeIntegrationTests(PostgreSqlTestFixture datab
     private static Task<HttpResponseMessage> PostDrop(HttpClient client, SourceDrop drop, Dictionary<string, string> form) => client.PostAsync($"/Admin/Catalogue?bossId={drop.BossActivityId}&handler=UpdateDrop", new FormUrlEncodedContent(form));
     private static async Task<Dictionary<string, string>> AccountForm(HttpClient client, Guid id, string handler)
     {
-        var page = await client.GetStringAsync($"/Admin/Accounts/Manage/{id}?overlay=1");
+        var page = await client.GetStringAsync($"/Admin/Accounts?account={id}");
         var form = ReadForm(page, handler);
         Assert.NotEmpty(form["ExpectedAuthorizationVersion"]);
         form["Reason"] = "test reason";
         return form;
     }
-    private static Task<HttpResponseMessage> PostAccount(HttpClient client, Guid id, string handler, Dictionary<string, string> form) => client.PostAsync($"/Admin/Accounts/Manage/{id}?handler={handler}&overlay=1", new FormUrlEncodedContent(form));
+    private static Task<HttpResponseMessage> PostAccount(HttpClient client, Guid id, string handler, Dictionary<string, string> form) => client.PostAsync($"/Admin/Accounts?account={id}&handler={handler}", new FormUrlEncodedContent(form));
     private static async Task ConfirmAccount(HttpClient client, Guid id, string handler)
     {
         var form = await AccountForm(client, id, handler);

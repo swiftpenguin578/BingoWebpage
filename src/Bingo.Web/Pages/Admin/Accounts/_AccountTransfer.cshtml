@@ -1,0 +1,22 @@
+@model Bingo.Web.Pages.Admin.Accounts.IndexModel
+@inject IStringLocalizer<AdminCommunityResource> D
+@* SuperAdmin only. Recipient and password, then an explicit confirmation step with the typed
+   username (AU24). The selected option's version and role are the confirmation's fixed basis (A6). *@
+<template data-account-transfer-template>
+    <h2 class="m-title" data-confirm-title data-transfer-title>@D["Transfer ownership"]</h2>
+    <div class="banner m-banner" role="alert" tabindex="-1" hidden data-transfer-banner><partial name="_AdminDesignIcon" model='new AdminDesignIcon("warning")' /><span class="grow"><b data-transfer-banner-title></b> <span data-transfer-banner-text></span></span></div>
+    <div data-transfer-form>
+        <p class="m-body">@D["Exceptional: the community always has exactly one Super Admin. This isn’t the same as granting Admin."]</p>
+        <div class="m-extra ac-tm-fields">
+            <div class="field"><label class="lbl" for="tm-to">@D["New Super Admin"]</label><div class="select-wrap"><select class="select select-field" id="tm-to" aria-describedby="tm-to-hint tm-to-err" data-transfer-to><option value="">@D["Choose an active account"]</option>@foreach (var option in Model.Destinations) { <option value="@option.Id" data-version="@option.AuthorizationVersion" data-username="@option.Username" data-role="@Model.RoleLabel(option.Role)">@D["{0} · {1}", option.Username, Model.RoleLabel(option.Role)]</option> }</select><partial name="_AdminDesignIcon" model='new AdminDesignIcon("chevron-down")' /></div><div class="field-hint" id="tm-to-hint">@D["Active website accounts other than yours."]</div><div class="field-err" id="tm-to-err" hidden><partial name="_AdminDesignIcon" model='new AdminDesignIcon("error")' /><span data-component-text></span></div></div>
+            <div class="field"><label class="lbl" for="tm-pw">@D["Your current password"]</label><input class="input" id="tm-pw" type="password" autocomplete="current-password" aria-describedby="tm-pw-err" data-transfer-password><div class="field-err" id="tm-pw-err" hidden><partial name="_AdminDesignIcon" model='new AdminDesignIcon("error")' /><span data-component-text></span></div></div>
+        </div>
+    </div>
+    <div data-transfer-change hidden><div class="chg ac-chg" role="table" aria-label="@D["Role change"]"><div class="chg-head" role="row"><span role="columnheader">@D["Account"]</span><span role="columnheader" data-transfer-before-head>@D["Now"]</span><span aria-hidden="true"></span><span role="columnheader" data-transfer-after-head>@D["After"]</span></div><div data-transfer-rows></div></div></div>
+    <ul class="m-points" data-transfer-points hidden></ul>
+    <div class="m-extra" data-transfer-confirm-field hidden>
+        <div class="field"><label class="lbl" for="tm-name">@D["Type the new owner’s username"]</label><input class="input" id="tm-name" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="100" aria-describedby="tm-name-hint tm-name-err" data-transfer-name><div class="field-hint" id="tm-name-hint" data-transfer-name-hint></div><div class="field-err" id="tm-name-err" hidden><partial name="_AdminDesignIcon" model='new AdminDesignIcon("error")' /><span data-component-text></span></div></div>
+    </div>
+    <div class="m-actions"><button class="btn" type="button" data-transfer-cancel>@D["Cancel"]</button><button class="btn btn-primary" type="button" data-transfer-confirm><span class="spin" hidden></span><span data-component-text>@D["Continue"]</span></button></div>
+</template>
+<template data-account-transfer-row><div class="chg-row" role="row"><span class="chg-field" role="rowheader"></span><span role="cell"><span class="chg-val is-before"><em class="chg-k"></em><span data-value></span></span></span><span class="chg-arrow" aria-hidden="true"><svg class="ic" viewBox="0 0 16 16"><path d="M3 8h9.5M8.5 4l4 4-4 4"/></svg></span><span role="cell"><span class="chg-val ac-after"><em class="chg-k"></em><span data-value></span></span></span></div></template>
