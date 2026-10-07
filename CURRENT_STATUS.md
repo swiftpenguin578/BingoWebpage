@@ -1,13 +1,12 @@
 # Current project status
 
-## U2 final-look — results skeleton fill handoff — 7 October 2026
+## U2 accepted — 7 October 2026
 
-- Assigned checkout/branch unchanged; clean start `f818293da3402a16cdd1f7e85e526fe485f19072` verified. One implementer, one local commit; no push/merge/new branch/worktree/worker.
-- This owning checkpoint implements the planner's “Events results skeleton has a large empty space” ruling in the shared update helper: repeat existing skeleton rows to the locked height, clip the final partial row, preserve scroll; restore normal real-result height afterward. Initial and inherited pending replacements both covered. No Events JS, CSS/frozen references, loading timing or transport changes.
-- [Scoped evidence and measurements](docs/references/admin-ui/reviews/2026-10-06/u2/final-look/skeleton-fill.md): Chromium/WebKit at390/1280px, controlled All54 displayed rows → real short Past response; exact locked3132px filled, gap0 (<58px row), scrollTop600/horizontal scroll unchanged, inherited skeleton filled, real height/minHeight restored. Both baseline runs reproduced406px skeleton inside3132px area.
-- Requested existing Events rendered checks **13 passed/0 failed per engine**, zero differences. `git diff --check` passed. No full JS runner, Release build or .NET suite run for this item, per the explicit scoped brief. No unresolved implementation issue; independent recheck/manual acceptance not claimed. User-owned app/database untouched; synthetic fixtures only.
-- Planner's round5 recheck is PASS as recorded in decisions08 (7 October2026): item1 `e0e2c122dc7734fd357bb6231fafefa09162ad0c`; item2 `96e0b53bc7b888d4745fd8eacda19318c45d52ce`; item3 `f818293da3402a16cdd1f7e85e526fe485f19072`. [Retained round5 evidence](docs/references/admin-ui/reviews/2026-10-06/u2/remediation-5/), including the item3 user gate waiver and stopped143 JS run; no full item3 JS pass claimed.
-- Whole-suite run on `f818293` was stopped by the planner for this final-look correction (decisions08). No whole-suite pass claimed. Next: planner recheck and planner's suite on the new final SHA, then acceptance reconciliation as applicable. Stop after this single fix; no U3+, laneT, palette work or publication.
+- **Dashboard and Events directory (with Create) accepted at `f63b5f2aeddd8a908af68cb81c3699397ad12500`.** User visual acceptance in the review environment on 7 October 2026; `UI_PAGE_MATRIX.md` owns page approval. Identity stays accepted, including U2's fixed family key, Danish CSS, loading header and removal of load fade.
+- User-run whole .NET suite on `f63b5f2` (Release build): **2,074 passed / 0 failed / 0 skipped**. This is the user's reported result, not a new implementer run.
+- Independent rechecks **71a/71b, 73a/73b, 75 and 77**, plus planner direct rechecks of round5 and final-look, complete (review-notes/08-decisions.md, “U2 accepted”). [Final-look evidence](docs/references/admin-ui/reviews/2026-10-06/u2/final-look/skeleton-fill.md) and [round5 evidence](docs/references/admin-ui/reviews/2026-10-06/u2/remediation-5/) remain intact, including the item3 gate waiver.
+- **Next: phase-colour design item, then U3 in the main lane (Codex). Lane T is implemented by Claude in its own worktree and branch**, with a separate reviewer agent and planner verification. This docs-only acceptance checkpoint authorizes no implementation, merge or push.
+- Earlier U2 handoffs below describe their historical checkpoints; their pending review/acceptance gates are superseded by this acceptance record.
 
 ## U2 brief74 round3 — item7 stop-boundary handoff — 7 October2026
 

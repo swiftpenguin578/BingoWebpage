@@ -61,6 +61,7 @@ remain evidence of completed work, not competing defaults.
 | Implementer/remediator | Model/reasoning named in the brief (default `gpt-6-astra` / `high`) | Implementation, focused checks, per-item commits, evidence |
 | Orchestrator | `gpt-6.1-sol` / `high`, only when a brief assigns one | Worker dispatch, waits and handoffs for that brief |
 
+- Claude may implement lane T in its own worktree and branch when the user assigns it; review stays independent (separate reviewer agent, planner verification). (User decision, 7 October 2026; 08-decisions.md, “Lane T implemented by Claude”.)
 - **Route:** the user sends the brief to the dispatcher → one implementer per batch
   (or per named parallel lane) works the items in order, one local commit each →
   it stops at the brief's boundary and reports → the user relays the report to the
@@ -144,6 +145,7 @@ remain evidence of completed work, not competing defaults.
 
 ## Verify the change
 
+- Checks scale with the change: small fixes run the fix's test, the touched pages' checks and git diff --check; the full JS runner and Release build run once per batch before the planner's whole-suite run (user decision, 7 October 2026; 08-decisions.md, “Checks scale with the change”).
 - Choose checks that would detect the actual changed risks. Reuse applicable passing
   evidence; rerun it only after a relevant change or newly exposed defect.
 - Small CSS/markup corrections normally need scoped source/cascade and diff checks.
@@ -178,9 +180,11 @@ remain evidence of completed work, not competing defaults.
   task. Preserve approved composition and interaction models. Manual approval is
   page-specific; deferred acceptance stays awaiting approval.
 - Use existing setup/build/test commands from `README.md`. The implementer runs
-  affected .NET tests, the full JS runner, Chromium/WebKit checks, the required
-  Release build and scoped design/diff checks, then reports. Only the planner runs
-  the whole .NET suite once on the final SHA, in the background as soon as the
+  the assignment's scoped checks and reports; affected .NET tests apply when needed,
+  and small fixes require a Release build only if C# or Razor changed. The full JS
+  runner and Release build are batch gates as stated above, not per-fix gates.
+  Only the planner runs the whole .NET suite once on the final SHA, in the
+  background as soon as the
   report arrives; that is the batch gate before acceptance (zero failures and zero
   skipped tests). Failures return as remediation. The implementer does not run the
   whole suite (08-decisions.md, Q-S1, user decision, 7 October 2026; supersedes the
