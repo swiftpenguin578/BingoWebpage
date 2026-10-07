@@ -516,7 +516,9 @@
       if (!loadingHeads.has(kind)) [...head.children].slice(1).forEach(element => element.remove());
       head.querySelectorAll('[id]').forEach(element => element.removeAttribute('id'));
       const summary = head.querySelector('[data-summary-template]');
-      if (summary) summary.textContent = summary.dataset.summaryTemplate.replace('{0}', () => document.querySelector('.ev-name')?.textContent || '');
+      // U3-Q5: every loading summary reserves one empty text line. The
+      // destination summary may grow when its page response arrives.
+      if (summary) { summary.textContent = '\u00a0'; summary.parentElement.setAttribute('aria-hidden', 'true'); }
       if (!loadingHeads.has(kind)) {
         [...head.children].slice(1).forEach(element => element.remove());
         head.querySelector('.summary')?.remove();
