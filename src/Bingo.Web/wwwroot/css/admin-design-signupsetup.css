@@ -34,3 +34,19 @@
 :where([data-page-family="signupsetup"]) .ss-choice-line{display:block}
 :where([data-page-family="signupsetup"]) .ss-drawer-save{min-width:128px}
 @media(max-width:640px){:where([data-page-family="signupsetup"]).drawer .choices{grid-template-columns:1fr}}
+
+/* U3-Q12(b): keep the hint beside the counts without changing its text or DOM. */
+:where([data-page-family="signupsetup"]) #signup-settings-form > .form-sec{display:grid;grid-template-columns:minmax(0,1fr) 210px;grid-template-rows:auto auto max-content minmax(0,1fr);column-gap:24px}
+:where([data-page-family="signupsetup"]) #signup-settings-form .form-sec-head{grid-column:1/-1;grid-row:1}
+:where([data-page-family="signupsetup"]) #signup-settings-form .ss-card-banner{grid-column:1/-1;grid-row:2}
+:where([data-page-family="signupsetup"]) #signup-settings-form .ss-cap{grid-column:1/-1;grid-row:3/span 2;grid-template-columns:subgrid;grid-template-rows:subgrid;row-gap:0}
+:where([data-page-family="signupsetup"]) #signup-settings-form .ss-cap > .field{grid-column:1;grid-row:1}
+:where([data-page-family="signupsetup"]) #signup-settings-form .ss-counts{grid-column:2;grid-row:1/span 2;align-self:start}
+:where([data-page-family="signupsetup"]) #cap-hint{grid-column:1;grid-row:4;align-self:start}
+:where([data-page-family="signupsetup"]) #cap-note{grid-column:1/-1;grid-row:5}
+@media(max-width:640px){
+ :where([data-page-family="signupsetup"]) #signup-settings-form > .form-sec{grid-template-columns:minmax(0,1fr)}
+ :where([data-page-family="signupsetup"]) #signup-settings-form .ss-cap{grid-row:3/span 3}
+ :where([data-page-family="signupsetup"]) #signup-settings-form .ss-counts{grid-column:1;grid-row:3;margin-top:16px}
+ :where([data-page-family="signupsetup"]) #cap-note{grid-row:6}
+}
