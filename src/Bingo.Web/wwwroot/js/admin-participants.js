@@ -218,6 +218,7 @@ export function init(region, ui = window.AdminUI) {
     return { kind: 'unknown' }; // Never repeat it; show what is true now.
   }
   async function settle(handler, data, response) {
+    if (response.kind !== 'refused') void refreshDrawer(data.id); // A status action from the drawer re-reads it.
     if (response.kind === 'done') { await reread(); flash(data.id); ui.toast(successText(handler, data, response.result)); }
     else if (response.kind === 'stale') { await reread(); ui.toast(t('This participant changed while you were looking at it. The current list is shown; nothing was done.'), { error: true }); }
     else if (response.kind === 'refused') ui.toast(response.message, { error: true });
@@ -317,22 +318,523 @@ export function init(region, ui = window.AdminUI) {
     });
   }
 
-  /* ---------------- drawer and Add (items 1b, 1c) ---------------- */
-  let drawer = null;
-  let openDrawer = null, openAdd = null;
+  /* ---------------- participant drawer (item 1b) ---------------- */
+  // One drawer at a time (?participant=). It opens from the no-store current-state read
+  // and saves everything with one POST (U5-Q2). A lost response re-reads and says so (U5-Q3).
+  const RSN = /^[A-Za-z0-9 _-]{1,12}$/;
+  const lang = document.documentElement.lang || undefined;
+  const ehbFormat = new Intl.NumberFormat(lang, { maximumFractionDigits: 1 });
+  const fmtEhb = value => value === null || value === undefined || String(value).trim() === '' || !Number.isFinite(Number(value)) ? '—' : ehbFormat.format(Number(value));
+  const fmtNumber = value => new Intl.NumberFormat(lang).format(value);
+  const noteLimit = 2000;
+  const rosterEditable = () => root.dataset.editable === 'true';
+  let drawer = null, drawerSeq = 0, openAdd = null;
+  const tpl = name => document.importNode(root.querySelector(`template[${name}]`).content, true);
+  const el = (tag, className, text) => { const node = document.createElement(tag); if (className) node.className = className; if (text !== undefined) node.textContent = text; return node; };
+  // "{0}" parts of a translated sentence become the given nodes (e.g. a bold number).
+  function fillNodes(template, ...parts) {
+    const out = document.createDocumentFragment();
+    for (const piece of template.split(/(\{\d\})/)) { const match = /^\{(\d)\}$/.exec(piece); out.append(match ? parts[Number(match[1])] ?? '' : piece); }
+    return out;
+  }
+  function fieldNote(kind, text) {
+    if (!text) return document.createDocumentFragment();
+    if (kind === 'error') { const node = ui.template('field-error').firstElementChild; node.removeAttribute('id'); node.className = 'field-err'; node.querySelector('[data-component-text]').textContent = text; return node; }
+    return el('div', 'field-hint', text);
+  }
+  const statusText = view => view.status === 'confirmed' ? t('AdminDesign.Confirmed') : view.status === 'waiting' ? t('Waiting · #{0}', view.waitingPosition) : t('Withdrawn');
+  const statusTone = view => view.status === 'confirmed' ? 'badge-success' : view.status === 'waiting' ? 'badge-warning' : 'badge-neutral';
+  const primaryName = view => view.accounts.find(item => item.role === 'playing' && item.primary)?.name || view.accounts.find(item => item.role === 'playing')?.name || t('External roster member');
+
+  function makeDraft(view) {
+    const playing = view.accounts.filter(item => item.role === 'playing'), alts = view.accounts.filter(item => item.role === 'alt');
+    const accounts = playing.map(item => ({ key: 'a' + (++drawerSeq), assignmentId: item.assignmentId, rsn: item.name, ehb: item.ehb === null || item.ehb === undefined ? '' : String(item.ehb), hint: '' }));
+    const primary = playing.findIndex(item => item.primary);
+    // An alt the event no longer has a slot for stays visible so a save never drops it silently.
+    const slots = Math.max(view.altSlots.length, alts.length);
+    return {
+      accounts, primaryKey: accounts[primary >= 0 ? primary : 0]?.key ?? null,
+      alts: Array.from({ length: slots }, (_, index) => ({ assignmentId: alts[index]?.assignmentId ?? null, rsn: alts[index]?.name ?? '' })),
+      answers: Object.fromEntries(view.answers.map(item => [item.questionId, item.value ?? ''])),
+      paid: view.paid, note: view.adminNote || ''
+    };
+  }
+  function signature(state) {
+    const draft = state.draft, view = state.view;
+    const captain = view.answers.find(item => item.system === 'captain');
+    const volunteered = captain ? draft.answers[captain.questionId] === 'true' : true;
+    const answers = view.answers.filter(item => !item.retired).map(item => item.system === 'cocaptain' && !volunteered ? '' : String(draft.answers[item.questionId] ?? '').trim());
+    const primary = draft.accounts.find(item => item.key === draft.primaryKey);
+    return JSON.stringify({ a: draft.accounts.map(item => [item.assignmentId, item.rsn.trim(), String(item.ehb).trim()]), p: primary?.rsn.trim() ?? '',
+      alt: draft.alts.map(item => item.rsn.trim()), answers, paid: draft.paid, note: draft.note });
+  }
+  const isDirty = state => !!state?.view && signature(state) !== state.original;
+  function validate(state) {
+    const errors = {}, view = state.view, draft = state.draft;
+    if (!view?.editable) return errors;
+    const seen = new Set();
+    for (const account of draft.accounts) {
+      const name = account.rsn.trim(), rsnId = 'rsn-' + account.key, ehbId = 'ehb-' + account.key;
+      if (!name) errors[rsnId] = t('Enter an RSN.');
+      else if (!RSN.test(name)) errors[rsnId] = t('Use up to 12 letters, numbers, spaces, - or _.');
+      else { if (seen.has(name.toLowerCase())) errors[rsnId] = t('This account is already listed.'); seen.add(name.toLowerCase()); }
+      const ehb = String(account.ehb).trim();
+      if (ehb === '') errors[ehbId] = t('Required. 0 is valid.');
+      else if (/^-/.test(ehb)) errors[ehbId] = t('Can’t be negative.');
+      else if (!/^\d+(\.\d+)?$/.test(ehb)) errors[ehbId] = t('Enter a number.');
+      else if (Number(ehb) > 100000) errors[ehbId] = t('Use 100,000 or less.');
+    }
+    draft.alts.forEach((alt, index) => {
+      const name = alt.rsn.trim(); if (!name) return;
+      if (!RSN.test(name)) errors['alt-' + index] = t('Use up to 12 letters, numbers, spaces, - or _.');
+      else if (seen.has(name.toLowerCase())) errors['alt-' + index] = t('This is already a playing account.');
+      else seen.add(name.toLowerCase());
+    });
+    return { ...errors, ...state.serverErrors };
+  }
+
+  /* drawer rendering */
+  function renderAccounts(state) {
+    const rows = state.element.querySelector('[data-d-account-rows]'), view = state.view, draft = state.draft;
+    rows.replaceChildren(...draft.accounts.map(account => {
+      const row = tpl('data-participant-account-row').firstElementChild;
+      row.dataset.key = account.key;
+      const radio = row.querySelector('[data-a-primary]'), rsn = row.querySelector('[data-a-rsn]'), ehb = row.querySelector('[data-a-ehb]');
+      radio.checked = account.key === draft.primaryKey; rsn.id = 'rsn-' + account.key; ehb.id = 'ehb-' + account.key;
+      rsn.value = account.rsn; ehb.value = account.ehb;
+      return row;
+    }));
+    const saved = new Set(draft.accounts.map(item => item.rsn.trim().toLowerCase()));
+    state.element.querySelector('[data-d-owner-accounts]').replaceChildren(...view.savedAccounts.filter(item => !saved.has(item.name.toLowerCase())).map(item => {
+      const option = el('option', '', item.ehb === null || item.ehb === undefined ? t('No saved EHB') : t('{0} EHB saved', fmtEhb(item.ehb))); option.value = item.name; return option;
+    }));
+  }
+  function renderAlts(state) {
+    const host = state.element.querySelector('[data-d-alts]'), view = state.view, draft = state.draft;
+    host.replaceChildren(...draft.alts.map((alt, index) => {
+      const section = el('section', 'sec'), id = 'alt-' + index;
+      // One Informational slot keeps the reference's "Alt account"; several use each slot's own label.
+      const name = view.altSlots.length === 1 ? t('Alt account') : view.altSlots[index] || t('Alt account');
+      const label = el(view.editable ? 'label' : 'div', 'lbl', name + ' '); if (view.editable) label.htmlFor = id;
+      label.append(el('span', 'opt', t('· optional, no EHB')));
+      section.append(label);
+      if (view.editable) {
+        const input = el('input', 'input'); input.id = id; input.maxLength = 12; input.placeholder = t('None'); input.value = alt.rsn; input.autocomplete = 'off';
+        input.dataset.dAlt = String(index); input.setAttribute('aria-describedby', 'e-' + id);
+        const note = el('div'); note.dataset.dAltNote = String(index);
+        section.append(input, note);
+      } else {
+        const value = el('div', 'ro-value' + (alt.rsn ? '' : ' is-empty'), alt.rsn || t('None')); section.append(value);
+      }
+      return section;
+    }));
+  }
+  const answerText = (item, value) => item.type === 'YesNo' ? (value === 'true' ? t('Yes') : value === 'false' ? t('No') : '') : value;
+  function renderAnswers(state) {
+    const host = state.element.querySelector('[data-d-answers]'), view = state.view, draft = state.draft;
+    state.element.querySelector('[data-d-answers-section]').hidden = view.answers.length === 0;
+    const parts = [];
+    for (const item of view.answers) {
+      const wrap = el('div', parts.length ? 'pa-gap' : ''), id = 'answer-' + item.questionId;
+      wrap.dataset.dAnswer = item.questionId;
+      const value = String(draft.answers[item.questionId] ?? '');
+      if (item.system === 'captain') {
+        const label = el('div', 'lbl', t('Volunteers to captain')); label.id = 'd-cap-lbl';
+        const seg = el('div', 'seg'); seg.setAttribute('role', 'radiogroup'); seg.setAttribute('aria-labelledby', 'd-cap-lbl');
+        for (const [key, text] of [['true', t('Yes')], ['false', t('No')]]) {
+          const option = el('label', 'seg-opt'), input = el('input', 'sr'); input.type = 'radio'; input.name = 'd-cap'; input.value = key; input.checked = value === key; input.disabled = !view.editable;
+          input.dataset.dCaptain = item.questionId; option.append(input, text); seg.append(option);
+        }
+        wrap.append(label, seg);
+      } else if (!view.editable || item.retired) {
+        const label = el('div', 'lbl', item.system === 'cocaptain' ? t('Requested co-captain') : item.label + (item.retired ? ' ' : ''));
+        if (item.retired) label.append(el('span', 'opt', t('· retired question')));
+        const shown = answerText(item, value);
+        wrap.append(label, el('div', 'ro-value' + (shown ? '' : ' is-empty'), shown || (item.system === 'cocaptain' ? t('No request') : t('No answer'))));
+      } else {
+        const label = el('label', 'lbl', item.system === 'cocaptain' ? t('Requested co-captain') + ' ' : item.label); label.htmlFor = id;
+        if (item.system === 'cocaptain') label.append(el('span', 'opt', t('· optional')));
+        let control;
+        if (item.type === 'YesNo' || item.type === 'SingleChoice') {
+          control = el('select', 'select pa-full');
+          const options = item.type === 'YesNo' ? [['true', t('Yes')], ['false', t('No')]] : item.options.map(option => [option, option]);
+          control.append(...[['', t('No answer')], ...options].map(([key, text]) => { const option = el('option', '', text); option.value = key; return option; }));
+          if (value && !options.some(([key]) => key === value)) { const option = el('option', '', value); option.value = value; control.append(option); }
+          control.value = value;
+        } else {
+          control = el('input', 'input'); control.value = value; control.autocomplete = 'off';
+          if (item.type === 'Number') control.inputMode = 'decimal'; else control.maxLength = 4000;
+        }
+        control.id = id; control.dataset.dAnswerInput = item.questionId;
+        wrap.append(label, control, el('div'));
+      }
+      parts.push(wrap);
+    }
+    host.replaceChildren(...parts);
+  }
+  function renderDetails(state) {
+    const view = state.view, list = state.element.querySelector('[data-d-details]');
+    const rows = [
+      [t('Signup order'), t('#{0} of {1}', view.signupSequence, view.totalCount)],
+      [t('Signed up'), view.signedUp],
+      [t('Source'), view.source],
+      [t('Website account'), view.username ? '@' + view.username : t('No website account'), !view.username],
+      ...(view.memberSince ? [[t('Member since'), view.memberSince]] : []),
+      [t('Discord'), view.discordLinked ? t('Linked') : t('Not linked'), !view.discordLinked]
+    ];
+    list.replaceChildren(...rows.flatMap(([key, value, muted]) => [el('dt', '', key), el('dd', muted ? 'muted' : '', value)]));
+  }
+  function install(state, view) {
+    state.view = view; state.draft = makeDraft(view); state.serverErrors = {}; state.touched = new Set(); state.showErrors = false;
+    state.original = signature(state);
+    const node = state.element, editable = view.editable, privateEditable = view.privateEditable;
+    node.querySelector('[data-d-state]').replaceChildren();
+    node.querySelector('[data-d-content]').hidden = false;
+    node.querySelector('[data-d-eyebrow]').textContent = view.username ? t('Participant · @{0}', view.username) : t('Participant');
+    node.querySelector('[data-d-title]').textContent = primaryName(view);
+    node.querySelector('[data-d-badges]').hidden = false;
+    const badge = node.querySelector('[data-d-status]'); badge.className = 'badge ' + statusTone(view); badge.textContent = statusText(view);
+    node.querySelector('[data-d-team]').textContent = view.team || t('No team yet');
+    // B-Participants-3: a withdrawn participant is read-only with a "Restore to edit" hint;
+    // after the draft starts the reference's lock banner shows instead.
+    const rosterLocked = !rosterEditable() || (!editable && view.status !== 'withdrawn');
+    node.querySelector('[data-d-locked]').hidden = !rosterLocked;
+    node.querySelector('[data-d-withdrawn]').hidden = rosterLocked || view.status !== 'withdrawn';
+    for (const input of node.querySelectorAll('[data-d-pay]')) { input.checked = (input.value === 'paid') === view.paid; input.disabled = !privateEditable; input.closest('.seg-opt').classList.toggle('is-disabled', !privateEditable); }
+    node.querySelector('[data-d-accounts-edit]').hidden = !editable;
+    const read = node.querySelector('[data-d-accounts-read]'); read.hidden = editable;
+    read.replaceChildren(...view.accounts.filter(item => item.role === 'playing').map(item => {
+      const row = el('div', 'ro-row'); row.append(el('span', 'grow', item.name));
+      if (item.primary) row.append(el('span', 'pill', t('Primary')));
+      row.append(el('span', 'tnum pa-ro-ehb', fmtEhb(item.ehb))); return row;
+    }));
+    if (editable) renderAccounts(state);
+    renderAlts(state); renderAnswers(state); renderDetails(state);
+    const note = node.querySelector('[data-d-note]'); note.value = state.draft.note; note.disabled = !privateEditable;
+    const withdraw = node.querySelector('[data-d-status-action="withdraw"]'), restore = node.querySelector('[data-d-status-action="restore"]');
+    withdraw.hidden = view.status === 'withdrawn'; restore.hidden = view.status !== 'withdrawn';
+    for (const button of [withdraw, restore]) { button.disabled = !rosterEditable(); button.title = rosterEditable() ? '' : view.lockReason; }
+    paintDrawer(state);
+    state.layer.markClean();
+  }
+  // Everything that follows the draft without rebuilding inputs (focus and caret stay).
+  function paintDrawer(state) {
+    const node = state.element, view = state.view, draft = state.draft;
+    if (!view) return;
+    const errors = validate(state), shown = id => state.showErrors || state.touched.has(id) ? errors[id] || '' : '';
+    for (const row of node.querySelectorAll('[data-d-account-rows] .acct-row')) {
+      const account = draft.accounts.find(item => item.key === row.dataset.key); if (!account) continue;
+      const name = account.rsn.trim() || t('new account');
+      const rsnError = shown('rsn-' + account.key), ehbError = shown('ehb-' + account.key);
+      const rsn = row.querySelector('[data-a-rsn]'), ehb = row.querySelector('[data-a-ehb]'), radio = row.querySelector('[data-a-primary]'), remove = row.querySelector('[data-a-remove]');
+      radio.setAttribute('aria-label', t('Use {0} as primary account', name)); rsn.setAttribute('aria-label', t('RSN for {0}', name)); ehb.setAttribute('aria-label', t('EHB for {0}', name));
+      rsn.classList.toggle('is-invalid', !!rsnError); rsn.setAttribute('aria-invalid', String(!!rsnError));
+      ehb.classList.toggle('is-invalid', !!ehbError); ehb.setAttribute('aria-invalid', String(!!ehbError));
+      const rsnNote = row.querySelector('[data-a-rsn-note]'), ehbNote = row.querySelector('[data-a-ehb-note]');
+      rsnNote.replaceChildren(rsnError ? fieldNote('error', rsnError) : fieldNote('hint', account.hint));
+      ehbNote.replaceChildren(fieldNote('error', ehbError));
+      const noteNode = rsnNote.firstElementChild; if (noteNode) { noteNode.id = 'e-rsn-' + account.key; rsn.setAttribute('aria-describedby', noteNode.id); } else rsn.removeAttribute('aria-describedby');
+      const only = draft.accounts.length <= 1;
+      remove.disabled = only; remove.setAttribute('aria-label', t('Remove {0}', name)); remove.title = only ? t('At least one playing account is required') : t('Remove account');
+    }
+    for (const holder of node.querySelectorAll('[data-d-alt-note]')) {
+      const index = holder.dataset.dAltNote, error = shown('alt-' + index), input = node.querySelector(`[data-d-alt="${index}"]`);
+      holder.replaceChildren(fieldNote('error', error)); if (holder.firstElementChild) holder.firstElementChild.id = 'e-alt-' + index;
+      input.classList.toggle('is-invalid', !!error); input.setAttribute('aria-invalid', String(!!error));
+    }
+    for (const holder of node.querySelectorAll('[data-d-answer]')) {
+      const id = 'answer-' + holder.dataset.dAnswer, error = shown(id), control = holder.querySelector('[data-d-answer-input]');
+      if (!control) continue;
+      holder.lastElementChild.replaceChildren(fieldNote('error', error));
+      control.classList.toggle('is-invalid', !!error); control.setAttribute('aria-invalid', String(!!error));
+    }
+    const slots = view.playingSlots, full = draft.accounts.length >= slots;
+    const add = node.querySelector('[data-d-add-account]'); add.disabled = full; add.title = full ? t('All {0} account slots for this event are used', slots) : '';
+    node.querySelector('[data-d-slot-text]').textContent = t('{0} of {1} account slots', draft.accounts.length, slots);
+    const primary = view.editable ? draft.accounts.find(item => item.key === draft.primaryKey) : view.accounts.find(item => item.role === 'playing' && item.primary);
+    const value = el('b', '', primary && /^\d+(\.\d+)?$/.test(String(primary.ehb ?? '').trim()) ? fmtEhb(primary.ehb) : '—');
+    node.querySelector('[data-d-draft-value]').replaceChildren(fillNodes(labels['Draft value {0} EHB'] ?? 'Draft value {0} EHB', value));
+    const captain = view.answers.find(item => item.system === 'captain'), volunteered = captain ? draft.answers[captain.questionId] === 'true' : true;
+    for (const option of node.querySelectorAll('[data-d-captain]')) option.closest('.seg-opt').classList.toggle('is-on', option.checked), option.closest('.seg-opt').classList.toggle('is-disabled', option.disabled);
+    const cocaptain = view.answers.find(item => item.system === 'cocaptain');
+    const coInput = cocaptain && node.querySelector(`[data-d-answer-input="${cocaptain.questionId}"]`);
+    if (coInput) { coInput.disabled = !volunteered; coInput.placeholder = volunteered ? t('No request') : t('Only for captain volunteers'); }
+    for (const input of node.querySelectorAll('[data-d-pay]')) input.closest('.seg-opt').classList.toggle('is-on', input.checked);
+    const was = node.querySelector('[data-d-pay-was]'); was.hidden = draft.paid === view.paid; was.textContent = view.paid ? t('Was paid') : t('Was unpaid');
+    const count = node.querySelector('[data-d-note-count]'), length = draft.note.length;
+    count.textContent = length > noteLimit * 0.7 ? t('{0} / {1}', fmtNumber(length), fmtNumber(noteLimit)) : ''; count.className = length > noteLimit * 0.9 ? 'is-near' : '';
+    const dirty = isDirty(state);
+    node.querySelector('[data-d-dirty]').hidden = !dirty;
+    const save = node.querySelector('[data-d-save]');
+    save.disabled = state.saving || !dirty; save.classList.toggle('is-busy', state.saving); save.querySelector('.spin').hidden = !state.saving;
+    save.querySelector('[data-d-save-label]').textContent = state.saving ? t('Saving…') : t('Save changes');
+    for (const button of node.querySelectorAll('[data-d-close]')) if (button.classList.contains('btn')) button.disabled = state.saving;
+    node.setAttribute('aria-busy', String(state.saving));
+    const count2 = Object.keys(errors).length, summary = node.querySelector('[data-d-summary]');
+    if (state.showErrors && count2 && !state.saving) {
+      const text = count2 === 1 ? t('Fix the highlighted field to save.') : t('Fix the {0} highlighted fields to save.', count2);
+      if (summary) summary.querySelector('[data-component-text]').textContent = text;
+      else { const banner = ui.template('banner-error').firstElementChild; banner.dataset.dSummary = ''; banner.querySelector('[data-component-lead]').hidden = true; banner.querySelector('[data-component-text]').textContent = text; node.querySelector('[data-d-messages]').prepend(banner); }
+    } else summary?.remove();
+  }
+  // A drawer message: a definite refusal, a stale read or a lost response (rule 13).
+  function drawerMessage(state, tone, text) {
+    const host = state.element.querySelector('[data-d-messages]');
+    for (const node of host.querySelectorAll('[data-d-message]')) node.remove();
+    if (!text) return;
+    const banner = ui.template(tone === 'error' ? 'banner-error' : tone === 'uncertain' ? 'banner-uncertain' : 'banner-warning').firstElementChild;
+    banner.dataset.dMessage = ''; banner.querySelector('[data-component-lead]').hidden = true; banner.querySelector('[data-component-text]').textContent = text;
+    host.append(banner);
+    state.element.querySelector('#drawer-body').scrollTop = 0;
+  }
+  function showDrawerState(state, name) {
+    state.element.querySelector('[data-d-content]').hidden = true;
+    state.element.querySelector('[data-d-state]').replaceChildren(tpl(name));
+    for (const button of state.element.querySelectorAll('[data-d-status-action]')) button.hidden = true;
+  }
+  async function readCurrent(id) {
+    const outcome = await window.AdminFetch.request(`${actionUrl('Current')}&participant=${encodeURIComponent(id)}`, { expect: 'json', readback: true, signal, cache: 'no-store' });
+    if (outcome.kind === 'handler' && outcome.data?.id) return { kind: 'ok', view: outcome.data };
+    if (outcome.status === 404) return { kind: 'missing' };
+    return { kind: outcome.kind === 'session-lost' ? 'session-lost' : 'failed' };
+  }
+  async function loadDrawer(state) {
+    showDrawerState(state, 'data-participant-drawer-loading');
+    const result = await readCurrent(state.id);
+    if (drawer !== state) return false;
+    if (result.kind === 'ok') { install(state, result.view); return true; }
+    showDrawerState(state, result.kind === 'missing' ? 'data-participant-drawer-missing' : 'data-participant-drawer-failed');
+    if (result.kind === 'missing') state.element.querySelector('[data-d-title]').textContent = t('Participant not found');
+    return false;
+  }
+
+  async function openDrawer(id, { push = false, opener = document.activeElement, view, missing = false } = {}) {
+    if (drawer?.id === id) return;
+    if (drawer && !await closeDrawer({ history: false })) return;
+    drawerParam = ['participant', id];
+    if (push) setUrl(directoryUrl(), true);
+    const state = drawer = { mode: 'edit', id, view: null, draft: null, pushed: push, opener, saving: false, silent: false, serverErrors: {}, touched: new Set(), showErrors: false };
+    const layer = ui.openLayer({ kind: 'drawer', title: t('Participant'), content: tpl('data-participant-drawer'), opener,
+      dirty: () => isDirty(state), pending: () => state.saving,
+      onClose: async (_result, { navigating } = {}) => {
+        if (drawer === state) { drawer = null; drawerParam = null; }
+        markSelected();
+        if (navigating) return;
+        if (!state.silent) { if (state.pushed) await ui.backUrl(); else setUrl(directoryUrl()); }
+        (rowOf(id)?.querySelector('[data-participant-open]') || search).focus({ preventScroll: true });
+      } });
+    state.layer = layer; state.element = layer.element;
+    layer.element.dataset.pageFamily = 'participants';
+    layer.element.setAttribute('aria-labelledby', 'drawer-title'); layer.element.removeAttribute('aria-label');
+    wireDrawer(state);
+    markSelected();
+    if (view) install(state, view);
+    else if (missing) { showDrawerState(state, 'data-participant-drawer-missing'); state.element.querySelector('[data-d-title]').textContent = t('Participant not found'); }
+    else await loadDrawer(state);
+    state.element.querySelector('#drawer-close').focus({ preventScroll: true });
+  }
+  async function closeDrawer({ history = true } = {}) {
+    if (!drawer) return true;
+    const state = drawer; state.silent = !history;
+    const closed = await state.layer.close(false);
+    if (!closed) state.silent = false;
+    return closed;
+  }
+  function changed(state, id) { if (id) { state.touched.add(id); delete state.serverErrors[id]; } paintDrawer(state); }
+  function wireDrawer(state) {
+    const node = state.element, on = (type, fn) => node.addEventListener(type, fn, { signal });
+    on('click', event => {
+      if (event.target.closest('[data-d-close]')) { void ui.closeLayer(); return; }
+      if (event.target.closest('[data-d-retry]')) { void loadDrawer(state); return; }
+      if (!state.view || state.saving) return;
+      const draft = state.draft;
+      if (event.target.closest('[data-d-add-account]')) {
+        if (draft.accounts.length >= state.view.playingSlots) return;
+        const key = 'a' + (++drawerSeq);
+        draft.accounts.push({ key, assignmentId: null, rsn: '', ehb: '', hint: '' });
+        if (!draft.primaryKey) draft.primaryKey = key;
+        renderAccounts(state); paintDrawer(state);
+        node.querySelector('#rsn-' + key)?.focus();
+        return;
+      }
+      const remove = event.target.closest('[data-a-remove]');
+      if (remove && !remove.disabled) {
+        const row = remove.closest('.acct-row'), key = row.dataset.key;
+        if (draft.accounts.length <= 1) return;
+        draft.accounts = draft.accounts.filter(item => item.key !== key);
+        if (draft.primaryKey === key) draft.primaryKey = draft.accounts[0].key;
+        for (const id of ['rsn-' + key, 'ehb-' + key]) { delete state.serverErrors[id]; state.touched.delete(id); }
+        row.classList.add('is-removing');
+        const done = () => { if (drawer === state) { renderAccounts(state); paintDrawer(state); } };
+        if (ui.reducedMotion() || getComputedStyle(row).animationName === 'none') done(); else row.addEventListener('animationend', done, { once: true });
+        node.querySelector('#add-acct')?.focus({ preventScroll: true });
+        paintDrawer(state);
+        return;
+      }
+      const toggle = event.target.closest('[data-d-details-toggle]');
+      if (toggle) { toggleDetails(state, toggle); return; }
+      const status = event.target.closest('[data-d-status-action]');
+      if (status && !status.disabled) void statusAction(state, status);
+      if (event.target.closest('[data-d-save]')) void saveDrawer(state);
+    });
+    on('input', event => {
+      if (!state.view) return;
+      const target = event.target, draft = state.draft, row = target.closest('.acct-row');
+      if (target.matches('[data-a-rsn]')) { const account = draft.accounts.find(item => item.key === row.dataset.key); account.rsn = target.value; account.hint = ''; delete state.serverErrors['rsn-' + account.key]; }
+      else if (target.matches('[data-a-ehb]')) { const account = draft.accounts.find(item => item.key === row.dataset.key); account.ehb = target.value; account.hint = ''; delete state.serverErrors['ehb-' + account.key]; delete state.serverErrors['rsn-' + account.key]; }
+      else if (target.matches('[data-d-alt]')) { draft.alts[Number(target.dataset.dAlt)].rsn = target.value; delete state.serverErrors['alt-' + target.dataset.dAlt]; }
+      else if (target.matches('[data-d-answer-input]')) { draft.answers[target.dataset.dAnswerInput] = target.value; delete state.serverErrors['answer-' + target.dataset.dAnswerInput]; }
+      else if (target.matches('[data-d-note]')) { draft.note = target.value; delete state.serverErrors.note; }
+      else return;
+      paintDrawer(state);
+    });
+    on('change', event => {
+      if (!state.view) return;
+      const target = event.target, draft = state.draft;
+      if (target.matches('[data-a-primary]')) draft.primaryKey = target.closest('.acct-row').dataset.key;
+      else if (target.matches('[data-d-pay]')) draft.paid = target.value === 'paid';
+      else if (target.matches('[data-d-captain]')) draft.answers[target.dataset.dCaptain] = target.value;
+      else if (target.matches('[data-d-answer-input]')) { draft.answers[target.dataset.dAnswerInput] = target.value; changed(state, 'answer-' + target.dataset.dAnswerInput); return; }
+      else return;
+      paintDrawer(state);
+    });
+    on('focusout', event => {
+      if (!state.view) return;
+      const target = event.target;
+      if (target.matches('[data-a-rsn]')) { rsnBlur(state, target.closest('.acct-row').dataset.key); changed(state, target.id); }
+      else if (target.matches('[data-a-ehb], [data-d-alt]')) changed(state, target.id);
+    });
+  }
+  // Reads the owner's saved accounts only; an event edit never writes back to them (U5-Q1).
+  function rsnBlur(state, key) {
+    const account = state.draft.accounts.find(item => item.key === key), name = account?.rsn.trim();
+    if (!account || !name) return;
+    const saved = state.view.savedAccounts.find(item => item.name.toLowerCase() === name.toLowerCase());
+    if (saved && String(account.ehb).trim() === '' && saved.ehb !== null && saved.ehb !== undefined) {
+      account.rsn = saved.name; account.ehb = String(saved.ehb); account.hint = t('EHB filled in from the saved account');
+      const row = state.element.querySelector(`.acct-row[data-key="${CSS.escape(key)}"]`);
+      row.querySelector('[data-a-rsn]').value = account.rsn; row.querySelector('[data-a-ehb]').value = account.ehb;
+    } else if (!saved && RSN.test(name) && !state.view.accounts.some(item => item.assignmentId === account.assignmentId && item.name.toLowerCase() === name.toLowerCase())) {
+      account.hint = state.view.username ? t('Not one of @{0}’s saved accounts. Used for this event only.', state.view.username) : t('Not a saved account. Used for this event only.');
+    }
+  }
+  function toggleDetails(state, toggle) {
+    const list = state.element.querySelector('[data-d-details]'), open = toggle.getAttribute('aria-expanded') === 'true';
+    if (!open) { list.classList.remove('is-closing'); list.hidden = false; toggle.setAttribute('aria-expanded', 'true'); toggle.classList.add('is-open'); return; }
+    if (list.classList.contains('is-closing')) return;
+    toggle.setAttribute('aria-expanded', 'false'); toggle.classList.remove('is-open'); list.classList.add('is-closing');
+    const done = () => { list.hidden = true; list.classList.remove('is-closing'); };
+    if (ui.reducedMotion() || getComputedStyle(list).animationName === 'none') done(); else list.addEventListener('animationend', done, { once: true });
+  }
+  function drawerRow(state) {
+    const view = state.view;
+    return { id: view.id, name: primaryName(view), status: view.status, version: String(view.responseVersion), paid: view.paid, team: view.team || '', position: view.waitingPosition || 0 };
+  }
+  async function statusAction(state, button) {
+    // Unsaved drawer edits would be stale after a status change: ask first (decision B).
+    if (isDirty(state) && !await ui.confirmDiscard()) return;
+    openConfirm(button.dataset.dStatusAction, drawerRow(state), button);
+  }
+  async function refreshDrawer(id) {
+    const state = drawer;
+    if (state?.mode !== 'edit' || state.id !== id || state.saving) return;
+    const result = await readCurrent(id);
+    if (drawer === state && result.kind === 'ok') install(state, result.view);
+  }
+  function mapServerField(state, field) {
+    const match = /^(playing|alt):(\d+)$/.exec(field || '');
+    if (match?.[1] === 'playing') { const account = state.draft.accounts[Number(match[2])]; return account ? 'rsn-' + account.key : null; }
+    if (match?.[1] === 'alt') { const filled = state.draft.alts.map((item, index) => [item, index]).filter(([item]) => item.rsn.trim()); const entry = filled[Number(match[2])]; return entry ? 'alt-' + entry[1] : null; }
+    if (field?.startsWith('answer:')) return 'answer-' + field.slice('answer:'.length);
+    return null;
+  }
+  async function saveDrawer(state) {
+    if (state.saving || !state.view || !isDirty(state)) return;
+    const view = state.view, draft = state.draft;
+    state.serverErrors = {}; state.showErrors = true;
+    const errors = validate(state), first = Object.keys(errors)[0];
+    if (first) { drawerMessage(state, null, ''); paintDrawer(state); state.element.querySelector('#' + CSS.escape(first))?.focus(); return; }
+    const body = new FormData();
+    body.set('participantId', view.id); body.set('expectedResponseVersion', String(view.responseVersion));
+    body.set('expectedPaid', String(view.paid)); body.set('expectedNote', view.adminNote || '');
+    body.set('paid', String(draft.paid)); body.set('note', draft.note);
+    if (view.editable) {
+      body.set('accounts', JSON.stringify([
+        ...draft.accounts.map(item => ({ assignmentId: item.assignmentId, name: item.rsn.trim(), ehb: Number(String(item.ehb).trim()), role: 'playing', primary: item.key === draft.primaryKey })),
+        ...draft.alts.filter(item => item.rsn.trim()).map(item => ({ assignmentId: item.assignmentId, name: item.rsn.trim(), ehb: null, role: 'alt', primary: false }))]));
+      body.set('answers', JSON.stringify(Object.fromEntries(view.answers.filter(item => !item.retired).map(item => [item.questionId, String(draft.answers[item.questionId] ?? '').trim()]))));
+    }
+    const name = view.editable ? (draft.accounts.find(item => item.key === draft.primaryKey)?.rsn.trim() || primaryName(view)) : primaryName(view);
+    const sessionDraft = { [t('Participant')]: primaryName(view), [t('Entry payment')]: draft.paid ? t('Paid') : t('Unpaid'), [t('Private note')]: draft.note };
+    if (view.editable) sessionDraft[t('Playing accounts')] = draft.accounts.map(item => `${item.rsn.trim()} (${item.ehb})`).join(', ');
+    state.saving = true; drawerMessage(state, null, ''); paintDrawer(state);
+    const outcome = await post('SaveParticipant', body, sessionDraft);
+    state.saving = false;
+    if (drawer !== state || signal.aborted) return;
+    paintDrawer(state);
+    if (outcome.kind === 'session-lost') return; // C-CMP-2: the shell shows what wasn't saved; the draft stays.
+    const result = outcome.kind === 'handler' ? outcome.data : null;
+    if (result?.outcome === 'saved') {
+      await state.layer.close(true);
+      await reread(); flash(view.id);
+      ui.toast(t('Changes to {0} saved', name));
+      return;
+    }
+    if (result?.outcome === 'invalid') {
+      const id = mapServerField(state, result.field);
+      if (id) { state.serverErrors[id] = result.message || t('Check this field.'); paintDrawer(state); state.element.querySelector('#' + CSS.escape(id))?.focus(); }
+      else { drawerMessage(state, 'error', result.message || t('That didn’t go through.')); }
+      return;
+    }
+    if (result?.outcome === 'refused' || outcome.kind === 'refused') {
+      // A definite refusal: nothing was saved; the server says why and the edits stay.
+      drawerMessage(state, 'error', result?.message || outcome.reason || t('That didn’t go through.'));
+      return;
+    }
+    if (result?.outcome === 'stale') {
+      const current = await readCurrent(view.id);
+      if (drawer !== state) return;
+      if (current.kind === 'ok') install(state, current.view);
+      drawerMessage(state, 'warning', result.message || t('This participant changed while you were editing. The current details are shown; nothing was saved.'));
+      void reread();
+      return;
+    }
+    // Lost response: never repeat the write; show what is true now.
+    const current = await readCurrent(view.id);
+    if (drawer !== state) return;
+    if (current.kind === 'ok') { install(state, current.view); drawerMessage(state, 'uncertain', t('We couldn’t confirm whether your changes were saved. The current details are shown; check them before saving again.')); }
+    else drawerMessage(state, 'uncertain', t('We couldn’t confirm whether your changes were saved, and the current details didn’t load. Your edits are still here; check the participant before saving again.'));
+    void reread();
+  }
 
   /* ---------------- URL state ---------------- */
   const sameDirectory = (a, b) => { const x = new URL(a), y = new URL(b); for (const u of [x, y]) { u.searchParams.delete('participant'); u.searchParams.delete('add'); } return x.pathname.toLowerCase() === y.pathname.toLowerCase() && x.search === y.search; };
   const unregisterUrl = ui.registerUrlState(async (next, previous) => {
     const nextUrl = new URL(next);
     if (nextUrl.pathname.toLowerCase() !== `/admin/events/participants/${eventId}`.toLowerCase()) return false;
+    const participant = nextUrl.searchParams.get('participant'), add = nextUrl.searchParams.get('add') === '1';
     if (!sameDirectory(next, previous)) {
+      if (drawer) await closeDrawer({ history: false });
       search.value = nextUrl.searchParams.get('q') || '';
       await readDirectory(next);
     }
+    if (participant) { if (drawer?.id !== participant) await openDrawer(participant, { opener: search }); }
+    else if (add) { if (drawer?.mode !== 'add') await openAdd?.(null, { opener: search }); }
+    else if (drawer) await closeDrawer({ history: false });
     return true;
   });
-  setUrl(directoryUrl());
+  // Canonical URL for this render; a direct ?participant= link opens its drawer.
+  const initial = root.querySelector('[data-participant-drawer-initial]');
+  if (initial) {
+    drawerParam = ['participant', initial.dataset.participantId];
+    setUrl(directoryUrl());
+    let view = null; try { view = JSON.parse(initial.textContent || 'null'); } catch { view = null; }
+    void openDrawer(initial.dataset.participantId, { opener: search, view, missing: !view });
+  } else if (root.dataset.drawerAdd === 'true') {
+    drawerParam = ['add', '1'];
+    setUrl(directoryUrl());
+    void openAdd?.(null, { opener: search });
+  } else setUrl(directoryUrl());
   release = () => {
     life.abort(); clearTimeout(timer); overflow.disconnect(); cancelAnimationFrame(overflowFrame); unregisterUrl();
     drawer = null; menuTarget = null;

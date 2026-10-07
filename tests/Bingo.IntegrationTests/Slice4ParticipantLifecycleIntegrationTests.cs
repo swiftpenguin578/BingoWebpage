@@ -677,21 +677,15 @@ public sealed class Slice4ParticipantLifecycleIntegrationTests(PostgreSqlTestFix
         var setup = await SeedAsync(capacity: 1, confirmed: 1, waiting: 0);
         await using var pageDb = new ApplicationDbContext(options);
         var http = AdminContext(setup.EnabledAdminId);
-        var model = new Bingo.Web.Pages.Admin.Events.ParticipantModel(
-            pageDb,
-            new EventParticipantCharacterService(pageDb, TimeProvider.System),
-            Service(pageDb),
-            new PassthroughLocalizer(),
-            TimeProvider.System)
+        // A10 (U5 item 1b): the old detail page is redirect-only; Restore lives on the
+        // Participants page (JSON outcome). The stale-version refusal is unchanged.
+        var model = new Bingo.Web.Pages.Admin.Events.ParticipantsModel(pageDb, Service(pageDb), new PassthroughLocalizer())
         {
             PageContext = new PageContext(new ActionContext(http, new RouteData(), new PageActionDescriptor())),
             TempData = new TempDataDictionary(http, new DictionaryTempDataProvider())
         };
-        Assert.IsType<PageResult>(await model.OnGetAsync(setup.EventId, setup.ConfirmedParticipantId, CancellationToken.None));
-        var staleEventVersion = model.ExpectedEventVersion;
-        var staleResponseVersion = model.Input.ExpectedResponseVersion;
-        Assert.NotNull(staleEventVersion);
-        Assert.NotNull(staleResponseVersion);
+        var staleEventVersion = (await pageDb.Events.AsNoTracking().SingleAsync(x => x.Id == setup.EventId)).Version;
+        var staleResponseVersion = (await pageDb.EventParticipants.AsNoTracking().SingleAsync(x => x.Id == setup.ConfirmedParticipantId)).ResponseVersion;
 
         await using (var withdraw = new ApplicationDbContext(options))
         {
@@ -706,10 +700,13 @@ public sealed class Slice4ParticipantLifecycleIntegrationTests(PostgreSqlTestFix
             await concurrent.SaveChangesAsync();
         }
 
-        model.ConfirmLifecycleAction = true;
-        var response = await model.OnPostRestoreAsync(setup.EventId, setup.ConfirmedParticipantId, false, CancellationToken.None);
-        Assert.IsType<RedirectToPageResult>(response);
-        Assert.Contains("changed", model.TempData["StatusMessage"]?.ToString() ?? string.Empty, StringComparison.OrdinalIgnoreCase);
+        var response = Assert.IsType<JsonResult>(await model.OnPostRestoreAsync(setup.EventId, new()
+        {
+            ParticipantId = setup.ConfirmedParticipantId, EventVersion = staleEventVersion, ResponseVersion = staleResponseVersion
+        }, CancellationToken.None));
+        var outcome = System.Text.Json.JsonSerializer.SerializeToElement(response.Value);
+        Assert.Equal("stale", outcome.GetProperty("outcome").GetString());
+        Assert.Contains("changed", outcome.GetProperty("message").GetString() ?? string.Empty, StringComparison.OrdinalIgnoreCase);
 
         await using var verify = new ApplicationDbContext(options);
         Assert.Equal(SignupStatus.Withdrawn, await verify.EventParticipants.Where(x => x.Id == setup.ConfirmedParticipantId).Select(x => x.SignupStatus).SingleAsync());

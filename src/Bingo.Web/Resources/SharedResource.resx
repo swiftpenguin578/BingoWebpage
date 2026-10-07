@@ -79,4 +79,5 @@
   <data name="AdminDesign.Today" xml:space="preserve"><value>Today</value></data>
   <data name="AdminDesign.Confirmed" xml:space="preserve"><value>Confirmed</value></data>
   <data name="AdminDesign.{0} confirmed" xml:space="preserve"><value>{0} confirmed</value></data>
+  <data name="AdminDesign.Add playing account" xml:space="preserve"><value>Add playing account</value></data>
 </root>
