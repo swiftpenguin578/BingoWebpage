@@ -1,0 +1,10 @@
+<template data-date-time-template data-choose="@T["Choose date and time"]"
+ data-message1-source="Enter a date like 27 Jun 2027." data-message1="@T["Enter a date like 27 Jun 2027."]"
+ data-message2-source="Enter a time like 18:30." data-message2="@T["Enter a time like 18:30."]"
+ data-message3-source="Choose a time in five-minute steps." data-message3="@T["Choose a time in five-minute steps."]"
+ data-message4-source="Enter a date." data-message4="@T["Enter a date."]" data-message5-source="Enter a time." data-message5="@T["Enter a time."]">
+<div class="dtp-pop" role="dialog"><div class="dtp-main"><div class="dtp-cal"><div class="dtp-head">
+<button class="icon-btn" type="button" data-picker-prev aria-label="@T["Previous month"]"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("chevron-left")' /></button><div class="dtp-month" aria-live="polite"></div><button class="icon-btn" type="button" data-picker-next aria-label="@T["Next month"]"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("chevron-right")' /></button></div>
+<table class="dtp-grid" role="grid"><thead><tr></tr></thead><tbody></tbody></table></div><div class="dtp-times"><div class="dtp-tcol"><div class="dtp-tlbl">@T["AdminDesign.Hour"]</div><div class="dtp-col" data-picker-hours role="listbox"></div></div><div class="dtp-tcol"><div class="dtp-tlbl">@T["AdminDesign.Minute"]</div><div class="dtp-col" data-picker-mins role="listbox"></div></div></div></div>
+<div class="dtp-foot"><button class="btn btn-sm btn-quiet" type="button" data-picker-today>@T["AdminDesign.Today"]</button><button class="btn btn-sm btn-quiet" type="button" data-picker-clear>@T["Clear"]</button><span class="spacer"></span><button class="btn btn-sm btn-primary" type="button" data-picker-done>@T["Done"]</button></div></div>
+</template>

@@ -3227,4 +3227,88 @@
   <data name="today" xml:space="preserve"><value>i dag</value></data>
   <data name="tomorrow" xml:space="preserve"><value>i morgen</value></data>
   <data name="Start was due {0}" xml:space="preserve"><value>Start var planlagt til {0}</value></data>
+  <data name="AdminDesign.When {0}’s stages happen, and what follows from those times." xml:space="preserve"><value>Hvornår faserne i {0} finder sted, og hvad tidspunkterne betyder.</value></data>
+  <data name="Times are in {0}; change timezone on" xml:space="preserve"><value>Tider vises i {0}; skift tidszone på</value></data>
+  <data name="Opening, closing and starting by hand happen on" xml:space="preserve"><value>Manuel åbning, lukning og start foregår på</value></data>
+  <data name="This event is Live. Only its end can be changed." xml:space="preserve"><value>Dette event er i gang. Kun sluttidspunktet kan ændres.</value></data>
+  <data name="This event’s schedule is history and is read-only. To accept uploads again or resume the event, use Overview." xml:space="preserve"><value>Dette events tidsplan er historik og kan kun læses. Brug Overblik til at åbne for uploads igen eller genoptage eventet.</value></data>
+  <data name="AdminDesign.Another admin saved this event while you were editing. Untouched fields have been updated. Your changes are kept; review before saving again." xml:space="preserve"><value>En anden administrator gemte eventet, mens du redigerede. Uændrede felter er opdateret. Dine ændringer er bevaret; gennemgå dem, før du gemmer igen.</value></data>
+  <data name="Their saved version:" xml:space="preserve"><value>Deres gemte version:</value></data>
+  <data name="Your changes weren’t applied. They’re still here; save again when you’re ready." xml:space="preserve"><value>Dine ændringer blev ikke gemt. De er stadig her; gem igen, når du er klar.</value></data>
+  <data name="Change the published schedule?" xml:space="preserve"><value>Vil du ændre den offentliggjorte tidsplan?</value></data>
+  <data name="Change when the event ends?" xml:space="preserve"><value>Vil du ændre eventets sluttidspunkt?</value></data>
+  <data name="Players may already have seen these times. Review what changes before saving." xml:space="preserve"><value>Spillere kan allerede have set disse tider. Gennemgå ændringerne, før du gemmer.</value></data>
+  <data name="Teams keep playing until the new end. Uploads close 30 minutes later." xml:space="preserve"><value>Holdene spiller videre indtil det nye sluttidspunkt. Uploads lukker 30 minutter senere.</value></data>
+  <data name="After saving" xml:space="preserve"><value>Efter gemning</value></data>
+  <data name="Uploads close" xml:space="preserve"><value>Uploads lukker</value></data>
+  <data name="Reason for changing the end" xml:space="preserve"><value>Begrundelse for at ændre sluttidspunktet</value></data>
+  <data name="This reason is recorded in the event’s history." xml:space="preserve"><value>Begrundelsen gemmes i eventets historik.</value></data>
+  <data name="Enter a reason for changing the Live event end." xml:space="preserve"><value>Angiv en begrundelse for at ændre sluttidspunktet for det igangværende event.</value></data>
+  <data name="Use 2,000 characters or fewer." xml:space="preserve"><value>Brug højst 2.000 tegn.</value></data>
+  <data name="That local time is ambiguous because the clocks change at that time. Choose another time." xml:space="preserve"><value>Det lokale tidspunkt er tvetydigt på grund af skiftet mellem sommer- og vintertid. Vælg et andet tidspunkt.</value></data>
+  <data name="The team draft time is saved at the same time." xml:space="preserve"><value>Tidspunktet for holdvalg gemmes samtidig.</value></data>
+  <data name="{0}, date" xml:space="preserve"><value>{0}, dato</value></data>
+  <data name="{0}, time (24-hour)" xml:space="preserve"><value>{0}, klokkeslæt (24 timer)</value></data>
+  <data name="Choose {0} from a calendar" xml:space="preserve"><value>Vælg {0} i kalenderen</value></data>
+  <data name="Calendar" xml:space="preserve"><value>Kalender</value></data>
+  <data name="This time is locked because its boundary has passed or the team draft is locked." xml:space="preserve"><value>Tidspunktet er låst, fordi grænsen er passeret, eller holdvalget er låst.</value></data>
+  <data name="(30 minutes after the event ends)." xml:space="preserve"><value>(30 minutter efter eventet slutter).</value></data>
+  <data name="Choose date and time" xml:space="preserve"><value>Vælg dato og klokkeslæt</value></data>
+  <data name="Enter a date like 27 Jun 2027." xml:space="preserve"><value>Angiv en dato som 27 Jun 2027.</value></data>
+  <data name="Enter a time like 18:30." xml:space="preserve"><value>Angiv et klokkeslæt som 18:30.</value></data>
+  <data name="Choose a time in five-minute steps." xml:space="preserve"><value>Vælg et klokkeslæt i trin på fem minutter.</value></data>
+  <data name="Enter a date." xml:space="preserve"><value>Angiv en dato.</value></data>
+  <data name="Enter a time." xml:space="preserve"><value>Angiv et klokkeslæt.</value></data>
+  <data name="Previous month" xml:space="preserve"><value>Forrige måned</value></data>
+  <data name="Next month" xml:space="preserve"><value>Næste måned</value></data>
+  <data name="AdminDesign.Hour" xml:space="preserve"><value>Time</value></data>
+  <data name="AdminDesign.Minute" xml:space="preserve"><value>Minut</value></data>
+  <data name="AdminDesign.Today" xml:space="preserve"><value>I dag</value></data>
+  <data name="Done" xml:space="preserve"><value>Færdig</value></data>
+  <data name="Loading schedule" xml:space="preserve"><value>Indlæser tidsplan</value></data>
+  <data name="When captains draft their teams. Optional, and the draft is still started by hand on Teams / Draft." xml:space="preserve"><value>Hvornår kaptajnerne vælger deres hold. Valgfrit; holdvalget startes stadig manuelt på Hold / Holdvalg.</value></data>
+  <data name="When the bingo runs." xml:space="preserve"><value>Hvornår bingoen finder sted.</value></data>
+  <data name="Not scheduled. Signups open when you open them on Overview, or set a time to open them automatically." xml:space="preserve"><value>Ikke planlagt. Tilmelding åbner, når du åbner den på Overblik, eller angiv et tidspunkt for automatisk åbning.</value></data>
+  <data name="Signups open automatically at this time if the event is ready then. Overview lists anything still missing." xml:space="preserve"><value>Tilmelding åbner automatisk på dette tidspunkt, hvis eventet er klar. Overblik viser, hvad der stadig mangler.</value></data>
+  <data name="Planned only: automatic opening is off for this older schedule, so signups open when you open them on Overview. Choosing a new time turns automatic opening on." xml:space="preserve"><value>Kun planlagt: automatisk åbning er slået fra for denne ældre tidsplan. Tilmelding åbnes på Overblik. Et nyt tidspunkt slår automatisk åbning til.</value></data>
+  <data name="Signups stay open until you close them on Overview." xml:space="preserve"><value>Tilmelding forbliver åben, indtil du lukker den på Overblik.</value></data>
+  <data name="Signups close automatically at this time." xml:space="preserve"><value>Tilmelding lukker automatisk på dette tidspunkt.</value></data>
+  <data name="For planning and players’ information. It doesn’t start the team draft." xml:space="preserve"><value>Til planlægning og spillernes information. Det starter ikke holdvalget.</value></data>
+  <data name="The event starts automatically at this time if it is ready. Overview lists anything still missing." xml:space="preserve"><value>Eventet starter automatisk på dette tidspunkt, hvis det er klar. Overblik viser, hvad der stadig mangler.</value></data>
+  <data name="Changing the end needs a reason and confirmation." xml:space="preserve"><value>Ændring af sluttidspunktet kræver en begrundelse og bekræftelse.</value></data>
+  <data name="The end must be after the start." xml:space="preserve"><value>Sluttidspunktet skal være efter starttidspunktet.</value></data>
+  <data name="Times are in {0}; change it on" xml:space="preserve"><value>Tider vises i {0}; skift tidszone på</value></data>
+  <data name="Open, close or start by hand on" xml:space="preserve"><value>Åbn, luk eller start manuelt på</value></data>
+  <data name="{0} is live, so only its end can change." xml:space="preserve"><value>{0} er i gang, så kun sluttidspunktet kan ændres.</value></data>
+  <data name="{0} has ended and is in final review, so its schedule is history. To accept uploads again or resume the event, use Overview." xml:space="preserve"><value>{0} er afsluttet og afventer endelig gennemgang, så tidsplanen er historik. Brug Overblik til at åbne for uploads igen eller genoptage eventet.</value></data>
+  <data name="{0} is archived, so its schedule can’t change." xml:space="preserve"><value>{0} er arkiveret, så tidsplanen kan ikke ændres.</value></data>
+  <data name="{0} was cancelled, so its schedule can’t change." xml:space="preserve"><value>{0} blev annulleret, så tidsplanen kan ikke ændres.</value></data>
+  <data name="{0} is finished, so its schedule can’t change." xml:space="preserve"><value>{0} er afsluttet, så tidsplanen kan ikke ændres.</value></data>
+  <data name="The team draft is underway, so signup times and the draft time are locked. The event start and end can still change." xml:space="preserve"><value>Holdvalget er i gang, så tilmeldingstider og holdvalgstidspunkt er låst. Eventets start og slutning kan stadig ændres.</value></data>
+  <data name="The team draft is finalized, so only the event start and end can change." xml:space="preserve"><value>Holdvalget er afsluttet, så kun eventets start og slutning kan ændres.</value></data>
+  <data name="Kept as history; the event was cancelled." xml:space="preserve"><value>Bevaret som historik; eventet blev annulleret.</value></data>
+  <data name="Signups opened {0}." xml:space="preserve"><value>Tilmelding åbnede {0}.</value></data>
+  <data name="This time has passed. Open signups on Overview." xml:space="preserve"><value>Tidspunktet er passeret. Åbn tilmelding på Overblik.</value></data>
+  <data name="Signups closed {0}." xml:space="preserve"><value>Tilmelding lukkede {0}.</value></data>
+  <data name="To set a new closing time, reopen signups on Overview." xml:space="preserve"><value>Genåbn tilmelding på Overblik for at angive et nyt sluttidspunkt.</value></data>
+  <data name="Locked while the team draft is underway." xml:space="preserve"><value>Låst, mens holdvalget er i gang.</value></data>
+  <data name="Locked after the team draft was finalized." xml:space="preserve"><value>Låst, efter holdvalget er afsluttet.</value></data>
+  <data name="This boundary has passed." xml:space="preserve"><value>Denne grænse er passeret.</value></data>
+  <data name="This time has passed." xml:space="preserve"><value>Tidspunktet er passeret.</value></data>
+  <data name="Locked after the event started." xml:space="preserve"><value>Låst, efter eventet startede.</value></data>
+  <data name="Started {0}." xml:space="preserve"><value>Startede {0}.</value></data>
+  <data name="Ended {0}." xml:space="preserve"><value>Sluttede {0}.</value></data>
+  <data name="Locked." xml:space="preserve"><value>Låst.</value></data>
+  <data name="The event starts automatically at this time if it’s ready then. If something is missing, the start is postponed and admins are told." xml:space="preserve"><value>Eventet starter automatisk på dette tidspunkt, hvis det er klar. Hvis noget mangler, udsættes starten, og administratorerne får besked.</value></data>
+  <data name="Changing the end while the event is live needs a reason." xml:space="preserve"><value>Ændring af sluttidspunktet, mens eventet er i gang, kræver en begrundelse.</value></data>
+  <data name="Must be after the event starts." xml:space="preserve"><value>Skal være efter eventets start.</value></data>
+  <data name="No closing time. Signups stay open until you close them on Overview." xml:space="preserve"><value>Intet sluttidspunkt. Tilmelding forbliver åben, indtil du lukker den på Overblik.</value></data>
+  <data name="This start time has passed and the event hasn’t started. Choose a new time, or start it on Overview." xml:space="preserve"><value>Starttidspunktet er passeret, og eventet er ikke startet. Vælg et nyt tidspunkt, eller start det på Overblik.</value></data>
+  <data name="Normal uploads closed" xml:space="preserve"><value>Normale uploads lukkede</value></data>
+  <data name="Uploads close 30 minutes after the end:" xml:space="preserve"><value>Uploads lukker 30 minutter efter afslutningen:</value></data>
+  <data name=", 30 minutes after the end." xml:space="preserve"><value>, 30 minutter efter afslutningen.</value></data>
+  <data name=". This follows the end; it isn’t set separately." xml:space="preserve"><value>. Det følger sluttidspunktet og indstilles ikke separat.</value></data>
+  <data name="You both changed this. Their saved time:" xml:space="preserve"><value>I har begge ændret dette. Deres gemte tidspunkt:</value></data>
+  <data name="Yours is kept until you choose." xml:space="preserve"><value>Dit bevares, indtil du vælger.</value></data>
+  <data name="Updated to their saved time." xml:space="preserve"><value>Opdateret til deres gemte tidspunkt.</value></data>
 </root>

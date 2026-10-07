@@ -9,7 +9,7 @@ public sealed class EventAndSignupRulesTests
     private static readonly DateTimeOffset Now = new(2026, 7, 11, 12, 0, 0, TimeSpan.Zero);
 
     [Fact]
-    public void PrivateParticipantCapCanChangeButPublicCapCannotDecrease()
+    public void PreDraftParticipantCapCanChangeAfterPublicExposure()
     {
         var item = CreateEvent(50);
         item.IncreaseParticipantCap(60);
@@ -18,7 +18,9 @@ public sealed class EventAndSignupRulesTests
         Assert.Equal(59, item.ParticipantCap);
         item.MarkFirstPublic(Now);
         item.IncreaseParticipantCap(60);
-        Assert.Throws<InvalidOperationException>(() => item.IncreaseParticipantCap(59));
+        // OS-4: public exposure does not replace the active pre-draft/count guards.
+        item.IncreaseParticipantCap(59);
+        Assert.Equal(59, item.ParticipantCap);
     }
 
     [Fact]

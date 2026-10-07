@@ -16,6 +16,7 @@ using Microsoft.Extensions.Localization;
 namespace Bingo.Web.Pages.Admin.Events;
 
 [Authorize(Policy = AuthorizationPolicies.Admin)]
+[AdminDesign]
 public sealed class ScheduleModel(ApplicationDbContext db, IEventSignupLifecycleService schedules, IEventReadinessEvaluator readiness, TimeProvider time, IStringLocalizer<SharedResource>? text = null) : PageModel
 {
     [BindProperty] public InputModel Input { get; set; } = new();
@@ -24,6 +25,40 @@ public sealed class ScheduleModel(ApplicationDbContext db, IEventSignupLifecycle
     public string EventSlug { get; private set; } = string.Empty;
     public string EventTimezone { get; private set; } = string.Empty;
     public EventState EventState { get; private set; }
+    public string EventTimezoneLabel => TryTimezone(EventTimezone, out var zone) ? $"{EventTimezone} (UTC{TimeZoneInfo.ConvertTime(time.GetUtcNow(), zone):zzz})" : EventTimezone;
+    public string LocalDate(string? value) => DateTime.TryParseExact(value, "yyyy-MM-ddTHH:mm", CultureInfo.InvariantCulture, DateTimeStyles.None, out var date) ? date.ToString("d MMM yyyy, HH:mm", CultureInfo.CurrentCulture) : Localize("Not set");
+    public DateTimeOffset CurrentInstant => time.GetUtcNow();
+    public string? ActualEventStarted { get; private set; }
+    public string? ActualEventEnded { get; private set; }
+    public string ScheduleNotice => EventState switch
+    {
+        EventState.Live => Localize("{0} is live, so only its end can change.", EventName),
+        EventState.AwaitingFinalReview => Localize("{0} has ended and is in final review, so its schedule is history. To accept uploads again or resume the event, use Overview.", EventName),
+        EventState.Archived => Localize("{0} is archived, so its schedule can’t change.", EventName),
+        EventState.Cancelled => Localize("{0} was cancelled, so its schedule can’t change.", EventName),
+        EventState.Finalized => Localize("{0} is finished, so its schedule can’t change.", EventName),
+        _ when CurrentDraftState is DraftState.Running or DraftState.Paused => Localize("The team draft is underway, so signup times and the draft time are locked. The event start and end can still change."),
+        _ when CurrentDraftState == DraftState.Finalized => Localize("The team draft is finalized, so only the event start and end can change."),
+        _ => string.Empty
+    };
+    public string FieldLock(string key)
+    {
+        var drafting = CurrentDraftState is DraftState.Running or DraftState.Paused;
+        var finalized = CurrentDraftState == DraftState.Finalized;
+        if (EventState == EventState.Cancelled && !(key == "signupOpensAt" && ActualSignupOpened is not null) && !(key == "signupClosesAt" && ActualSignupClosed is not null)) return Localize("Kept as history; the event was cancelled.");
+        return key switch
+        {
+            "signupOpensAt" => ActualSignupOpened is { } opened ? Localize("Signups opened {0}.", opened) : Localize("This time has passed. Open signups on Overview."),
+            "signupClosesAt" when ActualSignupClosed is { } closed => Localize("Signups closed {0}.", closed) + (EventState == EventState.SignupClosed && !drafting && !finalized ? " " + Localize("To set a new closing time, reopen signups on Overview.") : ""),
+            "signupClosesAt" or "draftAt" when drafting => Localize("Locked while the team draft is underway."),
+            "signupClosesAt" or "draftAt" when finalized => Localize("Locked after the team draft was finalized."),
+            "signupClosesAt" => Localize("This boundary has passed."),
+            "draftAt" => Localize(EventState is EventState.Draft or EventState.SignupOpen or EventState.SignupClosed ? "This time has passed." : "Locked after the event started."),
+            "eventStartsAt" when ActualEventStarted is { } started => Localize("Started {0}.", started),
+            "eventEndsAt" when ActualEventEnded is { } ended => Localize("Ended {0}.", ended),
+            _ => Localize("Locked.")
+        };
+    }
     public bool ShowPublicBoard { get; private set; }
     public IReadOnlyList<ManageModel.TimelineRow> EffectiveTimeline { get; private set; } = [];
     public string? ActualSignupOpened { get; private set; }
@@ -36,10 +71,9 @@ public sealed class ScheduleModel(ApplicationDbContext db, IEventSignupLifecycle
     public bool CanEditDraftTime { get; private set; }
     public bool CanEditEventStart { get; private set; }
     public bool CanEditEventEnd { get; private set; }
-    public bool CanEditCapacity { get; private set; }
     public DraftState? CurrentDraftState { get; private set; }
     public SignupReadiness? Readiness { get; private set; }
-    public bool ParticipantsRelyOnSchedule { get; private set; }
+    public bool HasPublicExposure { get; private set; }
     // Retained as a server-side diagnostic for older callers; the page no
     // longer renders a preview/acknowledgement ladder.
     public IReadOnlyList<ScheduleChangePreview> ChangePreview { get; private set; } = [];
@@ -67,7 +101,11 @@ public sealed class ScheduleModel(ApplicationDbContext db, IEventSignupLifecycle
         var item = current.Item;
         CurrentDraftState = current.DraftState;
         SetDisplay(item);
-        return new JsonResult(new
+        return new JsonResult(CurrentSnapshot);
+    }
+
+    public object CurrentSnapshot { get; private set; } = new { };
+    private object Snapshot(BingoEvent item) => new
         {
             eventId = item.Id,
             version = item.Version.ToString(CultureInfo.InvariantCulture),
@@ -78,7 +116,7 @@ public sealed class ScheduleModel(ApplicationDbContext db, IEventSignupLifecycle
             {
                 signupOpensAt = Instant(item.SignupOpensAt), signupClosesAt = Instant(item.SignupClosesAt),
                 draftAt = Instant(item.DraftAt), eventStartsAt = Instant(item.EventStartsAt),
-                eventEndsAt = Instant(item.EventEndsAt), participantCap = item.ParticipantCap,
+                eventEndsAt = Instant(item.EventEndsAt),
                 scheduledSignupOpeningEnabled = item.ScheduledSignupOpeningEnabled
             },
             editable = new
@@ -86,8 +124,7 @@ public sealed class ScheduleModel(ApplicationDbContext db, IEventSignupLifecycle
                 signupOpensAt = CanEditScheduledOpening, signupClosesAt = CanEditSignupClosing,
                 draftAt = CanEditDraftTime, eventStartsAt = CanEditEventStart, eventEndsAt = CanEditEventEnd
             }
-        });
-    }
+        };
 
     private static string? Instant(DateTimeOffset? value) => value?.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture);
 
@@ -132,7 +169,7 @@ public sealed class ScheduleModel(ApplicationDbContext db, IEventSignupLifecycle
             return await Reload(item, ct, preserveInput: true);
         }
         TempData["StatusMessage"] = Localize("Event schedule updated."); TempData[UiMessage.TypeKey] = UiMessageType.Success.ToString();
-        return RedirectToPage("Manage", new { id });
+        return RedirectToPage("Schedule", new { id });
     }
 
     private EventScheduleValues Parse(BingoEvent item, TimeZoneInfo timezone) => new(
@@ -205,7 +242,7 @@ public sealed class ScheduleModel(ApplicationDbContext db, IEventSignupLifecycle
     {
         SetDisplay(item);
         if (!TryTimezone(item.Timezone, out var timezone)) return;
-        Input = new InputModel { SignupOpensLocal = FormValue(item.SignupOpensAt, timezone), SignupClosesLocal = FormValue(item.SignupClosesAt, timezone), DraftLocal = FormValue(item.DraftAt, timezone), EventStartsLocal = FormValue(item.EventStartsAt, timezone), EventEndsLocal = FormValue(item.EventEndsAt, timezone), ParticipantCap = item.ParticipantCap, ScheduledSignupOpeningEnabled = item.ScheduledSignupOpeningEnabled, Version = item.Version };
+        Input = new InputModel { SignupOpensLocal = FormValue(item.SignupOpensAt, timezone), SignupClosesLocal = FormValue(item.SignupClosesAt, timezone), DraftLocal = FormValue(item.DraftAt, timezone), EventStartsLocal = FormValue(item.EventStartsAt, timezone), EventEndsLocal = FormValue(item.EventEndsAt, timezone), ScheduledSignupOpeningEnabled = item.ScheduledSignupOpeningEnabled, Version = item.Version };
     }
     private void SetDisplay(BingoEvent item)
     {
@@ -228,7 +265,11 @@ public sealed class ScheduleModel(ApplicationDbContext db, IEventSignupLifecycle
             item.SubmissionCutoffAt,
             item.SubmissionsClosedAt,
             item.CancelledAt));
+        HasPublicExposure = item.FirstPublicAt is not null;
+        CurrentSnapshot = Snapshot(item);
         if (!TryTimezone(item.Timezone, out var timezone)) return;
+        ActualEventStarted = item.ActualStartedAt is null ? null : Display(item.ActualStartedAt, timezone);
+        ActualEventEnded = item.ActualEndedAt is null ? null : Display(item.ActualEndedAt, timezone);
         ActualSignupOpened = item.ActualSignupOpenedAt is null ? null : Display(item.ActualSignupOpenedAt, timezone);
         ActualSignupClosed = item.ActualSignupClosedAt is null ? null : Display(item.ActualSignupClosedAt, timezone);
         ScheduledSignupOpening = Display(item.SignupOpensAt, timezone);
@@ -248,15 +289,13 @@ public sealed class ScheduleModel(ApplicationDbContext db, IEventSignupLifecycle
         CanEditEventEnd = item.State == EventState.Live
             ? true
             : preLiveSchedule;
-        CanEditCapacity = preLiveSchedule && !draftLockedForEditing && !finalizedDraft;
-        ParticipantsRelyOnSchedule = item.FirstPublicAt is not null;
+        HasPublicExposure = item.FirstPublicAt is not null;
+        CurrentSnapshot = Snapshot(item);
     }
     public string EventDate(DateTimeOffset value)
     {
         return DateTimePresentation.Format(value, "dd MMM yyyy, HH:mm", EventTimezone, CultureInfo.CurrentCulture);
     }
-    private static bool Changed(BingoEvent item, EventScheduleValues values) => item.SignupOpensAt != values.SignupOpensAt || item.SignupClosesAt != values.SignupClosesAt || item.DraftAt != values.DraftAt || item.EventStartsAt != values.EventStartsAt || item.EventEndsAt != values.EventEndsAt || item.ParticipantCap != values.ParticipantCap || item.ScheduledSignupOpeningEnabled != values.ScheduledSignupOpeningEnabled;
-    private static bool ConsequenceChanged(BingoEvent item, EventScheduleValues values) => item.SignupOpensAt != values.SignupOpensAt || item.SignupClosesAt != values.SignupClosesAt || item.EventStartsAt != values.EventStartsAt || item.EventEndsAt != values.EventEndsAt || item.ParticipantCap != values.ParticipantCap || item.ScheduledSignupOpeningEnabled != values.ScheduledSignupOpeningEnabled;
     private EventScheduleValues RestoreLockedValues(BingoEvent item, EventScheduleValues values) => values with
     {
         SignupOpensAt = CanEditScheduledOpening ? values.SignupOpensAt : item.SignupOpensAt,
@@ -264,7 +303,7 @@ public sealed class ScheduleModel(ApplicationDbContext db, IEventSignupLifecycle
         DraftAt = CanEditDraftTime ? values.DraftAt : item.DraftAt,
         EventStartsAt = CanEditEventStart ? values.EventStartsAt : item.EventStartsAt,
         EventEndsAt = CanEditEventEnd ? values.EventEndsAt : item.EventEndsAt,
-        // Capacity is administered from Manage; Schedule only carries it
+        // Capacity is administered from Signup setup; Schedule only carries it
         // through the service boundary for compatibility with existing callers.
         ParticipantCap = item.ParticipantCap,
         ScheduledSignupOpeningEnabled = item.ScheduledSignupOpeningEnabled
@@ -298,7 +337,6 @@ public sealed class ScheduleModel(ApplicationDbContext db, IEventSignupLifecycle
         public string? DraftLocal { get; set; }
         public string? EventStartsLocal { get; set; }
         public string? EventEndsLocal { get; set; }
-        [Range(1, 10000)] public int? ParticipantCap { get; set; }
         public bool ScheduledSignupOpeningEnabled { get; set; }
         public bool ConfirmChanges { get; set; }
         [StringLength(2000)] public string? EventEndReason { get; set; }

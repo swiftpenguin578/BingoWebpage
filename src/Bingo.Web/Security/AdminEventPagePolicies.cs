@@ -73,7 +73,7 @@ public static class AdminEventPagePolicies
                 ("GET:", AdminEventHandlerGate.Read),
                 ("GET:Current", AdminEventHandlerGate.Read),
                 ("POST:", AdminEventHandlerGate.Identity)),
-            [typeof(ScheduleModel)] = Page(AdminEventPageKind.Schedule, true, false,
+            [typeof(ScheduleModel)] = Page(AdminEventPageKind.Schedule, true, true,
                 ("GET:", AdminEventHandlerGate.Read),
                 ("GET:Current", AdminEventHandlerGate.Read),
                 ("POST:", AdminEventHandlerGate.Schedule)),

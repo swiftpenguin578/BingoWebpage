@@ -8,7 +8,7 @@ const instantFields = ['signupOpensAt', 'signupClosesAt', 'draftAt', 'eventStart
 const copy = value => JSON.parse(JSON.stringify(value));
 const initial = {
   eventId: '11111111-1111-1111-1111-111111111111', version: '9007199254740993', timezone: 'Europe/Copenhagen', phase: 'Draft', draftState: 'Setup',
-  values: {signupOpensAt:'2027-10-10T12:00:11.1234560+00:00',signupClosesAt:'2027-10-11T12:00:12.2345670+00:00',draftAt:'2027-10-31T01:30:17.1234560+00:00',eventStartsAt:'2027-11-01T12:00:13.3456780+00:00',eventEndsAt:'2027-11-02T12:00:14.4567890+00:00',participantCap:20,scheduledSignupOpeningEnabled:false},
+  values: {signupOpensAt:'2027-10-10T12:00:11.1234560+00:00',signupClosesAt:'2027-10-11T12:00:12.2345670+00:00',draftAt:'2027-10-31T01:30:17.1234560+00:00',eventStartsAt:'2027-11-01T12:00:13.3456780+00:00',eventEndsAt:'2027-11-02T12:00:14.4567890+00:00',scheduledSignupOpeningEnabled:false},
   editable: Object.fromEntries(instantFields.map(field => [field, true]))
 };
 let current = copy(initial), failure = null, posts = 0, reads = 0;
@@ -19,6 +19,7 @@ const server = http.createServer(async (req, res) => {
     req.socket.destroy(); // Applied, response lost; no result consumed by the session.
     return;
   }
+  if (req.url.startsWith('/Account/Login')) { res.setHeader('Content-Type','text/html'); return res.end('<html>Sign in</html>'); }
   reads++; assert.equal(req.method, 'GET'); assert.equal(new URL(req.url, 'http://localhost').searchParams.get('handler'), 'Current');
   if (failure === 'network') return req.socket.destroy();
   if (failure === 'redirect') { res.writeHead(302, {location:'/Account/Login'}); return res.end(); }
@@ -30,7 +31,12 @@ const server = http.createServer(async (req, res) => {
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   try {
     const url = `http://127.0.0.1:${server.address().port}/Admin/Events/Schedule/${initial.eventId}`;
-    const context = { window:{location:new URL(url)}, URL, fetch };
+    const context = { window:{location:new URL(url)}, location:new URL(url), URL, fetch, Headers, document: { querySelector: () => null } };
+    // C-CMP-2: exercise the shipped transport classifier, retaining the draft on session loss.
+    vm.runInNewContext(fs.readFileSync('src/Bingo.Web/wwwroot/js/admin-design-fetch.js','utf8'), context);
+    context.window.AdminFetch.sessionNotice = () => {};
+    const request = context.window.AdminFetch.request;
+    context.window.AdminFetch.request = (url, options) => request(url, {...options, notice:false});
     vm.runInNewContext(fs.readFileSync('src/Bingo.Web/wwwroot/js/event-schedule.js','utf8'), context);
     const draft = {...initial.values, eventEndsAt:'2027-11-03T12:00:00Z'};
     const observed = copy(initial);

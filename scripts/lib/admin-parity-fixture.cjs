@@ -3,7 +3,7 @@ const path = require('node:path');
 const { spawn } = require('node:child_process');
 async function startFixture(root, output, environment = {}) {
   fs.mkdirSync(output, { recursive: true });
-  const app = spawn('dotnet', ['run', '--project', 'tests/AdminDesignParityFixture/AdminDesignParityFixture.csproj', '--configuration', 'Release', '--no-build'], { cwd: root, env: { ...process.env, ...environment, BINGO_PARITY_ROOT: root }, stdio: ['pipe', 'pipe', 'pipe'] });
+  const app = spawn('dotnet', ['run', '--project', 'tests/AdminDesignParityFixture/AdminDesignParityFixture.csproj', '--configuration', process.env.BINGO_PARITY_CONFIGURATION || 'Release', '--no-build'], { cwd: root, env: { ...process.env, ...environment, BINGO_PARITY_ROOT: root }, stdio: ['pipe', 'pipe', 'pipe'] });
   const log = fs.createWriteStream(path.join(output, 'fixture.log'));
   const manifest = await new Promise((resolve, reject) => {
     let buffer = ''; const timer = setTimeout(() => reject(new Error('Controlled Kestrel fixture did not start within 120 seconds.')), 120000);

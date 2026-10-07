@@ -104,7 +104,9 @@ public sealed class EventSignupWarningRemediationIntegrationTests(PostgreSqlTest
         client.DefaultRequestHeaders.AcceptLanguage.ParseAdd("da");
         var route = scheduled ? $"/Admin/Events/Schedule/{eventId}" : $"/Admin/Events/Manage/{eventId}?confirm=signup";
         var page = WebUtility.HtmlDecode(await client.GetStringAsync(route));
-        Assert.Contains("Svar på tekstspørgsmål vil være offentlige i tilmeldingsoversigten.", page);
+        // U3-Q2: Schedule no longer repeats Signup warnings; Overview retains them.
+        if (scheduled) Assert.DoesNotContain("Svar på tekstspørgsmål vil være offentlige i tilmeldingsoversigten.", page);
+        else Assert.Contains("Svar på tekstspørgsmål vil være offentlige i tilmeldingsoversigten.", page);
         Assert.DoesNotContain("Answers to text questions will be public on the signup table.", page);
     }
 

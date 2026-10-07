@@ -3,7 +3,7 @@
 // never reparses minute display strings or reconstructs an intent after a timeout.
 (() => {
     const instantFields = ['signupOpensAt', 'signupClosesAt', 'draftAt', 'eventStartsAt', 'eventEndsAt'];
-    const valueFields = [...instantFields, 'participantCap', 'scheduledSignupOpeningEnabled'];
+    const valueFields = [...instantFields, 'scheduledSignupOpeningEnabled'];
     const phases = ['Draft', 'SignupOpen', 'SignupClosed', 'Live', 'AwaitingFinalReview', 'Finalized', 'Archived', 'Cancelled'];
     const drafts = [null, 'Setup', 'Running', 'Paused', 'Finalized'];
     function instant(value) {
@@ -16,10 +16,9 @@
         return `${match[1]}.${(match[2] || '').padEnd(7, '0')}Z`;
     }
     function values(source) {
-        if (!source || !Number.isInteger(source.participantCap) && source.participantCap !== null || typeof source.scheduledSignupOpeningEnabled !== 'boolean')
+        if (!source || typeof source.scheduledSignupOpeningEnabled !== 'boolean')
             throw new Error('Incomplete schedule');
         const result = Object.fromEntries(instantFields.map(field => [field, instant(source[field])]));
-        result.participantCap = source.participantCap;
         result.scheduledSignupOpeningEnabled = source.scheduledSignupOpeningEnabled;
         return Object.freeze(result);
     }
@@ -38,11 +37,11 @@
         const url = new URL(routeUrl, window.location.href);
         if (url.origin !== window.location.origin) throw new Error('Schedule readback must be same-origin');
         url.searchParams.set('handler', 'Current');
-        return Object.freeze({ baseline, expected, async checkAgain() {
+        return Object.freeze({ baseline, expected, async checkAgain(signal, draft) {
             try {
-                const response = await fetch(url.href, { method: 'GET', credentials: 'same-origin', cache: 'no-store', redirect: 'error', headers: { Accept: 'application/json' } });
-                if (!response.ok || response.redirected) throw new Error('Current state unavailable');
-                const current = snapshot(await response.json());
+                const outcome = await window.AdminFetch.request(url.href, { cache: 'no-store', signal, draft, readback: true });
+                if (outcome.kind !== 'handler') return Object.freeze({ state: 'unknown', outcome });
+                const current = snapshot(outcome.data);
                 if (current.eventId !== baseline.eventId || BigInt(current.version) < BigInt(baseline.version)) throw new Error('Unexpected current state');
                 const versionChanged = current.version !== baseline.version;
                 const contextChanged = current.timezone !== baseline.timezone || current.phase !== baseline.phase || current.draftState !== baseline.draftState

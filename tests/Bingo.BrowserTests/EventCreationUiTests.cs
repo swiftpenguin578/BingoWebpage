@@ -51,13 +51,14 @@ public sealed class EventCreationUiTests
         var schedule = File.ReadAllText(Path.Combine(repositoryRoot, "src", "Bingo.Web", "Pages", "Admin", "Events", "Schedule.cshtml"));
         var scheduleHandler = File.ReadAllText(Path.Combine(repositoryRoot, "src", "Bingo.Web", "Pages", "Admin", "Events", "Schedule.cshtml.cs"));
 
-        Assert.Contains("asp-for=\"Input.EventEndsLocal\" type=\"datetime-local\" step=\"300\" class=\"form-control event-datetime-canonical\" data-datetime-canonical", schedule);
-        Assert.Contains("data-schedule-boundary=\"Event ends\"", schedule);
-        Assert.Contains("window.bingoEventDateTime.initializeControls(document.querySelector(\"[data-schedule-editor]\"), window.flatpickr);", schedule);
-        Assert.Contains("window.adminConfirmation.open", schedule);
-        Assert.Contains("const isLive = form.dataset.live === \"true\";", schedule);
-        Assert.Contains("requireReason: isLive && consequenceChanges.some(change => change.label === \"Event ends\")", schedule);
-        Assert.Contains("HTMLFormElement.prototype.submit.call(form);", schedule);
+        // OS-1 / RC03: Schedule uses the shared reference .dtp; legacy consumers retain their adapter.
+        Assert.Contains("data-date-time=", schedule);
+        Assert.Contains("admin-schedule.js", schedule);
+        Assert.DoesNotContain("event-create-datetime.js", schedule);
+        var module = File.ReadAllText(Path.Combine(repositoryRoot, "src", "Bingo.Web", "wwwroot", "js", "admin-schedule.js"));
+        Assert.Contains("mountDateTime", module);
+        Assert.Contains("ui.openLayer", module);
+        Assert.Contains("data.set('Input.EventEndReason',reason)", module);
         Assert.Contains("schedules.SaveScheduleAsync(id, Input.Version, values, Input.ConfirmChanges", scheduleHandler);
         Assert.Contains("Input.EventEndReason", scheduleHandler);
     }

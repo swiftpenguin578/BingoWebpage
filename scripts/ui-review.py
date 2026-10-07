@@ -21,6 +21,9 @@ PORT = 54339
 LABEL = "dev.bingo.ui-review.owner"
 PASSWORD = "LocalReview!1234"
 IMAGE = "postgres:17-alpine"
+CONFIGURATION = os.environ.get("BINGO_UI_REVIEW_CONFIGURATION", "Release")
+if CONFIGURATION not in ("Debug", "Release"):
+    raise RuntimeError("UI review configuration must be Debug or Release.")
 MARKER = STATE / "owner.json"
 PROCESSES = STATE / "processes.json"
 
@@ -164,7 +167,7 @@ def environment():
 
 def dotnet(env, *args):
     run("dotnet", "run", "--project", str(ROOT / "src/Bingo.Web"),
-        "--configuration", "Release", "--no-build", "--no-launch-profile", "--", *args,
+        "--configuration", CONFIGURATION, "--no-build", "--no-launch-profile", "--", *args,
         cwd=ROOT, env=env)
 
 
@@ -264,13 +267,13 @@ def main():
             shutil.rmtree(folder)
         folder.mkdir()
     env = environment()
-    run("dotnet", "build", str(ROOT / "Bingo.slnx"), "--configuration", "Release", cwd=ROOT, env=env)
+    run("dotnet", "build", str(ROOT / "Bingo.slnx"), "--configuration", CONFIGURATION, cwd=ROOT, env=env)
     dotnet(env, "--migrate")
     dotnet(env, "--apply-catalogue-snapshot")
     dotnet(env, "--seed-review-scenarios", "--review-profile", args.profile)
     records = []
     try:
-        records.append(start_process(["dotnet", str(ROOT / "src/Bingo.Web/bin/Release/net10.0/Bingo.Web.dll")], env, STATE / "app.log"))
+        records.append(start_process(["dotnet", str(ROOT / f"src/Bingo.Web/bin/{CONFIGURATION}/net10.0/Bingo.Web.dll")], env, STATE / "app.log"))
         PROCESSES.write_text(json.dumps(records))
         records.append(start_process([sys.executable, "-m", "http.server", "5320", "--bind", "127.0.0.1", "--directory", str(ROOT / "docs/references/admin-ui")], env, STATE / "references.log"))
         PROCESSES.write_text(json.dumps(records))
