@@ -277,9 +277,10 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests
 
     private static IndexModel.SharedItemActivity[] AssertAffected(IndexModel page, IReadOnlyCollection<BossActivity> expected)
     {
-        var json = Assert.IsType<string>(page.TempData[IndexModel.SharedItemAffectedActivitiesTempDataKey]);
-        var affected = JsonSerializer.Deserialize<IndexModel.SharedItemActivity[]>(json);
-        Assert.NotNull(affected);
+        // T2 D7/D9 transport (brief 82 planner default): the affected list comes back with the
+        // response (model/JSON), not TempData. Same exact ids and names are asserted.
+        var affected = page.SharedItemAffectedActivities.ToArray();
+        Assert.NotEmpty(affected);
         Assert.Equal(expected.Select(value => value.Id).OrderBy(value => value), affected!.Select(value => value.Id).OrderBy(value => value));
         Assert.Equal(expected.Select(value => value.Name).OrderBy(value => value), affected.Select(value => value.Name).OrderBy(value => value));
         return affected;

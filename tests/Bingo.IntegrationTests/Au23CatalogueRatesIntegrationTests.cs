@@ -128,7 +128,8 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests
             Assert.IsType<RedirectToPageResult>(await page.OnPostUpdateDropAsync(
                 current.Id, current.Version, shared.Version, shared.Name, current.DisplayRate, current.DisplayRate,
                 null, null, default, false, null, 0, 0, "ordinary-change", null, null, false, CancellationToken.None));
-            Assert.Contains("operator-managed", page.TempData["StatusMessage"]?.ToString(), StringComparison.OrdinalIgnoreCase);
+            // T2 item 13 (brief 82; 08 "Catalogue layout"): reworded refusal, rule unchanged.
+            Assert.Equal(IndexModel.RollGroupSuperAdminOnly, page.TempData["StatusMessage"]?.ToString());
         }
 
         await using (var verifyRefused = new ApplicationDbContext(options))
@@ -146,7 +147,8 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests
             Assert.IsType<RedirectToPageResult>(await page.OnPostUpdateDropAsync(
                 current.Id, current.Version, shared.Version, shared.Name, current.DisplayRate, current.DisplayRate,
                 null, null, default, false, null, 0, 0, "superadmin-change", null, null, false, CancellationToken.None));
-            Assert.DoesNotContain("operator-managed", page.TempData["StatusMessage"]?.ToString() ?? string.Empty, StringComparison.OrdinalIgnoreCase);
+            // T2 item 13 (brief 82; 08 "Catalogue layout"): reworded refusal, rule unchanged.
+            Assert.NotEqual(IndexModel.RollGroupSuperAdminOnly, page.TempData["StatusMessage"]?.ToString());
         }
 
         await using (var verifyAllowed = new ApplicationDbContext(options))
@@ -163,7 +165,8 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests
             Assert.IsType<RedirectToPageResult>(await page.OnPostUpdateDropAsync(
                 current.Id, current.Version, shared.Version, shared.Name, current.DisplayRate, current.DisplayRate,
                 null, null, default, false, null, 0, 0, "forged-claim-change", null, null, false, CancellationToken.None));
-            Assert.Contains("operator-managed", page.TempData["StatusMessage"]?.ToString(), StringComparison.OrdinalIgnoreCase);
+            // T2 item 13 (brief 82; 08 "Catalogue layout"): reworded refusal, rule unchanged.
+            Assert.Equal(IndexModel.RollGroupSuperAdminOnly, page.TempData["StatusMessage"]?.ToString());
         }
 
         await using var verifyDemoted = new ApplicationDbContext(options);

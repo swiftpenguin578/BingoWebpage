@@ -110,7 +110,8 @@ public sealed partial class IndexModel
         else if (missingHourlyPrice)
             feedback += " " + Localize(item.CatalogueValueGp is not null ? "The stored catalogue value was kept."
                 : "No catalogue value is stored. Enter a manual value or retry validation when a price is available.");
-        return await SaveAsync("catalogue.item_api_updated", "catalogue_item", item.Id, item.Name, before, () => State(item), feedback, ct, messageType);
+        return await SaveAsync("catalogue.item_api_updated", "catalogue_item", item.Id, item.Name, before, () => State(item), feedback, ct, messageType,
+            data: new Dictionary<string, object?> { ["activityId"] = drop.BossActivityId, ["dropId"] = drop.Id, ["tone"] = messageType.ToString() });
     }
 
     public async Task<IActionResult> OnPostBossApiAsync(Guid recordId, long expectedVersion, string? externalIdentifier, string operation, CancellationToken ct)
@@ -132,6 +133,7 @@ public sealed partial class IndexModel
         }
         return await SaveAsync("catalogue.boss_api_updated", "boss_activity", boss.Id, boss.Name, before, () => State(boss),
             Localize("API settings saved: {0}. A verified metric does not guarantee activity data for every player.", Localize(MappingLabel(boss.MappingStatus))), ct,
-            operation == "validate" && boss.MappingStatus != ApiMappingStatus.Verified ? UiMessageType.Information : UiMessageType.Success);
+            operation == "validate" && boss.MappingStatus != ApiMappingStatus.Verified ? UiMessageType.Information : UiMessageType.Success,
+            data: new Dictionary<string, object?> { ["activityId"] = boss.Id, ["status"] = boss.MappingStatus.ToString(), ["tone"] = (operation == "validate" && boss.MappingStatus != ApiMappingStatus.Verified ? UiMessageType.Information : UiMessageType.Success).ToString() });
     }
 }
