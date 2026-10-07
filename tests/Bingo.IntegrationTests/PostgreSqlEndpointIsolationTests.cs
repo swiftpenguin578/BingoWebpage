@@ -18,11 +18,10 @@ public sealed class PostgreSqlEndpointIsolationTests
         await Task.WhenAll(PostgreSqlReadiness.StartAsync(review), PostgreSqlReadiness.StartAsync(test));
         var reviewSettings = new NpgsqlConnectionStringBuilder(review.GetOwnedConnectionString());
         var testSettings = new NpgsqlConnectionStringBuilder(test.GetOwnedConnectionString());
-        if (review.Hostname == "localhost")
-        {
-            Assert.Equal("127.0.0.1", reviewBinding); Assert.Equal("127.0.0.1", testBinding);
-            Assert.Equal("127.0.0.1", reviewSettings.Host); Assert.Equal("127.0.0.1", testSettings.Host);
-        }
+        Assert.True(reviewBinding == "127.0.0.1" && testBinding == "127.0.0.1",
+            $"This local endpoint-isolation proof requires Docker loopback publication; actual hosts: review={review.Hostname}, test={test.Hostname}; bindings: review={reviewBinding}, test={testBinding}. Remote Docker requires an explicit dedicated proof, not skipped address assertions.");
+        Assert.Equal("127.0.0.1", reviewBinding); Assert.Equal("127.0.0.1", testBinding);
+        Assert.Equal("127.0.0.1", reviewSettings.Host); Assert.Equal("127.0.0.1", testSettings.Host);
         Assert.NotEqual(reviewSettings.Port, testSettings.Port);
         var identities = new List<string>();
         foreach (var database in new[] { review, test })

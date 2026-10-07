@@ -7,9 +7,13 @@ const {settle}=require('./lib/admin-parity-compare.cjs');
 async function until(page,fn){for(let i=0;i<200;i++)if(await page.evaluate(fn))return;throw Error('Microtask checkpoint not reached');}
 (async()=>{
  const records=[];
+ const engineNames=(process.env.BINGO_PARITY_ENGINES||'chromium,webkit').split(',');
+ assert.ok(engineNames.length&&engineNames.every(name=>['chromium','webkit'].includes(name)),'Explicit supported header-proof engines required');
+ const engines=engineNames.map(name=>name==='webkit'?webkit:chromium);
+ const runKey=engineNames.join('-');
  for(const narrow of(process.env.HEADER_DIAG==='1'?[true]:[false,true])){
-  const fixture=await startFixture(process.cwd(),path.join(process.cwd(),'artifacts/u2-header-'+narrow),narrow?{BINGO_PARITY_NARROW_CARD:'1'}:{});
-  try{for(const engine of[chromium,webkit]){
+  const fixture=await startFixture(process.cwd(),path.join(process.cwd(),'artifacts/u2-header-'+runKey+'-'+narrow),narrow?{BINGO_PARITY_NARROW_CARD:'1'}:{});
+  try{for(const engine of engines){
    const browser=await engine.launch({headless:true,...(engine===chromium?{channel:process.env.PLAYWRIGHT_CHANNEL||'chromium'}:{})});
    try{
     const data=fixture.dashboard,date=at=>at?.slice(0,10),card=data.CurrentEvent;
@@ -85,5 +89,5 @@ async function until(page,fn){for(let i=0;i<200;i++)if(await page.evaluate(fn))r
    }finally{await browser.close();}
   }}finally{await fixture.close();}
  }
- const output=path.join(process.cwd(),'artifacts/u2-header-positions.json');fs.writeFileSync(output,JSON.stringify(records,null,2));console.log('Header parity: '+records.length+' passed, 0 failed; '+output);
+ const output=path.join(process.cwd(),'artifacts/u2-header-positions-'+runKey+'.json');fs.writeFileSync(output,JSON.stringify(records,null,2));console.log('Header parity: '+records.length+' passed, 0 failed; '+output);
 })().catch(error=>{console.error(error);process.exitCode=1;});
