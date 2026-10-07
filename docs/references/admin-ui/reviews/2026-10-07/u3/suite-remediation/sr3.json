@@ -1,0 +1,161 @@
+{
+  "finding": "SR3",
+  "command": "dotnet test tests/Bingo.IntegrationTests -c Release --filter FullyQualifiedName~AdminDesignShellIntegrationTests",
+  "exitCode": 0,
+  "counters": {
+    "total": "26",
+    "executed": "26",
+    "passed": "26",
+    "failed": "0",
+    "error": "0",
+    "timeout": "0",
+    "aborted": "0",
+    "inconclusive": "0",
+    "passedButRunAborted": "0",
+    "notRunnable": "0",
+    "notExecuted": "0",
+    "disconnected": "0",
+    "warning": "0",
+    "completed": "0",
+    "inProgress": "0",
+    "pending": "0"
+  },
+  "times": {
+    "creation": "2026-10-07T21:44:15.3476530+02:00",
+    "queuing": "2026-10-07T21:44:15.3476530+02:00",
+    "start": "2026-10-07T21:44:06.1997670+02:00",
+    "finish": "2026-10-07T21:44:27.3975300+02:00"
+  },
+  "results": [
+    {
+      "testName": "Bingo.IntegrationTests.AdminDesignShellIntegrationTests.CancelledSwitcherUsesPersistedCancellationDateInEventTimezone(language: \"en\", stage: \"Cancelled\", expected: \"on 5 Oct\")",
+      "duration": "00:00:00.3279803",
+      "outcome": "Passed"
+    },
+    {
+      "testName": "Bingo.IntegrationTests.AdminDesignShellIntegrationTests.BoundIdentityUsesNewLayoutAndRendersLocalAssetsTokenAndTempData",
+      "duration": "00:00:00.8579260",
+      "outcome": "Passed"
+    },
+    {
+      "testName": "Bingo.IntegrationTests.AdminDesignShellIntegrationTests.RememberedEventIsRevalidatedAndDroppedOnEveryRender(change: \"no-access\")",
+      "duration": "00:00:00.9977125",
+      "outcome": "Passed"
+    },
+    {
+      "testName": "Bingo.IntegrationTests.AdminDesignShellIntegrationTests.IdentitySaveAndCurrentRedirectLostOrDisabledSessionWithoutData(disabled: False, post: False)",
+      "duration": "00:00:00.2413075",
+      "outcome": "Passed"
+    },
+    {
+      "testName": "Bingo.IntegrationTests.AdminDesignShellIntegrationTests.IdentitySaveAndNoChangePrgStayOnIdentityWithQuietSavedAndNoExtraAudit",
+      "duration": "00:00:00.3941747",
+      "outcome": "Passed"
+    },
+    {
+      "testName": "Bingo.IntegrationTests.AdminDesignShellIntegrationTests.SwitcherInvalidStoredTimezoneUsesUtcAndIdentityStillRenders",
+      "duration": "00:00:01.6780230",
+      "outcome": "Passed"
+    },
+    {
+      "testName": "Bingo.IntegrationTests.AdminDesignShellIntegrationTests.SwitcherConvertsCopenhagenDatesAcrossSpringDst",
+      "duration": "00:00:00.0633804",
+      "outcome": "Passed"
+    },
+    {
+      "testName": "Bingo.IntegrationTests.AdminDesignShellIntegrationTests.RememberedEventIsRevalidatedAndDroppedOnEveryRender(change: \"deleted\")",
+      "duration": "00:00:00.8614278",
+      "outcome": "Passed"
+    },
+    {
+      "testName": "Bingo.IntegrationTests.AdminDesignShellIntegrationTests.IdentityLostCommitRendersPostedDraftWithoutReadsEvenWhenRollbackFails",
+      "duration": "00:00:00.6033237",
+      "outcome": "Passed"
+    },
+    {
+      "testName": "Bingo.IntegrationTests.AdminDesignShellIntegrationTests.RememberedEventSessionSetsShowsReplacesRetainsPastAndClearsOnSignout",
+      "duration": "00:00:00.4788231",
+      "outcome": "Passed"
+    },
+    {
+      "testName": "Bingo.IntegrationTests.AdminDesignShellIntegrationTests.IdentitySaveAndCurrentRedirectLostOrDisabledSessionWithoutData(disabled: True, post: False)",
+      "duration": "00:00:00.3448209",
+      "outcome": "Passed"
+    },
+    {
+      "testName": "Bingo.IntegrationTests.AdminDesignShellIntegrationTests.EditingAfterUseTheirsSavesNewIntentAgainstReviewedCurrentValue",
+      "duration": "00:00:00.3965261",
+      "outcome": "Passed"
+    },
+    {
+      "testName": "Bingo.IntegrationTests.AdminDesignShellIntegrationTests.BoundIdentityTerminalReadsAreFullColourAndWritesStillRefused(state: Archived)",
+      "duration": "00:00:00.3614511",
+      "outcome": "Passed"
+    },
+    {
+      "testName": "Bingo.IntegrationTests.AdminDesignShellIntegrationTests.SwitcherUsesEligiblePhasesStableStartOrderPastSelectionAndHiddenOverview",
+      "duration": "00:00:00.0924465",
+      "outcome": "Passed"
+    },
+    {
+      "testName": "Bingo.IntegrationTests.AdminDesignShellIntegrationTests.IdentityTimezoneTemplatesUseAllFiveScheduledMomentsWithDstOffsetsAndPermanentSignupList",
+      "duration": "00:00:00.3429139",
+      "outcome": "Passed"
+    },
+    {
+      "testName": "Bingo.IntegrationTests.AdminDesignShellIntegrationTests.BoundIdentityHiddenGetReadbackAndPostAreNotFound",
+      "duration": "00:00:00.4550360",
+      "outcome": "Passed"
+    },
+    {
+      "testName": "Bingo.IntegrationTests.AdminDesignShellIntegrationTests.RememberedEventIsRevalidatedAndDroppedOnEveryRender(change: \"hidden\")",
+      "duration": "00:00:00.5444362",
+      "outcome": "Passed"
+    },
+    {
+      "testName": "Bingo.IntegrationTests.AdminDesignShellIntegrationTests.NewShellWithoutSelectedEventHidesEventNavigation",
+      "duration": "00:00:00.3424739",
+      "outcome": "Passed"
+    },
+    {
+      "testName": "Bingo.IntegrationTests.AdminDesignShellIntegrationTests.BoundIdentityTerminalReadsAreFullColourAndWritesStillRefused(state: Cancelled)",
+      "duration": "00:00:00.3616441",
+      "outcome": "Passed"
+    },
+    {
+      "testName": "Bingo.IntegrationTests.AdminDesignShellIntegrationTests.RememberedEventIsRevalidatedAndDroppedOnEveryRender(change: \"discarded\")",
+      "duration": "00:00:00.4252402",
+      "outcome": "Passed"
+    },
+    {
+      "testName": "Bingo.IntegrationTests.AdminDesignShellIntegrationTests.CancelledSwitcherUsesPersistedCancellationDateInEventTimezone(language: \"da\", stage: \"Aflyst\", expected: \"den 5 okt.\")",
+      "duration": "00:00:00.3311741",
+      "outcome": "Passed"
+    },
+    {
+      "testName": "Bingo.IntegrationTests.AdminDesignShellIntegrationTests.SharedReferenceComponentsRenderFromSamePartials",
+      "duration": "00:00:00.3427003",
+      "outcome": "Passed"
+    },
+    {
+      "testName": "Bingo.IntegrationTests.AdminDesignShellIntegrationTests.BoundIdentityTerminalReadsAreFullColourAndWritesStillRefused(state: Finalized)",
+      "duration": "00:00:00.3613339",
+      "outcome": "Passed"
+    },
+    {
+      "testName": "Bingo.IntegrationTests.AdminDesignShellIntegrationTests.DanishIdentityAndShellUseEventTerminologyWithoutChangingLegacyPages",
+      "duration": "00:00:00.4696975",
+      "outcome": "Passed"
+    },
+    {
+      "testName": "Bingo.IntegrationTests.AdminDesignShellIntegrationTests.IdentitySaveAndCurrentRedirectLostOrDisabledSessionWithoutData(disabled: True, post: True)",
+      "duration": "00:00:00.3464532",
+      "outcome": "Passed"
+    },
+    {
+      "testName": "Bingo.IntegrationTests.AdminDesignShellIntegrationTests.IdentitySaveAndCurrentRedirectLostOrDisabledSessionWithoutData(disabled: False, post: True)",
+      "duration": "00:00:00.2333459",
+      "outcome": "Passed"
+    }
+  ]
+}
