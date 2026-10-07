@@ -31,3 +31,6 @@
 :where([data-page-family="signupsetup"]) .form-bar .btn-primary{min-width:132px}
 @media(max-width:640px){:where([data-page-family="signupsetup"]) .form-bar .btn-primary{flex:1}}
 :where([data-page-family="signupsetup"]) .fade-in{animation:none}
+:where([data-page-family="signupsetup"]) .ss-choice-line{display:block}
+:where([data-page-family="signupsetup"]) .ss-drawer-save{min-width:128px}
+@media(max-width:640px){:where([data-page-family="signupsetup"]).drawer .choices{grid-template-columns:1fr}}

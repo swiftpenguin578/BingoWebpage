@@ -3384,4 +3384,46 @@
   <data name="Required · a code is set" xml:space="preserve"><value>Påkrævet · en kode er gemt</value></data>
   <data name="Required · no code is set" xml:space="preserve"><value>Påkrævet · ingen kode er gemt</value></data>
   <data name="No signup form was recorded for this imported event." xml:space="preserve"><value>Der blev ikke registreret en tilmeldingsformular for denne importerede event.</value></data>
+  <data name="e.g. When do you usually play?" xml:space="preserve"><value>f.eks. Hvornår spiller du normalt?</value></data>
+  <data name="Shown under the question on the signup form." xml:space="preserve"><value>Vises under spørgsmålet i tilmeldingsformularen.</value></data>
+  <data name="Single choice" xml:space="preserve"><value>Ét valg</value></data>
+  <data name="Players write an answer." xml:space="preserve"><value>Spillerne skriver et svar.</value></data>
+  <data name="Players enter a number." xml:space="preserve"><value>Spillerne indtaster et tal.</value></data>
+  <data name="Players choose yes or no." xml:space="preserve"><value>Spillerne vælger ja eller nej.</value></data>
+  <data name="Players pick one option." xml:space="preserve"><value>Spillerne vælger én mulighed.</value></data>
+  <data name="You can change this until the first player signs up." xml:space="preserve"><value>Du kan ændre dette, indtil den første spiller tilmelder sig.</value></data>
+  <data name="New questions can use any type. It’s fixed once players answer." xml:space="preserve"><value>Nye spørgsmål kan bruge alle svartyper. Typen låses, når spillerne har svaret.</value></data>
+  <data name="Locked because players have answered." xml:space="preserve"><value>Låst, fordi spillerne har svaret.</value></data>
+  <data name="Players can leave it blank." xml:space="preserve"><value>Spillerne kan lade det stå tomt.</value></data>
+  <data name="New questions are optional because players have already signed up. Earlier players won’t have an answer to it." xml:space="preserve"><value>Nye spørgsmål er valgfrie, fordi spillere allerede har tilmeldt sig. Tidligere tilmeldte har ikke et svar på dem.</value></data>
+  <data name="Answers are shown on the public signup list." xml:space="preserve"><value>Svarene vises på den offentlige tilmeldingsliste.</value></data>
+  <data name="Label for {0}" xml:space="preserve"><value>Navn på {0}</value></data>
+  <data name="Choice {0}" xml:space="preserve"><value>Valgmulighed {0}</value></data>
+  <data name="Remove choice {0}" xml:space="preserve"><value>Fjern valgmulighed {0}</value></data>
+  <data name="No alt account fields. Players aren’t asked for alt accounts." xml:space="preserve"><value>Ingen felter til alt-konti. Spillerne bliver ikke bedt om alt-konti.</value></data>
+  <data name="No custom questions. Players only answer the fields above." xml:space="preserve"><value>Ingen brugerdefinerede spørgsmål. Spillerne besvarer kun felterne ovenfor.</value></data>
+  <data name="Information only" xml:space="preserve"><value>Kun til information</value></data>
+  <data name="Not on the public signup list" xml:space="preserve"><value>Ikke på den offentlige tilmeldingsliste</value></data>
+  <data name="Turned off" xml:space="preserve"><value>Slået fra</value></data>
+  <data name="Players aren’t asked" xml:space="preserve"><value>Spillerne bliver ikke spurgt</value></data>
+  <data name="The first playing account is always asked and required." xml:space="preserve"><value>Den første spillekonto bliver altid efterspurgt og er påkrævet.</value></data>
+  <data name="Captain volunteering is always asked and required." xml:space="preserve"><value>Spørgsmålet om at melde sig som kaptajn stilles altid og skal besvares.</value></data>
+  <data name="{0} account" xml:space="preserve"><value>{0} konto</value></data>
+  <data name="{0} accounts" xml:space="preserve"><value>{0} konti</value></data>
+  <data name="{0} answer" xml:space="preserve"><value>{0} svar</value></data>
+  <data name="Choices: " xml:space="preserve"><value>Valgmuligheder: </value></data>
+  <data name="Help text: " xml:space="preserve"><value>Hjælpetekst: </value></data>
+  <data name="Enter a label." xml:space="preserve"><value>Indtast et navn.</value></data>
+  <data name="Enter the question." xml:space="preserve"><value>Indtast spørgsmålet.</value></data>
+  <data name="Use {0} characters or fewer." xml:space="preserve"><value>Brug højst {0} tegn.</value></data>
+  <data name="Each choice must be different." xml:space="preserve"><value>Alle valgmuligheder skal være forskellige.</value></data>
+  <data name="The choices are too long together. Shorten some of them." xml:space="preserve"><value>Valgmulighederne er tilsammen for lange. Forkort nogle af dem.</value></data>
+  <data name="Adding…" xml:space="preserve"><value>Tilføjer…</value></data>
+  <data name="Saving…" xml:space="preserve"><value>Gemmer…</value></data>
+  <data name="Checking…" xml:space="preserve"><value>Kontrollerer…</value></data>
+  <data name="Edit question" xml:space="preserve"><value>Rediger spørgsmål</value></data>
+  <data name="Turn on" xml:space="preserve"><value>Slå til</value></data>
+  <data name="Turn off" xml:space="preserve"><value>Slå fra</value></data>
+  <data name="Delete" xml:space="preserve"><value>Slet</value></data>
+  <data name="Players have signed up (the first on {0}), so existing answer types, choices and required settings are locked. Labels and help text can still change, custom questions can be reordered, and new questions are optional." xml:space="preserve"><value>Spillere har tilmeldt sig (den første den {0}), så eksisterende svartyper, valgmuligheder og obligatoriske indstillinger er låst. Navne og hjælpetekst kan stadig ændres, brugerdefinerede spørgsmål kan flyttes, og nye spørgsmål er valgfrie.</value></data>
 </root>

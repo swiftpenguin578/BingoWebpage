@@ -1,0 +1,131 @@
+{
+  "engine": "chromium",
+  "checks": [
+    "reference standard captain/co-captain fields, lock/add icons, counted off and versioned on states",
+    "real capacity/code saves return new versions and preserve other-card draft; stored code never shown",
+    "replaceState tabs, exact account add ID and focused inline rename saved",
+    "reference drawer direct shared regions, fixed right footer, close/add/remove icons, placeholders, choice subtexts/hints and renumbering",
+    "custom add drawer dirty outside-click guard and created stable-ID Edit focus",
+    "custom edit and counted deletion retain full inactive-ID definition",
+    "lost capacity response readback matches immutable intent without attributing the write",
+    "uncertain secret replacement cannot be inferred from hash-present bit and requires save again",
+    "uncertain account add exact receipt replay creates only one field",
+    "session-loss transport keeps unsent settings draft",
+    "custom add lost-response exact replay, duplicate labels remain distinct IDs, move focus retained",
+    "changed impact requires a new confirmation showing current answer and release counts",
+    "locked-response presentation: first-response date, read-only type/choices, lock icons, required state; controlled DOM without writes",
+    "Live readable locked settings/form with no mutation controls"
+  ],
+  "summaries": [
+    {
+      "language": "en",
+      "width": 390,
+      "height": 39.125,
+      "lineHeight": 19.575,
+      "text": "Dates are on Schedule; opening and closing signups on Overview.",
+      "links": [
+        "/Admin/Events/Schedule/866c1569-0337-41ed-868d-26484a1452fa",
+        "/Admin/Events/Manage/866c1569-0337-41ed-868d-26484a1452fa"
+      ]
+    },
+    {
+      "language": "en",
+      "width": 494,
+      "height": 19.5625,
+      "lineHeight": 19.575,
+      "text": "Dates are on Schedule; opening and closing signups on Overview.",
+      "links": [
+        "/Admin/Events/Schedule/866c1569-0337-41ed-868d-26484a1452fa",
+        "/Admin/Events/Manage/866c1569-0337-41ed-868d-26484a1452fa"
+      ]
+    },
+    {
+      "language": "en",
+      "width": 860,
+      "height": 19.5625,
+      "lineHeight": 19.575,
+      "text": "Dates are on Schedule; opening and closing signups on Overview.",
+      "links": [
+        "/Admin/Events/Schedule/866c1569-0337-41ed-868d-26484a1452fa",
+        "/Admin/Events/Manage/866c1569-0337-41ed-868d-26484a1452fa"
+      ]
+    },
+    {
+      "language": "en",
+      "width": 1280,
+      "height": 19.5625,
+      "lineHeight": 19.575,
+      "text": "Dates are on Schedule; opening and closing signups on Overview.",
+      "links": [
+        "/Admin/Events/Schedule/866c1569-0337-41ed-868d-26484a1452fa",
+        "/Admin/Events/Manage/866c1569-0337-41ed-868d-26484a1452fa"
+      ]
+    },
+    {
+      "language": "en",
+      "width": 1440,
+      "height": 19.5625,
+      "lineHeight": 19.575,
+      "text": "Dates are on Schedule; opening and closing signups on Overview.",
+      "links": [
+        "/Admin/Events/Schedule/866c1569-0337-41ed-868d-26484a1452fa",
+        "/Admin/Events/Manage/866c1569-0337-41ed-868d-26484a1452fa"
+      ]
+    },
+    {
+      "language": "da",
+      "width": 390,
+      "height": 39.125,
+      "lineHeight": 19.575,
+      "text": "Datoer findes under Tidsplan; åbning og lukning af tilmelding under Oversigt.",
+      "links": [
+        "/Admin/Events/Schedule/866c1569-0337-41ed-868d-26484a1452fa",
+        "/Admin/Events/Manage/866c1569-0337-41ed-868d-26484a1452fa"
+      ]
+    },
+    {
+      "language": "da",
+      "width": 494,
+      "height": 39.125,
+      "lineHeight": 19.575,
+      "text": "Datoer findes under Tidsplan; åbning og lukning af tilmelding under Oversigt.",
+      "links": [
+        "/Admin/Events/Schedule/866c1569-0337-41ed-868d-26484a1452fa",
+        "/Admin/Events/Manage/866c1569-0337-41ed-868d-26484a1452fa"
+      ]
+    },
+    {
+      "language": "da",
+      "width": 860,
+      "height": 19.5625,
+      "lineHeight": 19.575,
+      "text": "Datoer findes under Tidsplan; åbning og lukning af tilmelding under Oversigt.",
+      "links": [
+        "/Admin/Events/Schedule/866c1569-0337-41ed-868d-26484a1452fa",
+        "/Admin/Events/Manage/866c1569-0337-41ed-868d-26484a1452fa"
+      ]
+    },
+    {
+      "language": "da",
+      "width": 1280,
+      "height": 19.5625,
+      "lineHeight": 19.575,
+      "text": "Datoer findes under Tidsplan; åbning og lukning af tilmelding under Oversigt.",
+      "links": [
+        "/Admin/Events/Schedule/866c1569-0337-41ed-868d-26484a1452fa",
+        "/Admin/Events/Manage/866c1569-0337-41ed-868d-26484a1452fa"
+      ]
+    },
+    {
+      "language": "da",
+      "width": 1440,
+      "height": 19.5625,
+      "lineHeight": 19.575,
+      "text": "Datoer findes under Tidsplan; åbning og lukning af tilmelding under Oversigt.",
+      "links": [
+        "/Admin/Events/Schedule/866c1569-0337-41ed-868d-26484a1452fa",
+        "/Admin/Events/Manage/866c1569-0337-41ed-868d-26484a1452fa"
+      ]
+    }
+  ]
+}

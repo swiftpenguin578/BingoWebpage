@@ -8,6 +8,8 @@
 }
 @section HeaderSummary {<span class="ss-owners">@T["Dates are on"] <a class="text-btn" asp-page="Schedule" asp-route-id="@Model.EventId">@T["Schedule"]</a>; @T["opening and closing signups on"] <a class="text-btn" asp-page="Manage" asp-route-id="@Model.EventId">@T["Overview"]</a>.</span>}
 <partial name="_AdminSignupSetupText"/>
+<partial name="_AdminSignupSetupDrawer"/>
+@foreach (var icon in new[] { "lock", "plus", "arrow-up", "arrow-down", "close", "error", "info" }) { <template data-signup-icon="@icon"><partial name="_AdminDesignIcon" model="new AdminDesignIcon(icon)"/></template> }
 @if (!ViewData.ModelState.IsValid && ViewData.ModelState.Keys.Any(key => key.StartsWith("Input.", StringComparison.Ordinal))) {
  <div class="banner is-error" asp-validation-summary="All"></div>
  <input type="hidden" name="Input.Label" value="@Model.Input.Label"/>
@@ -40,7 +42,7 @@
    </div><div class="form-bar is-inline" data-card-bar="code" hidden="@(!Model.CanEdit)"><span class="dirty" data-card-dirty="code" hidden><span class="dot"></span>@T["Unsaved changes"]</span><span class="saved-note" data-card-saved="code" role="status"></span><button class="btn btn-primary" id="code-save" type="submit" style="min-width:132px">@T["Save code"]</button></div>
   </form></section>
  </div>
- <div class="ss-panel" role="tabpanel" id="panel-form" aria-labelledby="tab-form" hidden="@(!formTab)"><div class="card form-card"><div class="form-banners"><div class="banner is-info" data-response-note hidden="@(!Model.HasFirstResponse)">@T["Players have answered. Existing answer types, choices and required settings are locked. New questions are optional."]</div><div class="banner is-warning" data-form-banner role="status" tabindex="-1" hidden><span class="grow"></span><button class="banner-btn" data-check-form type="button" hidden>@T["Check form"]</button></div></div><div class="form-sec is-last" data-form-absent hidden="@Model.HasForm">@T["No signup form was recorded for this imported event."]</div><div data-question-sections></div></div></div>
+ <div class="ss-panel" role="tabpanel" id="panel-form" aria-labelledby="tab-form" hidden="@(!formTab)"><div class="card form-card"><div class="form-banners"><div class="banner is-info" data-response-note hidden="@(!Model.HasFirstResponse)"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("lock")'/><span class="grow" data-response-text></span></div><div class="banner is-warning" data-form-banner role="alert" tabindex="-1" hidden><partial name="_AdminDesignIcon" model='new AdminDesignIcon("uncertain")'/><span class="grow"></span><button class="banner-btn" data-check-form type="button" hidden>@T["Check form"]</button></div></div><div class="form-sec is-last" data-form-absent hidden="@Model.HasForm">@T["No signup form was recorded for this imported event."]</div><div data-question-sections></div></div></div>
  <p class="sr" data-form-announcement aria-live="polite"></p>
 </div>
 @section Styles {<link rel="stylesheet" href="~/css/admin-design-signupsetup.css" asp-append-version="true" data-admin-page-style/>}
