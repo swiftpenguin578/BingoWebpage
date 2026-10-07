@@ -52,5 +52,12 @@ const js = name => path.join(root, "src/Bingo.Web/wwwroot/js", name);
     const source = fs.readFileSync(js(name), "utf8");
     for (const match of source.matchAll(/(?<![\w.$])t\('((?:[^'\\]|\\.)*)'/g)) assert.ok(served.has(match[1]), `${name}: label not served: ${match[1]}`);
   }
+  // Resource names are case-insensitive at build time: a second "time"/"Time" is dropped
+  // and its label would show in English. Board labels that collide use AdminDesign. keys.
+  for (const file of ["SharedResource.resx", "SharedResource.da.resx"]) {
+    const names = [...fs.readFileSync(path.join(root, "src/Bingo.Web/Resources", file), "utf8").matchAll(/<data name="([^"]*)"/g)].map(m => m[1].toLowerCase());
+    const seen = new Set(), duplicates = names.filter(name => seen.has(name) || !seen.add(name));
+    assert.deepEqual(duplicates, [], `${file}: case-insensitive duplicate resource names`);
+  }
   console.log("board-page tests passed");
 })().catch(error => { console.error(error); process.exitCode = 1; });

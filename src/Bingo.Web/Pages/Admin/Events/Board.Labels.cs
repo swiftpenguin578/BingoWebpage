@@ -4,6 +4,14 @@ namespace Bingo.Web.Pages.Admin.Events;
 
 public sealed partial class BoardModel
 {
+    // Labels that collide case-insensitively with another resource name; their Danish
+    // (and English) entries are "AdminDesign." + key (Board.cshtml resolves them).
+    public static readonly HashSet<string> ScopedLabelKeys = new(StringComparer.Ordinal)
+    {
+        "time", "optional", "Rows", "empty", "drops", "drop", "required", "take over editing",
+        "remove {0}", "counts as", "start editing", "no estimate", "manual", "Evidence submitted",
+    };
+
     public static readonly string[] LabelKeys =
     [
         "This event is read-only in its current lifecycle state.",
