@@ -25,7 +25,7 @@ export async function init(region,ui=window.AdminUI){
   const promote=Number(cap.value)>(current.settings.participantCap||0)?Math.min(current.waiting,Math.max(0,Number(cap.value)-current.confirmed)):0;
   q('#cap-note').hidden=!dirty('cap')||!promote;q('#cap-note').textContent=t('Saving confirms the first {0} players on the waiting list, in waiting-list order. They’re told their place is confirmed.',promote);
   for(const k of ['cap','code']){const state=cards[k],button=q('#'+k+'-save');q(`[data-card-dirty="${k}"]`).hidden=!dirty(k);q(`[data-card-bar="${k}"]`).hidden=!current.editable;button.disabled=pending;button.setAttribute('aria-disabled',String(!state.unknown&&!dirty(k)));button.textContent=state.unknown?t('Check again'):k==='cap'&&promote&&dirty(k)?t('Save and confirm {0}',promote):t(k==='cap'?'Save capacity':'Save code');}
-  if(rename)rename.input.disabled=pending||!!uncertainForm;
+  if(rename)rename.input.disabled=pending||!!uncertainForm||!current.editable;
   cap.hidden=!current.editable;q('[data-cap-readonly]').hidden=current.editable;q('[data-cap-readonly]').textContent=current.settings.participantCap??t('Not set');q('[data-code-editable]').hidden=!current.editable;q('[data-code-readonly]').hidden=current.editable;q('[data-code-readonly]').textContent=t(current.settings.requireSignupCode?(current.settings.hasSignupCode?'Required · a code is set':'Required · no code is set'):'Not required');
   cap.disabled=!current.editable||pending||!!cards.cap.unknown;toggle.disabled=code.disabled=!current.editable||pending||!!cards.code.unknown;
   all('[data-tab="settings"] [data-tab-dirty]').forEach(e=>e.hidden=!dirty('cap')&&!dirty('code'));all('[data-tab="form"] [data-tab-dirty]').forEach(e=>e.hidden=!formDirty());
@@ -38,12 +38,14 @@ export async function init(region,ui=window.AdminUI){
   renderForm();paint();
  }
  async function read(){const result=await request('Current',null,true);if(result.kind!=='handler'||!result.data?.settings||!Array.isArray(result.data.questions))return null;return result.data;}
+ async function refusal(result){const fresh=await read();if(fresh)merge(fresh);else{current={...current,editable:false};root.dataset.current=JSON.stringify(current);renderForm();paint();}return result.reason||t('This event is read-only in its current lifecycle state.');}
  async function saveCard(k){if(pending||!current.editable)return;if(cards[k].unknown)return checkCard(k);if(!dirty(k))return;
   const input=value(k),baseline=structuredClone(current.settings);const err=k==='cap'?(!/^\d+$/.test(input)||Number(input)<Math.max(1,current.confirmed)?t('Capacity must be at least {0}.',Math.max(1,current.confirmed)):Number(input)>10000?t('Maximum players cannot exceed 10,000.'):''):(input.code.length>100?t('The code must be at most 100 characters.'):input.on&&!input.code.trim()&&!current.settings.hasSignupCode?t('Enter a signup code.'):'');
   const error=q(k==='cap'?'#cap-err':'#signup-code-error');error.textContent=err;error.hidden=!err;(k==='cap'?cap:code).setAttribute('aria-invalid',String(!!err));if(err){(k==='cap'?cap:code).focus();return;}
   const intent=Object.freeze({input:structuredClone(input),baseline});const body=k==='cap'?{'SignupAdministration.Version':baseline.eventVersion,'SignupAdministration.ParticipantCap':input}:{'SignupCode.Version':baseline.eventVersion,'SignupCode.RequireSignupCode':input.on,'SignupCode.NewSignupCode':input.code};
   pending=true;paint();notify(k,'');let result;try{result=await ui.busy(()=>request(k==='cap'?'SignupAdministration':'SignupCode',body));}finally{pending=false;}
   if(result.kind==='session-lost'){paint();return;}
+  if(result.kind==='refused'){cards[k].unknown=null;notify(k,await refusal(result));paint();return;}
   if(result.kind!=='handler'||typeof result.data?.succeeded!=='boolean'){cards[k].unknown=intent;notify(k,t('We couldn’t confirm whether this was saved. Check before saving again.'));paint();return;}
   const fresh=await read();if(result.data.succeeded){if(fresh){cards[k].unknown=null;merge(fresh,{saved:k});q(`[data-card-saved="${k}"]`).textContent=t('Saved');ui.toast(k==='cap'&&result.data.promotedParticipants?t('Capacity saved. {0} waiting-list players confirmed.',result.data.promotedParticipants):t('Saved'));}else{cards[k].unknown=intent;notify(k,t('The save was accepted, but current settings could not be read. Check again.'));}}
   else{if(fresh)merge(fresh);notify(k,t(result.data.error||'Nothing was saved. Your entry is still here; review it and save again.'));}
@@ -90,6 +92,7 @@ export async function init(region,ui=window.AdminUI){
  async function mutate(handler,body,matches,options={}){if(pending||uncertainForm||!current.editable)return null;const attempt={handler,body:Object.freeze({...body}),matches,options};pendingControl=document.activeElement;pending=true;paint();const result=await ui.busy(()=>request(handler,attempt.body));pending=false;return settleMutation(result,attempt);}
  async function settleMutation(result,attempt){
   if(result.kind==='session-lost'){paint();return null;}
+  if(result.kind==='refused'){uncertainForm=null;formNotice(await refusal(result));paint();return null;}
   if(result.kind!=='handler'||typeof result.data?.succeeded!=='boolean'){uncertainForm=attempt;formNotice(t('We couldn’t confirm the change. Check the form before trying again.'),true);paint();return null;}
   const data=result.data,fresh=await read();if(fresh)merge(fresh);
   if(!data.succeeded){formNotice(t(data.error||'Nothing was saved. Your entry is still here; review it and save again.'));paint();return data;}
@@ -134,6 +137,7 @@ export async function init(region,ui=window.AdminUI){
   const layer=ui.openLayer({kind:'drawer',title:t(add?'Add question':'Edit question'),content,pending:()=>busy,dirty:()=>!!unknown||JSON.stringify(inputs())!==base,onClose:()=>{drawer=null;paint();},opener:document.activeElement});content=layer.element;content.dataset.pageFamily='signupsetup';content.removeAttribute('aria-label');content.setAttribute('aria-labelledby','drawer-title');drawer={layer};base=JSON.stringify(inputs());
   const close=async()=>{if(busy)return;if((unknown||JSON.stringify(inputs())!==base)&&!await ui.confirmDiscard())return;await layer.close(false);};on(get('[data-close]'),'click',()=>void close());on(get('[data-cancel]'),'click',()=>void close());on(get('[data-add-choice]'),'click',()=>{const input=choice();update();input.focus();});on(content,'input',update);
   async function complete(result,attempt){if(result.kind==='session-lost'){update();return;}
+   if(result.kind==='refused'){unknown=null;note(await refusal(result));update();return;}
    if(result.kind!=='handler'||typeof result.data?.succeeded!=='boolean'){unknown=attempt;note(t('We couldn’t confirm the change. Check the form before trying again.'));update();return;}
    const fresh=await read();if(fresh)merge(fresh);if(!result.data.succeeded){unknown=null;formVersion=current.formVersion;note(t(result.data.error||'Nothing was saved. Your entry is still here; review it and save again.'));update();return;}
    if(!fresh){unknown=attempt;note(t('The change was accepted, but the form could not be read. Check form.'));update();return;}

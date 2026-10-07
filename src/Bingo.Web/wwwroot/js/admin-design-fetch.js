@@ -11,7 +11,13 @@
     const path = destination?.pathname.replace(/\/$/, '').toLowerCase();
     if (accountPaths.has(path)) return { kind: 'session-lost', destination: destination.href };
     const redirected = !!navigation || response.redirected;
-    if (redirected && /^\/admin\/events\/manage\/[^/]+$/.test(path || '')) return { kind: 'refused', destination: destination.href };
+    if (redirected && /^\/admin\/events\/manage\/[^/]+$/.test(path || '')) {
+      let reason = '';
+      if ((response.headers.get('Content-Type') || '').includes('text/html')) {
+        try { reason = new DOMParser().parseFromString(await response.text(), 'text/html').querySelector('[data-transient-toast] .app-toast-copy > span')?.textContent.trim() || ''; } catch { /* The redirect still definitively refused the write. */ }
+      }
+      return { kind: 'refused', destination: destination.href, reason };
+    }
     if (response.type === 'opaqueredirect' || (redirected && (!allowRedirectTo || destination?.pathname !== localUrl(allowRedirectTo)?.pathname))) return { kind: 'unknown' };
     const contentType = (response.headers.get('Content-Type') || '').toLowerCase();
     if (expect === 'json' && contentType.includes('text/html')) return { kind: 'session-lost', destination: null };
