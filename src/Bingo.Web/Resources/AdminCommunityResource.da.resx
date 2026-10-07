@@ -502,7 +502,6 @@
   <data name="Older" xml:space="preserve"><value>Ældre</value></data>
   <data name="Audit" xml:space="preserve"><value>Audit</value></data>
   <data name="{0} actions" xml:space="preserve"><value>{0}-handlinger</value></data>
-  <data name="Administrative history, newest first." xml:space="preserve"><value>Administrativ historik, nyeste først.</value></data>
   <data name="Times in Copenhagen time ({0})" xml:space="preserve"><value>Tider i københavnsk tid ({0})</value></data>
   <data name="Enter dates like 27 May 2027." xml:space="preserve"><value>Skriv datoer som 27 maj 2027.</value></data>
   <data name="The start date must be on or before the end date." xml:space="preserve"><value>Startdatoen skal være på eller før slutdatoen.</value></data>

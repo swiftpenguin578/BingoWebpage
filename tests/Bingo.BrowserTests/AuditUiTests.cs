@@ -48,7 +48,7 @@ public sealed class AuditUiTests(BrowserTestApplicationFactory factory)
         foreach (var file in new[] { "Index.cshtml", "_AuditEntryDrawer.cshtml" })
             Assert.DoesNotContain("style=\"", File.ReadAllText(Path.Combine(pages, file)));
         var rules = Regex.Replace(File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "wwwroot", "css", "admin-design-audit.css")), @"/\*.*?\*/", string.Empty, RegexOptions.Singleline);
-        Assert.DoesNotMatch(@"#[0-9a-fA-F]{3,8}\b|rgb\(|hsl\(|font-family|box-shadow", rules);
+        Assert.DoesNotMatch(@"#[0-9a-fA-F]{3,8}\b|rgb\(|hsl\(|font-family|box-shadow|border-radius:(?!var\(--dk-)", rules); // radii only from tokens
         Assert.DoesNotMatch(@"\)\s+\.(btn|card|modal|drawer|toast|pill|tbl|banner|badge|fpanel|menu)\s*\{", rules);
     }
 
