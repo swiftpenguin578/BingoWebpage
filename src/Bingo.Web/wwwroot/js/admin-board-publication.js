@@ -86,7 +86,7 @@ export function install(ctx) {
     const acts = el('div', 'm-actions'), cancel = button('btn', t('Cancel'), () => void layer.close(false), 'cx-cancel'), confirm = button('btn ' + confirmCls, null, () => void go(), 'cx-confirm');
     acts.append(cancel, confirm);
     content.append(h, desc, errSlot, ...(field ? [field] : []), acts);
-    const layer = ui.openLayer({ title, content, confirmation: true, pending: () => state.busy });
+    const layer = ui.openLayer({ title, content, confirmation: true, pending: () => state.busy }); layer.element.dataset.pageFamily = 'board';
     if (wide) layer.element.classList.add('is-wide');
     function reasonError() {
       const r = state.reason.trim();

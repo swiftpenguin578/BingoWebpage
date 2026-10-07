@@ -135,7 +135,8 @@ public static class AdminEventPagePolicies
                 ("POST:ApproveState", AdminEventHandlerGate.Board),
                 ("POST:PublishState", AdminEventHandlerGate.Board),
                 ("POST:CorrectPublished", AdminEventHandlerGate.BoardCorrection)),
-            [typeof(BoardPreviewModel)] = Page(AdminEventPageKind.BoardPreview, true, false,
+            // U7-Q3: the retired preview route redirects to the Board in every viewable state.
+            [typeof(BoardPreviewModel)] = Page(AdminEventPageKind.BoardPreview, true, true,
                 ("GET:", AdminEventHandlerGate.Read)),
             [typeof(DraftModel)] = Page(AdminEventPageKind.Draft, true, false,
                 ("GET:", AdminEventHandlerGate.Read),

@@ -1044,7 +1044,7 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests : IAsy
     }
 
     [Fact]
-    public async Task PrivatePreviewUsesDeterministicDemoProgressWithoutAnyCompetitiveWrite()
+    public async Task RetiredPrivatePreviewRedirectsToTheBoardWithoutAnyWrite()
     {
         var now = DateTimeOffset.UtcNow;
         var admin = Website($"slice6-preview-admin-{Guid.NewGuid():N}", now);
@@ -1069,21 +1069,12 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests : IAsy
             Requirements = await previewContext.BoardRequirementSnapshots.CountAsync(),
             Audits = await previewContext.AuditEntries.CountAsync()
         };
-        var preview = new BoardPreviewModel(previewContext);
-        Assert.IsType<PageResult>(await preview.OnGetAsync(bingoEvent.Id, null, null, CancellationToken.None));
-        Assert.Collection(preview.Tiles,
-            first => Assert.Equal(4, first.Approved),
-            second => Assert.Equal(2, second.Approved),
-            third => Assert.Equal(0, third.Approved));
-        Assert.Collection(preview.Teams,
-            first => Assert.Equal("Preview team Alpha", first.Name),
-            second => Assert.Equal("Preview team Bravo", second.Name));
-        var team = preview.Teams[0];
-        Assert.IsType<PageResult>(await preview.OnGetAsync(bingoEvent.Id, team.Slug, null, CancellationToken.None));
-        Assert.Equal(team, preview.SelectedTeam);
-        var tile = preview.Tiles[0];
-        Assert.IsType<PageResult>(await preview.OnGetAsync(bingoEvent.Id, team.Slug, tile.Id, CancellationToken.None));
-        Assert.Equal(tile, preview.SelectedTile);
+        // U7-Q3 (A10): the retired preview route redirects to the Board, with or without
+        // team/tile segments; it still writes nothing and stays Admin-only.
+        var preview = new BoardPreviewModel();
+        var redirect = Assert.IsType<RedirectToPageResult>(preview.OnGet(bingoEvent.Id));
+        Assert.Equal("Board", redirect.PageName);
+        Assert.Equal(bingoEvent.Id, redirect.RouteValues!["id"]);
         Assert.Contains(typeof(BoardPreviewModel).GetCustomAttributes(typeof(AuthorizeAttribute), inherit: true).Cast<AuthorizeAttribute>(), x => x.Policy == AuthorizationPolicies.Admin);
         var after = new
         {
