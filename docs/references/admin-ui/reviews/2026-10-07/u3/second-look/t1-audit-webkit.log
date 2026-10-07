@@ -1,0 +1,24 @@
+AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
++ actual - expected
+
+  {
+    drawer: 'drIn',
+    error: 'fadeIn',
+    flash: 'rowFlash',
++   load: 'fadeIn',
+-   load: 'none',
+    menu: 'popIn',
+    modal: 'modalIn',
+    scrim: 'fadeIn',
+    sortA: 'swapA',
+    sortB: 'swapB'
+
+    at checkLoaded (/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/lib/admin-page-conformance-checks.cjs:60:10)
+    at async /Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/check-admin-page-conformance.cjs:63:431 {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: [Object],
+  expected: [Object],
+  operator: 'deepStrictEqual',
+  diff: 'simple'
+}
