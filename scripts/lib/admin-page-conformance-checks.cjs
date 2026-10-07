@@ -186,6 +186,14 @@ module.exports.checkFast=checkFast;
 // Optional page declaration: fixed count words survive loading; only numbers are skeletons.
 async function checkLoadingSummary(page, registration) {
   const summary=page.locator('[data-page-skeleton][aria-busy="true"] > .page-head .summary');
+  if (registration.fixedSummary) {
+    const words=(await page.locator('html').getAttribute('lang'))==='da'?registration.fixedSummary.wordsDa:registration.fixedSummary.words;
+    const actual=await summary.locator(':scope > span').allTextContents();
+    assert.equal(actual.length,words.length,registration.family+': fixed summary items');
+    words.forEach((word,i)=>word instanceof RegExp?assert.match(actual[i].trim(),word):assert.equal(actual[i].trim(),word));
+    assert.equal(await summary.locator('.sk').count(),0,registration.family+': fixed text does not need number placeholders');
+    return;
+  }
   if (!registration.countSummary) {
     assert.equal((await summary.textContent()).trim(), '', registration.family+': data summary stays empty while loading');
     assert.equal(await summary.locator('.sk').count(),0,registration.family+': no invented summary data');

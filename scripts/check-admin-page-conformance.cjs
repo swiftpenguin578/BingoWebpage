@@ -8,14 +8,14 @@ const {observe,checkFrames,checkLoaded,checkUpdate,checkDanish,checkSources,chec
 async function until(page,fn){for(let i=0;i<200;i++)if(await page.evaluate(fn))return;throw Error('Microtask checkpoint not reached');}
 (async()=>{
  const name=process.env.PLAYWRIGHT_BROWSER||'chromium',engine=name==='webkit'?webkit:chromium,output=path.join(process.cwd(),'artifacts/page-conformance-'+name);
+ const pages=registrations.filter(p=>!process.env.BINGO_CONFORMANCE_PAGES||process.env.BINGO_CONFORMANCE_PAGES.split(',').includes(p.family));
+ assert.ok(pages.length,'at least one registered family selected');
  const fixture=await startFixture(process.cwd(),output),records=[];let browser;
  try{
   browser=await engine.launch({headless:true,...(name==='chromium'?{channel:process.env.PLAYWRIGHT_CHANNEL||'chromium'}:{})});
-  fs.writeFileSync(path.join(output,'design-checks.json'),JSON.stringify(await checkSources(browser,registrations),null,2)+'\n');
+  fs.writeFileSync(path.join(output,'design-checks.json'),JSON.stringify(await checkSources(browser,pages),null,2)+'\n');
   const context=await browser.newContext({reducedMotion:'no-preference'}),refs=await browser.newContext({reducedMotion:'reduce'});
   const signed=await login(context,fixture);await signed.close();const storageState=await context.storageState();
-  const pages=registrations.filter(p=>!process.env.BINGO_CONFORMANCE_PAGES||process.env.BINGO_CONFORMANCE_PAGES.split(',').includes(p.family));
-  assert.ok(pages.length,'at least one registered family selected');
   const paths=Object.fromEntries(registrations.map(p=>[p.family,p.url(fixture)]));
   const selectors=Object.fromEntries(registrations.map(p=>[p.family,p.blocks]));
   const box=(page,family)=>page.evaluate(({family,selectors,typography})=>{
