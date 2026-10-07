@@ -26,7 +26,7 @@
     var months = string.Join('|', Enumerable.Range(1, 12).Select(month => new DateTime(2000, month, 1).ToString("MMM", CultureInfo.CurrentCulture).TrimEnd('.') + "," + new DateTime(2000, month, 1).ToString("MMMM", CultureInfo.CurrentCulture)));
 }
 @section HeaderSummary {
-    <span>@D["Administrative history, newest first."]</span><span>@D["Times in Copenhagen time ({0})", IndexModel.Offset(Model.Now)]</span>
+    <span>@D["Times in Copenhagen time ({0})", IndexModel.Offset(Model.Now)]</span>
 }
 <div data-audit-directory data-directory-canonical="@Model.AuditUrl()" data-month-names="@months"
      data-date-format-error="@D["Enter dates like 27 May 2027."]" data-date-order-error="@D["The start date must be on or before the end date."]" data-actor-length-error="@D["Use 100 characters or fewer."]">
