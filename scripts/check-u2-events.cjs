@@ -14,7 +14,7 @@ const P=(name,selector,options={})=>[name,selector,selector,{required:true,box:{
   const transform=source=>source.replace(/const SEED = \[[\s\S]*?\n\];/,'const SEED = '+JSON.stringify(seed)+';')
    .replace(/  defaultCmp\(a, b\) \{[\s\S]*?\n  sorted\(rows\)/,'  defaultCmp(a, b) { return a.rank-b.rank; }\n  sorted(rows)')
    .replaceAll("count: S.loading ? ''", "count: !ready ? ''")
-   .replace('</style>', '.page-head>div:first-child{flex:1;min-width:0;width:100%}.summary{min-height:calc(var(--dk-fs-control)*var(--dk-lh-body))}.summary:empty{min-height:0}.tab-count{display:inline-flex;align-items:center;justify-content:center;min-width:2ch;width:2ch;height:calc(var(--dk-fs-control-sm)*var(--dk-lh-body));text-align:center}@media(max-width:860px){.summary{min-height:calc(2*var(--dk-fs-control)*var(--dk-lh-body) + 4px)}.summary:empty{min-height:0}}\n</style>');
+   .replace('</style>', '.tab-count{display:inline-flex;align-items:center;justify-content:center;min-width:2ch;width:2ch;height:calc(var(--dk-fs-control-sm)*var(--dk-lh-body));text-align:center}\n</style>');
   for(const engine of(process.env.BINGO_PARITY_ENGINES||'chromium,webkit').split(',')){
    browser=await(engine==='webkit'?webkit.launch({headless:true}):chromium.launch({headless:true,channel:process.env.PLAYWRIGHT_CHANNEL||'chromium'}));
    const context=await browser.newContext({viewport:{width:1440,height:1000},reducedMotion:'reduce'}),refContext=await browser.newContext({viewport:{width:1440,height:1000},reducedMotion:'reduce'});
@@ -51,7 +51,16 @@ const P=(name,selector,options={})=>[name,selector,selector,{required:true,box:{
     release();await app.locator('[data-page-skeleton]').waitFor({state:'detached'});
     await app.waitForFunction(()=>getComputedStyle(document.querySelector('.ev-tbl')).getPropertyValue('--table-min').trim()==='990px'||getComputedStyle(document.querySelector('.ev-tbl')).getPropertyValue('--table-min').trim()==='900px');
     await settle(app);const after=await boxes();
-    assert.equal(before.length,after.length);for(let i=0;i<before.length;i++)for(const k of['x','y','width','height'])assert.ok(Math.abs(before[i][k]-after[i][k])<=1,engine+' '+width+' '+before[i].key+' '+k+': '+before[i][k]+' vs '+after[i][k]+' '+JSON.stringify({before,after}));
+    // Brief74 5a: reservation belongs only to loading; following content follows
+    // the real loaded summary height, not a fixed position.
+    const delta=after[0].height-before[0].height;
+    assert.equal(before.length,after.length);for(let i=0;i<before.length;i++)for(const k of['x','y','width','height']){
+     if(k==='height'&&['.page-head0','.summary0'].includes(before[i].key))continue;
+     if(k==='width'&&['.h10','.summary0'].includes(before[i].key))continue; // empty loading group vs natural loaded reference width
+     const flow=k==='y'&&!['.page-head0','.h10','.summary0'].includes(before[i].key)?delta:0;
+     assert.ok(Math.abs(before[i][k]+flow-after[i][k])<=1,engine+' '+width+' '+before[i].key+' '+k+': '+JSON.stringify({before,after,delta}));
+    }
+    fs.writeFileSync(path.join(output,engine+'-'+width+'-query-positions.json'),JSON.stringify({before,after,delta},null,2));
     results.push({name:engine+'-'+width+'-loading-query-position-parity',passed:true});await app.unroute(target);
    }
    await app.setViewportSize({width:1440,height:1000});await app.goto(fixture.origin+'/Admin/Events');await app.locator('[data-events-directory]').waitFor();
@@ -69,7 +78,7 @@ const P=(name,selector,options={})=>[name,selector,selector,{required:true,box:{
    await app.locator('[data-load-retry]').waitFor();assert.equal(await app.locator('.empty-title').last().textContent(),'Couldn’t load events');
    assert.equal(await app.locator('[data-page-skeleton] .sk').count(),0);assert.equal(await app.locator('[data-page-skeleton] .summary').textContent(),'');
    assert.equal(await app.locator('[data-pending-count]').evaluateAll(nodes=>nodes.every(e=>!e.textContent.trim())),true);assert.equal(await app.locator('[data-pending-search]').isEnabled(),true);
-   await ref.setViewportSize({width:1440,height:1000});await ref.evaluate(async()=>{await new Promise(resolve=>window.__parityReference.setState({loading:false,loadError:true,theme:'dark'},resolve));document.querySelector('.summary').replaceChildren();});
+   await ref.setViewportSize({width:1440,height:1000});await ref.evaluate(async()=>{await new Promise(resolve=>window.__parityReference.setState({loading:false,loadError:true,theme:'dark'},resolve));document.querySelector('.summary').replaceChildren();document.querySelector('.page-head>div:first-child').style.cssText='flex:1;min-width:0;width:100%';});
    await compare(engine+'-failure-composition',app,ref,[P('failure-header','.page-head'),P('failure-title','.h1',{text:true}),P('failure-summary','.summary',{text:true}),P('failure-toolbar','.toolbar'),P('failure-tabs','.tab',{text:true}),P('failure-headings','.th-btn',{text:true,icon:true}),P('failure-empty','.empty'),P('failure-message','.empty-title',{text:true}),P('failure-recovery','.empty-text',{text:true}),P('failure-retry','.empty .btn',{text:true})]);
    fail=false;await app.locator('[data-load-retry]').click();await app.waitForFunction(()=>!document.querySelector('[data-page-skeleton]'));
    const identity=fixture.origin+'/Admin/Events/Identity/'+fixture.events['autumn-bingo-2027'];
