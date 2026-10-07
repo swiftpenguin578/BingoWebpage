@@ -37,7 +37,7 @@
     },
     {
       "item": 4,
-      "sha": "owning commit of item4-text-line-rows.md; exact SHA added in item5 handoff",
+      "sha": "fb96f7578c3280385ad5d2d80e671161b9cff6ae",
       "files": [
         "CURRENT_STATUS.md",
         "DELIVERY_PLAN.md",
@@ -65,9 +65,30 @@
         "scripts/check-u2-body.cjs",
         "tests/Bingo.BrowserTests/admin-design-body-geometry.browser.js"
       ]
+    },
+    {
+      "item": 5,
+      "sha": "owning stop-boundary commit; exact SHA in implementer report",
+      "resolve": "git log -1 --format=%H -- docs/references/admin-ui/reviews/2026-10-06/u2/remediation-4/item5-no-load-fades.md",
+      "files": [
+        "CURRENT_STATUS.md",
+        "DELIVERY_PLAN.md",
+        "docs/references/admin-ui/reviews/2026-10-06/u2/remediation-4/changed-files.json",
+        "docs/references/admin-ui/reviews/2026-10-06/u2/remediation-4/final-gates.md",
+        "docs/references/admin-ui/reviews/2026-10-06/u2/remediation-4/item5-design-checks.json",
+        "docs/references/admin-ui/reviews/2026-10-06/u2/remediation-4/item5-events-header-positions-chromium.json",
+        "docs/references/admin-ui/reviews/2026-10-06/u2/remediation-4/item5-events-header-positions-webkit.json",
+        "docs/references/admin-ui/reviews/2026-10-06/u2/remediation-4/item5-identity-parity.json",
+        "docs/references/admin-ui/reviews/2026-10-06/u2/remediation-4/item5-js-results.json",
+        "docs/references/admin-ui/reviews/2026-10-06/u2/remediation-4/item5-no-load-fades.md",
+        "docs/references/admin-ui/reviews/2026-10-06/u2/remediation-4/item5-release-check.json",
+        "src/Bingo.Web/Pages/Admin/Events/Identity.cshtml",
+        "src/Bingo.Web/Pages/Admin/Index.cshtml",
+        "src/Bingo.Web/wwwroot/css/admin-design-dashboard.css",
+        "src/Bingo.Web/wwwroot/css/admin-design-events.css",
+        "src/Bingo.Web/wwwroot/css/admin-design-identity.css",
+        "tests/Bingo.BrowserTests/admin-design-load-animation.browser.js"
+      ]
     }
-  ],
-  "item5": {
-    "status": "authorized next; no implementation yet"
-  }
+  ]
 }
