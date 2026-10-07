@@ -17,8 +17,9 @@ It adds no project policy. If the two ever conflict on a project rule,
   they choose Codex workers. Claude uses the model the user selected for this session,
   and names Codex models only in the routing section of a brief.
 - **Codex roles and tooling** (dispatcher, implementer, optional orchestrator, Codex
-  chat and task IDs): Claude takes none of these roles and does not dispatch Codex;
-  the user sends each brief. Batch independent read-only tool calls in parallel;
+  chat and task IDs): outside the user-assigned lane T exception below, Claude
+  takes none of these roles and does not dispatch Codex; the user sends each brief.
+  Batch independent read-only tool calls in parallel;
   keep dependent steps sequential. An independent review means a fresh session or
   an explicitly requested reviewer sub-agent, never a self-check relabelled as
   independent.
@@ -27,6 +28,7 @@ It adds no project policy. If the two ever conflict on a project rule,
 
 ## Working alongside Codex
 
+- Claude may implement lane T in its own worktree and branch when the user assigns it; review stays independent (separate reviewer agent, planner verification). (User decision, 7 October 2026; 08-decisions.md, “Lane T implemented by Claude”.)
 - Codex work usually lives in worktrees under `~/.codex/worktrees/`. Do not edit,
   stage, commit, reset or clean a Codex-owned checkout or branch unless the user
   assigns it. Reading it is fine.
