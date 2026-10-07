@@ -24,7 +24,9 @@ const { startFixture, login } = require('../../scripts/lib/admin-parity-fixture.
     assert.equal(await page.locator('#actor-input').inputValue(), 'ReviewOwner');
     assert.equal(await page.locator('.filter-chip').count(), 1);
     assert.equal(await page.evaluate(() => document.scrollingElement.scrollHeight <= innerHeight), true, 'the document never scrolls');
-    assert.match(await page.locator('.page-head .summary').innerText(), /Times in Copenhagen time \(UTC[+-]\d\d:\d\d\)/);
+    // U3-Q10: the summary is only the time zone line.
+    assert.match(await page.locator('.page-head .summary').innerText(), /^Times in Copenhagen time \(UTC[+-]\d\d:\d\d\)$/);
+    assert.equal(await page.locator('.page-head .summary > span').count(), 1);
 
     // Clear all, then the actor search (C-AUD-3: "@" ignored, case ignored), pushed to history.
     await page.locator('#clear-all').click();

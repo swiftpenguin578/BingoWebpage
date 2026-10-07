@@ -5,7 +5,7 @@
 }
 @* Lane T: Audit page-family load states. The summary is data-independent, so it shows at once. *@
 <template data-page-header-template="audit">
-    <header class="page-head" data-page-family="audit"><div style="min-width:0"><h1 class="h1" tabindex="-1">@D["Audit"]</h1><p class="summary"><span>@D["Administrative history, newest first."]</span><span>@D["Times in Copenhagen time ({0})", offset]</span></p></div></header>
+    <header class="page-head" data-page-family="audit"><div style="min-width:0"><h1 class="h1" tabindex="-1">@D["Audit"]</h1><p class="summary"><span>@D["Times in Copenhagen time ({0})", offset]</span></p></div></header>
 </template>
 @foreach (var failed in new[] { false, true })
 {
