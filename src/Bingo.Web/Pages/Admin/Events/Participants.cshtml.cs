@@ -102,6 +102,60 @@ public sealed class ParticipantsModel(
         return Page();
     }
 
+    // U5-Q3: no-store current state of one participant (drawer open and lost-response re-read).
+    public async Task<IActionResult> OnGetCurrentAsync(Guid id, Guid participant, CancellationToken ct)
+    {
+        NoStore();
+        var bingoEvent = await db.Events.AsNoTracking().SingleOrDefaultAsync(item => item.Id == id && item.HiddenAt == null && item.State != EventState.Discarded, ct);
+        if (bingoEvent is null) return NotFound();
+        var view = await new ParticipantDrawerReader(db, Localize).ReadAsync(bingoEvent, participant, ct);
+        return view is null ? NotFound() : new JsonResult(view);
+    }
+
+    // U5-Q2: the drawer's single Save. Classified Service: the signup service allows
+    // payment and the private note in every retained state and refuses account or
+    // answer changes once the draft has started (D16).
+    public async Task<IActionResult> OnPostSaveParticipantAsync(Guid id, [FromForm] ParticipantSaveInput input, CancellationToken ct)
+    {
+        var actorId = User.GetAccountId();
+        if (actorId is null) return Forbid();
+        List<AdminDrawerAccount>? playing = null, informational = null;
+        Dictionary<Guid, string>? answers = null;
+        try
+        {
+            if (!string.IsNullOrEmpty(input.Accounts))
+            {
+                var accounts = JsonSerializer.Deserialize<List<ParticipantSaveAccount>>(input.Accounts, JsonOptions) ?? [];
+                playing = accounts.Where(item => item.Role != "alt").Select(item => new AdminDrawerAccount(item.AssignmentId, item.Name ?? string.Empty, item.Ehb, item.Primary)).ToList();
+                informational = accounts.Where(item => item.Role == "alt").Select(item => new AdminDrawerAccount(item.AssignmentId, item.Name ?? string.Empty, null)).ToList();
+            }
+            if (!string.IsNullOrEmpty(input.Answers))
+                answers = JsonSerializer.Deserialize<Dictionary<Guid, string>>(input.Answers, JsonOptions) ?? [];
+        }
+        catch (JsonException)
+        {
+            return SaveOutcome(new AdminParticipantDrawerSaveResult(false, "The changes could not be read. Nothing was saved.", "refused"));
+        }
+        var result = await signupService.SaveAdminParticipantDrawerAsync(new AdminParticipantDrawerSaveRequest(
+            id, input.ParticipantId, actorId.Value, User.Identity?.Name ?? "Admin",
+            input.Paid ? PaymentStatus.Paid : PaymentStatus.Unpaid, input.Note,
+            input.ExpectedPaid ? PaymentStatus.Paid : PaymentStatus.Unpaid, input.ExpectedNote,
+            input.ExpectedResponseVersion, playing, informational, answers), ct);
+        return SaveOutcome(result);
+    }
+
+    private JsonResult SaveOutcome(AdminParticipantDrawerSaveResult result) => new(new
+    {
+        outcome = result.Outcome,
+        message = result.Error is null ? null : Localize(result.Error),
+        field = result.Field,
+        changed = result.Changed
+    });
+
+    private void NoStore() { if (HttpContext is { } context) context.Response.Headers.CacheControl = "no-store"; }
+
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+
     // Retired signup-settings owner. Keep handler selection and the existing
     // Setup gate so historical posts receive the pinned Manage redirect.
     public IActionResult OnPostSignupAdministration(Guid id)
@@ -253,6 +307,18 @@ public sealed class ParticipantsModel(
     public sealed record ParticipantRow(Guid Id, long Sequence, string Name, decimal Ehb, SignupStatus Status, PaymentStatus Payment, DateTimeOffset SignedUpAt, bool CaptainVolunteer, string? CoCaptainName, int? WaitingPosition, SignupSource Source, string? WebsiteUsername, bool DiscordLinked, string? TeamName);
     public sealed record TeamOption(Guid Id, string Name);
     public sealed record OwnerAccountOption(Guid Id, string Username);
+    public sealed class ParticipantSaveInput
+    {
+        public Guid ParticipantId { get; set; }
+        public int? ExpectedResponseVersion { get; set; }
+        public bool ExpectedPaid { get; set; }
+        public string? ExpectedNote { get; set; }
+        public bool Paid { get; set; }
+        [StringLength(4000)] public string? Note { get; set; }
+        public string? Accounts { get; set; }
+        public string? Answers { get; set; }
+    }
+    public sealed record ParticipantSaveAccount(Guid? AssignmentId, string? Name, decimal? Ehb, string? Role, bool Primary);
     public sealed class InternalParticipantInput
     {
         public Guid? OwnerAccountId { get; set; }

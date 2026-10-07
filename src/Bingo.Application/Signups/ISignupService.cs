@@ -119,6 +119,12 @@ public interface ISignupService
     Task<EventAccountMutationResult> SwitchParticipantPrimaryAsync(SwitchAdminPrimaryRequest request, CancellationToken cancellationToken = default)
         => SwitchAdminPrimaryAsync(request, cancellationToken);
 
+    /// <summary>U5-Q2: saves the whole Participants drawer atomically with stale checks.</summary>
+    Task<AdminParticipantDrawerSaveResult> SaveAdminParticipantDrawerAsync(
+        AdminParticipantDrawerSaveRequest request,
+        CancellationToken cancellationToken = default)
+        => Task.FromException<AdminParticipantDrawerSaveResult>(new NotSupportedException("Participant drawer saves are not available."));
+
     Task<ParticipantPaymentResult> SetPaymentAsync(Guid eventId, Guid participantId, Guid? actorAccountId, string actorName, PaymentStatus payment, CancellationToken cancellationToken = default)
         => Task.FromException<ParticipantPaymentResult>(new NotSupportedException("Participant payment is not available."));
 
@@ -316,6 +322,26 @@ public sealed record AdminParticipantChangeRequest(
     string? WomValidationConfirmationToken = null);
 public sealed record AdminParticipantResult(bool Succeeded, string? Error, Guid? ParticipantId = null, SignupStatus? Status = null, int? WaitingPosition = null, string? WomValidationConfirmationToken = null,
     int? EffectiveParticipantCap = null, bool AddedPlace = false);
+// U5-Q2. Playing is null when accounts are not submitted (payment/note-only save);
+// then Informational is ignored. Answers is null when answers are not submitted.
+// AssignmentId names the current assignment an entry continues; a missing id or a
+// changed name is a new event-only account (U5-Q1).
+public sealed record AdminDrawerAccount(Guid? AssignmentId, string Name, decimal? Ehb, bool Primary = false);
+public sealed record AdminParticipantDrawerSaveRequest(
+    Guid EventId,
+    Guid ParticipantId,
+    Guid ActorAccountId,
+    string ActorName,
+    PaymentStatus Payment,
+    string? AdminNote,
+    PaymentStatus ExpectedPayment,
+    string? ExpectedAdminNote,
+    int? ExpectedResponseVersion = null,
+    IReadOnlyList<AdminDrawerAccount>? Playing = null,
+    IReadOnlyList<AdminDrawerAccount>? Informational = null,
+    IReadOnlyDictionary<Guid, string>? Answers = null);
+/// <summary>Outcome: saved, refused (definite, with the reason), stale or invalid (Field names the input).</summary>
+public sealed record AdminParticipantDrawerSaveResult(bool Succeeded, string? Error = null, string Outcome = "saved", bool Changed = false, string? Field = null);
 public sealed record ParticipantOwnershipTransferRequest(Guid EventId, Guid ParticipantId, Guid ActorAccountId, string ActorName, Guid? DestinationOwnerAccountId, Guid? ExpectedOwnerAccountId = null, bool Confirmed = false);
 public sealed record ParticipantOwnershipTransferResult(bool Succeeded, string? Error, bool Changed = false);
 public sealed record LiveWithdrawalRequest(Guid EventId, Guid ParticipantId, Guid ActorAccountId, string ActorName, long? ExpectedMembershipVersion = null);

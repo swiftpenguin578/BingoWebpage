@@ -159,7 +159,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         var regular = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, "primary_regular_account", "Account", SignupQuestionType.Account, true, 0, null, SignupSystemField.PrimaryRegularAccount, EventCharacterRole.Playing);
         var captain = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, "captain_volunteer", "Captain volunteer", SignupQuestionType.YesNo, false, 1, null, SignupSystemField.CaptainVolunteer);
         var coCaptain = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, SignupQuestion.CoCaptainKey, SignupQuestion.CoCaptainLabel, SignupQuestionType.Text, false, 2, null, SignupSystemField.CoCaptainName);
-        var main = new OsrsCharacter(Guid.NewGuid(), "Co-captain main", $"CO CAPTAIN MAIN {Guid.NewGuid():N}", now);
+        var main = new OsrsCharacter(Guid.NewGuid(), "Cocap Main", $"CO CAPTAIN MAIN {Guid.NewGuid():N}", now);
         var mainLink = new AccountOsrsCharacter(Guid.NewGuid(), admin.Id, main.Id, admin.Id, true, 0, null, 18m, now);
         db.AddRange(admin, internalOwner, bingoEvent, form, regular, captain, coCaptain, main, mainLink);
         await db.SaveChangesAsync();
@@ -196,7 +196,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         Assert.True(cleared.Succeeded, cleared.Error);
         Assert.Empty(await db.SignupAnswers.Where(x => x.EventParticipantId == participant.Id && x.SignupQuestionId == coCaptain.Id).ToListAsync());
 
-        var internalCharacter = new OsrsCharacter(Guid.NewGuid(), "Internal replacement", $"INTERNAL REPLACEMENT {Guid.NewGuid():N}", now);
+        var internalCharacter = new OsrsCharacter(Guid.NewGuid(), "Internal Rep", $"INTERNAL REPLACEMENT {Guid.NewGuid():N}", now);
         db.OsrsCharacters.Add(internalCharacter);
         await db.SaveChangesAsync();
         var internalResult = await service.CreateAdminParticipantAsync(new(bingoEvent.Id, null, admin.Id, admin.LoginName, internalOwner.Id,
@@ -641,7 +641,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         var form = new SignupForm(Guid.NewGuid(), bingoEvent.Id, now);
         var primary = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, "primary_regular_account", "Account", SignupQuestionType.Account, true, 0, null, SignupSystemField.PrimaryRegularAccount, EventCharacterRole.Playing);
         var original = new OsrsCharacter(Guid.NewGuid(), "Corrected restore original", $"CORRECTED RESTORE ORIGINAL {Guid.NewGuid():N}", now);
-        var correctedCharacter = new OsrsCharacter(Guid.NewGuid(), "Corrected restore name", "CORRECTED RESTORE NAME", now);
+        var correctedCharacter = new OsrsCharacter(Guid.NewGuid(), "Corrected Rn", "CORRECTED RN", now);
         var link = new AccountOsrsCharacter(Guid.NewGuid(), owner.Id, original.Id, owner.Id, true, 0, "Main", 18m, now);
         await using (var setup = new ApplicationDbContext(options))
         {
@@ -683,8 +683,8 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         {
             var savedLink = await accountsDb.AccountOsrsCharacters.SingleAsync(item => item.Id == link.Id);
             await new MyAccountsService(accountsDb, new FixedSignupTimeProvider(now), new SuccessfulWiseOldManAccountValidation())
-                .UpdateAsync(owner.Id, savedLink.Id, savedLink.Version, "Corrected restore name", savedLink.PersonalLabel, savedLink.SavedEhb, CancellationToken.None);
-            correctedId = await accountsDb.OsrsCharacters.Where(item => item.NormalizedName == "CORRECTED RESTORE NAME").Select(item => item.Id).SingleAsync();
+                .UpdateAsync(owner.Id, savedLink.Id, savedLink.Version, "Corrected Rn", savedLink.PersonalLabel, savedLink.SavedEhb, CancellationToken.None);
+            correctedId = await accountsDb.OsrsCharacters.Where(item => item.NormalizedName == "CORRECTED RN").Select(item => item.Id).SingleAsync();
         }
 
         await using (var corrected = new ApplicationDbContext(options))
@@ -917,7 +917,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         client.DefaultRequestHeaders.AcceptLanguage.ParseAdd(culture);
 
         var discordUserId = $"onboarding-culture-{culture}-{Guid.NewGuid():N}";
-        var characterName = $"Bilingual Character {culture}";
+        var characterName = $"Bilingual {culture}";
         var username = $"onboarding-{culture}-{Guid.NewGuid():N}";
         var onboardingState = factory.Services.GetRequiredService<DiscordOnboardingStateService>();
         var issue = new DefaultHttpContext();
@@ -1088,19 +1088,19 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         var beforeAddLinkCount = await CountActiveLinksAsync(accountId);
         using var fetchedAdd = await client.PostAsync("/Account/MyAccounts?handler=FetchAdd", new FormUrlEncodedContent(new Dictionary<string, string>
         {
-            ["Add.CharacterName"] = "Route WoM Add",
+            ["Add.CharacterName"] = "Route WoM Ad",
             ["Add.SavedEhb"] = culture == "da" ? "12,50" : "12.50",
             ["__RequestVerificationToken"] = AntiforgeryToken(addPage)
         }));
         Assert.Equal(HttpStatusCode.OK, fetchedAdd.StatusCode);
         var fetchedAddPage = await fetchedAdd.Content.ReadAsStringAsync();
         Assert.Equal(3, fake.Calls);
-        Assert.Contains("Route WoM Add", fetchedAddPage, StringComparison.Ordinal);
+        Assert.Contains("Route WoM Ad", fetchedAddPage, StringComparison.Ordinal);
         Assert.Contains($"value=\"{addFetchedDisplay}\"", fetchedAddPage, StringComparison.Ordinal);
         Assert.Equal(beforeAddLinkCount, await CountActiveLinksAsync(accountId));
         using var savedFetchedAdd = await client.PostAsync("/Account/MyAccounts?handler=Add", new FormUrlEncodedContent(new Dictionary<string, string>
         {
-            ["Add.CharacterName"] = "Route WoM Add",
+            ["Add.CharacterName"] = "Route WoM Ad",
             ["Add.SavedEhb"] = addFetchedDisplay,
             ["__RequestVerificationToken"] = AntiforgeryToken(fetchedAddPage)
         }));
@@ -2755,7 +2755,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
 
         var route = $"/Admin/Events/Participants/{bingoEvent.Id}";
         var page = await client.GetStringAsync($"{route}?addParticipant=1");
-        const string characterName = "Internal outage Alice";
+        const string characterName = "Outage Alice";
         const string submittedAnswer = "Keep this answer after cancel";
         var characterField = $"InternalParticipant.AccountAnswers[{primary.Id}].CharacterName";
         var ehbField = $"InternalParticipant.AccountAnswers[{primary.Id}].Ehb";
@@ -2858,7 +2858,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         using (var stale = await client.PostAsync(detailRoute, new FormUrlEncodedContent(new Dictionary<string, string> { [$"Input.AccountAnswers[{regular.Id}].CharacterName"] = oldRegular.DisplayName, [$"Input.AccountAnswers[{regular.Id}].Ehb"] = "999", [$"Input.AccountAnswers[{alt.Id}].CharacterName"] = oldAlt.DisplayName, [$"Input.CustomAnswers[{captain.Id}]"] = "true", [$"Input.CustomAnswers[{answer.Id}]"] = "must-not-save", ["__RequestVerificationToken"] = AntiforgeryToken(missingVersion) }))) { Assert.Equal(HttpStatusCode.OK, stale.StatusCode); Assert.Contains("reload", await stale.Content.ReadAsStringAsync(), StringComparison.OrdinalIgnoreCase); }
         await using (var verify = new ApplicationDbContext(options)) { Assert.Equal(correctionBeforeStale, await ParticipantStateAsync(verify, first.Id)); var saved = await verify.EventParticipants.SingleAsync(x => x.Id == first.Id); Assert.False(saved.CaptainVolunteer); Assert.Equal(SignupStatus.Confirmed, saved.SignupStatus); Assert.Equal(SignupSource.Website, saved.Source); Assert.Equal(now.AddTicks(-(now.Ticks % TimeSpan.TicksPerMicrosecond)), saved.SignedUpAt); Assert.Equal(1, saved.SignupSequence); Assert.Equal(3, saved.ResponseVersion); Assert.True(saved.PaymentReceived); Assert.Equal("private-note", saved.AdminNotes); Assert.Equal("after", await verify.SignupAnswers.Where(x => x.EventParticipantId == first.Id && x.SignupQuestionId == answer.Id).Select(x => x.Value).SingleAsync()); Assert.Equal(19m, await verify.EventParticipantCharacters.Where(x => x.EventParticipantId == first.Id && x.ReleasedAt == null && x.SignupQuestionId == regular.Id).Select(x => x.EhbSnapshot).SingleAsync()); Assert.Equal(2, await verify.AuditEntries.CountAsync(x => x.TargetId == first.Id.ToString() && x.Action == "participant.corrected")); }
         var participantsRoute = $"/Admin/Events/Participants/{bingoEvent.Id}"; var participants = await client.GetStringAsync(participantsRoute);
-        using (var created = await client.PostAsync($"{participantsRoute}?handler=CreateInternalParticipant", new FormUrlEncodedContent(new Dictionary<string, string> { ["InternalParticipant.OwnerAccountId"] = admin.Id.ToString(), [$"InternalParticipant.AccountAnswers[{regular.Id}].CharacterName"] = $"Internal {Guid.NewGuid():N}", [$"InternalParticipant.AccountAnswers[{regular.Id}].Ehb"] = "8", [$"InternalParticipant.Answers[{answer.Id}]"] = "created", ["__RequestVerificationToken"] = AntiforgeryToken(participants) }))) Assert.Equal(HttpStatusCode.Redirect, created.StatusCode);
+        using (var created = await client.PostAsync($"{participantsRoute}?handler=CreateInternalParticipant", new FormUrlEncodedContent(new Dictionary<string, string> { ["InternalParticipant.OwnerAccountId"] = admin.Id.ToString(), [$"InternalParticipant.AccountAnswers[{regular.Id}].CharacterName"] = $"Int {Guid.NewGuid().ToString("N")[..8]}", [$"InternalParticipant.AccountAnswers[{regular.Id}].Ehb"] = "8", [$"InternalParticipant.Answers[{answer.Id}]"] = "created", ["__RequestVerificationToken"] = AntiforgeryToken(participants) }))) Assert.Equal(HttpStatusCode.Redirect, created.StatusCode);
         await using (var verify = new ApplicationDbContext(options)) { var created = await verify.EventParticipants.SingleAsync(x => x.Source == SignupSource.AdminCreated); Assert.Equal(admin.Id, created.AccountId); Assert.Equal(SignupStatus.Confirmed, created.SignupStatus); Assert.NotNull(await verify.SignupForms.Where(x => x.Id == form.Id).Select(x => x.FirstResponseAt).SingleAsync()); }
 
         async Task LoginAsync(HttpClient http, string username, string password)
@@ -3107,7 +3107,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         public Task<WiseOldManPlayerLookupResult> LookupPlayerAsync(string characterName, CancellationToken cancellationToken = default)
         {
             Calls++;
-            var ehb = characterName == "Route WoM Add" ? 3000.09582m : 17.5m;
+            var ehb = characterName == "Route WoM Ad" ? 3000.09582m : 17.5m;
             return Task.FromResult(new WiseOldManPlayerLookupResult(WiseOldManLookupStatus.Success, ehb, DateTimeOffset.UtcNow));
         }
     }
