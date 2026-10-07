@@ -18,7 +18,7 @@
 @* The page script moves this content into the shared drawer layer. Every value here belongs to the activity in
    data-activity-id; nothing is carried between activities. Drop editors are templates so one opens at a time. *@
 <template data-catalogue-drawer data-activity-id="@a?.Id" data-activity-version="@a?.Version" data-activity-name="@a?.Name" data-activity-active="@((a?.Active ?? false) ? "true" : "false")"
-          data-activity-rate="@Invariant(a?.EfficientCompletionsPerHour)" data-activity-category="@a?.Category" data-missing="@(drawer.Missing ? "true" : "false")" data-new="@(isNew ? "true" : "false")" data-open-drop="@drawer.OpenDrop">
+          data-activity-rate="@Invariant(a?.EfficientCompletionsPerHour)" data-activity-category="@a?.Category" data-activity-team="@a?.TeamSize" data-activity-image="@a?.ImageUrl" data-missing="@(drawer.Missing ? "true" : "false")" data-new="@(isNew ? "true" : "false")" data-open-drop="@drawer.OpenDrop">
 @if (drawer.Missing)
 {
     <div class="dr-head"><span class="thumb is-lg" aria-hidden="true"></span><div class="grow"><div class="eyebrow">@D["Catalogue"]</div><h2 class="dr-title" id="drawer-title">@D["Not found"]</h2></div><button class="icon-btn" type="button" id="drawer-close" aria-label="@D["Close"]" data-catalogue-close><partial name="_AdminDesignIcon" model='new AdminDesignIcon("close")' /></button></div>
