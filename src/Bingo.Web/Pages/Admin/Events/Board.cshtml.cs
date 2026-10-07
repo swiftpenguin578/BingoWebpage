@@ -246,7 +246,7 @@ public sealed partial class BoardModel(ApplicationDbContext db, TimeProvider tim
         foreach (var requirement in TileDraft.Requirements)
         {
             if (requirement.Target < 1) ModelState.AddModelError(string.Empty, Localize("Every requirement needs a quantity of at least 1."));
-            if (requirement.DropWeights.Any(x => x.Value < 1)) ModelState.AddModelError(string.Empty, Localize("Every selected drop count must be at least 1."));
+            if (requirement.DropWeights.Any(x => x.Value is < 1 or > MaximumDropWeight)) ModelState.AddModelError(string.Empty, Localize(DropWeightRangeMessage));
             if (!requirement.IsManual && requirement.BossIds.Count == 0) ModelState.AddModelError(string.Empty, Localize("Choose at least one boss for each collect-drops requirement."));
             if (!requirement.IsManual && requirement.DropIds.Count == 0) ModelState.AddModelError(string.Empty, Localize("Choose at least one eligible drop for each collect-drops requirement."));
             if (requirement.IsManual && string.IsNullOrWhiteSpace(requirement.Description)) ModelState.AddModelError(string.Empty, Localize("Describe the challenge requirements."));
@@ -254,6 +254,7 @@ public sealed partial class BoardModel(ApplicationDbContext db, TimeProvider tim
         if (TileDraft.Requirements.Select(x => x.IsManual).Distinct().Count() > 1)
             ModelState.AddModelError(string.Empty, Localize("Use separate tiles for catalogue drops and custom challenges. Every objective in a tile must have the same kind."));
         if (TileDraft.Requirements.All(x => x.IsManual) && TileDraft.ManualEhb is not > 0) ModelState.AddModelError(string.Empty, Localize("A custom challenge needs an explicit manual EHB estimate."));
+        if (TileNameTooLong(TileDraft.Name, null)) ModelState.AddModelError(string.Empty, Localize(TileNameTooLongMessage));
         if (!ModelState.IsValid) { SetStatus(string.Join(" ", ModelState.Values.SelectMany(x => x.Errors).Select(x => x.ErrorMessage)), UiMessageType.Warning); return RedirectToPage(new { id }); }
 
         await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.RepeatableRead, ct);
@@ -334,7 +335,7 @@ public sealed partial class BoardModel(ApplicationDbContext db, TimeProvider tim
             foreach (var requirement in TileDraft.Requirements)
             {
                 if (requirement.Target < 1) ModelState.AddModelError(string.Empty, Localize("Every requirement needs a quantity of at least 1."));
-                if (requirement.DropWeights.Any(x => x.Value < 1)) ModelState.AddModelError(string.Empty, Localize("Every selected drop count must be at least 1."));
+                if (requirement.DropWeights.Any(x => x.Value is < 1 or > MaximumDropWeight)) ModelState.AddModelError(string.Empty, Localize(DropWeightRangeMessage));
                 if (!requirement.IsManual && requirement.BossIds.Count == 0) ModelState.AddModelError(string.Empty, Localize("Choose at least one boss for each collect-drops requirement."));
                 if (!requirement.IsManual && requirement.DropIds.Count == 0) ModelState.AddModelError(string.Empty, Localize("Choose at least one eligible drop for each collect-drops requirement."));
                 if (requirement.IsManual && string.IsNullOrWhiteSpace(requirement.Description)) ModelState.AddModelError(string.Empty, Localize("Describe the challenge requirements."));
@@ -342,6 +343,7 @@ public sealed partial class BoardModel(ApplicationDbContext db, TimeProvider tim
             if (TileDraft.Requirements.Select(x => x.IsManual).Distinct().Count() > 1)
                 ModelState.AddModelError(string.Empty, Localize("Use separate tiles for catalogue drops and custom challenges. Every objective in a tile must have the same kind."));
             if (TileDraft.Requirements.All(x => x.IsManual) && TileDraft.ManualEhb is not > 0) ModelState.AddModelError(string.Empty, Localize("A custom challenge needs an explicit manual EHB estimate."));
+            if (TileNameTooLong(TileDraft.Name, tile.NameSnapshot)) ModelState.AddModelError(string.Empty, Localize(TileNameTooLongMessage));
             if (!ModelState.IsValid) { SetStatus(string.Join(" ", ModelState.Values.SelectMany(x => x.Errors).Select(x => x.ErrorMessage)), UiMessageType.Warning); return RedirectToPage(new { id }); }
 
             if (!await TryEnsurePublishedCorrectionLifecycleAsync(board, id, ct))
@@ -550,8 +552,16 @@ public sealed partial class BoardModel(ApplicationDbContext db, TimeProvider tim
         await using var transaction = await db.Database.BeginTransactionAsync(ct);
         if (expectedTeamSize is < 1 or > 100) { SetStatus(Localize("Expected team size must be between 1 and 100."), UiMessageType.Warning); return RedirectToPage(new { id }); }
         var board = await db.Boards.SingleOrDefaultAsync(x => x.EventId == id, ct); if (board is null) return NotFound();
-        if (!await TryClaimBoardAsync(board, ct)) return RedirectToPage(new { id });
         var bingoEvent = await db.Events.SingleOrDefaultAsync(x => x.Id == id, ct); if (bingoEvent is null) return NotFound();
+        // B-Board-1: the planning size is editable only before Live, including
+        // during an open published correction (the route gate lets corrections through).
+        if (!EventStatePolicy.Allows(bingoEvent.State, EventCapability.ConfigureIdentityOrSchedule))
+        {
+            db.ChangeTracker.Clear();
+            SetStatus(Localize(TeamSizeLockedMessage), UiMessageType.Warning);
+            return RedirectToPage(new { id });
+        }
+        if (!await TryClaimBoardAsync(board, ct)) return RedirectToPage(new { id });
         var before = new { bingoEvent.ExpectedTeamSize };
         bingoEvent.SetExpectedTeamSize(expectedTeamSize);
         await WriteAudit("board.expected_team_size_changed", board, before, new { bingoEvent.ExpectedTeamSize }, ct); await transaction.CommitAsync(ct); await collaboration.NotifyBoardChangedAsync(id, ct); SetStatus(Localize("Expected team size updated."), UiMessageType.Success); return RedirectToPage(new { id });
@@ -633,6 +643,11 @@ public sealed partial class BoardModel(ApplicationDbContext db, TimeProvider tim
         if (!confirmed || string.IsNullOrWhiteSpace(reason))
         {
             SetStatus(Localize("Confirm the exceptional board correction and provide an Admin reason."), UiMessageType.Warning);
+            return RedirectToPage(new { id });
+        }
+        if (reason.Trim().Length > CorrectionReasonMaximumLength)
+        {
+            SetStatus(Localize(CorrectionReasonTooLongMessage), UiMessageType.Warning);
             return RedirectToPage(new { id });
         }
         await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
@@ -1647,6 +1662,22 @@ public sealed partial class BoardModel(ApplicationDbContext db, TimeProvider tim
             }).ToList();
         }
         return true;
+    }
+
+    // B-Board-2 limits (brief 88). The tile name limit applies to new and changed
+    // names only; stored longer names stay valid (planner ruling 2, as U5-Q4).
+    public const int TileNameMaximumLength = 80;
+    public const int CorrectionReasonMaximumLength = 2000;
+    public const int MaximumDropWeight = 10000;
+    public const string TileNameTooLongMessage = "Tile names must be 80 characters or fewer.";
+    public const string CorrectionReasonTooLongMessage = "The correction reason must be 2,000 characters or fewer.";
+    public const string DropWeightRangeMessage = "Every drop weight must be between 1 and 10,000.";
+    public const string TeamSizeLockedMessage = "Players per team can only be changed before the event goes Live.";
+    private static bool TileNameTooLong(string? entered, string? stored)
+    {
+        if (string.IsNullOrWhiteSpace(entered)) return false;
+        var name = entered.Trim();
+        return name.Length > TileNameMaximumLength && !string.Equals(name, stored, StringComparison.Ordinal);
     }
 
     private Guid AdminId => User.GetAccountId()!.Value;

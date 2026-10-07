@@ -2948,7 +2948,6 @@
   <data name="Counts as" xml:space="preserve"><value>Tæller som</value></data>
   <data name="Counts as {0}" xml:space="preserve"><value>Tæller som {0}</value></data>
   <data name="How many times {0} counts" xml:space="preserve"><value>Hvor mange gange {0} tæller</value></data>
-  <data name="Every selected drop count must be at least 1." xml:space="preserve"><value>Hvert valgt drop-tal skal være mindst 1.</value></data>
   <data name="This tile cannot be removed because submitted evidence depends on it." xml:space="preserve"><value>Denne tile kan ikke fjernes, fordi indsendt dokumentation afhænger af den.</value></data>
   <data name="Board editor unavailable" xml:space="preserve"><value>Board-editoren er ikke tilgængelig</value></data>
   <data name="This event does not have an editable board in its current lifecycle state." xml:space="preserve"><value>Denne event har ikke et redigerbart Board i sin nuværende livscyklus.</value></data>
@@ -3844,4 +3843,9 @@
   <data name="That account field cannot be edited." xml:space="preserve"><value>Det kontofelt kan ikke redigeres.</value></data>
   <data name="That question cannot be edited." xml:space="preserve"><value>Det spørgsmål kan ikke redigeres.</value></data>
   <data name="This signup form changed while you were editing it. Review the latest values and try again." xml:space="preserve"><value>Denne tilmeldingsformular blev ændret, mens du redigerede den. Gennemgå de seneste værdier, og prøv igen.</value></data>
+  <!-- U7 Board (brief 88) -->
+  <data name="Players per team can only be changed before the event goes Live." xml:space="preserve"><value>Spillere pr. hold kan kun ændres, før eventet går Live.</value></data>
+  <data name="Tile names must be 80 characters or fewer." xml:space="preserve"><value>Tilenavne må højst være på 80 tegn.</value></data>
+  <data name="The correction reason must be 2,000 characters or fewer." xml:space="preserve"><value>Begrundelsen for rettelsen må højst være på 2.000 tegn.</value></data>
+  <data name="Every drop weight must be between 1 and 10,000." xml:space="preserve"><value>Hver drop-vægt skal være mellem 1 og 10.000.</value></data>
 </root>
