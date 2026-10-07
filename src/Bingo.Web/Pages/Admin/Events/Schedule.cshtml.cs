@@ -160,7 +160,7 @@ public sealed class ScheduleModel(ApplicationDbContext db, IEventSignupLifecycle
         var result = await schedules.SaveScheduleAsync(id, Input.Version, values, Input.ConfirmChanges, new LifecycleActor(User.GetAccountId()!.Value, User.Identity!.Name!), Input.EventEndReason, ct);
         if (!result.Succeeded)
         {
-            var message = Localize(result.Error!);
+            var message = LocalizeRefusal(result.Error!);
             if (result.Error is "Confirm the Live event-end change before saving." or "Confirm the schedule consequence before saving.")
             {
                 ModelState.AddModelError("Input.ConfirmChanges", message);
@@ -232,6 +232,14 @@ public sealed class ScheduleModel(ApplicationDbContext db, IEventSignupLifecycle
         };
     }
 
+    private string LocalizeRefusal(string error)
+    {
+        const string overlap = "This event window overlaps ";
+        if (error.StartsWith(overlap, StringComparison.Ordinal) && error.EndsWith('.'))
+            return Localize("This event window overlaps {0}.", error[overlap.Length..^1]);
+        var capacity = System.Text.RegularExpressions.Regex.Match(error, @"^The participant cap cannot be lower than the (\d+) confirmed participant\(s\)\.$");
+        return capacity.Success ? Localize("The participant cap cannot be lower than the {0} confirmed participant(s).", capacity.Groups[1].Value) : Localize(error);
+    }
     private string Localize(string key, params object[] arguments) => text?[key, arguments].Value ?? string.Format(CultureInfo.CurrentCulture, key, arguments);
     private async Task<IActionResult> Reload(BingoEvent item, CancellationToken ct, bool preserveInput = true)
     {

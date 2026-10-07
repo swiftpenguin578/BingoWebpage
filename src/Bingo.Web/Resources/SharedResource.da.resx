@@ -3430,4 +3430,50 @@
   <data name="Choose a supported timezone on Identity." xml:space="preserve"><value>Vælg en understøttet tidszone på Identitet.</value></data>
   <data name="Couldn’t initialize this page" xml:space="preserve"><value>Siden kunne ikke startes</value></data>
   <data name="Try again, or open another page." xml:space="preserve"><value>Prøv igen, eller åbn en anden side.</value></data>
+  <data name="Signup opening" xml:space="preserve"><value>Åbning af tilmelding</value></data>
+  <data name="Signup closing" xml:space="preserve"><value>Lukning af tilmelding</value></data>
+  <data name="Event start" xml:space="preserve"><value>Eventstart</value></data>
+  <data name="Event end" xml:space="preserve"><value>Eventslut</value></data>
+  <data name="A scheduled signup opening must be configured in the future." xml:space="preserve"><value>En planlagt åbning af tilmeldingen skal ligge i fremtiden.</value></data>
+  <data name="Automatic signup opening can only be changed for a private draft." xml:space="preserve"><value>Automatisk åbning af tilmeldingen kan kun ændres for en privat kladde.</value></data>
+  <data name="Automatic signup opening is locked because the opening boundary has passed." xml:space="preserve"><value>Automatisk åbning af tilmeldingen er låst, fordi åbningstidspunktet er passeret.</value></data>
+  <data name="Automatic signup opening requires a signup closing time." xml:space="preserve"><value>Automatisk åbning af tilmeldingen kræver et lukketidspunkt.</value></data>
+  <data name="Automatic signup opening requires a signup opening time." xml:space="preserve"><value>Automatisk åbning af tilmeldingen kræver et åbningstidspunkt.</value></data>
+  <data name="Confirm the Live event-end change before saving." xml:space="preserve"><value>Bekræft ændringen af den igangværende events sluttidspunkt, før du gemmer.</value></data>
+  <data name="Confirm the schedule consequence before saving." xml:space="preserve"><value>Bekræft tidsplanens konsekvens, før du gemmer.</value></data>
+  <data name="Event not found." xml:space="preserve"><value>Eventen blev ikke fundet.</value></data>
+  <data name="Only a Live event can change its end time." xml:space="preserve"><value>Kun en igangværende event kan få ændret sit sluttidspunkt.</value></data>
+  <data name="Only a finalized pre-live draft can change its event window." xml:space="preserve"><value>Kun en afsluttet holdfordeling før eventstart kan få ændret eventens tidsrum.</value></data>
+  <data name="Only an active website administrator can perform this event action." xml:space="preserve"><value>Kun en aktiv administrator på hjemmesiden kan udføre denne handling på eventen.</value></data>
+  <data name="Only future event start and end times can change after draft finalization." xml:space="preserve"><value>Efter holdfordelingen er afsluttet, kan kun fremtidige start- og sluttidspunkter ændres.</value></data>
+  <data name="Only the event end can change while the event is Live." xml:space="preserve"><value>Mens eventen er i gang, kan kun sluttidspunktet ændres.</value></data>
+  <data name="Published event start and end times cannot be cleared." xml:space="preserve"><value>Offentliggjorte start- og sluttidspunkter kan ikke fjernes.</value></data>
+  <data name="Signup and draft boundaries are locked while the draft is running or paused." xml:space="preserve"><value>Tilmeldings- og holdfordelingstidspunkter er låst, mens holdfordelingen kører eller er sat på pause.</value></data>
+  <data name="Signup closing is read-only after signup has closed; use Reopen to establish a new closing time." xml:space="preserve"><value>Lukketidspunktet kan ikke ændres, efter tilmeldingen er lukket. Brug Genåbn til at angive et nyt lukketidspunkt.</value></data>
+  <data name="Signup opening is locked after signup has opened." xml:space="preserve"><value>Åbningstidspunktet er låst, efter tilmeldingen er åbnet.</value></data>
+  <data name="Signups are open, so they need a closing time. Set a new closing time or close signups now." xml:space="preserve"><value>Tilmeldingen er åben og skal derfor have et lukketidspunkt. Angiv et nyt lukketidspunkt, eller luk tilmeldingen nu.</value></data>
+  <data name="The event end must be in the future." xml:space="preserve"><value>Eventens sluttidspunkt skal ligge i fremtiden.</value></data>
+  <data name="The schedule is locked because the draft has started." xml:space="preserve"><value>Tidsplanen er låst, fordi holdfordelingen er startet.</value></data>
+  <data name="The schedule update could not be completed. Try again." xml:space="preserve"><value>Opdateringen af tidsplanen kunne ikke gennemføres. Prøv igen.</value></data>
+  <data name="The schedule update could not be saved. Try again." xml:space="preserve"><value>Opdateringen af tidsplanen kunne ikke gemmes. Prøv igen.</value></data>
+  <data name="This event window overlaps {0}." xml:space="preserve"><value>Eventens tidsrum overlapper {0}.</value></data>
+  <data name="The participant cap cannot be lower than the {0} confirmed participant(s)." xml:space="preserve"><value>Deltagergrænsen kan ikke være lavere end de {0} bekræftede deltagere.</value></data>
+  <data name="Signup opening is locked because that boundary has passed." xml:space="preserve"><value>Åbningstidspunktet er låst, fordi tidspunktet er passeret.</value></data>
+  <data name="A changed signup opening must be in the future." xml:space="preserve"><value>Et ændret tidspunkt for åbning af tilmelding skal ligge i fremtiden.</value></data>
+  <data name="Signup closing is locked because that boundary has passed." xml:space="preserve"><value>Lukketidspunktet er låst, fordi tidspunktet er passeret.</value></data>
+  <data name="A changed signup closing must be in the future." xml:space="preserve"><value>Et ændret tidspunkt for lukning af tilmelding skal ligge i fremtiden.</value></data>
+  <data name="Draft time is locked because that boundary has passed." xml:space="preserve"><value>Holdfordelingstidspunktet er låst, fordi tidspunktet er passeret.</value></data>
+  <data name="A changed draft time must be in the future." xml:space="preserve"><value>Et ændret tidspunkt for holdfordeling skal ligge i fremtiden.</value></data>
+  <data name="Event start is locked because that boundary has passed." xml:space="preserve"><value>Eventens starttidspunkt er låst, fordi tidspunktet er passeret.</value></data>
+  <data name="A changed event start must be in the future." xml:space="preserve"><value>Et ændret tidspunkt for eventstart skal ligge i fremtiden.</value></data>
+  <data name="Event end is locked because that boundary has passed." xml:space="preserve"><value>Eventens sluttidspunkt er låst, fordi tidspunktet er passeret.</value></data>
+  <data name="A changed event end must be in the future." xml:space="preserve"><value>Et ændret tidspunkt for eventslut skal ligge i fremtiden.</value></data>
+  <data name="ConfigureIdentityOrSchedule is unavailable while the event is Draft." xml:space="preserve"><value>Identitet og tidsplan kan ikke ændres, mens eventen er en kladde.</value></data>
+  <data name="ConfigureIdentityOrSchedule is unavailable while the event is SignupOpen." xml:space="preserve"><value>Identitet og tidsplan kan ikke ændres, mens eventen er åben for tilmelding.</value></data>
+  <data name="ConfigureIdentityOrSchedule is unavailable while the event is SignupClosed." xml:space="preserve"><value>Identitet og tidsplan kan ikke ændres, mens eventen er lukket for tilmelding.</value></data>
+  <data name="ConfigureIdentityOrSchedule is unavailable while the event is Live." xml:space="preserve"><value>Identitet og tidsplan kan ikke ændres, mens eventen er i gang.</value></data>
+  <data name="ConfigureIdentityOrSchedule is unavailable while the event is AwaitingFinalReview." xml:space="preserve"><value>Identitet og tidsplan kan ikke ændres, mens eventen er klar til endelig gennemgang.</value></data>
+  <data name="ConfigureIdentityOrSchedule is unavailable while the event is Finalized." xml:space="preserve"><value>Identitet og tidsplan kan ikke ændres, mens eventen er afsluttet.</value></data>
+  <data name="ConfigureIdentityOrSchedule is unavailable while the event is Archived." xml:space="preserve"><value>Identitet og tidsplan kan ikke ændres, mens eventen er arkiveret.</value></data>
+  <data name="ConfigureIdentityOrSchedule is unavailable while the event is Cancelled." xml:space="preserve"><value>Identitet og tidsplan kan ikke ændres, mens eventen er annulleret.</value></data>
 </root>
