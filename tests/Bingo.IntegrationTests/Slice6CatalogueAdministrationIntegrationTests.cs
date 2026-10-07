@@ -84,13 +84,15 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests : IAsy
         await LoginAsync(adminClient, admin.LoginName);
         await LoginAsync(superClient, superAdmin.LoginName);
 
-        var adminPage = await adminClient.GetStringAsync($"/Admin/Catalogue?bossId={boss.Id}");
-        var dropForm = Regex.Match(adminPage, $"<form[^>]*id=\"catalogue-drop-form-{drop.Id}\".*?</form>", RegexOptions.Singleline).Value;
-        Assert.NotEmpty(dropForm);
-        Assert.Contains($"catalogue-drop-form-{destroyDrop.Id}", adminPage, StringComparison.Ordinal);
-        Assert.DoesNotContain($"delete-drop-{drop.Id}", adminPage, StringComparison.Ordinal);
-        var superAdminPage = await superClient.GetStringAsync($"/Admin/Catalogue?bossId={boss.Id}");
-        Assert.Contains($"delete-drop-{drop.Id}", superAdminPage, StringComparison.Ordinal);
+        // A10 (T2 Catalogue binding): each drop's editor is a template in the activity drawer (?activity=);
+        // delete stays Super Admin only, now the editor's "Delete permanently…" control.
+        static string Editor(string page, Guid id) => Regex.Match(page, $"<template data-catalogue-drop-editor=\"{id}\".*?</template>", RegexOptions.Singleline).Value;
+        var adminPage = await adminClient.GetStringAsync($"/Admin/Catalogue?activity={boss.Id}");
+        Assert.NotEmpty(Editor(adminPage, drop.Id));
+        Assert.NotEmpty(Editor(adminPage, destroyDrop.Id));
+        Assert.DoesNotContain("data-catalogue-delete=", adminPage, StringComparison.Ordinal);
+        var superAdminPage = await superClient.GetStringAsync($"/Admin/Catalogue?activity={boss.Id}");
+        Assert.Contains("data-catalogue-delete=\"drop\"", Editor(superAdminPage, drop.Id), StringComparison.Ordinal);
         Assert.DoesNotContain("RateVariant", adminPage, StringComparison.Ordinal);
         Assert.DoesNotContain("<h2 id=\"catalogue-items-heading\">Items", adminPage, StringComparison.Ordinal);
         Assert.DoesNotContain("handler=UpdateItem", adminPage, StringComparison.Ordinal);
