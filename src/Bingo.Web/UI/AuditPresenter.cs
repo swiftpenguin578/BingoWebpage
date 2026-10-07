@@ -102,8 +102,15 @@ public static class AuditPresenter
         ["draft_publication"] = "Draft publication",
         ["boss_activity"] = "Boss or activity",
         ["source_drop"] = "Drop",
-        ["catalogue_item"] = "Item"
+        ["catalogue_item"] = "Item",
+        ["tile"] = "Tile",
+        ["signup_question"] = "Signup question",
+        ["competition"] = "WOM competition"
     };
+
+    /// <summary>Every labelled action key (S12) and record type, for filters and the label completeness test.</summary>
+    public static IReadOnlyDictionary<string, string> ActionLabels => Actions;
+    public static IReadOnlyDictionary<string, string> TargetLabels => Targets;
 
     public static string ActionKey(ReviewActionType action) => action switch
     {

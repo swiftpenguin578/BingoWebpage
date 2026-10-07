@@ -10,42 +10,43 @@
         <h1 id="admin-audit-title">@T["Audit log"]</h1>
     </header>
 
+    @if (Model.DroppedLinkParts) { <p class="admin-audit-empty" role="status">@T["Some filters in the link weren’t recognised."] @T["They were left out; the rest are applied."]</p> }
     <form method="get" class="admin-audit-toolbar" aria-label="@T["Audit log filters"]">
         <div class="admin-field admin-search-field admin-audit-action-field">
-            <label asp-for="Action">@T["Action"]</label>
+            <label for="audit-action">@T["Action"]</label>
             <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
-            <input asp-for="Action" type="search" class="admin-search-field-input form-control" />
-            <span asp-validation-for="Action" class="admin-audit-validation"></span>
+            <input id="audit-action" name="action" value="@Model.Action" type="search" class="admin-search-field-input form-control" />
+
         </div>
         <div class="admin-field">
-            <label asp-for="Actor"></label>
-            <input asp-for="Actor" class="form-control" />
-            <span asp-validation-for="Actor" class="admin-audit-validation"></span>
+            <label for="audit-actor">@T["Actor"]</label>
+            <input id="audit-actor" name="actor" value="@Model.Actor" class="form-control" />
+
         </div>
         <div class="admin-field">
-            <label asp-for="Entity"></label>
-            <input asp-for="Entity" class="form-control" />
-            <span asp-validation-for="Entity" class="admin-audit-validation"></span>
+            <label for="audit-type">@T["Entity"]</label>
+            <input id="audit-type" name="type" value="@Model.Type" class="form-control" />
+
         </div>
         <div class="admin-field">
-            <label asp-for="EventId">@T["Event"]</label>
-            <select asp-for="EventId" class="form-select">
+            <label for="audit-event">@T["Event"]</label>
+            <select id="audit-event" name="event" class="form-select">
                 <option value="">@T["All events"]</option>
                 @foreach (var eventOption in Model.EventOptions)
                 {
-                    <option value="@eventOption.Id">@eventOption.Name@if (eventOption.IsHidden) { <text> (@T["Hidden"])</text> }</option>
+                    <option value="@eventOption.Id" selected="@(Model.EventId == eventOption.Id)">@eventOption.Name@if (eventOption.IsHidden) { <text> (@T["Hidden"])</text> }</option>
                 }
             </select>
         </div>
         <div class="admin-field">
-            <label asp-for="From"></label>
-            <input asp-for="From" type="date" class="form-control" />
-            <span asp-validation-for="From" class="admin-audit-validation"></span>
+            <label for="audit-from">@T["From"]</label>
+            <input id="audit-from" name="from" value="@Model.From?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)" type="date" class="form-control" />
+
         </div>
         <div class="admin-field">
-            <label asp-for="To"></label>
-            <input asp-for="To" type="date" class="form-control" />
-            <span asp-validation-for="To" class="admin-audit-validation"></span>
+            <label for="audit-to">@T["To"]</label>
+            <input id="audit-to" name="to" value="@Model.To?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)" type="date" class="form-control" />
+
         </div>
         <div class="admin-audit-toolbar-actions">
             <button class="admin-button-primary" type="submit">@T["Filter"]</button>
@@ -53,7 +54,7 @@
         </div>
     </form>
 
-    @if (Model.EntryId is not null || Model.EntryUnavailable)
+    @if (Model.EntryRequested)
     {
         <section class="admin-audit-entry" aria-labelledby="admin-audit-entry-title">
             @if (Model.EntryUnavailable)
@@ -109,7 +110,7 @@
                             <td data-label="Time">@DateTimePresentation.Format(entry.OccurredAt, "dd MMM yyyy, HH:mm", provider: CultureInfo.CurrentCulture)</td>
                             <td data-label="Details">
                                 <partial name="_AuditEntry" model="entry" />
-                                <a class="admin-audit-entry-link" asp-route-entry="@entry.Id" asp-route-action="@Model.Action" asp-route-actor="@Model.Actor" asp-route-entity="@Model.Entity" asp-route-eventId="@Model.EventId" asp-route-from="@Model.FromQuery" asp-route-to="@Model.ToQuery" asp-route-pageNumber="@Model.PageNumber">@T["Open entry"]</a>
+                                <a class="admin-audit-entry-link" href="@Model.AuditUrl(entry: entry.Id)">@T["Open entry"]</a>
                             </td>
                         </tr>
                     }
@@ -122,7 +123,7 @@
     <nav class="admin-audit-pagination" aria-label="@T["Audit log pages"]">
         @if (Model.PageNumber > 1)
         {
-            <a class="admin-button-secondary" asp-route-action="@Model.Action" asp-route-actor="@Model.Actor" asp-route-entity="@Model.Entity" asp-route-eventId="@Model.EventId" asp-route-from="@Model.FromQuery" asp-route-to="@Model.ToQuery" asp-route-pageNumber="@(Model.PageNumber - 1)">@T["Previous"]</a>
+            <a class="admin-button-secondary" href="@Model.AuditUrl(page: Model.PageNumber - 1)">@T["Previous"]</a>
         }
         else
         {
@@ -131,7 +132,7 @@
         <span class="admin-audit-page-count">@T["Page {0}", Model.PageNumber]</span>
         @if (Model.HasNextPage)
         {
-            <a class="admin-button-secondary" asp-route-action="@Model.Action" asp-route-actor="@Model.Actor" asp-route-entity="@Model.Entity" asp-route-eventId="@Model.EventId" asp-route-from="@Model.FromQuery" asp-route-to="@Model.ToQuery" asp-route-pageNumber="@(Model.PageNumber + 1)">@T["Next"]</a>
+            <a class="admin-button-secondary" href="@Model.AuditUrl(page: Model.PageNumber + 1)">@T["Next"]</a>
         }
         else
         {

@@ -1,9 +1,8 @@
-using System.ComponentModel.DataAnnotations;
 using System.Globalization;
 using Bingo.Application.Access;
 using Bingo.Domain.Auditing;
+using Bingo.Domain.Events;
 using Bingo.Infrastructure.Persistence;
-using Microsoft.Extensions.Localization;
 using Bingo.Web.UI;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -12,116 +11,65 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Bingo.Web.Pages.Admin.Audit;
 
+// Read-only administrative history. Query names follow the reference (README :2023-2026), with the
+// event id instead of a slug (:2163-2166). Unknown or invalid link parts are dropped with a notice and
+// the rest still applies (C-AUD-4). Hidden-event history stays visible to every Admin (AU16).
 [Authorize(Policy = AuthorizationPolicies.Admin)]
-public sealed class IndexModel(ApplicationDbContext dbContext, IStringLocalizer<SharedResource>? text = null) : PageModel
+public sealed class IndexModel(ApplicationDbContext dbContext, TimeProvider? time = null) : PageModel
 {
-    private const int PageSize = 25;
-    private static readonly string[] ActionAreas = ["account.", "event.", "catalogue.", "board.", "team.", "draft.", "submission."];
+    public const int PageSize = 25;
+    public const int TextLimit = 100;
+    private const int MaxPage = int.MaxValue / PageSize;
+    private static readonly string[] KnownKeys = ["event", "action", "actor", "type", "from", "to", "page", "entry"];
 
-    [BindProperty(SupportsGet = true), StringLength(100)]
-    public string? Action { get; set; }
+    [BindProperty(SupportsGet = true, Name = "event")] public string? EventQuery { get; set; }
+    [BindProperty(SupportsGet = true, Name = "action")] public string? ActionQuery { get; set; }
+    [BindProperty(SupportsGet = true, Name = "actor")] public string? ActorQuery { get; set; }
+    [BindProperty(SupportsGet = true, Name = "type")] public string? TypeQuery { get; set; }
+    [BindProperty(SupportsGet = true, Name = "from")] public string? FromQuery { get; set; }
+    [BindProperty(SupportsGet = true, Name = "to")] public string? ToQuery { get; set; }
+    [BindProperty(SupportsGet = true, Name = "page")] public string? PageQuery { get; set; }
+    [BindProperty(SupportsGet = true, Name = "entry")] public string? EntryQuery { get; set; }
 
-    [BindProperty(SupportsGet = true), StringLength(100)]
-    public string? Actor { get; set; }
-    [BindProperty(SupportsGet = true), StringLength(100)] public string? Entity { get; set; }
-    [BindProperty(SupportsGet = true)] public Guid? EventId { get; set; }
-    [BindProperty(Name = "entry", SupportsGet = true)] public Guid? EntryId { get; set; }
-    [BindProperty(SupportsGet = true)] public DateOnly? From { get; set; }
-    [BindProperty(SupportsGet = true)] public DateOnly? To { get; set; }
-    [BindProperty(SupportsGet = true)] public int PageNumber { get; set; } = 1;
-
-    public string? FromQuery => From?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
-    public string? ToQuery => To?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+    public Guid? EventId { get; private set; }
+    public string Action { get; private set; } = string.Empty;
+    public string Actor { get; private set; } = string.Empty;
+    public string Type { get; private set; } = string.Empty;
+    public DateOnly? From { get; private set; }
+    public DateOnly? To { get; private set; }
+    public int PageNumber { get; private set; } = 1;
+    public Guid? EntryId { get; private set; }
+    public bool DroppedLinkParts { get; private set; }
+    public bool Filtered => EventId is not null || Action.Length > 0 || Actor.Length > 0 || Type.Length > 0 || From is not null || To is not null;
 
     public IReadOnlyList<AuditEntry> Entries { get; private set; } = [];
     public IReadOnlyList<EventOption> EventOptions { get; private set; } = [];
+    public IReadOnlyDictionary<Guid, EventOption> EventsById { get; private set; } = new Dictionary<Guid, EventOption>();
     public AuditEntry? SelectedEntry { get; private set; }
+    public bool EntryRequested => EntryQuery is not null;
     public bool EntryUnavailable { get; private set; }
     public bool HasNextPage { get; private set; }
+    public DateOnly Today { get; private set; }
 
     public async Task OnGetAsync(CancellationToken cancellationToken)
     {
-        EventOptions = await dbContext.Events.AsNoTracking()
-            .OrderBy(eventItem => eventItem.Name)
-            .ThenBy(eventItem => eventItem.Id)
-            .Select(eventItem => new EventOption(eventItem.Id, eventItem.Name, eventItem.HiddenAt != null))
+        var events = await dbContext.Events.AsNoTracking()
+            .Select(item => new EventOption(item.Id, item.Name, item.HiddenAt != null, item.State, item.EventStartsAt, item.SignupOpensAt, item.SignupClosesAt,
+                item.ActualStartedAt, item.State == EventState.Cancelled ? item.CancelledAt : item.ActualEndedAt ?? (item.State == EventState.Archived ? item.ArchivedAt ?? item.FinalizedAt : item.FinalizedAt) ?? item.EventEndsAt))
             .ToListAsync(cancellationToken);
+        EventsById = events.ToDictionary(item => item.Id);
+        // Ordered as on Events; Discarded events are omitted from the menu (Q7) while their entries stay listed.
+        EventOptions = events.Where(item => item.State != EventState.Discarded)
+            .OrderBy(item => item.SortGroup).ThenBy(item => item.SortDate is null).ThenBy(item => item.SortDate).ThenBy(item => item.Id).ToList();
+        Today = DateOnly.FromDateTime(DateTimePresentation.ToTimezone((time ?? TimeProvider.System).GetUtcNow()).DateTime);
 
-        PageNumber = NormalizePageNumber();
-        if (PageContext?.HttpContext?.Request.Query.ContainsKey("pageNumber") == true)
-            ModelState.Remove(nameof(PageNumber));
-        if (EntryId is null && PageContext?.HttpContext?.Request.Query.ContainsKey("entry") == true)
-            EntryUnavailable = true;
-        if (!ModelState.IsValid)
+        ReadLink();
+        var query = Filter(dbContext.AuditEntries.AsNoTracking());
+
+        if (EntryQuery is not null)
         {
-            Entries = [];
-            HasNextPage = false;
-            return;
-        }
-
-        var query = dbContext.AuditEntries.AsNoTracking();
-        var action = Action?.Trim().ToLowerInvariant();
-        if (!string.IsNullOrWhiteSpace(action))
-        {
-            var areaPrefix = action.Length > 0 && action[^1] == '.' ? action : action + ".";
-            query = ActionAreas.Contains(areaPrefix, StringComparer.Ordinal)
-                ? query.Where(entry => entry.Action.StartsWith(areaPrefix))
-                : query.Where(entry => entry.Action == action);
-        }
-
-        var actor = Actor?.Trim();
-        if (!string.IsNullOrWhiteSpace(actor)) query = query.Where(entry => entry.ActorUsername.Contains(actor));
-        var entity = Entity?.Trim().ToLowerInvariant();
-        if (!string.IsNullOrWhiteSpace(entity)) query = query.Where(entry => entry.TargetType == entity);
-        if (EventId is not null) query = query.Where(entry => entry.EventId == EventId);
-        if (From is { } from && To is { } to && from > to)
-        {
-            ModelState.AddModelError(nameof(To), Localize("The start date must be on or before the end date."));
-            Entries = [];
-            HasNextPage = false;
-            return;
-        }
-
-        DateTimeOffset? fromUtc = null;
-        if (From is { } start)
-        {
-            try
-            {
-                fromUtc = DisplayMidnightUtc(start);
-            }
-            catch (ArgumentOutOfRangeException)
-            {
-                ModelState.AddModelError(nameof(From), Localize("The start date is out of range."));
-            }
-        }
-
-        DateTimeOffset? toExclusiveUtc = null;
-        if (To is { } end)
-        {
-            try
-            {
-                toExclusiveUtc = DisplayMidnightUtc(end.AddDays(1));
-            }
-            catch (ArgumentOutOfRangeException)
-            {
-                ModelState.AddModelError(nameof(To), Localize("The end date is out of range."));
-            }
-        }
-
-        if (!ModelState.IsValid)
-        {
-            Entries = [];
-            HasNextPage = false;
-            EntryUnavailable = EntryId is not null;
-            return;
-        }
-
-        if (fromUtc is { } fromBound) query = query.Where(entry => entry.OccurredAt >= fromBound);
-        if (toExclusiveUtc is { } toBound) query = query.Where(entry => entry.OccurredAt < toBound);
-
-        if (EntryId is { } entryId)
-        {
-            SelectedEntry = await query.Where(entry => entry.Id == entryId).SingleOrDefaultAsync(cancellationToken);
+            // AU16/D4: read by id with the same visibility and filters as the list.
+            SelectedEntry = EntryId is { } entryId ? await query.Where(entry => entry.Id == entryId).SingleOrDefaultAsync(cancellationToken) : null;
             EntryUnavailable = SelectedEntry is null;
         }
 
@@ -131,43 +79,133 @@ public sealed class IndexModel(ApplicationDbContext dbContext, IStringLocalizer<
         Entries = rows.Take(PageSize).ToList();
     }
 
-    public sealed record EventOption(Guid Id, string Name, bool IsHidden);
-
-    private string Localize(string key) => text?[key].Value ?? key;
-
-    private int NormalizePageNumber()
+    private void ReadLink()
     {
-        const int maxPage = int.MaxValue / PageSize + 1;
-        var query = PageContext?.HttpContext?.Request.Query;
-        if (query is not null && query.TryGetValue("pageNumber", out var raw))
+        var keys = PageContext?.HttpContext?.Request.Query.Keys ?? [];
+        DroppedLinkParts = keys.Any(key => !KnownKeys.Contains(key, StringComparer.OrdinalIgnoreCase));
+
+        if (EventQuery is { Length: > 0 } eventText)
         {
-            var value = raw.ToString();
-            return int.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out var parsed)
-                && parsed is >= 1 and <= maxPage
-                ? parsed
-                : 1;
+            if (Guid.TryParse(eventText, out var eventId) && EventsById.ContainsKey(eventId)) EventId = eventId;
+            else DroppedLinkParts = true;
         }
 
-        return Math.Clamp(PageNumber, 1, maxPage);
+        if (ActionQuery is { Length: > 0 } actionText)
+        {
+            var action = actionText.Trim().ToLowerInvariant();
+            if (AuditAreas.Find(action) is not null || action.Length <= TextLimit && IsActionKey(action)) Action = action;
+            else DroppedLinkParts = true;
+        }
+
+        if (ActorQuery is { Length: > 0 } actorText)
+        {
+            // C-AUD-3: a leading "@" is ignored; matching ignores case.
+            var actor = actorText.Trim();
+            if (actor.StartsWith('@')) actor = actor[1..].TrimStart();
+            if (actor.Length <= TextLimit) Actor = actor;
+            else DroppedLinkParts = true;
+        }
+
+        if (TypeQuery is { Length: > 0 } typeText)
+        {
+            var type = typeText.Trim().ToLowerInvariant();
+            if (AuditPresenter.TargetLabels.ContainsKey(type)) Type = type;
+            else DroppedLinkParts = true;
+        }
+
+        From = ReadDate(FromQuery);
+        To = ReadDate(ToQuery, end: true);
+        if (From is { } from && To is { } to && from > to)
+        {
+            // The reference keeps the start and drops the end.
+            To = null;
+            DroppedLinkParts = true;
+        }
+
+        if (PageQuery is not null)
+        {
+            // Strict positive integers only (RC06): "2.5", "2junk", "0" and "+2" are dropped.
+            if (PageQuery.Length is > 0 and <= 9 && PageQuery.All(char.IsAsciiDigit)
+                && int.TryParse(PageQuery, NumberStyles.None, CultureInfo.InvariantCulture, out var page) && page is >= 1 and <= MaxPage)
+                PageNumber = page;
+            else DroppedLinkParts = true;
+        }
+
+        if (EntryQuery is not null) EntryId = Guid.TryParse(EntryQuery, out var entryId) ? entryId : null;
     }
 
-    private static DateTimeOffset DisplayMidnightUtc(DateOnly date)
+    private DateOnly? ReadDate(string? value, bool end = false)
+    {
+        if (string.IsNullOrEmpty(value)) return null;
+        if (!DateOnly.TryParseExact(value, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var date)) { DroppedLinkParts = true; return null; }
+        try
+        {
+            _ = DisplayMidnightUtc(end ? date.AddDays(1) : date);
+            return date;
+        }
+        catch (ArgumentOutOfRangeException) { DroppedLinkParts = true; return null; }
+    }
+
+    private IQueryable<AuditEntry> Filter(IQueryable<AuditEntry> query)
+    {
+        if (Action.Length > 0)
+            // RC06 A2: an area uses its key set (S11); a specific action is an exact match.
+            query = AuditAreas.Find(Action) is { } area ? area.Apply(query) : query.Where(entry => entry.Action == Action);
+        if (Actor.Length > 0)
+        {
+            var pattern = "%" + Actor.Replace(@"\", @"\\", StringComparison.Ordinal).Replace("%", @"\%", StringComparison.Ordinal).Replace("_", @"\_", StringComparison.Ordinal) + "%";
+            query = query.Where(entry => EF.Functions.ILike(entry.ActorUsername, pattern, @"\"));
+        }
+        if (Type.Length > 0) query = query.Where(entry => entry.TargetType == Type);
+        if (EventId is { } eventId) query = query.Where(entry => entry.EventId == eventId);
+        // RC06 A3: whole Copenhagen days, both included; the end is the next local midnight.
+        if (From is { } from) { var start = DisplayMidnightUtc(from); query = query.Where(entry => entry.OccurredAt >= start); }
+        if (To is { } to) { var end = DisplayMidnightUtc(to.AddDays(1)); query = query.Where(entry => entry.OccurredAt < end); }
+        return query;
+    }
+
+    public static bool IsActionKey(string value)
+    {
+        var dot = value.IndexOf('.', StringComparison.Ordinal);
+        return dot > 0 && dot < value.Length - 1 && value.IndexOf('.', dot + 1) < 0
+            && value.All(character => char.IsAsciiLetterLower(character) || char.IsAsciiDigit(character) || character is '_' or '.');
+    }
+
+    public string AuditUrl(Guid? eventId = null, bool clearEvent = false, string? action = null, string? actor = null, string? type = null,
+        DateOnly? from = null, DateOnly? to = null, bool clearDates = false, int? page = null, Guid? entry = null)
+    {
+        var values = new List<string>();
+        void Add(string key, string? value) { if (!string.IsNullOrEmpty(value)) values.Add(key + "=" + Uri.EscapeDataString(value)); }
+        Add("event", clearEvent ? null : (eventId ?? EventId)?.ToString());
+        Add("action", action ?? Action);
+        Add("actor", actor ?? Actor);
+        Add("type", type ?? Type);
+        Add("from", clearDates ? null : (from ?? From)?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
+        Add("to", clearDates ? null : (to ?? To)?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
+        var p = page ?? PageNumber;
+        if (p > 1) Add("page", p.ToString(CultureInfo.InvariantCulture));
+        Add("entry", entry?.ToString());
+        return "/Admin/Audit" + (values.Count > 0 ? "?" + string.Join("&", values) : string.Empty);
+    }
+
+    public sealed record EventOption(Guid Id, string Name, bool IsHidden, EventState State, DateTimeOffset? EventStartsAt, DateTimeOffset? SignupOpensAt,
+        DateTimeOffset? SignupClosesAt, DateTimeOffset? ActualStartedAt, DateTimeOffset? PastDate)
+    {
+        public bool IsPreparation => State is EventState.Draft or EventState.SignupOpen or EventState.SignupClosed;
+        public int SortGroup => State switch { EventState.Live => 0, EventState.Draft or EventState.SignupOpen or EventState.SignupClosed => 1, _ => 2 };
+        public long? SortDate => IsPreparation
+            ? (EventStartsAt ?? SignupOpensAt ?? SignupClosesAt)?.UtcTicks
+            : State == EventState.Live ? ActualStartedAt is { } started ? -started.UtcTicks : null
+            : PastDate is { } past ? -past.UtcTicks : null;
+    }
+
+    public static DateTimeOffset DisplayMidnightUtc(DateOnly date)
     {
         var local = date.ToDateTime(TimeOnly.MinValue, DateTimeKind.Unspecified);
         TimeZoneInfo timezone;
-        try
-        {
-            timezone = TimeZoneInfo.FindSystemTimeZoneById(DateTimePresentation.DefaultTimezoneId);
-        }
-        catch (TimeZoneNotFoundException)
-        {
-            timezone = TimeZoneInfo.Utc;
-        }
-        catch (InvalidTimeZoneException)
-        {
-            timezone = TimeZoneInfo.Utc;
-        }
-
+        try { timezone = TimeZoneInfo.FindSystemTimeZoneById(DateTimePresentation.DefaultTimezoneId); }
+        catch (TimeZoneNotFoundException) { timezone = TimeZoneInfo.Utc; }
+        catch (InvalidTimeZoneException) { timezone = TimeZoneInfo.Utc; }
         return new DateTimeOffset(TimeZoneInfo.ConvertTimeToUtc(local, timezone));
     }
 }

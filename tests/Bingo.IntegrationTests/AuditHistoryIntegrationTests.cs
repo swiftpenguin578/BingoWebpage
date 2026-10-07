@@ -89,12 +89,13 @@ public sealed class AuditHistoryIntegrationTests(PostgreSqlTestFixture databaseF
         }
 
         await using var db = new ApplicationDbContext(options);
+        // A10 (T1): reference query names (action, type, from, to); rules unchanged.
         var exact = new Bingo.Web.Pages.Admin.Audit.IndexModel(db)
         {
-            Action = "event.started",
-            Entity = "event",
-            From = new DateOnly(2027, 3, 28),
-            To = new DateOnly(2027, 3, 28)
+            ActionQuery = "event.started",
+            TypeQuery = "event",
+            FromQuery = "2027-03-28",
+            ToQuery = "2027-03-28"
         };
 
         await exact.OnGetAsync(CancellationToken.None);
@@ -106,9 +107,9 @@ public sealed class AuditHistoryIntegrationTests(PostgreSqlTestFixture databaseF
 
         var area = new Bingo.Web.Pages.Admin.Audit.IndexModel(db)
         {
-            Action = "event",
-            From = new DateOnly(2027, 3, 28),
-            To = new DateOnly(2027, 3, 28)
+            ActionQuery = "event.",
+            FromQuery = "2027-03-28",
+            ToQuery = "2027-03-28"
         };
 
         await area.OnGetAsync(CancellationToken.None);
@@ -119,7 +120,7 @@ public sealed class AuditHistoryIntegrationTests(PostgreSqlTestFixture databaseF
         Assert.DoesNotContain(area.Entries, entry => entry.Id == nextCalendarDayId);
         Assert.DoesNotContain(area.Entries, entry => entry.Id == accountActionId);
 
-        var selected = new Bingo.Web.Pages.Admin.Audit.IndexModel(db) { EntryId = redactedHiddenActionId };
+        var selected = new Bingo.Web.Pages.Admin.Audit.IndexModel(db) { EntryQuery = redactedHiddenActionId.ToString() };
         await selected.OnGetAsync(CancellationToken.None);
         Assert.False(selected.EntryUnavailable);
         Assert.Equal(redactedHiddenActionId, selected.SelectedEntry?.Id);
@@ -129,20 +130,23 @@ public sealed class AuditHistoryIntegrationTests(PostgreSqlTestFixture databaseF
         Assert.DoesNotContain("hidden-secret", presented.Details);
         Assert.DoesNotContain("hidden-secret", presented.BeforeState);
 
-        var missing = new Bingo.Web.Pages.Admin.Audit.IndexModel(db) { EntryId = Guid.NewGuid() };
+        var missing = new Bingo.Web.Pages.Admin.Audit.IndexModel(db) { EntryQuery = Guid.NewGuid().ToString() };
         await missing.OnGetAsync(CancellationToken.None);
         Assert.True(missing.EntryUnavailable);
         Assert.Null(missing.SelectedEntry);
 
-        var filteredOut = new Bingo.Web.Pages.Admin.Audit.IndexModel(db) { EntryId = redactedHiddenActionId, Action = "event.started" };
+        var filteredOut = new Bingo.Web.Pages.Admin.Audit.IndexModel(db) { EntryQuery = redactedHiddenActionId.ToString(), ActionQuery = "event.started" };
         await filteredOut.OnGetAsync(CancellationToken.None);
         Assert.True(filteredOut.EntryUnavailable);
         Assert.Null(filteredOut.SelectedEntry);
 
-        var invalidDate = new Bingo.Web.Pages.Admin.Audit.IndexModel(db) { To = DateOnly.MaxValue };
+        // C-AUD-4 (08-decisions "Reference sweep" C-AUD-4): an out-of-range date is dropped with a
+        // notice and the rest still applies (was: model error and an empty list).
+        var invalidDate = new Bingo.Web.Pages.Admin.Audit.IndexModel(db) { ToQuery = "9999-12-31", ActionQuery = "event.started" };
         await invalidDate.OnGetAsync(CancellationToken.None);
-        Assert.False(invalidDate.ModelState.IsValid);
-        Assert.Contains(invalidDate.ModelState[nameof(invalidDate.To)]!.Errors, error => error.ErrorMessage?.Contains("out of range", StringComparison.OrdinalIgnoreCase) == true);
+        Assert.True(invalidDate.DroppedLinkParts);
+        Assert.Null(invalidDate.To);
+        Assert.Equal(exactActionId, Assert.Single(invalidDate.Entries).Id);
     }
 
     [Fact]
@@ -187,9 +191,9 @@ public sealed class AuditHistoryIntegrationTests(PostgreSqlTestFixture databaseF
         await using var db = new ApplicationDbContext(options);
         var page = new Bingo.Web.Pages.Admin.Audit.IndexModel(db)
         {
-            EventId = eventId,
-            From = new DateOnly(2027, 10, 31),
-            To = new DateOnly(2027, 10, 31)
+            EventQuery = eventId.ToString(),
+            FromQuery = "2027-10-31",
+            ToQuery = "2027-10-31"
         };
         await page.OnGetAsync(CancellationToken.None);
 
@@ -254,16 +258,15 @@ public sealed class AuditHistoryIntegrationTests(PostgreSqlTestFixture databaseF
         }));
         Assert.Equal(HttpStatusCode.Redirect, signedIn.StatusCode);
 
-        using var response = await client.GetAsync("/Admin/Audit?To=9999-12-31");
+        // C-AUD-4: invalid link values are dropped with a notice instead of a validation error.
+        using var response = await client.GetAsync("/Admin/Audit?to=9999-12-31");
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var html = await response.Content.ReadAsStringAsync();
-        Assert.Contains("The end date is out of range.", html, StringComparison.Ordinal);
+        var html = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
+        Assert.Contains("Some filters in the link weren’t recognised.", html, StringComparison.Ordinal);
 
-        using var invalidFrom = await client.GetAsync("/Admin/Audit?From=abc");
+        using var invalidFrom = await client.GetAsync("/Admin/Audit?from=abc");
         Assert.Equal(HttpStatusCode.OK, invalidFrom.StatusCode);
-        var invalidFromHtml = await invalidFrom.Content.ReadAsStringAsync();
-        Assert.Contains("data-valmsg-for=\"From\"", invalidFromHtml, StringComparison.Ordinal);
-        Assert.Contains("field-validation-error", invalidFromHtml, StringComparison.Ordinal);
+        Assert.Contains("Some filters in the link weren’t recognised.", WebUtility.HtmlDecode(await invalidFrom.Content.ReadAsStringAsync()), StringComparison.Ordinal);
 
         using var invalidEntry = await client.GetAsync("/Admin/Audit?entry=abc");
         Assert.Equal(HttpStatusCode.OK, invalidEntry.StatusCode);
@@ -287,9 +290,9 @@ public sealed class AuditHistoryIntegrationTests(PostgreSqlTestFixture databaseF
         }
 
         await using var db = new ApplicationDbContext(options);
-        var pageOne = new Bingo.Web.Pages.Admin.Audit.IndexModel(db) { Action = "account.changed", PageNumber = 1 };
+        var pageOne = new Bingo.Web.Pages.Admin.Audit.IndexModel(db) { ActionQuery = "account.changed", PageQuery = "1" };
         await pageOne.OnGetAsync(CancellationToken.None);
-        var pageTwo = new Bingo.Web.Pages.Admin.Audit.IndexModel(db) { Action = "account.changed", PageNumber = 2 };
+        var pageTwo = new Bingo.Web.Pages.Admin.Audit.IndexModel(db) { ActionQuery = "account.changed", PageQuery = "2" };
         await pageTwo.OnGetAsync(CancellationToken.None);
 
         Assert.Equal(25, pageOne.Entries.Count);
@@ -304,10 +307,11 @@ public sealed class AuditHistoryIntegrationTests(PostgreSqlTestFixture databaseF
         Assert.Equal("0", pageTwo.Entries[^1].TargetId);
 
         var context = new DefaultHttpContext();
-        context.Request.QueryString = new QueryString("?pageNumber=2.5");
+        context.Request.QueryString = new QueryString("?page=2.5");
         var malformed = new Bingo.Web.Pages.Admin.Audit.IndexModel(db)
         {
-            Action = "account.changed",
+            ActionQuery = "account.changed",
+            PageQuery = "2.5",
             PageContext = new PageContext(new ActionContext(context, new RouteData(), new PageActionDescriptor()))
         };
 
@@ -315,6 +319,80 @@ public sealed class AuditHistoryIntegrationTests(PostgreSqlTestFixture databaseF
 
         Assert.Equal(1, malformed.PageNumber);
         Assert.Equal(25, malformed.Entries.Count);
+    }
+
+    [Fact]
+    public async Task AuditAreasActorMatchingAndDroppedLinkPartsFollowTheT1Decisions()
+    {
+        var actorId = Guid.NewGuid();
+        var at = new DateTimeOffset(2027, 5, 2, 10, 0, 0, TimeSpan.Zero);
+        var live = new BingoEvent(Guid.NewGuid(), "Live audit event", "live-audit-event", "UTC", actorId, at.AddDays(-30), Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
+        var draft = new BingoEvent(Guid.NewGuid(), "Draft audit event", "draft-audit-event", "UTC", actorId, at.AddDays(-30), Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
+        var discarded = new BingoEvent(Guid.NewGuid(), "Discarded audit event", "discarded-audit-event", "UTC", actorId, at.AddDays(-30), Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
+        discarded.Discard(actorId, at.AddDays(-1), protectedHistoryExists: false);
+        var keys = new[] { "team.member_added", "team.created", "event.signup_opened", "event.started", "participant.admin_created", "roster.finalized_added", "signup_question.created" };
+        var ids = keys.ToDictionary(key => key, _ => Guid.NewGuid());
+        await using (var setup = new ApplicationDbContext(options))
+        {
+            setup.AddRange(live, draft, discarded);
+            var index = 0;
+            foreach (var key in keys)
+                setup.AuditEntries.Add(new AuditEntry(ids[key], at.AddMinutes(index++), actorId, "Mixed_Case-Admin", key, "event", live.Id.ToString("D"), null, key == "event.started" ? draft.Id : live.Id));
+            setup.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), at, null, "System", "event.started_automatically", "event", discarded.Id.ToString("D"), null, discarded.Id));
+            await setup.SaveChangesAsync();
+        }
+        await using var db = new ApplicationDbContext(options);
+        async Task<HashSet<string>> Area(string token)
+        {
+            var page = new Bingo.Web.Pages.Admin.Audit.IndexModel(db) { ActionQuery = token, FromQuery = "2027-05-02", ToQuery = "2027-05-02" };
+            await page.OnGetAsync(CancellationToken.None);
+            Assert.False(page.DroppedLinkParts);
+            return page.Entries.Select(entry => entry.Action).ToHashSet();
+        }
+        // S11 / Q5 (a): moved keys belong to exactly one area.
+        Assert.Equal(new HashSet<string> { "team.member_added", "participant.admin_created", "roster.finalized_added" }, await Area("participant."));
+        Assert.Equal(new HashSet<string> { "team.created" }, await Area("team."));
+        Assert.Equal(new HashSet<string> { "event.signup_opened", "signup_question.created" }, await Area("signup."));
+        Assert.Equal(new HashSet<string> { "event.started", "event.started_automatically" }, await Area("event."));
+
+        // C-AUD-3: case is ignored and a leading "@" is dropped.
+        var actor = new Bingo.Web.Pages.Admin.Audit.IndexModel(db) { ActorQuery = " @mixed_case " };
+        await actor.OnGetAsync(CancellationToken.None);
+        Assert.Equal(7, actor.Entries.Count);
+        Assert.Equal("mixed_case", actor.Actor);
+        var wildcard = new Bingo.Web.Pages.Admin.Audit.IndexModel(db) { ActorQuery = "mixed%case" };
+        await wildcard.OnGetAsync(CancellationToken.None);
+        Assert.Empty(wildcard.Entries);
+
+        // C-AUD-4: invalid link parts are dropped and the rest still applies.
+        var context = new DefaultHttpContext();
+        context.Request.QueryString = new QueryString($"?event={Guid.NewGuid()}&action=team.&type=spaceship&from=2027-13-40&page=0&EventId=x");
+        var dropped = new Bingo.Web.Pages.Admin.Audit.IndexModel(db)
+        {
+            EventQuery = Guid.NewGuid().ToString(), ActionQuery = "team.", TypeQuery = "spaceship", FromQuery = "2027-13-40", PageQuery = "0",
+            PageContext = new PageContext(new ActionContext(context, new RouteData(), new PageActionDescriptor()))
+        };
+        await dropped.OnGetAsync(CancellationToken.None);
+        Assert.True(dropped.DroppedLinkParts);
+        Assert.Null(dropped.EventId);
+        Assert.Equal(string.Empty, dropped.Type);
+        Assert.Null(dropped.From);
+        Assert.Equal(1, dropped.PageNumber);
+        Assert.Equal("team.created", Assert.Single(dropped.Entries).Action);
+        Assert.Equal("/Admin/Audit?action=team.", dropped.AuditUrl());
+        var reversed = new Bingo.Web.Pages.Admin.Audit.IndexModel(db) { FromQuery = "2027-05-03", ToQuery = "2027-05-01" };
+        await reversed.OnGetAsync(CancellationToken.None);
+        Assert.True(reversed.DroppedLinkParts);
+        Assert.Equal(new DateOnly(2027, 5, 3), reversed.From);
+        Assert.Null(reversed.To);
+
+        // Event menu (Q7, AU16): ordered as on Events, with state; Discarded omitted, its entries kept.
+        var all = new Bingo.Web.Pages.Admin.Audit.IndexModel(db) { EventQuery = discarded.Id.ToString() };
+        await all.OnGetAsync(CancellationToken.None);
+        Assert.DoesNotContain(all.EventOptions, option => option.Id == discarded.Id);
+        Assert.Contains(all.EventOptions, option => option.Id == draft.Id && option.State == EventState.Draft);
+        Assert.Equal("event.started_automatically", Assert.Single(all.Entries).Action);
+        Assert.Null(Assert.Single(all.Entries).ActorAccountId);
     }
 
     private sealed class AuditPassthroughLocalizer : IStringLocalizer<AuditResource>

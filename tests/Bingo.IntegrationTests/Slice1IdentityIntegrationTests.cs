@@ -1916,7 +1916,7 @@ public sealed partial class Slice1IdentityIntegrationTests(PostgreSqlTestFixture
         for (var index = 0; index < 5; index++)
             db.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), now.AddMinutes(index), null, "admin", "other.action", "account", $"other-{index}", "Other event.", otherEventId));
         await db.SaveChangesAsync();
-        var model = new Bingo.Web.Pages.Admin.Audit.IndexModel(db) { Action = "account.changed", EventId = eventId, PageNumber = 1 };
+        var model = new Bingo.Web.Pages.Admin.Audit.IndexModel(db) { ActionQuery = "account.changed", EventQuery = eventId.ToString(), PageQuery = "1" };
 
         await model.OnGetAsync(CancellationToken.None);
 
@@ -1927,7 +1927,7 @@ public sealed partial class Slice1IdentityIntegrationTests(PostgreSqlTestFixture
         Assert.Equal("29", model.Entries[0].TargetId);
         Assert.Equal("5", model.Entries[^1].TargetId);
 
-        model.PageNumber = 2;
+        model.PageQuery = "2";
         await model.OnGetAsync(CancellationToken.None);
 
         Assert.Equal(5, model.Entries.Count);
