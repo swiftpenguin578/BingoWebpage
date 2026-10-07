@@ -42,7 +42,7 @@ public sealed class AccountsUiTests
         Assert.Contains("[AdminDesign]", model);
         Assert.Contains("ViewData[\"PageFamily\"] = \"accounts\";", index);
         foreach (var name in new[] { "q", "role", "page", "account" })
-            Assert.Contains($"[BindProperty(SupportsGet = true, Name = \"{name}\")]", model);
+            Assert.Contains($"[BindProperty(SupportsGet = true, Name = \"{name}\"), FromQuery(Name = \"{name}\")]", model); // query-only: "page" is also a route value
         Assert.DoesNotContain("WebsiteSearch", index + model);
         Assert.Contains("class=\"tbl ac-tbl sticky-first\"", index);
         Assert.Contains("class=\"seg\" role=\"radiogroup\"", index);

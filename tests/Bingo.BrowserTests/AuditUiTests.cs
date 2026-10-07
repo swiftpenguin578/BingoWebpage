@@ -33,7 +33,7 @@ public sealed class AuditUiTests(BrowserTestApplicationFactory factory)
         Assert.Contains("[AdminDesign]", model);
         Assert.Contains("ViewData[\"PageFamily\"] = \"audit\";", index);
         foreach (var name in new[] { "event", "action", "actor", "type", "from", "to", "page", "entry" })
-            Assert.Contains($"[BindProperty(SupportsGet = true, Name = \"{name}\")]", model);
+            Assert.Contains($"[BindProperty(SupportsGet = true, Name = \"{name}\"), FromQuery(Name = \"{name}\")]", model); // query-only: "page" is also a route value
         Assert.DoesNotContain("ActorUsername.Contains", model);
         Assert.Contains("ui.update(", script);
         Assert.DoesNotContain(" fetch(", script);

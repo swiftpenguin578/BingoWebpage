@@ -35,10 +35,12 @@ public sealed class IndexModel(
     private const int MaxPage = int.MaxValue / PageSize;
     public const string StaleMessage = "This record was changed by another administrator. Current values are shown; review them before trying again.";
 
-    [BindProperty(SupportsGet = true, Name = "q")] public string? Query { get; set; }
-    [BindProperty(SupportsGet = true, Name = "role")] public string? RoleQuery { get; set; }
-    [BindProperty(SupportsGet = true, Name = "page")] public string? PageQuery { get; set; }
-    [BindProperty(SupportsGet = true, Name = "account")] public string? AccountQuery { get; set; }
+    // Query-only binding: "page" (and "handler") are also Razor Pages route values, which would
+    // otherwise win over the query string (as on Events, Index.cshtml.cs:39-40).
+    [BindProperty(SupportsGet = true, Name = "q"), FromQuery(Name = "q")] public string? Query { get; set; }
+    [BindProperty(SupportsGet = true, Name = "role"), FromQuery(Name = "role")] public string? RoleQuery { get; set; }
+    [BindProperty(SupportsGet = true, Name = "page"), FromQuery(Name = "page")] public string? PageQuery { get; set; }
+    [BindProperty(SupportsGet = true, Name = "account"), FromQuery(Name = "account")] public string? AccountQuery { get; set; }
 
     public string Search { get; private set; } = string.Empty;
     public GlobalRole? Role { get; private set; }

@@ -212,6 +212,30 @@ public sealed class AccountsHttpIntegrationTests(PostgreSqlTestFixture databaseF
         Assert.True(await db.Accounts.Where(x => x.Id == target.Id).Select(x => x.Active).SingleAsync());
     }
 
+    // Early-look bug (T1): "page" is also a Razor Pages route value; only an HTTP request exercises
+    // model binding (page-model tests set the property directly), so this is checked over HTTP.
+    [Fact]
+    public async Task DirectoryPagingBindsTheQueryString()
+    {
+        var owner = Website("paging-owner", GlobalRole.SuperAdmin);
+        var users = Enumerable.Range(0, 30).Select(index => Website($"paging-user-{index:D2}")).ToArray();
+        await Seed([owner, .. users]);
+        await using var factory = Factory();
+        using var client = Client(factory);
+        await Login(client, owner);
+        static IReadOnlyList<string> Names(string html) => Regex.Matches(html, "data-account-open=\"[^\"]+\">([^<]+)<").Select(match => match.Groups[1].Value).ToList();
+        var first = await client.GetStringAsync("/Admin/Accounts?q=paging-user");
+        var second = await client.GetStringAsync("/Admin/Accounts?q=paging-user&page=2");
+        Assert.Equal(25, Names(first).Count);
+        Assert.Equal("paging-user-00", Names(first)[0]);
+        Assert.Equal(["paging-user-25", "paging-user-26", "paging-user-27", "paging-user-28", "paging-user-29"], Names(second));
+        Assert.Contains("Page 2", second, StringComparison.Ordinal);
+        Assert.Contains("data-directory-canonical=\"/Admin/Accounts?q=paging-user&amp;page=2\"", second, StringComparison.Ordinal);
+        foreach (var junk in new[] { "abc", "2.5", "0" })
+            Assert.Equal(Names(first), Names(await client.GetStringAsync($"/Admin/Accounts?q=paging-user&page={junk}")));
+        Assert.Contains("data-directory-canonical=\"/Admin/Accounts\"", await client.GetStringAsync("/Admin/Accounts"), StringComparison.Ordinal);
+    }
+
     private static Dictionary<string, string> Transfer(Account destination, string password, string typed, long? version = null) => new()
     {
         ["Input.DestinationId"] = destination.Id.ToString(),
