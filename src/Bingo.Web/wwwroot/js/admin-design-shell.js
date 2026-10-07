@@ -516,8 +516,8 @@
       if (!loadingHeads.has(kind)) [...head.children].slice(1).forEach(element => element.remove());
       head.querySelectorAll('[id]').forEach(element => element.removeAttribute('id'));
       const summary = head.querySelector('[data-summary-template]');
-      // U3-Q5: every loading summary reserves one empty text line. The
-      // destination summary may grow when its page response arrives.
+      // Data summaries stay empty; count-summary templates retain fixed words
+      // and numeric placeholders. Shared CSS owns the Q6 reserved height.
       if (summary) { summary.textContent = '\u00a0'; summary.parentElement.setAttribute('aria-hidden', 'true'); }
       if (!loadingHeads.has(kind)) {
         [...head.children].slice(1).forEach(element => element.remove());

@@ -4,7 +4,7 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
 const {chromium,webkit}=require('playwright');
 const {startFixture,login,referencePage}=require('./lib/admin-parity-fixture.cjs');
 const registrations=require('./lib/admin-page-conformance-pages.cjs');
-const {observe,checkFrames,checkLoaded,checkUpdate,checkDanish,checkSources,checkDocument,checkFast}=require('./lib/admin-page-conformance-checks.cjs');
+const {observe,checkFrames,checkLoaded,checkUpdate,checkDanish,checkSources,checkDocument,checkFast,checkLoadingSummary}=require('./lib/admin-page-conformance-checks.cjs');
 async function until(page,fn){for(let i=0;i<200;i++)if(await page.evaluate(fn))return;throw Error('Microtask checkpoint not reached');}
 (async()=>{
  const name=process.env.PLAYWRIGHT_BROWSER||'chromium',engine=name==='webkit'?webkit:chromium,output=path.join(process.cwd(),'artifacts/page-conformance-'+name);
@@ -60,7 +60,7 @@ async function until(page,fn){for(let i=0;i<200;i++)if(await page.evaluate(fn))r
     },{html,presentation});
     await page.evaluate(({html,url})=>{window.geometryFetch=fetch;window.timers=[];const timer=setTimeout;window.setTimeout=(fn,ms,...a)=>{timers.push(ms);return timer(fn,ms,...a);};window.fetch=()=>new Promise(resolve=>window.fulfill=()=>resolve(new Response(html,{headers:{'Content-Type':'text/html'}})));window.done=false;void AdminUI.navigate(url).then(()=>done=true);},{html:response,url:paths[family]+'?bodyMeasure=1'});
     await until(page,()=>!!window.fulfill);await page.clock.runFor(150);await until(page,()=>!!document.querySelector('[data-page-skeleton]'));await page.evaluate(()=>document.fonts.ready);await page.clock.runFor(32);
-    const loading=await box(page,family);await checkFrames(page);await page.evaluate(()=>fulfill());await until(page,()=>timers.includes(368));await page.clock.runFor(367);assert.equal(await page.evaluate(()=>done),false,'399ms minimum hold');await page.clock.runFor(1);await until(page,()=>done);await page.clock.runFor(32);const loaded=await box(page,family);await checkFrames(page);await checkLoaded(page,registration,width);
+    const loading=await box(page,family);await checkLoadingSummary(page,registration);await checkFrames(page);await page.evaluate(()=>fulfill());await until(page,()=>timers.includes(368));await page.clock.runFor(367);assert.equal(await page.evaluate(()=>done),false,'399ms minimum hold');await page.clock.runFor(1);await until(page,()=>done);await page.clock.runFor(32);const loaded=await box(page,family);await checkFrames(page);await checkLoaded(page,registration,width);
     await ref.evaluate(()=>new Promise(resolve=>__parityReference.setState({loading:false},resolve)));await ref.evaluate(()=>document.fonts.ready);const referenceLoaded=await box(ref,family);
     await ref.evaluate(()=>new Promise(resolve=>__parityReference.setState({loading:true},resolve)));const referenceLoading=await box(ref,family);
     const delta=loaded.head.height-loading.head.height;
