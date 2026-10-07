@@ -1,5 +1,11 @@
 # Current project status
 
+## T1 accepted; U3 Signup setup second look — 7 October 2026
+
+- Accounts and Audit are **accepted** by explicit user visual acceptance7 October2026 (T1, lane T); UI_PAGE_MATRIX owns the page approvals. Approved T1 head `d03fc7a` was merged via `4b94de9`; radius-only fix `826a84e` was merged via `22dd5245c19a4ffaad6a8ce3856fc073d642d6cd`.
+- Signup setup first binding `3ebd92c` and registration/evidence `d6e4d87` remain preserved. The user requested form/drawer parity remediation; Signup setup is **not accepted**. Its next stop is the user’s second look after focused checks and owned review-environment refresh.
+- Explicit C decision (08-decisions “T1 accepted”) supersedes stale Accounts/Audit approval descriptions below. Earlier handoffs remain historical; conformance results are technical evidence distinct from visual acceptance. No item4/fullJS/whole.NET or publication authority in this remediation.
+
 ## Phase colours implemented — 7 October 2026
 
 - Brief78 implemented in one local commit from `5938b08` on `codex/participants-functionality`; [report, values, contrast and file inventory](docs/references/admin-ui/reviews/2026-10-07/phase-colours/report.md). Shared Web helper maps Events badges, sidebar dots and Dashboard phase presentation; R1–R4 applied. `info` blue / `done` violet retain all supplied values; both CSS pairs byte-identical, reference page maps unchanged.
@@ -55,4 +61,4 @@
 
 ## Next permitted action
 
-Planner checks the phase-colour commit directly, then the requested Events/sidebar light/dark visual check follows. Stop before U3. Full JS runner and whole .NET suite wait for U3’s end-of-batch gate. No push, merge or deployment authorized.
+Complete only the assigned Signup setup early-look remediation and scoped Signup setup/Accounts/Audit checks, refresh the owned review environment, then stop for the user’s second look. The authorized T1 and radius merges are complete. No item4, full JS runner, whole .NET suite, push or deployment in this assignment. Report any remaining laneT conformance failure without editing its page code.
