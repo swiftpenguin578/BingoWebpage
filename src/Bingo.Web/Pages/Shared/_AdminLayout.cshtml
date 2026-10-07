@@ -12,7 +12,7 @@
         "/Admin/Events/Manage" => "overview",
         "/Admin/Events/Identity" => "identity",
         "/Admin/Events/Schedule" => "schedule",
-        "/Admin/Events/Questions" or "/Admin/Events/Participant" or "/Admin/Events/Participants" => "participants",
+        "/Admin/Events/Participant" or "/Admin/Events/Participants" => "participants",
         "/Admin/Events/Board" or "/Admin/Events/BoardPreview" => "board",
         "/Admin/Events/Draft" => "draft",
         "/Admin/Events/WiseOldMan" => "wise-old-man",
@@ -93,16 +93,11 @@
       data-admin-post-error="@T["The change could not be sent. Check your connection and try again."]"
       data-admin-roster-saved="@T["Changes saved."]"
       data-admin-roster-parent-refresh-error="@T["Changes saved, but the roster could not refresh. Close this editor to reload the roster."]"
-      data-signup-questions-request-error="@T["Signup form request failed."]"
-      data-signup-questions-editor-error="@T["Signup form editor was not returned."]"
       data-admin-catalogue-stale-error="@T["This record changed. Your edits are still here. Reload current values before saving again."]"
       data-admin-catalogue-parent-refresh-error="@T["Changes saved, but the catalogue could not refresh. Close this editor to reload the list."]"
       data-admin-account-parent-refresh-error="@T["Changes saved, but the account list could not refresh. Close this editor to reload the list."]"
       data-admin-parent-refresh-error="@T["Changes saved, but the participant list could not refresh. Close this editor to reload the list."]"
-      data-signup-questions-save-error="@T["Could not save. Your changes are still here. Try saving again."]"
-      data-signup-questions-retry="@T["Try again"]"
-      data-signup-questions-close="@T["Close signup questions"]"
-      data-signup-questions-load-error="@T["The signup form could not be loaded."]">
+      >
     <a class="skip-link" href="#main-content">@T["Skip to main content"]</a>
     <header class="admin-header">
         <nav class="admin-header-nav" aria-label="@T["Admin navigation"]">
@@ -302,11 +297,6 @@
         </div>
     </div>
 
-    <dialog class="admin-route-dialog" data-signup-questions-dialog aria-live="polite">
-        <div class="admin-route-dialog-content" data-signup-questions-content>
-            <p class="admin-route-dialog-loading">@T["Loading signup form…"]</p>
-        </div>
-    </dialog>
 
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
@@ -321,7 +311,6 @@
     <script src="~/js/admin-confirmation.js" asp-append-version="true"></script>
     <script src="~/js/admin-lifecycle-confirm.js" asp-append-version="true"></script>
     <script src="~/js/admin-editor-guard.js" asp-append-version="true"></script>
-    <script src="~/js/signup-questions-overlay.js" asp-append-version="true"></script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

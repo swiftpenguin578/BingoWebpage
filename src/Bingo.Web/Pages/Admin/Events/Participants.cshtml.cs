@@ -27,8 +27,6 @@ namespace Bingo.Web.Pages.Admin.Events;
 public sealed class ParticipantsModel(
     ApplicationDbContext db,
     ISignupService signupService,
-    IAuditWriter? auditWriter = null,
-    ISecretHasher? hasher = null,
     IStringLocalizer<SharedResource>? text = null) : PageModel
 {
     public EventView? Event { get; private set; }
@@ -46,8 +44,6 @@ public sealed class ParticipantsModel(
         .DistinctBy(name => name.ToUpperInvariant(), StringComparer.Ordinal));
 
     [BindProperty] public InternalParticipantInput InternalParticipant { get; set; } = new();
-    [BindProperty] public SignupAdministrationInput SignupAdministration { get; set; } = new();
-    [BindProperty] public SignupCodeInput SignupCode { get; set; } = new();
     [BindProperty(SupportsGet = true)] public string? ParticipantSearch { get; set; }
     [BindProperty(SupportsGet = true)] public string? ParticipantStatus { get; set; }
     [BindProperty(SupportsGet = true)] public string? ParticipantPayment { get; set; }
@@ -111,173 +107,6 @@ public sealed class ParticipantsModel(
         var result = await signupService.SetPaymentAsync(id, participantId, User.GetAccountId(), User.Identity?.Name ?? "Admin", payment, ct);
         SetStatus(result.Succeeded ? Localize("Payment saved.") : result.Error ?? Localize("Payment could not be saved."), result.Succeeded ? UiMessageType.Success : UiMessageType.Error);
         return FilteredRedirect(id);
-    }
-
-    public async Task<IActionResult> OnPostSignupAdministrationAsync(Guid id, CancellationToken ct)
-    {
-        var actorId = User.GetAccountId();
-        if (actorId is null) return Forbid();
-        var result = await signupService.UpdateSignupAdministrationAsync(id, SignupAdministration.Version, SignupAdministration.ParticipantCap, true, actorId.Value, User.Identity?.Name ?? "Admin", cancellationToken: ct);
-        if (WantsSignupSettingsJson) return new JsonResult(result);
-        if (!result.Succeeded)
-        {
-            SetStatus(result.Error ?? Localize("Signup settings could not be saved."), UiMessageType.Error);
-            return FilteredRedirect(id);
-        }
-
-        var message = result.PromotedParticipants > 0
-            ? Localize("Signup settings saved at capacity {0}. {1} waiting-list participant(s) were promoted automatically.", result.EffectiveParticipantCap?.ToString(CultureInfo.CurrentCulture) ?? string.Empty, result.PromotedParticipants)
-            : Localize("Signup capacity and waiting-list settings saved at capacity {0}.", result.EffectiveParticipantCap?.ToString(CultureInfo.CurrentCulture) ?? string.Empty);
-        SetStatus(message, UiMessageType.Success);
-        return FilteredRedirect(id);
-    }
-
-    private bool WantsSignupSettingsJson => Request.GetTypedHeaders().Accept?.Any(value => value.MediaType.Value == "application/json") == true;
-
-    public async Task<IActionResult> OnPostSignupCodeAsync(Guid id, CancellationToken ct)
-    {
-        IActionResult response;
-        try { response = await SaveSignupCodeAsync(id, ct); }
-        catch (Exception ex) when (IsSignupSerializationConflict(ex))
-        {
-            db.ChangeTracker.Clear();
-            SetStatus(Localize("This event changed while you were editing it. Review the latest values and try again."), UiMessageType.Error);
-            response = WantsSignupSettingsJson
-                ? new JsonResult(new SignupAdministrationResult(false, "This event changed while you were editing it. Review the latest values and try again.", SubmittedEventVersion: SignupCode.Version))
-                : FilteredRedirect(id);
-        }
-        if (response is JsonResult { Value: SignupAdministrationResult { Succeeded: false, Settings: null } result })
-        {
-            var current = await db.Events.AsNoTracking().SingleOrDefaultAsync(item => item.Id == id && item.HiddenAt == null, ct);
-            if (current is not null) response = new JsonResult(result with
-            {
-                Settings = new(current.Version, current.ParticipantCap, current.WaitingListEnabled,
-                    current.RequireSignupCode, current.SignupCodeHash is not null)
-            });
-        }
-        return response;
-    }
-
-    private static bool IsSignupSerializationConflict(Exception exception)
-    {
-        for (Exception? current = exception; current is not null; current = current.InnerException)
-            if (current is Npgsql.PostgresException { SqlState: Npgsql.PostgresErrorCodes.SerializationFailure }) return true;
-        return false;
-    }
-
-    private async Task<IActionResult> SaveSignupCodeAsync(Guid id, CancellationToken ct)
-    {
-        var actorId = User.GetAccountId();
-        if (actorId is null) return Forbid();
-
-        await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
-        var bingoEvent = await db.Events
-            .FromSqlInterpolated($"SELECT * FROM events WHERE id = {id} AND hidden_at IS NULL FOR UPDATE")
-            .SingleOrDefaultAsync(ct);
-        if (bingoEvent is null) return NotFound();
-        if (bingoEvent.Version != SignupCode.Version)
-        {
-            SetStatus(Localize("This event changed while you were editing it. Review the latest values and try again."), UiMessageType.Error);
-            return CodeResult(false, "This event changed while you were editing it. Review the latest values and try again.");
-        }
-        if (!bingoEvent.AcceptsWaitingList)
-        {
-            SetStatus(Localize("Signup settings are locked because the draft has started or this event has moved on."), UiMessageType.Error);
-            return CodeResult(false, "Signup settings are locked because the draft has started or this event has moved on.");
-        }
-
-        const string codeField = "SignupCode.NewSignupCode";
-        if (ModelState.TryGetValue(codeField, out var codeState) && codeState.Errors.Count > 0)
-        {
-            var errors = codeState.Errors.Select(error => error.ErrorMessage).ToArray();
-            if (WantsSignupSettingsJson) return CodeResult(false, string.Join(" ", errors));
-            var requireCode = SignupCode.RequireSignupCode;
-            if (!await LoadAsync(id, ct)) return NotFound();
-            SignupCode.RequireSignupCode = requireCode;
-            // Render only this form's validation, without echoing the submitted secret.
-            ModelState.Clear();
-            foreach (var error in errors) ModelState.AddModelError(codeField, error);
-            return Page();
-        }
-
-        try
-        {
-            var form = await db.SignupForms.SingleAsync(item => item.EventId == id, ct);
-            var currentRequiresCode = bingoEvent.RequireSignupCode;
-            var currentCodeHash = bingoEvent.SignupCodeHash;
-            if (SignupCode.RequireSignupCode && !currentRequiresCode && string.IsNullOrWhiteSpace(SignupCode.NewSignupCode))
-            {
-                SetStatus(Localize("Enter a new signup code or turn code protection off."), UiMessageType.Error);
-                return CodeResult(false, "Enter a new signup code or turn code protection off.");
-            }
-
-            var hash = !SignupCode.RequireSignupCode
-                ? null
-                : string.IsNullOrWhiteSpace(SignupCode.NewSignupCode)
-                    ? currentCodeHash
-                    : (hasher ?? throw new InvalidOperationException("Signup-code hashing is unavailable.")).Hash(SignupCode.NewSignupCode);
-            if (SignupCode.RequireSignupCode && string.IsNullOrWhiteSpace(hash))
-            {
-                SetStatus(Localize("Enter a new signup code or turn code protection off."), UiMessageType.Error);
-                return CodeResult(false, "Enter a new signup code or turn code protection off.");
-            }
-
-            var before = new { RequireSignupCode = currentRequiresCode, HasSignupCode = currentCodeHash is not null };
-            bingoEvent.ConfigureSignup(true, SignupCode.RequireSignupCode, hash);
-            // Code settings share the event admission version.  Invalidate every
-            // form rendered before this rotation, even when the compatibility
-            // form row is the only other versioned record being advanced.
-            bingoEvent.AdvanceVersion();
-            // SignupForm retains the historical columns for old rows and old
-            // readers, but the event is the single active admission authority.
-            form.ConfigureSignupCode(SignupCode.RequireSignupCode, hash);
-            form.AdvanceVersion();
-            var changeKind = !SignupCode.RequireSignupCode
-                ? "disabled"
-                : !currentRequiresCode
-                    ? "enabled"
-                    : !string.IsNullOrWhiteSpace(SignupCode.NewSignupCode) ? "changed" : "retained";
-            await (auditWriter ?? throw new InvalidOperationException("Signup-code auditing is unavailable.")).WriteAndSaveAsync(
-                actorId,
-                User.Identity?.Name ?? "Admin",
-                "event.signup_code_changed",
-                "event",
-                id.ToString(),
-                JsonSerializer.Serialize(new
-                {
-                    before,
-                    after = new { RequireSignupCode = bingoEvent.RequireSignupCode, HasSignupCode = bingoEvent.SignupCodeHash is not null },
-                    changeKind,
-                    codeReplaced = SignupCode.RequireSignupCode && !string.IsNullOrWhiteSpace(SignupCode.NewSignupCode)
-                }),
-                id,
-                ct);
-            await transaction.CommitAsync(ct);
-            SetStatus(Localize("Signup-code protection saved."), UiMessageType.Success);
-            return CodeResult(true);
-        }
-        catch (DbUpdateConcurrencyException)
-        {
-            await transaction.RollbackAsync(CancellationToken.None);
-            db.ChangeTracker.Clear();
-            SetStatus(Localize("This event changed while you were editing it. Review the latest values and try again."), UiMessageType.Error);
-        }
-        catch (InvalidOperationException)
-        {
-            await transaction.RollbackAsync(CancellationToken.None);
-            db.ChangeTracker.Clear();
-            SetStatus(Localize("The signup-code setting could not be changed in this event state."), UiMessageType.Error);
-        }
-        return WantsSignupSettingsJson
-            ? new JsonResult(new SignupAdministrationResult(false, "The signup-code setting could not be saved.", SubmittedEventVersion: SignupCode.Version))
-            : FilteredRedirect(id);
-
-        IActionResult CodeResult(bool succeeded, string? error = null) => WantsSignupSettingsJson
-            ? new JsonResult(new SignupAdministrationResult(succeeded, error,
-                SubmittedEventVersion: SignupCode.Version,
-                Settings: new(bingoEvent.Version, bingoEvent.ParticipantCap, bingoEvent.WaitingListEnabled,
-                    bingoEvent.RequireSignupCode, bingoEvent.SignupCodeHash is not null)))
-            : FilteredRedirect(id);
     }
 
     public async Task<IActionResult> OnPostCreateInternalParticipantAsync(Guid id, CancellationToken ct)
@@ -395,8 +224,6 @@ public sealed class ParticipantsModel(
             capacityConfirmedCount, capacityWaitingCount, true, bingoEvent.Version,
             bingoEvent.RequireSignupCode, bingoEvent.SignupCodeHash is not null,
             !bingoEvent.DraftLocked && bingoEvent.State is (EventState.Draft or EventState.SignupOpen or EventState.SignupClosed));
-        SignupAdministration = new SignupAdministrationInput { ParticipantCap = bingoEvent.ParticipantCap ?? 1, WaitingListEnabled = true, Version = bingoEvent.Version };
-        SignupCode = new SignupCodeInput { RequireSignupCode = bingoEvent.RequireSignupCode, Version = bingoEvent.Version };
         return true;
     }
 
@@ -429,18 +256,4 @@ public sealed class ParticipantsModel(
         public string? WomValidationConfirmationToken { get; set; }
     }
 
-    public sealed class SignupAdministrationInput
-    {
-        public int ParticipantCap { get; set; }
-        public bool WaitingListEnabled { get; set; }
-        public long Version { get; set; }
-        public bool ConfirmWaitingListDisablement { get; set; }
-    }
-
-    public sealed class SignupCodeInput
-    {
-        public bool RequireSignupCode { get; set; }
-        [StringLength(100), Display(Name = "New signup code")] public string? NewSignupCode { get; set; }
-        public long Version { get; set; }
-    }
 }

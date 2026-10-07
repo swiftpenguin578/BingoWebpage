@@ -247,7 +247,7 @@ public sealed class EventCreationUiTests
         Assert.Contains("private LifecycleActor Actor => new(User.GetAccountId()!.Value, User.Identity!.Name!);", manageHandler);
         Assert.Contains("OverviewBlockers = overviewBlockers.DistinctBy", manageHandler);
 
-        foreach (var route in new[] { "Identity", "Schedule", "Draft", "Board", "Questions", "Manage" })
+        foreach (var route in new[] { "Identity", "Schedule", "Draft", "Board", "SignupSetup", "Manage" })
             Assert.Contains($"$\"/Admin/Events/{route}/{{eventId}}\"", manageHandler);
     }
 
@@ -257,18 +257,22 @@ public sealed class EventCreationUiTests
         var root = FindRepositoryRoot();
         var participants = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "Pages", "Admin", "Events", "Participants.cshtml"));
         var participantsHandler = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "Pages", "Admin", "Events", "Participants.cshtml.cs"));
-        var questions = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "Pages", "Admin", "Events", "Questions.cshtml"));
+        var questions = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "Pages", "Admin", "Events", "SignupSetup.cshtml"));
         var participant = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "Pages", "Admin", "Events", "Participant.cshtml"));
         var participantHandler = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "Pages", "Admin", "Events", "Participant.cshtml.cs"));
         var participantForm = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "Pages", "Admin", "Events", "_InternalParticipantForm.cshtml"));
         var signup = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "Pages", "Events", "Signup.cshtml"));
         var adminLayout = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "Pages", "Shared", "_AdminLayout.cshtml"));
         var manageScript = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "wwwroot", "js", "event-manage.js"));
-        var questionsScript = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "wwwroot", "js", "signup-questions-overlay.js"));
+        var questionsScript = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "wwwroot", "js", "admin-signup-setup.js"));
         var siteCss = BrowserTestFiles.ReadActiveStyles(root);
 
-        Assert.Contains("asp-page=\"Questions\"", participants);
-        Assert.Contains("data-signup-questions-trigger=\"true\"", participants);
+        // C4/U3: Questions overlay and settings ownership moved to Signup setup.
+        Assert.Contains("asp-page=\"SignupSetup\"", participants);
+        Assert.Contains("asp-page-handler=\"SignupCode\"", questions);
+        Assert.Contains("ui.openLayer({kind:'drawer'", questionsScript);
+        Assert.Contains("ui.confirm({title:", questionsScript);
+        Assert.DoesNotContain("OnPostSignupCodeAsync", participantsHandler);
         Assert.DoesNotContain("data-participant-add-panel", participants);
         Assert.Contains("data-participant-add-trigger", participants);
         Assert.Contains("asp-route-addParticipant=\"1\"", participants);
@@ -367,8 +371,8 @@ public sealed class EventCreationUiTests
         Assert.Contains("data-owner-account-search", participantForm);
         Assert.Contains("data-owner-account-results", participantForm);
         Assert.Contains("data-owner-account-id", participantForm);
-        Assert.Contains("data-signup-questions-dialog", adminLayout);
-        Assert.Contains("data-signup-questions-content", adminLayout);
+        Assert.DoesNotContain("data-signup-questions-dialog", adminLayout);
+        Assert.DoesNotContain("data-signup-questions-content", adminLayout);
         Assert.DoesNotContain("<iframe", adminLayout);
         Assert.Contains("admin-route-dialog", manageScript);
         Assert.Contains("participantAddOverlay", manageScript);
@@ -388,26 +392,7 @@ public sealed class EventCreationUiTests
         Assert.Contains("ownerId.value = \"\"", manageScript);
         Assert.Contains("option.role = \"option\"", manageScript);
         Assert.Contains("if (!query) {\n          clearResults();\n          return;\n        }", manageScript);
-        Assert.DoesNotContain("window.innerWidth > 900", questionsScript);
-        Assert.Contains("if (!dialog.open) dialog.showModal();", questionsScript);
-        Assert.Contains("history.back()", questionsScript);
-        Assert.Contains("data-signup-question-confirmation=\"true\"", questions);
-        Assert.Contains("data-signup-question-confirmation-impact", questions);
-        Assert.DoesNotContain("signup-question-remove", questions);
-        Assert.Contains("window.adminConfirmation.open", questionsScript);
-        Assert.Contains("onConfirm: () => submitForm(form, submitter)", questionsScript);
-        Assert.Contains("signup-questions-page-title", questions);
-        Assert.Contains("aria-describedby=\"@(Model.IsOverlay ? \"signup-questions-dialog-description\" : null)\"", questions);
-        Assert.Contains("aria-label=\"@T[\"Move {0} up\", question.Label]\"", questions);
-        Assert.Contains("aria-label=\"@T[\"Move {0} down\", question.Label]\"", questions);
-        Assert.DoesNotContain("@T[\"Signup access\"]", questions);
-        Assert.Contains("asp-page-handler=\"SignupCode\"", participants);
-        Assert.Contains("data-signup-code-toggle", participants);
-        Assert.Contains("OnPostSignupCodeAsync", participantsHandler);
-        Assert.Contains("catch (DbUpdateConcurrencyException)", participantsHandler);
         Assert.Contains(".admin-dialog-page-kicker { margin: 0; color: var(--admin-muted);", siteCss);
-        Assert.DoesNotContain("class=\"step-kicker\"", questions);
-        Assert.Contains("@if (!Model.IsOverlay)", questions);
         Assert.Contains("max-height: min(38rem, calc(100dvh - 7rem))", siteCss);
         Assert.Contains("width: min(41rem, calc(100vw - 3rem))", siteCss);
         Assert.Contains("participant-account-controls { display: grid;", siteCss);
@@ -421,22 +406,15 @@ public sealed class EventCreationUiTests
     }
 
     [Fact]
-    public void QuestionsMoveAndEditMutationsPreserveSubmittedOverlayState()
+    public void SignupSetupRetainsVersionedMoveAndEditAndRetiresQuestionsOverlay()
     {
         var root = FindRepositoryRoot();
-        var questionsHandler = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "Pages", "Admin", "Events", "Questions.cshtml.cs"));
-        var move = questionsHandler[questionsHandler.IndexOf("OnPostMoveAsync", StringComparison.Ordinal)..questionsHandler.IndexOf("OnPostEditAsync", StringComparison.Ordinal)];
-        var edit = questionsHandler[questionsHandler.IndexOf("OnPostEditAsync", StringComparison.Ordinal)..questionsHandler.IndexOf("OnPostReplaceAsync", StringComparison.Ordinal)];
-
-        Assert.Contains("[FromForm] bool overlay", move);
-        Assert.Contains("Question order saved.", move);
-        Assert.Contains("RedirectToQuestions(id, overlay)", move);
-        Assert.Contains("[FromForm] bool overlay", edit);
-        Assert.Contains("Question saved.", edit);
-        Assert.Contains("RedirectToQuestions(id, overlay)", edit);
-        Assert.Contains("Overlay = overlay;", questionsHandler);
-        Assert.Contains("overlay = (overlay ?? Overlay) ? \"1\" : null", questionsHandler);
-        Assert.Contains("ModelState.Remove(\"overlay\")", questionsHandler);
+        var handler = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "Pages", "Admin", "Events", "SignupSetup.cshtml.cs"));
+        var retired = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "Pages", "Admin", "Events", "Questions.cshtml.cs"));
+        Assert.Contains("OnPostMoveAsync", handler);
+        Assert.Contains("OnPostEditAsync", handler);
+        Assert.Contains("HasCurrentFormBaselineAsync", handler);
+        Assert.Contains("tab = \"form\"", retired);
     }
 
     [Theory]
@@ -555,9 +533,9 @@ public sealed class EventCreationUiTests
 
     [Theory]
     [InlineData("SCHEDULE_INVALID", "/Admin/Events/Schedule/{0}", "Review schedule")]
-    [InlineData("SIGNUP_FORM_MISSING", "/Admin/Events/Questions/{0}", "Review signup form")]
-    [InlineData("SIGNUP_QUESTIONS_INVALID", "/Admin/Events/Questions/{0}", "Review signup form")]
-    [InlineData("SIGNUP_CODE_UNUSABLE", "/Admin/Events/Questions/{0}", "Review signup form")]
+    [InlineData("SIGNUP_FORM_MISSING", "/Admin/Events/SignupSetup/{0}?tab=form", "Review signup form")]
+    [InlineData("SIGNUP_QUESTIONS_INVALID", "/Admin/Events/SignupSetup/{0}?tab=form", "Review signup form")]
+    [InlineData("SIGNUP_CODE_UNUSABLE", "/Admin/Events/SignupSetup/{0}?tab=form", "Review signup form")]
     [InlineData("BOARD_NOT_PUBLISHED", "/Admin/Events/Board/{0}", "Review board")]
     [InlineData("DRAFT_NOT_FINALIZED", "/Admin/Events/Draft/{0}", "Review teams and draft")]
     [InlineData("CURRENT_EVENT_EXISTS", "/Admin/Events", "Review events")]

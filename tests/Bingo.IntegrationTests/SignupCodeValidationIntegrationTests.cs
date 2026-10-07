@@ -106,10 +106,10 @@ public sealed class SignupCodeValidationIntegrationTests(PostgreSqlTestFixture d
             var error = Regex.Match(html, "<span[^>]*id=\"signup-code-error\"[^>]*>(.*?)</span>", RegexOptions.Singleline).Groups[1].Value;
             Assert.Contains("maximum length of 100", error);
             Assert.Contains("aria-describedby=\"signup-code-help signup-code-error\"", html);
-            Assert.Contains("checked=\"checked\"", InputTag(html, "SignupCode_RequireSignupCode"));
-            Assert.DoesNotContain("hidden", Regex.Match(html, "<div class=\"signup-code-control\"[^>]*>").Value);
+            Assert.Contains("checked=\"checked\"", InputTag(html, "code-on"));
+            Assert.DoesNotContain("hidden", Regex.Match(html, "<div class=\"[^\"]*signup-code-control[^\"]*\"[^>]*>").Value);
             Assert.DoesNotContain(tooLong, html);
-            Assert.Equal(string.Empty, InputValue(html, "SignupCode_NewSignupCode"));
+            Assert.Equal(string.Empty, InputValue(html, "code-new"));
             Assert.Equal(InputValue(inputPage, "SignupCode_Version"), InputValue(html, "SignupCode_Version"));
             Assert.DoesNotContain("field-validation-error", Regex.Match(html, "<span[^>]*data-valmsg-for=\"SignupAdministration.ParticipantCap\"[^>]*>").Value);
             Assert.Equal(callsBefore, hasher.HashCalls);

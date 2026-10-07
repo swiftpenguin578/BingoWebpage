@@ -179,7 +179,7 @@ else
                     <div class="event-overview-row event-overview-row-blocked">
                         <span class="event-overview-row-icon-badge"><svg class="event-overview-row-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" /><path d="M12 9v4m0 4h.01" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" /></svg></span>
                         <div><strong>@blocker.Description</strong><p>@T["This is reported by the lifecycle readiness check."]</p></div>
-                        @if (blocker.Route is not null) { <a class="event-overview-row-action" href="@blocker.Route" data-signup-questions-trigger="@(blocker.Route.Contains("/Admin/Events/Questions/", StringComparison.OrdinalIgnoreCase) ? "true" : null)">@T[ManageModel.BlockerActionLabel(blocker)]</a> }
+                        @if (blocker.Route is not null) { <a class="event-overview-row-action" href="@blocker.Route">@T[ManageModel.BlockerActionLabel(blocker)]</a> }
                     </div>
                 }
             }

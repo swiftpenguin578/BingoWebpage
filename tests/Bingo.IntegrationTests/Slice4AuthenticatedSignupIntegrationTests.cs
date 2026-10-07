@@ -395,18 +395,20 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         foreach (var question in new[] { optional, answered, unanswered })
         {
             page = await client.GetStringAsync(route);
-            var removalForm = Regex.Match(page, $"<form(?=[^>]*action=\"[^\"]*handler=Deactivate[^\"]*\")[^>]*>(?:(?!</form>)[\\s\\S])*?value=\"{question.Id}\"(?:(?!</form>)[\\s\\S])*?</form>").Value;
-            Assert.NotEmpty(removalForm);
-            var action = WebUtility.HtmlDecode(Regex.Match(removalForm, "<form[^>]*\\saction=\"([^\"]*)\"").Groups[1].Value);
-            Assert.Contains("handler=Deactivate", action, StringComparison.Ordinal);
+            // C4: the reference confirmation uses the authorized Current read, keyed by ID.
+            using var definition = System.Text.Json.JsonDocument.Parse(await client.GetStringAsync(route + "?handler=Current"));
+            var currentQuestion = Assert.Single(definition.RootElement.GetProperty("questions").EnumerateArray(), value => value.GetProperty("id").GetGuid() == question.Id);
+            var impact = currentQuestion.GetProperty("impact");
+            Assert.True(currentQuestion.GetProperty("active").GetBoolean());
+            var action = route + "?handler=Deactivate";
             using var removed = await client.PostAsync(action, new FormUrlEncodedContent(new Dictionary<string, string>
             {
                 ["questionId"] = question.Id.ToString(),
                 ["confirmed"] = "true",
-                ["expectedAnswerCount"] = InputValueByName(removalForm, "expectedAnswerCount"),
-                ["expectedEventRegistrationReleaseCount"] = InputValueByName(removalForm, "expectedEventRegistrationReleaseCount"),
-                ["expectedQuestionVersion"] = InputValueByName(removalForm, "expectedQuestionVersion"),
-                ["__RequestVerificationToken"] = AntiforgeryToken(removalForm)
+                ["expectedAnswerCount"] = impact.GetProperty("answerCount").GetInt32().ToString(CultureInfo.InvariantCulture),
+                ["expectedEventRegistrationReleaseCount"] = impact.GetProperty("eventRegistrationReleaseCount").GetInt32().ToString(CultureInfo.InvariantCulture),
+                ["expectedQuestionVersion"] = impact.GetProperty("questionVersion").GetInt32().ToString(CultureInfo.InvariantCulture),
+                ["__RequestVerificationToken"] = AntiforgeryToken(page)
             }));
             Assert.Equal(HttpStatusCode.Redirect, removed.StatusCode);
         }
@@ -435,7 +437,15 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         foreach (var view in new[] { route, $"/Events/{bingoEvent.Slug}/Signups", $"/Events/{bingoEvent.Slug}/Signup/Confirmation?participantId={participant.Id}", $"/Admin/Events/Participant/{bingoEvent.Id}/Participants/{participant.Id}" })
         {
             page = await client.GetStringAsync(view);
-            foreach (var question in new[] { optional, answered, unanswered }) Assert.DoesNotContain(question.Label, page);
+            if (view == route)
+            {
+                // C4/RC02: recovery retains inactive definitions by ID in page metadata.
+                // They must be inactive, while every public/participant rendering omits them.
+                using var current = System.Text.Json.JsonDocument.Parse(await client.GetStringAsync(route + "?handler=Current"));
+                foreach (var question in new[] { optional, answered, unanswered })
+                    Assert.False(Assert.Single(current.RootElement.GetProperty("questions").EnumerateArray(), value => value.GetProperty("id").GetGuid() == question.Id).GetProperty("active").GetBoolean());
+            }
+            else foreach (var question in new[] { optional, answered, unanswered }) Assert.DoesNotContain(question.Label, page);
             Assert.DoesNotContain("erase this answer", page);
             if (view.Contains("Confirmation", StringComparison.Ordinal)) Assert.Contains("keep this history", page);
             if (view.EndsWith("Signups", StringComparison.Ordinal)) Assert.DoesNotContain("keep this history", page);
@@ -1370,11 +1380,14 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         await LoginAsync(adminClient, adminLogin, "admin-password");
         var participantsUrl = $"/Admin/Events/SignupSetup/{eventId}";
         var adminPage = await adminClient.GetStringAsync(participantsUrl);
-        Assert.Contains("data-signup-code-toggle", adminPage, StringComparison.Ordinal);
-        // C4: settings moved to Signup setup; the legacy Questions host is retired in item 3.
-        var questionsPage = await adminClient.GetStringAsync($"/Admin/Events/Questions/{eventId}");
-        Assert.DoesNotContain("handler=\"SignupCode\"", questionsPage, StringComparison.Ordinal);
-        Assert.DoesNotContain("data-signup-code-toggle", questionsPage, StringComparison.Ordinal);
+        Assert.Contains("id=\"code-on\"", adminPage, StringComparison.Ordinal);
+        // C4: the historical Questions GET now redirects to the Signup form tab.
+        using (var retired = await adminClient.GetAsync($"/Admin/Events/Questions/{eventId}"))
+        {
+            Assert.Equal(HttpStatusCode.Redirect, retired.StatusCode);
+            Assert.Contains("SignupSetup/", retired.Headers.Location!.OriginalString, StringComparison.Ordinal);
+            Assert.Contains("tab=form", retired.Headers.Location.OriginalString, StringComparison.Ordinal);
+        }
         var firstRotationPage = adminPage;
         var secondRotationPage = adminPage;
         using (var enable = await adminClient.PostAsync($"{participantsUrl}?handler=SignupCode", SignupCodePost(firstRotationPage, true, signupCode)))

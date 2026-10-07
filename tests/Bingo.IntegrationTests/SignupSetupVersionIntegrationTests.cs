@@ -36,6 +36,44 @@ public sealed partial class SignupSetupVersionIntegrationTests(PostgreSqlTestFix
     }
     public Task DisposeAsync() => database.DisposeAsync().AsTask();
 
+    [Fact]
+    public async Task ImportedArchivedWithoutFormIsReadOnlyAndExplicitWithoutCreatingHistory()
+    {
+        var seed = await SeedAsync();
+        var id = Guid.NewGuid();
+        await using (var db = new ApplicationDbContext(options))
+        {
+            var adminId = await db.Accounts.Where(x => x.LoginName == seed.Admin).Select(x => x.Id).SingleAsync();
+            db.Events.Add(BingoEvent.CreateArchivedHistorical(id, "Imported history", $"imported-{id:N}", null, "UTC",
+                Now.AddDays(-10), Now.AddDays(-8), Now.AddDays(-7), Now.AddDays(-2), adminId, Now, null, 2, 3, 2, 2));
+            await db.SaveChangesAsync();
+        }
+        await using var factory = Factory();
+        using var client = factory.CreateClient(new() { AllowAutoRedirect = false });
+        await LoginAsync(client, seed.Admin);
+        var route = $"/Admin/Events/SignupSetup/{id}";
+        var page = await client.GetStringAsync(route + "?tab=form");
+        Assert.Contains("No signup form was recorded for this imported event.", page);
+        Assert.Contains("data-setup-lock", page);
+        Assert.Matches("id=\"cap-input\"[^>]*disabled", page);
+        using var current = await client.GetAsync(route + "?handler=Current");
+        Assert.Equal(HttpStatusCode.OK, current.StatusCode);
+        Assert.True(current.Headers.CacheControl!.NoStore);
+        var json = JsonDocument.Parse(await current.Content.ReadAsStringAsync()).RootElement;
+        Assert.False(json.GetProperty("editable").GetBoolean());
+        Assert.False(json.GetProperty("hasForm").GetBoolean());
+        Assert.Equal(JsonValueKind.Null, json.GetProperty("formVersion").ValueKind);
+        Assert.Empty(json.GetProperty("questions").EnumerateArray());
+        Assert.Equal(6, json.GetProperty("settings").GetProperty("participantCap").GetInt32());
+        using var refused = await PostAsync(client, route, "Add", page, "0", new() { ["Input.Label"] = "Never recorded", ["Input.Type"] = "Text" });
+        Assert.Equal(HttpStatusCode.Redirect, refused.StatusCode);
+        Assert.Contains($"/Admin/Events/Manage/{id}", refused.Headers.Location!.OriginalString);
+        await using var verify = new ApplicationDbContext(options);
+        Assert.False(await verify.SignupForms.AnyAsync(x => x.EventId == id));
+        Assert.False(await verify.SignupQuestions.AnyAsync(x => x.EventId == id));
+        Assert.False(await verify.AuditEntries.AnyAsync(x => x.EventId == id));
+    }
+
     [Theory]
     [InlineData("Add")]
     [InlineData("AddAccount")]

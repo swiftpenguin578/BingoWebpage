@@ -97,8 +97,8 @@ public sealed class AdminShellUiTests
         Assert.DoesNotContain("shell.Breadcrumbs", layout);
         Assert.DoesNotContain("BreadcrumbAction", layout);
 
-        Assert.Contains("Layout = \"_AdminOverlayLayout\"", questions);
-        Assert.Contains("if (!Model.IsOverlay)", questions);
+        Assert.DoesNotContain("_AdminOverlayLayout", questions);
+        Assert.DoesNotContain("signup-questions-dialog", layout);
         Assert.DoesNotContain("ViewData[\"Layout\"]", questions);
         Assert.DoesNotContain("admin-header", overlayLayout);
         Assert.DoesNotContain("admin-sidebar", overlayLayout);
