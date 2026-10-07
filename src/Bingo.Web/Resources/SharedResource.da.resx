@@ -3476,4 +3476,5 @@
   <data name="ConfigureIdentityOrSchedule is unavailable while the event is Finalized." xml:space="preserve"><value>Identitet og tidsplan kan ikke ændres, mens eventen er afsluttet.</value></data>
   <data name="ConfigureIdentityOrSchedule is unavailable while the event is Archived." xml:space="preserve"><value>Identitet og tidsplan kan ikke ændres, mens eventen er arkiveret.</value></data>
   <data name="ConfigureIdentityOrSchedule is unavailable while the event is Cancelled." xml:space="preserve"><value>Identitet og tidsplan kan ikke ændres, mens eventen er annulleret.</value></data>
+  <data name="Choose a supported timezone on Identity to edit times." xml:space="preserve"><value>Vælg en understøttet tidszone på Identitet for at redigere tidspunkter.</value></data>
 </root>

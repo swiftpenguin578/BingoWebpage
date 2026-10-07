@@ -45,6 +45,7 @@ public sealed class ScheduleModel(ApplicationDbContext db, IEventSignupLifecycle
     };
     public string FieldLock(string key)
     {
+        if (HasUnresolvableTimezone) return Localize("Choose a supported timezone on Identity to edit times.");
         var drafting = CurrentDraftState is DraftState.Running or DraftState.Paused;
         var finalized = CurrentDraftState == DraftState.Finalized;
         if (EventState == EventState.Cancelled && !(key == "signupOpensAt" && ActualSignupOpened is not null) && !(key == "signupClosesAt" && ActualSignupClosed is not null)) return Localize("Kept as history; the event was cancelled.");

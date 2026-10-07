@@ -12,6 +12,7 @@ const {startFixture,login}=require('../../scripts/lib/admin-parity-fixture.cjs')
    if(language==='da'){await page.locator('[name=culture][value=da]').click();await page.waitForFunction(()=>document.documentElement.lang==='da');}
    await page.evaluate(url=>AdminUI.navigate(url),schedule);await page.locator('[data-timezone-fallback]').waitFor();
    const current=await page.locator('[data-schedule-editor]').getAttribute('data-current').then(JSON.parse);
+   assert.deepEqual((await page.locator('[data-schedule-field] .field-lock').allTextContents()).map(s=>s.trim()),Array(5).fill(language==='en'?'Choose a supported timezone on Identity to edit times.':'Vælg en understøttet tidszone på Identitet for at redigere tidspunkter.'));
    assert.equal(current.timezone,'Review/Unknown');assert.equal(current.displayTimezone,'UTC');assert.ok(Object.values(current.editable).every(v=>!v),'unsupported timezone schedule remains read-only');
    assert.equal(await page.locator('input[name="Input.EventStartsLocal"]').inputValue(),'2027-06-14T18:00');
    assert.match(await page.locator('[data-timezone-fallback]').textContent(),/Review\/Unknown.*UTC/);
