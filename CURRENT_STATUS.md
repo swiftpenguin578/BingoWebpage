@@ -1,5 +1,15 @@
 # Current project status
 
+## U2 brief74 round3 — item5b checked, continuing6–7 — 7 October2026
+
+- Authorized checkout/branch unchanged; exact clean start9b5d6e4445bc25259858914fe24b12affa19d775 verified. Same implementer only; no workers/reviewer/orchestrator/new branch/worktree/push/merge/deploy/self-review.
+- Committed items:1 `0e62ae56eb82b8feb9a553a9ba7895bec0fa680f`;2 `aa74562429b1e06bca82c7b8bd79bdb3956cd7fe`;3 `b497bf707a636de12fc95dcaa87cb8ab430da770`;4 `3e82e14cee44940f64770d9029b4ee76b79bb9e9`;5 `2827204846a2d1131024c23a09d6f40fcffdb148`;5a `0db74ff3af60c1040def025f263029da3f57d5d0`.
+- [Round3 per-item evidence](docs/references/admin-ui/reviews/2026-10-06/u2/remediation-3/): phase/view transitions18 per engine; results skeleton hold/navigation takeover and query/focus checks; immediate attempted controls31 connected outcomes per engine; destination headers12 per engine EN/DA loading/failure; Events reference header5 widths per engine with durable rectangles; existing Events parity13 per engine. Focused item3 HTTP1/0/0 and item5 localization/Identity30/0/0. These are scoped implementer checks, not final gates or independent review.
+- **Item5b resolved under planner technical direction:** active family-scoped CSS, awaited before swap, no media toggling. [Continuation evidence](docs/references/admin-ui/reviews/2026-10-06/u2/remediation-3/item5b-active-styles.md): native-frame20/0 and scoped78-selector guard each engine; Dashboard9/0 and Events13/0 each. Identity31 unaffected passes plus loading/failure2/0 recheck per engine after literal-space correction. Focused shell/localization HTTP4/0/0. Historical inactive-media failure remains documented.
+- Items6–7 NOT STARTED. Final full JS runner, clean Release, rendered/UR and complete design checks1–6 NOT RUN for this incomplete round. Latest fixture build0 warnings/errors preceded final JS construction change. Checkpoint diff/frozen checks pass.
+- **Q-S1:** whole .NET suite NOT RUN, planner-only eventual completed-final-SHA gate. No final TRX/pass claimed. Both pages remain awaiting Claude review, then user visual acceptance; UI_PAGE_MATRIX retains authority. User's running review app/database untouched.
+- Exact next step: item6, focused final gates and separate docs-only7. No batch completion/acceptance claimed.
+
 ## U2 brief72 round2 — item8 stop-boundary handoff — 7 October2026
 
 - Assigned checkout `/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage`, branch `codex/participants-functionality`; exact clean start05f95d844adeba18e8e7fd8854e040315c96a03e. Implementer gpt-6.1-sol/high only; no workers/reviewer/orchestrator/new branch/worktree/push/merge/deploy/self-review.
@@ -31,4 +41,4 @@
 
 ## Next permitted action
 
-Planner runs the delegated whole .NET suite on the final SHA and completes item8's three concurrent Integration proofs as needed; independent Claude review and user visual inspection follow. Implementer stops after item8. No U3+, palette work, packaging, push, merge or deployment.
+Same implementer continues brief74 items6 and7 with the focused Q-S1 gates. Planner runs the whole .NET suite on the eventual completed final SHA; Claude review and user visual acceptance remain pending. No U3+, palette work, packaging, push, merge or deployment.

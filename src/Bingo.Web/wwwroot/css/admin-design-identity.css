@@ -1,14 +1,14 @@
 /* Identity-specific sizing from the frozen reference; shared form components stay unchanged. */
-.id-desc{min-height:132px}.id-name{max-width:480px}.id-buyin{min-height:76px}
-.identity-editor-form .validation-summary-valid,.identity-editor-form .field-validation-valid{display:none}
-.identity-editor-form .ro-value{white-space:pre-wrap;overflow-wrap:anywhere}
-.identity-editor-form .copy-field .mono{overflow-wrap:anywhere;min-width:0}
-.identity-editor-form .field-err:empty{display:none}
-@media(min-width:1200px){.page .card.form-card{margin-bottom:40px}}
-@media(max-width:640px){.id-name{max-width:none}.identity-editor-form .form-bar .btn-primary{flex:1}}
+:where([data-page-family="identity"]) .id-desc{min-height:132px}:where([data-page-family="identity"]) .id-name{max-width:480px}:where([data-page-family="identity"]) .id-buyin{min-height:76px}
+:where([data-page-family="identity"]) .identity-editor-form .validation-summary-valid,:where([data-page-family="identity"]) .identity-editor-form .field-validation-valid{display:none}
+:where([data-page-family="identity"]) .identity-editor-form .ro-value{white-space:pre-wrap;overflow-wrap:anywhere}
+:where([data-page-family="identity"]) .identity-editor-form .copy-field .mono{overflow-wrap:anywhere;min-width:0}
+:where([data-page-family="identity"]) .identity-editor-form .field-err:empty{display:none}
+@media(min-width:1200px){:where([data-page-family="identity"]).page .card.form-card{margin-bottom:40px}}
+@media(max-width:640px){:where([data-page-family="identity"]) .id-name{max-width:none}:where([data-page-family="identity"]) .identity-editor-form .form-bar .btn-primary{flex:1}}
 
-.form-banners:not(:has(.banner:not([hidden]):not(.validation-summary-valid))){display:none}
+:where([data-page-family="identity"]) .form-banners:not(:has(.banner:not([hidden]):not(.validation-summary-valid))){display:none}
 
 /* MVC server errors use the same visible error row and input border as client validation. */
-.identity-editor-form .field-validation-error{display:flex}
-.identity-editor-form .input-validation-error{border-color:var(--dk-danger)}
+:where([data-page-family="identity"]) .identity-editor-form .field-validation-error{display:flex}
+:where([data-page-family="identity"]) .identity-editor-form .input-validation-error{border-color:var(--dk-danger)}
