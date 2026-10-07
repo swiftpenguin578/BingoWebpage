@@ -147,6 +147,23 @@ const { startFixture, login } = require('../../scripts/lib/admin-parity-fixture.
     await drawer.locator('#dr-cancel').click();
     await page.waitForFunction(() => !document.querySelector('.drawer') && !new URL(location.href).searchParams.has('new'));
 
+    // T2-1 (a): the Super Admin sees the hidden event by name, linked to Overview's limited view.
+    const owner = await context.browser().newContext({ viewport: { width: 1280, height: 860 }, reducedMotion: 'reduce' });
+    await owner.route(url => url.pathname.startsWith('/media/osrs-wiki'), route => route.fulfill({ status: 200, contentType: 'image/svg+xml', body: '<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"/>' }));
+    const ownerPage = await owner.newPage();
+    ownerPage.on('pageerror', error => errors.push(error.message));
+    await ownerPage.goto(fixture.origin + '/Account/Login');
+    await ownerPage.locator('#Input_Username').fill('ReviewOwner'); await ownerPage.locator('#Input_Password').fill('ReviewOnly!1234'); // UR seed test value
+    await Promise.all([ownerPage.waitForURL(url => !url.pathname.endsWith('/Account/Login')), ownerPage.locator('button[type=submit]').click()]);
+    await ownerPage.goto(`${fixture.origin}/Admin/Catalogue?activity=${activityId}`);
+    await ownerPage.locator('.drawer #a-toggle').click();
+    const ownerConfirm = ownerPage.locator('.modal[role=alertdialog]').last();
+    await ownerConfirm.locator('.m-points').waitFor();
+    assert.match(await ownerConfirm.locator('a', { hasText: 'Hidden final review' }).getAttribute('href'), /^\/Admin\/Events\/Manage\/[0-9a-f-]{36}\?hidden=true$/);
+    assert.doesNotMatch(await ownerConfirm.innerText(), /hidden event/);
+    await ownerConfirm.locator('button', { hasText: 'Cancel' }).click();
+    await owner.close();
+
     assert.deepEqual(errors, []);
     console.log('admin-design-catalogue: directory, drawer, editor, S10, C-CMP-2 and Add activity checks passed');
   } finally {

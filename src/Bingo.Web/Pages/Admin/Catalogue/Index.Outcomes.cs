@@ -88,7 +88,7 @@ public sealed partial class IndexModel
 
     /* ---------------- S10: draft boards that deactivation keeps from being approved ---------------- */
 
-    public sealed record ImpactBoard(Guid EventId, string EventName, bool Hidden, bool Correction, string? BoardUrl);
+    public sealed record ImpactBoard(Guid EventId, string EventName, bool Hidden, bool Correction, string BoardUrl);
     public sealed record DeactivationImpact(string RecordType, Guid RecordId, string Name, bool Active, IReadOnlyList<ImpactBoard> Boards, int HiddenCount);
 
     /// <summary>
@@ -156,9 +156,9 @@ public sealed partial class IndexModel
             .GroupBy(x => x.EventId)
             .Select(group => new ImpactBoard(group.Key, group.First().EventName, group.First().HiddenAt is not null,
                 group.First().State == BoardState.Published,
-                // A hidden event's Board page is Not Found even for the Super Admin (filter: only Overview's
-                // limited view), so no link is given until the open question (report Q1) is answered.
-                group.First().HiddenAt is null ? $"/Admin/Events/Board/{group.Key}" : null))
+                // T2-1 (a): a hidden event's Board page is Not Found even for the Super Admin, so its name links
+                // to Overview's limited view (as A7). Ordinary Admins never receive hidden events.
+                group.First().HiddenAt is null ? $"/Admin/Events/Board/{group.Key}" : $"/Admin/Events/Manage/{group.Key}?hidden=true"))
             .OrderBy(x => x.EventName, StringComparer.CurrentCultureIgnoreCase).ThenBy(x => x.EventId)
             .ToList();
         var hiddenCount = superAdmin ? 0 : events.Count(x => x.Hidden);

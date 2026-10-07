@@ -41,8 +41,8 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests
         var ownerImpact = await ImpactAsync(owner, "drop", seed.FirstDrop.Id, seed.FirstDrop.Version);
         Assert.Equal(["A visible draft", "Z hidden draft"], Names(ownerImpact));
         Assert.True(ownerImpact.GetProperty("boards")[1].GetProperty("hidden").GetBoolean());
-        // Open question (T2 report Q1): a hidden event's Board page is Not Found even for the Super Admin, so no link yet.
-        Assert.Equal(JsonValueKind.Null, ownerImpact.GetProperty("boards")[1].GetProperty("url").ValueKind);
+        // T2-1 (a): the hidden event links to Overview's limited view, not its (Not Found) Board page.
+        Assert.Matches("^/Admin/Events/Manage/[0-9a-f-]{36}\\?hidden=true$", ownerImpact.GetProperty("boards")[1].GetProperty("url").GetString()!);
         Assert.Equal(0, ownerImpact.GetProperty("hiddenCount").GetInt32());
 
         // T2-Q3b (a): a correction copy is listed only for an objective outside the active approval
