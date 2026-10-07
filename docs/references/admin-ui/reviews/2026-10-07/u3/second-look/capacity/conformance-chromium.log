@@ -1,0 +1,6 @@
+PASS signupsetup 390 normal wrap growth 0
+PASS signupsetup 494 normal wrap growth 0
+PASS signupsetup 860 normal wrap growth 0
+PASS signupsetup 1280 normal wrap growth 0
+PASS signupsetup 1440 normal wrap growth 0
+PASS 5 registered page geometry cases plus frame/style, no-fade, document, update and Danish checks
