@@ -48,3 +48,6 @@
 @media (max-width:640px){:where([data-page-family="board"]) .bd-head-acts{width:100%;justify-content:flex-start}:where([data-page-family="board"]).page-head:has(.bd-head-acts){flex-wrap:wrap}}
 :where([data-page-family="board"]) .bd-sk-line{display:flex;align-items:center;height:calc(var(--dk-fs-control) * 1.45)}
 :where([data-page-family="board"]) .bd-sk-line+.bd-sk-line{margin-top:12px}
+:where([data-page-family="board"]) .bd-lock-inline{margin:0}
+:where([data-page-family="board"].bd-layer){display:contents}
+:where([data-page-family="board"]) [hidden]{display:none}
