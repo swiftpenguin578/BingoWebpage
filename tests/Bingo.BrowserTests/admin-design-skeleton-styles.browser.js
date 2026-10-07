@@ -80,6 +80,40 @@ async function nativeUntil(page,fn){for(let i=0;i<200;i++){if(fn())return;await 
    assert.equal(await p.evaluate(()=>timers.includes(400)),false);
    await f.check();passed++;await f.context.close();
   }
+  // Round5 L1: CSS readiness cannot create a skeleton for an already-ready page.
+  for(const [from,to]of[['dashboard','events'],['events','dashboard']])for(const responseAt of[100,300,'streamed']){
+   const f=await fixture(from,[href(to)]),p=f.page,started=await p.evaluate(()=>performance.now());
+   await p.evaluate(url=>{window.done=false;void AdminUI.navigate(url).then(()=>done=true);},paths[to]);
+   await until(p,()=>pending.length===1);await nativeUntil(p,()=>f.waiting.has(href(to)));
+   await p.clock.runFor(100);
+   if(responseAt===100)await p.evaluate(source=>pending[0].resolve(source),html(to));
+   // Headers can arrive at100 while the page body itself remains pending.
+   if(responseAt==='streamed')await p.evaluate(()=>pending[0].resolve(new ReadableStream({start(c){window.bodyRead=c;}})));
+   await p.clock.runFor(99);assert.equal(await p.locator('[data-page-skeleton]').count(),0);
+   assert.equal(await p.evaluate(()=>old.checkVisibility()),true);assert.equal(await p.evaluate(()=>done),false);
+   await p.clock.runFor(1);await f.waiting.get(href(to)).fulfill({contentType:'text/css',body:css(to)});
+   await until(p,()=>done||shows.length>0);
+   if(responseAt===100){
+    assert.equal(await p.evaluate(()=>shows.length),0,'response100/CSS200 never inserts a skeleton');
+    assert.equal(await p.evaluate(()=>done),true);assert.equal(await p.evaluate(()=>timers.includes(400)),false);
+    assert.equal(await p.locator('[data-fixture-page]').getAttribute('data-fixture-page'),to);
+    assert.equal(await p.evaluate(()=>performance.now())-started,200);
+   }else{
+    assert.deepEqual(await p.evaluate(start=>shows.map(x=>x.at-start),started),[200]);
+    await p.clock.runFor(99);assert.equal(await p.evaluate(()=>done),false);
+    await p.clock.runFor(1);
+    if(responseAt==='streamed')await p.evaluate(source=>{bodyRead.enqueue(new TextEncoder().encode(source));bodyRead.close();},html(to));
+    else await p.evaluate(source=>pending[0].resolve(source),html(to));
+    await until(p,()=>timers.includes(300));
+    await p.clock.runFor(299);assert.equal(await p.evaluate(()=>done),false);
+    assert.equal(await p.locator('[data-page-skeleton]').count(),1,'skeleton shown at200 stays through599');
+    await p.clock.runFor(1);await until(p,()=>done);
+    assert.equal(await p.locator('[data-page-skeleton]').count(),0);
+    assert.equal(await p.locator('[data-fixture-page]').getAttribute('data-fixture-page'),to);
+    assert.equal(await p.evaluate(()=>performance.now())-started,600);
+   }
+   await f.check();passed++;await f.context.close();
+  }
   // Cached family CSS is known before the response and uses the normal150/400.
   for(const [from,to]of[['dashboard','events'],['events','dashboard']]){
    const f=await fixture(from),p=f.page;
@@ -121,6 +155,6 @@ async function nativeUntil(page,fn){for(let i=0;i<200;i++){if(fn())return;await 
    else{await f.waiting.get(href('events')).fulfill({contentType:'text/css',body:css('events')});await p.evaluate(source=>pending[0].resolve(source),html('events'));await until(p,()=>done);await f.check();}
    passed++;await f.context.close();
   }
-  console.log('PASS '+passed+' native skeleton/CSS cases: uncached/cached timing, generic, pending/ready cancellation, stale-link reload/failure');
+  console.log('PASS '+passed+' native skeleton/CSS cases: uncached/cached timing, fast failures, response/CSS ordering, streamed body, generic, cancellation, stale-link reload/failure');
  }finally{await browser.close();}
 })().catch(error=>{console.error(error);process.exitCode=1;});

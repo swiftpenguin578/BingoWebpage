@@ -606,22 +606,27 @@
     if (!language) currentMain.inert = true;
     controller.signal.addEventListener('abort', restoreMain, { once: true });
     const knownStyles = !language ? skeletons.get(pageKind(url))?.styles || [] : [];
-    let stylesReady = !knownStyles.length, earlyStyles = null, styleFailure = false, preload = Promise.resolve();
+    let stylesReady = !knownStyles.length, pagePending = true, earlyStyles = null, styleFailure = false, preload = Promise.resolve();
     const loading = !language ? delayedLoading(shownAt => {
       skeleton(url, position, shownAt);
       // A shown skeleton owns its loaded CSS until its content is replaced,
       // even if a successor is still waiting for a different family's CSS.
       earlyStyles?.retain(); inheritedUpdate?.restore(); restoreMain();
-    }, controller.signal, overlay?.element.getAttribute('aria-busy') === 'true' ? overlay.shownAt : inheritedUpdate?.shownAt ?? null, () => stylesReady) : null;
+    }, controller.signal, overlay?.element.getAttribute('aria-busy') === 'true' ? overlay.shownAt : inheritedUpdate?.shownAt ?? null, () => stylesReady && pagePending) : null;
     let receivedPage = false, pageStyles = null;
     const fallback = destination => { restoreMain(); clearOverlay(); if (rollbackContext) { refreshContext(rollbackContext); restorePosition(position); } fullLoad(destination); return true; };
     try {
       if (knownStyles.length) preload = preparePageStyles(knownStyles, controller.signal).then(prepared => {
         earlyStyles = prepared; stylesReady = true; loading?.ready();
       }).catch(error => { styleFailure = true; throw error; });
-      const [response] = await Promise.all([suppliedResponse || fetch(url, { credentials: 'same-origin', signal: controller.signal, headers: { 'X-Admin-Navigation': 'true' } }), preload]);
-      if (!response.ok) throw new Error('Page load failed');
-      const html = await response.text(); receivedPage = true;
+      // Read the page in parallel with CSS. CSS readiness must not show a
+      // skeleton once the page itself is ready (including a failed read).
+      const read = Promise.resolve(suppliedResponse || fetch(url, { credentials: 'same-origin', signal: controller.signal, headers: { 'X-Admin-Navigation': 'true' } })).then(async response => {
+        if (!response.ok) throw new Error('Page load failed');
+        return { response, html: await response.text() };
+      }).finally(() => { pagePending = false; });
+      const [{ response, html }] = await Promise.all([read, preload]);
+      receivedPage = true;
       const doc = new DOMParser().parseFromString(html, 'text/html');
       if (ticket !== sequence) return false;
       if (!validatePage(doc, response, language)) return fallback(response.url || url);
