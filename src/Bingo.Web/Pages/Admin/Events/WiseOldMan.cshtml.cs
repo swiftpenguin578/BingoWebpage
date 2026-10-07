@@ -18,7 +18,8 @@ using Microsoft.Extensions.Localization;
 namespace Bingo.Web.Pages.Admin.Events;
 
 [Authorize(Policy = AuthorizationPolicies.Admin)]
-public sealed class WiseOldManModel(
+[AdminDesign]
+public sealed partial class WiseOldManModel(
     ApplicationDbContext dbContext,
     IEventCompetitionSynchronizationService competitionSynchronization,
     IEventCompetitionManagementService competitionManagement,
@@ -210,10 +211,10 @@ public sealed class WiseOldManModel(
 
     public string ProvenanceLabel => CompetitionIntegration?.Provenance switch
     {
-        EventCompetitionProvenance.WebsiteCreated => Localize("Website-created · manageable").ToString(),
-        EventCompetitionProvenance.External when CompetitionIntegration.WriteCapability == EventCompetitionWriteCapability.Writable => Localize("External · manageable").ToString(),
-        EventCompetitionProvenance.External => Localize("External · read-only").ToString(),
-        _ => Localize("Unknown provenance · read-only").ToString()
+        EventCompetitionProvenance.WebsiteCreated => Localize("Website-managed").ToString(),
+        EventCompetitionProvenance.External when CompetitionIntegration.WriteCapability == EventCompetitionWriteCapability.Writable => Localize("Linked · can update").ToString(),
+        EventCompetitionProvenance.External => Localize("Linked · read only").ToString(),
+        _ => Localize("Unknown origin; contact an operator").ToString()
     };
 
     public string CapabilityExplanation => CompetitionIntegration?.Provenance == EventCompetitionProvenance.External
@@ -264,7 +265,7 @@ public sealed class WiseOldManModel(
     {
         var item = await dbContext.Events.AsNoTracking()
             .Where(value => value.Id == id && value.State != EventState.Discarded && value.HiddenAt == null)
-            .Select(value => new EventSummary(value.Id, value.Name, value.Slug, value.State, value.Version, value.EventStartsAt, value.EventEndsAt, value.ActualStartedAt, value.HiddenAt != null))
+            .Select(value => new EventSummary(value.Id, value.Name, value.Slug, value.State, value.Version, value.EventStartsAt, value.EventEndsAt, value.ActualStartedAt, value.HiddenAt != null, value.Timezone))
             .SingleOrDefaultAsync(ct);
         if (item is null) return false;
 
@@ -356,5 +357,5 @@ public sealed class WiseOldManModel(
     private string Localize(string key, params object[] arguments)
         => text?[key, arguments].Value ?? string.Format(CultureInfo.CurrentCulture, key, arguments);
 
-    public sealed record EventSummary(Guid Id, string Name, string Slug, EventState State, long Version, DateTimeOffset? StartsAt, DateTimeOffset? EndsAt, DateTimeOffset? ActualStartedAt, bool IsHidden);
+    public sealed record EventSummary(Guid Id, string Name, string Slug, EventState State, long Version, DateTimeOffset? StartsAt, DateTimeOffset? EndsAt, DateTimeOffset? ActualStartedAt, bool IsHidden, string Timezone = "UTC");
 }

@@ -1,6 +1,10 @@
 // Add a page here once. The conformance gate uses the real Razor fixture,
 // loading template, family stylesheet, and these page-specific interaction probes.
 module.exports = [
+  { family: 'wom', postSaveCount: 0, url: f => '/Admin/Events/WiseOldMan/' + f.events['autumn-bingo-2027'], fixture: 'autumn-bingo-2027',
+    source: 'Pages/Admin/Events/WiseOldMan.cshtml', module: 'admin-wom.js', textRows: { 'wm-sk-line': ['control',1.45] },
+    reference: 'Wom.dc.html', first: '.card', blocks: { first: '.card' }, style: ['.wm-content','display','grid'], titleDa: 'Wise Old Man',
+    update: { control: '#tech-btn', action: 'click', selected: '#tech-btn', attribute: ['aria-expanded','true'] } },
   { family: 'final-review', postSaveCount: 1, url: f => '/Admin/Events/Finalize/' + f.events['autumn-bingo-2027'], fixture: 'autumn-bingo-2027',
     source: 'Pages/Admin/Events/Finalize.cshtml', module: 'admin-final-review.js',
     textRows: { 'fr-sk-line': ['control',1.45] }, reference: 'FinalReview.dc.html', first: '.card', blocks: { first: '.card' },
