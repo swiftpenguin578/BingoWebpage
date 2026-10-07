@@ -125,6 +125,22 @@
     case "ended":
         <path d="M5 5l6 6M11 5l-6 6"/>
         break;
+    // U5 Participants (Participants.dc.html): row menu, note flag, remove account, sort and unpaid.
+    case "more":
+        <circle cx="3.5" cy="8" r="1.25"/><circle cx="8" cy="8" r="1.25"/><circle cx="12.5" cy="8" r="1.25"/>
+        break;
+    case "note":
+        <path d="M4 2.5h5.5L12 5v8.5H4z"/><path d="M6.2 7.5h3.6M6.2 10h2.6"/>
+        break;
+    case "remove":
+        <path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.6 4.5l.5 9h5.8l.5-9"/>
+        break;
+    case "sort":
+        <path d="M4.5 10 8 6.5l3.5 3.5"/>
+        break;
+    case "unpaid":
+        <circle cx="8" cy="8" r="4.6" stroke-dasharray="2.4 2"/>
+        break;
     default: throw new InvalidOperationException($"Unknown Admin design icon: {Model.Name}");
 }
 </svg>

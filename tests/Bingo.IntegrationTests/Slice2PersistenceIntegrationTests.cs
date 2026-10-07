@@ -738,7 +738,7 @@ public sealed class Slice2PersistenceIntegrationTests(PostgreSqlTestFixture data
         var lifecycle = new Bingo.Infrastructure.Events.EventLifecycleService(db, signup, TimeProvider.System);
         var destructive = new Bingo.Infrastructure.Events.EventDestructiveLifecycleService(db, TimeProvider.System);
         var participants = new Bingo.Web.Pages.Admin.Events.ParticipantsModel(db, null!);
-        Assert.IsType<Microsoft.AspNetCore.Mvc.RazorPages.PageResult>(await participants.OnGetAsync(seed.EventId, CancellationToken.None));
+        Assert.IsType<Microsoft.AspNetCore.Mvc.RazorPages.PageResult>(await participants.OnGetAsync(seed.EventId, tab: "all", ct: CancellationToken.None));
         Assert.Contains(participants.Participants, row => row.Id == withdrawnId && row.Name == "Withdrawn Main" && row.Ehb == 111m);
         Assert.Contains(participants.Participants, row => row.Id == removedId && row.Name == "Removed Main" && row.Ehb == 222m);
 

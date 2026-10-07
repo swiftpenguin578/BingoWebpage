@@ -291,7 +291,8 @@ public sealed class Slice9Pass92LiveWithdrawalIntegrationTests(PostgreSqlTestFix
 
         var participants = await client.GetStringAsync($"/Admin/Events/Participants/{seed.EventId}");
         Assert.DoesNotContain("Locked for draft", participants, StringComparison.Ordinal);
-        Assert.Contains($"/Admin/Events/Participant/{seed.EventId}/Participants/{externalParticipantId}", participants, StringComparison.Ordinal);
+        // A2 / U5 (A10): rows open the query-backed drawer by participant ID.
+        Assert.Contains($"participant={externalParticipantId}", participants, StringComparison.Ordinal);
         Assert.Contains("External roster member", participants, StringComparison.Ordinal);
         Assert.DoesNotContain("Manage live participant", participants, StringComparison.Ordinal);
 

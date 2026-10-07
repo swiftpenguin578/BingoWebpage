@@ -3873,4 +3873,106 @@
   <data name="{0} is finalized." xml:space="preserve"><value>{0} er afsluttet.</value></data>
   <data name="{0} is archived." xml:space="preserve"><value>{0} er arkiveret.</value></data>
   <data name="Roster changes aren’t allowed in this event phase." xml:space="preserve"><value>Ændringer i deltagerlisten er ikke tilladt i denne fase af eventet.</value></data>
+  <data name=" · capacity now {0}" xml:space="preserve"><value> · kapacitet nu {0}</value></data>
+  <data name="+{0} account" xml:space="preserve"><value>+{0} konto</value></data>
+  <data name="+{0} accounts" xml:space="preserve"><value>+{0} konti</value></data>
+  <data name="A place is open, so they return as confirmed." xml:space="preserve"><value>Der er en ledig plads, så de vender tilbage som bekræftede.</value></data>
+  <data name="Accounts, signup answers and statuses can’t be changed. Payments and private notes can still be updated." xml:space="preserve"><value>Konti, tilmeldingssvar og statusser kan ikke ændres. Betalinger og private noter kan stadig opdateres.</value></data>
+  <data name="Actions for {0}" xml:space="preserve"><value>Handlinger for {0}</value></data>
+  <data name="Any" xml:space="preserve"><value>Alle</value></data>
+  <data name="Capacity {0} → {1}, and they get the new place" xml:space="preserve"><value>Kapacitet {0} → {1}, og de får den nye plads</value></data>
+  <data name="Clear search and filters" xml:space="preserve"><value>Ryd søgning og filtre</value></data>
+  <data name="Confirm and add a place" xml:space="preserve"><value>Bekræft og tilføj en plads</value></data>
+  <data name="Confirm and add a place…" xml:space="preserve"><value>Bekræft og tilføj en plads …</value></data>
+  <data name="Confirm people from the waiting list or add them directly." xml:space="preserve"><value>Bekræft personer fra ventelisten, eller tilføj dem direkte.</value></data>
+  <data name="Confirm {0} and add a place?" xml:space="preserve"><value>Bekræft {0} og tilføj en plads?</value></data>
+  <data name="AdminDesign.Confirmed" xml:space="preserve"><value>Bekræftet</value></data>
+  <data name="Confirming…" xml:space="preserve"><value>Bekræfter …</value></data>
+  <data name="Couldn’t load participants" xml:space="preserve"><value>Deltagerne kunne ikke indlæses</value></data>
+  <data name="Draft EHB" xml:space="preserve"><value>Draft-EHB</value></data>
+  <data name="Has a private admin note" xml:space="preserve"><value>Har en privat admin-note</value></data>
+  <data name="Joins at #{0}" xml:space="preserve"><value>Kommer ind som nr. {0}</value></data>
+  <data name="Locked" xml:space="preserve"><value>Låst</value></data>
+  <data name="Mark as paid" xml:space="preserve"><value>Markér som betalt</value></data>
+  <data name="Mark as unpaid" xml:space="preserve"><value>Markér som ubetalt</value></data>
+  <data name="Move to waiting list" xml:space="preserve"><value>Flyt til venteliste</value></data>
+  <data name="Move to waiting list…" xml:space="preserve"><value>Flyt til venteliste …</value></data>
+  <data name="Move {0} to the waiting list?" xml:space="preserve"><value>Flyt {0} til ventelisten?</value></data>
+  <data name="Moving…" xml:space="preserve"><value>Flytter …</value></data>
+  <data name="No confirmed participants" xml:space="preserve"><value>Ingen bekræftede deltagere</value></data>
+  <data name="No matches" xml:space="preserve"><value>Ingen resultater</value></data>
+  <data name="No one has withdrawn" xml:space="preserve"><value>Ingen har trukket sig</value></data>
+  <data name="No one waiting" xml:space="preserve"><value>Ingen venter</value></data>
+  <data name="No participants yet" xml:space="preserve"><value>Ingen deltagere endnu</value></data>
+  <data name="No participants" xml:space="preserve"><value>Ingen deltagere</value></data>
+  <data name="Nobody is on the waiting list to take this place." xml:space="preserve"><value>Der er ingen på ventelisten til at overtage pladsen.</value></data>
+  <data name="Nothing was changed. Try again." xml:space="preserve"><value>Intet blev ændret. Prøv igen.</value></data>
+  <data name="Only available when the event is full. With places open, nobody is waiting for this place." xml:space="preserve"><value>Kun muligt, når eventet er fuldt. Med ledige pladser venter ingen på denne plads.</value></data>
+  <data name="Only when the event is full" xml:space="preserve"><value>Kun når eventet er fuldt</value></data>
+  <data name="Open details" xml:space="preserve"><value>Åbn detaljer</value></data>
+  <data name="Open details for {0}" xml:space="preserve"><value>Åbn detaljer for {0}</value></data>
+  <data name="Participation status" xml:space="preserve"><value>Deltagerstatus</value></data>
+  <data name="Payment for {0}: paid. Activate to mark as unpaid." xml:space="preserve"><value>Betaling for {0}: betalt. Aktivér for at markere som ubetalt.</value></data>
+  <data name="Payment for {0}: unpaid. Activate to mark as paid." xml:space="preserve"><value>Betaling for {0}: ubetalt. Aktivér for at markere som betalt.</value></data>
+  <data name="People appear here when they sign up, or you can add someone from an existing website account." xml:space="preserve"><value>Personer vises her, når de tilmelder sig, eller du kan tilføje nogen fra en eksisterende webkonto.</value></data>
+  <data name="People join the waiting list once the confirmed roster is full." xml:space="preserve"><value>Personer kommer på ventelisten, når listen over bekræftede er fuld.</value></data>
+  <data name="Places open" xml:space="preserve"><value>Ledige pladser</value></data>
+  <data name="Private note" xml:space="preserve"><value>Privat note</value></data>
+  <data name="Restore" xml:space="preserve"><value>Gendan</value></data>
+  <data name="Restore and add a place" xml:space="preserve"><value>Gendan og tilføj en plads</value></data>
+  <data name="Restore to" xml:space="preserve"><value>Gendan til</value></data>
+  <data name="Restoring…" xml:space="preserve"><value>Gendanner …</value></data>
+  <data name="Roster locked" xml:space="preserve"><value>Deltagerliste låst</value></data>
+  <data name="Rows per page" xml:space="preserve"><value>Rækker pr. side</value></data>
+  <data name="Search RSN, account or Discord" xml:space="preserve"><value>Søg i RSN, konto eller Discord</value></data>
+  <data name="Select an active website account for this participant." xml:space="preserve"><value>Vælg en aktiv webkonto til deltageren.</value></data>
+  <data name="That didn’t go through." xml:space="preserve"><value>Det blev ikke gennemført.</value></data>
+  <data name="The event is full. Capacity increases by one and {0} gets the new place." xml:space="preserve"><value>Eventet er fuldt. Kapaciteten øges med én, og {0} får den nye plads.</value></data>
+  <data name="The roster for {0} didn’t load. Your filters are kept." xml:space="preserve"><value>Deltagerlisten for {0} blev ikke indlæst. Dine filtre er bevaret.</value></data>
+  <data name="The waiting list is empty" xml:space="preserve"><value>Ventelisten er tom</value></data>
+  <data name="Their accounts, answers and notes were kept." xml:space="preserve"><value>Deres konti, svar og noter er bevaret.</value></data>
+  <data name="Their payment stays recorded — handle any refund separately." xml:space="preserve"><value>Deres betaling forbliver registreret – håndtér eventuel tilbagebetaling separat.</value></data>
+  <data name="They’ll also be removed from {0}." xml:space="preserve"><value>De bliver også fjernet fra {0}.</value></data>
+  <data name="This participant changed while you were looking at it. The current list is shown; nothing was done." xml:space="preserve"><value>Deltageren blev ændret, mens du så på den. Den aktuelle liste vises; intet blev gjort.</value></data>
+  <data name="Volunteer" xml:space="preserve"><value>Frivillig</value></data>
+  <data name="Waiting · #{0}" xml:space="preserve"><value>Venter · nr. {0}</value></data>
+  <data name="We couldn’t confirm whether this happened. The current list is shown; check it before trying again." xml:space="preserve"><value>Vi kunne ikke bekræfte, om det skete. Den aktuelle liste vises; tjek den, før du prøver igen.</value></data>
+  <data name="Withdraw" xml:space="preserve"><value>Træk tilbage</value></data>
+  <data name="Withdraw {0}?" xml:space="preserve"><value>Træk {0} tilbage?</value></data>
+  <data name="Withdrawing…" xml:space="preserve"><value>Trækker tilbage …</value></data>
+  <data name="Withdrawn participants are kept here and can be restored." xml:space="preserve"><value>Tilbagetrukne deltagere gemmes her og kan gendannes.</value></data>
+  <data name="Withdraw…" xml:space="preserve"><value>Træk tilbage …</value></data>
+  <data name="You can restore them later." xml:space="preserve"><value>Du kan gendanne dem senere.</value></data>
+  <data name="alt {0}" xml:space="preserve"><value>alt {0}</value></data>
+  <data name="this filter" xml:space="preserve"><value>dette filter</value></data>
+  <data name="with {0}" xml:space="preserve"><value>med {0}</value></data>
+  <data name="AdminDesign.{0} confirmed" xml:space="preserve"><value>{0} er bekræftet</value></data>
+  <data name="{0} confirmed · capacity now {1}" xml:space="preserve"><value>{0} er bekræftet · kapacitet nu {1}</value></data>
+  <data name="{0} goes to the end of the waiting list (#{1}), and {2}, next on the waiting list, takes their confirmed place." xml:space="preserve"><value>{0} kommer sidst på ventelisten (nr. {1}), og {2}, den næste på ventelisten, overtager den bekræftede plads.</value></data>
+  <data name="{0} is full ({1}/{1}). Capacity increases to {2} and {3} gets the new place. Nobody else is promoted, and everyone else on the waiting list keeps their order." xml:space="preserve"><value>{0} er fuldt ({1}/{1}). Kapaciteten øges til {2}, og {3} får den nye plads. Ingen andre rykker op, og alle andre på ventelisten beholder deres rækkefølge.</value></data>
+  <data name="{0} is full, so they return to the waiting list unless you add a place." xml:space="preserve"><value>{0} er fuldt, så de vender tilbage til ventelisten, medmindre du tilføjer en plads.</value></data>
+  <data name="{0} left" xml:space="preserve"><value>{0} tilbage</value></data>
+  <data name="{0} marked as paid" xml:space="preserve"><value>{0} er markeret som betalt</value></data>
+  <data name="{0} marked as unpaid" xml:space="preserve"><value>{0} er markeret som ubetalt</value></data>
+  <data name="{0} moved to the waiting list (#{1}) · {2} confirmed" xml:space="preserve"><value>{0} er flyttet til ventelisten (nr. {1}) · {2} er bekræftet</value></data>
+  <data name="{0} of {1} confirmed" xml:space="preserve"><value>{0} af {1} bekræftet</value></data>
+  <data name="{0} restored to confirmed" xml:space="preserve"><value>{0} er gendannet som bekræftet</value></data>
+  <data name="{0} restored to the waiting list (#{1})" xml:space="preserve"><value>{0} er gendannet på ventelisten (nr. {1})</value></data>
+  <data name="{0} spot left" xml:space="preserve"><value>{0} ledig plads</value></data>
+  <data name="{0} spots · no signups yet" xml:space="preserve"><value>{0} pladser · ingen tilmeldinger endnu</value></data>
+  <data name="{0} unpaid" xml:space="preserve"><value>{0} ubetalt</value></data>
+  <data name="{0} will leave the confirmed roster, and {1}, next on the waiting list, will take their place." xml:space="preserve"><value>{0} forlader listen over bekræftede, og {1}, den næste på ventelisten, overtager pladsen.</value></data>
+  <data name="{0} will leave the confirmed roster. Nobody is waiting, so their place stays open for the next signup." xml:space="preserve"><value>{0} forlader listen over bekræftede. Ingen venter, så pladsen står åben til den næste tilmelding.</value></data>
+  <data name="{0} will leave the waiting list and everyone behind them moves up. No confirmed place is freed." xml:space="preserve"><value>{0} forlader ventelisten, og alle bagved rykker op. Ingen bekræftet plads bliver ledig.</value></data>
+  <data name="{0} withdrawn" xml:space="preserve"><value>{0} er trukket tilbage</value></data>
+  <data name="{0} withdrawn · {1} confirmed from the waiting list" xml:space="preserve"><value>{0} er trukket tilbage · {1} er bekræftet fra ventelisten</value></data>
+  <data name="{0}–{1} of {2}" xml:space="preserve"><value>{0}–{1} af {2}</value></data>
+  <data name="“{0}”" xml:space="preserve"><value>“{0}”</value></data>
+  <data name="“{0}” with paid payment" xml:space="preserve"><value>“{0}” med betaling: betalt</value></data>
+  <data name="“{0}” with unpaid payment" xml:space="preserve"><value>“{0}” med betaling: ubetalt</value></data>
+  <data name="No confirmed participants match {0}." xml:space="preserve"><value>Ingen bekræftede deltagere matcher {0}.</value></data>
+  <data name="No waiting participants match {0}." xml:space="preserve"><value>Ingen deltagere på ventelisten matcher {0}.</value></data>
+  <data name="No withdrawn participants match {0}." xml:space="preserve"><value>Ingen tilbagetrukne deltagere matcher {0}.</value></data>
+  <data name="No participants match {0}." xml:space="preserve"><value>Ingen deltagere matcher {0}.</value></data>
+  <data name="External roster member" xml:space="preserve"><value>Ekstern deltager</value></data>
 </root>

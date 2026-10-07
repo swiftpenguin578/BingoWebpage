@@ -2381,17 +2381,17 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         Assert.DoesNotContain("ADMIN-NOTES-SENTINEL", adminTable, StringComparison.Ordinal);
         var adminParticipants = await adminClient.GetStringAsync($"/Admin/Events/Participants/{eventId}");
         Assert.Contains("Private co-captain", adminParticipants, StringComparison.Ordinal);
-        Assert.Contains("name=\"ConfirmLifecycleAction\" value=\"true\"", adminParticipants, StringComparison.Ordinal);
-        Assert.Contains("Captain volunteer", adminParticipants, StringComparison.Ordinal);
+        // U5 (A10): Participants.dc.html columns; confirmations are transient layers, not inline forms.
         Assert.DoesNotContain("Volunteered to captain", adminParticipants, StringComparison.Ordinal);
-        var captainHeader = adminParticipants.IndexOf("data-sort-key=\"captain\"", StringComparison.Ordinal);
-        var teamHeader = adminParticipants.IndexOf("data-sort-key=\"ownership\"", StringComparison.Ordinal);
-        var teamCell = adminParticipants.IndexOf("data-label=\"Team\"", StringComparison.Ordinal);
-        var captainCell = adminParticipants.IndexOf("data-label=\"Captain volunteer\"", StringComparison.Ordinal);
+        var captainHeader = adminParticipants.IndexOf("sort=captain", StringComparison.Ordinal);
+        var teamHeader = adminParticipants.IndexOf("sort=team", StringComparison.Ordinal);
+        var teamCell = adminParticipants.IndexOf("class=\"td c-team\"", StringComparison.Ordinal);
+        var captainCell = adminParticipants.IndexOf("class=\"td c-cap\"", StringComparison.Ordinal);
         Assert.True(captainHeader >= 0 && teamHeader >= 0 && captainHeader < teamHeader);
         Assert.True(captainCell >= 0 && teamCell >= 0 && captainCell < teamCell);
-        Assert.Contains("data-participant-captain=\"1\"", adminParticipants, StringComparison.Ordinal);
-        var captainAscending = await adminClient.GetStringAsync($"/Admin/Events/Participants/{eventId}?sort=captain&direction=asc");
+        Assert.Contains(">Volunteer<", adminParticipants, StringComparison.Ordinal);
+        // Reference sort: ascending puts volunteers first, so descending lists the non-volunteer first.
+        var captainAscending = await adminClient.GetStringAsync($"/Admin/Events/Participants/{eventId}?tab=all&sort=captain&dir=desc");
         Assert.True(captainAscending.IndexOf("Waiting Main", StringComparison.Ordinal) < captainAscending.IndexOf("Allowed Main", StringComparison.Ordinal));
         Assert.DoesNotContain("Historical answer", await superAdminClient.GetStringAsync($"/Events/{slug}/Signups"), StringComparison.Ordinal);
         await using (var db = new ApplicationDbContext(options))
@@ -2490,9 +2490,10 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         await LoginAsync(client, admin.LoginName, "password");
         var route = $"/Admin/Events/Participants/{bingoEvent.Id}";
         var page = await client.GetStringAsync(route);
-        Assert.Contains("WORKSPACE-USERNAME-", page, StringComparison.Ordinal); Assert.Contains("Discord linked", page, StringComparison.Ordinal); Assert.Contains("Unlinked", page, StringComparison.Ordinal); Assert.Contains("Workspace team", page, StringComparison.Ordinal);
-        foreach (var query in new[] { "ParticipantSearch=WORKSPACE", "ParticipantStatus=WaitingList", "ParticipantPayment=paid", "ParticipantDiscord=linked", "ParticipantCaptain=true", "ParticipantSource=Website", $"ParticipantTeamId={team.Id}" })
-        { var filtered = await client.GetStringAsync($"{route}?{query}"); Assert.Contains(query.Contains("Waiting") ? "Waiting Workspace" : "Workspace Main", filtered, StringComparison.Ordinal); }
+        // B-Participants-5/6 (A10): the row shows @username and the team; Discord linkage and the Discord/captain/source/team filters are retired.
+        Assert.Contains("WORKSPACE-USERNAME-", page, StringComparison.Ordinal); Assert.Contains("Workspace team", page, StringComparison.Ordinal);
+        foreach (var query in new[] { "tab=all&q=WORKSPACE", "tab=waiting", "tab=all&pay=paid" })
+        { var filtered = await client.GetStringAsync($"{route}?{query}"); Assert.Contains(query.Contains("waiting", StringComparison.Ordinal) ? "Waiting Workspace" : "Workspace Main", filtered, StringComparison.Ordinal); }
         var detail = await client.GetStringAsync($"/Admin/Events/Participant/{bingoEvent.Id}/Participants/{confirmed.Id}");
         foreach (var expected in new[] { "Workspace Main", "42.5", "Workspace Alt", "WORKSPACE-ANSWER", "WORKSPACE-HISTORICAL", "WORKSPACE-PRIVATE-NOTE", "Website signup" }) Assert.Contains(expected, detail, StringComparison.Ordinal);
         foreach (var secret in new[] { "WORKSPACE-DISCORD-ID", "WORKSPACE-DISCORD-DISPLAY", "WORKSPACE-TOKEN" }) Assert.DoesNotContain(secret, detail, StringComparison.Ordinal);

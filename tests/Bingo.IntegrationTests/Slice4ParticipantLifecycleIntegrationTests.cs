@@ -223,10 +223,10 @@ public sealed class Slice4ParticipantLifecycleIntegrationTests(PostgreSqlTestFix
         {
             PageContext = new PageContext(new ActionContext(AdminContext(setup.EnabledAdminId), new RouteData(), new PageActionDescriptor()))
         };
-        Assert.True((await model.OnGetAsync(setup.EventId, CancellationToken.None)) is PageResult);
+        Assert.True((await model.OnGetAsync(setup.EventId, ct: CancellationToken.None)) is PageResult);
         // G3b-3 / TD-2 B (A10): manual-team members are now listed on Participants (was hidden).
         Assert.Contains(model.Participants, row => row.Id == externalId);
-        Assert.Equal(4, model.Event!.Confirmed);
+        Assert.Equal(4, model.List.Counts.Confirmed);
     }
 
     [Fact]
