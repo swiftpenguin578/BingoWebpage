@@ -4088,4 +4088,61 @@
   <data name="Evidence has been submitted for this tile, so its EHB is part of its scoring and can’t change." xml:space="preserve"><value>Der er indsendt bevis for denne tile, så dens EHB er en del af pointgivningen og kan ikke ændres.</value></data>
   <data name="Saving any change returns the approved board to draft." xml:space="preserve"><value>Når du gemmer en ændring, går det godkendte Board tilbage til kladde.</value></data>
   <data name="Changes stay private until you publish the correction." xml:space="preserve"><value>Ændringerne forbliver private, indtil du offentliggør rettelsen.</value></data>
+  <data name="Fill every board position" xml:space="preserve"><value>Udfyld alle placeringer på Boardet</value></data>
+  <data name="({0} empty)." xml:space="preserve"><value>({0} tomme).</value></data>
+  <data name="needs automatic EHB: no drop rate in the catalogue for {0}. Correct the rate in Catalogue; a manual EHB can’t replace it." xml:space="preserve"><value>kræver automatisk EHB: ingen droprate i kataloget for {0}. Ret raten i Katalog; en manuel EHB kan ikke erstatte den.</value></data>
+  <data name="uses drops with no catalogue GP value. {0}" xml:space="preserve"><value>bruger drops uden GP-værdi i kataloget. {0}</value></data>
+  <data name="Dismiss" xml:space="preserve"><value>Luk</value></data>
+  <data name="Ready to publish once:" xml:space="preserve"><value>Klar til offentliggørelse, når:</value></data>
+  <data name="Finalize the team rosters first." xml:space="preserve"><value>Holdene er færdiggjort.</value></data>
+  <data name="The event has already started." xml:space="preserve"><value>Eventet er allerede startet.</value></data>
+  <data name="The event’s end has passed." xml:space="preserve"><value>Eventets slutning er passeret.</value></data>
+  <data name="e.g. Tile C4 named the wrong boss." xml:space="preserve"><value>f.eks. Tile C4 nævnte den forkerte boss.</value></data>
+  <data name="Required. Kept in the board history." xml:space="preserve"><value>Påkrævet. Gemmes i Boardets historik.</value></data>
+  <data name="One thing needs fixing first." xml:space="preserve"><value>Én ting skal rettes først.</value></data>
+  <data name="{0} things need fixing first." xml:space="preserve"><value>{0} ting skal rettes først.</value></data>
+  <data name="approve the board" xml:space="preserve"><value>godkende Boardet</value></data>
+  <data name="Board approved privately. Publishing is a separate step." xml:space="preserve"><value>Boardet er godkendt privat. Offentliggørelse er et separat trin.</value></data>
+  <data name="return the board to draft" xml:space="preserve"><value>sende Boardet tilbage til kladde</value></data>
+  <data name="Board returned to draft. The approval stays in its history." xml:space="preserve"><value>Boardet er sendt tilbage til kladde. Godkendelsen bevares i historikken.</value></data>
+  <data name="Publish the board?" xml:space="preserve"><value>Offentliggør Boardet?</value></data>
+  <data name="Players will see the approved {0} × {1} board for {2}." xml:space="preserve"><value>Spillerne vil se det godkendte {0} × {1}-Board for {2}.</value></data>
+  <data name="Publishing doesn’t start the event; it starts at its scheduled time or from Overview." xml:space="preserve"><value>Offentliggørelse starter ikke eventet; det starter på det planlagte tidspunkt eller fra Overblik.</value></data>
+  <data name="After publishing, changes need a correction with a reason." xml:space="preserve"><value>Efter offentliggørelse kræver ændringer en rettelse med en begrundelse.</value></data>
+  <data name="publish the board" xml:space="preserve"><value>offentliggøre Boardet</value></data>
+  <data name="Board published. Players can see it; the event starts separately." xml:space="preserve"><value>Boardet er offentliggjort. Spillerne kan se det; eventet starter separat.</value></data>
+  <data name="The board can’t be published yet." xml:space="preserve"><value>Boardet kan ikke offentliggøres endnu.</value></data>
+  <data name="Correct the published board?" xml:space="preserve"><value>Ret det offentliggjorte Board?</value></data>
+  <data name="This is for exceptional fixes. You edit a private copy; players keep the current board until you publish the correction." xml:space="preserve"><value>Dette er til ekstraordinære rettelser. Du redigerer en privat kopi; spillerne beholder det nuværende Board, indtil du offentliggør rettelsen.</value></data>
+  <data name="Objectives with submitted evidence keep their requirements and scoring; wording can change." xml:space="preserve"><value>Mål med indsendt bevis beholder deres krav og point; formuleringen kan ændres.</value></data>
+  <data name="Results, evidence and the published history stay as they are." xml:space="preserve"><value>Resultater, beviser og den offentliggjorte historik forbliver uændrede.</value></data>
+  <data name="Start correction" xml:space="preserve"><value>Start rettelse</value></data>
+  <data name="start a correction" xml:space="preserve"><value>starte en rettelse</value></data>
+  <data name="Private correction started. Players still see the published board." xml:space="preserve"><value>Privat rettelse startet. Spillerne ser stadig det offentliggjorte Board.</value></data>
+  <data name="No tiles differ from the published board." xml:space="preserve"><value>Ingen tiles adskiller sig fra det offentliggjorte Board.</value></data>
+  <data name="1 tile differs from the published board" xml:space="preserve"><value>1 tile adskiller sig fra det offentliggjorte Board</value></data>
+  <data name="{0} tiles differ from the published board" xml:space="preserve"><value>{0} tiles adskiller sig fra det offentliggjorte Board</value></data>
+  <data name="1 of them removed." xml:space="preserve"><value>1 af dem er fjernet.</value></data>
+  <data name="{0} of them removed." xml:space="preserve"><value>{0} af dem er fjernet.</value></data>
+  <data name="Publish the correction?" xml:space="preserve"><value>Offentliggør rettelsen?</value></data>
+  <data name="The corrected board is validated and replaces it for players." xml:space="preserve"><value>Det rettede Board valideres og erstatter det for spillerne.</value></data>
+  <data name="The earlier version stays in history; evidence and results aren’t rescored." xml:space="preserve"><value>Den tidligere version bevares i historikken; beviser og resultater pointberegnes ikke igen.</value></data>
+  <data name="Publish correction" xml:space="preserve"><value>Offentliggør rettelse</value></data>
+  <data name="publish the correction" xml:space="preserve"><value>offentliggøre rettelsen</value></data>
+  <data name="Corrected board published. The earlier version stays in history." xml:space="preserve"><value>Det rettede Board er offentliggjort. Den tidligere version bevares i historikken.</value></data>
+  <data name="Discard the correction?" xml:space="preserve"><value>Kassér rettelsen?</value></data>
+  <data name="All unpublished edits in this correction will be lost, and the working board returns to the published version." xml:space="preserve"><value>Alle ikke-offentliggjorte ændringer i denne rettelse går tabt, og arbejds-Boardet vender tilbage til den offentliggjorte version.</value></data>
+  <data name="Published results and submitted evidence stay as they are." xml:space="preserve"><value>Offentliggjorte resultater og indsendte beviser forbliver uændrede.</value></data>
+  <data name="Discard correction" xml:space="preserve"><value>Kassér rettelse</value></data>
+  <data name="discard the correction" xml:space="preserve"><value>kassere rettelsen</value></data>
+  <data name="Correction discarded. The working board matches the published one again." xml:space="preserve"><value>Rettelsen er kasseret. Arbejds-Boardet svarer igen til det offentliggjorte.</value></data>
+  <data name="Approving…" xml:space="preserve"><value>Godkender…</value></data>
+  <data name="Start editing to approve" xml:space="preserve"><value>Begynd at redigere for at godkende</value></data>
+  <data name="Publish board…" xml:space="preserve"><value>Offentliggør Board…</value></data>
+  <data name="Publish correction…" xml:space="preserve"><value>Offentliggør rettelse…</value></data>
+  <data name="Start editing to publish" xml:space="preserve"><value>Begynd at redigere for at offentliggøre</value></data>
+  <data name="Return to draft" xml:space="preserve"><value>Tilbage til kladde</value></data>
+  <data name="Correct published board…" xml:space="preserve"><value>Ret offentliggjort Board…</value></data>
+  <data name="Not available in this event state" xml:space="preserve"><value>Ikke tilgængelig i eventets nuværende tilstand</value></data>
+  <data name="Discard correction…" xml:space="preserve"><value>Kassér rettelse…</value></data>
 </root>

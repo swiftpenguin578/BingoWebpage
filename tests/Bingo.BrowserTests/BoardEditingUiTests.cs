@@ -57,6 +57,26 @@ public sealed class BoardEditingUiTests
         Assert.Contains("ui.setUrl({ tile: posName(pos, ctx.view.cols) }, TILE_SCHEMA, { record: true });", Editor);
     }
 
+    private static string Publication => Read("src", "Bingo.Web", "wwwroot", "js", "admin-board-publication.js");
+
+    [Fact]
+    public void PublicationUsesOneConfirmationEachAndTheReasonDialogIsTheCorrectionConfirmation()
+    {
+        // Approve has no confirmation; Publish has one and sends confirmed=true.
+        Assert.Contains("ctx.command('ApproveState', { ApprovalCatalogueFingerprint: ctx.fingerprint(), confirmed: false })", Publication);
+        Assert.Contains("ctx.command('PublishState', { confirmed: true })", Publication);
+        // The correction-reason dialog is the confirmation: no checkbox, reason at most 2,000 characters.
+        Assert.Contains("ctx.command('CorrectPublished', { confirmed: true, reason }", Publication);
+        Assert.Contains("r.length > 2000 ? t('Use 2,000 characters or fewer.')", Publication);
+        Assert.DoesNotContain("type = 'checkbox'", Publication);
+        // Discard warns that all unpublished edits are lost; publish and discard are different outcomes (RC05 B1).
+        Assert.Contains("All unpublished edits in this correction will be lost", Publication);
+        Assert.Contains("s.activeApprovalId === ctx.view.activeApprovalId", Publication);
+        Assert.Contains("s.activeApprovalId !== ctx.view.activeApprovalId", Publication);
+        // AU19: empty positions collapse into one item that jumps to the first empty position.
+        Assert.Contains("t('({0} empty).', empty.length)", Publication);
+    }
+
     private static string FindRepositoryRoot()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);

@@ -7,8 +7,9 @@
 
 import { ROWS, posName, parseWhole } from './admin-board-model.js';
 import { install as installEditor } from './admin-board-editor.js';
+import { install as installPublication } from './admin-board-publication.js';
 
-const extensions = [installEditor];
+const extensions = [installEditor, installPublication];
 
 let release = () => {};
 export function dispose() { release(); release = () => {}; }
