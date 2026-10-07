@@ -60,3 +60,5 @@ git diff --cached --check
 ```
 
 The filename-derived filter avoids running unrelated methods in the shared partial classes. Completed fast TRX: `/tmp/c8-test-results/c8-fast.trx`, 23:55:00.617622+02:00 on7October → 00:17:53.947033+02:00 on8October; SHA256 `b018a632ad23fa8bf7ef8aefc098865aa055e1c2f578b5211e809b58a7b1c6d5`. Corrected proof TRX SHA256 `75e4b09f8d2138ee1481f448f573e308947a1bd89ffbfc28a6b0ddf7d972120c`; initial fixture-failure TRX SHA256 `a9375ede277ac76e2cc22e7f3e448d7cbc10ad745937cfdbb5ebe8f8fb0d1768`. Raw runtime logs/TRX remain scratch artifacts; this note is the durable compact execution record, not independent review.
+
+**Review note (report 92, L1):** "no provider call on read" holds by construction: `PublicStatsService` takes only the database context and clock and has no provider dependency. The counting provider in the retain test covers the finalization path only. Read-time rescoring is guarded by the evidence change (1 → 2 approved drops) while reads must equal the saved payload.
