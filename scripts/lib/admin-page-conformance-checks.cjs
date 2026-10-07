@@ -113,6 +113,13 @@ async function checkDanish(page, registration, fixture, paths) {
     assert.equal((await page.locator('[data-page-region] .h1').textContent()).trim(),registration.titleDa);
     assert.doesNotMatch(await page.locator('[data-page-region]').innerText(), /AdminDesign\.|AdminCommunity\./, 'no untranslated resource keys');
   };
+  // Read the actual Danish render through the instrumented parity host. This
+  // catches ResourceNotFound even for variable keys and JS data-label payloads.
+  const rendered = await page.request.get(fixture.origin+paths[registration.family]);
+  const audit = rendered.headers()['x-parity-danish-missing'];
+  assert.ok(audit, registration.family+': Danish localizer audit must be present');
+  const missing = JSON.parse(Buffer.from(audit,'base64').toString('utf8'));
+  assert.deepEqual(missing, [], registration.family+': ResourceNotFound during Danish render');
   await check();
   await page.goto(fixture.origin+paths[registration.family]);await check();
   await page.goto(fixture.origin+paths[registration.family==='dashboard'?'events':'dashboard']);
