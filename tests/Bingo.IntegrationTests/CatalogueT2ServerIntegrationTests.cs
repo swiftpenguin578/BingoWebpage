@@ -253,6 +253,39 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests
         await using (var verify = new ApplicationDbContext(options)) Assert.True((await verify.BossActivities.SingleAsync(x => x.Id == boss.Id)).Active);
     }
 
+    // T2 item 2 (planner default: reference query names, ids not slugs, query string only).
+    [Fact]
+    public async Task T2DirectoryUrlStateBindsFromTheQueryStringAndOpensTheDrawer()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var (owner, boss, _, drop) = await PriceFixtureAsync();
+        await using (var setup = new ApplicationDbContext(options)) { SetPassword(setup.Accounts.Single(x => x.Id == owner.Id), now); await setup.SaveChangesAsync(); }
+        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetOwnedConnectionString()));
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        await LoginAsync(client, owner.LoginName);
+        static string Canonical(string html) => WebUtility.HtmlDecode(System.Text.RegularExpressions.Regex.Match(html, "data-directory-canonical=\"([^\"]*)\"").Groups[1].Value);
+
+        var plain = await client.GetStringAsync("/Admin/Catalogue");
+        Assert.Equal("/Admin/Catalogue", Canonical(plain));
+        Assert.Contains("data-page-family=\"catalogue\"", plain, StringComparison.Ordinal);
+        Assert.DoesNotContain("data-catalogue-drawer ", plain, StringComparison.Ordinal);
+
+        var full = await client.GetStringAsync($"/Admin/Catalogue?q=Synthetic&cat=Boss&status=inactive&activity={boss.Id}&drop={drop.Id}&page=junk&handler=");
+        Assert.Equal($"/Admin/Catalogue?q=Synthetic&cat=Boss&status=inactive&activity={boss.Id}&drop={drop.Id}", Canonical(full));
+        Assert.Contains($"data-catalogue-drawer data-activity-id=\"{boss.Id}\"", full, StringComparison.Ordinal);
+        Assert.Contains($"data-open-drop=\"{drop.Id}\"", full, StringComparison.Ordinal);
+
+        // Invalid parts are dropped; retired names (bossId, dropId, addBoss) are not mapped.
+        Assert.Equal("/Admin/Catalogue", Canonical(await client.GetStringAsync($"/Admin/Catalogue?cat=Raid&status=gone&activity=nope&drop={drop.Id}&bossId={boss.Id}&addBoss=true")));
+        Assert.Equal("/Admin/Catalogue?new=1", Canonical(await client.GetStringAsync("/Admin/Catalogue?new=1")));
+        var missing = WebUtility.HtmlDecode(await client.GetStringAsync($"/Admin/Catalogue?activity={Guid.NewGuid()}"));
+        Assert.Contains("data-missing=\"true\"", missing, StringComparison.Ordinal);
+        Assert.Contains("This activity isn’t available", missing, StringComparison.Ordinal);
+        // The repair link (EventLifecycleService) and Board editor link stay valid.
+        using var index = await client.GetAsync("/Admin/Catalogue/Index");
+        Assert.Equal(HttpStatusCode.OK, index.StatusCode);
+    }
+
     private sealed record ImpactSeed(Account Owner, BossActivity Boss, SourceDrop FirstDrop, SourceDrop SecondDrop, BingoEvent Visible);
 
     private async Task<ImpactSeed> ImpactFixtureAsync()

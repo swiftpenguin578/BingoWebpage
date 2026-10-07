@@ -255,10 +255,12 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests
         using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         using var unauthorized = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         await LoginAsync(client, actor.LoginName); await LoginAsync(unauthorized, member.LoginName);
-        var path = $"/Admin/Catalogue?bossId={boss.Id}";
+        // A10 (T2 Catalogue binding): the activity drawer (?activity=) carries each drop's
+        // "Value and item mapping" panel instead of the retired "API mapping and price" section.
+        var path = $"/Admin/Catalogue?activity={boss.Id}";
         var html = await client.GetStringAsync(path);
         Assert.Equal(0, api.Calls);
-        Assert.Contains("API mapping and price", html, StringComparison.Ordinal);
+        Assert.Contains("data-catalogue-price", html, StringComparison.Ordinal);
         foreach (var handler in new[] { "ItemApi", "BossApi", "SuggestItemApi", "SuggestBossApi" })
         {
             using var forbidden = await PostAsync(unauthorized, $"/Admin/Catalogue?handler={handler}", await unauthorized.GetStringAsync("/"), new Dictionary<string, string>());

@@ -27,12 +27,10 @@ namespace Bingo.Web.Pages.Admin.Catalogue;
 public sealed partial class IndexModel(ApplicationDbContext dbContext, TimeProvider timeProvider, IStringLocalizer<SharedResource>? text = null, ICatalogueApiClient? catalogueApi = null, IStringLocalizer<AdminCommunityResource>? community = null) : PageModel
 {
     [BindProperty] public BossInput Boss { get; set; } = new(); [BindProperty] public BossDropInput BossDrop { get; set; } = new();
-    [BindProperty(SupportsGet = true)] public Guid? BossId { get; set; }
-    [BindProperty(SupportsGet = true)] public Guid? DropId { get; set; }
-    [BindProperty(SupportsGet = true)] public bool Overlay { get; set; }
-    [BindProperty(SupportsGet = true)] public bool AddBoss { get; set; }
-    public bool IsOverlay => Overlay || string.Equals(Request.Query["overlay"], "1", StringComparison.Ordinal);
-    public bool IsEditorRoute => BossId.HasValue || AddBoss;
+    // Redirect target after a plain form post (the page's own URL state is bound in Index.Directory.cs).
+    public Guid? BossId { get; set; }
+    public Guid? DropId { get; set; }
+    public bool AddBoss { get; set; }
     public static string RateLabel(string category) => string.Equals(category, "Minigame", StringComparison.Ordinal) ? "Runs per hour" : "Kills per hour";
     public static string RateUnit(string category, decimal? rate)
     {
@@ -40,7 +38,7 @@ public sealed partial class IndexModel(ApplicationDbContext dbContext, TimeProvi
         return rate == 1m ? unit : $"{unit}s";
     }
     public IReadOnlyList<BossRow> Bosses { get; private set; } = []; public IReadOnlyList<DropRow> Drops { get; private set; } = [];
-    public Task OnGetAsync(CancellationToken ct) => LoadAsync(ct);
+    public async Task OnGetAsync(CancellationToken ct) { await LoadAsync(ct); await LoadDirectoryAsync(ct); }
     public async Task<IActionResult> OnPostBossAsync(CancellationToken ct)
     {
         if (HasOperatorFields("Boss.ExternalIdentifier", "Boss.DataSource", "Boss.Notes")
@@ -83,13 +81,13 @@ public sealed partial class IndexModel(ApplicationDbContext dbContext, TimeProvi
         if (parsedRate is null) return Invalid("rate", Localize("Enter a valid drop rate, for example 1/100."));
         var itemName = BossDrop.ItemName.Trim(); var normalizedName = itemName.ToUpperInvariant(); var item = await dbContext.CatalogueItems.SingleOrDefaultAsync(x => x.NormalizedName == normalizedName, ct);
         if (item is not null && !BossDrop.UseExistingItem)
-            return Respond("shared", Localize("An item named {0} already exists as a shared item. Confirm using that shared item, or change the name. Nothing was saved.", item.Name),
+            return Respond("shared", L("An item named {0} already exists as a shared item. Confirm using that shared item, or change the name. Nothing was saved.", item.Name),
                 UiMessageType.Warning, new Dictionary<string, object?> { ["field"] = "useShared", ["itemName"] = item.Name });
         ApiItem? fetchedItem = null;
         ApiHourlyPrices? initialPrices = null;
         var initialMappingStatus = ApiMappingStatus.NotConfigured;
         DateTimeOffset? initialMappingCheckedAt = null;
-        string? fetchFailure = null;
+        string? fetchFailure = null, fetchCode = null;
         if (item is null && BossDrop.FetchPrice && !BossDrop.Untradeable)
         {
             var mapping = catalogueApi is null ? new CatalogueApiResult<IReadOnlyList<ApiItem>>(null) : await catalogueApi.GetItemsAsync(ct);
@@ -98,17 +96,17 @@ public sealed partial class IndexModel(ApplicationDbContext dbContext, TimeProvi
             fetchedItem = matches?.Length == 1 ? matches[0] : null;
             initialMappingStatus = !mapping.Available ? ApiMappingStatus.TemporarilyUnavailable
                 : fetchedItem is null ? ApiMappingStatus.Unsupported : ApiMappingStatus.Verified;
-            if (!mapping.Available) fetchFailure = ProviderFailure(mapping.Error, "The item mapping API is temporarily unavailable.");
-            else if (fetchedItem is null) fetchFailure = BossDrop.InitialWikiItemId is not null
+            if (!mapping.Available) { fetchFailure = ProviderFailure(mapping.Error, "The item mapping API is temporarily unavailable."); fetchCode = RateLimited(mapping.Error) ? "rate-limited" : "unavailable"; }
+            else if (fetchedItem is null) { fetchFailure = BossDrop.InitialWikiItemId is not null
                 ? "The item ID is not in the tradeable item mapping."
-                : "No unique exact-name item match was found.";
+                : "No unique exact-name item match was found."; fetchCode = BossDrop.InitialWikiItemId is not null ? "unsupported-id" : "no-match"; }
             else
             {
                 var prices = await catalogueApi!.GetHourlyPricesAsync(ct);
                 initialPrices = prices.Data;
-                if (!prices.Available) fetchFailure = ProviderFailure(prices.Error, "The price API is temporarily unavailable.");
+                if (!prices.Available) { fetchFailure = ProviderFailure(prices.Error, "The price API is temporarily unavailable."); fetchCode = RateLimited(prices.Error) ? "rate-limited" : "unavailable"; }
                 else if (initialPrices!.Values.GetValueOrDefault(fetchedItem.Id) is null)
-                    fetchFailure = "No hourly price is available for the matched item.";
+                { fetchFailure = "No hourly price is available for the matched item."; fetchCode = "no-price"; }
             }
         }
         var initialApiValue = fetchedItem is null ? null : initialPrices?.Values.GetValueOrDefault(fetchedItem.Id);
@@ -116,7 +114,7 @@ public sealed partial class IndexModel(ApplicationDbContext dbContext, TimeProvi
         {
             if (fetchFailure is null) return Invalid("value", Localize("Enter a catalogue value for this new item. Zero is valid; untradeable items default to zero."));
             return Respond("provider", Localize(fetchFailure) + " " + Localize("The drop was not added. Enter a manual catalogue value, review the exact item mapping, or retry the price fetch later."),
-                UiMessageType.Error, new Dictionary<string, object?> { ["field"] = "value", ["reason"] = Localize(fetchFailure) });
+                UiMessageType.Error, new Dictionary<string, object?> { ["field"] = "value", ["reason"] = Localize(fetchFailure), ["code"] = fetchCode });
         }
         if (item is null)
         {
@@ -525,7 +523,7 @@ public sealed partial class IndexModel(ApplicationDbContext dbContext, TimeProvi
             return Stale();
         }
     }
-    private RedirectToPageResult CataloguePage() => RedirectToPage(null, new { bossId = BossId, dropId = DropId, addBoss = AddBoss ? "true" : null, overlay = IsOverlay ? "1" : null });
+    private RedirectToPageResult CataloguePage() => RedirectToPage(null, new { activity = BossId, drop = BossId is null ? null : DropId, @new = AddBoss && BossId is null ? "1" : null });
     private static string State(object entity) => JsonSerializer.Serialize(entity);
     private AuditEntry CreateAudit(string action, string type, Guid id, string details, string before, string after) => new(Guid.NewGuid(), timeProvider.GetUtcNow(), User.GetAccountId(), User.Identity!.Name!, action, type, id.ToString(), details, beforeState: before, afterState: after);
     private static bool IsExpectedCatalogueRace(Exception exception) => exception is DbUpdateConcurrencyException || exception is DbUpdateException { InnerException: PostgresException { SqlState: "23503" or "23505" or "40001" or "40P01" } } || exception is PostgresException { SqlState: "23503" or "23505" or "40001" or "40P01" };

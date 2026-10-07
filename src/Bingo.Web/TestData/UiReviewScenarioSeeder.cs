@@ -113,6 +113,7 @@ public sealed class UiReviewScenarioSeeder(
             new { activeApprovalSnapshotId = board.ActiveApprovalSnapshotId },
             new { activeApprovalSnapshotId = board.ActiveApprovalSnapshotId, workingCopy = true, reason = correctionReason });
         var blocked = await AddBlockedReviewAsync(active, now, ct);
+        var catalogue = await AddCatalogueImpactAsync(events, board, now, ct);
         AddEndOutcome(active, EventCompetitionEndUpdateStatus.Pending, now, 91001);
         AddEndOutcome(archived, EventCompetitionEndUpdateStatus.Rejected, now, 91002);
         AddEndOutcome(unavailableHistory, EventCompetitionEndUpdateStatus.CouldNotUpdate, now, 91003);
@@ -122,7 +123,41 @@ public sealed class UiReviewScenarioSeeder(
         await transaction.CommitAsync(ct);
         return new UiReviewScenarios(profile, now, active.Id, discarded.Id, blocked,
             events.Select(value => new UiReviewEvent(value.Id, value.Name, value.Slug, value.State, value.IsHidden)).ToArray(),
-            accounts.Values.Select(value => new UiReviewAccount(value.LoginName, value.GlobalRole!.Value, value.DisabledAt is not null, value.Id)).ToArray());
+            accounts.Values.Select(value => new UiReviewAccount(value.LoginName, value.GlobalRole!.Value, value.DisabledAt is not null, value.Id)).ToArray(),
+            catalogue.Activity, catalogue.Drop);
+    }
+
+    // T2 Catalogue (S10): one catalogue drop used by a visible draft board, by the current event's correction copy
+    // (an objective outside the active approval) and by a hidden event's correction copy, so the deactivate
+    // confirmation shows names, a correction and a hidden event (named for the Super Admin, counted otherwise).
+    private async Task<(Guid? Activity, Guid? Drop)> AddCatalogueImpactAsync(IReadOnlyList<BingoEvent> events, Board current, DateTimeOffset now, CancellationToken ct)
+    {
+        var used = await (from drop in db.SourceDrops
+                          join boss in db.BossActivities on drop.BossActivityId equals boss.Id
+                          join item in db.CatalogueItems on drop.ItemId equals item.Id
+                          where drop.Active && boss.Active && item.Active
+                          orderby boss.Name == "Zulrah" descending, item.Name == "Tanzanite fang" descending, boss.Name, item.Name
+                          select new { drop.Id, drop.DisplayRate, drop.NumericProbability, drop.ItemId, BossId = boss.Id, BossName = boss.Name, boss.EfficientCompletionsPerHour, ItemName = item.Name })
+            .FirstOrDefaultAsync(ct);
+        if (used is null) return (null, null);
+        void Use(Board board, int position)
+        {
+            var tile = db.BoardTiles.Local.Where(value => value.BoardId == board.Id).OrderBy(value => value.RowIndex).ThenBy(value => value.ColumnIndex).First();
+            var requirement = new BoardRequirementSnapshot(Guid.NewGuid(), tile.Id, position, 1, true, false, $"Collect 1 {used.ItemName}", false);
+            db.BoardRequirementSnapshots.Add(requirement);
+            db.BoardRequirementBossSnapshots.Add(new BoardRequirementBossSnapshot(Guid.NewGuid(), requirement.Id, used.BossId, used.BossName, used.EfficientCompletionsPerHour));
+            db.BoardRequirementDropSnapshots.Add(new BoardRequirementDropSnapshot(Guid.NewGuid(), requirement.Id, used.Id, used.ItemId, used.BossName, used.ItemName, used.DisplayRate, used.NumericProbability, null, null));
+        }
+        Use(db.Boards.Local.Single(value => value.EventId == events.Single(item => item.Slug == "ur-upcoming-01").Id), 5);
+        Use(current, 5);
+        var hiddenBoard = db.Boards.Local.Single(value => value.EventId == events.Single(item => item.Slug == "ur-hidden-review").Id);
+        hiddenBoard.BeginPublishedCorrection();
+        BoardAudit(hiddenBoard, "board.published_correction_started", now.AddMinutes(-20), "Synthetic catalogue impact review.",
+            new { activeApprovalSnapshotId = hiddenBoard.ActiveApprovalSnapshotId },
+            new { activeApprovalSnapshotId = hiddenBoard.ActiveApprovalSnapshotId, workingCopy = true, reason = "Synthetic catalogue impact review." });
+        Use(hiddenBoard, 5);
+        await db.SaveChangesAsync(ct);
+        return (used.BossId, used.Id);
     }
 
     private async Task AddScheduledAttentionAsync(BingoEvent postponed, BingoEvent failed, DateTimeOffset at, CancellationToken ct)
@@ -488,4 +523,5 @@ public sealed class UiReviewScenarioSeeder(
 
 public sealed record UiReviewEvent(Guid Id, string Name, string Slug, EventState State, bool Hidden);
 public sealed record UiReviewAccount(string Username, GlobalRole Role, bool Disabled, Guid Id = default);
-public sealed record UiReviewScenarios(string Profile, DateTimeOffset BuiltAt, Guid CurrentEventId, Guid DiscardedEventId, Guid BlockedSubmissionId, IReadOnlyList<UiReviewEvent> Events, IReadOnlyList<UiReviewAccount> Accounts);
+public sealed record UiReviewScenarios(string Profile, DateTimeOffset BuiltAt, Guid CurrentEventId, Guid DiscardedEventId, Guid BlockedSubmissionId, IReadOnlyList<UiReviewEvent> Events, IReadOnlyList<UiReviewAccount> Accounts,
+    Guid? CatalogueActivityId = null, Guid? CatalogueDropId = null);

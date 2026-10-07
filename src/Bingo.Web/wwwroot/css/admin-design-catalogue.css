@@ -1,0 +1,109 @@
+/* Page rules from the frozen Catalogue.dc.html style block (lines 22-95), scoped to the page family;
+   shared primitives stay frozen. The drawer and dialogs carry data-page-family="catalogue". */
+/* User "No load fades": only load markers; interaction animations (drawer, editor, add form) stay. */
+:where([data-page-family="catalogue"]) .empty,:where([data-page-family="catalogue"]) .page-banner{animation:none}
+:where([data-page-family="catalogue"]) .directory-fragments{display:contents}
+:where([data-page-family="catalogue"]).page{max-width:1240px}
+:where([data-page-family="catalogue"]) .ct-toolbar{gap:10px 16px}
+:where([data-page-family="catalogue"]) .ct-filters{flex:1;min-width:0}
+:where([data-page-family="catalogue"]) .ct-tbl{--table-cols:minmax(240px,2fr) 120px 120px minmax(200px,1.6fr) 110px;--table-min:860px}
+:where([data-page-family="catalogue"]) .ct-tbl .td{padding-top:10px;padding-bottom:10px}
+:where([data-page-family="catalogue"]) .ct-tbl .row{cursor:pointer}
+:where([data-page-family="catalogue"]) .ct-num{text-align:right;justify-content:flex-end;font-variant-numeric:tabular-nums}
+:where([data-page-family="catalogue"]) .ct-tbl .th.ct-num{text-align:right}
+:where([data-page-family="catalogue"]) .ct-who{display:flex;align-items:center;gap:12px;min-width:0}
+:where([data-page-family="catalogue"]) .ct-who .name-btn{max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+:where([data-page-family="catalogue"]) .ct-muted{color:var(--dk-text-3)}
+:where([data-page-family="catalogue"]) .ct-count{color:var(--dk-text-3);font-weight:400;margin-left:4px;font-variant-numeric:tabular-nums}
+:where([data-page-family="catalogue"]) .ct-count:empty{display:none}
+:where([data-page-family="catalogue"]) #sec-drops:focus{outline:none}
+:where([data-page-family="catalogue"]) .ct-h4{margin:0;font-size:var(--dk-fs-control);font-weight:600}
+/* drawer */
+:where([data-page-family="catalogue"]) .ct-dr-banner{padding:16px var(--dk-space-6) 0}
+:where([data-page-family="catalogue"]) .ct-dr-banner .banner:focus{outline:none}
+:where([data-page-family="catalogue"]) .ct-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 14px}
+:where([data-page-family="catalogue"]) .ct-grid .field{margin:0}
+:where([data-page-family="catalogue"]) .thumb-field{display:flex;align-items:center;gap:8px}
+:where([data-page-family="catalogue"]) .thumb-field .input{flex:1;min-width:0}
+:where([data-page-family="catalogue"]) .ct-note{display:flex;gap:8px;align-items:flex-start;margin:12px 0 0;font-size:var(--dk-fs-small);color:var(--dk-text-2);line-height:1.45}
+:where([data-page-family="catalogue"]) .ct-note .ic{width:14px;height:14px;margin-top:1px;flex:none;color:var(--dk-text-3)}
+:where([data-page-family="catalogue"]) .ct-help{margin:0 0 10px;font-size:var(--dk-fs-small);color:var(--dk-text-2);line-height:1.5}
+:where([data-page-family="catalogue"]) .ct-inline{display:flex;align-items:center;gap:8px}
+:where([data-page-family="catalogue"]) .ct-inline .input{flex:1;min-width:0}
+:where([data-page-family="catalogue"]) .ct-gp{max-width:180px}
+:where([data-page-family="catalogue"]) .ct-unit{font-size:var(--dk-fs-control-sm);color:var(--dk-text-3)}
+:where([data-page-family="catalogue"]) .ct-acts{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:12px}
+:where([data-page-family="catalogue"]) .ct-save-what{font-size:var(--dk-fs-small);color:var(--dk-text-3)}
+:where([data-page-family="catalogue"]) .ct-result{margin:10px 0 0;font-size:var(--dk-fs-control-sm);color:var(--dk-text-2);line-height:1.45}
+:where([data-page-family="catalogue"]) .ct-result.is-ok{color:var(--dk-success-fg)}
+:where([data-page-family="catalogue"]) .ct-result.is-warn{color:var(--dk-warning-fg)}
+:where([data-page-family="catalogue"]) .ct-result:focus{outline:none}
+:where([data-page-family="catalogue"]) .ct-disc{margin-top:14px;border-top:1px solid var(--dk-border-subtle);padding-top:10px}
+:where([data-page-family="catalogue"]) .ct-disc-btn{font-weight:500;font-size:var(--dk-fs-control-sm)}
+:where([data-page-family="catalogue"]) .ct-disc-btn[aria-expanded=true] .ic{transform:rotate(180deg)}
+:where([data-page-family="catalogue"]) .ct-disc-meta{display:inline-flex;align-items:center;gap:8px;min-width:0}
+:where([data-page-family="catalogue"]) .ct-disc-sum{font-weight:400;color:var(--dk-text-3);font-size:var(--dk-fs-small);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+:where([data-page-family="catalogue"]) .ct-disc-sum.is-warn{color:var(--dk-warning-fg)}
+:where([data-page-family="catalogue"]) .ct-disc-body{padding:10px 0 2px}
+:where([data-page-family="catalogue"]) .ct-map{font-size:var(--dk-fs-small);font-weight:600;color:var(--dk-text-2)}
+:where([data-page-family="catalogue"]) .ct-map.is-ok{color:var(--dk-success-fg)}
+:where([data-page-family="catalogue"]) .ct-map.is-bad{color:var(--dk-danger-fg)}
+:where([data-page-family="catalogue"]) .ct-map.is-warn{color:var(--dk-warning-fg)}
+:where([data-page-family="catalogue"]) .ct-kv{margin-top:0;grid-template-columns:130px minmax(0,1fr)}
+:where([data-page-family="catalogue"]) .ct-kv dd{margin:0;overflow-wrap:anywhere}
+/* add drop */
+:where([data-page-family="catalogue"]) .ct-add{margin:0 0 12px;padding:14px;border:1px solid var(--dk-accent-border);border-radius:var(--dk-radius-xl);background:var(--dk-surface-2);display:flex;flex-direction:column;gap:12px;animation:fadeIn var(--dk-dur-content-in) ease-out}
+:where([data-page-family="catalogue"]) .ct-add .banner:focus{outline:none}
+:where([data-page-family="catalogue"]) .ct-value .seg{margin-top:6px}
+:where([data-page-family="catalogue"]) .ct-shared{padding:10px 12px;border-radius:var(--dk-radius-lg);background:var(--dk-accent-soft);display:flex;flex-direction:column;gap:8px}
+:where([data-page-family="catalogue"]) .ct-shared-main{display:flex;gap:10px;align-items:flex-start}
+:where([data-page-family="catalogue"]) .ct-shared-title{font-size:var(--dk-fs-control-sm);font-weight:600}
+:where([data-page-family="catalogue"]) .ct-shared-text{font-size:var(--dk-fs-small);color:var(--dk-text-2);line-height:1.45}
+:where([data-page-family="catalogue"]) .ct-check{display:flex;gap:8px;align-items:flex-start;font-size:var(--dk-fs-control-sm);line-height:1.45;cursor:pointer}
+:where([data-page-family="catalogue"]) .ct-check input{margin-top:3px}
+:where([data-page-family="catalogue"]) .ct-none{padding:14px;border:1px dashed var(--dk-border);border-radius:var(--dk-radius-lg);font-size:var(--dk-fs-control-sm);color:var(--dk-text-3);text-align:center}
+:where([data-page-family="catalogue"]) .ct-calc{display:flex;align-items:baseline;gap:8px 12px;flex-wrap:wrap;margin:12px 0;padding:9px 12px;border-radius:var(--dk-radius-lg);background:var(--dk-track)}
+:where([data-page-family="catalogue"]) .ct-calc-k{font-size:var(--dk-fs-small);color:var(--dk-text-3)}
+:where([data-page-family="catalogue"]) .ct-calc-v{font-weight:600;font-variant-numeric:tabular-nums}
+:where([data-page-family="catalogue"]) .ct-calc-v.is-muted{color:var(--dk-text-3);font-weight:500}
+:where([data-page-family="catalogue"]) .ct-calc-note{font-size:var(--dk-fs-small);color:var(--dk-text-2)}
+:where([data-page-family="catalogue"]) .ct-ed-foot{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:14px;padding-top:10px;border-top:1px solid var(--dk-border-subtle)}
+:where([data-page-family="catalogue"]) .ct-act-title{font-size:var(--dk-fs-control);font-weight:550}
+:where([data-page-family="catalogue"]) .ct-act-text{margin-top:2px;font-size:var(--dk-fs-control-sm);color:var(--dk-text-2);line-height:1.45}
+:where([data-page-family="catalogue"]) .ct-checking{display:flex;align-items:center;gap:8px}
+@media (max-width:640px){
+  :where([data-page-family="catalogue"]) .ct-grid{grid-template-columns:minmax(0,1fr)}
+  :where([data-page-family="catalogue"]) .ct-filters .search{width:100%;flex:1 1 100%}
+  :where([data-page-family="catalogue"]) .ct-filters .seg{max-width:100%;overflow-x:auto}
+  :where([data-page-family="catalogue"]) .ct-kv{grid-template-columns:minmax(0,1fr)}
+}
+
+/* Binding additions (no reference rule): reference inline style="min-width: 0" blocks, the fifth
+   settings field across both columns, drawer skeleton rows at text line height, S10 board list,
+   the Super Admin roll-group field and the add-drop GP row spacing (reference inline margin-top: 8px). */
+:where([data-page-family="catalogue"]) .ct-min{min-width:0}
+:where([data-page-family="catalogue"]) .ct-span{grid-column:1/-1}
+/* Skeletons: reference sizes (Catalogue.dc.html:207, :280), each bar in a row as tall as the text line it stands for (Q-SK2). */
+:where([data-page-family="catalogue"]) .ct-sk-line{min-height:calc(var(--dk-fs-control-sm)*var(--dk-lh-body));display:flex;align-items:center}
+:where([data-page-family="catalogue"]) .ct-sk-line>.sk,:where([data-page-family="catalogue"]) .ct-sk-text>.sk{flex:none}
+:where([data-page-family="catalogue"]) .ct-sk-text{flex:1;min-width:0;min-height:calc(var(--dk-fs-body)*var(--dk-lh-body));display:flex;align-items:center}
+:where([data-page-family="catalogue"]) .ct-sk-thumb{width:32px;height:32px;border-radius:var(--dk-radius-md);flex:none}
+:where([data-page-family="catalogue"]) .ct-sk-name{display:block}
+:where([data-page-family="catalogue"]) .ct-sk-gap{margin-top:14px}
+:where([data-page-family="catalogue"]) .ct-sk-gap12{margin-top:12px}
+:where([data-page-family="catalogue"]) .ct-sk-w30{width:30%}:where([data-page-family="catalogue"]) .ct-sk-w50{width:50%}:where([data-page-family="catalogue"]) .ct-sk-w60{width:60%}:where([data-page-family="catalogue"]) .ct-sk-w65{width:65%}:where([data-page-family="catalogue"]) .ct-sk-w80{width:80%}
+:where([data-page-family="catalogue"]) .ct-cell-contents{display:contents}
+/* Loading header: one reserved summary line, two at phone width (U3-Q5/Q6); number-sized bars (U3-Q7). */
+:where([data-page-family="catalogue"])[data-page-skeleton="catalogue"] .summary{min-height:calc(var(--dk-fs-control)*var(--dk-lh-body))}
+:where([data-page-family="catalogue"]) .ct-sk-count{display:inline-flex;align-items:center;justify-content:center;min-width:2ch;width:2ch;height:calc(var(--dk-fs-control)*var(--dk-lh-body));vertical-align:bottom}
+:where([data-page-family="catalogue"]) .ct-sk-count>.sk{display:block;width:100%;height:10px}
+:where([data-page-family="catalogue"]) .ct-sk-tab{display:inline-block;width:2ch;height:10px}
+@media (max-width:640px){:where([data-page-family="catalogue"])[data-page-skeleton="catalogue"] .summary{min-height:calc(2*var(--dk-fs-control)*var(--dk-lh-body))}}
+:where([data-page-family="catalogue"]) .ct-boards{margin:6px 0 0;padding-left:18px}
+:where([data-page-family="catalogue"]) .ct-boards li+li{margin-top:2px}
+:where([data-page-family="catalogue"]) .ct-group{max-width:220px}
+:where([data-page-family="catalogue"]) .ct-gp-row{margin-top:8px}
+:where([data-page-family="catalogue"]) .ct-shared .field-err{margin-top:0}
+/* The activity name is a real link (<a>, as on Accounts) where the reference has a <button>; top alignment keeps
+   the reference's 2px gap to the category line (an inline-block link otherwise adds its baseline descender). */
+:where([data-page-family="catalogue"]) .ct-who a.name-btn{vertical-align:top}

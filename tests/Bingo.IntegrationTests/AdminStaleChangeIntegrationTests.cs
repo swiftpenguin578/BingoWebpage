@@ -375,10 +375,20 @@ public sealed class AdminStaleChangeIntegrationTests(PostgreSqlTestFixture datab
         return values;
     }
     private static Dictionary<string, string> ReadForm(string page, string handler) => Inputs(Regex.Match(page, $"<form[^>]*action=\"[^\"]*handler={handler}(?:&[^\"]*)?\"[^>]*>.*?</form>", RegexOptions.Singleline).Value);
+    // A10 (T2 Catalogue binding): the drop editor is the drawer's per-drop template; the same fields
+    // (ids, versions, name, rate, image) are read from it instead of the retired route-editor form.
     private static async Task<Dictionary<string, string>> DropForm(HttpClient client, SourceDrop drop)
     {
-        var page = await client.GetStringAsync($"/Admin/Catalogue?bossId={drop.BossActivityId}");
-        return Inputs(Regex.Match(page, $"<form[^>]*id=\"catalogue-drop-form-{drop.Id}\".*?</form>", RegexOptions.Singleline).Value);
+        var page = await client.GetStringAsync($"/Admin/Catalogue?activity={drop.BossActivityId}");
+        var tag = Regex.Match(page, $"<template data-catalogue-drop-editor=\"{drop.Id}\"[^>]*>").Value;
+        Assert.NotEmpty(tag);
+        string Attribute(string name) => WebUtility.HtmlDecode(Regex.Match(tag, $"\\b{name}=\"([^\"]*)\"").Groups[1].Value);
+        return new Dictionary<string, string>
+        {
+            ["recordId"] = drop.Id.ToString(), ["expectedVersion"] = Attribute("data-version"), ["expectedItemVersion"] = Attribute("data-item-version"),
+            ["itemName"] = Attribute("data-item-name"), ["displayRate"] = Attribute("data-rate"), ["originalDisplayRate"] = Attribute("data-rate"),
+            ["imageUrl"] = Attribute("data-image"), ["useExistingItem"] = "false", ["__RequestVerificationToken"] = Token(page)
+        };
     }
     private static Task<HttpResponseMessage> PostDrop(HttpClient client, SourceDrop drop, Dictionary<string, string> form) => client.PostAsync($"/Admin/Catalogue?bossId={drop.BossActivityId}&handler=UpdateDrop", new FormUrlEncodedContent(form));
     private static async Task<Dictionary<string, string>> AccountForm(HttpClient client, Guid id, string handler)
