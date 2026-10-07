@@ -4054,4 +4054,202 @@
   <data name="SignupClosed" xml:space="preserve"><value>Tilmelding lukket</value></data>
   <data name="AwaitingFinalReview" xml:space="preserve"><value>Afventer slutgennemgang</value></data>
   <data name="Final WOM refresh succeeded." xml:space="preserve"><value>Den afsluttende WOM-opdatering lykkedes.</value></data>
+  <data name="A future schedule is required" xml:space="preserve"><value>En fremtidig tidsplan er påkrævet</value></data>
+  <data name="A managed competition already exists" xml:space="preserve"><value>Der findes allerede en administreret konkurrence</value></data>
+  <data name="A published participant has no eligible Playing assignment. Check Teams / Draft." xml:space="preserve"><value>En offentliggjort deltager har ingen gyldig Playing-tilknytning. Kontrollér Hold / Draft.</value></data>
+  <data name="Account coverage" xml:space="preserve"><value>Kontodækning</value></data>
+  <data name="Accounts found" xml:space="preserve"><value>Konti fundet</value></data>
+  <data name="Add code…" xml:space="preserve"><value>Tilføj kode…</value></data>
+  <data name="Add them to the competition on Wise Old Man; the website can’t change this competition." xml:space="preserve"><value>Tilføj dem til konkurrencen på Wise Old Man; hjemmesiden kan ikke ændre denne konkurrence.</value></data>
+  <data name="Already being processed." xml:space="preserve"><value>Behandles allerede.</value></data>
+  <data name="An external competition is already linked" xml:space="preserve"><value>En ekstern konkurrence er allerede tilknyttet</value></data>
+  <data name="An operation is already being processed" xml:space="preserve"><value>En handling behandles allerede</value></data>
+  <data name="Automatic retry" xml:space="preserve"><value>Automatisk genforsøg</value></data>
+  <data name="Before the event starts" xml:space="preserve"><value>Før eventet starter</value></data>
+  <data name="Close signups and finalize teams with a draft or directly." xml:space="preserve"><value>Luk tilmeldingen, og færdiggør holdene med en draft eller direkte.</value></data>
+  <data name="Competition #{0}" xml:space="preserve"><value>Konkurrence #{0}</value></data>
+  <data name="Complete the requirements first." xml:space="preserve"><value>Opfyld kravene først.</value></data>
+  <data name="Connect a competition" xml:space="preserve"><value>Tilknyt en konkurrence</value></data>
+  <data name="Coverage appears after the first successful fetch" xml:space="preserve"><value>Dækning vises efter den første vellykkede hentning</value></data>
+  <data name="Coverage by team" xml:space="preserve"><value>Dækning pr. hold</value></data>
+  <data name="Create competition" xml:space="preserve"><value>Opret konkurrence</value></data>
+  <data name="Create is only available before the event goes live." xml:space="preserve"><value>Oprettelse er kun tilgængelig, før eventet går live.</value></data>
+  <data name="Create it on Wise Old Man" xml:space="preserve"><value>Opret den på Wise Old Man</value></data>
+  <data name="Create requirement" xml:space="preserve"><value>Krav til oprettelse</value></data>
+  <data name="Created by the website, which keeps it up to date." xml:space="preserve"><value>Oprettet af hjemmesiden, som holder den opdateret.</value></data>
+  <data name="Creation outcome unknown" xml:space="preserve"><value>Resultatet af oprettelsen er ukendt</value></data>
+  <data name="Creation queued" xml:space="preserve"><value>Oprettelse sat i kø</value></data>
+  <data name="Current operation" xml:space="preserve"><value>Aktuel handling</value></data>
+  <data name="Data appears after the event goes live." xml:space="preserve"><value>Data vises, når eventet går live.</value></data>
+  <data name="Data appears here after the event goes live. The website’s dates stay the schedule." xml:space="preserve"><value>Data vises her, når eventet går live. Hjemmesidens datoer er fortsat tidsplanen.</value></data>
+  <data name="Dates are set and in the future" xml:space="preserve"><value>Datoerne er angivet og ligger i fremtiden</value></data>
+  <data name="Delete competition" xml:space="preserve"><value>Slet konkurrence</value></data>
+  <data name="Delete competition…" xml:space="preserve"><value>Slet konkurrence…</value></data>
+  <data name="Deletion is queued." xml:space="preserve"><value>Sletning er sat i kø.</value></data>
+  <data name="Disconnect is unavailable once the event has started or while an operation is unresolved." xml:space="preserve"><value>Afbrydelse er utilgængelig, når eventet er startet, eller mens en handling er uafklaret.</value></data>
+  <data name="Disconnect the external link before creating a competition." xml:space="preserve"><value>Afbryd den eksterne tilknytning, før du opretter en konkurrence.</value></data>
+  <data name="End could not be updated" xml:space="preserve"><value>Sluttidspunktet kunne ikke opdateres</value></data>
+  <data name="End update" xml:space="preserve"><value>Opdatering af sluttidspunkt</value></data>
+  <data name="End update confirmed" xml:space="preserve"><value>Opdatering af sluttidspunkt bekræftet</value></data>
+  <data name="End update pending" xml:space="preserve"><value>Opdatering af sluttidspunkt afventer</value></data>
+  <data name="End update rejected" xml:space="preserve"><value>Opdatering af sluttidspunkt afvist</value></data>
+  <data name="End-update error" xml:space="preserve"><value>Fejl ved opdatering af sluttidspunkt</value></data>
+  <data name="Event in final review" xml:space="preserve"><value>Eventet er i afsluttende gennemgang</value></data>
+  <data name="Fetch now" xml:space="preserve"><value>Hent nu</value></data>
+  <data name="Fetch the current competition data." xml:space="preserve"><value>Hent de aktuelle konkurrencedata.</value></data>
+  <data name="Fetches are paused until the WOM end matches the event end exactly. Publishing is still available and retains the last fetch before the end." xml:space="preserve"><value>Hentninger er sat på pause, indtil WOM-sluttidspunktet svarer nøjagtigt til eventets. Offentliggørelse er stadig tilgængelig og bevarer den sidste hentning før afslutningen.</value></data>
+  <data name="Fetches paused by the unmatched end" xml:space="preserve"><value>Hentninger er sat på pause på grund af forskellige sluttidspunkter</value></data>
+  <data name="Fixed since the event went live. Name and dates still update." xml:space="preserve"><value>Fastlagt siden eventet gik live. Navn og datoer opdateres stadig.</value></data>
+  <data name="Hourly until results are published" xml:space="preserve"><value>Hver time, indtil resultaterne offentliggøres</value></data>
+  <data name="Hourly while the event runs" xml:space="preserve"><value>Hver time, mens eventet kører</value></data>
+  <data name="Inspection only" xml:space="preserve"><value>Kun visning</value></data>
+  <data name="It may have reached Wise Old Man. The website is checking without sending it again." xml:space="preserve"><value>Den kan være nået frem til Wise Old Man. Hjemmesiden kontrollerer uden at sende den igen.</value></data>
+  <data name="Kept in step with the finalized roster." xml:space="preserve"><value>Holdes i takt med den færdiggjorte holdopstilling.</value></data>
+  <data name="Last attempt" xml:space="preserve"><value>Seneste forsøg</value></data>
+  <data name="Last confirmed update" xml:space="preserve"><value>Seneste bekræftede opdatering</value></data>
+  <data name="Last confirmed update: {0}" xml:space="preserve"><value>Seneste bekræftede opdatering: {0}</value></data>
+  <data name="Last successful fetch; previously fetched data is retained." xml:space="preserve"><value>Seneste vellykkede hentning; tidligere hentede data bevares.</value></data>
+  <data name="Latest data" xml:space="preserve"><value>Seneste data</value></data>
+  <data name="Link a different competition whose dates match exactly. The old management code will not be reused." xml:space="preserve"><value>Tilknyt en anden konkurrence, hvis datoer stemmer nøjagtigt. Den gamle administrationskode genbruges ikke.</value></data>
+  <data name="Link an existing competition" xml:space="preserve"><value>Tilknyt en eksisterende konkurrence</value></data>
+  <data name="Link an existing competition whose start and end match the event exactly in UTC." xml:space="preserve"><value>Tilknyt en eksisterende konkurrence, hvis start og slutning svarer nøjagtigt til eventet i UTC.</value></data>
+  <data name="Link competition…" xml:space="preserve"><value>Tilknyt konkurrence…</value></data>
+  <data name="Linked competitions can’t be deleted from the website." xml:space="preserve"><value>Tilknyttede konkurrencer kan ikke slettes fra hjemmesiden.</value></data>
+  <data name="Made elsewhere. The website can update it but cannot delete it." xml:space="preserve"><value>Oprettet andetsteds. Hjemmesiden kan opdatere den, men kan ikke slette den.</value></data>
+  <data name="Made elsewhere. The website reads its data but doesn’t change it." xml:space="preserve"><value>Oprettet andetsteds. Hjemmesiden læser dens data, men ændrer den ikke.</value></data>
+  <data name="Manage connection" xml:space="preserve"><value>Administrér tilknytning</value></data>
+  <data name="Management code" xml:space="preserve"><value>Administrationskode</value></data>
+  <data name="Name, dates and finalized teams update automatically when they change here." xml:space="preserve"><value>Navn, datoer og færdiggjorte hold opdateres automatisk, når de ændres her.</value></data>
+  <data name="Next eligible time: {0}" xml:space="preserve"><value>Næste tilladte tidspunkt: {0}</value></data>
+  <data name="Next end-update attempt" xml:space="preserve"><value>Næste forsøg på opdatering af sluttidspunkt</value></data>
+  <data name="Next operation attempt" xml:space="preserve"><value>Næste forsøg på handlingen</value></data>
+  <data name="Next operation attempt: {0}" xml:space="preserve"><value>Næste forsøg på handlingen: {0}</value></data>
+  <data name="Next scheduled fetch" xml:space="preserve"><value>Næste planlagte hentning</value></data>
+  <data name="No end update needed" xml:space="preserve"><value>Ingen opdatering af sluttidspunkt er nødvendig</value></data>
+  <data name="No further website updates are scheduled for this event." xml:space="preserve"><value>Der er ikke planlagt flere opdateringer fra hjemmesiden for dette event.</value></data>
+  <data name="No more fetches" xml:space="preserve"><value>Ingen flere hentninger</value></data>
+  <data name="No teams yet" xml:space="preserve"><value>Ingen hold endnu</value></data>
+  <data name="None yet" xml:space="preserve"><value>Ingen endnu</value></data>
+  <data name="Not connected" xml:space="preserve"><value>Ikke tilknyttet</value></data>
+  <data name="Not found on Wise Old Man" xml:space="preserve"><value>Ikke fundet på Wise Old Man</value></data>
+  <data name="Not reported" xml:space="preserve"><value>Ikke oplyst</value></data>
+  <data name="Not sent to Wise Old Man" xml:space="preserve"><value>Sendes ikke til Wise Old Man</value></data>
+  <data name="Open Schedule" xml:space="preserve"><value>Åbn Tidsplan</value></data>
+  <data name="Open Teams / Draft" xml:space="preserve"><value>Åbn Hold / Draft</value></data>
+  <data name="Open on Wise Old Man" xml:space="preserve"><value>Åbn på Wise Old Man</value></data>
+  <data name="Operation ID" xml:space="preserve"><value>Handlings-id</value></data>
+  <data name="Permanently deletes the website-created competition from Wise Old Man. Only available before the event has ever been live." xml:space="preserve"><value>Sletter permanent konkurrencen oprettet af hjemmesiden fra Wise Old Man. Kun tilgængelig, før eventet har været live.</value></data>
+  <data name="Previously fetched data is retained. Check the competition on Wise Old Man." xml:space="preserve"><value>Tidligere hentede data bevares. Kontrollér konkurrencen på Wise Old Man.</value></data>
+  <data name="Previously fetched data is retained. The next permitted fetch is shown below." xml:space="preserve"><value>Tidligere hentede data bevares. Næste tilladte hentning vises nedenfor.</value></data>
+  <data name="Queued and confirmed in the background." xml:space="preserve"><value>Sættes i kø og bekræftes i baggrunden.</value></data>
+  <data name="Ready to update" xml:space="preserve"><value>Klar til opdatering</value></data>
+  <data name="Reason (optional)" xml:space="preserve"><value>Begrundelse (valgfri)</value></data>
+  <data name="Removes the link from this event. The competition on Wise Old Man isn’t changed or deleted." xml:space="preserve"><value>Fjerner tilknytningen fra dette event. Konkurrencen på Wise Old Man ændres eller slettes ikke.</value></data>
+  <data name="Replace code…" xml:space="preserve"><value>Erstat kode…</value></data>
+  <data name="Replace link" xml:space="preserve"><value>Erstat tilknytning</value></data>
+  <data name="Replace link…" xml:space="preserve"><value>Erstat tilknytning…</value></data>
+  <data name="Request budget" xml:space="preserve"><value>Forespørgselsbudget</value></data>
+  <data name="Results are official. Its Wise Old Man connection is read-only." xml:space="preserve"><value>Resultaterne er officielle. Dets Wise Old Man-tilknytning er skrivebeskyttet.</value></data>
+  <data name="See the message above. Changes on Wise Old Man are not overwritten here." xml:space="preserve"><value>Se beskeden ovenfor. Ændringer på Wise Old Man overskrives ikke her.</value></data>
+  <data name="Sending the latest details. Not confirmed yet." xml:space="preserve"><value>Sender de seneste oplysninger. Endnu ikke bekræftet.</value></data>
+  <data name="Starts when the event goes live" xml:space="preserve"><value>Starter, når eventet går live</value></data>
+  <data name="Target end" xml:space="preserve"><value>Ønsket sluttidspunkt</value></data>
+  <data name="Team {0} has no published roster members." xml:space="preserve"><value>Holdet {0} har ingen medlemmer i den offentliggjorte holdopstilling.</value></data>
+  <data name="Teams are finalized" xml:space="preserve"><value>Holdene er færdiggjort</value></data>
+  <data name="Teams are fixed on Wise Old Man since the event went live. Check these names on Wise Old Man." xml:space="preserve"><value>Holdene på Wise Old Man er fastlagt, siden eventet gik live. Kontrollér disse navne på Wise Old Man.</value></data>
+  <data name="Teams are fixed since the event went live. Name and dates still update." xml:space="preserve"><value>Holdene er fastlagt, siden eventet gik live. Navn og datoer opdateres stadig.</value></data>
+  <data name="Teams aren’t finalized yet" xml:space="preserve"><value>Holdene er ikke færdiggjort endnu</value></data>
+  <data name="Teams on Wise Old Man" xml:space="preserve"><value>Hold på Wise Old Man</value></data>
+  <data name="Technical details" xml:space="preserve"><value>Tekniske detaljer</value></data>
+  <data name="The WOM end could not be updated." xml:space="preserve"><value>WOM-sluttidspunktet kunne ikke opdateres.</value></data>
+  <data name="The Wise Old Man operation is unconfirmed." xml:space="preserve"><value>Wise Old Man-handlingen er ikke bekræftet.</value></data>
+  <data name="The code is stored protected and is never displayed again." xml:space="preserve"><value>Koden gemmes beskyttet og vises aldrig igen.</value></data>
+  <data name="The competition stays on Wise Old Man until deletion is confirmed." xml:space="preserve"><value>Konkurrencen bliver på Wise Old Man, indtil sletningen er bekræftet.</value></data>
+  <data name="The event has started" xml:space="preserve"><value>Eventet er startet</value></data>
+  <data name="The last fetch before the end is retained. This end update will not restart, even if results are reopened." xml:space="preserve"><value>Den sidste hentning før afslutningen bevares. Denne opdatering af sluttidspunktet genstarter ikke, selv hvis resultaterne genåbnes.</value></data>
+  <data name="The start and end must match the website exactly in UTC. Linking never imports dates or reuses an old management code." xml:space="preserve"><value>Start og slutning skal stemme nøjagtigt med hjemmesiden i UTC. Tilknytning importerer aldrig datoer og genbruger ikke en gammel administrationskode.</value></data>
+  <data name="The website adds them with its next update." xml:space="preserve"><value>Hjemmesiden tilføjer dem ved næste opdatering.</value></data>
+  <data name="The website creates the competition from this event’s name, dates and teams, and keeps it up to date." xml:space="preserve"><value>Hjemmesiden opretter konkurrencen ud fra dette events navn, datoer og hold og holder den opdateret.</value></data>
+  <data name="The website processes it in the background. It is not confirmed yet." xml:space="preserve"><value>Hjemmesiden behandler den i baggrunden. Den er endnu ikke bekræftet.</value></data>
+  <data name="The website’s dates are the schedule" xml:space="preserve"><value>Hjemmesidens datoer er tidsplanen</value></data>
+  <data name="This connection cannot send website changes to Wise Old Man. A valid management code is required." xml:space="preserve"><value>Denne tilknytning kan ikke sende hjemmesidens ændringer til Wise Old Man. En gyldig administrationskode er påkrævet.</value></data>
+  <data name="This event ended without a connection." xml:space="preserve"><value>Dette event sluttede uden en tilknytning.</value></data>
+  <data name="This event is archived. Its Wise Old Man connection is read-only." xml:space="preserve"><value>Dette event er arkiveret. Dets Wise Old Man-tilknytning er skrivebeskyttet.</value></data>
+  <data name="This event was cancelled. Its Wise Old Man connection is read-only." xml:space="preserve"><value>Dette event blev aflyst. Dets Wise Old Man-tilknytning er skrivebeskyttet.</value></data>
+  <data name="Unknown origin; contact an operator" xml:space="preserve"><value>Ukendt oprindelse; kontakt en operatør</value></data>
+  <data name="Untitled competition" xml:space="preserve"><value>Konkurrence uden titel</value></data>
+  <data name="Update queued" xml:space="preserve"><value>Opdatering sat i kø</value></data>
+  <data name="Update unconfirmed" xml:space="preserve"><value>Opdatering ikke bekræftet</value></data>
+  <data name="Updates need attention" xml:space="preserve"><value>Opdateringer kræver opmærksomhed</value></data>
+  <data name="Updates paused" xml:space="preserve"><value>Opdateringer sat på pause</value></data>
+  <data name="Updates stopped" xml:space="preserve"><value>Opdateringer stoppet</value></data>
+  <data name="Updates to Wise Old Man" xml:space="preserve"><value>Opdateringer til Wise Old Man</value></data>
+  <data name="Use the existing competition’s management controls." xml:space="preserve"><value>Brug den eksisterende konkurrences administrationsfunktioner.</value></data>
+  <data name="WOM last updated" xml:space="preserve"><value>WOM senest opdateret</value></data>
+  <data name="Wait until its outcome is confirmed." xml:space="preserve"><value>Vent, indtil resultatet er bekræftet.</value></data>
+  <data name="Waiting for the first fetch." xml:space="preserve"><value>Afventer den første hentning.</value></data>
+  <data name="Website changes are paused until a valid code is saved. Fetching still follows the current eligibility shown below." xml:space="preserve"><value>Ændringer fra hjemmesiden er sat på pause, indtil en gyldig kode gemmes. Hentning følger stadig de aktuelle betingelser nedenfor.</value></data>
+  <data name="Website window" xml:space="preserve"><value>Hjemmesidens tidsrum</value></data>
+  <data name="Which playing accounts Wise Old Man has data for. A participant can play more than one account." xml:space="preserve"><value>Hvilke spillekonti Wise Old Man har data for. En deltager kan spille på flere konti.</value></data>
+  <data name="Window on WOM" xml:space="preserve"><value>Tidsrum på WOM</value></data>
+  <data name="Wise Old Man is limiting requests." xml:space="preserve"><value>Wise Old Man begrænser forespørgsler.</value></data>
+  <data name="Wise Old Man isn’t responding." xml:space="preserve"><value>Wise Old Man svarer ikke.</value></data>
+  <data name="Wise Old Man needs a future start and end." xml:space="preserve"><value>Wise Old Man kræver en fremtidig start og slutning.</value></data>
+  <data name="Wise Old Man rejected the management code." xml:space="preserve"><value>Wise Old Man afviste administrationskoden.</value></data>
+  <data name="What creating needs" xml:space="preserve"><value>Krav til oprettelse</value></data>
+  <data name="{0} of {1} accounts found" xml:space="preserve"><value>{0} af {1} konti fundet</value></data>
+  <data name="{0} playing accounts expected" xml:space="preserve"><value>{0} spillekonti forventet</value></data>
+  <data name="{0} accounts not found" xml:space="preserve"><value>{0} konti ikke fundet</value></data>
+  <data name="{0} remaining" xml:space="preserve"><value>{0} tilbage</value></data>
+  <data name="e.g. 12345" xml:space="preserve"><value>f.eks. 12345</value></data>
+  <data name="Loading Wise Old Man" xml:space="preserve"><value>Indlæser Wise Old Man</value></data>
+  <data name="Website-managed" xml:space="preserve"><value>Administreret af hjemmesiden</value></data>
+  <data name="Linked · can update" xml:space="preserve"><value>Tilknyttet · kan opdatere</value></data>
+  <data name="Linked · read only" xml:space="preserve"><value>Tilknyttet · skrivebeskyttet</value></data>
+  <data name="Sending" xml:space="preserve"><value>Sender</value></data>
+  <data name="Retry" xml:space="preserve"><value>Genforsøg</value></data>
+  <data name="Update" xml:space="preserve"><value>Opdatering</value></data>
+  <data name="Create" xml:space="preserve"><value>Oprettelse</value></data>
+  <data name="Lets the website update this competition. Its origin stays unchanged; an external competition can never be deleted here." xml:space="preserve"><value>Lader hjemmesiden opdatere denne konkurrence. Dens oprindelse ændres ikke; en ekstern konkurrence kan aldrig slettes her.</value></data>
+  <data name="Create the competition from the website’s name, exact dates and finalized teams? It will be queued and confirmed in the background." xml:space="preserve"><value>Opret konkurrencen ud fra hjemmesidens navn, nøjagtige datoer og færdiggjorte hold? Den sættes i kø og bekræftes i baggrunden.</value></data>
+  <data name="The competition will be checked against the website’s exact start and end." xml:space="preserve"><value>Konkurrencen kontrolleres mod hjemmesidens nøjagtige start og slutning.</value></data>
+  <data name="The previous connection is replaced only after the new competition is validated." xml:space="preserve"><value>Den tidligere tilknytning erstattes først, når den nye konkurrence er valideret.</value></data>
+  <data name="Disconnect competition" xml:space="preserve"><value>Afbryd konkurrencetilknytning</value></data>
+  <data name="Remove this external link? The remote competition will not be changed or deleted." xml:space="preserve"><value>Fjern denne eksterne tilknytning? Den eksterne konkurrence ændres eller slettes ikke.</value></data>
+  <data name="Delete this website-created competition from Wise Old Man? Its remote history is removed. This cannot be undone." xml:space="preserve"><value>Slet denne konkurrence oprettet af hjemmesiden fra Wise Old Man? Dens eksterne historik fjernes. Dette kan ikke fortrydes.</value></data>
+  <data name="Connected" xml:space="preserve"><value>Tilknyttet</value></data>
+  <data name="Disconnect" xml:space="preserve"><value>Afbryd</value></data>
+  <data name="Disconnect…" xml:space="preserve"><value>Afbryd…</value></data>
+  <data name="Most recent error" xml:space="preserve"><value>Seneste fejl</value></data>
+  <data name="Link" xml:space="preserve"><value>Tilknyt</value></data>
+  <data name="Retries" xml:space="preserve"><value>Genforsøg</value></data>
+  <data name="A website-created competition can be managed here while the event is pre-Live. Its remote deletion is available only before the event has ever been Live." xml:space="preserve"><value>En konkurrence oprettet af hjemmesiden kan administreres her, før eventet er live. Den kan kun slettes eksternt, før eventet har været live.</value></data>
+  <data name="Configuration" xml:space="preserve"><value>Konfiguration</value></data>
+  <data name="Confirm Disconnect before removing this external WOM link." xml:space="preserve"><value>Bekræft afbrydelsen, før denne eksterne WOM-tilknytning fjernes.</value></data>
+  <data name="Enter a valid Wise Old Man management code." xml:space="preserve"><value>Indtast en gyldig Wise Old Man-administrationskode.</value></data>
+  <data name="First fetch pending" xml:space="preserve"><value>Første hentning afventer</value></data>
+  <data name="Managed WOM competition creation was accepted and queued." xml:space="preserve"><value>Oprettelsen af en administreret WOM-konkurrence blev accepteret og sat i kø.</value></data>
+  <data name="None supplied" xml:space="preserve"><value>Ingen angivet</value></data>
+  <data name="Only an externally-created WOM link can be disconnected here." xml:space="preserve"><value>Kun en WOM-tilknytning oprettet eksternt kan afbrydes her.</value></data>
+  <data name="Queued" xml:space="preserve"><value>I kø</value></data>
+  <data name="Rate limited" xml:space="preserve"><value>Forespørgsler begrænset</value></data>
+  <data name="Revoked" xml:space="preserve"><value>Tilbagekaldt</value></data>
+  <data name="Stale" xml:space="preserve"><value>Forældet</value></data>
+  <data name="Supplied · unverified" xml:space="preserve"><value>Angivet · ikke verificeret</value></data>
+  <data name="The external WOM link could not be disconnected." xml:space="preserve"><value>Den eksterne WOM-tilknytning kunne ikke afbrydes.</value></data>
+  <data name="The external WOM link was disconnected. The remote competition was not changed." xml:space="preserve"><value>Den eksterne WOM-tilknytning blev afbrudt. Den eksterne konkurrence blev ikke ændret.</value></data>
+  <data name="The management code was stored protected and remains unverified until a legitimate management operation succeeds." xml:space="preserve"><value>Administrationskoden blev gemt beskyttet og forbliver ikke verificeret, indtil en gyldig administrationshandling lykkes.</value></data>
+  <data name="The Wise Old Man management code was stored protected." xml:space="preserve"><value>Wise Old Man-administrationskoden blev gemt beskyttet.</value></data>
+  <data name="This externally-created link can fetch and display WOM data. It cannot synchronize local changes or queue update-all writes upstream." xml:space="preserve"><value>Denne tilknytning oprettet eksternt kan hente og vise WOM-data. Den kan ikke synkronisere lokale ændringer eller sætte update-all-skrivninger til udbyderen i kø.</value></data>
+  <data name="This externally-created link has a protected management code. Schedule, roster and update-all writes are available when the credential is validated; remote deletion is never available." xml:space="preserve"><value>Denne tilknytning oprettet eksternt har en beskyttet administrationskode. Skrivninger af tidsplan, holdopstilling og update-all er tilgængelige, når koden er valideret; ekstern sletning er aldrig tilgængelig.</value></data>
+  <data name="Unavailable" xml:space="preserve"><value>Utilgængelig</value></data>
+  <data name="Unknown outcome" xml:space="preserve"><value>Ukendt resultat</value></data>
+  <data name="Validated" xml:space="preserve"><value>Valideret</value></data>
+  <data name="Validation unavailable · unverified" xml:space="preserve"><value>Validering utilgængelig · ikke verificeret</value></data>
+  <data name="Website-created WOM deletion was accepted and queued." xml:space="preserve"><value>Sletningen af WOM-konkurrencen oprettet af hjemmesiden blev accepteret og sat i kø.</value></data>
+  <data name="WOM data fetch completed." xml:space="preserve"><value>Hentning af WOM-data fuldført.</value></data>
+  <data name="WOM data fetch failed." xml:space="preserve"><value>Hentning af WOM-data mislykkedes.</value></data>
+  <data name="WOM data is temporarily rate-limited." xml:space="preserve"><value>Forespørgsler efter WOM-data er midlertidigt begrænset.</value></data>
+  <data name="WOM data is temporarily rate-limited. Try again after {0}." xml:space="preserve"><value>Forespørgsler efter WOM-data er midlertidigt begrænset. Prøv igen efter {0}.</value></data>
+  <data name="WOM data is temporarily unavailable. Try again after {0}." xml:space="preserve"><value>WOM-data er midlertidigt utilgængelige. Prøv igen efter {0}.</value></data>
 </root>
