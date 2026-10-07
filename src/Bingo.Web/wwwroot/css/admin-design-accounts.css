@@ -65,8 +65,10 @@
 :where([data-page-family="accounts"]) .ac-sk-gap{margin-top:4px}
 :where([data-page-family="accounts"]) .ac-sk-w40{width:40%}:where([data-page-family="accounts"]) .ac-sk-w45{width:45%}:where([data-page-family="accounts"]) .ac-sk-w50{width:50%}:where([data-page-family="accounts"]) .ac-sk-w55{width:55%}
 :where([data-page-family="accounts"]) .ac-sk-w60{width:60%}:where([data-page-family="accounts"]) .ac-sk-w70{width:70%}:where([data-page-family="accounts"]) .ac-sk-w85{width:85%}
-/* U2 loading decision: the summary keeps one reserved line while loading; it may grow when loaded. */
+/* U2 loading decision: the summary keeps reserved lines while loading; it may grow when loaded. */
 :where([data-page-family="accounts"])[data-page-skeleton="accounts"] .summary{min-height:calc(var(--dk-fs-control)*var(--dk-lh-body))}
+/* U3-Q6: phone-width loading header reserves two summary lines. */
+@media (max-width:640px){:where([data-page-family="accounts"])[data-page-skeleton="accounts"] .summary{min-height:calc(2*var(--dk-fs-control)*var(--dk-lh-body))}}
 :where([data-page-family="accounts"])[data-accounts-load-failed] .summary{min-height:0}
 @media (max-width:640px){
   :where([data-page-family="accounts"]) .ac-filters .search{width:100%;flex:1 1 100%}
