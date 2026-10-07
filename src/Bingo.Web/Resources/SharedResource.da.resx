@@ -3277,7 +3277,7 @@
   <data name="The event starts automatically at this time if it is ready. Overview lists anything still missing." xml:space="preserve"><value>Eventet starter automatisk på dette tidspunkt, hvis det er klar. Overblik viser, hvad der stadig mangler.</value></data>
   <data name="Changing the end needs a reason and confirmation." xml:space="preserve"><value>Ændring af sluttidspunktet kræver en begrundelse og bekræftelse.</value></data>
   <data name="The end must be after the start." xml:space="preserve"><value>Sluttidspunktet skal være efter starttidspunktet.</value></data>
-  <data name="Times are in {0}; change it on" xml:space="preserve"><value>Tider vises i {0}; skift tidszone på</value></data>
+  <data name="Times are in {0}; change it on" xml:space="preserve"><value>Tider vises i {0}; skift den på</value></data>
   <data name="Open, close or start by hand on" xml:space="preserve"><value>Åbn, luk eller start manuelt på</value></data>
   <data name="{0} is live, so only its end can change." xml:space="preserve"><value>{0} er i gang, så kun sluttidspunktet kan ændres.</value></data>
   <data name="{0} has ended and is in final review, so its schedule is history. To accept uploads again or resume the event, use Overview." xml:space="preserve"><value>{0} er afsluttet og afventer endelig gennemgang, så tidsplanen er historik. Brug Overblik til at åbne for uploads igen eller genoptage eventet.</value></data>
