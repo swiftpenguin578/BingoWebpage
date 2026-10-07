@@ -1,6 +1,11 @@
 // Add a page here once. The conformance gate uses the real Razor fixture,
 // loading template, family stylesheet, and these page-specific interaction probes.
 module.exports = [
+  { family: 'catalogue', countSummary: { words: ['active activities', 'drops', 'Shared by every event’s board estimates'], wordsDa: ['aktive aktiviteter', 'drops', 'Bruges af alle events’ pladeestimater'], numberItems: [0,1] },
+    url: () => '/Admin/Catalogue', fixture: 'community-catalogue', source: 'Pages/Admin/Catalogue/Index.cshtml', module: 'admin-catalogue.js',
+    textRows: { 'ct-sk-text':['body',1.45], 'ct-sk-line':['control-sm',1.45] }, reference: 'Catalogue.dc.html', first: '.card', blocks: { first: '.card', toolbar: '.toolbar', table: '.ct-tbl' },
+    style: ['.ct-tbl','--table-min','860px'], titleDa: 'Katalog',
+    update: { control: '[data-catalogue-category][value="Boss"]', action: 'click', selected: '[data-catalogue-category][value="Boss"]:checked' } },
   { family: 'accounts', countSummary: { words: ['accounts', 'disabled'], wordsDa: ['konti', 'deaktiveret'] },
     url: () => '/Admin/Accounts', fixture: 'community-accounts', source: 'Pages/Admin/Accounts/Index.cshtml', module: 'admin-accounts.js',
     textRows: { 'ac-sk-text':['body',1.45], 'ac-sk-line':['control-sm',1.45] }, reference: 'Accounts.dc.html', first: '.card', blocks: { first: '.card', toolbar: '.toolbar', table: '.ac-tbl' },
