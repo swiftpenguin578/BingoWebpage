@@ -99,8 +99,6 @@ export async function init(region, ui = window.AdminUI) {
     if (reason || until) content.querySelector('.m-actions').before(fields);
     const cancel = content.querySelector('[data-confirm-cancel]'), confirm = content.querySelector('[data-confirm-accept]');
     cancel.removeAttribute('autofocus');
-    // Mounted before the layer opens so the layer's dirty baseline includes the picker's text.
-    if (untilValue) picker = mountDateTime(until, untilValue, () => { untilError.hidden = true; }, document.querySelector('[data-date-time-template]'));
     const d = { key, model, version: state.version, status: 'idle', what: '', error: '', intent: null };
     const busy = () => d.status === 'busy' || d.status === 'checking';
     const layer = ui.openLayer({
@@ -110,6 +108,7 @@ export async function init(region, ui = window.AdminUI) {
       opener,
       onClose: async () => { picker?.dispose(); const reread = ['uncertain', 'gone', 'checking'].includes(d.status); dialog = null; if (reread) await refresh(opener?.id || 'now-title'); }
     });
+    if (untilValue) { picker = mountDateTime(until, untilValue, () => { untilError.hidden = true; }, document.querySelector('[data-date-time-template]')); layer.markClean(); }
     const panel = layer.element; panel.classList.add('is-wide'); panel.dataset.pageFamily = 'overview'; panel.setAttribute('role', 'alertdialog');
     dialog = { layer, d };
     const error = (node, message) => { if (!node) return; node.replaceChildren(icon('error'), document.createTextNode(message || '')); node.hidden = !message; };
@@ -266,8 +265,9 @@ export async function init(region, ui = window.AdminUI) {
     foot.append(close, save);
     content.append(head, body, foot);
     let busy = false, changed = false, chosen = null;
-    const picker = mountDateTime(dtp, fromValue, () => { fromError.hidden = true; }, document.querySelector('[data-date-time-template]'));
-    const layer = ui.openLayer({ title: t('Evidence codes'), content, pending: () => busy, opener, onClose: async () => { picker.dispose(); codes = null; if (changed) await refresh(opener?.id || 'now-title'); } });
+    let picker = null;
+    const layer = ui.openLayer({ title: t('Evidence codes'), content, pending: () => busy, opener, onClose: async () => { picker?.dispose(); codes = null; if (changed) await refresh(opener?.id || 'now-title'); } });
+    picker = mountDateTime(dtp, fromValue, () => { fromError.hidden = true; }, document.querySelector('[data-date-time-template]')); layer.markClean();
     const panel = layer.element; panel.classList.add('modal-form'); panel.dataset.pageFamily = 'overview'; panel.removeAttribute('aria-label'); panel.setAttribute('aria-labelledby', 'codes-title'); panel.setAttribute('aria-describedby', 'codes-desc');
     codes = { layer };
     const showError = (node, message) => { node.replaceChildren(icon('error'), document.createTextNode(message || '')); node.hidden = !message; };
@@ -327,7 +327,7 @@ export async function init(region, ui = window.AdminUI) {
       if (result.kind === 'session-lost') { paint(); return; }
       if (result.kind === 'handler' && result.data?.succeeded) {
         changed = true; await reread();
-        code.value = ''; note.value = ''; fromValue.value = state.codes.defaultFrom; picker.refresh?.();
+        code.value = ''; note.value = ''; fromValue.value = state.codes.defaultFrom; picker.refresh?.(); layer.markClean();
         ui.toast(result.data.message); paint(); code.focus(); return;
       }
       if (result.kind === 'handler' && result.data?.outcome === 'invalid' && result.data.fieldErrors) {

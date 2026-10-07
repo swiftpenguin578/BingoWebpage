@@ -177,7 +177,7 @@
     const host = document.querySelector(kind === 'drawer' ? '[data-drawer-host]' : '[data-modal-host]');
     host.append(scrim, wrapper);
     const inputValues = () => JSON.stringify([...panel.querySelectorAll(inputSelector)].map(input => [input.name || input.id, input.type === 'checkbox' || input.type === 'radio' ? input.checked : input.isContentEditable ? input.textContent : input.value]));
-    const baseline = inputValues();
+    let baseline = inputValues();
     const layer = { wrapper, scrim, panel, confirmation, dirty: () => dirty() || inputValues() !== baseline, pending, confirmLeave, opener, onClose, closing: false };
     layer.closed = new Promise(resolve => { layer.resolveClosed = resolve; });
     layers.push(layer);
@@ -186,7 +186,8 @@
     const outside = event => { if ((event.target === scrim || event.target === wrapper) && layers.at(-1) === layer && dismissible) void closeLayer(layer); };
     scrim.addEventListener('click', outside);
     wrapper.addEventListener('click', outside);
-    return { element: panel, close: result => closeLayer(layer, result, true) };
+    // A layer that fills or re-fills itself after opening (pickers, re-read content) calls markClean() so that state becomes its unsaved-changes baseline.
+    return { element: panel, close: result => closeLayer(layer, result, true), markClean: () => { baseline = inputValues(); refreshDirty(); } };
   }
   async function closeLayer(layer = layers.at(-1), result = false, confirmed = false, navigating = false) {
     if (!layer) return false;
