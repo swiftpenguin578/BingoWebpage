@@ -1,4 +1,6 @@
 /* Page rules from frozen Dashboard.dc.html; shared primitives remain frozen. */
+/* User "No load fades": only load markers; interaction animations stay frozen. */
+:where([data-page-family="dashboard"]) .fade-in,:where([data-page-family="dashboard"]) .empty{animation:none}
 :where([data-page-family="dashboard"]) [data-dashboard] .hint.is-dismissed .hint-tip{visibility:hidden;opacity:0}
 :where([data-page-family="dashboard"]) .dash-grid{display:grid;grid-template-columns:minmax(0,1.75fr) minmax(320px,1fr);gap:16px;margin-top:16px;align-items:stretch}
 :where([data-page-family="dashboard"]) .recap{display:flex;flex-direction:column}

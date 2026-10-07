@@ -55,11 +55,11 @@
 <span class="sr" aria-live="polite" data-sort-status></span>
 @if (data.History.Count == 0)
 {
-    <div class="card fade-in"><div class="empty"><div class="empty-ic"><svg class="ic" viewBox="0 0 16 16"><path d="M2.5 13.5h11M4.5 11V8M8 11V4.5M11.5 11V6.5"/></svg></div><div class="empty-title">@D["No events have been held yet"]</div><div class="empty-text">@D["Participation, results and history appear here once the first event has ended."]</div><a class="btn" href="/Admin/Events">@D["Go to Events"]</a></div></div>
+    <div class="card"><div class="empty"><div class="empty-ic"><svg class="ic" viewBox="0 0 16 16"><path d="M2.5 13.5h11M4.5 11V8M8 11V4.5M11.5 11V6.5"/></svg></div><div class="empty-title">@D["No events have been held yet"]</div><div class="empty-text">@D["Participation, results and history appear here once the first event has ended."]</div><a class="btn" href="/Admin/Events">@D["Go to Events"]</a></div></div>
 }
 else
 {
-    <section class="card fade-in" aria-label="@D["Headline statistics"]"><div class="stat-strip">
+    <section class="card" aria-label="@D["Headline statistics"]"><div class="stat-strip">
     @for (var i = 0; i < statRows.Length; i++)
     {
         var stat = statRows[i];
@@ -73,7 +73,7 @@ else
     <div class="dash-grid">
     @if (data.Chart.Count >= 2)
     {
-        <section class="card panel fade-in" aria-labelledby="part-title">
+        <section class="card panel" aria-labelledby="part-title">
             <div class="panel-head"><h2 class="panel-title" id="part-title">@D["Participation by event"]</h2><div class="legend" aria-label="@D["Legend"]">
             @if (data.Chart.Any(point => point.ReturningWebsiteParticipants.IsAvailable)) { <span class="legend-item"><span class="legend-key s-1"></span>@D["Returning"]</span> }
             <span class="legend-item"><span class="legend-key s-2"></span>@D[data.Chart.Any(point => point.ReturningWebsiteParticipants.IsAvailable) ? "First time" : "Tracked players"]</span>
@@ -127,7 +127,7 @@ else
         var history = data.History.Single(row => row.EventId == recap.EventId);
         var lastOfficial = data.History.FirstOrDefault(row => !row.Provisional && row.Winners.Count > 0);
         var recapPoint = data.Chart.Single(point => point.EventId == recap.EventId);
-        <section class="card panel fade-in recap @(data.Chart.Count < 2 ? "is-wide" : "")" aria-labelledby="recap-title">
+        <section class="card panel recap @(data.Chart.Count < 2 ? "is-wide" : "")" aria-labelledby="recap-title">
         <div class="panel-head"><h2 class="panel-title" id="recap-title">@D["Latest event"]</h2><span class="badge @(recap.Provisional ? "badge-warning" : "badge-neutral")">@D[recap.Provisional ? "Provisional" : recap.IsHistoricalImport ? "Imported · archived" : "Finalized"]</span></div>
         <div class="recap-name">@recap.EventName</div><div class="recap-when">@Model.Range(recap.ActualStartedAt, recap.ActualEndedAt, history.Timezone)</div>
         <div class="highlight @(recap.Provisional ? "is-muted" : "")"><div class="highlight-ic"><svg class="ic" viewBox="0 0 16 16">@if (recap.Provisional) { <circle cx="8" cy="8" r="5.5"/><path d="M8 5v3l2 1.5"/> } else { <path d="M5 2.5h6v3.5a3 3 0 0 1-6 0zM5 3.5H3v1a2 2 0 0 0 2 2M11 3.5h2v1a2 2 0 0 1-2 2M8 9v2.5M5.5 13.5h5M6.5 11.5h3"/> }</svg></div><div style="min-width:0;flex:1"><div class="highlight-label">@D[recap.Provisional ? "Results provisional" : "Winner"]</div><div class="highlight-value">@(recap.Provisional ? D["Final review in progress"].Value : Model.Winners(recap.Winners))</div><div class="highlight-sub">@(recap.Provisional ? lastOfficial is null ? D["The winner is shown once results are official."].Value : Model.L("Last official winner: {0} · {1}", Model.Winners(lastOfficial.Winners), lastOfficial.EventName) : Model.L("{0} teams competed", N(recap.TeamCount)))</div></div>
@@ -146,7 +146,7 @@ else
         <section class="card panel recap @(data.Chart.Count < 2 ? "is-wide" : "")"><div class="panel-head"><h2 class="panel-title">@D["Latest event"]</h2></div><div class="empty"><div class="empty-title">@D["No ended event yet"]</div><div class="empty-text">@D["The recap appears after an event has ended."]</div></div></section>
     }
     </div>
-    <section class="card dash-section fade-in" aria-labelledby="hist-title"><div class="panel-head hist-head"><h2 class="panel-title" id="hist-title">@D["Event history"]</h2><span class="panel-aside">@D["{0} events", N(data.History.Count)]</span></div><div class="tbl-wrap" id="tbl-wrap"><div class="tbl hist" role="table" aria-label="@D["Event history"]"><div class="tr th-row" role="row">
+    <section class="card dash-section" aria-labelledby="hist-title"><div class="panel-head hist-head"><h2 class="panel-title" id="hist-title">@D["Event history"]</h2><span class="panel-aside">@D["{0} events", N(data.History.Count)]</span></div><div class="tbl-wrap" id="tbl-wrap"><div class="tbl hist" role="table" aria-label="@D["Event history"]"><div class="tr th-row" role="row">
     @foreach (var (field, label, cls) in columns)
     {
         var sorted = field == Model.Sort;
@@ -167,7 +167,7 @@ else
     }
     </div></div></div></section>
 }
-<section class="dash-section fade-in" aria-labelledby="comm-title"><div class="section-head"><h2 class="panel-title" id="comm-title">@D["Community"]</h2><span class="panel-aside">@D["Current figures"]</span></div><div class="card"><div class="stat-strip is-compact" style="--stat-cols:3">
+<section class="dash-section" aria-labelledby="comm-title"><div class="section-head"><h2 class="panel-title" id="comm-title">@D["Community"]</h2><span class="panel-aside">@D["Current figures"]</span></div><div class="card"><div class="stat-strip is-compact" style="--stat-cols:3">
 <div class="stat"><div class="stat-label">@D["Website accounts"]</div><div class="stat-value">@Bingo.Web.Pages.Admin.IndexModel.Value(data.Community.WebsiteAccounts)</div><div class="stat-note">@D["registered in total"]</div></div>
 <div class="stat"><div class="stat-label">@D[data.Community.UsedThirtyDayFallback ? "New in the last 30 days" : "New since the last event"]</div><div class="stat-value">@Bingo.Web.Pages.Admin.IndexModel.Value(data.Community.NewWebsiteAccounts)</div><div class="stat-note">@(data.Community.Since is null ? D["No usable actual ended boundary is available."].Value : data.Community.UsedThirtyDayFallback ? D["created recently"].Value : Model.L("created after {0}", Model.Date(data.Community.Since)))</div></div>
 <div class="stat"><div class="stat-label">@D["Logged in during the last 30 days"]</div><div class="stat-value">@Bingo.Web.Pages.Admin.IndexModel.Value(data.Community.LoggedInWebsiteAccounts)</div><div class="stat-note">@(data.Community.WebsiteAccounts.IsAvailable && data.Community.LoggedInWebsiteAccounts.IsAvailable ? Model.L("{0}% of accounts", Bingo.Web.Pages.Admin.IndexModel.Percent(data.Community.WebsiteAccounts.Value > 0 ? (decimal)data.Community.LoggedInWebsiteAccounts.Value / data.Community.WebsiteAccounts.Value : 0m)) : D["not available"].Value)</div></div>

@@ -1,3 +1,5 @@
+/* Loaded empty states/notices are content too; sort and overlay descendants stay active. */
+:where([data-page-family="events"]) .fade-in,:where([data-page-family="events"]) .results,:where([data-page-family="events"]) .empty,:where([data-page-family="events"]) .page-banner{animation:none}
 :where([data-page-family="events"]) .tbl.ev-tbl{--table-cols:minmax(230px,1.5fr) 152px minmax(190px,1.1fr) minmax(170px,1fr) minmax(224px,1.3fr);--table-min:990px}
 :where([data-page-family="events"]) .directory-fragments{display:contents}
 @media(max-width:640px){:where([data-page-family="events"]) .tbl.ev-tbl{--table-cols:minmax(168px,1fr) 148px 188px 164px 214px;--table-min:900px}:where([data-page-family="events"]) .ev-tbl .th.c-name,:where([data-page-family="events"]) .ev-tbl .td.c-name{padding-left:16px}}

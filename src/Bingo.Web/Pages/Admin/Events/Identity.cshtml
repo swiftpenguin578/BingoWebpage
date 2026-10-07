@@ -20,7 +20,7 @@
     };
     <partial name="_AdminDesignBanner" model='new AdminDesignBanner("is-info page-banner form-card", "lock", message, Id: "identity-readonly")' />
 }
-<section class="card form-card fade-in" data-identity-editor data-identity-event-id="@Model.EventId" data-identity-current-version="@Model.CurrentVersion"
+<section class="card form-card" data-identity-editor data-identity-event-id="@Model.EventId" data-identity-current-version="@Model.CurrentVersion"
     data-identity-editable="@Model.CanEditIdentity.ToString().ToLowerInvariant()" data-identity-public="@Model.HasPublicExposure.ToString().ToLowerInvariant()"
     data-identity-save-uncertain="@Model.SaveOutcomeUncertain.ToString().ToLowerInvariant()" data-identity-schedule-stale="@Model.TimezoneScheduleStale.ToString().ToLowerInvariant()"
     data-identity-review-required="@((Model.TimezonePreview.Count > 0).ToString().ToLowerInvariant())"
@@ -139,7 +139,7 @@
                     @if (Model.CanEditIdentity) { <partial name="_AdminDesignFieldLock" model='new AdminDesignFieldLock(T["AdminDesign.Locked because the event has gone Live. It stays locked in every later phase."].Value)' /> }
                 }
                 <div class="field-note" id="note-Timezone" data-timezone-note role="status" hidden><partial name="_AdminDesignIcon" model='new AdminDesignIcon("info")' /><span data-component-text></span></div>
-                @if (Model.HasUnresolvableTimezone) { <div class="field-note">@T["The stored timezone ID {0} is retained. Dates below use an explicit UTC fallback until a supported timezone is selected.", Model.StoredTimezoneId]</div> }
+                @if (Model.HasUnresolvableTimezone) { <div class="field-note no-load-fade">@T["The stored timezone ID {0} is retained. Dates below use an explicit UTC fallback until a supported timezone is selected.", Model.StoredTimezoneId]</div> }
                 <partial name="_AdminDesignFieldError" model='new AdminDesignFieldError("Timezone", ViewData.ModelState["Input.Timezone"]?.Errors.FirstOrDefault()?.ErrorMessage ?? "")' />
                 <partial name="_AdminDesignFieldError" model='new AdminDesignFieldError("ConfirmTimezoneChange", ViewData.ModelState["Input.ConfirmTimezoneChange"]?.Errors.FirstOrDefault()?.ErrorMessage ?? "")' />
                 <div class="field-note" id="conflict-Timezone" data-conflict-for="Timezone" hidden></div>
