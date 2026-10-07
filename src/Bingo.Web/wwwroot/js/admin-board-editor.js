@@ -201,7 +201,7 @@ export function install(ctx) {
       paint(); focusBanner(); return;
     }
     if (outcome.kind !== 'unknown') { paint(); return; }
-    // RC05 B1: never "saved" or "safe to try again" from state alone.
+    // RC05 B1: never claim it was saved, or that retrying is harmless, from state alone.
     ed.checking = true; paint();
     const state = await ctx.readback();
     if (!ed) return;
