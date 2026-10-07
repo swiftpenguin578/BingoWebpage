@@ -501,6 +501,10 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
         if (publish.Success) return Localize("Publish the results of {0} first.", publish.Groups[1].Value);
         var still = System.Text.RegularExpressions.Regex.Match(error, "^(.+) is still the current event\\. Contact the Super Admin to archive it\\.$");
         if (still.Success) return Localize("{0} is still the current event. Contact the Super Admin to archive it.", still.Groups[1].Value);
+        var overlap = System.Text.RegularExpressions.Regex.Match(error, "^This event window overlaps (.+) \\(([^()]+)\\)\\.$");
+        if (overlap.Success) return Localize("This event window overlaps {0} ({1}).", overlap.Groups[1].Value, overlap.Groups[2].Value);
+        var replacement = System.Text.RegularExpressions.Regex.Match(error, "^The replacement lifecycle window overlaps (.+)\\.$");
+        if (replacement.Success) return Localize("The replacement lifecycle window overlaps {0}.", replacement.Groups[1].Value);
         return Localize(error);
     }
     private async Task<IActionResult> SignupResult(SignupLifecycleResult result, Guid id, string success, CancellationToken ct)
