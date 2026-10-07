@@ -1,7 +1,7 @@
 /* Page rules from the frozen Audit.dc.html style block; shared primitives stay frozen.
    The drawer and the filter panel carry data-page-family="audit" so these rules reach them. */
 /* User "No load fades": only load markers; interaction animations stay frozen. */
-:where([data-page-family="audit"]) .empty,:where([data-page-family="audit"]) .page-banner,:where([data-page-family="audit"]) .kv{animation:none}
+:where([data-page-family="audit"]) .fade-in,:where([data-page-family="audit"]) .results,:where([data-page-family="audit"]) .empty,:where([data-page-family="audit"]) .page-banner,:where([data-page-family="audit"]) .kv{animation:none}
 :where([data-page-family="audit"]) .directory-fragments{display:contents}
 :where([data-page-family="audit"]) .au-toolbar{justify-content:flex-start}
 :where([data-page-family="audit"]) .au-filters{flex:1;min-width:0}
