@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Bingo.Domain.Auditing;
@@ -253,8 +254,10 @@ public static class AuditPresenter
         var changes = isCreation || isDeletion
             ? []
             : before.Keys.Union(after.Keys, StringComparer.OrdinalIgnoreCase)
-            .Where(key => !Sensitive(key) && before.GetValueOrDefault(key) != after.GetValueOrDefault(key))
+            .Where(key => !Sensitive(key) && !IsTechnicalField(key))
             .Select(key => new AuditFieldChange(text[Humanize(key)], Value(before.GetValueOrDefault(key), text), Value(after.GetValueOrDefault(key), text)))
+            // T1-8: rows that read the same before and after (including empty → empty) are not changes.
+            .Where(change => change.Before != change.After)
             .ToArray();
         var reason = Reason(entry, details);
         var target = text[Targets.GetValueOrDefault(entry.TargetType, "Recorded target")].Value;
@@ -293,13 +296,45 @@ public static class AuditPresenter
         return reason is null && !lifecycle && IsPlainText(entry.Details) && !PlainReasonActions.Contains(entry.Action) ? entry.Details : null;
     }
 
+    // T1-8 (a): readable values in Changes. Empty values are a dash; decimals are rounded like the
+    // site's EHB values ("0.##", current culture); ISO instants use the drawer's "When" format.
     private static string Value(string? value, IStringLocalizer<AuditResource> text) => value switch
     {
-        null or "null" => "—",
+        null or "null" or "" => "—",
         "true" => text["Yes"],
         "false" => text["No"],
+        _ when IsoInstant.IsMatch(value) && DateTimeOffset.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var instant) => When(instant, CultureInfo.CurrentCulture),
+        _ when DecimalNumber.IsMatch(value) && decimal.TryParse(value, NumberStyles.Number, CultureInfo.InvariantCulture, out var number) => number.ToString("0.##", CultureInfo.CurrentCulture),
         _ => value
     };
+
+    private static readonly Regex IsoInstant = new(@"\A\d{4}-\d{2}-\d{2}T\d{2}:\d{2}", RegexOptions.CultureInvariant);
+    private static readonly Regex DecimalNumber = new(@"\A-?\d+\.\d+\z", RegexOptions.CultureInvariant);
+
+    /// <summary>The Audit drawer's "When" format: full Copenhagen date and time with its UTC offset.</summary>
+    public static string When(DateTimeOffset value, IFormatProvider? provider = null)
+    {
+        var local = DateTimePresentation.ToTimezone(value);
+        var offset = local.Offset;
+        return local.ToString("dddd d MMMM yyyy, HH:mm:ss", provider ?? CultureInfo.CurrentCulture)
+            + " (UTC" + (offset < TimeSpan.Zero ? "-" : "+") + offset.Duration().ToString(@"hh\:mm", CultureInfo.InvariantCulture) + ")";
+    }
+
+    /// <summary>
+    /// T1-8 (a): internal bookkeeping fields stay in Technical details only, never in Changes:
+    /// identifiers (a name segment "Id", ending "Id"/"_id"/" id"), versions, editing leases and
+    /// concurrency markers. Applied to the last segment of a flattened nested name.
+    /// </summary>
+    public static bool IsTechnicalField(string key)
+    {
+        var name = key.Split(" · ").Last().Trim();
+        name = Regex.Replace(name, @"\s*\[\d+\]\z", string.Empty);
+        if (name.Equals("id", StringComparison.OrdinalIgnoreCase) || Regex.IsMatch(name, @"(?:[a-z0-9]Id|Ids|[_ ][Ii]d|[_ ][Ii]ds)\z")) return true;
+        return TechnicalWords.Any(word => name.Contains(word, StringComparison.OrdinalIgnoreCase))
+            || name.EndsWith("Version", StringComparison.OrdinalIgnoreCase) || name.EndsWith("_version", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static readonly string[] TechnicalWords = ["lease", "concurrency", "rowversion", "xmin", "etag", "lockedby", "locked_by"];
 
     private static string? Reason(AuditEntry entry, Dictionary<string, string> details)
     {

@@ -24,7 +24,7 @@
     <div class="dr-body" id="drawer-body">
         <section class="sec" aria-label="@D["Summary"]">
             <dl class="kv au-kv">
-                <dt>@D["When"]</dt><dd>@local.ToString("dddd d MMMM yyyy, HH:mm:ss", CultureInfo.CurrentCulture) (@IndexModel.Offset(entry.OccurredAt))</dd>
+                <dt>@D["When"]</dt><dd>@AuditPresenter.When(entry.OccurredAt, CultureInfo.CurrentCulture)</dd>
                 <dt>@D["Actor"]</dt><dd>@(Model.Automated ? D["System (automatic)"].Value : "@" + p.Actor)</dd>
                 <dt>@D["Event"]</dt><dd>@(Model.Event is { } ev ? ev.Name : Model.HasEvent ? D["Unknown event"].Value : D["No event recorded"].Value)@if (Model.Event?.IsHidden == true) { <text> </text><span class="pill is-neutral">@D["Hidden"]</span> }</dd>
                 <dt>@D["Record"]</dt><dd>@p.Target</dd>
