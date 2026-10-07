@@ -295,9 +295,9 @@ export async function init(region, ui = window.AdminUI) {
       busy = true; chosen = enabled; banner.hidden = true; paint();
       const result = await post(enabled ? 'EnableEvidenceCodes' : 'DisableEvidenceCodes', { EventVersion: state.version }, { [t('Require evidence codes')]: enabled ? '✓' : '—' });
       busy = false; chosen = null;
-      if (result.kind === 'handler' && result.data?.succeeded) { changed = true; await reread(); ui.toast(result.data.message); }
+      if (result.kind === 'handler' && result.data?.succeeded) { changed = true; await reread(); layer.markClean(); ui.toast(result.data.message); }
       else if (result.kind !== 'session-lost') {
-        await reread();
+        await reread(); layer.markClean();
         banner.querySelector('.grow').textContent = result.kind === 'handler' ? result.data?.error || t('Couldn’t complete this. Nothing changed, and your entries are still here.') : result.kind === 'refused' ? result.reason || t('Couldn’t complete this. Nothing changed, and your entries are still here.') : t('Couldn’t confirm the save. Close and reopen to see the current codes before trying again.');
         banner.hidden = false;
       }
