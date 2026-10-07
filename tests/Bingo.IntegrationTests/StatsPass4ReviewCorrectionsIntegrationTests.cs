@@ -19,6 +19,238 @@ namespace Bingo.IntegrationTests;
 public sealed partial class Slice10Pass102CompetitionSynchronizationTests
 {
     [Fact]
+    public async Task StatsPass4Lkp1MixedUnsupportedOutcomeIsIncompleteAndReplaceableUntilComplete()
+    {
+        var f = await FullStatsFixtureAsync(secondOutcome: true, secondMetric: "unsupported_fixture", players: 2,
+            clockNow: new DateTimeOffset(2026, 10, 7, 12, 0, 0, TimeSpan.Zero).AddTicks(123450));
+        for (var player = 0; player < 2; player++)
+            await ApproveStatsAsync(f, await PendingStatsAsync(f, 0, player, 10 + player, itemIndex: player));
+
+        await SyncStatsAsync(f, 100);
+        var first = await ReadLkp1CheckpointAsync();
+        var mixed = await ReadStatsAsync(f);
+        AssertLkp1Incomplete(mixed.Luck.Result);
+        var team = Assert.Single(mixed.Luck.Teams);
+        AssertLkp1Incomplete(team.Result);
+        Assert.Equal(2, team.Players.Count);
+        Assert.All(team.Players, player =>
+        {
+            AssertLkp1Incomplete(player.Result);
+            var supported = Assert.Single(player.Sources, source => source.ItemId == f.Items[0].Id);
+            Assert.Equal(StatsLuckStatus.Calculated, supported.Status);
+            Assert.Equal(100m, supported.Activity); Assert.Equal(1m, supported.Expected);
+            var unsupported = Assert.Single(player.Sources, source => source.ItemId == f.Items[1].Id);
+            Assert.Equal(StatsLuckStatus.WaitingForActivityData, unsupported.Status);
+            Assert.Null(unsupported.Activity); Assert.Null(unsupported.Expected);
+        });
+        Assert.Null(mixed.Luck.Sources.Single(source => source.ItemId == f.Items[0].Id).UnavailableReason);
+        Assert.Equal("Unmapped", mixed.Luck.Sources.Single(source => source.ItemId == f.Items[1].Id).UnavailableReason);
+        Assert.Equal("SourceBasisUnavailable", mixed.Luck.UnavailableReason);
+
+        f.Clock.Advance(TimeSpan.FromHours(2));
+        await SyncStatsAsync(f, 200);
+        var second = await ReadLkp1CheckpointAsync();
+        Assert.Equal(first.SourceFingerprint, second.SourceFingerprint);
+        Assert.Equal(first.AssignmentFingerprint, second.AssignmentFingerprint);
+        Assert.NotEqual(first.ActivityBatchId, second.ActivityBatchId);
+        Assert.NotEqual(first.Payload, second.Payload);
+        Assert.Equal(f.Clock.GetUtcNow(), second.CalculatedAt);
+        var replaced = await ReadStatsAsync(f);
+        AssertLkp1Incomplete(replaced.Luck.Result);
+        Assert.Equal(second.ActivityBatchId, replaced.Luck.ActivityBatchId);
+        Assert.All(replaced.Luck.Teams.SelectMany(t => t.Players), player =>
+            Assert.Equal(200m, player.Sources.Single(source => source.ItemId == f.Items[0].Id).Activity));
+        await using (var verify = new ApplicationDbContext(options))
+            Assert.DoesNotContain("partial-batch-write-fenced", (await verify.EventCompetitionSynchronizations.SingleAsync()).LastError ?? "", StringComparison.Ordinal);
+
+        // A previously unsupported boss can bind its first verified supported metric.
+        // This changes source identity; the preceding replacement proved the compatible fence.
+        await using (var setup = new ApplicationDbContext(options))
+        {
+            var boss = await setup.BossActivities.SingleAsync(x => x.Id == f.SecondBoss!.Id);
+            boss.ConfigureApi("zulrah"); boss.RecordMapping(Bingo.Domain.Catalogue.ApiMappingStatus.Verified, f.Clock.GetUtcNow());
+            await setup.SaveChangesAsync();
+        }
+        f.Clock.Advance(TimeSpan.FromHours(2));
+        await SyncStatsAsync(f, Lkp1Response(f, new(0, 100, 100), new(0, 100, 100)));
+        var complete = await ReadLkp1CheckpointAsync();
+        var calculated = await ReadStatsAsync(f);
+        Assert.NotEqual(second.ActivityBatchId, complete.ActivityBatchId);
+        Assert.NotEqual(second.Payload, complete.Payload);
+        Assert.Equal(complete.ActivityBatchId, calculated.Luck.ActivityBatchId);
+        Assert.Equal(f.Clock.GetUtcNow(), complete.CalculatedAt);
+        Assert.All(calculated.Luck.Sources, source => Assert.Null(source.UnavailableReason));
+        Assert.All(calculated.Luck.Teams.SelectMany(t => t.Players).Select(p => p.Result)
+            .Concat(calculated.Luck.Teams.Select(t => t.Result)).Append(calculated.Luck.Result), result =>
+        { Assert.Equal(StatsLuckStatus.Calculated, result.Status); Assert.NotNull(result.Percentage); });
+        Assert.Equal(3m, calculated.Luck.Result.Expected);
+    }
+
+    [Fact]
+    public async Task StatsPass4Lkp1MixedMissingOutcomeIsReplacedByCompatibleCompleteBatch()
+    {
+        var f = await FullStatsFixtureAsync(secondOutcome: true, secondMetric: "zulrah");
+        await SyncStatsAsync(f, Lkp1Response(f, new(0, 100, 100), null));
+        var incomplete = await ReadLkp1CheckpointAsync();
+        var mixed = await ReadStatsAsync(f);
+        AssertLkp1Incomplete(mixed.Luck.Result);
+        AssertLkp1Incomplete(Assert.Single(mixed.Luck.Teams).Result);
+        AssertLkp1Incomplete(Assert.Single(Assert.Single(mixed.Luck.Teams).Players).Result);
+        Assert.All(mixed.Luck.Sources, source => Assert.Null(source.UnavailableReason));
+        f.Clock.Advance(TimeSpan.FromHours(2));
+        await SyncStatsAsync(f, Lkp1Response(f, new(0, 200, 200), new(0, 100, 100)));
+        var complete = await ReadLkp1CheckpointAsync();
+        var view = await ReadStatsAsync(f);
+        Assert.Equal(incomplete.SourceFingerprint, complete.SourceFingerprint);
+        Assert.Equal(incomplete.AssignmentFingerprint, complete.AssignmentFingerprint);
+        Assert.NotEqual(incomplete.ActivityBatchId, complete.ActivityBatchId);
+        Assert.NotEqual(incomplete.Payload, complete.Payload);
+        Assert.Equal(complete.ActivityBatchId, view.Luck.ActivityBatchId);
+        Assert.Equal(f.Clock.GetUtcNow(), complete.CalculatedAt);
+        Assert.All(view.Luck.Teams.SelectMany(t => t.Players).Select(p => p.Result)
+            .Concat(view.Luck.Teams.Select(t => t.Result)).Append(view.Luck.Result), result =>
+        { Assert.Equal(StatsLuckStatus.Calculated, result.Status); Assert.NotNull(result.Percentage); });
+        Assert.Equal(2.5m, view.Luck.Result.Expected);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task StatsPass4Lkp1PartialBatchRetainsWholeCompleteSnapshotThroughPublicationAndArchive(bool unranked)
+    {
+        var f = await FullStatsFixtureAsync(secondOutcome: true, secondMetric: "zulrah",
+            clockNow: new DateTimeOffset(2026, 10, 7, 12, 0, 0, TimeSpan.Zero).AddTicks(123450));
+        await ApproveStatsAsync(f, await PendingStatsAsync(f, 0, 0, 10));
+        var upstreamInput = f.Clock.GetUtcNow().AddMinutes(-5).AddTicks(7);
+        var response = Lkp1Response(f, new(0, 100, 100), new(0, 40, 40));
+        response = response with { Competition = response.Competition! with
+        {
+            Participants = response.Competition.Participants.Select(p => p with { UpstreamUpdatedAt = upstreamInput }).ToArray()
+        } };
+        CountingFinalReviewClient provider;
+        await using (var setup = new ApplicationDbContext(options))
+        {
+            var names = await setup.OsrsCharacters.ToDictionaryAsync(x => x.Id, x => x.DisplayName);
+            response = response with { Competition = response.Competition! with
+            {
+                Participants = response.Competition.Participants.Select(p => p with { Username = names[Guid.Parse(p.Username)] }).ToArray()
+            } };
+            provider = new CountingFinalReviewClient(response, response);
+            var sync = new EventCompetitionSynchronizationService(setup, provider, new FixedStatus(), f.Clock);
+            Assert.True((await sync.ConfigureAsync(f.Event.Id, (await setup.Events.SingleAsync()).Version, 42, false,
+                new(f.Admin.Id, f.Admin.LoginName))).Succeeded);
+            Assert.True((await sync.RefreshAsync(f.Event.Id, new(f.Admin.Id, f.Admin.LoginName))).Succeeded);
+        }
+        Assert.Equal(1, provider.Calls); Assert.Equal(1, provider.ValidationCalls);
+        var original = await ReadLkp1CheckpointAsync();
+        var originalView = await ReadStatsAsync(f);
+        var persistedUpstream = upstreamInput.AddTicks(-(upstreamInput.Ticks % 10));
+        Assert.NotEqual(upstreamInput, persistedUpstream);
+        Assert.Equal(persistedUpstream, original.UpstreamUpdatedAt);
+        Assert.Equal(persistedUpstream, originalView.Luck.UpstreamUpdatedAt);
+        Assert.Equal(f.Clock.GetUtcNow(), original.CalculatedAt);
+        Assert.Equal(f.Clock.GetUtcNow(), original.FetchedAt);
+        Assert.Equal(StatsLuckStatus.Calculated, originalView.Luck.Result.Status);
+        Assert.Equal(1.2m, originalView.Luck.Result.Expected);
+
+        f.Clock.Advance(TimeSpan.FromHours(2));
+        await SyncStatsAsync(f, Lkp1Response(f, new(0, 900, 900), unranked ? new(40, -1, 0) : null));
+        await using (var verify = new ApplicationDbContext(options))
+        {
+            var state = await verify.EventCompetitionSynchronizations.AsNoTracking().SingleAsync();
+            Assert.False(state.LatestMetricsComplete);
+            Assert.NotEqual(original.ActivityBatchId, state.MetricActivityBatchId);
+            var rows = await verify.EventCompetitionCharacterMetricActivities.AsNoTracking().ToListAsync();
+            Assert.Equal(900m, rows.Single(row => row.Metric == "vorkath").RecordedActivity());
+            Assert.Equal(unranked ? Bingo.Domain.Integrations.WiseOldMan.MetricActivityCoverage.UnexpectedUnrankedEnd
+                : Bingo.Domain.Integrations.WiseOldMan.MetricActivityCoverage.Missing, rows.Single(row => row.Metric == "zulrah").LastIssue);
+        }
+        AssertLkp1RetainedCheckpoint(original, await ReadLkp1CheckpointAsync());
+        // Current approved evidence changes, so any read-time rescore would change the numerator.
+        await ApproveStatsAsync(f, await PendingStatsAsync(f, 0, 0, 20, itemIndex: 1));
+        var savedLuck = JsonSerializer.Deserialize<StatsLuck>(original.Payload)!;
+        for (var read = 0; read < 2; read++)
+        {
+            var view = await ReadStatsAsync(f);
+            Assert.Equal(2, view.Value.Drops);
+            Assert.Equal(JsonSerializer.Serialize(savedLuck with { Stale = true, Tiles = null }), JsonSerializer.Serialize(view.Luck));
+            var tile = await ReadTileActivityAsync(f);
+            var savedTile = Assert.Single(savedLuck.Tiles!, t => t.TileId == f.Tiles[0].Id);
+            Assert.Equal(JsonSerializer.Serialize(Assert.Single(savedTile.Teams)), JsonSerializer.Serialize(tile.Team));
+            Assert.Equal(original.CalculatedAt, tile.CalculatedAt); Assert.Equal(original.FetchedAt, tile.FetchedAt);
+            Assert.Equal(original.EvidenceRevision, tile.EvidenceRevision); Assert.True(tile.Stale);
+            AssertLkp1RetainedCheckpoint(original, await ReadLkp1CheckpointAsync());
+        }
+        Assert.Equal(1, provider.Calls); Assert.Equal(1, provider.ValidationCalls);
+
+        f.Clock.Advance(TimeSpan.FromSeconds(55));
+        await using (var end = new ApplicationDbContext(options))
+        {
+            var ev = await end.Events.SingleAsync();
+            Assert.True((await new EventLifecycleService(end, null!, f.Clock).EndNowAsync(ev.Id, ev.Version, true,
+                "LKP-1 retained snapshot", new(f.Admin.Id, f.Admin.LoginName))).Succeeded);
+        }
+        f.Clock.Advance(TimeSpan.FromHours(2));
+        await using (var db = new ApplicationDbContext(options))
+        {
+            var sync = new EventCompetitionSynchronizationService(db, provider, new FixedStatus(), f.Clock);
+            var finalization = new EventFinalizationService(db, new PublicBoardService(db, f.Clock), f.Clock, competitionSynchronization: sync);
+            var readiness = (await finalization.GetReadinessAsync(f.Event.Id))!;
+            Assert.True(readiness.CanFinalize, string.Join("; ", readiness.Blockers.Select(b => b.Description)));
+            Assert.True((await finalization.FinalizeAsync(f.Event.Id, new(f.Admin.Id, f.Admin.LoginName), readiness.EventVersion)).Published);
+        }
+        for (var read = 0; read < 2; read++)
+        {
+            var archived = await ReadStatsAsync(f);
+            Assert.Equal(EventState.Archived, archived.State); Assert.True(archived.OfficialResult!.IsOfficial);
+            Assert.Equal(JsonSerializer.Serialize(savedLuck with { Stale = true, Tiles = null }), JsonSerializer.Serialize(archived.Luck));
+            var tile = await ReadTileActivityAsync(f);
+            var savedTile = Assert.Single(savedLuck.Tiles!, t => t.TileId == f.Tiles[0].Id);
+            Assert.Equal(JsonSerializer.Serialize(Assert.Single(savedTile.Teams)), JsonSerializer.Serialize(tile.Team));
+            Assert.Equal(original.CalculatedAt, tile.CalculatedAt); Assert.Equal(original.FetchedAt, tile.FetchedAt);
+            Assert.Equal(original.EvidenceRevision, tile.EvidenceRevision); Assert.True(tile.Stale);
+            AssertLkp1RetainedCheckpoint(original, await ReadLkp1CheckpointAsync());
+        }
+        Assert.Equal(1, provider.Calls); Assert.Equal(1, provider.ValidationCalls);
+    }
+
+    private async Task<EventStatsLuckCheckpoint> ReadLkp1CheckpointAsync()
+    {
+        await using var db = new ApplicationDbContext(options);
+        return await db.EventStatsLuckCheckpoints.AsNoTracking().SingleAsync();
+    }
+
+    private static void AssertLkp1Incomplete(StatsLuckResult result)
+    {
+        Assert.Equal(StatsLuckStatus.Incomplete, result.Status);
+        Assert.Null(result.Expected); Assert.Null(result.Percentage); Assert.Null(result.KcDifference);
+    }
+
+    private static void AssertLkp1RetainedCheckpoint(EventStatsLuckCheckpoint original, EventStatsLuckCheckpoint retained)
+    {
+        Assert.Equal(System.Text.Encoding.UTF8.GetBytes(original.Payload), System.Text.Encoding.UTF8.GetBytes(retained.Payload));
+        Assert.Equal(original.ActivityBatchId, retained.ActivityBatchId);
+        Assert.Equal(original.EvidenceRevision, retained.EvidenceRevision);
+        Assert.Equal(original.SourceFingerprint, retained.SourceFingerprint);
+        Assert.Equal(original.AssignmentFingerprint, retained.AssignmentFingerprint);
+        Assert.Equal(original.CalculatedAt, retained.CalculatedAt);
+        Assert.Equal(original.FetchedAt, retained.FetchedAt);
+        Assert.Equal(original.UpstreamUpdatedAt, retained.UpstreamUpdatedAt);
+    }
+
+    private static WiseOldManCompetitionResult Lkp1Response(FullStatsFixture f, WiseOldManMetricDelta supported, WiseOldManMetricDelta? second)
+    {
+        var response = StatsResponse(f, supported);
+        return response with { Competition = response.Competition! with
+        {
+            Participants = response.Competition.Participants.Select(p => p with
+            {
+                Metrics = second is null ? p.Metrics : new Dictionary<string, WiseOldManMetricDelta>(p.Metrics!) { ["zulrah"] = second }
+            }).ToArray()
+        } };
+    }
+
+    [Fact]
     public async Task StatsPass4ReviewF1AggregatePreservesCumulativeSequenceForOpposingIdsAtTheSameTime()
     {
         var f = await FullStatsFixtureAsync(target: 2);
@@ -413,8 +645,9 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests
         Func<Task>? before = null) : IWiseOldManCompetitionClient
     {
         public int Calls { get; private set; }
+        public int ValidationCalls { get; private set; }
         public Task<WiseOldManCompetitionResult> GetCompetitionAsync(long competitionId, CancellationToken cancellationToken = default)
-            => Task.FromResult(validation);
+        { ValidationCalls++; return Task.FromResult(validation); }
         public async Task<WiseOldManCompetitionResult> GetCompetitionAsync(long competitionId, IReadOnlyCollection<string> metrics, CancellationToken cancellationToken = default)
         {
             Calls++;
