@@ -1,6 +1,6 @@
 # U3 review84 remediation and T2 integration checkpoint — 7 October 2026
 
-U3 findings are implemented and scoped-checked. T2 is merged. The final combined gate is pending the concrete Catalogue conformance boundary below. This is implementer evidence, not an independent recheck or user acceptance.
+U3 findings are implemented and scoped-checked. T2 is merged. The Catalogue boundary below records the original checkpoint; the later explicit CI1–3 ruling resolves it in [the correction evidence](ci-correction.md). This is implementer evidence, not an independent recheck or user acceptance.
 
 ## Commit identities
 

@@ -1,12 +1,12 @@
 # Current project status
 
-## U3 review84 fixed; T2 merged, Catalogue conformance boundary — 7 October 2026
+## U3 review84 fixed; T2 Catalogue integration corrected — 7 October 2026
 
 - All ten findings from reviews84a/84b have separate implementation commits; [current checkpoint and exact identities](docs/references/admin-ui/reviews/2026-10-07/u3/review84/checkpoint.md). The source-localizer audit demonstrated Schedule's missing Danish before its translation fix. Accepted Events' double-localization failure was corrected separately under brief80 item0. No assertion exception or visual acceptance was added.
 - U3 scoped evidence: all seven prior registered pages45 cases per engine pass; nine affected Schedule/Signup/shared-transport browser files pass in Chromium and WebKit; imported-history PostgreSQL regression3/3. Release parity fixture builds with0 warnings/errors. Body-block rejection38 cases, Schedule resource46 keys, precise readback transport, shared CSS cmp and diff checks pass.
 - Reviewed T2 exact head `73df5e511e303733e4256302656aac14d9c9a0da` merged via `c30e39ea`. Only expected DELIVERY_PLAN conflict: keep T Catalogue bound status and U3 localized F4 row. All shared family partials/routes and review scenarios retained. Catalogue registration/current-source documentation are in the followup checkpoint commit.
-- Catalogue conformance is **not passed**. Both engines reject the generic save-timing source check because it also scans the250ms directory debounce. Direct loading diagnostics additionally show non-shared count placeholders (0 required shared wrappers versus2) and43.125px phone summary versus39.15px Q6 reservation. Danish source-localizer audit passes. No T-owned page/partial/CSS remediation or assertion weakening has been performed; route the exact bounded corrections in the checkpoint.
-- The newly authorized final full JS/Release solution gate has **not run** on this unresolved merged candidate. Review environment has not been refreshed for this checkpoint, so prior URLs are not certified for this head. Preserve existing stale ownership markers and prior evidence. Whole.NET remains planner-owned; no push/deploy or U3/T2 acceptance inference.
+- Explicit CI1–3 ruling implemented in the current correction commit: all registrations declare POST counts, save-path assertions retain Accounts strength, Catalogue uses shared loading-count wrappers and zero loading row gap. Catalogue conformance now **passes5 widths in each engine**; [exact geometry/evidence](docs/references/admin-ui/reviews/2026-10-07/u3/review84/ci-correction.md). Loaded geometry and all fixed text are retained; only the two authorized T files changed.
+- Final combined gate is next: rebuild parity fixture, run full JS both-engine runner and Release solution build once, refresh/verify owned review environment, then stop for planner whole.NET and user final look. Existing stale markers remain preserved; current container ownership matches. No acceptance inference, push or deployment.
 
 ## Phase colours implemented — 7 October 2026
 
@@ -63,4 +63,4 @@
 
 ## Next permitted action
 
-Resolve the concrete Catalogue conformance boundary in the [review84 checkpoint](docs/references/admin-ui/reviews/2026-10-07/u3/review84/checkpoint.md): authorize/route the save-only timing assertion and T-owned loading-placeholder/reservation corrections. Then rerun affected Catalogue conformance, rebuild the parity fixture, run the newly authorized final full JS both-engine runner and Release solution build once, refresh/verify review links, and stop for the planner whole-suite run and user final look. No further page family, push, deployment or acceptance is authorized here.
+Finish the explicitly authorized final combined gate on the corrected merged implementation: rebuild parity fixture, full JS runner in both engines and Release solution build once, refresh/verify all requested review links, then stop for the planner whole-suite run and user final look. No further page family, push, deployment or acceptance is authorized here.

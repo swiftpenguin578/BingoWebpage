@@ -94,9 +94,7 @@
 :where([data-page-family="catalogue"]) .ct-sk-w30{width:30%}:where([data-page-family="catalogue"]) .ct-sk-w50{width:50%}:where([data-page-family="catalogue"]) .ct-sk-w60{width:60%}:where([data-page-family="catalogue"]) .ct-sk-w65{width:65%}:where([data-page-family="catalogue"]) .ct-sk-w80{width:80%}
 :where([data-page-family="catalogue"]) .ct-cell-contents{display:contents}
 /* Loading header: one reserved summary line, two at phone width (U3-Q5/Q6); number-sized bars (U3-Q7). */
-:where([data-page-family="catalogue"])[data-page-skeleton="catalogue"] .summary{min-height:calc(var(--dk-fs-control)*var(--dk-lh-body))}
-:where([data-page-family="catalogue"]) .ct-sk-count{display:inline-flex;align-items:center;justify-content:center;min-width:2ch;width:2ch;height:calc(var(--dk-fs-control)*var(--dk-lh-body));vertical-align:bottom}
-:where([data-page-family="catalogue"]) .ct-sk-count>.sk{display:block;width:100%;height:10px}
+:where([data-page-family="catalogue"])[data-page-skeleton="catalogue"] .summary{min-height:calc(var(--dk-fs-control)*var(--dk-lh-body));row-gap:0}
 :where([data-page-family="catalogue"]) .ct-sk-tab{display:inline-block;width:2ch;height:10px}
 @media (max-width:640px){:where([data-page-family="catalogue"])[data-page-skeleton="catalogue"] .summary{min-height:calc(2*var(--dk-fs-control)*var(--dk-lh-body))}}
 :where([data-page-family="catalogue"]) .ct-boards{margin:6px 0 0;padding-left:18px}
@@ -111,3 +109,5 @@
    (contain, centred, 3px inset) in the same 32px / 44px box; the track background and inset border stay (reference
    .thumb uses cover, components.css:1328). */
 :where([data-page-family="catalogue"]) .thumb{padding:3px;background-size:contain,auto;background-position:center,center;background-origin:content-box,border-box;background-clip:content-box,border-box}
+:where([data-page-family="catalogue"]) [data-pending-count]>.sk{display:block;width:100%;height:10px}
+:where([data-page-family="catalogue"]) .summary .tab-count{display:inline-flex;align-items:center;justify-content:center;min-width:2ch;width:2ch;height:calc(var(--dk-fs-control)*var(--dk-lh-body));vertical-align:bottom}
