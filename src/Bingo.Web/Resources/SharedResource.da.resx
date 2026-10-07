@@ -3550,6 +3550,7 @@
   <data name="Event end still ahead" xml:space="preserve"><value>Eventets slut er stadig fremme</value></data>
   <data name="The configured end has passed. Replace the schedule, or cancel the event." xml:space="preserve"><value>Det angivne slut er passeret. Erstat tidsplanen, eller aflys eventet.</value></data>
   <data name="Publish the results of {0} first" xml:space="preserve"><value>Offentliggør resultaterne for {0} først</value></data>
+  <data name="Open event" xml:space="preserve"><value>Åbn event</value></data>
   <data name="Uploads closed" xml:space="preserve"><value>Uploads lukket</value></data>
   <data name="Every submission reviewed" xml:space="preserve"><value>Alle indsendelser gennemgået</value></data>
   <data name="Placements calculated" xml:space="preserve"><value>Placeringer beregnet</value></data>
