@@ -15,7 +15,7 @@
         <div data-accounts-pending>
         <div class="toolbar ac-toolbar" role="search" aria-label="@D["Find accounts"]">
             <div class="tbar-right ac-filters">
-                <div class="search"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("search")' /><input class="input" type="search" placeholder="@D["Search usernames"]" aria-label="@D["Search usernames"]" disabled></div>
+                <div class="search"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("search")' /><input class="input" type="search" placeholder="@D["Search accounts"]" aria-label="@D["Search accounts"]" autocomplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" disabled></div>
                 <div class="seg" role="radiogroup" aria-label="@D["Global role"]">@foreach (var label in roleOptions) { <label class="seg-opt @(label == "All" ? "is-on" : null)"><input class="sr" type="radio" name="pending-ac-role" checked="@(label == "All")" disabled>@D[label]</label> }</div>
             </div>
         </div>

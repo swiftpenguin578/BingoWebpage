@@ -60,7 +60,7 @@
 </div>
 <div class="toolbar ac-toolbar" role="search" aria-label="@D["Find accounts"]">
     <div class="tbar-right ac-filters">
-        <div class="search @(Model.Search.Length > 0 ? "has-clear" : "")"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("search")' /><input class="input" id="ac-search" type="search" placeholder="@D["Search usernames"]" aria-label="@D["Search usernames"]" maxlength="@IndexModel.SearchLimit" autocomplete="off" value="@Model.Search" data-accounts-search><button class="icon-btn clear" type="button" aria-label="@D["Clear search"]" data-accounts-clear hidden="@(Model.Search.Length == 0)"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("close")' /></button></div>
+        <div class="search @(Model.Search.Length > 0 ? "has-clear" : "")"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("search")' /><input class="input" id="ac-search" type="search" placeholder="@D["Search accounts"]" aria-label="@D["Search accounts"]" maxlength="@IndexModel.SearchLimit" autocomplete="off" value="@Model.Search" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" data-accounts-search><button class="icon-btn clear" type="button" aria-label="@D["Clear search"]" data-accounts-clear hidden="@(Model.Search.Length == 0)"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("close")' /></button></div>
         <div class="seg" role="radiogroup" aria-label="@D["Global role"]">
         @foreach (var (key, label) in roleOptions) { var on = (Model.Role is null ? "" : IndexModel.RoleKey(Model.Role.Value)) == key; <label class="seg-opt @(on ? "is-on" : null)"><input class="sr" type="radio" name="ac-role" value="@key" checked="@on" data-accounts-role>@D[label]</label> }
         </div>

@@ -30,3 +30,9 @@ Lane T, branch `claude/lane-t1-accounts-audit`. Implementer evidence only; not a
 - JS: `admin-design-audit.browser.js` Chromium + WebKit PASS; `admin-design-accounts.browser.js`, `page-family`, `css-scope`, `styles`, `skeleton-styles`, `loading`, `shell` Chromium + WebKit PASS.
 - Leftover checks: `ActorUsername.Contains` 0; seven-prefix list 0; "Recorded administrative action" only as fallback.
 - `git diff --check` clean. Full JS runner and whole .NET suite not run (batch gate / planner).
+
+## Early-look round (Audit)
+- `153316e` query names bound from the query string only (`[FromQuery]`, as Events): "page" is also a Razor Pages route value, so plain URLs showed the dropped-link notice and `?page=2` showed page 1 on Audit and Accounts. Missed because model-level tests set the bound properties directly and the browser checks never paged or opened a plain URL expecting no notice; new HTTP tests on both pages fail without the fix.
+- `9288c4c` T1-8 (a) readable Changes table (`AuditPresenter.IsTechnicalField`, `AuditPresenter.When`); applies to Review Details history too.
+- T1-9 (a): search fields avoid username autofill (wording and password-manager ignore markers).
+- Checks: Release build 0 errors; BrowserTests `AccountsUiTests|AuditUiTests|AdminDesignLocalizationTests|AuditReadableChangesTests` 37/0/0; IntegrationTests `AccountsHttp|AuditHistory|UiReviewScenario` 15/0/0; earlier this round 177/0/0 (binding fix set) and 211/0/0 (presenter consumers incl. Review); `admin-design-audit` and `admin-design-accounts` Chromium + WebKit PASS; `git diff --check` clean.
