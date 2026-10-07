@@ -23,10 +23,12 @@ public sealed class AdminEventHandlerClassificationTests
     // PrepareDestructiveConfirmation proof exercises this distinction.
     // U3 D17 enables Schedule/SignupSetup terminal reads; C4 moves existing operations.
     // D16 mutation gates and test14 remain unchanged.
+    // U4 (brief 85 planner default "Transport", 42c §1.5 item 14): Manage adds the
+    // authorized no-store GET:Current read; no mutation gate changes.
     private const string Expected = """
 Index|false|false|Read=GET:
 Create|false|false|Read=GET:,GET:CheckAgain;Service=POST:
-Manage|true|true|Read=GET:;Signup=POST:State,POST:OpenSignup,POST:CloseSignup,POST:ReopenSignup,POST:Capacity,POST:SignupWindow,POST:ConfirmSignup,POST:RestoreHidden,POST:PrepareSignupConfirmation,POST:PrepareStartConfirmation,POST:PrepareEndConfirmation,POST:PrepareResumeConfirmation,POST:PrepareDestructiveConfirmation;Service=POST:StartEvent,POST:EndEvent,POST:Discard,POST:Cancel;Hide=POST:Hide;Resume=POST:ResumeEvent;Review=POST:ReopenSubmissions;EvidenceCodes=POST:EnableEvidenceCodes,POST:DisableEvidenceCodes,POST:CreateEvidenceCode
+Manage|true|true|Read=GET:,GET:Current;Signup=POST:State,POST:OpenSignup,POST:CloseSignup,POST:ReopenSignup,POST:Capacity,POST:SignupWindow,POST:ConfirmSignup,POST:RestoreHidden,POST:PrepareSignupConfirmation,POST:PrepareStartConfirmation,POST:PrepareEndConfirmation,POST:PrepareResumeConfirmation,POST:PrepareDestructiveConfirmation;Service=POST:StartEvent,POST:EndEvent,POST:Discard,POST:Cancel;Hide=POST:Hide;Resume=POST:ResumeEvent;Review=POST:ReopenSubmissions;EvidenceCodes=POST:EnableEvidenceCodes,POST:DisableEvidenceCodes,POST:CreateEvidenceCode
 Identity|true|true|Read=GET:,GET:Current;Identity=POST:
 Schedule|true|true|Read=GET:,GET:Current;Schedule=POST:
 Questions|true|true|Read=GET:;Signup=POST:
