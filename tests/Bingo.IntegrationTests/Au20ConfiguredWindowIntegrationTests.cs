@@ -41,7 +41,7 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests
         Assert.True(final.Succeeded, final.Message);
         Assert.Equal(2, provider.Calls);
         var read = await sync.GetAsync(item.Id);
-        Assert.Equal(EventCompetitionRefreshSkipReason.NotDue, read!.RefreshSkipReason);
+        Assert.Equal(EventCompetitionRefreshSkipReason.WithinHour, read!.RefreshSkipReason); // U9-Q2: distinguish the successful-fetch hour from the scheduled-slot guard.
         Assert.False(read.CanRefresh);
         var manual = await sync.RefreshAsync(item.Id, new(admin.Id, admin.LoginName));
         Assert.True(manual.Skipped);

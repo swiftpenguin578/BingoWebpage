@@ -69,6 +69,24 @@ public sealed partial class EventCompetitionManagementService(
                 _ => "NotManaged"
             }
             ?? "NotManaged";
+        var unresolved = await db.EventCompetitionManagementOperations.AsNoTracking().AnyAsync(x => x.EventId == eventId
+            && (x.Phase == EventCompetitionManagementOperationPhase.Pending || x.Phase == EventCompetitionManagementOperationPhase.Claimed
+                || x.Phase == EventCompetitionManagementOperationPhase.Sending || x.Phase == EventCompetitionManagementOperationPhase.Retry
+                || x.Phase == EventCompetitionManagementOperationPhase.Unknown), cancellationToken);
+        var mutable = projection.Event.State is EventState.Draft or EventState.SignupOpen or EventState.SignupClosed or EventState.Live;
+        var canCreate = mutable && projection.Preview.Valid && !unresolved && status is "NotManaged" or "Failed" or "Cancelled"
+            && (operation is null || operation.Type == EventCompetitionManagementOperationType.Create);
+        var canManageCredential = mutable && !unresolved && projection.Synchronization?.CompetitionId is not null
+            && provenance is EventCompetitionProvenance.WebsiteCreated or EventCompetitionProvenance.External;
+        DateTimeOffset? endUpdateNextAttemptAt = null;
+        if (projection.Synchronization?.EndUpdateStatus == EventCompetitionEndUpdateStatus.Pending
+            && operation?.Type == EventCompetitionManagementOperationType.Update
+            && operation.Phase is EventCompetitionManagementOperationPhase.Pending or EventCompetitionManagementOperationPhase.Retry or EventCompetitionManagementOperationPhase.Unknown)
+        {
+            var payload = DeserializePayload(operation.DesiredPayloadJson);
+            if (!payload.IncludeTeams && payload.EndsAt == projection.Synchronization.EndUpdateTargetAt)
+                endUpdateNextAttemptAt = operation.NextAttemptAt;
+        }
         var lastErrorCode = management?.LastErrorCode ?? operation?.SafeErrorCode;
         var lastError = management?.LastError ?? operation?.SafeError;
         return new(
@@ -90,9 +108,9 @@ public sealed partial class EventCompetitionManagementService(
             provenance,
             writeCapability,
             management?.CanWrite == true,
-            management?.CanDelete == true && projection.Event.ActualStartedAt is null,
+            mutable && !unresolved && management?.CanDelete == true && projection.Event.ActualStartedAt is null,
             operation?.Id, operation?.Phase, operation?.Type, operation?.NextAttemptAt,
-            management?.CredentialStatus ?? EventCompetitionCredentialStatus.NotApplicable);
+            management?.CredentialStatus ?? EventCompetitionCredentialStatus.NotApplicable, canCreate, canManageCredential, endUpdateNextAttemptAt);
     }
 
     public async Task<EventCompetitionManagementResult> AdoptCredentialAsync(

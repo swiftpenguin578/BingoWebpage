@@ -46,10 +46,6 @@ else
             </div>
         </header>
 
-        @if (Model.IsHiddenInspection)
-        {
-            <aside class="panel validation-summary" role="status"><strong>@T["Hidden event inspection"]</strong><p>@T["This event is quarantined. Wise Old Man actions are unavailable until the event is restored."]</p></aside>
-        }
         @if (eventView.State is EventState.Cancelled or EventState.Finalized or EventState.Archived)
         {
             <aside class="panel validation-summary" role="status"><strong>@T["Wise Old Man inspection only"]</strong><p>@T["This event is terminal. The Wise Old Man connection and cached coverage can be inspected, but linking, credentials, fetches, managed writes and deletion are disabled."]</p></aside>
@@ -78,7 +74,7 @@ else
                         }
                     </div>
                     <div class="event-control-static">
-                        @if (!Model.IsHiddenInspection && integrationEditable && managed?.Enabled != true)
+                        @if (integrationEditable && managed?.Enabled != true)
                         {
                             <form method="post" asp-page-handler="Competition" class="form-stack event-wom-form">
                                 <input asp-for="EventVersion" type="hidden" />
@@ -86,7 +82,7 @@ else
                                 <button class="btn admin-button-secondary" type="submit">@(integration?.Configured == true ? T["Replace external link"] : T["Link external competition"])</button>
                             </form>
                         }
-                        @if (!Model.IsHiddenInspection && canDisconnect)
+                        @if (canDisconnect)
                         {
                             <form method="post" asp-page-handler="DisconnectCompetition" class="form-stack" data-lifecycle-confirm data-confirm-title="@T["Disconnect external WOM link"]" data-confirm-description="@T["Disconnect this external link from the event? The remote WOM competition will not be changed."]" data-confirm-action="@T["Disconnect"]" data-confirm-danger="true" data-confirm-field="ConfirmCompetitionClear" data-confirm-reason-field="CompetitionClearReason" data-confirm-require-reason="false">
                                 <input asp-for="EventVersion" type="hidden" />
@@ -95,7 +91,7 @@ else
                                 <button class="btn event-create-cancel action-danger-outline" type="submit">@T["Disconnect"]</button>
                             </form>
                         }
-                        @if (!Model.IsHiddenInspection && integration?.Provenance == EventCompetitionProvenance.External && !canDisconnect)
+                        @if (integration?.Provenance == EventCompetitionProvenance.External && !canDisconnect)
                         {
                             <p class="event-control-status is-yellow">@T["Disconnect is unavailable after the event has started; the remote competition is never deleted."]</p>
                         }
@@ -122,7 +118,7 @@ else
                         }
                     </div>
                     <div class="event-control-static">
-                        @if (!Model.IsHiddenInspection && canFetch)
+                        @if (canFetch)
                         {
                             <form method="post" asp-page-handler="FetchCompetition" id="wom-fetch-form">
                                 <input asp-for="EventVersion" type="hidden" />
@@ -203,14 +199,14 @@ else
                                 <ul class="event-wom-preview-teams">@foreach (var team in currentPreview.Teams) { <li><strong>@team.Name</strong> · @(team.Empty ? T["Empty"] : T["{0} participant(s)", team.Participants.Count])</li> }</ul>
                             }
                         }
-                        @if (!Model.IsHiddenInspection && canCreate)
+                        @if (canCreate)
                         {
                             <form method="post" asp-page-handler="CreateManagedCompetition" class="form-stack">
                                 <input asp-for="EventVersion" type="hidden" />
                                 <button class="btn admin-button-secondary" type="submit">@T["Create managed WOM competition"]</button>
                             </form>
                         }
-                        @if (!Model.IsHiddenInspection && canManageCredential)
+                        @if (canManageCredential)
                         {
                             <form method="post" asp-page-handler="AdoptCompetitionCredential" class="form-stack event-wom-credential-form">
                                 <input asp-for="EventVersion" type="hidden" />
@@ -219,7 +215,7 @@ else
                                 <button class="btn admin-button-secondary" type="submit">@(managed?.CredentialState is null or nameof(EventCompetitionCredentialStatus.NotApplicable) ? T["Save management code"] : T["Replace management code"])</button>
                             </form>
                         }
-                        @if (!Model.IsHiddenInspection && managed?.CanDelete == true && managed.CompetitionId is { } deleteId)
+                        @if (managed?.CanDelete == true && managed.CompetitionId is { } deleteId)
                         {
                             <form method="post" asp-page-handler="DeleteManagedCompetition" class="form-stack event-wom-delete-form" data-lifecycle-confirm data-confirm-title="@T["Delete website-created WOM competition"]" data-confirm-description="@T["Delete this website-created WOM competition from Wise Old Man? The remote competition and its history will be removed, and this cannot be undone. External competitions can only be disconnected."]" data-confirm-action="@T["Delete competition"]" data-confirm-danger="true" data-confirm-field="ConfirmManagedCompetitionDelete">
                                 <input asp-for="EventVersion" type="hidden" />
