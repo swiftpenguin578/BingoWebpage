@@ -102,6 +102,11 @@ public sealed class ParticipantsModel(
         return Page();
     }
 
+    // Retired signup-settings owner. Keep handler selection and the existing
+    // Setup gate so historical posts receive the pinned Manage redirect.
+    public IActionResult OnPostSignupAdministration(Guid id)
+        => RedirectToPage("Manage", new { id });
+
     public async Task<IActionResult> OnPostPaymentAsync(Guid id, Guid participantId, PaymentStatus payment, CancellationToken ct)
     {
         var result = await signupService.SetPaymentAsync(id, participantId, User.GetAccountId(), User.Identity?.Name ?? "Admin", payment, ct);

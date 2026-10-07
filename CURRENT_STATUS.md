@@ -1,12 +1,11 @@
 # Current project status
 
-## U3 review84 / T2 final gate passed — 7 October 2026
+## U3 whole-suite remediation complete — 7 October2026
 
-- All ten review84 findings have separate implementation commits; [finding identities and scoped evidence](docs/references/admin-ui/reviews/2026-10-07/u3/review84/checkpoint.md). Required Danish red proof preceded translations. Accepted Events assertion fix remains separate; no assertion exception or acceptance added.
-- Reviewed T2 `73df5e5` merged via `c30e39ea`; Catalogue registration/docs `9c1756e3`; explicit CI1–3 correction `e3229db3`. All registrations declare save counts, Accounts assertions retain strength, Catalogue loading counts/reservations conform. Loaded geometry and fixed words preserved.
-- Final gate executed once on `e3229db39e235f6d6899161f5577c191f713b50b`: parity fixture rebuilt FIRST; Release solution build0 warnings/errors; fullJS **116 passed/0 failed** (39 Chromium,39 WebKit,38 default),1152.477s. Registered-page conformance **50 cases per engine**. Shared CSS cmp/diff checks pass. [Exact commands, timing, results and live links](docs/references/admin-ui/reviews/2026-10-07/u3/review84/final-report.md).
-- Owned review environment refreshed;53 scenario links200, including Catalogue group. Signup normal/imported EN/DA and unknown-timezone Schedule/Signup verified in both engines. Earlier Catalogue full-load wait timed out; explicit rendered-page readiness passed, full-resource load not claimed. Preserved stale markers intact.
-- Implementer stopped for planner whole.NET suite and user final look. No whole.NET run, visual acceptance inference, push or deployment. UI_PAGE_MATRIX remains the acceptance owner.
+- All SR1–5 findings from the planner suite on bb391bc are fixed in separate commits. [Final remediation checkpoint and exact evidence](docs/references/admin-ui/reviews/2026-10-07/u3/suite-remediation/checkpoint.md).
+- SR1 `56d7a45d`: nine Danish messages. SR3 `c7998752`: unchanged legacy assertions use Participants, PG26/0/0. SR4 `c942c1c9`: exact Signup setup counts, PG10/0/0. SR5 `7269a198`: retired Participants handler/original Setup gate restored, unchanged C11 class60/0/0 and classification21/0/0.
+- SR2 is this owning checkpoint: planner-directed deletion of exactly80 English identity entries, all provenance-verified to dcc1a40f; all remaining English entries, Danish bytes and lookups preserved. Full Release AdminDesignLocalizationTests **3/0/0**. Release parity fixture rebuilt0 warnings/errors; Schedule conformance **5 widths per engine**, Schedule browser **10 groups per engine**, diff check passed. Earlier SR2 boundary resolved.
+- Implementer stopped for planner whole.NET rerun. No fullJS repeat (no JS/markup change), whole.NET, flake repair, environment refresh, acceptance edit or publication. Prior bb391bc gate116/0 remains historical evidence; review environment/stale markers untouched.
 
 ## Phase colours implemented — 7 October 2026
 
@@ -63,4 +62,4 @@
 
 ## Next permitted action
 
-Planner whole.NET suite on this final checkpoint, then user final look using the refreshed links in the final report. Implementer stopped. No further page family, push, deployment, environment handover or acceptance is authorized here.
+Planner reruns whole.NET on the final SR1–5 remediation HEAD. Implementer stopped; no further work, push, deployment or acceptance is authorized here.

@@ -296,9 +296,10 @@ public sealed class ParticipantFlowIntegrationTests(PostgreSqlTestFixture databa
         await using var factory = Factory();
         using var adminClient = Client(factory);
         await LoginAsync(adminClient, admin);
-        var adminParticipantsHtml = await adminClient.GetStringAsync($"/Admin/Events/Participants/{item.Id}");
-        Assert.Contains("data-confirmed=\"2\"", adminParticipantsHtml, StringComparison.Ordinal);
-        Assert.Contains("data-waiting=\"2\"", adminParticipantsHtml, StringComparison.Ordinal);
+        // A10: Signup setup owns capacity counts; preserve both exact queue/count assertions.
+        var signupSetupHtml = await adminClient.GetStringAsync($"/Admin/Events/SignupSetup/{item.Id}");
+        Assert.Equal("2 of 1", WebUtility.HtmlDecode(Regex.Match(signupSetupHtml, "<dd[^>]*data-confirmed[^>]*>([^<]+)</dd>").Groups[1].Value));
+        Assert.Equal("2", WebUtility.HtmlDecode(Regex.Match(signupSetupHtml, "<dd[^>]*data-waiting[^>]*>([^<]+)</dd>").Groups[1].Value));
         using var anonymous = Client(factory);
         var html = await anonymous.GetStringAsync($"/Events/{item.Slug}/Signups");
         var waitingRows = Regex.Matches(html, "<th scope=\"row\" data-label=\"Position\">(\\d+)</th>").Select(x => x.Groups[1].Value).ToArray();
