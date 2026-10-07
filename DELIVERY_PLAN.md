@@ -3459,9 +3459,14 @@ resuming as planner; apply the assigned pass's gates without creating extra stag
 4. The dispatcher resolves ordinary execution questions and checks stalls and
    interrupted work. Repeated reading without progress calls for a narrower next
    step, not another open-ended continuation.
-5. The implementer commits each item, runs the batch gate on the final commit and
-   stops at the brief's boundary with its report. The planner then reviews the stable
-   batch independently; findings return as a remediation brief to the same
+5. The implementer commits each item, runs the affected .NET tests, full JS runner,
+   Chromium/WebKit checks, required Release build and scoped design/diff checks,
+   and stops at the brief's boundary with its report. Only the planner runs the
+   whole .NET suite once on the final SHA, in the background as soon as that report
+   arrives: the batch gate requires zero failures and zero skipped tests before
+   acceptance (08-decisions.md, Q-S1, user decision, 7 October 2026). Gate failures
+   return as remediation. The planner reviews the stable batch independently;
+   findings return as a remediation brief to the same
    implementer, followed by a named recheck. Honor explicit user review waivers; do
    not claim skipped checks passed. For Admin popups, applicable review is source-only
    and visual acceptance is the user's.
