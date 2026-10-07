@@ -190,6 +190,17 @@ internal static class FixtureHost
             account = await dashboardScope.ServiceProvider.GetRequiredService<ApplicationDbContext>().Accounts.SingleAsync(value => value.LoginName == "ReviewAdmin");
             password = UiReviewScenarioSeeder.Password;
         }
+        // U9 / RC08: an owned PostgreSQL variation of the existing review fixtures.
+        // Only this process's synthetic current event is made ready for browser publication.
+        if (Environment.GetEnvironmentVariable("BINGO_PARITY_U9_READY") == "1")
+        {
+            var fixtureDb = dashboardScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var item = await fixtureDb.Events.SingleAsync(value => value.Id == ids["ur-current"]);
+            foreach (var pending in await fixtureDb.Submissions.Where(value => value.EventId == item.Id && value.Status == Bingo.Domain.Evidence.SubmissionStatus.Pending).ToListAsync())
+                pending.Reject("Controlled U9 publication fixture", Now);
+            item.CloseSubmissionsIfDue(Now);
+            await fixtureDb.SaveChangesAsync();
+        }
         var dashboard = await dashboardScope.ServiceProvider.GetRequiredService<IAdminDashboardService>().GetAsync(account.Id);
         var directory = ActivatorUtilities.CreateInstance<Bingo.Web.Pages.Admin.Events.IndexModel>(dashboardScope.ServiceProvider);
         directory.PageContext = new Microsoft.AspNetCore.Mvc.RazorPages.PageContext(new Microsoft.AspNetCore.Mvc.ActionContext(new DefaultHttpContext

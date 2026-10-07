@@ -28,3 +28,8 @@
 }
 
 :where([data-page-family="final-review"]) .page-banner,:where([data-page-family="final-review"]) .card,:where([data-page-family="final-review"]) .fade-in,:where([data-page-family="final-review"]) .results,:where([data-page-family="final-review"]) .empty{animation:none}
+
+:where([data-page-family="final-review"]) .fr-effects{display:flex;flex-direction:column;gap:6px;margin:12px 0;padding-left:20px;line-height:1.5}
+:where([data-page-family="final-review"]) .fr-top{display:flex;flex-direction:column;gap:8px;margin:12px 0;padding-left:0;list-style:none}
+:where([data-page-family="final-review"]) .dr-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+:where([data-page-family="final-review"]) .ro-row{flex-wrap:wrap;gap:12px}

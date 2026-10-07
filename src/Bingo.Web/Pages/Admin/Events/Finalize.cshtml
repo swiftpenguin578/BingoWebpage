@@ -20,7 +20,7 @@
     else if (r.State == EventState.Live) { <span>@T["Ends {0}", Model.Fmt(r.EventEndsAt)] · </span> }
     <span>@T["Times in {0}", Model.EventTimezone]</span>
 }
-<div class="fr-content" data-final-review data-current="@Model.CurrentJson" data-event-id="@r.EventId" data-timezone="@Model.EventTimezone">
+<div class="fr-content" data-final-review data-current="@Model.CurrentJson" data-labels="@Model.LabelsJson" data-event-id="@r.EventId" data-timezone="@Model.EventTimezone">
     <div class="banner is-warning" data-final-notice role="status" tabindex="-1" hidden></div>
     @if (r.State == EventState.Cancelled) { <div class="banner is-info"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("lock")' /><span>@T["This event was cancelled. Results are read-only."]</span></div> }
     @if (Model.Official)
@@ -90,6 +90,16 @@
         <section class="card panel fr-reopen" aria-labelledby="reopen-title"><div class="act-row"><div class="act-text"><h2 class="act-title" id="reopen-title">@T["Reopen for corrections"]</h2><p class="act-sub">@T["Exceptional. Returns the event to provisional final review and keeps version {0} in history. It doesn’t restart the event or reopen uploads.", active.Version]</p>
             @if (r.BlockingCurrentEvent is { } blocking) { <p id="reopen-why" class="fr-reopen-block"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("lock")' /><span>@Model.BlockingReason <a asp-page="Manage" asp-route-id="@blocking.Id" data-shell-link>@T["Open event"]</a></span></p> }
         </div><form method="post" asp-page-handler="Unfinalize" data-final-action="reopen" data-cancel-label="@T["Cancel"]" data-reason-label="@T["Reason"]" data-confirm-title="@T["Reopen for corrections"]" data-confirm-description="@T["The current official snapshot remains retained in history."]" data-confirm-action="@T["Reopen for corrections"]" data-confirm-field="ConfirmLifecycleAction" data-confirm-reason-field="Reason" data-confirm-require-reason="true"><input type="hidden" name="ExpectedVersion" value="@r.EventVersion" /><input type="hidden" name="ConfirmLifecycleAction" value="false" data-confirm-field-value /><input type="hidden" name="Reason" /><button class="btn btn-outline-danger" id="reopen-btn" type="submit" disabled="@(r.BlockingCurrentEvent is not null)" aria-describedby="@(r.BlockingCurrentEvent is null ? null : "reopen-why")">@T["Reopen for corrections…"]</button></form></div></section>
+    }
+    @foreach (var version in r.History)
+    {
+        var sharedPlaces = version.Placements.GroupBy(x => x.Placement).Where(x => x.Count() > 1).Select(x => x.Key).ToHashSet();
+        <template data-final-history="@version.Version">
+            <p class="choice-sub">@T[version.Active ? "Official" : "Retained"] · @T["Published {0} by {1}", Model.Fmt(version.FinalizedAt), version.FinalizedByUsername ?? "—"]</p>
+            @if (version.UnfinalizedAt is { } reopened) { <p>@T["Version {0} reopened", version.Version] · @Model.Fmt(reopened) · @T["Reopened by {0}", version.UnfinalizedByUsername ?? "—"]</p><p class="tl-reason">@version.UnfinalizeReason</p> }
+            @if (version.FinalWomRefresh is { Status: not FinalWomRefreshStatus.Succeeded } outcome) { <p class="banner is-warning">@T[FinalizeModel.FinalWomRefreshDescription(outcome)]</p> }
+            <div class="ro-list">@foreach (var row in version.Placements) { <div class="ro-row"><div><span class="place">@(sharedPlaces.Contains(row.Placement) ? "=" : "")@row.Placement</span> <strong>@row.TeamName</strong></div><span>@T["Lines"]: @row.CompletedLines · @T["Tiles"]: @row.CompletedTiles · @T["Credited EHB"]: @row.EhbTiebreak.ToString("0.####")<br />@T["Full board"]: @(row.BoardComplete ? Model.Fmt(row.BoardCompletedAt) : T["Not completed"]) · @T["Score reached"]: @(row.CurrentScoreReachedAt is null ? "—" : Model.Fmt(row.CurrentScoreReachedAt))</span></div> }</div>
+        </template>
     }
 </div>
 @section Styles { <link rel="stylesheet" href="~/css/admin-design-final-review.css" asp-append-version="true" data-admin-page-style /> }

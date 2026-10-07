@@ -9,6 +9,53 @@ namespace Bingo.Web.Pages.Admin.Events;
 public sealed partial class FinalizeModel
 {
     private static readonly JsonSerializerOptions CurrentJsonOptions = new(JsonSerializerDefaults.Web);
+    private static readonly string[] ClientLabelKeys =
+    [
+        "Check current state",
+        "Final WOM refresh succeeded.",
+        "We couldn’t confirm whether the results were published.",
+        "We couldn’t confirm whether the results were reopened.",
+        "Current state: {0}.",
+        " Latest retained version: {0}.",
+        "The current state is unavailable. Check again before trying another action.",
+        "Archives the event in the same step: uploads and review close.",
+        "Tries a final Wise Old Man refresh first. If it’s skipped or fails, the results still publish and you’ll be told.",
+        "Participants are notified that official results are available.",
+        "The event becomes current again. Review stays available for corrections.",
+        "The official version stays in history. Publishing again creates a new version.",
+        "Doesn’t restart the event or reopen uploads.",
+        "+ {0} more teams, as in the standings.",
+        "Publishing now makes the last fetch before the end the official WOM data.",
+        "Use 2,000 characters or fewer.",
+        "Reopen results",
+        "Publish and archive",
+        "Official results published. The event is archived.",
+        "Results reopened. The official version stays in history.",
+        "Nothing was saved. Your entries are still here.",
+        "These results were already reopened.",
+        "The event changed while this was open. Check the current details before trying again.",
+        "Check the current state before trying another action.",
+        "This version isn’t available",
+        "Version {0}",
+        "Draft",
+        "SignupOpen",
+        "SignupClosed",
+        "Live",
+        "AwaitingFinalReview",
+        "Finalized",
+        "Archived",
+        "Cancelled",
+        "Reason",
+        "Cancel",
+        "Close",
+        "Enter a reason.",
+    ];
+    public string LabelsJson => JsonSerializer.Serialize(ClientLabelKeys.ToDictionary(key => key, ClientLabel), CurrentJsonOptions);
+    private string ClientLabel(string key)
+    {
+        var display = key switch { "SignupOpen" => "Signups open", "SignupClosed" => "Signups closed", "AwaitingFinalReview" => "Final review", _ => key };
+        return text?[display].Value ?? display;
+    }
     public string CurrentJson => JsonSerializer.Serialize(CurrentState(Readiness), CurrentJsonOptions);
     public FinalizationHistoryRow? ActiveResult => Readiness.History.FirstOrDefault(x => x.Active);
     public bool Official => Readiness.State is EventState.Finalized or EventState.Archived;
