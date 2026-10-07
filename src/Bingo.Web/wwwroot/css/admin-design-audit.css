@@ -37,7 +37,7 @@
 :where([data-page-family="audit"]) .au-sk-main{min-height:calc(var(--dk-fs-control)*var(--dk-lh-body));display:flex;align-items:center}
 :where([data-page-family="audit"]) .au-sk-sub{min-height:calc(var(--dk-fs-small)*var(--dk-lh-body));display:flex;align-items:center;margin-top:2px}
 :where([data-page-family="audit"]) .au-sk-thin{height:8px}
-:where([data-page-family="audit"]) .au-sk-pill{height:18px;border-radius:9px}
+:where([data-page-family="audit"]) .au-sk-pill{height:18px;border-radius:var(--dk-radius-pill)}
 :where([data-page-family="audit"]) .au-sk-w40{width:40%}:where([data-page-family="audit"]) .au-sk-w44{width:44%}:where([data-page-family="audit"]) .au-sk-w46{width:46%}
 :where([data-page-family="audit"]) .au-sk-w50{width:50%}:where([data-page-family="audit"]) .au-sk-w60{width:60%}:where([data-page-family="audit"]) .au-sk-w70{width:70%}
 :where([data-page-family="audit"]) .au-sk-main>.sk,:where([data-page-family="audit"]) .au-sk-sub>.sk{flex:none}

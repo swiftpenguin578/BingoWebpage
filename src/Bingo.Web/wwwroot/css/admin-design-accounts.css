@@ -58,7 +58,7 @@
 :where([data-page-family="accounts"]) .ac-tm-fields{display:flex;flex-direction:column;gap:12px;margin-bottom:12px}
 :where([data-page-family="accounts"]) .ac-tm-fields .field{margin:0}
 /* Skeletons (reference inline sizes as classes). Q-SK2: text bars sit in real line-height rows. */
-:where([data-page-family="accounts"]) .ac-sk-avatar{width:28px;height:28px;border-radius:50%;flex:none}
+:where([data-page-family="accounts"]) .ac-sk-avatar{width:28px;height:28px;border-radius:var(--dk-radius-pill);flex:none}
 :where([data-page-family="accounts"]) .ac-sk-text{flex:1;min-width:0;min-height:calc(var(--dk-fs-body)*var(--dk-lh-body));display:flex;align-items:center}
 :where([data-page-family="accounts"]) .ac-sk-line{min-height:calc(var(--dk-fs-control-sm)*var(--dk-lh-body));display:flex;align-items:center}
 :where([data-page-family="accounts"]) .ac-sk-line>.sk,:where([data-page-family="accounts"]) .ac-sk-text>.sk{flex:none}
