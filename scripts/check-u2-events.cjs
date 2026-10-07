@@ -50,10 +50,11 @@ const P=(name,selector,options={})=>[name,selector,selector,{required:true,box:{
     await settle(app);
     const boxes=()=>app.locator('[data-page-region]').evaluate(main=>{
      const scope=main.querySelector('[data-page-skeleton]')||main;
-     return ['.page-head','.h1','.summary','.head-actions','.toolbar','.tabs','.search','.filter-btn','.th-row','.tab-count'].flatMap(selector=>[...scope.querySelectorAll(selector)].map((e,i)=>({key:selector+i,...Object.fromEntries(['x','y','width','height'].map(k=>[k,e.getBoundingClientRect()[k]]))})));
+     return ['.page-head','.h1','.summary','.head-actions','.toolbar','.tabs','.search','.filter-btn','.th-row','.tabs .tab-count'].flatMap(selector=>[...scope.querySelectorAll(selector)].map((e,i)=>({key:selector+i,...Object.fromEntries(['x','y','width','height'].map(k=>[k,e.getBoundingClientRect()[k]]))})));
     });
-    assert.equal(await app.locator('[data-page-skeleton] .summary').textContent(),'','loading summary reserves height but stays empty');
-    assert.equal(await app.locator('[data-page-skeleton] .summary .sk').count(),0);
+    assert.deepEqual(await app.locator('[data-page-skeleton] .summary > span').allTextContents().then(items=>items.map(text=>text.trim())),['live','upcoming or in setup'],'approved count summary keeps fixed words during loading');
+    assert.equal(await app.locator('[data-page-skeleton] .summary .tab-count[data-pending-count] > .sk').count(),2);
+    assert.equal(await app.locator('[data-page-skeleton] .summary button').count(),0,'attention state waits for data');
     const before=await boxes();assert.equal(await app.locator('[data-pending-view=past]').isChecked(),true);
     assert.equal(await app.locator('[data-pending-search]').inputValue(),'Spring');assert.equal(await app.locator('[data-pending-column=identity]').getAttribute('aria-sort'),'descending');
     assert.equal(await app.locator('[data-pending-count]').evaluateAll(nodes=>nodes.every(e=>!e.textContent.trim()&&e.querySelector('.sk'))),true);
@@ -65,7 +66,7 @@ const P=(name,selector,options={})=>[name,selector,selector,{required:true,box:{
     const delta=after[0].height-before[0].height;
     assert.equal(before.length,after.length);for(let i=0;i<before.length;i++)for(const k of['x','y','width','height']){
      if(k==='height'&&['.page-head0','.summary0'].includes(before[i].key))continue;
-     if(k==='width'&&['.h10','.summary0'].includes(before[i].key))continue; // empty loading group vs natural loaded reference width
+     if(k==='width'&&['.h10','.summary0'].includes(before[i].key))continue; // fixed count loading group vs natural loaded reference width
      const flow=k==='y'&&!['.page-head0','.h10','.summary0'].includes(before[i].key)?delta:0;
      assert.ok(Math.abs(before[i][k]+flow-after[i][k])<=1,engine+' '+width+' '+before[i].key+' '+k+': '+JSON.stringify({before,after,delta}));
     }
