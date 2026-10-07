@@ -3844,4 +3844,78 @@
   <data name="That account field cannot be edited." xml:space="preserve"><value>Det kontofelt kan ikke redigeres.</value></data>
   <data name="That question cannot be edited." xml:space="preserve"><value>Det spørgsmål kan ikke redigeres.</value></data>
   <data name="This signup form changed while you were editing it. Review the latest values and try again." xml:space="preserve"><value>Denne tilmeldingsformular blev ændret, mens du redigerede den. Gennemgå de seneste værdier, og prøv igen.</value></data>
+  <data name="Confirm that you want to permanently discard this empty event setup." xml:space="preserve"><value>Bekræft, at du vil slette denne tomme eventopsætning permanent.</value></data>
+  <data name="This event changed while it was being discarded. Review it and try again." xml:space="preserve"><value>Eventet blev ændret, mens det blev slettet. Gennemgå det, og prøv igen.</value></data>
+  <data name="The event changed while discard was being checked. Nothing was discarded; review its history and try again." xml:space="preserve"><value>Eventet blev ændret, mens sletningen blev kontrolleret. Intet blev slettet; gennemgå eventets historik, og prøv igen.</value></data>
+  <data name="Confirm that you want to cancel this event." xml:space="preserve"><value>Bekræft, at du vil annullere dette event.</value></data>
+  <data name="Enter a reason for cancelling the event." xml:space="preserve"><value>Angiv en begrundelse for at annullere eventet.</value></data>
+  <data name="This event changed while it was being cancelled. Review it and try again." xml:space="preserve"><value>Eventet blev ændret, mens det blev annulleret. Gennemgå det, og prøv igen.</value></data>
+  <data name="The event could not be cancelled safely. No lifecycle change was saved." xml:space="preserve"><value>Eventet kunne ikke annulleres sikkert. Ingen livscyklusændring blev gemt.</value></data>
+  <data name="This event has protected participant history and cannot be discarded. Cancel it instead." xml:space="preserve"><value>Dette event har beskyttet deltagerhistorik og kan ikke slettes. Annuller det i stedet.</value></data>
+  <data name="This event has protected team history and cannot be discarded. Cancel it instead." xml:space="preserve"><value>Dette event har beskyttet holdhistorik og kan ikke slettes. Annuller det i stedet.</value></data>
+  <data name="This event has protected event access history and cannot be discarded. Cancel it instead." xml:space="preserve"><value>Dette event har beskyttet adgangshistorik og kan ikke slettes. Annuller det i stedet.</value></data>
+  <data name="This event has protected evidence history and cannot be discarded. Cancel it instead." xml:space="preserve"><value>Dette event har beskyttet evidenshistorik og kan ikke slettes. Annuller det i stedet.</value></data>
+  <data name="This event has protected submission history and cannot be discarded. Cancel it instead." xml:space="preserve"><value>Dette event har beskyttet indsendelseshistorik og kan ikke slettes. Annuller det i stedet.</value></data>
+  <data name="Add a public event description before opening signup." xml:space="preserve"><value>Tilføj en offentlig eventbeskrivelse, før tilmeldingen åbnes.</value></data>
+  <data name="Set a participant capacity greater than zero before opening signup." xml:space="preserve"><value>Angiv en deltagerkapacitet over nul, før tilmeldingen åbnes.</value></data>
+  <data name="Set an event start before opening signup." xml:space="preserve"><value>Angiv en eventstart, før tilmeldingen åbnes.</value></data>
+  <data name="Set an event end before opening signup." xml:space="preserve"><value>Angiv en eventslut, før tilmeldingen åbnes.</value></data>
+  <data name="A future signup opening can only be saved for a private draft." xml:space="preserve"><value>En fremtidig tilmeldingsåbning kan kun gemmes for en privat kladde.</value></data>
+  <data name="Set a signup closing time before saving a future signup opening." xml:space="preserve"><value>Angiv et lukketidspunkt for tilmeldingen, før en fremtidig tilmeldingsåbning gemmes.</value></data>
+  <data name="A scheduled signup opening must be configured." xml:space="preserve"><value>En planlagt tilmeldingsåbning skal være sat op.</value></data>
+  <data name="Signups can only be opened from a private draft." xml:space="preserve"><value>Tilmeldingen kan kun åbnes fra en privat kladde.</value></data>
+  <data name="Signups can only reopen from an unlocked signup-closed event." xml:space="preserve"><value>Tilmeldingen kan kun genåbnes fra et oplåst event med lukket tilmelding.</value></data>
+  <data name="Signups cannot change after the draft is locked." xml:space="preserve"><value>Tilmeldingen kan ikke ændres, når draften er låst.</value></data>
+  <data name="Discord authentication is not configured for participant signup." xml:space="preserve"><value>Discord-godkendelse er ikke sat op til deltagertilmelding.</value></data>
+  <data name="Create the event signup form before opening signup." xml:space="preserve"><value>Opret eventets tilmeldingsformular, før tilmeldingen åbnes.</value></data>
+  <data name="Signup-code protection is enabled without a usable code." xml:space="preserve"><value>Beskyttelse med tilmeldingskode er slået til uden en brugbar kode.</value></data>
+  <data name="One or more existing signup questions are incomplete or invalid." xml:space="preserve"><value>Et eller flere eksisterende tilmeldingsspørgsmål er ufuldstændige eller ugyldige.</value></data>
+  <data name="Reopening signup keeps the existing participant and signup history." xml:space="preserve"><value>Genåbning af tilmeldingen bevarer den eksisterende deltager- og tilmeldingshistorik.</value></data>
+  <data name="Team draft finalization is a later readiness task." xml:space="preserve"><value>Afslutning af holddraften er en senere klarhedsopgave.</value></data>
+  <data name="Board publication is a later readiness task." xml:space="preserve"><value>Udgivelse af boardet er en senere klarhedsopgave.</value></data>
+  <data name="An event start is required." xml:space="preserve"><value>En eventstart er påkrævet.</value></data>
+  <data name="An event end is required." xml:space="preserve"><value>En eventslut er påkrævet.</value></data>
+  <data name="Confirm that you want to change the signup lifecycle." xml:space="preserve"><value>Bekræft, at du vil ændre tilmeldingens livscyklus.</value></data>
+  <data name="The signup lifecycle change could not be saved. Try again." xml:space="preserve"><value>Ændringen af tilmeldingens livscyklus kunne ikke gemmes. Prøv igen.</value></data>
+  <data name="Set a future draft time or event start that can be used as the signup closing time." xml:space="preserve"><value>Angiv en fremtidig drafttid eller eventstart, der kan bruges som tilmeldingens lukketidspunkt.</value></data>
+  <data name="The signup lifecycle change could not be completed. Try again." xml:space="preserve"><value>Ændringen af tilmeldingens livscyklus kunne ikke gennemføres. Prøv igen.</value></data>
+  <data name="Set an event start and end before opening signup." xml:space="preserve"><value>Angiv en eventstart og -slut, før tilmeldingen åbnes.</value></data>
+  <data name="Confirm that you want to start the event." xml:space="preserve"><value>Bekræft, at du vil starte eventet.</value></data>
+  <data name="This event changed while it was being started. Review its current state and try again." xml:space="preserve"><value>Eventet blev ændret, mens det blev startet. Gennemgå dets nuværende tilstand, og prøv igen.</value></data>
+  <data name="The event could not be started. Review its current state and try again." xml:space="preserve"><value>Eventet kunne ikke startes. Gennemgå dets nuværende tilstand, og prøv igen.</value></data>
+  <data name="This event changed while it was being ended. Review its current state and try again." xml:space="preserve"><value>Eventet blev ændret, mens det blev afsluttet. Gennemgå dets nuværende tilstand, og prøv igen.</value></data>
+  <data name="Confirm that you want to end the event." xml:space="preserve"><value>Bekræft, at du vil afslutte eventet.</value></data>
+  <data name="Enter a reason when ending the event before its configured end." xml:space="preserve"><value>Angiv en begrundelse, når eventet afsluttes før den planlagte slut.</value></data>
+  <data name="The event could not be ended. Review its current state and try again." xml:space="preserve"><value>Eventet kunne ikke afsluttes. Gennemgå dets nuværende tilstand, og prøv igen.</value></data>
+  <data name="This event changed while it was being resumed. Review its current state and try again." xml:space="preserve"><value>Eventet blev ændret, mens det blev genoptaget. Gennemgå dets nuværende tilstand, og prøv igen.</value></data>
+  <data name="Confirm that you want to resume the event." xml:space="preserve"><value>Bekræft, at du vil genoptage eventet.</value></data>
+  <data name="Enter a reason for resuming the event." xml:space="preserve"><value>Angiv en begrundelse for at genoptage eventet.</value></data>
+  <data name="Only an event in final review can be resumed." xml:space="preserve"><value>Kun et event i afsluttende gennemgang kan genoptages.</value></data>
+  <data name="An event with official finalization history cannot be resumed through this action." xml:space="preserve"><value>Et event med officiel afslutningshistorik kan ikke genoptages med denne handling.</value></data>
+  <data name="The replacement event end must be in the future." xml:space="preserve"><value>Eventets nye slut skal ligge i fremtiden.</value></data>
+  <data name="The replacement event end must be after the event start." xml:space="preserve"><value>Eventets nye slut skal ligge efter eventstarten.</value></data>
+  <data name="The event could not be resumed. Review its current state and try again." xml:space="preserve"><value>Eventet kunne ikke genoptages. Gennemgå dets nuværende tilstand, og prøv igen.</value></data>
+  <data name="Signup has not been opened and closed. Open signup, then close it before starting the event." xml:space="preserve"><value>Tilmeldingen er ikke blevet åbnet og lukket. Åbn tilmeldingen, og luk den, før eventet startes.</value></data>
+  <data name="Signup is still open. Close signup before starting the event." xml:space="preserve"><value>Tilmeldingen er stadig åben. Luk tilmeldingen, før eventet startes.</value></data>
+  <data name="The event is not in a pre-live state that can start." xml:space="preserve"><value>Eventet er ikke i en tilstand før livegang, hvorfra det kan startes.</value></data>
+  <data name="Configure a valid event start and end." xml:space="preserve"><value>Angiv en gyldig eventstart og -slut.</value></data>
+  <data name="The configured event end has passed; cancel this event or replace its schedule before starting it." xml:space="preserve"><value>Den planlagte eventslut er passeret; annuller eventet, eller erstat tidsplanen, før det startes.</value></data>
+  <data name="Finalize the team draft before starting." xml:space="preserve"><value>Afslut holddraften, før eventet startes.</value></data>
+  <data name="Publish the board before starting." xml:space="preserve"><value>Udgiv boardet, før eventet startes.</value></data>
+  <data name="Every confirmed participant needs an unambiguous current Playing assignment before the event can start." xml:space="preserve"><value>Hver bekræftet deltager skal have en entydig aktuel spilletildeling, før eventet kan startes.</value></data>
+  <data name="Configure an event start before resuming this event." xml:space="preserve"><value>Angiv en eventstart, før eventet genoptages.</value></data>
+  <data name="Only a SuperAdmin can hide or restore an event." xml:space="preserve"><value>Kun en superadministrator kan skjule eller gendanne et event.</value></data>
+  <data name="The event was not found." xml:space="preserve"><value>Eventet blev ikke fundet.</value></data>
+  <data name="Enter a reason for hiding the event." xml:space="preserve"><value>Angiv en begrundelse for at skjule eventet.</value></data>
+  <data name="The event changed while you were working. Review the latest values and try again." xml:space="preserve"><value>Eventet blev ændret, mens du arbejdede. Gennemgå de seneste værdier, og prøv igen.</value></data>
+  <data name="The legacy State handler is retired." xml:space="preserve"><value>Den gamle State-handler er udgået.</value></data>
+  <data name="Event quarantine is not configured." xml:space="preserve"><value>Skjulning af events er ikke sat op.</value></data>
+  <data name="The submission window could not be reopened safely. Reload and try again." xml:space="preserve"><value>Indsendelsesvinduet kunne ikke genåbnes sikkert. Genindlæs, og prøv igen.</value></data>
+  <data name="This event changed in another request. Reload before changing verification codes." xml:space="preserve"><value>Eventet blev ændret i en anden anmodning. Genindlæs, før verifikationskoder ændres.</value></data>
+  <data name="Verification codes could not be changed safely. Reload and try again." xml:space="preserve"><value>Verifikationskoder kunne ikke ændres sikkert. Genindlæs, og prøv igen.</value></data>
+  <data name="This event changed in another request. Reload before creating a verification code." xml:space="preserve"><value>Eventet blev ændret i en anden anmodning. Genindlæs, før en verifikationskode oprettes.</value></data>
+  <data name="The verification code could not be saved safely. Reload and try again." xml:space="preserve"><value>Verifikationskoden kunne ikke gemmes sikkert. Genindlæs, og prøv igen.</value></data>
+  <data name="The event could not be changed." xml:space="preserve"><value>Eventet kunne ikke ændres.</value></data>
+  <data name="This event window overlaps {0} ({1})." xml:space="preserve"><value>Eventets tidsrum overlapper {0} ({1}).</value></data>
+  <data name="The replacement lifecycle window overlaps {0}." xml:space="preserve"><value>Det nye livscyklusvindue overlapper {0}.</value></data>
 </root>
