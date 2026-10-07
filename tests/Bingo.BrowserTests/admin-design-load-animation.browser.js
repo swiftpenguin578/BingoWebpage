@@ -1,4 +1,4 @@
-// "No load fades": observe insertion and native frames, not settled screenshots.
+// Page-specific result/empty-result animation states. Full-page cases moved to the generic gate.
 const assert=require('node:assert/strict'),path=require('node:path');
 const {chromium,webkit}=require('playwright');
 const {startFixture,login}=require('../../scripts/lib/admin-parity-fixture.cjs');
@@ -11,8 +11,7 @@ async function until(page,fn){for(let i=0;i<200;i++)if(await page.evaluate(fn))r
   browser=await engine.launch({headless:true,...(engine===chromium?{channel:process.env.PLAYWRIGHT_CHANNEL||'chromium'}:{})});
   let context=await browser.newContext({viewport:{width:1280,height:900},reducedMotion:'no-preference'});
   let page=await login(context,fixture);const errors=[];page.on('pageerror',e=>errors.push(e.message));
-  const paths={dashboard:'/Admin',events:'/Admin/Events?view=current',identity:'/Admin/Events/Identity/'+fixture.events['autumn-bingo-2027']};
-  const html={};for(const [family,url]of Object.entries(paths)){const r=await context.request.get(fixture.origin+url);assert.equal(r.status(),200);html[family]=await r.text();}
+  const paths={events:'/Admin/Events?view=current'};
   const all=await context.request.get(fixture.origin+'/Admin/Events?view=all');assert.equal(all.status(),200);const allHTML=await all.text();
   const empty=await context.request.get(fixture.origin+'/Admin/Events?view=all&search=no-fixture-match');assert.equal(empty.status(),200);const emptyHTML=await empty.text();
   const storageState=await context.storageState();
@@ -52,30 +51,6 @@ async function until(page,fn){for(let i=0;i<200;i++)if(await page.evaluate(fn))r
    assert.deepEqual(await page.evaluate(()=>badAnimations),[]);assert.ok(await page.evaluate(()=>loadedInspections)>0);
    assert.equal(await page.locator('[data-page-region] .fade-in').count(),0);
    await page.evaluate(()=>{framesActive=false;loadObserver.disconnect();});passed++;
-  }
-  for(const family of Object.keys(paths))for(const slow of[false,true]){
-   await reset(family==='dashboard'?'events':'dashboard',html[family]);
-   await page.evaluate(url=>{window.done=false;void AdminUI.navigate(url).then(()=>done=true);},paths[family]);
-   await until(page,()=>pending.length===1);
-   await until(page,()=>{
-    const doc=new DOMParser().parseFromString(nextHTML,'text/html');
-    const hrefs=[...doc.querySelectorAll('link[data-admin-page-style]')].map(l=>new URL(l.getAttribute('href'),location.href).href);
-    return hrefs.length>0&&hrefs.every(href=>[...document.querySelectorAll('head link[data-admin-page-style]')].some(l=>l.sheet&&l.href===href));
-   });
-   await page.clock.runFor(slow?150:149);
-   assert.equal(await page.locator('[data-page-skeleton]').count(),slow?1:0);
-   await page.evaluate(()=>pending[0].fulfill());
-   if(slow){await until(page,()=>timers.includes(400));await page.clock.runFor(399);assert.equal(await page.evaluate(()=>done),false);await page.clock.runFor(1);}
-   await until(page,()=>done);assert.equal(await page.locator('[data-page-region]>.page').getAttribute('data-page-family'),family);await check();
-   // Legacy load markers are guarded in this family without disabling descendants.
-   const styles=await page.evaluate(()=>{
-    const host=document.querySelector('[data-page-region]>.page'),probe=document.createElement('div');probe.className='fade-in results';host.append(probe);
-    const names={load:getComputedStyle(probe).animationName};probe.className='';
-    for(const [key,classes]of Object.entries({sortA:'rows swap-a',sortB:'rows swap-b',flash:'row is-flash',error:'field-err',menu:'menu',modal:'modal',scrim:'scrim',drawer:'drawer'})){
-     probe.className=classes;names[key]=getComputedStyle(probe).animationName;
-    }probe.remove();return names;
-   });
-   assert.equal(styles.load,'none');assert.deepEqual({...styles,load:undefined},{load:undefined,sortA:'swapA',sortB:'swapB',flash:'rowFlash',error:'fadeIn',menu:'popIn',modal:'modalIn',scrim:'fadeIn',drawer:'drIn'});passed++;
   }
   for(const slow of[false,true]){
    await reset('events',allHTML);await page.evaluate(()=>document.querySelector('.tabs input').click());await until(page,()=>pending.length===1);

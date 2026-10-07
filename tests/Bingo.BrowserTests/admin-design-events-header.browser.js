@@ -37,11 +37,11 @@ async function until(page,fn){for(let i=0;i<200;i++)if(await page.evaluate(fn))r
    await page.evaluate(html=>{window.timers=[];const timer=setTimeout;window.setTimeout=(fn,ms,...args)=>{timers.push(ms);return timer(fn,ms,...args);};window.fetch=()=>new Promise(resolve=>window.fulfill=()=>resolve(new Response(html,{headers:{'Content-Type':'text/html'}})));window.done=false;void AdminUI.navigate('/Admin/Events?header=1').then(()=>done=true);},responseHtml);
    await until(page,()=>!!window.fulfill);await page.clock.runFor(150);
    const loading=await page.locator('[data-page-skeleton] .summary').evaluate(e=>({height:e.getBoundingClientRect().height,minHeight:parseFloat(getComputedStyle(e).minHeight),line:parseFloat(getComputedStyle(e).lineHeight),gap:parseFloat(getComputedStyle(e).gap),text:e.textContent}));
-   assert.equal(loading.text,'');assert.ok(Math.abs(loading.height-loading.minHeight)<=0.1,'layout pixel quantization');assert.ok(Math.abs(loading.height-loading.line)<=0.1,'one line at every width');
+   assert.equal(loading.text,'');assert.ok(Math.abs(loading.height-loading.minHeight)<=0.1,'layout pixel quantization');assert.ok(Math.abs(loading.height-loading.line*(width<=640?2:1))<=0.1,'U3-Q6 two phone lines, one wider');
    const before=await page.locator('[data-page-skeleton]').evaluate(root=>Object.fromEntries(['.page-head','.summary','.toolbar','.card','.ev-tbl'].map(s=>{const r=root.querySelector(s).getBoundingClientRect();return[s,{x:r.x,y:r.y,width:r.width,height:r.height}];})));
    console.log('Loading reservation matched '+width);await page.evaluate(()=>fulfill());await until(page,()=>timers.includes(400));await page.clock.runFor(399);assert.equal(await page.locator('[data-page-skeleton]').count(),1);await page.clock.runFor(1);await until(page,()=>done);
    const after=await box(page),growth=after['.summary'].height-loading.height;
-   assert.ok(growth>=-0.1,'loaded summary never less than one line');
+   assert.ok(after['.summary'].height>=loading.line-0.1,'loaded summary retains natural reference height (U3-Q6)');
    assert.ok(Math.abs(after['.page-head'].height-before['.page-head'].height-growth)<=0.1,'header changes only by summary growth');
    for(const [a,b]of[['.toolbar','.toolbar'],['.card','.page .card'],['.ev-tbl','.ev-tbl']]){
     for(const axis of['x','width'])assert.ok(Math.abs(before[a][axis]-after[b][axis])<=0.1,a+' stable '+axis);
@@ -50,6 +50,6 @@ async function until(page,fn){for(let i=0;i<200;i++)if(await page.evaluate(fn))r
    for(const axis of['x','y','width','height'])for(const selector of selectors)assert.ok(Math.abs(after[selector][axis]-loaded[selector][axis])<=0.1,'same loaded reference presentation '+selector+'.'+axis);
    records.push({engine:name,width,label,loaded,reference,loading,before,after,growth});await page.clock.resume();await page.close();
   }
-  console.log('PASS10 loaded Events headers match reference; one loading line, zero/summary-growth movement, exact150/400');
+  console.log('PASS10 loaded Events headers match reference; U3-Q6 loading reservation, exact summary-height movement, exact150/400');
  }finally{await browser?.close();await fixture.close();fs.writeFileSync(path.join(output,'positions.json'),JSON.stringify(records,null,2));}
 })().catch(error=>{console.error(error);process.exitCode=1;});

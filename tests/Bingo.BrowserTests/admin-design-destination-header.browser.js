@@ -33,7 +33,7 @@ async function until(page,predicate){for(let i=0;i<200;i++)if(await page.evaluat
     await until(page,()=>requests.length===1);await page.clock.runFor(150);
     const check=async()=>{assert.equal(await page.locator('[data-page-skeleton] .h1').textContent(),headers[to].title);assert.equal((await page.locator('[data-page-skeleton] .summary').textContent()).trim(),'');assert.equal(await page.locator('.crumb-cur').textContent(),headers[to].title);};
     await check();
-    if(to==='identity'){const summary=await page.locator('[data-page-skeleton] .summary').evaluate(e=>({height:e.getBoundingClientRect().height,line:parseFloat(getComputedStyle(e).lineHeight)}));assert.ok(Math.abs(summary.height-summary.line)<0.1,'Identity loading summary reserves exactly one line');}
+    if(to==='identity'){const summary=await page.locator('[data-page-skeleton] .summary').evaluate(e=>({height:e.getBoundingClientRect().height,line:parseFloat(getComputedStyle(e).lineHeight)}));assert.ok(Math.abs(summary.height-summary.line*2)<0.1,'Identity loading summary reserves two phone lines (U3-Q6)');}
     if(fail)await page.evaluate(()=>requests[0].fail());else await page.evaluate(()=>requests[0].fulfill());
     await until(page,()=>timers.includes(400));await page.clock.runFor(399);await check();await page.clock.runFor(1);
     if(fail){await until(page,()=>!!document.querySelector('[data-load-retry]'));await check();assert.equal(await page.locator('[data-page-skeleton]').getAttribute('aria-busy'),'false');if(to==='dashboard')assert.equal(await page.locator('[data-dashboard-loading-card]').count(),0);}
