@@ -57,8 +57,10 @@ const root = process.cwd(), output = path.join(root, 'artifacts/u2-ur-browser');
     assert.ok(sharedFirst.includes('Amber Owls') && sharedFirst.includes('Silver Foxes'));
     // Real seeded System/import audits and recipient inbox rows, not just attention labels.
     for (const [slug,action,actor] of [['ur-opening-failed','event.signup_opening_failed','System'],['ur-draft','event.start_postponed','System'],['ur-imported','historical_import.applied','ReviewOwner']]) {
-     await page.goto(fixture.origin + '/Admin/Audit?eventId=' + fixture.events[slug]);
-     const entry = page.locator('[data-audit-entry]').filter({has:page.locator('code', {hasText:action})});
+     // A10 (T1): the bound Audit page uses ?event= and keeps the action key in each entry's drawer template.
+     await page.goto(fixture.origin + '/Admin/Audit?event=' + fixture.events[slug]);
+     const ids = await page.evaluate(key => [...document.querySelectorAll('template[data-audit-detail]')].filter(t => [...t.content.querySelectorAll('code')].some(c => c.textContent === key)).map(t => t.dataset.auditDetail), action);
+     assert.equal(ids.length,1); const entry = page.locator(`[data-audit-entry="${ids[0]}"]`);
      assert.equal(await entry.count(),1); assert.ok((await entry.textContent()).includes(actor));
     }
     await page.goto(fixture.origin + '/notifications');
