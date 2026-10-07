@@ -26,14 +26,21 @@
   }
   const BUSY_MINIMUM_MS = 600, QUICK_BUSY_MINIMUM_MS = 250;
   const LOADING_DELAY_MS = 150, LOADING_MINIMUM_MS = 400;
-  function delayedLoading(show, signal, inheritedAt = null) {
-    let shownAt = inheritedAt, timer, release;
-    const cancel = () => { clearTimeout(timer); release?.(); };
+  function delayedLoading(show, signal, inheritedAt = null, isReady = () => true) {
+    let shownAt = null, timer, release, eligible = inheritedAt !== null, finished = false;
+    const tryShow = () => {
+      if (eligible && !finished && !signal.aborted && shownAt === null && isReady()) {
+        shownAt = inheritedAt ?? performance.now(); show(shownAt);
+      }
+    };
+    const cancel = () => { finished = true; clearTimeout(timer); release?.(); };
     signal.addEventListener('abort', cancel, { once: true });
-    if (shownAt !== null) show(shownAt);
-    else timer = setTimeout(() => { if (!signal.aborted) { shownAt = performance.now(); show(shownAt); } }, LOADING_DELAY_MS);
+    if (eligible) tryShow();
+    else timer = setTimeout(() => { eligible = true; tryShow(); }, LOADING_DELAY_MS);
     return {
+      ready: tryShow,
       async complete() {
+        finished = true;
         clearTimeout(timer);
         if (shownAt === null || signal.aborted) return;
         const remaining = LOADING_MINIMUM_MS - (performance.now() - shownAt);
@@ -337,24 +344,32 @@
     modules = next;
     for (const module of modules) await module.init(document.querySelector('[data-page-region]'), api);
   }
-  async function preparePageStyles(doc, signal) {
+  const stagedStyles = new WeakMap();
+  async function preparePageStyles(sources, signal) {
     const created = [], wanted = new Set();
+    const owner = {};
     let committed = false;
-    const discard = () => { if (!committed) created.forEach(link => link.remove()); };
+    const retain = () => { committed = true; for (const link of created) if (stagedStyles.get(link) === owner) stagedStyles.delete(link); };
+    const discard = () => { if (!committed) for (const link of created) if (stagedStyles.get(link) === owner) { stagedStyles.delete(link); link.remove(); } };
     try {
-      await Promise.all([...doc.querySelectorAll('link[data-admin-page-style]')].map(source => {
+      await Promise.all([...sources].map(source => {
         const href = new URL(source.getAttribute('href'), location.href).href;
+        if (new URL(href).origin !== location.origin) throw new Error('Unexpected page stylesheet');
         wanted.add(href);
         let link = [...document.querySelectorAll('head link[data-admin-page-style]')].find(link => link.href === href);
+        // A failed/unloaded existing link may never fire another event. Reload it.
+        if (link && !link.sheet) { stagedStyles.delete(link); link.remove(); link = null; }
         const fresh = !link;
         if (fresh) {
           link = document.createElement('link');
           for (const attribute of source.attributes) link.setAttribute(attribute.name, attribute.value);
           link.href = href;
+          link.setAttribute('data-admin-page-style', '');
           // Page CSS is family-scoped, so it can load active without affecting
           // the still-visible leaving page.
-          created.push(link);
         }
+        // A successor owns a reused staged link; the cancelled owner cannot remove it.
+        if (fresh || stagedStyles.has(link)) { stagedStyles.set(link, owner); created.push(link); }
         return new Promise((resolve, reject) => {
           const finish = error => {
             link.removeEventListener('load', loaded); link.removeEventListener('error', failed);
@@ -372,9 +387,9 @@
           else if (link.sheet) loaded();
         });
       }));
-      return { discard, commit() {
+      return { discard, retain, commit() {
         // Remove obsolete styles only after their old content is gone.
-        committed = true;
+        retain();
         for (const link of document.querySelectorAll('head link[data-admin-page-style]')) if (!wanted.has(link.href)) link.remove();
       } };
     } catch (error) { discard(); throw error; }
@@ -391,10 +406,16 @@
   }
   function rememberSkeletons(doc) {
     for (const template of doc.querySelectorAll('template[data-page-loading-template]')) {
-      skeletons.set(template.dataset.pageLoadingTemplate, template.content.cloneNode(true));
+      const content = template.content.cloneNode(true), styles = [...content.querySelectorAll('link[rel="stylesheet"]')];
+      styles.forEach(link => link.remove());
+      skeletons.set(template.dataset.pageLoadingTemplate, { content, styles });
       if (template.dataset.pageTitle) pageTitles.set(template.dataset.pageLoadingTemplate, template.dataset.pageTitle);
     }
-    for (const template of doc.querySelectorAll('template[data-page-failure-template]')) failures.set(template.dataset.pageFailureTemplate, template.content.cloneNode(true));
+    for (const template of doc.querySelectorAll('template[data-page-failure-template]')) {
+      const content = template.content.cloneNode(true);
+      content.querySelectorAll('link[rel="stylesheet"]').forEach(link => link.remove());
+      failures.set(template.dataset.pageFailureTemplate, content);
+    }
     for (const template of doc.querySelectorAll('template[data-page-header-template]')) loadingHeads.set(template.dataset.pageHeaderTemplate, template.content.cloneNode(true));
   }
   rememberSkeletons(document);
@@ -503,7 +524,7 @@
       placeholder.append(head);
     }
     const provided = skeletons.get(kind); placeholder.dataset.skeletonLayout = provided ? 'page' : 'generic';
-    placeholder.append(provided ? provided.cloneNode(true) : template('loading'));
+    placeholder.append(provided ? provided.content.cloneNode(true) : template('loading'));
     if (previous) previous.element.replaceWith(placeholder); else main.append(placeholder);
     main.setAttribute('aria-busy', 'true');
     overlay = { element: placeholder, main, children, busy, context, position, shownAt };
@@ -572,7 +593,7 @@
     if (language) clearOverlay();
     if (body.dataset.navigationEnabled.toLowerCase() === 'false') { fullLoad(url); return true; }
     const ticket = ++sequence;
-    navigation = new AbortController();
+    const controller = navigation = new AbortController();
     closeMenu(false);
     if (mobile && !language) toggleSide(false);
     const position = suppliedPosition || overlay?.position || rememberPosition();
@@ -583,18 +604,28 @@
     // Preserve the current display during the delay without accepting edits that
     // could be lost by the already-guarded navigation.
     if (!language) currentMain.inert = true;
-    navigation.signal.addEventListener('abort', restoreMain, { once: true });
-    const loading = !language ? delayedLoading(shownAt => { skeleton(url, position, shownAt); inheritedUpdate?.restore(); restoreMain(); }, navigation.signal, overlay?.element.getAttribute('aria-busy') === 'true' ? overlay.shownAt : inheritedUpdate?.shownAt ?? null) : null;
+    controller.signal.addEventListener('abort', restoreMain, { once: true });
+    const knownStyles = !language ? skeletons.get(pageKind(url))?.styles || [] : [];
+    let stylesReady = !knownStyles.length, earlyStyles = null, styleFailure = false, preload = Promise.resolve();
+    const loading = !language ? delayedLoading(shownAt => {
+      skeleton(url, position, shownAt);
+      // A shown skeleton owns its loaded CSS until its content is replaced,
+      // even if a successor is still waiting for a different family's CSS.
+      earlyStyles?.retain(); inheritedUpdate?.restore(); restoreMain();
+    }, controller.signal, overlay?.element.getAttribute('aria-busy') === 'true' ? overlay.shownAt : inheritedUpdate?.shownAt ?? null, () => stylesReady) : null;
     let receivedPage = false, pageStyles = null;
     const fallback = destination => { restoreMain(); clearOverlay(); if (rollbackContext) { refreshContext(rollbackContext); restorePosition(position); } fullLoad(destination); return true; };
     try {
-      const response = suppliedResponse || await fetch(url, { credentials: 'same-origin', signal: navigation.signal, headers: { 'X-Admin-Navigation': 'true' } });
+      if (knownStyles.length) preload = preparePageStyles(knownStyles, controller.signal).then(prepared => {
+        earlyStyles = prepared; stylesReady = true; loading?.ready();
+      }).catch(error => { styleFailure = true; throw error; });
+      const [response] = await Promise.all([suppliedResponse || fetch(url, { credentials: 'same-origin', signal: controller.signal, headers: { 'X-Admin-Navigation': 'true' } }), preload]);
       if (!response.ok) throw new Error('Page load failed');
       const html = await response.text(); receivedPage = true;
       const doc = new DOMParser().parseFromString(html, 'text/html');
       if (ticket !== sequence) return false;
       if (!validatePage(doc, response, language)) return fallback(response.url || url);
-      pageStyles = await preparePageStyles(doc, navigation.signal);
+      pageStyles = await preparePageStyles(doc.querySelectorAll('link[data-admin-page-style]'), controller.signal);
       if (ticket !== sequence) return false;
       const nextModules = await loadModules(doc);
       if (ticket !== sequence) return false;
@@ -616,6 +647,7 @@
         old.forEach((element, i) => { if (replacements[i]) element.replaceWith(document.importNode(replacements[i], true)); });
       }
       pageStyles.commit();
+      earlyStyles?.retain();
       for (const notice of doc.querySelectorAll('[data-toast-host] [data-toast]')) toast(notice.querySelector('.grow')?.textContent || notice.textContent, { error: notice.classList.contains('is-error') });
       window.adminDesignTheme?.apply(); paintSideLabel();
       if (mode === 'push') {
@@ -640,7 +672,11 @@
       return true;
     } catch (error) {
       if (error.name === 'AbortError' || ticket !== sequence) return false;
-      if (receivedPage || language) { console.warn('Admin page swap could not finish.', error); return fallback(url); }
+      if (receivedPage || language || styleFailure) { console.warn('Admin page swap could not finish.', error); return fallback(url); }
+      // A failed HTTP read still needs the remembered family CSS before its
+      // decided failure UI can replace the visible page.
+      try { await preload; }
+      catch (styleError) { if (styleError.name === 'AbortError' || ticket !== sequence) return false; return fallback(url); }
       await loading?.complete();
       if (ticket !== sequence) return false;
       loading?.cancel();
@@ -660,7 +696,7 @@
         bindPendingEvents(placeholder, url, true);
       }
       return false;
-    } finally { pageStyles?.discard(); loading?.cancel(); restoreMain(); }
+    } finally { pageStyles?.discard(); earlyStyles?.discard(); loading?.cancel(); restoreMain(); }
   }
   // Shared in-page reads: page adapters supply only fragments/presentation,
   // never their own transport, delayed-loading clock or URL/focus/scroll rules.
