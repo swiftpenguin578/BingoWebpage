@@ -215,7 +215,7 @@ export async function init(region, ui = window.AdminUI) {
       if (location) { await ui.navigate(location); return; }
       await refresh('now-title');
     }
-    on(cancel, 'click', () => { if (!busy()) void layer.close(false); });
+    on(cancel, 'click', () => { if (!busy()) void ui.closeLayer(); });
     on(confirm, 'click', () => { if (!busy()) void run(); });
     paint();
     (reason || panel.querySelector('#dlg-until-date') || cancel).focus();
@@ -344,7 +344,7 @@ export async function init(region, ui = window.AdminUI) {
       if (result.kind === 'handler' && result.data?.outcome === 'stale') await reread();
       banner.hidden = false; paint();
     });
-    on(close, 'click', () => { if (!busy) void layer.close(false); });
+    on(close, 'click', () => { if (!busy) void ui.closeLayer(); });
     paint();
     toggle.focus();
   }
