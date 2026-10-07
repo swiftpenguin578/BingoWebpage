@@ -180,8 +180,9 @@ public sealed class IndexModel(ApplicationDbContext dbContext, TimeProvider? tim
 
     public static bool IsActionKey(string value)
     {
-        var dot = value.IndexOf('.', StringComparison.Ordinal);
-        return dot > 0 && dot < value.Length - 1 && value.IndexOf('.', dot + 1) < 0
+        // One or two dots ("area.action" or a composed "area.action.suffix" such as ".wom_sync").
+        var parts = value.Split('.');
+        return parts.Length is 2 or 3 && parts.All(part => part.Length > 0)
             && value.All(character => char.IsAsciiLetterLower(character) || char.IsAsciiDigit(character) || character is '_' or '.');
     }
 

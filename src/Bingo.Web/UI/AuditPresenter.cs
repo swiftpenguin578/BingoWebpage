@@ -36,6 +36,7 @@ public static class AuditPresenter
         ["account.admin_revoked"] = "Administrator access revoked",
         ["account.discord_linked"] = "Discord identity linked",
         ["account.discord_unlinked"] = "Discord identity unlinked",
+        ["account.discord_replaced"] = "Discord identity replaced",
         ["event.created"] = "Event created",
         ["event.updated"] = "Event updated",
         ["event.hidden"] = "Event hidden",
@@ -177,6 +178,9 @@ public static class AuditPresenter
         ["participant.withdrawn"] = "Participant withdrawn",
         ["roster.finalized_added"] = "Added to a finalized roster",
         ["roster.finalized_removed"] = "Removed from a finalized roster",
+        // Composed keys (S12): SignupService writes $"{action}.wom_sync" for the two roster actions.
+        ["roster.finalized_added.wom_sync"] = "WOM sync after adding to a finalized roster",
+        ["roster.finalized_removed.wom_sync"] = "WOM sync after removing from a finalized roster",
         ["signup_cocaptain.disabled"] = "Co-captain signups turned off",
         ["signup_cocaptain.enabled"] = "Co-captain signups turned on",
         ["signup_question.account_added"] = "Account question added",

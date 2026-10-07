@@ -44,7 +44,7 @@ public static class AuditAreas
         // evidence_code.* and historical_import.* are event-level records with no area of their own.
         new("event.", "Events", ["event.", "evidence_code.", "historical_import."], [], SignupEventKeys),
         new("signup.", "Signups", ["signup.", "signup_question.", "signup_cocaptain."], SignupEventKeys, []),
-        new("participant.", "Participants", ["participant."], ["roster.finalized_added", "roster.finalized_removed", .. ParticipantTeamKeys], []),
+        new("participant.", "Participants", ["participant."], ["roster.finalized_added", "roster.finalized_removed", "roster.finalized_added.wom_sync", "roster.finalized_removed.wom_sync", .. ParticipantTeamKeys], []),
         new("team.", "Teams", ["team."], [], ParticipantTeamKeys),
         new("draft.", "Draft", ["draft."], [], []),
         new("board.", "Board", ["board."], [], []),
