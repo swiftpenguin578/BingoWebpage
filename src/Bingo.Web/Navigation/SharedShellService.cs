@@ -91,7 +91,7 @@ public sealed class SharedShellService(ApplicationDbContext db, IStringLocalizer
                 _ => text["Starts {0}", shownDate].Value
             };
             when = char.ToLower(when[0], CultureInfo.CurrentCulture) + when[1..];
-            var tone = item.State switch { EventState.Live or EventState.AwaitingFinalReview => "tone-live", EventState.SignupOpen => "tone-open", _ => "tone-draft" };
+            var tone = AdminDesignPhasePresentation.For(item.State).DotTone;
             return new AdminDesignEvent(item.Id, item.Name, item.State, item.HiddenAt.HasValue,
                 AdminEventStatePresentation.For(item.State, text).Label, tone, when,
                 AdminDesignEventUrl(page, item.Id, item.HiddenAt.HasValue));

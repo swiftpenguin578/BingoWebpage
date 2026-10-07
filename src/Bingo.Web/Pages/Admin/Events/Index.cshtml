@@ -62,10 +62,10 @@
 <div class="rows" role="rowgroup">
 @foreach (var item in Model.Events) {
     var state = item.State switch {
-        EventState.Draft => ("Setup", "badge-neutral"), EventState.SignupOpen => ("Signups open", "badge-success"),
-        EventState.SignupClosed => ("Signups closed", "badge-neutral"), EventState.Live => ("Live", "badge-accent"),
-        EventState.AwaitingFinalReview => ("Final review", "badge-warning"), EventState.Finalized => ("Finished", "badge-neutral"),
-        EventState.Archived => ("Archived", "badge-outline"), _ => ("Cancelled", "badge-outline")
+        EventState.Draft => "Setup", EventState.SignupOpen => "Signups open",
+        EventState.SignupClosed => "Signups closed", EventState.Live => "Live",
+        EventState.AwaitingFinalReview => "Final review", EventState.Finalized => "Finished",
+        EventState.Archived => "Archived", _ => "Cancelled"
     };
     var overview = $"/Admin/Events/Manage/{item.Id}" + (item.IsHidden ? "?hidden=true" : "");
     var context = Model.ContextDate(item);
@@ -73,7 +73,7 @@
     var labels = Model.AttentionLabels(item);
     <div class="tr row @(item.State == EventState.Cancelled ? "is-cancelled" : "")" role="row" aria-rowindex="@(Model.FirstRow + Model.Events.ToList().IndexOf(item) + 1)" data-event-id="@item.Id" data-event-hidden="@(item.IsHidden ? "true" : "false")" data-open-url="@overview">
         <div class="td c-name" role="cell"><div class="name-line"><a class="name-btn" id="open-@item.Id" href="@overview" title="@item.Name">@item.Name</a>@if (item.Participation?.IsHistoricalImport == true) { <span class="pill is-neutral" title="@D["Imported history from before the platform"]">@D["Imported"]</span> }</div>@if (item.HiddenAt is { } hiddenAt) { <div class="sub">@D["Hidden {0}", DateTimePresentation.Format(hiddenAt, "d MMM yyyy", item.Timezone, CultureInfo.CurrentCulture)]</div> }</div>
-        <div class="td" role="cell"><span class="badge @state.Item2">@D[state.Item1]</span></div>
+        <div class="td" role="cell"><span class="badge @AdminDesignPhasePresentation.For(item.State).BadgeClass">@D[state]</span></div>
         <div class="td td-dates" role="cell"><div class="cell-main @(item.EventStartsAt is null ? "is-muted" : "")">@Model.Range(item)</div>@if (context.Length > 0) { <div class="sub">@context</div> }</div>
         <div class="td" role="cell">
         @if (item.IsPreparation && item.ParticipantCap is { } cap) { <div class="meter" title="@D["{0} of {1} places confirmed", item.Confirmed, cap]"><div class="meter-track" style="--meter-w:44px"><div class="meter-fill" style="width:@(Bingo.Web.Pages.Admin.IndexModel.Percent(cap > 0 ? Math.Min(1m, (decimal)item.Confirmed / cap) : 0))%"></div></div><span class="meter-label @(item.State == EventState.Draft && item.Confirmed == 0 ? "is-muted" : "")">@Model.PeopleMain(item)</span></div> }

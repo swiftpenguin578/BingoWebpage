@@ -25,6 +25,7 @@ namespace Bingo.IntegrationTests;
 
 public sealed partial class AdminDesignShellIntegrationTests(PostgreSqlTestFixture databaseFixture) : IAsyncLifetime, IClassFixture<PostgreSqlTestFixture>
 {
+    private static readonly string[] ExpectedSwitcherTones = ["tone-review", "tone-live", "tone-closed", "tone-open", "tone-draft", "tone-draft"];
     private static readonly DateTimeOffset Now = new(2026, 10, 5, 12, 0, 0, TimeSpan.Zero);
     private readonly PostgreSqlTestDatabase database = databaseFixture.CreateDatabase(new PostgreSqlBuilder("postgres:17-alpine")
         .WithDatabase("bingo_u1_shell").WithUsername("bingo").WithPassword("bingo_test_password"));
@@ -68,6 +69,8 @@ public sealed partial class AdminDesignShellIntegrationTests(PostgreSqlTestFixtu
         Assert.Equal(new[] { review.Id, live.Id, closed.Id, open.Id, draft.Id, unscheduled.Id }, ordinary.Events.Select(item => item.Id));
         Assert.All(ordinary.Events, item => Assert.Equal($"/Admin/Events/Identity/{item.Id}", item.Url));
         Assert.Equal("not announced", ordinary.Events[^1].When);
+        Assert.Equal(ExpectedSwitcherTones, ordinary.Events.Select(item => item.Tone));
+        Assert.Equal("tone-draft", ordinary.SelectedEvent.Tone);
         Assert.Equal(new[] { "ended " + review.EventEndsAt!.Value.ToString("d MMM", System.Globalization.CultureInfo.CurrentCulture), "ended " + live.EventEndsAt!.Value.ToString("d MMM", System.Globalization.CultureInfo.CurrentCulture),
             "starts " + closed.EventStartsAt!.Value.ToString("d MMM", System.Globalization.CultureInfo.CurrentCulture), "closes " + open.SignupClosesAt!.Value.ToString("d MMM", System.Globalization.CultureInfo.CurrentCulture),
             "starts " + draft.EventStartsAt!.Value.ToString("d MMM", System.Globalization.CultureInfo.CurrentCulture), "not announced" }, ordinary.Events.Select(item => item.When));
@@ -75,6 +78,7 @@ public sealed partial class AdminDesignShellIntegrationTests(PostgreSqlTestFixtu
         {
             routes["id"] = terminal.Id;
             var selected = (await service.GetAdminDesignAsync(User("Admin"), routes, CancellationToken.None)).SelectedEvent!;
+            Assert.Equal(terminal.State == EventState.Finalized ? "tone-done" : "tone-draft", selected.Tone);
             Assert.Equal((terminal.State == EventState.Cancelled ? "on " + terminal.CancelledAt!.Value.ToString("d MMM", System.Globalization.CultureInfo.CurrentCulture) : "ended " + terminal.EventEndsAt!.Value.ToString("d MMM", System.Globalization.CultureInfo.CurrentCulture)), selected.When);
         }
         routes["id"] = past.Id;
