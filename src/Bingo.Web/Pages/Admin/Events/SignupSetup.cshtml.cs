@@ -56,7 +56,7 @@ public sealed class SignupSetupModel(ApplicationDbContext dbContext, TimeProvide
 
     public object CurrentSnapshot => new { eventId = EventId, phase = EventState.ToString(), draftLocked = DraftLocked, editable = CanEdit,
             settings = Settings, confirmed = ConfirmedCount, waiting = WaitingCount,
-            hasForm = HasForm, formVersion = FormVersion, hasFirstResponse = HasFirstResponse, firstResponseDay = FirstResponseAt is { } first ? DateTimePresentation.ToTimezone(first).ToString("d MMM yyyy", CultureInfo.CurrentCulture) : null,
+            hasForm = HasForm, formVersion = FormVersion, hasFirstResponse = HasFirstResponse, firstResponseDay = FirstResponseAt is { } first ? DateTimePresentation.ToTimezone(first).ToString("d MMM yyyy, HH':'mm", CultureInfo.CurrentCulture) : null,
             questions = AllQuestions.Select(question => new { question.Id, question.Key, question.Label, question.HelpText,
                 type = question.Type.ToString(), question.Required, question.Options, question.Position, question.Active,
                 systemField = question.SystemField.ToString(), accountRole = question.AccountAnswerRole?.ToString(), question.Version,

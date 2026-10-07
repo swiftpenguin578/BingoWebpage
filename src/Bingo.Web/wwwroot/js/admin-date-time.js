@@ -14,7 +14,8 @@ const trapTab = (event, id) => { const items = [...document.getElementById(id).q
   function addDays(p, n) { var t = new Date(Date.UTC(p.y, p.m - 1, p.d + n)); return { y: t.getUTCFullYear(), m: t.getUTCMonth() + 1, d: t.getUTCDate() }; }
   function addMonths(p, n) { var mm = p.m - 1 + n, y = p.y + Math.floor(mm / 12); mm = ((mm % 12) + 12) % 12; return { y: y, m: mm + 1, d: Math.min(p.d, daysIn(y, mm + 1)) }; }
   function weekday(p) { return (new Date(Date.UTC(p.y, p.m - 1, p.d)).getUTCDay() + 6) % 7; } // Monday = 0
-  function fmtDate(p) { return p ? p.d + ' ' + MON3[p.m - 1] + ' ' + p.y : ''; }
+  function localeMonths() { if(globalThis.document?.documentElement?.lang!=='da')return MON3;return MONTHS.map((_,i)=>new Intl.DateTimeFormat(globalThis.document?.documentElement?.lang==='da'?'da-DK':'en-GB',{month:'short',timeZone:'UTC'}).format(new Date(Date.UTC(2026,i,1)))); }
+  function fmtDate(p) { return p ? p.d + ' ' + localeMonths()[p.m - 1] + ' ' + p.y : ''; }
   function fmtTime(p) { return p ? pad(p.h) + ':' + pad(p.mi) : ''; }
   function parseDate(t) {
     t = String(t || '').trim(); if (!t) return { empty: true };
@@ -22,7 +23,7 @@ const trapTab = (event, id) => { const items = [...document.getElementById(id).q
     if ((x = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(t))) { y = +x[1]; m = +x[2]; d = +x[3]; }
     else if ((x = /^(\d{1,2})[.\/\- ](\d{1,2})[.\/\- ](\d{4})$/.exec(t))) { d = +x[1]; m = +x[2]; y = +x[3]; }
     else if ((x = /^(\d{1,2})\.?\s*([A-Za-z]{3,})\.?,?\s*(\d{4})$/.exec(t))) {
-      var k = x[2].slice(0, 3).toLowerCase(); m = MON3.map(function (s) { return s.toLowerCase(); }).indexOf(k) + 1; d = +x[1]; y = +x[3];
+      var k = x[2].slice(0, 3).toLowerCase(); m = MON3.map(function (s) { return s.toLowerCase(); }).indexOf(k) + 1; if(!m)m=localeMonths().map(s=>s.slice(0,3).toLowerCase()).indexOf(k)+1; d = +x[1]; y = +x[3];
     }
     if (!y || !m || m > 12 || !d || d > daysIn(y, m) || y < 2000 || y > 2100) return { error: 'Enter a date like 27 Jun 2027.' };
     return { y: y, m: m, d: d };
