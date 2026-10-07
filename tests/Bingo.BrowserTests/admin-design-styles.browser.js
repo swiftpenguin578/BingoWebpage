@@ -1,4 +1,4 @@
-// Brief74 5b: real native stylesheet load/error with exact fake-clock boundaries.
+// Brief74 5b / round5 L1: native stylesheet readiness with an already-ready page.
 const assert=require('node:assert/strict'),fs=require('node:fs');
 const {chromium,webkit}=require('playwright');
 const {root,shell}=require('./fixtures/admin-design-shell-fixture.cjs');
@@ -30,7 +30,7 @@ async function nativeUntil(page,predicate){for(let i=0;i<200;i++){if(predicate()
    await page.evaluate(()=>window.nativeFrame=requestAnimationFrame.bind(window));
    await page.clock.install({time:new Date('2030-01-01T00:00:00Z')});await page.clock.pauseAt(new Date('2030-01-01T00:01:00Z'));
    await page.evaluate(({source,target,to})=>{
-    window.badFrames=[];window.timerLog=[];window.old=document.querySelector('[data-destination]');window.oldStyle=document.querySelector('[data-admin-page-style]');window.done=false;window.started=performance.now();
+    window.badFrames=[];window.skeletonInsertions=[];window.timerLog=[];window.old=document.querySelector('[data-destination]');window.oldStyle=document.querySelector('[data-admin-page-style]');window.done=false;window.started=performance.now();
     const properties=['display','position','color','backgroundColor','fontSize','lineHeight','width','height','paddingTop','paddingBottom','marginTop','marginBottom','gap','gridTemplateColumns','flex'];
     const presentation=()=>[old,...old.querySelectorAll('*')].map(e=>{const css=getComputedStyle(e);return properties.map(key=>css[key]);});
     const leavingPresentation=JSON.stringify(presentation());
@@ -40,18 +40,23 @@ async function nativeUntil(page,predicate){for(let i=0;i<200;i++){if(predicate()
      if(region&&(!link?.sheet||link.media==='not all'||(frame&&getComputedStyle(region).getPropertyValue('--fixture-page').trim()!==to)))badFrames.push({reason:'destination without active ready stylesheet',frame,from:old.dataset.destination,to,css:getComputedStyle(region).getPropertyValue('--fixture-page'),media:link?.media,sheet:!!link?.sheet,disabled:link?.sheet?.disabled,sheetMedia:link?.sheet?.media?.mediaText,lastRule:link?.sheet?.cssRules?.item(link.sheet.cssRules.length-1)?.cssText,styles:[...document.querySelectorAll('head link[data-admin-page-style]')].map(e=>e.outerHTML)});
      if(old.isConnected&&old.checkVisibility()&&(!oldStyle.isConnected||getComputedStyle(old).getPropertyValue('--fixture-page').trim()!==old.dataset.destination))badFrames.push('old page rendered under destination CSS');};
     const inspectPresentation=()=>{if(old.isConnected&&old.checkVisibility()&&JSON.stringify(presentation())!==leavingPresentation)badFrames.push('leaving page presentation changed');};
-    new MutationObserver(()=>inspect()).observe(document.documentElement,{childList:true,subtree:true,attributes:true});
+    new MutationObserver(records=>{
+     for(const record of records)for(const node of record.addedNodes)if(node.nodeType===1&&(node.matches('[data-page-skeleton]')||node.querySelector('[data-page-skeleton]')))skeletonInsertions.push(performance.now());
+     inspect();
+    }).observe(document.documentElement,{childList:true,subtree:true,attributes:true});
     const frame=()=>{inspect(true);inspectPresentation();nativeFrame(frame);};nativeFrame(frame);
     void AdminUI.navigate(target).then(()=>done=true);
    },{source:html(to),target:routes[to],to});
    await nativeUntil(page,()=>!!waiting);assert.equal(requests.length,1,'uncached first visit CSS requested once');
    assert.equal(await page.evaluate(()=>oldStyle.isConnected&&old.checkVisibility()),true);
    await page.clock.runFor(Math.min(endAt,149));assert.equal(await page.locator('[data-page-skeleton]').count(),0);assert.equal(await page.locator('[data-destination="'+to+'"]').count(),0);
-   if(endAt>=150){await page.clock.runFor(1);assert.equal(await page.locator('[data-page-skeleton]').count(),1);await page.clock.runFor(endAt-150);}
+   if(endAt>=150){await page.clock.runFor(1);assert.equal(await page.locator('[data-page-skeleton]').count(),0,'ready response never shows a skeleton while CSS waits');await page.clock.runFor(endAt-150);}
+   assert.equal(await page.evaluate(()=>old.checkVisibility()&&!done),true);
    await waiting.fulfill({contentType:'text/css',body:fs.readFileSync(root+'/css/admin-design-'+to+'.css','utf8')+'\n[data-page-family="'+to+'"]{--fixture-page:'+to+'}'});
-   if(endAt<150)await until(page,()=>done);
-   else if(endAt<550){await until(page,()=>timerLog.includes(550-(performance.now()-started)));await page.clock.runFor(550-endAt-1);assert.equal(await page.evaluate(()=>done),false);await page.clock.runFor(1);await until(page,()=>done);}
-   else await until(page,()=>done);
+   await until(page,()=>done);
+   assert.deepEqual(await page.evaluate(()=>skeletonInsertions),[],'no skeleton insertion, even transiently');
+   assert.equal(await page.evaluate(()=>performance.now()-started),endAt,'ready page swaps at CSS readiness without a hold');
+   assert.equal(await page.evaluate(()=>timerLog.includes(400)),false);
    await page.evaluate(()=>new Promise(resolve=>nativeFrame(()=>nativeFrame(resolve))));assert.deepEqual(await page.evaluate(()=>badFrames),[]);assert.deepEqual(errors,[]);
    assert.equal(await page.locator('head link[data-admin-page-style]').count(),1);assert.equal(await page.evaluate(()=>oldStyle.isConnected),false);
    // Same href stays in place with no second request or flash.
