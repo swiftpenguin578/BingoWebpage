@@ -48,7 +48,8 @@
     var emptyText = Model.BeyondResults ? D["There are fewer results now. Go back to the first page."].Value : D["Search looks at website usernames, not Discord names or OSRS characters."].Value;
 }
 @section HeaderSummary {
-    <span data-accounts-summary>@D["{0} accounts · {1} disabled", Model.WebsiteTotalCount, Model.WebsiteDisabledCount]</span><span>@D["Website accounts and their global access"]</span>
+    @* T1-5: Events-style summary items with tabular numbers (Events.dc.html:113-114). *@
+    <span data-accounts-summary><b class="tnum">@Model.WebsiteTotalCount</b> @D["accounts"]</span><span><b class="tnum">@Model.WebsiteDisabledCount</b> @D["disabled"]</span><span>@D["Website accounts and their global access"]</span>
 }
 @section HeaderActions {
     @if (Model.IsSuperAdmin) { <div class="head-actions"><button class="btn btn-quiet" type="button" id="transfer-btn" data-account-transfer-open><svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 5.5h9.5M10 3l2.5 2.5L10 8M13 10.5H3.5M6 8l-2.5 2.5L6 13"/></svg>@D["Transfer ownership"]</button></div> }
@@ -73,7 +74,7 @@
 <div class="rows" role="rowgroup">
 @foreach (var account in Model.WebsiteAccounts) {
     var sub = account.DiscordLinked ? account.DiscordDisplayName is { Length: > 0 } discord ? D["Discord · {0}", discord].Value : D["Discord linked"].Value : D["No Discord link"].Value;
-    var roleClass = account.Role switch { GlobalRole.SuperAdmin => "badge badge-accent", GlobalRole.Admin => "badge badge-outline", _ => "ac-plain" };
+    var roleClass = account.Role switch { GlobalRole.SuperAdmin => "badge badge-accent", GlobalRole.Admin => "badge badge-outline", _ => "badge badge-neutral" };
     <div class="tr row @(account.Active ? null : "is-disabled") @(Model.RequestedAccount == account.Id ? "is-selected" : null)" role="row" data-account-row="@account.Id">
         <div class="td c-name" role="cell"><div class="ac-who"><span class="avatar" aria-hidden="true">@AccountsPresentation.Initials(account.Username)</span><span class="ac-who-text"><a class="name-btn" id="open-@account.Id" href="@Model.DirectoryUrl(account: account.Id)" data-account-open="@account.Id">@account.Username</a><span class="cell-sub @(account.DiscordLinked ? null : "is-muted")">@sub</span></span></div></div>
         <div class="td" role="cell"><span class="@roleClass">@Model.RoleLabel(account.Role)</span></div>

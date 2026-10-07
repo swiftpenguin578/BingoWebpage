@@ -18,7 +18,14 @@ const { startFixture, login } = require('../../scripts/lib/admin-parity-fixture.
     await page.locator('[data-accounts-directory]').waitFor();
     assert.equal(new URL(page.url()).search, '', 'invalid link parts canonicalize to the plain directory');
     assert.equal(await page.locator('h1.h1').innerText(), 'Accounts');
-    assert.match(await page.locator('[data-accounts-summary]').innerText(), /^\d+ accounts · 1 disabled$/);
+    // T1-5: separate summary items with tabular numbers, then the scope text.
+    const summaryItems = await page.locator('.page-head .summary > span').allTextContents();
+    assert.equal(summaryItems.length, 3);
+    assert.match(summaryItems[0], /^\d+ accounts$/); assert.equal(summaryItems[1], '1 disabled'); assert.equal(summaryItems[2], 'Website accounts and their global access');
+    assert.equal(await page.locator('.page-head .summary b.tnum').count(), 2);
+    // T1-4 (b): Global role is always a pill; Status keeps the reference (Disabled badge only).
+    assert.equal(await page.locator('[data-account-row] .td:nth-child(2) > span:not(.badge)').count(), 0);
+    assert.ok(await page.locator('[data-account-row] .td:nth-child(2) .badge-neutral').count() > 0);
     assert.equal(await page.locator('#transfer-btn').count(), 0, 'an ordinary Admin has no Transfer ownership');
     assert.equal(await page.evaluate(() => document.scrollingElement.scrollHeight <= innerHeight), true, 'the document never scrolls');
 
@@ -37,8 +44,16 @@ const { startFixture, login } = require('../../scripts/lib/admin-parity-fixture.
     // Drawer: pushes ?account=, Back closes it, Forward reopens it.
     const rowLink = page.locator('[data-account-open]', { hasText: 'ReviewWebsite' });
     const id = await rowLink.getAttribute('data-account-open');
+    const rowInitials = (await page.locator(`[data-account-row="${id}"] .avatar`).innerText()).trim();
+    // Avatar appears with the drawer at once: hold the drawer read so only the shell shows.
+    let releaseRead; const held = new Promise(resolve => { releaseRead = resolve; });
+    await page.route(url => url.searchParams.get('account') === id && url.pathname === '/Admin/Accounts', async route => { await held; await route.continue(); });
     await rowLink.click();
     const drawer = page.locator('.drawer');
+    await drawer.locator('.dr-head .avatar').waitFor();
+    assert.equal((await drawer.locator('.dr-head .avatar').innerText()).trim(), rowInitials);
+    assert.equal(await drawer.locator('#drawer-title').innerText(), 'ReviewWebsite');
+    releaseRead(); await page.unrouteAll({ behavior: 'wait' });
     await drawer.locator('#drawer-title', { hasText: 'ReviewWebsite' }).waitFor();
     assert.equal(new URL(page.url()).searchParams.get('account'), id);
     assert.equal(await drawer.getAttribute('data-page-family'), 'accounts');

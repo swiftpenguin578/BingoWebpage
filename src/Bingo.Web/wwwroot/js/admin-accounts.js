@@ -30,8 +30,8 @@ export function init(region, ui = window.AdminUI) {
     importChildren(results, fresh.querySelector('[data-accounts-results]'));
     importChildren(root.querySelector('[data-accounts-footer]'), fresh.querySelector('[data-accounts-footer]'));
     importChildren(root.querySelector('[data-directory-banners]'), fresh.querySelector('[data-directory-banners]'));
-    const summary = region.querySelector('[data-accounts-summary]'), nextSummary = doc.querySelector('[data-accounts-summary]');
-    if (summary && nextSummary) summary.textContent = nextSummary.textContent;
+    const summary = region.querySelector('.page-head .summary'), nextSummary = doc.querySelector('.page-head .summary');
+    if (summary && nextSummary) importChildren(summary, nextSummary);
     const transfer = fresh.querySelector('template[data-account-transfer-template]'), ownTransfer = root.querySelector('template[data-account-transfer-template]');
     if (transfer && ownTransfer) ownTransfer.replaceWith(document.importNode(transfer, true));
     root.dataset.directoryCanonical = fresh.dataset.directoryCanonical;
@@ -170,16 +170,18 @@ export function init(region, ui = window.AdminUI) {
       fallbackFocus: () => state.element.querySelector('#dr-banner') || state.element.querySelector('#drawer-close'),
       current: () => token === drawerToken && drawer === state });
   }
-  function drawerShell(name) {
+  function drawerShell(name, initials) {
     const content = document.createDocumentFragment();
     const head = document.createElement('div'); head.className = 'dr-head';
+    // The avatar is there at once (the row's initials, or an empty circle for a direct link).
+    const avatar = document.createElement('span'); avatar.className = 'avatar is-lg'; avatar.setAttribute('aria-hidden', 'true'); avatar.textContent = initials || '';
     const grow = document.createElement('div'); grow.className = 'grow';
     const eyebrow = document.createElement('div'); eyebrow.className = 'eyebrow'; eyebrow.textContent = t('Website account');
     const title = document.createElement('h2'); title.className = 'dr-title'; title.id = 'drawer-title'; title.textContent = name || t('Loading…');
     grow.append(eyebrow, title);
     const close = document.createElement('button'); close.type = 'button'; close.className = 'icon-btn'; close.id = 'drawer-close'; close.setAttribute('aria-label', t('Close')); close.dataset.accountDrawerClose = '';
     close.append(ui.template('toast').querySelector('.toast-x svg').cloneNode(true));
-    head.append(grow, close);
+    head.append(avatar, grow, close);
     const body = document.createElement('div'); body.className = 'dr-body'; body.id = 'drawer-body';
     const slot = document.createElement('div'); slot.dataset.accountBannerSlot = '';
     const holder = document.createElement('div'); holder.dataset.accountDrawerContent = '';
@@ -195,7 +197,8 @@ export function init(region, ui = window.AdminUI) {
     if (drawer?.id === id) return;
     if (drawer && !await closeDrawer({ history: false })) return;
     if (push) setUrl(directoryUrl(id), true);
-    const { content, slot, holder } = drawerShell(root.querySelector(`[data-account-open="${CSS.escape(id)}"]`)?.textContent);
+    const row = root.querySelector(`[data-account-row="${CSS.escape(id)}"]`);
+    const { content, slot, holder } = drawerShell(row?.querySelector('[data-account-open]')?.textContent, row?.querySelector('.avatar')?.textContent.trim());
     const state = drawer = { id, busy: null, unresolved: null, pushed: push, opener, slot, holder, confirms: new Map(), silent: false };
     drawerToken++;
     const layer = ui.openLayer({ kind: 'drawer', title: t('Website account'), content, opener,
