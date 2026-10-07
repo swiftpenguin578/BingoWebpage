@@ -3932,4 +3932,99 @@
   <data name="The WOM end could not be updated. The last fetch before the end is retained." xml:space="preserve"><value>WOM-sluttidspunktet kunne ikke opdateres. Den sidste hentning før afslutningen bevares.</value></data>
   <data name="The event is not in final review." xml:space="preserve"><value>Eventet er ikke i slutgennemgang.</value></data>
   <data name="WOM data was not fetched. Check the current connection before trying again." xml:space="preserve"><value>WOM-data blev ikke hentet. Kontrollér den aktuelle forbindelse, før du prøver igen.</value></data>
+  <data name="At completion" xml:space="preserve"><value>Ved fuldførelse</value></data>
+  <data name="Calculated from approved evidence. They change if a review decision changes." xml:space="preserve"><value>Beregnet ud fra godkendt dokumentation. Placeringerne ændrer sig, hvis en afgørelse ændres.</value></data>
+  <data name="Complete publication" xml:space="preserve"><value>Færdiggør offentliggørelse</value></data>
+  <data name="Completed boards first, then earlier completion." xml:space="preserve"><value>Fuldførte plader først, derefter tidligste fuldførelse.</value></data>
+  <data name="Credited EHB" xml:space="preserve"><value>Tildelt EHB</value></data>
+  <data name="Earlier current-score time, then more credited EHB." xml:space="preserve"><value>Tidligst opnåede aktuelle score, derefter mere tildelt EHB.</value></data>
+  <data name="Exact equality on every competitive input shares the place. Team names only order tied rows." xml:space="preserve"><value>Præcis lighed i alle konkurrenceværdier giver en delt placering. Holdnavne bestemmer kun rækkefølgen mellem lige hold.</value></data>
+  <data name="Exceptional. Returns the event to provisional final review and keeps version {0} in history. It doesn’t restart the event or reopen uploads." xml:space="preserve"><value>Kun ved rettelser. Eventet vender tilbage til foreløbig slutgennemgang, og version {0} bevares i historikken. Eventet genstarter ikke, og uploads genåbnes ikke.</value></data>
+  <data name="Full board" xml:space="preserve"><value>Fuld plade</value></data>
+  <data name="How placements are decided" xml:space="preserve"><value>Sådan afgøres placeringerne</value></data>
+  <data name="Live standings" xml:space="preserve"><value>Aktuelle placeringer</value></data>
+  <data name="More completed lines, then more completed tiles." xml:space="preserve"><value>Flere fuldførte linjer, derefter flere fuldførte felter.</value></data>
+  <data name="More credited EHB, then earlier current-score time." xml:space="preserve"><value>Mere tildelt EHB, derefter tidligst opnåede aktuelle score.</value></data>
+  <data name="No standings yet" xml:space="preserve"><value>Ingen placeringer endnu</value></data>
+  <data name="Not completed" xml:space="preserve"><value>Ikke fuldført</value></data>
+  <data name="Official" xml:space="preserve"><value>Officiel</value></data>
+  <data name="Official results" xml:space="preserve"><value>Officielle resultater</value></data>
+  <data name="Official results are read-only. Complete the legacy publication to archive the event, or reopen for corrections." xml:space="preserve"><value>De officielle resultater er skrivebeskyttede. Færdiggør den tidligere offentliggørelse for at arkivere eventet, eller genåbn for rettelser.</value></data>
+  <data name="Official results are read-only. Reopen only when a correction is needed." xml:space="preserve"><value>De officielle resultater er skrivebeskyttede. Genåbn kun, hvis der er behov for en rettelse.</value></data>
+  <data name="Official results · version {0}" xml:space="preserve"><value>Officielle resultater · version {0}</value></data>
+  <data name="One confirmation. No reason needed." xml:space="preserve"><value>Én bekræftelse. Ingen begrundelse påkrævet.</value></data>
+  <data name="Open Board" xml:space="preserve"><value>Åbn plade</value></data>
+  <data name="Open Review" xml:space="preserve"><value>Åbn gennemgang</value></data>
+  <data name="Place and team" xml:space="preserve"><value>Placering og hold</value></data>
+  <data name="Provisional standings" xml:space="preserve"><value>Foreløbige placeringer</value></data>
+  <data name="Publication history" xml:space="preserve"><value>Offentliggørelseshistorik</value></data>
+  <data name="Publish official results…" xml:space="preserve"><value>Offentliggør officielle resultater…</value></data>
+  <data name="Published {0}" xml:space="preserve"><value>Offentliggjort {0}</value></data>
+  <data name="Published {0} by {1}" xml:space="preserve"><value>Offentliggjort {0} af {1}</value></data>
+  <data name="Publishing makes these standings official as version {0} and archives the event." xml:space="preserve"><value>Offentliggørelse gør disse placeringer officielle som version {0} og arkiverer eventet.</value></data>
+  <data name="Reopen for corrections…" xml:space="preserve"><value>Genåbn for rettelser…</value></data>
+  <data name="Resolve the items below first." xml:space="preserve"><value>Løs punkterne nedenfor først.</value></data>
+  <data name="Retained" xml:space="preserve"><value>Bevaret</value></data>
+  <data name="Score reached" xml:space="preserve"><value>Score opnået</value></data>
+  <data name="Standings are calculated from the published board once the event is live." xml:space="preserve"><value>Placeringer beregnes ud fra den offentliggjorte plade, når eventet er live.</value></data>
+  <data name="Stored exactly as published." xml:space="preserve"><value>Gemt præcis som offentliggjort.</value></data>
+  <data name="This event was cancelled. Results are read-only." xml:space="preserve"><value>Dette event blev aflyst. Resultaterne er skrivebeskyttede.</value></data>
+  <data name="Times in {0}" xml:space="preserve"><value>Tider i {0}</value></data>
+  <data name="Uploads close {0}" xml:space="preserve"><value>Uploads lukker {0}</value></data>
+  <data name="Version {0} published" xml:space="preserve"><value>Version {0} offentliggjort</value></data>
+  <data name="Version {0} reopened" xml:space="preserve"><value>Version {0} genåbnet</value></data>
+  <data name="{0} versions" xml:space="preserve"><value>{0} versioner</value></data>
+  <data name="Completed the board after {0}" xml:space="preserve"><value>Fuldførte pladen efter {0}</value></data>
+  <data name="Event is in final review" xml:space="preserve"><value>Eventet er i slutgennemgang</value></data>
+  <data name="Every submission has a decision." xml:space="preserve"><value>Alle indsendelser har en afgørelse.</value></data>
+  <data name="Every submission must be approved or rejected in Review." xml:space="preserve"><value>Alle indsendelser skal godkendes eller afvises i gennemgangen.</value></data>
+  <data name="Fewer lines than {0}" xml:space="preserve"><value>Færre linjer end {0}</value></data>
+  <data name="Final review starts when the event ends" xml:space="preserve"><value>Slutgennemgangen starter, når eventet slutter</value></data>
+  <data name="First to complete the board" xml:space="preserve"><value>Først til at fuldføre pladen</value></data>
+  <data name="From the published board and finalized teams." xml:space="preserve"><value>Ud fra den offentliggjorte plade og de endelige hold.</value></data>
+  <data name="Less credited EHB than {0}" xml:space="preserve"><value>Mindre tildelt EHB end {0}</value></data>
+  <data name="More credited EHB than {0}" xml:space="preserve"><value>Mere tildelt EHB end {0}</value></data>
+  <data name="Most completed lines" xml:space="preserve"><value>Flest fuldførte linjer</value></data>
+  <data name="No full board" xml:space="preserve"><value>Ingen fuld plade</value></data>
+  <data name="No pending submissions" xml:space="preserve"><value>Ingen afventende indsendelser</value></data>
+  <data name="No results yet" xml:space="preserve"><value>Ingen resultater endnu</value></data>
+  <data name="Official · version {0}" xml:space="preserve"><value>Officiel · version {0}</value></data>
+  <data name="Provisional" xml:space="preserve"><value>Foreløbig</value></data>
+  <data name="Provisional · correction" xml:space="preserve"><value>Foreløbig · rettelse</value></data>
+  <data name="Reached the tied score after {0}" xml:space="preserve"><value>Opnåede den lige score efter {0}</value></data>
+  <data name="Reached the tied score before {0}" xml:space="preserve"><value>Opnåede den lige score før {0}</value></data>
+  <data name="Ready to publish" xml:space="preserve"><value>Klar til offentliggørelse</value></data>
+  <data name="Shares place {0} with {1}: equal on every input" xml:space="preserve"><value>Deler placering {0} med {1}: lighed i alle værdier</value></data>
+  <data name="The only ranked team" xml:space="preserve"><value>Det eneste placerede hold</value></data>
+  <data name="Uploads are closed" xml:space="preserve"><value>Uploads er lukket</value></data>
+  <data name="Uploads are still open" xml:space="preserve"><value>Uploads er stadig åbne</value></data>
+  <data name="Waiting for uploads to close" xml:space="preserve"><value>Venter på, at uploads lukker</value></data>
+  <data name="{0} is still live. End it first, then publish its results before reopening this event." xml:space="preserve"><value>{0} er stadig live. Afslut det først, og offentliggør derefter dets resultater, før du genåbner dette event.</value></data>
+  <data name="{0} things to resolve before publishing" xml:space="preserve"><value>{0} punkter skal løses før offentliggørelse</value></data>
+  <data name="Loading final review" xml:space="preserve"><value>Indlæser slutgennemgang</value></data>
+  <data name="Same lines as {0}; more tiles" xml:space="preserve"><value>Samme antal linjer som {0}; flere felter</value></data>
+  <data name="Same lines; fewer tiles than {0}" xml:space="preserve"><value>Samme antal linjer; færre felter end {0}</value></data>
+  <data name="Publication requirements" xml:space="preserve"><value>Krav til offentliggørelse</value></data>
+  <data name="Complete legacy publication" xml:space="preserve"><value>Færdiggør tidligere offentliggørelse</value></data>
+  <data name="Archive this event while retaining its existing official results." xml:space="preserve"><value>Arkivér dette event, og bevar de eksisterende officielle resultater.</value></data>
+  <data name="Final-review cycle is missing" xml:space="preserve"><value>Slutgennemgangens cyklus mangler</value></data>
+  <data name="The retained lifecycle history does not identify this review cycle. Correct the retained state before continuing." xml:space="preserve"><value>Den bevarede fasehistorik identificerer ikke denne gennemgangscyklus. Ret den bevarede tilstand, før du fortsætter.</value></data>
+  <data name="Event has not ended" xml:space="preserve"><value>Eventet er ikke afsluttet</value></data>
+  <data name="End the live event before final review." xml:space="preserve"><value>Afslut det aktive event før slutgennemgangen.</value></data>
+  <data name="Published board and teams required" xml:space="preserve"><value>Offentliggjort plade og hold påkrævet</value></data>
+  <data name="The event needs a published board and finalized active teams." xml:space="preserve"><value>Eventet kræver en offentliggjort plade og endelige aktive hold.</value></data>
+  <data name="Submission cutoff required" xml:space="preserve"><value>Frist for indsendelser påkrævet</value></data>
+  <data name="Configure a submission cutoff before final review." xml:space="preserve"><value>Angiv en frist for indsendelser før slutgennemgangen.</value></data>
+  <data name="Submission window is still open" xml:space="preserve"><value>Indsendelsesvinduet er stadig åbent</value></data>
+  <data name="Calculated placements required" xml:space="preserve"><value>Beregnede placeringer påkrævet</value></data>
+  <data name="The published board has no active teams to rank. Finalize the roster and recalculate the board before publishing official results." xml:space="preserve"><value>Den offentliggjorte plade har ingen aktive hold at placere. Færdiggør holdlisten, og genberegn pladen, før du offentliggør officielle resultater.</value></data>
+  <data name="Calculated placements are invalid" xml:space="preserve"><value>De beregnede placeringer er ugyldige</value></data>
+  <data name="The current board projection returned duplicate or incomplete team identities. Correct the retained board and try again." xml:space="preserve"><value>Den aktuelle pladevisning returnerede dublerede eller ufuldstændige holdidentiteter. Ret den bevarede plade, og prøv igen.</value></data>
+  <data name="Publish official results" xml:space="preserve"><value>Offentliggør officielle resultater</value></data>
+  <data name="Publish these placements as the official results and archive the event in one step?" xml:space="preserve"><value>Offentliggør disse placeringer som officielle resultater, og arkivér eventet i ét trin?</value></data>
+  <data name="Standings" xml:space="preserve"><value>Placeringer</value></data>
+  <data name="The reopening reason must be 2000 characters or fewer." xml:space="preserve"><value>Begrundelsen for genåbning må højst være 2000 tegn.</value></data>
+  <data name="This final-review action is retired. Resolve the underlying records and publish official results." xml:space="preserve"><value>Denne handling i slutgennemgangen er udfaset. Ret de underliggende registreringer, og offentliggør officielle resultater.</value></data>
+  <data name="{0} shared" xml:space="preserve"><value>{0} delt</value></data>
+  <data name="Place {0}" xml:space="preserve"><value>Placering {0}</value></data>
 </root>

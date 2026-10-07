@@ -116,7 +116,7 @@ public sealed class C33FinalizationFreshnessTests : IAsyncLifetime
         await AssertNotFinalizedAsync();
         var staleHtml = WebUtility.HtmlDecode(await client.GetStringAsync(FinalizeUrl));
         Assert.Contains("This event changed in another session", staleHtml, StringComparison.Ordinal);
-        Assert.Contains("app-toast-error", staleHtml, StringComparison.Ordinal);
+        Assert.Contains("is-error", staleHtml, StringComparison.Ordinal); // A10: shared Admin toast.
         var finalReadiness = await ReadinessAsync();
         var finalForm = Form(await client.GetStringAsync(FinalizeUrl), "Finalize");
         await PostAsync(client, finalForm, ("FinalizeConfirmation", "PUBLISH_OFFICIAL_RESULTS"));
@@ -324,8 +324,8 @@ public sealed class C33FinalizationFreshnessTests : IAsyncLifetime
         await AssertNotFinalizedAsync();
         var html = WebUtility.HtmlDecode(await client.GetStringAsync(FinalizeUrl));
         Assert.Contains("This event changed in another session", html);
-        Assert.Contains("app-toast-error", html);
-        Assert.DoesNotContain("app-toast-success", html);
+        Assert.Contains("is-error", html); // A10: shared Admin toast.
+        Assert.DoesNotContain("toast is-success", html);
     }
 
     [Fact]
@@ -387,19 +387,18 @@ public sealed class C33FinalizationFreshnessTests : IAsyncLifetime
         using var english = factory.CreateClient(new() { AllowAutoRedirect = false });
         await LoginAsync(english, "c33-admin");
         var englishHtml = WebUtility.HtmlDecode(await english.GetStringAsync(FinalizeUrl));
-        Assert.Contains("Rank order: completed boards by effective finish time", englishHtml, StringComparison.Ordinal);
-        Assert.Contains(">Score time</th>", englishHtml, StringComparison.Ordinal);
-        Assert.Contains(Regex.Matches(englishHtml, "<td data-label=\\\"Score time\\\"><span>(.*?)</span></td>")
-            .Cast<Match>(), match => match.Groups[1].Value != "—");
+        // A10 / AU12: shared table markup, same authoritative score-time values and rule explanation.
+        Assert.Contains("Completed boards first, then earlier completion.", englishHtml, StringComparison.Ordinal);
+        Assert.Contains(">Score reached</div>", englishHtml, StringComparison.Ordinal);
+        Assert.Matches(@"role=""cell""><span class=""tval[^""]*"">[0-9]{2} [A-Za-z]+ [0-9]{4}", englishHtml);
 
         using var danish = factory.CreateClient(new() { AllowAutoRedirect = false });
         danish.DefaultRequestHeaders.AcceptLanguage.ParseAdd("da");
         await LoginAsync(danish, "c33-admin");
         var danishHtml = WebUtility.HtmlDecode(await danish.GetStringAsync(FinalizeUrl));
-        Assert.Contains("Rangorden: fuldførte boards efter gældende sluttid", danishHtml, StringComparison.Ordinal);
-        Assert.Contains(">Scoretid</th>", danishHtml, StringComparison.Ordinal);
-        Assert.Contains(Regex.Matches(danishHtml, "<td data-label=\\\"Scoretid\\\"><span>(.*?)</span></td>")
-            .Cast<Match>(), match => match.Groups[1].Value != "—");
+        Assert.Contains("Fuldførte plader først, derefter tidligste fuldførelse.", danishHtml, StringComparison.Ordinal);
+        Assert.Contains(">Score opnået</div>", danishHtml, StringComparison.Ordinal);
+        Assert.Matches(@"role=""cell""><span class=""tval[^""]*"">[0-9]{2} ", danishHtml);
     }
 
     [Fact]

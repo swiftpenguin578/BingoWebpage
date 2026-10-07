@@ -12,7 +12,8 @@ using Microsoft.Extensions.Localization;
 
 namespace Bingo.Web.Pages.Admin.Events;
 
-public sealed class FinalizeModel(IEventFinalizationService finalization, ApplicationDbContext db, Bingo.Application.Auditing.IAuditWriter? audit = null, IStringLocalizer<SharedResource>? text = null) : PageModel
+[AdminDesign]
+public sealed partial class FinalizeModel(IEventFinalizationService finalization, ApplicationDbContext db, Bingo.Application.Auditing.IAuditWriter? audit = null, IStringLocalizer<SharedResource>? text = null) : PageModel
 {
     public FinalReviewReadiness Readiness { get; private set; } = null!;
     public string EventTimezone { get; private set; } = DateTimePresentation.DefaultTimezoneId;

@@ -38,10 +38,11 @@ Participant|true|true|Read=GET:;Signup=POST:,POST:CancelWomValidation,POST:Resto
 Board|true|false|Read=GET:,GET:EditorData,GET:Readback;RetainedArtwork=GET:TileImage;Board=POST:Create,POST:TakeEditing,POST:AcquireEditing,POST:ReleaseEditing,POST:CreateTile,POST:EditTile,POST:Move,POST:Resize,POST:TeamSize,POST:Publish,POST:DiscardCorrection,POST:Approve,POST:Unapprove,POST:Remove,POST:ApproveState,POST:PublishState;BoardCorrection=POST:CorrectPublished
 BoardPreview|true|false|Read=GET:
 Draft|true|false|Read=GET:,GET:Readback,GET:TeamImage;Setup=POST:AddTeam,POST:RemoveDraftTeam,POST:WithdrawParticipant,POST:UpdateTeam,POST:AddMember,POST:RemoveMember,POST:MoveMember,POST:Scramble,POST:Start,POST:Configure,POST:Pick,POST:Undo,POST:Cancel,POST:Finalize,POST:AcquireControl,POST:TakeControl,POST:ReleaseControl;Service=POST:ChangeRole
-Finalize|true|true|Read=GET:;Service=POST:Resolve,POST:AcknowledgeCompletion,POST:CorrectCompletion,POST:Finalize,POST:Unfinalize,POST:Archive
-WiseOldMan|true|true|Read=GET:;WomSetup=POST:Competition,POST:DisconnectCompetition,POST:CreateManagedCompetition,POST:AdoptCompetitionCredential,POST:DeleteManagedCompetition;WomFetch=POST:FetchCompetition;WomDevelopment=POST:MakeDevelopmentCompetitionDue
+Finalize|true|true|Read=GET:,GET:Current;Service=POST:Resolve,POST:AcknowledgeCompletion,POST:CorrectCompletion,POST:Finalize,POST:Unfinalize,POST:Archive
+WiseOldMan|true|true|Read=GET:,GET:Current;WomSetup=POST:Competition,POST:DisconnectCompetition,POST:CreateManagedCompetition,POST:AdoptCompetitionCredential,POST:DeleteManagedCompetition;WomFetch=POST:FetchCompetition;WomDevelopment=POST:MakeDevelopmentCompetitionDue
 """;
 
+    // RC08 / RC09: cached Current reads use the existing read-only capability.
     [Fact]
     public void EveryEventPageAndHttpHandlerHasItsExplicitGateAndTerminalViewContract()
     {
