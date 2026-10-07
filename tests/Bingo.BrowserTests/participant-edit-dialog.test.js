@@ -217,7 +217,7 @@ questionsDialog.id = "signup-questions-dialog";
 questionsDialog.dataset.signupQuestionsDialog = "";
 questionsDialog.append(new Node("div", { dataset: { signupQuestionsContent: "" } }));
 body.append(questionsDialog);
-require("../../src/Bingo.Web/wwwroot/js/signup-questions-overlay.js");
+// C4: the Questions overlay was retired; Participant still owns its existing editor.
 require("../../src/Bingo.Web/wwwroot/js/event-manage.js");
 
 (async () => {
@@ -244,9 +244,6 @@ require("../../src/Bingo.Web/wwwroot/js/event-manage.js");
   assert.equal(document.querySelector(".admin-page-context .admin-page-title")?.textContent, "Participants & signups", "restored dialog keeps the canonical Participants header");
   assert.equal(document.querySelector(".admin-page-context .admin-page-description")?.textContent, "Manage signup settings, capacity, and participants.", "restored dialog keeps the canonical Participants description");
   assert.equal(history.state?.participantEditOverlay, true, "restored dialog keeps its history state");
-  const restoredQuestionsTrigger = main.querySelector("[data-signup-questions-trigger='true']");
-  assert.equal(restoredQuestionsTrigger.dataset.signupQuestionsTriggerReady, "true", "direct reload restoration binds the shared Questions trigger that did not exist at script startup");
-  assert.equal(restoredQuestionsTrigger.listeners.click.length, 1, "restoration binds the Questions trigger once");
   const dialog = document.querySelector("dialog#participant-edit-dialog[open]");
   assert.ok(dialog, "direct desktop entry opens the participant dialog");
 

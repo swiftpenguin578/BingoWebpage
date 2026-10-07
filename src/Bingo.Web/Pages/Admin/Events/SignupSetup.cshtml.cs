@@ -23,6 +23,7 @@ using Microsoft.Extensions.Localization;
 
 namespace Bingo.Web.Pages.Admin.Events;
 
+[AdminDesign]
 [Authorize(Policy = AuthorizationPolicies.Admin)]
 public sealed class SignupSetupModel(ApplicationDbContext dbContext, TimeProvider timeProvider, ISignupService signupService, IStringLocalizer<SharedResource>? text = null, IAuditWriter? auditWriter = null, ISecretHasher? hasher = null) : PageModel
 {
@@ -44,25 +45,28 @@ public sealed class SignupSetupModel(ApplicationDbContext dbContext, TimeProvide
     public Guid CustomAddRequestId => AddRequestId == Guid.Empty ? initialCustomAddRequestId : AddRequestId;
     private readonly Guid initialCustomAddRequestId = Guid.NewGuid();
     [BindProperty] public int? ExpectedFormVersion { get; set; }
-    public int FormVersion { get; private set; }
+    public int? FormVersion { get; private set; }
+    public bool HasForm { get; private set; }
     public bool CanEdit { get; private set; }
     public bool HasFirstResponse { get; private set; }
     [BindProperty] public bool Overlay { get; set; }
     public bool IsOverlay => Overlay || string.Equals(Request.Query["overlay"], "1", StringComparison.Ordinal);
     public string EventName { get; private set; } = string.Empty;
 
+    public object CurrentSnapshot => new { eventId = EventId, phase = EventState.ToString(), draftLocked = DraftLocked, editable = CanEdit,
+            settings = Settings, confirmed = ConfirmedCount, waiting = WaitingCount,
+            hasForm = HasForm, formVersion = FormVersion, hasFirstResponse = HasFirstResponse,
+            questions = AllQuestions.Select(question => new { question.Id, question.Key, question.Label, question.HelpText,
+                type = question.Type.ToString(), question.Required, question.Options, question.Position, question.Active,
+                systemField = question.SystemField.ToString(), accountRole = question.AccountAnswerRole?.ToString(), question.Version,
+                impact = QuestionImpacts.GetValueOrDefault(question.Id) }).ToArray() };
+
     public async Task<IActionResult> OnGetCurrentAsync(Guid id, CancellationToken ct)
     {
         Response.Headers.CacheControl = "no-store";
         await using var transaction = await dbContext.Database.BeginTransactionAsync(IsolationLevel.RepeatableRead, ct);
         if (!await LoadAsync(id, ct)) return NotFound();
-        var result = new { eventId = id, phase = EventState.ToString(), draftLocked = DraftLocked, editable = CanEdit,
-            settings = Settings, confirmed = ConfirmedCount, waiting = WaitingCount,
-            formVersion = FormVersion, hasFirstResponse = HasFirstResponse,
-            questions = AllQuestions.Select(question => new { question.Id, question.Key, question.Label, question.HelpText,
-                type = question.Type.ToString(), question.Required, question.Options, question.Position, question.Active,
-                systemField = question.SystemField.ToString(), accountRole = question.AccountAnswerRole?.ToString(), question.Version,
-                impact = QuestionImpacts.GetValueOrDefault(question.Id) }).ToArray() };
+        var result = CurrentSnapshot;
         await transaction.CommitAsync(ct);
         return new JsonResult(result);
     }
@@ -530,7 +534,15 @@ public sealed class SignupSetupModel(ApplicationDbContext dbContext, TimeProvide
         SignupCode = new() { RequireSignupCode = bingoEvent.RequireSignupCode, Version = bingoEvent.Version };
         EventName = bingoEvent.Name;
         CanEdit = CanEditSignupQuestions(bingoEvent.State, bingoEvent.DraftLocked);
-        var form = await dbContext.SignupForms.AsNoTracking().Where(item => item.EventId == id).Select(item => new { item.FirstResponseAt, item.Version }).SingleAsync(ct);
+        var form = await dbContext.SignupForms.AsNoTracking().Where(item => item.EventId == id).Select(item => new { item.FirstResponseAt, item.Version }).SingleOrDefaultAsync(ct);
+        if (form is null && bingoEvent.State == EventState.Archived)
+        {
+            // U3-Q11: imported archived history has no recorded form. Reads never invent one.
+            CanEdit = false;
+            return true;
+        }
+        if (form is null) throw new InvalidOperationException("The event signup form is missing.");
+        HasForm = true;
         HasFirstResponse = form.FirstResponseAt is not null;
         FormVersion = form.Version;
         var allQuestions = await dbContext.SignupQuestions
@@ -681,7 +693,7 @@ public sealed class SignupSetupModel(ApplicationDbContext dbContext, TimeProvide
 
     public static string FormatType(SignupQuestionType type) => type switch
     {
-        SignupQuestionType.Text => "Short text answer",
+        SignupQuestionType.Text => "Text",
         SignupQuestionType.Number => "Number",
         SignupQuestionType.YesNo => "Yes or no",
         SignupQuestionType.SingleChoice => "Choose one answer",

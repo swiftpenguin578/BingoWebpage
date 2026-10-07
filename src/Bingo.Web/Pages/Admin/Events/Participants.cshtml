@@ -5,7 +5,7 @@
 @{
     var eventView = Model.Event!;
     ViewData["Title"] = T["Participants · {0}", eventView.Name];
-    ViewData["AdminPageDescription"] = T["Manage signup settings, capacity, and participants."];
+    ViewData["AdminPageDescription"] = T["Manage participants."];
     var currentParticipants = Model.Participants.Where(item => item.Status is SignupStatus.Confirmed or SignupStatus.WaitingList).ToList();
     var historyParticipants = Model.Participants.Where(item => item.Status == SignupStatus.Withdrawn).ToList();
     var signupQuestionCount = Model.ActiveSignupQuestions.Count;
@@ -31,98 +31,7 @@
 }
 
 <section class="admin-events-page event-participants-page" id="players">
-    <div class="participant-settings-grid">
-        <section class="participant-settings-region participant-signup-form-region" aria-labelledby="signup-settings-heading">
-            <div class="participant-settings-heading">
-                <div><h2 id="signup-settings-heading">@T["Signup form"]</h2><p>@T["Own the questions and form participants use to sign up."]</p></div>
-            </div>
-            <div class="participant-form-preview" aria-label="@T["Configured signup form preview"]">
-                <p class="participant-form-summary" data-signup-question-summary="@T["{0} active questions configured.", signupQuestionCount]">@T["{0} active questions configured.", signupQuestionCount]</p>
-                <ul class="participant-form-preview-list">
-                    @if (accountQuestion is not null)
-                    {
-                        <li><span>@accountQuestion.Label</span><small>@(accountQuestion.Required ? T["Required"] : T["Optional"])</small></li>
-                    }
-                    @if (captainVolunteerQuestion is not null)
-                    {
-                        <li><span>@captainVolunteerQuestion.Label</span><small>@(captainVolunteerQuestion.Required ? T["Required"] : T["Optional"])</small></li>
-                    }
-                    @if (coCaptainQuestion is not null)
-                    {
-                        <li><span>@T["Co-captain (optional)"]</span><small>@T["Optional"]</small></li>
-                    }
-                    @if (remainingPreviewQuestionCount > 0)
-                    {
-                        <li><span>@T["Other questions"]</span><small>@T["{0} more", remainingPreviewQuestionCount]</small></li>
-                    }
-                </ul>
-            </div>
-            <div class="participant-settings-actions">
-                <a class="admin-button-secondary signup-questions-trigger" data-signup-questions-trigger="true" asp-page="Questions" asp-route-id="@eventView.Id">@T["Edit signup form"]</a>
-            </div>
-        </section>
-
-        <section class="participant-settings-region participant-capacity-region" aria-labelledby="capacity-settings-heading">
-            <div class="participant-settings-heading">
-                <div>
-                    <h2 id="capacity-settings-heading">@T["Capacity and waiting list"]</h2>
-                    <span class="participant-capacity-summary">@T["{0} confirmed of {1} · {2} waiting", eventView.Confirmed, eventView.ParticipantCap, eventView.Waiting]</span>
-                </div>
-            </div>
-            @if (eventView.DraftLocked || eventView.State is not (EventState.Draft or EventState.SignupOpen or EventState.SignupClosed))
-            {
-                <p class="admin-muted-note">@T["These settings are locked because participant administration has moved on."]</p>
-            }
-            else
-            {
-                <form id="signup-settings-form" method="post" asp-page-handler="SignupAdministration" class="participant-settings-form" data-update-targets="@updateTargets" data-confirmed="@eventView.Confirmed" data-waiting="@eventView.Waiting" data-current-capacity="@eventView.ParticipantCap" data-promotion-template="@T["Saving at capacity {0} will promote {1} waiting-list participant(s) in signup order."]">
-                    <input asp-for="SignupAdministration.Version" type="hidden" />
-                    <input type="hidden" name="ParticipantSearch" value="@Model.ParticipantSearch" /><input type="hidden" name="ParticipantStatus" value="@Model.ParticipantStatus" /><input type="hidden" name="sort" value="@Model.Sort" /><input type="hidden" name="direction" value="@Model.Direction" />
-                    <div class="participant-capacity-fields">
-                        <div class="admin-field event-create-field participant-capacity-field">
-                            <label asp-for="SignupAdministration.ParticipantCap">@T["Maximum players"]</label>
-                            <input asp-for="SignupAdministration.ParticipantCap" class="form-control" min="1" max="10000" />
-                            <span asp-validation-for="SignupAdministration.ParticipantCap" class="field-error"></span>
-                        </div>
-                        <div class="participant-shared-row">
-                            <strong id="waiting-list-enabled-heading" class="participant-shared-row-heading">@T["waiting list enabled"]</strong>
-                            <label class="admin-setting-toggle participant-shared-row-content">
-                                <span class="admin-setting-toggle-marker"><input type="checkbox" checked="checked" disabled aria-labelledby="waiting-list-enabled-heading" aria-describedby="waiting-list-enabled-support" /></span>
-                                <span id="waiting-list-enabled-support" class="admin-setting-toggle-copy"><small>@T["Keep accepting signups after capacity is reached."] @T["Waiting lists are always enabled while signups are open."]</small></span>
-                            </label>
-                        </div>
-                        <p class="participant-capacity-promotion-preview" data-capacity-promotion-preview hidden></p>
-                    </div>
-                </form>
-            }
-        @if (!eventView.DraftLocked && eventView.State is (EventState.Draft or EventState.SignupOpen or EventState.SignupClosed))
-            {
-                <div class="participant-settings-actions">
-                    <button class="admin-button-secondary" type="submit" form="signup-settings-form">@T["Save signup settings"]</button>
-                </div>
-            }
-        </section>
-
-        <section class="participant-settings-region participant-signup-code-region" aria-labelledby="signup-code-settings-heading">
-            <div class="participant-settings-heading">
-                <div><h2 id="signup-code-settings-heading">@T["Signup code"]</h2><p>@T["Protect the public signup form with a code."]</p></div>
-            </div>
-            @if (eventView.DraftLocked || eventView.State is not (EventState.Draft or EventState.SignupOpen or EventState.SignupClosed))
-            {
-                <p class="admin-muted-note">@T["Signup settings are locked because the draft has started or the event has moved on."]</p>
-            }
-            else
-            {
-                <form id="signup-code-settings-form" method="post" asp-page-handler="SignupCode" class="participant-settings-form" data-update-targets="@updateTargets">
-                    <input asp-for="SignupCode.Version" type="hidden" />
-                    <label class="signup-question-toggle admin-setting-toggle"><span class="admin-setting-toggle-marker"><input asp-for="SignupCode.RequireSignupCode" data-signup-code-toggle /></span><span class="admin-setting-toggle-copy"><span class="signup-question-toggle-label">@T["Require signup code"]</span></span></label>
-                    <div class="signup-code-control" data-signup-code-control hidden="@(!Model.SignupCode.RequireSignupCode)"><div class="admin-field"><label asp-for="SignupCode.NewSignupCode">@(eventView.HasSignupCode ? T["Replacement code"] : T["New signup code"])</label><input asp-for="SignupCode.NewSignupCode" class="form-control" autocomplete="off" data-signup-code-input data-has-signup-code="@(eventView.HasSignupCode ? "true" : "false")" required="@(Model.SignupCode.RequireSignupCode && !eventView.HasSignupCode)" aria-describedby="signup-code-help signup-code-error" /></div><small id="signup-code-help" class="signup-code-help">@(eventView.HasSignupCode ? T["Leave blank to keep the current code."] : T["Enter a code to require it at signup."])</small></div>
-                    <span asp-validation-for="SignupCode.NewSignupCode" id="signup-code-error" class="field-error"></span>
-                    <div class="participant-settings-actions"><button class="admin-button-secondary" type="submit">@T["Save code settings"]</button></div>
-                </form>
-            }
-        </section>
-    </div>
+    <p><a class="admin-button-secondary" asp-page="SignupSetup" asp-route-id="@eventView.Id">@T["Signup setup"]</a></p>
 
     <div class="admin-events-directory-controls">
         <form class="admin-events-toolbar" method="get" data-participant-filter-form>

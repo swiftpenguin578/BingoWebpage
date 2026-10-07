@@ -1,6 +1,11 @@
 // Add a page here once. The conformance gate uses the real Razor fixture,
 // loading template, family stylesheet, and these page-specific interaction probes.
 module.exports = [
+  { family: 'signupsetup', url: f => '/Admin/Events/SignupSetup/' + f.events['autumn-bingo-2027'], fixture: 'autumn-bingo-2027',
+    source: 'Pages/Admin/Events/SignupSetup.cshtml', module: 'admin-signup-setup.js',
+    textRows: { 'ss-sk-line': ['control',1.45] }, reference: 'SignupSetup.dc.html', first: '.card.form-card', blocks: { first: '.card.form-card', tabs: '.ss-tabs' },
+    style: ['.ss-cap','display','grid'], titleDa: 'Tilmeldingsopsætning',
+    update: { control: '#cap-input', action: 'input', value: '125', selected: '[data-card-dirty="cap"]:not([hidden])' } },
   { family: 'schedule', url: f => '/Admin/Events/Schedule/' + f.events['autumn-bingo-2027'], fixture: 'autumn-bingo-2027',
     source: 'Pages/Admin/Events/Schedule.cshtml', module: 'admin-schedule.js',
     textRows: { 'schedule-sk-title': ['control',1.45] }, reference: 'Schedule.dc.html', first: '.card.form-card', blocks: { first: '.card.form-card' },

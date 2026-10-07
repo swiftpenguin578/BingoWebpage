@@ -6542,7 +6542,6 @@ body.public-event-shell .recent-drop-card.private-drop .recent-drop-placeholder 
 /* Questions retains one modal across viewport changes. */
 .admin-shell-body .signup-question-page .signup-code-control[hidden] { display: none; }
 @media (max-width: 900px) {
-  .admin-shell-body [data-signup-questions-dialog] { width: 100%; max-width: none; height: 100dvh; max-height: none; margin: 0; }
   .admin-shell-body [data-signup-questions-content] { height: 100%; max-height: none; }
   .admin-shell-body .signup-question-dialog { min-height: 100%; border-radius: 0; }
 }

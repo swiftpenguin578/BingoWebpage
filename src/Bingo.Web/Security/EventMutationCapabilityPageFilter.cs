@@ -73,16 +73,15 @@ public sealed class EventMutationCapabilityPageFilter(ApplicationDbContext db, I
         // add result. The service verifies request/actor/event/intent under its lock;
         // malformed, conflicting and genuinely new requests keep the route refusal.
         if (HttpMethods.IsPost(context.HttpContext.Request.Method)
-            && policy.Kind is AdminEventPageKind.Questions or AdminEventPageKind.SignupSetup
+            && policy.Kind == AdminEventPageKind.SignupSetup
             && eventView.State is EventState.Cancelled or EventState.Finalized or EventState.Archived)
         {
-            if ((context.HandlerInstance is Bingo.Web.Pages.Admin.Events.QuestionsModel or Bingo.Web.Pages.Admin.Events.SignupSetupModel)
+            if ((context.HandlerInstance is Bingo.Web.Pages.Admin.Events.SignupSetupModel)
                 && context.HandlerMethod is { } handler && handler.Name is null or "AddAccount"
                 && string.Equals(context.HttpContext.Request.Query["handler"].ToString(), handler.Name ?? string.Empty, StringComparison.OrdinalIgnoreCase))
             {
                 var executed = await next();
-                if (context.HandlerInstance is Bingo.Web.Pages.Admin.Events.QuestionsModel { HasExactCommittedAddReplay: true }
-                    or Bingo.Web.Pages.Admin.Events.SignupSetupModel { HasExactCommittedAddReplay: true }) return;
+                if (context.HandlerInstance is Bingo.Web.Pages.Admin.Events.SignupSetupModel { HasExactCommittedAddReplay: true }) return;
                 executed.Result = new RedirectResult($"/Admin/Events/Manage/{eventId}");
             }
             else context.Result = new RedirectResult($"/Admin/Events/Manage/{eventId}");
@@ -111,7 +110,7 @@ public sealed class EventMutationCapabilityPageFilter(ApplicationDbContext db, I
         // Field-add POSTs also reconcile a previously committed request. The signup
         // service rechecks current Admin/visibility and gates every genuinely new
         // write; later lifecycle state must not prevent an authorized success replay.
-        if (policy.Kind is AdminEventPageKind.Questions or AdminEventPageKind.SignupSetup
+        if (policy.Kind == AdminEventPageKind.SignupSetup
             && context.HandlerMethod.Name is null or "AddAccount")
         {
             await next();

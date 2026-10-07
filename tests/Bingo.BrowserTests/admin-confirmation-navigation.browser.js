@@ -15,7 +15,7 @@ const partial = fs.readFileSync(`${root}Pages/Shared/_AdminConfirmation.cshtml`,
   const base = `${origin}/Admin/Events/Participants/fixture`;
   const browser = await chromium.launch({ headless: true, channel: process.env.PLAYWRIGHT_CHANNEL || "chrome" });
   try {
-    for (const owner of ["questions", "participant"]) {
+    for (const owner of ["participant"]) {
       const page = await browser.newPage();
       const errors = [];
       const nativePrompts = [];

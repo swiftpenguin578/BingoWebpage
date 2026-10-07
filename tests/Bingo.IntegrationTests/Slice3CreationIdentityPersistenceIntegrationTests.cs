@@ -874,7 +874,7 @@ public sealed class Slice3CreationIdentityPersistenceIntegrationTests(PostgreSql
             new EventParticipant(Guid.NewGuid(), eventId, SignupStatus.WaitingList, 2, now.AddMinutes(1), SignupSource.Website));
         await db.SaveChangesAsync();
 
-        var settings = new ParticipantsModel(db, new SignupService(db, new SecretHasher(), new FixedTimeProvider(now))) { SignupAdministration = new ParticipantsModel.SignupAdministrationInput { ParticipantCap = 1, WaitingListEnabled = true, Version = item.Version } };
+        var settings = new SignupSetupModel(db, new FixedTimeProvider(now), new SignupService(db, new SecretHasher(), new FixedTimeProvider(now))) { SignupAdministration = new SignupSetupModel.SignupAdministrationInput { ParticipantCap = 1, WaitingListEnabled = true, Version = item.Version } };
         SetAdmin(settings, actor);
         Assert.IsType<RedirectToPageResult>(await settings.OnPostSignupAdministrationAsync(eventId, CancellationToken.None));
 
@@ -889,7 +889,7 @@ public sealed class Slice3CreationIdentityPersistenceIntegrationTests(PostgreSql
         Assert.Equal("waiting-list-admin", unchangedAdministration.ActorUsername);
         Assert.NotEqual("admin", unchangedAdministration.ActorUsername);
 
-        settings = new ParticipantsModel(db, new SignupService(db, new SecretHasher(), new FixedTimeProvider(now))) { SignupAdministration = new ParticipantsModel.SignupAdministrationInput { ParticipantCap = 2, WaitingListEnabled = true, Version = item.Version } };
+        settings = new SignupSetupModel(db, new FixedTimeProvider(now), new SignupService(db, new SecretHasher(), new FixedTimeProvider(now))) { SignupAdministration = new SignupSetupModel.SignupAdministrationInput { ParticipantCap = 2, WaitingListEnabled = true, Version = item.Version } };
         SetAdmin(settings, actor);
         Assert.IsType<RedirectToPageResult>(await settings.OnPostSignupAdministrationAsync(eventId, CancellationToken.None));
 

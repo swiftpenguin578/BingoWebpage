@@ -107,6 +107,12 @@ internal static class FixtureHost
                 }
                 if (state != EventState.Draft) item.MarkFirstPublic(At(opens) ?? Now.AddMonths(-1));
                 db.Add(item); ids[slug] = item.Id;
+                // U3: keep the accepted event fixtures; add only their signup definition.
+                var form = new SignupForm(Guid.NewGuid(), item.Id, Now);
+                db.AddRange(form,
+                    new SignupQuestion(Guid.NewGuid(), form.Id, item.Id, "primary_regular_account", "Main account", SignupQuestionType.Account, true, 0, null, SignupSystemField.PrimaryRegularAccount, EventCharacterRole.Playing),
+                    new SignupQuestion(Guid.NewGuid(), form.Id, item.Id, "captain_volunteer", "Would you like to be a captain?", SignupQuestionType.YesNo, true, 1, null, SignupSystemField.CaptainVolunteer),
+                    new SignupQuestion(Guid.NewGuid(), form.Id, item.Id, "co_captain_name", "Preferred co-captain", SignupQuestionType.Text, false, 2, null, SignupSystemField.CoCaptainName));
             }
             Add("autumn-bingo-2027", "Autumn Bingo 2027", EventState.SignupOpen, "Europe/Copenhagen", "Nine days of team bingo across PvM, skilling and clues. Captains draft teams on 20 June, and every tile needs screenshot evidence.\n\nAll accounts are welcome; ironmen play on their own boards.", "5M GP per player, sent to Nils in game before the draft. The whole pot goes to the winning team.", "2027-06-01T16:00:00Z", "2027-06-15T18:00:00Z", "2027-06-20T17:00:00Z", "2027-06-27T16:00:00Z", "2027-07-06T20:00:00Z");
             Add("winter-bingo-2027", "Winter Bingo 2027", EventState.Draft, "Europe/Copenhagen", null, null, "2027-10-01T16:00:00Z", null, null, "2027-11-26T18:00:00Z", "2027-12-05T21:00:00Z");

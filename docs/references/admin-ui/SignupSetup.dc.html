@@ -182,7 +182,7 @@ body{margin:0}
                 </dl>
               </div>
               <sc-if value="{{cap.hasNote}}" hint-placeholder-val="{{false}}"><div class="field-note ss-note {{cap.noteCls}}" id="cap-note" role="status"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 7.2v3.8M8 5h.01"/></svg><span>{{cap.note}}</span></div></sc-if>
-              <div class="field-hint ss-always" id="cap-hint">The waiting list is always on. Players join it in signup order once every place is taken.</div>
+              <div class="field-hint ss-always" id="cap-hint">The waiting list is always on. Players join it in waiting-list order once every place is taken.</div>
             </div>
             <sc-if value="{{cap.editable}}" hint-placeholder-val="{{true}}">
               <div class="form-bar is-inline">
@@ -1289,7 +1289,7 @@ class Component extends DCLogic {
     const p = ed ? this.capPreview() : null; const dirty = this.capDirty();
     let note = '', noteCls = '';
     if (p) {
-      if (p.promote) note = 'Saving confirms the first ' + plural(p.promote, 'player') + ' on the waiting list, in signup order. They’re told their place is confirmed.' + (s.waiting > p.promote ? ' ' + plural(s.waiting - p.promote, 'player stays', 'players stay') + ' on the waiting list.' : '');
+      if (p.promote) note = 'Saving confirms the first ' + plural(p.promote, 'player') + ' on the waiting list, in waiting-list order. They’re told their place is confirmed.' + (s.waiting > p.promote ? ' ' + plural(s.waiting - p.promote, 'player stays', 'players stay') + ' on the waiting list.' : '');
       else if (p.increased) note = p.open ? plural(p.open, 'place', 'places') + ' will be open.' : 'The event will be full.';
       else note = p.v === s.confirmed ? 'No one loses their place. The event will be full, so new signups join the waiting list.' : 'No one loses their place. Once ' + nf(p.v) + ' players are confirmed, new signups join the waiting list.';
     }

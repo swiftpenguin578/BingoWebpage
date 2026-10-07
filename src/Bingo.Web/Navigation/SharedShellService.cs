@@ -135,7 +135,7 @@ public sealed class SharedShellService(ApplicationDbContext db, IStringLocalizer
         return page switch
         {
             "/Admin/Events/Identity" or "/Admin/Events/Schedule" or "/Admin/Events/Participants"
-                or "/Admin/Events/Questions" or "/Admin/Events/Draft" or "/Admin/Events/Board"
+                or "/Admin/Events/SignupSetup" or "/Admin/Events/Draft" or "/Admin/Events/Board"
                 or "/Admin/Events/WiseOldMan" or "/Admin/Events/Finalize" => $"{page}/{eventId}",
             "/Admin/Review/Index" or "/Admin/Review/Details" => $"/Admin/Review/Index?eventId={eventId}",
             _ => $"/Admin/Events/Manage/{eventId}"

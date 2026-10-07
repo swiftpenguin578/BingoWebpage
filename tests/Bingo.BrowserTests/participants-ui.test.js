@@ -13,25 +13,14 @@ const desktopPlacement = siteCss.indexOf(".participant-capacity-region .particip
 const narrowReset = siteCss.indexOf("@media (max-width: 700px)", desktopPlacement);
 const narrowCss = siteCss.slice(narrowReset);
 
-assert.match(participantsMarkup, /participant-capacity-field[\s\S]*Maximum players[\s\S]*SignupAdministration\.ParticipantCap/);
-assert.match(participantsMarkup, /participant-shared-row[\s\S]*participant-shared-row-heading[\s\S]*waiting list enabled[\s\S]*participant-shared-row-content[\s\S]*Keep accepting signups after capacity is reached\./);
-assert.ok(participantsMarkup.includes('aria-labelledby="waiting-list-enabled-heading" aria-describedby="waiting-list-enabled-support"'));
 assert.match(participantsMarkup, /<tr class="participant-table-empty" hidden="@\(group\.Rows\.Count > 0 \? "hidden" : null\)"><td colspan="9">/);
 assert.ok(siteCss.includes("grid-template-areas: \"capacity-heading waiting-heading\" \"capacity-control waiting-control\" \"capacity-error .\" \"confirm confirm\";"));
 assert.ok(siteCss.includes("gap: 0.25rem 1.25rem; margin-inline: 0;"));
 assert.ok(siteCss.includes(".participant-capacity-region .participant-capacity-field > label { grid-area: capacity-heading; }"));
 assert.ok(siteCss.includes(".participant-capacity-region .participant-capacity-field > input { grid-area: capacity-control; }"));
-assert.ok(siteCss.includes(".admin-shell-body .event-participants-page .participant-shared-row-heading { grid-area: waiting-heading;"));
-assert.ok(siteCss.includes(".participant-capacity-region .participant-capacity-field > label,\n.admin-shell-body .event-participants-page .participant-shared-row-heading { color: var(--admin-text-soft); font-family: inherit; font-size: 0.75rem; font-weight: 500; line-height: 1.25; }"));
-assert.ok(siteCss.includes(".admin-shell-body .event-participants-page .participant-shared-row { display: contents; }"));
-assert.ok(!participantsMarkup.includes("participant-shared-row-toggle") && !siteCss.includes("participant-shared-row-toggle"));
 assert.ok(desktopPlacement >= 0 && narrowReset > desktopPlacement);
 assert.ok(narrowCss.includes(".participant-capacity-region .participant-settings-form .participant-capacity-fields { width: 100%; grid-template-columns: 1fr; grid-template-rows: none; grid-template-areas: none; }"));
 assert.ok(narrowCss.includes(".participant-capacity-region .participant-capacity-field { display: grid; }"));
-assert.ok(narrowCss.includes(".admin-shell-body .event-participants-page .participant-shared-row { display: grid; grid-template-columns: 1fr; grid-column: auto; grid-row: auto;"));
-assert.ok(narrowCss.includes(".admin-shell-body .event-participants-page .participant-shared-row-heading,\n  .admin-shell-body .event-participants-page .participant-shared-row-content { grid-column: auto; grid-row: auto; }"));
-assert.ok(narrowCss.includes(".admin-shell-body .event-participants-page .participant-shared-row-content { display: flex;"));
-assert.ok(narrowCss.includes(".admin-shell-body .event-participants-page .participant-shared-row-heading,\n  .admin-shell-body .event-participants-page .participant-shared-row-content,\n  .admin-shell-body .event-participants-page .participant-waiting-confirm { grid-area: auto; }"));
 assert.doesNotMatch(siteCss, /(?:participant|event-participants-page)[^}]*70rem|70rem[^}]*?(?:participant|event-participants-page)/is);
 assert.ok(manageScript.includes('const routePage = page.querySelector(".participant-add-route-page")'));
 assert.ok(manageScript.includes("const interactionTarget = trigger instanceof HTMLElement ? trigger : routePage"));

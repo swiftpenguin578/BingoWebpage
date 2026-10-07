@@ -79,7 +79,7 @@ public sealed class AuditAtomicityBatchIntegrationTests(PostgreSqlTestFixture da
         long eventVersion;
         await using (var versionDb = new ApplicationDbContext(options))
             eventVersion = await versionDb.Events.Select(item => item.Version).SingleAsync();
-        var settings = new ParticipantsModel.SignupCodeInput
+        var settings = new SignupSetupModel.SignupCodeInput
         {
             RequireSignupCode = operation != "disable",
             NewSignupCode = operation is "enable" or "replace" ? "replacement-test-code" : null,
@@ -88,7 +88,7 @@ public sealed class AuditAtomicityBatchIntegrationTests(PostgreSqlTestFixture da
         var observer = new AuditFailureObserver();
         await using (var db = FailureContext(observer))
         {
-            var page = Context(new ParticipantsModel(db, null!, new AuditWriter(db, new Clock(now)), hasher), setup.AdminId, true);
+            var page = Context(new SignupSetupModel(db, new Clock(now), null!, auditWriter: new AuditWriter(db, new Clock(now)), hasher: hasher), setup.AdminId, true);
             page.SignupCode = settings;
             await Record.ExceptionAsync(() => page.OnPostSignupCodeAsync(setup.EventId, default));
         }
@@ -96,7 +96,7 @@ public sealed class AuditAtomicityBatchIntegrationTests(PostgreSqlTestFixture da
         Assert.Equal(baseline, await PersistedStateAsync());
         await using (var db = new ApplicationDbContext(options))
         {
-            var page = Context(new ParticipantsModel(db, null!, new AuditWriter(db, new Clock(now)), hasher), setup.AdminId);
+            var page = Context(new SignupSetupModel(db, new Clock(now), null!, auditWriter: new AuditWriter(db, new Clock(now)), hasher: hasher), setup.AdminId);
             page.SignupCode = settings;
             Assert.IsType<RedirectToPageResult>(await page.OnPostSignupCodeAsync(setup.EventId, default));
         }
@@ -131,8 +131,8 @@ public sealed class AuditAtomicityBatchIntegrationTests(PostgreSqlTestFixture da
         var observer = new ConcurrencyFailureObserver();
         await using (var db = new ApplicationDbContext(new DbContextOptionsBuilder<ApplicationDbContext>(options).AddInterceptors(observer).Options))
         {
-            var page = Context(new ParticipantsModel(db, null!, new AuditWriter(db, new Clock(now)), new SecretHasher()), setup.AdminId);
-            page.SignupCode = new ParticipantsModel.SignupCodeInput { RequireSignupCode = true, NewSignupCode = "concurrency-code", Version = version };
+            var page = Context(new SignupSetupModel(db, new Clock(now), null!, auditWriter: new AuditWriter(db, new Clock(now)), hasher: new SecretHasher()), setup.AdminId);
+            page.SignupCode = new SignupSetupModel.SignupCodeInput { RequireSignupCode = true, NewSignupCode = "concurrency-code", Version = version };
             Assert.IsType<RedirectToPageResult>(await page.OnPostSignupCodeAsync(setup.EventId, default));
             Assert.Contains("changed while you were editing it", page.TempData["StatusMessage"]?.ToString(), StringComparison.OrdinalIgnoreCase);
         }

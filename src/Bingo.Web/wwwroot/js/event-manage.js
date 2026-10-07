@@ -31,7 +31,6 @@
     initializeOverviewLifecycleConfirmations(root);
     initializeCopyLinks(root);
     initializeDatePickers(root);
-    initializeSignupCodeSettings(root);
     initializeRosterCharacterPicker(root);
     initializeDraftAddTeamDialog(root);
     initializeDraftInteractions(root);
@@ -45,7 +44,6 @@
       button.addEventListener("click", () => button.closest("details")?.removeAttribute("open"));
     });
     root.querySelectorAll(".event-participants-page").forEach((page) => {
-      initializeCapacityPromotionPreview(page);
       initializeParticipantWorkspace(page);
       initializeParticipantAddDialog(page);
     });
@@ -118,30 +116,6 @@
     });
   }
 
-  function initializeSignupCodeSettings(root) {
-    const forms = [];
-    if (root.matches?.("#signup-code-settings-form")) forms.push(root);
-    root.querySelectorAll?.("#signup-code-settings-form").forEach(form => forms.push(form));
-    forms.forEach(form => {
-      if (!(form instanceof HTMLFormElement) || form.dataset.signupCodeReady === "true") return;
-      const toggle = form.querySelector("[data-signup-code-toggle]");
-      const control = form.querySelector("[data-signup-code-control]");
-      const input = form.querySelector("[data-signup-code-input]");
-      if (!(toggle instanceof HTMLInputElement) || !(control instanceof HTMLElement) || !(input instanceof HTMLInputElement)) return;
-      form.dataset.signupCodeReady = "true";
-
-      const update = () => {
-        const enabled = toggle.checked;
-        const hasExistingCode = input.dataset.hasSignupCode === "true";
-        control.hidden = !enabled;
-        input.disabled = !enabled;
-        input.required = enabled && !hasExistingCode;
-      };
-      toggle.addEventListener("change", update);
-      update();
-    });
-  }
-
   function initializeRosterCharacterPicker(root) {
     const forms = [];
     root.querySelectorAll?.("form").forEach(form => {
@@ -178,35 +152,6 @@
       character.addEventListener("change", updateEhbFromCharacter);
       updateCharacters();
     });
-  }
-
-  function initializeCapacityPromotionPreview(page) {
-    const form = page.querySelector("#signup-settings-form");
-    const input = form?.querySelector("#SignupAdministration_ParticipantCap");
-    const preview = form?.querySelector("[data-capacity-promotion-preview]");
-    if (!(form instanceof HTMLFormElement) || !(input instanceof HTMLInputElement) || !(preview instanceof HTMLElement)) return;
-    if (form.dataset.capacityPreviewReady === "true") return;
-    form.dataset.capacityPreviewReady = "true";
-
-    const update = () => {
-      const capacity = Number.parseInt(input.value, 10);
-      const confirmed = Number.parseInt(form.dataset.confirmed || "0", 10);
-      const waiting = Number.parseInt(form.dataset.waiting || "0", 10);
-      const current = Number.parseInt(form.dataset.currentCapacity || "0", 10);
-      const promotions = Number.isFinite(capacity) && capacity > current
-        ? Math.min(waiting, Math.max(0, capacity - confirmed))
-        : 0;
-      if (promotions <= 0) {
-        preview.hidden = true;
-        preview.textContent = "";
-        return;
-      }
-      const template = form.dataset.promotionTemplate || "Saving at capacity {0} will promote {1} waiting-list participant(s) in signup order.";
-      preview.textContent = template.replace("{0}", String(capacity)).replace("{1}", String(promotions));
-      preview.hidden = false;
-    };
-    input.addEventListener("input", update);
-    update();
   }
 
   function initializeWomValidationConfirmation(root) {

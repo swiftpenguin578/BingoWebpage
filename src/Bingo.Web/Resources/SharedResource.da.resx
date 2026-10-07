@@ -154,7 +154,6 @@
   <data name="Maximum confirmed players" xml:space="preserve"><value>Maksimalt antal bekræftede spillere</value></data>
   <data name="Use a waiting list" xml:space="preserve"><value>Brug en venteliste</value></data>
   <data name="Waiting list" xml:space="preserve"><value>Venteliste</value></data>
-  <data name="Players who sign up after the cap are kept in signup order." xml:space="preserve"><value>Spillere over grænsen sættes på ventelisten i tilmeldingsrækkefølge.</value></data>
   <data name="Standard fields are always included. Custom questions can be edited until signups open." xml:space="preserve"><value>Standardfelterne er altid med. Egne spørgsmål kan ændres, indtil tilmeldingen åbner.</value></data>
   <data name="Standard signup fields" xml:space="preserve"><value>Faste tilmeldingsfelter</value></data>
   <data name="Primary OSRS account" xml:space="preserve"><value>Primær OSRS-konto</value></data>
@@ -1233,7 +1232,6 @@
   <data name="Global administration" xml:space="preserve"><value>Global administration</value></data>
   <data name="Global operational state, event lifecycle management, and active evidence validation queue." xml:space="preserve"><value>Global driftstilstand, styring af eventlivscyklus og aktiv kø til bevisvalidering.</value></data>
   <data name="Identity" xml:space="preserve"><value>Identitet</value></data>
-  <data name="If disabled, all {0} queued participants will be promoted in signup order; capacity will be raised to at least {1} if needed." xml:space="preserve"><value>Hvis den deaktiveres, forfremmes alle {0} deltagere i køen i tilmeldingsrækkefølge; kapaciteten hæves til mindst {1} efter behov.</value></data>
   <data name="Immutable asset history and checksums." xml:space="preserve"><value>Uforanderlig assethistorik og checksums.</value></data>
   <data name="Immutable review history" xml:space="preserve"><value>Uforanderlig reviewhistorik</value></data>
   <data name="Inspect evidence, resolve its review state, and preserve the audit record." xml:space="preserve"><value>Undersøg beviset, afgør dets reviewstatus, og bevar auditposten.</value></data>
@@ -1395,7 +1393,6 @@
   <data name="Set the maximum number of players for this event." xml:space="preserve"><value>Angiv det maksimale antal spillere for dette event.</value></data>
   <data name="Set the signup, event, and draft times." xml:space="preserve"><value>Angiv tidspunkterne for tilmelding, event og draft.</value></data>
   <data name="Setup incomplete" xml:space="preserve"><value>Opsætning ufuldstændig</value></data>
-  <data name="Short text answer" xml:space="preserve"><value>Kort tekstsvar</value></data>
   <data name="Signup access" xml:space="preserve"><value>Tilmeldingsadgang</value></data>
   <data name="Signup closed" xml:space="preserve"><value>Tilmelding lukket</value></data>
   <data name="Signup closes date" xml:space="preserve"><value>Dato for lukning af tilmelding</value></data>
@@ -3311,4 +3308,80 @@
   <data name="You both changed this. Their saved time:" xml:space="preserve"><value>I har begge ændret dette. Deres gemte tidspunkt:</value></data>
   <data name="Yours is kept until you choose." xml:space="preserve"><value>Dit bevares, indtil du vælger.</value></data>
   <data name="Updated to their saved time." xml:space="preserve"><value>Opdateret til deres gemte tidspunkt.</value></data>
+  <data name="Dates are on" xml:space="preserve"><value>Datoer findes under</value></data>
+  <data name="opening and closing signups on" xml:space="preserve"><value>åbning og lukning af tilmelding under</value></data>
+  <data name="A code is set" xml:space="preserve"><value>En kode er gemt</value></data>
+  <data name="Add choice" xml:space="preserve"><value>Tilføj valgmulighed</value></data>
+  <data name="Add Playing account" xml:space="preserve"><value>Tilføj spillekonto</value></data>
+  <data name="Add Alt account" xml:space="preserve"><value>Tilføj alt-konto</value></data>
+  <data name="Add unique nonblank choices; at most 4,000 characters." xml:space="preserve"><value>Tilføj unikke, ikke-tomme valgmuligheder; højst 4.000 tegn.</value></data>
+  <data name="Always asked" xml:space="preserve"><value>Spørges altid</value></data>
+  <data name="Answer type" xml:space="preserve"><value>Svartype</value></data>
+  <data name="Ask for a code before anyone can sign up, for example one you share in Discord. Not to be confused with evidence codes, which are on Overview." xml:space="preserve"><value>Kræv en kode før tilmelding, for eksempel en kode delt på Discord. Koden er forskellig fra beviskoder, som findes under Oversigt.</value></data>
+  <data name="Capacity must be at least {0}." xml:space="preserve"><value>Kapaciteten skal være mindst {0}.</value></data>
+  <data name="Capacity saved. {0} waiting-list players confirmed." xml:space="preserve"><value>Kapacitet gemt. {0} spillere fra ventelisten er bekræftet.</value></data>
+  <data name="Check form" xml:space="preserve"><value>Kontrollér formular</value></data>
+  <data name="Choice" xml:space="preserve"><value>Valgmulighed</value></data>
+  <data name="Choices" xml:space="preserve"><value>Valgmuligheder</value></data>
+  <data name="Co-captain field enabled." xml:space="preserve"><value>Medkaptajnfelt aktiveret.</value></data>
+  <data name="Co-captain field disabled." xml:space="preserve"><value>Medkaptajnfelt deaktiveret.</value></data>
+  <data name="Custom question" xml:space="preserve"><value>Brugerdefineret spørgsmål</value></data>
+  <data name="Delete “{0}”?" xml:space="preserve"><value>Slet “{0}”?</value></data>
+  <data name="Delete…" xml:space="preserve"><value>Slet…</value></data>
+  <data name="Enter a signup code." xml:space="preserve"><value>Indtast en tilmeldingskode.</value></data>
+  <data name="Help text" xml:space="preserve"><value>Hjælpetekst</value></data>
+  <data name="How many players can be confirmed. Everyone who signs up after that joins the waiting list." xml:space="preserve"><value>Hvor mange spillere der kan bekræftes. Alle, som tilmelder sig derefter, kommer på ventelisten.</value></data>
+  <data name="It’s stored securely, so it can’t be shown or copied here." xml:space="preserve"><value>Den er gemt sikkert og kan derfor ikke vises eller kopieres her.</value></data>
+  <data name="Locked because players have answered. To change it, delete this question and add a new one." xml:space="preserve"><value>Låst, fordi spillere har svaret. Slet spørgsmålet og tilføj et nyt for at ændre det.</value></data>
+  <data name="Maximum players cannot exceed 10,000." xml:space="preserve"><value>Det maksimale antal spillere må ikke overstige 10.000.</value></data>
+  <data name="More" xml:space="preserve"><value>Mere</value></data>
+  <data name="None yet." xml:space="preserve"><value>Ingen endnu.</value></data>
+  <data name="Not required" xml:space="preserve"><value>Ikke påkrævet</value></data>
+  <data name="Participant capacity" xml:space="preserve"><value>Deltagerkapacitet</value></data>
+  <data name="Players have answered. Existing answer types, choices and required settings are locked. New questions are optional." xml:space="preserve"><value>Spillere har svaret. Eksisterende svartyper, valgmuligheder og krav om svar er låst. Nye spørgsmål er valgfrie.</value></data>
+  <data name="Players must answer" xml:space="preserve"><value>Spillere skal svare</value></data>
+  <data name="Players need the code to sign up." xml:space="preserve"><value>Spillere skal bruge koden for at tilmelde sig.</value></data>
+  <data name="Players pick one. Press Enter in a choice to add the next." xml:space="preserve"><value>Spillere vælger én. Tryk Enter i en valgmulighed for at tilføje den næste.</value></data>
+  <data name="Protection is on and a code is stored, but we can’t tell which code. To be sure, save the code you entered again." xml:space="preserve"><value>Beskyttelsen er slået til, og en kode er gemt, men vi kan ikke afgøre hvilken. Gem den indtastede kode igen for at være sikker.</value></data>
+  <data name="Require a signup code" xml:space="preserve"><value>Kræv en tilmeldingskode</value></data>
+  <data name="Save and confirm {0}" xml:space="preserve"><value>Gem og bekræft {0}</value></data>
+  <data name="Save capacity" xml:space="preserve"><value>Gem kapacitet</value></data>
+  <data name="Saving confirms the first {0} players on the waiting list, in waiting-list order. They’re told their place is confirmed." xml:space="preserve"><value>Når du gemmer, bekræftes de første {0} spillere i ventelistens rækkefølge. De får besked om deres bekræftede plads.</value></data>
+  <data name="See them on Participants" xml:space="preserve"><value>Se dem under Deltagere</value></data>
+  <data name="The change was accepted, but the form could not be read. Check form." xml:space="preserve"><value>Ændringen blev accepteret, men formularen kunne ikke læses. Kontrollér formularen.</value></data>
+  <data name="The code must be at most 100 characters." xml:space="preserve"><value>Koden må højst være 100 tegn.</value></data>
+  <data name="The counts changed: {0} answers were shown; now {1}. Review and confirm again." xml:space="preserve"><value>Antallene ændrede sig: der blev vist {0} svar; nu {1}. Gennemgå og bekræft igen.</value></data>
+  <data name="The question was added as optional because players have already signed up. Earlier players won’t have an answer." xml:space="preserve"><value>Spørgsmålet blev tilføjet som valgfrit, fordi spillere allerede har tilmeldt sig. Tidligere spillere har ikke et svar.</value></data>
+  <data name="The save was accepted, but current settings could not be read. Check again." xml:space="preserve"><value>Ændringen blev accepteret, men de aktuelle indstillinger kunne ikke læses. Kontrollér igen.</value></data>
+  <data name="The signup settings and form can no longer change because the draft has started or the event has moved on." xml:space="preserve"><value>Tilmeldingsindstillingerne og formularen kan ikke længere ændres, fordi holdvalget er startet, eller eventet er gået videre.</value></data>
+  <data name="The waiting list is always on. Players join it in waiting-list order once every place is taken." xml:space="preserve"><value>Ventelisten er altid slået til. Spillere placeres i ventelistens rækkefølge, når alle pladser er optaget.</value></data>
+  <data name="Turn off the co-captain question?" xml:space="preserve"><value>Slå medkaptajnspørgsmålet fra?</value></data>
+  <data name="Turn off…" xml:space="preserve"><value>Slå fra…</value></data>
+  <data name="Up to date. The current values match your entry." xml:space="preserve"><value>Opdateret. De aktuelle værdier svarer til din indtastning.</value></data>
+  <data name="We couldn’t confirm the change. Check the form before trying again." xml:space="preserve"><value>Vi kunne ikke bekræfte ændringen. Kontrollér formularen, før du prøver igen.</value></data>
+  <data name="We couldn’t confirm whether this was saved. Check before saving again." xml:space="preserve"><value>Vi kunne ikke bekræfte, om dette blev gemt. Kontrollér, før du gemmer igen.</value></data>
+  <data name="Your entry is still here; review the current values and save again." xml:space="preserve"><value>Din indtastning er stadig her; gennemgå de aktuelle værdier og gem igen.</value></data>
+  <data name="{0} answers" xml:space="preserve"><value>{0} svar</value></data>
+  <data name="{0} saved answers will be removed; {1} event account registrations will be released. Profile accounts, participant status and other answers stay unchanged." xml:space="preserve"><value>{0} gemte svar fjernes; {1} kontoregistreringer frigives fra eventet. Profilkonti, deltagerstatus og andre svar ændres ikke.</value></data>
+  <data name="Playing accounts" xml:space="preserve"><value>Spillekonti</value></data>
+  <data name="Alt accounts" xml:space="preserve"><value>Alt-konti</value></data>
+  <data name="Playing account" xml:space="preserve"><value>Spillekonto</value></data>
+  <data name="Players choose from their saved accounts. The first Playing account is always required." xml:space="preserve"><value>Spillere vælger blandt deres gemte konti. Den første spillekonto er altid påkrævet.</value></data>
+  <data name="Optional information only. Alt accounts do not count as Playing accounts." xml:space="preserve"><value>Kun valgfri information. Alt-konti tæller ikke som spillekonti.</value></data>
+  <data name="Ask who would like to captain a team, and who they would like alongside them." xml:space="preserve"><value>Spørg, hvem der vil være holdkaptajn, og hvem de ønsker som medkaptajn.</value></data>
+  <data name="Anything else you need to know before the event." xml:space="preserve"><value>Alt andet, du skal vide før eventet.</value></data>
+  <data name="New questions are optional because players have already signed up. Earlier players won’t have an answer." xml:space="preserve"><value>Nye spørgsmål er valgfrie, fordi spillere allerede har tilmeldt sig. Tidligere spillere har ikke et svar.</value></data>
+  <data name="Players can’t sign up without answering it." xml:space="preserve"><value>Spillere kan ikke tilmelde sig uden at svare.</value></data>
+  <data name="Nothing was saved. Your entry is still here; review it and save again." xml:space="preserve"><value>Intet blev gemt. Din indtastning er stadig her; gennemgå den og gem igen.</value></data>
+  <data name="Loading signup setup" xml:space="preserve"><value>Indlæser tilmeldingsopsætning</value></data>
+  <data name="Manage participants." xml:space="preserve"><value>Administrer deltagere.</value></data>
+  <data name="The accounts players compete with. Each one counts towards the event’s account and EHB rules, and is shown with its EHB on the public signup list." xml:space="preserve"><value>Kontiene, som spillere konkurrerer med. Hver konto tæller med i eventets konto- og EHB-regler og vises med sin EHB på den offentlige tilmeldingsliste.</value></data>
+  <data name="Extra accounts for information only. They have no EHB and never play: they don’t appear on teams, evidence or the board. Shown on the public signup list." xml:space="preserve"><value>Ekstra konti kun til information. De har ingen EHB og spiller aldrig: de vises ikke på hold, beviser eller pladen. Vises på den offentlige tilmeldingsliste.</value></data>
+  <data name="Captain volunteering is always asked and shown on the public signup list. Co-captain answers aren’t shown there." xml:space="preserve"><value>Der spørges altid, om spillere vil være kaptajn, og svaret vises på den offentlige tilmeldingsliste. Medkaptajnsvar vises ikke der.</value></data>
+  <data name="Questions for this bingo. Answers are shown on the public signup list. Only custom questions can be reordered; the fields above keep their places." xml:space="preserve"><value>Spørgsmål til denne bingo. Svar vises på den offentlige tilmeldingsliste. Kun brugerdefinerede spørgsmål kan flyttes; felterne ovenfor beholder deres pladser.</value></data>
+  <data name="Add playing account field" xml:space="preserve"><value>Tilføj spillekontofelt</value></data>
+  <data name="Add alt account field" xml:space="preserve"><value>Tilføj alt-kontofelt</value></data>
+  <data name="Required · a code is set" xml:space="preserve"><value>Påkrævet · en kode er gemt</value></data>
+  <data name="Required · no code is set" xml:space="preserve"><value>Påkrævet · ingen kode er gemt</value></data>
+  <data name="No signup form was recorded for this imported event." xml:space="preserve"><value>Der blev ikke registreret en tilmeldingsformular for denne importerede event.</value></data>
 </root>
