@@ -26,7 +26,8 @@ public sealed partial class AdminDesignShellIntegrationTests
         var past = Event(admin, EventState.Archived, "Past selection", -12);
         await using (var db = new ApplicationDbContext(options)) { db.AddRange(admin, first, past); await db.SaveChangesAsync(); }
         await using var factory = RememberedEventFactory(); using var client = await IdentityClientAsync(factory);
-        using var opened = await client.GetAsync($"/Admin/Events/Schedule/{first.Id}");
+        // A10: Schedule is bound; Participants still exercises the unchanged legacy-shell contract.
+        using var opened = await client.GetAsync($"/Admin/Events/Participants/{first.Id}");
         Assert.Equal(HttpStatusCode.OK, opened.StatusCode);
         var cookie = Assert.Single(opened.Headers.GetValues("Set-Cookie"), value => value.StartsWith(AdminEventSession.CookieName + "=", StringComparison.Ordinal));
         Assert.StartsWith($"{AdminEventSession.CookieName}={first.Id:D};", cookie);

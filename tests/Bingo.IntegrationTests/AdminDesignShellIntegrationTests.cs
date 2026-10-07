@@ -204,11 +204,12 @@ public sealed partial class AdminDesignShellIntegrationTests(PostgreSqlTestFixtu
         var dashboard = await client.GetStringAsync("/Admin");
         Assert.Contains("data-admin-design", dashboard);
         Assert.DoesNotContain("admin-shell-body", dashboard);
-        var old = await client.GetStringAsync($"/Admin/Events/Schedule/{item.Id}");
+        // A10: Schedule is bound; Participants still exercises the unchanged legacy-shell contract.
+        var old = await client.GetStringAsync($"/Admin/Events/Participants/{item.Id}");
         Assert.DoesNotContain("data-admin-design", old);
         Assert.Contains("admin-shell-body", old);
         Assert.True(AdminDesignAttribute.AppliesTo(new CompiledPageActionDescriptor { ModelTypeInfo = typeof(Bingo.Web.Pages.Admin.Events.IdentityModel).GetTypeInfo() }));
-        Assert.False(AdminDesignAttribute.AppliesTo(new CompiledPageActionDescriptor { ModelTypeInfo = typeof(Bingo.Web.Pages.Admin.Events.ScheduleModel).GetTypeInfo() }));
+        Assert.False(AdminDesignAttribute.AppliesTo(new CompiledPageActionDescriptor { ModelTypeInfo = typeof(Bingo.Web.Pages.Admin.Events.ParticipantsModel).GetTypeInfo() }));
     }
 
     [Fact]
