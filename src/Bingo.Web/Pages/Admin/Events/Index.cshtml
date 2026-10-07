@@ -4,6 +4,7 @@
 @inject IStringLocalizer<AdminCommunityResource> D
 @{
     ViewData["Title"] = "Events";
+    ViewData["PageFamily"] = "events";
     ViewData["LocalizedTitle"] = D["Events"].Value;
     var views = new[] { ("all", "All", Model.VisibleCount), ("current", "Current & upcoming", Model.CurrentCount), ("past", "Past", Model.PastCount) };
     var columns = new[] { ("identity", "Event", "c-name"), ("state", "Phase", ""), ("dates", "Dates", ""), ("signups", "Participants", ""), ("attention", "Needs attention", "") };

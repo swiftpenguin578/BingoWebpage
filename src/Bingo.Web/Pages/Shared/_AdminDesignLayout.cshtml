@@ -6,6 +6,7 @@
     var shell = ViewData["AdminDesignShell"] as AdminDesignShell ?? await SharedShell.GetAdminDesignAsync(User, ViewContext.RouteData.Values, Context.RequestAborted, Context.Request.Query["eventId"].ToString());
     ViewData["AdminDesignShell"] = shell;
     var title = ViewData["Title"]?.ToString() ?? "Admin";
+    var family = ViewData["PageFamily"] as string ?? throw new InvalidOperationException("A new-layout page must declare its fixed PageFamily key.");
 }
 <!DOCTYPE html>
 <html lang="@CultureInfo.CurrentUICulture.TwoLetterISOLanguageName" class="dk-theme">
@@ -34,8 +35,8 @@
         <div class="main">
             <partial name="_AdminDesignTopbar" model="shell" />
             <main class="scroller" id="main-content" data-page-region>
-                <div class="page" data-page-family="@title.ToLowerInvariant()">
-                    <header class="page-head" data-page-family="@title.ToLowerInvariant()"><div style="min-width:0"><h1 class="h1" id="page-h1" tabindex="-1">@(ViewData["LocalizedTitle"] ?? T[title].Value)</h1>@if (IsSectionDefined("HeaderSummary")) { <p class="summary">@await RenderSectionAsync("HeaderSummary")</p> } else if (ViewData["Summary"] is { } summary) { <p class="summary"><span data-summary-template="@ViewData["SummaryTemplate"]">@summary</span></p> }</div>@await RenderSectionAsync("HeaderActions", required: false)</header>
+                <div class="page" data-page-family="@family">
+                    <header class="page-head" data-page-family="@family"><div style="min-width:0"><h1 class="h1" id="page-h1" tabindex="-1">@(ViewData["LocalizedTitle"] ?? T[title].Value)</h1>@if (IsSectionDefined("HeaderSummary")) { <p class="summary">@await RenderSectionAsync("HeaderSummary")</p> } else if (ViewData["Summary"] is { } summary) { <p class="summary"><span data-summary-template="@ViewData["SummaryTemplate"]">@summary</span></p> }</div>@await RenderSectionAsync("HeaderActions", required: false)</header>
                     @RenderBody()
                 </div>
             </main>
