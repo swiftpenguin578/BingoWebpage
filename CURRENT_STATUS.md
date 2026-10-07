@@ -1,12 +1,11 @@
 # Current project status
 
-## U3 review84 / T2 final gate passed — 7 October 2026
+## U3 whole-suite remediation — SR2 scope boundary, 7 October2026
 
-- All ten review84 findings have separate implementation commits; [finding identities and scoped evidence](docs/references/admin-ui/reviews/2026-10-07/u3/review84/checkpoint.md). Required Danish red proof preceded translations. Accepted Events assertion fix remains separate; no assertion exception or acceptance added.
-- Reviewed T2 `73df5e5` merged via `c30e39ea`; Catalogue registration/docs `9c1756e3`; explicit CI1–3 correction `e3229db3`. All registrations declare save counts, Accounts assertions retain strength, Catalogue loading counts/reservations conform. Loaded geometry and fixed words preserved.
-- Final gate executed once on `e3229db39e235f6d6899161f5577c191f713b50b`: parity fixture rebuilt FIRST; Release solution build0 warnings/errors; fullJS **116 passed/0 failed** (39 Chromium,39 WebKit,38 default),1152.477s. Registered-page conformance **50 cases per engine**. Shared CSS cmp/diff checks pass. [Exact commands, timing, results and live links](docs/references/admin-ui/reviews/2026-10-07/u3/review84/final-report.md).
-- Owned review environment refreshed;53 scenario links200, including Catalogue group. Signup normal/imported EN/DA and unknown-timezone Schedule/Signup verified in both engines. Earlier Catalogue full-load wait timed out; explicit rendered-page readiness passed, full-resource load not claimed. Preserved stale markers intact.
-- Implementer stopped for planner whole.NET suite and user final look. No whole.NET run, visual acceptance inference, push or deployment. UI_PAGE_MATRIX remains the acceptance owner.
+- Planner whole.NET on bb391bc identified seven real failures plus one isolated-passing Npgsql flake; the flake is unchanged. [Current remediation checkpoint](docs/references/admin-ui/reviews/2026-10-07/u3/suite-remediation/checkpoint.md).
+- SR1 `56d7a45d` adds exactly nine missing Danish messages (focused1/0/0). SR3 `c7998752` retains legacy-shell assertions on Participants (real PG26/0/0). SR4 `c942c1c9` reads exact counts from Signup setup (real PG10/0/0). SR5 is this checkpoint: retired Participants SignupAdministration stub/original Setup gate restored; unchanged C11 class60/0/0 and classification21/0/0.
+- SR2 has no edits: the requested single-prefix correction exposes80 unprefixed English resource entries, and the named old summary key is unused. Actual current Danish summary already says “skift den på”. Full localization class2/1/0; only SR2 fails. Exact inventory/evidence and proposed scope decision are in the checkpoint. Implementer stopped after completing unaffected work.
+- Release affected test builds and diff checks passed; no JS/markup changes, no fullJS repeat or whole.NET. Prior bb391bc gate116/0 and50 conformance cases per engine remain historical evidence. Existing review environment/stale markers untouched; no acceptance edit or publication.
 
 ## Phase colours implemented — 7 October 2026
 
@@ -63,4 +62,4 @@
 
 ## Next permitted action
 
-Planner whole.NET suite on this final checkpoint, then user final look using the refreshed links in the final report. Implementer stopped. No further page family, push, deployment, environment handover or acceptance is authorized here.
+Dispatcher/planner resolves SR2 resource-key scope; resume the same implementer for that finding and the final localization check. Then planner reruns whole.NET on the final remediation HEAD. No unrelated work, push, deployment or acceptance authorized here.
