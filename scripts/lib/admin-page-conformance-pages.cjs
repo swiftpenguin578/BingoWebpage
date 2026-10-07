@@ -24,6 +24,7 @@ module.exports = [
   { family: 'identity', url: f => '/Admin/Events/Identity/' + f.events['autumn-bingo-2027'], fixture: 'autumn-bingo-2027',
     source: 'Pages/Admin/Events/Identity.cshtml', module: 'event-identity.js',
     textRows: { 'identity-sk-title': ['control',1.45] }, reference: 'Identity.dc.html', first: '.card.form-card', blocks: { first: '.card.form-card' },
+    readOnlyStyle: ['.identity-editor-form .ro-value', 'white-space', 'pre-wrap'],
     style: ['.id-desc', 'minHeight', '132px'], additionalStyles: [['.form-banners','display','none']], titleDa: 'Identitet',
     update: { control: '#Input_Name', action: 'input', value: 'Conformance draft', selected: '[data-identity-dirty]:not([hidden])' } },
   { family: 'dashboard', url: () => '/Admin', fixture: 'community-history',
