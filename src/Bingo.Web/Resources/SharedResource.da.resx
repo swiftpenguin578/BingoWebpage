@@ -3496,4 +3496,13 @@
   <data name="Move up" xml:space="preserve"><value>Flyt op</value></data>
   <data name="Move down" xml:space="preserve"><value>Flyt ned</value></data>
   <data name="SignupSetup.Confirmed" xml:space="preserve"><value>Bekræftet</value></data>
+  <data name="Account field saved." xml:space="preserve"><value>Kontofeltet er gemt.</value></data>
+  <data name="Account fields are managed in the Playing and Alt account sections." xml:space="preserve"><value>Kontofelter administreres i sektionerne Spillekonti og Alt-konti.</value></data>
+  <data name="Admin access is required." xml:space="preserve"><value>Admin-adgang er påkrævet.</value></data>
+  <data name="Answer format is locked after the first response. Delete the old question with confirmation, then add a new optional question." xml:space="preserve"><value>Svarformatet er låst efter det første svar. Slet det gamle spørgsmål med bekræftelse, og tilføj derefter et nyt valgfrit spørgsmål.</value></data>
+  <data name="Format replacement is not a separate workflow. Delete the old question with its current impact confirmation, then add a new optional question." xml:space="preserve"><value>Udskiftning af format er ikke en separat arbejdsgang. Slet det gamle spørgsmål med bekræftelse af de aktuelle konsekvenser, og tilføj derefter et nyt valgfrit spørgsmål.</value></data>
+  <data name="Signup questions can only be changed before the draft starts." xml:space="preserve"><value>Tilmeldingsspørgsmål kan kun ændres, før draften starter.</value></data>
+  <data name="That account field cannot be edited." xml:space="preserve"><value>Det kontofelt kan ikke redigeres.</value></data>
+  <data name="That question cannot be edited." xml:space="preserve"><value>Det spørgsmål kan ikke redigeres.</value></data>
+  <data name="This signup form changed while you were editing it. Review the latest values and try again." xml:space="preserve"><value>Denne tilmeldingsformular blev ændret, mens du redigerede den. Gennemgå de seneste værdier, og prøv igen.</value></data>
 </root>
