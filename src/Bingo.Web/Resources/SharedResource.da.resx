@@ -3493,4 +3493,6 @@
   <data name="Leave it empty to keep the current code." xml:space="preserve"><value>Lad feltet være tomt for at beholde den nuværende kode.</value></data>
   <data name="Players type this exactly as you enter it. Up to 100 characters." xml:space="preserve"><value>Spillere skal skrive koden præcis, som du angiver den. Højst 100 tegn.</value></data>
   <data name="Save code again" xml:space="preserve"><value>Gem koden igen</value></data>
+  <data name="Move up" xml:space="preserve"><value>Flyt op</value></data>
+  <data name="Move down" xml:space="preserve"><value>Flyt ned</value></data>
 </root>
