@@ -307,7 +307,8 @@ public sealed partial class EventQuarantineIntegrationTests : IAsyncLifetime
         }
         await AssertHiddenAsync(item.Id);
 
-        var hiddenRedirectPath = $"{path}?hidden=True";
+        // U4-Q3 (c) (08-decisions "U4 brief decisions"): the hidden view is the plain URL; ?hidden=true is still accepted.
+        var hiddenRedirectPath = path;
         using (var omittedRestoreResponse = await superClient.PostAsync($"{hiddenPath}&handler=RestoreHidden", new FormUrlEncodedContent(new Dictionary<string, string>
         {
             ["EventVersion"] = hiddenVersion,
