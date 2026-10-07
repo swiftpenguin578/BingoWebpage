@@ -59,8 +59,13 @@ export async function init(region, ui = window.AdminUI) {
   }
 
   /* ---------------- lifecycle dialogs ---------------- */
-  let dialog = null;
-  function openAction(key, opener) {
+  let dialog = null, opening = false;
+  async function openAction(key, opener) {
+    if (dialog || opening) return;
+    // L2: the confirmation times (end time, upload close, "in N days") come from the clock at the
+    // moment the dialog opens, so re-read Current first; a failed read keeps the rendered model.
+    opening = true;
+    try { const fresh = await read(); if (fresh.ok) state = fresh.data; } finally { opening = false; }
     if (dialog) return;
     const model = state.dialogs[key];
     if (!model || !model.applicable) return;
@@ -361,7 +366,7 @@ export async function init(region, ui = window.AdminUI) {
 
   on(region, 'click', event => {
     const action = event.target.closest('[data-overview-action]');
-    if (action && region.contains(action)) { event.preventDefault(); openAction(action.dataset.overviewAction, action); return; }
+    if (action && region.contains(action)) { event.preventDefault(); void openAction(action.dataset.overviewAction, action); return; }
     const codeButton = event.target.closest('[data-overview-codes]');
     if (codeButton) { openCodes(codeButton); return; }
     const copyButton = event.target.closest('[data-overview-copy]');
