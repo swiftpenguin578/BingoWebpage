@@ -33,7 +33,7 @@
     </aside>
     @if (Model.BoardView is null)
     {
-        <aside class="panel validation-summary" role="status">
+        <aside class="panel validation-summary" role="status" data-board-none>
             <strong>@T["Board editor unavailable"]</strong>
             <p>@T["This event does not have an editable board in its current lifecycle state."]</p>
         </aside>
