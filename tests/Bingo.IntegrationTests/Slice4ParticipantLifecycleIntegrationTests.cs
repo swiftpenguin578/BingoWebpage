@@ -154,9 +154,10 @@ public sealed class Slice4ParticipantLifecycleIntegrationTests(PostgreSqlTestFix
             await db.SaveChangesAsync();
 
             var model = new Bingo.Web.Pages.Admin.Events.ParticipantsModel(db, Service(db));
-            var response = Assert.IsType<JsonResult>(await model.OnGetSearchOwnerAccountsAsync("owner", CancellationToken.None));
-            var matches = Assert.IsType<List<Bingo.Web.Pages.Admin.Events.ParticipantsModel.OwnerAccountOption>>(response.Value);
-            Assert.Equal(10, matches.Count);
+            // B-Participants-5 (A10): the Add search is bounded to the reference's eight results.
+            var response = Assert.IsType<JsonResult>(await model.OnGetSearchOwnerAccountsAsync(setup.EventId, "owner", CancellationToken.None));
+            var matches = Assert.IsType<List<Bingo.Web.Pages.Admin.Events.ParticipantOwnerOption>>(response.Value);
+            Assert.Equal(8, matches.Count);
             Assert.DoesNotContain(matches, item => item.Username.StartsWith("disabled", StringComparison.OrdinalIgnoreCase));
         }
 
@@ -223,7 +224,8 @@ public sealed class Slice4ParticipantLifecycleIntegrationTests(PostgreSqlTestFix
             PageContext = new PageContext(new ActionContext(AdminContext(setup.EnabledAdminId), new RouteData(), new PageActionDescriptor()))
         };
         Assert.True((await model.OnGetAsync(setup.EventId, CancellationToken.None)) is PageResult);
-        Assert.DoesNotContain(model.Participants, row => row.Id == externalId);
+        // G3b-3 / TD-2 B (A10): manual-team members are now listed on Participants (was hidden).
+        Assert.Contains(model.Participants, row => row.Id == externalId);
         Assert.Equal(4, model.Event!.Confirmed);
     }
 

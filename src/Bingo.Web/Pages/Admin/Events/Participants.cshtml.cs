@@ -59,19 +59,18 @@ public sealed class ParticipantsModel(
     public async Task<IActionResult> OnGetAsync(Guid id, CancellationToken ct)
         => await LoadAsync(id, ct) ? Page() : NotFound();
 
-    public async Task<IActionResult> OnGetSearchOwnerAccountsAsync(string? search, CancellationToken ct)
+    // B-Participants-5: Add search by username, Discord name or saved RSN.
+    public async Task<IActionResult> OnGetSearchOwnerAccountsAsync(Guid id, [FromQuery] string? search, CancellationToken ct)
     {
-        search = search?.Trim();
-        if (string.IsNullOrWhiteSpace(search) || search.Length > 100) return new JsonResult(Array.Empty<OwnerAccountOption>());
+        NoStore();
+        return new JsonResult(await new ParticipantsListReader(db).SearchOwnersAsync(id, search, ct));
+    }
 
-        var normalized = search.ToUpperInvariant();
-        var accounts = await db.Accounts.AsNoTracking()
-            .Where(item => item.Active && item.AccountType == AccountType.WebsiteAccount && item.NormalizedLoginName.Contains(normalized))
-            .OrderBy(item => item.LoginName)
-            .Take(10)
-            .Select(item => new OwnerAccountOption(item.Id, item.LoginName))
-            .ToListAsync(ct);
-        return new JsonResult(accounts);
+    // F04: the chosen website account's saved Playing accounts and stored EHB.
+    public async Task<IActionResult> OnGetOwnerAccountsAsync(Guid id, [FromQuery] Guid owner, CancellationToken ct)
+    {
+        NoStore();
+        return new JsonResult(await new ParticipantsListReader(db).OwnerAccountsAsync(id, owner, ct));
     }
 
     public async Task<IActionResult> OnPostWithdrawAsync(Guid id, Guid participantId, CancellationToken ct, [FromForm] bool confirmLifecycleAction = false)
@@ -200,10 +199,9 @@ public sealed class ParticipantsModel(
         if (bingoEvent is null) return false;
         EventTimezone = bingoEvent.Timezone;
 
+        // G3b-3 / TD-2 B: manual-team members are listed and counted like everyone else.
         var allParticipants = await db.EventParticipants.AsNoTracking()
-            .Where(item => item.EventId == id &&
-                !db.TeamMemberships.Any(membership => membership.EventParticipantId == item.Id && membership.LeftAt == null &&
-                    db.Teams.Any(team => team.Id == membership.TeamId && team.EventId == id && team.Active && !team.IncludedInDraft)))
+            .Where(item => item.EventId == id)
             .OrderBy(item => item.SignedUpAt).ThenBy(item => item.SignupSequence).ToListAsync(ct);
         var capacityConfirmedCount = await db.EventParticipants.AsNoTracking()
             .CountAsync(item => item.EventId == id && item.SignupStatus == SignupStatus.Confirmed, ct);
