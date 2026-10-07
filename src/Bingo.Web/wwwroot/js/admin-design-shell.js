@@ -415,7 +415,8 @@
   function destinationContext(url) {
     const cached = contexts.get(url);
     if (cached) { refreshContext(cached); return; }
-    const choice = [...document.querySelectorAll('[data-event-id]')].find(link => link.href === url);
+    const eventId = new URL(url).pathname.split('/').at(-1);
+    const choice = [...document.querySelectorAll('[data-event-id]')].find(link => link.href === url || link.dataset.eventId === eventId);
     if (!choice) return;
     const context = document.querySelector('[data-shell-event-context]');
     const oldId = context?.dataset.selectedEventId;
@@ -439,18 +440,21 @@
     for (const saved of children) { saved.element.hidden = true; saved.element.inert = true; saved.element.setAttribute('aria-hidden', 'true'); }
     destinationContext(url);
     const kind = pageKind(url);
+    const destination = [...document.querySelectorAll('[data-shell-link]')].find(link => link.href === url);
+    const title = pageTitles.get(kind) || destination?.dataset.pageTitle || destination?.querySelector('.nav-text')?.textContent || text('loading');
+    const crumb = document.querySelector('.crumb-cur'); if (crumb) crumb.textContent = title;
     const placeholder = document.createElement('div'); placeholder.className = 'page'; placeholder.dataset.pageSkeleton = kind;
     placeholder.setAttribute('role', 'status'); placeholder.setAttribute('aria-label', text('loading')); placeholder.setAttribute('aria-busy', 'true');
     const head = loadingHeads.get(kind)?.cloneNode(true).firstElementChild || main.querySelector('.page-head')?.cloneNode(true);
     if (head) {
       head.hidden = false; head.inert = false; head.removeAttribute('aria-hidden');
+      head.querySelector('.h1').textContent = title;
       // A fallback header supplies a title, never the previous page's actions.
       if (!loadingHeads.has(kind)) [...head.children].slice(1).forEach(element => element.remove());
       head.querySelectorAll('[id]').forEach(element => element.removeAttribute('id'));
       const summary = head.querySelector('[data-summary-template]');
-      if (summary) summary.textContent = summary.dataset.summaryTemplate.replace('{0}', document.querySelector('.ev-name')?.textContent || '');
-      if (pageTitles.has(kind) && !loadingHeads.has(kind)) {
-        head.querySelector('.h1').textContent = pageTitles.get(kind);
+      if (summary) summary.textContent = summary.dataset.summaryTemplate.replace('{0}', () => document.querySelector('.ev-name')?.textContent || '');
+      if (!loadingHeads.has(kind)) {
         [...head.children].slice(1).forEach(element => element.remove());
         head.querySelector('.summary')?.remove();
       }
