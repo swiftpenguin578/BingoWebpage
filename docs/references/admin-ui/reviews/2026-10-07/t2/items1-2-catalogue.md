@@ -61,3 +61,14 @@ Status: implemented and checked by the implementer; **not** independently review
   (shared file, not edited).
 - `git diff --check`: clean.
 - Not run: full JS runner and whole .NET suite (batch gate, item 3 / planner).
+
+## Early-look stop decisions applied (planner relay; 08 “T2 Catalogue early-look stop”)
+- S10 wording approved as proposed (no change).
+- T2-1 (a): the Super Admin’s hidden event links to `/Admin/Events/Manage/{id}?hidden=true`. Integration test
+  `T2DeactivationImpact…` asserts the URL; the browser test opens the activity confirmation as ReviewOwner and checks the
+  link (and that no hidden count is shown).
+- T2-2 (a), T2-3: unchanged.
+- WebKit: `admin-design-catalogue.browser.js` run 5 more times after the change: 5/5 passed (16–18 s each); Chromium 1/1.
+  The earlier single timeout did not recur (0 of 9 later WebKit runs). Note: the fixture project must be rebuilt
+  explicitly (`dotnet build tests/AdminDesignParityFixture -c Release`); a run against a stale fixture build fails the
+  new Super Admin step.

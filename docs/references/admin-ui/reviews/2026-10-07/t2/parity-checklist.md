@@ -99,7 +99,7 @@ references”, or a recorded decision named); **Q** open question in the T2 repo
 | Reference | App | Status |
 | --- | --- | --- |
 | `:1124` discard: “Discard unsaved changes?”, “Discards …” points, Keep editing / Discard (danger) | same | = |
-| `:1126` activity deactivate: title, three points, Deactivate | S10 points with Board links, “(correction)”, Hidden pill / hidden count; drop gets the same composition | R (S10 rows); hidden link **Q1** |
+| `:1126` activity deactivate: title, three points, Deactivate | S10 points with Board links, “(correction)”, Hidden pill / hidden count; drop gets the same composition | R (S10 rows); hidden event links to Overview’s limited view (T2-1 (a)) |
 | `:1128-1132` delete: Checking what uses it…; stale banner; “can’t be deleted” + It’s in use + Deactivate instead; deletable points, Delete permanently (danger) | same; banners carry `m-banner` | = |
 | D7/D9 named-activity confirmation | “Change the shared item?” with the activity names | R (AU21/D7/D9 row) |
 | `:739-743`, `:822-825`, `:906-909` save outcomes (fail / stale / uncertain + Check current values / success toasts) | same texts; lost session shows the shared “not saved” notice with the draft | = / R (C-CMP-2 row) |
