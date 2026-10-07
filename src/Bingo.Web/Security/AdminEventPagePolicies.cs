@@ -122,6 +122,7 @@ public static class AdminEventPagePolicies
                 ("POST:TakeEditing", AdminEventHandlerGate.Board),
                 ("POST:AcquireEditing", AdminEventHandlerGate.Board),
                 ("POST:ReleaseEditing", AdminEventHandlerGate.Board),
+                ("POST:RenewEditing", AdminEventHandlerGate.Board),
                 ("POST:CreateTile", AdminEventHandlerGate.Board),
                 ("POST:EditTile", AdminEventHandlerGate.Board),
                 ("POST:Move", AdminEventHandlerGate.Board),

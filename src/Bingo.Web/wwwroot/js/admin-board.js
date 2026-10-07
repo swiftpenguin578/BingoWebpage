@@ -5,7 +5,7 @@
 // unknown outcome is settled by the no-store Readback, never assumed.
 // Extensions (tile editor, publication flows) install onto the shared context.
 
-import { ROWS, posName, parseWhole } from './admin-board-model.js';
+import { ROWS, posName, parseWhole, leaseRenewer } from './admin-board-model.js';
 import { install as installEditor } from './admin-board-editor.js';
 import { install as installPublication } from './admin-board-publication.js';
 
@@ -205,6 +205,15 @@ export async function init(region, ui = window.AdminUI) {
     const outcome = await ctx.command('TakeEditing', {});
     await ctx.settle(outcome, { what: t('take over editing'), check: s => s.controllerId === ctx.view.me, focus: 'ctl-btn' });
   };
+  // U7-E1 (c): no SignalR in the new layout. While this admin holds the lease, any
+  // pointer, key or input activity on the page or its drawer renews it over HTTP, at
+  // most once a minute. A lost lease re-reads the view (the chip shows who edits);
+  // an open tile draft stays in the drawer and a later save meets the stale refusal.
+  const renew = leaseRenewer(async () => {
+    const result = await window.AdminFetch.request(ctx.url('RenewEditing'), { method: 'POST', body: body({}), notice: false, signal: life.signal });
+    if (result.kind === 'handler' && result.data?.renewed === false && ctx.view.control?.who === 'me' && !ctx.blocked()) await ctx.refresh();
+  });
+  for (const type of ['pointerdown', 'keydown', 'input']) on(document, type, () => { if (ctx.canEdit() && !life.signal.aborted) renew(); }, { passive: true, capture: true });
 
   /* ---------------- banner ---------------- */
   const bannerHost = root.querySelector('[data-board-banner]');

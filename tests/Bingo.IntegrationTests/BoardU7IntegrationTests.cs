@@ -250,7 +250,7 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests
         using var readback = await client.GetAsync(fixture.Path + "?handler=Readback");
         Assert.Equal(HttpStatusCode.OK, readback.StatusCode);
         Assert.Contains("\"known\":true", await readback.Content.ReadAsStringAsync(), StringComparison.Ordinal);
-        foreach (var handler in new[] { "TeamSize", "ApproveState", "Resize", "TakeEditing" })
+        foreach (var handler in new[] { "TeamSize", "ApproveState", "Resize", "TakeEditing", "RenewEditing" })
         {
             using var refused = await PostAsync(client, $"{fixture.Path}?handler={handler}", displayed, new Dictionary<string, string>
             {
@@ -326,6 +326,67 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests
         Assert.Equal("refused", stale.GetProperty("outcome").GetString());
         await using var verify = new ApplicationDbContext(options);
         Assert.Equal((1, 1), await verify.Boards.Select(x => new ValueTuple<int, int>(x.Rows, x.Columns)).SingleAsync());
+    }
+
+    // U7-E1 (c): with no SignalR on the new layout, page activity renews the holder's
+    // lease over HTTP. Only the active holder renews; the board version, edit-control
+    // version and audit history do not change, and a lapsed lease is reported, not taken.
+    [Fact]
+    public async Task U7RenewEditingExtendsOnlyTheHoldersLeaseWithoutVersionOrAudit()
+    {
+        var fixture = await SeedApprovalBatchAsync();
+        var shortened = DateTimeOffset.UtcNow.AddMinutes(1);
+        shortened = new DateTimeOffset(shortened.Ticks - shortened.Ticks % TimeSpan.TicksPerSecond, TimeSpan.Zero);
+        long version, controlVersion;
+        await using (var prepare = new ApplicationDbContext(options))
+        {
+            var board = await prepare.Boards.SingleAsync();
+            prepare.Entry(board).Property(x => x.EditorLeaseExpiresAt).CurrentValue = shortened;
+            await prepare.SaveChangesAsync();
+            version = board.Version; controlVersion = board.EditControlVersion;
+        }
+        await using var factory = ApprovalBatchFactory();
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        await LoginAsync(client, fixture.Admin.LoginName);
+        var displayed = await client.GetStringAsync(fixture.Path);
+        async Task<bool> RenewAsync()
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Post, fixture.Path + "?handler=RenewEditing")
+            {
+                Content = new FormUrlEncodedContent(new Dictionary<string, string> { ["__RequestVerificationToken"] = AntiforgeryToken(displayed) })
+            };
+            request.Headers.Add("X-Requested-With", "XMLHttpRequest");
+            using var response = await client.SendAsync(request);
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            Assert.Equal("no-store", response.Headers.CacheControl?.ToString());
+            return System.Text.Json.JsonDocument.Parse(await response.Content.ReadAsStringAsync()).RootElement.GetProperty("renewed").GetBoolean();
+        }
+        Assert.True(await RenewAsync());
+        await using (var verify = new ApplicationDbContext(options))
+        {
+            var board = await verify.Boards.AsNoTracking().SingleAsync();
+            Assert.Equal(fixture.Admin.Id, board.EditorAccountId);
+            Assert.True(board.EditorLeaseExpiresAt > shortened.AddMinutes(3), "the lease runs five minutes from the renewal");
+            Assert.Equal(version, board.Version);
+            Assert.Equal(controlVersion, board.EditControlVersion);
+            Assert.Empty(await verify.AuditEntries.Where(x => x.EventId == fixture.Event.Id).ToListAsync());
+        }
+        var lapsed = DateTimeOffset.UtcNow.AddMinutes(-1);
+        lapsed = new DateTimeOffset(lapsed.Ticks - lapsed.Ticks % TimeSpan.TicksPerSecond, TimeSpan.Zero);
+        await using (var prepare = new ApplicationDbContext(options))
+        {
+            var board = await prepare.Boards.SingleAsync();
+            prepare.Entry(board).Property(x => x.EditorLeaseExpiresAt).CurrentValue = lapsed;
+            await prepare.SaveChangesAsync();
+        }
+        Assert.False(await RenewAsync());
+        await using (var verify = new ApplicationDbContext(options))
+        {
+            var board = await verify.Boards.AsNoTracking().SingleAsync();
+            Assert.Equal(lapsed, board.EditorLeaseExpiresAt);
+            Assert.Equal(version, board.Version);
+            Assert.Empty(await verify.AuditEntries.Where(x => x.EventId == fixture.Event.Id).ToListAsync());
+        }
     }
 
     // U7-Q3: the retired BoardPreview route redirects to the Board, also with team/tile segments.
