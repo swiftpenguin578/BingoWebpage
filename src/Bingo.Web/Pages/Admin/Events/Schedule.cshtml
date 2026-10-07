@@ -22,6 +22,10 @@
 @section HeaderSummary {
     <span class="sc-owners">@T["Times are in {0}; change it on", Model.EventTimezoneLabel] <a class="text-btn" data-shell-link asp-page="Identity" asp-route-id="@Model.EventId">@T["Identity"]</a>. @T["Open, close or start by hand on"] <a class="text-btn" asp-page="Manage" asp-route-id="@Model.EventId">@T["Overview"]</a>.</span>
 }
+@if (Model.HasUnresolvableTimezone)
+{
+    <div class="banner is-info page-banner" data-timezone-fallback role="status"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("info")' /><span>@T["The stored timezone ID {0} is retained. Dates on this page use an explicit UTC fallback.", Model.EventTimezone] <a class="text-btn" data-shell-link asp-page="Identity" asp-route-id="@Model.EventId">@T["Choose a supported timezone on Identity."]</a></span></div>
+}
 @if (Model.ScheduleNotice.Length > 0)
 {
     <partial name="_AdminDesignBanner" model='new AdminDesignBanner("is-info page-banner form-card", "lock", Model.ScheduleNotice)' />
@@ -55,7 +59,7 @@
                             <input type="hidden" id="Input_@field.Name" name="Input.@field.Name" value="@field.Value" />
                             @if (field.Editable)
                             {
-                                <div class="dtp" id="@id-field" data-date-time="@id" data-label="@T[field.Label]" data-timezone="@Model.EventTimezone" data-now="@Model.CurrentInstant.ToString("O", CultureInfo.InvariantCulture)" data-clearable="@((!Model.HasPublicExposure || field.Key is not ("eventStartsAt" or "eventEndsAt")).ToString().ToLowerInvariant())" role="group" aria-labelledby="label-@id">
+                                <div class="dtp" id="@id-field" data-date-time="@id" data-label="@T[field.Label]" data-timezone="@Model.DisplayTimezone" data-now="@Model.CurrentInstant.ToString("O", CultureInfo.InvariantCulture)" data-clearable="@((!Model.HasPublicExposure || field.Key is not ("eventStartsAt" or "eventEndsAt")).ToString().ToLowerInvariant())" role="group" aria-labelledby="label-@id">
                                     <input class="dtp-date" id="@id-date" placeholder="dd mmm yyyy" autocomplete="off" spellcheck="false" aria-label="@T["{0}, date", T[field.Label]]" aria-describedby="error-@field.Name hint-@id" />
                                     <span class="dtp-sep" aria-hidden="true"></span>
                                     <input class="dtp-time" id="@id-time" placeholder="hh:mm" inputmode="numeric" autocomplete="off" aria-label="@T["{0}, time (24-hour)", T[field.Label]]" aria-describedby="error-@field.Name hint-@id" />

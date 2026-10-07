@@ -1,11 +1,12 @@
 # Current project status
 
-## U3 batch gate executed; not passed — 7 October 2026
+## U3 post-batch fixes ready for review — 7 October 2026
 
-- Tested source `5ef3ab3ad4e6c23fe9a0e6c8c3bc25404c89ca11` after separate user-ruling commits: D navigation `d7e40d5d`; Accounts save assertion `5143515e`; approved T no-fade merge `20bab650` (verified head 162a1b9); shared read-only lock `f166a04e`; capacity/count/date corrections `5ef3ab3a`. Prior A/B/C/E/F and items 1–3 commits remain preserved.
-- [Batch evidence](docs/references/admin-ui/reviews/2026-10-07/u3/batch/checkpoint.md): Release build once **0 warnings/errors**; full JS runner once, both engines **97 passed / 5 failed / 102 total**. No whole .NET suite; planner owns it. The two stale Events assertions were corrected separately in `12d9d6c5`; focused rerun **28 passed / 0 failed** in both engines, without a second full runner/build. Stale-account replay is unpassed because reused pre-T1 captured HTML lacks the current drawer markup; fresh PostgreSQL fixture output is required. Scoped Schedule/Signup behavior, EN/DA text, readonly geometry and Identity/Schedule/Signup conformance passed; exact evidence and updated parity linked there.
-- Accounts/Audit scoped conformance remains failing: Accounts loading count markup lacks 2 tab-style placeholders; Audit at 390 px: loading summary 43.125 px versus 39.15 px Q6. No assertion bypass or T page remediation. The user accepted T1 visually 7 October 2026; UI_PAGE_MATRIX owns that approval. Original T1 merge 4b94de9 and radius merge 22dd524 remain preserved. Signup setup is **not visually accepted**.
-- Current review links verified after authorized recreation; owner.json.stale-20261007 and owner.json.stale-20261007-2 both preserved. Environment remains active at 5310 / reference 5320. No T2 handover until planner instruction. No push/deploy or independent review claimed.
+- Approved T head `c4b6abd` merged without conflicts via `3cbf654e`; scoped fixture/evidence commit `96a402b4`. Unknown-timezone and shell recovery fix is the commit containing this status. Prior U3 commits and original `ea336943` batch evidence remain preserved.
+- [Current report and exact scoped evidence](docs/references/admin-ui/reviews/2026-10-07/u3/post-batch/report.md): requested PostgreSQL test **8/0/0**, regenerated Accounts stale replay **4 action groups passed**, all seven registered pages **45 conformance cases per engine passed** at all five widths. Accounts/Audit conformance and old replay-fixture failures are resolved. Schedule **10 groups**, Signup **15 groups**, shell and unknown-timezone EN/DA checks pass in both engines. Release solution and explicitly rebuilt Release parity fixture pass with 0 warnings/errors. Shared CSS cmp/diff checks pass.
+- Unknown stored timezone IDs remain unchanged; Schedule displays explicit UTC dates read-only, and Signup labels its fallback. Both link to Identity. Initialization exceptions show page recovery, clear incomplete page state and do not strand navigation or show a misleading connection toast. No migration or history/save-policy changes.
+- Review environment refreshed and live links verified in both engines; the report links normal Signup settings/form and unknown-timezone Schedule/Signup. Both preserved stale owner markers remain. No T2 handover until planner instruction.
+- No repeated full JS runner or whole .NET suite. Original full-run result remains historical; scoped failures were resolved and rerun individually. T1 remains visually accepted as recorded in UI_PAGE_MATRIX; Signup setup acceptance remains pending. No independent-review or manual-acceptance claim, push or deployment.
 
 ## Phase colours implemented — 7 October 2026
 
@@ -62,4 +63,4 @@
 
 ## Next permitted action
 
-Stop for planner/user disposition of the reported batch/conformance failures and visual findings. U3 item 4 was explicitly authorized and executed once; do not repeat broad gates or start another page family automatically. The planner owns the whole .NET suite and any T2 review-environment handover. Preserve existing work/evidence; no push or deployment.
+Stop for planner review and the user’s visual findings/acceptance. Requested post-batch fixes and scoped checks are complete; no remaining scoped failures. The planner owns the whole .NET gate and any T2 review-environment handover. Preserve existing evidence and markers; do not repeat broad gates, start another page family, push or deploy automatically.

@@ -16,12 +16,13 @@ export async function init(region, ui=window.AdminUI, retained=null) {
   let current=JSON.parse(root.dataset.current), pending=false, uncertain=null, layer=null, reason=retained?.reason??form.elements.namedItem('Input.EventEndReason').value;
   const pickers={};
   const listen=(el,type,fn)=>el?.addEventListener(type,fn,{signal:life.signal});
-  const local=(snapshot,field)=>snapshot.values[field]===null?'':utcToLocal(Date.parse(snapshot.values[field]),snapshot.timezone);
+  const displayTimezone=snapshot=>snapshot.displayTimezone||snapshot.timezone;
+  const local=(snapshot,field)=>snapshot.values[field]===null?'':utcToLocal(Date.parse(snapshot.values[field]),displayTimezone(snapshot));
   const draft=()=>Object.fromEntries(fields.map(field=>[nodes[field].dataset.label,inputs[field].value]));
   const changed=()=>fields.some(field=>inputs[field].value!==local(current,field));
   const dirty=()=>!!uncertain||changed()||Object.values(pickers).some(picker=>picker.dirty());
-  const format=value=>{if(value==null)return text('none');const parts=Object.fromEntries(new Intl.DateTimeFormat(document.documentElement.lang==='da'?'da-DK':'en-GB',{timeZone:current.timezone,day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(new Date(value)).map(p=>[p.type,p.value]));return `${Number(parts.day)} ${document.documentElement.lang==='da'?parts.month:parts.month.slice(0,3)} ${parts.year}, ${parts.hour}:${parts.minute}`;};
-  const offset=value=>value==null?'':new Intl.DateTimeFormat('en-GB',{timeZone:current.timezone,timeZoneName:'longOffset'}).formatToParts(new Date(value)).find(part=>part.type==='timeZoneName').value.replace('GMT','UTC');
+  const format=value=>{if(value==null)return text('none');const parts=Object.fromEntries(new Intl.DateTimeFormat(document.documentElement.lang==='da'?'da-DK':'en-GB',{timeZone:displayTimezone(current),day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(new Date(value)).map(p=>[p.type,p.value]));return `${Number(parts.day)} ${document.documentElement.lang==='da'?parts.month:parts.month.slice(0,3)} ${parts.year}, ${parts.hour}:${parts.minute}`;};
+  const offset=value=>value==null?'':new Intl.DateTimeFormat('en-GB',{timeZone:displayTimezone(current),timeZoneName:'longOffset'}).formatToParts(new Date(value)).find(part=>part.type==='timeZoneName').value.replace('GMT','UTC');
   const error=(field,message)=>{const el=nodes[field].querySelector('[data-field-error]')||nodes[field].querySelector('.field-err'); if(el){el.hidden=!message;el.classList.toggle('field-validation-valid',!message);el.classList.toggle('field-validation-error',!!message);const span=el.querySelector('[data-component-text]');(span||el).textContent=message;pickers[field]?.setInvalid(!!message);} };
   function report(message,tone='warning') {
     const component=ui.template('banner-'+tone).firstElementChild;
@@ -59,7 +60,7 @@ export async function init(region, ui=window.AdminUI, retained=null) {
         note.hidden=false;noteText.append(document.createTextNode(text('theirs')+' '+format(next.values[field])+'. '+text('mineKept')+' '));
         const button=document.createElement('button');button.type='button';button.className='text-btn';button.textContent=text('useTheirs');listen(button,'click',()=>{inputs[field].value=theirs;pickers[field]?.refresh();note.hidden=true;paint();});noteText.append(button);
       }
-      const picker=nodes[field].querySelector('[data-date-time]');if(picker)picker.dataset.timezone=next.timezone;
+      const picker=nodes[field].querySelector('[data-date-time]');if(picker)picker.dataset.timezone=displayTimezone(next);
     }
     current=next;if(next.phase!=='Draft')root.dataset.published='true';form.elements.namedItem('Input.Version').value=next.version;
     root.dataset.current=JSON.stringify(next);paint();

@@ -28,6 +28,8 @@ namespace Bingo.Web.Pages.Admin.Events;
 public sealed class SignupSetupModel(ApplicationDbContext dbContext, TimeProvider timeProvider, ISignupService signupService, IStringLocalizer<SharedResource>? text = null, IAuditWriter? auditWriter = null, ISecretHasher? hasher = null) : PageModel
 {
     public Guid EventId { get; private set; }
+    public string EventTimezone { get; private set; } = string.Empty;
+    public bool HasUnresolvableTimezone => !TimeZoneInfo.TryFindSystemTimeZoneById(EventTimezone, out _);
     public EventState EventState { get; private set; }
     public bool DraftLocked { get; private set; }
     public SignupSettingsSnapshot Settings { get; private set; } = new(0, null, true, false, false);
@@ -56,7 +58,7 @@ public sealed class SignupSetupModel(ApplicationDbContext dbContext, TimeProvide
 
     public object CurrentSnapshot => new { eventId = EventId, phase = EventState.ToString(), draftLocked = DraftLocked, editable = CanEdit,
             settings = Settings, confirmed = ConfirmedCount, waiting = WaitingCount,
-            hasForm = HasForm, formVersion = FormVersion, hasFirstResponse = HasFirstResponse, firstResponseDay = FirstResponseAt is { } first ? DateTimePresentation.ToTimezone(first).ToString("d MMM yyyy, HH':'mm", CultureInfo.CurrentCulture) : null,
+            hasForm = HasForm, formVersion = FormVersion, hasFirstResponse = HasFirstResponse, firstResponseDay = FirstResponseAt is { } first ? DateTimePresentation.ToTimezone(first, HasUnresolvableTimezone ? "UTC" : null).ToString("d MMM yyyy, HH':'mm", CultureInfo.CurrentCulture) : null,
             questions = AllQuestions.Select(question => new { question.Id, question.Key, question.Label, question.HelpText,
                 type = question.Type.ToString(), question.Required, question.Options, question.Position, question.Active,
                 systemField = question.SystemField.ToString(), accountRole = question.AccountAnswerRole?.ToString(), question.Version,
@@ -521,11 +523,12 @@ public sealed class SignupSetupModel(ApplicationDbContext dbContext, TimeProvide
         var bingoEvent = await dbContext.Events
             .AsNoTracking()
             .Where(item => item.Id == id && item.HiddenAt == null)
-            .Select(item => new { item.Name, item.State, item.DraftLocked, item.Version, item.ParticipantCap, item.RequireSignupCode, HasSignupCode = item.SignupCodeHash != null })
+            .Select(item => new { item.Name, item.Timezone, item.State, item.DraftLocked, item.Version, item.ParticipantCap, item.RequireSignupCode, HasSignupCode = item.SignupCodeHash != null })
             .SingleOrDefaultAsync(ct);
         if (bingoEvent is null) return false;
 
         EventId = id;
+        EventTimezone = bingoEvent.Timezone;
         EventState = bingoEvent.State;
         DraftLocked = bingoEvent.DraftLocked;
         Settings = new(bingoEvent.Version, bingoEvent.ParticipantCap, true, bingoEvent.RequireSignupCode, bingoEvent.HasSignupCode);

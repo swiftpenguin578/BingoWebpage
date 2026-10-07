@@ -328,7 +328,14 @@
   history.replaceState({ ...history.state, adminDesignIndex: index }, '', activeUrl);
   let travel = null, handlingPop = false;
   const fullLoad = url => location.assign(url);
-  async function disposePage() { urlStates.clear(); for (const module of modules.reverse()) await module.dispose(); modules = []; drafts.clear(); refreshDirty(); }
+  async function disposePage() {
+    const previous = modules; modules = []; urlStates.clear();
+    try {
+      for (const module of previous.reverse()) {
+        try { await module.dispose(); } catch (error) { console.warn('Admin page disposal failed.', error); }
+      }
+    } finally { drafts.clear(); refreshDirty(); }
+  }
   async function loadModules(doc) {
     const result = [];
     for (const script of doc.querySelectorAll('script[data-admin-page-script]')) {
@@ -342,7 +349,30 @@
   }
   async function initModules(next) {
     modules = next;
-    for (const module of modules) await module.init(document.querySelector('[data-page-region]'), api);
+    try {
+      for (const module of modules) await module.init(document.querySelector('[data-page-region]'), api);
+      return true;
+    } catch (error) { await pageInitializationFailed(error); return false; }
+  }
+  async function pageInitializationFailed(error) {
+    console.warn('Admin page initialization failed.', error);
+    // An incomplete initializer may have registered a throwing draft or opened a
+    // pending layer. Neither may retain control of the shared navigation shell.
+    for (const layer of layers.splice(0).reverse()) {
+      layer.wrapper.remove(); layer.scrim.remove(); layer.resolveClosed(true);
+    }
+    lock(); await disposePage(); closeMenu(false); clearOverlay();
+    const region = document.querySelector('[data-page-region]');
+    region.inert = false; region.removeAttribute('aria-busy');
+    const page = region.querySelector('.page') || region;
+    for (const child of [...page.children]) if (!child.classList.contains('page-head')) child.remove();
+    const failed = template('load-failure');
+    failed.querySelector('.empty-title').textContent = text('pageInitErrorTitle');
+    failed.querySelector('.empty-text').textContent = text('pageInitError');
+    failed.firstElementChild.dataset.pageInitFailure = '';
+    const retry = failed.querySelector('[data-load-retry]');
+    retry.addEventListener('click', () => void navigate(location.href, { mode: 'replace', check: false }));
+    page.append(failed); focus(retry);
   }
   const stagedStyles = new WeakMap();
   async function preparePageStyles(sources, signal) {
@@ -668,7 +698,7 @@
       else if (mode === 'pop') index = targetIndex;
       else if (mode === 'replace') history.replaceState({ ...history.state, adminDesignIndex: index }, '', url);
       activeUrl = url;
-      await initModules(nextModules);
+      if (!await initModules(nextModules)) return false;
       if (language) {
         restorePosition(position);
         if (!reducedMotion()) for (const element of document.querySelectorAll('[data-shell-sidebar],[data-shell-topbar],[data-page-region]')) {
@@ -895,5 +925,5 @@
   window.addEventListener('pageshow', event => { if (event.persisted) { navigation?.abort(); sequence++; clearOverlay(); location.reload(); } });
   document.querySelectorAll('[data-toast]').forEach(element => startToast(element, 4500));
   paintSideLabel();
-  void loadModules(document).then(initModules).catch(() => toast(text('loadError'), { error: true }));
+  void loadModules(document).then(initModules).catch(pageInitializationFailed);
 })();
