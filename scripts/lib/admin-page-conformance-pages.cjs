@@ -6,7 +6,7 @@ module.exports = [
     textRows: { 'ac-sk-text':['body',1.45], 'ac-sk-line':['control-sm',1.45] }, reference: 'Accounts.dc.html', first: '.card', blocks: { first: '.card', toolbar: '.toolbar', table: '.ac-tbl' },
     style: ['.ac-tbl','--table-min','900px'], titleDa: 'Konti',
     update: { control: '[data-accounts-role][value="admin"]', action: 'click', request: true, selected: '[data-accounts-role][value="admin"]:checked' } },
-  { family: 'audit', fixedSummary: { words: ['Administrative history, newest first.', /^Times in Copenhagen time \(UTC[+-]\d{2}:\d{2}\)$/], wordsDa: ['Administrativ historik, nyeste først.', /^Tider i københavnsk tid \(UTC[+-]\d{2}:\d{2}\)$/] },
+  { family: 'audit', fixedSummary: { words: [/^Times in Copenhagen time \(UTC[+-]\d{2}:\d{2}\)$/], wordsDa: [/^Tider i københavnsk tid \(UTC[+-]\d{2}:\d{2}\)$/] },
     url: () => '/Admin/Audit', fixture: 'community-audit', source: 'Pages/Admin/Audit/Index.cshtml', module: 'admin-audit.js',
     textRows: { 'au-sk-main':['control',1.45], 'au-sk-sub':['small',1.45] }, reference: 'Audit.dc.html', first: '.card', blocks: { first: '.card', toolbar: '.toolbar', table: '.au-tbl' },
     style: ['.au-tbl','--table-min','880px'], titleDa: 'Audit',
