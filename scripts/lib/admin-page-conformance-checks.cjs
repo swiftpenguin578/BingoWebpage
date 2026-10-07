@@ -182,3 +182,21 @@ async function checkFast(page, registration, paths, html) {
 }
 module.exports.checkDocument=checkDocument;
 module.exports.checkFast=checkFast;
+
+// Optional page declaration: fixed count words survive loading; only numbers are skeletons.
+async function checkLoadingSummary(page, registration) {
+  const summary=page.locator('[data-page-skeleton][aria-busy="true"] > .page-head .summary');
+  if (!registration.countSummary) {
+    assert.equal((await summary.textContent()).trim(), '', registration.family+': data summary stays empty while loading');
+    assert.equal(await summary.locator('.sk').count(),0,registration.family+': no invented summary data');
+    return;
+  }
+  const words=(await page.locator('html').getAttribute('lang'))==='da'?registration.countSummary.wordsDa:registration.countSummary.words;
+  assert.deepEqual(await summary.locator(':scope > span').allTextContents().then(values=>values.map(text=>text.trim())),words,registration.family+': fixed count-summary words');
+  const bars=summary.locator('.tab-count[data-pending-count] > .sk');
+  assert.equal(await bars.count(),words.length,registration.family+': same numeric placeholders as tabs');
+  assert.equal(await summary.locator('button,.summary-btn,b').count(),0,registration.family+': no data-dependent attention or numbers before response');
+  const boxes=await summary.locator('.tab-count[data-pending-count]').evaluateAll(nodes=>nodes.map(e=>{const c=getComputedStyle(e),b=e.querySelector('.sk').getBoundingClientRect();return {display:c.display,width:e.getBoundingClientRect().width,barWidth:b.width,barHeight:b.height,text:e.textContent.trim()};}));
+  assert.ok(boxes.every(b=>b.display==='inline-flex'&&b.width>0&&Math.abs(b.barWidth-b.width)<0.1&&b.barHeight===10&&b.text===''),registration.family+': number-sized bars');
+}
+module.exports.checkLoadingSummary=checkLoadingSummary;

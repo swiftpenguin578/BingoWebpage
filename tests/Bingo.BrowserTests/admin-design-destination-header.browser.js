@@ -31,7 +31,7 @@ async function until(page,predicate){for(let i=0;i<200;i++)if(await page.evaluat
      void window.AdminUI.navigate(url);
     },{url:paths[to],source:html[to]});
     await until(page,()=>requests.length===1);await page.clock.runFor(150);
-    const check=async()=>{assert.equal(await page.locator('[data-page-skeleton] .h1').textContent(),headers[to].title);assert.equal((await page.locator('[data-page-skeleton] .summary').textContent()).trim(),'');assert.equal(await page.locator('.crumb-cur').textContent(),headers[to].title);};
+    const check=async()=>{assert.equal(await page.locator('[data-page-skeleton] .h1').textContent(),headers[to].title);const summaryText=(await page.locator('[data-page-skeleton] .summary').textContent()).trim().replace(/\s+/g,' ');const loading=await page.locator('[data-page-skeleton]').getAttribute('aria-busy')==='true';assert.equal(summaryText,to==='events'&&loading?(culture==='da'?'live kommende eller under opsætning':'live upcoming or in setup'):'');if(to==='events'&&loading)assert.equal(await page.locator('[data-page-skeleton] .summary .tab-count > .sk').count(),2);assert.equal(await page.locator('.crumb-cur').textContent(),headers[to].title);};
     await check();
     if(to==='identity'){const summary=await page.locator('[data-page-skeleton] .summary').evaluate(e=>({height:e.getBoundingClientRect().height,line:parseFloat(getComputedStyle(e).lineHeight)}));assert.ok(Math.abs(summary.height-summary.line*2)<0.1,'Identity loading summary reserves two phone lines (U3-Q6)');}
     if(fail)await page.evaluate(()=>requests[0].fail());else await page.evaluate(()=>requests[0].fulfill());

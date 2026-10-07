@@ -11,7 +11,7 @@ module.exports = [
     textRows: { 'dash-sk-stat-label':['small',1.45], 'dash-sk-stat-value':['stat',1.1], 'dash-sk-stat-note':['meta',1.45,17], 'dash-sk-panel-title':['control',1.45], 'dash-sk-fact-first':['control',1.45], 'dash-sk-fact':['control',1.45] }, reference: 'Dashboard.dc.html', first: '.card', blocks: { first: '.card', stats: '.stat-strip', section: '.dash-grid>.card:first-child' },
     style: ['.dash-grid', 'display', 'grid'], titleDa: 'Dashboard',
     update: { control: '[data-dashboard-sort="Winner"]', action: 'click', selected: '[data-dashboard-sort="Winner"]', attribute: ['aria-sort', 'ascending'], attributeParent: '.th' } },
-  { family: 'events', url: () => '/Admin/Events/Index', fixture: 'community-events',
+  { family: 'events', countSummary: { words: ['live', 'upcoming or in setup'], wordsDa: ['live', 'kommende eller under opsætning'] }, url: () => '/Admin/Events/Index', fixture: 'community-events',
     source: 'Pages/Admin/Events/Index.cshtml', module: 'admin-events.js',
     textRows: { 'events-sk-name':['body',1.45], 'events-sk-main':['control-sm',1.45], 'events-sk-start':['control-sm',1.45], 'events-sk-end':['small',1.45] }, reference: 'Events.dc.html', first: '.card', blocks: { first: '.card', toolbar: '.toolbar', table: '.ev-tbl' },
     style: ['.tbl.ev-tbl', '--table-min', { narrow: '900px', wide: '990px', breakpoint: 640 }], titleDa: 'Events',
