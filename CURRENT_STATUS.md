@@ -1,5 +1,12 @@
 # Current project status
 
+## C8 / LKP-1 executed — awaiting independent review — 8 October2026
+
+- Proof-only lane C on `codex/c8-luck-proof`, base `4b482822`; item1 `16162245c6780ad3deb5e5cf950b633b836922f8`. [Compact execution evidence, test names and exact commands](docs/references/admin-ui/reviews/2026-10-08/lkp-1-proof.md).
+- Real PostgreSQL scoped checks **92/0/0** (57 methods from exactly the six brief89 files), corrected LKP-1 cases **4/0/0**; final Release test-project build **0 warnings/errors** and diff checks passed. Initial test-only price-hour/analyzer construction failures were corrected; no scoped base failure or production defect observed.
+- Mixed outcomes are Incomplete at player/team/event; incomplete checkpoints are replaceable, compatible complete payload/times remain byte-identical across later partial batches, and saved-only Stats/tile reads survive publication/archive without additional provider calls. Deterministic microsecond clocks plus non-aligned upstream PostgreSQL round trip executed.
+- Implementer stopped after item2. **Executed, awaiting independent review**; no acceptance recorded. Planner owns review/whole.NET. Review-environment needs: none; shared environment untouched. Next for C8: wait for planner review; no U9 or publication authorized.
+
 ## U3 whole-suite remediation complete — 7 October2026
 
 - All SR1–5 findings from the planner suite on bb391bc are fixed in separate commits. [Final remediation checkpoint and exact evidence](docs/references/admin-ui/reviews/2026-10-07/u3/suite-remediation/checkpoint.md).
