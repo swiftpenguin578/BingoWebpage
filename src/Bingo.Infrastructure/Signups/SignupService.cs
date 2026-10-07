@@ -309,6 +309,7 @@ public sealed partial class SignupService(
             if (!bingoEvent.AcceptsWaitingList)
                 return Failure("Signup administration is read-only after the draft starts or the event has moved on.");
             if (newCap < 1) return Failure("Maximum players must be at least 1.");
+            if (newCap > BingoEvent.MaximumParticipantCap) return Failure(BingoEvent.ParticipantCapMaximumMessage);
             var waitingCount = await SignupParticipants(eventId).CountAsync(item => item.SignupStatus == SignupStatus.WaitingList, cancellationToken);
             var confirmedCount = await SignupParticipants(eventId).CountAsync(item => item.SignupStatus == SignupStatus.Confirmed, cancellationToken);
             if (newCap < confirmedCount)
@@ -634,6 +635,8 @@ public sealed partial class SignupService(
                 return new(false, "Configure a participant capacity before adding signups.");
             var confirmed = await SignupParticipants(request.EventId).CountAsync(x => x.SignupStatus == SignupStatus.Confirmed, cancellationToken);
             var full = confirmed >= currentCapacity;
+            if (full && request.ExpandCapacityWhenFull && currentCapacity >= BingoEvent.MaximumParticipantCap)
+                return new(false, BingoEvent.ParticipantCapMaximumMessage);
             if (full && !request.ExpandCapacityWhenFull)
             {
                 // The normal Add flow admits the participant to the queue.
@@ -2498,6 +2501,8 @@ public sealed partial class SignupService(
                 return new(false, "Configure a participant capacity before confirming signups.");
             var confirmed = await SignupParticipants(request.EventId).CountAsync(x => x.SignupStatus == SignupStatus.Confirmed, cancellationToken);
             var full = confirmed >= currentCapacity;
+            if (full && request.ExpandCapacityWhenFull && currentCapacity >= BingoEvent.MaximumParticipantCap)
+                return new(false, BingoEvent.ParticipantCapMaximumMessage);
             if (full && !request.ExpandCapacityWhenFull)
                 return new(false, "The event is full. Confirm the add-one-place option to confirm this participant.");
             if (!full && request.ExpandCapacityWhenFull)
@@ -2760,6 +2765,8 @@ public sealed partial class SignupService(
                 return new(false, "Configure a participant capacity before restoring signups.");
             var confirmed = await SignupParticipants(request.EventId).CountAsync(x => x.SignupStatus == SignupStatus.Confirmed, cancellationToken);
             var full = confirmed >= currentCapacity;
+            if (full && request.ExpandCapacityWhenFull && currentCapacity >= BingoEvent.MaximumParticipantCap)
+                return new(false, BingoEvent.ParticipantCapMaximumMessage);
             if (full && !request.ExpandCapacityWhenFull)
             {
                 // A normal restore goes to the end of the queue. It never

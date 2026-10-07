@@ -26,6 +26,9 @@ using Testcontainers.PostgreSql;
 
 namespace Bingo.IntegrationTests;
 
+// U3 / DP:966–971 / C4: these existing operations now belong to SignupSetup;
+// terminal mutation/refusal, replay, version and data-integrity assertions are retained.
+
 public sealed partial class SignupQuestionCreationRetryIntegrationTests(PostgreSqlTestFixture databaseFixture) : IAsyncLifetime, IClassFixture<PostgreSqlTestFixture>
 {
     private static readonly DateTimeOffset Now = new(2026, 10, 2, 12, 0, 0, TimeSpan.Zero);
@@ -223,7 +226,7 @@ public sealed partial class SignupQuestionCreationRetryIntegrationTests(PostgreS
     {
         var seed = await SeedAsync(); await using var factory = Factory();
         using var client = factory.CreateClient(new() { AllowAutoRedirect = false, BaseAddress = new Uri("https://localhost") });
-        var route = $"/Admin/Events/Questions/{seed.EventId}";
+        var route = $"/Admin/Events/SignupSetup/{seed.EventId}";
         using (var anonymous = await client.GetAsync(route)) Assert.Equal(HttpStatusCode.Redirect, anonymous.StatusCode);
         await LoginAsync(client, seed.Admin.LoginName);
         var page = await client.GetStringAsync(route);

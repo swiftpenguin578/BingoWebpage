@@ -19,7 +19,10 @@ using Testcontainers.PostgreSql;
 
 namespace Bingo.IntegrationTests;
 
-public sealed class SignupSetupVersionIntegrationTests(PostgreSqlTestFixture databaseFixture) : IAsyncLifetime, IClassFixture<PostgreSqlTestFixture>
+// U3 / DP:966–971 / C4: these existing operations now belong to SignupSetup;
+// terminal mutation/refusal, replay, version and data-integrity assertions are retained.
+
+public sealed partial class SignupSetupVersionIntegrationTests(PostgreSqlTestFixture databaseFixture) : IAsyncLifetime, IClassFixture<PostgreSqlTestFixture>
 {
     private static readonly DateTimeOffset Now = new(2026, 10, 2, 12, 0, 0, TimeSpan.Zero);
     private readonly PostgreSqlTestDatabase database = databaseFixture.CreateDatabase(new PostgreSqlBuilder("postgres:17-alpine")
@@ -46,7 +49,7 @@ public sealed class SignupSetupVersionIntegrationTests(PostgreSqlTestFixture dat
         await using var factory = Factory();
         using var client = factory.CreateClient(new() { AllowAutoRedirect = false });
         await LoginAsync(client, seed.Admin);
-        var route = $"/Admin/Events/Questions/{seed.EventId}";
+        var route = $"/Admin/Events/SignupSetup/{seed.EventId}";
         var page = await client.GetStringAsync(route);
         var originalVersion = FormVersion(page);
         using (var first = await PostAsync(client, route, "EditAccount", page, originalVersion, Fields("EditAccount", seed)))
@@ -75,7 +78,7 @@ public sealed class SignupSetupVersionIntegrationTests(PostgreSqlTestFixture dat
         using var one = factory.CreateClient(new() { AllowAutoRedirect = false });
         using var two = factory.CreateClient(new() { AllowAutoRedirect = false });
         await LoginAsync(one, seed.Admin); await LoginAsync(two, seed.Admin);
-        var route = $"/Admin/Events/Questions/{seed.EventId}";
+        var route = $"/Admin/Events/SignupSetup/{seed.EventId}";
         var pageOne = await one.GetStringAsync(route); var pageTwo = await two.GetStringAsync(route);
         await using var blocker = new ApplicationDbContext(options);
         await using var transaction = await blocker.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted);
@@ -102,12 +105,12 @@ public sealed class SignupSetupVersionIntegrationTests(PostgreSqlTestFixture dat
         await using var factory = Factory();
         using var client = factory.CreateClient(new() { AllowAutoRedirect = false });
         await LoginAsync(client, seed.Admin);
-        var route = $"/Admin/Events/Participants/{seed.EventId}";
+        var route = $"/Admin/Events/SignupSetup/{seed.EventId}";
         var page = await client.GetStringAsync(route);
         client.DefaultRequestHeaders.Accept.ParseAdd("application/json");
         var version = await EventVersionAsync(seed.EventId);
-        var capacity = await SettingsPostAsync(client, $"/Admin/Events/Manage/{seed.EventId}?handler=Capacity", page,
-            new() { ["EventVersion"] = version.ToString(System.Globalization.CultureInfo.InvariantCulture), ["NewCap"] = "7" });
+        var capacity = await SettingsPostAsync(client, $"/Admin/Events/SignupSetup/{seed.EventId}?handler=SignupAdministration", page,
+            new() { ["SignupAdministration.Version"] = version.ToString(System.Globalization.CultureInfo.InvariantCulture), ["SignupAdministration.ParticipantCap"] = "7" });
         Assert.True(capacity.Succeeded, capacity.Error);
         Assert.Equal(version, capacity.SubmittedEventVersion);
         Assert.Equal(7, capacity.Settings!.ParticipantCap);
@@ -130,12 +133,12 @@ public sealed class SignupSetupVersionIntegrationTests(PostgreSqlTestFixture dat
         Assert.Equal(await EventVersionAsync(seed.EventId), code.Settings.EventVersion);
         Assert.Equal(version, capacity.SubmittedEventVersion); // The earlier operation retains its baseline.
         before = await SnapshotAsync(seed.EventId);
-        var staleCapacity = await SettingsPostAsync(client, $"/Admin/Events/Manage/{seed.EventId}?handler=Capacity", page,
-            new() { ["EventVersion"] = capacity.Settings.EventVersion.ToString(System.Globalization.CultureInfo.InvariantCulture), ["NewCap"] = "9" });
+        var staleCapacity = await SettingsPostAsync(client, $"/Admin/Events/SignupSetup/{seed.EventId}?handler=SignupAdministration", page,
+            new() { ["SignupAdministration.Version"] = capacity.Settings.EventVersion.ToString(System.Globalization.CultureInfo.InvariantCulture), ["SignupAdministration.ParticipantCap"] = "9" });
         Assert.False(staleCapacity.Succeeded); Assert.Equal(code.Settings, staleCapacity.Settings);
         Assert.Equal(before, await SnapshotAsync(seed.EventId));
-        var unchanged = await SettingsPostAsync(client, $"/Admin/Events/Manage/{seed.EventId}?handler=Capacity", page,
-            new() { ["EventVersion"] = code.Settings.EventVersion.ToString(System.Globalization.CultureInfo.InvariantCulture), ["NewCap"] = "7" });
+        var unchanged = await SettingsPostAsync(client, $"/Admin/Events/SignupSetup/{seed.EventId}?handler=SignupAdministration", page,
+            new() { ["SignupAdministration.Version"] = code.Settings.EventVersion.ToString(System.Globalization.CultureInfo.InvariantCulture), ["SignupAdministration.ParticipantCap"] = "7" });
         Assert.True(unchanged.Succeeded, unchanged.Error);
         Assert.Equal(code.Settings.EventVersion, unchanged.SubmittedEventVersion);
         Assert.True(unchanged.Settings!.EventVersion > code.Settings.EventVersion);
@@ -151,14 +154,14 @@ public sealed class SignupSetupVersionIntegrationTests(PostgreSqlTestFixture dat
         using var one = factory.CreateClient(new() { AllowAutoRedirect = false });
         using var two = factory.CreateClient(new() { AllowAutoRedirect = false });
         await LoginAsync(one, seed.Admin); await LoginAsync(two, seed.Admin);
-        var route = $"/Admin/Events/Participants/{seed.EventId}";
+        var route = $"/Admin/Events/SignupSetup/{seed.EventId}";
         var pageOne = await one.GetStringAsync(route); var pageTwo = await two.GetStringAsync(route);
         one.DefaultRequestHeaders.Accept.ParseAdd("application/json"); two.DefaultRequestHeaders.Accept.ParseAdd("application/json");
         var version = await EventVersionAsync(seed.EventId);
         await using var blocker = new ApplicationDbContext(options);
         await using var transaction = await blocker.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted);
         await blocker.Events.FromSqlInterpolated($"SELECT * FROM events WHERE id = {seed.EventId} FOR UPDATE").SingleAsync();
-        var capacity = SettingsPostAsync(one, $"/Admin/Events/Manage/{seed.EventId}?handler=Capacity", pageOne, new() { ["EventVersion"] = version.ToString(System.Globalization.CultureInfo.InvariantCulture), ["NewCap"] = "7" });
+        var capacity = SettingsPostAsync(one, $"/Admin/Events/SignupSetup/{seed.EventId}?handler=SignupAdministration", pageOne, new() { ["SignupAdministration.Version"] = version.ToString(System.Globalization.CultureInfo.InvariantCulture), ["SignupAdministration.ParticipantCap"] = "7" });
         var code = SettingsPostAsync(two, route + "?handler=SignupCode", pageTwo, new() { ["SignupCode.Version"] = version.ToString(System.Globalization.CultureInfo.InvariantCulture), ["SignupCode.RequireSignupCode"] = "true", ["SignupCode.NewSignupCode"] = "synthetic-only" });
         await AssertEventLockWaitersAsync(2); await transaction.CommitAsync();
         var results = await Task.WhenAll(capacity, code);
@@ -182,7 +185,7 @@ public sealed class SignupSetupVersionIntegrationTests(PostgreSqlTestFixture dat
         }
         await using var factory = Factory(); using var client = factory.CreateClient(new() { AllowAutoRedirect = false });
         await LoginAsync(client, seed.Admin);
-        var route = $"/Admin/Events/Questions/{seed.EventId}"; var page = await client.GetStringAsync(route);
+        var route = $"/Admin/Events/SignupSetup/{seed.EventId}"; var page = await client.GetStringAsync(route);
         var before = await SnapshotAsync(seed.EventId);
         using (var rejected = await PostAsync(client, route, "Edit", page, FormVersion(page), Fields("Edit", seed)))
         {

@@ -44,7 +44,7 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
     public EventCompetitionView? CompetitionIntegration { get; private set; }
     public string? PrivateCancellationReason { get; private set; }
     public IReadOnlyList<QuarantineAuditRow> QuarantineAuditHistory { get; private set; } = [];
-    [BindProperty, Range(1, 10000), Display(Name = "New participant cap")] public int NewCap { get; set; }
+    [BindProperty, Display(Name = "New participant cap")] public int NewCap { get; set; }
     [BindProperty, DataType(DataType.DateTime), Display(Name = "Signups open")] public DateTimeOffset NewSignupOpening { get; set; }
     [BindProperty, DataType(DataType.DateTime), Display(Name = "New signup closing")] public DateTimeOffset NewSignupClosing { get; set; }
     [BindProperty, StringLength(1000), Display(Name = "Reason for reopening")] public string? StateReason { get; set; }
@@ -91,20 +91,13 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
     public async Task<IActionResult> OnPostOpenSignupAsync(Guid id, CancellationToken ct) => await SignupResult(await signupLifecycle.OpenAsync(id, EventVersion, [], ConfirmSignupAction, Actor, ct), id, "Signups opened.", ct);
     public async Task<IActionResult> OnPostCloseSignupAsync(Guid id, CancellationToken ct) => await SignupResult(await signupLifecycle.CloseAsync(id, EventVersion, ConfirmSignupAction, Actor, ct), id, "Signups closed.", ct);
     public async Task<IActionResult> OnPostReopenSignupAsync(Guid id, CancellationToken ct) => await SignupResult(await signupLifecycle.ReopenAsync(id, EventVersion, [], ConfirmSignupAction, Actor, ct), id, "Signups reopened.", ct);
-    public async Task<IActionResult> OnPostCapacityAsync(Guid id, CancellationToken ct)
+    // Retired capacity owner (DP:966–971/C4). D16 still refuses terminal POSTs
+    // before this stub, preserving test14's exact Manage redirect/read-only result.
+    public IActionResult OnPostCapacity(Guid id)
     {
-        if (HasBindingErrors(nameof(NewCap))) { TempData["StatusMessage"] = Localize("Enter a valid player cap."); return RedirectToPage(new { id }); }
-        var current = await dbContext.Events.AsNoTracking().Where(e => e.Id == id && e.HiddenAt == null).Select(e => new { e.WaitingListEnabled }).SingleOrDefaultAsync(ct);
-        if (current is null) return NotFound();
-        try
-        {
-            var result = await signupService.UpdateSignupAdministrationAsync(id, EventVersion, NewCap, current.WaitingListEnabled, User.GetAccountId()!.Value, User.Identity!.Name!, cancellationToken: ct);
-            if (Request.GetTypedHeaders().Accept?.Any(value => value.MediaType.Value == "application/json") == true) return new JsonResult(result);
-            if (!result.Succeeded) TempData["StatusMessage"] = result.Error;
-            else TempData["StatusMessage"] = Localize("Signup capacity saved. {0} participant(s) promoted.", result.PromotedParticipants);
-        }
-        catch (InvalidOperationException ex) { TempData["StatusMessage"] = ex.Message; }
-        return RedirectToPage(new { id });
+        _ = signupService; // Preserve the existing constructor contract while retiring this handler.
+        TempData["StatusMessage"] = Localize("Change the participant capacity on Signup setup.");
+        return RedirectToPage("SignupSetup", new { id });
     }
     public async Task<IActionResult> OnPostSignupWindowAsync(Guid id, CancellationToken ct)
     {

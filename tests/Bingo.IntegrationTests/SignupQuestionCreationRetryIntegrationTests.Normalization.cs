@@ -11,6 +11,9 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 
 namespace Bingo.IntegrationTests;
 
+// U3 / DP:966–971 / C4: these existing operations now belong to SignupSetup;
+// terminal mutation/refusal, replay, version and data-integrity assertions are retained.
+
 public sealed partial class SignupQuestionCreationRetryIntegrationTests
 {
     [Fact]
@@ -22,7 +25,7 @@ public sealed partial class SignupQuestionCreationRetryIntegrationTests
         await using var factory = Factory();
         using var client = factory.CreateClient(new() { AllowAutoRedirect = false, BaseAddress = new Uri("https://localhost") });
         await LoginAsync(client, seed.Admin.LoginName);
-        var route = $"/Admin/Events/Questions/{seed.EventId}";
+        var route = $"/Admin/Events/SignupSetup/{seed.EventId}";
         var page = await client.GetStringAsync(route);
         var fields = new Dictionary<string, string> {
             ["Input.Label"] = "Arriving question", ["Input.Type"] = "Text", ["Input.Required"] = "true",
@@ -63,7 +66,7 @@ public sealed partial class SignupQuestionCreationRetryIntegrationTests
         // from before the first response on another event to reach the structural guard directly.
         var guardedSeed = await SeedAsync(); var guarded = await AddAsync(Request(guardedSeed));
         var guardedSignup = await SignupRequestAsync(guardedSeed);
-        var guardedRoute = $"/Admin/Events/Questions/{guardedSeed.EventId}";
+        var guardedRoute = $"/Admin/Events/SignupSetup/{guardedSeed.EventId}";
         using var guardedClient = factory.CreateClient(new() { AllowAutoRedirect = false, BaseAddress = new Uri("https://localhost") });
         await LoginAsync(guardedClient, guardedSeed.Admin.LoginName);
         var oldEditor = await guardedClient.GetStringAsync(guardedRoute);

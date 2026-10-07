@@ -1,0 +1,46 @@
+{
+  "build": {
+    "log": "/tmp/u3-signup-item2-build.log",
+    "resultLines": [
+      "    0 Warning(s)",
+      "    0 Error(s)"
+    ]
+  },
+  "domain": {
+    "log": "/tmp/u3-signup-item2-domain.log",
+    "resultLines": [
+      "Passed!  - Failed:     0, Passed:     2, Skipped:     0, Total:     2, Duration: 10 ms - Bingo.Domain.Tests.dll (net10.0)"
+    ]
+  },
+  "integration": {
+    "log": "/tmp/u3-signup-item2-integration.log",
+    "resultLines": [
+      "[xUnit.net 00:00:10.11]     Bingo.IntegrationTests.SignupCodeValidationIntegrationTests.AuthenticatedCodePostEnforcesLengthAndPreservesRetainClearAndRequiredSemantics [FAIL]",
+      "[xUnit.net 00:00:12.05]     Bingo.IntegrationTests.SignupSetupVersionIntegrationTests.CurrentReturnsAuthorizedNoStoreSettingsAndFullDefinitionByStableIdWithoutWriting(phase: Archived, editable: False) [FAIL]",
+      "[xUnit.net 00:00:12.97]     Bingo.IntegrationTests.SignupSetupVersionIntegrationTests.CurrentReturnsAuthorizedNoStoreSettingsAndFullDefinitionByStableIdWithoutWriting(phase: AwaitingFinalReview, editable: False) [FAIL]",
+      "[xUnit.net 00:00:13.72]     Bingo.IntegrationTests.SignupSetupVersionIntegrationTests.CurrentReturnsAuthorizedNoStoreSettingsAndFullDefinitionByStableIdWithoutWriting(phase: Draft, editable: True) [FAIL]",
+      "[xUnit.net 00:00:14.17]     Bingo.IntegrationTests.SignupSetupVersionIntegrationTests.CurrentReturnsAuthorizedNoStoreSettingsAndFullDefinitionByStableIdWithoutWriting(phase: Live, editable: False) [FAIL]",
+      "[xUnit.net 00:00:14.62]     Bingo.IntegrationTests.SignupSetupVersionIntegrationTests.CurrentReturnsAuthorizedNoStoreSettingsAndFullDefinitionByStableIdWithoutWriting(phase: Cancelled, editable: False) [FAIL]",
+      "Failed!  - Failed:     6, Passed:    67, Skipped:     0, Total:    73, Duration: 21 s - Bingo.IntegrationTests.dll (net10.0)"
+    ]
+  },
+  "corrections": {
+    "log": "/tmp/u3-signup-item2-corrections.log",
+    "resultLines": [
+      "Passed!  - Failed:     0, Passed:     6, Skipped:     0, Total:     6, Duration: 10 s - Bingo.IntegrationTests.dll (net10.0)"
+    ]
+  },
+  "retained": {
+    "log": "/tmp/u3-signup-item2-retained.log",
+    "resultLines": [
+      "[xUnit.net 00:00:18.99]     Bingo.IntegrationTests.Slice4AuthenticatedSignupIntegrationTests.RenderedSignupAllowsEmptyOptionalAccountsAndEnforcesCodeBeforePersisting [FAIL]",
+      "Failed!  - Failed:     1, Passed:    10, Skipped:     0, Total:    11, Duration: 31 s - Bingo.IntegrationTests.dll (net10.0)"
+    ]
+  },
+  "retained-correction": {
+    "log": "/tmp/u3-signup-item2-retained-correction.log",
+    "resultLines": [
+      "Passed!  - Failed:     0, Passed:     1, Skipped:     0, Total:     1, Duration: 23 s - Bingo.IntegrationTests.dll (net10.0)"
+    ]
+  }
+}

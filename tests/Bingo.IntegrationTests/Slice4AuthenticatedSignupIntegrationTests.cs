@@ -27,6 +27,9 @@ using Testcontainers.PostgreSql;
 
 namespace Bingo.IntegrationTests;
 
+// U3 / DP:966–971 / C4: these existing operations now belong to SignupSetup;
+// terminal mutation/refusal, replay, version and data-integrity assertions are retained.
+
 public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
 {
     private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine").WithLoopbackPort()
@@ -388,7 +391,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         var page = await client.GetStringAsync("/Account/Login");
         using (var login = await client.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string> { ["Input.Username"] = admin.LoginName, ["Input.Password"] = "delete-password", ["__RequestVerificationToken"] = AntiforgeryToken(page) }))) Assert.Equal(HttpStatusCode.Redirect, login.StatusCode);
-        var route = $"/Admin/Events/Questions/{bingoEvent.Id}";
+        var route = $"/Admin/Events/SignupSetup/{bingoEvent.Id}";
         foreach (var question in new[] { optional, answered, unanswered })
         {
             page = await client.GetStringAsync(route);
@@ -1365,9 +1368,10 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetOwnedConnectionString()));
         using var adminClient = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         await LoginAsync(adminClient, adminLogin, "admin-password");
-        var participantsUrl = $"/Admin/Events/Participants/{eventId}";
+        var participantsUrl = $"/Admin/Events/SignupSetup/{eventId}";
         var adminPage = await adminClient.GetStringAsync(participantsUrl);
         Assert.Contains("data-signup-code-toggle", adminPage, StringComparison.Ordinal);
+        // C4: settings moved to Signup setup; the legacy Questions host is retired in item 3.
         var questionsPage = await adminClient.GetStringAsync($"/Admin/Events/Questions/{eventId}");
         Assert.DoesNotContain("handler=\"SignupCode\"", questionsPage, StringComparison.Ordinal);
         Assert.DoesNotContain("data-signup-code-toggle", questionsPage, StringComparison.Ordinal);
@@ -1561,7 +1565,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         })))
             Assert.Equal(HttpStatusCode.Redirect, signedIn.StatusCode);
 
-        var questionsUrl = $"/Admin/Events/Questions/{eventId}";
+        var questionsUrl = $"/Admin/Events/SignupSetup/{eventId}";
         var page = await client.GetStringAsync(questionsUrl);
         Assert.DoesNotContain("name=\"Edit.Type\"", page, StringComparison.Ordinal);
         Assert.DoesNotContain("name=\"Edit.Options\"", page, StringComparison.Ordinal);
@@ -1618,7 +1622,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
             await db.SaveChangesAsync();
             preResponseEventId = eventForMarkup.Id;
         }
-        var preResponsePage = await client.GetStringAsync($"/Admin/Events/Questions/{preResponseEventId}");
+        var preResponsePage = await client.GetStringAsync($"/Admin/Events/SignupSetup/{preResponseEventId}");
         Assert.DoesNotContain("selected=\"False\"", preResponsePage, StringComparison.Ordinal);
         Assert.DoesNotContain("checked=\"False\"", preResponsePage, StringComparison.Ordinal);
 
@@ -1676,7 +1680,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         })))
             Assert.Equal(HttpStatusCode.Redirect, signedIn.StatusCode);
 
-        var questionsUrl = $"/Admin/Events/Questions/{eventId}";
+        var questionsUrl = $"/Admin/Events/SignupSetup/{eventId}";
         var page = await client.GetStringAsync(questionsUrl);
         using (var edited = await client.PostAsync($"{questionsUrl}?handler=Edit", EditPost(page, questionId, "Forged retained edit", "Must not persist")))
             Assert.Equal(HttpStatusCode.Redirect, edited.StatusCode);
@@ -1725,7 +1729,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         }));
         Assert.Equal(HttpStatusCode.Redirect, signedIn.StatusCode);
 
-        var questionsUrl = $"/Admin/Events/Questions/{eventId}";
+        var questionsUrl = $"/Admin/Events/SignupSetup/{eventId}";
         var page = await client.GetStringAsync(questionsUrl);
         var versionBefore = await FormVersionAsync();
         using var invalid = await client.PostAsync(questionsUrl, QuestionPost(page, "Invalid choices", "SingleChoice"));
@@ -1807,7 +1811,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         })))
             Assert.Equal(HttpStatusCode.Redirect, signedIn.StatusCode);
 
-        var questionsUrl = $"/Admin/Events/Questions/{eventId}";
+        var questionsUrl = $"/Admin/Events/SignupSetup/{eventId}";
         var page = await client.GetStringAsync(questionsUrl);
         Assert.True(page.IndexOf("First custom", StringComparison.Ordinal) < page.IndexOf("Second custom", StringComparison.Ordinal));
         Assert.Contains("Alt account", page, StringComparison.Ordinal);
