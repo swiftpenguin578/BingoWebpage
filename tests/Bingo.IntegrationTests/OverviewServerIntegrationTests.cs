@@ -196,6 +196,11 @@ public sealed class OverviewServerIntegrationTests(PostgreSqlTestFixture databas
         Assert.Equal(HttpStatusCode.OK, (await super.GetAsync($"/Admin/Events/Manage/{hidden}?hidden=true")).StatusCode);
         var state = JsonDocument.Parse(await super.GetStringAsync($"/Admin/Events/Manage/{hidden}?handler=Current")).RootElement;
         Assert.True(state.GetProperty("hidden").GetBoolean());
+        // L6: the limited view carries only the restore dialog, no evidence codes and no last change.
+        Assert.Equal(["restore"], state.GetProperty("dialogs").EnumerateObject().Select(x => x.Name).ToArray());
+        Assert.Empty(state.GetProperty("evidenceCodes").EnumerateArray());
+        Assert.Empty(state.GetProperty("codes").GetProperty("list").EnumerateArray());
+        Assert.Equal(JsonValueKind.Null, state.GetProperty("lastChange").ValueKind);
         var version = await VersionAsync(hidden);
         // Only Restore can be posted on the hidden view.
         using (var refused = await PostJsonAsync(super, hidden, "Hide", page, version, new() { ["ConfirmDestructiveAction"] = "true", ["QuarantineReason"] = "Again" }))
@@ -235,6 +240,65 @@ public sealed class OverviewServerIntegrationTests(PostgreSqlTestFixture databas
         Assert.Equal("Code ZZZ999 saved.", applied.GetProperty("message").GetString());
         var current = JsonDocument.Parse(await client.GetStringAsync($"/Admin/Events/Manage/{live}?handler=Current")).RootElement;
         Assert.Equal("ABC123,ZZZ999", string.Join(",", current.GetProperty("evidenceCodes").EnumerateArray().Select(x => x.GetProperty("code").GetString())));
+    }
+
+    // L5 (U4 review): Copenhagen 2028 spring-forward 02:30 does not exist (26 March) and fall-back 02:30 is ambiguous (29 October).
+    // Each Overview picker field is refused as an invalid field on the server, and nothing changes.
+    [Theory]
+    [InlineData("2028-03-26T02:30", "does not exist")]
+    [InlineData("2028-10-29T02:30", "ambiguous")]
+    public async Task DaylightSavingGapAndOverlapTimesAreRefusedOnEveryOverviewPicker(string local, string reason)
+    {
+        var review = await AddAsync("DST review", EventState.AwaitingFinalReview);
+        var live = await AddAsync("DST live", EventState.Live);
+        await using (var db = new ApplicationDbContext(options))
+        {
+            (await db.Events.SingleAsync(x => x.Id == live)).SetEvidenceCodeEnabled(true, Now);
+            await db.SaveChangesAsync();
+        }
+        await using var factory = Factory();
+        using var client = await LoginAsync(factory, "overview-admin");
+        var reviewPage = await client.GetStringAsync($"/Admin/Events/Manage/{review}");
+        var livePage = await client.GetStringAsync($"/Admin/Events/Manage/{live}");
+        var reviewVersion = await VersionAsync(review);
+        var liveVersion = await VersionAsync(live);
+        var audits = await AuditCountAsync(review) + await AuditCountAsync(live);
+        var cases = new (Guid Id, string Handler, string Page, long Version, Dictionary<string, string> Fields, string Field)[]
+        {
+            (review, "ResumeEvent", reviewPage, reviewVersion, new() { ["ConfirmResumeEvent"] = "true", ["ResumeReason"] = "Mistake", ["ReplacementEventEndsAtLocal"] = local }, "until"),
+            (review, "ReopenSubmissions", reviewPage, reviewVersion, new() { ["StateReason"] = "More time", ["ReopenUntilLocal"] = local }, "until"),
+            (live, "CreateEvidenceCode", livePage, liveVersion, new() { ["NewEvidenceCode"] = "DST123", ["EvidenceCodeActivatesAtLocal"] = local }, "from")
+        };
+        foreach (var (id, handler, page, version, fields, field) in cases)
+        {
+            using var response = await PostJsonAsync(client, id, handler, page, version, fields);
+            var outcome = await JsonAsync(response);
+            Assert.Equal("invalid", outcome.GetProperty("outcome").GetString());
+            var message = outcome.GetProperty("fieldErrors").GetProperty(field).GetString();
+            Assert.Contains(reason, message, StringComparison.Ordinal);
+        }
+        Assert.Equal(reviewVersion, await VersionAsync(review));
+        Assert.Equal(liveVersion, await VersionAsync(live));
+        Assert.Equal(audits, await AuditCountAsync(review) + await AuditCountAsync(live));
+        await using var check = new ApplicationDbContext(options);
+        Assert.Equal(EventState.AwaitingFinalReview, (await check.Events.SingleAsync(x => x.Id == review)).State);
+        Assert.Empty(await check.EvidenceCodes.Where(x => x.EventId == live).ToListAsync());
+    }
+
+    // L5: the early-end ceiling-minute text and the +30 minutes upload time with a clock that is neither
+    // minute-aligned nor microsecond-aligned (AGENTS.md timestamp rules): 12:34:00.5678001 UTC.
+    [Fact]
+    public async Task EarlyEndTextRoundsUpToTheNextMinuteForAClockOffTheWholeMinute()
+    {
+        var live = await AddAsync("Ceiling Bingo", EventState.Live);
+        var clock = Now.AddMinutes(34).AddTicks(5_678_001);
+        await using var factory = Factory(clock);
+        using var client = await LoginAsync(factory, "overview-admin");
+        var current = JsonDocument.Parse(await client.GetStringAsync($"/Admin/Events/Manage/{live}?handler=Current")).RootElement;
+        var effects = current.GetProperty("dialogs").GetProperty("end").GetProperty("effects").EnumerateArray().Select(x => x.GetString()).ToArray();
+        // Copenhagen is UTC+2 on 2 June 2027: the end becomes 12:35Z = 14:35, uploads stay open until 13:04Z = 15:04 (truncated to the minute).
+        Assert.Contains(effects, x => x!.EndsWith("Its end time becomes 2 Jun, 14:35.", StringComparison.Ordinal));
+        Assert.Contains(effects, x => x == "Uploads stay open for 30 minutes, until 2 Jun, 15:04, for drops from before the end.");
     }
 
     [Fact]
@@ -308,11 +372,11 @@ public sealed class OverviewServerIntegrationTests(PostgreSqlTestFixture databas
         await using var db = new ApplicationDbContext(options);
         return await db.Events.Where(x => x.Id == id).Select(x => x.Version).SingleAsync();
     }
-    private WebApplicationFactory<Program> Factory() => new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder
+    private WebApplicationFactory<Program> Factory(DateTimeOffset? clock = null) => new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder
         .UseSetting("ConnectionStrings:Database", database.GetConnectionString())
         .ConfigureServices(services =>
         {
-            services.RemoveAll<TimeProvider>(); services.AddSingleton<TimeProvider>(new FixedClock());
+            services.RemoveAll<TimeProvider>(); services.AddSingleton<TimeProvider>(new FixedClock(clock ?? Now));
             // Login stamps the session with wall time; validate the cookie on that clock
             // while the fixed clock stays authoritative for event dates (parity fixture rule).
             services.PostConfigure<Microsoft.AspNetCore.Authentication.Cookies.CookieAuthenticationOptions>(
@@ -341,5 +405,5 @@ public sealed class OverviewServerIntegrationTests(PostgreSqlTestFixture databas
         return JsonDocument.Parse(await response.Content.ReadAsStringAsync()).RootElement;
     }
     private static string Token(string page) => Regex.Match(page, "name=\"__RequestVerificationToken\" type=\"hidden\" value=\"([^\"]+)\"").Groups[1].Value;
-    private sealed class FixedClock : TimeProvider { public override DateTimeOffset GetUtcNow() => Now; }
+    private sealed class FixedClock(DateTimeOffset now) : TimeProvider { public override DateTimeOffset GetUtcNow() => now; }
 }
