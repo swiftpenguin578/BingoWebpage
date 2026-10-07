@@ -199,7 +199,7 @@ public sealed class CreateModel(
         public string? DraftLocal { get; set; }
         public string? EventStartsLocal { get; set; }
         public string? EventEndsLocal { get; set; }
-        [Range(1, 10000)] public int? ParticipantCap { get; set; }
+        public int? ParticipantCap { get; set; }
         public bool WaitingListEnabled { get; set; } = true;
         public bool RequireSignupCode { get; set; }
         [StringLength(100)] public string? SignupCode { get; set; }

@@ -431,7 +431,7 @@ public sealed class ParticipantsModel(
 
     public sealed class SignupAdministrationInput
     {
-        [Range(1, 10000)] public int ParticipantCap { get; set; }
+        public int ParticipantCap { get; set; }
         public bool WaitingListEnabled { get; set; }
         public long Version { get; set; }
         public bool ConfirmWaitingListDisablement { get; set; }

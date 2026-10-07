@@ -6,6 +6,9 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Bingo.IntegrationTests;
 
+// U3 / DP:966–971 / C4: these existing operations now belong to SignupSetup;
+// terminal mutation/refusal, replay, version and data-integrity assertions are retained.
+
 public sealed partial class SignupQuestionCreationRetryIntegrationTests
 {
     [Theory]
@@ -22,7 +25,7 @@ public sealed partial class SignupQuestionCreationRetryIntegrationTests
         await using var factory = Factory();
         using var client = factory.CreateClient(new() { AllowAutoRedirect = false, BaseAddress = new Uri("https://localhost") });
         await LoginAsync(client, seed.Admin.LoginName);
-        var route = $"/Admin/Events/Questions/{seed.EventId}";
+        var route = $"/Admin/Events/SignupSetup/{seed.EventId}";
         var page = await client.GetStringAsync(route);
         var fields = account ? new Dictionary<string, string> { ["role"] = "Playing" }
             : new() { ["Input.Label"] = "Terminal retry", ["Input.Type"] = "Text" };
@@ -61,7 +64,7 @@ public sealed partial class SignupQuestionCreationRetryIntegrationTests
         }
         await AssertTerminalReadOnlyAsync(client, seed.EventId, route + "?handler=UnknownMutation", fields);
         Assert.Equal(before, await SnapshotAsync());
-        var otherRoute = $"/Admin/Events/Questions/{other.EventId}" + (account ? "?handler=AddAccount" : "");
+        var otherRoute = $"/Admin/Events/SignupSetup/{other.EventId}" + (account ? "?handler=AddAccount" : "");
         await AssertTerminalReadOnlyAsync(client, other.EventId, otherRoute, fields);
         Assert.Equal(before, await SnapshotAsync());
 

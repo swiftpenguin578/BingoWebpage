@@ -1,0 +1,304 @@
+@page "{id:guid}"
+@model Bingo.Web.Pages.Admin.Events.SignupSetupModel
+@using Bingo.Application.Signups
+@using Bingo.Domain.Signups
+@using Bingo.Web.UI
+@{
+    ViewData["Title"] = T["Signup form"];
+    if (Model.IsOverlay) { Layout = "_AdminOverlayLayout"; }
+    var eventId = RouteData.Values["id"];
+    var accountQuestions = Model.Questions
+        .Where(question => question.Type == SignupQuestionType.Account)
+        .OrderBy(question => question.Position)
+        .ToList();
+    var customQuestions = Model.Questions
+        .Where(question => question.SystemField == SignupSystemField.None
+            && question.Type != SignupQuestionType.Account)
+        .OrderBy(question => question.Position)
+        .ToList();
+}
+
+@* Item2 server transport host; the reference binding replaces this presentation in item3. *@
+<section aria-label="@T["Signup settings"]">
+@if (Model.CanEdit) {
+<form method="post" asp-page-handler="SignupAdministration"><input asp-for="SignupAdministration.Version" type="hidden" /><label asp-for="SignupAdministration.ParticipantCap">@T["Maximum players"]</label><input asp-for="SignupAdministration.ParticipantCap" /><span asp-validation-for="SignupAdministration.ParticipantCap"></span><button type="submit">@T["Save changes"]</button></form>
+<form method="post" asp-page-handler="SignupCode" id="signup-code-settings-form"><input asp-for="SignupCode.Version" type="hidden" /><label><input asp-for="SignupCode.RequireSignupCode" data-signup-code-toggle />@T["Signup code"]</label><div class="signup-code-control" data-signup-code-control hidden="@(!Model.SignupCode.RequireSignupCode)"><label for="SignupCode_NewSignupCode">@T["New signup code"]</label><input id="SignupCode_NewSignupCode" name="SignupCode.NewSignupCode" type="password" value="" data-signup-code-input data-has-signup-code="@(Model.Settings?.HasSignupCode == true ? "true" : "false")" aria-describedby="signup-code-help signup-code-error" /><small id="signup-code-help">@T["Leave blank to keep the current code."]</small></div><span asp-validation-for="SignupCode.NewSignupCode" id="signup-code-error"></span><button type="submit">@T["Save changes"]</button></form>
+} else {<p>@T["Signup settings are locked because the draft has started or this event has moved on."]</p>}
+</section>
+
+<section class="signup-question-page @(Model.IsOverlay ? "admin-dialog-page event-overview-section signup-question-dialog" : null)" aria-labelledby="@(Model.IsOverlay ? "signup-questions-dialog-title" : "signup-questions-page-title")" aria-describedby="@(Model.IsOverlay ? "signup-questions-dialog-description" : null)" data-signup-questions-editor="true" data-signup-questions-invalid="@(!ViewData.ModelState.IsValid ? "true" : "false")" data-signup-question-count="@Model.Questions.Count" data-overlay="@(Model.IsOverlay ? "true" : "false")">
+    @if (Model.IsOverlay)
+    {
+        <div class="event-overview-section-heading admin-dialog-component-heading">
+            <div><h2 id="signup-questions-dialog-title">@T["Signup form"]</h2><p id="signup-questions-dialog-description">@T["Edit the questions shown on the public signup form."]</p></div>
+            <button type="button" class="admin-route-dialog-close" data-signup-questions-close aria-label="@T["Close signup questions"]"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 6 12 12" /><path d="m18 6-12 12" /></svg></button>
+        </div>
+    }
+    @if (!Model.IsOverlay)
+    {
+        <header class="signup-question-page-heading">
+            <div>
+                <h1 id="signup-questions-page-title">@T["Signup form"]</h1>
+                <p>@T["Choose what players are asked when they sign up for {0}.", Model.EventName]</p>
+            </div>
+            <a class="admin-button-secondary" asp-page="Participants" asp-route-id="@eventId">@T["Back to participants"]</a>
+        </header>
+    }
+
+    <div class="event-confirmation-box signup-question-discard" data-signup-questions-discard role="alertdialog" aria-labelledby="signup-questions-discard-title" aria-describedby="signup-questions-discard-description" hidden>
+        <p><strong id="signup-questions-discard-title">@T["Discard unsaved changes?"]</strong><br /><span id="signup-questions-discard-description">@T["Continuing will discard unsaved changes in this editor."]</span></p>
+        <div class="event-confirmation-actions"><button type="button" class="admin-button-secondary" data-signup-questions-keep>@T["Cancel"]</button><button type="button" class="admin-button-secondary action-danger-outline" data-signup-questions-discard-confirm>@T["Discard changes"]</button></div>
+    </div>
+    <p class="signup-question-feedback" data-signup-questions-feedback role="alert" tabindex="-1" hidden></p>
+    <div class="signup-question-workspace @(Model.IsOverlay ? "admin-dialog-page-body" : null)">
+        <section class="signup-question-row signup-question-standard-row event-create-group standard-signup-fields-group">
+            <div class="signup-question-standard-heading"><h2>@T["Standard signup fields"]</h2></div>
+            <div class="signup-field-list" aria-label="@T["Standard signup fields"]">
+                @foreach (var question in Model.Questions.Where(question => question.SystemField is not (SignupSystemField.None or SignupSystemField.CoCaptainName or SignupSystemField.PrimaryRegularAccount) && question.Type != SignupQuestionType.Account))
+                {
+                    <div aria-readonly="true"><span><strong>@(question.SystemField == SignupSystemField.CoCaptainName ? T["Co-captain (optional)"] : question.Label)</strong><small>@(question.SystemField == SignupSystemField.PrimaryRegularAccount ? T["Required Regular account selector. EHB belongs to this account answer."] : question.SystemField == SignupSystemField.CaptainVolunteer ? T["Required yes or no"] : question.SystemField == SignupSystemField.CoCaptainName ? T["Optional text answer"] : T["Optional yes or no"])</small></span><span class="system-field-badge">@T["Standard"]</span></div>
+                }
+                @if (Model.CoCaptainQuestion is { } coCaptain)
+                {
+                    var coCaptainImpact = Model.QuestionImpacts.TryGetValue(coCaptain.Id, out var currentImpact)
+                        ? currentImpact
+                        : new SignupQuestionImpact(coCaptain.Id, 0, 0, coCaptain.Version);
+                    <div aria-readonly="true"><span><strong>@T["Co-captain (optional)"]</strong><small>@T["Optional text answer; saved answers are removed only after confirmation when disabled."]</small></span><span class="system-field-badge">@T["Standard"]</span></div>
+                    @if (Model.CanEdit)
+                    {
+                        @if (coCaptain.Active)
+                        {
+                            <form method="post" asp-page-handler="CoCaptain" class="signup-question-action-form signup-question-destructive-form"
+                                  data-signup-question-confirmation="true"
+                                  data-signup-question-confirmation-title="@T["Disable co-captain?"]"
+                                  data-signup-question-confirmation-description="@T["This removes saved co-captain answers from event registrations. My accounts and other event registrations are not changed."]"
+                                  data-signup-question-confirmation-impact="@T["Current impact: {0} saved answer(s), {1} event registration(s) released, question version {2}.", coCaptainImpact.AnswerCount, coCaptainImpact.EventRegistrationReleaseCount, coCaptainImpact.QuestionVersion]"
+                                  data-signup-question-confirmation-action="@T["Disable co-captain"]">
+                                <input type="hidden" name="expectedFormVersion" value="@Model.FormVersion" /><input type="hidden" name="overlay" value="@(Model.IsOverlay ? "1" : "0")" />
+                                <input type="hidden" name="questionId" value="@coCaptain.Id" />
+                                <input type="hidden" name="enabled" value="false" />
+                                <input type="hidden" name="confirmed" value="true" />
+                                <input type="hidden" name="expectedAnswerCount" value="@coCaptainImpact.AnswerCount" />
+                                <input type="hidden" name="expectedEventRegistrationReleaseCount" value="@coCaptainImpact.EventRegistrationReleaseCount" />
+                                <input type="hidden" name="expectedQuestionVersion" value="@coCaptainImpact.QuestionVersion" />
+                                <button class="admin-button-secondary action-danger-outline" type="submit">@T["Disable co-captain"]</button>
+                            </form>
+                        }
+                        else
+                        {
+                            <form method="post" asp-page-handler="CoCaptain" class="signup-question-action-form">
+                                <input type="hidden" name="expectedFormVersion" value="@Model.FormVersion" /><input type="hidden" name="overlay" value="@(Model.IsOverlay ? "1" : "0")" /><input type="hidden" name="questionId" value="@coCaptain.Id" /><input type="hidden" name="enabled" value="true" />
+                                <button class="admin-button-secondary" type="submit">@T["Enable co-captain"]</button>
+                            </form>
+                        }
+                    }
+                }
+            </div>
+        </section>
+
+        @foreach (var role in new[] { EventCharacterRole.Playing, EventCharacterRole.Informational })
+        {
+            var roleQuestions = accountQuestions.Where(question => (question.AccountAnswerRole ?? EventCharacterRole.Playing) == role).ToList();
+            var roleHeading = role == EventCharacterRole.Playing ? T["Playing accounts"] : T["Alt accounts"];
+            var roleDescription = role == EventCharacterRole.Playing
+                ? T["The first Playing account is required. Additional Playing accounts are optional."]
+                : T["Alt accounts are optional and may be omitted."];
+            <section class="signup-question-row signup-question-account-row" data-account-question-section="@role">
+                <div class="signup-question-row-heading">
+                    <div><h2>@roleHeading</h2><p>@roleDescription</p></div>
+                    @if (Model.CanEdit)
+                    {
+                        <form method="post" asp-page-handler="AddAccount" class="signup-question-action-form">
+                            <input type="hidden" name="addRequestId" value="@Guid.NewGuid()" />
+                            <input type="hidden" name="expectedFormVersion" value="@Model.FormVersion" /><input type="hidden" name="overlay" value="@(Model.IsOverlay ? "1" : "0")" />
+                            <input type="hidden" name="role" value="@role" />
+                            <button class="admin-button-secondary" type="submit">+ @T["Add account field"]</button>
+                        </form>
+                    }
+                </div>
+                @if (roleQuestions.Count == 0)
+                {
+                    <p class="signup-question-empty">@T["No account fields added."]</p>
+                }
+                else
+                {
+                    <div class="signup-question-list">
+                        @foreach (var question in roleQuestions)
+                        {
+                            var isPrimary = question.SystemField == SignupSystemField.PrimaryRegularAccount;
+                            var questionImpact = Model.QuestionImpacts.TryGetValue(question.Id, out var currentQuestionImpact)
+                                ? currentQuestionImpact
+                                : new SignupQuestionImpact(question.Id, 0, 0, question.Version);
+                            <article class="signup-question-item" data-account-role="@question.AccountAnswerRole">
+                                <div class="signup-question-copy">
+                                    <span class="signup-question-name">@question.Label</span>
+                                    <small>@T["Account"] · @(question.AccountAnswerRole == EventCharacterRole.Playing ? T["Playing"] : T["Alt"]) · @(isPrimary ? T["Required"] : T["Optional"])</small>
+                                </div>
+                                @if (Model.CanEdit && !isPrimary)
+                                {
+                                    <details class="signup-question-edit"><summary class="signup-question-edit-action" aria-label="@T["Edit {0}", question.Label]" title="@T["Edit {0}", question.Label]"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg><span class="visually-hidden">@T["Edit"]</span></summary></details>
+                                    <form method="post" asp-page-handler="EditAccount" class="signup-question-edit-form">
+                                        <input type="hidden" name="expectedFormVersion" value="@Model.FormVersion" /><input type="hidden" name="overlay" value="@(Model.IsOverlay ? "1" : "0")" />
+                                        <input type="hidden" name="questionId" value="@question.Id" />
+                                        <div class="admin-field"><label for="edit-account-label-@question.Id">@T["Question"]</label><input id="edit-account-label-@question.Id" name="Account.Label" value="@question.Label" class="form-control" maxlength="160" required /></div>
+                                        <button class="admin-button-secondary" type="submit">@T["Save question"]</button>
+                                    </form>
+                                    <form method="post" asp-page-handler="Deactivate" class="signup-question-action-form signup-question-destructive-form"
+                                          data-signup-question-confirmation="true"
+                                          data-signup-question-confirmation-title="@T["Delete {0}?", question.Label]"
+                                          data-signup-question-confirmation-description="@T["This deletes the account question and releases accounts registered through it from this event only. Saved My accounts are kept."]"
+                                          data-signup-question-confirmation-impact="@T["Current impact: {0} saved answer(s), {1} event registration(s), question version {2}.", questionImpact.AnswerCount, questionImpact.EventRegistrationReleaseCount, questionImpact.QuestionVersion]"
+                                          data-signup-question-confirmation-action="@T["Delete account question"]">
+                                        <input type="hidden" name="expectedFormVersion" value="@Model.FormVersion" /><input type="hidden" name="overlay" value="@(Model.IsOverlay ? "1" : "0")" />
+                                        <input type="hidden" name="questionId" value="@question.Id" />
+                                        <input type="hidden" name="confirmed" value="true" />
+                                        <input type="hidden" name="expectedAnswerCount" value="@questionImpact.AnswerCount" />
+                                        <input type="hidden" name="expectedEventRegistrationReleaseCount" value="@questionImpact.EventRegistrationReleaseCount" />
+                                        <input type="hidden" name="expectedQuestionVersion" value="@questionImpact.QuestionVersion" />
+                                        <button class="admin-button-secondary action-danger-outline" type="submit">@T["Delete question"]</button>
+                                    </form>
+                                }
+                            </article>
+                        }
+                    </div>
+                }
+            </section>
+        }
+
+        <section class="signup-question-row signup-question-custom-row">
+            <div class="signup-question-row-heading">
+                <div><h2>@T["Custom questions"]</h2></div>
+                <p>@(Model.CanEdit ? T["Add only questions needed for this bingo."] : T["Questions are locked after the draft starts."])</p>
+            </div>
+
+            @if (customQuestions.Count == 0)
+            {
+                <p class="signup-question-empty">@T["No custom questions added."]</p>
+            }
+            else
+            {
+                <div class="signup-question-list">
+                    @for (var index = 0; index < customQuestions.Count; index++)
+                    {
+                        var question = customQuestions[index];
+                        var isRequired = question.Type != SignupQuestionType.Account && question.Required;
+                        var questionImpact = Model.QuestionImpacts.TryGetValue(question.Id, out var currentQuestionImpact)
+                            ? currentQuestionImpact
+                            : new SignupQuestionImpact(question.Id, 0, 0, question.Version);
+                        <article class="signup-question-item">
+                            <span class="signup-question-number">@(index + 1)</span>
+                            <div class="signup-question-copy">
+                                <span class="signup-question-name">@question.Label</span>
+                                <small>@SignupSetupModel.FormatType(question.Type) · @(isRequired ? T["Required"] : T["Optional"])</small>
+                            </div>
+                            @if (Model.CanEdit)
+                            {
+                                <details class="signup-question-edit"><summary class="signup-question-edit-action" aria-controls="signup-question-edit-form-@question.Id" aria-label="@T["Edit {0}", question.Label]" title="@T["Edit {0}", question.Label]"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg><span class="visually-hidden">@T["Edit"]</span></summary></details>
+                                <form id="signup-question-edit-form-@question.Id" method="post" asp-page-handler="Edit" class="signup-question-edit-form" hidden>
+                                        <input type="hidden" name="expectedFormVersion" value="@Model.FormVersion" /><input type="hidden" name="overlay" value="@(Model.IsOverlay ? "1" : "0")" /><input type="hidden" name="questionId" value="@question.Id" />
+                                        <div class="admin-field"><label for="edit-label-@question.Id">@T["Question"]</label><input id="edit-label-@question.Id" name="Edit.Label" value="@question.Label" class="form-control" /></div>
+                                        @if (!Model.HasFirstResponse)
+                                        {
+                                            <div class="admin-field"><label for="edit-type-@question.Id">@T["How players answer"]</label><select id="edit-type-@question.Id" name="Edit.Type" class="form-select" data-edit-question-type><option value="Text" selected="@(question.Type == SignupQuestionType.Text ? "selected" : null)">@T["Short text answer"]</option><option value="Number" selected="@(question.Type == SignupQuestionType.Number ? "selected" : null)">@T["Number"]</option><option value="YesNo" selected="@(question.Type == SignupQuestionType.YesNo ? "selected" : null)">@T["Yes or no"]</option><option value="SingleChoice" selected="@(question.Type == SignupQuestionType.SingleChoice ? "selected" : null)">@T["Choose one answer"]</option></select></div>
+                                            <div class="admin-field signup-question-field full-field choice-options" data-edit-choice-options hidden="@(question.Type == SignupQuestionType.SingleChoice ? null : "hidden")"><label for="edit-options-@question.Id">@T["Available answers"]</label><textarea id="edit-options-@question.Id" name="Edit.Options" class="form-control" rows="3" placeholder="@T["One choice per line"]">@question.Options</textarea><small>@T["Enter one choice per line, for example: Yes, No, Maybe. Players choose one answer."]</small></div>
+                                            @if (question.Type != SignupQuestionType.Account)
+                                            {
+                                                <label class="signup-question-toggle admin-setting-toggle"><span class="admin-setting-toggle-marker"><input name="Edit.Required" type="checkbox" value="true" checked="@(isRequired ? "checked" : null)" /></span><span class="admin-setting-toggle-copy">@T["Answer required"]</span></label>
+                                            }
+                                        }
+                                        else
+                                        {
+                                            <p>@T["Answer format, account role, choices, and required status are locked after the first response."]</p>
+                                        }
+                                        <button class="admin-button-secondary" type="submit">@T["Save question"]</button>
+                                    </form>
+                                <form method="post" asp-page-handler="Deactivate" class="signup-question-action-form signup-question-destructive-form"
+                                      data-signup-question-confirmation="true"
+                                      data-signup-question-confirmation-title="@T["Delete {0}?", question.Label]"
+                                      data-signup-question-confirmation-description="@(question.Type == SignupQuestionType.Account ? T["This deletes the question and all its answers. Any accounts registered through this question are released from this event only; saved My accounts are kept."] : T["This deletes the question and all its answers."])"
+                                      data-signup-question-confirmation-impact="@T["Current impact: {0} saved answer(s), {1} event registration(s) released, question version {2}.", questionImpact.AnswerCount, questionImpact.EventRegistrationReleaseCount, questionImpact.QuestionVersion]"
+                                      data-signup-question-confirmation-action="@T["Delete question"]">
+                                    <input type="hidden" name="expectedFormVersion" value="@Model.FormVersion" /><input type="hidden" name="overlay" value="@(Model.IsOverlay ? "1" : "0")" />
+                                    <input type="hidden" name="questionId" value="@question.Id" />
+                                    <input type="hidden" name="confirmed" value="true" />
+                                    <input type="hidden" name="expectedAnswerCount" value="@questionImpact.AnswerCount" />
+                                    <input type="hidden" name="expectedEventRegistrationReleaseCount" value="@questionImpact.EventRegistrationReleaseCount" />
+                                    <input type="hidden" name="expectedQuestionVersion" value="@questionImpact.QuestionVersion" />
+                                    <button class="admin-button-secondary action-danger-outline" type="submit">@T["Delete question"]</button>
+                                </form>
+                                <div class="signup-question-order-actions">
+                                    <form method="post" asp-page-handler="Move" class="signup-question-action-form"><input type="hidden" name="expectedFormVersion" value="@Model.FormVersion" /><input type="hidden" name="overlay" value="@(Model.IsOverlay ? "1" : "0")" /><input type="hidden" name="questionId" value="@question.Id" /><input type="hidden" name="up" value="true" /><button class="admin-button-secondary signup-question-order-button" type="submit" aria-label="@T["Move {0} up", question.Label]">↑</button></form>
+                                    <form method="post" asp-page-handler="Move" class="signup-question-action-form"><input type="hidden" name="expectedFormVersion" value="@Model.FormVersion" /><input type="hidden" name="overlay" value="@(Model.IsOverlay ? "1" : "0")" /><input type="hidden" name="questionId" value="@question.Id" /><input type="hidden" name="up" value="false" /><button class="admin-button-secondary signup-question-order-button" type="submit" aria-label="@T["Move {0} down", question.Label]">↓</button></form>
+                                </div>
+                            }
+                        </article>
+                    }
+                </div>
+            }
+
+        </section>
+
+        <section class="signup-question-row signup-question-add-row" aria-labelledby="signup-question-add-heading">
+            <div class="signup-question-row-heading">
+                <div><h2 id="signup-question-add-heading">@T["Add a custom question"]</h2><p>@T["The question is added immediately and can be removed while signups are open or closed, before the draft starts."]</p></div>
+            </div>
+            @if (Model.CanEdit)
+            {
+                <form method="post" asp-page="/Admin/Events/Questions" asp-route-id="@eventId" class="signup-question-add">
+                    <input type="hidden" name="addRequestId" value="@Model.CustomAddRequestId" />
+                    <input type="hidden" name="expectedFormVersion" value="@Model.FormVersion" /><input type="hidden" name="overlay" value="@(Model.IsOverlay ? "1" : "0")" />
+                    <div asp-validation-summary="ModelOnly" class="validation-summary"></div>
+                    <div class="signup-question-fields">
+                        <div class="admin-field signup-question-field">
+                            <label asp-for="Input.Label">@T["Question shown to players"]</label>
+                            <input asp-for="Input.Label" class="form-control" />
+                            <span asp-validation-for="Input.Label" class="field-error"></span>
+                        </div>
+                        <div class="admin-field signup-question-field">
+                            <label asp-for="Input.Type">@T["How players answer"]</label>
+                            <select asp-for="Input.Type" class="form-select" data-question-type>
+                                <option value="Text">@T["Short text answer"]</option>
+                                <option value="Number">@T["Number"]</option>
+                                <option value="YesNo">@T["Yes or no"]</option>
+                                <option value="SingleChoice">@T["Choose one answer"]</option>
+                            </select>
+                        </div>
+                        @if (!Model.HasFirstResponse)
+                        {
+                            <label class="signup-question-toggle admin-setting-toggle" data-required-field>
+                                <span class="admin-setting-toggle-marker"><input asp-for="Input.Required" /></span>
+                                <span class="admin-setting-toggle-copy"><span class="signup-question-toggle-label">@T["Answer required"]</span><small>@T["Players cannot submit without answering."]</small></span>
+                            </label>
+                        }
+                        <div class="admin-field signup-question-field full-field choice-options" data-choice-options hidden="@(Model.Input.Type != SignupQuestionType.SingleChoice)">
+                            <label asp-for="Input.Options">@T["Available answers"]</label>
+                            <textarea asp-for="Input.Options" class="form-control" rows="3" placeholder="@T["One choice per line"]"></textarea>
+                            <small>@T["Enter one choice per line, for example: Yes, No, Maybe. Players choose one answer."]</small>
+                            <span asp-validation-for="Input.Options" class="field-error"></span>
+                        </div>
+                    </div>
+                    <div class="signup-question-add-actions @(Model.HasFirstResponse ? "has-info" : "without-info")">
+                        @if (Model.HasFirstResponse)
+                        {
+                            <div class="information-callout signup-question-help-note" role="note">
+                                <div class="information-callout-heading"><svg class="information-callout-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><circle cx="12" cy="12" r="9" /><path d="M12 11v5" /><path d="M12 7.5h.01" /></svg><strong>@T["Optional"]</strong></div>
+                                <span>@T["Questions added after the first response are always optional."]</span>
+                            </div>
+                        }
+                        <button class="admin-button-create" type="submit">+ @T["Add question"]</button>
+                    </div>
+                </form>
+            }
+            else
+            {
+                <div class="information-callout"><span class="signup-question-lock-title">@T["Questions locked"]</span><span>@T["These questions lock permanently when the draft starts."]</span></div>
+            }
+        </section>
+
+    </div>
+</section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script src="~/js/event-manage.js" asp-append-version="true"></script>
+}

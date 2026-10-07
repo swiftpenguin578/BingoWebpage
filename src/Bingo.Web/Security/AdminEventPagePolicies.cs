@@ -5,7 +5,7 @@ namespace Bingo.Web.Security;
 
 public enum AdminEventPageKind
 {
-    Index, Create, Manage, Identity, Schedule, Questions, Participants, Participant,
+    Index, Create, Manage, Identity, Schedule, Questions, SignupSetup, Participants, Participant,
     Board, BoardPreview, Draft, Finalize, WiseOldMan
 }
 
@@ -79,6 +79,19 @@ public static class AdminEventPagePolicies
                 ("POST:", AdminEventHandlerGate.Schedule)),
             [typeof(QuestionsModel)] = Page(AdminEventPageKind.Questions, true, false,
                 ("GET:", AdminEventHandlerGate.Read),
+                ("POST:", AdminEventHandlerGate.QuestionAdd),
+                ("POST:AddAccount", AdminEventHandlerGate.QuestionAdd),
+                ("POST:EditAccount", AdminEventHandlerGate.Signup),
+                ("POST:Deactivate", AdminEventHandlerGate.Signup),
+                ("POST:CoCaptain", AdminEventHandlerGate.Signup),
+                ("POST:Move", AdminEventHandlerGate.Signup),
+                ("POST:Edit", AdminEventHandlerGate.Signup),
+                ("POST:Replace", AdminEventHandlerGate.Signup)),
+            [typeof(SignupSetupModel)] = Page(AdminEventPageKind.SignupSetup, true, true,
+                ("GET:", AdminEventHandlerGate.Read),
+                ("GET:Current", AdminEventHandlerGate.Read),
+                ("POST:SignupAdministration", AdminEventHandlerGate.Setup),
+                ("POST:SignupCode", AdminEventHandlerGate.Setup),
                 ("POST:", AdminEventHandlerGate.QuestionAdd),
                 ("POST:AddAccount", AdminEventHandlerGate.QuestionAdd),
                 ("POST:EditAccount", AdminEventHandlerGate.Signup),

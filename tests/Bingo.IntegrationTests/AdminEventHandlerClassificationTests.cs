@@ -21,13 +21,16 @@ public sealed class AdminEventHandlerClassificationTests
     // Baseline 89d9382 route contract. Explicitly includes [NonAction] methods:
     // Razor Pages excludes [NonHandler], not MVC's [NonAction]. Existing HTTP
     // PrepareDestructiveConfirmation proof exercises this distinction.
+    // U3 D17 enables Schedule/SignupSetup terminal reads; C4 moves existing operations.
+    // D16 mutation gates and test14 remain unchanged.
     private const string Expected = """
 Index|false|false|Read=GET:
 Create|false|false|Read=GET:,GET:CheckAgain;Service=POST:
 Manage|true|true|Read=GET:;Signup=POST:State,POST:OpenSignup,POST:CloseSignup,POST:ReopenSignup,POST:Capacity,POST:SignupWindow,POST:ConfirmSignup,POST:RestoreHidden,POST:PrepareSignupConfirmation,POST:PrepareStartConfirmation,POST:PrepareEndConfirmation,POST:PrepareResumeConfirmation,POST:PrepareDestructiveConfirmation;Service=POST:StartEvent,POST:EndEvent,POST:Discard,POST:Cancel;Hide=POST:Hide;Resume=POST:ResumeEvent;Review=POST:ReopenSubmissions;EvidenceCodes=POST:EnableEvidenceCodes,POST:DisableEvidenceCodes,POST:CreateEvidenceCode
 Identity|true|true|Read=GET:,GET:Current;Identity=POST:
-Schedule|true|false|Read=GET:,GET:Current;Schedule=POST:
+Schedule|true|true|Read=GET:,GET:Current;Schedule=POST:
 Questions|true|false|Read=GET:;QuestionAdd=POST:,POST:AddAccount;Signup=POST:EditAccount,POST:Deactivate,POST:CoCaptain,POST:Move,POST:Edit,POST:Replace
+SignupSetup|true|true|Read=GET:,GET:Current;QuestionAdd=POST:,POST:AddAccount;Signup=POST:EditAccount,POST:Deactivate,POST:CoCaptain,POST:Move,POST:Edit,POST:Replace;Setup=POST:SignupAdministration,POST:SignupCode
 Participants|true|true|Read=GET:,GET:SearchOwnerAccounts;Setup=POST:Withdraw,POST:CancelWomValidation,POST:SignupAdministration,POST:SignupCode,POST:CreateInternalParticipant;Service=POST:Payment
 Participant|true|true|Read=GET:;Signup=POST:,POST:CancelWomValidation,POST:Restore;Service=POST:AdminNote,POST:Payment,POST:Withdraw,POST:FillVacancy,POST:CompletePromotionFollowUp
 Board|true|false|Read=GET:,GET:EditorData,GET:Readback;RetainedArtwork=GET:TileImage;Board=POST:Create,POST:TakeEditing,POST:AcquireEditing,POST:ReleaseEditing,POST:CreateTile,POST:EditTile,POST:Move,POST:Resize,POST:TeamSize,POST:Publish,POST:DiscardCorrection,POST:Approve,POST:Unapprove,POST:Remove,POST:ApproveState,POST:PublishState;BoardCorrection=POST:CorrectPublished

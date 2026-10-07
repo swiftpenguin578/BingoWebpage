@@ -67,6 +67,7 @@ public sealed class BingoEvent
         EventEndsAt = Utc(eventEndsAt);
         SetNormalSubmissionCutoff(eventEndsAt);
         if (participantCap is < 1) throw new ArgumentOutOfRangeException(nameof(participantCap));
+        ValidateParticipantCapMaximum(participantCap);
         ParticipantCap = participantCap;
     }
 
@@ -316,6 +317,7 @@ public sealed class BingoEvent
             && ParticipantCap == participantCap;
         if (DraftLocked && !eventWindowOnly) throw new InvalidOperationException("The schedule is locked because the draft has started.");
         if (participantCap is < 1) throw new ArgumentOutOfRangeException(nameof(participantCap));
+        ValidateParticipantCapMaximum(participantCap);
         // OS-4: Schedule carries the stored capacity through unchanged. Capacity
         // edits belong to Signup setup and its confirmed-count guard.
         if (normalizedEventStart is { } starts && normalizedEventEnd is { } ends && ends <= starts)
@@ -573,12 +575,20 @@ public sealed class BingoEvent
         SetParticipantCap(newCap);
     }
 
+    public const int MaximumParticipantCap = 10_000;
+    public const string ParticipantCapMaximumMessage = "Maximum players cannot exceed 10,000.";
+    private static void ValidateParticipantCapMaximum(int? cap)
+    {
+        if (cap > MaximumParticipantCap) throw new InvalidOperationException(ParticipantCapMaximumMessage);
+    }
+
     /// <summary>Sets the pre-draft participant cap; callers enforce the current confirmed count.</summary>
     public void SetParticipantCap(int newCap)
     {
         EnsureNotHidden();
         if (State is not (EventState.Draft or EventState.SignupOpen or EventState.SignupClosed) || DraftLocked) throw new InvalidOperationException("The participant cap cannot change in this event state.");
         ArgumentOutOfRangeException.ThrowIfLessThan(newCap, 1);
+        ValidateParticipantCapMaximum(newCap);
         ParticipantCap = newCap;
     }
 

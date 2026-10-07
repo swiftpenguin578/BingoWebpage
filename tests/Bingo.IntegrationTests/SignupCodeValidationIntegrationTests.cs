@@ -17,6 +17,9 @@ using Testcontainers.PostgreSql;
 
 namespace Bingo.IntegrationTests;
 
+// U3 / DP:966–971 / C4: these existing operations now belong to SignupSetup;
+// terminal mutation/refusal, replay, version and data-integrity assertions are retained.
+
 public sealed class SignupCodeValidationIntegrationTests(PostgreSqlTestFixture databaseFixture) : IAsyncLifetime, IClassFixture<PostgreSqlTestFixture>
 {
     private static readonly DateTimeOffset Now = new(2026, 10, 2, 12, 0, 0, TimeSpan.Zero);
@@ -42,7 +45,7 @@ public sealed class SignupCodeValidationIntegrationTests(PostgreSqlTestFixture d
         await using var factory = Factory();
         using var client = factory.CreateClient(new() { AllowAutoRedirect = false });
         await LoginAsync(client, admin.LoginName);
-        var route = $"/Admin/Events/Participants/{eventId}";
+        var route = $"/Admin/Events/SignupSetup/{eventId}";
         var page = await client.GetStringAsync(route);
         var before = await SnapshotAsync(eventId);
         var tooLong = new string('x', 101);
@@ -125,7 +128,7 @@ public sealed class SignupCodeValidationIntegrationTests(PostgreSqlTestFixture d
         var (admin, eventId) = await SeedAsync();
         await using var factory = Factory();
         using var client = factory.CreateClient(new() { AllowAutoRedirect = false });
-        var route = $"/Admin/Events/Participants/{eventId}";
+        var route = $"/Admin/Events/SignupSetup/{eventId}";
         string page;
         if (guard == "anonymous") page = await client.GetStringAsync("/Account/Login");
         else

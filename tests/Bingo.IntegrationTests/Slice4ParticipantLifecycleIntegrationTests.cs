@@ -715,6 +715,32 @@ public sealed class Slice4ParticipantLifecycleIntegrationTests(PostgreSqlTestFix
     }
 
     [Fact]
+    public async Task SelectedWaitingCapacityOverrideStopsAtTenThousandWithoutMutation()
+    {
+        // A-SignupSetup-1/U3-Q1: exercise the +1 path against real PostgreSQL.
+        var setup = await SeedAsync(capacity: 10_000, confirmed: 1, waiting: 1);
+        var instant = new DateTimeOffset(2026, 10, 7, 12, 0, 0, TimeSpan.Zero);
+        await using (var seed = new ApplicationDbContext(options))
+        {
+            seed.EventParticipants.AddRange(Enumerable.Range(3, 9_999).Select(sequence =>
+                new EventParticipant(Guid.NewGuid(), setup.EventId, SignupStatus.Confirmed, sequence, instant, SignupSource.AdminCreated)));
+            await seed.SaveChangesAsync();
+        }
+        await using var db = new ApplicationDbContext(options);
+        var selected = await db.EventParticipants.SingleAsync(p => p.EventId == setup.EventId && p.SignupStatus == SignupStatus.WaitingList);
+        var version = await db.Events.Where(e => e.Id == setup.EventId).Select(e => e.Version).SingleAsync();
+        var result = await Service(db).ConfirmWaitingParticipantAsync(new(setup.EventId, selected.Id, setup.EnabledAdminId, "admin",
+            ExpandCapacityWhenFull: true, ExpectedEventVersion: version, ExpectedResponseVersion: selected.ResponseVersion));
+        Assert.False(result.Succeeded); Assert.Equal(BingoEvent.ParticipantCapMaximumMessage, result.Error);
+        await using var verify = new ApplicationDbContext(options);
+        Assert.Equal(version, await verify.Events.Where(e => e.Id == setup.EventId).Select(e => e.Version).SingleAsync());
+        Assert.Equal(10_000, await verify.Events.Where(e => e.Id == setup.EventId).Select(e => e.ParticipantCap).SingleAsync());
+        Assert.Equal(SignupStatus.WaitingList, await verify.EventParticipants.Where(p => p.Id == selected.Id).Select(p => p.SignupStatus).SingleAsync());
+        Assert.Empty(await verify.AuditEntries.Where(a => a.EventId == setup.EventId).ToListAsync());
+        Assert.Empty(await verify.PersonalNotifications.Where(a => a.EventId == setup.EventId).ToListAsync());
+    }
+
+    [Fact]
     public async Task SelectedWaitingConfirmationUsesOnlyOneExplicitCapacityPlaceAndIsIdempotent()
     {
         var setup = await SeedAsync(capacity: 1, confirmed: 1, waiting: 2);
