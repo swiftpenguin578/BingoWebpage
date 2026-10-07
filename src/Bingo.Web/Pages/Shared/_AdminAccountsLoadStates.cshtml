@@ -6,7 +6,7 @@
 }
 @* Lane T: Accounts page-family load states. Fresh on every visit: no remembered counts or rows. *@
 <template data-page-header-template="accounts">
-    <header class="page-head" data-page-family="accounts"><div style="min-width:0"><h1 class="h1" tabindex="-1">@D["Accounts"]</h1><p class="summary" aria-hidden="true"></p></div>@if (superAdmin) { <div class="head-actions"><button class="btn btn-quiet" type="button" tabindex="-1"><svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 5.5h9.5M10 3l2.5 2.5L10 8M13 10.5H3.5M6 8l-2.5 2.5L6 13"/></svg>@D["Transfer ownership"]</button></div> }</header>
+    <header class="page-head" data-page-family="accounts"><div style="min-width:0"><h1 class="h1" tabindex="-1">@D["Accounts"]</h1><p class="summary" aria-hidden="true">@* Count summaries load like the tab counts: fixed words, a number-sized bar per number. *@<span><b class="tnum ac-sk-count"><span class="sk"></span></b> @D["accounts"]</span><span><b class="tnum ac-sk-count"><span class="sk"></span></b> @D["disabled"]</span></p></div>@if (superAdmin) { <div class="head-actions"><button class="btn btn-quiet" type="button" tabindex="-1"><svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 5.5h9.5M10 3l2.5 2.5L10 8M13 10.5H3.5M6 8l-2.5 2.5L6 13"/></svg>@D["Transfer ownership"]</button></div> }</header>
 </template>
 @foreach (var failed in new[] { false, true })
 {

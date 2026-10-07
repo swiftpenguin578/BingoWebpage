@@ -67,6 +67,9 @@
 :where([data-page-family="accounts"]) .ac-sk-w60{width:60%}:where([data-page-family="accounts"]) .ac-sk-w70{width:70%}:where([data-page-family="accounts"]) .ac-sk-w85{width:85%}
 /* U2 loading decision: the summary keeps reserved lines while loading; it may grow when loaded. */
 :where([data-page-family="accounts"])[data-page-skeleton="accounts"] .summary{min-height:calc(var(--dk-fs-control)*var(--dk-lh-body))}
+/* Loading counts: a number-sized bar like the Events tab-count placeholders; the words stay. */
+:where([data-page-family="accounts"]) .ac-sk-count{display:inline-flex;align-items:center;justify-content:center;min-width:2ch;width:2ch;height:calc(var(--dk-fs-control)*var(--dk-lh-body));vertical-align:bottom}
+:where([data-page-family="accounts"]) .ac-sk-count>.sk{display:block;width:100%;height:10px}
 /* U3-Q6: phone-width loading header reserves two summary lines. */
 @media (max-width:640px){:where([data-page-family="accounts"])[data-page-skeleton="accounts"] .summary{min-height:calc(2*var(--dk-fs-control)*var(--dk-lh-body))}}
 :where([data-page-family="accounts"])[data-accounts-load-failed] .summary{min-height:0}
