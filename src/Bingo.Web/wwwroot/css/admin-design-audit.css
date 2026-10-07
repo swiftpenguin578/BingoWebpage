@@ -1,0 +1,48 @@
+/* Page rules from the frozen Audit.dc.html style block; shared primitives stay frozen.
+   The drawer and the filter panel carry data-page-family="audit" so these rules reach them. */
+/* User "No load fades": only load markers; interaction animations stay frozen. */
+:where([data-page-family="audit"]) .empty,:where([data-page-family="audit"]) .page-banner,:where([data-page-family="audit"]) .kv{animation:none}
+:where([data-page-family="audit"]) .directory-fragments{display:contents}
+:where([data-page-family="audit"]) .au-toolbar{justify-content:flex-start}
+:where([data-page-family="audit"]) .au-filters{flex:1;min-width:0}
+:where([data-page-family="audit"]) .au-filters .search{width:240px}
+:where([data-page-family="audit"]) .au-actor-err{margin:-4px 0 12px}
+:where([data-page-family="audit"]) .au-tbl{--table-cols:132px minmax(250px,2.2fr) minmax(150px,1fr) minmax(120px,.8fr) 150px;--table-min:880px}
+:where([data-page-family="audit"]) .au-tbl .td{padding-top:11px;padding-bottom:11px}
+:where([data-page-family="audit"]) .au-tbl .row{cursor:pointer}
+:where([data-page-family="audit"]) .au-tbl .cell-main{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+:where([data-page-family="audit"]) .au-tbl .name-btn{max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+:where([data-page-family="audit"]) .au-tbl .cell-tags{flex-wrap:nowrap;min-width:0}
+:where([data-page-family="audit"]) .au-date{font-variant-numeric:tabular-nums}
+:where([data-page-family="audit"]) .au-tbl .c-name .cell-sub{font-variant-numeric:tabular-nums}
+:where([data-page-family="audit"]) .au-muted{color:var(--dk-text-3)}
+:where([data-page-family="audit"]) .au-muted-p{margin:0;font-size:var(--dk-fs-control-sm);color:var(--dk-text-3);line-height:1.5}
+:where([data-page-family="audit"]) .au-reason{white-space:pre-wrap;overflow-wrap:anywhere}
+:where([data-page-family="audit"]) .au-lifecycle{margin:8px 0 0;font-size:var(--dk-fs-control-sm);color:var(--dk-text-2);line-height:1.5}
+:where([data-page-family="audit"]) .au-reason+.au-lifecycle{margin-top:10px}
+:where([data-page-family="audit"]) .au-kv{margin-top:0;grid-template-columns:96px minmax(0,1fr)}
+:where([data-page-family="audit"]) .au-kv dd{margin:0;overflow-wrap:anywhere}
+:where([data-page-family="audit"]) .au-tech{margin-top:12px;grid-template-columns:96px minmax(0,1fr)}
+:where([data-page-family="audit"]) .au-tech dd{margin:0;min-width:0}
+:where([data-page-family="audit"]) .au-page{font-size:var(--dk-fs-control-sm);color:var(--dk-text-2);padding:0 10px;font-variant-numeric:tabular-nums;white-space:nowrap}
+/* Reference inline styles as classes: display:contents cell, Technical details title weight, date pair spacing. */
+:where([data-page-family="audit"]) .au-cell-contents{display:contents}
+:where([data-page-family="audit"]) .au-disc-title{font-weight:500}
+:where([data-page-family="audit"]) .au-pair{margin-top:10px}
+/* A4: the panel never extends past the viewport; its fields and footer scroll into reach.
+   The event menu can be long (every event), so it scrolls too. */
+:where([data-page-family="audit"]) .au-menu{max-height:min(360px,calc(100vh - 160px));overflow-y:auto;overscroll-behavior:contain}
+:where([data-page-family="audit"]) .au-panel{overflow-y:auto;overscroll-behavior:contain}
+/* Skeleton (reference sizes as classes). Q-SK2: text bars sit in real line-height rows. */
+:where([data-page-family="audit"]) .au-sk-main{min-height:calc(var(--dk-fs-control)*var(--dk-lh-body));display:flex;align-items:center}
+:where([data-page-family="audit"]) .au-sk-sub{min-height:calc(var(--dk-fs-small)*var(--dk-lh-body));display:flex;align-items:center;margin-top:2px}
+:where([data-page-family="audit"]) .au-sk-thin{height:8px}
+:where([data-page-family="audit"]) .au-sk-pill{height:18px;border-radius:9px}
+:where([data-page-family="audit"]) .au-sk-w40{width:40%}:where([data-page-family="audit"]) .au-sk-w44{width:44%}:where([data-page-family="audit"]) .au-sk-w46{width:46%}
+:where([data-page-family="audit"]) .au-sk-w50{width:50%}:where([data-page-family="audit"]) .au-sk-w60{width:60%}:where([data-page-family="audit"]) .au-sk-w70{width:70%}
+:where([data-page-family="audit"]) .au-sk-main>.sk,:where([data-page-family="audit"]) .au-sk-sub>.sk{flex:none}
+@media (max-width:640px){
+  :where([data-page-family="audit"]) .au-filters .search{width:100%;flex:1 1 100%}
+  :where([data-page-family="audit"]) .au-filters .filter-btn{flex:1 1 auto}
+  :where([data-page-family="audit"]) .tfoot{padding-left:14px}
+}

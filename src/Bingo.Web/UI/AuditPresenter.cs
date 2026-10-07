@@ -10,7 +10,7 @@ public sealed record AuditFieldChange(string Field, string Before, string After)
 
 public sealed record AuditPresentation(string Action, string Actor, string Target, string? Reason,
     IReadOnlyList<AuditFieldChange> Changes, string ActionKey, string? Details, string? BeforeState, string? AfterState,
-    string? LifecycleSummary = null);
+    string? LifecycleSummary = null, string? Context = null, bool Sensitive = false);
 
 /// <summary>Read-only, tolerant projection shared by full Audit and recent activity.</summary>
 public static class AuditPresenter
@@ -276,10 +276,21 @@ public static class AuditPresenter
             technicalDetails = string.IsNullOrWhiteSpace(technicalDetails) ? identity : $"{identity} · {technicalDetails}";
         }
         return new(text[Actions.GetValueOrDefault(entry.Action, "Recorded administrative action")], entry.ActorUsername,
-            target, sensitiveAction ? null : reason, changes, entry.Action,
+            target, sensitiveAction ? null : reason, sensitiveAction ? [] : changes, entry.Action,
             technicalDetails,
             Technical(entry.BeforeState, text), Technical(entry.AfterState, text),
-            isCreation ? text["Added"].Value : isDeletion ? text["Deleted"].Value : null);
+            isCreation ? text["Added"].Value : isDeletion ? text["Deleted"].Value : null,
+            sensitiveAction ? null : Context(entry, reason, isCreation || isDeletion), sensitiveAction);
+    }
+
+    // Audit drawer "context" (reference Audit.dc.html present()): the reopening explanations, or
+    // plain recorded details that are neither the reason nor a creation/deletion marker.
+    private static string? Context(AuditEntry entry, string? reason, bool lifecycle)
+    {
+        if (entry.Details is null) return null;
+        if (entry.Action is "draft.reopened" or "event.submissions_reopened" && reason is not null)
+            return entry.Details[..entry.Details.IndexOf(';', StringComparison.Ordinal)] + ".";
+        return reason is null && !lifecycle && IsPlainText(entry.Details) && !PlainReasonActions.Contains(entry.Action) ? entry.Details : null;
     }
 
     private static string Value(string? value, IStringLocalizer<AuditResource> text) => value switch

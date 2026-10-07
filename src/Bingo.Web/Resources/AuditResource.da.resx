@@ -117,23 +117,23 @@
   <data name="Password reset" xml:space="preserve"><value>Adgangskode nulstillet</value></data>
   <data name="Password-reset link created" xml:space="preserve"><value>Link til nulstilling af adgangskode oprettet</value></data>
   <data name="Retained owner promoted" xml:space="preserve"><value>Bevaret ejer forfremmet</value></data>
-  <data name="Board approved" xml:space="preserve"><value>Bræt godkendt</value></data>
-  <data name="Board approval withdrawn automatically" xml:space="preserve"><value>Brætgodkendelse trukket tilbage automatisk</value></data>
-  <data name="Board created" xml:space="preserve"><value>Bræt oprettet</value></data>
-  <data name="Board editing started" xml:space="preserve"><value>Redigering af bræt startet</value></data>
-  <data name="Board editing released" xml:space="preserve"><value>Redigering af bræt frigivet</value></data>
-  <data name="Board editing taken over" xml:space="preserve"><value>Redigering af bræt overtaget</value></data>
+  <data name="Board approved" xml:space="preserve"><value>Plade godkendt</value></data>
+  <data name="Board approval withdrawn automatically" xml:space="preserve"><value>Pladegodkendelse trukket tilbage automatisk</value></data>
+  <data name="Board created" xml:space="preserve"><value>Plade oprettet</value></data>
+  <data name="Board editing started" xml:space="preserve"><value>Redigering af plade startet</value></data>
+  <data name="Board editing released" xml:space="preserve"><value>Redigering af plade frigivet</value></data>
+  <data name="Board editing taken over" xml:space="preserve"><value>Redigering af plade overtaget</value></data>
   <data name="Planning team size changed" xml:space="preserve"><value>Planlagt holdstørrelse ændret</value></data>
-  <data name="Corrected board published" xml:space="preserve"><value>Rettet bræt offentliggjort</value></data>
-  <data name="Board correction discarded" xml:space="preserve"><value>Brætrettelse kasseret</value></data>
-  <data name="Board correction started" xml:space="preserve"><value>Brætrettelse startet</value></data>
-  <data name="Board resized" xml:space="preserve"><value>Brættets størrelse ændret</value></data>
+  <data name="Corrected board published" xml:space="preserve"><value>Rettet plade offentliggjort</value></data>
+  <data name="Board correction discarded" xml:space="preserve"><value>Pladerettelse kasseret</value></data>
+  <data name="Board correction started" xml:space="preserve"><value>Pladerettelse startet</value></data>
+  <data name="Board resized" xml:space="preserve"><value>Pladens størrelse ændret</value></data>
   <data name="Tile added" xml:space="preserve"><value>Felt tilføjet</value></data>
   <data name="Tile edited" xml:space="preserve"><value>Felt redigeret</value></data>
   <data name="Tile moved" xml:space="preserve"><value>Felt flyttet</value></data>
   <data name="Tile removed" xml:space="preserve"><value>Felt fjernet</value></data>
   <data name="Tiles swapped" xml:space="preserve"><value>Felter byttet</value></data>
-  <data name="Board approval withdrawn" xml:space="preserve"><value>Brætgodkendelse trukket tilbage</value></data>
+  <data name="Board approval withdrawn" xml:space="preserve"><value>Pladegodkendelse trukket tilbage</value></data>
   <data name="Artwork reset" xml:space="preserve"><value>Billede nulstillet</value></data>
   <data name="Artwork updated" xml:space="preserve"><value>Billede opdateret</value></data>
   <data name="Item prices checked at event start" xml:space="preserve"><value>Genstandspriser tjekket ved eventstart</value></data>

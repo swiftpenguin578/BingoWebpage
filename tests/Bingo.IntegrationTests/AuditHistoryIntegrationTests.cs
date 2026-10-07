@@ -271,7 +271,8 @@ public sealed class AuditHistoryIntegrationTests(PostgreSqlTestFixture databaseF
         using var invalidEntry = await client.GetAsync("/Admin/Audit?entry=abc");
         Assert.Equal(HttpStatusCode.OK, invalidEntry.StatusCode);
         var invalidEntryHtml = await invalidEntry.Content.ReadAsStringAsync();
-        Assert.Contains("This entry isn't available", WebUtility.HtmlDecode(invalidEntryHtml), StringComparison.Ordinal);
+        Assert.Contains("data-audit-requested=\"missing\"", invalidEntryHtml, StringComparison.Ordinal);
+        Assert.Contains("This entry isn’t available", WebUtility.HtmlDecode(invalidEntryHtml), StringComparison.Ordinal);
     }
 
     [Fact]
