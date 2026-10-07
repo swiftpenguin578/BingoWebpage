@@ -153,7 +153,8 @@ public sealed partial class EventQuarantineIntegrationTests
         using (var rejected = await RestoreFromPageAsync(await client.GetStringAsync(path)))
         {
             Assert.Equal(HttpStatusCode.Redirect, rejected.StatusCode);
-            Assert.Equal($"/Admin/Events/Manage/{hidden.Id}?hidden=True", rejected.Headers.Location!.OriginalString);
+            // U4-Q3 (c): the hidden view is the plain URL (was ?hidden=True).
+            Assert.Equal($"/Admin/Events/Manage/{hidden.Id}", rejected.Headers.Location!.OriginalString);
         }
         var recoveryPage = await client.GetStringAsync(path);
         Assert.Contains("Archive it before restoring this event.", recoveryPage);
