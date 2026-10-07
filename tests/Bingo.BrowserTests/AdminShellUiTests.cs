@@ -34,11 +34,10 @@ public sealed class AdminShellUiTests
         Assert.Contains("Exit Admin", layout);
         Assert.DoesNotContain("class=\"admin-nav-label\"", layout);
         Assert.Contains("data-admin-event-navigation", layout);
-        Assert.Contains("admin-header-blockers", layout);
-        Assert.Contains("eventContext?.BlockerCount ?? 0", layout);
-        Assert.Contains("blockerHref", layout);
-        Assert.Contains("GetAdminEventBlockerCountAsync", shellService);
-        Assert.Contains("IEventReadinessEvaluator", shellService);
+        // U4 (brief 85 "Retired"; 42c §1.3): the header blocker count and #readiness anchor are gone.
+        Assert.DoesNotContain("admin-header-blockers", layout);
+        Assert.DoesNotContain("#readiness", layout);
+        Assert.DoesNotContain("GetAdminEventBlockerCountAsync", shellService);
         Assert.Contains("admin-event-item", layout);
         Assert.Contains("data-admin-event-section=\"participants\"", layout);
         Assert.Contains("data-admin-event-section=\"schedule\"", layout);

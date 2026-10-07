@@ -61,7 +61,7 @@ public sealed partial class AdminDesignShellIntegrationTests(PostgreSqlTestFixtu
         db.AddRange(review, live, closed, open, draft, unscheduled, past, cancelled, finished, hidden, hiddenPast, discarded);
         db.Entry(discarded).Property(item => item.State).CurrentValue = EventState.Discarded;
         await db.SaveChangesAsync();
-        var service = new SharedShellService(db, new Text(), null!, null!, null!, new ShellClock());
+        var service = new SharedShellService(db, new Text(), new ShellClock());
         var routes = new RouteValueDictionary { ["page"] = "/Admin/Events/Identity", ["id"] = past.Id };
         var ordinary = await service.GetAdminDesignAsync(User("Admin"), routes, CancellationToken.None);
         Assert.Equal(past.Id, ordinary.SelectedEvent!.Id);
@@ -107,7 +107,7 @@ public sealed partial class AdminDesignShellIntegrationTests(PostgreSqlTestFixtu
         {
             var persisted = await db.Events.SingleAsync();
             Assert.Equal("Unsupported/Fixture", persisted.Timezone);
-            var service = new SharedShellService(db, new Text(), null!, null!, null!, new ShellClock());
+            var service = new SharedShellService(db, new Text(), new ShellClock());
             var shell = await service.GetAdminDesignAsync(User("Admin"), new RouteValueDictionary { ["page"] = "/Admin/Events/Identity", ["id"] = item.Id }, CancellationToken.None);
             Assert.Equal("starts " + persisted.EventStartsAt!.Value.ToUniversalTime().ToString("d MMM", System.Globalization.CultureInfo.CurrentCulture), Assert.Single(shell.Events).When);
         }
@@ -136,7 +136,7 @@ public sealed partial class AdminDesignShellIntegrationTests(PostgreSqlTestFixtu
             var persisted = await db.Events.OrderBy(item => item.EventStartsAt).ToListAsync();
             Assert.All(persisted, item => Assert.Equal("Europe/Copenhagen", item.Timezone));
             Assert.Equal("27,28", string.Join(',', persisted.Select(item => item.EventStartsAt!.Value.UtcDateTime.Day)));
-            var service = new SharedShellService(db, new Text(), null!, null!, null!, new ShellClock());
+            var service = new SharedShellService(db, new Text(), new ShellClock());
             var shell = await service.GetAdminDesignAsync(User("Admin"), new RouteValueDictionary { ["page"] = "/Admin/Events/Identity" }, CancellationToken.None);
             Assert.Equal("starts 27 Mar|starts 29 Mar", string.Join('|', shell.Events.Select(item => item.When)));
         }

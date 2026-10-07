@@ -177,6 +177,18 @@ export function dispose() { window.disposes=(window.disposes||0)+1;window.active
     await page.getByRole('button',{name:'Keep editing',exact:true}).click();await page.getByRole('alertdialog').waitFor({state:'detached'});
     assert.equal(await page.locator('#outside-draft').inputValue(),'Edited');
     await page.locator('.scrim').dispatchEvent('click'); await page.getByRole('button',{name:'Discard',exact:true}).click();await page.getByRole('dialog').waitFor({state:'hidden'});
+    // layer.markClean(): a layer that fills itself after opening resets its unsaved-changes baseline.
+    await page.evaluate(() => { const content=document.createElement('div');content.innerHTML='<input id="late-field" value="">';window.lateLayer=AdminUI.openLayer({kind:'drawer',title:'Late',content}); });
+    await page.locator('#late-field').evaluate(el=>{el.value='Filled by the page';});
+    await page.evaluate(()=>window.lateLayer.markClean());
+    await page.locator('.scrim').dispatchEvent('click'); await page.getByRole('dialog').waitFor({state:'hidden'});
+    assert.equal(await page.getByRole('alertdialog').count(),0,'markClean makes the filled state the baseline: closing never asks');
+    await page.evaluate(() => { const content=document.createElement('div');content.innerHTML='<input id="late-field" value="">';window.lateLayer=AdminUI.openLayer({kind:'drawer',title:'Late',content}); });
+    await page.locator('#late-field').evaluate(el=>{el.value='Filled by the page';});
+    await page.evaluate(()=>window.lateLayer.markClean());
+    await page.locator('#late-field').fill('Typed after');
+    await page.locator('.scrim').dispatchEvent('click'); await page.getByRole('alertdialog').waitFor();
+    await page.getByRole('button',{name:'Discard',exact:true}).click();await page.getByRole('dialog').waitFor({state:'hidden'});
     await page.evaluate(() => { const content=document.createElement('div');content.innerHTML='<input value="Original">';AdminUI.openLayer({kind:'drawer',title:'Editor',content}); });
     await page.evaluate(() => { window.confirmed=null;AdminUI.confirm({title:'Confirm',description:'Review',actionLabel:'Accept',cancelLabel:'Cancel'}).then(answer=>window.confirmed=answer); });
     await page.locator('.m-scrim').dispatchEvent('click'); assert.equal(await page.getByRole('alertdialog').isVisible(),true,'outside click never confirms/dismisses confirmation');

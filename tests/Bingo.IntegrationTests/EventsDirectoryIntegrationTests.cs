@@ -303,7 +303,7 @@ public sealed class EventsDirectoryIntegrationTests(PostgreSqlTestFixture databa
             db.Add(new TeamMembership(Guid.NewGuid(), team.Id, participant.Id, TeamMembershipRole.Participant, leave!.Value, null, "Controlled move"));
     }
 
-    private static SharedShellService Shell(ApplicationDbContext db) => new(db, new Text(), null!, null!, null!, new FixedClock());
+    private static SharedShellService Shell(ApplicationDbContext db) => new(db, new Text(), new FixedClock());
     private static DirectoryPage Page(ApplicationDbContext db, Account account, string claimedRole = "Admin") => new(db, null!, new FixedClock(), new Text(), Shell(db), new AdminDashboardService(db, new FixedClock()))
     {
         PageContext = new PageContext(new ActionContext(new DefaultHttpContext

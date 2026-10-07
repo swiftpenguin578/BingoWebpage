@@ -2452,7 +2452,6 @@ th {
 .event-overview-metric-context.is-orange .event-overview-metric-dot { background: var(--admin-status-orange); }
 .event-overview-metric-context.is-pink .event-overview-metric-dot { background: var(--admin-status-pink); }
 .event-overview-section { min-width: 0; padding: 1.25rem; background: var(--admin-surface); border: 0; border-radius: 0.75rem; }
-.event-overview-readiness-panel { grid-area: readiness; align-self: start; }
 .event-overview-dates-panel { position: sticky; top: calc(var(--admin-header-height) + 1rem); grid-area: dates; align-self: start; max-height: calc(100vh - var(--admin-header-height) - 2rem); overflow-y: auto; }
 .event-overview-section-heading { display: flex; justify-content: space-between; gap: 1rem; align-items: center; padding-bottom: 0.35rem; border-bottom: 0; }
 .event-overview-heading-label { display: flex; gap: 0.55rem; align-items: center; }
