@@ -6,6 +6,7 @@
 @inject IStringLocalizer<AdminCommunityResource> D
 @{
     ViewData["Title"] = "Dashboard";
+    ViewData["PageFamily"] = "dashboard";
     ViewData["Summary"] = Model.Summary;
     var data = Model.Dashboard!;
     string N(long value) => Bingo.Web.Pages.Admin.IndexModel.Number(value);

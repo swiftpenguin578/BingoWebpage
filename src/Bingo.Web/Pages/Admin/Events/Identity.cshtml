@@ -3,6 +3,7 @@
 @using Bingo.Domain.Events
 @{
     ViewData["Title"] = T["Identity"];
+    ViewData["PageFamily"] = "identity";
     ViewData["SummaryTemplate"] = T["AdminDesign.Name, description, buy-in and timezone for {0}."].Value;
     ViewData["Summary"] = T["AdminDesign.Name, description, buy-in and timezone for {0}.", Model.EventName].Value;
     var signupTableUrl = Url.Page("/Events/Signups", null, new { slug = Model.EventSlug }, Request.Scheme, Request.Host.Value);

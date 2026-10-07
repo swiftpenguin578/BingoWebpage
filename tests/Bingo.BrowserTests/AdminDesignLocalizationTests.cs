@@ -8,6 +8,23 @@ namespace Bingo.BrowserTests;
 public sealed class AdminDesignLocalizationTests
 {
     [Fact]
+    public void EveryNewLayoutPageDeclaresALiteralUntranslatedFamily()
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "Bingo.slnx"))) directory = directory.Parent;
+        var web = Path.Combine(Assert.IsType<DirectoryInfo>(directory).FullName, "src", "Bingo.Web");
+        foreach (var type in typeof(AdminDesignAttribute).Assembly.GetTypes().Where(type => type.GetCustomAttribute<AdminDesignAttribute>() is not null))
+        {
+            var relative = type.FullName!["Bingo.Web.Pages.".Length..].Replace('.', Path.DirectorySeparatorChar);
+            var markup = File.ReadAllText(Path.Combine(web, "Pages", relative[..^"Model".Length] + ".cshtml"));
+            Assert.Matches("""ViewData\["PageFamily"\]\s*=\s*"[a-z][a-z0-9-]*";""", markup);
+        }
+        var layout = File.ReadAllText(Path.Combine(web, "Pages", "Shared", "_AdminDesignLayout.cshtml"));
+        Assert.Contains("ViewData[\"PageFamily\"] as string ?? throw", layout, StringComparison.Ordinal);
+        Assert.DoesNotContain("title.ToLowerInvariant()", layout, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ScopedAdminEventWordingHasEnglishFallbackAndDanishEventTerminology()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
