@@ -136,7 +136,7 @@ public sealed class OverviewServerIntegrationTests(PostgreSqlTestFixture databas
             var outcome = await JsonAsync(applied);
             Assert.True(outcome.GetProperty("succeeded").GetBoolean());
             Assert.Equal("applied", outcome.GetProperty("outcome").GetString());
-            Assert.Equal("Signups closed.", outcome.GetProperty("message").GetString());
+            Assert.Equal("Signups are closed for Open Bingo.", outcome.GetProperty("message").GetString());
         }
         // Plain form posts keep the PRG fallback (no Accept: application/json).
         var live = await AddAsync("Live Bingo", EventState.Live, other: true);

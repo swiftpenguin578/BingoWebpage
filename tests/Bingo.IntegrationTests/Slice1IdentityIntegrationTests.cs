@@ -594,7 +594,7 @@ public sealed partial class Slice1IdentityIntegrationTests(PostgreSqlTestFixture
         db.AddRange(recipient, other); db.PersonalNotifications.AddRange(notifications); await db.SaveChangesAsync();
         var recipientPrincipal = new AccountAuthenticationService(db, passwords, time).CreatePrincipal(recipient);
         var otherPrincipal = new AccountAuthenticationService(db, passwords, time).CreatePrincipal(other);
-        var shell = new SharedShellService(db, new PassthroughLocalizer(), null!, null!, null!, time);
+        var shell = new SharedShellService(db, new PassthroughLocalizer(), time);
         var recipientInbox = await shell.GetNotificationsAsync(recipientPrincipal, CancellationToken.None);
         var otherInbox = await shell.GetNotificationsAsync(otherPrincipal, CancellationToken.None);
         Assert.Equal(7, recipientInbox.Count); Assert.Equal(6, recipientInbox.Items.Count); Assert.Contains($"read={notification.Id}", recipientInbox.Items[0].Url, StringComparison.Ordinal);
@@ -627,7 +627,7 @@ public sealed partial class Slice1IdentityIntegrationTests(PostgreSqlTestFixture
         db.AddRange(admin, owner, user, emergency);
         await db.SaveChangesAsync();
         var authentication = new AccountAuthenticationService(db, passwords, time);
-        var shell = new SharedShellService(db, new PassthroughLocalizer(), null!, null!, null!, time);
+        var shell = new SharedShellService(db, new PassthroughLocalizer(), time);
 
         var adminInbox = await shell.GetNotificationsAsync(authentication.CreatePrincipal(admin), CancellationToken.None);
         var ownerInbox = await shell.GetNotificationsAsync(authentication.CreatePrincipal(owner), CancellationToken.None);
@@ -1319,7 +1319,8 @@ public sealed partial class Slice1IdentityIntegrationTests(PostgreSqlTestFixture
                 new AuditWriter(db, clock), readinessEvaluator,
                 new EventSignupLifecycleService(db, readinessEvaluator, clock), startLifecycle, null!, clock);
             Assert.IsType<PageResult>(await discardModel.OnGetAsync(discardEventId, CancellationToken.None));
-            Assert.True(discardModel.CanDiscard);
+            // U4 / OS-1: Delete (discard) is offered only for an empty setup.
+            Assert.True(discardModel.Overview!.Dialogs["del"].Applicable);
         }
         finally
         {

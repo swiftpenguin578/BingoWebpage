@@ -26,7 +26,8 @@ public sealed class ManagedCompetitionUiTests
         Assert.DoesNotContain("Type FETCH", workspace, StringComparison.Ordinal);
         Assert.DoesNotContain("Type FETCH", handler, StringComparison.Ordinal);
         Assert.Contains("LocalizeManagedError", handler);
-        Assert.Contains("asp-page=\"WiseOldMan\"", manage);
+        // U4 / OS-1: Overview links WOM through its presenter (glance row, A-Overview-7, A15).
+        Assert.Contains("Url(\"/Admin/Events/WiseOldMan\")", File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "Pages", "Admin", "Events", "OverviewPresenter.cs")));
         Assert.DoesNotContain("asp-page-handler=\"CreateManagedCompetition\"", manage, StringComparison.Ordinal);
         Assert.DoesNotContain("value=\"http-secret\"", workspace, StringComparison.Ordinal);
     }
@@ -41,7 +42,8 @@ public sealed class ManagedCompetitionUiTests
 
         Assert.DoesNotContain("SynchronizeCompetitionSchedule", workspace, StringComparison.Ordinal);
         Assert.DoesNotContain("ConfirmCompetitionSchedule", workspace, StringComparison.Ordinal);
-        Assert.Contains("asp-page=\"WiseOldMan\"", manage);
+        // U4 / OS-1: Overview links WOM through its presenter (glance row, A-Overview-7, A15).
+        Assert.Contains("Url(\"/Admin/Events/WiseOldMan\")", File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "Pages", "Admin", "Events", "OverviewPresenter.cs")));
         Assert.Contains("ConfigureAsync(id, EventVersion, CompetitionId, Actor, cancellationToken: ct)", handler, StringComparison.Ordinal);
     }
 

@@ -72,7 +72,7 @@
     var sub = Model.PeopleSub(item);
     var labels = Model.AttentionLabels(item);
     <div class="tr row @(item.State == EventState.Cancelled ? "is-cancelled" : "")" role="row" aria-rowindex="@(Model.FirstRow + Model.Events.ToList().IndexOf(item) + 1)" data-event-id="@item.Id" data-event-hidden="@(item.IsHidden ? "true" : "false")" data-open-url="@overview">
-        <div class="td c-name" role="cell"><div class="name-line"><a class="name-btn" id="open-@item.Id" href="@overview" title="@item.Name">@item.Name</a>@if (item.Participation?.IsHistoricalImport == true) { <span class="pill is-neutral" title="@D["Imported history from before the platform"]">@D["Imported"]</span> }</div>@if (item.HiddenAt is { } hiddenAt) { <div class="sub">@D["Hidden {0}", DateTimePresentation.Format(hiddenAt, "d MMM yyyy", item.Timezone, CultureInfo.CurrentCulture)]</div> }</div>
+        <div class="td c-name" role="cell"><div class="name-line"><a class="name-btn" id="open-@item.Id" href="@overview" title="@item.Name" data-shell-link>@item.Name</a>@if (item.Participation?.IsHistoricalImport == true) { <span class="pill is-neutral" title="@D["Imported history from before the platform"]">@D["Imported"]</span> }</div>@if (item.HiddenAt is { } hiddenAt) { <div class="sub">@D["Hidden {0}", DateTimePresentation.Format(hiddenAt, "d MMM yyyy", item.Timezone, CultureInfo.CurrentCulture)]</div> }</div>
         <div class="td" role="cell"><span class="badge @AdminDesignPhasePresentation.For(item.State).BadgeClass">@D[state]</span></div>
         <div class="td td-dates" role="cell"><div class="cell-main @(item.EventStartsAt is null ? "is-muted" : "")">@Model.Range(item)</div>@if (context.Length > 0) { <div class="sub">@context</div> }</div>
         <div class="td" role="cell">

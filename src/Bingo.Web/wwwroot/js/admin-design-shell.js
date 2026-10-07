@@ -435,6 +435,7 @@
     if (path === '/admin/accounts' || path === '/admin/accounts/index') return 'accounts';
     if (path === '/admin/audit' || path === '/admin/audit/index') return 'audit';
     if (path === '/admin/catalogue' || path === '/admin/catalogue/index') return 'catalogue';
+    if (/^\/admin\/events\/manage\/[^/]+$/.test(path)) return 'overview';
     return path.split('/').at(-2) || 'page';
   }
   function rememberSkeletons(doc) {
@@ -537,8 +538,9 @@
     destinationContext(url);
     const kind = pageKind(url);
     const destination = [...document.querySelectorAll('[data-shell-link]')].find(link => link.href === url);
-    const title = pageTitles.get(kind) || destination?.dataset.pageTitle || destination?.querySelector('.nav-text')?.textContent || text('loading');
-    const crumb = document.querySelector('.crumb-cur'); if (crumb) crumb.textContent = title;
+    // U4: the Overview header is the event's name, which destinationContext has just set.
+    const title = (kind === 'overview' && document.querySelector('[data-shell-event-context]')?.dataset.selectedEventId === new URL(url).pathname.split('/').at(-1) && document.querySelector('[data-shell-event-context] .ev-name')?.textContent.trim()) || pageTitles.get(kind) || destination?.dataset.pageTitle || destination?.querySelector('.nav-text')?.textContent || text('loading');
+    const crumb = document.querySelector('.crumb-cur'); if (crumb) crumb.textContent = kind === 'overview' ? pageTitles.get(kind) || title : title;
     const placeholder = document.createElement('div'); placeholder.className = 'page'; placeholder.dataset.pageSkeleton = kind; placeholder.dataset.pageFamily = kind;
     placeholder.setAttribute('role', 'status'); placeholder.setAttribute('aria-label', text('loading')); placeholder.setAttribute('aria-busy', 'true');
     const head = loadingHeads.get(kind)?.cloneNode(true).firstElementChild || main.querySelector('.page-head')?.cloneNode(true);
