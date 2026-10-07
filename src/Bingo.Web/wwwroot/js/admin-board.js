@@ -210,7 +210,7 @@ export async function init(region, ui = window.AdminUI) {
   // most once a minute. A lost lease re-reads the view (the chip shows who edits);
   // an open tile draft stays in the drawer and a later save meets the stale refusal.
   const renew = leaseRenewer(async () => {
-    const result = await window.AdminFetch.request(ctx.url('RenewEditing'), { method: 'POST', body: body({}), notice: false, signal: life.signal });
+    const result = await window.AdminFetch.request(ctx.url('RenewEditing'), { method: 'POST', body: body({}), notice: false, signal: life.signal }); /* background POST */
     if (result.kind === 'handler' && result.data?.renewed === false && ctx.view.control?.who === 'me' && !ctx.blocked()) await ctx.refresh();
   });
   for (const type of ['pointerdown', 'keydown', 'input']) on(document, type, () => { if (ctx.canEdit() && !life.signal.aborted) renew(); }, { passive: true, capture: true });
@@ -417,13 +417,19 @@ export async function init(region, ui = window.AdminUI) {
     plan.querySelector('[data-plan-hint]').textContent = lockedSize && v.mode !== 'none' && !v.teamSizeEditable && !v.readOnly
       ? t('Players per team can only be changed before the event goes Live.')
       : t('An estimate for the planning figures. It doesn’t change rosters or scoring.');
+    paintMore();
+  }
+  // "More figures" toggles in place: the planning inputs keep their identity and focus (rule 9).
+  function paintMore() {
+    const v = ctx.view, st = v.stats;
+    if (!st) return;
     const toggle = plan.querySelector('#plan-more'); toggle.setAttribute('aria-expanded', String(ctx.planMore)); toggle.classList.toggle('is-open', ctx.planMore);
     const list = plan.querySelector('#plan-more-list'); list.hidden = !ctx.planMore;
     const more = [[t('Tiles'), t('{0} of {1}', st.filled, st.cells)], [t('Average tile'), st.avgTile == null ? '—' : fmt1(st.avgTile) + ' EHB'], [t('Lowest line'), st.lo ? fmt1(st.lo) + ' EHB' : '—'],
       [t('Highest line'), st.hi ? fmt1(st.hi) + ' EHB' : '—'], [t('Without an estimate'), st.missing ? t(st.missing === 1 ? '{0} tile' : '{0} tiles', st.missing) : t('None')], [t('Event length'), t('{0} days', fmt1(st.days))]];
     list.replaceChildren(...more.flatMap(([k, value]) => [el('dt', null, k), el('dd', null, value)]));
   }
-  on(root.querySelector('#plan-more'), 'click', () => { ctx.planMore = !ctx.planMore; paintPlan(); });
+  on(root.querySelector('#plan-more'), 'click', () => { ctx.planMore = !ctx.planMore; paintMore(); });
   async function commitSize() {
     if (ctx.sizeDraft == null || ctx.pending) return;
     const value = parseWhole(ctx.sizeDraft, 1, 100);

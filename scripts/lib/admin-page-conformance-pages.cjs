@@ -2,7 +2,8 @@
 // loading template, family stylesheet, and these page-specific interaction probes.
 module.exports = [
   // U7: Board (Board.dc.html). One shared POST path (ctx.command) serves every Board command.
-  { family: 'board', postSaveCount: 1, url: f => '/Admin/Events/Board/' + f.events['autumn-bingo-2027'], fixture: 'autumn-bingo-2027',
+  // U7-E1 (c): plus one background POST, the edit-lease renewal (no busy state).
+  { family: 'board', postSaveCount: 1, backgroundPostCount: 1, url: f => '/Admin/Events/Board/' + f.events['autumn-bingo-2027'], fixture: 'autumn-bingo-2027',
     source: 'Pages/Admin/Events/Board.cshtml', module: 'admin-board.js',
     textRows: { 'bd-sk-line': ['control',1.45] }, reference: 'Board.dc.html', first: '.card', blocks: { first: '.card' },
     style: ['.bd-work','display','grid'], titleDa: 'Board',
