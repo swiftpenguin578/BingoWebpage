@@ -3,7 +3,7 @@ using Bingo.Domain.Integrations.WiseOldMan;
 
 namespace Bingo.Application.Events;
 
-public sealed record FinalizationOperationResult(bool Published, bool AlreadyPublished, string? Feedback = null, EventCompetitionEndUpdateStatus? WomEndUpdateStatus = null);
+public sealed record FinalizationOperationResult(bool Published, bool AlreadyPublished, string? Feedback = null, EventCompetitionEndUpdateStatus? WomEndUpdateStatus = null, EventState? State = null, long? Version = null, Guid? LatestFinalizationId = null, FinalWomRefreshOutcome? FinalRefresh = null);
 
 public interface IEventFinalizationService
 {
@@ -17,7 +17,7 @@ public interface IEventFinalizationService
     Task ArchiveAsync(Guid eventId, bool confirmed, LifecycleActor actor, CancellationToken ct = default);
 }
 
-public sealed record FinalReviewReadiness(Guid EventId, string EventName, EventState State, DateTimeOffset? EventStartsAt, DateTimeOffset? EventEndsAt, DateTimeOffset? SubmissionCutoff, bool SubmissionWindowOpen, IReadOnlyList<FinalReviewBlocker> Blockers, IReadOnlyList<ProvisionalPlacement> Placements, IReadOnlyList<FinalizationHistoryRow> History, Guid ReviewCycleId = default, long EventVersion = 0, PlacementRule PlacementRule = PlacementRule.LegacyScoreTimeThenEhb, EventCompetitionEndUpdateStatus WomEndUpdateStatus = EventCompetitionEndUpdateStatus.NotRequired)
+public sealed record FinalReviewReadiness(Guid EventId, string EventName, EventState State, DateTimeOffset? EventStartsAt, DateTimeOffset? EventEndsAt, DateTimeOffset? SubmissionCutoff, bool SubmissionWindowOpen, IReadOnlyList<FinalReviewBlocker> Blockers, IReadOnlyList<ProvisionalPlacement> Placements, IReadOnlyList<FinalizationHistoryRow> History, Guid ReviewCycleId = default, long EventVersion = 0, PlacementRule PlacementRule = PlacementRule.LegacyScoreTimeThenEhb, EventCompetitionEndUpdateStatus WomEndUpdateStatus = EventCompetitionEndUpdateStatus.NotRequired, FinalReviewBlockingEvent? BlockingCurrentEvent = null)
 {
     /// <summary>
     /// A blocker is an authoritative prerequisite, not a task an administrator
@@ -26,6 +26,7 @@ public sealed record FinalReviewReadiness(Guid EventId, string EventName, EventS
     /// </summary>
     public bool CanFinalize => State == EventState.AwaitingFinalReview && Blockers.Count == 0;
 }
+public sealed record FinalReviewBlockingEvent(Guid Id, string Name, EventState State, string Reason);
 public sealed record FinalReviewBlocker(string Key, string Title, string Description, string? Link, bool CanOverride, bool Resolved, string? ResolutionReason, bool IsCompletionTimeAcknowledgement = false, Guid? TeamId = null);
 public sealed record ProvisionalPlacement(Guid TeamId, string TeamName, int Placement, bool BoardComplete, DateTimeOffset? CalculatedCompletedAt, DateTimeOffset? CorrectedCompletedAt, int CompletedLines, int CompletedTiles, decimal EhbTiebreak, DateTimeOffset? CurrentScoreReachedAt = null);
 public sealed record FinalizationHistoryRow(Guid Id, int Version, DateTimeOffset FinalizedAt, bool Active, DateTimeOffset? UnfinalizedAt, string? UnfinalizeReason, IReadOnlyList<OfficialPlacementRow> Placements, Guid? FinalizedByAccountId = null,

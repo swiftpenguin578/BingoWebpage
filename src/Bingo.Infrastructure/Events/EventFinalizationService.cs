@@ -99,8 +99,18 @@ public sealed class EventFinalizationService(ApplicationDbContext db, IPublicBoa
         if (activeFinal is not null && (ev.State is EventState.Finalized or EventState.Archived)) placements = official.Where(x => x.FinalizationId == activeFinal.Id).Select(x => new ProvisionalPlacement(x.TeamId, x.TeamName, x.Placement, x.BoardComplete, x.BoardCompletedAt, null, x.CompletedLines, x.CompletedTiles, x.EhbTiebreak, x.CurrentScoreReachedAt)).ToList();
         var endStatus = await db.EventCompetitionSynchronizations.AsNoTracking().Where(x => x.EventId == eventId)
             .Select(x => (EventCompetitionEndUpdateStatus?)x.EndUpdateStatus).SingleOrDefaultAsync(ct);
+        FinalReviewBlockingEvent? blockingEvent = null;
+        if (ev.State is EventState.Finalized or EventState.Archived)
+        {
+            var development = string.Equals(Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT"), "Development", StringComparison.OrdinalIgnoreCase);
+            var current = await db.Events.AsNoTracking().Where(value => value.Id != eventId && value.HiddenAt == null
+                && (value.State == EventState.Live || value.State == EventState.AwaitingFinalReview || value.State == EventState.Finalized)
+                && !(development && value.IsDevelopmentFixture)).OrderBy(value => value.Name)
+                .Select(value => new { value.Id, value.Name, value.State }).FirstOrDefaultAsync(ct);
+            if (current is not null) blockingEvent = new(current.Id, current.Name, current.State, CurrentEventBlockMessage(current.Name, current.State, "reopening this event"));
+        }
         return new(eventId, ev.Name, ev.State, scheduledStart, scheduledEnd, effectiveCutoff, ev.AcceptsNewSubmissions(now), blockers, placements, history, cycleId, ev.Version, ev.PlacementRule,
-            endStatus ?? EventCompetitionEndUpdateStatus.NotRequired);
+            endStatus ?? EventCompetitionEndUpdateStatus.NotRequired, blockingEvent);
     }
 
     public Task ResolveBlockerAsync(Guid eventId, string blockerKey, string reason, bool confirmed, Guid adminId, long? expectedVersion = null, Guid? expectedReviewCycleId = null, CancellationToken ct = default)
@@ -116,6 +126,9 @@ public sealed class EventFinalizationService(ApplicationDbContext db, IPublicBoa
     {
         string? operationFeedback = null;
         EventCompetitionEndUpdateStatus? endUpdateStatus = null;
+        long? resultingVersion = null;
+        Guid? latestFinalizationId = null;
+        FinalWomRefreshOutcome? finalRefresh = null;
         try
         {
             actor = await EventMutationAuthorization.EnsureAuthorizedAsync(db, actor, ct);
@@ -143,7 +156,7 @@ public sealed class EventFinalizationService(ApplicationDbContext db, IPublicBoa
             await db.Database.ExecuteSqlRawAsync("SELECT pg_advisory_xact_lock(7303004)", ct);
             var ev = await db.Events.FromSqlInterpolated($"SELECT * FROM events WHERE id = {eventId} AND hidden_at IS NULL FOR UPDATE").SingleOrDefaultAsync(ct) ?? throw new InvalidOperationException("Event not found.");
             var activeFinal = await db.EventFinalizations.Where(x => x.EventId == eventId && x.UnfinalizedAt == null).OrderByDescending(x => x.Version).FirstOrDefaultAsync(ct);
-            if (ev.State == EventState.Archived && activeFinal is not null && expectedVersion == ev.Version - 1) { await tx.CommitAsync(ct); return new(true, true); }
+            if (ev.State == EventState.Archived && activeFinal is not null && expectedVersion == ev.Version - 1) { await tx.CommitAsync(ct); return new(true, true, State: ev.State, Version: ev.Version, LatestFinalizationId: activeFinal.Id, FinalRefresh: ReadFinalWomRefresh(activeFinal.CalculationInputsJson)); }
             // A pre-existing Finalized row is a legacy resting state from the
             // old two-step workflow. It may only be completed when its
             // immutable official snapshot is already present; never recalculate
@@ -159,7 +172,7 @@ public sealed class EventFinalizationService(ApplicationDbContext db, IPublicBoa
                 AddLifecycleHistory(ev, EventState.Finalized, actor, "event.legacy_finalized_archived", "Retained official results completed the legacy Finalized transition", legacyNow);
                 await db.SaveChangesAsync(ct);
                 await tx.CommitAsync(ct);
-                return new(true, false);
+                return new(true, false, State: ev.State, Version: ev.Version, LatestFinalizationId: activeFinal.Id, FinalRefresh: ReadFinalWomRefresh(activeFinal.CalculationInputsJson));
             }
             if (expectedVersion is { } supplied && supplied != ev.Version) throw new InvalidOperationException("This event changed in another session. Reload before finalizing.");
             if (ev.State != EventState.AwaitingFinalReview) throw new InvalidOperationException("Only an event in final review can be finalized.");
@@ -219,13 +232,16 @@ public sealed class EventFinalizationService(ApplicationDbContext db, IPublicBoa
             ev.AdvanceVersion();
             AddLifecycleHistory(ev, from, actor, "event.results_published", PublicationDetail(refreshResult, refreshFailure), now);
             operationFeedback = PublicationFeedback(refreshResult, refreshFailure);
+            resultingVersion = ev.Version;
+            latestFinalizationId = snapshot.Id;
+            finalRefresh = FinalWomRefresh(refreshResult, refreshFailure);
             await AddResultNotificationsAsync(ev, now, ct);
             await db.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);
         }
         catch (Exception ex) when (IsReviewPersistenceConflict(ex)) { throw new InvalidOperationException("This event changed in another session. Reload before finalizing."); }
         await NotifyProgressAsync(eventId, ct);
-        return new(true, false, operationFeedback, endUpdateStatus);
+        return new(true, false, operationFeedback, endUpdateStatus, EventState.Archived, resultingVersion, latestFinalizationId, finalRefresh);
     }
 
     private static bool IsReviewPersistenceConflict(Exception exception)
@@ -242,6 +258,7 @@ public sealed class EventFinalizationService(ApplicationDbContext db, IPublicBoa
         await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
         actor = await EventMutationAuthorization.EnsureAuthorizedAsync(db, actor, ct);
 
+        if (expectedVersion is not > 0) throw new InvalidOperationException("This final-review form is stale or incomplete. Reload before reopening it.");
         if (!confirmed) throw new InvalidOperationException("Confirm that you want to reopen the official results.");
         if (string.IsNullOrWhiteSpace(reason)) throw new InvalidOperationException("A reason is required.");
         await db.Database.ExecuteSqlRawAsync("SELECT pg_advisory_xact_lock(7303004)", ct);
@@ -272,7 +289,10 @@ public sealed class EventFinalizationService(ApplicationDbContext db, IPublicBoa
 
     private static string CurrentEventBlockMessage(string name, EventState state, string operation) => state == EventState.Live
         ? $"{name} is still live. End it first, then publish its results before {operation}."
-        : $"Publish official results for {name} before {operation}.";
+        : operation != "reopening this event" ? $"Publish official results for {name} before {operation}."
+        : state == EventState.Finalized
+            ? $"{name} is still the current event. Contact the Super Admin to archive it."
+            : $"Publish the results of {name} first.";
 
     private async Task AddResultNotificationsAsync(BingoEvent ev, DateTimeOffset now, CancellationToken ct)
     {

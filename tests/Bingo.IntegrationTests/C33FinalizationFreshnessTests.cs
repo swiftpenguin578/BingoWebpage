@@ -50,6 +50,45 @@ public sealed class C33FinalizationFreshnessTests : IAsyncLifetime
     public Task DisposeAsync() => database.DisposeAsync().AsTask();
 
     [Fact]
+    public async Task BFinal2Br12StructuredCurrentAndMissingReopenVersionAreHonest()
+    {
+        await ApproveAsync(fixture.First);
+        await RejectAsync(fixture.Replacement);
+        await using var factory = Factory();
+        using var client = factory.CreateClient(new() { AllowAutoRedirect = false });
+        await LoginAsync(client, "c33-admin");
+        var publish = Form(await client.GetStringAsync(FinalizeUrl), "Finalize");
+        publish.Fields["FinalizeConfirmation"] = "PUBLISH_OFFICIAL_RESULTS";
+        client.DefaultRequestHeaders.Accept.ParseAdd("application/json");
+        using var response = await client.PostAsync(publish.Action, new FormUrlEncodedContent(publish.Fields));
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.True(body.RootElement.GetProperty("succeeded").GetBoolean());
+        Assert.Equal("Archived", body.RootElement.GetProperty("current").GetProperty("state").GetString());
+        using var current = await client.GetAsync(FinalizeUrl + "?handler=Current");
+        Assert.Equal(HttpStatusCode.OK, current.StatusCode);
+        Assert.True(current.Headers.CacheControl!.NoStore);
+        using var readback = JsonDocument.Parse(await current.Content.ReadAsStringAsync());
+        Assert.Single(readback.RootElement.GetProperty("history").EnumerateArray());
+        client.DefaultRequestHeaders.Accept.Clear();
+        var reopen = Form(await client.GetStringAsync(FinalizeUrl), "Unfinalize");
+        reopen.Fields.Remove("ExpectedVersion");
+        reopen.Fields["Reason"] = "B-Final-2 / BR-12 missing version";
+        reopen.Fields["ConfirmLifecycleAction"] = "true";
+        await using var db = new ApplicationDbContext(options);
+        var transitions = await db.EventStateTransitions.CountAsync();
+        var audits = await db.AuditEntries.CountAsync();
+        client.DefaultRequestHeaders.Accept.ParseAdd("application/json");
+        using var refused = await client.PostAsync(reopen.Action, new FormUrlEncodedContent(reopen.Fields));
+        using var refusal = JsonDocument.Parse(await refused.Content.ReadAsStringAsync());
+        Assert.False(refusal.RootElement.GetProperty("succeeded").GetBoolean());
+        Assert.Equal("refused", refusal.RootElement.GetProperty("outcome").GetString());
+        Assert.Equal(EventState.Archived, (await db.Events.SingleAsync()).State);
+        Assert.Equal(transitions, await db.EventStateTransitions.CountAsync());
+        Assert.Equal(audits, await db.AuditEntries.CountAsync());
+    }
+
+    [Fact]
     public async Task ActualPublishFormRejectsStaleResultsThenPublishesCalculatedHistory()
     {
         await using var factory = Factory();
