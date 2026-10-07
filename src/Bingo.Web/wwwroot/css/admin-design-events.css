@@ -9,7 +9,11 @@
 :where([data-page-family="events"]) .ev-tbl .cell-main.is-muted{color:var(--dk-text-3)}
 :where([data-page-family="events"]) .tfoot-note{color:var(--dk-text-3)}
 :where([data-page-family="events"]) .events-sk-phase{height:20px;border-radius:var(--dk-radius-xl)}
-:where([data-page-family="events"]) .events-sk-start{margin-bottom:var(--dk-space-2)}
+/* Q-SK2: text bars reserve their actual cell typography, not input/badge/meter blocks. */
+:where([data-page-family="events"]) .events-sk-name{min-height:calc(var(--dk-fs-body)*var(--dk-lh-body))}
+:where([data-page-family="events"]) .events-sk-main{min-height:calc(var(--dk-fs-control-sm)*var(--dk-lh-body))}
+:where([data-page-family="events"]) .events-sk-start{height:calc(var(--dk-fs-control-sm)*var(--dk-lh-body));margin-bottom:calc(var(--dk-space-2) - (var(--dk-fs-control-sm)*var(--dk-lh-body) - 10px))}
+:where([data-page-family="events"]) .events-sk-end{min-height:calc(var(--dk-fs-small)*var(--dk-lh-body))}
 :where([data-page-family="events"]) .ev-tbl .hint.is-dismissed .hint-tip{opacity:0;visibility:hidden}
 /* U2 loading decision: reserve data-independent boxes on every visit. */
 :where([data-page-family="events"])[data-page-skeleton="events"] [data-page-family="events"]>div:first-child{flex:1;min-width:0;width:100%}

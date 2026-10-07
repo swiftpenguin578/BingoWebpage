@@ -44,18 +44,18 @@ async function until(page,fn){for(let i=0;i<200;i++)if(await page.evaluate(fn))r
       window.done=false;AdminUI.navigate('/Admin?headerMeasure=1').then(()=>done=true);
      },html);
      await until(page,()=>waiting);await page.clock.runFor(150);
-     await page.waitForFunction(()=>getComputedStyle(document.querySelector('[data-page-skeleton] .dash-grid')).display==='grid');
+     await until(page,()=>{const grid=document.querySelector('[data-page-skeleton] .dash-grid');return !!grid&&getComputedStyle(grid).display==='grid';});
      const styles=()=>page.evaluate(async()=>{
       await Promise.all([...document.querySelectorAll('link[rel=stylesheet]')].map(link=>link.sheet?Promise.resolve():new Promise((resolve,reject)=>{link.addEventListener('load',resolve,{once:true});link.addEventListener('error',()=>reject(Error('Stylesheet failed')),{once:true});})));
       void document.body.offsetHeight;await document.fonts.ready;
      });
-     await styles();await page.waitForFunction(()=>getComputedStyle(document.querySelector('[data-dashboard-loading-card]')).flex==='0 0 auto');await page.clock.runFor(32);
+     await styles();await until(page,()=>{const card=document.querySelector('[data-dashboard-loading-card]');return !!card&&getComputedStyle(card).flex==='0 0 auto';});await page.clock.runFor(32);
      const box=()=>page.evaluate(()=>{
       const root=document.querySelector('[data-page-skeleton]')||document.querySelector('[data-page-region] > .page:not([hidden])');
       return Object.fromEntries([['head','.page-head'],['group','.page-head > div:first-child'],['title','.h1'],['summary','.summary'],['card','.next-event'],['first','.card']].map(([key,selector])=>{const r=(selector===':scope'?root:root.querySelector(selector)).getBoundingClientRect();return[key,{x:r.x,y:r.y,width:r.width,height:r.height}];}));
      });
      const loading=await box();await page.evaluate(()=>fulfill());await until(page,()=>timerLog.includes(368));await page.clock.runFor(368);await until(page,()=>done);
-     await styles();await page.waitForFunction(()=>getComputedStyle(document.querySelector('[data-page-region] .next-event')).flex==='0 0 auto');await page.clock.runFor(32);const loaded=await box();await ref.setViewportSize({width,height:1000});await settle(ref);
+     await styles();await until(page,()=>{const card=document.querySelector('[data-page-region] .next-event');return !!card&&getComputedStyle(card).flex==='0 0 auto';});await page.clock.runFor(32);const loaded=await box();await ref.setViewportSize({width,height:1000});await settle(ref);
      const originalHead=await ref.locator('.page-head').evaluate(e=>e.innerHTML);
      const reference=await ref.locator('.page-head').evaluate(root=>Object.fromEntries([['head',':scope'],['group',':scope > div:first-child'],['title','.h1'],['summary','.summary'],['card','.next-event']].map(([key,selector])=>{const r=(selector===':scope'?root:root.querySelector(selector)).getBoundingClientRect();return[key,{x:r.x,y:r.y,width:r.width,height:r.height}];})));
      await ref.locator('.page-head').evaluate(root=>{

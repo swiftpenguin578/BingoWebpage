@@ -1,5 +1,14 @@
 # Current project status
 
+## U2 brief76 round4 — item4 complete; item5 authorized — 7 October2026
+
+- Assigned checkout/branch unchanged; exact clean start `1e0f85ac5470cc76148dbb0f8419dc215d5e2315` verified. Same implementer only; no workers/reviewer/orchestrator/new branch/worktree/push/merge/deploy/self-review.
+- Completed local commits: item1 `371c52e3b3d2d8aab76d401a939874ad93ea0294`; item2 `1273ecf5a35440dcf289ed64bcaa89f8a5408b88`; item3/current HEAD `d66422a0e3caa1465a08bd73b11c343dce06a429`. [Exact changed files](docs/references/admin-ui/reviews/2026-10-06/u2/remediation-4/changed-files.json).
+- [Per-item evidence](docs/references/admin-ui/reviews/2026-10-06/u2/remediation-4/): fixed-family Danish full/shell/language10/0 each engine and focused localization3/0/0; native stylesheet/skeleton16/0 each, retained loaded-CSS20/0 each, loading12+5 and destination-header12/0 each, focused shell2/0/0; one-line Events summary/reference10/0 each with durable rectangles. Per-item fixture Release builds0 warnings/errors; no final clean-build claim.
+- **Item4 resolved/completed under Q-SK2(a):** [text-line row evidence](docs/references/admin-ui/reviews/2026-10-06/u2/remediation-4/item4-text-line-rows.md), owning item4 commit. Reference bars/gaps stay; family CSS reserves real one-line typography. First card aligns; participation moves only by independently measured label/note wrapping. Body25/0, header8/0 and Identity reference33/0 per engine; durable rectangles retained. The prior15-record diagnostic question remains explicitly historical.
+- [Gate ledger](docs/references/admin-ui/reviews/2026-10-06/u2/remediation-4/final-gates.md): affected HTTP34/0/0, exact TRX; clean Release0 warnings/errors52.08s plus fixture refresh1.92s; design1–6/diff/frozen/syntax passed. Two full JS attempts stopped143 (stale fixture metadata, then old header-helper null-element race), corrected and focused rechecked. No completed full JS pass yet; final complete runner follows newly authorized item5. **Whole .NET suite NOT RUN** under Q-S1/Q-S2; planner owns it after independent review passes.
+- User addendum authorizes item5 next: remove page/results load fades only via page markup/family CSS, preserve listed interactions/frozen CSS, separate local commit and final focused gates. User review app/database untouched. Page acceptance unchanged: awaiting Claude review, then user visual acceptance; UI_PAGE_MATRIX remains authoritative. No unresolved product/reference question. No U3+, laneT, packaging/publication/merge/deploy.
+
 ## U2 brief74 round3 — item7 stop-boundary handoff — 7 October2026
 
 - Authorized checkout/branch unchanged; exact clean start9b5d6e4445bc25259858914fe24b12affa19d775 verified. Same implementer only; no workers/reviewer/orchestrator/new branch/worktree/push/merge/deploy/self-review.
@@ -41,4 +50,4 @@
 
 ## Next permitted action
 
-Planner runs the whole .NET suite once on brief74's owning final SHA under Q-S1, then completes independent review and user page-specific visual acceptance. Refresh the authorized review environment to final source as needed. Implementer stopped after7. No U3+, laneT, palette work, packaging, push, merge or deployment.
+Same implementer completes brief76 item5 ("No load fades"), then the final focused gates and stop-boundary handoff. Planner owns independent recheck and whole.NET under Q-S1/Q-S2 after review passes; user owns visual acceptance. No U3+, laneT, palette work, packaging, push, merge or deployment.

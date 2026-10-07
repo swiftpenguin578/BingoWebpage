@@ -18,13 +18,20 @@
 :where([data-page-family="dashboard"]) .dash-sk-header-meter{width:56px;height:6px;flex:none}
 :where([data-page-family="dashboard"]) .dash-sk-header-open{width:52px;height:28px;flex:none;border-radius:var(--dk-radius-xs)}
 :where([data-page-family="dashboard"]) .tbl.hist{--table-cols:minmax(240px,2.2fr) 96px 170px 170px 124px minmax(150px,1.3fr);--table-min:960px}
-/* Frozen reference skeleton geometry; spacing lives here, radii use shared tokens. */
-:where([data-page-family="dashboard"]) .dash-sk-stat-value{height:20px;margin-top:var(--dk-space-3);border-radius:var(--dk-radius-xs)}
-:where([data-page-family="dashboard"]) .dash-sk-stat-note{margin-top:var(--dk-space-3)}
+/* Q-SK2: reference bars/gaps inside real one-line typography reservations.
+   Deduct the unused part of the preceding row from its following gap so the
+   visible bars still have the reference's 12px spacing. The total reservation
+   uses the loaded label/value/note lines and their 6/7px text margins. */
+:where([data-page-family="dashboard"]) .dash-sk-stat-lines{min-height:calc(var(--dk-fs-small)*var(--dk-lh-body) + var(--dk-fs-stat)*1.1 + max(17px,var(--dk-fs-meta)*var(--dk-lh-body)) + 6px + 7px)}
+:where([data-page-family="dashboard"]) .dash-sk-stat-label{height:calc(var(--dk-fs-small)*var(--dk-lh-body))}
+:where([data-page-family="dashboard"]) .dash-sk-stat-value{height:calc(var(--dk-fs-stat)*1.1);margin-top:calc(var(--dk-space-3) - (var(--dk-fs-small)*var(--dk-lh-body) - 10px))}
+:where([data-page-family="dashboard"]) .dash-sk-stat-value>.sk{height:20px;border-radius:var(--dk-radius-xs)}
+:where([data-page-family="dashboard"]) .dash-sk-stat-note{height:max(17px,calc(var(--dk-fs-meta)*var(--dk-lh-body)));margin-top:calc(var(--dk-space-3) - (var(--dk-fs-stat)*1.1 - 20px))}
+:where([data-page-family="dashboard"]) .dash-sk-panel-title{min-height:calc(var(--dk-fs-control)*var(--dk-lh-body))}
 :where([data-page-family="dashboard"]) .dash-sk-chart{height:200px;margin-top:var(--dk-space-5);border-radius:var(--dk-radius-md)}
 :where([data-page-family="dashboard"]) .dash-sk-recap{height:64px;margin-top:var(--dk-space-5);border-radius:var(--dk-radius-md)}
-:where([data-page-family="dashboard"]) .dash-sk-fact-first{margin-top:var(--dk-space-5)}
-:where([data-page-family="dashboard"]) .dash-sk-fact{margin-top:14px}
+:where([data-page-family="dashboard"]) .dash-sk-fact-first{margin-top:var(--dk-space-5);min-height:calc(var(--dk-fs-control)*var(--dk-lh-body))}
+:where([data-page-family="dashboard"]) .dash-sk-fact{margin-top:14px;min-height:calc(var(--dk-fs-control)*var(--dk-lh-body))}
 @media(max-width:1260px){:where([data-page-family="dashboard"]) .tbl.hist{--table-cols:minmax(220px,2fr) 88px 160px 160px minmax(140px,1.2fr);--table-min:790px}:where([data-page-family="dashboard"]) .c-ehb{display:none}}
 @media(max-width:1080px){:where([data-page-family="dashboard"]) .dash-grid{grid-template-columns:minmax(0,1fr)}}
 @media(max-width:860px){:where([data-page-family="dashboard"]) .recap.is-wide{display:flex}:where([data-page-family="dashboard"]) .recap.is-wide .facts{margin-top:18px}:where([data-page-family="dashboard"]) .page-head .next-event{max-width:100%;width:100%}}
