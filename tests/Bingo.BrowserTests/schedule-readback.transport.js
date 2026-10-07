@@ -64,6 +64,13 @@ const server = http.createServer(async (req, res) => {
       current=copy(initial); mutate(current); assert.equal((await session.checkAgain()).state, 'unknown');
     }
     assert.equal(JSON.stringify(session.expected), expected); assert.equal(JSON.stringify(session.baseline), baseline);
+    current = {...copy(initial), timezone: 'Review/Unknown', displayTimezone: 'UTC'};
+    const fallbackSession = context.window.createScheduleReadbackSession(current, current.values, url);
+    assert.equal(fallbackSession.baseline.timezone, 'Review/Unknown');
+    assert.equal(fallbackSession.baseline.displayTimezone, 'UTC');
+    const fallbackRead = await fallbackSession.checkAgain();
+    assert.equal(fallbackRead.current.timezone, 'Review/Unknown');
+    assert.equal(fallbackRead.current.displayTimezone, 'UTC');
     assert.equal(draft.draftAt, null); assert.equal(posts, 1); assert(reads >= 15);
     console.log('PASS: shipped real GET transport; immutable precise full submission/baseline; applied lost response, unchanged, matching competing values, distinct microseconds/auto-opening, large versions, phase/timezone/editability, unauthorized/failed/malformed reads; retained draft and GET-only recovery, no request attribution.');
   } finally { await new Promise(resolve => server.close(resolve)); }

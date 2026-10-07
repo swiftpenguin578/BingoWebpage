@@ -26,7 +26,7 @@
         if (!source || typeof source.eventId !== 'string' || !/^[0-9]+$/.test(source.version) || typeof source.version !== 'string'
             || typeof source.timezone !== 'string' || !source.timezone || !phases.includes(source.phase) || !drafts.includes(source.draftState)
             || !source.editable || instantFields.some(field => typeof source.editable[field] !== 'boolean')) throw new Error('Incomplete current state');
-        return Object.freeze({ eventId: source.eventId, version: source.version, timezone: source.timezone, phase: source.phase,
+        return Object.freeze({ eventId: source.eventId, version: source.version, timezone: source.timezone, displayTimezone: source.displayTimezone || source.timezone, phase: source.phase,
             draftState: source.draftState, values: values(source.values),
             editable: Object.freeze(Object.fromEntries(instantFields.map(field => [field, source.editable[field]]))) });
     }
