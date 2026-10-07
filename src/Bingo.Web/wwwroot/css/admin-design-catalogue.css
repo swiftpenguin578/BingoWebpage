@@ -1,7 +1,7 @@
 /* Page rules from the frozen Catalogue.dc.html style block (lines 22-95), scoped to the page family;
    shared primitives stay frozen. The drawer and dialogs carry data-page-family="catalogue". */
 /* User "No load fades": only load markers; interaction animations (drawer, editor, add form) stay. */
-:where([data-page-family="catalogue"]) .empty,:where([data-page-family="catalogue"]) .page-banner{animation:none}
+:where([data-page-family="catalogue"]) .empty,:where([data-page-family="catalogue"]) .page-banner,:where([data-page-family="catalogue"]) .fade-in,:where([data-page-family="catalogue"]) .results{animation:none}
 :where([data-page-family="catalogue"]) .directory-fragments{display:contents}
 :where([data-page-family="catalogue"]).page{max-width:1240px}
 :where([data-page-family="catalogue"]) .ct-toolbar{gap:10px 16px}
