@@ -47,6 +47,17 @@ export function init(region, ui = window.AdminUI) {
   const ehbText = e => fmt(e, e < 10 ? 2 : 1);
   const activityRateNumber = text => { const v = (text || '').trim(); return /^\d+([.,]\d+)?$/.test(v) ? parseFloat(v.replace(',', '.')) : null; };
   const norm = s => (s || '').trim().toUpperCase();
+  // OsrsWikiImageUrl.Normalize, mirrored so a readback compares what the server stores.
+  const escapeData = value => encodeURIComponent(value).replace(/[!'()*]/g, c => '%' + c.charCodeAt(0).toString(16).toUpperCase());
+  function normImage(value) {
+    const trimmed = (value || '').trim(); if (!trimmed) return '';
+    let url; try { url = new URL(trimmed); } catch { return trimmed; }
+    if (url.host.toLowerCase() !== 'oldschool.runescape.wiki') return trimmed;
+    const after = (text, marker) => text.toLowerCase().startsWith(marker.toLowerCase()) && text.slice(marker.length).trim() ? text.slice(marker.length).trim() : null;
+    const fragment = decodeURIComponent(url.hash.replace(/^#/, '')), path = decodeURIComponent(url.pathname);
+    const file = after(fragment, '/media/File:') ?? after(path, '/w/File:') ?? after(path, '/wiki/File:') ?? after(path, '/Special:Redirect/file/');
+    return file == null ? trimmed : 'https://oldschool.runescape.wiki/w/Special:Redirect/file/' + escapeData(file);
+  }
   const gpText = value => value == null ? t('no value yet') : value < 0 ? t('untradeable, 0 gp') : t('value {0} gp', fmt(value, 0));
 
   /* ---------------- URL state ---------------- */
@@ -459,14 +470,24 @@ export function init(region, ui = window.AdminUI) {
     patchDirectory(doc);
     if (created) {
       // Exact name only (RC10 C1: never a partial match).
-      const row = rows().find(item => item.dataset.name.toLowerCase() === snapshot.name.trim().toLowerCase());
+      const found = rows().find(item => item.dataset.name.toLowerCase() === snapshot.name.trim().toLowerCase());
+      const foundDoc = found ? await fetchPage({ new: '', activity: found.dataset.activityRow }) : null;
+      if (drawer !== state) return;
+      const fd = foundDoc?.querySelector('template[data-catalogue-drawer]')?.dataset;
+      const row = fd && fd.activityName === snapshot.name.trim() && fd.activityCategory === snapshot.category
+        && activityRateNumber(fd.activityRate || '') === activityRateNumber(snapshot.rate) && (fd.activityTeam || '') === String(parseInt(snapshot.team, 10))
+        && normImage(fd.activityImage) === normImage(snapshot.image) ? found : null;
       if (row) { state.add = false; state.id = row.dataset.activityRow; writeUrl({ activity: state.id, new: '' }); await refresh({ saved: 'activity' }); showBanner($('[data-catalogue-banner-slot]'), 'is-info', t('It was added.'), t('The current values are shown.')); }
       else showBanner(slot, 'is-info', t('It wasn’t added.'), t('Your entries are still here; add it again when ready.'));
       return;
     }
     const source = doc.querySelector('template[data-catalogue-drawer]');
-    const saved = source && source.dataset.activityName === snapshot.name.trim() && source.dataset.activityCategory === snapshot.category;
-    if (saved) { install(source); showBanner($('[data-catalogue-banner-slot]'), 'is-info', t('Saved.'), t('The current values match what you entered.')); }
+    // RC10 C1: "Saved" only when every submitted field matches what the server now has.
+    const d = source?.dataset;
+    const saved = !!d && d.activityName === snapshot.name.trim() && d.activityCategory === snapshot.category
+      && activityRateNumber(d.activityRate || '') === activityRateNumber(snapshot.rate) && (d.activityTeam || '') === String(parseInt(snapshot.team, 10))
+      && normImage(d.activityImage) === normImage(snapshot.image);
+    if (saved) { await refresh({ saved: 'activity', doc }); showBanner($('[data-catalogue-banner-slot]'), 'is-info', t('Saved.'), t('The current values match what you entered.')); }
     else showBanner(slot, 'is-info', t('It wasn’t saved.'), t('Your entries are still here; save again when ready.'));
   }
 
@@ -634,7 +655,9 @@ export function init(region, ui = window.AdminUI) {
     if (errors['e-shared']) fieldError(e.node, 'e-use-shared', errors['e-shared']);
     if (showErrors(e.node, errors, ['e-name', 'e-rate', 'e-group']) || errors['e-shared']) { if (errors['e-shared'] && !errors['e-name']) ed('#e-use-shared')?.focus(); return; }
     if (!editorDirty()) return;
-    const v = editorValues(), snapshot = { ...v };
+    const v = editorValues();
+    // RC10 C1: the readback compares every field this save sends, including the target item when repointing.
+    const snapshot = { ...v, target: e.useShared ? itemFor(v.name)?.id : e.itemId, group: superAdmin ? v.group.trim() : null };
     const entries = { recordId: e.id, expectedVersion: e.version, expectedItemVersion: e.itemVersion, itemName: v.name.trim(), displayRate: v.rate.trim(), originalDisplayRate: e.rate, imageUrl: v.image.trim(), useExistingItem: e.useShared ? 'true' : 'false' };
     if (superAdmin) entries.rollGroup = v.group.trim();
     if (confirmation) entries.sharedItemConfirmationActivityIds = confirmation;
@@ -659,7 +682,10 @@ export function init(region, ui = window.AdminUI) {
     if (drawer !== state || !state.editor) return;
     if (!doc) { showBanner(ed('[data-catalogue-editor-banner]'), 'is-warning', t('Couldn’t check the current values.'), t('Nothing was repeated. Check again when you’re back online.'), { label: t('Check current values'), run: next => void checkDrop(next, snapshot) }); return; }
     const fresh = doc.querySelector(`template[data-catalogue-drop-editor="${CSS.escape(e.id)}"]`);
-    if (fresh && fresh.dataset.rate === snapshot.rate.trim() && fresh.dataset.itemName === snapshot.name.trim()) { patchDirectory(doc); install(doc.querySelector('template[data-catalogue-drawer]')); ui.toast(t('It was saved. The current values match what you entered.')); return; }
+    const f = fresh?.dataset;
+    const saved = !!f && f.rate === snapshot.rate.trim() && f.itemName === snapshot.name.trim() && normImage(f.image) === normImage(snapshot.image)
+      && f.itemId === snapshot.target && (snapshot.group == null || f.rollGroup === snapshot.group);
+    if (saved) { await refresh({ saved: 'drop', doc }); ui.toast(t('It was saved. The current values match what you entered.')); return; }
     showBanner(ed('[data-catalogue-editor-banner]'), 'is-info', t('It wasn’t saved.'), t('Your entries are still here; save again when ready.'));
   }
   // D7/D9: a change to a shared item's name or image needs a confirmation naming every other activity.
