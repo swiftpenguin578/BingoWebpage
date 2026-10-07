@@ -210,8 +210,8 @@ public sealed class OverviewPresenter(OverviewInput input, Func<string, object[]
         return list;
     }
     private OverviewCheck CurrentEventCheck(ReadinessSubject other) => other.State == EventState.Finalized
-        ? new(T("{0} is still the current event. Contact the Super Admin to archive it.", other.Name), false, null, other.Name, SharedShellService.AdminDesignEventUrl("/Admin/Events/Manage", other.EventId))
-        : new(T("Publish the results of {0} first", other.Name), false, null, other.Name, SharedShellService.AdminDesignEventUrl("/Admin/Events/Manage", other.EventId));
+        ? new(T("{0} is still the current event. Contact the Super Admin to archive it.", other.Name), false, null, T("Open event"), SharedShellService.AdminDesignEventUrl("/Admin/Events/Manage", other.EventId))
+        : new(T("Publish the results of {0} first", other.Name), false, null, T("Open event"), SharedShellService.AdminDesignEventUrl("/Admin/Events/Manage", other.EventId));
     private List<OverviewCheck> PublishChecks()
     {
         var blockers = input.Final?.Blockers.Where(x => !x.Resolved).ToList() ?? [];

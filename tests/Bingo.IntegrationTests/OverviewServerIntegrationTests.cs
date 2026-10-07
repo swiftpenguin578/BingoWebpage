@@ -71,6 +71,19 @@ public sealed class OverviewServerIntegrationTests(PostgreSqlTestFixture databas
     }
 
     [Fact]
+    public async Task CrossEventLinkUsesTheFixedOpenEventTextAndKeepsTheNameInTheRow()
+    {
+        var closed = await AddAsync("Closed setup", EventState.SignupClosed);
+        var live = await AddAsync("Running Bingo", EventState.Live);
+        await using var factory = Factory();
+        using var client = await LoginAsync(factory, "overview-admin");
+        var page = await client.GetStringAsync($"/Admin/Events/Manage/{closed}");
+        // U4-L1: fixed link text; the other event's name stays in the row text; link target and data-shell-link kept.
+        Assert.Contains("Publish the results of Running Bingo first", page);
+        Assert.Matches(new Regex($"""<a class="text-btn" href="/Admin/Events/Manage/{live}"[^>]*data-shell-link[^>]*>Open event</a>"""), page);
+    }
+
+    [Fact]
     public async Task ResumeRefusalUsesThePublishWordingAndChangesNothing()
     {
         var review = await AddAsync("Paused Bingo", EventState.AwaitingFinalReview);
