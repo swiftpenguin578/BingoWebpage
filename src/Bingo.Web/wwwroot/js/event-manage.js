@@ -406,7 +406,7 @@
           currentEditor()?.querySelector("[data-wom-validation-cancel]")?.focus({ preventScroll: true });
           return;
         }
-        const errors = Array.from(parsed.querySelectorAll(".field-validation-error, .validation-summary-errors, .app-toast-error .app-toast-copy span, .app-toast-warning .app-toast-copy span")).map(error => error.textContent.trim()).filter(Boolean);
+        const errors = Array.from(parsed.querySelectorAll(".field-validation-error, .validation-summary-errors, .app-toast-error .app-toast-copy span, .app-toast-warning .app-toast-copy span, [data-toast-host] [data-toast].is-error [data-component-text]")).map(error => error.textContent.trim()).filter(Boolean);
         if (errors.length) { guard.showFailure(errors.join(" ")); return; }
         if (!(nextEditor instanceof HTMLElement)) {
           if (response.redirected && new URL(response.url).pathname !== currentUrl().pathname) { navigateAfterSave(response.url); return; }
@@ -1070,7 +1070,7 @@
         const success = notice?.querySelector(".app-toast-success");
         if (!(success instanceof HTMLElement)) {
           const failure = notice?.querySelector(".app-toast-error, .app-toast-warning");
-          const message = failure?.querySelector(".app-toast-copy span")?.textContent.trim();
+          const message = failure?.querySelector(".app-toast-copy span")?.textContent.trim() || parsed.querySelector("[data-toast-host] [data-toast].is-error [data-component-text]")?.textContent.trim();
           guard.showFailure(message || adminText("adminPostError"));
           return;
         }
@@ -1305,7 +1305,7 @@
       const toast = parsed.querySelector("#app-notice-region .app-toast-success, #app-notice-region .app-toast-error, #app-notice-region .app-toast-warning, #app-notice-region .app-toast-information");
       const classes = toast?.getAttribute("class") || "";
       const type = classes.match(/(?:^|\s)app-toast-(success|error|warning|information)(?:\s|$)/)?.[1] || "error";
-      const message = toast?.querySelector(".app-toast-copy span")?.textContent?.trim() || "";
+      const message = toast?.querySelector(".app-toast-copy span")?.textContent?.trim() || parsed.querySelector("[data-toast-host] [data-toast].is-error [data-component-text]")?.textContent?.trim() || "";
       return { type, message };
     };
 
@@ -1606,7 +1606,7 @@
       const toast = parsed.querySelector("#app-notice-region .app-toast-success, #app-notice-region .app-toast-error, #app-notice-region .app-toast-warning, #app-notice-region .app-toast-information");
       const classes = toast?.getAttribute("class") || "";
       const type = classes.match(/(?:^|\s)app-toast-(success|error|warning|information)(?:\s|$)/)?.[1] || null;
-      const message = toast?.querySelector(".app-toast-copy span")?.textContent?.trim() || "";
+      const message = toast?.querySelector(".app-toast-copy span")?.textContent?.trim() || parsed.querySelector("[data-toast-host] [data-toast].is-error [data-component-text]")?.textContent?.trim() || "";
       const errors = [...parsed.querySelectorAll(".validation-summary-errors, .field-validation-error")]
         .map(error => error.textContent?.replace(/\s+/g, " ").trim() || "")
         .filter(Boolean);

@@ -6,7 +6,11 @@ public enum SignupOpeningMode { OpenNow, ScheduleOpening, ScheduledExecution, Re
 public sealed record ReadinessItem(string Code, string Description, string? Route = null)
 {
     public IReadOnlyList<string> DescriptionArguments { get; init; } = [];
+    // S2 / A-Overview-3 (U4): the other event a blocker names, as structured data
+    // so pages never parse it from Description. Null for blockers about this event.
+    public ReadinessSubject? Subject { get; init; }
 }
+public sealed record ReadinessSubject(Guid EventId, string Name, EventState State);
 public sealed record SignupCloseDecision(bool IsValid, DateTimeOffset? ProposedClose)
 {
     public bool RequiresAcceptance => !IsValid && ProposedClose is not null;
@@ -33,6 +37,9 @@ public interface IEventReadinessEvaluator
 {
     Task<SignupReadiness?> GetSignupReadinessAsync(Guid eventId, SignupOpeningMode mode, DateTimeOffset now, CancellationToken ct = default);
     Task<SignupReadiness?> GetSignupReadinessAsync(Guid eventId, SignupOpeningMode mode, DateTimeOffset now, EventScheduleValues proposedValues, CancellationToken ct = default);
+    // A-Overview-3 (U4): read-side copy of the Open/Reopen boundary check. The
+    // transition re-checks under its lock; this only lets Overview list it first.
+    Task<ReadinessItem?> GetCurrentEventOverlapAsync(Guid eventId, CancellationToken ct = default) => Task.FromResult<ReadinessItem?>(null);
 }
 
 public interface IEventSignupLifecycleService
@@ -52,4 +59,6 @@ public interface IEventLifecycleService
     Task<EventStartResult> StartNowAsync(Guid eventId, long version, bool confirmed, string? reason, LifecycleActor actor, CancellationToken ct = default);
     Task<EventStartResult> EndNowAsync(Guid eventId, long version, bool confirmed, string? reason, LifecycleActor actor, CancellationToken ct = default);
     Task<EventStartResult> ResumePrematureEndAsync(Guid eventId, long version, bool confirmed, string? reason, DateTimeOffset? replacementEventEndsAt, LifecycleActor actor, CancellationToken ct = default);
+    // S2 / U4-Q4: the other visible event holding the single current-event slot, if any.
+    Task<ReadinessSubject?> GetOtherCurrentEventAsync(Guid eventId, CancellationToken ct = default) => Task.FromResult<ReadinessSubject?>(null);
 }

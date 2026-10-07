@@ -20,7 +20,7 @@
     };
 }
 @section HeaderSummary {
-    <span class="sc-owners">@T["Times are in {0}; change it on", Model.EventTimezoneLabel] <a class="text-btn" data-shell-link asp-page="Identity" asp-route-id="@Model.EventId">@T["Identity"]</a>. @T["Open, close or start by hand on"] <a class="text-btn" asp-page="Manage" asp-route-id="@Model.EventId">@T["Overview"]</a>.</span>
+    <span class="sc-owners">@T["Times are in {0}; change it on", Model.EventTimezoneLabel] <a class="text-btn" data-shell-link asp-page="Identity" asp-route-id="@Model.EventId">@T["Identity"]</a>. @T["Open, close or start by hand on"] <a class="text-btn" data-shell-link asp-page="Manage" asp-route-id="@Model.EventId">@T["Overview"]</a>.</span>
 }
 @if (Model.HasUnresolvableTimezone)
 {

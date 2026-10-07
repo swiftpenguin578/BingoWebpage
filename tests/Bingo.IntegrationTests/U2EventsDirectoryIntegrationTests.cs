@@ -114,7 +114,7 @@ public sealed class U2EventsDirectoryIntegrationTests(PostgreSqlTestFixture fixt
         item.StartEvent(Now.AddDays(-4)); item.EndEvent(Now.AddDays(-3));
     }
     private static DirectoryPage Page(ApplicationDbContext db, Account actor) => new(db, null!, new Clock(), new Text(),
-        new SharedShellService(db, new Text(), null!, null!, null!, new Clock()), new AdminDashboardService(db, new Clock()))
+        new SharedShellService(db, new Text(), new Clock()), new AdminDashboardService(db, new Clock()))
     {
         PageContext = new PageContext(new ActionContext(new DefaultHttpContext
         {

@@ -177,7 +177,7 @@
     const host = document.querySelector(kind === 'drawer' ? '[data-drawer-host]' : '[data-modal-host]');
     host.append(scrim, wrapper);
     const inputValues = () => JSON.stringify([...panel.querySelectorAll(inputSelector)].map(input => [input.name || input.id, input.type === 'checkbox' || input.type === 'radio' ? input.checked : input.isContentEditable ? input.textContent : input.value]));
-    const baseline = inputValues();
+    let baseline = inputValues();
     const layer = { wrapper, scrim, panel, confirmation, dirty: () => dirty() || inputValues() !== baseline, pending, confirmLeave, opener, onClose, closing: false };
     layer.closed = new Promise(resolve => { layer.resolveClosed = resolve; });
     layers.push(layer);
@@ -186,7 +186,8 @@
     const outside = event => { if ((event.target === scrim || event.target === wrapper) && layers.at(-1) === layer && dismissible) void closeLayer(layer); };
     scrim.addEventListener('click', outside);
     wrapper.addEventListener('click', outside);
-    return { element: panel, close: result => closeLayer(layer, result, true) };
+    // A layer that fills or re-fills itself after opening (pickers, re-read content) calls markClean() so that state becomes its unsaved-changes baseline.
+    return { element: panel, close: result => closeLayer(layer, result, true), markClean: () => { baseline = inputValues(); refreshDirty(); } };
   }
   async function closeLayer(layer = layers.at(-1), result = false, confirmed = false, navigating = false) {
     if (!layer) return false;
@@ -435,6 +436,7 @@
     if (path === '/admin/accounts' || path === '/admin/accounts/index') return 'accounts';
     if (path === '/admin/audit' || path === '/admin/audit/index') return 'audit';
     if (path === '/admin/catalogue' || path === '/admin/catalogue/index') return 'catalogue';
+    if (/^\/admin\/events\/manage\/[^/]+$/.test(path)) return 'overview';
     return path.split('/').at(-2) || 'page';
   }
   function rememberSkeletons(doc) {
@@ -537,8 +539,9 @@
     destinationContext(url);
     const kind = pageKind(url);
     const destination = [...document.querySelectorAll('[data-shell-link]')].find(link => link.href === url);
-    const title = pageTitles.get(kind) || destination?.dataset.pageTitle || destination?.querySelector('.nav-text')?.textContent || text('loading');
-    const crumb = document.querySelector('.crumb-cur'); if (crumb) crumb.textContent = title;
+    // U4: the Overview header is the event's name, which destinationContext has just set.
+    const title = (kind === 'overview' && document.querySelector('[data-shell-event-context]')?.dataset.selectedEventId === new URL(url).pathname.split('/').at(-1) && document.querySelector('[data-shell-event-context] .ev-name')?.textContent.trim()) || pageTitles.get(kind) || destination?.dataset.pageTitle || destination?.querySelector('.nav-text')?.textContent || text('loading');
+    const crumb = document.querySelector('.crumb-cur'); if (crumb) crumb.textContent = kind === 'overview' ? pageTitles.get(kind) || title : title;
     const placeholder = document.createElement('div'); placeholder.className = 'page'; placeholder.dataset.pageSkeleton = kind; placeholder.dataset.pageFamily = kind;
     placeholder.setAttribute('role', 'status'); placeholder.setAttribute('aria-label', text('loading')); placeholder.setAttribute('aria-busy', 'true');
     const head = loadingHeads.get(kind)?.cloneNode(true).firstElementChild || main.querySelector('.page-head')?.cloneNode(true);

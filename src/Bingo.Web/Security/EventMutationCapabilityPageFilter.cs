@@ -163,10 +163,11 @@ public sealed class EventMutationCapabilityPageFilter(ApplicationDbContext db, I
         return false;
     }
 
+    // C-CMP-1 / U4-Q3 (c): the Super Admin's limited Overview view opens on the plain
+    // event URL; a legacy ?hidden=true link is still accepted (and ignored).
     private static bool IsLimitedHiddenManage(PageHandlerExecutingContext context, AdminEventPagePolicy policy) =>
         policy.Kind == AdminEventPageKind.Manage &&
-        context.HttpContext.User.IsInRole("SuperAdmin") &&
-        string.Equals(context.HttpContext.Request.Query["hidden"].ToString(), "true", StringComparison.Ordinal);
+        context.HttpContext.User.IsInRole("SuperAdmin");
 
     private static bool IsExactHideHandler(PageHandlerExecutingContext context) =>
         string.Equals(context.HttpContext.Request.Query["handler"].ToString(), "Hide", StringComparison.Ordinal) &&

@@ -86,6 +86,15 @@ public sealed class EventReadinessEvaluator(ApplicationDbContext db, IConfigurat
         if (!await db.Boards.AnyAsync(x => x.EventId == item.Id && x.State == BoardState.Published, ct)) later.Add(new("BOARD_NOT_PUBLISHED", "Board publication is a later readiness task."));
         return new SignupReadiness(blockers, warnings, later, SignupCloseDecision.Evaluate(item.SignupClosesAt, item.DraftAt, item.EventStartsAt, now));
     }
+
+    // A-Overview-3: the same boundary rule TransitionAsync applies, read without a lock.
+    // A missing start/end is already its own readiness blocker, so it is not repeated.
+    public async Task<ReadinessItem?> GetCurrentEventOverlapAsync(Guid eventId, CancellationToken ct = default)
+    {
+        var item = await db.Events.AsNoTracking().SingleOrDefaultAsync(x => x.Id == eventId && x.HiddenAt == null, ct);
+        if (item?.EventStartsAt is null || item.EventEndsAt is null) return null;
+        return await EventSignupLifecycleService.CurrentEventBoundaryConflictAsync(db, item, ct);
+    }
 }
 
 public sealed class EventSignupLifecycleService(ApplicationDbContext db, IEventReadinessEvaluator readiness, TimeProvider time, ILogger<EventSignupLifecycleService>? logger = null) : IEventSignupLifecycleService
@@ -473,7 +482,7 @@ public sealed class EventSignupLifecycleService(ApplicationDbContext db, IEventR
             .FirstOrDefault();
         if (overlap is null) return null;
         var window = FormatWindow(overlap.EventStartsAt!.Value, overlap.EventEndsAt!.Value, item.Timezone);
-        return new("EVENT_WINDOW_OVERLAP", $"This event window overlaps {overlap.Name} ({window}).");
+        return new("EVENT_WINDOW_OVERLAP", $"This event window overlaps {overlap.Name} ({window}).") { DescriptionArguments = [overlap.Name, window], Subject = new(overlap.Id, overlap.Name, overlap.State) };
     }
     private static string FormatWindow(DateTimeOffset start, DateTimeOffset end, string timezoneId)
     {

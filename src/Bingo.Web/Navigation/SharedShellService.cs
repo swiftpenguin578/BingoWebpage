@@ -16,7 +16,7 @@ using Microsoft.Extensions.Localization;
 
 namespace Bingo.Web.Navigation;
 
-public sealed class SharedShellService(ApplicationDbContext db, IStringLocalizer<SharedResource> text, IEventReadinessEvaluator readinessEvaluator, IEventLifecycleService eventLifecycle, IEventFinalizationService finalizationService, TimeProvider timeProvider, IHttpContextAccessor? httpContextAccessor = null)
+public sealed class SharedShellService(ApplicationDbContext db, IStringLocalizer<SharedResource> text, TimeProvider timeProvider, IHttpContextAccessor? httpContextAccessor = null)
 {
     public async Task<SharedShellData> GetAsync(ClaimsPrincipal user, RouteValueDictionary routeValues, CancellationToken cancellationToken, string? selectedEventId = null, Guid? contextEventId = null, Guid? contextTeamId = null)
     {
@@ -370,45 +370,10 @@ public sealed class SharedShellService(ApplicationDbContext db, IStringLocalizer
             .SingleOrDefaultAsync(cancellationToken);
 
         if (eventView is null) return null;
-        var blockerCount = await GetAdminEventBlockerCountAsync(eventView.Id, eventView.State, cancellationToken);
         var presentation = AdminEventStatePresentation.For(eventView.State, text);
-        return new AdminEventContext(eventView.Id, eventView.Name, eventView.State, presentation.Label, blockerCount);
-    }
-
-    private async Task<int> GetAdminEventBlockerCountAsync(Guid eventId, EventState state, CancellationToken cancellationToken)
-    {
-        var blockers = new HashSet<(string Code, string Description)>();
-        void Add(IEnumerable<ReadinessItem>? items)
-        {
-            if (items is null) return;
-            foreach (var item in items) blockers.Add((item.Code, item.Description));
-        }
-
-        if (state is EventState.Draft or EventState.SignupOpen)
-            Add((await readinessEvaluator.GetSignupReadinessAsync(eventId, SignupOpeningMode.OpenNow, timeProvider.GetUtcNow(), cancellationToken))?.Blockers);
-        if (state is EventState.SignupClosed or EventState.Live)
-            Add((await eventLifecycle.GetStartReadinessAsync(eventId, cancellationToken))?.Blockers);
-        if (state == EventState.AwaitingFinalReview)
-            Add((await finalizationService.GetReadinessAsync(eventId, cancellationToken))?.Blockers.Where(item => !item.Resolved).Select(item => new ReadinessItem(item.Key, item.Description)));
-
-        var currentOpening = await db.Events.AsNoTracking()
-            .Where(item => item.Id == eventId && item.HiddenAt == null && item.State == EventState.Draft)
-            .Select(item => item.SignupOpensAt)
-            .SingleOrDefaultAsync(cancellationToken);
-        var now = timeProvider.GetUtcNow();
-        var failedOpening = currentOpening is null ? null : await db.ScheduledSignupOpeningAttempts.AsNoTracking()
-            .Where(item => item.EventId == eventId && !item.Opened && item.ResolvedAt == null && item.ScheduledFor == currentOpening.Value && item.ScheduledFor <= now)
-            .OrderByDescending(item => item.AttemptedAt)
-            .FirstOrDefaultAsync(cancellationToken);
-        if (failedOpening is not null)
-        {
-            if (failedOpening.Details.Count > 0)
-                foreach (var detail in failedOpening.Details) blockers.Add(("SCHEDULED_OPENING_FAILED", detail));
-            else
-                foreach (var code in failedOpening.Blockers) blockers.Add((code, code));
-        }
-
-        return blockers.Count;
+        // U4 (brief 85, 42c §1.3): the header blocker count and its readiness anchor are retired;
+        // Overview's Needs attention and checklists own readiness.
+        return new AdminEventContext(eventView.Id, eventView.Name, eventView.State, presentation.Label);
     }
 
     private async Task<IReadOnlyList<AdminEventOption>> GetAdminEventOptionsAsync(CancellationToken cancellationToken)
@@ -493,7 +458,7 @@ public sealed record SubmissionNavigation(Guid EventId, Guid TeamId)
 }
 public sealed record BreadcrumbItem(string Label, string? Url, string? Status = null, string? StatusClass = null);
 public sealed record ShellNotification(Guid Id, string Title, string Detail, string Url, string? TitleLabel = null, string? TitleMetadata = null);
-public sealed record AdminEventContext(Guid Id, string Name, EventState State, string StatusLabel, int BlockerCount = 0);
+public sealed record AdminEventContext(Guid Id, string Name, EventState State, string StatusLabel);
 public sealed record AdminEventOption(Guid Id, string Name, EventState State, string StatusLabel, string StatusModifier);
 public sealed record NotificationInbox(IReadOnlyList<Guid> EventIds, int Count, string Heading, string EmptyText, string OverviewLabel, string OverviewUrl, IReadOnlyList<ShellNotification> Items, int PersonalCount, int AdminActionCount, string AdminHeading, string AdminEmptyText, string AdminOverviewLabel, string AdminOverviewUrl, IReadOnlyList<ShellNotification> AdminItems, bool AdminActionsUnavailable = false)
 {

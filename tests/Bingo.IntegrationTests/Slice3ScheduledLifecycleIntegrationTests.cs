@@ -419,7 +419,7 @@ public sealed partial class Slice3ScheduledLifecycleIntegrationTests : IAsyncLif
             });
 
             var principal = Principal(admin);
-            var shell = await new SharedShellService(verify, new PassthroughLocalizer(), null!, null!, null!, clock).GetNotificationsAsync(principal, CancellationToken.None);
+            var shell = await new SharedShellService(verify, new PassthroughLocalizer(), clock).GetNotificationsAsync(principal, CancellationToken.None);
             var preview = Assert.Single(shell.Items);
             Assert.Equal("Scheduled signup opening failed", preview.Title);
             Assert.Contains("blocking-live-event", preview.Detail);
@@ -504,14 +504,15 @@ public sealed partial class Slice3ScheduledLifecycleIntegrationTests : IAsyncLif
 
             var draftPage = Manage(verify, admin, clock);
             Assert.IsType<PageResult>(await draftPage.OnGetAsync(eventId, CancellationToken.None));
-            Assert.Equal("Automatic start postponed", draftPage.ScheduledAction?.Title);
-            Assert.Contains(draftPage.ScheduledAction!.Blockers, blocker => blocker.Code == "LIFECYCLE_STATE_INVALID" && blocker.Description.Contains("opened and closed", StringComparison.Ordinal) && blocker.Route == $"/Admin/Events/Manage/{eventId}");
-            Assert.Contains(draftPage.ScheduledAction.Blockers, blocker => blocker.Code == "DRAFT_NOT_FINALIZED" && blocker.Route == $"/Admin/Events/Draft/{eventId}");
-            Assert.Contains(draftPage.ScheduledAction.Blockers, blocker => blocker.Code == "BOARD_NOT_PUBLISHED" && blocker.Route == $"/Admin/Events/Board/{eventId}");
+            // U4-Q1 (c) (08-decisions "U4 brief decisions"): the postponed start is a Needs-attention
+            // item in every pre-Live phase with the phase reason; the old blocker list is retired (brief 85).
+            var draftIssue = Assert.Single(draftPage.Overview!.Issues, issue => issue.Title == "Automatic start postponed");
+            Assert.Contains("Open and close signups first.", draftIssue.Text, StringComparison.Ordinal);
+            Assert.Contains(draftPage.Overview.Stages, stage => stage.Cls == "is-overdue" && stage.When.StartsWith("Was due", StringComparison.Ordinal));
 
             var signupOpenPage = Manage(verify, admin, clock);
             Assert.IsType<PageResult>(await signupOpenPage.OnGetAsync(signupOpenId, CancellationToken.None));
-            Assert.Contains(signupOpenPage.ScheduledAction!.Blockers, blocker => blocker.Code == "LIFECYCLE_STATE_INVALID" && blocker.Description.Contains("Close signup", StringComparison.Ordinal) && blocker.Route == $"/Admin/Events/Manage/{signupOpenId}");
+            Assert.Contains("Close signups first.", Assert.Single(signupOpenPage.Overview!.Issues, issue => issue.Title == "Automatic start postponed").Text, StringComparison.Ordinal);
         }
 
     }
@@ -572,9 +573,9 @@ public sealed partial class Slice3ScheduledLifecycleIntegrationTests : IAsyncLif
 
             var readyPage = Manage(correction, admin, clock);
             Assert.IsType<PageResult>(await readyPage.OnGetAsync(eventId, CancellationToken.None));
-            Assert.NotNull(readyPage.ScheduledAction);
-            Assert.Empty(readyPage.ScheduledAction!.Blockers);
-            Assert.True(readyPage.StartReadiness!.CanProceed);
+            // U4-Q1 (c): still postponed (won't retry) but every start requirement is done.
+            Assert.Contains("Everything is ready now, so you can start the event.", Assert.Single(readyPage.Overview!.Issues, issue => issue.Title == "Automatic start postponed").Text, StringComparison.Ordinal);
+            Assert.True(readyPage.Overview.Dialogs["start"].Ready);
         }
 
         using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
@@ -590,12 +591,13 @@ public sealed partial class Slice3ScheduledLifecycleIntegrationTests : IAsyncLif
         Assert.True(loggedIn.IsSuccessStatusCode);
 
         var readyHtml = await client.GetStringAsync($"/Admin/Events/Manage/{eventId}");
-        Assert.Contains("data-manage-overview", readyHtml, StringComparison.Ordinal);
-        Assert.Contains("Readiness checks", readyHtml, StringComparison.Ordinal);
-        Assert.Contains("Event information", readyHtml, StringComparison.Ordinal);
-        Assert.Contains("Start the bingo when the board and teams are ready.", readyHtml, StringComparison.Ordinal);
-        Assert.Contains("All start blockers are resolved. Confirm to start the event now.", readyHtml, StringComparison.Ordinal);
-        Assert.DoesNotContain("Finalize the team draft. <a", readyHtml, StringComparison.Ordinal);
+        // U4 / OS-1 (brief 85): Overview.dc.html composition replaces the readiness block; U4-Q1 (c)
+        // keeps the postponed start as an attention item that now reports everything is ready.
+        Assert.Contains("data-overview", readyHtml, StringComparison.Ordinal);
+        Assert.Contains("Start the event yourself", readyHtml, StringComparison.Ordinal);
+        Assert.Contains("Everything below is done.", readyHtml, StringComparison.Ordinal);
+        Assert.Contains("Everything is ready now, so you can start the event.", readyHtml, StringComparison.Ordinal);
+        Assert.Contains("id=\"act-start\" type=\"button\" data-overview-action=\"start\" aria-disabled=\"false\"", readyHtml, StringComparison.Ordinal);
         var eventVersion = InputValue(readyHtml, "EventVersion");
         using var request = new HttpRequestMessage(HttpMethod.Post, $"/Admin/Events/Manage/{eventId}?handler=StartEvent")
         {
@@ -610,16 +612,15 @@ public sealed partial class Slice3ScheduledLifecycleIntegrationTests : IAsyncLif
         using var started = await client.SendAsync(request);
         var enhancedHtml = await started.Content.ReadAsStringAsync();
         Assert.True(started.IsSuccessStatusCode);
-        Assert.Contains("The bingo is currently live.", enhancedHtml, StringComparison.Ordinal);
-        Assert.DoesNotContain("<h3>Automatic start postponed</h3>", enhancedHtml, StringComparison.Ordinal);
-        Assert.DoesNotContain("Start event now", enhancedHtml, StringComparison.Ordinal);
+        Assert.Contains("Ends automatically on", enhancedHtml, StringComparison.Ordinal);
+        Assert.DoesNotContain("<div class=\"issue-title\">Automatic start postponed</div>", enhancedHtml, StringComparison.Ordinal);
+        Assert.DoesNotContain("id=\"act-start\"", enhancedHtml, StringComparison.Ordinal);
 
         var freshHtml = await client.GetStringAsync($"/Admin/Events/Manage/{eventId}");
-        Assert.Contains("Review submissions", freshHtml, StringComparison.Ordinal);
-        Assert.Contains("Event ends", freshHtml, StringComparison.Ordinal);
-        Assert.Contains("The bingo is currently live.", freshHtml, StringComparison.Ordinal);
-        Assert.DoesNotContain("<h3>Automatic start postponed</h3>", freshHtml, StringComparison.Ordinal);
-        Assert.DoesNotContain("Start event now", freshHtml, StringComparison.Ordinal);
+        Assert.Contains("End event now", freshHtml, StringComparison.Ordinal);
+        Assert.Contains("Ends automatically on", freshHtml, StringComparison.Ordinal);
+        Assert.DoesNotContain("<div class=\"issue-title\">Automatic start postponed</div>", freshHtml, StringComparison.Ordinal);
+        Assert.DoesNotContain("id=\"act-start\"", freshHtml, StringComparison.Ordinal);
 
         using var repeated = await client.PostAsync($"/Admin/Events/Manage/{eventId}?handler=StartEvent", new FormUrlEncodedContent(new Dictionary<string, string>
         {
@@ -649,7 +650,7 @@ public sealed partial class Slice3ScheduledLifecycleIntegrationTests : IAsyncLif
 
             var livePage = Manage(verify, admin, clock);
             Assert.IsType<PageResult>(await livePage.OnGetAsync(eventId, CancellationToken.None));
-            Assert.Null(livePage.ScheduledAction);
+            Assert.DoesNotContain(livePage.Overview!.Issues, issue => issue.Title == "Automatic start postponed");
         }
     }
 

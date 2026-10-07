@@ -186,7 +186,9 @@ public sealed partial class EventQuarantineIntegrationTests : IAsyncLifetime
 
         var path = $"/Admin/Events/Manage/{item.Id}";
         var manage = await superClient.GetStringAsync(path);
-        Assert.Contains("?handler=Hide", manage, StringComparison.Ordinal);
+        // U4 / OS-1: Hide is an Overview dialog (dialog model handler "Hide"); the handler boundary below is unchanged.
+        Assert.Contains("data-overview-action=\"hide\"", manage, StringComparison.Ordinal);
+        Assert.Contains("&quot;handler&quot;:&quot;Hide&quot;", manage, StringComparison.Ordinal);
         var eventVersion = InputValue(manage, "EventVersion");
         var confirmationToken = AntiforgeryToken(manage);
 
@@ -307,7 +309,8 @@ public sealed partial class EventQuarantineIntegrationTests : IAsyncLifetime
         }
         await AssertHiddenAsync(item.Id);
 
-        var hiddenRedirectPath = $"{path}?hidden=True";
+        // U4-Q3 (c) (08-decisions "U4 brief decisions"): the hidden view is the plain URL; ?hidden=true is still accepted.
+        var hiddenRedirectPath = path;
         using (var omittedRestoreResponse = await superClient.PostAsync($"{hiddenPath}&handler=RestoreHidden", new FormUrlEncodedContent(new Dictionary<string, string>
         {
             ["EventVersion"] = hiddenVersion,

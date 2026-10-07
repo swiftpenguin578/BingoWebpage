@@ -14,7 +14,7 @@
     if (redirected && /^\/admin\/events\/manage\/[^/]+$/.test(path || '')) {
       let reason = '';
       if ((response.headers.get('Content-Type') || '').includes('text/html')) {
-        try { reason = new DOMParser().parseFromString(await response.text(), 'text/html').querySelector('[data-transient-toast] .app-toast-copy > span')?.textContent.trim() || ''; } catch { /* The redirect still definitively refused the write. */ }
+        try { reason = new DOMParser().parseFromString(await response.text(), 'text/html').querySelector('[data-transient-toast] .app-toast-copy > span, [data-toast-host] [data-toast] [data-component-text]')?.textContent.trim() || ''; } catch { /* The redirect still definitively refused the write. */ }
       }
       return { kind: 'refused', destination: destination.href, reason };
     }

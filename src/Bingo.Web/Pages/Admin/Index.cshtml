@@ -47,7 +47,7 @@
                 <div class="meter" title="@D["{0} of {1} places filled", N(card.ConfirmedParticipants), N(cap)]"><div class="meter-track" style="--meter-w:56px"><div class="meter-fill" style="width:@(Bingo.Web.Pages.Admin.IndexModel.Percent(cap > 0 ? Math.Min(1m, (decimal)card.ConfirmedParticipants / cap) : 0))%"></div></div><span class="meter-label">@N(card.ConfirmedParticipants)/@N(cap)</span></div>
             }
             else { <span class="meter-label">@D["{0} confirmed · No capacity set", N(card.ConfirmedParticipants)]</span> }
-            <a class="btn btn-sm" href="@card.OverviewPath">@D["Open"]</a>
+            <a class="btn btn-sm" href="@card.OverviewPath" data-shell-link>@D["Open"]</a>
         </div>
     }
 }
@@ -138,7 +138,7 @@ else
         <div class="fact"><dt class="fact-label">@D["Approved submissions"]</dt><dd class="fact-value">@if (!recap.ApprovedSubmissions.IsAvailable) { <span class="hint tip-end" tabindex="0" aria-label="@(recap.IsHistoricalImport ? D["Imported history has no evidence submissions; its contributions were reconstructed."].Value : Model.SubmissionHint(history))">—<span class="hint-tip" aria-hidden="true">@(recap.IsHistoricalImport ? D["Imported history has no evidence submissions; its contributions were reconstructed."].Value : Model.SubmissionHint(history))</span></span> } else { @Bingo.Web.Pages.Admin.IndexModel.Value(recap.ApprovedSubmissions) }<span class="fact-sub">@(recap.ApprovedSubmissions.IsAvailable ? recap.Provisional ? D["may change in final review"].Value : "" : D["not available"].Value)</span></dd></div>
         @if (history.Ehb.IsAvailable) { <div class="fact is-secondary"><dt class="fact-label">@D["EHB gained"]</dt><dd class="fact-value">@history.Ehb.Gain?.ToString("N0", CultureInfo.CurrentCulture)<span class="fact-sub">@D["{0} of {1} accounts · Wise Old Man", N(history.Ehb.MatchedAccounts), N(history.Ehb.ExpectedAccounts)]@(history.IsHistoricalImport ? D[" (frozen)"].Value : "")</span></dd></div> }
         </dl>
-        <div class="panel-foot"><span class="panel-note">@(recap.Provisional ? Model.L("Ended {0}", DateTimePresentation.Format(recap.ActualEndedAt, "d MMM yyyy", history.Timezone, CultureInfo.CurrentCulture)) : D[recap.IsHistoricalImport ? "Imported history · attribution reconstructed" : "Finalized results"].Value)</span>@if (data.Chart.Count < 2) { <span class="panel-note">@D["Participation by event appears once a second event has been held."]</span> }<a class="btn btn-quiet btn-sm" href="@recap.OverviewPath">@D["Open event"]<svg class="ic" viewBox="0 0 16 16"><path d="M6 4l4 4-4 4"/></svg></a></div>
+        <div class="panel-foot"><span class="panel-note">@(recap.Provisional ? Model.L("Ended {0}", DateTimePresentation.Format(recap.ActualEndedAt, "d MMM yyyy", history.Timezone, CultureInfo.CurrentCulture)) : D[recap.IsHistoricalImport ? "Imported history · attribution reconstructed" : "Finalized results"].Value)</span>@if (data.Chart.Count < 2) { <span class="panel-note">@D["Participation by event appears once a second event has been held."]</span> }<a class="btn btn-quiet btn-sm" href="@recap.OverviewPath" data-shell-link>@D["Open event"]<svg class="ic" viewBox="0 0 16 16"><path d="M6 4l4 4-4 4"/></svg></a></div>
         </section>
     }
     else
@@ -156,7 +156,7 @@ else
     @foreach (var row in Model.History)
     {
         <div class="tr row" role="row" data-open-url="@row.OverviewPath" data-history-event="@row.EventId">
-        <div class="td c-name" role="cell"><div class="name-line"><a class="name-btn" title="@row.EventName" href="@row.OverviewPath">@row.EventName</a>
+        <div class="td c-name" role="cell"><div class="name-line"><a class="name-btn" title="@row.EventName" href="@row.OverviewPath" data-shell-link>@row.EventName</a>
         @if (row.IsHistoricalImport || row.Provisional) { <span class="pill @(row.IsHistoricalImport ? "is-neutral" : "is-warning")">@D[row.IsHistoricalImport ? "Imported" : row.State == EventState.Live ? "Live · provisional" : "Final review"]</span> }</div><div class="sub">@Model.Range(row.ActualStartedAt, row.ActualEndedAt, row.Timezone)</div></div>
         <div class="td num" role="cell">@Bingo.Web.Pages.Admin.IndexModel.Value(row.Participants)</div>
         <div class="td num" role="cell">@if (row.ApprovedSubmissions.IsAvailable) { @Bingo.Web.Pages.Admin.IndexModel.Value(row.ApprovedSubmissions) } else { <span class="hint tip-end muted" tabindex="0" aria-label="@Model.SubmissionHint(row)">—<span class="hint-tip" aria-hidden="true">@Model.SubmissionHint(row)</span></span> }</div>

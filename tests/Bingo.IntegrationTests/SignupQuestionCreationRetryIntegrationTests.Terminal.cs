@@ -84,7 +84,8 @@ public sealed partial class SignupQuestionCreationRetryIntegrationTests
         Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
         Assert.Equal($"/Admin/Events/Manage/{eventId}", response.Headers.Location!.OriginalString);
         var page = await client.GetStringAsync(response.Headers.Location.OriginalString);
-        var message = Regex.Match(page, "app-toast-copy[^>]*>\\s*<strong>.*?</strong>\\s*<span>(.*?)</span>", RegexOptions.Singleline).Groups[1].Value;
+        // U4 / OS-1: Manage (Overview) renders on the design layout; its toast carries the refusal.
+        var message = Regex.Match(page, "data-toast[^>]*>.*?<span class=\"grow\" data-component-text>(.*?)</span>", RegexOptions.Singleline).Groups[1].Value;
         Assert.Equal("This event is read-only in its current lifecycle state.", WebUtility.HtmlDecode(message));
     }
 }

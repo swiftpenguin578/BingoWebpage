@@ -1,0 +1,6 @@
+<template data-page-header-template="overview"><header class="page-head" data-page-family="overview"><div style="min-width:0"><div class="ov-title"><h1 class="h1" tabindex="-1">@T["Overview"]</h1></div><p class="summary"><span data-summary-template=""></span></p></div></header></template>
+<template data-page-loading-template="overview" data-page-title="@T["Overview"]">
+<link rel="stylesheet" href="~/css/admin-design-overview.css" asp-append-version="true" />
+<div class="card" aria-busy="true" aria-label="@T["Loading event"]"><div class="stages" style="--stage-count:6">@for (var i = 0; i < 6; i++) { <div class="stage"><div class="stage-mark"><div class="sk" style="width:20px;height:20px;border-radius:50%"></div></div><div class="stage-text"><div class="ov-sk-name"><div class="sk" style="width:60%"></div></div><div class="sk" style="width:44%;height:8px;margin-top:8px"></div></div></div> }</div></div>
+<div class="ov-grid"><div class="card panel"><div class="ov-sk-title"><div class="sk" style="width:30%"></div></div><div class="sk" style="height:120px;margin-top:18px;border-radius:8px"></div></div><div class="card panel"><div class="ov-sk-title"><div class="sk" style="width:40%"></div></div><div class="sk" style="height:120px;margin-top:18px;border-radius:8px"></div></div></div>
+</template>

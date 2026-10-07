@@ -46,6 +46,7 @@ public static class AdminEventPagePolicies
                 ("POST:", AdminEventHandlerGate.Service)),
             [typeof(ManageModel)] = Page(AdminEventPageKind.Manage, true, true,
                 ("GET:", AdminEventHandlerGate.Read),
+                ("GET:Current", AdminEventHandlerGate.Read),
                 ("POST:State", AdminEventHandlerGate.Signup),
                 ("POST:PrepareSignupConfirmation", AdminEventHandlerGate.Signup),
                 ("POST:PrepareStartConfirmation", AdminEventHandlerGate.Signup),

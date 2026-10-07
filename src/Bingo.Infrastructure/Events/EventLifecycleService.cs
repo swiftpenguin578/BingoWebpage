@@ -199,12 +199,9 @@ public sealed class EventLifecycleService(
                 return new(false, "Choose a time in five-minute increments.");
             if (item.EventStartsAt is not { } startsAt || effectiveEnd <= startsAt)
                 return new(false, "The replacement event end must be after the event start.");
-            var singleton = await EventCurrentBoundary.OtherCurrentEvents(db, eventId)
-                .OrderBy(x => x.Name)
-                .Select(x => x.Name)
-                .FirstOrDefaultAsync(ct);
+            var singleton = await OtherCurrentEventAsync(eventId, ct);
             if (singleton is not null)
-                return new(false, $"{singleton} is already the current event. Archive it before resuming this event.");
+                return new(false, CurrentEventRefusal(singleton));
             var overlap = await FindLifecycleOverlapAsync(item, effectiveEnd.Value, ct);
             if (overlap is not null)
                 return new(false, overlap);
@@ -373,14 +370,27 @@ public sealed class EventLifecycleService(
         foreach (var participantId in confirmedParticipantIds.Except(primaryParticipantIds))
             blockers.Add(new("PARTICIPANT_PLAYING_ASSIGNMENT_INVALID", "Every confirmed participant needs an unambiguous current Playing assignment before the event can start.", $"/Admin/Events/Participant/{item.Id}/Participants/{participantId}"));
 
-        var current = await EventCurrentBoundary.OtherCurrentEvents(db, item.Id)
-            .OrderBy(x => x.Name)
-            .Select(x => new { x.Id, x.Name, x.State })
-            .FirstOrDefaultAsync(ct);
+        var current = await OtherCurrentEventAsync(item.Id, ct);
         if (current is not null)
-            blockers.Add(new("CURRENT_EVENT_EXISTS", $"{current.Name} is already the current {ReadableState(current.State)} event.", $"/Admin/Events/Manage/{current.Id}"));
+            blockers.Add(new("CURRENT_EVENT_EXISTS", CurrentEventRefusal(current), $"/Admin/Events/Manage/{current.EventId}")
+            { DescriptionArguments = [current.Name], Subject = current });
         return blockers;
     }
+
+    public async Task<ReadinessSubject?> GetOtherCurrentEventAsync(Guid eventId, CancellationToken ct = default) =>
+        await db.Events.AsNoTracking().AnyAsync(x => x.Id == eventId && x.HiddenAt == null, ct) ? await OtherCurrentEventAsync(eventId, ct) : null;
+
+    private Task<ReadinessSubject?> OtherCurrentEventAsync(Guid eventId, CancellationToken ct) =>
+        EventCurrentBoundary.OtherCurrentEvents(db, eventId)
+            .OrderBy(x => x.Name)
+            .Select(x => new ReadinessSubject(x.Id, x.Name, x.State))
+            .FirstOrDefaultAsync(ct);
+
+    // S2 and U4-Q4/Q5: the retired Archive action is no longer the remedy. A
+    // legacy Finished current event can only be archived by the Super Admin.
+    internal static string CurrentEventRefusal(ReadinessSubject current) => current.State == EventState.Finalized
+        ? $"{current.Name} is still the current event. Contact the Super Admin to archive it."
+        : $"Publish the results of {current.Name} first.";
 
     private async Task AppendInitialActivationsAsync(Guid eventId, DateTimeOffset effectiveAtUtc, CancellationToken ct)
     {
@@ -474,10 +484,4 @@ public sealed class EventLifecycleService(
 
     private static bool IsDevelopmentMode() => string.Equals(Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT"), "Development", StringComparison.OrdinalIgnoreCase);
 
-    private static string ReadableState(EventState state) => state switch
-    {
-        EventState.AwaitingFinalReview => "final-review",
-        EventState.Finalized => "finalized",
-        _ => "live"
-    };
 }
