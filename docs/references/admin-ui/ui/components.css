@@ -693,7 +693,7 @@ a.name-btn{display:inline-block;max-width:100%}
 .btn-primary[aria-disabled=true],.btn-primary[aria-disabled=true]:hover{background:var(--dk-track);border-color:transparent;color:var(--dk-text-3);opacity:1}
 
 /* read-only values keep full text colour (a locked form stays readable, not faint) */
-.ro-value{font-size:var(--dk-fs-control);color:var(--dk-text);line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere;min-height:21px}
+.ro-value{width:100%;min-width:0;min-height:var(--dk-control-h);padding:calc((var(--dk-control-h) - 1lh - 2px)/2) 10px;border:1px solid var(--dk-border);border-radius:var(--dk-radius-md);background:var(--dk-surface-2);font-size:var(--dk-fs-control);color:var(--dk-text);line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere}
 .ro-value.is-empty{color:var(--dk-text-3)}
 .field-lock{display:flex;align-items:center;gap:6px;margin-top:6px;font-size:var(--dk-fs-small);color:var(--dk-text-3)}
 .field-lock .ic{width:13px;height:13px}
