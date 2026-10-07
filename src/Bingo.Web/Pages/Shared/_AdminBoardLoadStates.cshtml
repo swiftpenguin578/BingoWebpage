@@ -1,6 +1,6 @@
 @* U7: Board page-family load states (Board.dc.html loading and loadError). Fresh on every visit:
    the grid size is unknown while loading, so the skeleton uses the reference's 5 columns. *@
-<template data-page-header-template="board"><header class="page-head" data-page-family="board"><div style="min-width:0"><div class="bd-title-row"><h1 class="h1" tabindex="-1">@T["Board"]</h1></div><p class="summary"><span data-summary-template=""></span></p></div></header></template>
+<template data-page-header-template="board"><header class="page-head" data-page-family="board"><div style="min-width:0"><div class="bd-title-row"><h1 class="h1" tabindex="-1">@T["Board"]</h1></div><p class="summary"><span data-summary-template=""></span></p></div><div class="bd-head-acts"><button class="btn" type="button" disabled><partial name="_AdminDesignIcon" model='new AdminDesignIcon("eye")' />@T["Preview"]</button></div></header></template>
 @foreach (var failed in new[] { false, true })
 {
     <template data-page-@(failed ? "failure" : "loading")-template="board" data-page-title="@(failed ? null : T["Board"].Value)">

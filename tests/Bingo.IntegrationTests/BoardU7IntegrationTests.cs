@@ -327,4 +327,21 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests
         await using var verify = new ApplicationDbContext(options);
         Assert.Equal((1, 1), await verify.Boards.Select(x => new ValueTuple<int, int>(x.Rows, x.Columns)).SingleAsync());
     }
+
+    // U7-Q3: the retired BoardPreview route redirects to the Board, also with team/tile segments.
+    [Fact]
+    public async Task U7RetiredBoardPreviewRouteRedirectsToTheBoard()
+    {
+        var fixture = await SeedApprovalBatchAsync();
+        await using var factory = ApprovalBatchFactory();
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        await LoginAsync(client, fixture.Admin.LoginName);
+        foreach (var suffix in new[] { "", "/alpha", $"/alpha/{fixture.Tile.Id}" })
+        {
+            using var response = await client.GetAsync($"/Admin/Events/BoardPreview/{fixture.Event.Id}/Preview{suffix}");
+            Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+            Assert.Equal($"/Admin/Events/Board/{fixture.Event.Id}", response.Headers.Location!.OriginalString);
+        }
+        await AssertApprovalBatchUnchangedAsync(fixture);
+    }
 }

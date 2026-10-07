@@ -242,7 +242,7 @@ export function install(ctx) {
   /* ---------------- drawer rendering ---------------- */
   function buildLayer() {
     const content = el('div', 'bd-ed bd-layer'); content.dataset.pageFamily = 'board';
-    const layer = ui.openLayer({ kind: 'drawer', title: t('Tile'), content, dirty: isDirty, pending: () => !!ed?.busy || !!ed?.checking, onClose: () => onClosed() });
+    const layer = ui.openLayer({ kind: 'drawer', title: t('Tile'), content, dirty: isDirty, pending: () => !!ed?.busy || !!ed?.checking, onClose: () => onClosed() }); layer.element.dataset.pageFamily = 'board';
     layer.element.classList.add('is-wide');
     ed.layer = layer; ed.content = content;
     on(content, 'keydown', event => { if (event.key === 'Enter' && event.target.matches('input.input:not([role=combobox])') && !event.target.closest('.drop-row,.count-line')) { event.preventDefault(); void save(); } });

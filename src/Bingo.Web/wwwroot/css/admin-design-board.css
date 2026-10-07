@@ -1,6 +1,8 @@
 /* Board page only (Board.dc.html style block). Tokens and shared components stay authoritative.
    The drawer and dialogs carry data-page-family="board" so these rules reach them. */
 :where([data-page-family="board"]) .bd-title-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+/* User "No load fades": load markers swap in one step; interaction animations (drawer, dialogs, menus) stay. */
+:where([data-page-family="board"]) .empty,:where([data-page-family="board"]) .page-banner,:where([data-page-family="board"]) .fade-in,:where([data-page-family="board"]) .results{animation:none}
 :where([data-page-family="board"]) .bd-summary{align-items:center}
 :where([data-page-family="board"]) .bd-summary .text-btn{font-size:var(--dk-fs-control)}
 :where([data-page-family="board"]) .bd-head-acts{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
@@ -49,5 +51,5 @@
 :where([data-page-family="board"]) .bd-sk-line{display:flex;align-items:center;height:calc(var(--dk-fs-control) * 1.45)}
 :where([data-page-family="board"]) .bd-sk-line+.bd-sk-line{margin-top:12px}
 :where([data-page-family="board"]) .bd-lock-inline{margin:0}
-:where([data-page-family="board"].bd-layer){display:contents}
+:where([data-page-family="board"]) .bd-layer{display:contents}
 :where([data-page-family="board"]) [hidden]{display:none}

@@ -59,9 +59,8 @@ export async function init(region, ui = window.AdminUI) {
     ctx.pending = handler; paint();
     let result;
     try {
-      result = await ui.busy(() => window.AdminFetch.request(ctx.url(handler), {
-        method: 'POST', body: form || body({ BoardVersion: ctx.boardVersion(), ...values }), draft, labels: draftLabels, signal: life.signal
-      }));
+      const payload = form || body({ BoardVersion: ctx.boardVersion(), ...values });
+      result = await ui.busy(() => window.AdminFetch.request(ctx.url(handler), { method: 'POST', body: payload, draft, labels: draftLabels, signal: life.signal }));
     } finally { ctx.pending = null; }
     if (life.signal.aborted) return { kind: 'aborted' };
     if (result.kind === 'handler') {
@@ -469,7 +468,7 @@ export async function init(region, ui = window.AdminUI) {
       bannerSlot.replaceChildren(...(state.error ? [banner({ cls: 'is-error', role: 'alert', title: state.error })] : []));
     }
     content.dataset.pageFamily = 'board';
-    const layer = ui.openLayer({ title: t('Board size'), content, pending: () => state.busy });
+    const layer = ui.openLayer({ title: t('Board size'), content, pending: () => state.busy }); layer.element.dataset.pageFamily = 'board';
     layer.element.classList.add('modal-form');
     paintRz(true); layer.markClean();
     async function applyRz() {
@@ -497,7 +496,7 @@ export async function init(region, ui = window.AdminUI) {
     const pvBody = el('div', 'bd-pv-body'), placeholder = el('div', 'bd-pv-none', t('Not supported yet'));
     pvBody.append(placeholder); content.append(top, pvBody);
     content.dataset.pageFamily = 'board';
-    const layer = ui.openLayer({ title: t('Preview'), content });
+    const layer = ui.openLayer({ title: t('Preview'), content }); layer.element.dataset.pageFamily = 'board';
     layer.element.classList.add('bd-pv'); layer.element.dataset.pageFamily = 'board';
   };
 
