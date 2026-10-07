@@ -4,12 +4,18 @@
 @{
     // U7 / Board.dc.html. The server renders the view (Board.View.cs); admin-board.js
     // paints it and runs every command in place (Board.Transport.cs, AdminFetch).
-    ViewData["Title"] = T["Board"];
-    ViewData["LocalizedTitle"] = T["Board"].Value;
+    ViewData["Title"] = T["AdminDesign.Board"];
+    ViewData["LocalizedTitle"] = T["AdminDesign.Board"].Value;
     ViewData["PageFamily"] = "board";
-    ViewData["CrumbTitle"] = T["Board"].Value;
+    ViewData["CrumbTitle"] = T["AdminDesign.Board"].Value;
     var labels = new Dictionary<string, string>();
-    foreach (var key in Bingo.Web.Pages.Admin.Events.BoardModel.LabelKeys) labels[key] = T[key].Value;
+    // Labels whose text differs only in case from an existing key are served from
+    // their AdminDesign.-scoped entry (resx names are case-insensitive).
+    foreach (var key in Bingo.Web.Pages.Admin.Events.BoardModel.LabelKeys)
+    {
+        var resourceKey = Bingo.Web.Pages.Admin.Events.BoardModel.ScopedLabelKeys.Contains(key) ? "AdminDesign." + key : key;
+        labels[key] = T[resourceKey].Value;
+    }
     var view = Model.BoardView;
     var badge = Model.BoardMode switch
     {
@@ -21,7 +27,7 @@
     };
 }
 @section HeaderTitle {
-    <div class="bd-title-row"><h1 class="h1" id="page-h1" tabindex="-1">@T["Board"]</h1><span class="badge @badge.Item2" data-board-badge hidden="@(badge.Item1 is null)">@(badge.Item1 is null ? "" : T[badge.Item1].Value)</span></div>
+    <div class="bd-title-row"><h1 class="h1" id="page-h1" tabindex="-1">@T["AdminDesign.Board"]</h1><span class="badge @badge.Item2" data-board-badge hidden="@(badge.Item1 is null)">@(badge.Item1 is null ? "" : T[badge.Item1].Value)</span></div>
 }
 @section HeaderSummary {
     @if (view is null)
