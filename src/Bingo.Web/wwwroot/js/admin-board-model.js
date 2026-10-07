@@ -22,3 +22,15 @@ export function parseWhole(value, min, max) {
   const n = Number(text);
   return n >= min && n <= max ? n : null;
 }
+// U7-E1 (c): editing activity renews the edit lease at most once per interval
+// (the lease lasts five minutes). One request at a time; a failed send does not
+// block the next window. `send` returns a promise; `now` is injectable for tests.
+export function leaseRenewer(send, { interval = 60000, now = () => Date.now() } = {}) {
+  let last = null, inFlight = false;
+  return function activity() {
+    if (inFlight || (last !== null && now() - last < interval)) return false;
+    last = now(); inFlight = true;
+    Promise.resolve().then(send).catch(() => {}).finally(() => { inFlight = false; });
+    return true;
+  };
+}

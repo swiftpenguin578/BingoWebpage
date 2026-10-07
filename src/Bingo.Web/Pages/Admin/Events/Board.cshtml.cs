@@ -233,6 +233,31 @@ public sealed partial class BoardModel(ApplicationDbContext db, TimeProvider tim
         return RedirectToPage(new { id });
     }
 
+    // U7-E1 (c): the new layout has no SignalR connection, so the page renews the
+    // holder's edit lease over HTTP while the admin works (throttled client-side).
+    // Same rule as AdminCollaborationHub.RenewBoardEditing: only the active holder
+    // extends the expiry; no version, edit-control or audit change, so another
+    // admin's open draft is not made stale. A lapsed or lost lease is reported, not taken.
+    public async Task<IActionResult> OnPostRenewEditingAsync(Guid id, CancellationToken ct)
+    {
+        Response.Headers.CacheControl = "no-store";
+        var board = await db.Boards.SingleOrDefaultAsync(x => x.EventId == id, ct); if (board is null) return NotFound();
+        var now = time.GetUtcNow();
+        if (!board.HasActiveEditor(now) || board.EditorAccountId != AdminId) return new JsonResult(new { renewed = false });
+        try
+        {
+            board.RenewEditing(AdminId, now, BoardEditingLease.Duration);
+            await db.SaveChangesAsync(ct);
+            return new JsonResult(new { renewed = true });
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or DbUpdateConcurrencyException)
+        {
+            // A command or takeover won the race; the page's next read is authoritative.
+            db.ChangeTracker.Clear();
+            return new JsonResult(new { renewed = false });
+        }
+    }
+
     public async Task<IActionResult> OnPostCreateTileAsync(Guid id, CancellationToken ct)
     {
         TempData["BoardTileOutcome"] = "failed";

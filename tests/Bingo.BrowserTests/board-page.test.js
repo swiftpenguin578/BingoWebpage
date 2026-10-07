@@ -26,6 +26,24 @@ const js = name => path.join(root, "src/Bingo.Web/wwwroot/js", name);
   assert.equal(model.parseTileRef("A6", 5, 5), null);
   assert.equal(model.parseTileRef("Z9", 8, 8), null);
   assert.equal(model.posName(7, 5), "B3");
+  // U7-E1 (c): activity renews the lease at most once a minute, one request at a time.
+  let clock = 0, sends = 0, settle;
+  const renew = model.leaseRenewer(() => { sends++; return new Promise(resolve => { settle = resolve; }); }, { interval: 60000, now: () => clock });
+  assert.equal(renew(), true);
+  await Promise.resolve(); assert.equal(sends, 1);
+  clock = 70000; assert.equal(renew(), false, "no second request while one is in flight");
+  settle(); await new Promise(resolve => setTimeout(resolve, 0));
+  clock = 71000; assert.equal(renew(), true, "a minute after the last renewal, activity renews again");
+  await Promise.resolve(); assert.equal(sends, 2); settle(); await new Promise(resolve => setTimeout(resolve, 0));
+  clock = 130000; assert.equal(renew(), false, "within the minute, activity does not renew");
+  clock = 131000; assert.equal(renew(), true);
+  await Promise.resolve(); assert.equal(sends, 3);
+  const failing = model.leaseRenewer(() => Promise.reject(new Error("offline")), { interval: 60000, now: () => clock });
+  assert.equal(failing(), true); await new Promise(resolve => setTimeout(resolve, 0));
+  clock = 191000; assert.equal(failing(), true, "a failed renewal does not block the next window");
+  const board = fs.readFileSync(js("admin-board.js"), "utf8");
+  assert.match(board, /ctx\.url\('RenewEditing'\)/);
+  assert.match(board, /if \(ctx\.canEdit\(\) && !life\.signal\.aborted\) renew\(\)/);
 
   const labels = fs.readFileSync(path.join(root, "src/Bingo.Web/Pages/Admin/Events/Board.Labels.cs"), "utf8");
   const served = new Set([...labels.matchAll(/^\s+"((?:[^"\\]|\\.)*)",$/gm)].map(m => m[1].replace(/\\"/g, '"').replace(/\\\\/g, "\\")));
