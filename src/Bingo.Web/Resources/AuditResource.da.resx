@@ -212,4 +212,7 @@
   <data name="Tile" xml:space="preserve"><value>Felt</value></data>
   <data name="Signup question" xml:space="preserve"><value>Tilmeldingsspørgsmål</value></data>
   <data name="WOM competition" xml:space="preserve"><value>WOM-konkurrence</value></data>
+  <data name="Discord identity replaced" xml:space="preserve"><value>Discordidentitet udskiftet</value></data>
+  <data name="WOM sync after adding to a finalized roster" xml:space="preserve"><value>WOM-synkronisering efter tilføjelse til en færdig holdliste</value></data>
+  <data name="WOM sync after removing from a finalized roster" xml:space="preserve"><value>WOM-synkronisering efter fjernelse fra en færdig holdliste</value></data>
 </root>

@@ -16,6 +16,14 @@ public sealed class AuditLabelCompletenessTests
 {
     private static readonly string[] AuditPrefixes = ["account", "event", "catalogue", "board", "team", "draft", "submission", "participant", "roster", "signup", "signup_question", "signup_cocaptain", "evidence_code", "historical_import"];
 
+    // Audit actions composed with string interpolation (T1 review M1): the literal scan cannot see
+    // them, so every interpolated template and the keys it can produce are listed here.
+    private static readonly Dictionary<string, string[]> ComposedKeys = new(StringComparer.Ordinal)
+    {
+        ["$\"account.discord_{action}\""] = ["account.discord_linked", "account.discord_replaced"],
+        ["$\"{action}.wom_sync\""] = ["roster.finalized_added.wom_sync", "roster.finalized_removed.wom_sync"]
+    };
+
     // Required-account validation operation names (WiseOldManAccountValidationRequest), not audit actions.
     private static readonly HashSet<string> NotAuditKeys = ["participant.create", "participant.edit", "participant.replacement", "participant.restore", "participant.rejoin", "signup.create", "signup.edit"];
 
@@ -30,6 +38,16 @@ public sealed class AuditLabelCompletenessTests
                          && !path.Contains($"{Path.DirectorySeparatorChar}Migrations{Path.DirectorySeparatorChar}", StringComparison.Ordinal)))
             foreach (Match match in pattern.Matches(File.ReadAllText(file)))
                 keys.Add(match.Groups["key"].Value);
+        // Guard: an interpolated string that starts with an audit area, or ends ".suffix" after a
+        // placeholder, is a composed audit action and must be listed in ComposedKeys.
+        var interpolated = new Regex(@"\$""(?:(?:" + string.Join('|', AuditPrefixes) + @")\.[^""]*\{[^""]*|\{[^}""]+\}\.[a-z_]+)""");
+        var unlisted = new SortedSet<string>(StringComparer.Ordinal);
+        foreach (var file in Directory.EnumerateFiles(Path.Combine(root, "src"), "*.cs", SearchOption.AllDirectories)
+                     .Where(path => !path.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.Ordinal)))
+            foreach (Match match in interpolated.Matches(File.ReadAllText(file)))
+                if (!ComposedKeys.ContainsKey(match.Value)) unlisted.Add($"{Path.GetFileName(file)}: {match.Value}");
+        Assert.True(unlisted.Count == 0, "Interpolated audit action strings not listed in ComposedKeys:\n" + string.Join('\n', unlisted));
+        foreach (var composed in ComposedKeys.Values) keys.UnionWith(composed);
         foreach (var action in Enum.GetValues<ReviewActionType>()) keys.Add(AuditPresenter.ActionKey(action));
         keys.Add(AuditPresenter.ActionKey((ReviewActionType)(-1)));
         keys.ExceptWith(NotAuditKeys);
@@ -63,6 +81,12 @@ public sealed class AuditLabelCompletenessTests
         Assert.Equal("signup.", AuditAreas.For("event.capacity_increased")!.Token);
         Assert.Equal("signup.", AuditAreas.For("signup_cocaptain.enabled")!.Token);
         Assert.Equal("event.", AuditAreas.For("event.started")!.Token);
+        Assert.Equal("participant.", AuditAreas.For("roster.finalized_added.wom_sync")!.Token);
+        Assert.Equal("participant.", AuditAreas.For("roster.finalized_removed.wom_sync")!.Token);
+        Assert.Equal("account.", AuditAreas.For("account.discord_replaced")!.Token);
+        Assert.True(Bingo.Web.Pages.Admin.Audit.IndexModel.IsActionKey("roster.finalized_added.wom_sync"));
+        Assert.False(Bingo.Web.Pages.Admin.Audit.IndexModel.IsActionKey("a.b.c.d"));
+        Assert.False(Bingo.Web.Pages.Admin.Audit.IndexModel.IsActionKey("a..b"));
     }
 
     private static string FindRepositoryRoot()

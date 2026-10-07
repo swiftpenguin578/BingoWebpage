@@ -434,6 +434,10 @@ public sealed class AuditHistoryIntegrationTests(PostgreSqlTestFixture databaseF
         var junk = WebUtility.HtmlDecode(await client.GetStringAsync("/Admin/Audit?action=account.binding_fixture&page=abc"));
         Assert.Contains(notice, junk, StringComparison.Ordinal);
         Assert.Equal(Rows(first), Rows(junk));
+        // T1 review M1: a composed two-dot key is a valid ?action= link (no dropped-filter notice).
+        var composed = WebUtility.HtmlDecode(await client.GetStringAsync("/Admin/Audit?action=roster.finalized_added.wom_sync"));
+        Assert.DoesNotContain(notice, composed, StringComparison.Ordinal);
+        Assert.Contains("Action: WOM sync after adding to a finalized roster", composed, StringComparison.Ordinal);
         var handler = WebUtility.HtmlDecode(await client.GetStringAsync("/Admin/Audit?action=account.binding_fixture&handler=x"));
         Assert.Contains(notice, handler, StringComparison.Ordinal);
     }
