@@ -61,7 +61,7 @@ public sealed class ParticipantsListReader(ApplicationDbContext db)
             var playingExtra = Math.Max(0, own.Count(x => x.EventRole == EventCharacterRole.Playing) - 1);
             var alt = own.FirstOrDefault(x => x.EventRole == EventCharacterRole.Informational)?.DisplayName;
             return new ParticipantsListRow(
-                participant.Id, primary?.Name ?? own.FirstOrDefault()?.DisplayName ?? "—", primary?.Ehb,
+                participant.Id, primary?.Name ?? own.FirstOrDefault()?.DisplayName ?? string.Empty, primary?.Ehb,
                 participant.SignupStatus, waitingPositions.TryGetValue(participant.Id, out var position) ? position : null,
                 participant.PaymentStatus == PaymentStatus.Paid, !string.IsNullOrEmpty(participant.AdminNotes),
                 participant.CaptainVolunteer, participant.CaptainVolunteer ? coCaptains.GetValueOrDefault(participant.Id) : null,
@@ -114,7 +114,8 @@ public sealed class ParticipantsListReader(ApplicationDbContext db)
         var pageCount = Math.Max(1, (int)Math.Ceiling(total / (double)query.PerPage));
         var page = Math.Clamp(query.Page, 1, pageCount);
         var pageRows = sorted.Skip((page - 1) * query.PerPage).Take(query.PerPage).ToList();
-        return new ParticipantsListView(counts, pageRows, total, page, pageCount, ParticipantRosterPolicy.For(bingoEvent, (key, _) => key).Editable);
+        var firstWaiting = rows.Where(x => x.WaitingPosition == 1).Select(x => x.Name).FirstOrDefault();
+        return new ParticipantsListView(counts, pageRows, total, page, pageCount, ParticipantRosterPolicy.For(bingoEvent, (key, _) => key).Editable, firstWaiting);
     }
 
     /// <summary>B-Participants-5: Add search by username, Discord name or saved RSN; no "Recently joined" list.</summary>
@@ -190,6 +191,20 @@ public sealed record ParticipantsListRow(
     Guid Id, string Name, decimal? Ehb, SignupStatus Status, int? WaitingPosition, bool Paid, bool HasAdminNote,
     bool Captain, string? CoCaptain, string? Team, long Sequence, DateTimeOffset SignedUpAt,
     string? Username, string? DiscordName, int ExtraPlaying, string? Alt, int ResponseVersion, IReadOnlyList<string> Accounts);
-public sealed record ParticipantsListView(ParticipantsCounts Counts, IReadOnlyList<ParticipantsListRow> Rows, int Total, int Page, int PageCount, bool Editable);
+public sealed record ParticipantsListView(ParticipantsCounts Counts, IReadOnlyList<ParticipantsListRow> Rows, int Total, int Page, int PageCount, bool Editable, string? FirstWaitingName = null)
+{
+    /// <summary>The reference pager: every page up to seven, otherwise first, current ±1, last, with gaps (0).</summary>
+    public IReadOnlyList<int> PageList()
+    {
+        if (PageCount <= 7) return Enumerable.Range(1, PageCount).ToList();
+        var pages = new List<int> { 1 };
+        var from = Math.Max(2, Page - 1); var to = Math.Min(PageCount - 1, Page + 1);
+        if (from > 2) pages.Add(0);
+        for (var value = from; value <= to; value++) pages.Add(value);
+        if (to < PageCount - 1) pages.Add(0);
+        pages.Add(PageCount);
+        return pages;
+    }
+}
 public sealed record ParticipantOwnerOption(Guid Id, string Username, string? DiscordName, IReadOnlyList<string> SavedAccounts, string? MatchedAccount, string? InEvent);
 public sealed record ParticipantOwnerAccount(Guid CharacterId, string Name, decimal? SavedEhb, bool InEvent);

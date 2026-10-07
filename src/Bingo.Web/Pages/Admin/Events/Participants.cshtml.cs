@@ -1,16 +1,12 @@
 using System.ComponentModel.DataAnnotations;
-using System.Data;
 using System.Globalization;
 using System.Text.Json;
 using Bingo.Application.Access;
-using Bingo.Application.Auditing;
-using Bingo.Application.Security;
 using Bingo.Application.Signups;
-using Bingo.Domain.Access;
 using Bingo.Domain.Events;
 using Bingo.Domain.Signups;
-using Bingo.Domain.Teams;
 using Bingo.Infrastructure.Persistence;
+using Bingo.Infrastructure.Signups;
 using Bingo.Web.Security;
 using Bingo.Web.UI;
 using Microsoft.AspNetCore.Authorization;
@@ -23,41 +19,58 @@ using Microsoft.Extensions.Localization;
 
 namespace Bingo.Web.Pages.Admin.Events;
 
+// U5 / brief 87: Participants.dc.html on the new layout. The directory is server
+// rendered and re-read in place; the drawer, Add and the row actions post JSON
+// through AdminFetch. Page state (tab, payment, search, sort, paging, drawer) lives
+// in the query (A2) and is bound with [FromQuery].
+[AdminDesign]
 [Authorize(Policy = AuthorizationPolicies.Admin)]
 public sealed class ParticipantsModel(
     ApplicationDbContext db,
     ISignupService signupService,
     IStringLocalizer<SharedResource>? text = null) : PageModel
 {
-    public EventView? Event { get; private set; }
+    public BingoEvent? Event { get; private set; }
+    public ParticipantsQuery Query { get; private set; } = ParticipantsQuery.From(null, null, null, null, null, null, null);
+    public ParticipantsListView List { get; private set; } = new(new(0, 0, 0, 0, 0, 0), [], 0, 1, 1, false);
+    public ParticipantRosterPolicy Policy { get; private set; } = new(false, false, string.Empty);
     public string EventTimezone { get; private set; } = DateTimePresentation.DefaultTimezoneId;
-    public IReadOnlyList<ParticipantRow> Participants { get; private set; } = [];
-    public IReadOnlyList<TeamOption> ParticipantTeams { get; private set; } = [];
-    public IReadOnlyList<ParticipantModel.QuestionView> ActiveSignupQuestions { get; private set; } = [];
-    public int TotalParticipantCount { get; private set; }
-    public int WithdrawnParticipantCount { get; private set; }
+    public Guid? DrawerParticipant { get; private set; }
+    public bool DrawerAdd { get; private set; }
+    public ParticipantDrawerView? DrawerView { get; private set; }
+
+    // Retained only for the retired internal-participant handlers (removed in item 1c).
+    [BindProperty] public InternalParticipantInput InternalParticipant { get; set; } = new();
     public bool WomValidationConfirmationRequired { get; private set; }
     public bool WomValidationConfirmationCancelled { get; private set; }
-    public string WomValidationConfirmationNames => string.Join(", ", InternalParticipant.AccountAnswers.Values
-        .Where(answer => !string.IsNullOrWhiteSpace(answer.CharacterName))
-        .Select(answer => answer.CharacterName!.Trim())
-        .DistinctBy(name => name.ToUpperInvariant(), StringComparer.Ordinal));
 
-    [BindProperty] public InternalParticipantInput InternalParticipant { get; set; } = new();
-    [BindProperty(SupportsGet = true)] public string? ParticipantSearch { get; set; }
-    [BindProperty(SupportsGet = true)] public string? ParticipantStatus { get; set; }
-    [BindProperty(SupportsGet = true)] public string? ParticipantPayment { get; set; }
-    [BindProperty(SupportsGet = true)] public string? ParticipantDiscord { get; set; }
-    [BindProperty(SupportsGet = true)] public bool? ParticipantCaptain { get; set; }
-    [BindProperty(SupportsGet = true)] public string? ParticipantSource { get; set; }
-    [BindProperty(SupportsGet = true)] public Guid? ParticipantTeamId { get; set; }
-    [BindProperty(SupportsGet = true)] public string? Sort { get; set; }
-    [BindProperty(SupportsGet = true)] public string? Direction { get; set; }
-    public bool AddParticipant => WomValidationConfirmationRequired || WomValidationConfirmationCancelled ||
-        Request.Query.TryGetValue("addParticipant", out var value) && (value == "1" || bool.TryParse(value, out var enabled) && enabled);
+    // Compatibility for older direct PageModel tests: the current page rows.
+    public IReadOnlyList<ParticipantsListRow> Participants => List.Rows;
 
-    public async Task<IActionResult> OnGetAsync(Guid id, CancellationToken ct)
-        => await LoadAsync(id, ct) ? Page() : NotFound();
+    public async Task<IActionResult> OnGetAsync(Guid id,
+        [FromQuery(Name = "tab")] string? tab = null, [FromQuery(Name = "pay")] string? pay = null, [FromQuery(Name = "q")] string? search = null,
+        [FromQuery(Name = "sort")] string? sort = null, [FromQuery(Name = "dir")] string? direction = null,
+        [FromQuery(Name = "page")] string? page = null, [FromQuery(Name = "per")] string? perPage = null,
+        [FromQuery(Name = "participant")] Guid? participant = null, [FromQuery(Name = "add")] string? add = null,
+        CancellationToken ct = default)
+    {
+        Query = ParticipantsQuery.From(tab, pay, search, sort, direction, page, perPage);
+        if (!await LoadAsync(id, ct)) return NotFound();
+        DrawerParticipant = participant;
+        DrawerAdd = participant is null && add == "1" && Policy.Editable;
+        if (participant is { } selected) DrawerView = await new ParticipantDrawerReader(db, Localize).ReadAsync(Event!, selected, ct);
+        return Page();
+    }
+
+    // U5-Q3: no-store current state of one participant (drawer open and lost-response re-read).
+    public async Task<IActionResult> OnGetCurrentAsync(Guid id, Guid participant, CancellationToken ct)
+    {
+        NoStore();
+        var bingoEvent = await VisibleEventAsync(id, ct);
+        if (bingoEvent is null) return NotFound();
+        var view = await new ParticipantDrawerReader(db, Localize).ReadAsync(bingoEvent, participant, ct);
+        return view is null ? NotFound() : new JsonResult(view);
+    }
 
     // B-Participants-5: Add search by username, Discord name or saved RSN.
     public async Task<IActionResult> OnGetSearchOwnerAccountsAsync(Guid id, [FromQuery] string? search, CancellationToken ct)
@@ -73,42 +86,65 @@ public sealed class ParticipantsModel(
         return new JsonResult(await new ParticipantsListReader(db).OwnerAccountsAsync(id, owner, ct));
     }
 
+    // S4: Paid/Unpaid works in every retained state (Service gate; the service checks).
+    public async Task<IActionResult> OnPostPaymentAsync(Guid id, Guid participantId, PaymentStatus payment, CancellationToken ct)
+    {
+        var result = await signupService.SetPaymentAsync(id, participantId, User.GetAccountId(), User.Identity?.Name ?? "Admin", payment, ct);
+        if (WantsJson) return Outcome(result.Succeeded, result.Error);
+        SetStatus(result.Succeeded ? Localize("Payment saved.") : result.Error ?? Localize("Payment could not be saved."), result.Succeeded ? UiMessageType.Success : UiMessageType.Error);
+        return RedirectToPage(null, null, new { id }, null);
+    }
+
+    // Withdrawing a Confirmed participant promotes the next waiter (no suppress option).
     public async Task<IActionResult> OnPostWithdrawAsync(Guid id, Guid participantId, CancellationToken ct, [FromForm] bool confirmLifecycleAction = false)
     {
         if (!confirmLifecycleAction)
         {
+            if (WantsJson) return Outcome(false, "Confirm the withdrawal before continuing.");
             SetStatus(Localize("Confirm the withdrawal before continuing."), UiMessageType.Error);
-            return FilteredRedirect(id);
+            return RedirectToPage(null, null, new { id }, null);
         }
-        var participant = await db.EventParticipants.SingleOrDefaultAsync(item => item.Id == participantId && item.EventId == id, ct);
-        if (participant is null) return NotFound();
-
+        if (!await db.EventParticipants.AnyAsync(item => item.Id == participantId && item.EventId == id, ct)) return NotFound();
         var result = await signupService.WithdrawAsync(id, participantId, User.GetAccountId(), User.Identity?.Name ?? "Admin", true, cancellationToken: ct);
+        if (WantsJson)
+        {
+            var promoted = result.PromotedParticipantIds is { Count: > 0 } ids ? await NamesAsync(id, ids, ct) : [];
+            return Outcome(result.Succeeded, result.Error, new { capacity = result.EffectiveParticipantCap, promoted });
+        }
         SetStatus(result.Succeeded ? Localize("Participant withdrawn. The waiting list was promoted where a place became available.") : result.Error ?? Localize("The participant could not be withdrawn."), result.Succeeded ? UiMessageType.Success : UiMessageType.Error);
-        return FilteredRedirect(id);
+        return RedirectToPage(null, null, new { id }, null);
     }
 
-    public async Task<IActionResult> OnPostCancelWomValidationAsync(Guid id, CancellationToken ct)
+    // F01: confirm the selected waiter; "Confirm and add a place" adds exactly one.
+    public async Task<IActionResult> OnPostConfirmAsync(Guid id, [FromForm] ParticipantActionInput input, CancellationToken ct)
     {
-        InternalParticipant.WomValidationConfirmationToken = null;
-        ModelState.Remove("InternalParticipant.WomValidationConfirmationToken");
-        TryGetTempData()?.Remove("WomValidationConfirmationToken");
-        if (!await LoadAsync(id, ct)) return NotFound();
-        InternalParticipant.WomValidationConfirmationToken = null;
-        ModelState.Remove("InternalParticipant.WomValidationConfirmationToken");
-        WomValidationConfirmationRequired = false;
-        WomValidationConfirmationCancelled = true;
-        return Page();
+        var actorId = User.GetAccountId(); if (actorId is null) return Forbid();
+        var result = await signupService.ConfirmWaitingParticipantAsync(new(id, input.ParticipantId, actorId.Value, User.Identity?.Name ?? "Admin",
+            input.AddPlace, input.EventVersion, input.ResponseVersion), ct);
+        return Outcome(result.Succeeded, result.Error, new { capacity = result.EffectiveParticipantCap, addedPlace = result.AddedPlace, changed = result.Changed });
     }
 
-    // U5-Q3: no-store current state of one participant (drawer open and lost-response re-read).
-    public async Task<IActionResult> OnGetCurrentAsync(Guid id, Guid participant, CancellationToken ct)
+    // F02: full event and another waiter; team membership ends (disclosed in the confirmation).
+    public async Task<IActionResult> OnPostMoveToWaitingAsync(Guid id, [FromForm] ParticipantActionInput input, CancellationToken ct)
     {
-        NoStore();
-        var bingoEvent = await db.Events.AsNoTracking().SingleOrDefaultAsync(item => item.Id == id && item.HiddenAt == null && item.State != EventState.Discarded, ct);
-        if (bingoEvent is null) return NotFound();
-        var view = await new ParticipantDrawerReader(db, Localize).ReadAsync(bingoEvent, participant, ct);
-        return view is null ? NotFound() : new JsonResult(view);
+        var actorId = User.GetAccountId(); if (actorId is null) return Forbid();
+        var result = await signupService.MoveConfirmedParticipantToWaitingAsync(new(id, input.ParticipantId, actorId.Value, User.Identity?.Name ?? "Admin",
+            input.EventVersion, input.ResponseVersion), ct);
+        var promoted = result.PromotedParticipantId is { } next ? await NamesAsync(id, [next], ct) : [];
+        return Outcome(result.Succeeded, result.Error, new { waitingPosition = result.WaitingPosition, promoted, changed = result.Changed });
+    }
+
+    // F03 / D3: Restore uses stored account data (no WOM); "Restore and add a place" when full.
+    public async Task<IActionResult> OnPostRestoreAsync(Guid id, [FromForm] ParticipantActionInput input, CancellationToken ct)
+    {
+        var actorId = User.GetAccountId(); if (actorId is null) return Forbid();
+        var result = await signupService.RestoreAdminParticipantAsync(new(id, input.ParticipantId, actorId.Value, User.Identity?.Name ?? "Admin",
+            input.AddPlace, input.EventVersion, input.ResponseVersion), ct);
+        return Outcome(result.Succeeded, result.Error, new
+        {
+            status = result.Status is SignupStatus.WaitingList ? "waiting" : "confirmed", waitingPosition = result.WaitingPosition,
+            capacity = result.EffectiveParticipantCap, addedPlace = result.AddedPlace, changed = result.Changed
+        });
     }
 
     // U5-Q2: the drawer's single Save. Classified Service: the signup service allows
@@ -143,6 +179,93 @@ public sealed class ParticipantsModel(
         return SaveOutcome(result);
     }
 
+    public async Task<IActionResult> OnPostCancelWomValidationAsync(Guid id, CancellationToken ct)
+    {
+        TryGetTempData()?.Remove("WomValidationConfirmationToken");
+        if (!await LoadAsync(id, ct)) return NotFound();
+        WomValidationConfirmationCancelled = true;
+        return Page();
+    }
+
+    // Retired signup-settings owner. Keep handler selection and the existing
+    // Setup gate so historical posts receive the pinned Manage redirect.
+    public IActionResult OnPostSignupAdministration(Guid id)
+        => RedirectToPage("Manage", new { id });
+
+    public async Task<IActionResult> OnPostCreateInternalParticipantAsync(Guid id, CancellationToken ct)
+    {
+        var actorId = User.GetAccountId();
+        if (actorId is null) return Forbid();
+        if (InternalParticipant.OwnerAccountId is null)
+        {
+            SetStatus(Localize("Select an active website account for this participant."), UiMessageType.Error);
+            return RedirectToPage(null, null, new { id }, null);
+        }
+        var result = await signupService.CreateAdminParticipantAsync(new AdminParticipantChangeRequest(id, null, actorId.Value, User.Identity?.Name ?? "Admin", InternalParticipant.OwnerAccountId,
+            InternalParticipant.AccountAnswers.ToDictionary(item => item.Key, item => new AdminAccountAnswer(item.Value.CharacterName, item.Value.Ehb)), InternalParticipant.Answers, null, InternalParticipant.WomValidationConfirmationToken), ct);
+        if (result.WomValidationConfirmationToken is not null)
+        {
+            if (!await LoadAsync(id, ct)) return NotFound();
+            WomValidationConfirmationRequired = true;
+            return Page();
+        }
+        SetStatus(result.Succeeded
+            ? result.Status == SignupStatus.WaitingList ? Localize("Internal participant created at waiting-list position {0}.", result.WaitingPosition?.ToString(CultureInfo.CurrentCulture) ?? string.Empty) : Localize("Internal participant created.")
+            : Localize(result.Error ?? "Internal participant could not be created."), result.Succeeded ? UiMessageType.Success : UiMessageType.Error);
+        return RedirectToPage(null, null, new { id }, null);
+    }
+
+    private async Task<bool> LoadAsync(Guid id, CancellationToken ct)
+    {
+        Event = await VisibleEventAsync(id, ct);
+        if (Event is null) return false;
+        EventTimezone = Event.Timezone;
+        Policy = ParticipantRosterPolicy.For(Event, Localize);
+        List = await new ParticipantsListReader(db).ReadAsync(Event, Query, ct);
+        return true;
+    }
+
+    private Task<BingoEvent?> VisibleEventAsync(Guid id, CancellationToken ct) =>
+        db.Events.AsNoTracking().SingleOrDefaultAsync(item => item.Id == id && item.HiddenAt == null && item.State != EventState.Discarded, ct);
+
+    private async Task<List<string>> NamesAsync(Guid eventId, IEnumerable<Guid> participantIds, CancellationToken ct)
+    {
+        var ids = participantIds.ToList();
+        var names = await db.AdminPrimaryCharacters().AsNoTracking().Where(item => item.EventId == eventId && ids.Contains(item.ParticipantId))
+            .Select(item => new { item.ParticipantId, item.Name }).ToListAsync(ct);
+        return ids.Select(value => names.FirstOrDefault(item => item.ParticipantId == value)?.Name).OfType<string>().ToList();
+    }
+
+    /// <summary>The URL of this directory with the current query, optionally changed (A2).</summary>
+    public string DirectoryUrl(string? tab = null, string? pay = null, string? search = null, string? sort = null, string? direction = null,
+        int? page = null, int? perPage = null)
+    {
+        var values = new List<string>();
+        void Add(string key, string? value, string? fallback) { if (!string.IsNullOrEmpty(value) && value != fallback) values.Add($"{key}={Uri.EscapeDataString(value)}"); }
+        Add("tab", tab ?? Query.Tab, "confirmed");
+        Add("pay", pay ?? Query.Pay, "any");
+        Add("q", search ?? Query.Search, string.Empty);
+        var activeSort = sort ?? Query.Sort;
+        Add("sort", activeSort, "default");
+        if (activeSort != "default") Add("dir", direction ?? (Query.Descending ? "desc" : "asc"), null);
+        Add("per", (perPage ?? Query.PerPage).ToString(CultureInfo.InvariantCulture), "25");
+        Add("page", (page ?? List.Page).ToString(CultureInfo.InvariantCulture), "1");
+        return $"/Admin/Events/Participants/{Event?.Id}" + (values.Count == 0 ? string.Empty : "?" + string.Join("&", values));
+    }
+
+    private bool WantsJson => Request.GetTypedHeaders().Accept?.Any(value => value.MediaType.Value == "application/json") == true;
+
+    private JsonResult Outcome(bool succeeded, string? error, object? data = null) => new(new
+    {
+        outcome = succeeded ? "done" : IsStale(error) ? "stale" : "refused",
+        message = error is null ? null : Localize(error),
+        data
+    });
+
+    private static bool IsStale(string? error) => error is not null &&
+        (error.Contains("changed while you were editing", StringComparison.OrdinalIgnoreCase) || error.Contains("changed this participant", StringComparison.OrdinalIgnoreCase) ||
+         error.Contains("version is required", StringComparison.OrdinalIgnoreCase));
+
     private JsonResult SaveOutcome(AdminParticipantDrawerSaveResult result) => new(new
     {
         outcome = result.Outcome,
@@ -155,144 +278,12 @@ public sealed class ParticipantsModel(
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
-    // Retired signup-settings owner. Keep handler selection and the existing
-    // Setup gate so historical posts receive the pinned Manage redirect.
-    public IActionResult OnPostSignupAdministration(Guid id)
-        => RedirectToPage("Manage", new { id });
-
-    public async Task<IActionResult> OnPostPaymentAsync(Guid id, Guid participantId, PaymentStatus payment, CancellationToken ct)
-    {
-        var result = await signupService.SetPaymentAsync(id, participantId, User.GetAccountId(), User.Identity?.Name ?? "Admin", payment, ct);
-        SetStatus(result.Succeeded ? Localize("Payment saved.") : result.Error ?? Localize("Payment could not be saved."), result.Succeeded ? UiMessageType.Success : UiMessageType.Error);
-        return FilteredRedirect(id);
-    }
-
-    public async Task<IActionResult> OnPostCreateInternalParticipantAsync(Guid id, CancellationToken ct)
-    {
-        var actorId = User.GetAccountId();
-        if (actorId is null) return Forbid();
-        if (InternalParticipant.OwnerAccountId is null)
-        {
-            SetStatus(Localize("Select an active website account for this participant."), UiMessageType.Error);
-            return FilteredRedirect(id);
-        }
-
-        var result = await signupService.CreateAdminParticipantAsync(new AdminParticipantChangeRequest(id, null, actorId.Value, User.Identity?.Name ?? "Admin", InternalParticipant.OwnerAccountId,
-            InternalParticipant.AccountAnswers.ToDictionary(item => item.Key, item => new AdminAccountAnswer(item.Value.CharacterName, item.Value.Ehb)), InternalParticipant.Answers, null, InternalParticipant.WomValidationConfirmationToken), ct);
-        if (result.WomValidationConfirmationToken is { } confirmationToken)
-        {
-            if (!await LoadAsync(id, ct)) return NotFound();
-            InternalParticipant.WomValidationConfirmationToken = confirmationToken;
-            ModelState.Remove("InternalParticipant.WomValidationConfirmationToken");
-            WomValidationConfirmationRequired = true;
-            return Page();
-        }
-        SetStatus(result.Succeeded
-            ? result.Status == SignupStatus.WaitingList ? Localize("Internal participant created at waiting-list position {0}.", result.WaitingPosition?.ToString(CultureInfo.CurrentCulture) ?? string.Empty) : Localize("Internal participant created.")
-            : Localize(result.Error ?? "Internal participant could not be created."), result.Succeeded ? UiMessageType.Success : UiMessageType.Error);
-        return FilteredRedirect(id);
-    }
-
-    private async Task<bool> LoadAsync(Guid id, CancellationToken ct)
-    {
-        var bingoEvent = await db.Events.AsNoTracking().SingleOrDefaultAsync(item => item.Id == id && item.HiddenAt == null && item.State != EventState.Discarded, ct);
-        if (bingoEvent is null) return false;
-        EventTimezone = bingoEvent.Timezone;
-
-        // G3b-3 / TD-2 B: manual-team members are listed and counted like everyone else.
-        var allParticipants = await db.EventParticipants.AsNoTracking()
-            .Where(item => item.EventId == id)
-            .OrderBy(item => item.SignedUpAt).ThenBy(item => item.SignupSequence).ToListAsync(ct);
-        var capacityConfirmedCount = await db.EventParticipants.AsNoTracking()
-            .CountAsync(item => item.EventId == id && item.SignupStatus == SignupStatus.Confirmed, ct);
-        var capacityWaitingCount = await db.EventParticipants.AsNoTracking()
-            .CountAsync(item => item.EventId == id && item.SignupStatus == SignupStatus.WaitingList, ct);
-        if (TryGetTempData()?.Peek("WomValidationConfirmationToken") is string pendingValidation)
-            InternalParticipant.WomValidationConfirmationToken = pendingValidation;
-        ActiveSignupQuestions = await db.SignupQuestions.AsNoTracking().Where(item => item.EventId == id && item.Active).OrderBy(item => item.Position)
-            .Select(item => new ParticipantModel.QuestionView(item.Id, item.Label, item.Type, item.Required, true, item.AccountAnswerRole, item.SystemField, item.Options == null ? Array.Empty<string>() : item.Options.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries), null)).ToListAsync(ct);
-        TotalParticipantCount = allParticipants.Count;
-        WithdrawnParticipantCount = allParticipants.Count(item => item.SignupStatus == SignupStatus.Withdrawn);
-
-        var participants = allParticipants.AsEnumerable();
-        if (!string.IsNullOrWhiteSpace(ParticipantSearch))
-        {
-            var search = ParticipantSearch.Trim().ToUpperInvariant();
-            var matchingIds = await db.AdminPrimaryCharacters().AsNoTracking().Where(item => item.EventId == id && item.NormalizedName.Contains(search)).Select(item => item.ParticipantId).ToListAsync(ct);
-            participants = participants.Where(item => matchingIds.Contains(item.Id));
-        }
-        if (Enum.TryParse<SignupStatus>(ParticipantStatus, true, out var status)) participants = participants.Where(item => item.SignupStatus == status);
-        if (ParticipantPayment == "paid") participants = participants.Where(item => item.PaymentReceived);
-        if (ParticipantPayment == "unpaid") participants = participants.Where(item => !item.PaymentReceived);
-        if (ParticipantCaptain is not null) participants = participants.Where(item => item.CaptainVolunteer == ParticipantCaptain);
-        if (Enum.TryParse<SignupSource>(ParticipantSource, true, out var source)) participants = participants.Where(item => item.Source == source);
-
-        var participantIds = allParticipants.Select(item => item.Id).ToList();
-        var memberships = await db.TeamMemberships.AsNoTracking().Where(item => item.LeftAt == null && participantIds.Contains(item.EventParticipantId)).ToListAsync(ct);
-        if (ParticipantTeamId is { } selectedTeam) participants = participants.Where(item => memberships.Any(membership => membership.EventParticipantId == item.Id && membership.TeamId == selectedTeam));
-        var ownerIds = allParticipants.Where(item => item.AccountId != null).Select(item => item.AccountId!.Value).Distinct().ToList();
-        var owners = await db.Accounts.AsNoTracking().Where(item => ownerIds.Contains(item.Id)).ToDictionaryAsync(item => item.Id, ct);
-        if (ParticipantDiscord == "linked") participants = participants.Where(item => item.AccountId is { } owner && owners.TryGetValue(owner, out var account) && account.DiscordUserId != null);
-        if (ParticipantDiscord == "unlinked") participants = participants.Where(item => item.AccountId is null || !owners.TryGetValue(item.AccountId.Value, out var account) || account.DiscordUserId == null);
-
-        var authorities = await db.AdminPrimaryCharacters().AsNoTracking().Where(item => item.EventId == id).ToDictionaryAsync(item => item.ParticipantId, ct);
-        var waiting = allParticipants
-            .Where(item => item.SignupStatus == SignupStatus.WaitingList)
-            .OrderBy(item => item.WaitingListedAt ?? item.SignedUpAt)
-            .ThenBy(item => item.SignupSequence)
-            .ThenBy(item => item.Id)
-            .Select((item, index) => (item.Id, Position: index + 1))
-            .ToDictionary(item => item.Id, item => item.Position);
-        var coCaptainQuestion = ActiveSignupQuestions.FirstOrDefault(question => question.SystemField == SignupSystemField.CoCaptainName);
-        var coCaptainAnswers = coCaptainQuestion is null
-            ? new Dictionary<Guid, string>()
-            : await db.SignupAnswers.AsNoTracking()
-                .Where(answer => participantIds.Contains(answer.EventParticipantId) && answer.SignupQuestionId == coCaptainQuestion.Id && answer.OsrsCharacterId == null)
-                .ToDictionaryAsync(answer => answer.EventParticipantId, answer => answer.Value, ct);
-        var teams = await db.Teams.AsNoTracking().Where(item => item.EventId == id).OrderBy(item => item.Name).ToListAsync(ct);
-        ParticipantTeams = teams.Select(item => new TeamOption(item.Id, item.Name)).ToList();
-        var teamNames = teams.ToDictionary(item => item.Id, item => item.Name);
-        var rows = participants.Select(item => new ParticipantRow(item.Id, item.SignupSequence,
-            authorities.TryGetValue(item.Id, out var primary) ? primary.Name : "External roster member",
-            authorities.TryGetValue(item.Id, out primary) ? primary.Ehb : 0m,
-            item.SignupStatus, item.PaymentStatus, item.SignedUpAt, item.CaptainVolunteer,
-            coCaptainAnswers.GetValueOrDefault(item.Id),
-            waiting.TryGetValue(item.Id, out var position) ? position : null, item.Source,
-            item.AccountId is { } owner && owners.TryGetValue(owner, out var account) && account.Active && account.AccountType == AccountType.WebsiteAccount ? account.LoginName : null,
-            item.AccountId is { } linkedOwner && owners.TryGetValue(linkedOwner, out var discordAccount) && discordAccount.DiscordUserId is not null,
-            memberships.Where(membership => membership.EventParticipantId == item.Id).Select(membership => teamNames.GetValueOrDefault(membership.TeamId)).FirstOrDefault())).ToList();
-
-        var activeSort = string.IsNullOrWhiteSpace(Sort) ? "ownership" : Sort.ToLowerInvariant();
-        var descending = !string.Equals(Direction, "asc", StringComparison.OrdinalIgnoreCase);
-        Participants = (activeSort switch
-        {
-            "sequence" => descending ? rows.OrderByDescending(item => item.Sequence) : rows.OrderBy(item => item.Sequence),
-            "participant" => descending ? rows.OrderByDescending(item => item.Name).ThenBy(item => item.Sequence) : rows.OrderBy(item => item.Name).ThenBy(item => item.Sequence),
-            "ehb" => descending ? rows.OrderByDescending(item => item.Ehb).ThenBy(item => item.Sequence) : rows.OrderBy(item => item.Ehb).ThenBy(item => item.Sequence),
-            "status" => descending ? rows.OrderByDescending(item => item.Status).ThenBy(item => item.Sequence) : rows.OrderBy(item => item.Status).ThenBy(item => item.Sequence),
-            "payment" => descending ? rows.OrderByDescending(item => item.Payment).ThenBy(item => item.Sequence) : rows.OrderBy(item => item.Payment).ThenBy(item => item.Sequence),
-            "signedup" => descending ? rows.OrderByDescending(item => item.SignedUpAt).ThenBy(item => item.Sequence) : rows.OrderBy(item => item.SignedUpAt).ThenBy(item => item.Sequence),
-            "captain" => descending ? rows.OrderByDescending(item => item.CaptainVolunteer).ThenBy(item => item.Sequence) : rows.OrderBy(item => item.CaptainVolunteer).ThenBy(item => item.Sequence),
-            "ownership" => descending ? rows.OrderByDescending(item => item.TeamName ?? string.Empty).ThenBy(item => item.Sequence) : rows.OrderBy(item => item.TeamName ?? string.Empty).ThenBy(item => item.Sequence),
-            _ => rows.OrderBy(item => item.Sequence)
-        }).ToList();
-
-        Event = new EventView(bingoEvent.Id, bingoEvent.Name, bingoEvent.State, bingoEvent.DraftLocked, bingoEvent.ParticipantCap ?? 0,
-            capacityConfirmedCount, capacityWaitingCount, true, bingoEvent.Version,
-            bingoEvent.RequireSignupCode, bingoEvent.SignupCodeHash is not null,
-            !bingoEvent.DraftLocked && bingoEvent.State is (EventState.Draft or EventState.SignupOpen or EventState.SignupClosed));
-        return true;
-    }
-
     private ITempDataDictionary? TryGetTempData()
     {
         var httpContext = PageContext?.HttpContext;
         if (httpContext?.RequestServices is not { } services) return null;
         return services.GetService<ITempDataDictionaryFactory>()?.GetTempData(httpContext);
     }
-
-    private RedirectToPageResult FilteredRedirect(Guid id)
-        => RedirectToPage(null, null, new { id, ParticipantSearch, ParticipantStatus, ParticipantPayment, ParticipantDiscord, ParticipantCaptain, ParticipantSource, ParticipantTeamId, Sort, Direction }, "players");
 
     private string Localize(string key, params object[] arguments) => text?[key, arguments].Value ?? string.Format(CultureInfo.CurrentCulture, key, arguments);
     private void SetStatus(string message, UiMessageType type)
@@ -301,10 +292,13 @@ public sealed class ParticipantsModel(
         TempData[UiMessage.TypeKey] = type.ToString();
     }
 
-    public sealed record EventView(Guid Id, string Name, EventState State, bool DraftLocked, int ParticipantCap, int Confirmed, int Waiting, bool WaitingListEnabled, long Version, bool RequireSignupCode, bool HasSignupCode, bool CanEditParticipant);
-    public sealed record ParticipantRow(Guid Id, long Sequence, string Name, decimal Ehb, SignupStatus Status, PaymentStatus Payment, DateTimeOffset SignedUpAt, bool CaptainVolunteer, string? CoCaptainName, int? WaitingPosition, SignupSource Source, string? WebsiteUsername, bool DiscordLinked, string? TeamName);
-    public sealed record TeamOption(Guid Id, string Name);
-    public sealed record OwnerAccountOption(Guid Id, string Username);
+    public sealed class ParticipantActionInput
+    {
+        public Guid ParticipantId { get; set; }
+        public long? EventVersion { get; set; }
+        public int? ResponseVersion { get; set; }
+        public bool AddPlace { get; set; }
+    }
     public sealed class ParticipantSaveInput
     {
         public Guid ParticipantId { get; set; }
@@ -324,5 +318,4 @@ public sealed class ParticipantsModel(
         public Dictionary<Guid, string> Answers { get; set; } = [];
         public string? WomValidationConfirmationToken { get; set; }
     }
-
 }

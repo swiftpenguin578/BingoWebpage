@@ -865,13 +865,14 @@ public sealed class C11FinalizedRosterIntegrationTests(PostgreSqlTestFixture dat
             await db.SaveChangesAsync();
         }
         await using var factory = Factory(); using var admin = await LoginAsync(factory, "c11-admin");
-        var search = await admin.GetStringAsync($"/Admin/Events/Participants/{seed.EventId}?ParticipantStatus=Confirmed&ParticipantSearch=Current%20renamed%20player");
-        Assert.Contains($"participant-row-{seed.DepartedId}", search); Assert.Contains(ParticipantPath(seed, seed.DepartedId), search); Assert.Contains("Current renamed player", search);
-        var nonmatching = await admin.GetStringAsync($"/Admin/Events/Participants/{seed.EventId}?ParticipantStatus=Confirmed&ParticipantSearch=Departed%20C");
-        Assert.DoesNotContain($"participant-row-{seed.DepartedId}", nonmatching);
+        // U5 (A10): tab/q query names and the query-backed drawer link replace the retired filters and detail link.
+        var search = await admin.GetStringAsync($"/Admin/Events/Participants/{seed.EventId}?tab=confirmed&q=Current%20renamed%20player");
+        Assert.Contains($"data-participant-row=\"{seed.DepartedId}\"", search); Assert.Contains($"participant={seed.DepartedId}", search); Assert.Contains("Current renamed player", search);
+        var nonmatching = await admin.GetStringAsync($"/Admin/Events/Participants/{seed.EventId}?tab=confirmed&q=Departed%20C");
+        Assert.DoesNotContain($"data-participant-row=\"{seed.DepartedId}\"", nonmatching);
         Assert.Contains("Current renamed player", await admin.GetStringAsync(ParticipantPath(seed, seed.DepartedId)));
-        var withdrawnSearch = await admin.GetStringAsync($"/Admin/Events/Participants/{seed.EventId}?ParticipantStatus=Withdrawn&ParticipantSearch=First%20waiting");
-        Assert.Contains(ParticipantPath(seed, seed.OtherWaitingId), withdrawnSearch);
+        var withdrawnSearch = await admin.GetStringAsync($"/Admin/Events/Participants/{seed.EventId}?tab=withdrawn&q=First%20waiting");
+        Assert.Contains($"participant={seed.OtherWaitingId}", withdrawnSearch);
         Assert.Contains("First waiting", await admin.GetStringAsync(ParticipantPath(seed, seed.OtherWaitingId)));
         var draft = await admin.GetStringAsync($"/Admin/Events/Draft/{seed.EventId}");
         var finalizedRoster = Regex.Match(draft, "<ol class=\"finalized-roster-list\">(?<roster>[\\s\\S]*?)</ol>").Groups["roster"].Value;
