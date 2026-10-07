@@ -171,6 +171,7 @@ export async function init(region, ui = window.AdminUI) {
       if (!dialog || dialog.d !== d) return;
       if (result.kind === 'session-lost') { d.status = 'idle'; paint(); return; }
       if (result.kind === 'refused') { d.error = result.reason || t('Couldn’t complete this. Nothing changed, and your entries are still here.'); const fresh = await read(); if (fresh.ok) state = fresh.data; d.status = 'gone'; paint(); cancel.focus(); return; }
+      if (result.kind === 'unknown' && result.status === 404) { d.status = 'gone'; d.error = ''; paint(); cancel.focus(); return; }
       if (result.kind !== 'handler' || typeof result.data?.succeeded !== 'boolean') { d.status = 'uncertain'; paint(); confirm.focus(); return; }
       const outcome = result.data;
       if (outcome.succeeded) return finish(outcome.message || m.success.replace('{0}', ''), outcome.location);
@@ -199,6 +200,7 @@ export async function init(region, ui = window.AdminUI) {
       if (!dialog || dialog.d !== d) return;
       const m = d.model;
       if (fresh.gone && m.doneGone) return finish(m.success, '/Admin/Events/Index');
+      if (fresh.gone) { d.status = 'gone'; d.error = ''; paint(); cancel.focus(); return; }
       if (!fresh.ok) { d.status = 'uncertain'; paint(); confirm.focus(); return; }
       state = fresh.data;
       const reopenedMs = fresh.data.reopenedUntil ? Date.parse(fresh.data.reopenedUntil) : null;
