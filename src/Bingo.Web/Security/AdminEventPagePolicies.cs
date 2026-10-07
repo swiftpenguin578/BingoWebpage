@@ -169,6 +169,7 @@ public static class AdminEventPagePolicies
                 ("POST:Archive", AdminEventHandlerGate.Service)),
             [typeof(WiseOldManModel)] = Page(AdminEventPageKind.WiseOldMan, true, true,
                 ("GET:", AdminEventHandlerGate.Read),
+                ("GET:Current", AdminEventHandlerGate.Read),
                 ("POST:Competition", AdminEventHandlerGate.WomSetup),
                 ("POST:DisconnectCompetition", AdminEventHandlerGate.WomSetup),
                 ("POST:CreateManagedCompetition", AdminEventHandlerGate.WomSetup),

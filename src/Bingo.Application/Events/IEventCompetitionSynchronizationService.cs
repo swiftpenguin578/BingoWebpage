@@ -17,7 +17,7 @@ public enum EventCompetitionRefreshSkipReason
     // Explicit values preserve the numeric form written by early local AU18 versions.
     EventUnavailable = 0, EventNotInFinalReview = 1, IncompleteEventWindow = 2, NoCompetition = 3,
     RefreshInProgress = 4, RetryDelay = 5, NotDue = 6, ServiceUnavailable = 7,
-    EndWindowUnmatched = 8, EndCouldNotBeUpdated = 9
+    EndWindowUnmatched = 8, EndCouldNotBeUpdated = 9, WithinHour = 10
 }
 
 public sealed record EventCompetitionView(
@@ -45,9 +45,11 @@ public sealed record EventCompetitionView(
     EventCompetitionEndUpdateStatus EndUpdateStatus = EventCompetitionEndUpdateStatus.NotRequired,
     DateTimeOffset? EndUpdateTargetAt = null,
     DateTimeOffset? EndUpdateRequestedAt = null,
-    string? EndUpdateErrorCode = null)
+    string? EndUpdateErrorCode = null,
+    bool CanLink = false, bool CanDisconnect = false)
 {
     public bool Configured => CompetitionId is not null;
+    public bool RefreshInProgress => RefreshSkipReason == EventCompetitionRefreshSkipReason.RefreshInProgress;
     public bool CanRefresh => Configured && RefreshSkipReason is null;
 }
 

@@ -3920,4 +3920,16 @@
   <data name="The replacement lifecycle window overlaps {0}." xml:space="preserve"><value>Det nye livscyklusvindue overlapper {0}.</value></data>
   <!-- U9 Final Review and WOM: contiguous additions. -->
   <data name="This final-review form is stale or incomplete. Reload before reopening it." xml:space="preserve"><value>Denne formular til slutgennemgang er forældet eller ufuldstændig. Genindlæs, før du genåbner resultaterne.</value></data>
+  <data name="The last successful fetch was less than an hour ago." xml:space="preserve"><value>Den seneste vellykkede hentning var for mindre end en time siden.</value></data>
+  <data name="An automatic retry is pending." xml:space="preserve"><value>Et automatisk nyt forsøg afventer.</value></data>
+  <data name="The next fetch slot is not due yet." xml:space="preserve"><value>Tidspunktet for næste hentning er ikke nået endnu.</value></data>
+  <data name="A fetch is already running. Its lease expires at the next eligible time." xml:space="preserve"><value>En hentning er allerede i gang. Dens reservation udløber ved næste tilladte tidspunkt.</value></data>
+  <data name="Fetching is unavailable in this event state." xml:space="preserve"><value>Hentning er ikke tilgængelig i eventets nuværende fase.</value></data>
+  <data name="Link a competition before fetching data." xml:space="preserve"><value>Tilknyt en konkurrence, før du henter data.</value></data>
+  <data name="The event start and end must be recorded before fetching data." xml:space="preserve"><value>Eventets start og afslutning skal være registreret, før der kan hentes data.</value></data>
+  <data name="The Wise Old Man fetch service is unavailable." xml:space="preserve"><value>Hentetjenesten til Wise Old Man er ikke tilgængelig.</value></data>
+  <data name="Fetches are paused until the WOM end matches the event end exactly." xml:space="preserve"><value>Hentninger er sat på pause, indtil WOM-sluttidspunktet er identisk med eventets sluttidspunkt.</value></data>
+  <data name="The WOM end could not be updated. The last fetch before the end is retained." xml:space="preserve"><value>WOM-sluttidspunktet kunne ikke opdateres. Den sidste hentning før afslutningen bevares.</value></data>
+  <data name="The event is not in final review." xml:space="preserve"><value>Eventet er ikke i slutgennemgang.</value></data>
+  <data name="WOM data was not fetched. Check the current connection before trying again." xml:space="preserve"><value>WOM-data blev ikke hentet. Kontrollér den aktuelle forbindelse, før du prøver igen.</value></data>
 </root>
