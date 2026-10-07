@@ -250,6 +250,12 @@ public sealed class UiReviewScenarioIntegrationTests(ITestOutputHelper output, P
         Assert.Equal(ReviewActionType.Approve, importActions[1].Action);
         Assert.Equal(reconstructed.ReviewedAt, importActions[1].PerformedAt);
         var importedBoard = await db.Boards.SingleAsync(value => value.EventId == importedEvent.Id);
+        var importTiles = await db.BoardTiles.Where(value => value.BoardId == importedBoard.Id).ToListAsync();
+        Assert.Equal(4, importTiles.Count);
+        Assert.All(importTiles, value => Assert.Equal(HistoricalEventImporter.Disclosure, value.EvidenceInstructionsSnapshot));
+        var importedTileTemplates = await db.TileTemplates.Where(value => importTiles.Select(tile => tile.TileTemplateId).Contains(value.Id)).ToListAsync();
+        Assert.Equal(4, importedTileTemplates.Count);
+        Assert.All(importedTileTemplates, value => Assert.Equal(HistoricalEventImporter.Disclosure, value.EvidenceInstructions));
         var importRequirements = await db.BoardRequirementSnapshots.Where(value => db.BoardTiles.Any(tile => tile.Id == value.BoardTileId && tile.BoardId == importedBoard.Id)).ToListAsync();
         Assert.Equal(4, importRequirements.Count); Assert.All(importRequirements, value => Assert.Equal(1, value.Position));
         var importTemplates = await db.TileTemplateRequirements.Where(value => db.BoardTiles.Any(tile => tile.TileTemplateId == value.TileTemplateId && tile.BoardId == importedBoard.Id)).ToListAsync();
@@ -259,7 +265,12 @@ public sealed class UiReviewScenarioIntegrationTests(ITestOutputHelper output, P
         var frozenRequirements = await db.BoardApprovalRequirementSnapshots.Where(value => db.BoardApprovalTileSnapshots.Any(tile => tile.Id == value.ApprovalTileSnapshotId && tile.ApprovalSnapshotId == importedBoard.ActiveApprovalSnapshotId)).ToListAsync();
         Assert.Equal(4, frozenRequirements.Count); Assert.All(frozenRequirements, value => Assert.Equal(1, value.Position));
         var importActivities = await db.EventCompetitionCharacterActivities.Where(value => value.EventId == importedEvent.Id).ToListAsync();
-        Assert.Equal(6, importActivities.Count); Assert.All(importActivities, value => Assert.Null(value.UpstreamUpdatedAt));
+        Assert.Equal(6, importActivities.Count);
+        Assert.All(importActivities, value =>
+        {
+            Assert.Equal(importedEvent.ActualEndedAt, value.UpstreamUpdatedAt);
+            Assert.Equal(importedEvent.ActualEndedAt, value.FetchedAt);
+        });
         Assert.All(importParticipants, value => { Assert.Equal(SignupSource.CsvImport, value.Source); Assert.Null(value.AccountId); });
         var importAudit = await db.AuditEntries.SingleAsync(value => value.EventId == importedEvent.Id);
         Assert.Equal("historical_import.applied", importAudit.Action); Assert.Equal("event", importAudit.TargetType);

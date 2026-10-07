@@ -287,8 +287,9 @@ public sealed class UiReviewScenarioSeeder(
         foreach (var (name, index) in TileNames.Select((name, index) => (name, index)))
         {
             var description = $"Complete the synthetic {name.ToLowerInvariant()} objective.";
-            var template = new TileTemplate(Guid.NewGuid(), name, description, ObjectiveType.Manual, "Upload an invented screenshot.", 2);
-            var tile = new BoardTile(Guid.NewGuid(), board.Id, template.Id, index / 2, index % 2, name, description, "Upload an invented screenshot.", 2);
+            var evidenceInstructions = frozenImport ? HistoricalImport.HistoricalEventImporter.Disclosure : "Upload an invented screenshot.";
+            var template = new TileTemplate(Guid.NewGuid(), name, description, ObjectiveType.Manual, evidenceInstructions, 2);
+            var tile = new BoardTile(Guid.NewGuid(), board.Id, template.Id, index / 2, index % 2, name, description, evidenceInstructions, 2);
             var requirement = new BoardRequirementSnapshot(Guid.NewGuid(), tile.Id, frozenImport ? 1 : 0, 1, true, false, description, true);
             db.TileTemplates.Add(template); db.BoardTiles.Add(tile); db.BoardRequirementSnapshots.Add(requirement);
             db.TileTemplateRequirements.Add(new TileTemplateRequirement(Guid.NewGuid(), template.Id, frozenImport ? 1 : 0, 1, true, false, description, true));
@@ -392,13 +393,13 @@ public sealed class UiReviewScenarioSeeder(
         sync.MarkHistoricalSuccess(end, end); db.EventCompetitionSynchronizations.Add(sync);
         foreach (var assignment in assignments)
             db.EventCompetitionCharacterActivities.Add(new EventCompetitionCharacterActivity(Guid.NewGuid(), item.Id, 1, 91004,
-                assignment.OsrsCharacterId, 1, end, null, fingerprint, 25, 26));
+                assignment.OsrsCharacterId, 1, end, end, fingerprint, 25, 26));
         var counters = new[] { new[] { 1, 0, 0, 0 }, new[] { 0, 0, 0, 0 } };
         var manifest = JsonSerializer.Serialize(new { @event = new { sourceEventId = item.Slug, item.Name, start, end },
             teams = teams.Select((team, index) => new { team.Slug, team.Name, counters = counters[index], placement = index + 1 }) });
         var input = JsonSerializer.Serialize(new { accounts = assignments.Select((assignment, index) => new {
             participantKey = participants[index].Id, teamSlug = teams[index / 3].Slug,
-            accounts = new[] { new { username = characters[accounts[names[index]].Id].DisplayName, startEhb = 25, endEhb = 26, gainedEhb = 1, fetchedAt = end } } }) });
+            accounts = new[] { new { username = characters[accounts[names[index]].Id].DisplayName, startEhb = 25, endEhb = 26, gainedEhb = 1, fetchedAt = end, upstreamUpdatedAt = end } } }) });
         static string Hash(string value) => Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(value)));
         var manifestHash = Hash(manifest);
         var inputHash = Hash(input);
