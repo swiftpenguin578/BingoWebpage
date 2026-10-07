@@ -896,4 +896,5 @@
   <data name="No unique exact-name item was found, so there’s no price." xml:space="preserve"><value>Der blev ikke fundet en entydig genstand med det præcise navn, så der er ingen pris.</value></data>
   <data name="The price service is limiting requests." xml:space="preserve"><value>Pristjenesten begrænser forespørgsler.</value></data>
   <data name="The price service isn’t responding." xml:space="preserve"><value>Pristjenesten svarer ikke.</value></data>
+  <data name="the Wise Old Man metric" xml:space="preserve"><value>Wise Old Man-metrikken</value></data>
 </root>
