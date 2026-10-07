@@ -1773,7 +1773,10 @@ public sealed class C11FinalizedRosterIntegrationTests(PostgreSqlTestFixture dat
     {
         await using var db = Db();
         var version = await db.TeamMemberships.Where(x => x.Id == seed.DepartedMembershipId).Select(x => x.Version).SingleAsync();
-        var result = await Service(db).WithdrawAsync(seed.EventId, seed.DepartedId, seed.AdminId, "admin", true, note, version);
+        // S5 (A10): Participants withdrawal no longer reroutes to finalized-roster removal;
+        // the fixture now calls the Teams removal it used to reach through that reroute.
+        _ = note;
+        var result = await Service(db).RemoveFinalizedRosterParticipantAsync(new(seed.EventId, seed.DepartedId, seed.AdminId, "admin", true, version));
         Assert.True(result.Succeeded, result.Error);
     }
     private async Task<LiveParticipantResult> FillAsync(Seed seed, Guid candidate)
