@@ -63,6 +63,7 @@ public sealed partial class BoardModel
                 id = tile.Id,
                 pos = tile.Position,
                 name = tile.Name,
+                desc = tile.Description,
                 ehb = tile.Ehb,
                 noEstimate = tile.Ehb <= 0,
                 needsVerification = tile.EstimateNeedsVerification,

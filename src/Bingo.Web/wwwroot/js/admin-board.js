@@ -6,8 +6,9 @@
 // Extensions (tile editor, publication flows) install onto the shared context.
 
 import { ROWS, posName, parseWhole } from './admin-board-model.js';
+import { install as installEditor } from './admin-board-editor.js';
 
-const extensions = [];
+const extensions = [installEditor];
 
 let release = () => {};
 export function dispose() { release(); release = () => {}; }
@@ -430,7 +431,7 @@ export async function init(region, ui = window.AdminUI) {
   ctx.openResize = () => {
     if (!ctx.canEdit() || ctx.blocked()) return;
     const v = ctx.view, state = { rows: v.rows, cols: v.cols, busy: false, error: '' };
-    const content = el('div');
+    const content = el('div', 'bd-layer');
     const headEl = el('div', 'mf-head'); const title = el('h2', 'm-title', t('Board size')); title.dataset.confirmTitle = ''; const desc = el('p', 'm-body', t('Rows and columns from 1 to 8. Tiles keep their positions.')); desc.dataset.confirmDescription = '';
     headEl.append(title, desc);
     const bodyEl = el('div', 'mf-body'), bannerSlot = el('div'), sizeRow = el('div', 'bd-size-row'), impact = el('div'); impact.id = 'rz-impact'; impact.setAttribute('role', 'status');
@@ -487,7 +488,7 @@ export async function init(region, ui = window.AdminUI) {
   ctx.openPreview = () => {
     const v = ctx.view;
     const eyebrow = /*labels*/{ draft: 'Preview · current draft values · nothing is approved or published', approved: 'Preview · the approved version · not published', published: 'Preview · what players see now', correction: 'Preview · your private correction · players still see the published version' }/*end*/[v.mode] || 'Preview';
-    const content = el('div', 'bd-pv-inner');
+    const content = el('div', 'bd-layer');
     const top = el('div', 'bd-pv-head'), grow = el('div', 'grow'), title = el('h2', 'm-title', v.eventName); title.dataset.confirmTitle = '';
     grow.append(el('div', 'eyebrow', t(eyebrow)), title);
     const close = button('icon-btn', null, () => void layer.close(false), 'pv-close'); close.setAttribute('aria-label', t('Close preview')); close.append(icon('close'));
