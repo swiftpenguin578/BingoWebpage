@@ -1,0 +1,18 @@
+PASS webkit-1440-light: 0 differences
+PASS webkit-1440-dark: 0 differences
+PASS webkit-390-light: 0 differences
+PASS webkit-390-dark: 0 differences
+AssertionError [ERR_ASSERTION]: loading summary reserves height but stays empty
++ actual - expected
+
++ ' live upcoming or in setup'
+- ''
+
+    at /Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/check-u2-events.cjs:55:12 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: ' live upcoming or in setup',
+  expected: '',
+  operator: 'strictEqual',
+  diff: 'simple'
+}
