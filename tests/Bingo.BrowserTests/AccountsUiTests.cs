@@ -80,7 +80,7 @@ public sealed class AccountsUiTests
         var root = FindRepositoryRoot();
         var css = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "wwwroot", "css", "admin-design-accounts.css"));
         var rules = Regex.Replace(css, @"/\*.*?\*/", string.Empty, RegexOptions.Singleline);
-        Assert.DoesNotMatch(@"#[0-9a-fA-F]{3,8}\b|rgb\(|hsl\(|font-family|box-shadow|border-radius:var", rules);
+        Assert.DoesNotMatch(@"#[0-9a-fA-F]{3,8}\b|rgb\(|hsl\(|font-family|box-shadow|border-radius:(?!var\(--dk-)", rules); // radii only from tokens
         foreach (Match selector in Regex.Matches(rules, @"([^{}]+)\{[^{}]*\}"))
         {
             var text = selector.Groups[1].Value.Trim();
