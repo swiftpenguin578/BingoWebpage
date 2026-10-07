@@ -1,0 +1,56 @@
+{
+  "merge": {
+    "head": "c4b6abd9a9decb3c0f640b957cedcdd4cbd52d2e",
+    "commit": "3cbf654ef8b87b4312cdddec8357590fecc1a028",
+    "conflicts": false
+  },
+  "fixtureCommit": "96a402b4",
+  "scopedPostgres": {
+    "passed": 8,
+    "failed": 0,
+    "skipped": 0
+  },
+  "staleReplay": {
+    "passedActionGroups": 4
+  },
+  "conformance": {
+    "registeredPages": 7,
+    "widths": [
+      390,
+      494,
+      860,
+      1280,
+      1440
+    ],
+    "chromium": 45,
+    "webkit": 45,
+    "failed": 0
+  },
+  "schedule": {
+    "chromium": 10,
+    "webkit": 10
+  },
+  "signup": {
+    "chromium": 15,
+    "webkit": 15
+  },
+  "unknownTimezone": {
+    "chromium": [
+      "en",
+      "da"
+    ],
+    "webkit": [
+      "en",
+      "da"
+    ],
+    "failed": 0
+  },
+  "shell": "PASS both engines; initial/swap/retry failures and subsequent sidebar/crumb/switcher navigation",
+  "releaseSolution": "PASS 0 warnings/errors after item1 and after item3; normal review-refresh workflow also builds Release",
+  "parityHost": "Explicitly rebuilt Release after item1 and after item3, before browser checks",
+  "fullJs": "NOT REPEATED; ea336943 historical result preserved",
+  "wholeDotNet": "NOT RUN; planner-owned",
+  "diffCheck": "PASS",
+  "sharedCssCmp": "PASS",
+  "remainingFailures": []
+}

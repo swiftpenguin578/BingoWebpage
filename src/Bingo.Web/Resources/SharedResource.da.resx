@@ -3426,4 +3426,8 @@
   <data name="Turn off" xml:space="preserve"><value>Slå fra</value></data>
   <data name="Delete" xml:space="preserve"><value>Slet</value></data>
   <data name="Players have signed up (the first on {0}), so existing answer types, choices and required settings are locked. Labels and help text can still change, custom questions can be reordered, and new questions are optional." xml:space="preserve"><value>Spillere har tilmeldt sig (den første den {0}), så eksisterende svartyper, valgmuligheder og obligatoriske indstillinger er låst. Navne og hjælpetekst kan stadig ændres, brugerdefinerede spørgsmål kan flyttes, og nye spørgsmål er valgfrie.</value></data>
+  <data name="The stored timezone ID {0} is retained. Dates on this page use an explicit UTC fallback." xml:space="preserve"><value>Det gemte tidszone-id {0} bevares. Datoer på denne side vises udtrykkeligt i UTC som alternativ.</value></data>
+  <data name="Choose a supported timezone on Identity." xml:space="preserve"><value>Vælg en understøttet tidszone på Identitet.</value></data>
+  <data name="Couldn’t initialize this page" xml:space="preserve"><value>Siden kunne ikke startes</value></data>
+  <data name="Try again, or open another page." xml:space="preserve"><value>Prøv igen, eller åbn en anden side.</value></data>
 </root>

@@ -1,0 +1,56 @@
+{
+  "results": [
+    {
+      "engine": "chromium",
+      "family": "schedule",
+      "url": "http://127.0.0.1:5310/Admin/Events/Schedule/f860cc45-512f-43fd-9505-c0ee3d6cb8ca",
+      "status": 200,
+      "fallback": "explicit UTC; retained Review/Unknown; no toast; Identity navigation passed"
+    },
+    {
+      "engine": "chromium",
+      "family": "signupsetup",
+      "url": "http://127.0.0.1:5310/Admin/Events/SignupSetup/f860cc45-512f-43fd-9505-c0ee3d6cb8ca?tab=form",
+      "status": 200,
+      "fallback": "explicit UTC; retained Review/Unknown; no toast; Identity navigation passed"
+    },
+    {
+      "engine": "chromium",
+      "family": "signupsetup-settings",
+      "url": "http://127.0.0.1:5310/Admin/Events/SignupSetup/82a9fb53-6439-4006-bef2-5586569ea405?tab=settings",
+      "status": 200
+    },
+    {
+      "engine": "chromium",
+      "family": "signupsetup-form",
+      "url": "http://127.0.0.1:5310/Admin/Events/SignupSetup/82a9fb53-6439-4006-bef2-5586569ea405?tab=form",
+      "status": 200
+    },
+    {
+      "engine": "webkit",
+      "family": "schedule",
+      "url": "http://127.0.0.1:5310/Admin/Events/Schedule/f860cc45-512f-43fd-9505-c0ee3d6cb8ca",
+      "status": 200,
+      "fallback": "explicit UTC; retained Review/Unknown; no toast; Identity navigation passed"
+    },
+    {
+      "engine": "webkit",
+      "family": "signupsetup",
+      "url": "http://127.0.0.1:5310/Admin/Events/SignupSetup/f860cc45-512f-43fd-9505-c0ee3d6cb8ca?tab=form",
+      "status": 200,
+      "fallback": "explicit UTC; retained Review/Unknown; no toast; Identity navigation passed"
+    },
+    {
+      "engine": "webkit",
+      "family": "signupsetup-settings",
+      "url": "http://127.0.0.1:5310/Admin/Events/SignupSetup/82a9fb53-6439-4006-bef2-5586569ea405?tab=settings",
+      "status": 200
+    },
+    {
+      "engine": "webkit",
+      "family": "signupsetup-form",
+      "url": "http://127.0.0.1:5310/Admin/Events/SignupSetup/82a9fb53-6439-4006-bef2-5586569ea405?tab=form",
+      "status": 200
+    }
+  ]
+}

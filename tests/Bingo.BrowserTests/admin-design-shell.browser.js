@@ -16,6 +16,8 @@ export function dispose() { window.disposes=(window.disposes||0)+1;window.active
     await page.route('https://bingo.test/**', async route => {
       const url = new URL(route.request().url());
       if (url.pathname.startsWith('/js/') || url.pathname.startsWith('/css/')) return route.fulfill({ contentType: url.pathname.endsWith('.js') ? 'text/javascript' : 'text/css', body: fs.readFileSync(root + url.pathname, 'utf8') });
+      if (url.pathname === '/broken-page.mjs') return route.fulfill({contentType:'text/javascript',body:`export function init(root,ui){ui.openLayer({kind:'drawer',title:'Partial init',content:document.createElement('div'),pending:()=>true});ui.registerDraft(root,{isDirty:()=>{throw Error('Synthetic initializer failure');}});} export function dispose(){throw Error('Synthetic incomplete disposal');}`});
+      if (url.pathname.endsWith('/broken')) return route.fulfill({contentType:'text/html; charset=utf-8',body:shell('broken').replace('<head>','<head><meta charset="utf-8">').replace('/fixture-page.mjs','/broken-page.mjs').replace('data-admin-design ', 'data-admin-design data-page-init-error-title="Couldn’t initialize this page" data-page-init-error="Try again, or open another page." ')});
       if (url.pathname === '/fixture-page.mjs') return route.fulfill({ contentType: 'text/javascript', body: pageModule });
       if (url.pathname.endsWith('/unexpected')) return route.fulfill({ contentType: 'text/html', body: shell('unexpected').replace('<form hidden data-shell-antiforgery>', '<form hidden>') });
       if (url.pathname.endsWith('/old')) return route.fulfill({ contentType: 'text/html', body: '<title>Old layout</title><h1>Old layout</h1>' });
@@ -27,6 +29,20 @@ export function dispose() { window.disposes=(window.disposes||0)+1;window.active
     const start = async (name = 'a') => { await page.goto(`https://bingo.test/Admin/Events/Identity/${name}`); await page.waitForFunction(() => window.fixtureReady); };
     const navigate = async name => { await page.evaluate(name => window.AdminUI.navigate(`/Admin/Events/Identity/${name}`), name); await page.waitForFunction(() => window.fixtureReady); };
     const action = label => page.getByRole('alertdialog').getByRole('button', { name: label, exact: true });
+    for (const mode of ['initial','swap','retry']) {
+      if(mode==='initial') await page.goto('https://bingo.test/Admin/Events/Identity/broken');
+      else { await start();await page.evaluate(()=>{window.retainedShell=true;return AdminUI.navigate('/Admin/Events/Identity/broken');});assert.equal(await page.evaluate(()=>retainedShell),true,'init failure does not reload the document'); }
+      await page.locator('[data-page-init-failure]').waitFor();
+      assert.match(await page.locator('[data-page-init-failure]').textContent(),/Couldn’t initialize this page/);
+      assert.equal(await page.locator('[data-toast]').count(),0,'initialization failure is not a connection toast');
+      assert.equal(await page.locator('.drawer').count(),0,'partial pending layer releases navigation');
+      if(mode==='retry'){await page.locator('[data-load-retry]').click();await page.locator('[data-page-init-failure]').waitFor();}
+      const link=mode==='swap'?'#crumb-link':mode==='retry'?'#switcher-link':'#sidebar-link';
+      if(mode==='retry')await page.locator('#event-opener').click();
+      await page.locator(link).click();await page.waitForFunction(()=>document.title==='b'&&window.fixtureReady);
+      assert.equal(await page.locator('[data-page-init-failure]').count(),0);
+    }
+    console.log('PASS init exception: visible failure, no connection toast, partial draft/layer cleanup, retry and sidebar/crumb/switcher navigation recover');
     await start();
     await page.evaluate(() => {
       const link=document.querySelector('#sidebar-link');link.dataset.collapsedTitle='Overview';

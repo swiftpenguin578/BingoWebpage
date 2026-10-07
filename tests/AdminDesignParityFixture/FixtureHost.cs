@@ -109,6 +109,7 @@ internal static class FixtureHost
                 db.Add(item); ids[slug] = item.Id;
                 // U3: keep the accepted event fixtures; add only their signup definition.
                 var form = new SignupForm(Guid.NewGuid(), item.Id, Now);
+                if (slug == "unknown-timezone") form.RecordAcceptedResponse(Now.AddDays(-1));
                 db.AddRange(form,
                     new SignupQuestion(Guid.NewGuid(), form.Id, item.Id, "primary_regular_account", "Main account", SignupQuestionType.Account, true, 0, null, SignupSystemField.PrimaryRegularAccount, EventCharacterRole.Playing),
                     new SignupQuestion(Guid.NewGuid(), form.Id, item.Id, "captain_volunteer", "Would you like to be a captain?", SignupQuestionType.YesNo, true, 1, null, SignupSystemField.CaptainVolunteer),
@@ -120,6 +121,8 @@ internal static class FixtureHost
             Add("midsummer-skilling-sprint", Environment.GetEnvironmentVariable("BINGO_PARITY_NARROW_CARD") == "1" ? "Cup" : "Midsummer Skilling Sprint", EventState.Live, "Europe/Copenhagen", "Ten days of skilling tiles. No PvM, no excuses.", "Free to enter.", "2027-05-10T16:00:00Z", "2027-05-25T18:00:00Z", "2027-05-26T17:00:00Z", "2027-05-28T16:00:00Z", "2027-06-06T20:00:00Z");
             foreach (var state in new[] { EventState.Finalized, EventState.Archived, EventState.Cancelled })
                 Add("spring-" + state.ToString().ToLowerInvariant(), "Spring Bingo 2027", state, "Europe/Copenhagen", "Seven teams, one board, a photo finish.", null, "2027-02-15T17:00:00Z", "2027-03-01T19:00:00Z", "2027-03-05T18:00:00Z", "2027-03-12T17:00:00Z", "2027-03-21T21:00:00Z");
+            if (Environment.GetEnvironmentVariable("BINGO_PARITY_UNKNOWN_TIMEZONE") == "1")
+                Add("unknown-timezone", "Unknown timezone", EventState.SignupClosed, "Review/Unknown", null, null, "2027-05-20T18:00:00Z", "2027-05-25T18:00:00Z", null, "2027-06-14T18:00:00Z", "2027-06-20T22:00:00Z");
             if (Environment.GetEnvironmentVariable("BINGO_PARITY_DOLLAR_NAME") is { } dollarName)
                 Add("dollar-name", dollarName, EventState.Draft, "UTC", null, null, null, null, null, null, null);
             for (var i = 0; i < 15; i++) Add("scroll-" + i, "Scroll fixture " + i, EventState.Draft, "UTC", null, null, null, null, null, "2027-04-01T12:00:00Z", "2027-04-02T12:00:00Z");

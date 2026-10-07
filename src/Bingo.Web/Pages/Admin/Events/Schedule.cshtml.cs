@@ -25,7 +25,9 @@ public sealed class ScheduleModel(ApplicationDbContext db, IEventSignupLifecycle
     public string EventSlug { get; private set; } = string.Empty;
     public string EventTimezone { get; private set; } = string.Empty;
     public EventState EventState { get; private set; }
-    public string EventTimezoneLabel => TryTimezone(EventTimezone, out var zone) ? $"{EventTimezone} (UTC{TimeZoneInfo.ConvertTime(time.GetUtcNow(), zone):zzz})" : EventTimezone;
+    public bool HasUnresolvableTimezone => !TryTimezone(EventTimezone, out _);
+    public string DisplayTimezone => HasUnresolvableTimezone ? "UTC" : EventTimezone;
+    public string EventTimezoneLabel => TryTimezone(EventTimezone, out var zone) ? $"{EventTimezone} (UTC{TimeZoneInfo.ConvertTime(time.GetUtcNow(), zone):zzz})" : "UTC";
     public string LocalDate(string? value) => DateTime.TryParseExact(value, "yyyy-MM-ddTHH:mm", CultureInfo.InvariantCulture, DateTimeStyles.None, out var date) ? date.ToString("d MMM yyyy, HH':'mm", CultureInfo.CurrentCulture) : Localize("Not set");
     public DateTimeOffset CurrentInstant => time.GetUtcNow();
     public string? ActualEventStarted { get; private set; }
@@ -110,6 +112,7 @@ public sealed class ScheduleModel(ApplicationDbContext db, IEventSignupLifecycle
             eventId = item.Id,
             version = item.Version.ToString(CultureInfo.InvariantCulture),
             timezone = item.Timezone,
+            displayTimezone = DisplayTimezone,
             phase = item.State.ToString(),
             draftState = CurrentDraftState?.ToString(),
             values = new
@@ -241,7 +244,7 @@ public sealed class ScheduleModel(ApplicationDbContext db, IEventSignupLifecycle
     private void Populate(BingoEvent item)
     {
         SetDisplay(item);
-        if (!TryTimezone(item.Timezone, out var timezone)) return;
+        if (!TryTimezone(item.Timezone, out var timezone)) timezone = TimeZoneInfo.Utc;
         Input = new InputModel { SignupOpensLocal = FormValue(item.SignupOpensAt, timezone), SignupClosesLocal = FormValue(item.SignupClosesAt, timezone), DraftLocal = FormValue(item.DraftAt, timezone), EventStartsLocal = FormValue(item.EventStartsAt, timezone), EventEndsLocal = FormValue(item.EventEndsAt, timezone), ScheduledSignupOpeningEnabled = item.ScheduledSignupOpeningEnabled, Version = item.Version };
     }
     private void SetDisplay(BingoEvent item)
@@ -267,7 +270,8 @@ public sealed class ScheduleModel(ApplicationDbContext db, IEventSignupLifecycle
             item.CancelledAt));
         HasPublicExposure = item.FirstPublicAt is not null;
         CurrentSnapshot = Snapshot(item);
-        if (!TryTimezone(item.Timezone, out var timezone)) return;
+        var supportedTimezone = TryTimezone(item.Timezone, out var timezone);
+        if (!supportedTimezone) timezone = TimeZoneInfo.Utc;
         ActualEventStarted = item.ActualStartedAt is null ? null : Display(item.ActualStartedAt, timezone);
         ActualEventEnded = item.ActualEndedAt is null ? null : Display(item.ActualEndedAt, timezone);
         ActualSignupOpened = item.ActualSignupOpenedAt is null ? null : Display(item.ActualSignupOpenedAt, timezone);
@@ -290,6 +294,8 @@ public sealed class ScheduleModel(ApplicationDbContext db, IEventSignupLifecycle
             ? true
             : preLiveSchedule;
         HasPublicExposure = item.FirstPublicAt is not null;
+        if (!supportedTimezone)
+            CanEditScheduledOpening = CanEditSignupClosing = CanEditDraftTime = CanEditEventStart = CanEditEventEnd = false;
         CurrentSnapshot = Snapshot(item);
     }
     public string EventDate(DateTimeOffset value)
