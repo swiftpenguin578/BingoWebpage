@@ -46,7 +46,10 @@ public sealed partial class EventQuarantineIntegrationTests
                 .RestoreAsync(hidden.Id, hidden.Version, hidden.Name, null, new(admin.Id, admin.LoginName));
             Assert.False(result.Succeeded);
             Assert.Equal(EventQuarantineOutcome.InvalidState, result.Outcome);
-            Assert.Contains("Archive it before restoring", result.Error);
+            // U4-E5: aligned with U4-Q4/Q5.
+            Assert.Equal(currentState == EventState.Finalized
+                ? $"{other.Name} is still the current event. Contact the Super Admin to archive it."
+                : $"Publish the results of {other.Name} first.", result.Error);
             Assert.Equal(0, notifier.EventsControlChanges);
         }
         Assert.Equal(before, await EventSnapshotsAsync());
@@ -157,7 +160,7 @@ public sealed partial class EventQuarantineIntegrationTests
             Assert.Equal($"/Admin/Events/Manage/{hidden.Id}", rejected.Headers.Location!.OriginalString);
         }
         var recoveryPage = await client.GetStringAsync(path);
-        Assert.Contains("Archive it before restoring this event.", recoveryPage);
+        Assert.Contains("Publish the results of Other current event first.", recoveryPage); // U4-E5 wording (the other event is in final review)
         Assert.Contains("handler=RestoreHidden", recoveryPage);
         Assert.Equal(before, await EventSnapshotsAsync());
         await using (var archiveDb = new ApplicationDbContext(options))

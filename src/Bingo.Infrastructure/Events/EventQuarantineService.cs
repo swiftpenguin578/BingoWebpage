@@ -39,9 +39,10 @@ public sealed class EventQuarantineService(ApplicationDbContext db, TimeProvider
             if (!hide && item.IsHidden && EventCurrentBoundary.IsCurrentState(item.State))
             {
                 var current = await EventCurrentBoundary.OtherCurrentEvents(db, item.Id)
-                    .OrderBy(x => x.Name).Select(x => x.Name).FirstOrDefaultAsync(ct);
+                    .OrderBy(x => x.Name).Select(x => new ReadinessSubject(x.Id, x.Name, x.State)).FirstOrDefaultAsync(ct);
+                // U4-E5: same wording as the Open/Resume refusals (U4-Q4/Q5).
                 if (current is not null)
-                    return new(false, $"{current} is already the current event. Archive it before restoring this event.")
+                    return new(false, EventLifecycleService.CurrentEventRefusal(current))
                     { Outcome = EventQuarantineOutcome.InvalidState };
             }
 
