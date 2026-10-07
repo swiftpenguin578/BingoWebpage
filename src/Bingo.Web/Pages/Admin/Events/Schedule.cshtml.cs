@@ -26,7 +26,7 @@ public sealed class ScheduleModel(ApplicationDbContext db, IEventSignupLifecycle
     public string EventTimezone { get; private set; } = string.Empty;
     public EventState EventState { get; private set; }
     public string EventTimezoneLabel => TryTimezone(EventTimezone, out var zone) ? $"{EventTimezone} (UTC{TimeZoneInfo.ConvertTime(time.GetUtcNow(), zone):zzz})" : EventTimezone;
-    public string LocalDate(string? value) => DateTime.TryParseExact(value, "yyyy-MM-ddTHH:mm", CultureInfo.InvariantCulture, DateTimeStyles.None, out var date) ? date.ToString("d MMM yyyy, HH:mm", CultureInfo.CurrentCulture) : Localize("Not set");
+    public string LocalDate(string? value) => DateTime.TryParseExact(value, "yyyy-MM-ddTHH:mm", CultureInfo.InvariantCulture, DateTimeStyles.None, out var date) ? date.ToString("d MMM yyyy, HH':'mm", CultureInfo.CurrentCulture) : Localize("Not set");
     public DateTimeOffset CurrentInstant => time.GetUtcNow();
     public string? ActualEventStarted { get; private set; }
     public string? ActualEventEnded { get; private set; }
@@ -294,7 +294,7 @@ public sealed class ScheduleModel(ApplicationDbContext db, IEventSignupLifecycle
     }
     public string EventDate(DateTimeOffset value)
     {
-        return DateTimePresentation.Format(value, "dd MMM yyyy, HH:mm", EventTimezone, CultureInfo.CurrentCulture);
+        return DateTimePresentation.Format(value, "d MMM yyyy, HH':'mm", EventTimezone, CultureInfo.CurrentCulture);
     }
     private EventScheduleValues RestoreLockedValues(BingoEvent item, EventScheduleValues values) => values with
     {
@@ -311,7 +311,7 @@ public sealed class ScheduleModel(ApplicationDbContext db, IEventSignupLifecycle
     private Task<DraftState?> DraftStateAsync(Guid eventId, CancellationToken ct) =>
         db.DraftSessions.AsNoTracking().Where(x => x.EventId == eventId).Select(x => (DraftState?)x.State).SingleOrDefaultAsync(ct);
     private static string? FormValue(DateTimeOffset? value, TimeZoneInfo timezone) => value is null ? null : DateTimePresentation.Format(value.Value, "yyyy-MM-ddTHH:mm", timezone.Id, CultureInfo.InvariantCulture);
-    private string Display(DateTimeOffset? value, TimeZoneInfo timezone) => value is null ? Localize("Not set") : DateTimePresentation.Format(value.Value, "dd MMM yyyy, HH:mm", timezone.Id, CultureInfo.CurrentCulture);
+    private string Display(DateTimeOffset? value, TimeZoneInfo timezone) => value is null ? Localize("Not set") : DateTimePresentation.Format(value.Value, "d MMM yyyy, HH':'mm", timezone.Id, CultureInfo.CurrentCulture);
     private static bool TryTimezone(string id, out TimeZoneInfo timezone) { try { timezone = TimeZoneInfo.FindSystemTimeZoneById(id); return true; } catch (TimeZoneNotFoundException) { timezone = null!; return false; } catch (InvalidTimeZoneException) { timezone = null!; return false; } }
     private List<ScheduleChangePreview> Preview(BingoEvent item, EventScheduleValues values, TimeZoneInfo timezone)
     {

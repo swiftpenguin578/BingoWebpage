@@ -1,0 +1,13 @@
+AssertionError [ERR_ASSERTION]: accounts: same numeric placeholders as tabs
+
+0 !== 2
+
+    at checkLoadingSummary (/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/lib/admin-page-conformance-checks.cjs:207:10)
+    at async /Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/check-admin-page-conformance.cjs:63:42 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: 0,
+  expected: 2,
+  operator: 'strictEqual',
+  diff: 'simple'
+}
