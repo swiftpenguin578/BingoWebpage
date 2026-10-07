@@ -61,6 +61,7 @@
                 <p class="au-muted-p">@(p.Sensitive ? D["Details are withheld because this action concerns a code, password or credential."]
                     : lifecycle == A["Added"].Value ? D["A new record was added; there were no earlier values to compare. Its recorded values are in Technical details."]
                     : lifecycle == A["Deleted"].Value ? D["The record was deleted. Its last values are in Technical details."]
+                    : p.TechnicalOnly ? D["Only technical fields changed. See Technical details."]
                     : D["No field changes were recorded for this entry."])</p>
             }
         </section>

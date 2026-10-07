@@ -11,7 +11,7 @@ public sealed record AuditFieldChange(string Field, string Before, string After)
 
 public sealed record AuditPresentation(string Action, string Actor, string Target, string? Reason,
     IReadOnlyList<AuditFieldChange> Changes, string ActionKey, string? Details, string? BeforeState, string? AfterState,
-    string? LifecycleSummary = null, string? Context = null, bool Sensitive = false);
+    string? LifecycleSummary = null, string? Context = null, bool Sensitive = false, bool TechnicalOnly = false);
 
 /// <summary>Read-only, tolerant projection shared by full Audit and recent activity.</summary>
 public static class AuditPresenter
@@ -287,7 +287,10 @@ public static class AuditPresenter
             technicalDetails,
             Technical(entry.BeforeState, text), Technical(entry.AfterState, text),
             isCreation ? text["Added"].Value : isDeletion ? text["Deleted"].Value : null,
-            sensitiveAction ? null : Context(entry, reason, isCreation || isDeletion), sensitiveAction);
+            sensitiveAction ? null : Context(entry, reason, isCreation || isDeletion), sensitiveAction,
+            // T1 review L1: values did change, but only in internal fields kept in Technical details.
+            TechnicalOnly: !sensitiveAction && !isCreation && !isDeletion && changes.Length == 0 && before.Keys.Union(after.Keys, StringComparer.OrdinalIgnoreCase)
+                .Any(key => !Sensitive(key) && IsTechnicalField(key) && before.GetValueOrDefault(key) != after.GetValueOrDefault(key)));
     }
 
     // Audit drawer "context" (reference Audit.dc.html present()): the reopening explanations, or
