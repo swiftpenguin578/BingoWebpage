@@ -39,7 +39,7 @@ Each worker has exactly one assigned role.
   exact model/reasoning the brief names, relays reports and questions, and checks
   stalled or interrupted work. Does not implement, review or grant user approval.
 - **Implementer/remediator:** changes only assigned behavior or named findings,
-  runs the applicable checks and the batch gate, commits each item and reports.
+  runs the applicable focused checks, commits each item and reports.
   Never reviews its own work and does not launch extra workers by default.
 - **Independent reviewer:** reviews the stable batch read-only against the brief and
   the findings, and rechecks its own named findings after remediation. Optional
@@ -58,7 +58,7 @@ remain evidence of completed work, not competing defaults.
 | --- | --- | --- |
 | Planner and independent reviewer | Claude planner chat selected by the user | Scope, briefs, decisions with the user, independent review of each batch, delivery reconciliation |
 | Dispatcher | Codex planner chat; `gpt-5.6-luna` / `medium` (user decision, 6 October 2026) | Starting the implementer, relaying reports and questions |
-| Implementer/remediator | Model/reasoning named in the brief (default `gpt-6-astra` / `high`) | Implementation, checks, batch gate, per-item commits, evidence |
+| Implementer/remediator | Model/reasoning named in the brief (default `gpt-6-astra` / `high`) | Implementation, focused checks, per-item commits, evidence |
 | Orchestrator | `gpt-6.1-sol` / `high`, only when a brief assigns one | Worker dispatch, waits and handoffs for that brief |
 
 - **Route:** the user sends the brief to the dispatcher → one implementer per batch
@@ -177,11 +177,14 @@ remain evidence of completed work, not competing defaults.
   Historical reference images apply only when explicitly reactivated for the current
   task. Preserve approved composition and interaction models. Manual approval is
   page-specific; deferred acceptance stays awaiting approval.
-- Use existing setup/build/test commands from `README.md`. Focused checks guide
-  implementation and small corrections within a batch. They never replace the batch
-  gate: every batch ends with the whole test suite on its final commit with zero
-  failures and zero skipped tests, plus its required build and scoped checks
-  (08-decisions.md, B5 review D14; brief 32).
+- Use existing setup/build/test commands from `README.md`. The implementer runs
+  affected .NET tests, the full JS runner, Chromium/WebKit checks, the required
+  Release build and scoped design/diff checks, then reports. Only the planner runs
+  the whole .NET suite once on the final SHA, in the background as soon as the
+  report arrives; that is the batch gate before acceptance (zero failures and zero
+  skipped tests). Failures return as remediation. The implementer does not run the
+  whole suite (08-decisions.md, Q-S1, user decision, 7 October 2026; supersedes the
+  implementer-owned whole-suite gate from B5 review D14 / brief32).
 
 ## Durable evidence and authorized checkpoints
 
