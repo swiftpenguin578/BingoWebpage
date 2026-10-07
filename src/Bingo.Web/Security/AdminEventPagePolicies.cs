@@ -97,6 +97,8 @@ public static class AdminEventPagePolicies
             [typeof(ParticipantsModel)] = Page(AdminEventPageKind.Participants, true, true,
                 ("GET:", AdminEventHandlerGate.Read),
                 ("GET:SearchOwnerAccounts", AdminEventHandlerGate.Read),
+                ("GET:Current", AdminEventHandlerGate.Read),
+                ("POST:SaveParticipant", AdminEventHandlerGate.Service),
                 ("POST:Withdraw", AdminEventHandlerGate.Setup),
                 ("POST:CancelWomValidation", AdminEventHandlerGate.Setup),
                 ("POST:SignupAdministration", AdminEventHandlerGate.Setup),

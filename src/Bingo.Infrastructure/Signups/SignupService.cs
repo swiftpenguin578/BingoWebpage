@@ -1257,6 +1257,14 @@ public sealed partial class SignupService(
             .Select(answer => answer.CharacterName!.Trim())
             .DistinctBy(NormalizeAccountName, StringComparer.Ordinal)
             .ToList();
+        // U5-Q4: new or renamed names follow the shared RSN rule; current names are not re-validated.
+        var currentNames = creating ? [] : await (from assignment in dbContext.EventParticipantCharacters.AsNoTracking()
+                                                  join character in dbContext.OsrsCharacters.AsNoTracking() on assignment.OsrsCharacterId equals character.Id
+                                                  where assignment.EventParticipantId == request.ParticipantId && assignment.ReleasedAt == null
+                                                  select character.DisplayName).ToListAsync(ct);
+        var current = currentNames.Select(NormalizeAccountName).ToHashSet(StringComparer.Ordinal);
+        if (names.Any(name => !current.Contains(NormalizeAccountName(name)) && !RsnRule.IsValid(name)))
+            return new(false, RsnRule.Message, request.ParticipantId);
         var validation = await RequiredAccountValidation.ValidateAsync(new WiseOldManAccountValidationRequest(
             request.ActorAccountId,
             creating ? "participant.create" : "participant.edit",

@@ -64,7 +64,7 @@ public sealed class ParticipantFlowIntegrationTests(PostgreSqlTestFixture databa
         {
             var service = new SignupService(db, new SecretHasher(), new FixedClock(now));
             await Assert.ThrowsAsync<InvalidOperationException>(() => service.CreateAdminParticipantAsync(new(item.Id, null, admin.Id, admin.LoginName, admin.Id,
-                new Dictionary<Guid, AdminAccountAnswer> { [question.Id] = new("Unverified Internal", 1m) }, new Dictionary<Guid, string>())));
+                new Dictionary<Guid, AdminAccountAnswer> { [question.Id] = new("Unverified", 1m) }, new Dictionary<Guid, string>())));
         }
 
         await using var verify = new ApplicationDbContext(options);
@@ -112,11 +112,11 @@ public sealed class ParticipantFlowIntegrationTests(PostgreSqlTestFixture databa
             return (response.StatusCode, WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync()));
         }
 
-        var first = await PostEditAsync("", "First Outage Edit");
+        var first = await PostEditAsync("", "First Outage");
         Assert.Equal(HttpStatusCode.OK, first.Status);
         Assert.Equal("edit-confirmation-1", HiddenValue(first.Html, "Input.WomValidationConfirmationToken"));
         Assert.Contains("Wise Old Man er ikke tilgængelig. Bekræft igen for at gemme disse ubekræftede konti, eller annullér for at lade holdlisten være uændret.", first.Html, StringComparison.Ordinal);
-        Assert.Contains("value=\"First Outage Edit\"", first.Html, StringComparison.Ordinal);
+        Assert.Contains("value=\"First Outage\"", first.Html, StringComparison.Ordinal);
         Assert.Contains("value=\"5.5\"", first.Html, StringComparison.Ordinal);
 
         // Abandoning the pending edit by reopening the route performs no write and starts with no hidden confirmation token.
@@ -124,21 +124,21 @@ public sealed class ParticipantFlowIntegrationTests(PostgreSqlTestFixture databa
         Assert.Equal(string.Empty, HiddenValue(WebUtility.HtmlDecode(cancelled), "Input.WomValidationConfirmationToken"));
         Assert.Equal("Existing Edit Account", await CurrentParticipantCharacterAsync(participant.Id));
 
-        var changed = await PostEditAsync("edit-confirmation-1", "Changed Outage Edit");
+        var changed = await PostEditAsync("edit-confirmation-1", "Changed Edit");
         Assert.Equal(HttpStatusCode.OK, changed.Status);
         Assert.Equal("edit-confirmation-2", HiddenValue(changed.Html, "Input.WomValidationConfirmationToken"));
-        Assert.Contains("value=\"Changed Outage Edit\"", changed.Html, StringComparison.Ordinal);
+        Assert.Contains("value=\"Changed Edit\"", changed.Html, StringComparison.Ordinal);
         Assert.Contains("value=\"5.5\"", changed.Html, StringComparison.Ordinal);
 
-        var accepted = await PostEditAsync("edit-confirmation-2", "Changed Outage Edit");
+        var accepted = await PostEditAsync("edit-confirmation-2", "Changed Edit");
         Assert.Equal(HttpStatusCode.Redirect, accepted.Status);
-        Assert.Equal("Changed Outage Edit", await CurrentParticipantCharacterAsync(participant.Id));
+        Assert.Equal("Changed Edit", await CurrentParticipantCharacterAsync(participant.Id));
         await using (var verify = new ApplicationDbContext(options))
             Assert.Equal((decimal?)5.5m, await verify.EventParticipantCharacters.Where(value => value.EventParticipantId == participant.Id && value.ReleasedAt == null).Select(value => value.EhbSnapshot).SingleAsync());
         Assert.Equal(3, validation.Requests.Count);
-        Assert.Equal("First Outage Edit", Assert.Single(validation.Requests[0].CharacterNames));
-        Assert.Equal("Changed Outage Edit", Assert.Single(validation.Requests[1].CharacterNames));
-        Assert.Equal("Changed Outage Edit", Assert.Single(validation.Requests[2].CharacterNames));
+        Assert.Equal("First Outage", Assert.Single(validation.Requests[0].CharacterNames));
+        Assert.Equal("Changed Edit", Assert.Single(validation.Requests[1].CharacterNames));
+        Assert.Equal("Changed Edit", Assert.Single(validation.Requests[2].CharacterNames));
         Assert.Equal("participant.edit", validation.Requests[^1].Action);
         Assert.Equal(participant.Id, validation.Requests[^1].ParticipantId);
     }

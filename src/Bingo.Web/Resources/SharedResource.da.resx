@@ -3844,4 +3844,33 @@
   <data name="That account field cannot be edited." xml:space="preserve"><value>Det kontofelt kan ikke redigeres.</value></data>
   <data name="That question cannot be edited." xml:space="preserve"><value>Det spørgsmål kan ikke redigeres.</value></data>
   <data name="This signup form changed while you were editing it. Review the latest values and try again." xml:space="preserve"><value>Denne tilmeldingsformular blev ændret, mens du redigerede den. Gennemgå de seneste værdier, og prøv igen.</value></data>
+  <data name="Use up to 12 letters, numbers, spaces, - or _." xml:space="preserve"><value>Brug op til 12 bogstaver, tal, mellemrum, - eller _.</value></data>
+  <data name="A current event, participant, and administrator are required." xml:space="preserve"><value>Et aktuelt event, en deltager og en administrator er påkrævet.</value></data>
+  <data name="Choose Paid or Unpaid." xml:space="preserve"><value>Vælg Betalt eller Ikke betalt.</value></data>
+  <data name="The current participant version is required. Reload before saving." xml:space="preserve"><value>Deltagerens aktuelle version mangler. Genindlæs, før du gemmer.</value></data>
+  <data name="The event could not be found." xml:space="preserve"><value>Eventet blev ikke fundet.</value></data>
+  <data name="Private participant metadata is unavailable in this event lifecycle state." xml:space="preserve"><value>Private deltageroplysninger er ikke tilgængelige i eventets nuværende fase.</value></data>
+  <data name="The participant could not be found." xml:space="preserve"><value>Deltageren blev ikke fundet.</value></data>
+  <data name="Accounts and signup answers are locked because the draft has started or the event has moved on. Nothing was saved." xml:space="preserve"><value>Konti og tilmeldingssvar er låst, fordi draften er startet, eller eventet er gået videre. Intet blev gemt.</value></data>
+  <data name="Restore this participant before changing accounts or answers. Nothing was saved." xml:space="preserve"><value>Gendan deltageren, før du ændrer konti eller svar. Intet blev gemt.</value></data>
+  <data name="This participant changed while you were editing. The current details are shown; nothing was saved." xml:space="preserve"><value>Deltageren blev ændret, mens du redigerede. De aktuelle oplysninger vises; intet blev gemt.</value></data>
+  <data name="One of these accounts is already used by another participant in this event. Nothing was saved." xml:space="preserve"><value>En af disse konti bruges allerede af en anden deltager i dette event. Intet blev gemt.</value></data>
+  <data name="The event has no unambiguous primary playing account field." xml:space="preserve"><value>Eventet har ikke ét entydigt felt til den primære spillekonto.</value></data>
+  <data name="Keep at least one playing account." xml:space="preserve"><value>Behold mindst én spillekonto.</value></data>
+  <data name="Choose exactly one primary account." xml:space="preserve"><value>Vælg præcis én primær konto.</value></data>
+  <data name="There are more playing accounts than this event has slots for." xml:space="preserve"><value>Der er flere spillekonti, end eventet har pladser til.</value></data>
+  <data name="There are more alt accounts than this event has slots for." xml:space="preserve"><value>Der er flere alt-konti, end eventet har pladser til.</value></data>
+  <data name="Alt accounts have no EHB and can&#x27;t be primary." xml:space="preserve"><value>Alt-konti har ingen EHB og kan ikke være primære.</value></data>
+  <data name="Enter an RSN." xml:space="preserve"><value>Angiv et RSN.</value></data>
+  <data name="This account is already listed." xml:space="preserve"><value>Denne konto er allerede på listen.</value></data>
+  <data name="Enter an EHB from 0 to 100,000." xml:space="preserve"><value>Angiv en EHB fra 0 til 100.000.</value></data>
+  <data name="Already used by another participant in this event." xml:space="preserve"><value>Bruges allerede af en anden deltager i dette event.</value></data>
+  <data name="No configured account slot is free for this account." xml:space="preserve"><value>Der er ingen ledig kontoplads til denne konto.</value></data>
+  <data name="The changes could not be read. Nothing was saved." xml:space="preserve"><value>Ændringerne kunne ikke læses. Intet blev gemt.</value></data>
+  <data name="The team draft for {0} has started." xml:space="preserve"><value>Holddraften for {0} er startet.</value></data>
+  <data name="{0} is in progress." xml:space="preserve"><value>{0} er i gang.</value></data>
+  <data name="{0} is awaiting final review." xml:space="preserve"><value>{0} afventer endelig gennemgang.</value></data>
+  <data name="{0} is finalized." xml:space="preserve"><value>{0} er afsluttet.</value></data>
+  <data name="{0} is archived." xml:space="preserve"><value>{0} er arkiveret.</value></data>
+  <data name="Roster changes aren’t allowed in this event phase." xml:space="preserve"><value>Ændringer i deltagerlisten er ikke tilladt i denne fase af eventet.</value></data>
 </root>

@@ -485,8 +485,8 @@ public sealed class Slice4ParticipantLifecycleIntegrationTests(PostgreSqlTestFix
         bingoEvent.OpenSignups(now);
         var form = new SignupForm(Guid.NewGuid(), bingoEvent.Id, now);
         var regular = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, "regular", "Regular", SignupQuestionType.Account, true, 0, null, SignupSystemField.PrimaryRegularAccount, EventCharacterRole.Playing);
-        var oldCharacter = new OsrsCharacter(Guid.NewGuid(), "Correction old", $"CORRECTION OLD {Guid.NewGuid():N}", now);
-        var newCharacter = new OsrsCharacter(Guid.NewGuid(), "Correction new", $"CORRECTION NEW {Guid.NewGuid():N}", now);
+        var oldCharacter = new OsrsCharacter(Guid.NewGuid(), "Correct old", $"CORRECTION OLD {Guid.NewGuid():N}", now);
+        var newCharacter = new OsrsCharacter(Guid.NewGuid(), "Correct new", $"CORRECTION NEW {Guid.NewGuid():N}", now);
         var participant = new EventParticipant(Guid.NewGuid(), bingoEvent.Id, SignupStatus.Confirmed, 1, now, SignupSource.Website);
         participant.AssignOwner(owner); participant.SetPaymentReceived(true); participant.SetAdminNotes("private correction note");
         db.AddRange(admin, owner, bingoEvent, form, regular, oldCharacter, newCharacter, participant,

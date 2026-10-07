@@ -140,7 +140,7 @@ public sealed partial class DraftOperationsIntegrationTests(PostgreSqlTestFixtur
             var response = await client.PostAsync($"{path}{(path.Contains('?') ? '&' : '?')}handler={handler}", Form(AntiforgeryToken(html), fields));
             Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
         }
-        var internalNames = new[] { "Internal Pre", "Internal Pick", "Internal Gone" };
+        var internalNames = new[] { "Internal Pre", "Intern Pick", "Intern Gone" };
         for (var index = 0; index < internalNames.Length; index++)
         {
             var name = internalNames[index];
@@ -178,7 +178,7 @@ public sealed partial class DraftOperationsIntegrationTests(PostgreSqlTestFixtur
         var poolSectionStart = pool.IndexOf("data-draft-participant-section", StringComparison.Ordinal);
         var poolSection = pool[poolSectionStart..pool.IndexOf("</table>", poolSectionStart, StringComparison.Ordinal)];
         Assert.Contains("Internal Pre", poolSection);
-        Assert.Contains("Internal Pick", poolSection);
+        Assert.Contains("Intern Pick", poolSection);
         Assert.DoesNotContain("Genuine external", poolSection);
         Assert.DoesNotContain("Retained Manual", poolSection);
         DraftModel? loaded = null;
