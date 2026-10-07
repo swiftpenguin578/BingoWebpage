@@ -31,7 +31,7 @@ async function nativeUntil(page,fn){for(let i=0;i<200;i++){if(fn())return;await 
    window.bad=[];window.shows=[];window.timers=[];window.pending=[];window.old=document.querySelector('[data-fixture-page]');
    const timer=setTimeout;window.setTimeout=(fn,ms,...a)=>{timers.push(ms);return timer(fn,ms,...a);};
    window.fetch=(url,options)=>new Promise((resolve,reject)=>{
-    const request={url,resolve:source=>resolve(new Response(source,{headers:{'Content-Type':'text/html'}}))};pending.push(request);
+    const request={url,resolve:(source,status=200)=>resolve(new Response(source,{status,headers:{'Content-Type':'text/html'}}))};pending.push(request);
     options?.signal?.addEventListener('abort',()=>reject(new DOMException('Aborted','AbortError')),{once:true});
    });
    const inspect=frame=>{
@@ -60,6 +60,25 @@ async function nativeUntil(page,fn){for(let i=0;i<200;i++){if(fn())return;await 
    if(at<150){await until(p,()=>done);assert.equal(await p.locator('[data-page-skeleton]').count(),0);assert.equal(await p.evaluate(()=>shows.length),0);}
    else{await until(p,()=>timers.includes(400));assert.deepEqual(await p.evaluate(()=>shows.map(x=>x.at)),[await p.evaluate(()=>performance.now())]);await p.clock.runFor(399);assert.equal(await p.evaluate(()=>done),false);await p.clock.runFor(1);await until(p,()=>done);}
    await f.check();assert.equal(await p.locator('head link[data-admin-page-style]').count(),1);passed++;await f.context.close();
+  }
+  // Round5 M1: fast HTTP failures retain previously uncached family CSS.
+  for(const [from,to]of[['dashboard','events'],['events','dashboard']]){
+   const f=await fixture(from,[href(to)]),p=f.page;
+   assert.equal(await p.locator('head link[data-admin-page-style]').evaluateAll((links,path)=>links.filter(l=>new URL(l.href).pathname===path).length,href(to)),0);
+   const started=await p.evaluate(()=>performance.now());
+   await p.evaluate(url=>{window.done=false;void AdminUI.navigate(url).then(()=>done=true);},paths[to]);
+   await until(p,()=>pending.length===1);await nativeUntil(p,()=>f.waiting.has(href(to)));
+   await p.clock.runFor(50);await f.waiting.get(href(to)).fulfill({contentType:'text/css',body:css(to)});
+   await until(p,()=>[...document.querySelectorAll('head link[data-admin-page-style]')].some(l=>l.href.endsWith('/page-'+(old.dataset.pageFamily==='dashboard'?'events':'dashboard')+'.css')&&l.sheet));
+   await p.clock.runFor(50);await p.evaluate(()=>pending[0].resolve('HTTP failure',500));await until(p,()=>done);
+   const failed=p.locator('[data-page-skeleton][aria-busy="false"]');
+   assert.equal(await failed.getAttribute('data-page-family'),to);
+   assert.equal(await failed.locator('[data-load-retry]').count(),1);
+   assert.equal(await failed.evaluate(e=>getComputedStyle(e).getPropertyValue('--fixture-family').trim()),to);
+   assert.equal(await p.locator('head link[data-admin-page-style]').evaluateAll((links,path)=>!!links.find(l=>new URL(l.href).pathname===path)?.sheet,href(to)),true);
+   assert.equal(await p.evaluate(()=>performance.now())-started,100);
+   assert.equal(await p.evaluate(()=>timers.includes(400)),false);
+   await f.check();passed++;await f.context.close();
   }
   // Cached family CSS is known before the response and uses the normal150/400.
   for(const [from,to]of[['dashboard','events'],['events','dashboard']]){

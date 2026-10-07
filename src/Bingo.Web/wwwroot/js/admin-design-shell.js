@@ -681,6 +681,7 @@
       if (ticket !== sequence) return false;
       loading?.cancel();
       if (!overlay) skeleton(url, position); // Fast failures show only the decided failure state.
+      earlyStyles?.retain(); // Failure placeholders own their family CSS too.
       restoreMain();
       const placeholder = overlay.element;
       placeholder.setAttribute('aria-busy', 'false'); overlay.main.removeAttribute('aria-busy');
