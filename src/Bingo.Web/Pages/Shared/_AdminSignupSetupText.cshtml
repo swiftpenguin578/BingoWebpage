@@ -1,5 +1,11 @@
 @using System.Text.Json
 @{ var labels = new Dictionary<string,string> {
+    ["Action"] = T["Action"].Value,
+    ["Yes"] = T["Yes"].Value,
+    ["No"] = T["No"].Value,
+    ["Move up"] = T["Move up"].Value,
+    ["Move down"] = T["Move down"].Value,
+
     ["Saving confirms the first {0} player on the waiting list, in waiting-list order. They’re told their place is confirmed."] = T["Saving confirms the first {0} player on the waiting list, in waiting-list order. They’re told their place is confirmed."].Value,
     ["{0} player stays on the waiting list."] = T["{0} player stays on the waiting list."].Value,
     ["{0} players stay on the waiting list."] = T["{0} players stay on the waiting list."].Value,

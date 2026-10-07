@@ -17,7 +17,22 @@ export async function init(region,ui=window.AdminUI){
  const notify=(key,message)=>{const e=q(`[data-card-banner="${key}"]`);e.querySelector('[data-card-banner-text]').textContent=message;e.hidden=!message;};
  const formNotice=(message,check=false)=>{q('[data-form-banner]').hidden=!message;q('[data-form-banner] .grow').textContent=message;q('[data-check-form]').hidden=!check;};
  const data=entries=>new URLSearchParams(Object.entries(entries).filter(([,v])=>v!==undefined&&v!==null).map(([k,v])=>[k,String(v)]));
- const request=(handler,body,readback=false)=>window.AdminFetch.request(url(handler),{method:body?'POST':'GET',body:body?data(body):undefined,cache:'no-store',readback,draft:{[t('Maximum confirmed players')]:cap.value,[t('Signup code')]:toggle.checked?t('Required'):t('Not required')},signal:life.signal});
+ function saveDraft(handler,body){
+  if(!body)return {};
+  if(handler==='SignupAdministration')return {[t('Maximum confirmed players')]:body['SignupAdministration.ParticipantCap']};
+  if(handler==='SignupCode')return {[t('Require a signup code')]:t(body['SignupCode.RequireSignupCode']?'Required':'Not required'),...(body['SignupCode.RequireSignupCode']?{[t('New code')]:body['SignupCode.NewSignupCode']}: {})};
+  if(handler==='EditAccount')return {[t('Question')]:body['Account.Label']};
+  if(handler==='AddAccount')return {[t('Question')]:t(body.role==='Informational'?'Alt accounts':'Playing accounts'),[t('Action')]:t(body.role==='Informational'?'Add alt account field':'Add playing account field')};
+  if(handler===''||handler==='Edit'){
+   const prefix=handler===''?'Input':'Edit',draft={[t('Question')]:body[prefix+'.Label'],[t('Help text')]:body[prefix+'.HelpText']};
+   if(Object.hasOwn(body,prefix+'.Type'))draft[t('Answer type')]=t(body[prefix+'.Type']==='YesNo'?'Yes or no':body[prefix+'.Type']==='SingleChoice'?'Single choice':body[prefix+'.Type']);
+   if(Object.hasOwn(body,prefix+'.Required'))draft[t('Required')]=t(body[prefix+'.Required']?'Yes':'No');
+   if(body[prefix+'.Type']==='SingleChoice'&&Object.hasOwn(body,prefix+'.Options'))draft[t('Choices')]=body[prefix+'.Options'];
+   return draft;
+  }
+  return {[t('Question')]:current.questions.find(x=>x.id===body.questionId)?.label||'', [t('Action')]:t(handler==='Move'?(body.up?'Move up':'Move down'):handler==='CoCaptain'?(body.enabled?'Turn on':'Turn off'):'Delete')};
+ }
+ const request=(handler,body,readback=false,draft=saveDraft(handler,body))=>window.AdminFetch.request(url(handler),{method:body?'POST':'GET',body:body?data(body):undefined,cache:'no-store',readback,draft,signal:life.signal});
  function paint(){
   q('[data-setup-lock]').hidden=current.editable;q('[data-response-note]').hidden=!current.editable||!current.hasFirstResponse;q('[data-response-text]').textContent=t('Players have signed up (the first on {0}), so existing answer types, choices and required settings are locked. Labels and help text can still change, custom questions can be reordered, and new questions are optional.',current.firstResponseDay||'');
   q('[data-confirmed]').textContent=current.settings.participantCap?t('{0} of {1}',current.confirmed,current.settings.participantCap):String(current.confirmed);q('[data-waiting]').textContent=current.waiting;
@@ -46,21 +61,21 @@ export async function init(region,ui=window.AdminUI){
   if(saved==='code'||!changed.code){toggle.checked=fresh.settings.requireSignupCode;code.value='';cards.code.base=fresh.settings.requireSignupCode;}
   renderForm();paint();
  }
- async function read(){const result=await request('Current',null,true);if(result.kind!=='handler'||!result.data?.settings||!Array.isArray(result.data.questions))return null;return result.data;}
+ async function read(draft={}){const result=await request('Current',null,true,draft);if(result.kind!=='handler'||!result.data?.settings||!Array.isArray(result.data.questions))return null;return result.data;}
  async function refusal(result){const fresh=await read();if(fresh)merge(fresh);else{current={...current,editable:false};root.dataset.current=JSON.stringify(current);renderForm();paint();}return result.reason||t('This event is read-only in its current lifecycle state.');}
  async function saveCard(k){if(pending||!current.editable)return;if(cards[k].unknown)return checkCard(k);if(!dirty(k))return;
   const input=value(k),baseline=structuredClone(current.settings);const err=k==='cap'?(!/^\d+$/.test(input)||Number(input)<Math.max(1,current.confirmed)?t('Capacity must be at least {0}.',Math.max(1,current.confirmed)):Number(input)>10000?t('Maximum players cannot exceed 10,000.'):''):(input.code.length>100?t('The code must be at most 100 characters.'):input.on&&!input.code.trim()&&!current.settings.hasSignupCode?t('Enter a signup code.'):'');
   const error=q(k==='cap'?'#cap-err':'#signup-code-error');error.replaceChildren(...(err?[icon('error'),document.createTextNode(err)]:[]));error.hidden=!err;(k==='cap'?cap:code).setAttribute('aria-invalid',String(!!err));(k==='cap'?cap:code).classList.toggle('is-invalid',!!err);if(err){(k==='cap'?cap:code).focus();return;}
-  const intent=Object.freeze({input:structuredClone(input),baseline});const body=k==='cap'?{'SignupAdministration.Version':baseline.eventVersion,'SignupAdministration.ParticipantCap':input}:{'SignupCode.Version':baseline.eventVersion,'SignupCode.RequireSignupCode':input.on,'SignupCode.NewSignupCode':input.code};
-  pending=true;pendingCard=k;cards[k].saveAgain=false;paint();notify(k,'');let result;try{result=await ui.busy(()=>request(k==='cap'?'SignupAdministration':'SignupCode',body));}finally{pending=false;pendingCard=null;}
+  const handler=k==='cap'?'SignupAdministration':'SignupCode',body=k==='cap'?{'SignupAdministration.Version':baseline.eventVersion,'SignupAdministration.ParticipantCap':input}:{'SignupCode.Version':baseline.eventVersion,'SignupCode.RequireSignupCode':input.on,'SignupCode.NewSignupCode':input.code};const intent=Object.freeze({input:structuredClone(input),baseline,draft:Object.freeze(saveDraft(handler,body))});
+  pending=true;pendingCard=k;cards[k].saveAgain=false;paint();notify(k,'');let result;try{result=await ui.busy(()=>request(handler,body,false,intent.draft));}finally{pending=false;pendingCard=null;}
   if(result.kind==='session-lost'){paint();return;}
   if(result.kind==='refused'){cards[k].unknown=null;notify(k,await refusal(result));paint();return;}
   if(result.kind!=='handler'||typeof result.data?.succeeded!=='boolean'){cards[k].unknown=intent;notify(k,t('We couldn’t confirm whether this was saved. Check before saving again.'));paint();return;}
-  const fresh=await read();if(result.data.succeeded){if(fresh){cards[k].unknown=null;merge(fresh,{saved:k});cards[k].saved=t('Saved');ui.toast(k==='cap'&&result.data.promotedParticipants?t('Capacity saved. {0} waiting-list players confirmed.',result.data.promotedParticipants):t('Saved'));}else{cards[k].unknown=intent;notify(k,t('The save was accepted, but current settings could not be read. Check again.'));}}
+  const fresh=await read(intent.draft);if(result.data.succeeded){if(fresh){cards[k].unknown=null;merge(fresh,{saved:k});cards[k].saved=t('Saved');ui.toast(k==='cap'&&result.data.promotedParticipants?t('Capacity saved. {0} waiting-list players confirmed.',result.data.promotedParticipants):t('Saved'));}else{cards[k].unknown=intent;notify(k,t('The save was accepted, but current settings could not be read. Check again.'));}}
   else{if(fresh)merge(fresh);notify(k,t(result.data.error||'Nothing was saved. Your entry is still here; review it and save again.'));}
   paint();
  }
- async function checkCard(k){if(pending)return;const intent=cards[k].unknown;if(!intent)return;pending=true;pendingCard=k;paint();const fresh=await ui.busy(read);pending=false;pendingCard=null;if(!fresh){notify(k,t('We couldn’t confirm whether this was saved. Check before saving again.'));paint();return;}
+ async function checkCard(k){if(pending)return;const intent=cards[k].unknown;if(!intent)return;pending=true;pendingCard=k;paint();const fresh=await ui.busy(()=>read(intent.draft));pending=false;pendingCard=null;if(!fresh){notify(k,t('We couldn’t confirm whether this was saved. Check before saving again.'));paint();return;}
   const matches=k==='cap'?fresh.settings.participantCap===Number(intent.input):!intent.input.on?!fresh.settings.requireSignupCode&&!fresh.settings.hasSignupCode:!intent.input.code.trim()&&fresh.settings.requireSignupCode&&fresh.settings.hasSignupCode;
   cards[k].unknown=null;cards[k].saved=matches?t('Up to date'):'';cards[k].saveAgain=k==='code'&&intent.input.on&&!!intent.input.code.trim()&&fresh.settings.requireSignupCode&&fresh.settings.hasSignupCode;merge(fresh,{saved:matches?k:null});notify(k,k==='code'&&intent.input.on&&intent.input.code.trim()&&fresh.settings.requireSignupCode&&fresh.settings.hasSignupCode?t('Protection is on and a code is stored, but we can’t tell which code. To be sure, save the code you entered again.'):matches?t('Up to date. The current values match your entry.'):t('Your entry is still here; review the current values and save again.'));paint();
  }
@@ -98,12 +113,12 @@ export async function init(region,ui=window.AdminUI){
  }
  function nextAddId(kind){const field=q('[data-add-id='+kind+']'),id=field.value;field.value=crypto.randomUUID();return id;}
  async function addAccount(kind){const id=nextAddId(kind);await mutate('AddAccount',{role:kind==='alt'?'Informational':'Playing',AddRequestId:id,ExpectedFormVersion:current.formVersion},null,{add:true,done:result=>{const added=current.questions.find(x=>x.id===result.questionId);if(added)startRename(added);}});}
- async function mutate(handler,body,matches,options={}){if(pending||uncertainForm||!current.editable)return null;const attempt={handler,body:Object.freeze({...body}),matches,options};pendingControl=document.activeElement;pending=true;paint();const result=await ui.busy(()=>request(handler,attempt.body));pending=false;return settleMutation(result,attempt);}
+ async function mutate(handler,body,matches,options={}){if(pending||uncertainForm||!current.editable)return null;const attempt={handler,body:Object.freeze({...body}),draft:Object.freeze(saveDraft(handler,body)),matches,options};pendingControl=document.activeElement;pending=true;paint();const result=await ui.busy(()=>request(handler,attempt.body));pending=false;return settleMutation(result,attempt);}
  async function settleMutation(result,attempt){
   if(result.kind==='session-lost'){paint();return null;}
   if(result.kind==='refused'){uncertainForm=null;formNotice(await refusal(result));paint();return null;}
   if(result.kind!=='handler'||typeof result.data?.succeeded!=='boolean'){uncertainForm=attempt;formNotice(t('We couldn’t confirm the change. Check the form before trying again.'),true);paint();return null;}
-  const data=result.data,fresh=await read();if(fresh)merge(fresh);
+  const data=result.data,fresh=await read(attempt.draft);if(fresh)merge(fresh);
   if(!data.succeeded){formNotice(t(data.error||'Nothing was saved. Your entry is still here; review it and save again.'));paint();return data;}
   if(!fresh){uncertainForm=attempt;formNotice(t('The change was accepted, but the form could not be read. Check form.'),true);paint();return null;}
   uncertainForm=null;formNotice(data.requiredNormalizedToOptional?t('The question was added as optional because players have already signed up. Earlier players won’t have an answer.'):'');
@@ -111,7 +126,7 @@ export async function init(region,ui=window.AdminUI){
  }
  async function checkForm(){if(pending||!uncertainForm)return;const attempt=uncertainForm;pending=true;paint();
   if(attempt.options.add){const result=await ui.busy(()=>request(attempt.handler,attempt.body,true));pending=false;await settleMutation(result,attempt);return;}
-  const fresh=await ui.busy(read);pending=false;if(!fresh){formNotice(t('We couldn’t confirm the change. Check the form before trying again.'),true);paint();return;}
+  const fresh=await ui.busy(()=>read(attempt.draft));pending=false;if(!fresh){formNotice(t('We couldn’t confirm the change. Check the form before trying again.'),true);paint();return;}
   uncertainForm=null;merge(fresh);const matched=attempt.matches?.(fresh);formNotice(matched?t('Up to date. The current values match your entry.'):t('Your entry is still here; review the current values and save again.'));if(matched)attempt.options.done?.({});paint();
  }
  on(q('[data-check-form]'),'click',()=>void checkForm());
@@ -148,11 +163,11 @@ export async function init(region,ui=window.AdminUI){
   async function complete(result,attempt){if(result.kind==='session-lost'){update();return;}
    if(result.kind==='refused'){unknown=null;note(await refusal(result));update();return;}
    if(result.kind!=='handler'||typeof result.data?.succeeded!=='boolean'){unknown=attempt;note(t('We couldn’t confirm the change. Check the form before trying again.'));update();return;}
-   const fresh=await read();if(fresh)merge(fresh);if(!result.data.succeeded){unknown=null;formVersion=current.formVersion;note(t(result.data.error||'Nothing was saved. Your entry is still here; review it and save again.'));update();return;}
+   const fresh=await read(attempt.draft);if(fresh)merge(fresh);if(!result.data.succeeded){unknown=null;formVersion=current.formVersion;note(t(result.data.error||'Nothing was saved. Your entry is still here; review it and save again.'));update();return;}
    if(!fresh){unknown=attempt;note(t('The change was accepted, but the form could not be read. Check form.'));update();return;}
    unknown=null;base=JSON.stringify(inputs());await layer.close(true);const id=result.data.questionId||question?.id;q('#edit-'+id)?.focus({preventScroll:true});if(result.data.requiredNormalizedToOptional)formNotice(t('The question was added as optional because players have already signed up. Earlier players won’t have an answer.'));ui.toast(t('Saved'));
   }
-  on(get('form'),'submit',async e=>{e.preventDefault();if(busy||!current.editable||(!add&&!unknown&&JSON.stringify(inputs())===base))return;if(unknown){const attempt=unknown;busy=true;update();if(add){const result=await ui.busy(()=>request('',attempt.body,true));busy=false;await complete(result,attempt);}else{const fresh=await ui.busy(read);busy=false;if(!fresh){note(t('We couldn’t confirm the change. Check the form before trying again.'));update();return;}merge(fresh);const saved=fresh.questions.find(x=>x.id===question.id),wanted=attempt.values;unknown=null;formVersion=fresh.formVersion;note(saved&&saved.active&&saved.label===wanted.label.trim()&&(saved.helpText||'')===wanted.help.trim()&&(!Object.hasOwn(attempt.body,'Edit.Type')||(saved.type===wanted.type&&saved.required===wanted.required&&(saved.options||'')===wanted.choices.map(x=>x.trim()).filter(Boolean).join('\n')))?t('Up to date. The current values match your entry.'):t('Your entry is still here; review the current values and save again.'));update();}return;}
+  on(get('form'),'submit',async e=>{e.preventDefault();if(busy||!current.editable||(!add&&!unknown&&JSON.stringify(inputs())===base))return;if(unknown){const attempt=unknown;busy=true;update();if(add){const result=await ui.busy(()=>request('',attempt.body,true));busy=false;await complete(result,attempt);}else{const fresh=await ui.busy(()=>read(attempt.draft));busy=false;if(!fresh){note(t('We couldn’t confirm the change. Check the form before trying again.'));update();return;}merge(fresh);const saved=fresh.questions.find(x=>x.id===question.id),wanted=attempt.values;unknown=null;formVersion=fresh.formVersion;note(saved&&saved.active&&saved.label===wanted.label.trim()&&(saved.helpText||'')===wanted.help.trim()&&(!Object.hasOwn(attempt.body,'Edit.Type')||(saved.type===wanted.type&&saved.required===wanted.required&&(saved.options||'')===wanted.choices.map(x=>x.trim()).filter(Boolean).join('\n')))?t('Up to date. The current values match your entry.'):t('Your entry is still here; review the current values and save again.'));update();}return;}
    const v=inputs(),choices=v.choices.map(x=>x.trim()).filter(Boolean);let invalid=false,firstInvalid=null;
    const duplicates=new Set(choices.filter((v,i)=>choices.findIndex(x=>x.toLowerCase()===v.toLowerCase())!==i).map(v=>v.toLowerCase()));
    const errors={label:!v.label.trim()?t('Enter the question.'):v.label.trim().length>300?t('Use {0} characters or fewer.',300):'',help:v.help.trim().length>1000?t('Use {0} characters or fewer.',(1000).toLocaleString(document.documentElement.lang)):'',choices:v.type==='SingleChoice'&&!(current.hasFirstResponse&&!add)?!choices.length?t('Add at least one choice.'):duplicates.size?t('Each choice must be different.'):choices.join('\n').length>4000?t('The choices are too long together. Shorten some of them.'):'':''};
@@ -160,7 +175,7 @@ export async function init(region,ui=window.AdminUI){
    content.querySelectorAll('.ch-row input').forEach(input=>{const invalid=duplicates.has(input.value.trim().toLowerCase());input.classList.toggle('is-invalid',invalid);input.setAttribute('aria-invalid',String(invalid));});
    if(invalid){(firstInvalid||get('.ch-row input.is-invalid')||get('.ch-row input')||get('[data-add-choice]')).focus();return;}
    const prefix=add?'Input':'Edit',body={ExpectedFormVersion:formVersion,questionId:question?.id,AddRequestId:add?requestId:undefined,[prefix+'.Label']:v.label,[prefix+'.HelpText']:v.help};if(add||!current.hasFirstResponse)Object.assign(body,{[prefix+'.Type']:v.type,[prefix+'.Required']:v.required,[prefix+'.Options']:choices.join('\n')});
-   const attempt=Object.freeze({body:Object.freeze(body),values:structuredClone(v)});busy=true;update();const result=await ui.busy(()=>request(add?'':'Edit',body));busy=false;await complete(result,attempt);
+   const attempt=Object.freeze({body:Object.freeze(body),values:structuredClone(v),draft:Object.freeze(saveDraft(add?'':'Edit',body))});busy=true;update();const result=await ui.busy(()=>request(add?'':'Edit',body));busy=false;await complete(result,attempt);
   });if(recovery){get('#q-label').value=recovery.label||'';get('#q-help').value=recovery.helpText||'';const type=get('[name=q-type][value='+recovery.type+']');if(type)type.checked=true;get('#q-required').checked=!!recovery.required;get('.ch-list').replaceChildren();(recovery.options?.split('\n')||['','']).forEach(v=>choice(v));}update();
  }
  const unregister=ui.registerDraft(root,{isDirty:()=>dirty('cap')||dirty('code')||formDirty(),isPending:()=>pending,discard:()=>{uncertainForm=null;rename=null;cards.cap.unknown=cards.code.unknown=null;cards.cap.base=current.settings.participantCap;cards.code.base=current.settings.requireSignupCode;cap.value=current.settings.participantCap??'';toggle.checked=current.settings.requireSignupCode;code.value='';paint();}});
