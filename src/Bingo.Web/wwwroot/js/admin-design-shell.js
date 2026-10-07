@@ -722,10 +722,22 @@
     signal?.addEventListener('abort', cancel, { once: true });
     const before = rememberPosition();
     let restore, shown = false, display;
+    const fillPendingRows = placeholder => {
+      placeholder.replaceChildren(pending());
+      const rows = [...placeholder.querySelectorAll('.sk-row')], last = rows.at(-1);
+      if (!last) return;
+      const height = results.getBoundingClientRect().height;
+      const gap = height - placeholder.getBoundingClientRect().height, rowHeight = last.getBoundingClientRect().height;
+      if (gap <= 0 || rowHeight <= 0) return;
+      // Fill the retained area; clip only the final partial row so its exact
+      // height (and the scroll range) stays unchanged while the read is pending.
+      placeholder.style.maxHeight = height + 'px'; placeholder.style.overflow = 'hidden';
+      for (let i = 0, count = Math.ceil(gap / rowHeight); i < count; i++) last.parentElement.append(rows[i % rows.length].cloneNode(true));
+    };
     const loading = delayedLoading(shownAt => {
       shown = true;
       if (inherited) {
-        inherited.placeholder.replaceChildren(pending());
+        fillPendingRows(inherited.placeholder);
         display = updateOverlay = { ...inherited }; restore = inherited.restore; return;
       }
       const children = [...results.children].map(element => ({ element, hidden: element.hidden }));
@@ -733,7 +745,7 @@
       results.style.minHeight = results.getBoundingClientRect().height + 'px';
       children.forEach(value => { value.element.hidden = true; });
       const placeholder = document.createElement('div'); placeholder.dataset.updateSkeleton = '';
-      placeholder.append(pending()); results.append(placeholder); results.setAttribute('aria-busy', 'true');
+      results.append(placeholder); fillPendingRows(placeholder); results.setAttribute('aria-busy', 'true');
       restore = () => {
         placeholder.remove(); children.forEach(value => { value.element.hidden = value.hidden; });
         results.style.minHeight = minimum;
