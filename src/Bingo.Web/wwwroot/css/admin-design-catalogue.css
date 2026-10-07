@@ -107,3 +107,7 @@
 /* The activity name is a real link (<a>, as on Accounts) where the reference has a <button>; top alignment keeps
    the reference's 2px gap to the category line (an inline-block link otherwise adds its baseline descender). */
 :where([data-page-family="catalogue"]) .ct-who a.name-btn{vertical-align:top}
+/* T2 early look (planner ruling): OSRS sprites have different proportions, so every thumbnail shows the whole image
+   (contain, centred, 3px inset) in the same 32px / 44px box; the track background and inset border stay (reference
+   .thumb uses cover, components.css:1328). */
+:where([data-page-family="catalogue"]) .thumb{padding:3px;background-size:contain,auto;background-position:center,center;background-origin:content-box,border-box;background-clip:content-box,border-box}

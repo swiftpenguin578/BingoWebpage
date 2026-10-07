@@ -18,7 +18,20 @@ const { startFixture, login } = require('../../scripts/lib/admin-parity-fixture.
     await context.route(url => url.pathname.startsWith('/media/osrs-wiki'), route => route.fulfill({ status: 200, contentType: 'image/svg+xml', body: '<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"/>' }));
     const page = await login(context, fixture);
     const errors = []; page.on('pageerror', error => errors.push(error.message));
-    await page.goto(fixture.origin + '/Admin/Catalogue?cat=Raid&status=gone');
+    // T2 early look: the header action is usable from the first frame, also in the loading header (as Events).
+    await page.goto(fixture.origin + '/Admin/Events');
+    await page.locator('h1.h1', { hasText: 'Events' }).waitFor();
+    let releasePage; const heldPage = new Promise(resolve => { releasePage = resolve; });
+    await page.route(url => url.pathname.toLowerCase().startsWith('/admin/catalogue') && !url.searchParams.has('handler'), async route => { await heldPage; await route.continue(); });
+    await page.locator('a.nav-item', { hasText: 'Catalogue' }).click();
+    const pendingAdd = page.locator('.page-head .head-actions a[data-catalogue-new]', { hasText: 'Add activity' });
+    await page.locator('[data-page-skeleton="catalogue"]').first().waitFor();
+    assert.equal(await pendingAdd.evaluate(node => node.matches(':disabled') || !!node.closest('[inert]') || getComputedStyle(node).pointerEvents === 'none'), false, 'loading header: Add activity is usable');
+    releasePage(); await page.unrouteAll({ behavior: 'wait' });
+    await page.locator('[data-catalogue-directory]').waitFor();
+    await page.goto(fixture.origin + '/Admin/Catalogue?cat=Raid&status=gone', { waitUntil: 'domcontentloaded' });
+    await page.locator('#add-activity').click({ trial: true, timeout: 2000 });
+    assert.equal(await page.locator('#add-activity').evaluate(node => !!node.closest('[inert]') || getComputedStyle(node).pointerEvents === 'none'), false, 'Add activity is clickable at once');
     await page.locator('[data-catalogue-directory]').waitFor();
     assert.equal(new URL(page.url()).search, '', 'invalid link parts canonicalize to the plain directory');
     assert.equal(await page.locator('h1.h1').innerText(), 'Catalogue');

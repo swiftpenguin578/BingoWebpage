@@ -3,10 +3,10 @@
     var categories = new[] { "All", "Boss", "Skilling boss", "Minigame" };
     var columns = new[] { ("Activity", "c-name"), ("Rate", "ct-num"), ("Drops", "ct-num"), ("Needs attention", ""), ("Status", "") };
 }
-@* Lane T: Catalogue page-family load states. Fresh on every visit: no remembered counts or rows.
+@* Lane T: Catalogue page-family load states. Add activity is a usable link from the first frame, as Events’ Create event (T2 early look). Fresh on every visit: no remembered counts or rows.
    Count summaries load like the tab counts: fixed words, a number-sized bar per number. *@
 <template data-page-header-template="catalogue">
-    <header class="page-head" data-page-family="catalogue"><div style="min-width:0"><h1 class="h1" tabindex="-1">@D["Catalogue"]</h1><p class="summary" aria-hidden="true">@{ var activeParts = D["{0} active activities"].Value.Split("{0}"); var dropParts = D["{0} drops"].Value.Split("{0}"); }<span>@activeParts[0]<b class="tnum ct-sk-count"><span class="sk"></span></b>@activeParts[^1]</span><span>@dropParts[0]<b class="tnum ct-sk-count"><span class="sk"></span></b>@dropParts[^1]</span><span>@D["Shared by every event’s board estimates"]</span></p></div><div class="head-actions"><button class="btn btn-primary" type="button" tabindex="-1" disabled><partial name="_AdminDesignIcon" model='new AdminDesignIcon("plus")' />@D["Add activity"]</button></div></header>
+    <header class="page-head" data-page-family="catalogue"><div style="min-width:0"><h1 class="h1" tabindex="-1">@D["Catalogue"]</h1><p class="summary" aria-hidden="true">@{ var activeParts = D["{0} active activities"].Value.Split("{0}"); var dropParts = D["{0} drops"].Value.Split("{0}"); }<span>@activeParts[0]<b class="tnum ct-sk-count"><span class="sk"></span></b>@activeParts[^1]</span><span>@dropParts[0]<b class="tnum ct-sk-count"><span class="sk"></span></b>@dropParts[^1]</span><span>@D["Shared by every event’s board estimates"]</span></p></div><div class="head-actions"><a class="btn btn-primary" href="/Admin/Catalogue?new=1" data-catalogue-new><partial name="_AdminDesignIcon" model='new AdminDesignIcon("plus")' />@D["Add activity"]</a></div></header>
 </template>
 @foreach (var failed in new[] { false, true })
 {
