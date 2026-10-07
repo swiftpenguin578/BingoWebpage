@@ -864,7 +864,8 @@ export function init(region, ui = window.AdminUI) {
     const cancel = box.button(t('Cancel'), '', () => void box.close(false));
     box.actions.append(cancel); cancel.focus();
     const outcome = await getJson(`/Admin/Catalogue?handler=DeactivationImpact&recordType=${type}&recordId=${encodeURIComponent(id)}&expectedVersion=${encodeURIComponent(version)}`);
-    if (outcome.kind === 'session-lost') { void box.close(false); return; }
+    // L1: the signed-out notice opens on top; this dialog leaves its loading state and only offers Close.
+    if (outcome.kind === 'session-lost') { box.body.replaceChildren(dialogBanner('is-warning', t('Couldn’t check what uses it.'), t('Nothing was changed. Close this and try again.'))); cancel.querySelector('[data-component-text]').textContent = t('Close'); return; }
     const data = resultOf(outcome);
     box.body.replaceChildren();
     if (data?.outcome !== 'impact') {
@@ -917,7 +918,8 @@ export function init(region, ui = window.AdminUI) {
     box.body.append(checking());
     const cancel = box.button(t('Cancel'), '', () => void box.close(false)); box.actions.append(cancel); cancel.focus();
     const outcome = await getJson(`/Admin/Catalogue?handler=DeletionImpact&recordType=${type}&recordId=${encodeURIComponent(id)}&expectedVersion=${encodeURIComponent(version)}`);
-    if (outcome.kind === 'session-lost') { void box.close(false); return; }
+    // L1: the signed-out notice opens on top; this dialog leaves its loading state and only offers Close.
+    if (outcome.kind === 'session-lost') { box.body.replaceChildren(dialogBanner('is-warning', t('Couldn’t check what uses it.'), t('Nothing was changed. Close this and try again.'))); cancel.querySelector('[data-component-text]').textContent = t('Close'); return; }
     const data = resultOf(outcome); box.body.replaceChildren();
     const closeOnly = () => { cancel.querySelector('[data-component-text]').textContent = t('Close'); };
     if (data?.outcome === 'referenced') {
