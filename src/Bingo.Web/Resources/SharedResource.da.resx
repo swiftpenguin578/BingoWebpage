@@ -3496,4 +3496,15 @@
   <data name="Move up" xml:space="preserve"><value>Flyt op</value></data>
   <data name="Move down" xml:space="preserve"><value>Flyt ned</value></data>
   <data name="SignupSetup.Confirmed" xml:space="preserve"><value>Bekræftet</value></data>
+  <data name="Publish the results of {0} first." xml:space="preserve"><value>Offentliggør resultaterne for {0} først.</value></data>
+  <data name="{0} is still the current event. Contact the Super Admin to archive it." xml:space="preserve"><value>{0} er stadig det aktuelle event. Kontakt superadministratoren for at arkivere det.</value></data>
+  <data name="This event changed while this was open." xml:space="preserve"><value>Eventet blev ændret, mens dette var åbent.</value></data>
+  <data name="Evidence codes are required." xml:space="preserve"><value>Beviskoder er påkrævet.</value></data>
+  <data name="Evidence codes are off." xml:space="preserve"><value>Beviskoder er slået fra.</value></data>
+  <data name="Code {0} saved." xml:space="preserve"><value>Kode {0} gemt.</value></data>
+  <data name="Choose a date and time." xml:space="preserve"><value>Vælg en dato og et tidspunkt.</value></data>
+  <data name="Enter a reason." xml:space="preserve"><value>Angiv en begrundelse.</value></data>
+  <data name="Signups opened." xml:space="preserve"><value>Tilmeldingen er åbnet.</value></data>
+  <data name="Signups closed." xml:space="preserve"><value>Tilmeldingen er lukket.</value></data>
+  <data name="Signups reopened." xml:space="preserve"><value>Tilmeldingen er genåbnet.</value></data>
 </root>

@@ -88,9 +88,23 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
     {
         return BadRequest("The legacy State handler is retired.");
     }
-    public async Task<IActionResult> OnPostOpenSignupAsync(Guid id, CancellationToken ct) => await SignupResult(await signupLifecycle.OpenAsync(id, EventVersion, [], ConfirmSignupAction, Actor, ct), id, "Signups opened.", ct);
-    public async Task<IActionResult> OnPostCloseSignupAsync(Guid id, CancellationToken ct) => await SignupResult(await signupLifecycle.CloseAsync(id, EventVersion, ConfirmSignupAction, Actor, ct), id, "Signups closed.", ct);
-    public async Task<IActionResult> OnPostReopenSignupAsync(Guid id, CancellationToken ct) => await SignupResult(await signupLifecycle.ReopenAsync(id, EventVersion, [], ConfirmSignupAction, Actor, ct), id, "Signups reopened.", ct);
+    // U4 transport: lifecycle dialogs post through AdminFetch (Accept: application/json)
+    // and receive an OverviewOutcome; plain form posts keep the PRG fallback.
+    public async Task<IActionResult> OnPostOpenSignupAsync(Guid id, CancellationToken ct)
+    {
+        if (WantsJson && await StaleAsync(id, ct) is { } stale) return stale;
+        return await SignupResult(await signupLifecycle.OpenAsync(id, EventVersion, [], ConfirmSignupAction, Actor, ct), id, "Signups opened.", ct);
+    }
+    public async Task<IActionResult> OnPostCloseSignupAsync(Guid id, CancellationToken ct)
+    {
+        if (WantsJson && await StaleAsync(id, ct) is { } stale) return stale;
+        return await SignupResult(await signupLifecycle.CloseAsync(id, EventVersion, ConfirmSignupAction, Actor, ct), id, "Signups closed.", ct);
+    }
+    public async Task<IActionResult> OnPostReopenSignupAsync(Guid id, CancellationToken ct)
+    {
+        if (WantsJson && await StaleAsync(id, ct) is { } stale) return stale;
+        return await SignupResult(await signupLifecycle.ReopenAsync(id, EventVersion, [], ConfirmSignupAction, Actor, ct), id, "Signups reopened.", ct);
+    }
     // Retired capacity owner (DP:966–971/C4). D16 still refuses terminal POSTs
     // before this stub, preserving test14's exact Manage redirect/read-only result.
     public IActionResult OnPostCapacity(Guid id)
@@ -115,58 +129,66 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
         Task.FromResult<IActionResult>(BadRequest(Localize("The old signup confirmation handler is retired. Use the Open, Close, or Reopen action.")));
     public async Task<IActionResult> OnPostStartEventAsync(Guid id, CancellationToken ct)
     {
+        if (WantsJson && await StaleAsync(id, ct) is { } stale) return stale;
         var result = await eventLifecycle.StartNowAsync(id, EventVersion, ConfirmStartEvent, StartReason, Actor, ct);
         if (!result.Succeeded)
-            return await LifecycleFailureAsync(id, "start", result.Blockers is { Count: > 0 }
-                ? string.Join(" ", result.Blockers.Select(blocker => LocalizeStartBlocker(blocker).Description))
-                : result.Error ?? Localize("The event could not be started."), ct);
-        SetStatus(Localize("Event started."), UiMessageType.Success);
-        return RedirectToPage(new { id });
+        {
+            var message = result.Blockers is { Count: > 0 }
+                ? string.Join(" ", result.Blockers.Select(blocker => LocalizeRefusal(LocalizeStartBlocker(blocker).Description)))
+                : result.Error ?? "The event could not be started.";
+            return WantsJson ? Refused(message, id) : await LifecycleFailureAsync(id, "start", Localize(message), ct);
+        }
+        return Applied(id, "Event started.");
     }
     public async Task<IActionResult> OnPostEndEventAsync(Guid id, CancellationToken ct)
     {
+        if (WantsJson && await StaleAsync(id, ct) is { } stale) return stale;
         var result = await eventLifecycle.EndNowAsync(id, EventVersion, ConfirmEndEvent, EndReason, Actor, ct);
         if (!result.Succeeded)
-            return await LifecycleFailureAsync(id, "end", result.Error ?? Localize("The event could not be ended."), ct);
-        SetStatus(Localize("Event ended and moved to final review."), UiMessageType.Success);
-        return RedirectToPage(new { id });
+            return WantsJson ? Refused(result.Error ?? "The event could not be ended.", id) : await LifecycleFailureAsync(id, "end", result.Error ?? Localize("The event could not be ended."), ct);
+        return Applied(id, "Event ended and moved to final review.");
     }
     public async Task<IActionResult> OnPostResumeEventAsync(Guid id, CancellationToken ct)
     {
         var timezoneId = await dbContext.Events.AsNoTracking().Where(x => x.Id == id).Select(x => x.Timezone).SingleOrDefaultAsync(ct);
         if (timezoneId is null) return NotFound();
+        if (WantsJson && await StaleAsync(id, ct) is { } stale) return stale;
         var replacementEnd = ParseEventLocal(ReplacementEventEndsAtLocal, timezoneId, nameof(ReplacementEventEndsAtLocal), "Replacement event end")
             ?? (string.IsNullOrWhiteSpace(ReplacementEventEndsAtLocal) && ReplacementEventEndsAt != default ? ReplacementEventEndsAt.ToUniversalTime() : null);
+        if (WantsJson && FieldError(nameof(ReplacementEventEndsAtLocal)) is { } invalidEnd) return Invalid(invalidEnd, "until");
         var result = await eventLifecycle.ResumePrematureEndAsync(id, EventVersion, ConfirmResumeEvent, ResumeReason, replacementEnd, Actor, ct);
         if (!result.Succeeded)
-            return await LifecycleFailureAsync(id, "resume", result.Error ?? Localize("The event could not be resumed."), ct);
-        SetStatus(Localize("Event resumed and returned to live play."), UiMessageType.Success);
-        return RedirectToPage(new { id });
+            return WantsJson ? Refused(result.Error ?? "The event could not be resumed.", id) : await LifecycleFailureAsync(id, "resume", Localize(result.Error ?? "The event could not be resumed."), ct);
+        return Applied(id, "Event resumed and returned to live play.");
     }
     public async Task<IActionResult> OnPostDiscardAsync(Guid id, CancellationToken ct)
     {
+        if (WantsJson && await StaleAsync(id, ct) is { } stale) return stale;
         var result = await destructiveLifecycle.DiscardAsync(id, EventVersion, ConfirmDestructiveAction, Actor, ct);
         if (!result.Succeeded)
-            return await LifecycleFailureAsync(id, "destructive", result.Error ?? Localize("The event could not be discarded."), ct);
+            return WantsJson ? Refused(result.Error ?? "The event could not be discarded.", id) : await LifecycleFailureAsync(id, "destructive", result.Error ?? Localize("The event could not be discarded."), ct);
+        if (WantsJson) return Outcome(new(true, "applied", Message: Localize("Event discarded."), Location: Url.Page("Index") ?? "/Admin/Events"));
         SetStatus(Localize("Event discarded."), UiMessageType.Success);
         return RedirectToPage("Index");
     }
     public async Task<IActionResult> OnPostCancelAsync(Guid id, CancellationToken ct)
     {
+        if (WantsJson && await StaleAsync(id, ct) is { } stale) return stale;
         var result = await destructiveLifecycle.CancelAsync(id, EventVersion, ConfirmDestructiveAction, CancellationReason, Actor, ct);
         if (!result.Succeeded)
-            return await LifecycleFailureAsync(id, "destructive", result.Error ?? Localize("The event could not be cancelled."), ct);
-        SetStatus(Localize("Event cancelled."), UiMessageType.Success);
-        return RedirectToPage(new { id });
+            return WantsJson ? Refused(result.Error ?? "The event could not be cancelled.", id) : await LifecycleFailureAsync(id, "destructive", result.Error ?? Localize("The event could not be cancelled."), ct);
+        return Applied(id, "Event cancelled.");
     }
     public async Task<IActionResult> OnPostHideAsync(Guid id, CancellationToken ct)
     {
         if (!ConfirmDestructiveAction)
         {
+            if (WantsJson) return Refused("Confirm that you want to hide this event.", id);
             SetStatus(Localize("Confirm that you want to hide this event."), UiMessageType.Error);
             return RedirectToPage(new { id });
         }
         var result = await (quarantine ?? throw new InvalidOperationException("Event quarantine is not configured.")).HideAsync(id, EventVersion, EventNameConfirmation, QuarantineReason, Actor, ct);
+        if (WantsJson) return QuarantineOutcome(result, id, "Event hidden from all ordinary surfaces.");
         SetStatus(result.Succeeded ? Localize("Event hidden from all ordinary surfaces.") : result.Error ?? Localize("The event could not be hidden."), QuarantineSeverity(result));
         return result.Succeeded ? RedirectToPage("Index", new { filter = "hidden" }) : RedirectToPage(new { id });
     }
@@ -174,12 +196,15 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
     {
         if (!ConfirmDestructiveAction)
         {
+            if (WantsJson) return Refused("Confirm that you want to restore this event.", id);
             SetStatus(Localize("Confirm that you want to restore this event."), UiMessageType.Error);
-            return RedirectToPage(new { id, hidden = true });
+            return RedirectToPage(new { id });
         }
         var result = await (quarantine ?? throw new InvalidOperationException("Event quarantine is not configured.")).RestoreAsync(id, EventVersion, EventNameConfirmation, QuarantineReason, Actor, ct);
+        if (WantsJson) return QuarantineOutcome(result, id, "Event restored with its lifecycle and retained history unchanged.");
         SetStatus(result.Succeeded ? Localize("Event restored with its lifecycle and retained history unchanged.") : result.Error ?? Localize("The event could not be restored."), QuarantineSeverity(result));
-        return result.Succeeded ? RedirectToPage("Index") : RedirectToPage(new { id, hidden = true });
+        // U4-Q3 (c): the plain event URL is the Super Admin's hidden view.
+        return result.Succeeded ? RedirectToPage("Index") : RedirectToPage(new { id });
     }
     public async Task<IActionResult> OnPostReopenSubmissionsAsync(Guid id, CancellationToken ct)
     {
@@ -187,12 +212,20 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
         if (item is null) return NotFound();
         var reopenUntil = ParseEventLocal(ReopenUntilLocal, item.Timezone, nameof(ReopenUntilLocal), "Reopen cutoff")
             ?? (string.IsNullOrWhiteSpace(ReopenUntilLocal) ? ReopenUntil?.ToUniversalTime() : null);
+        if (WantsJson)
+        {
+            if (item.Version != EventVersion) return Outcome(new(false, "stale", Localize("This event changed in another request. Reload before reopening submissions.")));
+            if (FieldError(nameof(ReopenUntilLocal)) is { } invalidUntil) return Invalid(invalidUntil, "until");
+            if (reopenUntil is null) return Invalid(Localize("Choose a date and time."), "until");
+            if (string.IsNullOrWhiteSpace(StateReason)) return Invalid(Localize("Enter a reason."), "reason");
+        }
         if (reopenUntil is null || string.IsNullOrWhiteSpace(StateReason))
         {
             TempData["StatusMessage"] = Localize("A valid future cutoff and reason are required.");
             return RedirectToPage(new { id });
         }
 
+        string? failure = null;
         await using var transaction = await dbContext.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, ct);
         try
         {
@@ -200,6 +233,7 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
             {
                 await transaction.RollbackAsync(CancellationToken.None);
                 dbContext.ChangeTracker.Clear();
+                if (WantsJson) return Outcome(new(false, "stale", Localize("This event changed in another request. Reload before reopening submissions.")));
                 TempData["StatusMessage"] = Localize("This event changed in another request. Reload before reopening submissions.");
                 return RedirectToPage(new { id });
             }
@@ -207,19 +241,26 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
             item.ReopenSubmissions(reopenUntil.Value, timeProvider.GetUtcNow());
             await AuditAsync("event.submissions_reopened", item, $"Until {reopenUntil:O}; {StateReason}", ct);
             await transaction.CommitAsync(ct);
-            TempData["StatusMessage"] = Localize("Submissions reopened until {0}.", DateTimePresentation.Format(reopenUntil.Value, "dd MMM yyyy, HH:mm", item.Timezone, CultureInfo.CurrentCulture));
+            var message = Localize("Submissions reopened until {0}.", DateTimePresentation.Format(reopenUntil.Value, "dd MMM yyyy, HH:mm", item.Timezone, CultureInfo.CurrentCulture));
+            if (WantsJson) return Outcome(new(true, "applied", Message: message));
+            TempData["StatusMessage"] = message;
         }
         catch (InvalidOperationException ex)
         {
             await transaction.RollbackAsync(CancellationToken.None);
             dbContext.ChangeTracker.Clear();
-            TempData["StatusMessage"] = ex.Message;
+            failure = ex.Message;
         }
         catch (DbUpdateException)
         {
             await transaction.RollbackAsync(CancellationToken.None);
             dbContext.ChangeTracker.Clear();
-            TempData["StatusMessage"] = Localize("The submission window could not be reopened safely. Reload and try again.");
+            failure = "The submission window could not be reopened safely. Reload and try again.";
+        }
+        if (failure is not null)
+        {
+            if (WantsJson) return Refused(failure, id);
+            TempData["StatusMessage"] = Localize(failure);
         }
         return RedirectToPage(new { id });
     }
@@ -236,28 +277,26 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
             {
                 await transaction.RollbackAsync(CancellationToken.None);
                 dbContext.ChangeTracker.Clear();
-                TempData["StatusMessage"] = Localize("This event changed in another request. Reload before changing verification codes.");
-                return RedirectToPage(new { id });
+                return CodeOutcome(id, false, "This event changed in another request. Reload before changing verification codes.", "stale");
             }
 
             item.SetEvidenceCodeEnabled(enabled, timeProvider.GetUtcNow());
             await AuditAsync("event.evidence_code_mode", item, enabled ? "Enabled" : "Disabled", ct);
             await transaction.CommitAsync(ct);
-            TempData["StatusMessage"] = enabled ? Localize("Verification codes enabled.") : Localize("Verification codes disabled.");
+            return CodeOutcome(id, true, enabled ? "Evidence codes are required." : "Evidence codes are off.");
         }
         catch (InvalidOperationException ex)
         {
             await transaction.RollbackAsync(CancellationToken.None);
             dbContext.ChangeTracker.Clear();
-            TempData["StatusMessage"] = ex.Message;
+            return CodeOutcome(id, false, ex.Message);
         }
         catch (DbUpdateException)
         {
             await transaction.RollbackAsync(CancellationToken.None);
             dbContext.ChangeTracker.Clear();
-            TempData["StatusMessage"] = Localize("Verification codes could not be changed safely. Reload and try again.");
+            return CodeOutcome(id, false, "Verification codes could not be changed safely. Reload and try again.");
         }
-        return RedirectToPage(new { id });
     }
     public Task<IActionResult> OnPostCreateEvidenceCodeAsync(Guid id, CancellationToken ct) => CreateEvidenceCode(id, NewEvidenceCode, ct);
     private async Task<IActionResult> CreateEvidenceCode(Guid id, string? code, CancellationToken ct)
@@ -265,21 +304,14 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
         var item = await dbContext.Events.SingleOrDefaultAsync(x => x.Id == id, ct);
         if (item is null) return NotFound();
         if (HasBindingErrors(nameof(NewEvidenceCode), nameof(EvidenceCodeActivatesAtLocal), nameof(EvidenceCodeNote)))
-        {
-            TempData["StatusMessage"] = Localize("Check the verification code details and try again.");
-            return RedirectToPage(new { id });
-        }
+            return CodeOutcome(id, false, "Check the verification code details and try again.", "invalid");
         if (string.IsNullOrWhiteSpace(code))
-        {
-            TempData["StatusMessage"] = Localize("Enter or generate a code first.");
-            return RedirectToPage(new { id });
-        }
+            return CodeOutcome(id, false, "Enter or generate a code first.", "invalid", "code");
         var activates = ParseEventLocal(EvidenceCodeActivatesAtLocal, item.Timezone, nameof(EvidenceCodeActivatesAtLocal), "Activation time");
         if (!string.IsNullOrWhiteSpace(EvidenceCodeActivatesAtLocal) && activates is null)
-        {
-            TempData["StatusMessage"] = Localize("Check the verification code details and try again.");
-            return RedirectToPage(new { id });
-        }
+            return WantsJson && FieldError(nameof(EvidenceCodeActivatesAtLocal)) is { } invalidFrom
+                ? Invalid(invalidFrom, "from")
+                : CodeOutcome(id, false, "Check the verification code details and try again.", "invalid");
         var now = timeProvider.GetUtcNow();
         var activatedAt = activates ?? EvidenceCodeActivatesAt?.ToUniversalTime() ?? now;
 
@@ -290,23 +322,20 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
             {
                 await transaction.RollbackAsync(CancellationToken.None);
                 dbContext.ChangeTracker.Clear();
-                TempData["StatusMessage"] = Localize("This event changed in another request. Reload before creating a verification code.");
-                return RedirectToPage(new { id });
+                return CodeOutcome(id, false, "This event changed in another request. Reload before creating a verification code.", "stale");
             }
             if (!item.EvidenceCodeEnabled)
             {
                 await transaction.RollbackAsync(CancellationToken.None);
                 dbContext.ChangeTracker.Clear();
-                TempData["StatusMessage"] = Localize("Enable evidence codes first.");
-                return RedirectToPage(new { id });
+                return CodeOutcome(id, false, "Enable evidence codes first.");
             }
             item.SetEvidenceCodeEnabled(item.EvidenceCodeEnabled, now);
             if (await dbContext.EvidenceCodes.AnyAsync(x => x.EventId == id && x.ActivatesAt == activatedAt, ct))
             {
                 await transaction.RollbackAsync(CancellationToken.None);
                 dbContext.ChangeTracker.Clear();
-                TempData["StatusMessage"] = Localize("Another code already activates at that exact time.");
-                return RedirectToPage(new { id });
+                return CodeOutcome(id, false, "Another code already activates at that exact time.", "invalid", "from");
             }
 
             var created = new EvidenceCode(Guid.NewGuid(), id, code, activatedAt, User.GetAccountId()!.Value, now, EvidenceCodeNote);
@@ -319,25 +348,35 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
             item.AdvanceVersion();
             await AuditAsync("evidence_code.created", item, $"Activates {activatedAt:O}", ct);
             await transaction.CommitAsync(ct);
-            TempData["StatusMessage"] = Localize("Evidence code {0} saved.", created.Code);
+            return CodeOutcome(id, true, Localize("Code {0} saved.", created.Code));
         }
         catch (InvalidOperationException ex)
         {
             await transaction.RollbackAsync(CancellationToken.None);
             dbContext.ChangeTracker.Clear();
-            TempData["StatusMessage"] = ex.Message;
+            return CodeOutcome(id, false, ex.Message);
         }
         catch (DbUpdateException)
         {
             await transaction.RollbackAsync(CancellationToken.None);
             dbContext.ChangeTracker.Clear();
-            TempData["StatusMessage"] = Localize("The verification code could not be saved safely. Reload and try again.");
+            return CodeOutcome(id, false, "The verification code could not be saved safely. Reload and try again.");
         }
+    }
+    // Evidence codes keep their PRG response for plain posts (Pass3 tests construct
+    // the page model directly); AdminFetch receives the same outcome as JSON.
+    private IActionResult CodeOutcome(Guid id, bool succeeded, string message, string? outcome = null, string? field = null)
+    {
+        var localized = Localize(message);
+        if (WantsJson) return Outcome(new(succeeded, outcome ?? (succeeded ? "applied" : "refused"), succeeded ? null : localized,
+            field is null ? null : new Dictionary<string, string> { [field] = localized }, succeeded ? localized : null));
+        TempData["StatusMessage"] = localized;
         return RedirectToPage(new { id });
     }
     private async Task<bool> LoadAsync(Guid id, CancellationToken ct)
     {
-        var item = await dbContext.Events.AsNoTracking().SingleOrDefaultAsync(e => e.Id == id && e.State != EventState.Discarded, ct); if (item is null || item.IsHidden && (!HiddenInspection || !User.IsInRole("SuperAdmin"))) return false;
+        // U4-Q3 (c): the plain URL opens the Super Admin's limited hidden view; ?hidden=true is accepted and ignored.
+        var item = await dbContext.Events.AsNoTracking().SingleOrDefaultAsync(e => e.Id == id && e.State != EventState.Discarded, ct); if (item is null || item.IsHidden && !User.IsInRole("SuperAdmin")) return false;
         var allParticipants = await dbContext.EventParticipants.AsNoTracking().Where(p => p.EventId == id).OrderBy(p => p.SignedUpAt).ThenBy(p => p.SignupSequence).ToListAsync(ct);
         var activeTeamIds = await dbContext.Teams.AsNoTracking().Where(team => team.EventId == id && team.Active).Select(team => team.Id).ToListAsync(ct);
         var membershipCounts = activeTeamIds.Count == 0
@@ -419,13 +458,75 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
         EventVersion = item.Version; NewCap = item.ParticipantCap ?? 0; NewSignupOpening = item.SignupOpensAt ?? now; NewSignupClosing = item.SignupClosesAt ?? now.AddDays(1); EvidenceCodeActivatesAt = now; EvidenceCodeActivatesAtLocal = DateTimePresentation.Format(EvidenceCodeActivatesAt.Value, "yyyy-MM-ddTHH:mm", item.Timezone, CultureInfo.InvariantCulture); ReopenUntil = now.AddHours(1); ReopenUntilLocal = DateTimePresentation.Format(ReopenUntil.Value, "yyyy-MM-ddTHH:mm", item.Timezone, CultureInfo.InvariantCulture); ReplacementEventEndsAt = item.EventEndsAt ?? now.AddHours(1); ReplacementEventEndsAtLocal = DateTimePresentation.Format(ReplacementEventEndsAt, "yyyy-MM-ddTHH:mm", item.Timezone, CultureInfo.InvariantCulture); return true;
     }
     private LifecycleActor Actor => new(User.GetAccountId()!.Value, User.Identity!.Name!);
+
+    // U4 current-state read for Check again, stale and "gone" (42c §1.5 item 14). Same
+    // Admin/hidden/discarded filter as the page; it reports current values only and
+    // cannot tell which request wrote them.
+    public async Task<IActionResult> OnGetCurrentAsync(Guid id, CancellationToken ct)
+    {
+        Response.Headers.CacheControl = "no-store";
+        var item = await dbContext.Events.AsNoTracking().SingleOrDefaultAsync(e => e.Id == id && e.State != EventState.Discarded, ct);
+        if (item is null || item.IsHidden && !User.IsInRole("SuperAdmin")) return NotFound();
+        return new JsonResult(await CurrentStateAsync(item, ct));
+    }
+    private async Task<OverviewCurrentState> CurrentStateAsync(BingoEvent item, CancellationToken ct)
+    {
+        var codes = await dbContext.EvidenceCodes.AsNoTracking().Where(x => x.EventId == item.Id).OrderBy(x => x.ActivatesAt)
+            .Select(x => new OverviewCurrentCode(x.Code, x.ActivatesAt, x.RetiresAt)).ToListAsync(ct);
+        return new(item.Id, item.Version.ToString(CultureInfo.InvariantCulture), item.State.ToString(), item.IsHidden,
+            item.ReopenedSubmissionCutoffAt, item.EventEndsAt, item.EvidenceCodeEnabled, codes);
+    }
+    private bool WantsJson => Request.GetTypedHeaders().Accept?.Any(value => value.MediaType.Value == "application/json") == true;
+    private static JsonResult Outcome(OverviewOutcome outcome) => new(outcome);
+    private async Task<IActionResult?> StaleAsync(Guid id, CancellationToken ct)
+    {
+        // The version read when the dialog opened is checked first, so a changed
+        // event is reported as stale and re-evaluated, not as a refusal.
+        var version = await dbContext.Events.AsNoTracking().Where(x => x.Id == id).Select(x => (long?)x.Version).SingleOrDefaultAsync(ct);
+        return version is { } current && current != EventVersion ? Outcome(new(false, "stale", Localize("This event changed while this was open."))) : null;
+    }
+    private IActionResult Applied(Guid id, string message)
+    {
+        if (WantsJson) return Outcome(new(true, "applied", Message: Localize(message)));
+        SetStatus(Localize(message), UiMessageType.Success);
+        return RedirectToPage(new { id });
+    }
+    private JsonResult Refused(string error, Guid id)
+    {
+        // A service refusal that is really a concurrent change stays a stale outcome.
+        var stale = error.StartsWith("This event changed while", StringComparison.Ordinal);
+        var field = error switch
+        {
+            "Enter a reason when ending the event before its configured end." or "Enter a reason for resuming the event." or "Enter a reason for cancelling the event." or "Enter a reason for hiding the event." => "reason",
+            "Choose a future replacement event end." or "The replacement event end must be in the future." or "Choose a time in five-minute increments." or "The replacement event end must be after the event start." => "until",
+            _ => null
+        };
+        var localized = LocalizeRefusal(error);
+        _ = id;
+        return Outcome(new(false, stale ? "stale" : field is null ? "refused" : "invalid", localized, field is null ? null : new Dictionary<string, string> { [field] = localized }));
+    }
+    private static JsonResult Invalid(string error, string field) => Outcome(new(false, "invalid", error, new Dictionary<string, string> { [field] = error }));
+    private JsonResult QuarantineOutcome(EventQuarantineResult result, Guid id, string success) => result.Outcome switch
+    {
+        EventQuarantineOutcome.Applied => Outcome(new(true, "applied", Message: Localize(success))),
+        EventQuarantineOutcome.Stale => Outcome(new(false, "stale", Localize(result.Error ?? "This event changed while this was open."))),
+        EventQuarantineOutcome.ValidationFailed => Outcome(new(false, "invalid", Localize(result.Error ?? "Enter a reason."), result.FieldErrors.ToDictionary(x => x.Key, x => Localize(x.Value)))),
+        _ => Refused(result.Error ?? "The event could not be changed.", id)
+    };
+    private string? FieldError(string field) => ModelState.TryGetValue(field, out var entry) && entry.Errors.Count > 0 ? entry.Errors[0].ErrorMessage : null;
+    // Service refusals that name another event (S2, U4-Q4/Q5) are localized by pattern.
+    private string LocalizeRefusal(string error)
+    {
+        var publish = System.Text.RegularExpressions.Regex.Match(error, "^Publish the results of (.+) first\\.$");
+        if (publish.Success) return Localize("Publish the results of {0} first.", publish.Groups[1].Value);
+        var still = System.Text.RegularExpressions.Regex.Match(error, "^(.+) is still the current event\\. Contact the Super Admin to archive it\\.$");
+        if (still.Success) return Localize("{0} is still the current event. Contact the Super Admin to archive it.", still.Groups[1].Value);
+        return Localize(error);
+    }
     private async Task<IActionResult> SignupResult(SignupLifecycleResult result, Guid id, string success, CancellationToken ct)
     {
-        if (result.Succeeded)
-        {
-            SetStatus(Localize(success), UiMessageType.Success);
-            return RedirectToPage(new { id });
-        }
+        if (result.Succeeded) return Applied(id, success);
+        if (WantsJson) return Refused(result.Error ?? "The signup change could not be completed.", id);
 
         var postedVersion = EventVersion;
         if (!await LoadAsync(id, ct)) return NotFound();
@@ -555,6 +656,9 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
         "PARTICIPANT_CAP_REQUIRED" => new(code, "Set a participant capacity.", $"/Admin/Events/SignupSetup/{eventId}"),
         _ => new(code, "Review the event configuration and resolve this lifecycle blocker.", $"/Admin/Events/Manage/{eventId}")
     };
+    public sealed record OverviewOutcome(bool Succeeded, string Outcome, string? Error = null, IReadOnlyDictionary<string, string>? FieldErrors = null, string? Message = null, string? Location = null);
+    public sealed record OverviewCurrentCode(string Code, DateTimeOffset ActivatesAt, DateTimeOffset? RetiresAt);
+    public sealed record OverviewCurrentState(Guid EventId, string Version, string Phase, bool Hidden, DateTimeOffset? ReopenedUntil, DateTimeOffset? EventEndsAt, bool EvidenceCodesEnabled, IReadOnlyList<OverviewCurrentCode> EvidenceCodes);
     public sealed record ScheduledActionView(string Title, DateTimeOffset ScheduledFor, DateTimeOffset AttemptedAt, IReadOnlyList<ReadinessItem> Blockers);
     public sealed record EvidenceCodeRow(Guid Id, string Code, DateTimeOffset ActivatesAt, DateTimeOffset? RetiresAt, string? Note);
     public sealed record QuarantineAuditRow(string Action, DateTimeOffset OccurredAt, string ActorUsername, string? Details);
