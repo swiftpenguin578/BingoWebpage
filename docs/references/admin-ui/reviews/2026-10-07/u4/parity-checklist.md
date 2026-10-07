@@ -124,7 +124,7 @@ Executed: Chromium and WebKit at 390/494/860/1280/1440 (conformance), 1280 × 90
 | refusal reason | server reason shown as a refusal (U3 review B-M1) | = |
 | success toast, page update, focus `#now-title` | same; in-place `AdminUI.update` (scroll kept) | = |
 | closing after uncertain/gone re-reads the page | same | = |
-| scrim click closes | Decision B: closes untouched dialogs, edited → discard dialog | R (decision B) |
+| scrim click closes | Decision B / A12: dialogs with entries (reason, time) close untouched and ask to discard when edited; input-free confirmations do not close on an outside click; Cancel/Close use the same discard check | R (decision B, A12) |
 | session loss | C-CMP-2 notice lists the unsent reason/time; dialog kept | R (C-CMP-2 row) |
 
 ## Evidence codes dialog (RC01 R2)

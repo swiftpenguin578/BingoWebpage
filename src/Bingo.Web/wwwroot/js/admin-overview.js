@@ -102,7 +102,7 @@ export async function init(region, ui = window.AdminUI) {
     const d = { key, model, version: state.version, status: 'idle', what: '', error: '', intent: null };
     const busy = () => d.status === 'busy' || d.status === 'checking';
     const layer = ui.openLayer({
-      title: model.title, content, confirmation: !(reason || until), dismissible: true, pending: busy,
+      title: model.title, content, confirmation: !(reason || until), pending: busy,
       // An unknown or overtaken outcome is not an unsaved draft (U-A): close and re-read.
       confirmLeave: () => (['uncertain', 'gone', 'notApplied'].includes(d.status) ? Promise.resolve(true) : ui.confirmDiscard()),
       opener,
