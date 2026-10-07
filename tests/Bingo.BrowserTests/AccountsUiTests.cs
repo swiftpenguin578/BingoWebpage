@@ -46,6 +46,11 @@ public sealed class AccountsUiTests
         Assert.DoesNotContain("WebsiteSearch", index + model);
         Assert.Contains("class=\"tbl ac-tbl sticky-first\"", index);
         Assert.Contains("class=\"seg\" role=\"radiogroup\"", index);
+        // T1-9: no "username" wording or name that invites username autofill; password-manager ignore markers.
+        var search = System.Text.RegularExpressions.Regex.Match(index, "<input[^>]*id=\"ac-search\"[^>]*>").Value;
+        foreach (var marker in new[] { "autocomplete=\"off\"", "data-1p-ignore", "data-lpignore=\"true\"", "data-bwignore", "data-form-type=\"other\"", "D[\"Search accounts\"]" })
+            Assert.Contains(marker, search);
+        Assert.DoesNotContain("user", search, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("data-admin-page-script", index);
         Assert.Contains("data-admin-page-style", index);
         // C-ACC-1 replaces the reference's secret note; AU24 typed username is on the confirmation step.

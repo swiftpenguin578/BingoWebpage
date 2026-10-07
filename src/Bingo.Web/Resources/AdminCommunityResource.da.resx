@@ -376,7 +376,6 @@
   <data name="Search looks at website usernames, not Discord names or OSRS characters." xml:space="preserve"><value>Søgningen ser på brugernavne på hjemmesiden, ikke Discord-navne eller OSRS-karakterer.</value></data>
   <data name="Ownership wasn’t transferred." xml:space="preserve"><value>Ejerskabet blev ikke overdraget.</value></data>
   <data name="Find accounts" xml:space="preserve"><value>Find konti</value></data>
-  <data name="Search usernames" xml:space="preserve"><value>Søg i brugernavne</value></data>
   <data name="Discord · {0}" xml:space="preserve"><value>Discord · {0}</value></data>
   <data name="Discord linked" xml:space="preserve"><value>Discord tilknyttet</value></data>
   <data name="No Discord link" xml:space="preserve"><value>Ingen Discord-tilknytning</value></data>
@@ -509,13 +508,10 @@
   <data name="The start date must be on or before the end date." xml:space="preserve"><value>Startdatoen skal være på eller før slutdatoen.</value></data>
   <data name="Use 100 characters or fewer." xml:space="preserve"><value>Brug højst 100 tegn.</value></data>
   <data name="Filter the history" xml:space="preserve"><value>Filtrer historikken</value></data>
-  <data name="Actor username" xml:space="preserve"><value>Brugernavn</value></data>
-  <data name="Filter by actor username" xml:space="preserve"><value>Filtrer efter brugernavn</value></data>
   <data name="Clear actor filter" xml:space="preserve"><value>Ryd brugerfilter</value></data>
   <data name="More filters" xml:space="preserve"><value>Flere filtre</value></data>
   <data name="1 more filter applied" xml:space="preserve"><value>1 filter mere anvendt</value></data>
   <data name="{0} more filters applied" xml:space="preserve"><value>{0} filtre mere anvendt</value></data>
-  <data name="Matches usernames containing what you type. Press Enter to apply." xml:space="preserve"><value>Matcher brugernavne, der indeholder det, du skriver. Tryk Enter for at anvende.</value></data>
   <data name="Active filters" xml:space="preserve"><value>Aktive filtre</value></data>
   <data name="Remove filter: {0}" xml:space="preserve"><value>Fjern filter: {0}</value></data>
   <data name="Actor: {0}" xml:space="preserve"><value>Udført af: {0}</value></data>
@@ -575,4 +571,7 @@
   <data name="Board" xml:space="preserve"><value>Plade</value></data>
   <data name="Evidence" xml:space="preserve"><value>Dokumentation</value></data>
   <data name="Catalogue" xml:space="preserve"><value>Katalog</value></data>
+  <data name="Search accounts" xml:space="preserve"><value>Søg i konti</value></data>
+  <data name="Filter by actor" xml:space="preserve"><value>Filtrer efter udførende</value></data>
+  <data name="Matches actors whose name contains what you type. Press Enter to apply." xml:space="preserve"><value>Matcher udførende, hvis navn indeholder det, du skriver. Tryk Enter for at anvende.</value></data>
 </root>

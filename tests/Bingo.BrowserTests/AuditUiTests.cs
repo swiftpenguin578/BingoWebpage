@@ -35,6 +35,12 @@ public sealed class AuditUiTests(BrowserTestApplicationFactory factory)
         foreach (var name in new[] { "event", "action", "actor", "type", "from", "to", "page", "entry" })
             Assert.Contains($"[BindProperty(SupportsGet = true, Name = \"{name}\"), FromQuery(Name = \"{name}\")]", model); // query-only: "page" is also a route value
         Assert.DoesNotContain("ActorUsername.Contains", model);
+        // T1-9: the actor field must not invite username autofill.
+        var actorInput = Regex.Match(index, "<input[^>]*id=\"actor-input\"[^>]*>").Value;
+        foreach (var marker in new[] { "autocomplete=\"off\"", "data-1p-ignore", "data-lpignore=\"true\"", "data-bwignore", "data-form-type=\"other\"", "D[\"Actor\"]", "D[\"Filter by actor\"]" })
+            Assert.Contains(marker, actorInput);
+        Assert.DoesNotContain("user", actorInput, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("username", index, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("ui.update(", script);
         Assert.DoesNotContain(" fetch(", script);
         Assert.DoesNotContain("setTimeout", script);
