@@ -116,6 +116,20 @@ public sealed class AccountsUiTests
         Assert.True(missing.Count == 0, "Missing Danish entries:\n" + string.Join('\n', missing));
     }
 
+    [Fact]
+    public void LaneResourceNamesAreUniqueIgnoringCase()
+    {
+        // .resx names are case-insensitive: a duplicate such as "accounts"/"Accounts" is silently
+        // dropped by the build, leaving English text in the Danish UI.
+        var root = FindRepositoryRoot();
+        foreach (var file in new[] { "AdminCommunityResource.da.resx", "AuditResource.da.resx" })
+        {
+            var names = XDocument.Load(Path.Combine(root, "src", "Bingo.Web", "Resources", file)).Descendants("data").Select(item => item.Attribute("name")!.Value);
+            var duplicates = names.GroupBy(name => name, StringComparer.OrdinalIgnoreCase).Where(group => group.Count() > 1).Select(group => group.Key).ToList();
+            Assert.True(duplicates.Count == 0, $"{file}: duplicate names ignoring case: {string.Join(", ", duplicates)}");
+        }
+    }
+
     [Theory]
     // Spring DST (29 March 2026, Copenhagen 23-hour day): calendar dates, never elapsed hours.
     [InlineData("2026-03-29T10:00:00Z", "2026-03-28T22:30:00Z", "Yesterday 23:30")]

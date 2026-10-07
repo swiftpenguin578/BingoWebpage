@@ -468,8 +468,8 @@
   <data name="Couldn’t load accounts" xml:space="preserve"><value>Konti kunne ikke indlæses</value></data>
   <data name="Nothing was changed. Try again." xml:space="preserve"><value>Intet blev ændret. Prøv igen.</value></data>
   <data name="Current event roles" xml:space="preserve"><value>Aktuelle roller i events</value></data>
-  <data name="accounts" xml:space="preserve"><value>konti</value></data>
-  <data name="disabled" xml:space="preserve"><value>deaktiveret</value></data>
+  <data name="{0} accounts" xml:space="preserve"><value>{0} konti</value></data>
+  <data name="{0} disabled" xml:space="preserve"><value>{0} deaktiveret</value></data>
   <!-- Lane T (T1): Audit -->
   <data name="Reason and context" xml:space="preserve"><value>Begrundelse og sammenhæng</value></data>
   <data name="Context" xml:space="preserve"><value>Sammenhæng</value></data>
