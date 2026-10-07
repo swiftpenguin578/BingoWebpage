@@ -20,6 +20,8 @@ const {startFixture,login}=require('../../scripts/lib/admin-parity-fixture.cjs')
   await page.locator('#act-close').click();await page.locator('.modal [data-confirm-title]').waitFor();
   assert.match(await page.locator('.modal [data-confirm-title]').textContent(),/^Close signups for Autumn Bingo 2027\?$/);
   assert.match(await page.locator('.modal .ov-effects').textContent(),/keep their places/);
+  // M2 (A12, decision B): an input-free confirmation does not close on an outside click.
+  await page.mouse.click(5,5);await page.waitForTimeout(400);assert.equal(await page.locator('.modal').count(),1);
   await page.route('**'+open+'?handler=CloseSignup',async r=>{await r.fetch({maxRedirects:0});await r.fulfill({status:502,contentType:'text/plain',body:'lost'});});
   await page.locator('.modal [data-confirm-accept]').click();
   await page.waitForFunction(()=>document.querySelector('.modal [data-confirm-accept]')?.textContent.includes('Check again'));
@@ -72,18 +74,56 @@ const {startFixture,login}=require('../../scripts/lib/admin-parity-fixture.cjs')
   await page.waitForFunction(()=>!document.querySelector('.modal')&&document.querySelector('.page-head .badge')?.textContent==='Final review');
   results.push('gone: only Close, then the page re-reads into Final review');
 
-  // Resume always asks for a replacement end (AU20) and a reason.
-  await page.locator('#act-resume').click();await page.locator('#dlg-until-date').waitFor();await page.locator('#dlg-reason').waitFor();
+  // Resume always asks for a replacement end (AU20) and a reason. L2: the dialog re-reads Current when it opens.
+  const reread=page.waitForRequest(r=>r.url().includes('handler=Current'));
+  await page.locator('#act-resume').click();await reread;await page.locator('#dlg-until-date').waitFor();await page.locator('#dlg-reason').waitFor();
   assert.notEqual(await page.locator('input[name="ReplacementEventEndsAtLocal"]').inputValue(),'');
+  // M1 (decision B, rule 11): Cancel with an entry asks Keep editing / Discard instead of dropping it silently.
+  await page.locator('#dlg-reason').fill('Mistake');
+  await page.locator('.modal [data-confirm-cancel]').click();
+  await page.getByRole('button',{name:'Keep editing',exact:true}).waitFor();await page.getByRole('button',{name:'Keep editing',exact:true}).click();
+  assert.equal(await page.locator('#dlg-reason').inputValue(),'Mistake');
+  await page.waitForFunction(()=>document.querySelectorAll('.modal').length===1);
+  await page.locator('.modal [data-confirm-cancel]').click();
+  await page.getByRole('button',{name:'Discard',exact:true}).waitFor();await page.getByRole('button',{name:'Discard',exact:true}).click();
+  await page.waitForFunction(()=>!document.querySelector('.modal'));
+  await page.locator('#act-resume').click();await page.locator('#dlg-until-date').waitFor();
   await page.keyboard.press('Escape');await page.locator('.modal').waitFor({state:'detached'});
-  results.push('Resume asks for a new end and a reason; Escape closes an untouched dialog');
+  results.push('Resume asks for a new end and a reason; Cancel with an entry asks to discard; Escape closes an untouched dialog; dialog re-reads Current on open');
+
+  // L5: clock-change times in the dialog picker (Europe/Copenhagen 2028: 26 March gap, 29 October overlap).
+  await page.locator('#act-reopenUploads').click();await page.locator('#dlg-until-date').waitFor();
+  await page.locator('#dlg-reason').fill('More time');
+  for(const [day,time,pattern] of [['26 Mar 2028','02:30',/does not exist/],['29 Oct 2028','02:30',/ambiguous/]]){
+   await page.locator('#dlg-until-date').fill(day);await page.locator('#dlg-until-time').fill(time);
+   await page.locator('.modal [data-confirm-accept]').click();
+   await page.waitForFunction(()=>!document.querySelector('#dlg-until-err')?.hidden);
+   assert.match(await page.locator('#dlg-until-err').textContent(),pattern);
+  }
+  // L1: a 404 answer (event hidden meanwhile) is the gone state, not an endless "couldn't confirm".
+  await page.locator('#dlg-until-date').fill('14 Jun 2028');await page.locator('#dlg-until-time').fill('12:00');
+  await page.route('**'+live+'?handler=ReopenSubmissions',r=>r.fulfill({status:404,contentType:'text/plain',body:'gone'}));
+  await page.locator('.modal [data-confirm-accept]').click();
+  await page.waitForFunction(()=>document.querySelector('.modal .ov-dlg-banner')?.textContent.includes('no longer applies'));
+  assert.equal(await page.locator('.modal [data-confirm-accept]').isVisible(),false);
+  await page.unroute('**'+live+'?handler=ReopenSubmissions');
+  await page.locator('.modal [data-confirm-cancel]').click();await page.waitForFunction(()=>!document.querySelector('.modal'));
+  results.push('picker refuses non-existent and ambiguous local times; a 404 answer shows the gone state');
 
   // Evidence codes dialog on a Live event (uploads still open after the early end window).
   await page.goto(fixture.origin+'/Admin/Events/Manage/'+fixture.events['clan-cup-pvm-week']);await ready(page);
   await page.locator('[data-overview-codes]').click();await page.locator('#codes-enabled').waitFor();
   await page.locator('#codes-enabled').check();await page.waitForFunction(()=>document.querySelector('#code-value')&&!document.querySelector('#code-value').disabled);
+  // L3: a saved toggle is not an unsaved change; Escape closes without a discard prompt.
+  await page.keyboard.press('Escape');await page.locator('.modal').waitFor({state:'detached'});
+  await page.locator('[data-overview-codes]').click();await page.locator('#codes-enabled').waitFor();
+  await page.waitForFunction(()=>document.querySelector('#code-value')&&!document.querySelector('#code-value').disabled);
   await page.locator('#codes-save').click();assert.match(await page.locator('#code-err').textContent(),/Enter or generate a code\./);
-  await page.locator('#code-value').fill('ab12cd');await page.locator('#codes-save').click();
+  // M1: Close with a typed code asks to discard.
+  await page.locator('#code-value').fill('ab12cd');await page.locator('#codes-close').click();
+  await page.getByRole('button',{name:'Keep editing',exact:true}).waitFor();await page.getByRole('button',{name:'Keep editing',exact:true}).click();
+  assert.equal(await page.locator('#code-value').inputValue(),'ab12cd');
+  await page.locator('#codes-save').click();
   await page.waitForFunction(()=>document.querySelector('.modal .ro-list')?.textContent.includes('AB12CD'));
   await page.locator('#codes-close').click();await page.locator('.modal').waitFor({state:'detached'});
   await page.waitForFunction(()=>document.querySelector('.ov-aside')?.textContent.includes('Evidence codes'));

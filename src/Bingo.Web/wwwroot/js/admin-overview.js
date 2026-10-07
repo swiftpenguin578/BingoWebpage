@@ -59,8 +59,13 @@ export async function init(region, ui = window.AdminUI) {
   }
 
   /* ---------------- lifecycle dialogs ---------------- */
-  let dialog = null;
-  function openAction(key, opener) {
+  let dialog = null, opening = false;
+  async function openAction(key, opener) {
+    if (dialog || opening) return;
+    // L2: the confirmation times (end time, upload close, "in N days") come from the clock at the
+    // moment the dialog opens, so re-read Current first; a failed read keeps the rendered model.
+    opening = true;
+    try { const fresh = await read(); if (fresh.ok) state = fresh.data; } finally { opening = false; }
     if (dialog) return;
     const model = state.dialogs[key];
     if (!model || !model.applicable) return;
@@ -102,7 +107,7 @@ export async function init(region, ui = window.AdminUI) {
     const d = { key, model, version: state.version, status: 'idle', what: '', error: '', intent: null };
     const busy = () => d.status === 'busy' || d.status === 'checking';
     const layer = ui.openLayer({
-      title: model.title, content, confirmation: !(reason || until), dismissible: true, pending: busy,
+      title: model.title, content, confirmation: !(reason || until), pending: busy,
       // An unknown or overtaken outcome is not an unsaved draft (U-A): close and re-read.
       confirmLeave: () => (['uncertain', 'gone', 'notApplied'].includes(d.status) ? Promise.resolve(true) : ui.confirmDiscard()),
       opener,
@@ -171,6 +176,7 @@ export async function init(region, ui = window.AdminUI) {
       if (!dialog || dialog.d !== d) return;
       if (result.kind === 'session-lost') { d.status = 'idle'; paint(); return; }
       if (result.kind === 'refused') { d.error = result.reason || t('Couldn’t complete this. Nothing changed, and your entries are still here.'); const fresh = await read(); if (fresh.ok) state = fresh.data; d.status = 'gone'; paint(); cancel.focus(); return; }
+      if (result.kind === 'unknown' && result.status === 404) { d.status = 'gone'; d.error = ''; paint(); cancel.focus(); return; }
       if (result.kind !== 'handler' || typeof result.data?.succeeded !== 'boolean') { d.status = 'uncertain'; paint(); confirm.focus(); return; }
       const outcome = result.data;
       if (outcome.succeeded) return finish(outcome.message || m.success.replace('{0}', ''), outcome.location);
@@ -199,6 +205,7 @@ export async function init(region, ui = window.AdminUI) {
       if (!dialog || dialog.d !== d) return;
       const m = d.model;
       if (fresh.gone && m.doneGone) return finish(m.success, '/Admin/Events/Index');
+      if (fresh.gone) { d.status = 'gone'; d.error = ''; paint(); cancel.focus(); return; }
       if (!fresh.ok) { d.status = 'uncertain'; paint(); confirm.focus(); return; }
       state = fresh.data;
       const reopenedMs = fresh.data.reopenedUntil ? Date.parse(fresh.data.reopenedUntil) : null;
@@ -215,7 +222,7 @@ export async function init(region, ui = window.AdminUI) {
       if (location) { await ui.navigate(location); return; }
       await refresh('now-title');
     }
-    on(cancel, 'click', () => { if (!busy()) void layer.close(false); });
+    on(cancel, 'click', () => { if (!busy()) void ui.closeLayer(); });
     on(confirm, 'click', () => { if (!busy()) void run(); });
     paint();
     (reason || panel.querySelector('#dlg-until-date') || cancel).focus();
@@ -293,9 +300,9 @@ export async function init(region, ui = window.AdminUI) {
       busy = true; chosen = enabled; banner.hidden = true; paint();
       const result = await post(enabled ? 'EnableEvidenceCodes' : 'DisableEvidenceCodes', { EventVersion: state.version }, { [t('Require evidence codes')]: enabled ? '✓' : '—' });
       busy = false; chosen = null;
-      if (result.kind === 'handler' && result.data?.succeeded) { changed = true; await reread(); ui.toast(result.data.message); }
+      if (result.kind === 'handler' && result.data?.succeeded) { changed = true; await reread(); layer.markClean(); ui.toast(result.data.message); }
       else if (result.kind !== 'session-lost') {
-        await reread();
+        await reread(); layer.markClean();
         banner.querySelector('.grow').textContent = result.kind === 'handler' ? result.data?.error || t('Couldn’t complete this. Nothing changed, and your entries are still here.') : result.kind === 'refused' ? result.reason || t('Couldn’t complete this. Nothing changed, and your entries are still here.') : t('Couldn’t confirm the save. Close and reopen to see the current codes before trying again.');
         banner.hidden = false;
       }
@@ -344,7 +351,7 @@ export async function init(region, ui = window.AdminUI) {
       if (result.kind === 'handler' && result.data?.outcome === 'stale') await reread();
       banner.hidden = false; paint();
     });
-    on(close, 'click', () => { if (!busy) void layer.close(false); });
+    on(close, 'click', () => { if (!busy) void ui.closeLayer(); });
     paint();
     toggle.focus();
   }
@@ -359,7 +366,7 @@ export async function init(region, ui = window.AdminUI) {
 
   on(region, 'click', event => {
     const action = event.target.closest('[data-overview-action]');
-    if (action && region.contains(action)) { event.preventDefault(); openAction(action.dataset.overviewAction, action); return; }
+    if (action && region.contains(action)) { event.preventDefault(); void openAction(action.dataset.overviewAction, action); return; }
     const codeButton = event.target.closest('[data-overview-codes]');
     if (codeButton) { openCodes(codeButton); return; }
     const copyButton = event.target.closest('[data-overview-copy]');

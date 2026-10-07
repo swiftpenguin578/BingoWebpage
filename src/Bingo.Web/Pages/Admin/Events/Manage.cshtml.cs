@@ -445,6 +445,11 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
         // Stale banner: the latest recorded change to this event (actor and readable action).
         var last = await dbContext.AuditEntries.AsNoTracking().Where(x => x.EventId == item.Id).OrderByDescending(x => x.OccurredAt).Select(x => new { x.Action, x.ActorUsername }).FirstOrDefaultAsync(ct);
         var lastChange = last is null ? null : Localize("{0} ({1})", AuditPresenter.ActionLabels.TryGetValue(last.Action, out var label) ? auditText?[label].Value ?? label : last.Action, last.ActorUsername);
+        // L6: the hidden view (U4-Q3 (c)) needs only the restore dialog; no other dialog, evidence code or last change is emitted.
+        if (item.IsHidden)
+            return new(item.Id, item.Version.ToString(CultureInfo.InvariantCulture), item.State.ToString(), true, null, null, false, [],
+                view.Dialogs.Where(pair => pair.Key == "restore").ToDictionary(pair => pair.Key, pair => pair.Value),
+                new OverviewCodes(false, false, string.Empty, [], view.Codes.Timezone, string.Empty), null, view);
         return new(item.Id, item.Version.ToString(CultureInfo.InvariantCulture), item.State.ToString(), item.IsHidden,
             item.ReopenedSubmissionCutoffAt, item.EventEndsAt, item.EvidenceCodeEnabled, codes, view.Dialogs, view.Codes, lastChange, view);
     }
@@ -496,6 +501,10 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
         if (publish.Success) return Localize("Publish the results of {0} first.", publish.Groups[1].Value);
         var still = System.Text.RegularExpressions.Regex.Match(error, "^(.+) is still the current event\\. Contact the Super Admin to archive it\\.$");
         if (still.Success) return Localize("{0} is still the current event. Contact the Super Admin to archive it.", still.Groups[1].Value);
+        var overlap = System.Text.RegularExpressions.Regex.Match(error, "^This event window overlaps (.+) \\(([^()]+)\\)\\.$");
+        if (overlap.Success) return Localize("This event window overlaps {0} ({1}).", overlap.Groups[1].Value, overlap.Groups[2].Value);
+        var replacement = System.Text.RegularExpressions.Regex.Match(error, "^The replacement lifecycle window overlaps (.+)\\.$");
+        if (replacement.Success) return Localize("The replacement lifecycle window overlaps {0}.", replacement.Groups[1].Value);
         return Localize(error);
     }
     private async Task<IActionResult> SignupResult(SignupLifecycleResult result, Guid id, string success, CancellationToken ct)
