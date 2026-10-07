@@ -192,6 +192,10 @@ public sealed class UiReviewScenarioSeeder(
         var question = new SignupQuestion(Guid.NewGuid(), form.Id, item.Id, "primary_regular_account", "Playing account", SignupQuestionType.Account, true, 0, null, SignupSystemField.PrimaryRegularAccount, EventCharacterRole.Playing);
         db.SignupForms.Add(form);
         db.SignupQuestions.Add(question);
+        // Signup setup review uses the same standard fields as EventCreationService.
+        db.SignupQuestions.AddRange(
+            new SignupQuestion(Guid.NewGuid(), form.Id, item.Id, "captain_volunteer", "Captain volunteer", SignupQuestionType.YesNo, true, 1, null, SignupSystemField.CaptainVolunteer),
+            new SignupQuestion(Guid.NewGuid(), form.Id, item.Id, SignupQuestion.CoCaptainKey, SignupQuestion.CoCaptainLabel, SignupQuestionType.Text, false, 2, null, SignupSystemField.CoCaptainName));
         var session = new DraftSession(Guid.NewGuid(), item.Id, 3);
         db.DraftSessions.Add(session);
         Audit(item, "event.created", item.CreatedAt, null,
@@ -321,7 +325,7 @@ public sealed class UiReviewScenarioSeeder(
 
     private void AddConfirmedSignups(BingoEvent item, DateTimeOffset at)
     {
-        var question = db.SignupQuestions.Local.Single(value => value.EventId == item.Id);
+        var question = db.SignupQuestions.Local.Single(value => value.EventId == item.Id && value.SystemField == SignupSystemField.PrimaryRegularAccount);
         var sequence = 0;
         foreach (var name in new[] { "ReviewCaptain", "ReviewCoCaptain", "ReviewParticipant" })
         {
