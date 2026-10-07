@@ -82,7 +82,7 @@ export function init(region, ui = window.AdminUI) {
       return;
     }
     if (event.target.closest('[data-audit-specific]')) { ui.closeMenu(false); openPanel(); return; }
-    if (event.target.closest('[data-audit-more]')) { if (panel()?.hidden === false) closePanel(true); else openPanel(); return; }
+    if (event.target.closest('[data-audit-more]')) { if (panel()?.hidden === false) void requestClosePanel(true); else openPanel(); return; }
     if (event.target.closest('[data-audit-notice-dismiss]')) { event.target.closest('.banner')?.remove(); actor.focus({ preventScroll: true }); return; }
     const link = event.target.closest('[data-audit-open]');
     if (link && (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey)) return;
@@ -121,9 +121,11 @@ export function init(region, ui = window.AdminUI) {
   function placePanel() {
     const node = panel(), bounds = moreButton().getBoundingClientRect(), width = Math.min(320, innerWidth - 16);
     const x = Math.max(8, Math.min(innerWidth - width - 8, bounds.right - width)), y = bounds.bottom + 6;
-    node.style.left = `${Math.round(x)}px`; node.style.top = `${Math.round(y)}px`;
-    // A4: the panel stays within the viewport; its body scrolls on short screens.
-    node.style.maxHeight = `${Math.max(160, Math.round(innerHeight - y - 8))}px`;
+    // A4: the panel stays within the viewport; it moves up when the space below is short and its
+    // body scrolls when the viewport itself is short.
+    node.style.left = `${Math.round(x)}px`;
+    node.style.maxHeight = `${Math.round(innerHeight - 16)}px`;
+    node.style.top = `${Math.round(Math.max(8, Math.min(y, innerHeight - 8 - node.offsetHeight)))}px`;
   }
   function paintPresets() {
     const node = panel(); if (!node) return;
@@ -146,9 +148,24 @@ export function init(region, ui = window.AdminUI) {
     placePanel(); paintPresets(); dateError();
     node.querySelector('#fp-action').focus();
   }
+  const panelInputs = () => [...panel().querySelectorAll('select,input')];
+  const panelDirty = () => { const node = panel(); return !!node && !node.hidden && !!panelState && panelInputs().some((input, index) => input.value !== panelState.values[index]); };
+  let confirming = false, swallowClick = false;
+  // T1 review M2 (decision B / A12): with unapplied edits, Escape or an outside click asks with the
+  // shared discard confirmation (as the drawers do) instead of silently dropping them.
+  async function requestClosePanel(restore) {
+    if (confirming) return;
+    if (panelDirty()) {
+      confirming = true;
+      const discard = await ui.confirmDiscard();
+      confirming = false;
+      if (!discard) { (panel().contains(document.activeElement) ? document.activeElement : panel().querySelector('#fp-action'))?.focus({ preventScroll: true }); return; }
+    }
+    closePanel(restore);
+  }
   function closePanel(restore) {
     const node = panel(); if (!node || node.hidden) return;
-    // Unapplied panel edits are discarded on close, as in the reference (values return to the applied filters).
+    // Closing resets the fields to the applied filters (after the discard choice when edited).
     const inputs = [...node.querySelectorAll('select,input')];
     panelState?.values.forEach((value, index) => { inputs[index].value = value; });
     node.hidden = true; moreButton().setAttribute('aria-expanded', 'false'); dateError();
@@ -178,10 +195,19 @@ export function init(region, ui = window.AdminUI) {
   listen(root, 'input', event => { if (event.target.closest('[data-audit-panel]')) paintPresets(); });
   listen(root, 'keydown', event => {
     if (!event.target.closest('[data-audit-panel]')) return;
-    if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); closePanel(true); }
+    if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); void requestClosePanel(true); }
     else if (event.key === 'Enter' && event.target.tagName === 'INPUT') { event.preventDefault(); applyPanel(); }
   });
-  listen(document, 'pointerdown', event => { const node = panel(); if (node && !node.hidden && !node.contains(event.target) && !event.target.closest('[data-audit-more]')) closePanel(false); });
+  listen(document, 'pointerdown', event => {
+    const node = panel();
+    if (!node || node.hidden || confirming || node.contains(event.target) || event.target.closest('[data-audit-more], [data-modal-host]')) return;
+    // An outside click that has to ask first must not also act on what it hit.
+    if (panelDirty()) swallowClick = true;
+    void requestClosePanel(false);
+  });
+  listen(document, 'click', event => { if (swallowClick) { swallowClick = false; if (!event.target.closest('[data-modal-host]')) { event.preventDefault(); event.stopPropagation(); } } }, { capture: true });
+  // Leaving the page with unapplied panel edits uses the shared dirty guard too.
+  const unregisterPanelDraft = ui.registerDraft(root, { isDirty: panelDirty, discard: () => closePanel(false) });
   listen(window, 'resize', () => { const node = panel(); if (node && !node.hidden) placePanel(); });
 
   /* ---------------- entry drawer ---------------- */
@@ -276,5 +302,5 @@ export function init(region, ui = window.AdminUI) {
   setUrl(requestedId ? listUrl(requested && requested !== 'missing' ? requested : requestedId) : query.href);
   if (requested) void openDrawer(requested === 'missing' ? (requestedId || 'missing') : requested);
   root.querySelector('#au-notice')?.focus({ preventScroll: true });
-  release = () => { life.abort(); overflow.disconnect(); cancelAnimationFrame(overflowFrame); unregisterUrl(); drawer = null; };
+  release = () => { life.abort(); unregisterPanelDraft(); overflow.disconnect(); cancelAnimationFrame(overflowFrame); unregisterUrl(); drawer = null; };
 }
