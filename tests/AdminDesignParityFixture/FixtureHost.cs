@@ -158,6 +158,14 @@ internal static class FixtureHost
             .ConfigureLogging(logging => logging.SetMinimumLevel(LogLevel.Warning))
             .ConfigureServices(services =>
             {
+                services.AddHttpContextAccessor();
+                var localization = services.Single(item => item.ServiceType == typeof(Microsoft.Extensions.Localization.IStringLocalizerFactory));
+                services.Remove(localization);
+                services.AddSingleton<Microsoft.Extensions.Localization.IStringLocalizerFactory>(provider => new DanishRenderAuditFactory(
+                    (Microsoft.Extensions.Localization.IStringLocalizerFactory)(localization.ImplementationInstance
+                        ?? localization.ImplementationFactory?.Invoke(provider)
+                        ?? ActivatorUtilities.CreateInstance(provider, localization.ImplementationType!)), provider.GetRequiredService<IHttpContextAccessor>()));
+                services.AddTransient<IStartupFilter, DanishRenderAuditStartup>();
                 services.RemoveAll<IHostedService>(); services.AddDataProtection().UseEphemeralDataProtectionProvider();
                 services.AddSingleton<TimeProvider>(new FixtureClock());
                 services.PostConfigure<CookieAuthenticationOptions>(CookieAuthenticationDefaults.AuthenticationScheme, settings =>
