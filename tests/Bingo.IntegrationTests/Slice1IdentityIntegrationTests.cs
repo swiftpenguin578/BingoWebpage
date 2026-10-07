@@ -394,7 +394,7 @@ public sealed partial class Slice1IdentityIntegrationTests(PostgreSqlTestFixture
         await using var verify = new ApplicationDbContext(options);
         var expected = outcome == "success" ? clock.GetUtcNow() : previousLogin;
         Assert.Equal(expected, await verify.Accounts.Where(account => account.Id == accountId).Select(account => account.LastLoginAt).SingleAsync());
-        var overview = new Bingo.Web.Pages.Admin.Accounts.IndexModel(verify) { WebsiteSearch = "discord-login-timestamp" };
+        var overview = AccountsPageTestFactory.Create(verify, q: "discord-login-timestamp");
         await overview.OnGetAsync(CancellationToken.None);
         Assert.Equal(expected, Assert.Single(overview.WebsiteAccounts).LastLoginAt);
         Assert.Empty(await verify.AuditEntries.ToListAsync());
@@ -984,15 +984,20 @@ public sealed partial class Slice1IdentityIntegrationTests(PostgreSqlTestFixture
         using var signedIn = await client.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string> { ["Input.Username"] = "slice1-http-reset-owner", ["Input.Password"] = "long-test-password", ["__RequestVerificationToken"] = loginToken }));
         Assert.Equal(HttpStatusCode.Redirect, signedIn.StatusCode);
 
-        var manage = await client.GetStringAsync($"/Admin/Accounts/Manage/{targetId}");
+        // A10 + D5 (T1): the link is delivered only in the generate response itself (no-store),
+        // never through TempData; later reads of this or another account never contain it.
+        var manage = await client.GetStringAsync($"/Admin/Accounts?account={targetId}");
         var manageToken = Regex.Match(manage, "name=\"__RequestVerificationToken\" type=\"hidden\" value=\"([^\"]+)\"").Groups[1].Value;
-        using var generated = await client.PostAsync($"/Admin/Accounts/Manage/{targetId}?handler=GenerateResetLink", new FormUrlEncodedContent(new Dictionary<string, string> { ["__RequestVerificationToken"] = manageToken }));
-        Assert.Equal(HttpStatusCode.Redirect, generated.StatusCode);
-        var revealed = await client.GetStringAsync($"/Admin/Accounts/Manage/{targetId}");
+        using var generated = await client.PostAsync($"/Admin/Accounts?account={targetId}&handler=GenerateResetLink", new FormUrlEncodedContent(new Dictionary<string, string> { ["__RequestVerificationToken"] = manageToken }));
+        Assert.Equal(HttpStatusCode.OK, generated.StatusCode);
+        Assert.Contains("no-store", generated.Headers.CacheControl?.ToString(), StringComparison.Ordinal);
+        var revealed = await generated.Content.ReadAsStringAsync();
         var resetPath = Regex.Match(revealed, "https?://[^<]+(/Account/ResetPassword/[A-F0-9]+)").Groups[1].Value;
         Assert.NotEmpty(resetPath);
-        var mismatched = await client.GetStringAsync($"/Admin/Accounts/Manage/{ownerId}");
+        Assert.DoesNotContain(resetPath, await client.GetStringAsync($"/Admin/Accounts?account={targetId}"), StringComparison.Ordinal);
+        var mismatched = await client.GetStringAsync($"/Admin/Accounts?account={ownerId}");
         Assert.DoesNotContain(resetPath, mismatched, StringComparison.Ordinal);
+        Assert.DoesNotContain("ResetPassword/", generated.Headers.ToString() + (generated.Content.Headers.ToString()), StringComparison.Ordinal);
 
         var resetForm = await client.GetStringAsync(resetPath);
         var resetToken = Regex.Match(resetForm, "name=\"__RequestVerificationToken\" type=\"hidden\" value=\"([^\"]+)\"").Groups[1].Value;
@@ -1911,7 +1916,7 @@ public sealed partial class Slice1IdentityIntegrationTests(PostgreSqlTestFixture
         for (var index = 0; index < 5; index++)
             db.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), now.AddMinutes(index), null, "admin", "other.action", "account", $"other-{index}", "Other event.", otherEventId));
         await db.SaveChangesAsync();
-        var model = new Bingo.Web.Pages.Admin.Audit.IndexModel(db) { Action = "account.changed", EventId = eventId, PageNumber = 1 };
+        var model = new Bingo.Web.Pages.Admin.Audit.IndexModel(db) { ActionQuery = "account.changed", EventQuery = eventId.ToString(), PageQuery = "1" };
 
         await model.OnGetAsync(CancellationToken.None);
 
@@ -1922,7 +1927,7 @@ public sealed partial class Slice1IdentityIntegrationTests(PostgreSqlTestFixture
         Assert.Equal("29", model.Entries[0].TargetId);
         Assert.Equal("5", model.Entries[^1].TargetId);
 
-        model.PageNumber = 2;
+        model.PageQuery = "2";
         await model.OnGetAsync(CancellationToken.None);
 
         Assert.Equal(5, model.Entries.Count);

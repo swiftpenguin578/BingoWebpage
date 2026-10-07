@@ -76,9 +76,10 @@ public sealed partial class Slice1IdentityIntegrationTests
         }));
         Assert.Equal(HttpStatusCode.Redirect, signedIn.StatusCode);
 
-        var transfer = await client.GetStringAsync("/Admin/Accounts/Transfer");
+        // A10 (T1): the Transfer dialog on /Admin/Accounts replaced the Transfer page; its handler is ?handler=Transfer.
+        var transfer = await client.GetStringAsync("/Admin/Accounts");
         var transferToken = Regex.Match(transfer, "name=\"__RequestVerificationToken\" type=\"hidden\" value=\"([^\"]+)\"").Groups[1].Value;
-        using var rejected = await client.PostAsync("/Admin/Accounts/Transfer", new FormUrlEncodedContent(new Dictionary<string, string>
+        using var rejected = await client.PostAsync("/Admin/Accounts?handler=Transfer", new FormUrlEncodedContent(new Dictionary<string, string>
         {
             ["Input.DestinationId"] = destinationId.ToString(),
             ["Input.ExpectedAuthorizationVersion"] = destinationVersion.ToString(CultureInfo.InvariantCulture),
@@ -89,7 +90,7 @@ public sealed partial class Slice1IdentityIntegrationTests
         var rejectedHtml = await rejected.Content.ReadAsStringAsync();
         Assert.Contains("Destination username confirmation", rejectedHtml, StringComparison.OrdinalIgnoreCase);
 
-        using var serverRejected = await client.PostAsync("/Admin/Accounts/Transfer", new FormUrlEncodedContent(new Dictionary<string, string>
+        using var serverRejected = await client.PostAsync("/Admin/Accounts?handler=Transfer", new FormUrlEncodedContent(new Dictionary<string, string>
         {
             ["Input.DestinationId"] = destinationId.ToString(),
             ["Input.ExpectedAuthorizationVersion"] = destinationVersion.ToString(CultureInfo.InvariantCulture),

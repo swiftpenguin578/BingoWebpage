@@ -146,7 +146,7 @@ public sealed class UiReviewScenarioIntegrationTests(ITestOutputHelper output, P
             var rendered = WebUtility.HtmlDecode(await client.GetStringAsync("/Admin"));
             Assert.DoesNotContain(events.Single(value => value.Id == result.DiscardedEventId).Name, rendered, StringComparison.Ordinal);
             Assert.DoesNotContain(result.DiscardedEventId.ToString(), rendered, StringComparison.Ordinal);
-            var audit = await client.GetStringAsync($"/Admin/Audit?eventId={result.DiscardedEventId}");
+            var audit = await client.GetStringAsync($"/Admin/Audit?event={result.DiscardedEventId}");
             Assert.Contains($"data-audit-entry=\"{discardAudit.Id}\"", audit, StringComparison.Ordinal);
         }
         using var localWom = scope.ServiceProvider.GetRequiredService<IHttpClientFactory>().CreateClient("WiseOldMan");
@@ -340,7 +340,7 @@ public sealed class UiReviewScenarioIntegrationTests(ITestOutputHelper output, P
             foreach (var seededAudit in await db.AuditEntries.Where(value => value.Action == "event.signup_opening_failed"
                 || value.Action == "event.start_postponed" || value.Action == "historical_import.applied").ToListAsync())
             {
-                var auditHtml = WebUtility.HtmlDecode(await client.GetStringAsync($"/Admin/Audit?eventId={seededAudit.EventId}"));
+                var auditHtml = WebUtility.HtmlDecode(await client.GetStringAsync($"/Admin/Audit?event={seededAudit.EventId}"));
                 Assert.Contains($"data-audit-entry=\"{seededAudit.Id}\"", auditHtml, StringComparison.Ordinal);
                 Assert.Contains(seededAudit.Action, auditHtml, StringComparison.Ordinal);
                 Assert.Contains(seededAudit.ActorUsername!, auditHtml, StringComparison.Ordinal);
@@ -617,10 +617,11 @@ public sealed class UiReviewScenarioIntegrationTests(ITestOutputHelper output, P
                     Assert.Equal(HttpStatusCode.OK, remembered.StatusCode);
                     Assert.Contains(remembered.Headers.GetValues("Set-Cookie"), value => value.StartsWith(AdminEventSession.CookieName + "=;", StringComparison.Ordinal));
                     Assert.DoesNotContain($"data-selected-event-id=\"{scenarios.DiscardedEventId}\"", await remembered.Content.ReadAsStringAsync(), StringComparison.Ordinal);
-                    var auditRoute = $"/Admin/Audit/Index?eventId={scenarios.DiscardedEventId}";
+                    var auditRoute = $"/Admin/Audit/Index?event={scenarios.DiscardedEventId}";
                     var auditHtml = await clients[username].GetStringAsync(auditRoute);
                     Assert.Contains($"data-audit-entry=\"{discardAuditId}\"", auditHtml, StringComparison.Ordinal);
-                    var auditLink = WebUtility.HtmlDecode(Regex.Match(auditHtml, "class=\"admin-audit-entry-link\"[^>]*href=\"([^\"]+)\"").Groups[1].Value);
+                    // A10 (T1): the bound Audit page links each entry from its action name.
+                    var auditLink = WebUtility.HtmlDecode(Regex.Match(auditHtml, $"class=\"name-btn\" id=\"open-{discardAuditId}\" href=\"([^\"]+)\"").Groups[1].Value);
                     Assert.NotEmpty(auditLink);
                     using var auditEntryResponse = await clients[username].GetAsync(auditLink);
                     Assert.Equal(HttpStatusCode.OK, auditEntryResponse.StatusCode);

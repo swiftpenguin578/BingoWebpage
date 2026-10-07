@@ -437,7 +437,7 @@ public sealed partial class EventQuarantineIntegrationTests : IAsyncLifetime
             var administration = new AccountAdministrationService(hiddenDb, passwords, clock);
             var identities = new AccountIdentityService(hiddenDb, passwords, clock);
 
-            var page = new Bingo.Web.Pages.Admin.Accounts.ManageModel(hiddenDb, administration, identities)
+            var page = new Bingo.Web.Pages.Admin.Accounts.ManageModel(hiddenDb)
             {
                 PageContext = new PageContext(new ActionContext(new DefaultHttpContext(), new RouteData(), new PageActionDescriptor()))
             };

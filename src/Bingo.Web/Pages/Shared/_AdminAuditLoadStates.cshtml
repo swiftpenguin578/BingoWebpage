@@ -1,0 +1,39 @@
+@inject IStringLocalizer<AdminCommunityResource> D
+@{
+    var columns = new[] { ("When", "c-name"), ("Action", ""), ("Event", ""), ("Actor", ""), ("Recorded", "") };
+    var offset = Bingo.Web.Pages.Admin.Audit.IndexModel.Offset(DateTimeOffset.UtcNow);
+}
+@* Lane T: Audit page-family load states. The summary is data-independent, so it shows at once. *@
+<template data-page-header-template="audit">
+    <header class="page-head" data-page-family="audit"><div style="min-width:0"><h1 class="h1" tabindex="-1">@D["Audit"]</h1><p class="summary"><span>@D["Administrative history, newest first."]</span><span>@D["Times in Copenhagen time ({0})", offset]</span></p></div></header>
+</template>
+@foreach (var failed in new[] { false, true })
+{
+    <template data-page-@(failed ? "failure" : "loading")-template="audit" data-page-title="@(failed ? null : D["Audit"].Value)">
+        <link rel="stylesheet" href="~/css/admin-design-audit.css" asp-append-version="true" />
+        <div data-audit-pending>
+        <div class="toolbar au-toolbar" role="search" aria-label="@D["Filter the history"]">
+            <div class="tbar-right au-filters">
+                <div class="search"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("search")' /><input class="input" type="search" placeholder="@D["Actor"]" aria-label="@D["Filter by actor"]" autocomplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" disabled></div>
+                <button class="btn filter-btn" type="button" disabled><span class="fb-lbl">@D["Event"]</span><span>@D["All"]</span><partial name="_AdminDesignIcon" model='new AdminDesignIcon("chevron-down")' /></button>
+                <button class="btn filter-btn" type="button" disabled><span class="fb-lbl">@D["Action"]</span><span>@D["All"]</span><partial name="_AdminDesignIcon" model='new AdminDesignIcon("chevron-down")' /></button>
+                <button class="btn filter-btn" type="button" disabled>@D["More filters"]<partial name="_AdminDesignIcon" model='new AdminDesignIcon("chevron-down")' /></button>
+            </div>
+        </div>
+        <div class="card"><div class="tbl-wrap"><div class="tbl au-tbl sticky-first" role="table" aria-label="@D["Audit entries, newest first"]" aria-busy="@(failed ? "false" : "true")">
+            <div class="tr th-row" role="row">@foreach (var (label, cls) in columns) { <div class="th @cls" role="columnheader">@D[label]</div> }</div>
+            @if (failed)
+            {
+                <div class="empty is-error" role="row"><div role="cell" class="au-cell-contents"><div class="empty-ic"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("error")' /></div><div class="empty-title">@D["Couldn’t load the history"]</div><div class="empty-text">@D["Your filters are kept. Check your connection and try again."]</div><button class="btn" type="button" data-load-retry>@D["Try again"]</button></div></div>
+            }
+            else
+            {
+                @foreach (var width in new[] { 70, 55, 80, 62, 74, 50, 66, 58 })
+                {
+                    <div class="tr sk-row" role="row" aria-hidden="true"><div class="td c-name"><div class="au-sk-main"><div class="sk au-sk-w70"></div></div><div class="au-sk-sub"><div class="sk au-sk-w40 au-sk-thin"></div></div></div><div class="td"><div class="au-sk-main"><div class="sk" style="width:@(width)%"></div></div><div class="au-sk-sub"><div class="sk au-sk-w46 au-sk-thin"></div></div></div><div class="td"><div class="au-sk-main"><div class="sk au-sk-w60"></div></div></div><div class="td"><div class="au-sk-main"><div class="sk au-sk-w50"></div></div></div><div class="td"><div class="au-sk-main"><div class="sk au-sk-w44 au-sk-pill"></div></div></div></div>
+                }
+            }
+        </div></div></div>
+        </div>
+    </template>
+}
