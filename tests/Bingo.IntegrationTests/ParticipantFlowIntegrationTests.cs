@@ -95,52 +95,43 @@ public sealed class ParticipantFlowIntegrationTests(PostgreSqlTestFixture databa
         using var client = Client(factory);
         client.DefaultRequestHeaders.AcceptLanguage.ParseAdd("da");
         await LoginAsync(client, admin);
-        var route = $"/Admin/Events/Participant/{item.Id}/Participants/{participant.Id}";
-        var initialPage = await client.GetStringAsync(route);
+        // A10 (U5-Q1, item 1b): the old detail form and its WOM outage confirmation are retired.
+        // The drawer save takes a typed RSN as an event-only account without any WOM request,
+        // and a post to the old detail route is refused before any write.
+        var oldRoute = $"/Admin/Events/Participant/{item.Id}/Participants/{participant.Id}";
+        var route = $"/Admin/Events/Participants/{item.Id}";
+        var page = await client.GetStringAsync(route);
         var editVersion = await CurrentResponseVersionAsync(participant.Id);
-
-        async Task<(HttpStatusCode Status, string Html)> PostEditAsync(string token, string characterName)
+        using (var retired = await client.PostAsync(oldRoute, new FormUrlEncodedContent(new Dictionary<string, string>
         {
-            using var response = await client.PostAsync(route, new FormUrlEncodedContent(new Dictionary<string, string>
-            {
-                ["__RequestVerificationToken"] = Token(initialPage),
-                ["Input.ExpectedResponseVersion"] = editVersion.ToString(CultureInfo.InvariantCulture),
-                ["Input.WomValidationConfirmationToken"] = token,
-                [$"Input.AccountAnswers[{question.Id}].CharacterName"] = characterName,
-                [$"Input.AccountAnswers[{question.Id}].Ehb"] = "5.5"
-            }));
-            return (response.StatusCode, WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync()));
-        }
-
-        var first = await PostEditAsync("", "First Outage");
-        Assert.Equal(HttpStatusCode.OK, first.Status);
-        Assert.Equal("edit-confirmation-1", HiddenValue(first.Html, "Input.WomValidationConfirmationToken"));
-        Assert.Contains("Wise Old Man er ikke tilgængelig. Bekræft igen for at gemme disse ubekræftede konti, eller annullér for at lade holdlisten være uændret.", first.Html, StringComparison.Ordinal);
-        Assert.Contains("value=\"First Outage\"", first.Html, StringComparison.Ordinal);
-        Assert.Contains("value=\"5.5\"", first.Html, StringComparison.Ordinal);
-
-        // Abandoning the pending edit by reopening the route performs no write and starts with no hidden confirmation token.
-        var cancelled = await client.GetStringAsync(route);
-        Assert.Equal(string.Empty, HiddenValue(WebUtility.HtmlDecode(cancelled), "Input.WomValidationConfirmationToken"));
+            ["__RequestVerificationToken"] = Token(page),
+            ["Input.ExpectedResponseVersion"] = editVersion.ToString(CultureInfo.InvariantCulture),
+            [$"Input.AccountAnswers[{question.Id}].CharacterName"] = "First Outage",
+            [$"Input.AccountAnswers[{question.Id}].Ehb"] = "5.5"
+        }))) Assert.Equal(HttpStatusCode.NotFound, retired.StatusCode);
         Assert.Equal("Existing Edit Account", await CurrentParticipantCharacterAsync(participant.Id));
 
-        var changed = await PostEditAsync("edit-confirmation-1", "Changed Edit");
-        Assert.Equal(HttpStatusCode.OK, changed.Status);
-        Assert.Equal("edit-confirmation-2", HiddenValue(changed.Html, "Input.WomValidationConfirmationToken"));
-        Assert.Contains("value=\"Changed Edit\"", changed.Html, StringComparison.Ordinal);
-        Assert.Contains("value=\"5.5\"", changed.Html, StringComparison.Ordinal);
-
-        var accepted = await PostEditAsync("edit-confirmation-2", "Changed Edit");
-        Assert.Equal(HttpStatusCode.Redirect, accepted.Status);
+        using var request = new HttpRequestMessage(HttpMethod.Post, $"{route}?handler=SaveParticipant")
+        {
+            Content = new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["participantId"] = participant.Id.ToString(), ["expectedResponseVersion"] = editVersion.ToString(CultureInfo.InvariantCulture),
+                ["expectedPaid"] = "false", ["expectedNote"] = "", ["paid"] = "false", ["note"] = "",
+                ["accounts"] = $"[{{\"assignmentId\":\"{existingAssignment.Id}\",\"name\":\"Changed Edit\",\"ehb\":5.5,\"role\":\"playing\",\"primary\":true}}]",
+                ["answers"] = "{}"
+            })
+        };
+        request.Headers.Add("Accept", "application/json"); request.Headers.Add("RequestVerificationToken", Token(page));
+        using (var saved = await client.SendAsync(request))
+        {
+            Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
+            using var json = System.Text.Json.JsonDocument.Parse(await saved.Content.ReadAsStringAsync());
+            Assert.Equal("saved", json.RootElement.GetProperty("outcome").GetString());
+        }
         Assert.Equal("Changed Edit", await CurrentParticipantCharacterAsync(participant.Id));
         await using (var verify = new ApplicationDbContext(options))
             Assert.Equal((decimal?)5.5m, await verify.EventParticipantCharacters.Where(value => value.EventParticipantId == participant.Id && value.ReleasedAt == null).Select(value => value.EhbSnapshot).SingleAsync());
-        Assert.Equal(3, validation.Requests.Count);
-        Assert.Equal("First Outage", Assert.Single(validation.Requests[0].CharacterNames));
-        Assert.Equal("Changed Edit", Assert.Single(validation.Requests[1].CharacterNames));
-        Assert.Equal("Changed Edit", Assert.Single(validation.Requests[2].CharacterNames));
-        Assert.Equal("participant.edit", validation.Requests[^1].Action);
-        Assert.Equal(participant.Id, validation.Requests[^1].ParticipantId);
+        Assert.Empty(validation.Requests);
     }
 
     [Fact]
@@ -590,24 +581,30 @@ public sealed class ParticipantFlowIntegrationTests(PostgreSqlTestFixture databa
         await using var factory = Factory();
         using var client = Client(factory);
         await LoginAsync(client, admin);
+        // A10 (U5 items 0a/1b, S5): the old detail route only redirects; its Withdraw and FillVacancy
+        // posts are refused before any write, and the Participants Withdraw is refused from Live on.
         var participantPath = $"/Admin/Events/Participant/{item.Id}/Participants/{departed.Id}";
-        var participantPage = await client.GetStringAsync(participantPath);
-        Assert.DoesNotContain("Fill open vacancy", participantPage, StringComparison.Ordinal);
-        using (var rejected = await client.PostAsync($"{participantPath}?handler=Withdraw", new FormUrlEncodedContent(new Dictionary<string, string>
+        var participantsPath = $"/Admin/Events/Participants/{item.Id}";
+        var participantPage = await client.GetStringAsync(participantsPath);
+        Assert.DoesNotContain("Fill open vacancy", await client.GetStringAsync($"{participantsPath}?handler=Current&participant={departed.Id}"), StringComparison.Ordinal);
+        using (var rejected = await client.PostAsync($"{participantsPath}?handler=Withdraw", new FormUrlEncodedContent(new Dictionary<string, string>
         {
-            ["ExpectedMembershipVersion"] = departedMembership.Version.ToString(CultureInfo.InvariantCulture),
-            ["ConfirmLifecycleAction"] = "true",
+            ["participantId"] = departed.Id.ToString(),
+            ["confirmLifecycleAction"] = "true",
             ["__RequestVerificationToken"] = Token(participantPage)
-        }))) Assert.Equal(HttpStatusCode.Redirect, rejected.StatusCode);
-        var rejectedPage = await client.GetStringAsync(participantPath);
-        Assert.Contains("locked", rejectedPage, StringComparison.OrdinalIgnoreCase);
-        using (var forgedFill = await client.PostAsync($"{participantPath}?handler=FillVacancy", new FormUrlEncodedContent(new Dictionary<string, string>
+        }))) { Assert.Equal(HttpStatusCode.Redirect, rejected.StatusCode); Assert.Equal($"/Admin/Events/Manage/{item.Id}", rejected.Headers.Location?.OriginalString); }
+        foreach (var handler in new[] { "Withdraw", "FillVacancy" })
         {
-            ["VacancyMembershipId"] = departedMembership.Id.ToString(),
-            ["VacancyMembershipVersion"] = departedMembership.Version.ToString(CultureInfo.InvariantCulture),
-            ["ReplacementWaitingParticipantId"] = Guid.NewGuid().ToString(),
-            ["__RequestVerificationToken"] = Token(rejectedPage)
-        }))) Assert.Equal(HttpStatusCode.Redirect, forgedFill.StatusCode);
+            using var forged = await client.PostAsync($"{participantPath}?handler={handler}", new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["VacancyMembershipId"] = departedMembership.Id.ToString(),
+                ["VacancyMembershipVersion"] = departedMembership.Version.ToString(CultureInfo.InvariantCulture),
+                ["ReplacementWaitingParticipantId"] = Guid.NewGuid().ToString(),
+                ["ConfirmLifecycleAction"] = "true",
+                ["__RequestVerificationToken"] = Token(participantPage)
+            }));
+            Assert.Equal(HttpStatusCode.NotFound, forged.StatusCode);
+        }
         Assert.Equal(before, await StateHashAsync());
     }
 

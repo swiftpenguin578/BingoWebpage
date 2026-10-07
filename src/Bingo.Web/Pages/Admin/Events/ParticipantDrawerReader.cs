@@ -38,8 +38,9 @@ public sealed class ParticipantDrawerReader(ApplicationDbContext db, Func<string
         if (accounts.Count > 0 && !accounts.Any(x => x.Primary && x.Role == "playing") && accounts.FirstOrDefault(x => x.Role == "playing") is { } fallback)
             accounts[accounts.IndexOf(fallback)] = fallback with { Primary = true };
 
+        // The Discord display name stays private (it was never on the admin detail page); only the link state shows.
         var owner = participant.AccountId is { } ownerId
-            ? await db.Accounts.AsNoTracking().Where(x => x.Id == ownerId).Select(x => new { x.Id, Username = x.PublicUsername ?? x.LoginName, x.DiscordDisplayName, Linked = x.DiscordUserId != null, x.CreatedAt }).SingleOrDefaultAsync(ct)
+            ? await db.Accounts.AsNoTracking().Where(x => x.Id == ownerId).Select(x => new { x.Id, Username = x.PublicUsername ?? x.LoginName, Linked = x.DiscordUserId != null, x.CreatedAt }).SingleOrDefaultAsync(ct)
             : null;
         var saved = owner is null ? [] : await (from link in db.AccountOsrsCharacters.AsNoTracking()
                                                 join character in db.OsrsCharacters.AsNoTracking() on link.OsrsCharacterId equals character.Id
@@ -55,6 +56,13 @@ public sealed class ParticipantDrawerReader(ApplicationDbContext db, Func<string
                 x.Options?.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries) ?? [],
                 x.SystemField == SignupSystemField.CaptainVolunteer ? (participant.CaptainVolunteer ? "true" : "false") : answers.GetValueOrDefault(x.Id)))
             .ToList();
+        // Answers kept for a retired (deactivated, not deleted) question stay readable, as on the
+        // old detail page; they are read-only and never part of a save.
+        var answeredIds = answers.Keys.ToList();
+        var retired = await db.SignupQuestions.AsNoTracking()
+            .Where(x => x.EventId == bingoEvent.Id && !x.Active && x.Type != SignupQuestionType.Account && x.DisabledReason != SignupQuestion.DeletedReason && answeredIds.Contains(x.Id))
+            .OrderBy(x => x.Position).ToListAsync(ct);
+        answerViews.AddRange(retired.Select(x => new ParticipantDrawerAnswer(x.Id, x.Label, x.Type.ToString(), null, [], answers[x.Id], Retired: true)));
 
         var team = await (from membership in db.TeamMemberships.AsNoTracking()
                           join item in db.Teams.AsNoTracking() on membership.TeamId equals item.Id
@@ -77,7 +85,7 @@ public sealed class ParticipantDrawerReader(ApplicationDbContext db, Func<string
             participant.PaymentStatus == PaymentStatus.Paid, participant.AdminNotes ?? string.Empty,
             participant.SignupSequence, total, signedUp,
             participant.Source switch { SignupSource.Website => localize("Website signup", []), SignupSource.CsvImport => localize("CSV import", []), _ => localize("Added by an admin", []) },
-            team, owner?.Username, owner?.DiscordDisplayName, owner?.Linked == true,
+            team, owner?.Username, owner?.Linked == true,
             owner is null ? null : owner.CreatedAt.ToString("MMMM yyyy", CultureInfo.CurrentCulture),
             accounts, saved, answerViews, playingSlots, altQuestions,
             editable, policy.PrivateEditable, policy.Reason, bingoEvent.Version,
@@ -115,11 +123,11 @@ public sealed record ParticipantRosterPolicy(bool Editable, bool PrivateEditable
 
 public sealed record ParticipantDrawerAccount(Guid AssignmentId, string Name, decimal? Ehb, string Role, bool Primary);
 public sealed record ParticipantDrawerSavedAccount(string Name, decimal? Ehb);
-public sealed record ParticipantDrawerAnswer(Guid QuestionId, string Label, string Type, string? System, IReadOnlyList<string> Options, string? Value);
+public sealed record ParticipantDrawerAnswer(Guid QuestionId, string Label, string Type, string? System, IReadOnlyList<string> Options, string? Value, bool Retired = false);
 public sealed record ParticipantDrawerView(
     Guid Id, string Status, int? WaitingPosition, int WaitingCount, int ResponseVersion,
     bool Paid, string AdminNote, long SignupSequence, int TotalCount, string SignedUp, string Source,
-    string? Team, string? Username, string? DiscordName, bool DiscordLinked, string? MemberSince,
+    string? Team, string? Username, bool DiscordLinked, string? MemberSince,
     IReadOnlyList<ParticipantDrawerAccount> Accounts, IReadOnlyList<ParticipantDrawerSavedAccount> SavedAccounts,
     IReadOnlyList<ParticipantDrawerAnswer> Answers, int PlayingSlots, IReadOnlyList<string> AltSlots,
     bool Editable, bool PrivateEditable, string LockReason, long EventVersion, int Capacity, int Confirmed);

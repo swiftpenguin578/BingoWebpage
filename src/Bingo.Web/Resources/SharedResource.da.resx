@@ -3975,4 +3975,59 @@
   <data name="No withdrawn participants match {0}." xml:space="preserve"><value>Ingen tilbagetrukne deltagere matcher {0}.</value></data>
   <data name="No participants match {0}." xml:space="preserve"><value>Ingen deltagere matcher {0}.</value></data>
   <data name="External roster member" xml:space="preserve"><value>Ekstern deltager</value></data>
+  <data name="#{0} of {1}" xml:space="preserve"><value>#{0} af {1}</value></data>
+  <data name="Add context for other admins" xml:space="preserve"><value>Tilføj kontekst til andre administratorer</value></data>
+  <data name="All {0} account slots for this event are used" xml:space="preserve"><value>Alle {0} kontopladser til denne begivenhed er brugt</value></data>
+  <data name="At least one playing account is required" xml:space="preserve"><value>Der kræves mindst én spillekonto</value></data>
+  <data name="Can’t be negative." xml:space="preserve"><value>Må ikke være negativ.</value></data>
+  <data name="Changes to {0} saved" xml:space="preserve"><value>Ændringer for {0} er gemt</value></data>
+  <data name="Check this field." xml:space="preserve"><value>Tjek dette felt.</value></data>
+  <data name="Couldn’t load this participant" xml:space="preserve"><value>Deltageren kunne ikke indlæses</value></data>
+  <data name="Draft value {0} EHB" xml:space="preserve"><value>Draftværdi {0} EHB</value></data>
+  <data name="EHB filled in from the saved account" xml:space="preserve"><value>EHB er udfyldt fra den gemte konto</value></data>
+  <data name="EHB for {0}" xml:space="preserve"><value>EHB for {0}</value></data>
+  <data name="Enter a number." xml:space="preserve"><value>Indtast et tal.</value></data>
+  <data name="Entry payment" xml:space="preserve"><value>Deltagerbetaling</value></data>
+  <data name="Fix the highlighted field to save." xml:space="preserve"><value>Ret det markerede felt for at gemme.</value></data>
+  <data name="Fix the {0} highlighted fields to save." xml:space="preserve"><value>Ret de {0} markerede felter for at gemme.</value></data>
+  <data name="Member since" xml:space="preserve"><value>Medlem siden</value></data>
+  <data name="No answer" xml:space="preserve"><value>Intet svar</value></data>
+  <data name="No request" xml:space="preserve"><value>Intet ønske</value></data>
+  <data name="No saved EHB" xml:space="preserve"><value>Ingen gemt EHB</value></data>
+  <data name="No team yet" xml:space="preserve"><value>Intet hold endnu</value></data>
+  <data name="No website account" xml:space="preserve"><value>Ingen hjemmesidekonto</value></data>
+  <data name="Not a saved account. Used for this event only." xml:space="preserve"><value>Ikke en gemt konto. Bruges kun til denne begivenhed.</value></data>
+  <data name="Not one of @{0}’s saved accounts. Used for this event only." xml:space="preserve"><value>Ikke en af @{0}s gemte konti. Bruges kun til denne begivenhed.</value></data>
+  <data name="Only for captain volunteers" xml:space="preserve"><value>Kun for kaptajnfrivillige</value></data>
+  <data name="Participant not found" xml:space="preserve"><value>Deltageren blev ikke fundet</value></data>
+  <data name="Participant · @{0}" xml:space="preserve"><value>Deltager · @{0}</value></data>
+  <data name="Primary" xml:space="preserve"><value>Primær</value></data>
+  <data name="Primary account" xml:space="preserve"><value>Primær konto</value></data>
+  <data name="RSN" xml:space="preserve"><value>RSN</value></data>
+  <data name="RSN for {0}" xml:space="preserve"><value>RSN for {0}</value></data>
+  <data name="Remove account" xml:space="preserve"><value>Fjern konto</value></data>
+  <data name="Requested co-captain" xml:space="preserve"><value>Ønsket medkaptajn</value></data>
+  <data name="Required. 0 is valid." xml:space="preserve"><value>Påkrævet. 0 er gyldigt.</value></data>
+  <data name="Roster is locked for this event. You can still change payment and the private note." xml:space="preserve"><value>Deltagerlisten er låst for denne begivenhed. Du kan stadig ændre betaling og den private note.</value></data>
+  <data name="Signup answers" xml:space="preserve"><value>Tilmeldingssvar</value></data>
+  <data name="Signup details" xml:space="preserve"><value>Tilmeldingsdetaljer</value></data>
+  <data name="This is already a playing account." xml:space="preserve"><value>Dette er allerede en spillekonto.</value></data>
+  <data name="This participant isn’t part of {0}. The link may be out of date." xml:space="preserve"><value>Denne deltager er ikke en del af {0}. Linket kan være forældet.</value></data>
+  <data name="Use 100,000 or less." xml:space="preserve"><value>Brug 100.000 eller mindre.</value></data>
+  <data name="Use {0} as primary account" xml:space="preserve"><value>Brug {0} som primær konto</value></data>
+  <data name="Volunteers to captain" xml:space="preserve"><value>Melder sig som kaptajn</value></data>
+  <data name="Was paid" xml:space="preserve"><value>Var betalt</value></data>
+  <data name="Was unpaid" xml:space="preserve"><value>Var ubetalt</value></data>
+  <data name="We couldn’t confirm whether your changes were saved, and the current details didn’t load. Your edits are still here; check the participant before saving again." xml:space="preserve"><value>Vi kunne ikke bekræfte, om dine ændringer blev gemt, og de aktuelle oplysninger blev ikke indlæst. Dine ændringer er her stadig; tjek deltageren, før du gemmer igen.</value></data>
+  <data name="We couldn’t confirm whether your changes were saved. The current details are shown; check them before saving again." xml:space="preserve"><value>Vi kunne ikke bekræfte, om dine ændringer blev gemt. De aktuelle oplysninger vises; tjek dem, før du gemmer igen.</value></data>
+  <data name="Withdrawn participants are read-only. Restore to edit accounts and signup answers; payment and the private note can still be changed." xml:space="preserve"><value>Tilbagetrukne deltagere er skrivebeskyttede. Gendan for at redigere konti og tilmeldingssvar; betaling og den private note kan stadig ændres.</value></data>
+  <data name="new account" xml:space="preserve"><value>ny konto</value></data>
+  <data name="{0} / {1}" xml:space="preserve"><value>{0} / {1}</value></data>
+  <data name="{0} EHB saved" xml:space="preserve"><value>{0} EHB gemt</value></data>
+  <data name="{0} of {1} account slots" xml:space="preserve"><value>{0} af {1} kontopladser</value></data>
+  <data name="· only admins see this" xml:space="preserve"><value>· kun administratorer kan se dette</value></data>
+  <data name="· optional" xml:space="preserve"><value>· valgfrit</value></data>
+  <data name="· optional, no EHB" xml:space="preserve"><value>· valgfrit, ingen EHB</value></data>
+  <data name="AdminDesign.Add playing account" xml:space="preserve"><value>Tilføj spillekonto</value></data>
+  <data name="· retired question" xml:space="preserve"><value>· tidligere spørgsmål</value></data>
 </root>

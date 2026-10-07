@@ -40,7 +40,9 @@
         "That didn’t go through.", "We couldn’t confirm whether this happened. The current list is shown; check it before trying again.",
         "This participant changed while you were looking at it. The current list is shown; nothing was done.",
         "Action", "Participant", "Payment", "Paid", "Unpaid", "Payment for {0}: paid. Activate to mark as unpaid.", "Payment for {0}: unpaid. Activate to mark as paid.",
-        "Search participants"
+        "Search participants",
+        // Item 1b drawer.
+        "#{0} of {1}", "All {0} account slots for this event are used", "Alt account", "At least one playing account is required", "Can’t be negative.", "Changes to {0} saved", "Check this field.", "Discord", "Draft value {0} EHB", "EHB filled in from the saved account", "EHB for {0}", "Enter a number.", "Enter an RSN.", "Entry payment", "External roster member", "Fix the highlighted field to save.", "Fix the {0} highlighted fields to save.", "Linked", "Member since", "No", "No answer", "No request", "No saved EHB", "No team yet", "No website account", "None", "Not a saved account. Used for this event only.", "Not linked", "Not one of @{0}’s saved accounts. Used for this event only.", "Only for captain volunteers", "Participant not found", "Participant · @{0}", "Playing accounts", "Primary", "Private note", "RSN for {0}", "Remove account", "Remove {0}", "Requested co-captain", "Required. 0 is valid.", "Save changes", "Saving…", "Signed up", "Signup order", "Source", "This account is already listed.", "This is already a playing account.", "This participant changed while you were editing. The current details are shown; nothing was saved.", "Use 100,000 or less.", "Use up to 12 letters, numbers, spaces, - or _.", "Use {0} as primary account", "Volunteers to captain", "Waiting · #{0}", "Was paid", "Was unpaid", "We couldn’t confirm whether your changes were saved, and the current details didn’t load. Your edits are still here; check the participant before saving again.", "We couldn’t confirm whether your changes were saved. The current details are shown; check them before saving again.", "Website account", "Withdrawn", "Yes", "new account", "{0} / {1}", "{0} EHB saved", "{0} of {1} account slots", "· optional", "· optional, no EHB", "· retired question"
     };
     var labelJson = JsonSerializer.Serialize(labels.Distinct().ToDictionary(key => key, key => T[key].Value));
     string StatusLabel(ParticipantsListRow row) => row.Status switch
@@ -156,6 +158,78 @@ else
 </div>
 </div>
 <div class="menu pa-menu" id="participant-menu" role="menu" aria-label="@T["Participant actions"]" hidden data-participant-menu-panel></div>
+@* Item 1b: the participant drawer (Participants.dc.html:303-431). admin-participants.js fills it from the no-store current-state read (U5-Q3). *@
+<template data-participant-drawer>
+<div class="dr-head">
+    <div class="grow"><div class="eyebrow" data-d-eyebrow>@T["Participant"]</div><h2 class="dr-title" id="drawer-title" data-d-title>@T["Loading…"]</h2>
+        <div class="dr-badges" data-d-badges hidden><span class="badge" data-d-status></span><span class="chip"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("participants")' /><span data-d-team></span></span></div></div>
+    <button type="button" class="icon-btn" id="drawer-close" aria-label="@T["Close"]" data-d-close><partial name="_AdminDesignIcon" model='new AdminDesignIcon("close")' /></button>
+</div>
+<div class="dr-body" id="drawer-body">
+    <div class="dr-banners" data-d-banners>
+        <div class="banner is-info" role="status" data-d-locked hidden><partial name="_AdminDesignIcon" model='new AdminDesignIcon("lock")' /><span class="grow">@T["Roster is locked for this event. You can still change payment and the private note."]</span></div>
+        <div class="banner is-info" role="status" data-d-withdrawn hidden><partial name="_AdminDesignIcon" model='new AdminDesignIcon("lock")' /><span class="grow">@T["Withdrawn participants are read-only. Restore to edit accounts and signup answers; payment and the private note can still be changed."]</span></div>
+        <div data-d-messages></div>
+    </div>
+    <div data-d-state></div>
+    <div data-d-content hidden>
+        <section class="sec" aria-labelledby="d-pay-lbl">
+            <div class="sec-head"><h3 class="sec-title" id="d-pay-lbl">@T["Entry payment"]</h3><span class="sec-aside" data-d-pay-was hidden></span></div>
+            <div class="seg seg-lg" role="radiogroup" aria-labelledby="d-pay-lbl">
+                <label class="seg-opt"><input class="sr" type="radio" name="d-pay" value="paid" data-d-pay><partial name="_AdminDesignIcon" model='new AdminDesignIcon("check")' />@T["Paid"]</label>
+                <label class="seg-opt"><input class="sr" type="radio" name="d-pay" value="unpaid" data-d-pay><partial name="_AdminDesignIcon" model='new AdminDesignIcon("unpaid")' />@T["Unpaid"]</label>
+            </div>
+        </section>
+        <section class="sec" aria-labelledby="d-accts-lbl">
+            <div class="sec-head"><h3 class="sec-title" id="d-accts-lbl">@T["Playing accounts"]</h3><span class="sec-aside" data-d-draft-value></span></div>
+            <div data-d-accounts-edit>
+                <div class="acct-head" aria-hidden="true"><span class="is-center">@T["Primary"]</span><span>@T["RSN"]</span><span class="is-end">@T["EHB"]</span><span></span></div>
+                <div role="radiogroup" aria-label="@T["Primary account"]" data-d-account-rows></div>
+                <datalist id="owner-accounts" data-d-owner-accounts></datalist>
+                <div class="add-row"><button type="button" class="btn btn-quiet btn-sm add-link" id="add-acct" data-d-add-account><partial name="_AdminDesignIcon" model='new AdminDesignIcon("plus")' />@T["AdminDesign.Add playing account"]</button><span class="field-hint tnum" data-d-slot-text></span></div>
+            </div>
+            <div class="ro-list" data-d-accounts-read hidden></div>
+        </section>
+        <div data-d-alts></div>
+        <section class="sec" aria-labelledby="d-answers-lbl" data-d-answers-section>
+            <div class="sec-head"><h3 class="sec-title" id="d-answers-lbl">@T["Signup answers"]</h3></div>
+            <div data-d-answers></div>
+        </section>
+        <section class="sec">
+            <label class="lbl" for="admin-note">@T["Private note"] <span class="opt">@T["· only admins see this"]</span></label>
+            <textarea class="textarea" id="admin-note" maxlength="2000" placeholder="@T["Add context for other admins"]" data-d-note></textarea>
+            <div class="note-meta"><span></span><span data-d-note-count></span></div>
+        </section>
+        <section class="sec">
+            <button type="button" class="disc-btn" aria-expanded="false" aria-controls="signup-details" data-d-details-toggle>@T["Signup details"]<partial name="_AdminDesignIcon" model='new AdminDesignIcon("chevron-down")' /></button>
+            <dl class="kv" id="signup-details" data-d-details hidden></dl>
+        </section>
+    </div>
+</div>
+<div class="dr-foot">
+    <button type="button" class="btn btn-outline-danger" id="dr-status-btn" data-d-status-action="withdraw" hidden>@T["Withdraw…"]</button>
+    <button type="button" class="btn" data-d-status-action="restore" hidden>@T["Restore…"]</button>
+    <div class="spacer"></div>
+    <span class="dirty" role="status" data-d-dirty hidden><span class="dot"></span>@T["Unsaved changes"]</span>
+    <button type="button" class="btn" data-d-close>@T["Cancel"]</button>
+    <button type="button" class="btn btn-primary pa-save" disabled data-d-save><span class="spin" hidden></span><span data-d-save-label>@T["Save changes"]</span></button>
+</div>
+</template>
+<template data-participant-account-row>
+<div class="acct-row">
+    <div class="acct-radio"><input type="radio" name="primary-acct" data-a-primary></div>
+    <div><input class="input" placeholder="@T["RSN"]" list="owner-accounts" maxlength="12" autocomplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" data-a-rsn><div data-a-rsn-note></div></div>
+    <div><input class="input ehb-in" type="number" min="0" max="100000" step="0.1" placeholder="—" data-a-ehb><div data-a-ehb-note></div></div>
+    <button type="button" class="icon-btn" data-a-remove><partial name="_AdminDesignIcon" model='new AdminDesignIcon("remove")' /></button>
+</div>
+</template>
+<template data-participant-drawer-loading><div class="pa-dr-state" aria-busy="true" aria-label="@T["Loading"]"><div class="sk pa-sk-w46"></div><div class="sk pa-sk-block"></div><div class="sk pa-sk-w60"></div><div class="sk pa-sk-block"></div></div></template>
+<template data-participant-drawer-failed><div class="empty is-error" role="alert"><div class="empty-ic"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("error")' /></div><div class="empty-title">@T["Couldn’t load this participant"]</div><div class="empty-text">@T["Check your connection and try again. Nothing was changed."]</div><button type="button" class="btn" data-d-retry>@T["Try again"]</button></div></template>
+<template data-participant-drawer-missing><div class="empty" role="status"><div class="empty-ic"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("participants")' /></div><div class="empty-title">@T["Participant not found"]</div><div class="empty-text">@T["This participant isn’t part of {0}. The link may be out of date.", item.Name]</div></div></template>
+@if (Model.DrawerParticipant is { } drawerId)
+{
+    <script type="application/json" data-participant-drawer-initial data-participant-id="@drawerId">@Html.Raw(Model.DrawerView is null ? "null" : JsonSerializer.Serialize(Model.DrawerView, JsonSerializerOptions.Web))</script>
+}
 <template data-participants-pending><div class="rows" role="rowgroup">@for (var i = 0; i < 8; i++) { <div class="tr sk-row" role="row" aria-hidden="true"><div class="td c-name"><div class="pa-sk-line"><div class="sk pa-sk-w46"></div></div><div class="pa-sk-sub"><div class="sk pa-sk-w70"></div></div></div><div class="td"><div class="pa-sk-line"><div class="sk pa-sk-w70"></div></div></div><div class="td num"><div class="pa-sk-line"><div class="sk pa-sk-w60 pa-sk-end"></div></div></div><div class="td"><div class="pa-sk-line"><div class="sk pa-sk-w64"></div></div></div><div class="td c-cap"><div class="pa-sk-cell"><div class="sk pa-sk-w50"></div></div></div><div class="td c-team"><div class="pa-sk-cell"><div class="sk pa-sk-w55"></div></div></div><div class="td c-signed"><div class="pa-sk-cell"><div class="sk pa-sk-w60"></div></div></div><div class="td"></div></div> }</div></template>
 <template data-participants-failed><div class="empty is-error" role="row"><div role="cell" class="pa-cell-contents"><div class="empty-ic"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("error")' /></div><div class="empty-title">@T["Couldn’t load participants"]</div><div class="empty-text">@T["The roster for {0} didn’t load. Your filters are kept.", item.Name]</div><button class="btn" type="button" data-load-retry>@T["Try again"]</button></div></div></template>
 </div>

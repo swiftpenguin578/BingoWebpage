@@ -742,15 +742,14 @@ public sealed class Slice2PersistenceIntegrationTests(PostgreSqlTestFixture data
         Assert.Contains(participants.Participants, row => row.Id == withdrawnId && row.Name == "Withdrawn Main" && row.Ehb == 111m);
         Assert.Contains(participants.Participants, row => row.Id == removedId && row.Name == "Removed Main" && row.Ehb == 222m);
 
-        var participant = new Bingo.Web.Pages.Admin.Events.ParticipantModel(db, characters)
-        {
-            PageContext = new PageContext(new ActionContext(new DefaultHttpContext(), new RouteData(), new PageActionDescriptor())),
-            TempData = new TempDataDictionary(new DefaultHttpContext(), new EmptyTempDataProvider())
-        };
-        Assert.IsType<Microsoft.AspNetCore.Mvc.RazorPages.PageResult>(await participant.OnGetAsync(seed.EventId, withdrawnId, CancellationToken.None));
-        Assert.Equal("Withdrawn Main", participant.Name);
-        Assert.IsType<Microsoft.AspNetCore.Mvc.RazorPages.PageResult>(await participant.OnGetAsync(seed.EventId, removedId, CancellationToken.None));
-        Assert.Equal("Removed Main", participant.Name);
+        // A10 (U5 item 1b): the old detail page now redirects to the Participants drawer;
+        // the drawer's current-state read keeps the same released Playing authority.
+        var bingoEvent = await db.Events.AsNoTracking().SingleAsync(item => item.Id == seed.EventId);
+        var drawer = new Bingo.Web.Pages.Admin.Events.ParticipantDrawerReader(db, (key, arguments) => string.Format(System.Globalization.CultureInfo.InvariantCulture, key, arguments));
+        var withdrawnView = await drawer.ReadAsync(bingoEvent, withdrawnId, CancellationToken.None);
+        Assert.Equal(("Withdrawn Main", 111m, true), Assert.Single(withdrawnView!.Accounts) is var w ? (w.Name, w.Ehb, w.Primary) : default);
+        var removedView = await drawer.ReadAsync(bingoEvent, removedId, CancellationToken.None);
+        Assert.Equal(("Removed Main", 222m, true), Assert.Single(removedView!.Accounts) is var r ? (r.Name, r.Ehb, r.Primary) : default);
     }
 
     [Fact]

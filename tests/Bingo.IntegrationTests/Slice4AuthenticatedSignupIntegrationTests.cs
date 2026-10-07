@@ -434,7 +434,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         var idempotent = await MutateQuestionAsync(optional.Id, admin.Id, admin.LoginName, confirmed: true);
         Assert.False(idempotent.Succeeded);
         Assert.Equal(auditCount, await db.AuditEntries.CountAsync(x => x.EventId == bingoEvent.Id && x.Action == "signup_question.deleted"));
-        foreach (var view in new[] { route, $"/Events/{bingoEvent.Slug}/Signups", $"/Events/{bingoEvent.Slug}/Signup/Confirmation?participantId={participant.Id}", $"/Admin/Events/Participant/{bingoEvent.Id}/Participants/{participant.Id}" })
+        foreach (var view in new[] { route, $"/Events/{bingoEvent.Slug}/Signups", $"/Events/{bingoEvent.Slug}/Signup/Confirmation?participantId={participant.Id}", $"/Admin/Events/Participants/{bingoEvent.Id}?handler=Current&participant={participant.Id}" })
         {
             page = await client.GetStringAsync(view);
             if (view == route)
@@ -2494,7 +2494,8 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         Assert.Contains("WORKSPACE-USERNAME-", page, StringComparison.Ordinal); Assert.Contains("Workspace team", page, StringComparison.Ordinal);
         foreach (var query in new[] { "tab=all&q=WORKSPACE", "tab=waiting", "tab=all&pay=paid" })
         { var filtered = await client.GetStringAsync($"{route}?{query}"); Assert.Contains(query.Contains("waiting", StringComparison.Ordinal) ? "Waiting Workspace" : "Workspace Main", filtered, StringComparison.Ordinal); }
-        var detail = await client.GetStringAsync($"/Admin/Events/Participant/{bingoEvent.Id}/Participants/{confirmed.Id}");
+        // A10 (U5 item 1b): the drawer's current-state read replaces the old detail page.
+        var detail = await client.GetStringAsync($"/Admin/Events/Participants/{bingoEvent.Id}?handler=Current&participant={confirmed.Id}");
         foreach (var expected in new[] { "Workspace Main", "42.5", "Workspace Alt", "WORKSPACE-ANSWER", "WORKSPACE-HISTORICAL", "WORKSPACE-PRIVATE-NOTE", "Website signup" }) Assert.Contains(expected, detail, StringComparison.Ordinal);
         foreach (var secret in new[] { "WORKSPACE-DISCORD-ID", "WORKSPACE-DISCORD-DISPLAY", "WORKSPACE-TOKEN" }) Assert.DoesNotContain(secret, detail, StringComparison.Ordinal);
         var publicTable = await factory.CreateClient().GetStringAsync($"/Events/{bingoEvent.Slug}/Signups");
@@ -2512,23 +2513,20 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         await using (var db = new ApplicationDbContext(options)) { db.AddRange(admin, bingoEvent, participant, character, form, regular, new EventParticipantCharacter(Guid.NewGuid(), bingoEvent.Id, participant.Id, character.Id, 0, now, admin.Id, regular.Id, EventCharacterRole.Playing, 1m, EhbSource.Manual, null)); await db.SaveChangesAsync(); }
         await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetOwnedConnectionString())); using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         var login = await client.GetStringAsync("/Account/Login"); using (var signedIn = await client.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string> { ["Input.Username"] = admin.LoginName, ["Input.Password"] = "password", ["__RequestVerificationToken"] = AntiforgeryToken(login) }))) Assert.Equal(HttpStatusCode.Redirect, signedIn.StatusCode);
+        // A10 (U5 item 1b): the old detail page's native Payment/AdminNote forms are retired. The
+        // same rules run on the Participants page: the row Payment toggle (Service gate) and the
+        // drawer's single save with its payment/note baselines (U5-Q2). Audits, stale refusal and
+        // the D16 terminal matrix (payment and note allowed, roster/status changes refused) are unchanged.
         var participantsRoute = $"/Admin/Events/Participants/{bingoEvent.Id}";
         var participantsPage = await client.GetStringAsync(participantsRoute);
-        var detailRoute = RenderedParticipantDetailRoute(participantsPage, participant.Id); Assert.False(string.IsNullOrWhiteSpace(detailRoute));
-        var detail = await client.GetStringAsync(detailRoute);
-        Assert.Contains($"action=\"{detailRoute}?handler=Payment\"", detail, StringComparison.Ordinal);
-        using (var paid = await client.PostAsync($"{detailRoute}?handler=Payment", new FormUrlEncodedContent(new Dictionary<string, string> { ["payment"] = "Paid", ["__RequestVerificationToken"] = AntiforgeryToken(detail) }))) { Assert.Equal(HttpStatusCode.Redirect, paid.StatusCode); Assert.Equal($"{detailRoute}#payment", paid.Headers.Location?.OriginalString); }
-        var afterPaid = await client.GetStringAsync(detailRoute);
-        using (var unpaid = await client.PostAsync($"{detailRoute}?handler=Payment", new FormUrlEncodedContent(new Dictionary<string, string> { ["payment"] = "Unpaid", ["__RequestVerificationToken"] = AntiforgeryToken(afterPaid) }))) Assert.Equal(HttpStatusCode.Redirect, unpaid.StatusCode);
-        var afterUnpaid = await client.GetStringAsync(detailRoute);
-        using (var paidAgain = await client.PostAsync($"{detailRoute}?handler=Payment", new FormUrlEncodedContent(new Dictionary<string, string> { ["payment"] = "Paid", ["__RequestVerificationToken"] = AntiforgeryToken(afterUnpaid) }))) Assert.Equal(HttpStatusCode.Redirect, paidAgain.StatusCode);
-        var afterPaidAgain = await client.GetStringAsync(detailRoute);
-        using (var unpaidAgain = await client.PostAsync($"{detailRoute}?handler=Payment", new FormUrlEncodedContent(new Dictionary<string, string> { ["payment"] = "Unpaid", ["__RequestVerificationToken"] = AntiforgeryToken(afterPaidAgain) }))) Assert.Equal(HttpStatusCode.Redirect, unpaidAgain.StatusCode);
-        using (var note = await client.PostAsync($"{detailRoute}?handler=AdminNote", new FormUrlEncodedContent(new Dictionary<string, string> { ["AdminNote"] = "private note", ["ExpectedAdminNote"] = "", ["__RequestVerificationToken"] = AntiforgeryToken(detail) }))) Assert.Equal(HttpStatusCode.Redirect, note.StatusCode);
-        var stale = await client.GetStringAsync(detailRoute);
-        using (var rejected = await client.PostAsync($"{detailRoute}?handler=AdminNote", new FormUrlEncodedContent(new Dictionary<string, string> { ["AdminNote"] = "stale overwrite", ["ExpectedAdminNote"] = "", ["__RequestVerificationToken"] = AntiforgeryToken(stale) }))) Assert.Equal(HttpStatusCode.Redirect, rejected.StatusCode);
+        Assert.Equal($"{participantsRoute}?participant={participant.Id}", WebUtility.HtmlDecode(RenderedDrawerRoute(participantsPage, participant.Id)));
+        var token = AntiforgeryToken(participantsPage); Assert.False(string.IsNullOrWhiteSpace(token));
+        foreach (var payment in new[] { "Paid", "Unpaid", "Paid", "Unpaid" })
+            Assert.Equal("done", await PostJsonAsync("Payment", new() { ["participantId"] = participant.Id.ToString(), ["payment"] = payment }));
+        var current = await CurrentAsync();
+        Assert.Equal("saved", await PostJsonAsync("SaveParticipant", Save(current, paid: false, note: "private note")));
+        Assert.Equal("stale", await PostJsonAsync("SaveParticipant", Save(current, paid: false, note: "stale overwrite")));
         await using (var verify = new ApplicationDbContext(options)) { var saved = await verify.EventParticipants.SingleAsync(x => x.Id == participant.Id); Assert.False(saved.PaymentReceived); Assert.Equal("private note", saved.AdminNotes); var audits = await verify.AuditEntries.Where(x => x.TargetId == participant.Id.ToString()).ToListAsync(); Assert.Equal(4, audits.Count(x => x.Action == "participant.payment_updated")); Assert.Contains(audits, x => x.Action == "participant.admin_note_updated" && x.BeforeState!.Contains("false") && x.AfterState!.Contains("true")); Assert.Equal(1, audits.Count(x => x.Action == "participant.admin_note_updated")); }
-        var post = await client.GetStringAsync(detailRoute); Assert.Contains("Save note", post, StringComparison.Ordinal); Assert.Contains("handler=Payment", post, StringComparison.Ordinal); Assert.DoesNotContain("data-save-state", post, StringComparison.Ordinal); Assert.DoesNotContain("data-admin-note-form", post, StringComparison.Ordinal);
 
         await using (var lifecycle = new ApplicationDbContext(options))
         {
@@ -2537,16 +2535,43 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
             await lifecycle.SaveChangesAsync();
         }
         var terminalParticipantsPage = await client.GetStringAsync(participantsRoute);
-        var terminalDetailRoute = RenderedParticipantDetailRoute(terminalParticipantsPage, participant.Id); Assert.False(string.IsNullOrWhiteSpace(terminalDetailRoute));
-        var terminal = await client.GetStringAsync(terminalDetailRoute);
-        Assert.Contains("handler=Payment", terminal, StringComparison.Ordinal); Assert.Contains("handler=AdminNote", terminal, StringComparison.Ordinal); Assert.DoesNotContain("handler=TransferOwnership", terminal, StringComparison.Ordinal); Assert.DoesNotContain("handler=Withdraw", terminal, StringComparison.Ordinal); Assert.DoesNotContain("handler=Restore", terminal, StringComparison.Ordinal); Assert.DoesNotContain("Save changes", terminal, StringComparison.Ordinal);
-        using (var terminalPayment = await client.PostAsync($"{terminalDetailRoute}?handler=Payment", new FormUrlEncodedContent(new Dictionary<string, string> { ["payment"] = "Paid", ["__RequestVerificationToken"] = AntiforgeryToken(terminal) }))) Assert.Equal(HttpStatusCode.Redirect, terminalPayment.StatusCode);
-        var terminalAfterPayment = await client.GetStringAsync(terminalDetailRoute);
-        using (var terminalNote = await client.PostAsync($"{terminalDetailRoute}?handler=AdminNote", new FormUrlEncodedContent(new Dictionary<string, string> { ["AdminNote"] = "archived note", ["ExpectedAdminNote"] = "private note", ["__RequestVerificationToken"] = AntiforgeryToken(terminalAfterPayment) }))) Assert.Equal(HttpStatusCode.Redirect, terminalNote.StatusCode);
-        using (var terminalCorrection = await client.PostAsync(terminalDetailRoute, new FormUrlEncodedContent(new Dictionary<string, string> { ["Input.ExpectedResponseVersion"] = "1", ["__RequestVerificationToken"] = AntiforgeryToken(terminalAfterPayment) }))) { Assert.Equal(HttpStatusCode.Redirect, terminalCorrection.StatusCode); Assert.Equal($"/Admin/Events/Manage/{bingoEvent.Id}", terminalCorrection.Headers.Location?.OriginalString); }
-        using (var terminalWithdraw = await client.PostAsync($"{terminalDetailRoute}?handler=Withdraw", new FormUrlEncodedContent(new Dictionary<string, string> { ["ConfirmLifecycleAction"] = "true", ["__RequestVerificationToken"] = AntiforgeryToken(terminalAfterPayment) }))) Assert.Equal(HttpStatusCode.Redirect, terminalWithdraw.StatusCode);
-        using (var terminalRestore = await client.PostAsync($"{terminalDetailRoute}?handler=Restore", new FormUrlEncodedContent(new Dictionary<string, string> { ["ConfirmLifecycleAction"] = "true", ["__RequestVerificationToken"] = AntiforgeryToken(terminalAfterPayment) }))) { Assert.Equal(HttpStatusCode.Redirect, terminalRestore.StatusCode); Assert.Equal($"/Admin/Events/Manage/{bingoEvent.Id}", terminalRestore.Headers.Location?.OriginalString); }
-        await using (var verify = new ApplicationDbContext(options)) { var saved = await verify.EventParticipants.SingleAsync(x => x.Id == participant.Id); Assert.True(saved.PaymentReceived); Assert.Equal("archived note", saved.AdminNotes); Assert.Equal(SignupStatus.Confirmed, saved.SignupStatus); }
+        Assert.Equal($"{participantsRoute}?participant={participant.Id}", WebUtility.HtmlDecode(RenderedDrawerRoute(terminalParticipantsPage, participant.Id)));
+        current = await CurrentAsync();
+        Assert.False(current.GetProperty("editable").GetBoolean()); Assert.True(current.GetProperty("privateEditable").GetBoolean());
+        Assert.Equal("done", await PostJsonAsync("Payment", new() { ["participantId"] = participant.Id.ToString(), ["payment"] = "Paid" }));
+        current = await CurrentAsync();
+        Assert.Equal("saved", await PostJsonAsync("SaveParticipant", Save(current, paid: true, note: "archived note")));
+        current = await CurrentAsync();
+        var correction = Save(current, paid: true, note: "archived note");
+        correction["accounts"] = $"[{{\"assignmentId\":null,\"name\":\"Late Change\",\"ehb\":1,\"role\":\"playing\",\"primary\":true}}]";
+        Assert.Equal("refused", await PostJsonAsync("SaveParticipant", correction));
+        foreach (var handler in new[] { "Withdraw", "Restore" })
+        {
+            using var refused = await client.PostAsync($"{participantsRoute}?handler={handler}", new FormUrlEncodedContent(new Dictionary<string, string> { ["participantId"] = participant.Id.ToString(), ["confirmLifecycleAction"] = "true", ["__RequestVerificationToken"] = AntiforgeryToken(terminalParticipantsPage) }));
+            Assert.Equal(HttpStatusCode.Redirect, refused.StatusCode); Assert.Equal($"/Admin/Events/Manage/{bingoEvent.Id}", refused.Headers.Location?.OriginalString);
+        }
+        await using (var verify = new ApplicationDbContext(options)) { var saved = await verify.EventParticipants.SingleAsync(x => x.Id == participant.Id); Assert.True(saved.PaymentReceived); Assert.Equal("archived note", saved.AdminNotes); Assert.Equal(SignupStatus.Confirmed, saved.SignupStatus); Assert.Equal("Mutation Main", await verify.AdminPrimaryCharacters().Where(x => x.ParticipantId == participant.Id).Select(x => x.Name).SingleAsync()); }
+
+        async Task<System.Text.Json.JsonElement> CurrentAsync()
+        {
+            using var json = System.Text.Json.JsonDocument.Parse(await client.GetStringAsync($"{participantsRoute}?handler=Current&participant={participant.Id}"));
+            return json.RootElement.Clone();
+        }
+        Dictionary<string, string> Save(System.Text.Json.JsonElement view, bool paid, string note) => new()
+        {
+            ["participantId"] = participant.Id.ToString(), ["expectedResponseVersion"] = view.GetProperty("responseVersion").GetInt32().ToString(CultureInfo.InvariantCulture),
+            ["expectedPaid"] = view.GetProperty("paid").GetBoolean() ? "true" : "false", ["expectedNote"] = view.GetProperty("adminNote").GetString() ?? string.Empty,
+            ["paid"] = paid ? "true" : "false", ["note"] = note
+        };
+        async Task<string?> PostJsonAsync(string handler, Dictionary<string, string> fields)
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Post, $"{participantsRoute}?handler={handler}") { Content = new FormUrlEncodedContent(fields) };
+            request.Headers.Add("Accept", "application/json"); request.Headers.Add("RequestVerificationToken", token);
+            using var response = await client.SendAsync(request);
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            using var json = System.Text.Json.JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+            return json.RootElement.GetProperty("outcome").GetString();
+        }
     }
 
     [Fact]
@@ -2836,10 +2861,12 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetOwnedConnectionString()));
         using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         await LoginAsync(client, admin.LoginName, "password");
-        var detailRoute = $"/Admin/Events/Participant/{bingoEvent.Id}/Participants/{first.Id}"; var detail = await client.GetStringAsync(detailRoute);
-        Assert.Contains($"name=\"Input.CustomAnswers[{captain.Id}]\"", detail, StringComparison.Ordinal);
-        Assert.Contains("value=\"true\" selected", detail, StringComparison.Ordinal);
-        using (var corrected = await client.PostAsync(detailRoute, new FormUrlEncodedContent(new Dictionary<string, string> { [$"Input.AccountAnswers[{regular.Id}].CharacterName"] = newRegular.DisplayName, [$"Input.AccountAnswers[{regular.Id}].Ehb"] = "19", [$"Input.AccountAnswers[{alt.Id}].CharacterName"] = newAlt.DisplayName, [$"Input.CustomAnswers[{captain.Id}]"] = "true", [$"Input.CustomAnswers[{answer.Id}]"] = "after", ["Input.ExpectedResponseVersion"] = "1", ["__RequestVerificationToken"] = AntiforgeryToken(detail) }))) Assert.Equal(HttpStatusCode.Redirect, corrected.StatusCode);
+        // A10 (U5 item 1b, U5-Q1/Q2): the old detail form is retired; the same correction runs through the
+        // drawer's single save (accounts, alt, captain and custom answers) with its version check.
+        var participantsRoute = $"/Admin/Events/Participants/{bingoEvent.Id}"; var participants = await client.GetStringAsync(participantsRoute);
+        using (var initial = System.Text.Json.JsonDocument.Parse(await client.GetStringAsync($"{participantsRoute}?handler=Current&participant={first.Id}")))
+            Assert.Equal("true", initial.RootElement.GetProperty("answers").EnumerateArray().Single(x => x.GetProperty("questionId").GetGuid() == captain.Id).GetProperty("value").GetString());
+        Assert.Equal("saved", (await SaveDrawerAsync(newRegular.DisplayName, 19m, newAlt.DisplayName, "true", "after", 1)).Outcome);
         await using (var verify = new ApplicationDbContext(options))
         {
             var saved = await verify.EventParticipants.SingleAsync(x => x.Id == first.Id); Assert.Equal(SignupSource.Website, saved.Source); Assert.Equal(now.AddTicks(-(now.Ticks % TimeSpan.TicksPerMicrosecond)), saved.SignedUpAt); Assert.Equal(1, saved.SignupSequence); Assert.True(saved.PaymentReceived); Assert.True(saved.CaptainVolunteer); Assert.Equal("private-note", saved.AdminNotes);
@@ -2847,18 +2874,38 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
             Assert.Equal(2, await verify.EventParticipantCharacters.CountAsync(x => x.EventParticipantId == first.Id && x.ReleasedAt == null)); Assert.Contains(await verify.AuditEntries.Where(x => x.TargetId == first.Id.ToString()).ToListAsync(), x => x.Action == "participant.corrected" && x.BeforeState != x.AfterState);
             Assert.Single(await verify.PersonalNotifications.Where(x => x.RecipientAccountId == owner.Id && x.Title == "participant.accounts_changed").ToListAsync());
         }
-        var secondDetail = await client.GetStringAsync(detailRoute);
-        using (var rejected = await client.PostAsync(detailRoute, new FormUrlEncodedContent(new Dictionary<string, string> { [$"Input.AccountAnswers[{regular.Id}].CharacterName"] = reserved.DisplayName, [$"Input.AccountAnswers[{regular.Id}].Ehb"] = "23", [$"Input.AccountAnswers[{alt.Id}].CharacterName"] = newAlt.DisplayName, [$"Input.CustomAnswers[{captain.Id}]"] = "true", [$"Input.CustomAnswers[{answer.Id}]"] = "must-not-save", ["Input.ExpectedResponseVersion"] = "2", ["__RequestVerificationToken"] = AntiforgeryToken(secondDetail) }))) Assert.Equal(HttpStatusCode.OK, rejected.StatusCode);
+        var reservedOutcome = (await SaveDrawerAsync(reserved.DisplayName, 23m, newAlt.DisplayName, "true", "must-not-save", 2)).Outcome;
+        Assert.True(reservedOutcome is "refused" or "invalid", reservedOutcome);
         await using (var verify = new ApplicationDbContext(options)) { Assert.Equal("after", await verify.SignupAnswers.Where(x => x.EventParticipantId == first.Id && x.SignupQuestionId == answer.Id).Select(x => x.Value).SingleAsync()); Assert.Equal(1, await verify.AuditEntries.CountAsync(x => x.TargetId == first.Id.ToString() && x.Action == "participant.corrected")); }
-        var captainDetail = await client.GetStringAsync(detailRoute);
-        using (var captainChanged = await client.PostAsync(detailRoute, new FormUrlEncodedContent(new Dictionary<string, string> { [$"Input.AccountAnswers[{regular.Id}].CharacterName"] = newRegular.DisplayName, [$"Input.AccountAnswers[{regular.Id}].Ehb"] = "19", [$"Input.AccountAnswers[{alt.Id}].CharacterName"] = newAlt.DisplayName, [$"Input.CustomAnswers[{captain.Id}]"] = "false", [$"Input.CustomAnswers[{answer.Id}]"] = "after", ["Input.ExpectedResponseVersion"] = "2", ["__RequestVerificationToken"] = AntiforgeryToken(captainDetail) }))) Assert.Equal(HttpStatusCode.Redirect, captainChanged.StatusCode);
+        Assert.Equal("saved", (await SaveDrawerAsync(newRegular.DisplayName, 19m, newAlt.DisplayName, "false", "after", 2)).Outcome);
         await using (var verify = new ApplicationDbContext(options)) Assert.False(await verify.EventParticipants.Where(x => x.Id == first.Id).Select(x => x.CaptainVolunteer).SingleAsync());
-        var missingVersion = await client.GetStringAsync(detailRoute);
         ParticipantState correctionBeforeStale;
         await using (var snapshot = new ApplicationDbContext(options)) correctionBeforeStale = await ParticipantStateAsync(snapshot, first.Id);
-        using (var stale = await client.PostAsync(detailRoute, new FormUrlEncodedContent(new Dictionary<string, string> { [$"Input.AccountAnswers[{regular.Id}].CharacterName"] = oldRegular.DisplayName, [$"Input.AccountAnswers[{regular.Id}].Ehb"] = "999", [$"Input.AccountAnswers[{alt.Id}].CharacterName"] = oldAlt.DisplayName, [$"Input.CustomAnswers[{captain.Id}]"] = "true", [$"Input.CustomAnswers[{answer.Id}]"] = "must-not-save", ["__RequestVerificationToken"] = AntiforgeryToken(missingVersion) }))) { Assert.Equal(HttpStatusCode.OK, stale.StatusCode); Assert.Contains("reload", await stale.Content.ReadAsStringAsync(), StringComparison.OrdinalIgnoreCase); }
+        var stale = await SaveDrawerAsync(oldRegular.DisplayName, 999m, oldAlt.DisplayName, "true", "must-not-save", null);
+        Assert.Equal("refused", stale.Outcome); Assert.Contains("reload", stale.Message, StringComparison.OrdinalIgnoreCase);
         await using (var verify = new ApplicationDbContext(options)) { Assert.Equal(correctionBeforeStale, await ParticipantStateAsync(verify, first.Id)); var saved = await verify.EventParticipants.SingleAsync(x => x.Id == first.Id); Assert.False(saved.CaptainVolunteer); Assert.Equal(SignupStatus.Confirmed, saved.SignupStatus); Assert.Equal(SignupSource.Website, saved.Source); Assert.Equal(now.AddTicks(-(now.Ticks % TimeSpan.TicksPerMicrosecond)), saved.SignedUpAt); Assert.Equal(1, saved.SignupSequence); Assert.Equal(3, saved.ResponseVersion); Assert.True(saved.PaymentReceived); Assert.Equal("private-note", saved.AdminNotes); Assert.Equal("after", await verify.SignupAnswers.Where(x => x.EventParticipantId == first.Id && x.SignupQuestionId == answer.Id).Select(x => x.Value).SingleAsync()); Assert.Equal(19m, await verify.EventParticipantCharacters.Where(x => x.EventParticipantId == first.Id && x.ReleasedAt == null && x.SignupQuestionId == regular.Id).Select(x => x.EhbSnapshot).SingleAsync()); Assert.Equal(2, await verify.AuditEntries.CountAsync(x => x.TargetId == first.Id.ToString() && x.Action == "participant.corrected")); }
-        var participantsRoute = $"/Admin/Events/Participants/{bingoEvent.Id}"; var participants = await client.GetStringAsync(participantsRoute);
+
+        async Task<(string? Outcome, string Message)> SaveDrawerAsync(string regularName, decimal ehb, string altName, string captainValue, string answerValue, int? version)
+        {
+            using var current = System.Text.Json.JsonDocument.Parse(await client.GetStringAsync($"{participantsRoute}?handler=Current&participant={first.Id}"));
+            var accounts = current.RootElement.GetProperty("accounts").EnumerateArray().ToList();
+            var playingId = accounts.Single(x => x.GetProperty("role").GetString() == "playing").GetProperty("assignmentId").GetGuid();
+            var altId = accounts.Single(x => x.GetProperty("role").GetString() == "alt").GetProperty("assignmentId").GetGuid();
+            var fields = new Dictionary<string, string>
+            {
+                ["participantId"] = first.Id.ToString(), ["expectedPaid"] = "true", ["expectedNote"] = "private-note", ["paid"] = "true", ["note"] = "private-note",
+                ["accounts"] = System.Text.Json.JsonSerializer.Serialize(new object[] { new { assignmentId = playingId, name = regularName, ehb, role = "playing", primary = true }, new { assignmentId = altId, name = altName, ehb = (decimal?)null, role = "alt", primary = false } }),
+                ["answers"] = System.Text.Json.JsonSerializer.Serialize(new Dictionary<Guid, string> { [captain.Id] = captainValue, [answer.Id] = answerValue })
+            };
+            if (version is { } expected) fields["expectedResponseVersion"] = expected.ToString(CultureInfo.InvariantCulture);
+            using var request = new HttpRequestMessage(HttpMethod.Post, $"{participantsRoute}?handler=SaveParticipant") { Content = new FormUrlEncodedContent(fields) };
+            request.Headers.Add("Accept", "application/json"); request.Headers.Add("RequestVerificationToken", AntiforgeryToken(participants));
+            using var response = await client.SendAsync(request);
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            using var json = System.Text.Json.JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+            return (json.RootElement.GetProperty("outcome").GetString(), json.RootElement.GetProperty("message").GetString() ?? string.Empty);
+        }
+        participants = await client.GetStringAsync(participantsRoute);
         using (var created = await client.PostAsync($"{participantsRoute}?handler=CreateInternalParticipant", new FormUrlEncodedContent(new Dictionary<string, string> { ["InternalParticipant.OwnerAccountId"] = admin.Id.ToString(), [$"InternalParticipant.AccountAnswers[{regular.Id}].CharacterName"] = $"Int {Guid.NewGuid().ToString("N")[..8]}", [$"InternalParticipant.AccountAnswers[{regular.Id}].Ehb"] = "8", [$"InternalParticipant.Answers[{answer.Id}]"] = "created", ["__RequestVerificationToken"] = AntiforgeryToken(participants) }))) Assert.Equal(HttpStatusCode.Redirect, created.StatusCode);
         await using (var verify = new ApplicationDbContext(options)) { var created = await verify.EventParticipants.SingleAsync(x => x.Source == SignupSource.AdminCreated); Assert.Equal(admin.Id, created.AccountId); Assert.Equal(SignupStatus.Confirmed, created.SignupStatus); Assert.NotNull(await verify.SignupForms.Where(x => x.Id == form.Id).Select(x => x.FirstResponseAt).SingleAsync()); }
 
@@ -2890,16 +2937,19 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
 
         await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetOwnedConnectionString()));
         using var adminClient = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false }); await LoginAsync(adminClient, admin.LoginName, "password");
-        var detailRoute = $"/Admin/Events/Participant/{bingoEvent.Id}/Participants/{participant.Id}"; var detail = await adminClient.GetStringAsync(detailRoute);
-        Assert.DoesNotContain("handler=TransferOwnership", detail, StringComparison.Ordinal);
-        Assert.DoesNotContain("ConfirmOwnershipTransfer", detail, StringComparison.Ordinal);
+        // A10 (U5 item 1b): the old detail route only redirects; the Participants page and the
+        // drawer read offer no ownership transfer, and a forged post to the old route is refused.
+        var detailRoute = $"/Admin/Events/Participant/{bingoEvent.Id}/Participants/{participant.Id}";
+        var detail = await adminClient.GetStringAsync($"/Admin/Events/Participants/{bingoEvent.Id}");
+        var drawer = await adminClient.GetStringAsync($"/Admin/Events/Participants/{bingoEvent.Id}?handler=Current&participant={participant.Id}");
+        foreach (var view in new[] { detail, drawer }) { Assert.DoesNotContain("TransferOwnership", view, StringComparison.Ordinal); Assert.DoesNotContain("ConfirmOwnershipTransfer", view, StringComparison.Ordinal); }
         using (var forged = await adminClient.PostAsync($"{detailRoute}?handler=TransferOwnership", new FormUrlEncodedContent(new Dictionary<string, string>
         {
             ["ExpectedOwnerAccountId"] = oldOwner.Id.ToString(),
             ["DestinationOwnerAccountId"] = duplicateOwner.Id.ToString(),
             ["ConfirmOwnershipTransfer"] = "true",
             ["__RequestVerificationToken"] = AntiforgeryToken(detail)
-        }))) Assert.Equal(HttpStatusCode.OK, forged.StatusCode);
+        }))) Assert.Equal(HttpStatusCode.NotFound, forged.StatusCode);
 
         await using (var verify = new ApplicationDbContext(options))
         {
@@ -3085,8 +3135,8 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         $"<input(?=[^>]*\\bname=\"{Regex.Escape(name)}\")(?=[^>]*\\bvalue=\"([^\"]*)\")[^>]*>").Groups[1].Value);
     private static string HiddenValue(string page, string id) => Regex.Match(InputTag(page, id), "value=\"([^\"]*)\"").Groups[1].Value;
 
-    private static string RenderedParticipantDetailRoute(string page, Guid participantId) =>
-        Regex.Match(page, $"<tr[^>]*data-participant-id=\"{Regex.Escape(participantId.ToString())}\"[\\s\\S]*?<a[^>]+href=\"([^\"]+)\"", RegexOptions.CultureInvariant).Groups[1].Value;
+    private static string RenderedDrawerRoute(string page, Guid participantId) =>
+        Regex.Match(page, $"href=\"([^\"]+)\" data-participant-open=\"{Regex.Escape(participantId.ToString())}\"", RegexOptions.CultureInvariant).Groups[1].Value;
 
     private static decimal InputDecimal(string page, string id) => decimal.Parse(InputValue(page, id), CultureInfo.InvariantCulture);
 

@@ -314,8 +314,9 @@ public sealed class ParticipantsModel(
     public sealed class InternalParticipantInput
     {
         public Guid? OwnerAccountId { get; set; }
-        public Dictionary<Guid, ParticipantModel.AccountInput> AccountAnswers { get; set; } = [];
+        public Dictionary<Guid, AccountInput> AccountAnswers { get; set; } = [];
         public Dictionary<Guid, string> Answers { get; set; } = [];
         public string? WomValidationConfirmationToken { get; set; }
     }
+    public sealed class AccountInput { [StringLength(100)] public string? CharacterName { get; set; } [Range(0, 100000)] public decimal? Ehb { get; set; } }
 }
