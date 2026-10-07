@@ -23,3 +23,7 @@ Lane T, branch `claude/lane-t1-accounts-audit`, worktree `BingoWebpage-lane-t`. 
 - IntegrationTests `AccountsHttpIntegrationTests|AccountOverviewTests|AdminStaleChangeIntegrationTests|Slice1IdentityIntegrationTests|DraftStartReadinessIntegrationTests|EventQuarantineIntegrationTests|UiReviewScenarioIntegrationTests`: 125 passed / 0 failed / 0 skipped (Testcontainers PostgreSQL).
 - JS: `admin-design-accounts.browser.js` Chromium + WebKit PASS (UR live fixture, PostgreSQL); `admin-stale-change.browser.js` PASS; shell/page-family set (`page-family`, `css-scope`, `styles`, `skeleton-styles`, `loading`, `shell`) Chromium + WebKit PASS.
 - `git diff --check` clean. Full JS runner and whole .NET suite not run (batch gate / planner).
+
+## Early-look follow-up (08-decisions "T1 Accounts early look")
+- Drawer shell shows the avatar at once with the row's initials (empty circle for a direct link); T1-4 (b) Global role always a pill (User `badge-neutral`); T1-5 Events-style summary items with `b.tnum`; register rows added; T1-1 Create stub and T1-2 signed-out notice recorded.
+- Checks: Release build 0 errors; BrowserTests `AccountsUiTests|AdminDesignLocalizationTests` 16/0/0; `admin-design-accounts.browser.js` Chromium + WebKit PASS (now asserts the avatar during a held drawer read, role pills and summary items); `git diff --check` clean.
