@@ -583,26 +583,34 @@ public sealed partial class BoardModel(ApplicationDbContext db, TimeProvider tim
             var draft = await db.DraftSessions.SingleOrDefaultAsync(x => x.EventId == id, ct);
             if (board is null || bingoEvent is null || draft is null) { ValidationIssues = [new("board-not-found", null, null, null, "Board not found.", [])]; return NotFound(); }
             if (board.Version != BoardVersion) throw new DbUpdateConcurrencyException();
+            // U7-Q2: collect every publication refusal that applies and return them together.
+            var refusals = new List<BoardValidationIssue>();
+            const string timingMessage = "The board must be published before the event has started and while its configured end remains in the future.";
             if (draft.State != DraftState.Finalized || await db.ActiveRosterPublicationAsync(id, ct) is null)
-                throw new BoardApprovalValidationException("roster-unpublished", null, null, null, "Finalize the team draft before publishing the board.");
+                refusals.Add(new("roster-unpublished", null, null, null, "Finalize the team draft before publishing the board.", []));
             if (bingoEvent.ActualStartedAt is not null)
-                throw new BoardApprovalValidationException("event-already-started", null, null, null, "The board must be published before the event has started and while its configured end remains in the future.");
+                refusals.Add(new("event-already-started", null, null, null, timingMessage, []));
             if (bingoEvent.EventEndsAt is not { } endsAt || time.GetUtcNow() >= endsAt)
-                throw new BoardApprovalValidationException("event-end-passed", null, null, null, "The board must be published before the event has started and while its configured end remains in the future.");
+                refusals.Add(new("event-end-passed", null, null, null, timingMessage, []));
             var publication = board.ActiveApprovalSnapshotId is { } approvalId ? await db.ApprovalObjectivesAsync(board.Id, approvalId, ct) : null;
-            if (publication is null) throw new BoardApprovalValidationException("approval-unavailable", null, null, null, "The approved board is unavailable.");
+            if (publication is null) refusals.Add(new("approval-unavailable", null, null, null, "The approved board is unavailable.", []));
             var priceIssues = new List<BoardValidationIssue>();
-            foreach (var tile in publication.Tiles)
+            if (publication is not null)
             {
-                var requirementIds = publication.Requirements.Where(x => x.BoardTileId == tile.Id).Select(x => x.Id).ToHashSet();
-                var missing = await db.ItemsWithoutEventOrCataloguePriceAsync(id, publication.Drops.Where(x => requirementIds.Contains(x.RequirementId)).Select(x => x.ItemIdSnapshot), ct);
-                if (missing.Count > 0) priceIssues.Add(new("item-price-missing", tile.Id, tile.RowIndex * publication.Approval.Columns + tile.ColumnIndex, tile.NameSnapshot, MissingPriceMessage, [string.Join(", ", missing)]));
+                foreach (var tile in publication.Tiles)
+                {
+                    var requirementIds = publication.Requirements.Where(x => x.BoardTileId == tile.Id).Select(x => x.Id).ToHashSet();
+                    var missing = await db.ItemsWithoutEventOrCataloguePriceAsync(id, publication.Drops.Where(x => requirementIds.Contains(x.RequirementId)).Select(x => x.ItemIdSnapshot), ct);
+                    if (missing.Count > 0) priceIssues.Add(new("item-price-missing", tile.Id, tile.RowIndex * publication.Approval.Columns + tile.ColumnIndex, tile.NameSnapshot, MissingPriceMessage, [string.Join(", ", missing)]));
+                }
             }
-            if (priceIssues.Count > 0)
+            if (refusals.Count > 0 || priceIssues.Count > 0)
             {
-                ValidationIssues = priceIssues;
-                var missing = await db.ItemsWithoutEventOrCataloguePriceAsync(id, publication.Drops.Select(x => x.ItemIdSnapshot), ct);
-                SetStatus(Localize(MissingPriceMessage, string.Join(", ", missing)), UiMessageType.Warning);
+                ValidationIssues = [.. refusals, .. priceIssues];
+                var messages = refusals.Select(x => x.ResourceKey).Distinct().Select(x => Localize(x)).ToList();
+                if (priceIssues.Count > 0)
+                    messages.Add(Localize(MissingPriceMessage, string.Join(", ", await db.ItemsWithoutEventOrCataloguePriceAsync(id, publication!.Drops.Select(x => x.ItemIdSnapshot), ct))));
+                SetStatus(string.Join(" ", messages), UiMessageType.Warning);
                 return RedirectToPage(new { id });
             }
             board.Publish(time.GetUtcNow());
@@ -1186,6 +1194,9 @@ public sealed partial class BoardModel(ApplicationDbContext db, TimeProvider tim
             if ((template.ObjectiveType == ObjectiveType.Manual) != manualTile)
                 throw Invalid("objective-kind", "The tile kind does not match its objectives. Edit and save the tile with one objective kind before approval.", tile);
             var tileEstimates = new List<decimal?>();
+            // U7-Q1: names of the drops whose catalogue rate (drop chance or source
+            // kill rate) is missing, carried on a catalogue-rates-missing issue.
+            var missingRateDrops = new List<string>();
             foreach (var requirement in tileRequirements)
             {
                 var approvalRequirement = new BoardApprovalRequirementSnapshot(Guid.NewGuid(), approvalTile.Id, requirement.Id, requirement.Position, requirement.TargetContribution, requirement.DuplicatesAllowed, requirement.AllowHigherWeightings, requirement.CreditedWeight, requirement.Description, requirement.ManualObjective);
@@ -1198,6 +1209,9 @@ public sealed partial class BoardModel(ApplicationDbContext db, TimeProvider tim
                     foreach (var boss in bosses) db.BoardApprovalRequirementBossSnapshots.Add(new(Guid.NewGuid(), approvalRequirement.Id, boss.BossActivityId, boss.Name, boss.EfficientRate, boss.CatalogueVersion));
                     foreach (var drop in drops) db.BoardApprovalRequirementDropSnapshots.Add(new(Guid.NewGuid(), approvalRequirement.Id, drop.SourceDropId, drop.ItemIdSnapshot, drop.BossName, drop.ItemName, drop.DisplayRate, drop.NumericProbability, drop.MaximumContribution, drop.EhbPerContribution, drop.CreditedWeight, drop.CatalogueVersion, drop.ProbabilityScope, drop.ConditionalOnParent, drop.ParentProbability, drop.AssumedParticipants, drop.RollsPerCompletion, drop.RollGroup, drop.RateCondition));
                     var identityBosses = await db.SourceDrops.AsNoTracking().Where(x => drops.Select(d => d.SourceDropId).Contains(x.Id)).Select(x => new { x.Id, x.BossActivityId }).ToDictionaryAsync(x => x.Id, ct);
+                    if (!requirement.ManualObjective)
+                        missingRateDrops.AddRange(drops.Where(drop => drop.NumericProbability is not > 0 ||
+                            bosses.SingleOrDefault(x => x.BossActivityId == identityBosses.GetValueOrDefault(drop.SourceDropId)?.BossActivityId)?.EfficientRate is not > 0).Select(drop => drop.ItemName));
                     tileEstimates.Add(requirement.ManualObjective ? null : EhbCalculator.CalculateDropRequirement(requirement.TargetContribution, drops.Select(drop =>
                     {
                         var boss = bosses.Single(x => x.BossActivityId == identityBosses[drop.SourceDropId].BossActivityId);
@@ -1225,6 +1239,8 @@ public sealed partial class BoardModel(ApplicationDbContext db, TimeProvider tim
                     db.BoardApprovalRequirementDropSnapshots.Add(approvalDrop);
                 }
 
+                if (!requirement.ManualObjective)
+                    missingRateDrops.AddRange(selectedDrops.Where(drop => drop.Drop.NumericProbability is not > 0 || drop.Boss.EfficientCompletionsPerHour is not > 0).Select(drop => drop.Item.Name));
                 tileEstimates.Add(requirement.ManualObjective
                     ? null
                     : EhbCalculator.CalculateDropRequirement(requirement.TargetContribution, selectedDrops.Select(drop =>
@@ -1244,9 +1260,14 @@ public sealed partial class BoardModel(ApplicationDbContext db, TimeProvider tim
                 tileEhb = priorTile.EstimatedEhbSnapshot;
             }
             if (tileEhb <= 0)
-                throw Invalid(manualTile ? "manual-ehb-missing" : "catalogue-rates-missing", manualTile
+            {
+                var missing = Invalid(manualTile ? "manual-ehb-missing" : "catalogue-rates-missing", manualTile
                     ? "{0} needs a positive manual EHB estimate. Edit the custom tile before approval."
                     : "{0} needs automatic EHB. Correct the catalogue rates or drop requirements before approval; a manual estimate cannot replace them.", tile, tile.NameSnapshot);
+                if (!manualTile && missingRateDrops.Count > 0)
+                    throw new BoardApprovalValidationException([missing.Issue with { DropNames = missingRateDrops.Distinct(StringComparer.Ordinal).ToList() }]);
+                throw missing;
+            }
             db.Entry(approvalTile).Property(x => x.EstimatedEhb).CurrentValue = tileEhb;
             totalEhb += tileEhb;
             }

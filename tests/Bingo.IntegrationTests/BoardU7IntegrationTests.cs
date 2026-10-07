@@ -1,5 +1,6 @@
 using System.Net;
 using Bingo.Domain.Boards;
+using Bingo.Domain.Catalogue;
 using Bingo.Domain.Events;
 using Bingo.Infrastructure.Persistence;
 using Bingo.Web.Pages.Admin.Events;
@@ -172,5 +173,55 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests
         };
         Assert.IsType<RedirectToPageResult>(await page.OnPostEditTileAsync(fixture.Event.Id, CancellationToken.None));
         return page.TempData["BoardTileOutcome"]?.ToString();
+    }
+
+    // U7-Q1: a missing-rate approval issue names the affected drops.
+    [Fact]
+    public async Task U7MissingRateIssueCarriesAffectedDropNames()
+    {
+        var fixture = await SeedApprovalBatchAsync(missingEstimate: true);
+        await using var db = new ApplicationDbContext(options);
+        var page = Page(db, fixture.Admin.Id);
+        await page.OnGetAsync(fixture.Event.Id, CancellationToken.None);
+        var result = Assert.IsType<BoardModel.BoardActionState>(Assert.IsType<JsonResult>(await page.OnPostApproveStateAsync(fixture.Event.Id, false, CancellationToken.None)).Value);
+        var issue = Assert.Single(result.Issues, x => x.Code == "catalogue-rates-missing");
+        Assert.Equal(["Batch item"], issue.DropNames);
+        Assert.Equal("{0} needs automatic EHB. Correct the catalogue rates or drop requirements before approval; a manual estimate cannot replace them.", issue.ResourceKey);
+        Assert.All(result.Issues.Where(x => x.Code != "catalogue-rates-missing"), x => Assert.Null(x.DropNames));
+        await AssertApprovalBatchUnchangedAsync(fixture);
+    }
+
+    // U7-Q2: every applicable publication refusal is returned together, with no write.
+    [Fact]
+    public async Task U7PublishReturnsEveryApplicableRefusalTogether()
+    {
+        var fixture = await SeedApprovalBatchAsync();
+        await using (var prepare = new ApplicationDbContext(options))
+        {
+            prepare.Entry(await prepare.Events.SingleAsync()).Property(x => x.State).CurrentValue = EventState.SignupClosed;
+            await prepare.SaveChangesAsync();
+        }
+        await AddPublicBoardTeamAsync(fixture);
+        await using (var prepare = new ApplicationDbContext(options))
+        {
+            var page = Page(prepare, fixture.Admin.Id);
+            await page.OnGetAsync(fixture.Event.Id, CancellationToken.None);
+            await page.OnPostApproveAsync(fixture.Event.Id, false, CancellationToken.None);
+            var ev = await prepare.Events.SingleAsync();
+            prepare.Entry(ev).Property(x => x.EventEndsAt).CurrentValue = DateTimeOffset.UtcNow.AddDays(-1);
+            prepare.Entry(ev).Property(x => x.ActualStartedAt).CurrentValue = CompletionFixtureNow;
+            (await prepare.DraftPublicationCycles.SingleAsync()).Supersede(CompletionFixtureNow, fixture.Admin.Id, "Controlled unpublished roster");
+            (await prepare.CatalogueItems.SingleAsync(x => x.Id == fixture.Item.Id)).SetPrice(null, CataloguePriceSource.Missing, null);
+            await prepare.SaveChangesAsync();
+        }
+        var baseline = await B5RemediationBoardPersistenceAsync();
+        await using var db = new ApplicationDbContext(options);
+        var actor = Page(db, fixture.Admin.Id);
+        await actor.OnGetAsync(fixture.Event.Id, CancellationToken.None);
+        var response = Assert.IsType<BoardModel.BoardActionState>(Assert.IsType<JsonResult>(await actor.OnPostPublishStateAsync(fixture.Event.Id, true, CancellationToken.None)).Value);
+        Assert.Equal(["roster-unpublished", "event-already-started", "event-end-passed", "item-price-missing"], response.Issues.Select(x => x.Code));
+        Assert.Equal(fixture.Tile.Id, response.Issues[^1].TileId);
+        Assert.Equal(BoardState.Validated, response.Current.State!.State);
+        Assert.Equal(baseline, await B5RemediationBoardPersistenceAsync());
     }
 }

@@ -3848,4 +3848,14 @@
   <data name="Tile names must be 80 characters or fewer." xml:space="preserve"><value>Tilenavne må højst være på 80 tegn.</value></data>
   <data name="The correction reason must be 2,000 characters or fewer." xml:space="preserve"><value>Begrundelsen for rettelsen må højst være på 2.000 tegn.</value></data>
   <data name="Every drop weight must be between 1 and 10,000." xml:space="preserve"><value>Hver drop-vægt skal være mellem 1 og 10.000.</value></data>
+  <data name="A board can only be created for an unfinished pre-live event." xml:space="preserve"><value>Et Board kan kun oprettes for et ufærdigt event, der endnu ikke er gået Live.</value></data>
+  <data name="Board not found." xml:space="preserve"><value>Boardet blev ikke fundet.</value></data>
+  <data name="Board resized to {0}x{1}; tile positions were preserved." xml:space="preserve"><value>Boardet har nu størrelsen {0}x{1}; tilenes placeringer er bevaret.</value></data>
+  <data name="Choose a board size between 1x1 and 8x8." xml:space="preserve"><value>Vælg en Boardstørrelse mellem 1x1 og 8x8.</value></data>
+  <data name="Move or remove {0} tile(s) from the positions outside the new board before shrinking it." xml:space="preserve"><value>Flyt eller fjern {0} tile(s) fra placeringerne uden for det nye Board, før du gør det mindre.</value></data>
+  <data name="Finalize the team draft before publishing the board." xml:space="preserve"><value>Færdiggør holddraften, før Boardet offentliggøres.</value></data>
+  <data name="The approved board is unavailable." xml:space="preserve"><value>Det godkendte Board er ikke tilgængeligt.</value></data>
+  <data name="The board must be published before the event has started and while its configured end remains in the future." xml:space="preserve"><value>Boardet skal offentliggøres, før eventet starter, og mens den konfigurerede slutning stadig ligger i fremtiden.</value></data>
+  <data name="The current board state could not be read." xml:space="preserve"><value>Boardets aktuelle tilstand kunne ikke læses.</value></data>
+  <data name="{0} needs catalogue verification. Review the affected choices or restore the missing catalogue mapping before approval." xml:space="preserve"><value>{0} skal kontrolleres mod kataloget. Gennemgå de berørte valg, eller gendan den manglende katalogkobling før godkendelse.</value></data>
 </root>
