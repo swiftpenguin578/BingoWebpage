@@ -1,11 +1,11 @@
 # Current project status
 
-## U3 whole-suite remediation — SR2 scope boundary, 7 October2026
+## U3 whole-suite remediation complete — 7 October2026
 
-- Planner whole.NET on bb391bc identified seven real failures plus one isolated-passing Npgsql flake; the flake is unchanged. [Current remediation checkpoint](docs/references/admin-ui/reviews/2026-10-07/u3/suite-remediation/checkpoint.md).
-- SR1 `56d7a45d` adds exactly nine missing Danish messages (focused1/0/0). SR3 `c7998752` retains legacy-shell assertions on Participants (real PG26/0/0). SR4 `c942c1c9` reads exact counts from Signup setup (real PG10/0/0). SR5 is this checkpoint: retired Participants SignupAdministration stub/original Setup gate restored; unchanged C11 class60/0/0 and classification21/0/0.
-- SR2 has no edits: the requested single-prefix correction exposes80 unprefixed English resource entries, and the named old summary key is unused. Actual current Danish summary already says “skift den på”. Full localization class2/1/0; only SR2 fails. Exact inventory/evidence and proposed scope decision are in the checkpoint. Implementer stopped after completing unaffected work.
-- Release affected test builds and diff checks passed; no JS/markup changes, no fullJS repeat or whole.NET. Prior bb391bc gate116/0 and50 conformance cases per engine remain historical evidence. Existing review environment/stale markers untouched; no acceptance edit or publication.
+- All SR1–5 findings from the planner suite on bb391bc are fixed in separate commits. [Final remediation checkpoint and exact evidence](docs/references/admin-ui/reviews/2026-10-07/u3/suite-remediation/checkpoint.md).
+- SR1 `56d7a45d`: nine Danish messages. SR3 `c7998752`: unchanged legacy assertions use Participants, PG26/0/0. SR4 `c942c1c9`: exact Signup setup counts, PG10/0/0. SR5 `7269a198`: retired Participants handler/original Setup gate restored, unchanged C11 class60/0/0 and classification21/0/0.
+- SR2 is this owning checkpoint: planner-directed deletion of exactly80 English identity entries, all provenance-verified to dcc1a40f; all remaining English entries, Danish bytes and lookups preserved. Full Release AdminDesignLocalizationTests **3/0/0**. Release parity fixture rebuilt0 warnings/errors; Schedule conformance **5 widths per engine**, Schedule browser **10 groups per engine**, diff check passed. Earlier SR2 boundary resolved.
+- Implementer stopped for planner whole.NET rerun. No fullJS repeat (no JS/markup change), whole.NET, flake repair, environment refresh, acceptance edit or publication. Prior bb391bc gate116/0 remains historical evidence; review environment/stale markers untouched.
 
 ## Phase colours implemented — 7 October 2026
 
@@ -62,4 +62,4 @@
 
 ## Next permitted action
 
-Dispatcher/planner resolves SR2 resource-key scope; resume the same implementer for that finding and the final localization check. Then planner reruns whole.NET on the final remediation HEAD. No unrelated work, push, deployment or acceptance authorized here.
+Planner reruns whole.NET on the final SR1–5 remediation HEAD. Implementer stopped; no further work, push, deployment or acceptance is authorized here.
