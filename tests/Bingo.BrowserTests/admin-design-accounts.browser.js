@@ -18,10 +18,10 @@ const { startFixture, login } = require('../../scripts/lib/admin-parity-fixture.
     await page.locator('[data-accounts-directory]').waitFor();
     assert.equal(new URL(page.url()).search, '', 'invalid link parts canonicalize to the plain directory');
     assert.equal(await page.locator('h1.h1').innerText(), 'Accounts');
-    // T1-5: separate summary items with tabular numbers, then the scope text.
+    // T1-5: only the two count items with tabular numbers, as on Events.
     const summaryItems = await page.locator('.page-head .summary > span').allTextContents();
-    assert.equal(summaryItems.length, 3);
-    assert.match(summaryItems[0], /^\d+ accounts$/); assert.equal(summaryItems[1], '1 disabled'); assert.equal(summaryItems[2], 'Website accounts and their global access');
+    assert.equal(summaryItems.length, 2, 'the summary is only the two count items');
+    assert.match(summaryItems[0], /^\d+ accounts$/); assert.equal(summaryItems[1], '1 disabled');
     assert.equal(await page.locator('.page-head .summary b.tnum').count(), 2);
     // T1-4 (b): Global role is always a pill; Status keeps the reference (Disabled badge only).
     assert.equal(await page.locator('[data-account-row] .td:nth-child(2) > span:not(.badge)').count(), 0);

@@ -374,7 +374,6 @@
   <data name="No accounts match" xml:space="preserve"><value>Ingen konti matcher</value></data>
   <data name="There are fewer results now. Go back to the first page." xml:space="preserve"><value>Der er færre resultater nu. Gå tilbage til første side.</value></data>
   <data name="Search looks at website usernames, not Discord names or OSRS characters." xml:space="preserve"><value>Søgningen ser på brugernavne på hjemmesiden, ikke Discord-navne eller OSRS-karakterer.</value></data>
-  <data name="Website accounts and their global access" xml:space="preserve"><value>Hjemmesidekonti og deres globale adgang</value></data>
   <data name="Ownership wasn’t transferred." xml:space="preserve"><value>Ejerskabet blev ikke overdraget.</value></data>
   <data name="Find accounts" xml:space="preserve"><value>Find konti</value></data>
   <data name="Search usernames" xml:space="preserve"><value>Søg i brugernavne</value></data>

@@ -27,3 +27,4 @@ Lane T, branch `claude/lane-t1-accounts-audit`, worktree `BingoWebpage-lane-t`. 
 ## Early-look follow-up (08-decisions "T1 Accounts early look")
 - Drawer shell shows the avatar at once with the row's initials (empty circle for a direct link); T1-4 (b) Global role always a pill (User `badge-neutral`); T1-5 Events-style summary items with `b.tnum`; register rows added; T1-1 Create stub and T1-2 signed-out notice recorded.
 - Checks: Release build 0 errors; BrowserTests `AccountsUiTests|AdminDesignLocalizationTests` 16/0/0; `admin-design-accounts.browser.js` Chromium + WebKit PASS (now asserts the avatar during a held drawer read, role pills and summary items); `git diff --check` clean.
+- Follow-up 2: summary is only the two count items (scope text and its resource removed); loading summary reserves two lines at ≤640px (U3-Q6); T1-3 wording approved unchanged.
