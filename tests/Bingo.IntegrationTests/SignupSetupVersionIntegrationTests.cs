@@ -36,16 +36,22 @@ public sealed partial class SignupSetupVersionIntegrationTests(PostgreSqlTestFix
     }
     public Task DisposeAsync() => database.DisposeAsync().AsTask();
 
-    [Fact]
-    public async Task ImportedArchivedWithoutFormIsReadOnlyAndExplicitWithoutCreatingHistory()
+    [Theory]
+    [InlineData(EventState.Archived)]
+    [InlineData(EventState.AwaitingFinalReview)]
+    [InlineData(EventState.Finalized)]
+    public async Task ImportedArchivedWithoutFormIsReadOnlyAndExplicitWithoutCreatingHistory(EventState state)
     {
         var seed = await SeedAsync();
         var id = Guid.NewGuid();
         await using (var db = new ApplicationDbContext(options))
         {
             var adminId = await db.Accounts.Where(x => x.LoginName == seed.Admin).Select(x => x.Id).SingleAsync();
-            db.Events.Add(BingoEvent.CreateArchivedHistorical(id, "Imported history", $"imported-{id:N}", null, "UTC",
-                Now.AddDays(-10), Now.AddDays(-8), Now.AddDays(-7), Now.AddDays(-2), adminId, Now, null, 2, 3, 2, 2));
+            var imported = BingoEvent.CreateArchivedHistorical(id, "Imported history", $"imported-{id:N}", null, "UTC",
+                Now.AddDays(-10), Now.AddDays(-8), Now.AddDays(-7), Now.AddDays(-2), adminId, Now, null, 2, 3, 2, 2);
+            if (state != EventState.Archived) imported.Unfinalize("Synthetic reopened import");
+            if (state == EventState.Finalized) imported.FinalizeResults(Now);
+            db.Events.Add(imported);
             await db.SaveChangesAsync();
         }
         await using var factory = Factory();
@@ -67,7 +73,7 @@ public sealed partial class SignupSetupVersionIntegrationTests(PostgreSqlTestFix
         Assert.Equal(6, json.GetProperty("settings").GetProperty("participantCap").GetInt32());
         using var refused = await PostAsync(client, route, "Add", page, "0", new() { ["Input.Label"] = "Never recorded", ["Input.Type"] = "Text" });
         Assert.Equal(HttpStatusCode.Redirect, refused.StatusCode);
-        Assert.Contains($"/Admin/Events/Manage/{id}", refused.Headers.Location!.OriginalString);
+        Assert.Contains(state == EventState.AwaitingFinalReview ? route : $"/Admin/Events/Manage/{id}", refused.Headers.Location!.OriginalString);
         await using var verify = new ApplicationDbContext(options);
         Assert.False(await verify.SignupForms.AnyAsync(x => x.EventId == id));
         Assert.False(await verify.SignupQuestions.AnyAsync(x => x.EventId == id));
