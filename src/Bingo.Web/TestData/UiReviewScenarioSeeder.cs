@@ -122,7 +122,7 @@ public sealed class UiReviewScenarioSeeder(
         await transaction.CommitAsync(ct);
         return new UiReviewScenarios(profile, now, active.Id, discarded.Id, blocked,
             events.Select(value => new UiReviewEvent(value.Id, value.Name, value.Slug, value.State, value.IsHidden)).ToArray(),
-            accounts.Values.Select(value => new UiReviewAccount(value.LoginName, value.GlobalRole!.Value, value.DisabledAt is not null)).ToArray());
+            accounts.Values.Select(value => new UiReviewAccount(value.LoginName, value.GlobalRole!.Value, value.DisabledAt is not null, value.Id)).ToArray());
     }
 
     private async Task AddScheduledAttentionAsync(BingoEvent postponed, BingoEvent failed, DateTimeOffset at, CancellationToken ct)
@@ -487,5 +487,5 @@ public sealed class UiReviewScenarioSeeder(
 }
 
 public sealed record UiReviewEvent(Guid Id, string Name, string Slug, EventState State, bool Hidden);
-public sealed record UiReviewAccount(string Username, GlobalRole Role, bool Disabled);
+public sealed record UiReviewAccount(string Username, GlobalRole Role, bool Disabled, Guid Id = default);
 public sealed record UiReviewScenarios(string Profile, DateTimeOffset BuiltAt, Guid CurrentEventId, Guid DiscardedEventId, Guid BlockedSubmissionId, IReadOnlyList<UiReviewEvent> Events, IReadOnlyList<UiReviewAccount> Accounts);

@@ -1,10 +1,14 @@
-// Uses controlled HTML captured by AdminStaleChangeIntegrationTests and the shipped
-// dialog scripts. HTTP/PostgreSQL assertions remain in that integration fixture.
+// Replays HTML captured by AdminStaleChangeIntegrationTests through the shipped Accounts page
+// (T1, A10: rewritten for the drawer binding). HTTP/PostgreSQL assertions stay in that fixture.
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 const { chromium } = require("playwright");
-const confirmationPartial = fs.readFileSync("src/Bingo.Web/Pages/Shared/_AdminConfirmation.cshtml", "utf8").replace(/@T\["([^"]+)"\]/g, "$1");
+const asset = pathname => {
+  const file = pathname.replace(/\.[a-z0-9]{10}\.(js|css)$/, ".$1");
+  const full = path.join("src/Bingo.Web/wwwroot", file);
+  return fs.existsSync(full) ? full : null;
+};
 
 (async () => {
   const fixtureDirectory = process.env.BINGO_ADMIN_STALE_EVIDENCE_DIRECTORY;
@@ -14,56 +18,50 @@ const confirmationPartial = fs.readFileSync("src/Bingo.Web/Pages/Shared/_AdminCo
     for (const action of ["Disable", "Restore", "GrantAdmin", "RevokeAdmin"]) {
       const opened = fs.readFileSync(path.join(fixtureDirectory, `account-${action}-opened.html`), "utf8");
       const stale = fs.readFileSync(path.join(fixtureDirectory, `account-${action}-stale.html`), "utf8");
-      const accountPath = opened.match(/action="(\/Admin\/Accounts\/Manage\/[^?"\s]+)/)[1];
+      const accountId = opened.match(/data-account-drawer data-account-id="([^"]+)"/)[1];
       const page = await browser.newPage();
-      const requests = [];
-      const errors = [];
+      const posts = [], errors = [];
+      let current = opened;
       page.on("pageerror", error => errors.push(error.message));
       await page.route("https://bingo.test/**", async route => {
-        const request = route.request();
-        const url = new URL(request.url());
+        const request = route.request(), url = new URL(request.url());
         if (request.method() === "POST") {
-          requests.push({ url, body: request.postData() });
-          return route.fulfill({ contentType: "text/html", body: stale });
+          posts.push({ url, body: request.postData() });
+          current = stale; // the server's current state after the intervening change
+          return route.fulfill({ contentType: "application/json", body: JSON.stringify({ outcome: "stale", message: "This record was changed by another administrator. Current values are shown; review them before trying again." }) });
         }
-        if (url.pathname === accountPath) return route.fulfill({ contentType: "text/html", body: opened });
-        if (url.pathname.startsWith("/js/")) return route.fulfill({ contentType: "text/javascript", body: fs.readFileSync(`src/Bingo.Web/wwwroot${url.pathname}`, "utf8") });
-        return route.fulfill({ contentType: "text/html", body: `<html><body data-admin-account-action-error="Account request failed."><main id="main-content"><section class="admin-accounts-page"><a data-account-manage-trigger="true" href="${accountPath}">Manage</a></section></main>${confirmationPartial}<script src="/js/admin-confirmation.js"></script><script src="/js/admin-editor-guard.js"></script><script src="/js/account-manage-dialog.js"></script></body></html>` });
+        const file = asset(url.pathname);
+        if (file) return route.fulfill({ contentType: file.endsWith(".css") ? "text/css" : file.endsWith(".js") ? "text/javascript" : "application/octet-stream", body: fs.readFileSync(file) });
+        if (/^\/admin\/accounts$/i.test(url.pathname)) return route.fulfill({ contentType: "text/html", body: current });
+        return route.fulfill({ status: 404, body: "" });
       });
-      await page.goto("https://bingo.test/Admin/Accounts");
-      await page.locator("[data-account-manage-trigger]").click();
-      const modal = page.locator("dialog.account-manage-route-dialog");
+      await page.goto(`https://bingo.test/Admin/Accounts?account=${accountId}`);
+      const drawer = page.locator(".drawer");
+      await drawer.waitFor({ state: "visible" });
+      const form = () => drawer.locator(`form[data-account-action="${action}"]`);
+      const expected = await form().locator('[name="ExpectedAuthorizationVersion"]').inputValue();
+      await form().locator("button").click();
+      const modal = page.locator(".modal[role=alertdialog]");
       await modal.waitFor({ state: "visible" });
-      const originalForm = modal.locator(`form[action*="handler=${action}"]`);
-      const expected = await originalForm.locator('[name="ExpectedAuthorizationVersion"]').inputValue();
-      const openConfirmation = async () => {
-        await modal.locator(`[data-account-final-action][data-account-handler="${action}"]`).click();
-        const dialog = page.locator("[data-admin-confirmation]");
-        await dialog.waitFor({ state: "visible" });
-        return { dialog, form: modal.locator(`form[action*="handler=${action}"]`) };
-      };
-      let confirmation = await openConfirmation();
-      assert.equal(requests.length, 0, `${action}: revealing confirmation has no side effects`);
-      assert.equal(await confirmation.form.locator('[name="ExpectedAuthorizationVersion"]').inputValue(), expected);
-      if (action === "Disable") await confirmation.dialog.locator("textarea").fill("Browser fixture reason");
-      await confirmation.dialog.locator("[data-admin-confirmation-action]").click();
-      await modal.locator('[data-account-change-stale="true"]').waitFor();
-      assert.equal(requests.length, 1, `${action}: one confirmation posts once`);
-      assert.equal(requests[0].url.searchParams.get("handler"), action);
-      assert.match(requests[0].body, new RegExp(`name="ExpectedAuthorizationVersion"\\r?\\n\\r?\\n${expected}\\r?\\n`));
-      assert.equal(await modal.evaluate(element => element.open), true, `${action}: stale recovery retains the Manage dialog`);
-      const feedback = modal.locator("[data-account-editor-feedback]");
-      assert.equal(await feedback.isVisible(), true);
-      assert.match(await feedback.innerText(), /changed by another administrator/);
-      assert.equal(await modal.locator(".validation-summary").evaluate(element => element.classList.contains("visually-hidden")), true, "the replacement summary does not duplicate feedback");
-      assert.equal(await confirmation.dialog.evaluate(element => element.open), false, "shared stale confirmation closes before a new decision");
-      assert.equal(await modal.locator(".admin-account-inline-confirmation:not([hidden]), details[open]").count(), 0, "stale confirmation closes before a new decision");
-      confirmation = await openConfirmation();
-      const refreshed = await confirmation.form.locator('[name="ExpectedAuthorizationVersion"]').inputValue();
-      assert.notEqual(refreshed, expected, `${action}: new confirmation uses current target freshness`);
-      assert.equal(requests.length, 1, "reopening does not auto-submit the action");
+      assert.equal(posts.length, 0, `${action}: revealing the confirmation has no side effects`);
+      if (action === "Disable") await modal.locator("textarea").fill("Browser fixture reason");
+      await modal.locator("[data-account-confirm-accept]").click();
+      await drawer.locator("#dr-banner").waitFor();
+      assert.match(await drawer.locator("#dr-banner").innerText(), /changed by another administrator/);
+      assert.equal(posts.length, 1, `${action}: one confirmation posts once`);
+      assert.equal(posts[0].url.searchParams.get("handler"), action);
+      assert.equal(posts[0].url.searchParams.get("account"), accountId);
+      assert.match(posts[0].body, new RegExp(`name="ExpectedAuthorizationVersion"\\r?\\n\\r?\\n${expected}\\r?\\n`));
+      assert.equal(await modal.count(), 0, `${action}: the stale confirmation closes before a new decision`);
+      const refreshed = await form().locator('[name="ExpectedAuthorizationVersion"]').inputValue();
+      assert.notEqual(refreshed, expected, `${action}: the drawer shows the current version`);
+      await form().locator("button").click();
+      await modal.waitFor({ state: "visible" });
+      if (action === "Disable") assert.equal(await modal.locator("textarea").inputValue(), "Browser fixture reason", "A3: the stale reason draft is kept");
+      assert.equal(posts.length, 1, "reopening does not auto-submit the action");
+      assert.equal(new URL(page.url()).searchParams.get("account"), accountId);
       assert.deepEqual(errors, []);
-      console.log(`PASS ${action}: two-stage freshness, one stale POST, visible recovery, fresh reconfirmation`);
+      console.log(`PASS ${action}: one stale POST, visible recovery, current version, fresh reconfirmation`);
       await page.close();
     }
   } finally {

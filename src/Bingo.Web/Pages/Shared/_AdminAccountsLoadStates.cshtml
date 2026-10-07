@@ -1,1 +1,40 @@
-@* Lane T: Accounts page-family load states (filled by the Accounts binding). *@
+@inject IStringLocalizer<AdminCommunityResource> D
+@{
+    var roleOptions = new[] { "All", "User", "Admin", "Super Admin" };
+    var columns = new[] { ("Account", "c-name"), ("Global role", ""), ("Status", ""), ("Current event roles", ""), ("Last login", "") };
+    var superAdmin = User.IsInRole("SuperAdmin");
+}
+@* Lane T: Accounts page-family load states. Fresh on every visit: no remembered counts or rows. *@
+<template data-page-header-template="accounts">
+    <header class="page-head" data-page-family="accounts"><div style="min-width:0"><h1 class="h1" tabindex="-1">@D["Accounts"]</h1><p class="summary" aria-hidden="true"></p></div>@if (superAdmin) { <div class="head-actions"><button class="btn btn-quiet" type="button" tabindex="-1"><svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 5.5h9.5M10 3l2.5 2.5L10 8M13 10.5H3.5M6 8l-2.5 2.5L6 13"/></svg>@D["Transfer ownership"]</button></div> }</header>
+</template>
+@foreach (var failed in new[] { false, true })
+{
+    <template data-page-@(failed ? "failure" : "loading")-template="accounts" data-page-title="@(failed ? null : D["Accounts"].Value)">
+        <link rel="stylesheet" href="~/css/admin-design-accounts.css" asp-append-version="true" />
+        <div data-accounts-pending>
+        <div class="toolbar ac-toolbar" role="search" aria-label="@D["Find accounts"]">
+            <div class="tbar-right ac-filters">
+                <div class="search"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("search")' /><input class="input" type="search" placeholder="@D["Search usernames"]" aria-label="@D["Search usernames"]" disabled></div>
+                <div class="seg" role="radiogroup" aria-label="@D["Global role"]">@foreach (var label in roleOptions) { <label class="seg-opt @(label == "All" ? "is-on" : null)"><input class="sr" type="radio" name="pending-ac-role" checked="@(label == "All")" disabled>@D[label]</label> }</div>
+            </div>
+        </div>
+        <div class="card"><div class="tbl-wrap"><div class="tbl ac-tbl sticky-first" role="table" aria-label="@D["Accounts"]" aria-busy="@(failed ? "false" : "true")">
+            <div class="tr th-row" role="row">@foreach (var (label, cls) in columns) { <div class="th @cls" role="columnheader">@D[label]</div> }</div>
+            @if (failed)
+            {
+                <div class="empty is-error" role="row"><div role="cell" class="ac-cell-contents"><div class="empty-ic"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("error")' /></div><div class="empty-title">@D["Couldn’t load accounts"]</div><div class="empty-text">@D["Nothing was changed. Try again."]</div><button class="btn" type="button" data-load-retry>@D["Try again"]</button></div></div>
+            }
+            else
+            {
+                <div data-accounts-skeleton-rows>
+                @foreach (var width in new[] { 60, 45, 70, 52, 66, 40 })
+                {
+                    <div class="tr sk-row" role="row" aria-hidden="true"><div class="td c-name"><div class="ac-who"><span class="sk ac-sk-avatar"></span><span class="ac-sk-text"><span class="sk" style="width:@(width)%"></span></span></div></div><div class="td"><div class="ac-sk-line"><div class="sk ac-sk-w50"></div></div></div><div class="td"><div class="ac-sk-line"><div class="sk ac-sk-w45"></div></div></div><div class="td"><div class="ac-sk-line"><div class="sk ac-sk-w70"></div></div></div><div class="td"><div class="ac-sk-line"><div class="sk ac-sk-w55"></div></div></div></div>
+                }
+                </div>
+            }
+        </div></div></div>
+        </div>
+    </template>
+}

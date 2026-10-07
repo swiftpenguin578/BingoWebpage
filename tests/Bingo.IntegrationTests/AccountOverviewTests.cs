@@ -53,15 +53,13 @@ public sealed class AccountOverviewTests : IAsyncLifetime
 
     public Task DisposeAsync() => database.DisposeAsync().AsTask();
 
+    // A10 (T1): the directory now binds the reference query names q/role/page; the counts,
+    // normalized search and paging rules are unchanged.
     [Fact]
     public async Task WebsiteAndEmergencyPagingFilteringAndProjectionRemainIndependent()
     {
         await using var db = new ApplicationDbContext(options);
-        var page = new IndexModel(db)
-        {
-            WebsitePage = 2,
-            WebsiteRole = GlobalRole.User
-        };
+        var page = AccountsPageTestFactory.Create(db, role: "user", page: "2");
 
         await page.OnGetAsync(CancellationToken.None);
 
@@ -70,70 +68,73 @@ public sealed class AccountOverviewTests : IAsyncLifetime
         Assert.Single(page.WebsiteAccounts);
         Assert.Contains("Overview event", page.WebsiteAccounts[0].EventRoleSummary);
 
-        var searchedWebsite = new IndexModel(db) { WebsiteSearch = "overview-user-01", WebsiteRole = GlobalRole.User };
+        var searchedWebsite = AccountsPageTestFactory.Create(db, q: "overview-user-01", role: "user");
         await searchedWebsite.OnGetAsync(CancellationToken.None);
         Assert.Equal(27, searchedWebsite.WebsiteTotalCount);
         Assert.Equal(1, searchedWebsite.WebsiteDisabledCount);
         Assert.Single(searchedWebsite.WebsiteAccounts);
         Assert.Equal("overview-user-01", searchedWebsite.WebsiteAccounts[0].Username);
-
     }
 
     [Fact]
     public async Task OutOfRangeAndCombinedFiltersReturnEmptyWithoutChangingOtherDataset()
     {
         await using var db = new ApplicationDbContext(options);
-        var page = new IndexModel(db) { WebsitePage = int.MaxValue };
+        var page = AccountsPageTestFactory.Create(db, page: "999999999");
         await page.OnGetAsync(CancellationToken.None);
 
         Assert.Empty(page.WebsiteAccounts);
+        Assert.True(page.BeyondResults);
+        Assert.Equal(27, page.MatchingCount);
     }
 
     [Fact]
-    public async Task ManageResetLinkProjectionIsConsumedOnlyForMatchingAccount()
+    public async Task SearchIgnoresCaseAndInvalidQueryPartsFallBackToTheirDefaults()
     {
         await using var db = new ApplicationDbContext(options);
-        var accounts = await db.Accounts.Where(x => x.AccountType == AccountType.WebsiteAccount).OrderBy(x => x.PublicUsername).Take(2).ToListAsync();
-        var first = accounts[0];
-        var second = accounts[1];
+        // A7: username search is normalized on both sides.
+        var upper = AccountsPageTestFactory.Create(db, q: "  OVERVIEW-USER-02  ");
+        await upper.OnGetAsync(CancellationToken.None);
+        Assert.Equal("overview-user-02", Assert.Single(upper.WebsiteAccounts).Username);
+        Assert.Equal("OVERVIEW-USER-02", upper.Search);
 
-        var mismatched = CreateManageModel(db);
-        mismatched.TempData["CredentialLink"] = "https://example.test/reset/A";
-        mismatched.TempData["CredentialLinkTargetId"] = first.Id.ToString();
-        mismatched.TempData["CredentialLinkPurpose"] = "reset";
-        mismatched.TempData["StatusMessage"] = "Generated a one-time reset link.";
-        mismatched.TempData[UiMessage.TypeKey] = UiMessageType.Success.ToString();
-        await mismatched.OnGetAsync(second.Id, CancellationToken.None);
+        foreach (var junk in new[] { "2abc", "0", "-1", "+2", " 2", "1e1", "99999999999" })
+        {
+            var page = AccountsPageTestFactory.Create(db, page: junk, role: "nobody");
+            await page.OnGetAsync(CancellationToken.None);
+            Assert.Equal(1, page.PageNumber);
+            Assert.Null(page.Role);
+            Assert.Equal(25, page.WebsiteAccounts.Count);
+            Assert.Equal("/Admin/Accounts", page.DirectoryUrl());
+        }
 
-        Assert.Null(mismatched.CredentialLink);
-        Assert.False(mismatched.TempData.ContainsKey("CredentialLink"));
-        Assert.False(mismatched.TempData.ContainsKey("CredentialLinkTargetId"));
-        Assert.False(mismatched.TempData.ContainsKey("CredentialLinkPurpose"));
-        Assert.False(mismatched.TempData.ContainsKey("StatusMessage"));
-        Assert.False(mismatched.TempData.ContainsKey(UiMessage.TypeKey));
-
-        var matching = CreateManageModel(db);
-        matching.TempData["CredentialLink"] = "https://example.test/reset/A";
-        matching.TempData["CredentialLinkTargetId"] = first.Id.ToString();
-        matching.TempData["CredentialLinkPurpose"] = "reset";
-        matching.TempData["StatusMessage"] = "Generated a one-time reset link.";
-        matching.TempData[UiMessage.TypeKey] = UiMessageType.Success.ToString();
-        await matching.OnGetAsync(first.Id, CancellationToken.None);
-
-        Assert.Equal("https://example.test/reset/A", matching.CredentialLink);
-        Assert.Equal("Generated a one-time reset link.", matching.TempData["StatusMessage"]?.ToString());
-        Assert.Equal(UiMessageType.Success.ToString(), matching.TempData[UiMessage.TypeKey]?.ToString());
+        var longSearch = AccountsPageTestFactory.Create(db, q: new string('x', 140), role: "SuperAdmin", page: "3");
+        await longSearch.OnGetAsync(CancellationToken.None);
+        Assert.Equal(100, longSearch.Search.Length);
+        Assert.Equal(GlobalRole.SuperAdmin, longSearch.Role);
+        Assert.Equal("/Admin/Accounts?q=" + new string('x', 100) + "&role=superadmin&page=3", longSearch.DirectoryUrl());
     }
 
-    private static ManageModel CreateManageModel(ApplicationDbContext db)
+    [Fact]
+    public async Task RowsNameOnlyCurrentCaptainRolesAndDrawerKeepsHiddenEventsOut()
     {
-        var context = new DefaultHttpContext();
-        var page = new ManageModel(db, new AccountAdministrationService(db, new PasswordHasher<Account>(), TimeProvider.System), new AccountIdentityService(db, new PasswordHasher<Account>(), TimeProvider.System))
-        {
-            PageContext = new PageContext(new ActionContext(context, new RouteData(), new PageActionDescriptor())),
-            TempData = new TempDataDictionary(context, new DictionaryTempDataProvider())
-        };
-        return page;
+        await using var db = new ApplicationDbContext(options);
+        var page = AccountsPageTestFactory.Create(db, q: "overview-user-0");
+        await page.OnGetAsync(CancellationToken.None);
+        Assert.Equal("Overview event: Captain", page.WebsiteAccounts.Single(row => row.Username == "overview-user-00").EventRoleSummary);
+        Assert.Equal("Overview event", page.WebsiteAccounts.Single(row => row.Username == "overview-user-03").EventRoleSummary);
+
+        var target = await db.Accounts.SingleAsync(account => account.PublicUsername == "overview-user-00");
+        var drawer = AccountsPageTestFactory.Create(db, account: target.Id.ToString());
+        await drawer.OnGetAsync(CancellationToken.None);
+        Assert.Equal("overview-user-00", drawer.AccountView!.Username);
+        Assert.Single(drawer.AccountView.EventRoles);
+
+        var emergency = await db.Accounts.FirstAsync(account => account.AccountType == AccountType.EmergencyCaptain);
+        var missing = AccountsPageTestFactory.Create(db, account: emergency.Id.ToString());
+        await missing.OnGetAsync(CancellationToken.None);
+        Assert.True(missing.DrawerRequested);
+        Assert.Null(missing.AccountView);
     }
 
     private sealed class DictionaryTempDataProvider : ITempDataProvider

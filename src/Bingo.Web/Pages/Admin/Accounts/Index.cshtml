@@ -1,99 +1,106 @@
 @page
 @model Bingo.Web.Pages.Admin.Accounts.IndexModel
 @using Bingo.Domain.Access
+@using Bingo.Web.Pages.Admin.Accounts
+@inject IStringLocalizer<AdminCommunityResource> D
 @{
-    ViewData["Title"] = T["Accounts / Roles"];
-    ViewData["AdminPageDescription"] = T["Manage website accounts and roles."];
-    string RoleLabel(GlobalRole role) => role switch
-    {
-        GlobalRole.SuperAdmin => T["Super Admin"].Value,
-        GlobalRole.Admin => T["Admin"].Value,
-        _ => T["User"].Value
+    ViewData["Title"] = "Accounts";
+    ViewData["PageFamily"] = "accounts";
+    ViewData["LocalizedTitle"] = D["Accounts"].Value;
+    var roleOptions = new[] { ("", "All"), ("user", "User"), ("admin", "Admin"), ("superadmin", "Super Admin") };
+    var columns = new[] { ("Account", "c-name"), ("Global role", ""), ("Status", ""), ("Current event roles", ""), ("Last login", "") };
+    // Every string the page script shows; {0}/{1} are filled in the browser.
+    var labels = new[] {
+        "Website account", "Loading…", "Close", "Cancel", "Couldn’t load this account", "Check your connection and try again. Nothing was changed.", "Try again",
+        "Admin access granted.", "{0} is now an Admin. Their sessions were ended, so they’ll sign in again to use it.",
+        "Admin access revoked.", "{0} is now a User. Their account, events, team roles and characters are unchanged; their sessions were ended.",
+        "Account disabled.", "{0} can’t sign in and their sessions were ended. Their account, rosters and records are kept.",
+        "Account restored.", "{0} can sign in again. Event signups and roles weren’t changed.",
+        "That didn’t go through.", "Nothing changed. Try again.",
+        "This record was changed by another administrator.", "Current values are shown; review them before trying again.",
+        "That couldn’t be done.", "We couldn’t confirm the change.", "It may have gone through. Check the current status before trying again.", "Check current status", "Checking…",
+        "It went through.", "It wasn’t changed.", "The current values are shown. You can try again.",
+        "The account shows this change now.", "It may be yours or another administrator’s. The current values are shown; nothing was repeated.",
+        "The account was changed, but not like this.", "Another change happened since. The current values are shown; review them before trying again.",
+        "Couldn’t check the current status.", "Nothing was repeated. Check again when you’re back online.",
+        "Dismiss", "Enter a reason.", "Use 500 characters or fewer.", "{0} / 500",
+        "Granting…", "Revoking…", "Disabling…", "Restoring…", "Creating…", "Create reset link",
+        "Reset link for {0}", "Expires {0}", "Reset link", "Copy", "Copied", "Selected. Press Ctrl+C or ⌘C to copy.",
+        "The link stops working after 60 minutes, after one use, or if this account’s role, status or ownership changes.",
+        "It doesn’t change their password or send them anything. Share it with {0} privately.",
+        "Shown only here. Closing this account clears it.", "Done",
+        "We couldn’t confirm whether a link was created", "If one was, it can’t be shown again; links are never stored in readable form.",
+        "Generate a new link only if {0} still needs one. It replaces any earlier link.", "Not now", "Generate a new link", "No link was created.",
+        "Action", "Reason", "Grant Admin to {0}", "Revoke Admin from {0}", "Disable {0}", "Restore {0}", "Create a reset link for {0}",
+        "Transfer ownership", "Transfer ownership to {0}?", "Continue", "Back", "Transferring…", "Choose an account.", "Enter your current password.",
+        "Account", "Now", "After", "Before", "{0} (you)", "Super Admin", "Admin",
+        "Both accounts are signed out and must sign in again.", "{0} becomes Super Admin; your account remains an Admin.",
+        "Both accounts must sign in again. Only {0} could transfer it back.",
+        "Type the new owner’s username", "Type {0} to confirm.", "Type the new owner’s username to confirm.", "This doesn’t match {0}.",
+        "Ownership wasn’t transferred.", "Choose another active website account. {0} was changed by another administrator a moment ago; choose again to continue.",
+        "Choose another active website account. {0} was disabled a moment ago.",
+        "We couldn’t confirm the transfer", "Don’t repeat it.", "It may have gone through. Check who owns the community now.", "Check ownership",
+        "Ownership transferred", "Your session has ended. Sign in again to continue as an Admin.", "Sign in again",
+        "It didn’t go through.", "You’re still the Super Admin. Nothing changed.", "New Super Admin", "{0} · {1}", "Showing {0}–{1} · ordered by username", "Showing {0}–{1} matching · ordered by username"
     };
+    var labelJson = System.Text.Json.JsonSerializer.Serialize(labels.Distinct().ToDictionary(key => key, key => D[key].Value));
+    var emptyTitle = Model.BeyondResults ? D["Nothing on page {0}", Model.PageNumber].Value : D["No accounts match"].Value;
+    var emptyText = Model.BeyondResults ? D["There are fewer results now. Go back to the first page."].Value : D["Search looks at website usernames, not Discord names or OSRS characters."].Value;
 }
-
-<section class="admin-accounts-page">
-    <section class="admin-accounts-section" data-admin-account-section="website" aria-labelledby="website-accounts-heading">
-        <div class="admin-events-directory-controls">
-            <form class="admin-events-toolbar" method="get" asp-page="./Index" data-admin-account-filter="website">
-                <div class="admin-search-field">
-                    <label class="visually-hidden" for="website-account-search">@T["Search accounts"]</label>
-                    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
-                    <input id="website-account-search" class="admin-search-field-input form-control" type="search" name="WebsiteSearch" value="@Model.WebsiteSearch" placeholder="@T["Search accounts…"]" />
-                    <button class="admin-search-clear" type="button" data-admin-search-clear aria-label="@T["Clear account search"]" hidden="@(string.IsNullOrWhiteSpace(Model.WebsiteSearch) ? "hidden" : null)"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 6 12 12" /><path d="m18 6-12 12" /></svg></button>
-                </div>
-                <div class="admin-events-state-filter admin-field">
-                    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" /></svg>
-                    <label for="website-account-role">@T["Role:"]</label>
-                    <div class="admin-events-state-select">
-                        <select id="website-account-role" class="admin-filter-select form-select" name="WebsiteRole" data-admin-account-role>
-                            <option value="">@T["Any role"]</option>
-                            @foreach (var role in Enum.GetValues<GlobalRole>())
-                            {
-                                <option value="@role" selected="@(Model.WebsiteRole == role ? "selected" : null)">@RoleLabel(role)</option>
-                            }
-                        </select>
-                        <svg class="admin-events-state-chevron" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 9 6 6 6-6" /></svg>
-                    </div>
-                </div>
-                <button class="visually-hidden" type="submit">@T["Search accounts"]</button>
-            </form>
-            <div class="admin-accounts-actions">
-                @if (User.IsInRole(nameof(GlobalRole.SuperAdmin)))
-                {
-                    <a class="admin-button-secondary" asp-page="Transfer">@T["Transfer ownership"]</a>
-                }
-            </div>
-        </div>
-        <div class="admin-accounts-table-wrap">
-            <header class="admin-accounts-section-heading">
-                <div><h2 id="website-accounts-heading">@T["Website accounts"]</h2><p>@T["Normal website identities and their global roles."]</p></div><span class="admin-accounts-section-count">@T["{0} accounts · {1} disabled", Model.WebsiteTotalCount, Model.WebsiteDisabledCount]</span>
-            </header>
-            <div class="admin-events-table-scroll">
-                <table class="event-table admin-accounts-table admin-accounts-website-table">
-                    <colgroup>
-                        <col class="admin-accounts-col-account" />
-                        <col class="admin-accounts-col-role" />
-                        <col class="admin-accounts-col-state" />
-                        <col class="admin-accounts-col-discord" />
-                        <col class="admin-accounts-col-last-login" />
-                        <col class="admin-accounts-col-event-roles" />
-                        <col class="admin-accounts-col-actions" />
-                    </colgroup>
-                    <thead><tr><th><span class="admin-accounts-table-header-label">@T["Account"]</span></th><th><span class="admin-accounts-table-header-label">@T["Role"]</span></th><th><span class="admin-accounts-table-header-label">@T["State"]</span></th><th><span class="admin-accounts-table-header-label">@T["Discord"]</span></th><th><span class="admin-accounts-table-header-label">@T["Last login"]</span></th><th><span class="admin-accounts-table-header-label">@T["Current event roles"]</span></th><th><span class="admin-accounts-table-header-label">@T["Actions"]</span></th></tr></thead>
-                    <tbody>
-                    @foreach (var account in Model.WebsiteAccounts)
-                    {
-                        var roleModifier = account.Role switch { GlobalRole.SuperAdmin => "is-purple", GlobalRole.Admin => "is-blue", _ => "is-muted" };
-                        <tr>
-                            <td data-label="Account">
-                                <strong>@account.Username</strong>
-                                @if (account.DiscordLinked && !string.IsNullOrWhiteSpace(account.DiscordDisplayName))
-                                {
-                                    <small class="admin-account-discord-name">@account.DiscordDisplayName</small>
-                                }
-                            </td>
-                            <td data-label="Role"><span class="admin-status-pill @roleModifier">@RoleLabel(account.Role)</span></td>
-                            <td data-label="State"><span class="admin-status-pill @(account.Active ? "is-green" : "is-muted")">@(account.Active ? T["Active"] : T["Disabled"])</span></td>
-                            <td data-label="Discord"><span class="admin-account-discord-status @(account.DiscordLinked ? "is-linked" : "is-unlinked")">@(account.DiscordLinked ? T["Linked"] : T["Not linked"])</span></td>
-                            <td data-label="Last login"><span class="admin-account-support">@(account.LastLoginAt is { } ? DateTimePresentation.Format(account.LastLoginAt.Value, "dd MMM yyyy, HH:mm", provider: CultureInfo.CurrentCulture) : T["Never"].Value)</span></td>
-                            <td data-label="Current event roles"><span class="admin-account-support admin-account-ellipsis" title="@account.EventRoleSummary">@account.EventRoleSummary</span></td>
-                            <td class="event-row-action" data-label="Actions"><a class="event-overview-row-action" data-account-manage-trigger="true" asp-page="Manage" asp-route-id="@account.Id">@T["Manage"]</a></td>
-                        </tr>
-                    }
-                    @if (!Model.WebsiteAccounts.Any()) { <tr><td class="admin-accounts-empty" colspan="7">@T["No website accounts match this search or role."]</td></tr> }
-                    </tbody>
-                </table>
-            </div>
-        </div>
-        <div class="admin-accounts-pager">
-            @if (Model.WebsitePage > 1) { <a class="admin-button-secondary" asp-route-WebsiteSearch="@Model.WebsiteSearch" asp-route-WebsiteRole="@Model.WebsiteRole" asp-route-WebsitePage="@(Model.WebsitePage - 1)">@T["Previous website accounts"]</a> }
-            @if (Model.WebsiteHasNextPage) { <a class="admin-button-secondary" asp-route-WebsiteSearch="@Model.WebsiteSearch" asp-route-WebsiteRole="@Model.WebsiteRole" asp-route-WebsitePage="@(Model.WebsitePage + 1)">@T["Next website accounts"]</a> }
-        </div>
-    </section>
-
-</section>
-
-@section Scripts {
-    <script src="~/js/account-manage-dialog.js" asp-append-version="true"></script>
+@section HeaderSummary {
+    <span data-accounts-summary>@D["{0} accounts · {1} disabled", Model.WebsiteTotalCount, Model.WebsiteDisabledCount]</span><span>@D["Website accounts and their global access"]</span>
 }
+@section HeaderActions {
+    @if (Model.IsSuperAdmin) { <div class="head-actions"><button class="btn btn-quiet" type="button" id="transfer-btn" data-account-transfer-open><svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 5.5h9.5M10 3l2.5 2.5L10 8M13 10.5H3.5M6 8l-2.5 2.5L6 13"/></svg>@D["Transfer ownership"]</button></div> }
+}
+<div data-accounts-directory data-directory-canonical="@Model.DirectoryUrl()" data-actor-name="@Model.Actor?.Username" data-account-labels="@labelJson">
+<div data-directory-banners class="directory-fragments">
+@if (Model.TransferError is { } transferError) { <div class="banner is-warning page-banner" role="alert"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("warning")' /><span class="grow"><b>@D["Ownership wasn’t transferred."]</b> @transferError</span></div> }
+</div>
+<div class="toolbar ac-toolbar" role="search" aria-label="@D["Find accounts"]">
+    <div class="tbar-right ac-filters">
+        <div class="search @(Model.Search.Length > 0 ? "has-clear" : "")"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("search")' /><input class="input" id="ac-search" type="search" placeholder="@D["Search usernames"]" aria-label="@D["Search usernames"]" maxlength="@IndexModel.SearchLimit" autocomplete="off" value="@Model.Search" data-accounts-search><button class="icon-btn clear" type="button" aria-label="@D["Clear search"]" data-accounts-clear hidden="@(Model.Search.Length == 0)"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("close")' /></button></div>
+        <div class="seg" role="radiogroup" aria-label="@D["Global role"]">
+        @foreach (var (key, label) in roleOptions) { var on = (Model.Role is null ? "" : IndexModel.RoleKey(Model.Role.Value)) == key; <label class="seg-opt @(on ? "is-on" : null)"><input class="sr" type="radio" name="ac-role" value="@key" checked="@on" data-accounts-role>@D[label]</label> }
+        </div>
+    </div>
+</div>
+<div class="card">
+<div class="tbl-wrap" id="accounts-table-scroll" data-admin-scroll-region data-accounts-wrap><div class="tbl ac-tbl sticky-first" role="table" aria-label="@D["Accounts"]">
+<div class="tr th-row" role="row">@foreach (var (label, cls) in columns) { <div class="th @cls" role="columnheader">@D[label]</div> }</div>
+<div data-accounts-results>
+@if (Model.WebsiteAccounts.Count > 0) {
+<div class="rows" role="rowgroup">
+@foreach (var account in Model.WebsiteAccounts) {
+    var sub = account.DiscordLinked ? account.DiscordDisplayName is { Length: > 0 } discord ? D["Discord · {0}", discord].Value : D["Discord linked"].Value : D["No Discord link"].Value;
+    var roleClass = account.Role switch { GlobalRole.SuperAdmin => "badge badge-accent", GlobalRole.Admin => "badge badge-outline", _ => "ac-plain" };
+    <div class="tr row @(account.Active ? null : "is-disabled") @(Model.RequestedAccount == account.Id ? "is-selected" : null)" role="row" data-account-row="@account.Id">
+        <div class="td c-name" role="cell"><div class="ac-who"><span class="avatar" aria-hidden="true">@AccountsPresentation.Initials(account.Username)</span><span class="ac-who-text"><a class="name-btn" id="open-@account.Id" href="@Model.DirectoryUrl(account: account.Id)" data-account-open="@account.Id">@account.Username</a><span class="cell-sub @(account.DiscordLinked ? null : "is-muted")">@sub</span></span></div></div>
+        <div class="td" role="cell"><span class="@roleClass">@Model.RoleLabel(account.Role)</span></div>
+        <div class="td" role="cell">@if (account.Active) { <span class="ac-active">@D["Active"]</span> } else { <span class="badge badge-danger">@D["Disabled"]</span> }</div>
+        <div class="td" role="cell">@if (account.EventRoleSummary.Length > 0) { <span class="ac-ev" title="@account.EventRoleSummary">@account.EventRoleSummary</span> } else { <span class="ac-ev is-muted">@D["No event participation"]</span> }</div>
+        <div class="td" role="cell"><span class="@(account.LastLoginAt is null ? "ac-muted" : null)">@AccountsPresentation.RelativeLogin(account.LastLoginAt, Model.UtcNow, D["Never"].Value, D["Today, {0}", "{0}"].Value, D["Yesterday, {0}", "{0}"].Value)</span></div>
+    </div>
+}
+</div>
+}
+else { <div class="empty" role="row"><div role="cell" class="ac-cell-contents"><div class="empty-ic"><svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="6" r="2.5"/><path d="M3.5 13c.7-2.2 2.4-3.5 4.5-3.5s3.8 1.3 4.5 3.5"/></svg></div><div class="empty-title">@emptyTitle</div><div class="empty-text">@emptyText</div>@if (Model.BeyondResults) { <button type="button" class="btn" id="empty-first" data-accounts-url="@Model.DirectoryUrl(page: 1)">@D["Go to the first page"]</button> } else if (Model.Filtered) { <button type="button" class="btn" id="empty-clear" data-accounts-url="@Model.DirectoryUrl(search: string.Empty, clearRole: true, page: 1)">@D["Clear search and filter"]</button> }</div></div> }
+</div>
+</div></div>
+<div data-accounts-footer>
+@if (Model.WebsiteAccounts.Count > 0 || Model.PageNumber > 1) {
+    <div class="tfoot"><div class="tfoot-left"><span>@(Model.WebsiteAccounts.Count == 0 ? string.Empty : Model.Filtered ? D["Showing {0}–{1} matching · ordered by username", Model.FirstRow, Model.LastRow].Value : D["Showing {0}–{1} · ordered by username", Model.FirstRow, Model.LastRow].Value)</span></div>
+    @if (Model.PageNumber > 1 || Model.WebsiteHasNextPage) {
+        <nav class="pager" aria-label="@D["Pages"]"><button type="button" class="btn btn-sm" id="pg-prev" disabled="@(Model.PageNumber <= 1)" data-accounts-url="@Model.DirectoryUrl(page: Model.PageNumber - 1)" data-accounts-push><partial name="_AdminDesignIcon" model='new AdminDesignIcon("chevron-left")' />@D["Previous"]</button><span class="pager-pos" aria-live="polite">@D["Page {0}", Model.PageNumber]</span><button type="button" class="btn btn-sm" id="pg-next" disabled="@(!Model.WebsiteHasNextPage)" data-accounts-url="@Model.DirectoryUrl(page: Model.PageNumber + 1)" data-accounts-push>@D["Next"]<partial name="_AdminDesignIcon" model='new AdminDesignIcon("chevron-right")' /></button></nav>
+    }
+    </div>
+}
+</div>
+</div>
+@if (Model.DrawerRequested) { <partial name="_AccountDrawer" model="Model" /> }
+<template data-account-drawer-pending><div class="sec" aria-busy="true" aria-label="@D["Loading account"]"><div class="ac-sk-line"><div class="sk ac-sk-w40"></div></div><div class="ac-sk-line ac-sk-gap"><div class="sk ac-sk-w85"></div></div><div class="ac-sk-line"><div class="sk ac-sk-w70"></div></div><div class="ac-sk-line"><div class="sk ac-sk-w60"></div></div></div></template>
+<template data-account-drawer-failed><div class="empty is-error" role="alert"><div class="empty-ic"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("error")' /></div><div class="empty-title">@D["Couldn’t load this account"]</div><div class="empty-text">@D["Check your connection and try again. Nothing was changed."]</div><button type="button" class="btn" data-load-retry>@D["Try again"]</button></div></template>
+@if (Model.IsSuperAdmin) { <partial name="_AccountTransfer" model="Model" /> }
+</div>
+@section Styles { <link rel="stylesheet" href="~/css/admin-design-accounts.css" asp-append-version="true" data-admin-page-style /> }
+@section Scripts { <script type="module" src="~/js/admin-accounts.js" asp-append-version="true" data-admin-page-script></script> }
