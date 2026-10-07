@@ -6,7 +6,7 @@
  ViewData["PageFamily"] = "signupsetup";
  var formTab = Request.Query["tab"] == "form";
 }
-@section HeaderSummary {<span class="ss-owners">@T["Dates are on"] <a class="text-btn" asp-page="Schedule" asp-route-id="@Model.EventId">@T["Schedule"]</a>; @T["opening and closing signups on"] <a class="text-btn" asp-page="Manage" asp-route-id="@Model.EventId">@T["Overview"]</a>.</span>}
+@section HeaderSummary {<span class="ss-owners">@T["Dates are on"] <a class="text-btn" data-shell-link asp-page="Schedule" asp-route-id="@Model.EventId">@T["Schedule"]</a>; @T["opening and closing signups on"] <a class="text-btn" asp-page="Manage" asp-route-id="@Model.EventId">@T["Overview"]</a>.</span>}
 <partial name="_AdminSignupSetupText"/>
 <partial name="_AdminSignupSetupDrawer"/>
 @foreach (var icon in new[] { "lock", "plus", "arrow-up", "arrow-down", "close", "error", "info" }) { <template data-signup-icon="@icon"><partial name="_AdminDesignIcon" model="new AdminDesignIcon(icon)"/></template> }

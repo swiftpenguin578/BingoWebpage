@@ -108,6 +108,7 @@ async function checkDanish(page, registration, fixture, paths) {
   assert.equal(await page.evaluate(()=>languageDocument),'retained','language changes retain the document');
   const check = async () => {
     await page.waitForFunction(family=>document.querySelector('[data-page-region]>.page')?.dataset.pageFamily===family,registration.family);
+    await checkRegisteredLinks(page,paths);
     await checkLoaded(page,registration,1280);
     assert.equal((await page.locator('[data-page-region] .h1').textContent()).trim(),registration.titleDa);
     assert.doesNotMatch(await page.locator('[data-page-region]').innerText(), /AdminDesign\.|AdminCommunity\./, 'no untranslated resource keys');
@@ -208,3 +209,17 @@ async function checkLoadingSummary(page, registration) {
   assert.ok(boxes.every(b=>b.display==='inline-flex'&&b.width>0&&Math.abs(b.barWidth-b.width)<0.1&&b.barHeight===10&&b.text===''),registration.family+': number-sized bars');
 }
 module.exports.checkLoadingSummary=checkLoadingSummary;
+
+// Registered routes are the shell's current page boundary. Query/culture and GUID
+// values do not change that family. Same-page query/drawer actions retain their
+// own handlers (user ruling7 October2026); different event IDs are different pages.
+async function checkRegisteredLinks(page, paths) {
+  const missing=await page.evaluate(paths=>{
+    const route=pathname=>pathname.toLowerCase().replace(/\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?=\/|$)/g,'/:id').replace(/\/index\/?$/,'').replace(/\/$/,'');
+    const canonical=pathname=>pathname.toLowerCase().replace(/\/index\/?$/,'').replace(/\/$/,'');
+    const registered=new Set(Object.values(paths).map(p=>route(new URL(p,location.href).pathname)));
+    return [...document.querySelectorAll('a[href]')].filter(a=>!a.getAttribute('href').startsWith('#')).filter(a=>{const u=new URL(a.href);return u.origin===location.origin&&canonical(u.pathname)!==canonical(location.pathname)&&registered.has(route(u.pathname))&&!a.hasAttribute('data-shell-link');}).map(a=>({text:a.textContent.trim(),href:a.getAttribute('href')}));
+  },paths);
+  assert.deepEqual(missing,[],'same-origin links to a different registered page use shell navigation');
+}
+module.exports.checkRegisteredLinks=checkRegisteredLinks;
