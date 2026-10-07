@@ -1,12 +1,12 @@
 # Current project status
 
-## U3 review84 fixed; T2 Catalogue integration corrected — 7 October 2026
+## U3 review84 / T2 final gate passed — 7 October 2026
 
-- All ten findings from reviews84a/84b have separate implementation commits; [current checkpoint and exact identities](docs/references/admin-ui/reviews/2026-10-07/u3/review84/checkpoint.md). The source-localizer audit demonstrated Schedule's missing Danish before its translation fix. Accepted Events' double-localization failure was corrected separately under brief80 item0. No assertion exception or visual acceptance was added.
-- U3 scoped evidence: all seven prior registered pages45 cases per engine pass; nine affected Schedule/Signup/shared-transport browser files pass in Chromium and WebKit; imported-history PostgreSQL regression3/3. Release parity fixture builds with0 warnings/errors. Body-block rejection38 cases, Schedule resource46 keys, precise readback transport, shared CSS cmp and diff checks pass.
-- Reviewed T2 exact head `73df5e511e303733e4256302656aac14d9c9a0da` merged via `c30e39ea`. Only expected DELIVERY_PLAN conflict: keep T Catalogue bound status and U3 localized F4 row. All shared family partials/routes and review scenarios retained. Catalogue registration/current-source documentation are in the followup checkpoint commit.
-- Explicit CI1–3 ruling implemented in the current correction commit: all registrations declare POST counts, save-path assertions retain Accounts strength, Catalogue uses shared loading-count wrappers and zero loading row gap. Catalogue conformance now **passes5 widths in each engine**; [exact geometry/evidence](docs/references/admin-ui/reviews/2026-10-07/u3/review84/ci-correction.md). Loaded geometry and all fixed text are retained; only the two authorized T files changed.
-- Final combined gate is next: rebuild parity fixture, run full JS both-engine runner and Release solution build once, refresh/verify owned review environment, then stop for planner whole.NET and user final look. Existing stale markers remain preserved; current container ownership matches. No acceptance inference, push or deployment.
+- All ten review84 findings have separate implementation commits; [finding identities and scoped evidence](docs/references/admin-ui/reviews/2026-10-07/u3/review84/checkpoint.md). Required Danish red proof preceded translations. Accepted Events assertion fix remains separate; no assertion exception or acceptance added.
+- Reviewed T2 `73df5e5` merged via `c30e39ea`; Catalogue registration/docs `9c1756e3`; explicit CI1–3 correction `e3229db3`. All registrations declare save counts, Accounts assertions retain strength, Catalogue loading counts/reservations conform. Loaded geometry and fixed words preserved.
+- Final gate executed once on `e3229db39e235f6d6899161f5577c191f713b50b`: parity fixture rebuilt FIRST; Release solution build0 warnings/errors; fullJS **116 passed/0 failed** (39 Chromium,39 WebKit,38 default),1152.477s. Registered-page conformance **50 cases per engine**. Shared CSS cmp/diff checks pass. [Exact commands, timing, results and live links](docs/references/admin-ui/reviews/2026-10-07/u3/review84/final-report.md).
+- Owned review environment refreshed;53 scenario links200, including Catalogue group. Signup normal/imported EN/DA and unknown-timezone Schedule/Signup verified in both engines. Earlier Catalogue full-load wait timed out; explicit rendered-page readiness passed, full-resource load not claimed. Preserved stale markers intact.
+- Implementer stopped for planner whole.NET suite and user final look. No whole.NET run, visual acceptance inference, push or deployment. UI_PAGE_MATRIX remains the acceptance owner.
 
 ## Phase colours implemented — 7 October 2026
 
@@ -63,4 +63,4 @@
 
 ## Next permitted action
 
-Finish the explicitly authorized final combined gate on the corrected merged implementation: rebuild parity fixture, full JS runner in both engines and Release solution build once, refresh/verify all requested review links, then stop for the planner whole-suite run and user final look. No further page family, push, deployment or acceptance is authorized here.
+Planner whole.NET suite on this final checkpoint, then user final look using the refreshed links in the final report. Implementer stopped. No further page family, push, deployment, environment handover or acceptance is authorized here.
