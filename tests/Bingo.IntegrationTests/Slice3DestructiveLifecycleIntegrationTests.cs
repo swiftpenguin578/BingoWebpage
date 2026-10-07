@@ -283,9 +283,11 @@ public sealed class Slice3DestructiveLifecycleIntegrationTests(PostgreSqlTestFix
         Assert.Equal($"{path}?confirm=destructive", prepareResponse.Headers.Location!.OriginalString);
 
         var currentManage = await client.GetStringAsync(prepareResponse.Headers.Location!.OriginalString);
-        Assert.Contains("data-confirm-field=\"ConfirmDestructiveAction\"", currentManage, StringComparison.Ordinal);
-        Assert.Contains("name=\"ConfirmDestructiveAction\" value=\"false\"", currentManage, StringComparison.Ordinal);
-        Assert.Contains("name=\"CancellationReason\"", currentManage, StringComparison.Ordinal);
+        // U4 / OS-1 (brief 85 "Retired"): the prepare redirect is kept; the Overview offers Cancel
+        // as a dialog built from its dialog model (confirm field and reason field).
+        Assert.Contains("data-overview-action=\"cancel\"", currentManage, StringComparison.Ordinal);
+        Assert.Contains("ConfirmDestructiveAction", currentManage, StringComparison.Ordinal);
+        Assert.Contains("CancellationReason", currentManage, StringComparison.Ordinal);
 
         using var unconfirmedCancel = await client.PostAsync($"{path}?handler=Cancel", new FormUrlEncodedContent(new Dictionary<string, string>
         {
@@ -345,8 +347,9 @@ public sealed class Slice3DestructiveLifecycleIntegrationTests(PostgreSqlTestFix
         Assert.Equal(path, prepareResponse.Headers.Location!.OriginalString);
 
         var currentManage = await client.GetStringAsync(path);
-        Assert.Contains("data-confirm-field=\"ConfirmEndEvent\"", currentManage, StringComparison.Ordinal);
-        Assert.Contains("name=\"ConfirmEndEvent\" value=\"false\"", currentManage, StringComparison.Ordinal);
+        // U4 / OS-1 (brief 85 "Retired"): End is an Overview dialog with its confirm field.
+        Assert.Contains("data-overview-action=\"end\"", currentManage, StringComparison.Ordinal);
+        Assert.Contains("ConfirmEndEvent", currentManage, StringComparison.Ordinal);
 
         await using (var verify = new ApplicationDbContext(options))
         {
@@ -522,8 +525,9 @@ public sealed class Slice3DestructiveLifecycleIntegrationTests(PostgreSqlTestFix
         Assert.Equal(System.Net.HttpStatusCode.Redirect, prepareResume.StatusCode);
         Assert.Equal(awaitingRoute, prepareResume.Headers.Location!.OriginalString);
         var resumeConfirmation = await client.GetStringAsync(awaitingRoute);
-        Assert.Contains("data-confirm-field=\"ConfirmResumeEvent\"", resumeConfirmation, StringComparison.Ordinal);
-        Assert.Contains("name=\"ConfirmResumeEvent\" value=\"false\"", resumeConfirmation, StringComparison.Ordinal);
+        // U4 / OS-1 (brief 85 "Retired"): Resume is an Overview dialog with its confirm field.
+        Assert.Contains("data-overview-action=\"resume\"", resumeConfirmation, StringComparison.Ordinal);
+        Assert.Contains("ConfirmResumeEvent", resumeConfirmation, StringComparison.Ordinal);
         long currentEventVersion;
         await using (var versionCheck = new ApplicationDbContext(options))
         {

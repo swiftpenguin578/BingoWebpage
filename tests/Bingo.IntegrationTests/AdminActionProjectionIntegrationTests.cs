@@ -151,7 +151,7 @@ public sealed class AdminActionProjectionIntegrationTests(PostgreSqlTestFixture 
         Assert.DoesNotContain(inbox.Items, item => item.Id == notice.Id);
     }
 
-    private SharedShellService Shell(ApplicationDbContext db) => new(db, new PassthroughLocalizer(), null!, null!, null!, new FixedTimeProvider(now));
+    private SharedShellService Shell(ApplicationDbContext db) => new(db, new PassthroughLocalizer(), new FixedTimeProvider(now));
 
     private async Task<PendingFixture> SeedPendingEventAsync(string slug, int pendingCount, bool hide = false)
     {

@@ -186,7 +186,9 @@ public sealed partial class EventQuarantineIntegrationTests : IAsyncLifetime
 
         var path = $"/Admin/Events/Manage/{item.Id}";
         var manage = await superClient.GetStringAsync(path);
-        Assert.Contains("?handler=Hide", manage, StringComparison.Ordinal);
+        // U4 / OS-1: Hide is an Overview dialog (dialog model handler "Hide"); the handler boundary below is unchanged.
+        Assert.Contains("data-overview-action=\"hide\"", manage, StringComparison.Ordinal);
+        Assert.Contains("&quot;handler&quot;:&quot;Hide&quot;", manage, StringComparison.Ordinal);
         var eventVersion = InputValue(manage, "EventVersion");
         var confirmationToken = AntiforgeryToken(manage);
 

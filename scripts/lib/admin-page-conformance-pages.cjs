@@ -1,6 +1,12 @@
 // Add a page here once. The conformance gate uses the real Razor fixture,
 // loading template, family stylesheet, and these page-specific interaction probes.
 module.exports = [
+  // U4: Overview (Manage route). The h1 is the event's name, so the Danish title is the name too.
+  { family: 'overview', postSaveCount: 1, url: f => '/Admin/Events/Manage/' + f.events['autumn-bingo-2027'], fixture: 'autumn-bingo-2027',
+    source: 'Pages/Admin/Events/Manage.cshtml', module: 'admin-overview.js',
+    textRows: { 'ov-sk-name': ['control-sm',1.45], 'ov-sk-title': ['control',1.45] }, reference: 'Overview.dc.html', first: '.card', blocks: { first: '.card' },
+    style: ['.ov-grid','display','grid'], titleDa: 'Autumn Bingo 2027',
+    update: { control: '[aria-describedby="lnkv-signups"]', action: 'click', selected: '[aria-describedby="lnkv-signups"]' } },
   { family: 'catalogue', postSaveCount: 1, countSummary: { words: ['active activities', 'drops', 'Shared by every event’s board estimates'], wordsDa: ['aktive aktiviteter', 'drops', 'Bruges af alle events’ pladeestimater'], numberItems: [0,1] },
     url: () => '/Admin/Catalogue', fixture: 'community-catalogue', source: 'Pages/Admin/Catalogue/Index.cshtml', module: 'admin-catalogue.js',
     textRows: { 'ct-sk-text':['body',1.45], 'ct-sk-line':['control-sm',1.45] }, reference: 'Catalogue.dc.html', first: '.card', blocks: { first: '.card', toolbar: '.toolbar', table: '.ct-tbl' },

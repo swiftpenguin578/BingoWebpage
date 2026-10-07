@@ -1326,7 +1326,6 @@
   <data name="Questions are locked while signups are open or after the draft starts." xml:space="preserve"><value>Spørgsmål låses, mens tilmeldingen er åben, eller efter draften starter.</value></data>
   <data name="Questions locked" xml:space="preserve"><value>Spørgsmål låst</value></data>
   <data name="Read-only after the draft starts." xml:space="preserve"><value>Skrivebeskyttet efter draftens start.</value></data>
-  <data name="Readiness checks" xml:space="preserve"><value>Parhedstjek</value></data>
   <data name="Reason" xml:space="preserve"><value>Begrundelse</value></data>
   <data name="Reason (required before the configured end)" xml:space="preserve"><value>Begrundelse (påkrævet før den konfigurerede afslutning)</value></data>
   <data name="Reason (required before the configured start)" xml:space="preserve"><value>Begrundelse (påkrævet før den konfigurerede start)</value></data>
@@ -2301,7 +2300,6 @@
   <data name="Reason (required)" xml:space="preserve"><value>Begrundelse (påkrævet)</value></data>
   <data name="Confirm resume" xml:space="preserve"><value>Bekræft genoptagelse</value></data>
   <data name="Resume event" xml:space="preserve"><value>Genoptag event</value></data>
-  <data name="Captain access needs attention" xml:space="preserve"><value>Captain-adgang kræver opmærksomhed</value></data>
   <data name="The event remains Live. Assign a usable Captain or explicitly enable team-scoped emergency access." xml:space="preserve"><value>Eventet forbliver Live. Tildel en brugbar Captain, eller aktivér udtrykkeligt holdbegrænset nødadgang.</value></data>
   <data name="Link a competition to sync EHB activity." xml:space="preserve"><value>Tilknyt en konkurrence for at synkronisere EHB-aktivitet.</value></data>
   <data name="Status:" xml:space="preserve"><value>Status:</value></data>
@@ -3507,4 +3505,333 @@
   <data name="Signups opened." xml:space="preserve"><value>Tilmeldingen er åbnet.</value></data>
   <data name="Signups closed." xml:space="preserve"><value>Tilmeldingen er lukket.</value></data>
   <data name="Signups reopened." xml:space="preserve"><value>Tilmeldingen er genåbnet.</value></data>
+  <data name="by {0}" xml:space="preserve"><value>af {0}</value></data>
+  <data name="Opened {0}" xml:space="preserve"><value>Åbnet {0}</value></data>
+  <data name="Opened" xml:space="preserve"><value>Åbnet</value></data>
+  <data name="Opens {0} · scheduled" xml:space="preserve"><value>Åbner {0} · planlagt</value></data>
+  <data name="Planned {0} · opens manually" xml:space="preserve"><value>Planlagt {0} · åbnes manuelt</value></data>
+  <data name="Closed {0}" xml:space="preserve"><value>Lukket {0}</value></data>
+  <data name="Started {0}" xml:space="preserve"><value>Startet {0}</value></data>
+  <data name="Started" xml:space="preserve"><value>Startet</value></data>
+  <data name="Was due {0} · postponed" xml:space="preserve"><value>Skulle være startet {0} · udsat</value></data>
+  <data name="Ended {0}" xml:space="preserve"><value>Sluttet {0}</value></data>
+  <data name="Ends {0} · scheduled" xml:space="preserve"><value>Slutter {0} · planlagt</value></data>
+  <data name="After the event ends" xml:space="preserve"><value>Når eventet slutter</value></data>
+  <data name="Results published {0}" xml:space="preserve"><value>Resultater offentliggjort {0}</value></data>
+  <data name="When official results are published" xml:space="preserve"><value>Når de officielle resultater offentliggøres</value></data>
+  <data name="(done)" xml:space="preserve"><value>(færdig)</value></data>
+  <data name="Cancelled {0}" xml:space="preserve"><value>Aflyst {0}</value></data>
+  <data name="(where the event ended)" xml:space="preserve"><value>(hvor eventet sluttede)</value></data>
+  <data name="(current stage)" xml:space="preserve"><value>(nuværende fase)</value></data>
+  <data name="(overdue: the scheduled start didn’t happen)" xml:space="preserve"><value>(forsinket: den planlagte start skete ikke)</value></data>
+  <data name="(not yet)" xml:space="preserve"><value>(ikke endnu)</value></data>
+  <data name="Public description" xml:space="preserve"><value>Offentlig beskrivelse</value></data>
+  <data name="Players read it on the signup page." xml:space="preserve"><value>Spillerne læser den på tilmeldingssiden.</value></data>
+  <data name="{0} places" xml:space="preserve"><value>{0} pladser</value></data>
+  <data name="How many players can be confirmed." xml:space="preserve"><value>Hvor mange spillere der kan bekræftes.</value></data>
+  <data name="Event start and end" xml:space="preserve"><value>Eventets start og slut</value></data>
+  <data name="Signups need an event window." xml:space="preserve"><value>Tilmeldingen kræver et eventvindue.</value></data>
+  <data name="Signup closing time" xml:space="preserve"><value>Lukketid for tilmelding</value></data>
+  <data name="Needed for the automatic opening on {0}." xml:space="preserve"><value>Kræves til den automatiske åbning {0}.</value></data>
+  <data name="Account and captain questions are ready." xml:space="preserve"><value>Konto- og kaptajnspørgsmålene er klar.</value></data>
+  <data name="Some signup questions are missing or incomplete." xml:space="preserve"><value>Nogle tilmeldingsspørgsmål mangler eller er ufuldstændige.</value></data>
+  <data name="Protection is on, but no code is set." xml:space="preserve"><value>Beskyttelsen er slået til, men der er ingen kode.</value></data>
+  <data name="Discord sign-in" xml:space="preserve"><value>Discord-login</value></data>
+  <data name="Players sign up with Discord, and it isn’t configured on this site. Ask the site operator." xml:space="preserve"><value>Spillerne tilmelder sig med Discord, og det er ikke sat op på siden. Spørg sidens driftsansvarlige.</value></data>
+  <data name="No overlap with another public event" xml:space="preserve"><value>Ingen overlap med et andet offentligt event</value></data>
+  <data name="The event window overlaps {0}." xml:space="preserve"><value>Eventvinduet overlapper {0}.</value></data>
+  <data name="A future time to close signups" xml:space="preserve"><value>Et fremtidigt tidspunkt at lukke tilmeldingen</value></data>
+  <data name="Set a future closing time, draft time or event start." xml:space="preserve"><value>Angiv en fremtidig lukketid, draft-tid eller eventstart.</value></data>
+  <data name="Team draft finalized" xml:space="preserve"><value>Holddraft afsluttet</value></data>
+  <data name="{0} of {1} tiles configured" xml:space="preserve"><value>{0} af {1} felter sat op</value></data>
+  <data name="Drop values set in the catalogue" xml:space="preserve"><value>Dropværdier angivet i kataloget</value></data>
+  <data name="A playing account for every participant" xml:space="preserve"><value>En spillekonto for hver deltager</value></data>
+  <data name="Set a valid event start and end." xml:space="preserve"><value>Angiv en gyldig start og slut for eventet.</value></data>
+  <data name="Event end still ahead" xml:space="preserve"><value>Eventets slut er stadig fremme</value></data>
+  <data name="The configured end has passed. Replace the schedule, or cancel the event." xml:space="preserve"><value>Det angivne slut er passeret. Erstat tidsplanen, eller aflys eventet.</value></data>
+  <data name="Publish the results of {0} first" xml:space="preserve"><value>Offentliggør resultaterne for {0} først</value></data>
+  <data name="Uploads closed" xml:space="preserve"><value>Uploads lukket</value></data>
+  <data name="Every submission reviewed" xml:space="preserve"><value>Alle indsendelser gennemgået</value></data>
+  <data name="Placements calculated" xml:space="preserve"><value>Placeringer beregnet</value></data>
+  <data name="From approved submissions; not official until published." xml:space="preserve"><value>Ud fra godkendte indsendelser; ikke officielle før de offentliggøres.</value></data>
+  <data name="Placements can’t be calculated yet." xml:space="preserve"><value>Placeringerne kan ikke beregnes endnu.</value></data>
+  <data name="Everything is ready now, so you can start the event." xml:space="preserve"><value>Alt er klar nu, så du kan starte eventet.</value></data>
+  <data name="Open and close signups first." xml:space="preserve"><value>Åbn og luk tilmeldingen først.</value></data>
+  <data name="Close signups first." xml:space="preserve"><value>Luk tilmeldingen først.</value></data>
+  <data name="Automatic start postponed" xml:space="preserve"><value>Automatisk start udsat</value></data>
+  <data name="It was due {0} and won’t retry." xml:space="preserve"><value>Den skulle være sket {0} og prøves ikke igen.</value></data>
+  <data name="Signups didn’t open automatically" xml:space="preserve"><value>Tilmeldingen åbnede ikke automatisk</value></data>
+  <data name="It was due {0}: {1}." xml:space="preserve"><value>Den skulle være sket {0}: {1}.</value></data>
+  <data name="Open signups now" xml:space="preserve"><value>Åbn tilmelding nu</value></data>
+  <data name="Wise Old Man sync failed" xml:space="preserve"><value>Wise Old Man-synkronisering mislykkedes</value></data>
+  <data name="Last attempt {0}. Lifecycle actions aren’t affected." xml:space="preserve"><value>Seneste forsøg {0}. Livscyklushandlinger påvirkes ikke.</value></data>
+  <data name="Open WOM" xml:space="preserve"><value>Åbn WOM</value></data>
+  <data name="Teams are waiting for decisions on their evidence." xml:space="preserve"><value>Holdene venter på afgørelser om deres beviser.</value></data>
+  <data name="Wise Old Man end not updated yet" xml:space="preserve"><value>Wise Old Man-slut er ikke opdateret endnu</value></data>
+  <data name="The competition should end {0}. Until it does, no more updates are fetched." xml:space="preserve"><value>Konkurrencen skal slutte {0}. Indtil da hentes der ikke flere opdateringer.</value></data>
+  <data name="Wise Old Man rejected the new end" xml:space="preserve"><value>Wise Old Man afviste det nye slut</value></data>
+  <data name="the public description was missing" xml:space="preserve"><value>den offentlige beskrivelse manglede</value></data>
+  <data name="no participant capacity was set" xml:space="preserve"><value>der var ingen deltagerkapacitet</value></data>
+  <data name="the event start or end was missing" xml:space="preserve"><value>eventets start eller slut manglede</value></data>
+  <data name="the event ended before it started" xml:space="preserve"><value>eventet sluttede, før det startede</value></data>
+  <data name="no signup closing time was set" xml:space="preserve"><value>der var ingen lukketid for tilmelding</value></data>
+  <data name="the signup closing time had passed" xml:space="preserve"><value>lukketiden for tilmelding var passeret</value></data>
+  <data name="signups would have closed after the event start" xml:space="preserve"><value>tilmeldingen ville være lukket efter eventets start</value></data>
+  <data name="the opening and closing times didn’t fit together" xml:space="preserve"><value>åbnings- og lukketiden passede ikke sammen</value></data>
+  <data name="the event was no longer a private draft" xml:space="preserve"><value>eventet var ikke længere en privat kladde</value></data>
+  <data name="the team draft had started" xml:space="preserve"><value>holddraften var startet</value></data>
+  <data name="Discord sign-in wasn’t configured" xml:space="preserve"><value>Discord-login var ikke sat op</value></data>
+  <data name="there was no signup form" xml:space="preserve"><value>der var ingen tilmeldingsformular</value></data>
+  <data name="some signup questions were incomplete" xml:space="preserve"><value>nogle tilmeldingsspørgsmål var ufuldstændige</value></data>
+  <data name="a signup code was required but none was set" xml:space="preserve"><value>en tilmeldingskode var påkrævet, men ingen var angivet</value></data>
+  <data name="the event window overlapped another public event" xml:space="preserve"><value>eventvinduet overlappede et andet offentligt event</value></data>
+  <data name="a requirement wasn’t met" xml:space="preserve"><value>et krav var ikke opfyldt</value></data>
+  <data name="{0} and {1}" xml:space="preserve"><value>{0} og {1}</value></data>
+  <data name="Before the start: finalize the team draft and publish the board." xml:space="preserve"><value>Før starten: afslut holddraften, og offentliggør boardet.</value></data>
+  <data name="Signups open automatically on {0}" xml:space="preserve"><value>Tilmeldingen åbner automatisk {0}</value></data>
+  <data name="If something below is still missing then, the opening is skipped and admins are notified." xml:space="preserve"><value>Hvis noget nedenfor stadig mangler da, springes åbningen over, og administratorerne får besked.</value></data>
+  <data name="Signups are planned for {0}" xml:space="preserve"><value>Tilmeldingen er planlagt til {0}</value></data>
+  <data name="They open only when you open them, unless you turn on automatic opening on Schedule." xml:space="preserve"><value>Den åbner kun, når du åbner den, medmindre du slår automatisk åbning til under Tidsplan.</value></data>
+  <data name="No opening time is scheduled" xml:space="preserve"><value>Der er ikke planlagt et åbningstidspunkt</value></data>
+  <data name="Signups open when you open them. To schedule the opening, set a time on Schedule." xml:space="preserve"><value>Tilmeldingen åbner, når du åbner den. Angiv et tidspunkt under Tidsplan for at planlægge åbningen.</value></data>
+  <data name="Players can’t see this event yet. It becomes public when signups open." xml:space="preserve"><value>Spillerne kan ikke se eventet endnu. Det bliver offentligt, når tilmeldingen åbner.</value></data>
+  <data name="Before you can open signups" xml:space="preserve"><value>Før du kan åbne tilmeldingen</value></data>
+  <data name="Later, before the start: finalize the team draft and publish the board." xml:space="preserve"><value>Senere, før starten: afslut holddraften, og offentliggør boardet.</value></data>
+  <data name=", {0} waiting" xml:space="preserve"><value>, {0} på venteliste</value></data>
+  <data name="Opened {0}." xml:space="preserve"><value>Åbnet {0}.</value></data>
+  <data name="Signups close automatically on {0}" xml:space="preserve"><value>Tilmeldingen lukker automatisk {0}</value></data>
+  <data name="Players already on the list aren’t affected." xml:space="preserve"><value>Spillere, der allerede er på listen, påvirkes ikke.</value></data>
+  <data name="No closing time is set" xml:space="preserve"><value>Der er ingen lukketid</value></data>
+  <data name="Signups stay open until you close them." xml:space="preserve"><value>Tilmeldingen forbliver åben, indtil du lukker den.</value></data>
+  <data name="Signups are open" xml:space="preserve"><value>Tilmeldingen er åben</value></data>
+  <data name="The team draft is planned for {0}." xml:space="preserve"><value>Holddraften er planlagt til {0}.</value></data>
+  <data name="Start the event yourself" xml:space="preserve"><value>Start eventet selv</value></data>
+  <data name="Everything below is done. The automatic start won’t retry." xml:space="preserve"><value>Alt nedenfor er klaret. Den automatiske start prøves ikke igen.</value></data>
+  <data name="The automatic start won’t retry. Finish everything below, then start it." xml:space="preserve"><value>Den automatiske start prøves ikke igen. Gør alt nedenfor færdigt, og start det så.</value></data>
+  <data name="Starts automatically on {0}" xml:space="preserve"><value>Starter automatisk {0}</value></data>
+  <data name="If something below is still missing then, the start is postponed and admins are notified." xml:space="preserve"><value>Hvis noget nedenfor stadig mangler da, udsættes starten, og administratorerne får besked.</value></data>
+  <data name="No start time is scheduled" xml:space="preserve"><value>Der er ikke planlagt et starttidspunkt</value></data>
+  <data name="Set the event window on Schedule." xml:space="preserve"><value>Angiv eventvinduet under Tidsplan.</value></data>
+  <data name="Getting ready to start" xml:space="preserve"><value>Klar til start</value></data>
+  <data name="Before you can start the event" xml:space="preserve"><value>Før du kan starte eventet</value></data>
+  <data name="Before you can reopen signups" xml:space="preserve"><value>Før du kan genåbne tilmeldingen</value></data>
+  <data name="Ends automatically on {0}" xml:space="preserve"><value>Slutter automatisk {0}</value></data>
+  <data name="Uploads close 30 minutes later, at {0}." xml:space="preserve"><value>Uploads lukker 30 minutter senere, kl. {0}.</value></data>
+  <data name="No end time is scheduled" xml:space="preserve"><value>Der er ikke planlagt et sluttidspunkt</value></data>
+  <data name="Uploads reopened until {0}" xml:space="preserve"><value>Uploads genåbnet indtil {0}</value></data>
+  <data name="Results can be published once they close." xml:space="preserve"><value>Resultaterne kan offentliggøres, når de lukker.</value></data>
+  <data name="Uploads close on {0}" xml:space="preserve"><value>Uploads lukker {0}</value></data>
+  <data name="30 minutes after the end, for drops from before it." xml:space="preserve"><value>30 minutter efter slut, til drops fra før.</value></data>
+  <data name="Uploads closed {0}" xml:space="preserve"><value>Uploads lukket {0}</value></data>
+  <data name="If a team needs more time, reopen uploads under Other actions." xml:space="preserve"><value>Hvis et hold har brug for mere tid, så genåbn uploads under Andre handlinger.</value></data>
+  <data name="Ended {0}. Check the outstanding work, then publish the official results from Final review." xml:space="preserve"><value>Sluttet {0}. Tjek det udestående arbejde, og offentliggør så de officielle resultater fra Afsluttende gennemgang.</value></data>
+  <data name="Before you can publish official results" xml:space="preserve"><value>Før du kan offentliggøre officielle resultater</value></data>
+  <data name="Publishing makes the results official and archives the event." xml:space="preserve"><value>Offentliggørelse gør resultaterne officielle og arkiverer eventet.</value></data>
+  <data name="Open Final review" xml:space="preserve"><value>Åbn Afsluttende gennemgang</value></data>
+  <data name="{0} of {1} tiles" xml:space="preserve"><value>{0} af {1} felter</value></data>
+  <data name="Results are official" xml:space="preserve"><value>Resultaterne er officielle</value></data>
+  <data name="Published {0}. The event is archived." xml:space="preserve"><value>Offentliggjort {0}. Eventet er arkiveret.</value></data>
+  <data name="Published {0}." xml:space="preserve"><value>Offentliggjort {0}.</value></data>
+  <data name="To correct them, reopen the results from Final review." xml:space="preserve"><value>Genåbn resultaterne fra Afsluttende gennemgang for at rette dem.</value></data>
+  <data name="Final review &amp; results" xml:space="preserve"><value>Afsluttende gennemgang og resultater</value></data>
+  <data name="This event was cancelled" xml:space="preserve"><value>Eventet blev aflyst</value></data>
+  <data name="Its history is kept and nothing can be changed. Participants and signups stay readable on their pages." xml:space="preserve"><value>Historikken bevares, og intet kan ændres. Deltagere og tilmeldinger kan stadig læses på deres sider.</value></data>
+  <data name="1st" xml:space="preserve"><value>1.</value></data>
+  <data name="2nd" xml:space="preserve"><value>2.</value></data>
+  <data name="3rd" xml:space="preserve"><value>3.</value></data>
+  <data name="{0}th" xml:space="preserve"><value>{0}.</value></data>
+  <data name="If it ended by mistake. It goes back to Live; the paused time stays in its history." xml:space="preserve"><value>Hvis det sluttede ved en fejl. Det går tilbage til Live; pausen bliver i historikken.</value></data>
+  <data name="Give teams more time to upload evidence from the event window." xml:space="preserve"><value>Giv holdene mere tid til at uploade beviser fra eventvinduet.</value></data>
+  <data name="Recovery" xml:space="preserve"><value>Genopretning</value></data>
+  <data name="This setup is empty, so it can be removed permanently." xml:space="preserve"><value>Opsætningen er tom, så den kan fjernes permanent.</value></data>
+  <data name="Stops the event for good and keeps its history. Players are notified." xml:space="preserve"><value>Stopper eventet for altid og bevarer historikken. Spillerne får besked.</value></data>
+  <data name="Quarantine · SuperAdmin" xml:space="preserve"><value>Karantæne · Superadministrator</value></data>
+  <data name="Removes it from every ordinary page and count. Data is kept and it can be restored." xml:space="preserve"><value>Fjerner det fra alle almindelige sider og optællinger. Data bevares, og det kan gendannes.</value></data>
+  <data name="Open {0}" xml:space="preserve"><value>Åbn {0}</value></data>
+  <data name="{0} / {1} tiles" xml:space="preserve"><value>{0} / {1} felter</value></data>
+  <data name="Not set up" xml:space="preserve"><value>Ikke sat op</value></data>
+  <data name="{0} tiles" xml:space="preserve"><value>{0} felter</value></data>
+  <data name="Not published" xml:space="preserve"><value>Ikke offentliggjort</value></data>
+  <data name="Uploads" xml:space="preserve"><value>Uploads</value></data>
+  <data name="until {0}" xml:space="preserve"><value>indtil {0}</value></data>
+  <data name="No code yet" xml:space="preserve"><value>Ingen kode endnu</value></data>
+  <data name="Closed with the upload window" xml:space="preserve"><value>Lukket med uploadvinduet</value></data>
+  <data name="since {0}" xml:space="preserve"><value>siden {0}</value></data>
+  <data name="next {0}" xml:space="preserve"><value>næste {0}</value></data>
+  <data name="Not required in screenshots" xml:space="preserve"><value>Ikke påkrævet i skærmbilleder</value></data>
+  <data name="Evidence codes" xml:space="preserve"><value>Beviskoder</value></data>
+  <data name="Manage evidence codes" xml:space="preserve"><value>Administrer beviskoder</value></data>
+  <data name="Synced just now" xml:space="preserve"><value>Synkroniseret lige nu</value></data>
+  <data name="Synced {0} min ago" xml:space="preserve"><value>Synkroniseret for {0} min. siden</value></data>
+  <data name="Synced {0} h ago" xml:space="preserve"><value>Synkroniseret for {0} t. siden</value></data>
+  <data name="Synced {0}" xml:space="preserve"><value>Synkroniseret {0}</value></data>
+  <data name="Visitors see that the event was cancelled." xml:space="preserve"><value>Besøgende ser, at eventet blev aflyst.</value></data>
+  <data name="Visitors are taken to the board. Admins still see the signup list." xml:space="preserve"><value>Besøgende sendes til boardet. Administratorer ser stadig tilmeldingslisten.</value></data>
+  <data name="Visitors are taken to the teams. Admins still see the signup list." xml:space="preserve"><value>Besøgende sendes til holdene. Administratorer ser stadig tilmeldingslisten.</value></data>
+  <data name="Shows the signup list. Once teams or the board are published, visitors are taken there instead." xml:space="preserve"><value>Viser tilmeldingslisten. Når hold eller board er offentliggjort, sendes besøgende dertil i stedet.</value></data>
+  <data name="Signup list · permanent link" xml:space="preserve"><value>Tilmeldingsliste · permanent link</value></data>
+  <data name="Active since {0}" xml:space="preserve"><value>Aktiv siden {0}</value></data>
+  <data name="From {0}" xml:space="preserve"><value>Fra {0}</value></data>
+  <data name="Reviewers expect the active code in every screenshot." xml:space="preserve"><value>Bedømmerne forventer den aktive kode i hvert skærmbillede.</value></data>
+  <data name="Off: screenshots don’t need a code." xml:space="preserve"><value>Fra: skærmbilleder behøver ingen kode.</value></data>
+  <data name="Signups close automatically on {0} ({1})." xml:space="preserve"><value>Tilmeldingen lukker automatisk {0} ({1}).</value></data>
+  <data name="the scheduled closing time" xml:space="preserve"><value>den planlagte lukketid</value></data>
+  <data name="Signups close automatically on {0}." xml:space="preserve"><value>Tilmeldingen lukker automatisk {0}.</value></data>
+  <data name="the team draft time" xml:space="preserve"><value>tidspunktet for holddraften</value></data>
+  <data name="the event start" xml:space="preserve"><value>eventets start</value></data>
+  <data name="No closing time is set, so signups will close at {0}, {1}. You can change it on Schedule." xml:space="preserve"><value>Der er ingen lukketid, så tilmeldingen lukker ved {0}, {1}. Du kan ændre det under Tidsplan.</value></data>
+  <data name="There’s no future time to close signups at; set one on Schedule first." xml:space="preserve"><value>Der er intet fremtidigt tidspunkt at lukke tilmeldingen; angiv et under Tidsplan først.</value></data>
+  <data name="Players can sign up right away, and the event becomes public: anyone with its links can see the signup list and the form." xml:space="preserve"><value>Spillerne kan tilmelde sig med det samme, og eventet bliver offentligt: alle med linkene kan se tilmeldingslisten og formularen.</value></data>
+  <data name="The automatic opening on {0} is turned off; this replaces it." xml:space="preserve"><value>Den automatiske åbning {0} slås fra; dette erstatter den.</value></data>
+  <data name="From now on, a timezone change on Identity needs a review of the affected times." xml:space="preserve"><value>Fremover kræver en ændring af tidszone under Identitet, at de berørte tider gennemgås.</value></data>
+  <data name="Open signups for {0}?" xml:space="preserve"><value>Åbn tilmelding til {0}?</value></data>
+  <data name="Open signups" xml:space="preserve"><value>Åbn tilmelding</value></data>
+  <data name="New signups stop now. The {0}{1} keep their places." xml:space="preserve"><value>Nye tilmeldinger stopper nu. De {0}{1} beholder deres pladser.</value></data>
+  <data name=" and {0} on the waiting list" xml:space="preserve"><value> og {0} på ventelisten</value></data>
+  <data name="The scheduled close on {0} is no longer needed." xml:space="preserve"><value>Den planlagte lukning {0} er ikke længere nødvendig.</value></data>
+  <data name="You can reopen signups until the team draft is locked." xml:space="preserve"><value>Du kan genåbne tilmeldingen, indtil holddraften er låst.</value></data>
+  <data name="Close signups for {0}?" xml:space="preserve"><value>Luk tilmelding til {0}?</value></data>
+  <data name="Close signups" xml:space="preserve"><value>Luk tilmelding</value></data>
+  <data name="Close signups now" xml:space="preserve"><value>Luk tilmelding nu</value></data>
+  <data name="Signups open again. The {0}{1} keep their places, in the same order." xml:space="preserve"><value>Tilmeldingen åbner igen. De {0}{1} beholder deres pladser i samme rækkefølge.</value></data>
+  <data name=" and {0} waiting" xml:space="preserve"><value> og {0} på venteliste</value></data>
+  <data name="Reopening isn’t possible once the team draft is locked." xml:space="preserve"><value>Genåbning er ikke mulig, når holddraften er låst.</value></data>
+  <data name="Reopen signups for {0}?" xml:space="preserve"><value>Genåbn tilmelding til {0}?</value></data>
+  <data name="Reopen signups" xml:space="preserve"><value>Genåbn tilmelding</value></data>
+  <data name="Its automatic start on {0} was postponed; this starts it now." xml:space="preserve"><value>Den automatiske start {0} blev udsat; dette starter det nu.</value></data>
+  <data name="This starts it now, ahead of its scheduled start on {0} ({1})." xml:space="preserve"><value>Dette starter det nu, før den planlagte start {0} ({1}).</value></data>
+  <data name="Teams can upload evidence from now until 30 minutes after the end ({0})." xml:space="preserve"><value>Holdene kan uploade beviser fra nu og indtil 30 minutter efter slut ({0}).</value></data>
+  <data name="Teams can upload evidence from now until 30 minutes after the end." xml:space="preserve"><value>Holdene kan uploade beviser fra nu og indtil 30 minutter efter slut.</value></data>
+  <data name="Drop values are fixed at today’s catalogue prices." xml:space="preserve"><value>Dropværdier låses til dagens katalogpriser.</value></data>
+  <data name="The first Wise Old Man refresh runs in 1 hour." xml:space="preserve"><value>Den første Wise Old Man-opdatering kører om 1 time.</value></data>
+  <data name="Start {0} now?" xml:space="preserve"><value>Start {0} nu?</value></data>
+  <data name="Start event" xml:space="preserve"><value>Start event</value></data>
+  <data name="This ends it now, before its scheduled end on {0}. Its end time becomes {1}." xml:space="preserve"><value>Dette afslutter det nu, før det planlagte slut {0}. Sluttidspunktet bliver {1}.</value></data>
+  <data name="Uploads stay open for 30 minutes, until {0}, for drops from before the end." xml:space="preserve"><value>Uploads forbliver åbne i 30 minutter, indtil {0}, til drops fra før slut.</value></data>
+  <data name="The event moves to final review. If this was a mistake, you can resume it from there with a new end." xml:space="preserve"><value>Eventet går til afsluttende gennemgang. Hvis det var en fejl, kan du genoptage det derfra med et nyt slut.</value></data>
+  <data name="End {0} now?" xml:space="preserve"><value>Afslut {0} nu?</value></data>
+  <data name="End event now" xml:space="preserve"><value>Afslut event nu</value></data>
+  <data name="Why are you ending it early?" xml:space="preserve"><value>Hvorfor afslutter du det før tid?</value></data>
+  <data name="Required before the scheduled end. Recorded in the event history." xml:space="preserve"><value>Påkrævet før det planlagte slut. Gemmes i eventets historik.</value></data>
+  <data name="Resume {0}?" xml:space="preserve"><value>Genoptag {0}?</value></data>
+  <data name="The event goes back to Live. The time it was paused stays in its history." xml:space="preserve"><value>Eventet går tilbage til Live. Pausen bliver i historikken.</value></data>
+  <data name="It runs until the new end you choose, and uploads stay open until 30 minutes after it." xml:space="preserve"><value>Det kører til det nye slut, du vælger, og uploads forbliver åbne indtil 30 minutter efter.</value></data>
+  <data name="Resume event…" xml:space="preserve"><value>Genoptag event…</value></data>
+  <data name="Why are you resuming it?" xml:space="preserve"><value>Hvorfor genoptager du det?</value></data>
+  <data name="Recorded in the event history." xml:space="preserve"><value>Gemmes i eventets historik.</value></data>
+  <data name="New event end" xml:space="preserve"><value>Nyt slut for eventet</value></data>
+  <data name="The scheduled end ({0}) has passed. Choose a new end in 5-minute steps; times are in {1}." xml:space="preserve"><value>Det planlagte slut ({0}) er passeret. Vælg et nyt slut i trin på 5 minutter; tider er i {1}.</value></data>
+  <data name="Choose the end again, even if it stays {0}. In 5-minute steps; times are in {1}." xml:space="preserve"><value>Vælg slut igen, også selvom det forbliver {0}. I trin på 5 minutter; tider er i {1}.</value></data>
+  <data name="Reopen uploads for {0}?" xml:space="preserve"><value>Genåbn uploads for {0}?</value></data>
+  <data name="Teams can upload again until the time you choose, for drops from the event window." xml:space="preserve"><value>Holdene kan uploade igen indtil det tidspunkt, du vælger, til drops fra eventvinduet.</value></data>
+  <data name="Official results can’t be published until uploads close again." xml:space="preserve"><value>Officielle resultater kan ikke offentliggøres, før uploads lukker igen.</value></data>
+  <data name="Reopen uploads" xml:space="preserve"><value>Genåbn uploads</value></data>
+  <data name="Reopen uploads…" xml:space="preserve"><value>Genåbn uploads…</value></data>
+  <data name="Why do teams need more time?" xml:space="preserve"><value>Hvorfor har holdene brug for mere tid?</value></data>
+  <data name="Accept uploads until" xml:space="preserve"><value>Modtag uploads indtil</value></data>
+  <data name="In 5-minute steps, {0}." xml:space="preserve"><value>I trin på 5 minutter, {0}.</value></data>
+  <data name="Uploads are open until {0}." xml:space="preserve"><value>Uploads er åbne indtil {0}.</value></data>
+  <data name="This empty setup is removed for good. It has no participants, teams or submissions, so nothing needs to be kept." xml:space="preserve"><value>Denne tomme opsætning fjernes for altid. Den har ingen deltagere, hold eller indsendelser, så intet skal bevares.</value></data>
+  <data name="Its links stop working. This can’t be undone." xml:space="preserve"><value>Dens links holder op med at virke. Det kan ikke fortrydes.</value></data>
+  <data name="Delete event" xml:space="preserve"><value>Slet event</value></data>
+  <data name="Delete event…" xml:space="preserve"><value>Slet event…</value></data>
+  <data name="Cancel {0}?" xml:space="preserve"><value>Aflys {0}?</value></data>
+  <data name="The event stops for good, and its history is kept: {0}{1} stay on record." xml:space="preserve"><value>Eventet stopper for altid, og historikken bevares: {0}{1} forbliver registreret.</value></data>
+  <data name="Those players are notified that it was cancelled." xml:space="preserve"><value>Spillerne får besked om, at det blev aflyst.</value></data>
+  <data name="Scheduled openings and starts won’t run. This can’t be undone." xml:space="preserve"><value>Planlagte åbninger og starter køres ikke. Det kan ikke fortrydes.</value></data>
+  <data name="Cancel event…" xml:space="preserve"><value>Aflys event…</value></data>
+  <data name="Required. Visible to admins only." xml:space="preserve"><value>Påkrævet. Kun synlig for administratorer.</value></data>
+  <data name="Hide {0}?" xml:space="preserve"><value>Skjul {0}?</value></data>
+  <data name="The event disappears from the directory, the Dashboard and its public pages. All its data is kept." xml:space="preserve"><value>Eventet forsvinder fra oversigten, dashboardet og dets offentlige sider. Alle data bevares.</value></data>
+  <data name="Nobody is notified. A SuperAdmin can restore it." xml:space="preserve"><value>Ingen får besked. En superadministrator kan gendanne det.</value></data>
+  <data name="Hide event" xml:space="preserve"><value>Skjul event</value></data>
+  <data name="Hide event…" xml:space="preserve"><value>Skjul event…</value></data>
+  <data name="Required. Kept with the quarantine record." xml:space="preserve"><value>Påkrævet. Gemmes sammen med karantæneregistreringen.</value></data>
+  <data name="It returns to the directory, the Dashboard and its public pages, as before it was hidden." xml:space="preserve"><value>Det vender tilbage til oversigten, dashboardet og dets offentlige sider som før, det blev skjult.</value></data>
+  <data name="No notifications are sent." xml:space="preserve"><value>Der sendes ingen beskeder.</value></data>
+  <data name="Restore event" xml:space="preserve"><value>Gendan event</value></data>
+  <data name="Restore…" xml:space="preserve"><value>Gendan…</value></data>
+  <data name="{0} participant needs one" xml:space="preserve"><value>{0} deltager mangler en</value></data>
+  <data name="{0} participants need one" xml:space="preserve"><value>{0} deltagere mangler en</value></data>
+  <data name="{0} submission still to review" xml:space="preserve"><value>{0} indsendelse mangler gennemgang</value></data>
+  <data name="{0} submissions still to review" xml:space="preserve"><value>{0} indsendelser mangler gennemgang</value></data>
+  <data name="{0} more on Final review" xml:space="preserve"><value>{0} mere under Afsluttende gennemgang</value></data>
+  <data name="{0} submission to review" xml:space="preserve"><value>{0} indsendelse til gennemgang</value></data>
+  <data name="{0} submissions to review" xml:space="preserve"><value>{0} indsendelser til gennemgang</value></data>
+  <data name="{0} team" xml:space="preserve"><value>{0} hold</value></data>
+  <data name="{0} tile" xml:space="preserve"><value>{0} felt</value></data>
+  <data name="{0} team competed" xml:space="preserve"><value>{0} hold deltog</value></data>
+  <data name="{0} teams competed" xml:space="preserve"><value>{0} hold deltog</value></data>
+  <data name="{0} confirmed player" xml:space="preserve"><value>{0} bekræftede spiller</value></data>
+  <data name="{0} confirmed players" xml:space="preserve"><value>{0} bekræftede spillere</value></data>
+  <data name="{0} requirement below still needs doing." xml:space="preserve"><value>{0} krav nedenfor mangler stadig.</value></data>
+  <data name="{0} requirements below still need doing." xml:space="preserve"><value>{0} krav nedenfor mangler stadig.</value></data>
+  <data name="Signups are open for {0}." xml:space="preserve"><value>Tilmeldingen er åben til {0}.</value></data>
+  <data name="Signups are closed for {0}." xml:space="preserve"><value>Tilmeldingen er lukket til {0}.</value></data>
+  <data name="Signups are open again for {0}." xml:space="preserve"><value>Tilmeldingen er åben igen til {0}.</value></data>
+  <data name="{0} is live." xml:space="preserve"><value>{0} er live.</value></data>
+  <data name="{0} ended and is in final review." xml:space="preserve"><value>{0} er slut og er i afsluttende gennemgang.</value></data>
+  <data name="{0} is live again." xml:space="preserve"><value>{0} er live igen.</value></data>
+  <data name="{0} was deleted." xml:space="preserve"><value>{0} blev slettet.</value></data>
+  <data name="{0} was cancelled." xml:space="preserve"><value>{0} blev aflyst.</value></data>
+  <data name="{0} is hidden." xml:space="preserve"><value>{0} er skjult.</value></data>
+  <data name="{0} was restored." xml:space="preserve"><value>{0} blev gendannet.</value></data>
+  <data name="Closes {0} · scheduled" xml:space="preserve"><value>Lukker {0} · planlagt</value></data>
+  <data name="Starts {0} · scheduled" xml:space="preserve"><value>Starter {0} · planlagt</value></data>
+  <data name="Change the participant capacity on Signup setup." xml:space="preserve"><value>Ændr deltagerkapaciteten under Tilmeldingsopsætning.</value></data>
+  <data name="The old signup confirmation handler is retired. Use the Open, Close, or Reopen action." xml:space="preserve"><value>Den gamle bekræftelse af tilmelding er udgået. Brug handlingen Åbn, Luk eller Genåbn.</value></data>
+  <data name="Confirm that you want to hide this event." xml:space="preserve"><value>Bekræft, at du vil skjule eventet.</value></data>
+  <data name="Event hidden from all ordinary surfaces." xml:space="preserve"><value>Eventet er skjult fra alle almindelige sider.</value></data>
+  <data name="The event could not be hidden." xml:space="preserve"><value>Eventet kunne ikke skjules.</value></data>
+  <data name="Confirm that you want to restore this event." xml:space="preserve"><value>Bekræft, at du vil gendanne eventet.</value></data>
+  <data name="Event restored with its lifecycle and retained history unchanged." xml:space="preserve"><value>Eventet er gendannet med uændret livscyklus og bevaret historik.</value></data>
+  <data name="The event could not be restored." xml:space="preserve"><value>Eventet kunne ikke gendannes.</value></data>
+  <data name="This event changed in another request. Reload before reopening submissions." xml:space="preserve"><value>Eventet blev ændret i en anden forespørgsel. Genindlæs, før du genåbner indsendelser.</value></data>
+  <data name="{0} ({1})" xml:space="preserve"><value>{0} ({1})</value></data>
+  <data name="Review the proposed signup close." xml:space="preserve"><value>Gennemgå den foreslåede lukning af tilmeldingen.</value></data>
+  <data name="The signup change could not be completed." xml:space="preserve"><value>Ændringen af tilmeldingen kunne ikke gennemføres.</value></data>
+  <data name="Hidden event · limited inspection." xml:space="preserve"><value>Skjult event · begrænset visning.</value></data>
+  <data name="It’s excluded from every ordinary page and count. Only SuperAdmins can see this view." xml:space="preserve"><value>Det er udeladt fra alle almindelige sider og optællinger. Kun superadministratorer kan se denne visning.</value></data>
+  <data name="Quarantine" xml:space="preserve"><value>Karantæne</value></data>
+  <data name="Retained stage" xml:space="preserve"><value>Bevaret fase</value></data>
+  <data name="Returns it to the directory, the Dashboard and its public pages as before. No notifications are sent." xml:space="preserve"><value>Sender det tilbage til oversigten, dashboardet og dets offentlige sider som før. Der sendes ingen beskeder.</value></data>
+  <data name="Quarantine history" xml:space="preserve"><value>Karantænehistorik</value></data>
+  <data name="Restored" xml:space="preserve"><value>Gendannet</value></data>
+  <data name="Event progression" xml:space="preserve"><value>Eventforløb</value></data>
+  <data name="Finish the requirements below first" xml:space="preserve"><value>Gør kravene nedenfor færdige først</value></data>
+  <data name="Official winner" xml:space="preserve"><value>Officiel vinder</value></data>
+  <data name="Private admin reason" xml:space="preserve"><value>Privat administratorbegrundelse</value></data>
+  <data name="(to do)" xml:space="preserve"><value>(mangler)</value></data>
+  <data name="Other actions" xml:space="preserve"><value>Andre handlinger</value></data>
+  <data name="At a glance" xml:space="preserve"><value>Overblik</value></data>
+  <data name="Public links" xml:space="preserve"><value>Offentlige links</value></data>
+  <data name="Not public yet. These pages become available when signups open." xml:space="preserve"><value>Ikke offentligt endnu. Siderne bliver tilgængelige, når tilmeldingen åbner.</value></data>
+  <data name="Working…" xml:space="preserve"><value>Arbejder…</value></data>
+  <data name="Add code" xml:space="preserve"><value>Tilføj kode</value></data>
+  <data name="Couldn’t copy automatically. Select the link and copy it." xml:space="preserve"><value>Kunne ikke kopiere automatisk. Markér linket, og kopiér det.</value></data>
+  <data name="Finish the requirements listed first." xml:space="preserve"><value>Gør de nævnte krav færdige først.</value></data>
+  <data name="Wait for the action to finish." xml:space="preserve"><value>Vent på, at handlingen bliver færdig.</value></data>
+  <data name="Couldn’t complete this. Nothing changed, and your entries are still here." xml:space="preserve"><value>Det kunne ikke gennemføres. Intet blev ændret, og dine indtastninger er her stadig.</value></data>
+  <data name="The event changed while this was open: {0}. The details below are up to date. Check them and confirm again." xml:space="preserve"><value>Eventet blev ændret, mens dette var åbent: {0}. Oplysningerne nedenfor er opdaterede. Tjek dem, og bekræft igen.</value></data>
+  <data name="The event changed while this was open. The details below are up to date. Check them and confirm again." xml:space="preserve"><value>Eventet blev ændret, mens dette var åbent. Oplysningerne nedenfor er opdaterede. Tjek dem, og bekræft igen.</value></data>
+  <data name="The event changed while this was open: {0}. {1} no longer applies, so nothing was done." xml:space="preserve"><value>Eventet blev ændret, mens dette var åbent: {0}. {1} gælder ikke længere, så intet blev gjort.</value></data>
+  <data name="The event changed while this was open. {0} no longer applies, so nothing was done." xml:space="preserve"><value>Eventet blev ændret, mens dette var åbent. {0} gælder ikke længere, så intet blev gjort.</value></data>
+  <data name="Checking the event…" xml:space="preserve"><value>Tjekker eventet…</value></data>
+  <data name="We couldn’t confirm whether this happened. Check before trying again, so it doesn’t happen twice." xml:space="preserve"><value>Vi kunne ikke bekræfte, om det skete. Tjek, før du prøver igen, så det ikke sker to gange.</value></data>
+  <data name="The event is unchanged, so it didn’t happen. You can try again." xml:space="preserve"><value>Eventet er uændret, så det skete ikke. Du kan prøve igen.</value></data>
+  <data name="Choose a time in the future." xml:space="preserve"><value>Vælg et tidspunkt i fremtiden.</value></data>
+  <data name="Choose a time after the event start." xml:space="preserve"><value>Vælg et tidspunkt efter eventets start.</value></data>
+  <data name="Use a 5-minute step." xml:space="preserve"><value>Brug trin på 5 minutter.</value></data>
+  <data name="Enter or generate a code." xml:space="preserve"><value>Indtast eller generér en kode.</value></data>
+  <data name="Choose when it becomes active." xml:space="preserve"><value>Vælg, hvornår den bliver aktiv.</value></data>
+  <data name="Another code already starts at that exact time." xml:space="preserve"><value>En anden kode starter allerede på præcis det tidspunkt.</value></data>
+  <data name="Turn on evidence codes first." xml:space="preserve"><value>Slå beviskoder til først.</value></data>
+  <data name="Couldn’t save the code. Nothing changed; your entries are still here." xml:space="preserve"><value>Koden kunne ikke gemmes. Intet blev ændret; dine indtastninger er her stadig.</value></data>
+  <data name="Couldn’t confirm the save. Close and reopen to see the current codes before trying again." xml:space="preserve"><value>Vi kunne ikke bekræfte, om koden blev gemt. Luk og åbn igen for at se de aktuelle koder, før du prøver igen.</value></data>
+  <data name="Captains include the active code in screenshots, so reviewers can tell when evidence was captured. Each code is retired when the next one starts." xml:space="preserve"><value>Kaptajner viser den aktive kode i skærmbilleder, så bedømmerne kan se, hvornår beviset blev taget. Hver kode udløber, når den næste starter.</value></data>
+  <data name="Require evidence codes" xml:space="preserve"><value>Kræv beviskoder</value></data>
+  <data name="Codes" xml:space="preserve"><value>Koder</value></data>
+  <data name="Generate" xml:space="preserve"><value>Generér</value></data>
+  <data name="optional, admins only" xml:space="preserve"><value>valgfri, kun administratorer</value></data>
+  <data name="Loading event" xml:space="preserve"><value>Indlæser event</value></data>
 </root>

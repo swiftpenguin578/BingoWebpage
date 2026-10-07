@@ -1,443 +1,205 @@
 @page "{id:guid}"
 @model Bingo.Web.Pages.Admin.Events.ManageModel
-@using Bingo.Domain.Events
-@using Bingo.Domain.Integrations.WiseOldMan
-@using Bingo.Domain.Signups
-@using Bingo.Web.UI
+@using System.Text.Json
 @{
-    ViewData["Title"] = Model.EventView?.Name ?? T["Event"];
-    ViewData["CompactNavigation"] = true;
-
-    var eventView = Model.EventView!;
-    var showAllControlStages = Model.ShowAllControlStages;
-    var signupAndPlayersLocked = eventView.DraftLocked || eventView.State is EventState.Live or EventState.AwaitingFinalReview or EventState.Finalized or EventState.Archived;
-    var showSignupControls = showAllControlStages || (!signupAndPlayersLocked && eventView.State is EventState.Draft or EventState.SignupOpen or EventState.SignupClosed);
-    var showStartControl = showAllControlStages || eventView.State == EventState.SignupClosed;
-    var showLiveControls = showAllControlStages || eventView.State == EventState.Live;
-    var showFinalReviewControls = showAllControlStages || eventView.State == EventState.AwaitingFinalReview;
-    var showResultsControl = showAllControlStages || eventView.State is EventState.Finalized or EventState.Archived;
-    var showDestructivePreLiveControl = showAllControlStages || eventView.State is EventState.Draft or EventState.SignupOpen or EventState.SignupClosed;
-    var partialUpdateTargets = "#app-notice-region, .event-overview, .event-overview-dates-panel, .event-control-workspace";
-    var manageUrl = Url.Page("/Admin/Events/Manage", new { id = eventView.Id });
-    var signupUrl = Url.Page("/Events/Signup", null, new { slug = eventView.Slug }, Request.Scheme, Request.Host.Value);
-    var signupTableUrl = Url.Page("/Events/Signups", null, new { slug = eventView.Slug }, Request.Scheme, Request.Host.Value);
-    var publicBoardUrl = Url.Page("/Events/Board", null, new { slug = eventView.Slug }, Request.Scheme, Request.Host.Value);
-    var signupCloseForConfirmation = Model.SignupReadiness?.CloseDecision.ProposedClose ?? eventView.SignupClosesAt ?? eventView.StartsAt;
-    var signupWarningSummary = Model.SignupReadiness?.Warnings.Count > 0
-        ? $" Warnings: {string.Join(" ", Model.SignupReadiness.Warnings.Select(warning => T[warning.Description].Value))}"
-        : string.Empty;
-    var signupConfirmationDescription = eventView.State == EventState.SignupOpen
-        ? T["Close signups now? Players already on the list are not affected."].Value
-        : $"{T["Open signups now after rechecking readiness."].Value} Signup close: {Model.EventDate(signupCloseForConfirmation)}.{signupWarningSummary}";
-    var showPublicBoard = eventView.FirstPublicAt is not null && eventView.BoardPublished;
-    var boardTileSummary = eventView.ConfiguredBoardTileCount is { } configuredTiles && eventView.ExpectedBoardCellCount is { } expectedTiles
-        ? $"{configuredTiles} / {expectedTiles}"
-        : null;
-    var nextMilestone = ManageModel.NextMilestoneFor(eventView);
-    var participantPhase = eventView.State is EventState.Draft or EventState.SignupOpen or EventState.Cancelled;
-    var peopleContext = participantPhase ? $"{eventView.Waiting} {T["waiting"]}" : $"{eventView.Confirmed} {T["players"]}";
-    var peopleDotClass = participantPhase ? eventView.Waiting > 0 ? "is-orange" : "is-purple" : eventView.ActualTeamCount > 0 ? "is-green" : "is-purple";
-    var boardValue = boardTileSummary ?? "— / —";
-    var boardContext = eventView.BoardPublished
-        ? T["Published"].Value
-        : boardTileSummary is null
-            ? T["Not configured"].Value
-            : T["In progress"].Value;
-    var reviewedSubmissionCount = Math.Max(0, Model.SubmissionCount - Model.PendingReviewCount);
-    var milestoneDotClass = nextMilestone.At is null ? "is-orange" : "is-green";
-    var milestoneContext = nextMilestone.At is null ? T["Not configured"].Value : T["Scheduled"].Value;
-    var boardDotClass = boardTileSummary is null ? "is-orange" : "is-green";
-    var submissionDotClass = Model.PendingReviewCount > 0 ? "is-pink" : reviewedSubmissionCount > 0 ? "is-green" : "is-purple";
-    var eventStatus = AdminEventStatePresentation.For(eventView.State, T);
+    // U4 / OS-1: Overview.dc.html. Dialogs come from data-current (OverviewPresenter);
+    // admin-overview.js renders them and posts through AdminFetch.
+    var v = Model.Overview!;
+    ViewData["Title"] = v.Name;
+    ViewData["LocalizedTitle"] = v.Name;
+    ViewData["PageFamily"] = "overview";
+    ViewData["CrumbTitle"] = T["Overview"].Value;
+    var labels = new Dictionary<string, string>();
+    foreach (var key in new[] {
+        "Cancel", "Close", "Check again", "Checking…", "Working…", "Saving…", "Add code", "Copy", "Copied", "Link copied.", "Couldn’t copy automatically. Select the link and copy it.",
+        "Finish the requirements listed first.", "Wait for the action to finish.",
+        "Couldn’t complete this. Nothing changed, and your entries are still here.",
+        "The event changed while this was open: {0}. The details below are up to date. Check them and confirm again.",
+        "The event changed while this was open. The details below are up to date. Check them and confirm again.",
+        "The event changed while this was open: {0}. {1} no longer applies, so nothing was done.",
+        "The event changed while this was open. {0} no longer applies, so nothing was done.",
+        "Checking the event…", "We couldn’t confirm whether this happened. Check before trying again, so it doesn’t happen twice.",
+        "The event is unchanged, so it didn’t happen. You can try again.",
+        "Enter a reason.", "Choose a date and time.", "Choose a time in the future.", "Choose a time after the event start.", "Use a 5-minute step.",
+        "Enter or generate a code.", "Choose when it becomes active.", "Another code already starts at that exact time.", "Turn on evidence codes first.",
+        "Couldn’t save the code. Nothing changed; your entries are still here.", "That local time does not exist because the clocks change at that time.", "That local time is ambiguous because the clocks change at that time. Choose another time.", "Couldn’t confirm the save. Close and reopen to see the current codes before trying again.",
+        "Evidence codes", "Captains include the active code in screenshots, so reviewers can tell when evidence was captured. Each code is retired when the next one starts.",
+        "Require evidence codes", "Codes", "New code", "Generate", "Active from", "Note", "optional, admins only", "Calendar", "Choose {0} from a calendar", "{0}, date", "{0}, time (24-hour)" })
+        labels[key] = T[key].Value;
 }
-
-@if (eventView.IsHidden)
+@section HeaderTitle {
+    <div class="ov-title"><h1 class="h1" id="page-h1" tabindex="-1">@v.Name</h1><span class="badge @v.BadgeClass">@v.Phase</span></div>
+}
+@section HeaderSummary { <span>@v.Summary</span> }
+<div data-overview data-current="@Model.CurrentJson" data-labels="@JsonSerializer.Serialize(labels)" data-timezone="@Model.EventTimezone" data-now="@Model.CurrentInstant.ToString("O", CultureInfo.InvariantCulture)">
+<input type="hidden" name="EventVersion" value="@Model.EventVersion" />
+@if (v.Hidden is { } hidden)
 {
-    <section class="table-page event-manage-page" aria-labelledby="hidden-event-heading">
-        <section class="event-danger-zone-container event-danger-zone">
-            <div class="event-danger-zone-copy">
-                <h1 id="hidden-event-heading">@T["Hidden event — limited inspection"]</h1>
-                <p>@T["This event is quarantined. Its lifecycle, data, timestamps, snapshots, rankings, evidence, history, assets, and storage are retained. Ordinary workspaces and actions are unavailable until it is restored."]</p>
-                <dl>
-                    <dt>@T["Retained lifecycle"]</dt><dd>@AdminEventStatePresentation.For(eventView.State, T).Label</dd>
-                    <dt>@T["Hidden at"]</dt><dd>@Model.EventDate(eventView.HiddenAt)</dd>
-                    <dt>@T["Reason"]</dt><dd>@eventView.HiddenReason</dd>
-                </dl>
-            </div>
-            <div class="event-danger-zone-form">
-                <h2>@T["Restore event"]</h2>
-                <p>@T["Restore clears only the hiding metadata. Confirm the action to return this event to ordinary workspaces."]</p>
-                <form method="post" asp-page-handler="RestoreHidden" asp-route-hidden="true" class="form-stack" data-lifecycle-confirm data-confirm-title="@T["Restore event"]" data-confirm-description="@T["Restore this event and return it to ordinary workspaces?"]" data-confirm-action="@T["Restore event"]" data-confirm-field="ConfirmDestructiveAction" data-confirm-danger="true">
-                    <input asp-for="EventVersion" type="hidden" />
-                    <input type="hidden" name="hidden" value="true" />
-                    <input type="hidden" name="ConfirmDestructiveAction" value="false" data-confirm-field-value />
-                    <button class="btn event-create-cancel action-danger-outline" type="submit">@T["Restore event"]</button>
-                </form>
-            </div>
-        </section>
-        <section class="event-control-group" aria-labelledby="quarantine-history-heading">
-            <h2 id="quarantine-history-heading">@T["Quarantine audit history"]</h2>
-            @if (Model.QuarantineAuditHistory.Count == 0)
-            {
-                <p>@T["No quarantine audit entries are available."]</p>
-            }
-            else
-            {
-                <ul>
-                    @foreach (var entry in Model.QuarantineAuditHistory)
+    <div class="banner is-warning page-banner" role="status"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("hidden")' /><span class="grow"><b>@T["Hidden event · limited inspection."]</b> @T["It’s excluded from every ordinary page and count. Only SuperAdmins can see this view."]</span></div>
+    <div class="card panel">
+        <div class="panel-head"><h2 class="panel-title" id="now-title" tabindex="-1">@T["Quarantine"]</h2></div>
+        <dl class="facts">
+            <div class="fact"><dt class="fact-label">@T["Retained stage"]</dt><dd class="fact-value">@hidden.Stage</dd></div>
+            <div class="fact"><dt class="fact-label">@T["Hidden"]</dt><dd class="fact-value">@hidden.When</dd></div>
+            <div class="fact"><dt class="fact-label">@T["Reason"]</dt><dd class="fact-value ov-reason">@hidden.Reason</dd></div>
+        </dl>
+        <form method="post" asp-page-handler="RestoreHidden" asp-route-id="@Model.EventId" class="act-group" data-overview-restore>
+            <input type="hidden" name="EventVersion" value="@Model.EventVersion" /><input type="hidden" name="ConfirmDestructiveAction" value="true" />
+            <div class="act-row"><div class="act-text"><div class="act-title">@T["Restore event"]</div><div class="act-sub">@T["Returns it to the directory, the Dashboard and its public pages as before. No notifications are sent."]</div></div><button class="btn" id="act-restore" type="submit" data-overview-action="restore">@T["Restore…"]</button></div>
+        </form>
+        @if (Model.QuarantineAuditHistory.Count > 0)
+        {
+            @* U4-Q3 (c): the quarantine history list is kept (not in the reference). *@
+            <div class="ov-history">
+                <h3 class="sec-title">@T["Quarantine history"]</h3>
+                <div class="ro-list">
+                    @foreach (var row in Model.QuarantineAuditHistory)
                     {
-                        <li><strong>@(entry.Action == "event.hidden" ? T["Hidden"] : T["Restored"])</strong> · @entry.ActorUsername · @Model.EventDate(entry.OccurredAt) · @entry.Details</li>
+                        <div class="ro-row"><span class="grow">@(row.Action == "event.hidden" ? T["Hidden"] : T["Restored"]) · @Model.Fmt(row.OccurredAt) · @row.ActorUsername@if (!string.IsNullOrWhiteSpace(row.Details)) { <span class="choice-sub" style="display:block">@row.Details</span> }</span></div>
                     }
-                </ul>
-            }
-        </section>
-        <p><a class="btn event-create-cancel" asp-page="Index" asp-route-filter="hidden">@T["Back to hidden events"]</a></p>
-    </section>
+                </div>
+            </div>
+        }
+    </div>
 }
 else
 {
-<section class="table-page event-manage-page">
-    <section class="event-manage-layout">
-        <div class="event-manage-main">
-    <section class="event-overview" aria-label="@T["Operational overview"]" data-manage-overview>
-        <div class="event-overview-summary" aria-label="@T["Event summary"]">
-            <article class="event-overview-metric">
-                <header class="event-overview-metric-header">
-                    <span class="event-overview-metric-label"><svg class="event-overview-metric-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87m-1-11.13a4 4 0 0 1 0 7.75" /></svg><span>@(participantPhase ? T["Participants"] : T["Teams & roster"])</span></span>
-                    <svg class="event-overview-metric-arrow" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7"><path d="M7 17 17 7M7 7h10v10" /></svg>
-                </header>
-                <div class="event-overview-metric-body">
-                    <div class="event-overview-metric-value-row">
-                        @if (participantPhase)
-                        {
-                            <strong>@eventView.Confirmed / @eventView.ParticipantCap</strong>
-                        }
-                        else
-                        {
-                            <strong>@eventView.ActualTeamCount <small>@T["Teams"]</small></strong>
-                        }
-                        <span class="event-overview-metric-context @peopleDotClass"><span class="event-overview-metric-dot" aria-hidden="true"></span>@peopleContext</span>
-                    </div>
-                </div>
-            </article>
-            <article class="event-overview-metric">
-                <header class="event-overview-metric-header">
-                    <span class="event-overview-metric-label"><svg class="event-overview-metric-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7"><rect width="18" height="18" x="3" y="3" rx="2" /><path d="M3 9h18M9 21V9" /></svg><span>@T[nextMilestone.Label]</span></span>
-                    <svg class="event-overview-metric-arrow" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7"><path d="M7 17 17 7M7 7h10v10" /></svg>
-                </header>
-                <div class="event-overview-metric-body">
-                    <div class="event-overview-metric-value-row">
-                        <strong>@Model.EventDateOnly(nextMilestone.At, T["Not set"])</strong>
-                        <span class="event-overview-metric-context @milestoneDotClass"><span class="event-overview-metric-dot" aria-hidden="true"></span>@milestoneContext</span>
-                    </div>
-                </div>
-            </article>
-            <article class="event-overview-metric">
-                <header class="event-overview-metric-header">
-                    <span class="event-overview-metric-label"><svg class="event-overview-metric-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7"><rect width="18" height="18" x="3" y="3" rx="2" /><path d="M3 9h18M3 15h18M9 3v18M15 3v18" /></svg><span>@T["board"]</span></span>
-                    <svg class="event-overview-metric-arrow" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7"><path d="M7 17 17 7M7 7h10v10" /></svg>
-                </header>
-                <div class="event-overview-metric-body">
-                    <div class="event-overview-metric-value-row">
-                        <strong>@boardValue</strong>
-                        <span class="event-overview-metric-context @boardDotClass"><span class="event-overview-metric-dot" aria-hidden="true"></span>@boardContext</span>
-                    </div>
-                </div>
-            </article>
-            <article class="event-overview-metric">
-                <header class="event-overview-metric-header">
-                        <span class="event-overview-metric-label"><svg class="event-overview-metric-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" /><path d="M14 2v6h6M8 13h8M8 17h6" /></svg><span>@T["Submissions"]</span></span>
-                    <svg class="event-overview-metric-arrow" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7"><path d="M7 17 17 7M7 7h10v10" /></svg>
-                </header>
-                <div class="event-overview-metric-body">
-                    <div class="event-overview-metric-value-row">
-                        <strong>@Model.PendingReviewCount</strong>
-                        <span class="event-overview-metric-context @submissionDotClass"><span class="event-overview-metric-dot" aria-hidden="true"></span>@reviewedSubmissionCount @T["reviewed"]</span>
-                    </div>
-                </div>
-            </article>
-        </div>
-
-        <section id="readiness" class="event-overview-section event-overview-readiness-panel" aria-labelledby="event-readiness-heading">
-            <div class="event-overview-section-heading">
-                <div class="event-overview-heading-label">
-                    <h2 id="event-readiness-heading">@T["Readiness checks"]</h2>
-                </div>
-                @if (Model.OverviewBlockers.Count > 0) { <a class="event-overview-blocker-link" href="#event-next-step-heading">@T["{0} blockers", Model.OverviewBlockers.Count]</a> }
-            </div>
-            @if (Model.OverviewBlockers.Count == 0)
+    <section class="card" aria-label="@T["Event progression"]">
+        <ol class="stages" style="--stage-count:@v.Stages.Count">
+            @foreach (var s in v.Stages)
             {
-                <div class="event-overview-row event-overview-row-healthy">
-                    <span class="event-overview-row-icon-badge"><svg class="event-overview-row-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20Z" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" /><path d="m9 12 2 2 4-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" /></svg></span>
-                    <div><strong>@T["No unresolved lifecycle blockers"]</strong><p>@T["The current state can use its available next action."]</p></div>
-                </div>
+                <li class="stage @s.Cls" aria-current="@(s.Current ? "step" : null)">
+                    <span class="stage-mark"><span class="stage-dot">@if (s.Done) { <partial name="_AdminDesignIcon" model='new AdminDesignIcon("check")' /> }@if (s.Ended) { <partial name="_AdminDesignIcon" model='new AdminDesignIcon("ended")' /> }</span></span>
+                    <span class="stage-text"><span class="stage-name">@s.Name</span><span class="stage-when">@s.When</span><span class="sr">@s.Sr</span></span>
+                </li>
             }
-            else
-            {
-                @foreach (var blocker in Model.OverviewBlockers)
-                {
-                    <div class="event-overview-row event-overview-row-blocked">
-                        <span class="event-overview-row-icon-badge"><svg class="event-overview-row-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" /><path d="M12 9v4m0 4h.01" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" /></svg></span>
-                        <div><strong>@blocker.Description</strong><p>@T["This is reported by the lifecycle readiness check."]</p></div>
-                        @if (blocker.Route is not null) { <a class="event-overview-row-action" href="@blocker.Route">@T[ManageModel.BlockerActionLabel(blocker)]</a> }
-                    </div>
-                }
-            }
-        </section>
-
-        <section class="event-overview-section event-overview-dates-panel" aria-labelledby="event-information-heading">
-            <div class="event-overview-section-heading">
-                <div class="event-overview-heading-label">
-                    <h2 id="event-information-heading">@T["Event information"]</h2>
-                </div>
-            </div>
-            <dl class="event-overview-dates">
-                <div class="event-overview-date-row event-overview-information-summary">
-                    <div class="event-overview-information-name"><dt class="visually-hidden">@T["Event name"]</dt><dd>@eventView.Name</dd></div>
-                    <div class="event-overview-information-status"><dt class="visually-hidden">@T["Status"]</dt><dd><span class="admin-status-pill @eventStatus.Modifier">@eventStatus.Label</span></dd></div>
-                </div>
-                @foreach (var row in Model.EffectiveTimeline)
-                {
-                    var timelineTone = row.Label switch
-                    {
-                        "Signup opens" or "Signup closes" => "is-cyan",
-                        "Submission cutoff" => "is-yellow",
-                        "Signups opened" or "Signups closed" or "Event starts" or "Event started" or "Event ends" or "Event ended" or "Submissions closed" => "is-green",
-                        _ => "is-muted"
-                    };
-                    <div class="event-overview-date-row @timelineTone">
-                        <div class="event-overview-date-copy"><dt>@T[row.Label]</dt><dd>@Model.EventDate(row.At)</dd></div>
-                    </div>
-                }
-                <div class="event-overview-date-row @(Model.CompetitionIntegration?.Configured == true ? "is-green" : "is-yellow")">
-                    <div class="event-overview-date-copy"><dt>@T["Wise Old Man sync"]</dt><dd><span class="event-overview-status-text @(Model.CompetitionIntegration?.Configured == true ? "is-green" : "is-yellow")">@(Model.CompetitionIntegration?.Configured == true ? T["Enabled"] : T["Not configured"])</span> <a asp-page="WiseOldMan" asp-route-id="@eventView.Id">@T["Open WOM workspace"]</a></dd></div>
-                </div>
-            </dl>
-            <div class="event-public-pages" aria-labelledby="event-public-pages-heading">
-                <h3 id="event-public-pages-heading">@T["Public pages"]</h3>
-                <div class="event-public-page-row"><a href="@signupUrl">@T["Signup form"]</a><button type="button" class="icon-button event-copy-link" data-copy-url="@signupUrl" aria-label="@T["Copy signup form link"]"><svg viewBox="0 0 24 24" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" /><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" /></svg></button></div>
-                <div class="event-public-page-row"><a href="@signupTableUrl">@T["Public signup table"]</a><button type="button" class="icon-button event-copy-link" data-copy-url="@signupTableUrl" aria-label="@T["Copy public signup table link"]"><svg viewBox="0 0 24 24" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" /><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" /></svg></button></div>
-                @if (showPublicBoard)
-                {
-                    <div class="event-public-page-row"><a href="@publicBoardUrl">@T["Public board"]</a><button type="button" class="icon-button event-copy-link" data-copy-url="@publicBoardUrl" aria-label="@T["Copy public board link"]"><svg viewBox="0 0 24 24" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" /><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" /></svg></button></div>
-                }
-            </div>
-        </section>
+        </ol>
     </section>
-
-    <section id="operations" class="event-manage-section event-admin-lower">
-        <div class="event-control-workspace">
-            <article class="panel event-admin-controls">
-                <header class="admin-section-heading event-overview-section-heading"><h2>@T["Event controls"]</h2><p>@(showAllControlStages ? T["Visual preview — all lifecycle stages are shown."] : T["Only actions available at this stage are shown."])</p></header>
-
-                @if (Model.ScheduledAction is not null || showAllControlStages)
+    @if (v.Issues.Count > 0)
+    {
+        <section class="card ov-attn" aria-labelledby="issues-title">
+            <div class="panel-head ov-issues-head"><h2 class="panel-title" id="issues-title">@T["Needs attention"]</h2></div>
+            @foreach (var i in v.Issues)
+            {
+                <div class="issue is-@i.Kind">
+                    @if (i.Kind == "failure") { <partial name="_AdminDesignIcon" model='new AdminDesignIcon("error", "ic issue-ic")' /> } else { <span class="dot" aria-hidden="true"></span> }
+                    <div><div class="issue-title">@i.Title</div><div class="issue-text">@i.Text</div></div>
+                    @if (i.ActionKey is not null) { <button class="btn btn-sm" type="button" data-overview-action="@i.ActionKey" aria-disabled="@(i.ActionInert ? "true" : "false")" aria-describedby="@(i.ActionInert ? "checklist" : null)" title="@(i.ActionInert ? T["Finish the requirements below first"].Value : null)">@i.ActionLabel</button> }
+                    else if (i.ActionHref is not null) { <a class="btn btn-sm" href="@i.ActionHref" data-shell-link>@i.ActionLabel</a> }
+                </div>
+            }
+        </section>
+    }
+    <div class="ov-grid">
+        <div class="ov-main">
+            <section class="card panel" aria-labelledby="now-title">
+                <div class="panel-head"><h2 class="panel-title" id="now-title" tabindex="-1">@v.Now.Title</h2>@if (v.Now.Aside is not null) { <span class="panel-aside">@v.Now.Aside</span> }</div>
+                <p class="ov-lead">@v.Now.Lead</p>
+                @if (v.Now.Winner is not null)
                 {
-                    var scheduledBlockerCount = Model.ScheduledAction?.Blockers.Count ?? 0;
-                    <section class="event-admin-control-group @(scheduledBlockerCount == 0 ? "event-control-group-success" : "event-control-group-warning")">
-                        <div><h3>@(Model.ScheduledAction?.Title ?? T["Scheduled lifecycle action"].Value)</h3><p>@(Model.ScheduledAction is null ? T["Visual preview of the scheduled lifecycle action."].Value : $"{T["Scheduled for"]} {DateTimePresentation.Format(Model.ScheduledAction.ScheduledFor, "dd MMM yyyy, HH:mm", eventView.Timezone)}; {T["attempted"]} {DateTimePresentation.Format(Model.ScheduledAction.AttemptedAt, "dd MMM yyyy, HH:mm", eventView.Timezone)}.")</p></div>
-                        @if (Model.ScheduledAction is null)
-                        {
-                            <p class="event-control-status is-green">@T["Scheduled action preview"]</p>
-                        }
-                        else if (scheduledBlockerCount == 0)
-                        {
-                            <p class="event-control-status is-green">@T["All start blockers are resolved. Confirm to start the event now."]</p>
-                        }
-                        else
-                        {
-                            <p class="event-control-status is-yellow">@T["{0} blockers remain.", scheduledBlockerCount] <a href="#readiness">@T["Review readiness"]</a></p>
-                        }
-                    </section>
+                    <div class="highlight">
+                        <div class="highlight-ic"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("trophy")' /></div>
+                        <div style="min-width:0;flex:1"><div class="highlight-label">@T["Official winner"]</div><div class="highlight-value">@v.Now.Winner</div><div class="highlight-sub">@v.Now.WinnerSub</div></div>
+                    </div>
+                    <dl class="facts ov-placings">@foreach (var p in v.Now.Placings) { <div class="fact"><dt class="fact-label">@p.Label</dt><dd class="fact-value">@p.Value</dd></div> }</dl>
                 }
-
-                @if (showSignupControls)
+                @if (v.Now.CancelWhen is not null)
                 {
-                    <section class="event-admin-control-group event-signup-group">
-                        <div class="event-control-copy">
-                            <h3>@T["Manual signup control"]</h3>
-                            <p>@(eventView.State == EventState.SignupOpen ? T["Close signups now. Players already on the list are not affected."] : T["Open signups now after completing the schedule and readiness checks."])</p>
-                            <p class="event-control-status event-control-supporting"><a asp-page="Schedule" asp-route-id="@eventView.Id">@T["Edit the event schedule and review signup readiness"]</a></p>
-                            @if (eventView.ActualSignupOpenedAt is { } actualOpening) { <p class="event-control-status event-control-supporting is-green"><strong>@T["Actual signup opening:"]</strong> @DateTimePresentation.Format(actualOpening, "dd MMM yyyy, HH:mm", eventView.Timezone)</p> }
-                            else if (eventView.ScheduledSignupOpeningEnabled && eventView.SignupOpensAt is { } scheduledOpening) { <p class="event-control-status event-control-supporting is-cyan"><strong>@T["Automatic signup opening scheduled for:"]</strong> @DateTimePresentation.Format(scheduledOpening, "dd MMM yyyy, HH:mm", eventView.Timezone)</p> }
-                            else { <p class="event-control-status event-control-supporting is-yellow"><strong>@T["No automatic signup opening scheduled."]</strong></p> }
+                    <dl class="facts">
+                        <div class="fact"><dt class="fact-label">@T["Cancelled"]</dt><dd class="fact-value">@v.Now.CancelWhen</dd></div>
+                        <div class="fact"><dt class="fact-label">@T["Private admin reason"]</dt><dd class="fact-value ov-reason">@v.Now.CancelReason</dd></div>
+                    </dl>
+                }
+                @if (v.Now.Transition is { } tr)
+                {
+                    <div class="transition @tr.Cls">
+                        <span class="transition-ic"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("schedule")' /></span>
+                        <div class="transition-text"><div class="transition-title">@tr.Title</div><div class="transition-sub">@tr.Sub</div></div>
+                        <div class="transition-actions">
+                            @if (tr.HasSchedule) { <a class="btn btn-quiet btn-sm" href="@Bingo.Web.Navigation.SharedShellService.AdminDesignEventUrl("/Admin/Events/Schedule", Model.EventId)" data-shell-link>@T["Schedule"]</a> }
+                            @foreach (var a in tr.Actions)
+                            {
+                                <button class="btn @a.Cls" id="act-@a.Key" type="button" data-overview-action="@a.Key" aria-disabled="@(a.Inert ? "true" : "false")" aria-describedby="@(a.Inert ? (a.Key == "reopen" ? "reopen-checklist" : "checklist") : null)" title="@(a.Inert ? T["Finish the requirements below first"].Value : null)">@a.Label</button>
+                            }
                         </div>
-                        <div class="event-admin-event-actions">
-                            @{ var signupHandler = eventView.State == EventState.SignupOpen ? "CloseSignup" : eventView.State == EventState.SignupClosed ? "ReopenSignup" : "OpenSignup"; var signupAction = eventView.State == EventState.SignupOpen ? T["Close signups"] : eventView.State == EventState.SignupClosed ? T["Reopen signups"] : T["Open signups"]; }
-                            <form method="post" asp-page-handler="@signupHandler" data-lifecycle-confirm data-confirm-title="@signupAction" data-confirm-description="@signupConfirmationDescription" data-confirm-action="@signupAction" data-confirm-field="ConfirmSignupAction" data-update-targets="@partialUpdateTargets">
-                                <input asp-for="EventVersion" type="hidden" />
-                                <input type="hidden" name="ConfirmSignupAction" value="false" data-confirm-field-value />
-                                <button class="btn event-create-cancel" type="submit" disabled="@(signupAndPlayersLocked ? "disabled" : null)">@signupAction</button>
-                            </form>
-                        </div>
-                    </section>
-
-                    @if (Model.SignupReadiness is not null || showAllControlStages)
-                    {
-                        var signupBlockerCount = Model.SignupReadiness?.Blockers.Count ?? 0;
-                        <section class="event-admin-control-group @(signupBlockerCount > 0 ? "event-control-group-warning" : "event-control-group-success")"><div><h3>@T["Signup readiness"]</h3><p>@T["Resolve setup issues before changing signup state."]</p></div><p class="event-control-status @(signupBlockerCount > 0 ? "is-yellow" : "is-green")">@T["{0} blockers", signupBlockerCount] <a href="#readiness">@T["Review readiness"]</a></p></section>
-                    }
-
-                }
-
-                @if (showStartControl || showLiveControls || showFinalReviewControls || showResultsControl)
-                {
-                    <section class="event-admin-control-group">
-                    <div>
-                        <h3>@T["Event"]</h3>
-                        <p>
-                            @if (showLiveControls) { @T["The bingo is currently live."] }
-                            else if (showFinalReviewControls) { @T["Finish reviewing submissions before publishing the results."] }
-                            else if (showResultsControl) { @T["The official results are available."] }
-                            else { @T["Start the bingo when the board and teams are ready."] }
-                        </p>
                     </div>
-                    <div class="event-admin-event-actions">
-                        @if (showStartControl)
-                        {
-                            @if (Model.StartReadiness?.Blockers.Count > 0) { <p class="event-control-status is-yellow">@T["{0} blockers remain.", Model.StartReadiness.Blockers.Count] <a href="#readiness">@T["Review readiness"]</a></p> }
-                            <form method="post" asp-page-handler="StartEvent" data-lifecycle-confirm data-confirm-title="@T["Start event"]" data-confirm-description="@T["Start the event now? Server readiness will be checked again before the transition."]" data-confirm-action="@T["Start event"]" data-confirm-field="ConfirmStartEvent" data-update-targets="@partialUpdateTargets">
-                                <input asp-for="EventVersion" type="hidden" />
-                                <input type="hidden" name="ConfirmStartEvent" value="false" data-confirm-field-value />
-                                <button class="btn event-create-cancel" type="submit">@T["Start event now"]</button>
-                            </form>
-                        }
-                        @if (showLiveControls)
-                        {
-                            <a class="btn event-create-cancel" asp-page="/Admin/Review/Index" asp-route-eventId="@eventView.Id">@T["Review submissions"]</a>
-                            <form method="post" asp-page-handler="EndEvent" data-lifecycle-confirm data-confirm-title="@T["End event"]" data-confirm-description="@T["End the Live event now and move it to final review? A reason is recorded in the lifecycle history."]" data-confirm-action="@T["End event"]" data-confirm-field="ConfirmEndEvent" data-confirm-reason-field="EndReason" data-confirm-require-reason="true" data-update-targets="@partialUpdateTargets">
-                                <input asp-for="EventVersion" type="hidden" />
-                                <input type="hidden" name="ConfirmEndEvent" value="false" data-confirm-field-value />
-                                <input type="hidden" name="EndReason" data-confirm-reason-value />
-                                <button class="btn event-create-cancel" type="submit">@T["End event"]</button>
-                            </form>
-                        }
-                        @if (showFinalReviewControls)
-                        {
-                            <a class="btn event-create-cancel" asp-page="/Admin/Review/Index" asp-route-eventId="@eventView.Id">@T["Review submissions"]</a>
-                            <a class="btn event-create-cancel" asp-page="Finalize" asp-route-id="@eventView.Id">@T["Final review and results"]</a>
-                        }
-                        @if (showResultsControl)
-                        {
-                            <a class="btn event-create-cancel" asp-page="Finalize" asp-route-id="@eventView.Id">@T["View results"]</a>
-                        }
-                    </div>
-                    @if (showFinalReviewControls)
-                    {
-                        <form method="post" asp-page-handler="ReopenSubmissions" class="event-reopen-form" data-update-targets="@partialUpdateTargets">
-                            <input asp-for="EventVersion" type="hidden" />
-                            <div class="event-create-field"><label asp-for="ReopenUntilLocal"><span>@T["Reopen submissions until"]</span></label><input asp-for="ReopenUntilLocal" type="text" class="form-control" data-event-manage-datetime-picker data-time-label="@T["Time"]" required /></div>
-                            <div class="event-create-field"><label asp-for="StateReason"><span>@T["Reason"]</span></label><input asp-for="StateReason" class="form-control" required /></div>
-                            <button class="btn event-create-cancel" type="submit">@T["Reopen submissions"]</button>
-                        </form>
-                        @if (eventView.ReopenedCutoff is not null) { <small class="event-reopened-note">@T["Submissions reopened until"] @DateTimePresentation.Format(eventView.ReopenedCutoff.Value, "dd MMM yyyy, HH:mm", eventView.Timezone)</small> }
-                        <section class="event-admin-control-group event-control-subsection" aria-labelledby="resume-event-heading">
-                            <div class="event-control-copy">
-                                <h3 id="resume-event-heading">@T["Resume premature end"]</h3>
-                                <p>@T["Choose a future replacement end and provide a reason to return this event to live play."]</p>
-                            </div>
-                            <div class="event-admin-event-actions">
-                                <form method="post" asp-page-handler="ResumeEvent" class="form-stack" data-lifecycle-confirm data-confirm-title="@T["Resume event"]" data-confirm-description="@T["Resume prospective Live play while preserving the prior end in immutable history?"]" data-confirm-action="@T["Resume event"]" data-confirm-field="ConfirmResumeEvent" data-confirm-reason-field="ResumeReason" data-confirm-require-reason="true" data-update-targets="@partialUpdateTargets">
-                                    <input asp-for="EventVersion" type="hidden" />
-                                    <input type="hidden" name="ConfirmResumeEvent" value="false" data-confirm-field-value />
-                                    <input type="hidden" name="ResumeReason" data-confirm-reason-value />
-                                    <div class="event-create-field"><label asp-for="ReplacementEventEndsAtLocal"><span>@T["Replacement event end"]</span></label><input asp-for="ReplacementEventEndsAtLocal" type="text" class="form-control" data-event-manage-datetime-picker data-time-label="@T["Time"]" required="@(Model.ResumeRequiresReplacement ? "required" : null)" /></div>
-                                    <button class="btn event-create-cancel" type="submit">@T["Resume event"]</button>
-                                </form>
-                            </div>
-                        </section>
-                    }
-                    </section>
                 }
-
-                @if (showAllControlStages || eventView.State == EventState.Live && Model.StartReadiness?.Blockers.Any(item => item.Code == "TEAM_ACCESS_MISSING") == true)
+                @foreach (var (id, title, checks) in new[] { ("checklist", v.Now.CheckTitle, v.Now.Checks), ("reopen-checklist", v.Now.SecondCheckTitle, v.Now.SecondChecks) })
                 {
-                    <section class="event-admin-control-group">
-                        <div><h3>@T["Captain access needs attention"]</h3><p>@T["The event remains Live. Assign a usable Captain through the team roster."]</p></div>
-                        <p class="event-control-status">@T["{0} access checks need attention.", Math.Max(1, Model.StartReadiness?.Blockers.Count(item => item.Code == "TEAM_ACCESS_MISSING") ?? 0)] <a asp-page="Draft" asp-route-id="@eventView.Id">@T["Review teams and draft"]</a></p>
-                    </section>
-                }
-
-                @if (showAllControlStages || Model.CanConfigureEvidenceCodes)
-                {
-                <section class="event-admin-control-group event-admin-code-group">
-                    <div>
-                        <h3>@T["Verification codes"]</h3>
-                        <p>@T["Captains include the active code in screenshots so reviewers know when the evidence was captured."]</p>
+                    if (title is null) { continue; }
+                    <div class="ov-check">
+                        <h3 class="sec-title" id="@id-title">@title</h3>
+                        <ul class="checklist" aria-labelledby="@id-title" id="@id">
+                            @foreach (var c in checks)
+                            {
+                                <li class="check-item @(c.Done ? "is-done" : null)">
+                                    <span class="check-mark" aria-hidden="true">@if (c.Done) { <partial name="_AdminDesignIcon" model='new AdminDesignIcon("check")' /> }</span>
+                                    <span><span class="check-label">@c.Label</span><span class="sr">@(c.Done ? T["(done)"] : T["(to do)"])</span>@if (c.Sub is not null) { <span class="check-sub">@c.Sub</span> }</span>
+                                    @if (!c.Done && c.LinkHref is not null) { <a class="text-btn" href="@c.LinkHref" data-shell-link>@c.LinkLabel</a> }
+                                </li>
+                            }
+                        </ul>
                     </div>
-                    <form method="post" asp-page-handler="@(eventView.EvidenceCodeEnabled ? "DisableEvidenceCodes" : "EnableEvidenceCodes")" class="event-code-toggle-form" data-update-targets="@partialUpdateTargets">
-                        <input asp-for="EventVersion" type="hidden" />
-                        <button class="btn event-create-cancel" type="submit">@(eventView.EvidenceCodeEnabled ? T["Disable codes"] : T["Enable codes"])</button>
-                    </form>
-
-                    @if (eventView.EvidenceCodeEnabled)
+                }
+                @if (v.Now.Later is not null) { <p class="later-note"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("schedule")' /><span>@v.Now.Later</span></p> }
+                @if (v.Now.FootLabel is not null)
+                {
+                    <div class="panel-foot ov-foot"><span class="panel-note">@v.Now.FootNote</span><a class="btn @v.Now.FootCls" id="now-foot" href="@v.Now.FootHref" data-shell-link>@v.Now.FootLabel</a></div>
+                }
+            </section>
+            @if (v.More.Count > 0)
+            {
+                <section class="card panel ov-section" aria-labelledby="more-title">
+                    <div class="panel-head"><h2 class="panel-title" id="more-title">@T["Other actions"]</h2></div>
+                    @foreach (var g in v.More)
                     {
-                        <div class="event-evidence-content">
-                            <form method="post" asp-page-handler="CreateEvidenceCode" class="event-evidence-form" data-update-targets="@partialUpdateTargets">
-                                <input asp-for="EventVersion" type="hidden" />
-                                <div class="event-create-field"><label asp-for="NewEvidenceCode">@T["Code"]</label><input asp-for="NewEvidenceCode" class="form-control" placeholder="@T["Your custom code"]" /></div>
-                                <div class="event-create-field"><label asp-for="EvidenceCodeActivatesAtLocal">@T["Active from"]</label><input asp-for="EvidenceCodeActivatesAtLocal" type="text" class="form-control" data-event-manage-datetime-picker data-time-label="@T["Time"]" /></div>
-                                <div class="event-evidence-note event-create-field"><label asp-for="EvidenceCodeNote">@T["Note"]</label><input asp-for="EvidenceCodeNote" class="form-control" /></div>
-                                <div class="event-evidence-actions"><button class="btn event-create-cancel" type="submit">@T["Save code"]</button><button class="btn event-create-cancel" type="button" onclick="var field=this.closest('form').querySelector('[name=&quot;NewEvidenceCode&quot;]');var chars='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';field.value='';for(var i=0;i&lt;6;i++)field.value+=chars.charAt(Math.floor(Math.random()*chars.length));field.focus();">@T["Generate code"]</button></div>
-                            </form>
-                            <div class="event-code-history">
-                                <h3>@T["Code history"]</h3>
-                                @if (Model.EvidenceCodes.Count == 0) { <p>@T["No codes have been added yet."]</p> }
-                                else
-                                {
-                                    <ul>@foreach (var code in Model.EvidenceCodes) { <li><strong>@code.Code</strong><span>@DateTimePresentation.Format(code.ActivatesAt, "dd MMM yyyy, HH:mm", eventView.Timezone)</span><small>@(code.RetiresAt is null ? T["Currently active"] : $"{T["Ended"]} {DateTimePresentation.Format(code.RetiresAt.Value, "dd MMM yyyy, HH:mm", eventView.Timezone)}")</small>@if (!string.IsNullOrWhiteSpace(code.Note)) { <small>@code.Note</small> }</li> }</ul>
-                                }
-                            </div>
+                        <div class="ov-act-group">
+                            <div class="act-group-label">@g.Label</div>
+                            @foreach (var r in g.Rows)
+                            {
+                                <div class="act-row"><div class="act-text"><div class="act-title">@r.Title</div><div class="act-sub">@r.Sub</div></div><button class="btn @r.Cls" id="act-@r.Key" type="button" data-overview-action="@r.Key">@r.Label</button></div>
+                            }
                         </div>
                     }
                 </section>
-                }
-
-                @if (showAllControlStages || eventView.State == EventState.Cancelled)
-                {
-                    <section class="event-admin-control-group"><div><h3>@T["Event cancelled"]</h3><p>@T["This event is terminal and no scheduled or ordinary event action can reactivate it."]</p></div><p class="event-control-status"><strong>@T["Private Admin reason:"]</strong> @(Model.PrivateCancellationReason ?? T["Visual preview cancellation reason."].Value)</p></section>
-                }
-    @if (User.IsInRole("SuperAdmin") && eventView.State is (EventState.AwaitingFinalReview or EventState.Finalized or EventState.Archived))
-                {
-                    <section class="event-danger-zone-container event-danger-zone" aria-labelledby="event-quarantine-heading">
-                        <div class="event-danger-zone-copy">
-                            <h2 id="event-quarantine-heading">@T["Event quarantine"]</h2>
-                            <p>@T["Hide this post-live event from every ordinary public, participant, Admin, notification, evidence, and realtime surface. The lifecycle and all retained history stay unchanged."]</p>
-                        </div>
-                        <form method="post" asp-page-handler="Hide" class="form-stack event-danger-zone-form" data-lifecycle-confirm data-confirm-title="@T["Hide event"]" data-confirm-description="@T["Quarantine this post-live event while retaining its lifecycle and history. Record why it is being hidden."]" data-confirm-action="@T["Hide event"]" data-confirm-danger="true" data-confirm-field="ConfirmDestructiveAction" data-confirm-reason-field="QuarantineReason" data-confirm-require-reason="true">
-                            <input asp-for="EventVersion" type="hidden" />
-                            <input type="hidden" name="ConfirmDestructiveAction" value="false" data-confirm-field-value />
-                            <input type="hidden" name="QuarantineReason" data-confirm-reason-value />
-                            <button class="btn event-create-cancel action-danger-outline" type="submit">@T["Hide event"]</button>
-                        </form>
-                    </section>
-                }
-
-                @if (showDestructivePreLiveControl)
-                {
-                    <section class="event-danger-zone-container event-danger-zone" aria-labelledby="event-danger-heading">
-                        <div class="event-danger-zone-copy">
-                            <h2 id="event-danger-heading"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="1.7" /><path d="M12 8v4m0 4h.01" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.7" /></svg>@T["Danger zone — destructive lifecycle actions"]</h2>
-                            <p>@(Model.CanDiscard ? T["Remove disposable setup and preserve only the event tombstone and audit history."] : T["Preserve all event history and stop every scheduled lifecycle action."])</p>
-                        </div>
-                        @{ var destructiveHandler = Model.CanDiscard ? "Discard" : "Cancel"; var destructiveTitle = Model.CanDiscard ? T["Delete event"] : T["Cancel event"]; var destructiveDescription = Model.CanDiscard ? T["Delete this empty setup permanently?"] : T["Cancel this event and preserve its history?"]; }
-                        <form method="post" asp-page-handler="@destructiveHandler" class="form-stack event-danger-zone-form" data-lifecycle-confirm data-confirm-title="@destructiveTitle" data-confirm-description="@destructiveDescription" data-confirm-action="@destructiveTitle" data-confirm-danger="true" data-confirm-field="ConfirmDestructiveAction" data-confirm-reason-field="CancellationReason" data-confirm-require-reason="@(Model.CanDiscard ? "false" : "true")" data-update-targets="@partialUpdateTargets">
-                            <input asp-for="EventVersion" type="hidden" />
-                            <input type="hidden" name="ConfirmDestructiveAction" value="false" data-confirm-field-value />
-                            @if (!Model.CanDiscard) { <input type="hidden" name="CancellationReason" data-confirm-reason-value /> }
-                            <button class="btn event-create-cancel action-danger-outline" type="submit"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.7" /><path d="m4.9 4.9 14.2 14.2" fill="none" stroke="currentColor" stroke-width="1.7" /></svg>@destructiveTitle</button>
-                        </form>
-                    </section>
-                }
-            </article>
-
+            }
         </div>
-    </section>
-
-        </div>
-    </section>
-</section>
+        <aside class="ov-aside">
+            <section class="card panel" aria-labelledby="glance-title">
+                <div class="panel-head"><h2 class="panel-title" id="glance-title">@T["At a glance"]</h2></div>
+                <dl class="facts">
+                    @foreach (var g in v.Glance)
+                    {
+                        <div class="fact">
+                            <dt class="fact-label">
+                                @if (g.Codes) { <button class="text-btn ov-fact-btn" type="button" data-overview-codes title="@g.LinkTitle">@g.Label<partial name="_AdminDesignIcon" model='new AdminDesignIcon("chevron-right")' /></button> }
+                                else if (g.LinkHref is not null) { <a class="text-btn ov-fact-btn" href="@g.LinkHref" data-shell-link title="@g.LinkTitle">@g.Label<partial name="_AdminDesignIcon" model='new AdminDesignIcon("chevron-right")' /></a> }
+                                else { @g.Label }
+                            </dt>
+                            <dd class="fact-value"><span class="@(g.Mono ? "mono" : null)">@g.Value</span>@if (g.Sub is not null) { <span class="fact-sub">@g.Sub</span> }</dd>
+                        </div>
+                    }
+                </dl>
+            </section>
+            @if (v.LinksShow)
+            {
+                <section class="card panel ov-section" aria-labelledby="links-title">
+                    <div class="panel-head"><h2 class="panel-title" id="links-title">@T["Public links"]</h2></div>
+                    @if (v.LinksPrivate) { <p class="ov-muted">@T["Not public yet. These pages become available when signups open."]</p> }
+                    <div class="ov-links">
+                        @foreach (var l in v.Links)
+                        {
+                            <div class="ov-link"><div class="lbl" id="lnk-@l.Key">@l.Label</div><div class="copy-field" role="group" aria-labelledby="lnk-@l.Key"><span class="mono" id="lnkv-@l.Key" title="@l.Url">@l.Path</span><button class="btn btn-sm btn-quiet" type="button" data-overview-copy="@l.Url" aria-describedby="lnkv-@l.Key"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("copy")' /><span data-copy-label>@T["Copy"]</span></button></div>@if (l.Note is not null) { <div class="field-hint">@l.Note</div> }</div>
+                        }
+                    </div>
+                </section>
+            }
+        </aside>
+    </div>
 }
-
-@section Scripts {
-    <script src="~/js/event-manage.js" asp-append-version="true"></script>
-}
+</div>
+<partial name="_AdminDesignDateTimeTemplates" />
+<template data-overview-icon="error"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("error")' /></template>
+<template data-overview-icon="calendar"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("calendar")' /></template>
+@section Styles { <link rel="stylesheet" href="~/css/admin-design-overview.css" asp-append-version="true" data-admin-page-style /> }
+@section Scripts { <script type="module" src="~/js/admin-overview.js" asp-append-version="true" data-admin-page-script></script> }
