@@ -3477,4 +3477,20 @@
   <data name="ConfigureIdentityOrSchedule is unavailable while the event is Archived." xml:space="preserve"><value>Identitet og tidsplan kan ikke ændres, mens eventen er arkiveret.</value></data>
   <data name="ConfigureIdentityOrSchedule is unavailable while the event is Cancelled." xml:space="preserve"><value>Identitet og tidsplan kan ikke ændres, mens eventen er annulleret.</value></data>
   <data name="Choose a supported timezone on Identity to edit times." xml:space="preserve"><value>Vælg en understøttet tidszone på Identitet for at redigere tidspunkter.</value></data>
+  <data name="Saving confirms the first {0} player on the waiting list, in waiting-list order. They’re told their place is confirmed." xml:space="preserve"><value>Når du gemmer, bekræftes pladsen til den første {0} spiller på ventelisten i ventelisterækkefølge. Spilleren får besked om, at pladsen er bekræftet.</value></data>
+  <data name="{0} player stays on the waiting list." xml:space="preserve"><value>{0} spiller bliver på ventelisten.</value></data>
+  <data name="{0} players stay on the waiting list." xml:space="preserve"><value>{0} spillere bliver på ventelisten.</value></data>
+  <data name="{0} place will be open." xml:space="preserve"><value>{0} plads vil være ledig.</value></data>
+  <data name="{0} places will be open." xml:space="preserve"><value>{0} pladser vil være ledige.</value></data>
+  <data name="The event will be full." xml:space="preserve"><value>Eventet vil være fyldt.</value></data>
+  <data name="No one loses their place. The event will be full, so new signups join the waiting list." xml:space="preserve"><value>Ingen mister deres plads. Eventet vil være fyldt, så nye tilmeldinger kommer på ventelisten.</value></data>
+  <data name="No one loses their place. Once {0} players are confirmed, new signups join the waiting list." xml:space="preserve"><value>Ingen mister deres plads. Når {0} spillere er bekræftet, kommer nye tilmeldinger på ventelisten.</value></data>
+  <data name="Saving turns protection off and deletes the stored code. Anyone with the signup link can then sign up. To turn it on again later, you’ll set a new code." xml:space="preserve"><value>Når du gemmer, slås beskyttelsen fra, og den gemte kode slettes. Alle med tilmeldingslinket kan derefter tilmelde sig. Hvis du vil slå beskyttelsen til igen senere, skal du angive en ny kode.</value></data>
+  <data name="Saving replaces the current code. Players need the new one from then on." xml:space="preserve"><value>Når du gemmer, erstattes den nuværende kode. Spillere skal derefter bruge den nye kode.</value></data>
+  <data name="Players must enter the code before they can sign up." xml:space="preserve"><value>Spillere skal indtaste koden, før de kan tilmelde sig.</value></data>
+  <data name="Anyone with the signup link can sign up." xml:space="preserve"><value>Alle med tilmeldingslinket kan tilmelde sig.</value></data>
+  <data name="New code" xml:space="preserve"><value>Ny kode</value></data>
+  <data name="Leave it empty to keep the current code." xml:space="preserve"><value>Lad feltet være tomt for at beholde den nuværende kode.</value></data>
+  <data name="Players type this exactly as you enter it. Up to 100 characters." xml:space="preserve"><value>Spillere skal skrive koden præcis, som du angiver den. Højst 100 tegn.</value></data>
+  <data name="Save code again" xml:space="preserve"><value>Gem koden igen</value></data>
 </root>

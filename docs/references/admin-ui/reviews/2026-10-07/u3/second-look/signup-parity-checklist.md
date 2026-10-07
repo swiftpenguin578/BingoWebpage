@@ -42,3 +42,35 @@ Scoped source/structure checklist for user remediation A. This is implementation
 Execution: PostgreSQL scoped Signup tests51/51; browser14 interaction groups per engine (Chromium/WebKit), including structural/footer geometry at390/1280, standard fields/icons, rename action exclusion, locked presentation, real mutation/readback/replay and Live read-only. Locked drawer presentation probe changes only its controlled DOM snapshot; persisted first-response protections are tested in PostgreSQL. Generic Signup conformance5 widths per engine passed before D. Screenshots are implementation evidence, not acceptance. Existing review seeded participants do not establish FirstResponseAt; this remediation does not rewrite that historical fixture assumption or imported forms.
 
 Protected differences retain existing register authorities AU05/AU06/AU07, RC02R3/R4, C-CMP-2 and D16/D17. No server mutation/readback/replay contracts were changed. Normal review seed now contains the standard captain/co-captain fields; confirmed-signup fixture lookup explicitly selects PrimaryRegularAccount.
+
+## Review 84 B-M2 — Settings element/state parity
+
+This supplements the form/drawer checklist with the previously omitted Settings tab. Source locations below name stable selectors/functions; line numbers are the reference authority. Existing registered outcome wording follows C-CMP-2/AU05/AU06 rather than simulated reference attribution. No visual acceptance is inferred.
+
+| Reference line | App location | Element/state | Result |
+|---|---|---|---|
+| 160–168 | SignupSetup.cshtml `#panel-settings`, `#cap-title` | Labelled Settings panel, capacity card, heading and full subtitle | MATCH |
+| 169, 1277–1285 | SignupSetup.cshtml `[data-card-banner=cap]`; JS `notify/saveCard/checkCard` | Alert banner, error icon, message and focus target; stale/refused/unknown/readback | MATCH structure; REGISTERED C-CMP-2/AU05/AU06 server/version/outcome wording |
+| 170–176 | SignupSetup.cshtml `.ss-cap`, `#cap-input` | Numeric input, reference ss-num width, min/step/inputmode, placeholder, accessible label/error/hint, disabled/invalid | MATCH; max10,000 REGISTERED A-SignupSetup-1 |
+| 174 | JS `paint`, `[data-cap-readonly]` | Read-only N player(s)/Not set, empty muted state, accessible label, shared lock box | MATCH copy; box REGISTERED Q13/Q14 |
+| 175 | JS `saveCard`, `#cap-err` | Error icon, validation text, invalid/focus and clear-on-edit | MATCH; upper bound REGISTERED A-SignupSetup-1 |
+| 178–183 | SignupSetup.cshtml `.ss-counts`; JS `paint` | Current signups, Confirmed N of cap, Waiting list, Participants link and chevron | MATCH |
+| 170–185 | admin-design-signupsetup.css Q12 rules | Input/hint left, counts210px right,24px gap; phone stack; input ss-num width retained | REGISTERED Q12(b) |
+| 185,1290–1294 | JS `paint`, `#cap-note` | Promotion singular/plural, N players stay, open places/full, both no-one-loses branches, info icon/status, suppressed on invalid or read-only | MATCH |
+| 186 | SignupSetup.cshtml `#cap-hint` | Complete waiting-list-always-on hint | MATCH text; position REGISTERED Q12(b) |
+| 189–193,1297–1308 | JS `paint/saveCard/checkCard`, `[data-card-bar=cap]` | Dirty dot/status, saved check/status, Save capacity/Save and confirm/Saving/Checking/Check again, spinner, inert title, disabled,132px button, read-only hidden | MATCH; registered readback does not attribute an uncertain save |
+| 198–202 | SignupSetup.cshtml `#code-title` | Code card, heading, full subtitle including Overview/evidence-code distinction | MATCH |
+| 203 | SignupSetup.cshtml `[data-card-banner=code]`; JS `notify` | Alert icon, message, focus target | MATCH structure; REGISTERED C-CMP-2/AU05/AU06 outcomes |
+| 205–206,1326–1327 | SignupSetup.cshtml `#code-on`, `#code-on-sub`; JS `paint` | Toggle label/selected state, linked accessible subtext; on/off exact dynamic sentence | MATCH |
+| 207–209,1315 | SignupSetup.cshtml `[data-code-stored]`; JS `paint` | Stored-only row, lock icon, A code is set and complete secure-storage explanation | MATCH; lock retained under Q14 |
+| 211–214,1327–1330 | JS `paint`, `label[for=code-new]`, `[data-code-count]` | New code/Code label; trimmed counter above85%, over-limit style, polite announcement | MATCH |
+| 215–217 | SignupSetup.cshtml `#code-new`, `#signup-code-error`; JS `saveCard` | Monospace text input, autocomplete/spellcheck, disabled/invalid, error icon/text/focus | MATCH |
+| 217,1328 | JS `paint`, `#signup-code-help` | Keep-empty hint only with stored code; exact-entry/up-to100 hint without code | MATCH |
+| 220,1318–1320 | JS `paint`, `[data-code-note]` | Off deletes stored code/full warning; replacement warning; info icon/status | MATCH |
+| 224,1333 | JS `paint`, `[data-code-readonly]` | Required with/without stored code / Not required; read-only box | MATCH text; box REGISTERED Q13/Q14 |
+| 226–230,1323–1336 | JS `paint/saveCard/checkCard`, `[data-card-bar=code]` | Dirty/saved indicators, Save signup code/Save code again/Saving/Checking/Check again, spinner, inert title/disabled,132px width, hidden read-only | MATCH; unknown-secret check remains REGISTERED AU05/AU06 |
+| Settings independently dirty | JS `merge`, immutable card intents | One card save/readback preserves the other draft; no secret readback/attribution | REGISTERED C-CMP-2/AU05/AU06 |
+| All Settings labels and JS strings | SharedResource.da.resx; `_AdminSignupSetupText.cshtml` | Danish consequence notes, labels/hints/actions; source-localizer audit | MATCH translated content; runtime audit checked in generic conformance |
+| Absent historical form | SignupSetupModel; shared Settings markup | Stored Settings remain readable and locked without inventing a form | REGISTERED Q11; review84 B-L1 extends absence handling after reopening |
+
+Executed B-M2 focused evidence: 18 English/Danish Settings cases in Chromium cover consequence branches, code notes/labels/hints, counters, icons, validation and readonly values. Both-engine affected interactions and conformance are recorded in the final review84 report. This is implementation parity evidence, not independent review.
