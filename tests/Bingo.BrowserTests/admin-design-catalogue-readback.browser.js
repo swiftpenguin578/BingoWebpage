@@ -1,4 +1,5 @@
 // T2 review M2 (RC10 C1): "Check current values" reports Saved only when every submitted field matches.
+// L1: a lost session during the S10 impact read ends the dialog's loading state.
 // Real page, controlled UR fixture, both engines.
 const assert = require('node:assert/strict');
 const path = require('node:path');
@@ -55,8 +56,21 @@ const { startFixture, login } = require('../../scripts/lib/admin-parity-fixture.
     assert.equal(await drawer.locator('#e-img').inputValue(), 'https://oldschool.runescape.wiki/images/Not_saved_image.png', 'M2: image (not rate/name) differs: kept, not "Saved"');
     await drawer.locator('#e-cancel').click();
 
+    // L1: a lost session while the S10 impact loads ends the dialog's loading state.
+    await page.route(url => url.searchParams.get('handler') === 'DeactivationImpact', route => route.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html><title>Sign in</title>' }));
+    await drawer.locator('#e-toggle').click();
+    const notice = page.locator('.modal', { hasText: 'Your changes were not saved' }).or(page.locator('.modal', { hasText: 'You were signed out' }));
+    await notice.first().waitFor();
+    await notice.first().locator('button', { hasText: 'Keep editing' }).click();
+    const box = page.locator('.modal[role=alertdialog]', { hasText: 'Deactivate Tanzanite fang?' });
+    await box.locator('.banner', { hasText: 'Couldn’t check what uses it.' }).waitFor();
+    assert.equal(await box.locator('.ct-checking').count(), 0, 'L1: no spinner left');
+    await box.locator('button', { hasText: 'Close' }).click();
+    await page.waitForFunction(() => !document.querySelector('.modal'));
+    await page.unrouteAll({ behavior: 'wait' });
+
     assert.deepEqual(errors, []);
-    console.log('admin-design-catalogue-readback: full-tuple readback passed');
+    console.log('admin-design-catalogue-readback: full-tuple readback and impact session loss passed');
   } finally {
     await browser?.close();
     await fixture.close();
