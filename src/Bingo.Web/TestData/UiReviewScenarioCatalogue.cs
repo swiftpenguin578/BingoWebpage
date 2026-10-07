@@ -74,6 +74,20 @@ public static class UiReviewScenarioCatalogue
         Add("Accounts", "No accounts match / Clear search and filter", "/Admin/Accounts?q=nobody-here&role=superadmin", "ReviewAdmin");
         Add("Accounts", "Link to an account that isn’t available", "/Admin/Accounts?account=00000000-0000-0000-0000-000000000001", "ReviewAdmin");
         Add("Accounts / Catalogue / Audit", "Reviewed local catalogue", "/Admin/Catalogue/Index");
+        // T2 Catalogue binding scenarios (lane T).
+        Add("Catalogue", "Directory — search, category and Active/Inactive tabs", "/Admin/Catalogue");
+        Add("Catalogue", "Search by drop name — “matches …” under the activity", "/Admin/Catalogue?q=onyx");
+        Add("Catalogue", "No activities match / Clear search and filters", "/Admin/Catalogue?q=nothing-here&cat=Minigame");
+        Add("Catalogue", "Inactive tab", "/Admin/Catalogue?status=inactive");
+        Add("Catalogue", "Add activity (Team size beside Kills per hour)", "/Admin/Catalogue?new=1");
+        if (scenarios.CatalogueActivityId is { } activity && scenarios.CatalogueDropId is { } drop)
+        {
+            Add("Catalogue", "Activity drawer — Settings, Wise Old Man metric, drops, Add drop, Availability", $"/Admin/Catalogue?activity={activity}");
+            Add("Catalogue", "Drop editor — live rate preview, How the rate is counted, Value and item mapping", $"/Admin/Catalogue?activity={activity}&drop={drop}");
+            Add("Catalogue", "S10 — Deactivate drop… names draft boards; hidden event only counted (plain Admin)", $"/Admin/Catalogue?activity={activity}&drop={drop}");
+            Add("Catalogue", "S10 — Deactivate… the activity as the Super Admin: hidden event named; roll group editable; Delete", $"/Admin/Catalogue?activity={activity}&drop={drop}", "ReviewOwner");
+        }
+        Add("Catalogue", "Link to an activity that isn’t available", "/Admin/Catalogue?activity=00000000-0000-0000-0000-000000000001");
         Add("Hidden / Audit", "Audit including hidden events", "/Admin/Audit/Index", "ReviewOwner");
         Add("Hidden / Audit", "Plain Admin retained audit — including hidden-event history", "/Admin/Audit/Index");
         // T1 Audit binding scenarios (lane T).

@@ -574,4 +574,326 @@
   <data name="Filter by actor" xml:space="preserve"><value>Filtrer efter udførende</value></data>
   <data name="Matches actors whose name contains what you type. Press Enter to apply." xml:space="preserve"><value>Matcher udførende, hvis navn indeholder det, du skriver. Tryk Enter for at anvende.</value></data>
   <data name="Only technical fields changed. See Technical details." xml:space="preserve"><value>Kun tekniske felter blev ændret. Se Tekniske oplysninger.</value></data>
+  <!-- Lane T (T2): Catalogue -->
+  <data name="Roll group can only be changed by the Super Admin." xml:space="preserve"><value>Kastegruppen kan kun ændres af Super Admin.</value></data>
+  <data name="These rate settings can’t be changed here. Your changes were not saved. Reload the editor." xml:space="preserve"><value>Disse rateindstillinger kan ikke ændres her. Dine ændringer blev ikke gemt. Genindlæs redigeringen.</value></data>
+  <data name="Choose Boss, Skilling boss or Minigame." xml:space="preserve"><value>Vælg Boss, Skilling boss eller Minigame.</value></data>
+  <data name="Use 200 characters or fewer." xml:space="preserve"><value>Brug højst 200 tegn.</value></data>
+  <data name="Enter the item name." xml:space="preserve"><value>Angiv genstandens navn.</value></data>
+  <data name="Enter the drop rate, like 1/512." xml:space="preserve"><value>Angiv droprate, f.eks. 1/512.</value></data>
+  <data name="Enter a roll group of 120 characters or fewer." xml:space="preserve"><value>Angiv en kastegruppe på højst 120 tegn.</value></data>
+  <data name="Confirm the deactivation first. Nothing was changed." xml:space="preserve"><value>Bekræft deaktiveringen først. Intet blev ændret.</value></data>
+  <data name="Only the Super Admin can delete catalogue records." xml:space="preserve"><value>Kun Super Admin kan slette katalogposter.</value></data>
+  <data name="No activities yet" xml:space="preserve"><value>Ingen aktiviteter endnu</value></data>
+  <data name="{0} active activities" xml:space="preserve"><value>{0} aktive aktiviteter</value></data>
+  <data name="{0} drops" xml:space="preserve"><value>{0} drops</value></data>
+  <data name="Shared by every event’s board estimates" xml:space="preserve"><value>Bruges af alle events’ pladeestimater</value></data>
+  <data name="Add activity" xml:space="preserve"><value>Tilføj aktivitet</value></data>
+  <data name="Find activities and drops" xml:space="preserve"><value>Find aktiviteter og drops</value></data>
+  <data name="Search activities and drops" xml:space="preserve"><value>Søg i aktiviteter og drops</value></data>
+  <data name="Category" xml:space="preserve"><value>Kategori</value></data>
+  <data name="Activities" xml:space="preserve"><value>Aktiviteter</value></data>
+  <data name="Rate missing" xml:space="preserve"><value>Rate mangler</value></data>
+  <data name="{0} without probability" xml:space="preserve"><value>{0} uden sandsynlighed</value></data>
+  <data name="{0} without value" xml:space="preserve"><value>{0} uden værdi</value></data>
+  <data name="No drops" xml:space="preserve"><value>Ingen drops</value></data>
+  <data name="{0} runs/hr" xml:space="preserve"><value>{0} gennemførelser/t</value></data>
+  <data name="{0} kills/hr" xml:space="preserve"><value>{0} drab/t</value></data>
+  <data name="Not set" xml:space="preserve"><value>Ikke angivet</value></data>
+  <data name="matches {0}" xml:space="preserve"><value>matcher {0}</value></data>
+  <data name="{0} + {1} inactive" xml:space="preserve"><value>{0} + {1} inaktive</value></data>
+  <data name="The catalogue is empty" xml:space="preserve"><value>Kataloget er tomt</value></data>
+  <data name="No activities match" xml:space="preserve"><value>Ingen aktiviteter matcher</value></data>
+  <data name="No inactive activities" xml:space="preserve"><value>Ingen inaktive aktiviteter</value></data>
+  <data name="No active activities" xml:space="preserve"><value>Ingen aktive aktiviteter</value></data>
+  <data name="Add a boss or activity, then its drops, to give boards EHB estimates." xml:space="preserve"><value>Tilføj en boss eller aktivitet og derefter dens drops for at give plader EHB-estimater.</value></data>
+  <data name="Search looks at activity and drop names. Try another word or category." xml:space="preserve"><value>Søgningen ser på navne på aktiviteter og drops. Prøv et andet ord eller en anden kategori.</value></data>
+  <data name="Deactivated activities appear here." xml:space="preserve"><value>Deaktiverede aktiviteter vises her.</value></data>
+  <data name="Clear search and filters" xml:space="preserve"><value>Ryd søgning og filtre</value></data>
+  <data name="1 activity match" xml:space="preserve"><value>1 aktivitet matcher</value></data>
+  <data name="{0} activities match" xml:space="preserve"><value>{0} aktiviteter matcher</value></data>
+  <data name="1 activity" xml:space="preserve"><value>1 aktivitet</value></data>
+  <data name="{0} activities" xml:space="preserve"><value>{0} aktiviteter</value></data>
+  <data name="Loading activity" xml:space="preserve"><value>Indlæser aktivitet</value></data>
+  <data name="Couldn’t load this activity" xml:space="preserve"><value>Aktiviteten kunne ikke indlæses</value></data>
+  <data name="Boss" xml:space="preserve"><value>Boss</value></data>
+  <data name="Skilling boss" xml:space="preserve"><value>Skilling-boss</value></data>
+  <data name="Minigame" xml:space="preserve"><value>Minispil</value></data>
+  <data name="run" xml:space="preserve"><value>gennemførelse</value></data>
+  <data name="kill" xml:space="preserve"><value>drab</value></data>
+  <data name="No value" xml:space="preserve"><value>Ingen værdi</value></data>
+  <data name="untradeable, 0 gp" xml:space="preserve"><value>kan ikke handles, 0 gp</value></data>
+  <data name="{0} gp" xml:space="preserve"><value>{0} gp</value></data>
+  <data name="This activity isn’t available" xml:space="preserve"><value>Aktiviteten er ikke tilgængelig</value></data>
+  <data name="It may have been deleted, or the link is incomplete." xml:space="preserve"><value>Den kan være slettet, eller linket er ufuldstændigt.</value></data>
+  <data name="{0} · inactive" xml:space="preserve"><value>{0} · inaktiv</value></data>
+  <data name="Activity" xml:space="preserve"><value>Aktivitet</value></data>
+  <data name="Settings" xml:space="preserve"><value>Indstillinger</value></data>
+  <data name="Changed" xml:space="preserve"><value>Ændret</value></data>
+  <data name="Name" xml:space="preserve"><value>Navn</value></data>
+  <data name="Runs per hour" xml:space="preserve"><value>Gennemførelser pr. time</value></data>
+  <data name="Kills per hour" xml:space="preserve"><value>Drab pr. time</value></data>
+  <data name="Efficient runs or completions in one hour." xml:space="preserve"><value>Effektive gennemførelser på én time.</value></data>
+  <data name="Efficient kills in one hour, at the group size the drop rates assume." xml:space="preserve"><value>Effektive drab på én time ved den gruppestørrelse, som drop rates forudsætter.</value></data>
+  <data name="Team size" xml:space="preserve"><value>Holdstørrelse</value></data>
+  <data name="The group size the rates assume. It isn’t used in calculations." xml:space="preserve"><value>Den gruppestørrelse, raterne forudsætter. Den bruges ikke i beregninger.</value></data>
+  <data name="Image URL" xml:space="preserve"><value>Billed-URL</value></data>
+  <data name="optional" xml:space="preserve"><value>valgfri</value></data>
+  <data name="OSRS Wiki or direct image link" xml:space="preserve"><value>OSRS Wiki- eller direkte billedlink</value></data>
+  <data name="Verified" xml:space="preserve"><value>Bekræftet</value></data>
+  <data name="Unsupported" xml:space="preserve"><value>Ikke understøttet</value></data>
+  <data name="Couldn’t check" xml:space="preserve"><value>Kunne ikke tjekkes</value></data>
+  <data name="Not checked" xml:space="preserve"><value>Ikke tjekket</value></data>
+  <data name="Wise Old Man metric" xml:space="preserve"><value>Wise Old Man-metrik</value></data>
+  <data name="Lets events show Wise Old Man activity for this boss. A verified metric means Wise Old Man tracks it, not that every player has data." xml:space="preserve"><value>Lader events vise Wise Old Man-aktivitet for denne boss. En bekræftet metrik betyder, at Wise Old Man følger den, ikke at alle spillere har data.</value></data>
+  <data name="Metric" xml:space="preserve"><value>Metrik</value></data>
+  <data name="e.g. zulrah" xml:space="preserve"><value>f.eks. zulrah</value></data>
+  <data name="Suggest" xml:space="preserve"><value>Foreslå</value></data>
+  <data name="Use the metric for this exact activity or raid mode." xml:space="preserve"><value>Brug metrikken for præcis denne aktivitet eller raid-tilstand.</value></data>
+  <data name="Last checked {0}." xml:space="preserve"><value>Sidst tjekket {0}.</value></data>
+  <data name="Not checked yet." xml:space="preserve"><value>Ikke tjekket endnu.</value></data>
+  <data name="Validate and save" xml:space="preserve"><value>Valider og gem</value></data>
+  <data name="Save without validating" xml:space="preserve"><value>Gem uden at validere</value></data>
+  <data name="Drops" xml:space="preserve"><value>Drops</value></data>
+  <data name="Add drop" xml:space="preserve"><value>Tilføj drop</value></data>
+  <data name="Save the activity first. Its drops are added here afterwards." xml:space="preserve"><value>Gem aktiviteten først. Dens drops tilføjes her bagefter.</value></data>
+  <data name="No drops yet. Add the first one to give this activity EHB estimates." xml:space="preserve"><value>Ingen drops endnu. Tilføj det første for at give aktiviteten EHB-estimater.</value></data>
+  <data name="1 in {0} per {1}" xml:space="preserve"><value>1 ud af {0} pr. {1}</value></data>
+  <data name="No probability" xml:space="preserve"><value>Ingen sandsynlighed</value></data>
+  <data name="Shared" xml:space="preserve"><value>Delt</value></data>
+  <data name="EHB" xml:space="preserve"><value>EHB</value></data>
+  <data name="no rate" xml:space="preserve"><value>ingen rate</value></data>
+  <data name="no EHB" xml:space="preserve"><value>ingen EHB</value></data>
+  <data name="Edit {0}" xml:space="preserve"><value>Rediger {0}</value></data>
+  <data name="Item name" xml:space="preserve"><value>Genstandsnavn</value></data>
+  <data name="Shared with {0}. Name, image and value change there too." xml:space="preserve"><value>Delt med {0}. Navn, billede og værdi ændres også der.</value></data>
+  <data name="The item’s name everywhere it appears." xml:space="preserve"><value>Genstandens navn alle steder, den vises.</value></data>
+  <data name="Drop rate" xml:space="preserve"><value>Drop-rate</value></data>
+  <data name="Calculated EHB" xml:space="preserve"><value>Beregnet EHB</value></data>
+  <data name="shared item" xml:space="preserve"><value>delt genstand</value></data>
+  <data name="How the rate is counted" xml:space="preserve"><value>Sådan tælles raten</value></data>
+  <data name="Roll group: {0}" xml:space="preserve"><value>Kastegruppe: {0}</value></data>
+  <data name="Chance per {0}" xml:space="preserve"><value>Chance pr. {0}</value></data>
+  <data name="1 in {0} ({1} rolls of 1 in {2})" xml:space="preserve"><value>1 ud af {0} ({1} kast med 1 ud af {2})</value></data>
+  <data name="1 in {0}" xml:space="preserve"><value>1 ud af {0}</value></data>
+  <data name="Not set: the rate isn’t a probability" xml:space="preserve"><value>Ikke angivet: raten er ikke en sandsynlighed</value></data>
+  <data name="Source" xml:space="preserve"><value>Kilde</value></data>
+  <data name="Note" xml:space="preserve"><value>Note</value></data>
+  <data name="Roll group" xml:space="preserve"><value>Kastegruppe</value></data>
+  <data name="Save drop" xml:space="preserve"><value>Gem drop</value></data>
+  <data name="No changes yet." xml:space="preserve"><value>Ingen ændringer endnu.</value></data>
+  <data name="Value and item mapping" xml:space="preserve"><value>Værdi og genstandskobling</value></data>
+  <data name="Untradeable · 0 gp" xml:space="preserve"><value>Kan ikke handles · 0 gp</value></data>
+  <data name="Manual · {0} gp" xml:space="preserve"><value>Manuel · {0} gp</value></data>
+  <data name="Hourly price · {0} gp" xml:space="preserve"><value>Timepris · {0} gp</value></data>
+  <data name="These belong to the shared item (also used by {0}). Approved boards and event prices keep their own snapshot." xml:space="preserve"><value>Disse hører til den delte genstand (bruges også af {0}). Godkendte plader og eventpriser beholder deres eget øjebliksbillede.</value></data>
+  <data name="These belong to the shared item. Approved boards and event prices keep their own snapshot." xml:space="preserve"><value>Disse hører til den delte genstand. Godkendte plader og eventpriser beholder deres eget øjebliksbillede.</value></data>
+  <data name="Stored value" xml:space="preserve"><value>Gemt værdi</value></data>
+  <data name="None yet. Missing isn’t zero; tiles need a value." xml:space="preserve"><value>Ingen endnu. Manglende er ikke nul; felter skal have en værdi.</value></data>
+  <data name="{0} gp · hourly price" xml:space="preserve"><value>{0} gp · timepris</value></data>
+  <data name="{0} gp · manual, fixed during refreshes" xml:space="preserve"><value>{0} gp · manuel, fast ved opdateringer</value></data>
+  <data name="0 gp · untradeable" xml:space="preserve"><value>0 gp · kan ikke handles</value></data>
+  <data name="Item ID" xml:space="preserve"><value>Genstands-id</value></data>
+  <data name="Not in the item list" xml:space="preserve"><value>Ikke på genstandslisten</value></data>
+  <data name=" · ID {0}, checked {1}" xml:space="preserve"><value> · id {0}, tjekket {1}</value></data>
+  <data name=" · ID {0}" xml:space="preserve"><value> · id {0}</value></data>
+  <data name="An hourly price of {0} gp ({1}) looked like an unusual change and wasn’t used. The trusted value was kept." xml:space="preserve"><value>En timepris på {0} gp ({1}) lignede en usædvanlig ændring og blev ikke brugt. Den betroede værdi blev beholdt.</value></data>
+  <data name="Price source" xml:space="preserve"><value>Priskilde</value></data>
+  <data name="Manual value" xml:space="preserve"><value>Manuel værdi</value></data>
+  <data name="OSRS Wiki item ID" xml:space="preserve"><value>OSRS Wiki-genstands-id</value></data>
+  <data name="e.g. 12922" xml:space="preserve"><value>f.eks. 12922</value></data>
+  <data name="Validate and fetch price" xml:space="preserve"><value>Valider og hent pris</value></data>
+  <data name="Deactivate drop…" xml:space="preserve"><value>Deaktivér drop …</value></data>
+  <data name="Reactivate drop" xml:space="preserve"><value>Genaktivér drop</value></data>
+  <data name="Delete permanently…" xml:space="preserve"><value>Slet permanent …</value></data>
+  <data name="Availability" xml:space="preserve"><value>Tilgængelighed</value></data>
+  <data name="Deactivate" xml:space="preserve"><value>Deaktivér</value></data>
+  <data name="Reactivate" xml:space="preserve"><value>Genaktivér</value></data>
+  <data name="Hides it from new tiles. Draft boards that use it can’t be approved while it’s inactive; approved boards and history keep it." xml:space="preserve"><value>Skjuler den fra nye felter. Kladdeplader, der bruger den, kan ikke godkendes, mens den er inaktiv; godkendte plader og historik beholder den.</value></data>
+  <data name="Makes it available for new tiles again." xml:space="preserve"><value>Gør den tilgængelig for nye felter igen.</value></data>
+  <data name="Deactivate…" xml:space="preserve"><value>Deaktivér …</value></data>
+  <data name="Delete permanently" xml:space="preserve"><value>Slet permanent</value></data>
+  <data name="Only for an activity nothing uses. Super Admin only." xml:space="preserve"><value>Kun for en aktivitet, som intet bruger. Kun Super Admin.</value></data>
+  <data name="Delete…" xml:space="preserve"><value>Slet …</value></data>
+  <data name="Not added yet" xml:space="preserve"><value>Ikke tilføjet endnu</value></data>
+  <data name="Activity settings changed" xml:space="preserve"><value>Aktivitetsindstillinger ændret</value></data>
+  <data name="Save activity" xml:space="preserve"><value>Gem aktivitet</value></data>
+  <data name="New drop" xml:space="preserve"><value>Nyt drop</value></data>
+  <data name="e.g. Tanzanite fang" xml:space="preserve"><value>f.eks. Tanzanite fang</value></data>
+  <data name="1/512 or 2 x 1/1,024" xml:space="preserve"><value>1/512 eller 2 x 1/1,024</value></data>
+  <data name="Write it as shown on the Wiki. Your own chance, at the group size the activity rate uses." xml:space="preserve"><value>Skriv den som på Wikien. Din egen chance ved den gruppestørrelse, aktivitetens rate bruger.</value></data>
+  <data name="Catalogue value" xml:space="preserve"><value>Katalogværdi</value></data>
+  <data name="for the new item" xml:space="preserve"><value>for den nye genstand</value></data>
+  <data name="How to value it" xml:space="preserve"><value>Sådan værdisættes den</value></data>
+  <data name="Value in GP" xml:space="preserve"><value>Værdi i GP</value></data>
+  <data name="Hourly price" xml:space="preserve"><value>Timepris</value></data>
+  <data name="Manual" xml:space="preserve"><value>Manuel</value></data>
+  <data name="Untradeable" xml:space="preserve"><value>Kan ikke handles</value></data>
+  <data name="Enter value" xml:space="preserve"><value>Angiv værdi</value></data>
+  <data name="Fetch price" xml:space="preserve"><value>Hent pris</value></data>
+  <data name="Couldn’t load the catalogue" xml:space="preserve"><value>Kataloget kunne ikke indlæses</value></data>
+  <data name="no value yet" xml:space="preserve"><value>ingen værdi endnu</value></data>
+  <data name="value {0} gp" xml:space="preserve"><value>værdi {0} gp</value></data>
+  <data name="Checking what uses it…" xml:space="preserve"><value>Tjekker, hvad der bruger den …</value></data>
+  <data name="the new activity" xml:space="preserve"><value>den nye aktivitet</value></data>
+  <data name="the activity settings" xml:space="preserve"><value>aktivitetsindstillingerne</value></data>
+  <data name="your changes to {0}" xml:space="preserve"><value>dine ændringer af {0}</value></data>
+  <data name="the value and mapping changes for {0}" xml:space="preserve"><value>værdi- og koblingsændringerne for {0}</value></data>
+  <data name="the new drop" xml:space="preserve"><value>det nye drop</value></data>
+  <data name="Discard unsaved changes?" xml:space="preserve"><value>Kassér ikke-gemte ændringer?</value></data>
+  <data name="Discards {0}." xml:space="preserve"><value>Kasserer {0}.</value></data>
+  <data name="Keep editing" xml:space="preserve"><value>Fortsæt redigering</value></data>
+  <data name="Discard" xml:space="preserve"><value>Kassér</value></data>
+  <data name="Saving recalculates EHB for this activity’s {0} drops and any draft boards using them. Approved boards keep their snapshot." xml:space="preserve"><value>Når du gemmer, genberegnes EHB for aktivitetens {0} drops og kladdeplader, der bruger dem. Godkendte plader beholder deres øjebliksbillede.</value></data>
+  <data name="Without a rate, its drops have no EHB and draft tiles using them can’t be approved." xml:space="preserve"><value>Uden en rate har dens drops ingen EHB, og kladdefelter, der bruger dem, kan ikke godkendes.</value></data>
+  <data name="Enter a name." xml:space="preserve"><value>Angiv et navn.</value></data>
+  <data name="An activity named {0} already exists." xml:space="preserve"><value>Der findes allerede en aktivitet ved navn {0}.</value></data>
+  <data name="Enter a number above 0, like 35 or 7.5. Leave it empty if unknown." xml:space="preserve"><value>Angiv et tal over 0, f.eks. 35 eller 7,5. Lad feltet stå tomt, hvis det er ukendt.</value></data>
+  <data name="Enter a whole number of 1 or more." xml:space="preserve"><value>Angiv et helt tal på 1 eller mere.</value></data>
+  <data name="Enter a full link starting with https://." xml:space="preserve"><value>Angiv et fuldt link, der starter med https://.</value></data>
+  <data name="Adding…" xml:space="preserve"><value>Tilføjer …</value></data>
+  <data name="Saving…" xml:space="preserve"><value>Gemmer …</value></data>
+  <data name="{0} added. Add its drops next." xml:space="preserve"><value>{0} er tilføjet. Tilføj dens drops som det næste.</value></data>
+  <data name="{0} saved. EHB recalculated for its drops." xml:space="preserve"><value>{0} er gemt. EHB er genberegnet for dens drops.</value></data>
+  <data name="{0} saved." xml:space="preserve"><value>{0} er gemt.</value></data>
+  <data name="Another admin changed this activity." xml:space="preserve"><value>En anden administrator har ændret aktiviteten.</value></data>
+  <data name="Your changes weren’t saved. The current values are shown; check them and edit again." xml:space="preserve"><value>Dine ændringer blev ikke gemt. De aktuelle værdier vises; tjek dem, og rediger igen.</value></data>
+  <data name="That couldn’t be saved." xml:space="preserve"><value>Det kunne ikke gemmes.</value></data>
+  <data name="We couldn’t confirm the save." xml:space="preserve"><value>Vi kunne ikke bekræfte, at det blev gemt.</value></data>
+  <data name="It may have gone through. Check the current values before saving again." xml:space="preserve"><value>Det kan være gået igennem. Tjek de aktuelle værdier, før du gemmer igen.</value></data>
+  <data name="Check current values" xml:space="preserve"><value>Tjek aktuelle værdier</value></data>
+  <data name="Couldn’t check the current values." xml:space="preserve"><value>De aktuelle værdier kunne ikke tjekkes.</value></data>
+  <data name="It was added." xml:space="preserve"><value>Den blev tilføjet.</value></data>
+  <data name="The current values are shown." xml:space="preserve"><value>De aktuelle værdier vises.</value></data>
+  <data name="It wasn’t added." xml:space="preserve"><value>Den blev ikke tilføjet.</value></data>
+  <data name="Your entries are still here; add it again when ready." xml:space="preserve"><value>Dine indtastninger er her stadig; tilføj den igen, når du er klar.</value></data>
+  <data name="Saved." xml:space="preserve"><value>Gemt.</value></data>
+  <data name="The current values match what you entered." xml:space="preserve"><value>De aktuelle værdier svarer til det, du indtastede.</value></data>
+  <data name="It wasn’t saved." xml:space="preserve"><value>Det blev ikke gemt.</value></data>
+  <data name="Your entries are still here; save again when ready." xml:space="preserve"><value>Dine indtastninger er her stadig; gem igen, når du er klar.</value></data>
+  <data name="Suggested “{0}”. Validate to save it." xml:space="preserve"><value>Foreslog “{0}”. Valider for at gemme den.</value></data>
+  <data name="Wise Old Man isn’t responding. Nothing changed; you can still enter the metric yourself." xml:space="preserve"><value>Wise Old Man svarer ikke. Intet blev ændret; du kan stadig selv angive metrikken.</value></data>
+  <data name="Saved and verified. Wise Old Man tracks this metric; not every player will have data." xml:space="preserve"><value>Gemt og bekræftet. Wise Old Man følger metrikken; ikke alle spillere vil have data.</value></data>
+  <data name="Saved. Wise Old Man doesn’t recognise this metric; check the exact activity or raid mode." xml:space="preserve"><value>Gemt. Wise Old Man genkender ikke metrikken; tjek den præcise aktivitet eller raid-tilstand.</value></data>
+  <data name="Saved. Wise Old Man couldn’t be reached to check it; validate again later." xml:space="preserve"><value>Gemt. Wise Old Man kunne ikke nås for at tjekke den; valider igen senere.</value></data>
+  <data name="Saved without checking." xml:space="preserve"><value>Gemt uden tjek.</value></data>
+  <data name="Saved. No metric is set, so events can’t show Wise Old Man activity for it." xml:space="preserve"><value>Gemt. Der er ingen metrik, så events kan ikke vise Wise Old Man-aktivitet for den.</value></data>
+  <data name="We couldn’t confirm the save. Check the current values before saving again." xml:space="preserve"><value>Vi kunne ikke bekræfte, at det blev gemt. Tjek de aktuelle værdier, før du gemmer igen.</value></data>
+  <data name="{0} rolls of 1 in {1}" xml:space="preserve"><value>{0} kast med 1 ud af {1}</value></data>
+  <data name="about {0} EHB" xml:space="preserve"><value>ca. {0} EHB</value></data>
+  <data name="no EHB until the activity has a rate" xml:space="preserve"><value>ingen EHB, før aktiviteten har en rate</value></data>
+  <data name="This activity already has a drop named {0}." xml:space="preserve"><value>Aktiviteten har allerede et drop ved navn {0}.</value></data>
+  <data name="Confirm using the shared item, or change the name." xml:space="preserve"><value>Bekræft brugen af den delte genstand, eller skift navnet.</value></data>
+  <data name="Enter a rate like 1/512, 3/1,024 or 2 x 1/1,024." xml:space="preserve"><value>Angiv en rate som 1/512, 3/1,024 eller 2 x 1/1,024.</value></data>
+  <data name="Renames the shared item for {0} too." xml:space="preserve"><value>Omdøber også den delte genstand for {0}.</value></data>
+  <data name="Point this drop at the shared item instead. The current item keeps its own value and history." xml:space="preserve"><value>Lad dette drop pege på den delte genstand i stedet. Den nuværende genstand beholder sin egen værdi og historik.</value></data>
+  <data name="Used by {0} · {1}. Its rate here stays {2}." xml:space="preserve"><value>Bruges af {0} · {1}. Raten her forbliver {2}.</value></data>
+  <data name="no activity" xml:space="preserve"><value>ingen aktivitet</value></data>
+  <data name="Like 1/512, 3/1,024 or 2 x 1/1,024." xml:space="preserve"><value>F.eks. 1/512, 3/1,024 eller 2 x 1/1,024.</value></data>
+  <data name="{0} EHB" xml:space="preserve"><value>{0} EHB</value></data>
+  <data name="The activity has no runs per hour. Add it in Settings above." xml:space="preserve"><value>Aktiviteten har ingen gennemførelser pr. time. Tilføj det under Indstillinger ovenfor.</value></data>
+  <data name="The activity has no kills per hour. Add it in Settings above." xml:space="preserve"><value>Aktiviteten har ingen drab pr. time. Tilføj det under Indstillinger ovenfor.</value></data>
+  <data name="The rate can’t be turned into a probability. Enter it like 1/512." xml:space="preserve"><value>Raten kan ikke omregnes til en sandsynlighed. Angiv den som 1/512.</value></data>
+  <data name="Was {0}. Approved boards keep their snapshot." xml:space="preserve"><value>Var {0}. Godkendte plader beholder deres øjebliksbillede.</value></data>
+  <data name="Hours to get one at {0} runs per hour." xml:space="preserve"><value>Timer for at få én ved {0} gennemførelser pr. time.</value></data>
+  <data name="Hours to get one at {0} kills per hour." xml:space="preserve"><value>Timer for at få én ved {0} drab pr. time.</value></data>
+  <data name="Saves the name, rate, image and roll group." xml:space="preserve"><value>Gemmer navn, rate, billede og kastegruppe.</value></data>
+  <data name="Saves the name, rate and image." xml:space="preserve"><value>Gemmer navn, rate og billede.</value></data>
+  <data name="Uses the Wiki hourly price for the item ID. Validate to fetch it." xml:space="preserve"><value>Bruger Wikiens timepris for genstands-id’et. Valider for at hente den.</value></data>
+  <data name="A fixed value. Price refreshes don’t change it. Zero is fine." xml:space="preserve"><value>En fast værdi. Prisopdateringer ændrer den ikke. Nul er fint.</value></data>
+  <data name="Stored as 0 GP and never priced." xml:space="preserve"><value>Gemmes som 0 GP og prissættes aldrig.</value></data>
+  <data name="“{0}” is already a shared item" xml:space="preserve"><value>“{0}” er allerede en delt genstand</value></data>
+  <data name="{0} saved. EHB recalculated." xml:space="preserve"><value>{0} er gemt. EHB er genberegnet.</value></data>
+  <data name="Another admin changed this drop or its shared item." xml:space="preserve"><value>En anden administrator har ændret droppet eller dets delte genstand.</value></data>
+  <data name="It may have gone through. Check before saving again." xml:space="preserve"><value>Det kan være gået igennem. Tjek, før du gemmer igen.</value></data>
+  <data name="It was saved. The current values match what you entered." xml:space="preserve"><value>Det blev gemt. De aktuelle værdier svarer til det, du indtastede.</value></data>
+  <data name="Change the shared item?" xml:space="preserve"><value>Ændre den delte genstand?</value></data>
+  <data name="The activities using it changed." xml:space="preserve"><value>De aktiviteter, der bruger den, har ændret sig.</value></data>
+  <data name="Check the list again before confirming." xml:space="preserve"><value>Tjek listen igen, før du bekræfter.</value></data>
+  <data name="This also renames it for {0}." xml:space="preserve"><value>Det omdøber den også for {0}.</value></data>
+  <data name="This also changes its image for {0}." xml:space="preserve"><value>Det ændrer også dens billede for {0}.</value></data>
+  <data name="Names and images belong to the item, so every activity that uses it shows the change." xml:space="preserve"><value>Navne og billeder hører til genstanden, så alle aktiviteter, der bruger den, viser ændringen.</value></data>
+  <data name="Rename everywhere" xml:space="preserve"><value>Omdøb overalt</value></data>
+  <data name="Change everywhere" xml:space="preserve"><value>Ændr overalt</value></data>
+  <data name="Suggested an ID for “{0}”. Validate to save it." xml:space="preserve"><value>Foreslog et id for “{0}”. Valider for at gemme det.</value></data>
+  <data name="The item list couldn’t be reached. Nothing changed; enter the ID yourself or try later." xml:space="preserve"><value>Genstandslisten kunne ikke nås. Intet blev ændret; angiv selv id’et, eller prøv senere.</value></data>
+  <data name="Enter whole GP, like 2500. Zero is fine." xml:space="preserve"><value>Angiv hele GP, f.eks. 2500. Nul er fint.</value></data>
+  <data name="Enter a value. Zero is fine." xml:space="preserve"><value>Angiv en værdi. Nul er fint.</value></data>
+  <data name="Item IDs are whole numbers, like 12922." xml:space="preserve"><value>Genstands-id’er er hele tal, f.eks. 12922.</value></data>
+  <data name="That couldn’t be saved. Check the ID and value and try again." xml:space="preserve"><value>Det kunne ikke gemmes. Tjek id og værdi, og prøv igen.</value></data>
+  <data name="Use the shared item for this drop. Its name, image and value stay shared; the rate is only for this activity." xml:space="preserve"><value>Brug den delte genstand til dette drop. Dens navn, billede og værdi forbliver delte; raten gælder kun denne aktivitet.</value></data>
+  <data name="Used by {0} · {1}." xml:space="preserve"><value>Bruges af {0} · {1}.</value></data>
+  <data name="no activity yet" xml:space="preserve"><value>ingen aktivitet endnu</value></data>
+  <data name="Zero is fine. Manual values stay fixed when prices refresh." xml:space="preserve"><value>Nul er fint. Manuelle værdier forbliver faste, når priser opdateres.</value></data>
+  <data name="Looks up the exact name and its hourly price when you add the drop. If that fails, nothing is added." xml:space="preserve"><value>Slår det præcise navn og dets timepris op, når du tilføjer droppet. Hvis det mislykkes, tilføjes intet.</value></data>
+  <data name="Stored as 0 GP and marked untradeable." xml:space="preserve"><value>Gemmes som 0 GP og markeres som ikke-handlbar.</value></data>
+  <data name="Fetch price and add" xml:space="preserve"><value>Hent pris og tilføj</value></data>
+  <data name="{0} is already a drop for this activity." xml:space="preserve"><value>{0} er allerede et drop for denne aktivitet.</value></data>
+  <data name="Enter a value for the new item. Zero is fine." xml:space="preserve"><value>Angiv en værdi for den nye genstand. Nul er fint.</value></data>
+  <data name="Fetching…" xml:space="preserve"><value>Henter …</value></data>
+  <data name="{0} reactivated on {1}." xml:space="preserve"><value>{0} er genaktiveret på {1}.</value></data>
+  <data name="{0} added to {1}." xml:space="preserve"><value>{0} er tilføjet til {1}.</value></data>
+  <data name="Added with a manual value." xml:space="preserve"><value>Tilføjet med en manuel værdi.</value></data>
+  <data name="{0} The drop wasn’t added. Enter a manual value (zero is fine) and add it; you can set up price fetching later." xml:space="preserve"><value>{0} Droppet blev ikke tilføjet. Angiv en manuel værdi (nul er fint), og tilføj det; du kan opsætte prishentning senere.</value></data>
+  <data name="We couldn’t confirm whether it was added. Check the list below before adding it again." xml:space="preserve"><value>Vi kunne ikke bekræfte, om det blev tilføjet. Tjek listen nedenfor, før du tilføjer det igen.</value></data>
+  <data name="(correction)" xml:space="preserve"><value>(rettelse)</value></data>
+  <data name="and 1 hidden event" xml:space="preserve"><value>og 1 skjult event</value></data>
+  <data name="and {0} hidden events" xml:space="preserve"><value>og {0} skjulte events</value></data>
+  <data name="Deactivate {0}?" xml:space="preserve"><value>Vil du deaktivere {0}?</value></data>
+  <data name="It changed since you opened it." xml:space="preserve"><value>Den er ændret, siden du åbnede den.</value></data>
+  <data name="Another admin edited it. Close this, check the current values and try again." xml:space="preserve"><value>En anden administrator har redigeret den. Luk dette, tjek de aktuelle værdier, og prøv igen.</value></data>
+  <data name="Couldn’t check what uses it." xml:space="preserve"><value>Det kunne ikke tjekkes, hvad der bruger den.</value></data>
+  <data name="Nothing was changed. Close this and try again." xml:space="preserve"><value>Intet blev ændret. Luk dette, og prøv igen.</value></data>
+  <data name="It can’t be picked for new tiles. Its {0} drops stay with it." xml:space="preserve"><value>Den kan ikke vælges til nye felter. Dens {0} drops bliver hos den.</value></data>
+  <data name="It can’t be picked for new tiles. It stays on {0} and can be reactivated." xml:space="preserve"><value>Det kan ikke vælges til nye felter. Det bliver på {0} og kan genaktiveres.</value></data>
+  <data name="Draft boards that use it can’t be approved until it’s reactivated or those tiles change:" xml:space="preserve"><value>Kladdeplader, der bruger den, kan ikke godkendes, før den genaktiveres, eller felterne ændres:</value></data>
+  <data name="No draft board uses it now." xml:space="preserve"><value>Ingen kladdeplade bruger den nu.</value></data>
+  <data name="Approved and published boards keep their snapshot." xml:space="preserve"><value>Godkendte og offentliggjorte plader beholder deres øjebliksbillede.</value></data>
+  <data name="You can reactivate it at any time." xml:space="preserve"><value>Du kan genaktivere den når som helst.</value></data>
+  <data name="Deactivating…" xml:space="preserve"><value>Deaktiverer …</value></data>
+  <data name="Deactivate {0}" xml:space="preserve"><value>Deaktivér {0}</value></data>
+  <data name="{0} deactivated. Draft boards that use it can’t be approved until it’s reactivated." xml:space="preserve"><value>{0} er deaktiveret. Kladdeplader, der bruger den, kan ikke godkendes, før den genaktiveres.</value></data>
+  <data name="{0} deactivated. It stays in the catalogue and can be reactivated." xml:space="preserve"><value>{0} er deaktiveret. Den bliver i kataloget og kan genaktiveres.</value></data>
+  <data name="Reactivate {0}" xml:space="preserve"><value>Genaktivér {0}</value></data>
+  <data name="{0} reactivated. It can be picked for new tiles again." xml:space="preserve"><value>{0} er genaktiveret. Den kan vælges til nye felter igen.</value></data>
+  <data name="{0} reactivated. It can be picked for tiles again." xml:space="preserve"><value>{0} er genaktiveret. Det kan vælges til felter igen.</value></data>
+  <data name="Delete {0} permanently?" xml:space="preserve"><value>Vil du slette {0} permanent?</value></data>
+  <data name="{0} can’t be deleted" xml:space="preserve"><value>{0} kan ikke slettes</value></data>
+  <data name="It’s in use." xml:space="preserve"><value>Den er i brug.</value></data>
+  <data name="It has drops or is used by boards, so deleting it would break them. Deactivate it instead; it can be reactivated later." xml:space="preserve"><value>Den har drops eller bruges af plader, så sletning ville ødelægge dem. Deaktivér den i stedet; den kan genaktiveres senere.</value></data>
+  <data name="Boards use this drop, so deleting it would break them. Deactivate it instead." xml:space="preserve"><value>Plader bruger dette drop, så sletning ville ødelægge dem. Deaktivér det i stedet.</value></data>
+  <data name="Deactivate instead" xml:space="preserve"><value>Deaktivér i stedet</value></data>
+  <data name="Nothing uses it. It’s removed from the catalogue for good; this can’t be undone." xml:space="preserve"><value>Intet bruger den. Den fjernes fra kataloget for altid; det kan ikke fortrydes.</value></data>
+  <data name="Shared items, prices and Audit history are kept." xml:space="preserve"><value>Delte genstande, priser og revisionshistorik bevares.</value></data>
+  <data name="Only this activity’s drop is removed. The shared item, its value and Audit history are kept." xml:space="preserve"><value>Kun aktivitetens drop fjernes. Den delte genstand, dens værdi og revisionshistorik bevares.</value></data>
+  <data name="Deleting…" xml:space="preserve"><value>Sletter …</value></data>
+  <data name="Delete {0} permanently" xml:space="preserve"><value>Slet {0} permanent</value></data>
+  <data name="{0} permanently deleted. Shared items, prices and Audit history are kept." xml:space="preserve"><value>{0} er slettet permanent. Delte genstande, priser og revisionshistorik bevares.</value></data>
+  <data name="{0} permanently deleted from this activity. The shared item is kept." xml:space="preserve"><value>{0} er slettet permanent fra aktiviteten. Den delte genstand bevares.</value></data>
+  <data name="It became used by a board meanwhile, so it wasn’t deleted. Deactivate it instead." xml:space="preserve"><value>Den er imens blevet brugt af en plade, så den blev ikke slettet. Deaktivér den i stedet.</value></data>
+  <data name="It wasn’t deleted." xml:space="preserve"><value>Den blev ikke slettet.</value></data>
+  <data name="We couldn’t confirm the deletion. Close this and check the current values." xml:space="preserve"><value>Vi kunne ikke bekræfte sletningen. Luk dette, og tjek de aktuelle værdier.</value></data>
+  <data name="Activity changes discarded." xml:space="preserve"><value>Aktivitetsændringer er kasseret.</value></data>
+  <data name="Rate" xml:space="preserve"><value>Rate</value></data>
+  <data name="Unavailable" xml:space="preserve"><value>Utilgængelig</value></data>
+  <data name="An item named {0} already exists as a shared item. Confirm using that shared item, or change the name. Nothing was saved." xml:space="preserve"><value>Der findes allerede en delt genstand ved navn {0}. Bekræft brugen af den delte genstand, eller skift navnet. Intet blev gemt.</value></data>
+  <data name="No exact match. Enter the metric for this exact activity or raid mode." xml:space="preserve"><value>Intet præcist match. Angiv metrikken for præcis denne aktivitet eller raid-tilstand.</value></data>
+  <data name="Wise Old Man is limiting requests. Nothing changed; try again later." xml:space="preserve"><value>Wise Old Man begrænser forespørgsler. Intet blev ændret; prøv igen senere.</value></data>
+  <data name="No unique exact-name match. Enter the exact item ID, or mark it untradeable. Nothing changed." xml:space="preserve"><value>Intet entydigt match på det præcise navn. Angiv det præcise genstands-id, eller markér den som ikke-handlbar. Intet blev ændret.</value></data>
+  <data name="The price service is limiting requests, so the ID wasn’t checked." xml:space="preserve"><value>Pristjenesten begrænser forespørgsler, så id’et blev ikke tjekket.</value></data>
+  <data name="The price service isn’t responding, so the ID wasn’t checked." xml:space="preserve"><value>Pristjenesten svarer ikke, så id’et blev ikke tjekket.</value></data>
+  <data name="The stored value was kept." xml:space="preserve"><value>Den gemte værdi blev beholdt.</value></data>
+  <data name="No value is stored yet; enter a manual value or validate later." xml:space="preserve"><value>Der er ingen gemt værdi endnu; angiv en manuel værdi, eller valider senere.</value></data>
+  <data name="Saved. This ID isn’t in the tradeable item list; check the exact variant, or mark it untradeable." xml:space="preserve"><value>Gemt. Id’et er ikke på listen over handlbare genstande; tjek den præcise variant, eller markér den som ikke-handlbar.</value></data>
+  <data name="Verified. Hourly price saved: {0}." xml:space="preserve"><value>Bekræftet. Timepris gemt: {0}.</value></data>
+  <data name="Verified. The new price looked like an unusual change, so the trusted value was kept. Review it or enter a checked manual value." xml:space="preserve"><value>Bekræftet. Den nye pris lignede en usædvanlig ændring, så den betroede værdi blev beholdt. Gennemgå den, eller angiv en tjekket manuel værdi.</value></data>
+  <data name="Verified. Your chosen value was kept." xml:space="preserve"><value>Bekræftet. Din valgte værdi blev beholdt.</value></data>
+  <data name="Saved. {0} is a fixed value; price refreshes won’t change it." xml:space="preserve"><value>Gemt. {0} er en fast værdi; prisopdateringer ændrer den ikke.</value></data>
+  <data name="Saved as untradeable (0 GP)." xml:space="preserve"><value>Gemt som ikke-handlbar (0 GP).</value></data>
+  <data name="The old price was cleared with the old ID; validate or enter a manual value." xml:space="preserve"><value>Den gamle pris blev ryddet sammen med det gamle id; valider, eller angiv en manuel værdi.</value></data>
+  <data name="Validate to fetch the hourly price." xml:space="preserve"><value>Valider for at hente timeprisen.</value></data>
+  <data name="No unique exact-name item was found, so there’s no price." xml:space="preserve"><value>Der blev ikke fundet en entydig genstand med det præcise navn, så der er ingen pris.</value></data>
+  <data name="The price service is limiting requests." xml:space="preserve"><value>Pristjenesten begrænser forespørgsler.</value></data>
+  <data name="The price service isn’t responding." xml:space="preserve"><value>Pristjenesten svarer ikke.</value></data>
+  <data name="the Wise Old Man metric" xml:space="preserve"><value>Wise Old Man-metrikken</value></data>
 </root>

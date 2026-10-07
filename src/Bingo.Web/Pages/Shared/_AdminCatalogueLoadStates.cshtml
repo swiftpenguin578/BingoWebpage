@@ -1,0 +1,39 @@
+@inject IStringLocalizer<AdminCommunityResource> D
+@{
+    var categories = new[] { "All", "Boss", "Skilling boss", "Minigame" };
+    var columns = new[] { ("Activity", "c-name"), ("Rate", "ct-num"), ("Drops", "ct-num"), ("Needs attention", ""), ("Status", "") };
+}
+@* Lane T: Catalogue page-family load states. Add activity is a usable link from the first frame, as Events’ Create event (T2 early look). Fresh on every visit: no remembered counts or rows.
+   Count summaries load like the tab counts: fixed words, a number-sized bar per number. *@
+<template data-page-header-template="catalogue">
+    <header class="page-head" data-page-family="catalogue"><div style="min-width:0"><h1 class="h1" tabindex="-1">@D["Catalogue"]</h1><p class="summary" aria-hidden="true">@{ var activeParts = D["{0} active activities"].Value.Split("{0}"); var dropParts = D["{0} drops"].Value.Split("{0}"); }<span>@activeParts[0]<b class="tnum ct-sk-count"><span class="sk"></span></b>@activeParts[^1]</span><span>@dropParts[0]<b class="tnum ct-sk-count"><span class="sk"></span></b>@dropParts[^1]</span><span>@D["Shared by every event’s board estimates"]</span></p></div><div class="head-actions"><a class="btn btn-primary" href="/Admin/Catalogue?new=1" data-catalogue-new><partial name="_AdminDesignIcon" model='new AdminDesignIcon("plus")' />@D["Add activity"]</a></div></header>
+</template>
+@foreach (var failed in new[] { false, true })
+{
+    <template data-page-@(failed ? "failure" : "loading")-template="catalogue" data-page-title="@(failed ? null : D["Catalogue"].Value)">
+        <link rel="stylesheet" href="~/css/admin-design-catalogue.css" asp-append-version="true" />
+        <div data-catalogue-pending>
+        <div class="toolbar ct-toolbar" role="search" aria-label="@D["Find activities and drops"]">
+            <div class="tbar-right ct-filters">
+                <div class="search"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("search")' /><input class="input" type="search" placeholder="@D["Search activities and drops"]" aria-label="@D["Search activities and drops"]" autocomplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" disabled></div>
+                <div class="seg" role="radiogroup" aria-label="@D["Category"]">@foreach (var label in categories) { <label class="seg-opt @(label == "All" ? "is-on" : null)"><input class="sr" type="radio" name="pending-ct-cat" checked="@(label == "All")" disabled>@D[label]</label> }</div>
+            </div>
+            <div class="tabs" role="radiogroup" aria-label="@D["Status"]"><label class="tab is-on"><input class="sr" type="radio" name="pending-ct-status" checked disabled><span>@D["Active"]</span><span class="tab-count"><span class="sk ct-sk-tab"></span></span></label><label class="tab"><input class="sr" type="radio" name="pending-ct-status" disabled><span>@D["Inactive"]</span><span class="tab-count"><span class="sk ct-sk-tab"></span></span></label></div>
+        </div>
+        <div class="card"><div class="tbl-wrap"><div class="tbl ct-tbl sticky-first" role="table" aria-label="@D["Activities"]" aria-busy="@(failed ? "false" : "true")">
+            <div class="tr th-row" role="row">@foreach (var (label, cls) in columns) { <div class="th @cls" role="columnheader">@D[label]</div> }</div>
+            @if (failed)
+            {
+                <div class="empty is-error" role="row"><div role="cell" class="ct-cell-contents"><div class="empty-ic"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("error")' /></div><div class="empty-title">@D["Couldn’t load the catalogue"]</div><div class="empty-text">@D["Nothing was changed. Try again."]</div><button class="btn" type="button" data-load-retry>@D["Try again"]</button></div></div>
+            }
+            else
+            {
+                @foreach (var width in new[] { 60, 45, 70, 52, 66, 40 })
+                {
+                    <div class="tr sk-row" role="row" aria-hidden="true"><div class="td c-name"><div class="ct-who"><span class="sk ct-sk-thumb"></span><span class="ct-sk-text"><span class="sk ct-sk-name" style="width:@(width)%"></span></span></div></div><div class="td"><div class="ct-sk-line"><div class="sk ct-sk-w60"></div></div></div><div class="td"><div class="ct-sk-line"><div class="sk ct-sk-w30"></div></div></div><div class="td"><div class="ct-sk-line"><div class="sk ct-sk-w50"></div></div></div><div class="td"><div class="ct-sk-line"><div class="sk ct-sk-w50"></div></div></div></div>
+                }
+            }
+        </div></div></div>
+        </div>
+    </template>
+}
