@@ -72,6 +72,15 @@ public static class UiReviewScenarioCatalogue
         Add("Accounts / Catalogue / Audit", "Reviewed local catalogue", "/Admin/Catalogue/Index");
         Add("Hidden / Audit", "Audit including hidden events", "/Admin/Audit/Index", "ReviewOwner");
         Add("Hidden / Audit", "Plain Admin retained audit — including hidden-event history", "/Admin/Audit/Index");
+        // T1 Audit binding scenarios (lane T).
+        var hiddenReview = scenarios.Events.First(value => value.Hidden);
+        Add("Audit", "History, newest first — filters, chips and the entry drawer", "/Admin/Audit");
+        Add("Audit", "Participants area (S11) — moved team membership keys", "/Admin/Audit?action=participant.");
+        Add("Audit", "Signups area (S11) — automatic signup opening failures, Automated", "/Admin/Audit?action=signup.");
+        Add("Audit", "Actor search ignores case and a leading @", "/Admin/Audit?actor=%40reviewowner");
+        Add("Audit", "Hidden event history, marked Hidden", $"/Admin/Audit?event={hiddenReview.Id}", "ReviewOwner");
+        Add("Audit", "Link with unrecognised filters — notice, the rest applies", "/Admin/Audit?type=spaceship&from=2027-13-40&actor=ReviewOwner");
+        Add("Audit", "Entry link that isn’t available", "/Admin/Audit?entry=00000000-0000-0000-0000-000000000001");
         foreach (var account in scenarios.Accounts)
         {
             if (account.Disabled)

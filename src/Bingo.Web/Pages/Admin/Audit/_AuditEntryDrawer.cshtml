@@ -1,0 +1,83 @@
+@model Bingo.Web.Pages.Admin.Audit.AuditEntryView
+@using Bingo.Web.Pages.Admin.Audit
+@inject IStringLocalizer<AdminCommunityResource> D
+@inject IStringLocalizer<Bingo.Web.AuditResource> A
+@{
+    var entry = Model.Entry;
+    var p = Model.Presentation;
+    var lifecycle = p.LifecycleSummary;
+    var hasContext = p.Reason is { Length: > 0 } || p.Context is { Length: > 0 };
+    var contextTitle = p.Reason is { Length: > 0 } && p.Context is { Length: > 0 } ? D["Reason and context"] : p.Reason is { Length: > 0 } ? D["Reason"] : D["Context"];
+    var type = A[AuditPresenter.TargetLabels.GetValueOrDefault(entry.TargetType, "Recorded target")].Value;
+    var local = DateTimePresentation.ToTimezone(entry.OccurredAt);
+}
+@* Read-only entry (reference drawer); the page script moves it into the shared drawer layer. *@
+<template data-audit-detail="@entry.Id">
+    <div class="dr-head">
+        <div class="grow">
+            <div class="eyebrow">@local.ToString("ddd, d MMM yyyy", CultureInfo.CurrentCulture)</div>
+            <h2 class="dr-title" id="drawer-title">@p.Action</h2>
+            <div class="dr-badges"><span class="badge badge-neutral">@type</span>@if (Model.Automated) { <span class="badge badge-neutral">@D["Automated"]</span> }@if (Model.Event?.IsHidden == true) { <span class="badge badge-outline">@D["Hidden event"]</span> }</div>
+        </div>
+        <button class="icon-btn" type="button" id="drawer-close" aria-label="@D["Close"]" data-audit-drawer-close><partial name="_AdminDesignIcon" model='new AdminDesignIcon("close")' /></button>
+    </div>
+    <div class="dr-body" id="drawer-body">
+        <section class="sec" aria-label="@D["Summary"]">
+            <dl class="kv au-kv">
+                <dt>@D["When"]</dt><dd>@local.ToString("dddd d MMMM yyyy, HH:mm:ss", CultureInfo.CurrentCulture) (@IndexModel.Offset(entry.OccurredAt))</dd>
+                <dt>@D["Actor"]</dt><dd>@(Model.Automated ? D["System (automatic)"].Value : "@" + p.Actor)</dd>
+                <dt>@D["Event"]</dt><dd>@(Model.Event is { } ev ? ev.Name : Model.HasEvent ? D["Unknown event"].Value : D["No event recorded"].Value)@if (Model.Event?.IsHidden == true) { <text> </text><span class="pill is-neutral">@D["Hidden"]</span> }</dd>
+                <dt>@D["Record"]</dt><dd>@p.Target</dd>
+            </dl>
+        </section>
+        @if (hasContext)
+        {
+            <section class="sec" aria-labelledby="dr-ctx">
+                <div class="sec-head"><h3 class="sec-title" id="dr-ctx">@contextTitle</h3></div>
+                @if (p.Reason is { Length: > 0 } reason) { <div class="quote au-reason">@reason</div> }
+                @if (p.Context is { Length: > 0 } context) { <p class="au-lifecycle">@context</p> }
+            </section>
+        }
+        <section class="sec" aria-labelledby="dr-chg">
+            <div class="sec-head"><h3 class="sec-title" id="dr-chg">@D["Changes"]</h3>@if (p.Changes.Count > 0) { <span class="sec-aside">@(p.Changes.Count == 1 ? D["1 field"] : D["{0} fields", p.Changes.Count])</span> }</div>
+            @if (p.Changes.Count > 0)
+            {
+                <div class="chg" role="table" aria-label="@D["Field changes"]">
+                    <div class="chg-head" role="row"><span role="columnheader">@D["Field"]</span><span role="columnheader">@D["Before"]</span><span aria-hidden="true"></span><span role="columnheader">@D["After"]</span></div>
+                    @foreach (var change in p.Changes)
+                    {
+                        var longValue = Math.Max(change.Before.Length, change.After.Length) > 180;
+                        <div class="chg-row" role="row">
+                            <span class="chg-field" role="rowheader">@change.Field</span>
+                            <span role="cell"><span class="chg-val is-before @(change.Before == "—" ? "is-empty" : null) @(longValue ? "is-clamped" : null)"><em class="chg-k">@D["Before"]</em>@change.Before</span>@if (longValue) { <button type="button" class="text-btn chg-more" aria-expanded="false" data-audit-clamp data-more="@D["Show full values"]" data-less="@D["Show less"]">@D["Show full values"]</button> }</span>
+                            <span class="chg-arrow" aria-hidden="true"><svg class="ic" viewBox="0 0 16 16"><path d="M3 8h9.5M8.5 4l4 4-4 4"/></svg></span>
+                            <span role="cell"><span class="chg-val @(change.After == "—" ? "is-empty" : null) @(longValue ? "is-clamped" : null)"><em class="chg-k">@D["After"]</em>@change.After</span></span>
+                        </div>
+                    }
+                </div>
+            }
+            else
+            {
+                <p class="au-muted-p">@(p.Sensitive ? D["Details are withheld because this action concerns a code, password or credential."]
+                    : lifecycle == A["Added"].Value ? D["A new record was added; there were no earlier values to compare. Its recorded values are in Technical details."]
+                    : lifecycle == A["Deleted"].Value ? D["The record was deleted. Its last values are in Technical details."]
+                    : D["No field changes were recorded for this entry."])</p>
+            }
+        </section>
+        <section class="sec is-last">
+            <button class="disc-btn" type="button" id="dr-tech" aria-expanded="false" aria-controls="dr-tech-body" data-audit-tech><span class="sec-title au-disc-title">@D["Technical details"]</span><partial name="_AdminDesignIcon" model='new AdminDesignIcon("chevron-down")' /></button>
+            <dl class="kv au-tech" id="dr-tech-body" hidden>
+                <dt>@D["Action key"]</dt><dd><code class="code-inline">@p.ActionKey</code></dd>
+                @if (p.Details is { Length: > 0 } details) { <dt>@D["Details"]</dt><dd><pre class="code-block @(p.Sensitive || details == A["Historic details could not be interpreted."].Value ? "is-note" : null)">@details</pre></dd> }
+                @if (!p.Sensitive && p.BeforeState is { Length: > 0 } before) { <dt>@D["Before"]</dt><dd><pre class="code-block">@before</pre></dd> }
+                @if (!p.Sensitive && p.AfterState is { Length: > 0 } after) { <dt>@D["After"]</dt><dd><pre class="code-block">@after</pre></dd> }
+            </dl>
+        </section>
+    </div>
+    <div class="dr-foot">
+        <button class="btn btn-sm" type="button" id="dr-newer" aria-label="@D["Newer entry"]" data-audit-step="-1"><svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 10l4-4 4 4"/></svg>@D["Newer"]</button>
+        <button class="btn btn-sm" type="button" id="dr-older" aria-label="@D["Older entry"]" data-audit-step="1"><svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg>@D["Older"]</button>
+        <div class="spacer"></div>
+        <button class="btn" type="button" id="dr-done" data-audit-drawer-close>@D["Close"]</button>
+    </div>
+</template>

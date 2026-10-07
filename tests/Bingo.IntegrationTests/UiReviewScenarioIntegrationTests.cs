@@ -620,7 +620,8 @@ public sealed class UiReviewScenarioIntegrationTests(ITestOutputHelper output, P
                     var auditRoute = $"/Admin/Audit/Index?event={scenarios.DiscardedEventId}";
                     var auditHtml = await clients[username].GetStringAsync(auditRoute);
                     Assert.Contains($"data-audit-entry=\"{discardAuditId}\"", auditHtml, StringComparison.Ordinal);
-                    var auditLink = WebUtility.HtmlDecode(Regex.Match(auditHtml, "class=\"admin-audit-entry-link\"[^>]*href=\"([^\"]+)\"").Groups[1].Value);
+                    // A10 (T1): the bound Audit page links each entry from its action name.
+                    var auditLink = WebUtility.HtmlDecode(Regex.Match(auditHtml, $"class=\"name-btn\" id=\"open-{discardAuditId}\" href=\"([^\"]+)\"").Groups[1].Value);
                     Assert.NotEmpty(auditLink);
                     using var auditEntryResponse = await clients[username].GetAsync(auditLink);
                     Assert.Equal(HttpStatusCode.OK, auditEntryResponse.StatusCode);

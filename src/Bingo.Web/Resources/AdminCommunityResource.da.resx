@@ -471,4 +471,108 @@
   <data name="Current event roles" xml:space="preserve"><value>Aktuelle roller i events</value></data>
   <data name="accounts" xml:space="preserve"><value>konti</value></data>
   <data name="disabled" xml:space="preserve"><value>deaktiveret</value></data>
+  <!-- Lane T (T1): Audit -->
+  <data name="Reason and context" xml:space="preserve"><value>Begrundelse og sammenhæng</value></data>
+  <data name="Context" xml:space="preserve"><value>Sammenhæng</value></data>
+  <data name="Automated" xml:space="preserve"><value>Automatisk</value></data>
+  <data name="Hidden event" xml:space="preserve"><value>Skjult event</value></data>
+  <data name="Summary" xml:space="preserve"><value>Oversigt</value></data>
+  <data name="When" xml:space="preserve"><value>Tidspunkt</value></data>
+  <data name="Actor" xml:space="preserve"><value>Udført af</value></data>
+  <data name="System (automatic)" xml:space="preserve"><value>System (automatisk)</value></data>
+  <data name="Unknown event" xml:space="preserve"><value>Ukendt event</value></data>
+  <data name="No event recorded" xml:space="preserve"><value>Intet event registreret</value></data>
+  <data name="Record" xml:space="preserve"><value>Post</value></data>
+  <data name="Changes" xml:space="preserve"><value>Ændringer</value></data>
+  <data name="1 field" xml:space="preserve"><value>1 felt</value></data>
+  <data name="{0} fields" xml:space="preserve"><value>{0} felter</value></data>
+  <data name="Field changes" xml:space="preserve"><value>Feltændringer</value></data>
+  <data name="Field" xml:space="preserve"><value>Felt</value></data>
+  <data name="Show full values" xml:space="preserve"><value>Vis hele værdierne</value></data>
+  <data name="Show less" xml:space="preserve"><value>Vis mindre</value></data>
+  <data name="Details are withheld because this action concerns a code, password or credential." xml:space="preserve"><value>Oplysningerne vises ikke, fordi handlingen vedrører en kode, adgangskode eller legitimation.</value></data>
+  <data name="A new record was added; there were no earlier values to compare. Its recorded values are in Technical details." xml:space="preserve"><value>En ny post blev tilføjet; der var ingen tidligere værdier at sammenligne med. Dens registrerede værdier står under Tekniske oplysninger.</value></data>
+  <data name="The record was deleted. Its last values are in Technical details." xml:space="preserve"><value>Posten blev slettet. Dens sidste værdier står under Tekniske oplysninger.</value></data>
+  <data name="No field changes were recorded for this entry." xml:space="preserve"><value>Der blev ikke registreret feltændringer for denne post.</value></data>
+  <data name="Technical details" xml:space="preserve"><value>Tekniske oplysninger</value></data>
+  <data name="Action key" xml:space="preserve"><value>Handlingsnøgle</value></data>
+  <data name="Details" xml:space="preserve"><value>Detaljer</value></data>
+  <data name="Newer entry" xml:space="preserve"><value>Nyere post</value></data>
+  <data name="Newer" xml:space="preserve"><value>Nyere</value></data>
+  <data name="Older entry" xml:space="preserve"><value>Ældre post</value></data>
+  <data name="Older" xml:space="preserve"><value>Ældre</value></data>
+  <data name="Audit" xml:space="preserve"><value>Audit</value></data>
+  <data name="{0} actions" xml:space="preserve"><value>{0}-handlinger</value></data>
+  <data name="Administrative history, newest first." xml:space="preserve"><value>Administrativ historik, nyeste først.</value></data>
+  <data name="Times in Copenhagen time ({0})" xml:space="preserve"><value>Tider i københavnsk tid ({0})</value></data>
+  <data name="Enter dates like 27 May 2027." xml:space="preserve"><value>Skriv datoer som 27 maj 2027.</value></data>
+  <data name="The start date must be on or before the end date." xml:space="preserve"><value>Startdatoen skal være på eller før slutdatoen.</value></data>
+  <data name="Use 100 characters or fewer." xml:space="preserve"><value>Brug højst 100 tegn.</value></data>
+  <data name="Filter the history" xml:space="preserve"><value>Filtrer historikken</value></data>
+  <data name="Actor username" xml:space="preserve"><value>Brugernavn</value></data>
+  <data name="Filter by actor username" xml:space="preserve"><value>Filtrer efter brugernavn</value></data>
+  <data name="Clear actor filter" xml:space="preserve"><value>Ryd brugerfilter</value></data>
+  <data name="More filters" xml:space="preserve"><value>Flere filtre</value></data>
+  <data name="1 more filter applied" xml:space="preserve"><value>1 filter mere anvendt</value></data>
+  <data name="{0} more filters applied" xml:space="preserve"><value>{0} filtre mere anvendt</value></data>
+  <data name="Matches usernames containing what you type. Press Enter to apply." xml:space="preserve"><value>Matcher brugernavne, der indeholder det, du skriver. Tryk Enter for at anvende.</value></data>
+  <data name="Active filters" xml:space="preserve"><value>Aktive filtre</value></data>
+  <data name="Remove filter: {0}" xml:space="preserve"><value>Fjern filter: {0}</value></data>
+  <data name="Actor: {0}" xml:space="preserve"><value>Udført af: {0}</value></data>
+  <data name="Event: {0}" xml:space="preserve"><value>Event: {0}</value></data>
+  <data name="Action: {0}" xml:space="preserve"><value>Handling: {0}</value></data>
+  <data name="Record: {0}" xml:space="preserve"><value>Post: {0}</value></data>
+  <data name="From {0}" xml:space="preserve"><value>Fra {0}</value></data>
+  <data name="Until {0}" xml:space="preserve"><value>Til {0}</value></data>
+  <data name="Clear all" xml:space="preserve"><value>Ryd alle</value></data>
+  <data name="Some filters in the link weren’t recognised." xml:space="preserve"><value>Nogle filtre i linket blev ikke genkendt.</value></data>
+  <data name="They were left out; the rest are applied." xml:space="preserve"><value>De blev udeladt; resten er anvendt.</value></data>
+  <data name="Audit entries, newest first" xml:space="preserve"><value>Auditposter, nyeste først</value></data>
+  <data name="No event" xml:space="preserve"><value>Intet event</value></data>
+  <data name="System" xml:space="preserve"><value>System</value></data>
+  <data name="1 change" xml:space="preserve"><value>1 ændring</value></data>
+  <data name="{0} changes" xml:space="preserve"><value>{0} ændringer</value></data>
+  <data name="No entries on this page" xml:space="preserve"><value>Ingen poster på denne side</value></data>
+  <data name="No entries match these filters" xml:space="preserve"><value>Ingen poster matcher disse filtre</value></data>
+  <data name="No history yet" xml:space="preserve"><value>Ingen historik endnu</value></data>
+  <data name="The history may have changed since this link was made." xml:space="preserve"><value>Historikken kan have ændret sig, siden linket blev lavet.</value></data>
+  <data name="Try removing a filter or widening the date range." xml:space="preserve"><value>Prøv at fjerne et filter eller udvide datointervallet.</value></data>
+  <data name="Administrative actions appear here as they happen." xml:space="preserve"><value>Administrative handlinger vises her, når de sker.</value></data>
+  <data name="Showing 1 entry" xml:space="preserve"><value>Viser 1 post</value></data>
+  <data name="Showing {0} entries" xml:space="preserve"><value>Viser {0} poster</value></data>
+  <data name=" matching your filters" xml:space="preserve"><value> der matcher dine filtre</value></data>
+  <data name="Audit entry" xml:space="preserve"><value>Auditpost</value></data>
+  <data name="Entry not found" xml:space="preserve"><value>Post ikke fundet</value></data>
+  <data name="This entry isn’t available" xml:space="preserve"><value>Denne post er ikke tilgængelig</value></data>
+  <data name="The link may be incomplete, or the entry belongs to history you can’t view here. Audit entries are never edited or deleted." xml:space="preserve"><value>Linket er måske ufuldstændigt, eller posten hører til historik, du ikke kan se her. Auditposter bliver aldrig redigeret eller slettet.</value></data>
+  <data name="Event filter" xml:space="preserve"><value>Eventfilter</value></data>
+  <data name="All events" xml:space="preserve"><value>Alle events</value></data>
+  <data name="Hidden · {0}" xml:space="preserve"><value>Skjult · {0}</value></data>
+  <data name="Action filter" xml:space="preserve"><value>Handlingsfilter</value></data>
+  <data name="All actions" xml:space="preserve"><value>Alle handlinger</value></data>
+  <data name="Specific action" xml:space="preserve"><value>Bestemt handling</value></data>
+  <data name="Specific action…" xml:space="preserve"><value>Bestemt handling…</value></data>
+  <data name="Any action" xml:space="preserve"><value>Enhver handling</value></data>
+  <data name="Record type" xml:space="preserve"><value>Posttype</value></data>
+  <data name="Any record type" xml:space="preserve"><value>Enhver posttype</value></data>
+  <data name="Date range" xml:space="preserve"><value>Datointerval</value></data>
+  <data name="Copenhagen time" xml:space="preserve"><value>københavnsk tid</value></data>
+  <data name="From" xml:space="preserve"><value>Fra</value></data>
+  <data name="dd mmm yyyy" xml:space="preserve"><value>dd mmm åååå</value></data>
+  <data name="To" xml:space="preserve"><value>Til</value></data>
+  <data name="Both days are included. Leave either blank for no limit." xml:space="preserve"><value>Begge dage er medregnet. Lad et felt stå tomt for ingen grænse.</value></data>
+  <data name="Reset these" xml:space="preserve"><value>Nulstil disse</value></data>
+  <data name="Apply" xml:space="preserve"><value>Anvend</value></data>
+  <data name="Recorded" xml:space="preserve"><value>Registreret</value></data>
+  <data name="Today" xml:space="preserve"><value>I dag</value></data>
+  <data name="Last 7 days" xml:space="preserve"><value>Seneste 7 dage</value></data>
+  <data name="Last 30 days" xml:space="preserve"><value>Seneste 30 dage</value></data>
+  <data name="Couldn’t load the history" xml:space="preserve"><value>Historikken kunne ikke indlæses</value></data>
+  <data name="Your filters are kept. Check your connection and try again." xml:space="preserve"><value>Dine filtre er bevaret. Tjek din forbindelse, og prøv igen.</value></data>
+  <data name="Signups" xml:space="preserve"><value>Tilmeldinger</value></data>
+  <data name="Teams" xml:space="preserve"><value>Hold</value></data>
+  <data name="Draft" xml:space="preserve"><value>Draft</value></data>
+  <data name="Board" xml:space="preserve"><value>Plade</value></data>
+  <data name="Evidence" xml:space="preserve"><value>Dokumentation</value></data>
+  <data name="Catalogue" xml:space="preserve"><value>Katalog</value></data>
 </root>

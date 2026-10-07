@@ -792,7 +792,8 @@ public sealed class C11FinalizedRosterIntegrationTests(PostgreSqlTestFixture dat
             Assert.Null(audit.BeforeState);
             Assert.Null(audit.AfterState);
         }
-        const string actionRow = "<dt>Action key</dt><dd><code>team.role_roster_published</code></dd>";
+        // A10 (T1): the bound Audit page shows the key in the entry drawer's Technical details.
+        const string actionRow = "<code class=\"code-inline\">team.role_roster_published</code>";
         var auditPage = await admin.GetStringAsync($"/Admin/Audit?event={seed.EventId}");
         Assert.Contains("team.role_roster_published", auditPage);
         Assert.Contains(actionRow, auditPage);
@@ -805,7 +806,7 @@ public sealed class C11FinalizedRosterIntegrationTests(PostgreSqlTestFixture dat
             await db.SaveChangesAsync();
         }
         var hiddenAuditPage = await admin.GetStringAsync("/Admin/Audit?Action=team.role_roster_published");
-        Assert.DoesNotContain("No audit entries found", hiddenAuditPage);
+        Assert.DoesNotContain("No entries match these filters", hiddenAuditPage);
         Assert.Contains(actionRow, hiddenAuditPage);
     }
 

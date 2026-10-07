@@ -15,6 +15,7 @@ namespace Bingo.Web.Pages.Admin.Audit;
 // event id instead of a slug (:2163-2166). Unknown or invalid link parts are dropped with a notice and
 // the rest still applies (C-AUD-4). Hidden-event history stays visible to every Admin (AU16).
 [Authorize(Policy = AuthorizationPolicies.Admin)]
+[AdminDesign]
 public sealed class IndexModel(ApplicationDbContext dbContext, TimeProvider? time = null) : PageModel
 {
     public const int PageSize = 25;
@@ -50,6 +51,16 @@ public sealed class IndexModel(ApplicationDbContext dbContext, TimeProvider? tim
     public bool EntryUnavailable { get; private set; }
     public bool HasNextPage { get; private set; }
     public DateOnly Today { get; private set; }
+    public DateTimeOffset Now { get; private set; }
+
+    /// <summary>"UTC+02:00" for an instant in the display zone (summer and winter time).</summary>
+    public static string Offset(DateTimeOffset value)
+    {
+        var offset = DateTimePresentation.ToTimezone(value).Offset;
+        return "UTC" + (offset < TimeSpan.Zero ? "-" : "+") + offset.Duration().ToString(@"hh\:mm", CultureInfo.InvariantCulture);
+    }
+
+    public EventOption? EventOf(AuditEntry entry) => entry.EventId is { } id ? EventsById.GetValueOrDefault(id) : null;
 
     public async Task OnGetAsync(CancellationToken cancellationToken)
     {
@@ -61,7 +72,8 @@ public sealed class IndexModel(ApplicationDbContext dbContext, TimeProvider? tim
         // Ordered as on Events; Discarded events are omitted from the menu (Q7) while their entries stay listed.
         EventOptions = events.Where(item => item.State != EventState.Discarded)
             .OrderBy(item => item.SortGroup).ThenBy(item => item.SortDate is null).ThenBy(item => item.SortDate).ThenBy(item => item.Id).ToList();
-        Today = DateOnly.FromDateTime(DateTimePresentation.ToTimezone((time ?? TimeProvider.System).GetUtcNow()).DateTime);
+        Now = (time ?? TimeProvider.System).GetUtcNow();
+        Today = DateOnly.FromDateTime(DateTimePresentation.ToTimezone(Now).DateTime);
 
         ReadLink();
         var query = Filter(dbContext.AuditEntries.AsNoTracking());
