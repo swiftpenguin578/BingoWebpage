@@ -98,6 +98,7 @@ public static class AdminEventPagePolicies
                 ("GET:", AdminEventHandlerGate.Read),
                 ("GET:SearchOwnerAccounts", AdminEventHandlerGate.Read),
                 ("GET:Current", AdminEventHandlerGate.Read),
+                ("GET:OwnerAccounts", AdminEventHandlerGate.Read),
                 ("POST:SaveParticipant", AdminEventHandlerGate.Service),
                 ("POST:Withdraw", AdminEventHandlerGate.Setup),
                 ("POST:CancelWomValidation", AdminEventHandlerGate.Setup),
