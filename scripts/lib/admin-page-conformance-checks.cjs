@@ -134,7 +134,7 @@ async function checkSources(browser, registrations) {
   const page=await browser.newPage(),designChecks=[];
   const shared=fs.readFileSync('src/Bingo.Web/Resources/SharedResource.da.resx','utf8'),community=fs.readFileSync('src/Bingo.Web/Resources/AdminCommunityResource.da.resx','utf8');
   const resources=await page.evaluate(({shared,community})=>Object.fromEntries(Object.entries({T:shared,D:community}).map(([alias,xml])=>[alias,[...new DOMParser().parseFromString(xml,'text/xml').querySelectorAll('data')].filter(e=>e.querySelector('value')?.textContent.trim()).map(e=>e.getAttribute('name'))])),{shared,community});
-  try { for(const {family,source:pageSource,module} of registrations) {
+  try { for(const {family,source:pageSource,module,postSaveCount} of registrations) {
     const source=fs.readFileSync('src/Bingo.Web/wwwroot/css/admin-design-'+family+'.css','utf8');
     const bad=await page.evaluate(({source,family})=>{
       const style=document.createElement('style');style.textContent=source;document.head.append(style);const bad=[];
@@ -149,8 +149,7 @@ async function checkSources(browser, registrations) {
     assert.deepEqual(keys.filter(([,alias,key])=>!resources[alias].includes(key)).map(([,alias,key])=>alias+':'+key),[],family+': literal Danish resources');
     assert.match(markup,/class=\"(?:card|.*\bcard\b)|<partial /,family+': shared components');
     assert.ok(/export (?:async )?function init\(/.test(moduleSource),family+': exported init');assert.ok(/export (?:async )?function dispose\(/.test(moduleSource),family+': exported dispose');
-    if(family==='accounts')checkAccountSaveTiming(moduleSource);
-    else if(/ui\.busy\(/.test(moduleSource))assert.doesNotMatch(moduleSource,/setTimeout\([^;]*(?:600|250)/,'saves use shared busy timing');
+    checkSaveTiming(moduleSource,{family,postSaveCount});
     designChecks.push({family,frozen:true,scopedRules:true,sharedTokens:true,inlineGeometryOccurrences:(markup.match(/style=/g)||[]).length,literalDanishKeys:keys.length,sharedComponents:true,sharedBusy: /ui\.busy\(/.test(moduleSource)?'used':'no save in this module',sharedLifecycle:true});
   }} finally {await page.close();}
   return designChecks;
@@ -235,17 +234,33 @@ async function checkRegisteredLinks(page, paths) {
 }
 module.exports.checkRegisteredLinks=checkRegisteredLinks;
 
-// Accounts' search debounce is not a save. Its three direct POST transports must
-// remain inside the shared busy boundary; query/copy timers are unrelated.
-function checkAccountSaveTiming(source) {
-  const writes=source.split('\n').filter(line=>/AdminFetch\.request\(/.test(line)&&/method:\s*['"]POST['"]/.test(line));
-  assert.equal(writes.length,3,'Accounts: confirmation, reset-link and transfer save paths declared');
+// Count every POST transport, then verify its busy boundary. Concise shared
+// helpers return the busy promise; conditional GET/POST helpers are checked at
+// every write call. Search/query timers are outside these save paths.
+function checkSaveTiming(source, {family,postSaveCount}) {
+  assert.ok(Number.isInteger(postSaveCount)&&postSaveCount>=0,family+': POST save count declared');
+  const lines=source.split('\n');
+  const writes=lines.filter(line=>/AdminFetch\.request\(/.test(line)&&/method:\s*(?:['"]POST['"]|\w+\s*\?\s*['"]POST['"])/.test(line));
+  assert.equal(writes.length,postSaveCount,family+': declared POST save paths');
   for(const write of writes){
-    assert.match(write,/await ui\.busy\(\(\) => window\.AdminFetch\.request\(/,'Accounts save transport uses shared busy timing');
-    assert.doesNotMatch(write,/setTimeout\(/,'Accounts save has no local busy timer');
+    assert.doesNotMatch(write,/setTimeout\(/,family+' save has no local busy timer');
+    if(/await\s+ui\.busy\(\s*\(\)\s*=>\s*window\.AdminFetch\.request\(/.test(write))continue;
+    const returned=/const\s+(\w+)\s*=\s*\([^;]*\)\s*=>\s*ui\.busy\(\s*\(\)\s*=>\s*window\.AdminFetch\.request\(/.exec(write);
+    const conditional=/method:\s*\w+\s*\?\s*['"]POST['"]\s*:\s*['"]GET['"]/.test(write)
+      ? /const\s+(\w+)\s*=\s*\([^;]*\)\s*=>\s*window\.AdminFetch\.request\(/.exec(write) : null;
+    const helper=(returned||conditional)?.[1];
+    assert.ok(helper,family+' save transport uses shared busy timing');
+    const call=new RegExp('(?<![.\\w])'+helper+'\\(');
+    const calls=lines.filter(line=>line!==write&&call.test(line));
+    assert.ok(calls.length,family+': save helper has checked callers');
+    for(const caller of calls){
+      if(conditional&&new RegExp(helper+"\\('Current',null,").test(caller))continue; // Explicit GET only.
+      assert.doesNotMatch(caller,/setTimeout\(/,family+' save has no local busy timer');
+      assert.match(caller,new RegExp(returned?'await\\s+'+helper+'\\(':'await\\s+ui\\.busy\\(\\s*\\(\\)\\s*=>\\s*'+helper+'\\('),family+' save transport uses shared busy timing');
+    }
   }
 }
-module.exports.checkAccountSaveTiming=checkAccountSaveTiming;
+module.exports.checkSaveTiming=checkSaveTiming;
 
 function registeredBlockShifts(registration, loading, loaded, headerDelta) {
   return Object.fromEntries(Object.keys(registration.blocks).map(key => {
