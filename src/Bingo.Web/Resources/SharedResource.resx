@@ -73,88 +73,8 @@
   <data name="AdminDesign.Signups open" xml:space="preserve"><value>Signups open</value></data>
   <data name="AdminDesign.Signups close" xml:space="preserve"><value>Signups close</value></data>
   <data name="AdminDesign.When {0}’s stages happen, and what follows from those times." xml:space="preserve"><value>When {0}’s stages happen, and what follows from those times.</value></data>
-  <data name="Times are in {0}; change timezone on" xml:space="preserve"><value>Times are in {0}; change timezone on</value></data>
-  <data name="Opening, closing and starting by hand happen on" xml:space="preserve"><value>Opening, closing and starting by hand happen on</value></data>
-  <data name="This event is Live. Only its end can be changed." xml:space="preserve"><value>This event is Live. Only its end can be changed.</value></data>
-  <data name="This event’s schedule is history and is read-only. To accept uploads again or resume the event, use Overview." xml:space="preserve"><value>This event’s schedule is history and is read-only. To accept uploads again or resume the event, use Overview.</value></data>
   <data name="AdminDesign.Another admin saved this event while you were editing. Untouched fields have been updated. Your changes are kept; review before saving again." xml:space="preserve"><value>Another admin saved this event while you were editing. Untouched fields have been updated. Your changes are kept; review before saving again.</value></data>
-  <data name="Their saved version:" xml:space="preserve"><value>Their saved version:</value></data>
-  <data name="Your changes weren’t applied. They’re still here; save again when you’re ready." xml:space="preserve"><value>Your changes weren’t applied. They’re still here; save again when you’re ready.</value></data>
-  <data name="Change the published schedule?" xml:space="preserve"><value>Change the published schedule?</value></data>
-  <data name="Change when the event ends?" xml:space="preserve"><value>Change when the event ends?</value></data>
-  <data name="Players may already have seen these times. Review what changes before saving." xml:space="preserve"><value>Players may already have seen these times. Review what changes before saving.</value></data>
-  <data name="Teams keep playing until the new end. Uploads close 30 minutes later." xml:space="preserve"><value>Teams keep playing until the new end. Uploads close 30 minutes later.</value></data>
-  <data name="After saving" xml:space="preserve"><value>After saving</value></data>
-  <data name="Uploads close" xml:space="preserve"><value>Uploads close</value></data>
-  <data name="Reason for changing the end" xml:space="preserve"><value>Reason for changing the end</value></data>
-  <data name="This reason is recorded in the event’s history." xml:space="preserve"><value>This reason is recorded in the event’s history.</value></data>
-  <data name="Enter a reason for changing the Live event end." xml:space="preserve"><value>Enter a reason for changing the Live event end.</value></data>
-  <data name="Use 2,000 characters or fewer." xml:space="preserve"><value>Use 2,000 characters or fewer.</value></data>
-  <data name="That local time is ambiguous because the clocks change at that time. Choose another time." xml:space="preserve"><value>That local time is ambiguous because the clocks change at that time. Choose another time.</value></data>
-  <data name="The team draft time is saved at the same time." xml:space="preserve"><value>The team draft time is saved at the same time.</value></data>
-  <data name="{0}, date" xml:space="preserve"><value>{0}, date</value></data>
-  <data name="{0}, time (24-hour)" xml:space="preserve"><value>{0}, time (24-hour)</value></data>
-  <data name="Choose {0} from a calendar" xml:space="preserve"><value>Choose {0} from a calendar</value></data>
-  <data name="Calendar" xml:space="preserve"><value>Calendar</value></data>
-  <data name="This time is locked because its boundary has passed or the team draft is locked." xml:space="preserve"><value>This time is locked because its boundary has passed or the team draft is locked.</value></data>
-  <data name="(30 minutes after the event ends)." xml:space="preserve"><value>(30 minutes after the event ends).</value></data>
-  <data name="Choose date and time" xml:space="preserve"><value>Choose date and time</value></data>
-  <data name="Enter a date like 27 Jun 2027." xml:space="preserve"><value>Enter a date like 27 Jun 2027.</value></data>
-  <data name="Enter a time like 18:30." xml:space="preserve"><value>Enter a time like 18:30.</value></data>
-  <data name="Choose a time in five-minute steps." xml:space="preserve"><value>Choose a time in five-minute steps.</value></data>
-  <data name="Enter a date." xml:space="preserve"><value>Enter a date.</value></data>
-  <data name="Enter a time." xml:space="preserve"><value>Enter a time.</value></data>
-  <data name="Previous month" xml:space="preserve"><value>Previous month</value></data>
-  <data name="Next month" xml:space="preserve"><value>Next month</value></data>
   <data name="AdminDesign.Hour" xml:space="preserve"><value>Hour</value></data>
   <data name="AdminDesign.Minute" xml:space="preserve"><value>Minute</value></data>
   <data name="AdminDesign.Today" xml:space="preserve"><value>Today</value></data>
-  <data name="Done" xml:space="preserve"><value>Done</value></data>
-  <data name="Loading schedule" xml:space="preserve"><value>Loading schedule</value></data>
-  <data name="When players can sign up." xml:space="preserve"><value>When players can sign up.</value></data>
-  <data name="When captains draft their teams. Optional, and the draft is still started by hand on Teams / Draft." xml:space="preserve"><value>When captains draft their teams. Optional, and the draft is still started by hand on Teams / Draft.</value></data>
-  <data name="When the bingo runs." xml:space="preserve"><value>When the bingo runs.</value></data>
-  <data name="Not scheduled. Signups open when you open them on Overview, or set a time to open them automatically." xml:space="preserve"><value>Not scheduled. Signups open when you open them on Overview, or set a time to open them automatically.</value></data>
-  <data name="Signups open automatically at this time if the event is ready then. Overview lists anything still missing." xml:space="preserve"><value>Signups open automatically at this time if the event is ready then. Overview lists anything still missing.</value></data>
-  <data name="Planned only: automatic opening is off for this older schedule, so signups open when you open them on Overview. Choosing a new time turns automatic opening on." xml:space="preserve"><value>Planned only: automatic opening is off for this older schedule, so signups open when you open them on Overview. Choosing a new time turns automatic opening on.</value></data>
-  <data name="Signups stay open until you close them on Overview." xml:space="preserve"><value>Signups stay open until you close them on Overview.</value></data>
-  <data name="Signups close automatically at this time." xml:space="preserve"><value>Signups close automatically at this time.</value></data>
-  <data name="For planning and players’ information. It doesn’t start the team draft." xml:space="preserve"><value>For planning and players’ information. It doesn’t start the team draft.</value></data>
-  <data name="The event starts automatically at this time if it is ready. Overview lists anything still missing." xml:space="preserve"><value>The event starts automatically at this time if it is ready. Overview lists anything still missing.</value></data>
-  <data name="Changing the end needs a reason and confirmation." xml:space="preserve"><value>Changing the end needs a reason and confirmation.</value></data>
-  <data name="The end must be after the start." xml:space="preserve"><value>The end must be after the start.</value></data>
-  <data name="Times are in {0}; change it on" xml:space="preserve"><value>Times are in {0}; change it on</value></data>
-  <data name="Open, close or start by hand on" xml:space="preserve"><value>Open, close or start by hand on</value></data>
-  <data name="{0} is live, so only its end can change." xml:space="preserve"><value>{0} is live, so only its end can change.</value></data>
-  <data name="{0} has ended and is in final review, so its schedule is history. To accept uploads again or resume the event, use Overview." xml:space="preserve"><value>{0} has ended and is in final review, so its schedule is history. To accept uploads again or resume the event, use Overview.</value></data>
-  <data name="{0} is archived, so its schedule can’t change." xml:space="preserve"><value>{0} is archived, so its schedule can’t change.</value></data>
-  <data name="{0} was cancelled, so its schedule can’t change." xml:space="preserve"><value>{0} was cancelled, so its schedule can’t change.</value></data>
-  <data name="{0} is finished, so its schedule can’t change." xml:space="preserve"><value>{0} is finished, so its schedule can’t change.</value></data>
-  <data name="The team draft is underway, so signup times and the draft time are locked. The event start and end can still change." xml:space="preserve"><value>The team draft is underway, so signup times and the draft time are locked. The event start and end can still change.</value></data>
-  <data name="The team draft is finalized, so only the event start and end can change." xml:space="preserve"><value>The team draft is finalized, so only the event start and end can change.</value></data>
-  <data name="Kept as history; the event was cancelled." xml:space="preserve"><value>Kept as history; the event was cancelled.</value></data>
-  <data name="Signups opened {0}." xml:space="preserve"><value>Signups opened {0}.</value></data>
-  <data name="This time has passed. Open signups on Overview." xml:space="preserve"><value>This time has passed. Open signups on Overview.</value></data>
-  <data name="Signups closed {0}." xml:space="preserve"><value>Signups closed {0}.</value></data>
-  <data name="To set a new closing time, reopen signups on Overview." xml:space="preserve"><value>To set a new closing time, reopen signups on Overview.</value></data>
-  <data name="Locked while the team draft is underway." xml:space="preserve"><value>Locked while the team draft is underway.</value></data>
-  <data name="Locked after the team draft was finalized." xml:space="preserve"><value>Locked after the team draft was finalized.</value></data>
-  <data name="This boundary has passed." xml:space="preserve"><value>This boundary has passed.</value></data>
-  <data name="This time has passed." xml:space="preserve"><value>This time has passed.</value></data>
-  <data name="Locked after the event started." xml:space="preserve"><value>Locked after the event started.</value></data>
-  <data name="Started {0}." xml:space="preserve"><value>Started {0}.</value></data>
-  <data name="Ended {0}." xml:space="preserve"><value>Ended {0}.</value></data>
-  <data name="Locked." xml:space="preserve"><value>Locked.</value></data>
-  <data name="The event starts automatically at this time if it’s ready then. If something is missing, the start is postponed and admins are told." xml:space="preserve"><value>The event starts automatically at this time if it’s ready then. If something is missing, the start is postponed and admins are told.</value></data>
-  <data name="Changing the end while the event is live needs a reason." xml:space="preserve"><value>Changing the end while the event is live needs a reason.</value></data>
-  <data name="Must be after the event starts." xml:space="preserve"><value>Must be after the event starts.</value></data>
-  <data name="No closing time. Signups stay open until you close them on Overview." xml:space="preserve"><value>No closing time. Signups stay open until you close them on Overview.</value></data>
-  <data name="This start time has passed and the event hasn’t started. Choose a new time, or start it on Overview." xml:space="preserve"><value>This start time has passed and the event hasn’t started. Choose a new time, or start it on Overview.</value></data>
-  <data name="Normal uploads closed" xml:space="preserve"><value>Normal uploads closed</value></data>
-  <data name="Uploads close 30 minutes after the end:" xml:space="preserve"><value>Uploads close 30 minutes after the end:</value></data>
-  <data name=", 30 minutes after the end." xml:space="preserve"><value>, 30 minutes after the end.</value></data>
-  <data name=". This follows the end; it isn’t set separately." xml:space="preserve"><value>. This follows the end; it isn’t set separately.</value></data>
-  <data name="You both changed this. Their saved time:" xml:space="preserve"><value>You both changed this. Their saved time:</value></data>
-  <data name="Yours is kept until you choose." xml:space="preserve"><value>Yours is kept until you choose.</value></data>
-  <data name="Updated to their saved time." xml:space="preserve"><value>Updated to their saved time.</value></data>
 </root>
