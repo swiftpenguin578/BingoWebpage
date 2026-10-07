@@ -64,6 +64,7 @@
 .ev-meta{display:flex;align-items:center;gap:6px;font-size:var(--dk-fs-meta);color:var(--dk-text-2);margin-top:1px;min-width:0}
 .ev-meta-text{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .dot{width:7px;height:7px;border-radius:50%;flex:none;background:var(--dk-text-3)}
+.dot.tone-closed{background:var(--dk-info-fg)}.dot.tone-review{background:var(--dk-warning-fg)}.dot.tone-done{background:var(--dk-done-fg)}
 .dot.tone-open{background:var(--dk-success-fg)}.dot.tone-live{background:var(--dk-accent)}.dot.tone-draft{background:var(--dk-text-3)}
 .nav{display:flex;flex-direction:column;gap:1px}
 .nav-label{font-size:var(--dk-fs-caption);color:var(--dk-text-3);font-weight:500;padding:0 10px 6px;letter-spacing:.02em}
@@ -227,6 +228,8 @@ input[type=radio]:disabled,input[type=checkbox]:disabled{cursor:not-allowed}
 .flag .ic{width:14px;height:14px}
 .sub{font-size:var(--dk-fs-small);color:var(--dk-text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
 .badge{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 10px;border-radius:var(--dk-radius-pill);font-size:var(--dk-fs-small);font-weight:500;white-space:nowrap;transition:background-color var(--dk-dur-theme),color var(--dk-dur-theme)}
+.badge-info{background:var(--dk-info-bg);color:var(--dk-info-fg)}
+.badge-done{background:var(--dk-done-bg);color:var(--dk-done-fg)}
 .badge-success{background:var(--dk-success-bg);color:var(--dk-success-fg)}
 .badge-warning{background:var(--dk-warning-bg);color:var(--dk-warning-fg)}
 .badge-neutral{background:var(--dk-neutral-bg);color:var(--dk-neutral-fg)}

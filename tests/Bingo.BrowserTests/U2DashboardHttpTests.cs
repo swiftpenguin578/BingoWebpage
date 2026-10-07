@@ -15,14 +15,18 @@ namespace Bingo.BrowserTests;
 public sealed class U2DashboardHttpTests(BrowserTestApplicationFactory factory)
 {
     [Theory]
-    [InlineData("en", "Participation by event", "No capacity set", "Not announced", "Unknown is not zero.")]
-    [InlineData("da", "Deltagelse pr. event", "Ingen kapacitet angivet", "Ikke annonceret", "Ukendt er ikke nul.")]
-    public async Task UnknownMetricsAreLocalizedAndNeverExposeInfrastructureReasons(string culture, string chart, string capacity, string date, string unknown)
+    [InlineData("en", "Participation by event", "No capacity set", "Not announced", "Unknown is not zero.", EventState.Draft, false, true, "tone-draft", "badge-neutral", "Imported · archived")]
+    [InlineData("da", "Deltagelse pr. event", "Ingen kapacitet angivet", "Ikke annonceret", "Ukendt er ikke nul.", EventState.SignupOpen, true, false, "tone-open", "badge-warning", null)]
+    [InlineData("en", "Participation by event", "No capacity set", "Not announced", "Unknown is not zero.", EventState.SignupClosed, false, false, "tone-closed", "badge-done", "Finalized")]
+    [InlineData("en", "Participation by event", "No capacity set", "Not announced", "Unknown is not zero.", EventState.Live, true, false, "tone-live", "badge-warning", "Provisional")]
+    [InlineData("en", "Participation by event", "No capacity set", "Not announced", "Unknown is not zero.", EventState.AwaitingFinalReview, true, false, "tone-review", "badge-warning", "Provisional")]
+    public async Task UnknownMetricsAreLocalizedAndNeverExposeInfrastructureReasons(string culture, string chart, string capacity, string date, string unknown,
+        EventState cardState, bool provisional, bool imported, string dotTone, string badgeClass, string? recapLabel)
     {
         using var host = factory.WithWebHostBuilder(builder => builder.ConfigureServices(services =>
         {
             services.RemoveAll<IAdminDashboardService>();
-            services.AddSingleton<IAdminDashboardService, UnknownDashboard>();
+            services.AddSingleton<IAdminDashboardService>(new UnknownDashboard(cardState, provisional, imported));
         }));
         var at = new DateTimeOffset(2026, 1, 1, 12, 0, 0, TimeSpan.Zero);
         var username = "u2-render-" + Guid.NewGuid().ToString("N");
@@ -62,6 +66,9 @@ public sealed class U2DashboardHttpTests(BrowserTestApplicationFactory factory)
             Assert.Contains(date, html);
             Assert.Contains(unknown, html);
             Assert.Contains("data-dashboard", html);
+            Assert.Contains($"class=\"dot {dotTone}\"", html);
+            Assert.Contains($"class=\"badge {badgeClass}\"", html);
+            if (recapLabel is not null) Assert.Contains($"class=\"badge {badgeClass}\">{recapLabel}</span>", html);
             Assert.Contains("aria-sort=\"ascending\"", html);
             Assert.DoesNotContain("RAW-INFRASTRUCTURE-REASON", html);
             Assert.DoesNotContain("admin-dashboard-retained", html);
@@ -111,7 +118,7 @@ public sealed class U2DashboardHttpTests(BrowserTestApplicationFactory factory)
             throw new InvalidOperationException("Dashboard must not read the directory population.");
     }
 
-    private sealed class UnknownDashboard : IAdminDashboardService
+    private sealed class UnknownDashboard(EventState cardState, bool provisional, bool imported) : IAdminDashboardService
     {
         public Task<AdminDashboardResult> GetAsync(Guid actorAccountId, CancellationToken cancellationToken = default)
         {
@@ -125,8 +132,10 @@ public sealed class U2DashboardHttpTests(BrowserTestApplicationFactory factory)
                 row.State, true, null, null, unknown, unknown, unknown, unknown, unknown) { TeamCount = 3 }).ToArray();
             return Task.FromResult(new AdminDashboardResult(at,
                 new DashboardStatistics(DashboardMetric<long>.Measured(2), unknown, unknown, unknown, unknown, unknown)
-                    { Provisional = true, ProvisionalEvents = 2 }, points, null, rows,
-                new DashboardEventCard(rows[0].EventId, "Next fixture", "next-fixture", EventState.Draft, null, null, false, 0, 0, null, rows[0].OverviewPath),
+                    { Provisional = true, ProvisionalEvents = 2 }, points,
+                new DashboardRecap(rows[0].EventId, rows[0].EventName, rows[0].EventSlug, at.AddDays(-2), at.AddDays(-1), unknown, unknown, null, [], rows[0].OverviewPath)
+                    { State = provisional ? EventState.AwaitingFinalReview : EventState.Finalized, Provisional = provisional, IsHistoricalImport = imported }, rows,
+                new DashboardEventCard(rows[0].EventId, "Next fixture", "next-fixture", cardState, null, null, false, 0, 0, null, rows[0].OverviewPath),
                 new DashboardCommunitySnapshot(DashboardMetric<long>.Measured(1), unknown, unknown, null, false)));
         }
 

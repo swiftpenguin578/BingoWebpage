@@ -1,0 +1,150 @@
+{
+  "chromium": [
+    {
+      "engine": "chromium",
+      "theme": "light",
+      "tone": "info",
+      "values": {
+        "foreground": "rgb(47, 91, 143)",
+        "background": "rgb(232, 238, 247)",
+        "dot": "rgb(47, 91, 143)",
+        "page": "rgb(246, 246, 243)",
+        "surface": "rgb(255, 255, 255)"
+      },
+      "ratios": {
+        "page": 6.435135815514526,
+        "badgeOnpage": 5.973602908911199,
+        "surface": 6.967633606892169,
+        "badgeOnsurface": 5.973602908911199
+      }
+    },
+    {
+      "engine": "chromium",
+      "theme": "light",
+      "tone": "done",
+      "values": {
+        "foreground": "rgb(95, 74, 148)",
+        "background": "rgb(239, 235, 246)",
+        "dot": "rgb(95, 74, 148)",
+        "page": "rgb(246, 246, 243)",
+        "surface": "rgb(255, 255, 255)"
+      },
+      "ratios": {
+        "page": 6.702487445556424,
+        "badgeOnpage": 6.180374838256189,
+        "surface": 7.257108181437475,
+        "badgeOnsurface": 6.180374838256189
+      }
+    },
+    {
+      "engine": "chromium",
+      "theme": "dark",
+      "tone": "info",
+      "values": {
+        "foreground": "rgb(159, 189, 230)",
+        "background": "rgba(122, 162, 222, 0.13)",
+        "dot": "rgb(159, 189, 230)",
+        "page": "rgb(19, 20, 22)",
+        "surface": "rgb(26, 27, 30)"
+      },
+      "ratios": {
+        "page": 9.563330177889236,
+        "badgeOnpage": 7.847120545698702,
+        "surface": 8.935110107510553,
+        "badgeOnsurface": 7.2260219465441065
+      }
+    },
+    {
+      "engine": "chromium",
+      "theme": "dark",
+      "tone": "done",
+      "values": {
+        "foreground": "rgb(192, 174, 230)",
+        "background": "rgba(168, 142, 220, 0.13)",
+        "dot": "rgb(192, 174, 230)",
+        "page": "rgb(19, 20, 22)",
+        "surface": "rgb(26, 27, 30)"
+      },
+      "ratios": {
+        "page": 9.161772345969087,
+        "badgeOnpage": 7.581940719445014,
+        "surface": 8.559930815778552,
+        "badgeOnsurface": 6.9858471471391725
+      }
+    }
+  ],
+  "webkit": [
+    {
+      "engine": "webkit",
+      "theme": "light",
+      "tone": "info",
+      "values": {
+        "foreground": "rgb(47, 91, 143)",
+        "background": "rgb(232, 238, 247)",
+        "dot": "rgb(47, 91, 143)",
+        "page": "rgb(246, 246, 243)",
+        "surface": "rgb(255, 255, 255)"
+      },
+      "ratios": {
+        "page": 6.435135815514526,
+        "badgeOnpage": 5.973602908911199,
+        "surface": 6.967633606892169,
+        "badgeOnsurface": 5.973602908911199
+      }
+    },
+    {
+      "engine": "webkit",
+      "theme": "light",
+      "tone": "done",
+      "values": {
+        "foreground": "rgb(95, 74, 148)",
+        "background": "rgb(239, 235, 246)",
+        "dot": "rgb(95, 74, 148)",
+        "page": "rgb(246, 246, 243)",
+        "surface": "rgb(255, 255, 255)"
+      },
+      "ratios": {
+        "page": 6.702487445556424,
+        "badgeOnpage": 6.180374838256189,
+        "surface": 7.257108181437475,
+        "badgeOnsurface": 6.180374838256189
+      }
+    },
+    {
+      "engine": "webkit",
+      "theme": "dark",
+      "tone": "info",
+      "values": {
+        "foreground": "rgb(159, 189, 230)",
+        "background": "rgba(122, 162, 222, 0.13)",
+        "dot": "rgb(159, 189, 230)",
+        "page": "rgb(19, 20, 22)",
+        "surface": "rgb(26, 27, 30)"
+      },
+      "ratios": {
+        "page": 9.563330177889236,
+        "badgeOnpage": 7.847120545698702,
+        "surface": 8.935110107510553,
+        "badgeOnsurface": 7.2260219465441065
+      }
+    },
+    {
+      "engine": "webkit",
+      "theme": "dark",
+      "tone": "done",
+      "values": {
+        "foreground": "rgb(192, 174, 230)",
+        "background": "rgba(168, 142, 220, 0.13)",
+        "dot": "rgb(192, 174, 230)",
+        "page": "rgb(19, 20, 22)",
+        "surface": "rgb(26, 27, 30)"
+      },
+      "ratios": {
+        "page": 9.161772345969087,
+        "badgeOnpage": 7.581940719445014,
+        "surface": 8.559930815778552,
+        "badgeOnsurface": 6.9858471471391725
+      }
+    }
+  ]
+}

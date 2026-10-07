@@ -21,6 +21,15 @@ const P=(name,selector,options={})=>[name,selector,selector,{required:true,box:{
    const app=await login(context,fixture),ref=await referencePage(refContext,fixture,root,'Events.dc.html',transform),errors=[];
    app.on('pageerror',e=>errors.push(e.message));app.setDefaultTimeout(10000);
    await app.goto(fixture.origin+'/Admin/Events');await app.waitForFunction(()=>window.AdminUI&&document.querySelector('[data-events-directory]'));await app.evaluate(()=>document.fonts.ready);
+   // Brief78: assert the intentional phase-colour differences separately from reference geometry.
+   const badgeClasses={1:'badge-neutral',2:'badge-success',3:'badge-info',4:'badge-accent',5:'badge-warning',6:'badge-done',7:'badge-outline',8:'badge-outline'};
+   const dotTones={1:'tone-draft',2:'tone-open',3:'tone-closed',4:'tone-live',5:'tone-review',6:'tone-done',7:'tone-draft',8:'tone-draft'};
+   for(const event of directory.Events){
+    assert.equal(await app.locator('.row[data-event-id="'+event.Id+'"] .badge').getAttribute('class'),'badge '+badgeClasses[event.State]);
+    const option=app.locator('[data-event-tone][data-event-id="'+event.Id+'"]');
+    if(event.State<=5)assert.equal(await option.getAttribute('data-event-tone'),dotTones[event.State]);
+   }
+   results.push({name:engine+'-phase-badge-and-switcher-tones',passed:true});
    const pairs=[P('header','.page-head'),P('title','#page-h1',{text:true}),P('summary','.summary',{text:true}),P('create','.head-actions .btn',{text:true,icon:true}),P('toolbar','.toolbar'),P('tabs','.tabs'),P('tab','.tab',{text:true}),P('search','.search'),P('input','#search-input'),P('phase','#phase-btn',{text:true,icon:true}),P('card','.page .card'),P('table','.ev-tbl'),P('column','.th'),P('sort','.th-btn',{text:true,icon:true}),P('row','.row'),P('name','.name-btn',{text:true}),P('badge','.badge',{text:true}),P('dates','.td-dates .cell-main',{text:true}),P('participant','.row .td:nth-child(4) .cell-main',{text:true}),P('attention','.attn-none'),P('footer','.tfoot'),P('range','.tfoot-left .tnum',{text:true})];
    const compare=comparator(output,results);
    for(const width of[1440,390])for(const theme of['light','dark']){

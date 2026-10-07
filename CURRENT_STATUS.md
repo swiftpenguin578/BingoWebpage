@@ -1,5 +1,11 @@
 # Current project status
 
+## Phase colours implemented — 7 October 2026
+
+- Brief78 implemented in one local commit from `5938b08` on `codex/participants-functionality`; [report, values, contrast and file inventory](docs/references/admin-ui/reviews/2026-10-07/phase-colours/report.md). Shared Web helper maps Events badges, sidebar dots and Dashboard phase presentation; R1–R4 applied. `info` blue / `done` violet retain all supplied values; both CSS pairs byte-identical, reference page maps unchanged.
+- Focused checks passed: Release 0 warnings/errors; affected .NET 17/0/0 and PostgreSQL switcher 1/0/0; Events 28/0, Dashboard 18/0; shell, 16 contrast ratios and CSS-scope checks in each of Chromium/WebKit. [Compact evidence](docs/references/admin-ui/reviews/2026-10-07/phase-colours/checks.json). Full JS runner and whole suite deferred to U3 batch gate per brief78.
+- Implementer stopped. Direct planner commit check, then quick Events/sidebar light/dark visual check pending. No review agent or independent-review claim. User review app/database untouched; no U3, push, merge or deployment.
+
 ## U2 accepted — 7 October 2026
 
 - **Dashboard and Events directory (with Create) accepted at `f63b5f2aeddd8a908af68cb81c3699397ad12500`.** User visual acceptance in the review environment on 7 October 2026; `UI_PAGE_MATRIX.md` owns page approval. Identity stays accepted, including U2's fixed family key, Danish CSS, loading header and removal of load fade.
@@ -49,4 +55,4 @@
 
 ## Next permitted action
 
-Planner rechecks the final-look skeleton-fill fix and runs the whole suite on its final SHA, then reconciles acceptance. Implementer stopped after the single scoped fix with only the requested checks. No U3+, laneT, palette work, packaging, push, merge or deployment.
+Planner checks the phase-colour commit directly, then the requested Events/sidebar light/dark visual check follows. Stop before U3. Full JS runner and whole .NET suite wait for U3’s end-of-batch gate. No push, merge or deployment authorized.

@@ -47,6 +47,8 @@
   --dk-danger-soft:   #f9ebe8;               /* destructive hover, error banner */
 
   /* Status tones (badges, chips) */
+  --dk-info-bg:       #e8eef7;  --dk-info-fg: #2f5b8f;
+  --dk-done-bg:       #efebf6;  --dk-done-fg: #5f4a94;
   --dk-success-bg:    #e6f1ea;  --dk-success-fg: #256a45;
   --dk-warning-bg:    #f7eed8;  --dk-warning-fg: #985a00;   /* amber: text >= 4.5:1 on page, surface and warning-bg */
   --dk-neutral-bg:    #eeeeea;  --dk-neutral-fg: #5d5f65;
@@ -178,6 +180,8 @@
   --dk-danger-fg:     #eb968b;
   --dk-danger-soft:   rgba(224,110,97,.11);
 
+  --dk-info-bg:       rgba(122,162,222,.13); --dk-info-fg: #9fbde6;
+  --dk-done-bg:       rgba(168,142,220,.13); --dk-done-fg: #c0aee6;
   --dk-success-bg:    rgba(111,180,137,.12); --dk-success-fg: #95cfaa;
   --dk-warning-bg:    rgba(221,178,94,.12);  --dk-warning-fg: #dfbd7a;
   --dk-neutral-bg:    rgba(255,255,255,.06); --dk-neutral-fg: #a5a7ad;
