@@ -172,7 +172,11 @@ public interface ISignupService
         => Task.FromException<PromotionFollowUpResult>(new NotSupportedException("Promotion follow-up is not available."));
 }
 
-public sealed record ParticipantLifecycleResult(bool Succeeded, string? Error, SignupStatus? Status = null, int? WaitingPosition = null, bool Changed = false, string? WomValidationConfirmationToken = null);
+// D2/P-6: EffectiveParticipantCap and AddedPlace carry the capacity outcome; the
+// Participants toast reads them instead of parsing text. PromotedParticipantIds lists
+// waiters confirmed by the same operation (withdrawal promotion).
+public sealed record ParticipantLifecycleResult(bool Succeeded, string? Error, SignupStatus? Status = null, int? WaitingPosition = null, bool Changed = false, string? WomValidationConfirmationToken = null,
+    int? EffectiveParticipantCap = null, bool AddedPlace = false, IReadOnlyList<Guid>? PromotedParticipantIds = null);
 // These baselines remain nullable for source compatibility with retained
 // callers; SignupService rejects a missing applicable baseline at its
 // authoritative mutation boundary before reading or changing roster state.
@@ -199,7 +203,8 @@ public sealed record ParticipantQueueMutationResult(
     int? WaitingPosition = null,
     Guid? PromotedParticipantId = null,
     int? EffectiveParticipantCap = null,
-    bool Changed = false);
+    bool Changed = false,
+    bool AddedPlace = false);
 public sealed record AdminParticipantRestoreRequest(
     Guid EventId,
     Guid ParticipantId,
@@ -309,7 +314,8 @@ public sealed record AdminParticipantChangeRequest(
     IReadOnlyDictionary<Guid, string> Answers,
     int? ExpectedResponseVersion = null,
     string? WomValidationConfirmationToken = null);
-public sealed record AdminParticipantResult(bool Succeeded, string? Error, Guid? ParticipantId = null, SignupStatus? Status = null, int? WaitingPosition = null, string? WomValidationConfirmationToken = null);
+public sealed record AdminParticipantResult(bool Succeeded, string? Error, Guid? ParticipantId = null, SignupStatus? Status = null, int? WaitingPosition = null, string? WomValidationConfirmationToken = null,
+    int? EffectiveParticipantCap = null, bool AddedPlace = false);
 public sealed record ParticipantOwnershipTransferRequest(Guid EventId, Guid ParticipantId, Guid ActorAccountId, string ActorName, Guid? DestinationOwnerAccountId, Guid? ExpectedOwnerAccountId = null, bool Confirmed = false);
 public sealed record ParticipantOwnershipTransferResult(bool Succeeded, string? Error, bool Changed = false);
 public sealed record LiveWithdrawalRequest(Guid EventId, Guid ParticipantId, Guid ActorAccountId, string ActorName, long? ExpectedMembershipVersion = null);
