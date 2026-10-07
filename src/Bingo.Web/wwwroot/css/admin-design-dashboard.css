@@ -1,30 +1,30 @@
 /* Page rules from frozen Dashboard.dc.html; shared primitives remain frozen. */
-[data-dashboard] .hint.is-dismissed .hint-tip{visibility:hidden;opacity:0}
-.dash-grid{display:grid;grid-template-columns:minmax(0,1.75fr) minmax(320px,1fr);gap:16px;margin-top:16px;align-items:stretch}
-.recap{display:flex;flex-direction:column}
-.recap .highlight{margin-top:16px}.recap .facts{margin-top:18px}.recap .panel-foot{margin-top:auto;padding-top:var(--dk-space-5)}
-.recap.is-wide{grid-column:1/-1;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:40px;align-content:start}
-.recap.is-wide .panel-head,.recap.is-wide .panel-foot{grid-column:1/-1}.recap.is-wide .facts{grid-column:2;grid-row:2/span 3;margin-top:0;align-self:start}
-.dash-section{margin-top:16px}.section-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin:24px 2px 10px}
-.hist-head{padding:var(--dk-space-5) var(--dk-space-6) 0;margin-bottom:12px}
-.recap-name{font-size:var(--dk-fs-title-sm);font-weight:600;line-height:1.3}.recap-when{margin-top:2px;font-size:var(--dk-fs-small);color:var(--dk-text-3)}
-.page-head .next-event{flex:none;max-width:420px}
+:where([data-page-family="dashboard"]) [data-dashboard] .hint.is-dismissed .hint-tip{visibility:hidden;opacity:0}
+:where([data-page-family="dashboard"]) .dash-grid{display:grid;grid-template-columns:minmax(0,1.75fr) minmax(320px,1fr);gap:16px;margin-top:16px;align-items:stretch}
+:where([data-page-family="dashboard"]) .recap{display:flex;flex-direction:column}
+:where([data-page-family="dashboard"]) .recap .highlight{margin-top:16px}:where([data-page-family="dashboard"]) .recap .facts{margin-top:18px}:where([data-page-family="dashboard"]) .recap .panel-foot{margin-top:auto;padding-top:var(--dk-space-5)}
+:where([data-page-family="dashboard"]) .recap.is-wide{grid-column:1/-1;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:40px;align-content:start}
+:where([data-page-family="dashboard"]) .recap.is-wide .panel-head,:where([data-page-family="dashboard"]) .recap.is-wide .panel-foot{grid-column:1/-1}:where([data-page-family="dashboard"]) .recap.is-wide .facts{grid-column:2;grid-row:2/span 3;margin-top:0;align-self:start}
+:where([data-page-family="dashboard"]) .dash-section{margin-top:16px}:where([data-page-family="dashboard"]) .section-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin:24px 2px 10px}
+:where([data-page-family="dashboard"]) .hist-head{padding:var(--dk-space-5) var(--dk-space-6) 0;margin-bottom:12px}
+:where([data-page-family="dashboard"]) .recap-name{font-size:var(--dk-fs-title-sm);font-weight:600;line-height:1.3}:where([data-page-family="dashboard"]) .recap-when{margin-top:2px;font-size:var(--dk-fs-small);color:var(--dk-text-3)}
+:where([data-page-family="dashboard"]) .page-head .next-event{flex:none;max-width:420px}
 /* Approved fresh header reservation; never affects the loaded header. */
-[data-dashboard-loading-card]{width:420px}
-[data-page-header-loading] .summary{min-height:calc(var(--dk-fs-control)*var(--dk-lh-body))}
-.dash-sk-header-line{position:relative}
-.dash-sk-header-line>.sk{position:absolute;top:var(--dk-space-1)}
-.dash-sk-header-label{width:30%}.dash-sk-header-name{width:75%}.dash-sk-header-meta{width:55%}
-.dash-sk-header-meter{width:56px;height:6px;flex:none}
-.dash-sk-header-open{width:52px;height:28px;flex:none;border-radius:var(--dk-radius-xs)}
-.tbl.hist{--table-cols:minmax(240px,2.2fr) 96px 170px 170px 124px minmax(150px,1.3fr);--table-min:960px}
+:where([data-page-family="dashboard"]) [data-dashboard-loading-card]{width:420px}
+:where([data-page-family="dashboard"]) [data-page-header-loading] .summary{min-height:calc(var(--dk-fs-control)*var(--dk-lh-body))}
+:where([data-page-family="dashboard"]) .dash-sk-header-line{position:relative}
+:where([data-page-family="dashboard"]) .dash-sk-header-line>.sk{position:absolute;top:var(--dk-space-1)}
+:where([data-page-family="dashboard"]) .dash-sk-header-label{width:30%}:where([data-page-family="dashboard"]) .dash-sk-header-name{width:75%}:where([data-page-family="dashboard"]) .dash-sk-header-meta{width:55%}
+:where([data-page-family="dashboard"]) .dash-sk-header-meter{width:56px;height:6px;flex:none}
+:where([data-page-family="dashboard"]) .dash-sk-header-open{width:52px;height:28px;flex:none;border-radius:var(--dk-radius-xs)}
+:where([data-page-family="dashboard"]) .tbl.hist{--table-cols:minmax(240px,2.2fr) 96px 170px 170px 124px minmax(150px,1.3fr);--table-min:960px}
 /* Frozen reference skeleton geometry; spacing lives here, radii use shared tokens. */
-.dash-sk-stat-value{height:20px;margin-top:var(--dk-space-3);border-radius:var(--dk-radius-xs)}
-.dash-sk-stat-note{margin-top:var(--dk-space-3)}
-.dash-sk-chart{height:200px;margin-top:var(--dk-space-5);border-radius:var(--dk-radius-md)}
-.dash-sk-recap{height:64px;margin-top:var(--dk-space-5);border-radius:var(--dk-radius-md)}
-.dash-sk-fact-first{margin-top:var(--dk-space-5)}
-.dash-sk-fact{margin-top:14px}
-@media(max-width:1260px){.tbl.hist{--table-cols:minmax(220px,2fr) 88px 160px 160px minmax(140px,1.2fr);--table-min:790px}.c-ehb{display:none}}
-@media(max-width:1080px){.dash-grid{grid-template-columns:minmax(0,1fr)}}
-@media(max-width:860px){.recap.is-wide{display:flex}.recap.is-wide .facts{margin-top:18px}.page-head .next-event{max-width:100%;width:100%}}
+:where([data-page-family="dashboard"]) .dash-sk-stat-value{height:20px;margin-top:var(--dk-space-3);border-radius:var(--dk-radius-xs)}
+:where([data-page-family="dashboard"]) .dash-sk-stat-note{margin-top:var(--dk-space-3)}
+:where([data-page-family="dashboard"]) .dash-sk-chart{height:200px;margin-top:var(--dk-space-5);border-radius:var(--dk-radius-md)}
+:where([data-page-family="dashboard"]) .dash-sk-recap{height:64px;margin-top:var(--dk-space-5);border-radius:var(--dk-radius-md)}
+:where([data-page-family="dashboard"]) .dash-sk-fact-first{margin-top:var(--dk-space-5)}
+:where([data-page-family="dashboard"]) .dash-sk-fact{margin-top:14px}
+@media(max-width:1260px){:where([data-page-family="dashboard"]) .tbl.hist{--table-cols:minmax(220px,2fr) 88px 160px 160px minmax(140px,1.2fr);--table-min:790px}:where([data-page-family="dashboard"]) .c-ehb{display:none}}
+@media(max-width:1080px){:where([data-page-family="dashboard"]) .dash-grid{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:860px){:where([data-page-family="dashboard"]) .recap.is-wide{display:flex}:where([data-page-family="dashboard"]) .recap.is-wide .facts{margin-top:18px}:where([data-page-family="dashboard"]) .page-head .next-event{max-width:100%;width:100%}}

@@ -1,21 +1,21 @@
-.tbl.ev-tbl{--table-cols:minmax(230px,1.5fr) 152px minmax(190px,1.1fr) minmax(170px,1fr) minmax(224px,1.3fr);--table-min:990px}
-.directory-fragments{display:contents}
-@media(max-width:640px){.tbl.ev-tbl{--table-cols:minmax(168px,1fr) 148px 188px 164px 214px;--table-min:900px}.ev-tbl .th.c-name,.ev-tbl .td.c-name{padding-left:16px}}
-.ev-tbl .row.is-cancelled .td-dates .cell-main{color:var(--dk-text-3)}
-.ev-tbl .td .meter{max-width:100%}
-.ev-tbl .meter-label{color:var(--dk-text);font-size:var(--dk-fs-control-sm)}
-.ev-tbl .meter-label.is-muted{color:var(--dk-text-3)}
-.ev-tbl .cell-main{font-size:var(--dk-fs-control-sm)}
-.ev-tbl .cell-main.is-muted{color:var(--dk-text-3)}
-.tfoot-note{color:var(--dk-text-3)}
-.events-sk-phase{height:20px;border-radius:var(--dk-radius-xl)}
-.events-sk-start{margin-bottom:var(--dk-space-2)}
-.ev-tbl .hint.is-dismissed .hint-tip{opacity:0;visibility:hidden}
+:where([data-page-family="events"]) .tbl.ev-tbl{--table-cols:minmax(230px,1.5fr) 152px minmax(190px,1.1fr) minmax(170px,1fr) minmax(224px,1.3fr);--table-min:990px}
+:where([data-page-family="events"]) .directory-fragments{display:contents}
+@media(max-width:640px){:where([data-page-family="events"]) .tbl.ev-tbl{--table-cols:minmax(168px,1fr) 148px 188px 164px 214px;--table-min:900px}:where([data-page-family="events"]) .ev-tbl .th.c-name,:where([data-page-family="events"]) .ev-tbl .td.c-name{padding-left:16px}}
+:where([data-page-family="events"]) .ev-tbl .row.is-cancelled .td-dates .cell-main{color:var(--dk-text-3)}
+:where([data-page-family="events"]) .ev-tbl .td .meter{max-width:100%}
+:where([data-page-family="events"]) .ev-tbl .meter-label{color:var(--dk-text);font-size:var(--dk-fs-control-sm)}
+:where([data-page-family="events"]) .ev-tbl .meter-label.is-muted{color:var(--dk-text-3)}
+:where([data-page-family="events"]) .ev-tbl .cell-main{font-size:var(--dk-fs-control-sm)}
+:where([data-page-family="events"]) .ev-tbl .cell-main.is-muted{color:var(--dk-text-3)}
+:where([data-page-family="events"]) .tfoot-note{color:var(--dk-text-3)}
+:where([data-page-family="events"]) .events-sk-phase{height:20px;border-radius:var(--dk-radius-xl)}
+:where([data-page-family="events"]) .events-sk-start{margin-bottom:var(--dk-space-2)}
+:where([data-page-family="events"]) .ev-tbl .hint.is-dismissed .hint-tip{opacity:0;visibility:hidden}
 /* U2 loading decision: reserve data-independent boxes on every visit. */
-[data-page-skeleton="events"] [data-page-family="events"]>div:first-child{flex:1;min-width:0;width:100%}
-[data-page-skeleton="events"] .summary{min-height:calc(var(--dk-fs-control)*var(--dk-lh-body));position:relative}
-[data-events-directory] .tab-count,[data-events-pending] .tab-count{display:inline-flex;align-items:center;justify-content:center;min-width:2ch;width:2ch;height:calc(var(--dk-fs-control-sm)*var(--dk-lh-body));text-align:center}
-[data-pending-count]>.sk{display:block;width:100%;height:10px}
-[data-events-load-failed] .summary{min-height:0}
-@media(max-width:860px){[data-page-skeleton="events"] .summary{min-height:calc(2*var(--dk-fs-control)*var(--dk-lh-body) + var(--dk-space-1))}[data-events-load-failed] .summary{min-height:0}}
-@media(max-width:640px){.tbar-right{width:100%}.tbar-right .search{flex:1;width:auto;min-width:0}.page-head .btn-primary{width:100%}}
+:where([data-page-family="events"])[data-page-skeleton="events"] [data-page-family="events"]>div:first-child{flex:1;min-width:0;width:100%}
+:where([data-page-family="events"])[data-page-skeleton="events"] .summary{min-height:calc(var(--dk-fs-control)*var(--dk-lh-body));position:relative}
+:where([data-page-family="events"]) [data-events-directory] .tab-count,:where([data-page-family="events"]) [data-events-pending] .tab-count{display:inline-flex;align-items:center;justify-content:center;min-width:2ch;width:2ch;height:calc(var(--dk-fs-control-sm)*var(--dk-lh-body));text-align:center}
+:where([data-page-family="events"]) [data-pending-count]>.sk{display:block;width:100%;height:10px}
+:where([data-page-family="events"])[data-events-load-failed] .summary{min-height:0}
+@media(max-width:860px){:where([data-page-family="events"])[data-page-skeleton="events"] .summary{min-height:calc(2*var(--dk-fs-control)*var(--dk-lh-body) + var(--dk-space-1))}:where([data-page-family="events"])[data-events-load-failed] .summary{min-height:0}}
+@media(max-width:640px){:where([data-page-family="events"]) .tbar-right{width:100%}:where([data-page-family="events"]) .tbar-right .search{flex:1;width:auto;min-width:0}:where([data-page-family="events"]) .page-head .btn-primary{width:100%}}
