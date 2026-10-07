@@ -49,7 +49,8 @@
 }
 @section HeaderSummary {
     @* T1-5: Events-style summary items with tabular numbers (Events.dc.html:113-114). *@
-    <span data-accounts-summary><b class="tnum">@Model.WebsiteTotalCount</b> @D["accounts"]</span><span><b class="tnum">@Model.WebsiteDisabledCount</b> @D["disabled"]</span>
+    @* Resource names are case-insensitive, so the counts use "{0} accounts"/"{0} disabled" and wrap the number. *@
+    <span data-accounts-summary>@{ var total = D["{0} accounts"].Value.Split("{0}"); }@total[0]<b class="tnum">@Model.WebsiteTotalCount</b>@total[^1]</span><span>@{ var disabledParts = D["{0} disabled"].Value.Split("{0}"); }@disabledParts[0]<b class="tnum">@Model.WebsiteDisabledCount</b>@disabledParts[^1]</span>
 }
 @section HeaderActions {
     @if (Model.IsSuperAdmin) { <div class="head-actions"><button class="btn btn-quiet" type="button" id="transfer-btn" data-account-transfer-open><svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 5.5h9.5M10 3l2.5 2.5L10 8M13 10.5H3.5M6 8l-2.5 2.5L6 13"/></svg>@D["Transfer ownership"]</button></div> }

@@ -233,7 +233,14 @@ public sealed class AccountsHttpIntegrationTests(PostgreSqlTestFixture databaseF
         Assert.Contains("data-directory-canonical=\"/Admin/Accounts?q=paging-user&amp;page=2\"", second, StringComparison.Ordinal);
         foreach (var junk in new[] { "abc", "2.5", "0" })
             Assert.Equal(Names(first), Names(await client.GetStringAsync($"/Admin/Accounts?q=paging-user&page={junk}")));
-        Assert.Contains("data-directory-canonical=\"/Admin/Accounts\"", await client.GetStringAsync("/Admin/Accounts"), StringComparison.Ordinal);
+        var english = await client.GetStringAsync("/Admin/Accounts");
+        Assert.Contains("data-directory-canonical=\"/Admin/Accounts\"", english, StringComparison.Ordinal);
+        Assert.Matches("data-accounts-summary><b class=\"tnum\">\\d+</b> accounts</span><span><b class=\"tnum\">0</b> disabled</span>", english);
+        // Batch-gate finding: lowercase "accounts"/"disabled" keys collided with "Accounts"/"Disabled"
+        // (resource names ignore case), leaving English words in the Danish summary.
+        client.DefaultRequestHeaders.AcceptLanguage.ParseAdd("da");
+        var danish = await client.GetStringAsync("/Admin/Accounts");
+        Assert.Matches("data-accounts-summary><b class=\"tnum\">\\d+</b> konti</span><span><b class=\"tnum\">0</b> deaktiveret</span>", danish);
     }
 
     private static Dictionary<string, string> Transfer(Account destination, string password, string typed, long? version = null) => new()
