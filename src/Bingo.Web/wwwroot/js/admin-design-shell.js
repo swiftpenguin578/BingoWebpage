@@ -402,6 +402,8 @@
     const path = new URL(url).pathname.replace(/\/$/, '').toLowerCase();
     if (path === '/admin' || path === '/admin/index') return 'dashboard';
     if (path === '/admin/events' || path === '/admin/events/index' || path === '/admin/events/create') return 'events';
+    if (path === '/admin/accounts' || path === '/admin/accounts/index') return 'accounts';
+    if (path === '/admin/audit' || path === '/admin/audit/index') return 'audit';
     return path.split('/').at(-2) || 'page';
   }
   function rememberSkeletons(doc) {
