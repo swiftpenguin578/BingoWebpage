@@ -896,7 +896,8 @@ public sealed partial class CaptainScopedNavigationIntegrationTests(PostgreSqlTe
             await db.SaveChangesAsync();
         }
         var finalizeHtml = await client.GetStringAsync($"/Admin/Events/Finalize/{selected.Id}");
-        var pendingBlocker = Assert.Single(Regex.Matches(finalizeHtml, @"<article\b[\s\S]*?</article>"),
+        // A10: readiness rows use the shared check-list markup; scoped Review routing is unchanged.
+        var pendingBlocker = Assert.Single(Regex.Matches(finalizeHtml, @"<li\b[\s\S]*?</li>"),
             match => match.Value.Contains("Pending submissions", StringComparison.Ordinal));
         var pendingLink = WebUtility.HtmlDecode(Regex.Match(pendingBlocker.Value, "href=\"([^\"]+)\"").Groups[1].Value);
         Assert.Equal($"/Admin/Review?eventId={selected.Id}&status=Pending", pendingLink);

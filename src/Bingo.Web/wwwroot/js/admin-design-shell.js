@@ -437,6 +437,7 @@
     if (path === '/admin/audit' || path === '/admin/audit/index') return 'audit';
     if (path === '/admin/catalogue' || path === '/admin/catalogue/index') return 'catalogue';
     if (/^\/admin\/events\/manage\/[^/]+$/.test(path)) return 'overview';
+    if (/^\/admin\/events\/finalize\/[^/]+$/.test(path)) return 'final-review';
     return path.split('/').at(-2) || 'page';
   }
   function rememberSkeletons(doc) {

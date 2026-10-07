@@ -1,6 +1,11 @@
 // Add a page here once. The conformance gate uses the real Razor fixture,
 // loading template, family stylesheet, and these page-specific interaction probes.
 module.exports = [
+  { family: 'final-review', postSaveCount: 0, url: f => '/Admin/Events/Finalize/' + f.events['autumn-bingo-2027'], fixture: 'autumn-bingo-2027',
+    source: 'Pages/Admin/Events/Finalize.cshtml', module: 'admin-final-review.js',
+    textRows: { 'fr-sk-line': ['control',1.45] }, reference: 'FinalReview.dc.html', first: '.card', blocks: { first: '.card' },
+    style: ['.fr-content','display','grid'], titleDa: 'Afsluttende gennemgang',
+    update: { control: '#how-btn', action: 'click', selected: '#how-btn', attribute: ['aria-expanded','true'] } },
   // U4: Overview (Manage route). The h1 is the event's name, so the Danish title is the name too.
   { family: 'overview', postSaveCount: 1, url: f => '/Admin/Events/Manage/' + f.events['autumn-bingo-2027'], fixture: 'autumn-bingo-2027',
     source: 'Pages/Admin/Events/Manage.cshtml', module: 'admin-overview.js',

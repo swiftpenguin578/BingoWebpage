@@ -168,11 +168,11 @@ public sealed partial class Au12PlacementRuleIntegrationTests
                 { ["Input.Username"] = "au12-admin", ["Input.Password"] = "password", ["__RequestVerificationToken"] = token }));
             Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
             var html = WebUtility.HtmlDecode(await client.GetStringAsync($"/Admin/Events/Finalize/{fixture.EventId}"));
-            Assert.Contains(culture == "en" ? "Final WOM refresh" : "Afsluttende WOM-opdatering", html);
-            Assert.Contains(culture == "en" ? "Not recorded" : "Ikke registreret", html);
+            // AU18 / A10: only non-success refresh notes appear; legacy unknown has no fabricated note.
+            Assert.DoesNotContain(culture == "en" ? "Not recorded" : "Ikke registreret", html);
             Assert.Contains(culture == "en" ? "Reopened by Reopener" : "Genåbnet af Reopener", html);
             Assert.Contains(culture == "en" ? "Skipped: the refresh window has not elapsed." : "Sprunget over: opdateringsvinduet er ikke udløbet.", html);
-            Assert.Contains(culture == "en" ? "EHB, and current score time." : "EHB og tidspunktet for den aktuelle score.", html);
+            Assert.Contains(culture == "en" ? "More credited EHB, then earlier current-score time." : "Mere tildelt EHB, derefter tidligst opnåede aktuelle score.", html);
         }
     }
 
