@@ -539,13 +539,12 @@ public sealed class SignupSetupModel(ApplicationDbContext dbContext, TimeProvide
         EventName = bingoEvent.Name;
         CanEdit = CanEditSignupQuestions(bingoEvent.State, bingoEvent.DraftLocked);
         var form = await dbContext.SignupForms.AsNoTracking().Where(item => item.EventId == id).Select(item => new { item.FirstResponseAt, item.Version }).SingleOrDefaultAsync(ct);
-        if (form is null && bingoEvent.State == EventState.Archived)
+        if (form is null)
         {
-            // U3-Q11: imported archived history has no recorded form. Reads never invent one.
+            // U3-Q11 / review B-L1: imported history has no recorded form, including after reopening. Reads never invent one.
             CanEdit = false;
             return true;
         }
-        if (form is null) throw new InvalidOperationException("The event signup form is missing.");
         HasForm = true;
         HasFirstResponse = form.FirstResponseAt is not null;
         FirstResponseAt = form.FirstResponseAt;
