@@ -20,6 +20,9 @@ export function init(region, ui = window.AdminUI) {
   const search = root.querySelector('[data-catalogue-search]');
   let timer;
 
+  // Paint functions run on input/change; rewriting an unchanged label would replace the text node under the
+  // pointer, and WebKit then drops the click that a blur-triggered change interrupted (T2 review M1, case 2).
+  const setText = (node, text) => { if (node && node.textContent !== text) node.textContent = text; };
   /* ---------------- numbers and rates (DropRateParser and EhbCalculator, mirrored for previews) ---------------- */
   const fmt = (n, d = 2) => n.toLocaleString(lang, { maximumFractionDigits: d });
   function parseNumber(v) {
@@ -51,7 +54,9 @@ export function init(region, ui = window.AdminUI) {
   const schema = Object.fromEntries(keys.map(key => [key, { valid: () => true, default: '' }]));
   const filters = (() => { const url = new URL(root.dataset.directoryCanonical, location.href); return { q: url.searchParams.get('q') || '', cat: url.searchParams.get('cat') || '', status: url.searchParams.get('status') === 'inactive' ? 'inactive' : '' }; })();
   const values = (extra = {}) => ({ q: filters.q, cat: filters.cat, status: filters.status, activity: drawer?.id || '', drop: drawer?.editor?.id || '', new: drawer?.add ? '1' : '', ...extra });
-  const writeUrl = (extra, record = false) => ui.setUrl(values(extra), schema, { record });
+  // Any URL write supersedes a pending delayed search write, so the timer can never rewrite a history entry
+  // while Back/Forward is travelling (it could otherwise stamp the drawer URL onto the previous entry).
+  const writeUrl = (extra, record = false) => { clearTimeout(timer); ui.setUrl(values(extra), schema, { record }); };
   const pageUrl = extra => { const url = new URL('/Admin/Catalogue', location.href); url.search = ui.query.build(values(extra), schema); return url.href; };
 
   /* ---------------- directory (filtered in place; the reference filters without a reload) ---------------- */
@@ -85,7 +90,7 @@ export function init(region, ui = window.AdminUI) {
   function setFilter(patch, { delay = false } = {}) {
     Object.assign(filters, patch); applyFilters();
     clearTimeout(timer);
-    if (delay) timer = setTimeout(() => writeUrl(), 250); else writeUrl();
+    if (delay) { clearTimeout(timer); timer = setTimeout(() => writeUrl(), 250); } else writeUrl();
   }
   listen(search, 'input', () => setFilter({ q: search.value.slice(0, 100) }, { delay: true }));
   listen(search, 'keydown', event => { if (event.key === 'Escape' && search.value) { event.preventDefault(); search.value = ''; setFilter({ q: '' }); } });
@@ -250,18 +255,55 @@ export function init(region, ui = window.AdminUI) {
     const outcome = await window.AdminFetch.request(pageUrl(extra), { expect: 'html', signal, readback: true, headers: { 'X-Admin-Navigation': 'true' } });
     return outcome.kind === 'handler' ? new DOMParser().parseFromString(outcome.data, 'text/html') : null;
   }
-  // Re-read after a save: the server's values replace the drawer; unsaved activity settings are kept.
-  async function refresh({ editor = null, keepAdd = false } = {}) {
+  // RC10 C2 / decision B: every form keeps its own baseline. A re-read after a save (or a check) installs the
+  // server's values and then puts back every *other* part's unsaved entry; only the part named in `saved` takes
+  // the server's values. Parts: 'activity', 'map' (Wise Old Man metric), 'drop', 'price', 'add'.
+  function captureDrafts() {
+    const state = drawer, drafts = {};
+    if (!state || state.missing) return drafts;
+    if (!state.add && activityDirty()) drafts.activity = activityValues();
+    if (metricDirty()) drafts.metric = $('#m-metric').value;
+    const e = state.editor;
+    if (e) drafts.editor = { id: e.id, values: editorValues(), price: priceValues(), editorDirty: editorDirty(), priceDirty: priceDirty(), useShared: e.useShared };
+    if (state.addForm && addFormHasInput()) drafts.add = addFormValues();
+    return drafts;
+  }
+  function restoreDrafts(drafts, saved) {
+    const state = drawer;
+    if (!state || state.missing) return;
+    if (drafts.activity && saved !== 'activity') { setActivityValues(drafts.activity); paintActivity(); }
+    if (drafts.metric != null && saved !== 'map' && $('#m-metric')) { $('#m-metric').value = drafts.metric; openDisclosure($('#map-btn'), true); }
+    const d = drafts.editor;
+    if (d) {
+      const keepEditor = d.editorDirty && saved !== 'drop', keepPrice = d.priceDirty && saved !== 'price';
+      if ((keepEditor || keepPrice) && state.editor?.id !== d.id) openEditor(d.id, { quiet: true });
+      if (state.editor?.id === d.id) {
+        if (keepEditor) {
+          ed('#e-name').value = d.values.name; ed('#e-rate').value = d.values.rate; ed('#e-img').value = d.values.image;
+          if (ed('#e-group')) ed('#e-group').value = d.values.group;
+          paintEditor();
+          if (d.useShared && ed('#e-use-shared')) { ed('#e-use-shared').checked = true; state.editor.useShared = true; }
+        }
+        if (keepPrice) {
+          const mode = ed(`input[name=priceMode][value="${d.price.mode}"]`); if (mode) mode.checked = true;
+          ed('#p-gp').value = d.price.gp; ed('#p-id').value = d.price.id;
+          openDisclosure(ed('#price-btn'), true);
+        }
+        paintEditor();
+      }
+    }
+    if (drafts.add && saved !== 'add' && !state.editor) { openAdd(false); restoreAddForm(drafts.add); }
+  }
+  async function refresh({ saved = null, editor = null, doc = null } = {}) {
     const state = drawer; if (!state) return false;
-    const keep = state.add ? null : activityDirty() ? activityValues() : null;
-    const addValues = keepAdd && state.addForm ? addFormValues() : null;
-    const doc = await fetchPage({ drop: '' });
+    const drafts = captureDrafts();
+    doc ??= await fetchPage({ drop: '' });
     if (drawer !== state || !doc) return false;
     const source = doc.querySelector('template[data-catalogue-drawer]');
     patchDirectory(doc);
     if (!source) return false;
-    install(source, { keep, openEditor: editor });
-    if (addValues) { openAdd(false); restoreAddForm(addValues); }
+    install(source, { openEditor: editor });
+    restoreDrafts(drafts, saved);
     return true;
   }
   function install(source, { keep = null, openEditor: editorId = null } = {}) {
@@ -279,6 +321,7 @@ export function init(region, ui = window.AdminUI) {
     if (state.missing) return;
     const formNode = $('[data-catalogue-activity-form]');
     state.baseline = activityValues();
+    state.metricBase = $('#m-metric')?.value ?? null;
     if (keep) setActivityValues(keep);
     formNode.addEventListener('input', paintActivity); formNode.addEventListener('change', paintActivity);
     formNode.addEventListener('submit', event => event.preventDefault());
@@ -299,11 +342,18 @@ export function init(region, ui = window.AdminUI) {
     const parts = [];
     if (!drawer || drawer.missing) return parts;
     if (activityDirty()) parts.push(drawer.add ? t('the new activity') : t('the activity settings'));
-    if (drawer.editor && editorDirty()) parts.push(t('your changes to {0}', drawer.editor.name));
-    if (drawer.editor && priceDirty()) parts.push(t('the value and mapping changes for {0}', drawer.editor.name));
+    if (metricDirty()) parts.push(t('the Wise Old Man metric'));
+    parts.push(...editorParts());
     if (drawer.addForm && addFormHasInput()) parts.push(t('the new drop'));
     return parts;
   }
+  function editorParts() {
+    const parts = [];
+    if (drawer?.editor && editorDirty()) parts.push(t('your changes to {0}', drawer.editor.name));
+    if (drawer?.editor && priceDirty()) parts.push(t('the value and mapping changes for {0}', drawer.editor.name));
+    return parts;
+  }
+  function metricDirty() { const input = drawer?.element?.querySelector('#m-metric'); return !!input && drawer.metricBase != null && input.value.trim() !== drawer.metricBase.trim(); }
   async function askDiscard(parts) {
     const box = dialog({ title: t('Discard unsaved changes?') });
     box.body.append(points(parts.map(part => t('Discards {0}.', part))));
@@ -333,8 +383,8 @@ export function init(region, ui = window.AdminUI) {
   function paintActivity() {
     if (!drawer || drawer.missing) return;
     const dirty = activityDirty(), f = activityFields(), minigame = f.category.value === 'Minigame';
-    $('[data-catalogue-rate-label]').textContent = minigame ? t('Runs per hour') : t('Kills per hour');
-    $('[data-catalogue-rate-hint]').textContent = minigame ? t('Efficient runs or completions in one hour.') : t('Efficient kills in one hour, at the group size the drop rates assume.');
+    setText($('[data-catalogue-rate-label]'), minigame ? t('Runs per hour') : t('Kills per hour'));
+    setText($('[data-catalogue-rate-hint]'), minigame ? t('Efficient runs or completions in one hour.') : t('Efficient kills in one hour, at the group size the drop rates assume.'));
     const note = $('[data-catalogue-recalc]');
     const rateChanged = !drawer.add && f.rate.value.trim() !== drawer.baseline.rate.trim(), rate = activityRateNumber(f.rate.value);
     note.hidden = !(rateChanged && (rate > 0 || !f.rate.value.trim()));
@@ -344,7 +394,7 @@ export function init(region, ui = window.AdminUI) {
     const head = $('[data-catalogue-act-dirty]'); if (head) head.hidden = !(dirty && !drawer.add);
     const footNote = $('[data-catalogue-foot-note]'); footNote.hidden = !dirty;
     const save = $('[data-catalogue-save]'); save.hidden = !(drawer.add || dirty);
-    $('[data-catalogue-cancel]').textContent = drawer.add ? t('Cancel') : dirty ? t('Discard') : t('Close');
+    setText($('[data-catalogue-cancel]'), drawer.add ? t('Cancel') : dirty ? t('Discard') : t('Close'));
     paintLocks();
   }
   function activityErrors() {
@@ -384,17 +434,16 @@ export function init(region, ui = window.AdminUI) {
       if (state.add) {
         state.add = false; state.id = result.activityId;
         writeUrl({ activity: state.id, new: '', drop: '' });
-        await refresh(); $('#sec-drops')?.focus({ preventScroll: true });
+        await refresh({ saved: 'activity' }); $('#sec-drops')?.focus({ preventScroll: true });
         ui.toast(t('{0} added. Add its drops next.', result.name)); return;
       }
-      state.baseline = activityValues();
-      await refresh();
+      await refresh({ saved: 'activity' });
       ui.toast(result.rateChanged ? t('{0} saved. EHB recalculated for its drops.', result.name) : t('{0} saved.', result.name));
       $('#drawer-title')?.focus({ preventScroll: true });
       return;
     }
     if (result?.outcome === 'invalid') { const errors = {}; for (const [key, message] of Object.entries(result.errors || {})) errors[serverField[key] || 'a-name'] = message; showErrors(state.element, errors, order); return; }
-    if (result?.outcome === 'stale') { state.baseline = null; await refresh(); showBanner($('[data-catalogue-banner-slot]'), 'is-warning', t('Another admin changed this activity.'), t('Your changes weren’t saved. The current values are shown; check them and edit again.')); return; }
+    if (result?.outcome === 'stale') { await refresh({ saved: 'activity' }); showBanner($('[data-catalogue-banner-slot]'), 'is-warning', t('Another admin changed this activity.'), t('Your changes weren’t saved. The current values are shown; check them and edit again.')); return; }
     if (result?.outcome === 'refused') { showBanner(slot, 'is-warning', t('That couldn’t be saved.'), result.message); return; }
     if (outcome.status === 404) { await loadDrawer(state); return; }
     showBanner(slot, 'is-warning', t('We couldn’t confirm the save.'), t('It may have gone through. Check the current values before saving again.'),
@@ -411,7 +460,7 @@ export function init(region, ui = window.AdminUI) {
     if (created) {
       // Exact name only (RC10 C1: never a partial match).
       const row = rows().find(item => item.dataset.name.toLowerCase() === snapshot.name.trim().toLowerCase());
-      if (row) { state.add = false; state.id = row.dataset.activityRow; writeUrl({ activity: state.id, new: '' }); await refresh(); showBanner($('[data-catalogue-banner-slot]'), 'is-info', t('It was added.'), t('The current values are shown.')); }
+      if (row) { state.add = false; state.id = row.dataset.activityRow; writeUrl({ activity: state.id, new: '' }); await refresh({ saved: 'activity' }); showBanner($('[data-catalogue-banner-slot]'), 'is-info', t('It was added.'), t('The current values are shown.')); }
       else showBanner(slot, 'is-info', t('It wasn’t added.'), t('Your entries are still here; add it again when ready.'));
       return;
     }
@@ -446,14 +495,14 @@ export function init(region, ui = window.AdminUI) {
     if (drawer !== state || outcome.kind === 'session-lost') return;
     const data = resultOf(outcome);
     if (data?.outcome === 'completed') {
-      await refresh();
+      await refresh({ saved: 'map' });
       const status = !value ? 'none' : operation === 'save' ? 'unchecked' : { Verified: 'verified', Unsupported: 'unsupported', TemporarilyUnavailable: 'unavailable' }[data.status] || 'unchecked';
       const text = { verified: t('Saved and verified. Wise Old Man tracks this metric; not every player will have data.'), unsupported: t('Saved. Wise Old Man doesn’t recognise this metric; check the exact activity or raid mode.'), unavailable: t('Saved. Wise Old Man couldn’t be reached to check it; validate again later.'), unchecked: t('Saved without checking.'), none: t('Saved. No metric is set, so events can’t show Wise Old Man activity for it.') }[status];
       openDisclosure($('#map-btn'), true);
       const result = $('#m-result'); result.hidden = false; result.className = `ct-result ${status === 'verified' ? 'is-ok' : status === 'unsupported' || status === 'unavailable' ? 'is-warn' : ''}`; result.textContent = text; result.focus({ preventScroll: true });
       return;
     }
-    if (data?.outcome === 'stale') { await refresh(); showBanner($('[data-catalogue-banner-slot]'), 'is-warning', t('Another admin changed this activity.'), t('Your changes weren’t saved. The current values are shown; check them and edit again.')); return; }
+    if (data?.outcome === 'stale') { await refresh({ saved: 'map' }); showBanner($('[data-catalogue-banner-slot]'), 'is-warning', t('Another admin changed this activity.'), t('Your changes weren’t saved. The current values are shown; check them and edit again.')); return; }
     const result = $('#m-result'); result.hidden = false; result.className = 'ct-result is-warn';
     result.textContent = t('We couldn’t confirm the save. Check the current values before saving again.');
   }
@@ -463,13 +512,13 @@ export function init(region, ui = window.AdminUI) {
   const usesHere = item => (item?.uses || []).find(use => use.activity === drawer.id) || null;
   async function toggleEditor(id) {
     const state = drawer;
-    if (state.editor?.id === id) { if (editorDirty() || priceDirty()) { if (!await askDiscard(dirtyParts())) return; } closeEditor(true); return; }
+    if (state.editor?.id === id) { const parts = editorParts(); if (parts.length && !await askDiscard(parts)) return; closeEditor(true); return; }
     await openEditorGuarded(id);
   }
   async function openEditorGuarded(id) {
     const state = drawer;
     const parts = [];
-    if (state.editor && (editorDirty() || priceDirty())) parts.push(...dirtyParts().filter(part => part !== t('the activity settings') && part !== t('the new drop')));
+    if (state.editor) parts.push(...editorParts());
     if (state.addForm && addFormHasInput()) parts.push(t('the new drop'));
     if (parts.length && !await askDiscard(parts)) return;
     openEditor(id);
@@ -533,7 +582,7 @@ export function init(region, ui = window.AdminUI) {
     const e = drawer?.editor; if (!e) return;
     const v = editorValues(), name = v.name.trim(), nameChanged = name !== e.name;
     const other = nameChanged ? itemFor(name) : null, merge = other && other.id !== e.itemId && !usesHere(other) ? other : null;
-    ed('#e-name-hint').textContent = e.others ? (nameChanged && !merge ? t('Renames the shared item for {0} too.', e.others) : t('Shared with {0}. Name, image and value change there too.', e.others)) : t('The item’s name everywhere it appears.');
+    setText(ed('#e-name-hint'), e.others ? (nameChanged && !merge ? t('Renames the shared item for {0} too.', e.others) : t('Shared with {0}. Name, image and value change there too.', e.others)) : t('The item’s name everywhere it appears.'));
     const slot = ed('[data-catalogue-merge-slot]');
     if (merge && slot.dataset.item !== merge.id) {
       slot.dataset.item = merge.id; e.useShared = false;
@@ -542,23 +591,23 @@ export function init(region, ui = window.AdminUI) {
         checked => { e.useShared = checked; paintEditor(); }));
     } else if (!merge) { slot.replaceChildren(); delete slot.dataset.item; e.useShared = false; }
     const parsed = parseRate(v.rate), rateChanged = v.rate.trim() !== e.rate;
-    ed('[data-catalogue-preview]').textContent = parsed ? preview(parsed, rateChanged ? parsed.rolls : e.rolls) : t('Like 1/512, 3/1,024 or 2 x 1/1,024.');
+    setText(ed('[data-catalogue-preview]'), parsed ? preview(parsed, rateChanged ? parsed.rolls : e.rolls) : t('Like 1/512, 3/1,024 or 2 x 1/1,024.'));
     const newEhb = rateChanged && parsed ? ehbOf(drawer.rate, parsed.p, parsed.rolls) : null;
     const calc = ed('[data-catalogue-calc]'), note = ed('[data-catalogue-calc-note]');
     const shown = rateChanged ? (newEhb != null ? ehbText(newEhb) : null) : e.ehb || null;
-    calc.textContent = shown != null ? t('{0} EHB', shown) : t('Unavailable'); calc.classList.toggle('is-muted', shown == null);
+    setText(calc, shown != null ? t('{0} EHB', shown) : t('Unavailable')); calc.classList.toggle('is-muted', shown == null);
     note.textContent = shown == null
       ? (!(drawer.rate > 0) ? (drawer.category === 'Minigame' ? t('The activity has no runs per hour. Add it in Settings above.') : t('The activity has no kills per hour. Add it in Settings above.')) : t('The rate can’t be turned into a probability. Enter it like 1/512.'))
       : rateChanged && e.ehb ? t('Was {0}. Approved boards keep their snapshot.', e.ehb)
       : drawer.category === 'Minigame' ? t('Hours to get one at {0} runs per hour.', fmt(drawer.rate)) : t('Hours to get one at {0} kills per hour.', fmt(drawer.rate));
     const dirty = editorDirty();
     ed('#e-save').disabled = !dirty || !!drawer.busy;
-    ed('#e-cancel').textContent = dirty ? t('Discard') : t('Close');
-    ed('[data-catalogue-save-what]').textContent = dirty ? (superAdmin ? t('Saves the name, rate, image and roll group.') : t('Saves the name, rate and image.')) : t('No changes yet.');
+    setText(ed('#e-cancel'), dirty ? t('Discard') : t('Close'));
+    setText(ed('[data-catalogue-save-what]'), dirty ? (superAdmin ? t('Saves the name, rate, image and roll group.') : t('Saves the name, rate and image.')) : t('No changes yet.'));
     const p = priceValues();
     ed('[data-catalogue-manual]').hidden = p.mode !== 'Manual';
     ed('[data-catalogue-item-id]').hidden = p.mode === 'Untradeable';
-    ed('[data-catalogue-mode-hint]').textContent = p.mode === 'Api' ? t('Uses the Wiki hourly price for the item ID. Validate to fetch it.') : p.mode === 'Manual' ? t('A fixed value. Price refreshes don’t change it. Zero is fine.') : t('Stored as 0 GP and never priced.');
+    setText(ed('[data-catalogue-mode-hint]'), p.mode === 'Api' ? t('Uses the Wiki hourly price for the item ID. Validate to fetch it.') : p.mode === 'Manual' ? t('A fixed value. Price refreshes don’t change it. Zero is fine.') : t('Stored as 0 GP and never priced.'));
     for (const input of ed('[data-catalogue-price]').querySelectorAll('input[name=priceMode]')) input.closest('.seg-opt').classList.toggle('is-on', input.checked);
     const validate = ed('#p-validate [data-component-text]'); if (!ed('#p-validate').classList.contains('is-busy')) validate.textContent = p.mode === 'Api' ? validate.dataset.api : validate.dataset.other;
     paintLocks();
@@ -595,13 +644,13 @@ export function init(region, ui = window.AdminUI) {
     state.busy = null; if (button.isConnected) setBusy(button, false); paintLocks();
     if (drawer !== state || outcome.kind === 'session-lost' || signal.aborted) return;
     const result = resultOf(outcome), slot = () => ed('[data-catalogue-editor-banner]');
-    if (result?.outcome === 'completed') { await refresh(); ui.toast(t('{0} saved. EHB recalculated.', result.itemName)); $(`#row-${CSS.escape(e.id)}`)?.focus({ preventScroll: true }); return; }
+    if (result?.outcome === 'completed') { await refresh({ saved: 'drop' }); ui.toast(t('{0} saved. EHB recalculated.', result.itemName)); $(`#row-${CSS.escape(e.id)}`)?.focus({ preventScroll: true }); return; }
     if (result?.outcome === 'confirm-shared') { const ids = await confirmShared(result.activities, v.name.trim() !== e.name ? 'rename' : 'image', !!confirmation); if (ids) await saveDrop(ids); return; }
     if (result?.outcome === 'shared') { fieldError(e.node, 'e-use-shared', t('Confirm using the shared item, or change the name.')); ed('#e-use-shared')?.focus(); return; }
     if (result?.outcome === 'invalid') { const map = { name: 'e-name', rate: 'e-rate', rollGroup: 'e-group' }; const errors = {}; for (const [key, message] of Object.entries(result.errors || {})) errors[map[key] || 'e-name'] = message; showErrors(e.node, errors, ['e-name', 'e-rate', 'e-group']); return; }
     if (result?.outcome === 'refused') { showBanner(slot(), 'is-warning', t('That couldn’t be saved.'), result.message); return; }
-    if (result?.outcome === 'stale') { await refresh({ editor: e.id }); showBanner(slot(), 'is-warning', t('Another admin changed this drop or its shared item.'), t('Your changes weren’t saved. The current values are shown; check them and edit again.')); return; }
-    if (outcome.status === 404) { await refresh(); return; }
+    if (result?.outcome === 'stale') { await refresh({ saved: 'drop', editor: e.id }); showBanner(slot(), 'is-warning', t('Another admin changed this drop or its shared item.'), t('Your changes weren’t saved. The current values are shown; check them and edit again.')); return; }
+    if (outcome.status === 404) { await refresh({ saved: 'drop' }); return; }
     showBanner(slot(), 'is-warning', t('We couldn’t confirm the save.'), t('It may have gone through. Check before saving again.'), { label: t('Check current values'), run: b => void checkDrop(b, snapshot) });
   }
   async function checkDrop(button, snapshot) {
@@ -672,13 +721,13 @@ export function init(region, ui = window.AdminUI) {
     if (drawer !== state || outcome.kind === 'session-lost') return;
     const data = resultOf(outcome);
     if (data?.outcome === 'completed') {
-      await refresh({ editor: e.id });
+      await refresh({ saved: 'price', editor: e.id });
       openDisclosure(ed('#price-btn'), true);
       const [tone, text] = priceText(data, operation);
       const node = ed('#p-result'); node.hidden = false; node.className = `ct-result ${tone}`; node.textContent = text; node.focus({ preventScroll: true });
       return;
     }
-    if (data?.outcome === 'stale') { await refresh({ editor: e.id }); showBanner(ed('[data-catalogue-editor-banner]'), 'is-warning', t('Another admin changed this drop or its shared item.'), t('Your changes weren’t saved. The current values are shown; check them and edit again.')); return; }
+    if (data?.outcome === 'stale') { await refresh({ saved: 'price', editor: e.id }); showBanner(ed('[data-catalogue-editor-banner]'), 'is-warning', t('Another admin changed this drop or its shared item.'), t('Your changes weren’t saved. The current values are shown; check them and edit again.')); return; }
     result.hidden = false; result.className = 'ct-result is-warn';
     result.textContent = outcome.status === 400 ? t('That couldn’t be saved. Check the ID and value and try again.') : t('We couldn’t confirm the save. Check the current values before saving again.');
   }
@@ -719,9 +768,9 @@ export function init(region, ui = window.AdminUI) {
     ad('[data-catalogue-value]').hidden = !!shared;
     ad('[data-catalogue-add-gp]').hidden = v.mode !== 'manual';
     for (const input of f.node.querySelectorAll('input[name=addMode]')) input.closest('.seg-opt').classList.toggle('is-on', input.checked);
-    ad('[data-catalogue-value-hint]').textContent = v.mode === 'manual' ? t('Zero is fine. Manual values stay fixed when prices refresh.') : v.mode === 'fetch' ? t('Looks up the exact name and its hourly price when you add the drop. If that fails, nothing is added.') : t('Stored as 0 GP and marked untradeable.');
+    setText(ad('[data-catalogue-value-hint]'), v.mode === 'manual' ? t('Zero is fine. Manual values stay fixed when prices refresh.') : v.mode === 'fetch' ? t('Looks up the exact name and its hourly price when you add the drop. If that fails, nothing is added.') : t('Stored as 0 GP and marked untradeable.'));
     const parsed = parseRate(v.rate);
-    ad('[data-catalogue-preview]').textContent = parsed ? preview(parsed, parsed.rolls) : t('Write it as shown on the Wiki. Your own chance, at the group size the activity rate uses.');
+    setText(ad('[data-catalogue-preview]'), parsed ? preview(parsed, parsed.rolls) : t('Write it as shown on the Wiki. Your own chance, at the group size the activity rate uses.'));
     const save = ad('#add-save'); if (!save.classList.contains('is-busy')) save.querySelector('[data-component-text]').textContent = v.mode === 'fetch' && !shared ? t('Fetch price and add') : t('Add drop');
     paintLocks();
   }
@@ -748,7 +797,7 @@ export function init(region, ui = window.AdminUI) {
     if (drawer !== state || outcome.kind === 'session-lost' || signal.aborted) return;
     const result = resultOf(outcome), slot = () => ad('[data-catalogue-add-banner]');
     if (result?.outcome === 'completed') {
-      await refresh(); $('#add-drop')?.focus({ preventScroll: true });
+      await refresh({ saved: 'add' }); $('#add-drop')?.focus({ preventScroll: true });
       ui.toast(result.reactivated ? t('{0} reactivated on {1}.', result.itemName, state.name) : t('{0} added to {1}.', result.itemName, state.name));
       if (result.notice) showBanner($('[data-catalogue-banner-slot]'), 'is-info', t('Added with a manual value.'), result.notice);
       return;
@@ -763,7 +812,7 @@ export function init(region, ui = window.AdminUI) {
     if (result?.outcome === 'shared') { fieldError(f.node, 'n-use-shared', t('Confirm using the shared item, or change the name.')); return; }
     if (result?.outcome === 'invalid') { const map = { name: 'n-name', rate: 'n-rate', value: 'n-gp', image: 'n-img' }; const errs = {}; for (const [key, message] of Object.entries(result.errors || {})) errs[map[key] || 'n-name'] = message; showErrors(f.node, errs, ['n-name', 'n-rate', 'n-gp']); return; }
     if (result?.outcome === 'refused') { showBanner(slot(), 'is-warning', t('That couldn’t be saved.'), result.message); return; }
-    await refresh({ keepAdd: true });
+    await refresh();
     showBanner(slot(), 'is-warning', '', t('We couldn’t confirm whether it was added. Check the list below before adding it again.'));
   }
 
@@ -867,7 +916,7 @@ export function init(region, ui = window.AdminUI) {
           const doc = await fetchPage({ activity: '', drop: '' }); if (doc) patchDirectory(doc);
           document.querySelector('#page-h1')?.focus({ preventScroll: true });
           ui.toast(t('{0} permanently deleted. Shared items, prices and Audit history are kept.', name));
-        } else { await refresh(); $('#sec-drops')?.focus({ preventScroll: true }); ui.toast(t('{0} permanently deleted from this activity. The shared item is kept.', name)); }
+        } else { await refresh({ saved: 'drop' }); $('#sec-drops')?.focus({ preventScroll: true }); ui.toast(t('{0} permanently deleted from this activity. The shared item is kept.', name)); }
         return;
       }
       box.body.replaceChildren(body?.outcome === 'referenced'
@@ -909,10 +958,15 @@ export function init(region, ui = window.AdminUI) {
     if (target.closest('[data-catalogue-map-suggest]')) { void mapSuggest(target.closest('button')); return; }
     const toggle = target.closest('[data-catalogue-drop-toggle]'); if (toggle) { void toggleEditor(toggle.dataset.catalogueDropToggle); return; }
     if (target.closest('[data-catalogue-drop-save]')) { void saveDrop(); return; }
-    if (target.closest('[data-catalogue-drop-cancel]')) { if (editorDirty()) resetEditor(); else closeEditor(true); return; }
+    if (target.closest('[data-catalogue-drop-cancel]')) {
+      // Discard resets the editor's own fields (reference); Close asks when value/mapping changes are unsaved.
+      if (editorDirty()) resetEditor();
+      else void (async () => { const parts = editorParts(); if (parts.length && !await askDiscard(parts)) return; closeEditor(true); })();
+      return;
+    }
     const priceButton = target.closest('[data-catalogue-price-save]'); if (priceButton) { void priceSave(priceButton.dataset.cataloguePriceSave, priceButton); return; }
     if (target.closest('[data-catalogue-price-suggest]')) { void priceSuggest(target.closest('button')); return; }
-    if (target.closest('[data-catalogue-add-open]')) { void (async () => { if (drawer.editor && (editorDirty() || priceDirty()) && !await askDiscard(dirtyParts().filter(p => p !== t('the activity settings')))) return; openAdd(); })(); return; }
+    if (target.closest('[data-catalogue-add-open]')) { void (async () => { const parts = editorParts(); if (parts.length && !await askDiscard(parts)) return; openAdd(); })(); return; }
     if (target.closest('[data-catalogue-add-save]')) { void saveAdd(); return; }
     if (target.closest('[data-catalogue-add-cancel]')) { void (async () => { if (addFormHasInput() && !await askDiscard([t('the new drop')])) return; closeAdd(true); })(); return; }
     const activeDrop = target.closest('[data-catalogue-drop-active]'); if (activeDrop) { if (drawer.editor.active) void deactivate('drop', activeDrop); else void reactivate('drop', activeDrop); return; }
@@ -929,6 +983,7 @@ export function init(region, ui = window.AdminUI) {
 
   /* ---------------- history (Back/Forward) ---------------- */
   const unregisterUrl = ui.registerUrlState(async next => {
+    clearTimeout(timer);
     const url = new URL(next);
     if (!/^\/admin\/catalogue(\/index)?$/i.test(url.pathname)) return false;
     const p = url.searchParams;
