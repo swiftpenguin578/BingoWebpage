@@ -1,4 +1,4 @@
-// Round5 item3: document stays viewport-sized; only the shell scroller scrolls.
+// Events filtered/reset result states; generic full-load bounds now use the registered-page gate.
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
 const {chromium,webkit}=require('playwright');
 const {startFixture,login}=require('../../scripts/lib/admin-parity-fixture.cjs');
@@ -11,7 +11,7 @@ const {settle}=require('../../scripts/lib/admin-parity-compare.cjs');
   browser=await engine.launch({headless:true,...(name==='chromium'?{channel:process.env.PLAYWRIGHT_CHANNEL||'chromium'}:{})});
   const context=await browser.newContext({viewport:{width:494,height:342},reducedMotion:'reduce'}),page=await login(context,fixture),errors=[];
   page.on('pageerror',e=>errors.push(e.message));page.setDefaultTimeout(10000);
-  const routes={events:'/Admin/Events',dashboard:'/Admin',identity:'/Admin/Events/Identity/'+fixture.events['autumn-bingo-2027']};
+  const routes={events:'/Admin/Events'};
   const snapshot=()=>page.evaluate(()=>{
    const doc=document.documentElement,main=document.querySelector('main.scroller');
    return{viewport:{width:innerWidth,height:innerHeight},document:{width:doc.scrollWidth,height:doc.scrollHeight,x:scrollX,y:scrollY},
@@ -35,7 +35,6 @@ const {settle}=require('../../scripts/lib/admin-parity-compare.cjs');
    await page.setViewportSize({width,height:342});
    for(const [family,url]of Object.entries(routes)){
     await page.goto(fixture.origin+url);await page.waitForFunction(()=>window.AdminUI&&window.AdminFetch);
-    await check(family,width,'full-load');
     if(family==='events'){
      assert.ok(await page.locator('.ev-tbl .row .sr').count(),'fixture exercises wide-row screen-reader text');
      await page.locator('#phase-btn').click();await page.getByRole('menuitemradio',{name:'Live',exact:true}).click();

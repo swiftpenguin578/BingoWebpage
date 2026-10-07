@@ -60,6 +60,7 @@ async function until(page,fn){for(let i=0;i<200;i++)if(await page.evaluate(fn))r
      const reference=await ref.locator('.page-head').evaluate(root=>Object.fromEntries([['head',':scope'],['group',':scope > div:first-child'],['title','.h1'],['summary','.summary'],['card','.next-event']].map(([key,selector])=>{const r=(selector===':scope'?root:root.querySelector(selector)).getBoundingClientRect();return[key,{x:r.x,y:r.y,width:r.width,height:r.height}];})));
      await ref.locator('.page-head').evaluate(root=>{
        root.querySelector('.summary').innerHTML='<span>&nbsp;</span>';
+       root.querySelector('.summary').style.minHeight=(parseFloat(getComputedStyle(root.querySelector('.summary')).lineHeight)*(innerWidth<=640?2:1))+'px'; // U3-Q6 loading reservation
        const card=root.querySelector('.next-event');card.style.width='420px';
        card.innerHTML='<div class="grow"><div class="next-label">&nbsp;</div><div class="next-name">&nbsp;</div><div class="next-meta">&nbsp;</div></div><span style="width:56px;height:6px;flex:none" class="sk"></span><span style="width:52px;height:28px;flex:none" class="sk"></span>';
        if(innerWidth<=860)card.style.width='100%';

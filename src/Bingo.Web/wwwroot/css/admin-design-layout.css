@@ -33,3 +33,7 @@ body:not(.using-keyboard) :focus-visible{outline:none}.design-drawer-layer{posit
   .design-top-actions [data-shell-preferences] { display: none; }
 }
 .field-validation-valid{display:none}
+
+/* U3-Q6: shared loading reservation; loaded headers retain reference flow. */
+[data-page-skeleton][aria-busy="true"] > .page-head .summary{min-height:calc(var(--dk-fs-control)*var(--dk-lh-body))}
+@media(max-width:640px){[data-page-skeleton][aria-busy="true"] > .page-head .summary{min-height:calc(var(--dk-fs-control)*var(--dk-lh-body)*2)}}
