@@ -65,6 +65,36 @@ public sealed class AuditReadableChangesTests(BrowserTestApplicationFactory fact
     public void TechnicalFieldPolicyIsExplicit(string key, bool technical) => Assert.Equal(technical, AuditPresenter.IsTechnicalField(key));
 
     [Fact]
+    public async Task TechnicalOnlyChangesSayWhereTheyAre()
+    {
+        using var scope = factory.Services.CreateScope();
+        var text = scope.ServiceProvider.GetRequiredService<IStringLocalizer<AuditResource>>();
+        var technical = AuditPresenter.Present(new AuditEntry(Guid.NewGuid(), DateTimeOffset.UnixEpoch, null, "Admin", "board.editing_acquired", "board", "id", null, null,
+            """{"Version":"4","EditorLeaseExpiresAt":null,"Name":"Same"}""", """{"Version":"5","EditorLeaseExpiresAt":"2027-05-27T09:00:00Z","Name":"Same"}"""), text);
+        Assert.Empty(technical.Changes);
+        Assert.True(technical.TechnicalOnly);
+        var nothing = AuditPresenter.Present(new AuditEntry(Guid.NewGuid(), DateTimeOffset.UnixEpoch, null, "Admin", "board.updated", "board", "id", null, null,
+            """{"Name":"Same"}""", """{"Name":"Same"}"""), text);
+        Assert.False(nothing.TechnicalOnly);
+
+        // Rendered drawer text (English and Danish) for a technical-only entry on the Audit page.
+        var entry = new AuditEntry(Guid.NewGuid(), new DateTimeOffset(2031, 1, 1, 12, 0, 0, TimeSpan.Zero), null, "System", "board.editing_acquired", "board", Guid.NewGuid().ToString(), null, null,
+            """{"Version":"1"}""", """{"Version":"2"}""");
+        using (var write = factory.Services.CreateScope())
+        {
+            var db = write.ServiceProvider.GetRequiredService<Bingo.Infrastructure.Persistence.ApplicationDbContext>();
+            db.AuditEntries.Add(entry); await db.SaveChangesAsync();
+        }
+        foreach (var (culture, expected) in new[] { ("en", "Only technical fields changed. See Technical details."), ("da", "Kun tekniske felter blev ændret. Se Tekniske oplysninger.") })
+        {
+            using var client = await AuditTestLogin.ClientAsync(factory, culture);
+            var html = System.Net.WebUtility.HtmlDecode(await client.GetStringAsync($"/Admin/Audit?entry={entry.Id}"));
+            var drawer = System.Text.RegularExpressions.Regex.Match(html, $"<template data-audit-detail=\"{entry.Id}\">.*?</template>", System.Text.RegularExpressions.RegexOptions.Singleline).Value;
+            Assert.Contains(expected, drawer, StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
     public void SensitiveActionsStillShowNoChanges()
     {
         using var scope = factory.Services.CreateScope();
@@ -73,5 +103,33 @@ public sealed class AuditReadableChangesTests(BrowserTestApplicationFactory fact
         var shown = AuditPresenter.Present(entry, text);
         Assert.True(shown.Sensitive);
         Assert.Empty(shown.Changes);
+    }
+}
+
+internal static class AuditTestLogin
+{
+    public static async Task<HttpClient> ClientAsync(BrowserTestApplicationFactory factory, string culture)
+    {
+        var username = $"audit-l1-{Guid.NewGuid():N}";
+        const string password = "Audit-l1-password-123!";
+        var at = new DateTimeOffset(2026, 1, 1, 12, 0, 0, TimeSpan.Zero);
+        var account = Bingo.Domain.Access.Account.CreateWebsite(Guid.NewGuid(), username, username.ToUpperInvariant(), at);
+        account.SetGlobalRole(Bingo.Domain.Access.GlobalRole.Admin);
+        account.SetPassword(new Microsoft.AspNetCore.Identity.PasswordHasher<Bingo.Domain.Access.Account>().HashPassword(account, password), false, at, incrementVersion: false);
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<Bingo.Infrastructure.Persistence.ApplicationDbContext>();
+            db.Add(account); await db.SaveChangesAsync();
+        }
+        var client = factory.CreateClient(new Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactoryClientOptions { AllowAutoRedirect = false, BaseAddress = new Uri("https://localhost") });
+        var login = await client.GetStringAsync("/Account/Login");
+        var token = System.Text.RegularExpressions.Regex.Match(login, "name=\"__RequestVerificationToken\"[^>]*value=\"([^\"]+)\"").Groups[1].Value;
+        using var response = await client.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["Input.Username"] = username, ["Input.Password"] = password, ["__RequestVerificationToken"] = System.Net.WebUtility.HtmlDecode(token)
+        }));
+        Assert.Equal(System.Net.HttpStatusCode.Redirect, response.StatusCode);
+        client.DefaultRequestHeaders.AcceptLanguage.ParseAdd(culture);
+        return client;
     }
 }
