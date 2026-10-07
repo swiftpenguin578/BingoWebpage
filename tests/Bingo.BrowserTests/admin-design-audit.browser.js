@@ -63,11 +63,36 @@ const { startFixture, login } = require('../../scripts/lib/admin-parity-fixture.
     await page.locator('#clear-all').click();
     await page.waitForFunction(() => location.search === '' && !document.querySelector('.filter-chip') && !document.querySelector('[data-update-skeleton]'));
 
+    // T1 review M2: unapplied panel edits are protected by the shared discard confirmation.
+    await page.locator('#more-filters').click();
+    await page.locator('#fpanel').waitFor();
+    await page.keyboard.press('Escape');
+    await page.waitForFunction(() => document.querySelector('#fpanel').hidden);
+    assert.equal(await page.locator('.modal', { hasText: 'Discard unsaved changes?' }).count(), 0, 'no edits: Escape closes at once');
+    await page.locator('#more-filters').click();
+    await page.locator('#fp-type').selectOption('board');
+    await page.keyboard.press('Escape');
+    const discardDialog = page.locator('.modal', { hasText: 'Discard unsaved changes?' });
+    await discardDialog.waitFor();
+    await discardDialog.locator('[data-confirm-cancel]').click();
+    await page.waitForFunction(() => !document.querySelector('[data-modal-host] .modal'));
+    assert.equal(await page.locator('#fpanel').isVisible(), true, 'Keep editing keeps the panel open');
+    assert.equal(await page.locator('#fp-type').inputValue(), 'board');
+    const before = page.url();
+    await page.locator('[data-audit-open]').first().click();
+    await discardDialog.waitFor();
+    assert.equal(await page.locator('.drawer').count(), 0, 'the outside click did not also open an entry');
+    assert.equal(page.url(), before);
+    await discardDialog.locator('[data-confirm-accept]').click();
+    await page.waitForFunction(() => document.querySelector('#fpanel').hidden && !document.querySelector('[data-modal-host] .modal'));
+    assert.equal(await page.locator('#fp-type').inputValue(), '', 'Discard resets the panel to the applied filters');
+
     // More filters: validation, presets, Apply; A4 reachable on a short viewport.
     await page.setViewportSize({ width: 1280, height: 360 });
     await page.locator('#more-filters').click();
     const panel = page.locator('#fpanel');
     await panel.waitFor();
+    await panel.evaluate(node => Promise.all(node.getAnimations().map(animation => animation.finished)));
     const box = await panel.boundingBox();
     assert.ok(box.y + box.height <= 360 + 1, 'the panel stays inside a short viewport');
     await panel.locator('#fp-from').fill('31 Feb 2027');
