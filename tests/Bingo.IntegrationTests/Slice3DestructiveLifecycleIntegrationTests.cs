@@ -109,7 +109,7 @@ public sealed class Slice3DestructiveLifecycleIntegrationTests(PostgreSqlTestFix
     }
 
     [Fact]
-    public async Task CancellationArchiveAndArchivedUnfinalizationPreserveHistoryAndCurrentBoundary()
+    public async Task BFinal2CancellationArchiveAndArchivedUnfinalizationPreserveHistoryAndCurrentBoundary()
     {
         var actor = Account.CreateWebsite(Guid.NewGuid(), "Lifecycle Admin", "LIFECYCLE ADMIN", now); actor.SetGlobalRole(GlobalRole.Admin);
         var cancelledId = Guid.NewGuid(); var archivedId = Guid.NewGuid();
@@ -136,9 +136,9 @@ public sealed class Slice3DestructiveLifecycleIntegrationTests(PostgreSqlTestFix
         }
         var competingId = Guid.NewGuid();
         await using (var setup = new ApplicationDbContext(options)) { var competing = Draft(competingId, "competing-current", actor.Id); competing.ConfigureSchedule(now.AddHours(-2), now.AddHours(-1), null, now.AddMinutes(-30), now.AddHours(2), 20); competing.OpenSignups(now.AddHours(-2)); competing.CloseSignups(now.AddHours(-1)); competing.StartEvent(now.AddMinutes(-30)); setup.Events.Add(competing); await setup.SaveChangesAsync(); }
-        await using (var blocked = new ApplicationDbContext(options)) await Assert.ThrowsAsync<InvalidOperationException>(() => new EventFinalizationService(blocked, null!, new FixedClock(now.AddMinutes(1))).UnfinalizeAsync(archivedId, "Blocked correction", true, new LifecycleActor(actor.Id, actor.PublicUsername!)));
+        await using (var blocked = new ApplicationDbContext(options)) await Assert.ThrowsAsync<InvalidOperationException>(async () => await new EventFinalizationService(blocked, null!, new FixedClock(now.AddMinutes(1))).UnfinalizeAsync(archivedId, "Blocked correction", true, new LifecycleActor(actor.Id, actor.PublicUsername!), (await blocked.Events.SingleAsync(x => x.Id == archivedId)).Version));
         await using (var verify = new ApplicationDbContext(options)) { Assert.Equal(EventState.Archived, (await verify.Events.SingleAsync(x => x.Id == archivedId)).State); Assert.Null((await verify.EventFinalizations.SingleAsync(x => x.EventId == archivedId)).UnfinalizedAt); await verify.Events.Where(x => x.Id == competingId).ExecuteDeleteAsync(); }
-        await using (var mutation = new ApplicationDbContext(options)) await new EventFinalizationService(mutation, null!, new FixedClock(now.AddMinutes(1))).UnfinalizeAsync(archivedId, "Correct official history", true, new LifecycleActor(actor.Id, actor.PublicUsername!));
+        await using (var mutation = new ApplicationDbContext(options)) await new EventFinalizationService(mutation, null!, new FixedClock(now.AddMinutes(1))).UnfinalizeAsync(archivedId, "Correct official history", true, new LifecycleActor(actor.Id, actor.PublicUsername!), (await mutation.Events.SingleAsync(x => x.Id == archivedId)).Version);
         await using (var verify = new ApplicationDbContext(options)) { Assert.Equal(EventState.AwaitingFinalReview, (await verify.Events.SingleAsync(x => x.Id == archivedId)).State); Assert.NotNull((await verify.EventFinalizations.SingleAsync(x => x.EventId == archivedId)).UnfinalizedAt); }
     }
 

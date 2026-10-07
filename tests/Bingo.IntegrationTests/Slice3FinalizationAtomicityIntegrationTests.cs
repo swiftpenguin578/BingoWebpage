@@ -146,7 +146,7 @@ public sealed class Slice3FinalizationAtomicityIntegrationTests(PostgreSqlTestFi
                 new EventFinalizationService(blockedReopenDuringReview, new ReadyBoard(teamId), new FixedClock(now))
                     .UnfinalizeAsync(eventId, "valid reason", true, reopenActor, publishedVersion));
             Assert.Contains("competing-current", failure.Message, StringComparison.Ordinal);
-            Assert.Contains("Publish official results", failure.Message, StringComparison.Ordinal);
+            Assert.Equal("Publish the results of competing-current first.", failure.Message); // U9-Q1: exact AwaitingFinalReview reopen refusal.
             Assert.DoesNotContain("End it first", failure.Message, StringComparison.Ordinal);
         }
         await using (var removeReopenBlocker = new ApplicationDbContext(options))

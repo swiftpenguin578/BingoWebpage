@@ -3918,4 +3918,6 @@
   <data name="The event could not be changed." xml:space="preserve"><value>Eventet kunne ikke ændres.</value></data>
   <data name="This event window overlaps {0} ({1})." xml:space="preserve"><value>Eventets tidsrum overlapper {0} ({1}).</value></data>
   <data name="The replacement lifecycle window overlaps {0}." xml:space="preserve"><value>Det nye livscyklusvindue overlapper {0}.</value></data>
+  <!-- U9 Final Review and WOM: contiguous additions. -->
+  <data name="This final-review form is stale or incomplete. Reload before reopening it." xml:space="preserve"><value>Denne formular til slutgennemgang er forældet eller ufuldstændig. Genindlæs, før du genåbner resultaterne.</value></data>
 </root>

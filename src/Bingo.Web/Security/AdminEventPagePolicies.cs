@@ -160,6 +160,7 @@ public static class AdminEventPagePolicies
                 ("POST:ChangeRole", AdminEventHandlerGate.Service)),
             [typeof(FinalizeModel)] = Page(AdminEventPageKind.Finalize, true, true,
                 ("GET:", AdminEventHandlerGate.Read),
+                ("GET:Current", AdminEventHandlerGate.Read),
                 ("POST:Resolve", AdminEventHandlerGate.Service),
                 ("POST:AcknowledgeCompletion", AdminEventHandlerGate.Service),
                 ("POST:CorrectCompletion", AdminEventHandlerGate.Service),
