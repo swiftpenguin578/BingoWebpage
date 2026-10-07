@@ -1,7 +1,7 @@
 /* Page rules from the frozen Accounts.dc.html style block; shared primitives stay frozen.
    The drawer and the dialogs carry data-page-family="accounts" so these rules reach them. */
 /* User "No load fades": only load markers; interaction animations stay frozen. */
-:where([data-page-family="accounts"]) .empty,:where([data-page-family="accounts"]) .page-banner,:where([data-page-family="accounts"]) .kv{animation:none}
+:where([data-page-family="accounts"]) .fade-in,:where([data-page-family="accounts"]) .results,:where([data-page-family="accounts"]) .empty,:where([data-page-family="accounts"]) .page-banner,:where([data-page-family="accounts"]) .kv{animation:none}
 :where([data-page-family="accounts"]).page{max-width:1240px}
 :where([data-page-family="accounts"]) .directory-fragments{display:contents}
 :where([data-page-family="accounts"]) .ac-toolbar{gap:10px 16px}
