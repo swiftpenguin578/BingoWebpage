@@ -31,6 +31,7 @@ using Npgsql;
 namespace Bingo.Web.Pages.Admin.Events;
 
 [Authorize(Policy = AuthorizationPolicies.Admin)]
+[AdminDesign]
 public sealed partial class BoardModel(ApplicationDbContext db, TimeProvider time, IAuditWriter audit, IAdminCollaborationNotifier collaboration, IEvidenceStorage storage, IStringLocalizer<SharedResource>? text = null, EventItemPriceService? itemPrices = null) : PageModel
 {
     public IReadOnlyList<BoardValidationIssue> ValidationIssues { get; private set; } = [];
@@ -42,7 +43,6 @@ public sealed partial class BoardModel(ApplicationDbContext db, TimeProvider tim
     public IReadOnlyList<BossView> Bosses { get; private set; } = [];
     public IReadOnlyList<DropView> Drops { get; private set; } = [];
     public IReadOnlyList<TileEditorView> TileEditors { get; private set; } = [];
-    public IReadOnlyList<TeamWorkloadView> TeamWorkloads { get; private set; } = [];
     public decimal BalanceSpread { get; private set; }
     public IReadOnlyList<string> ReadinessWarnings { get; private set; } = [];
     public Guid CurrentAccountId { get; private set; }
@@ -67,7 +67,9 @@ public sealed partial class BoardModel(ApplicationDbContext db, TimeProvider tim
         if (!await EnsureBoardAndEditingLeaseAsync(id, ct)) return NotFound();
         // Board GET is an overview read. Working-copy freshness is refreshed at
         // explicit mutation boundaries, never while a form/token is loaded.
-        return await Load(id, ct) ? Page() : NotFound();
+        if (!await Load(id, ct)) return NotFound();
+        await LoadViewContextAsync(id, ct);
+        return Page();
     }
 
     /// <summary>
@@ -1652,36 +1654,12 @@ public sealed partial class BoardModel(ApplicationDbContext db, TimeProvider tim
                     return new RequirementDropView(drop.SourceDropId, "Unavailable boss", "Unavailable item", "Catalogue entry unavailable", drop.CreditedWeight);
                 }).ToList())).ToList(), calculatedBaselines.GetValueOrDefault(tile.Id))).ToList();
         var lines = new List<LineView>(); for (var row = 0; row < board.Rows; row++) lines.Add(new($"Row {row + 1}", "row", row, Tiles.Where(x => x.Position / board.Columns == row).Sum(x => x.Ehb))); for (var column = 0; column < board.Columns; column++) lines.Add(new($"Column {column + 1}", "column", column, Tiles.Where(x => x.Position % board.Columns == column).Sum(x => x.Ehb))); Lines = lines; BalanceSpread = lines.Count == 0 ? 0 : lines.Max(x => x.Ehb) - lines.Min(x => x.Ehb);
-        var eventTeams = await db.Teams.AsNoTracking().Where(x => x.EventId == id && x.Active).OrderBy(x => x.DraftPosition).ThenBy(x => x.Name).ToListAsync(ct);
-        var rosterSizes = new Dictionary<Guid, int>();
-        if (eventTeams.Count > 0)
-        {
-            var teamIdsForWorkload = eventTeams.Select(x => x.Id).ToList();
-            rosterSizes = activeRosterPublication is { } frozenRoster
-                ? await db.DraftPublicationRosters.AsNoTracking()
-                    .Where(x => x.DraftPublicationCycleId == frozenRoster.Id && teamIdsForWorkload.Contains(x.TeamId))
-                    .GroupBy(x => x.TeamId)
-                    .ToDictionaryAsync(x => x.Key, x => x.Count(), ct)
-                : await db.TeamMemberships.AsNoTracking()
-                    .Where(x => teamIdsForWorkload.Contains(x.TeamId) && x.LeftAt == null)
-                    .GroupBy(x => x.TeamId)
-                    .ToDictionaryAsync(x => x.Key, x => x.Count(), ct);
-        }
         // ExpectedTeamSize is the manual planning estimate in every lifecycle
         // state. The frozen roster remains visible as actual context, but never
         // replaces the estimate used for projections.
         var teamSize = bingoEvent.ExpectedTeamSize;
         var durationDays = bingoEvent.EventEndsAt is { } eventEnd && bingoEvent.EventStartsAt is { } eventStart ? Math.Max(0.5m, (decimal)(eventEnd - eventStart).TotalHours / 24m) : 0.5m; var total = displayedTotal; var populatedLines = lines.Where(x => x.Ehb > 0).ToList();
         Statistics = new(total, teamSize, teamSize is > 0 ? total / teamSize.Value : null, teamSize is > 0 ? total / teamSize.Value / durationDays : null, Tiles.Count == 0 ? 0 : total / Tiles.Count, populatedLines.Count == 0 ? 0 : populatedLines.Min(x => x.Ehb), populatedLines.Count == 0 ? 0 : populatedLines.Max(x => x.Ehb), Tiles.Count(x => x.Ehb <= 0), durationDays);
-        if (eventTeams.Count > 0)
-        {
-            TeamWorkloads = eventTeams.Select(team =>
-            {
-                var actualSize = rosterSizes.GetValueOrDefault(team.Id);
-                var sizeUsed = bingoEvent.ExpectedTeamSize ?? 0;
-                return new TeamWorkloadView(team.Name, team.FormationType, actualSize, sizeUsed > 0 ? sizeUsed : null, sizeUsed > 0 ? total / sizeUsed : null);
-            }).ToList();
-        }
         return true;
     }
 
@@ -1911,5 +1889,4 @@ public sealed partial class BoardModel(ApplicationDbContext db, TimeProvider tim
     public sealed record TileEditorView(Guid Id, string Name, string Description, string? ImageUrl, decimal? ManualEhb, IReadOnlyList<RequirementEditorView> Requirements, decimal? CalculatedEhb = null);
     public sealed record RequirementEditorView(Guid RequirementId, string Kind, string Description, int Target, bool DuplicatesAllowed, IReadOnlyList<Guid> BossIds, IReadOnlyList<Guid> DropIds, IReadOnlyDictionary<Guid, int> DropWeights, IReadOnlyList<RequirementDropView> Drops);
     public sealed record RequirementDropView(Guid Id, string BossName, string ItemName, string DisplayRate, int CreditedWeight);
-    public sealed record TeamWorkloadView(string TeamName, TeamFormationType FormationType, int ActualRosterSize, int? SizeUsed, decimal? EhbPerPlayer);
 }

@@ -1,0 +1,20 @@
+@* U7: Board page-family load states (Board.dc.html loading and loadError). Fresh on every visit:
+   the grid size is unknown while loading, so the skeleton uses the reference's 5 columns. *@
+<template data-page-header-template="board"><header class="page-head" data-page-family="board"><div style="min-width:0"><div class="bd-title-row"><h1 class="h1" tabindex="-1">@T["Board"]</h1></div><p class="summary"><span data-summary-template=""></span></p></div></header></template>
+@foreach (var failed in new[] { false, true })
+{
+    <template data-page-@(failed ? "failure" : "loading")-template="board" data-page-title="@(failed ? null : T["Board"].Value)">
+        <link rel="stylesheet" href="~/css/admin-design-board.css" asp-append-version="true" />
+        @if (failed)
+        {
+            <div class="card"><div class="empty is-error"><div class="empty-ic"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("error")' /></div><div class="empty-title">@T["Couldn’t load the board"]</div><div class="empty-text">@T["Check your connection and try again. Nothing was changed."]</div><button class="btn" type="button" data-load-retry>@T["Try again"]</button></div></div>
+        }
+        else
+        {
+            <div class="bd-work" aria-busy="true" aria-label="@T["Loading the board"]">
+                <div class="card bd-board"><div class="bgrid" style="--cols:5">@for (var i = 0; i < 25; i++) { <div class="bcell"><div class="sk bd-sk"></div></div> }</div></div>
+                <div class="card plan"><div class="bd-sk-line"><div class="sk" style="width:50%"></div></div><div class="bd-sk-line"><div class="sk" style="width:80%"></div></div><div class="bd-sk-line"><div class="sk" style="width:70%"></div></div></div>
+            </div>
+        }
+    </template>
+}
