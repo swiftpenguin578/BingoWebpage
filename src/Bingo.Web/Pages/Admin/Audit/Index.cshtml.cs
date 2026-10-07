@@ -23,14 +23,16 @@ public sealed class IndexModel(ApplicationDbContext dbContext, TimeProvider? tim
     private const int MaxPage = int.MaxValue / PageSize;
     private static readonly string[] KnownKeys = ["event", "action", "actor", "type", "from", "to", "page", "entry"];
 
-    [BindProperty(SupportsGet = true, Name = "event")] public string? EventQuery { get; set; }
-    [BindProperty(SupportsGet = true, Name = "action")] public string? ActionQuery { get; set; }
-    [BindProperty(SupportsGet = true, Name = "actor")] public string? ActorQuery { get; set; }
-    [BindProperty(SupportsGet = true, Name = "type")] public string? TypeQuery { get; set; }
-    [BindProperty(SupportsGet = true, Name = "from")] public string? FromQuery { get; set; }
-    [BindProperty(SupportsGet = true, Name = "to")] public string? ToQuery { get; set; }
-    [BindProperty(SupportsGet = true, Name = "page")] public string? PageQuery { get; set; }
-    [BindProperty(SupportsGet = true, Name = "entry")] public string? EntryQuery { get; set; }
+    // Query-only binding: "page" (and "handler") are also Razor Pages route values, which would
+    // otherwise win over the query string (as on Events, Index.cshtml.cs:39-40).
+    [BindProperty(SupportsGet = true, Name = "event"), FromQuery(Name = "event")] public string? EventQuery { get; set; }
+    [BindProperty(SupportsGet = true, Name = "action"), FromQuery(Name = "action")] public string? ActionQuery { get; set; }
+    [BindProperty(SupportsGet = true, Name = "actor"), FromQuery(Name = "actor")] public string? ActorQuery { get; set; }
+    [BindProperty(SupportsGet = true, Name = "type"), FromQuery(Name = "type")] public string? TypeQuery { get; set; }
+    [BindProperty(SupportsGet = true, Name = "from"), FromQuery(Name = "from")] public string? FromQuery { get; set; }
+    [BindProperty(SupportsGet = true, Name = "to"), FromQuery(Name = "to")] public string? ToQuery { get; set; }
+    [BindProperty(SupportsGet = true, Name = "page"), FromQuery(Name = "page")] public string? PageQuery { get; set; }
+    [BindProperty(SupportsGet = true, Name = "entry"), FromQuery(Name = "entry")] public string? EntryQuery { get; set; }
 
     public Guid? EventId { get; private set; }
     public string Action { get; private set; } = string.Empty;

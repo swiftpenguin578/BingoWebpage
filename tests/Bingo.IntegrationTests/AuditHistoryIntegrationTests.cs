@@ -396,6 +396,48 @@ public sealed class AuditHistoryIntegrationTests(PostgreSqlTestFixture databaseF
         Assert.Null(Assert.Single(all.Entries).ActorAccountId);
     }
 
+    // Early-look bug (T1): "page" is also a Razor Pages route value. Model-level tests set the bound
+    // properties directly and never exercised model binding, so only an HTTP request shows it.
+    [Fact]
+    public async Task AuditHttpQueryBindingUsesTheQueryStringForEveryReferenceName()
+    {
+        var createdAt = new DateTimeOffset(2027, 4, 2, 12, 0, 0, TimeSpan.Zero);
+        await using (var setup = new ApplicationDbContext(options))
+        {
+            var admin = Account.CreateWebsite(Guid.NewGuid(), "audit-binding-admin", "AUDIT-BINDING-ADMIN", createdAt);
+            admin.SetGlobalRole(GlobalRole.Admin);
+            admin.SetPassword(new PasswordHasher<Account>().HashPassword(admin, "audit-test-password"), false, createdAt, incrementVersion: false);
+            setup.Add(admin);
+            for (var index = 0; index < 30; index++)
+                setup.AuditEntries.Add(new AuditEntry(Guid.Parse($"00000000-0000-0000-0000-{index + 101:D12}"), createdAt.AddMinutes(index), null, "binding-admin", "account.binding_fixture", "account", $"binding-{index}", "Binding fixture."));
+            await setup.SaveChangesAsync();
+        }
+        using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString()));
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        var login = await client.GetStringAsync("/Account/Login");
+        var loginToken = Regex.Match(login, "name=\"__RequestVerificationToken\"[^>]*value=\"([^\"]+)\"").Groups[1].Value;
+        using (var signedIn = await client.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["Input.Username"] = "audit-binding-admin", ["Input.Password"] = "audit-test-password", ["__RequestVerificationToken"] = loginToken
+        }))) Assert.Equal(HttpStatusCode.Redirect, signedIn.StatusCode);
+        const string notice = "Some filters in the link weren’t recognised.";
+        static IReadOnlyList<string> Rows(string html) => Regex.Matches(html, "data-audit-row[^>]*|data-audit-entry=\"([0-9a-f-]+)\" data-audit-row").Select(match => match.Groups[1].Value).Where(value => value.Length > 0).ToList();
+        foreach (var plain in new[] { "/Admin/Audit", "/Admin/Audit/Index", "/Admin/Audit?action=account.binding_fixture" })
+            Assert.DoesNotContain(notice, WebUtility.HtmlDecode(await client.GetStringAsync(plain)), StringComparison.Ordinal);
+        var first = WebUtility.HtmlDecode(await client.GetStringAsync("/Admin/Audit?action=account.binding_fixture"));
+        var second = WebUtility.HtmlDecode(await client.GetStringAsync("/Admin/Audit?action=account.binding_fixture&page=2"));
+        Assert.Equal(25, Rows(first).Count);
+        Assert.Equal(5, Rows(second).Count);
+        Assert.Empty(Rows(first).Intersect(Rows(second)));
+        Assert.Contains("Page 2", second, StringComparison.Ordinal);
+        Assert.DoesNotContain(notice, second, StringComparison.Ordinal);
+        var junk = WebUtility.HtmlDecode(await client.GetStringAsync("/Admin/Audit?action=account.binding_fixture&page=abc"));
+        Assert.Contains(notice, junk, StringComparison.Ordinal);
+        Assert.Equal(Rows(first), Rows(junk));
+        var handler = WebUtility.HtmlDecode(await client.GetStringAsync("/Admin/Audit?action=account.binding_fixture&handler=x"));
+        Assert.Contains(notice, handler, StringComparison.Ordinal);
+    }
+
     private sealed class AuditPassthroughLocalizer : IStringLocalizer<AuditResource>
     {
         public LocalizedString this[string name] => new(name, name);
