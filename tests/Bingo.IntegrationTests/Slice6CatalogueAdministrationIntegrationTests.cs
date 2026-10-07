@@ -544,10 +544,9 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests : IAsy
         var page = await LoadBoardAsync(bingoEvent.Id, admin.Id);
 
         Assert.True(page.DraftFinalized);
+        // U7 (brief 88, Retired; A10): the per-team workload panel is retired. AU13 is
+        // unchanged: the planning size, never a roster size, drives the board figures.
         Assert.Equal(4, page.Statistics!.TeamSize);
-        var workload = Assert.Single(page.TeamWorkloads);
-        Assert.Equal(2, workload.ActualRosterSize);
-        Assert.Equal(4, workload.SizeUsed);
     }
 
     [Fact]
@@ -590,20 +589,7 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests : IAsy
             Assert.True(page.DraftFinalized);
             Assert.Equal(4, page.Statistics!.TeamSize);
             Assert.Equal(0m, page.Statistics.EhbPerPlayer);
-            Assert.Collection(page.TeamWorkloads.OrderBy(workload => workload.TeamName),
-                workload =>
-                {
-                    Assert.Equal(2, workload.ActualRosterSize);
-                    Assert.Equal(4, workload.SizeUsed);
-                    Assert.Equal(0m, workload.EhbPerPlayer);
-                },
-                workload =>
-                {
-                    Assert.Equal(3, workload.ActualRosterSize);
-                    Assert.Equal(4, workload.SizeUsed);
-                    Assert.Equal(0m, workload.EhbPerPlayer);
-                });
-
+            // U7 (Retired; A10): no per-team workload panel; AU13 planning size only.
             Assert.IsType<RedirectToPageResult>(await page.OnPostTeamSizeAsync(bingoEvent.Id, 6, CancellationToken.None));
         }
 
@@ -613,17 +599,7 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests : IAsy
         Assert.IsType<PageResult>(await reloaded.OnGetAsync(bingoEvent.Id, CancellationToken.None));
         Assert.Equal(6, reloaded.Statistics!.TeamSize);
         Assert.Equal(0m, reloaded.Statistics.EhbPerPlayer);
-        Assert.Collection(reloaded.TeamWorkloads.OrderBy(workload => workload.TeamName),
-            workload =>
-            {
-                Assert.Equal(2, workload.ActualRosterSize);
-                Assert.Equal(6, workload.SizeUsed);
-            },
-            workload =>
-            {
-                Assert.Equal(3, workload.ActualRosterSize);
-                Assert.Equal(6, workload.SizeUsed);
-            });
+        // U7 (Retired; A10): the per-team breakdown is gone; the planning size drives the figures.
     }
 
     [Fact]
