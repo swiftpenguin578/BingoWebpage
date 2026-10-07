@@ -1,0 +1,48 @@
+[
+  {
+    "engine": "chromium",
+    "loading": {
+      "text": "active activities dropsShared by every event’s board estimates",
+      "height": 43.125,
+      "lineHeight": 19.575,
+      "sharedPlaceholders": 0,
+      "otherPlaceholders": 2,
+      "items": [
+        "active activities",
+        "drops",
+        "Shared by every event’s board estimates"
+      ]
+    },
+    "loadingAssertion": "catalogue: same numeric placeholders as tabs\n\n0 !== 2\n",
+    "danishMissing": [],
+    "sourceFailure": {
+      "assertion": "saves use shared busy timing",
+      "location": "scripts/lib/admin-page-conformance-checks.cjs:153",
+      "cause": "Catalogue directory URL debounce at admin-catalogue.js:104 is250ms; actual POST helper at:175 uses ui.busy."
+    },
+    "expectedPhoneReservation": 39.15
+  },
+  {
+    "engine": "webkit",
+    "loading": {
+      "text": "active activities dropsShared by every event’s board estimates",
+      "height": 43.125,
+      "lineHeight": 19.575001,
+      "sharedPlaceholders": 0,
+      "otherPlaceholders": 2,
+      "items": [
+        "active activities",
+        "drops",
+        "Shared by every event’s board estimates"
+      ]
+    },
+    "loadingAssertion": "catalogue: same numeric placeholders as tabs\n\n0 !== 2\n",
+    "danishMissing": [],
+    "sourceFailure": {
+      "assertion": "saves use shared busy timing",
+      "location": "scripts/lib/admin-page-conformance-checks.cjs:153",
+      "cause": "Catalogue directory URL debounce at admin-catalogue.js:104 is250ms; actual POST helper at:175 uses ui.busy."
+    },
+    "expectedPhoneReservation": 39.150002
+  }
+]

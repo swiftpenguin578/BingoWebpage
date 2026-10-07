@@ -211,7 +211,10 @@ async function checkLoadingSummary(page, registration) {
   const words=(await page.locator('html').getAttribute('lang'))==='da'?registration.countSummary.wordsDa:registration.countSummary.words;
   assert.deepEqual(await summary.locator(':scope > span').allTextContents().then(values=>values.map(text=>text.trim())),words,registration.family+': fixed count-summary words');
   const bars=summary.locator('.tab-count[data-pending-count] > .sk');
-  assert.equal(await bars.count(),words.length,registration.family+': same numeric placeholders as tabs');
+  const numberItems=registration.countSummary.numberItems||words.map((_,i)=>i);
+  assert.ok(numberItems.every(i=>Number.isInteger(i)&&i>=0&&i<words.length)&&new Set(numberItems).size===numberItems.length,registration.family+': declared numeric summary items');
+  assert.equal(await bars.count(),numberItems.length,registration.family+': same numeric placeholders as tabs');
+  for(let i=0;i<words.length;i++)assert.equal(await summary.locator(':scope > span').nth(i).locator('.tab-count[data-pending-count] > .sk').count(),numberItems.includes(i)?1:0,registration.family+': placeholder in declared numeric item '+i);
   assert.equal(await summary.locator('button,.summary-btn,b').count(),0,registration.family+': no data-dependent attention or numbers before response');
   const boxes=await summary.locator('.tab-count[data-pending-count]').evaluateAll(nodes=>nodes.map(e=>{const c=getComputedStyle(e),b=e.querySelector('.sk').getBoundingClientRect();return {display:c.display,width:e.getBoundingClientRect().width,barWidth:b.width,barHeight:b.height,text:e.textContent.trim()};}));
   assert.ok(boxes.every(b=>b.display==='inline-flex'&&b.width>0&&Math.abs(b.barWidth-b.width)<0.1&&b.barHeight===10&&b.text===''),registration.family+': number-sized bars');

@@ -218,9 +218,9 @@ Ownership is recorded at three levels:
 The Admin shell is physically owned by
 `src/Bingo.Web/Pages/Shared/_AdminLayout.cshtml` and its Admin CSS in
 the transitional stylesheet set. Questions uses the static dialog host in `_AdminLayout.cshtml`
-plus its `signup-questions-overlay.js` module. Accounts and Catalogue
-create/manage their dialog hosts through their page-specific JavaScript
-modules, `account-manage-dialog.js` and `catalogue-admin.js`.
+plus its `signup-questions-overlay.js` module. The legacy Accounts route dialog uses `account-manage-dialog.js`. The bound
+Catalogue page uses `admin-catalogue.js` with `AdminUI.openLayer` in
+`admin-design-shell.js` and the shared hosts in `_AdminDesignHosts.cshtml`.
 `_AdminOverlayLayout.cshtml` is the standalone/fallback presentation shell
 only, not the shared dialog host. These implementations follow the canonical
 route-dialog behavior and must not spawn new variants. Toast markup is
@@ -718,7 +718,7 @@ current uses, permitted variants, and forbidden legacy residue.
 | Information rail | No shared markup owner; Manage `.event-overview-dates-panel` and Schedule `.schedule-event-information-rail` are canonical patterns | Detail/form only on wide desktop; page-local content may differ | Adding it to full-width/table pages or relocating it below constrained forms |
 | Route dialogs | Questions uses `_AdminLayout.cshtml` + `signup-questions-overlay.js`; Participant uses the dialog section of `event-manage.js`; both use `admin-editor-guard.js` for dirty/pending/failure safeguards. Accounts/Catalogue retain their existing owners | Questions/Participant share the accepted modal policy at every width with fullscreen at <=900; explicit routes/reload/recovery remain. Other owners retain their current behavior until authorized rollout | A second page shell, opaque host surface, generalized overlay framework, or new route-dialog variant |
 | Admin confirmations | ADM-02 establishes the shared confirmation owner using existing dialog/guard/toast components; current `event-confirmation-box` and inline owners are migration sources | One centered consequence-specific confirmation, dimmed backdrop, Cancel before semantic action; editor hands off and resumes preserved state | Product-action native confirms, inline/`details` confirmations, stacked dialogs, duplicate prompts, unsupported reason fields |
-| Backdrop/focus/scroll/history | Admin route CSS plus `site.js`, `signup-questions-overlay.js`, `account-manage-dialog.js`, and `catalogue-admin.js`; public Board retains its evidence viewer and submission drawer but no team-board popup | Modal/drawer backdrop, body-scroll lock, trigger focus restore where applicable, route history, bounded overlay content scroll | A page-local duplicate modal policy, lost focus, background scrolling, or realtime interrupting an active submission/result |
+| Backdrop/focus/scroll/history | Admin route CSS plus `site.js`, `signup-questions-overlay.js`, `account-manage-dialog.js`; bound Catalogue uses `admin-design-shell.js` shared layers with `admin-catalogue.js`; public Board retains its evidence viewer and submission drawer but no team-board popup | Modal/drawer backdrop, body-scroll lock, trigger focus restore where applicable, route history, bounded overlay content scroll | A page-local duplicate modal policy, lost focus, background scrolling, or realtime interrupting an active submission/result |
 | Toasts | `_TransientToast.cshtml`, `.app-toast` CSS, and `site.js` transient-toast layer | Success, warning, error, information; live region, dismiss button, timeout pause, reduced motion | Inline duplicate toast systems, non-announced mutation feedback, or toast-only authorization/validation |
 | Removable-object X | `.action-remove-x` for self-evident removable objects, using the standard inline two-stroke crossed-line SVG; shared close glyph path is `.admin-route-dialog-close` | Muted neutral Board-style default and neutral hover treatment for banner/evidence/objective removal, with accessible label and focus state | Pink/red default, bare unlabeled font/text `×`, oversized invisible target without focus, or using X for non-removal actions |
 
