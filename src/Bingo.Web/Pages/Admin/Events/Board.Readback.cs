@@ -215,7 +215,9 @@ public sealed partial class BoardModel
         return requirements;
     }
 
-    public sealed record BoardValidationIssue(string Code, Guid? TileId, int? Position, string? TileName, string ResourceKey, IReadOnlyList<object> Arguments);
+    // U7-Q1: DropNames lists the drops without a catalogue rate on a
+    // catalogue-rates-missing issue; null for every other issue.
+    public sealed record BoardValidationIssue(string Code, Guid? TileId, int? Position, string? TileName, string ResourceKey, IReadOnlyList<object> Arguments, IReadOnlyList<string>? DropNames = null);
     public sealed record BoardActionState(IReadOnlyList<BoardValidationIssue> Issues, BoardReadback Current);
     public sealed record BoardReadback(BoardCurrentState? State) { public bool Known => State is not null; }
     public sealed record BoardCurrentState(Guid EventId, long EventVersion, EventState EventState, Guid BoardId, BoardState State, long Version,
