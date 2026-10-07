@@ -123,6 +123,9 @@ const { startFixture, login } = require('../../scripts/lib/admin-parity-fixture.
     assert.deepEqual(errors, []);
     console.log('PASS accounts directory, drawer, reset link, confirmations, A2 gating and C-CMP-2');
 
+    // Loading header: fixed words with a number-sized bar per count (Events tab-count pattern).
+    const loadingSummary = await page.evaluate(() => { const t = document.querySelector('template[data-page-header-template="accounts"]').content; return { bars: t.querySelectorAll('.summary .ac-sk-count > .sk').length, text: t.querySelector('.summary').textContent.replace(/\s+/g, ' ').trim() }; });
+    assert.deepEqual(loadingSummary, { bars: 2, text: 'accounts disabled' });
     // A16: sidebar swap Dashboard -> Accounts -> Dashboard -> Back leaves one live module.
     await page.locator('a[data-shell-link][href="/Admin/Index"], a[data-shell-link][href="/Admin"]').first().click();
     await page.waitForFunction(() => location.pathname.toLowerCase().startsWith('/admin') && !location.pathname.toLowerCase().includes('accounts') && !document.querySelector('[data-page-skeleton]'));
