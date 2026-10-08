@@ -156,8 +156,8 @@ public sealed partial class AdminDesignShellIntegrationTests
         Assert.DoesNotContain("AdminDesign.", html); Assert.DoesNotContain("Bingoer", html); Assert.DoesNotContain("begivenhed", html, StringComparison.OrdinalIgnoreCase);
         var directory = WebUtility.HtmlDecode(await client.GetStringAsync("/Admin/Events/Index?culture=da&ui-culture=da"));
         Assert.Contains("data-admin-design", directory); Assert.Contains(">Events</h1>", directory);
-        // A10: Schedule is bound; Participants still exercises the unchanged legacy-shell contract.
-        var old = WebUtility.HtmlDecode(await client.GetStringAsync($"/Admin/Events/Participants/{item.Id}?culture=da&ui-culture=da"));
+        // A10: Final review and WiseOldMan are bound by U9; no event-scoped Admin page is left on the old layout, so UiReferences (not event-scoped) carries the unchanged legacy-shell contract.
+        var old = WebUtility.HtmlDecode(await client.GetStringAsync($"/Admin/UiReferences?culture=da&ui-culture=da"));
         Assert.Contains("Bingoer", old); Assert.DoesNotContain("data-admin-design", old);
     }
 

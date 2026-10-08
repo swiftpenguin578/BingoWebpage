@@ -1,6 +1,39 @@
 // Add a page here once. The conformance gate uses the real Razor fixture,
 // loading template, family stylesheet, and these page-specific interaction probes.
 module.exports = [
+  // U8: Review queue (Review.dc.html). One module serves queue and workspace; its one POST path is the in-place decision.
+  { family: 'review', postSaveCount: 1, countSummary: { words: ['pending'], wordsDa: ['afventer'], numberItems: [0] },
+    url: f => '/Admin/Review?eventId=' + f.events['autumn-bingo-2027'], fixture: 'autumn-bingo-2027', source: 'Pages/Admin/Review/Index.cshtml', module: 'admin-review.js',
+    textRows: { 'rv-sk-main':['control',1.45], 'rv-sk-sub':['small',1.45] }, reference: 'Review.dc.html', first: '.card', blocks: { first: '.card', toolbar: '.toolbar' },
+    style: ['.rv-toolbar','justify-content','flex-start'], titleDa: 'Review',
+    update: { control: '[data-review-status][value="Pending"]', action: 'click', request: true, selected: '[data-review-status][value="Pending"]:checked' } },
+  // U6: Teams / Draft. Geometry on the setup workspace; the in-place update probe is the running
+  // draft's pool sort (update.url), seeded only for this page by BINGO_PARITY_DRAFT (planner ruling, 8 Oct).
+  { family: 'draft', postSaveCount: 1, fixtureEnv: { BINGO_PARITY_DRAFT: '1' },
+    url: f => '/Admin/Events/Draft/' + f.events['autumn-bingo-2027'], fixture: 'autumn-bingo-2027',
+    source: 'Pages/Admin/Events/Draft.cshtml', module: 'admin-draft.js',
+    textRows: { 'td-sk-line': ['control',1.45] }, reference: 'TeamsDraft.dc.html', referenceEvent: 'community-mini-bingo', first: '.td-ready', blocks: { first: '.td-ready' },
+    style: ['.td-ready-main','display','flex'], titleDa: 'Hold / draft',
+    update: { url: f => '/Admin/Events/Draft/' + f.events['clan-cup-pvm-week'], control: '#pool-sort-name', action: 'click', selected: '#pool-sort-name-opt.is-on' } },
+  // U7: Board (Board.dc.html). One shared POST path (ctx.command) serves every Board command.
+  // U7-E1 (c): plus one background POST, the edit-lease renewal (no busy state).
+  { family: 'board', postSaveCount: 1, backgroundPostCount: 1, url: f => '/Admin/Events/Board/' + f.events['autumn-bingo-2027'], fixture: 'autumn-bingo-2027',
+    source: 'Pages/Admin/Events/Board.cshtml', module: 'admin-board.js',
+    textRows: { 'bd-sk-line': ['control',1.45] }, reference: 'Board.dc.html', first: '.card', blocks: { first: '.card' },
+    style: ['.bd-work','display','grid'], titleDa: 'Board',
+    // U7-E2 (a), page-specific exemption: at 390 px the loaded header actions (editing
+    // chip, Preview, Approve, More) wrap to a second row, so the header grows 42 px
+    // beyond the summary change. The reference hides its actions while loading too.
+    // Only this width; every other width keeps the generic "only summary growth" check.
+    headerGrowth: { 390: 42 },
+    update: { control: '#plan-more', action: 'click', selected: '#plan-more[aria-expanded="true"]' } },
+  // U5: Participants. The first summary item carries two numbers ("{0} of {1} confirmed").
+  { family: 'participants', postSaveCount: 1, countSummary: { words: ['of  confirmed', 'waiting', 'unpaid'], wordsDa: ['af  bekræftet', 'på venteliste', 'ubetalt'], numberCounts: { 0: 2 } },
+    url: f => '/Admin/Events/Participants/' + f.events['autumn-bingo-2027'], fixture: 'autumn-bingo-2027',
+    source: 'Pages/Admin/Events/Participants.cshtml', module: 'admin-participants.js',
+    textRows: { 'pa-sk-line': ['control',1.45] }, reference: 'Participants.dc.html', first: '.card', blocks: { first: '.card', toolbar: '.toolbar', table: '.pa-tbl' },
+    style: ['.pa-tbl','--table-min',{ narrow: '570px', wide: '1020px', breakpoint: 860 }], titleDa: 'Deltagere',
+    update: { control: '[data-participants-pay][value="paid"]', action: 'click', request: true, selected: '[data-participants-pay][value="paid"]:checked' } },
   { family: 'wom', postSaveCount: 1, url: f => '/Admin/Events/WiseOldMan/' + f.events['autumn-bingo-2027'], fixture: 'autumn-bingo-2027',
     source: 'Pages/Admin/Events/WiseOldMan.cshtml', module: 'admin-wom.js', textRows: { 'wm-sk-line': ['control',1.45] },
     reference: 'Wom.dc.html', first: '.card', blocks: { first: '.card' }, style: ['.wm-content','display','grid'], titleDa: 'Wise Old Man',

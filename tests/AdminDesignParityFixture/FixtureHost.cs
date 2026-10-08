@@ -133,6 +133,15 @@ internal static class FixtureHost
                 foreach (var entry in db.ChangeTracker.Entries<BingoEvent>().Where(entry => entry.Entity.Slug.StartsWith("hidden-", StringComparison.Ordinal)))
                     entry.Entity.Hide(account.Id, Now.AddDays(entry.Entity.Slug == "hidden-old" ? -2 : -1), entry.Entity.Name, "Controlled parity quarantine");
             }
+            // U5: opt-in Participants roster for browser checks (other pages keep the accepted fixture).
+            if (Environment.GetEnvironmentVariable("BINGO_PARITY_PARTICIPANTS") == "1") SeedParticipants(db, account);
+            // U6: opt-in running draft (Teams / Draft browser checks and its conformance probe)
+            // plus a Final review event; the shared runner sets it for the Teams page only.
+            if (Environment.GetEnvironmentVariable("BINGO_PARITY_DRAFT") == "1")
+            {
+                Add("draft-review", "Harvest Bingo 2027", EventState.AwaitingFinalReview, "Europe/Copenhagen", null, null, "2027-04-01T16:00:00Z", "2027-04-20T18:00:00Z", null, "2027-05-20T16:00:00Z", "2027-06-02T10:00:00Z");
+                SeedRunningDraft(db);
+            }
             foreach (var item in db.ChangeTracker.Entries<BingoEvent>().Select(entry => entry.Entity)
                          .Where(item => item.ActualStartedAt is not null).ToArray())
             {
@@ -214,6 +223,123 @@ internal static class FixtureHost
         // Only this process owns the container; closing stdin disposes host and database.
         await Console.In.ReadLineAsync();
     }
+    private static void SeedParticipants(ApplicationDbContext db, Account admin)
+    {
+        var item = db.ChangeTracker.Entries<BingoEvent>().Select(entry => entry.Entity).Single(value => value.Slug == "autumn-bingo-2027");
+        item.SetParticipantCap(4);
+        var form = db.ChangeTracker.Entries<SignupForm>().Select(entry => entry.Entity).Single(value => value.EventId == item.Id);
+        var questions = db.ChangeTracker.Entries<SignupQuestion>().Select(entry => entry.Entity).Where(value => value.EventId == item.Id).ToList();
+        var primary = questions.Single(value => value.SystemField == SignupSystemField.PrimaryRegularAccount);
+        var coCaptain = questions.Single(value => value.SystemField == SignupSystemField.CoCaptainName);
+        var second = new SignupQuestion(Guid.NewGuid(), form.Id, item.Id, "second_playing", "Second account", SignupQuestionType.Account, false, 3, null, SignupSystemField.None, EventCharacterRole.Playing);
+        var alt = new SignupQuestion(Guid.NewGuid(), form.Id, item.Id, "alt_account", "Alt account", SignupQuestionType.Account, false, 4, null, SignupSystemField.None, EventCharacterRole.Informational);
+        var custom = new SignupQuestion(Guid.NewGuid(), form.Id, item.Id, "availability", "When can you play?", SignupQuestionType.Text, false, 5, null);
+        db.AddRange(second, alt, custom);
+        var team = new Team(Guid.NewGuid(), item.Id, "Salt Mines", "salt-mines", null, true, Now.AddDays(-1));
+        db.Add(team);
+        var people = new (string Username, string Discord, string Rsn, decimal Ehb, SignupStatus Status, bool Paid)[]
+        {
+            ("kiwi.crab", "kiwicrab", "Kiwi Crab", 812.4m, SignupStatus.Confirmed, true),
+            ("mossy_12", "mossy", "Mossy Rock", 1204.75m, SignupStatus.Confirmed, false),
+            ("oakplank", "oak", "Oak Plank", 233m, SignupStatus.Confirmed, true),
+            ("salty", "salty_19", "Salty Shrimp", 98.5m, SignupStatus.Confirmed, false),
+            ("tbow.fan", "tbowfan", "Tbow Enjoyer", 1505.2m, SignupStatus.WaitingList, false),
+            ("fe.lynx", "felynx", "Fe Lynx", 640m, SignupStatus.WaitingList, true),
+            ("lumby", "lumbylocal", "Lumby Local", 51m, SignupStatus.Confirmed, false)
+        };
+        for (var index = 0; index < people.Length; index++)
+        {
+            var person = people[index];
+            var at = Now.AddDays(-20 + index);
+            var owner = Account.CreateWebsite(Guid.NewGuid(), person.Username, person.Username.ToUpperInvariant(), Now.AddYears(-1));
+            owner.SetDiscordIdentity($"discord-{index}", person.Discord);
+            var participant = new EventParticipant(Guid.NewGuid(), item.Id, person.Status, index + 1, at, SignupSource.Website);
+            participant.AssignOwner(owner);
+            participant.SetPaymentStatus(person.Paid ? PaymentStatus.Paid : PaymentStatus.Unpaid);
+            var character = new OsrsCharacter(Guid.NewGuid(), person.Rsn, person.Rsn.ToUpperInvariant(), at);
+            var assignment = new EventParticipantCharacter(Guid.NewGuid(), item.Id, participant.Id, character.Id, 0, at, owner.Id, primary.Id, EventCharacterRole.Playing, person.Ehb, EhbSource.Manual, null);
+            db.AddRange(owner, participant, character, assignment,
+                new AccountOsrsCharacter(Guid.NewGuid(), owner.Id, character.Id, owner.Id, true, 0, null, person.Ehb, at),
+                new SignupAnswer(Guid.NewGuid(), participant.Id, primary.Id, primary.Label, string.Empty, character.Id));
+            if (index == 0)
+            {
+                participant.SetCaptainVolunteer(true);
+                participant.SetAdminNotes("Paid via GP drop to Nils on 4 June.");
+                db.AddRange(new SignupAnswer(Guid.NewGuid(), participant.Id, coCaptain.Id, coCaptain.Label, "Oak Plank"),
+                    new SignupAnswer(Guid.NewGuid(), participant.Id, custom.Id, custom.Label, "Evenings CET"),
+                    new TeamMembership(Guid.NewGuid(), team.Id, participant.Id, TeamMembershipRole.Captain, Now.AddDays(-1), null, "Controlled parity membership"));
+            }
+            if (index == 1)
+            {
+                var iron = new OsrsCharacter(Guid.NewGuid(), "Iron Mossy", "IRON MOSSY", at);
+                var bank = new OsrsCharacter(Guid.NewGuid(), "Mossy Bank", "MOSSY BANK", at);
+                db.AddRange(iron, bank,
+                    new AccountOsrsCharacter(Guid.NewGuid(), owner.Id, iron.Id, owner.Id, false, 1, null, 310.5m, at),
+                    new EventParticipantCharacter(Guid.NewGuid(), item.Id, participant.Id, iron.Id, 1, at, owner.Id, second.Id, EventCharacterRole.Playing, 310.5m, EhbSource.Manual, null),
+                    new SignupAnswer(Guid.NewGuid(), participant.Id, second.Id, second.Label, string.Empty, iron.Id),
+                    new EventParticipantCharacter(Guid.NewGuid(), item.Id, participant.Id, bank.Id, 2, at, owner.Id, alt.Id, EventCharacterRole.Informational, null, null, null),
+                    new SignupAnswer(Guid.NewGuid(), participant.Id, alt.Id, alt.Label, string.Empty, bank.Id));
+            }
+            if (index == people.Length - 1)
+            {
+                participant.Withdraw(Now.AddDays(-2), "Participant withdrawal");
+                assignment.Release(owner.Id, Now.AddDays(-2));
+            }
+        }
+        // A website account that is not in the event, for Add: one saved account lacks EHB.
+        var candidate = Account.CreateWebsite(Guid.NewGuid(), "dragon.skim", "DRAGON.SKIM", Now.AddYears(-1));
+        candidate.SetDiscordIdentity("discord-candidate", "dragonskim");
+        var skim = new OsrsCharacter(Guid.NewGuid(), "Dragon Skim", "DRAGON SKIM", Now);
+        var skimIron = new OsrsCharacter(Guid.NewGuid(), "Iron Skim", "IRON SKIM", Now);
+        db.AddRange(candidate, skim, skimIron,
+            new AccountOsrsCharacter(Guid.NewGuid(), candidate.Id, skim.Id, candidate.Id, true, 0, null, 455.5m, Now),
+            new AccountOsrsCharacter(Guid.NewGuid(), candidate.Id, skimIron.Id, candidate.Id, false, 1, null, null, Now));
+        _ = admin;
+    }
+
+    // A running website draft on "clan-cup-pvm-week" (Signup closed): three drafted teams with
+    // captains, a manual-roster team, seven players in the pool, order drawn, no picks yet,
+    // nobody in control. The fixed fixture clock keeps any lease that a check acquires.
+    private static void SeedRunningDraft(ApplicationDbContext db)
+    {
+        var item = db.ChangeTracker.Entries<BingoEvent>().Select(entry => entry.Entity).Single(value => value.Slug == "clan-cup-pvm-week");
+        var primary = db.ChangeTracker.Entries<SignupQuestion>().Select(entry => entry.Entity).Single(value => value.EventId == item.Id && value.SystemField == SignupSystemField.PrimaryRegularAccount);
+        var index = 0;
+        EventParticipant Person(string username, string rsn, decimal ehb, bool volunteer = false)
+        {
+            var at = Now.AddDays(-30 + index);
+            var owner = Account.CreateWebsite(Guid.NewGuid(), username, username.ToUpperInvariant(), Now.AddYears(-1));
+            owner.SetDiscordIdentity("discord-draft-" + index, username);
+            var participant = new EventParticipant(Guid.NewGuid(), item.Id, SignupStatus.Confirmed, ++index, at, SignupSource.Website);
+            participant.AssignOwner(owner);
+            if (volunteer) participant.SetCaptainVolunteer(true);
+            var character = new OsrsCharacter(Guid.NewGuid(), rsn, rsn.ToUpperInvariant(), at);
+            db.AddRange(owner, participant, character,
+                new EventParticipantCharacter(Guid.NewGuid(), item.Id, participant.Id, character.Id, 0, at, owner.Id, primary.Id, EventCharacterRole.Playing, ehb, EhbSource.Manual, null),
+                new AccountOsrsCharacter(Guid.NewGuid(), owner.Id, character.Id, owner.Id, true, 0, null, ehb, at),
+                new SignupAnswer(Guid.NewGuid(), participant.Id, primary.Id, primary.Label, string.Empty, character.Id));
+            return participant;
+        }
+        var drafted = new[] { ("Ash Wardens", "ash-wardens", "ash.warden", "Ash Warden", 1320m), ("Bronze Line", "bronze-line", "bronze.line", "Bronze Liner", 980m), ("Crystal Seeds", "crystal-seeds", "crystal.seed", "Crystal Seed", 1105m) };
+        for (var i = 0; i < drafted.Length; i++)
+        {
+            var (name, slug, username, rsn, ehb) = drafted[i];
+            var team = new Team(Guid.NewGuid(), item.Id, name, slug, null, true, Now.AddDays(-5));
+            team.SetDraftPosition(i + 1);
+            var captain = Person(username, rsn, ehb, true);
+            db.AddRange(team, new TeamMembership(Guid.NewGuid(), team.Id, captain.Id, TeamMembershipRole.Captain, Now.AddDays(-5), null, "Controlled parity captain"));
+        }
+        var manual = new Team(Guid.NewGuid(), item.Id, "Bank Standers", "bank-standers", null, false, Now.AddDays(-5));
+        var standing = Person("bank.stand", "Bank Stander", 75m);
+        db.AddRange(manual, new TeamMembership(Guid.NewGuid(), manual.Id, standing.Id, TeamMembershipRole.Captain, Now.AddDays(-5), null, "Controlled parity membership"));
+        foreach (var (username, rsn, ehb) in new[] { ("zulrah.fan", "Zulrah Fan", 1510.5m), ("vorki.main", "Vorki Main", 1204m), ("mole.hunter", "Mole Hunter", 812.25m), ("kq.enjoyer", "KQ Enjoyer", 640m), ("barrows.bro", "Barrows Bro", 455m), ("chin.chomp", "Chin Chomp", 233.5m), ("tree.runner", "Tree Runner", 98m) })
+            Person(username, rsn, ehb);
+        var draft = new DraftSession(Guid.NewGuid(), item.Id, 3);
+        draft.Start(Now.AddHours(-1));
+        item.SetDraftLocked(true, Now.AddHours(-1));
+        db.Add(draft);
+    }
+
     private sealed class FixtureClock : TimeProvider { public override DateTimeOffset GetUtcNow() => Now; }
     private sealed class AttentionFailure : DbCommandInterceptor
     {

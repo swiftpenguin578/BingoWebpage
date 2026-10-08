@@ -108,9 +108,9 @@ public sealed partial class C20ObjectiveIdentityIntegrationTests(PostgreSqlTestF
         var id = await SubmitAsync(player, f);
         await using var db = fixture.Db();
         var service = new SubmissionService(db, fixture.Storage, TimeProvider.System);
-        if (state is SubmissionStatus.Approved or SubmissionStatus.Reversed) await service.ApproveAsync(id, f.Admin.Id);
-        if (state == SubmissionStatus.Reversed) await service.ReverseAsync(id, f.Admin.Id, "Controlled test reversal");
-        if (state == SubmissionStatus.Rejected) await service.RejectAsync(id, f.Admin.Id, "Controlled test rejection");
+        if (state is SubmissionStatus.Approved or SubmissionStatus.Reversed) await service.ApproveCurrentAsync(id, f.Admin.Id);
+        if (state == SubmissionStatus.Reversed) await service.ReverseCurrentAsync(id, f.Admin.Id, "Controlled test reversal");
+        if (state == SubmissionStatus.Rejected) await service.RejectCurrentAsync(id, f.Admin.Id, "Controlled test rejection");
         if (state == SubmissionStatus.Withdrawn) await service.WithdrawAsync(id, f.Owner.Id);
         await StartCorrectionAsync(admin, f);
         var before = await IntegrityAsync(f);
@@ -232,8 +232,16 @@ public sealed partial class C20ObjectiveIdentityIntegrationTests(PostgreSqlTestF
         {
             Assert.Equal(HttpStatusCode.OK, view.StatusCode);
             var html = await view.Content.ReadAsStringAsync();
-            Assert.Contains("handler=AcquireEditing", html, StringComparison.Ordinal);
-            Assert.Contains("Acquire editing control", html, StringComparison.Ordinal);
+            // A10: was Contains("handler=AcquireEditing") and the "Acquire editing control" markup.
+            // The page now ships the lease in its data-view JSON and admin-board.js offers the
+            // explicit "Start editing" button (posting AcquireEditing) for control.who == "none".
+            // An expired lease is held by nobody, so the owner must not be shown as the editor.
+            var data = BoardPageData.View(html);
+            Assert.Equal("correction", data.GetProperty("mode").GetString());
+            var control = data.GetProperty("control");
+            Assert.Equal("none", control.GetProperty("who").GetString());
+            Assert.Equal(JsonValueKind.Null, control.GetProperty("name").ValueKind);
+            Assert.Equal("Start editing", BoardPageData.Labels(html).GetProperty("Start editing").GetString());
         }
         Assert.Equal(beforeView, await LeaseStateAsync(f));
 
@@ -386,7 +394,7 @@ public sealed partial class C20ObjectiveIdentityIntegrationTests(PostgreSqlTestF
         var path = $"/Admin/Review/Details/{id}";
         var html = await admin.GetStringAsync(path);
         var version = Regex.Match(html, "name=\"Input.ExpectedVersion\"[^>]*value=\"([^\"]+)\"").Groups[1].Value;
-        using var result = await admin.PostAsync(path + "?handler=" + handler, new FormUrlEncodedContent(new Dictionary<string, string> { ["__RequestVerificationToken"] = Token(html), ["Input.ExpectedVersion"] = version, ["Input.Reason"] = "Controlled fixture" }));
+        using var result = await admin.PostAsync(path + "?handler=" + handler, new FormUrlEncodedContent(new Dictionary<string, string> { ["__RequestVerificationToken"] = Token(html), ["Input.ExpectedVersion"] = version, ["confirmed"] = "true" /* RL-1/BR-4 (U8, A10): explicit confirmation */, ["Input.Reason"] = "Controlled fixture" }));
         Assert.Equal(HttpStatusCode.Redirect, result.StatusCode);
     }
     private static async Task AssertOrdinaryReadsAsync(HttpClient player, Fixture f, Guid submissionId, string title)

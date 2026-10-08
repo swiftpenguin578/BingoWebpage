@@ -16,7 +16,7 @@ public sealed partial class WiseOldManModel
         "Check current state",
         "Update queued",
         "The operation is queued. Check the current state for its result.",
-        "None yet",
+        "AdminDesign.None yet",
         "Not configured",
         "Active",
         "Queued",
@@ -50,7 +50,7 @@ public sealed partial class WiseOldManModel
     public bool ReadOnly => EventView!.State is EventState.Cancelled or EventState.Finalized or EventState.Archived;
     public bool BeforeLive => EventView!.ActualStartedAt is null && EventView.State is EventState.Draft or EventState.SignupOpen or EventState.SignupClosed;
     public string ReadOnlyText => Localize(EventView!.State switch { EventState.Cancelled => "This event was cancelled. Its Wise Old Man connection is read-only.", EventState.Finalized => "Results are official. Its Wise Old Man connection is read-only.", _ => "This event is archived. Its Wise Old Man connection is read-only." });
-    public string Fmt(DateTimeOffset? value) => value is { } instant ? DateTimePresentation.Format(instant, "dd MMM yyyy, HH:mm", EventView!.Timezone, CultureInfo.CurrentCulture) : Localize("None yet");
+    public string Fmt(DateTimeOffset? value) => value is { } instant ? DateTimePresentation.Format(instant, "dd MMM yyyy, HH:mm", EventView!.Timezone, CultureInfo.CurrentCulture) : Localize("AdminDesign.None yet");
     public string Utc(DateTimeOffset? value) => value?.ToUniversalTime().ToString("yyyy-MM-dd HH:mm:ss.fffffff 'UTC'", CultureInfo.InvariantCulture) ?? Localize("Not set");
     public EventCompetitionEndUpdateStatus EndStatus => ReadOnly && CompetitionIntegration?.EndUpdateStatus is EventCompetitionEndUpdateStatus.Pending or EventCompetitionEndUpdateStatus.Rejected ? EventCompetitionEndUpdateStatus.CouldNotUpdate : CompetitionIntegration?.EndUpdateStatus ?? EventCompetitionEndUpdateStatus.NotRequired;
     public bool EndNeedsAttention => EndStatus is EventCompetitionEndUpdateStatus.Pending or EventCompetitionEndUpdateStatus.Rejected or EventCompetitionEndUpdateStatus.CouldNotUpdate;

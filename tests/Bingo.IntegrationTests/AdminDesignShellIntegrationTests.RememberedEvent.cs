@@ -26,14 +26,13 @@ public sealed partial class AdminDesignShellIntegrationTests
         var past = Event(admin, EventState.Archived, "Past selection", -12);
         await using (var db = new ApplicationDbContext(options)) { db.AddRange(admin, first, past); await db.SaveChangesAsync(); }
         await using var factory = RememberedEventFactory(); using var client = await IdentityClientAsync(factory);
-        // A10: Schedule is bound; Participants still exercises the unchanged legacy-shell contract.
-        using var opened = await client.GetAsync($"/Admin/Events/Participants/{first.Id}");
+        // A10: Final review and WiseOldMan are bound by U9, so no event-scoped Admin page is left on the old layout; the old-layout assertion moves to the Shell test (UiReferences).
+        using var opened = await client.GetAsync($"/Admin/Events/Schedule/{first.Id}");
         Assert.Equal(HttpStatusCode.OK, opened.StatusCode);
         var cookie = Assert.Single(opened.Headers.GetValues("Set-Cookie"), value => value.StartsWith(AdminEventSession.CookieName + "=", StringComparison.Ordinal));
         Assert.StartsWith($"{AdminEventSession.CookieName}={first.Id:D};", cookie);
         Assert.Contains("httponly", cookie); Assert.Contains("samesite=lax", cookie); Assert.Contains("secure", cookie);
         Assert.DoesNotContain("expires=", cookie); Assert.DoesNotContain("max-age=", cookie);
-        Assert.DoesNotContain("data-admin-design", await opened.Content.ReadAsStringAsync());
         await client.GetStringAsync("/"); // Leaving Admin keeps the session preference.
         var community = await client.GetStringAsync("/Admin/Events/Index");
         Assert.Contains($"data-selected-event-id=\"{first.Id}\"", community);
