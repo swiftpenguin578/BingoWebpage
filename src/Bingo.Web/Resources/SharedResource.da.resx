@@ -5528,4 +5528,94 @@
   <data name="The team could not be created. Nothing was saved." xml:space="preserve">
     <value>Holdet kunne ikke oprettes. Intet blev gemt.</value>
   </data>
+  <data name="You no longer control this draft. Reload to see the current controller or explicitly take over." xml:space="preserve">
+    <value>Du styrer ikke længere dette draft. Genindlæs for at se, hvem der styrer det, eller overtag styringen udtrykkeligt.</value>
+  </data>
+  <data name="Another administrator currently controls this draft." xml:space="preserve">
+    <value>En anden administrator styrer i øjeblikket dette draft.</value>
+  </data>
+  <data name="A finalized draft cannot be controlled." xml:space="preserve">
+    <value>Et afsluttet draft kan ikke styres.</value>
+  </data>
+  <data name="Start the draft before finalizing it." xml:space="preserve">
+    <value>Start draftet, før du afslutter det.</value>
+  </data>
+  <data name="Only a running draft can be finalized." xml:space="preserve">
+    <value>Kun et igangværende draft kan afsluttes.</value>
+  </data>
+  <data name="A direct roster can only be finalized from setup." xml:space="preserve">
+    <value>En direkte trup kan kun afsluttes fra opsætningen.</value>
+  </data>
+  <data name="Only a draft in setup can start." xml:space="preserve">
+    <value>Kun et draft i opsætning kan startes.</value>
+  </data>
+  <data name="Only a running draft can be paused." xml:space="preserve">
+    <value>Kun et igangværende draft kan sættes på pause.</value>
+  </data>
+  <data name="Only a paused draft can resume." xml:space="preserve">
+    <value>Kun et draft på pause kan genoptages.</value>
+  </data>
+  <data name="Only a finalized draft can be reopened." xml:space="preserve">
+    <value>Kun et afsluttet draft kan genåbnes.</value>
+  </data>
+  <data name="Only an active private draft can return to setup." xml:space="preserve">
+    <value>Kun et aktivt privat draft kan vende tilbage til opsætningen.</value>
+  </data>
+  <data name="The draft can only be finalized before the event has started and while its configured end remains in the future." xml:space="preserve">
+    <value>Draftet kan kun afsluttes, før eventet er startet, og mens dets planlagte slutning stadig ligger i fremtiden.</value>
+  </data>
+  <data name="A manually assembled roster can only be finalized from setup." xml:space="preserve">
+    <value>En manuelt sammensat trup kan kun afsluttes fra opsætningen.</value>
+  </data>
+  <data name="A website draft must be running before it can be finalized." xml:space="preserve">
+    <value>Et website-draft skal være i gang, før det kan afsluttes.</value>
+  </data>
+  <data name="Scramble the drafted teams before finalizing." xml:space="preserve">
+    <value>Bland de draftede hold, før du afslutter.</value>
+  </data>
+  <data name="Every included participant must have exactly one active drafted-team membership before finalization." xml:space="preserve">
+    <value>Hver medtaget deltager skal have præcis ét aktivt medlemskab af et draftet hold, før draftet afsluttes.</value>
+  </data>
+  <data name="Every published roster entry requires exactly one retained playing-character identity." xml:space="preserve">
+    <value>Hver offentliggjort trupplads kræver præcis én bevaret spillekarakter.</value>
+  </data>
+  <data name="Published pre-formed corrections are unavailable after event start." xml:space="preserve">
+    <value>Rettelser af offentliggjorte forudformede trupper er ikke tilgængelige efter eventets start.</value>
+  </data>
+  <data name="The active roster publication no longer exists." xml:space="preserve">
+    <value>Den aktive offentliggørelse af trupperne findes ikke længere.</value>
+  </data>
+  <data name="Live roster role corrections are unavailable in the current event state." xml:space="preserve">
+    <value>Rettelser af roller i trupperne under live er ikke tilgængelige i eventets nuværende tilstand.</value>
+  </data>
+  <data name="The included participants cannot be exhausted into balanced drafted-team rosters." xml:space="preserve">
+    <value>De medtagne deltagere kan ikke fordeles helt i balancerede trupper på de draftede hold.</value>
+  </data>
+  <data name="Every active roster membership must use a supported team role." xml:space="preserve">
+    <value>Hvert aktivt medlemskab skal bruge en understøttet holdrolle.</value>
+  </data>
+  <data name="Every participant must have exactly one active team membership." xml:space="preserve">
+    <value>Hver deltager skal have præcis ét aktivt holdmedlemskab.</value>
+  </data>
+  <data name="Every active team must have at least one roster member before finalization." xml:space="preserve">
+    <value>Hvert aktivt hold skal have mindst ét medlem, før truppene afsluttes.</value>
+  </data>
+  <data name="Every published roster participant must be currently confirmed and eligible." xml:space="preserve">
+    <value>Hver offentliggjort deltager skal på nuværende tidspunkt være bekræftet og berettiget.</value>
+  </data>
+  <data name="A website account cannot own more than one participant in the event roster." xml:space="preserve">
+    <value>En websitekonto kan ikke eje mere end én deltager i eventets trupper.</value>
+  </data>
+  <data name="Every published roster participant must retain exactly one current Playing character." xml:space="preserve">
+    <value>Hver offentliggjort deltager skal beholde præcis én aktuel Playing-karakter.</value>
+  </data>
+  <data name="A Playing character cannot be assigned to more than one roster participant in the event." xml:space="preserve">
+    <value>En Playing-karakter kan ikke tildeles mere end én deltager i eventets trupper.</value>
+  </data>
+  <data name="The named drafted-team order does not match the derived distribution." xml:space="preserve">
+    <value>Rækkefølgen af de draftede hold passer ikke til den udledte fordeling.</value>
+  </data>
+  <data name="The current drafted-team rosters cannot produce a balanced distribution." xml:space="preserve">
+    <value>De nuværende trupper på de draftede hold kan ikke give en balanceret fordeling.</value>
+  </data>
 </root>
