@@ -803,7 +803,7 @@ export function init(region, ui = window.AdminUI) {
     const current = await readCurrent(view.id);
     if (drawer !== state) return;
     if (current.kind === 'ok') { install(state, current.view); drawerMessage(state, 'uncertain', t('We couldn’t confirm whether your changes were saved. The current details are shown; check them before saving again.')); }
-    else drawerMessage(state, 'uncertain', t('We couldn’t confirm whether your changes were saved, and the current details didn’t load. Your edits are still here; check the participant before saving again.'));
+    else { drawerMessage(state, 'uncertain', t('We couldn’t confirm whether your changes were saved, and the current details didn’t load. Your edits are still here; check the participant before saving again.')); return; } // no list re-read: it would ask to discard the kept edits
     void reread();
   }
 
@@ -822,7 +822,7 @@ export function init(region, ui = window.AdminUI) {
     const add = drawer = { mode: 'add', id: null, query: '', owner: null, accounts: [], selected: new Set(), primary: null, place: full ? 'waiting' : 'confirmed', paid: false,
       results: [], searchToken: 0, showErrors: false, saving: false, silent: false, pushed: false, opener };
     const layer = ui.openLayer({ kind: 'drawer', title: t('Add participant'), content: tpl('data-participant-add-drawer'), opener,
-      dirty: () => addDirty(add), pending: () => add.saving,
+      dirty: () => !add.quiet && addDirty(add), pending: () => add.saving,
       onClose: async (_result, { navigating } = {}) => {
         if (drawer === add) { drawer = null; drawerParam = null; }
         if (navigating) return;
@@ -832,6 +832,7 @@ export function init(region, ui = window.AdminUI) {
     layer.element.dataset.pageFamily = 'participants';
     layer.element.setAttribute('aria-labelledby', 'drawer-title'); layer.element.removeAttribute('aria-label');
     wireAdd(add); paintAdd(add);
+    layer.markClean(); // paintAdd sets the default place and payment radios; they are the baseline, not edits
     add.element.querySelector('#add-search').focus({ preventScroll: true });
   }
   openAdd = openAddDrawer;
@@ -875,7 +876,7 @@ export function init(region, ui = window.AdminUI) {
       row.append(box, label, ehb, primary); return row;
     }));
     const accountsNote = node.querySelector('[data-ad-accounts-note]'); accountsNote.replaceChildren(fieldNote('error', errors.accounts)); if (accountsNote.firstElementChild) accountsNote.firstElementChild.id = 'add-accounts-err';
-    node.querySelector('[data-ad-accounts-hint]').textContent = t('EHB comes from the saved account and can be changed for this event after adding. Up to {0} playing accounts per participant.', slots);
+    node.querySelector('[data-ad-accounts-hint]').textContent = t(slots === 1 ? 'EHB comes from the saved account and can be changed for this event after adding. Up to {0} playing account per participant.' : 'EHB comes from the saved account and can be changed for this event after adding. Up to {0} playing accounts per participant.', slots);
     const primary = add.accounts.find(item => item.characterId === add.primary);
     const draftValue = node.querySelector('[data-ad-draft]'); draftValue.hidden = !primary;
     if (primary) draftValue.replaceChildren(fillNodes(labels['Draft value {0} EHB'] ?? 'Draft value {0} EHB', el('b', '', fmtEhb(primary.savedEhb))));
@@ -969,8 +970,13 @@ export function init(region, ui = window.AdminUI) {
       else if (target.matches('[data-ad-pay]')) add.paid = target.value === 'paid';
       else return;
       paintAdd(add);
-      node.querySelector('#' + CSS.escape(target.id || ''))?.focus({ preventScroll: true });
+      (target.id ? node.querySelector('#' + CSS.escape(target.id)) : target.isConnected ? target : null)?.focus({ preventScroll: true });
     });
+  }
+  // The list behind an open Add drawer is re-read without the shell's unsaved-changes prompt (the drawer's draft is kept).
+  async function rereadBehind(add) {
+    add.quiet = true; add.layer.markClean();
+    try { await reread(); } finally { add.quiet = false; }
   }
   async function submitAdd(add) {
     if (add.saving) return;
@@ -1001,10 +1007,10 @@ export function init(region, ui = window.AdminUI) {
       } });
       return;
     }
-    if (result?.outcome === 'stale') { await reread(); paintAdd(add); drawerMessage(add, 'warning', t('The event changed while you were adding. The current numbers are shown; nothing was added.')); return; }
+    if (result?.outcome === 'stale') { await rereadBehind(add); paintAdd(add); drawerMessage(add, 'warning', t('The event changed while you were adding. The current numbers are shown; nothing was added.')); return; }
     if (result?.outcome === 'refused' || outcome.kind === 'refused') { drawerMessage(add, 'error', result?.message || outcome.reason || t('Couldn’t add the participant. Nothing was saved.')); return; }
     // Lost response: never resubmit; show the current list and say so.
-    await reread(); paintAdd(add);
+    await rereadBehind(add); paintAdd(add);
     drawerMessage(add, 'uncertain', t('We couldn’t confirm whether {0} was added. The current list is shown; check it before trying again.', '@' + add.owner.username));
   }
 
