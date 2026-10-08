@@ -61,6 +61,9 @@ const { startFixture, login } = require('../../scripts/lib/admin-parity-fixture.
     await page.locator('#undo-btn', { hasText: 'Undo #2' }).click();
     await chip('Chin Chomp').waitFor();
     assert.equal(await page.locator('.dmem:not(.is-pending)', { hasText: 'Chin Chomp' }).count(), 0);
+    // The command is fully settled (onOk ran: live line set) before the next Undo, so the click cannot be ignored while blocked.
+    await page.locator('p.sr[aria-live="polite"]', { hasText: /Pick 2 undone/ }).waitFor({ state: 'attached' });
+    await page.locator('#undo-btn:not([disabled]):not(.is-busy)', { hasText: 'Undo #1' }).waitFor();
     // A refused Undo (the latest pick changed) is shown with the server's reason, not as unsure.
     await page.route('**/Admin/Events/Draft/*?handler=Undo', route => route.fulfill({ contentType: 'application/json', body: JSON.stringify({ outcome: 'stale', tone: 'error', message: 'The latest pick changed. Nothing was undone; the current board is shown.' }) }), { times: 1 });
     await page.locator('#undo-btn').click();
@@ -110,12 +113,15 @@ const { startFixture, login } = require('../../scripts/lib/admin-parity-fixture.
 
     // ---- corrections: Remove with disclosures, then Add with a role (U6-Q1), each republishes ----
     const card = name => page.locator('.tcard', { has: page.locator('.tcard-name', { hasText: name }) });
+    const bronzeSize = await card('Bronze Line').locator('.tmem').count();
+    assert.ok(bronzeSize >= 3, 'the drafted size is 3 or 4 whichever team picked first');
     await card('Bronze Line').locator('.tmem', { hasText: 'Bronze Liner' }).locator('.icon-btn').click();
     await page.locator('#draft-menu .menu-item', { hasText: 'Remove from team…' }).click();
     await modal.locator('.m-title', { hasText: 'Remove Bronze Liner from Bronze Line?' }).waitFor();
     assert.match(await modal.innerText(), /Bronze Line will have no captain until you assign one\./);
     // U6-E2 (a): under the drafted size, the dialog says by how much.
-    assert.match(await modal.innerText(), /Bronze Line will have 2 members, 1 below the drafted size of 3\./);
+    // (Which team is drawn first is random, so the sentence is built from the team's actual size.)
+    assert.match(await modal.innerText(), new RegExp('Bronze Line will have ' + (bronzeSize - 1) + ' members, 1 below the drafted size of ' + bronzeSize + '\\.'));
     await modal.locator('#cx-confirm').click();
     await toast('Bronze Liner removed from Bronze Line. Rosters republished.');
     await card('Bronze Line').locator('button', { hasText: 'Add member' }).click();
