@@ -314,8 +314,7 @@ export function install(ctx) {
     if (isDirty()) { const d = el('span', 'dirty'); d.setAttribute('role', 'status'); d.append(el('span', 'dot'), document.createTextNode(t('Unsaved changes'))); foot.append(d); }
     const cancel = button('btn', ro ? t('Close') : t('Cancel'), () => void ui.closeLayer(), 'ed-cancel'); cancel.disabled = busy; foot.append(cancel);
     if (!ro && !ed.loading && !ed.error) {
-      const s = button('btn btn-primary' + (saving ? ' is-busy' : ''), null, () => void save(), 'ed-save');
-      s.style.minWidth = '112px'; // reference width: the label change to "Saving…" must not shift Cancel
+      const s = button('btn btn-primary bd-save' + (saving ? ' is-busy' : ''), null, () => void save(), 'ed-save'); // .bd-save keeps the reference width so "Saving…" does not shift Cancel
       if (saving) s.append(el('span', 'spin'));
       s.append(document.createTextNode(saving ? t('Saving…') : ed.tileId ? t('Save tile') : t('Add tile'))); s.disabled = busy;
       foot.append(s);

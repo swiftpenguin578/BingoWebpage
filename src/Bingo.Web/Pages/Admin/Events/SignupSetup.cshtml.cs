@@ -52,8 +52,6 @@ public sealed class SignupSetupModel(ApplicationDbContext dbContext, TimeProvide
     public bool CanEdit { get; private set; }
     public bool HasFirstResponse { get; private set; }
     public DateTimeOffset? FirstResponseAt { get; private set; }
-    [BindProperty] public bool Overlay { get; set; }
-    public bool IsOverlay => Overlay || string.Equals(Request.Query["overlay"], "1", StringComparison.Ordinal);
     public string EventName { get; private set; } = string.Empty;
 
     public object CurrentSnapshot => new { eventId = EventId, phase = EventState.ToString(), draftLocked = DraftLocked, editable = CanEdit,
@@ -243,74 +241,69 @@ public sealed class SignupSetupModel(ApplicationDbContext dbContext, TimeProvide
 
     public async Task<IActionResult> OnGetAsync(Guid id, CancellationToken ct)
     {
-        Overlay = string.Equals(Request.Query["overlay"], "1", StringComparison.Ordinal);
         return await LoadAsync(id, ct) ? Page() : NotFound();
     }
 
-    public async Task<IActionResult> OnPostAsync(Guid id, [Bind(Prefix = "Input")] QuestionInput input, [FromForm] bool overlay, CancellationToken ct)
+    public async Task<IActionResult> OnPostAsync(Guid id, [Bind(Prefix = "Input")] QuestionInput input, CancellationToken ct)
     {
-        overlay = ResolveSubmittedOverlay(overlay);
-        Input = input; Overlay = overlay;
+        Input = input;
         if (!HasSubmittedFormBaseline())
-            return AddResponse(new(SignupQuestionCreationOutcome.Stale, AddRequestId, ExpectedFormVersion, Error: "This signup form changed while you were editing it. Review the latest values and try again."), id, overlay);
+            return AddResponse(new(SignupQuestionCreationOutcome.Stale, AddRequestId, ExpectedFormVersion, Error: "This signup form changed while you were editing it. Review the latest values and try again."), id);
         if (input.Type == SignupQuestionType.SingleChoice && NormalizeChoices(input.Options) is null)
             ModelState.AddModelError("Input.Options", Localize("Add at least one choice."));
         if (!ModelState.IsValid || input.Type == SignupQuestionType.Account)
         {
             if (input.Type == SignupQuestionType.Account)
                 ModelState.AddModelError("Input.Type", Localize("Account fields are managed in the Playing and Alt account sections."));
-            if (WantsAddJson()) return AddResponse(new(SignupQuestionCreationOutcome.Invalid, AddRequestId, ExpectedFormVersion, Error: "Enter valid question values."), id, overlay);
+            if (WantsAddJson()) return AddResponse(new(SignupQuestionCreationOutcome.Invalid, AddRequestId, ExpectedFormVersion, Error: "Enter valid question values."), id);
             await LoadAsync(id, ct);
             return Page();
         }
         var result = await signupService.AddQuestionAsync(new(AddRequestId, id, User.GetAccountId() ?? Guid.Empty,
             ExpectedFormVersion, input.Label, input.Type, input.Required, input.HelpText, input.Options, input.AccountRole), ct);
-        return AddResponse(result, id, overlay);
+        return AddResponse(result, id);
     }
 
-    public async Task<IActionResult> OnPostAddAccountAsync(Guid id, [FromForm] EventCharacterRole role, [FromForm] bool overlay, CancellationToken ct)
+    public async Task<IActionResult> OnPostAddAccountAsync(Guid id, [FromForm] EventCharacterRole role, CancellationToken ct)
     {
-        overlay = ResolveSubmittedOverlay(overlay);
         if (!HasSubmittedFormBaseline())
-            return AddResponse(new(SignupQuestionCreationOutcome.Stale, AddRequestId, ExpectedFormVersion, Error: "This signup form changed while you were editing it. Review the latest values and try again."), id, overlay);
+            return AddResponse(new(SignupQuestionCreationOutcome.Stale, AddRequestId, ExpectedFormVersion, Error: "This signup form changed while you were editing it. Review the latest values and try again."), id);
         if (!ModelState.IsValid)
-            return AddResponse(new(SignupQuestionCreationOutcome.Invalid, AddRequestId, ExpectedFormVersion, Error: "Enter valid account field values."), id, overlay);
+            return AddResponse(new(SignupQuestionCreationOutcome.Invalid, AddRequestId, ExpectedFormVersion, Error: "Enter valid account field values."), id);
         var result = await signupService.AddQuestionAsync(new(AddRequestId, id, User.GetAccountId() ?? Guid.Empty,
             ExpectedFormVersion, string.Empty, SignupQuestionType.Account, AccountRole: role), ct);
-        return AddResponse(result, id, overlay, "Account field added.");
+        return AddResponse(result, id, "Account field added.");
     }
 
     internal bool HasExactCommittedAddReplay { get; private set; }
 
     private bool WantsAddJson() => Request.GetTypedHeaders().Accept?.Any(x => x.MediaType.Value == "application/json") == true;
 
-    private IActionResult AddResponse(SignupQuestionCreationResult result, Guid id, bool overlay, string successMessage = "Question added.")
+    private IActionResult AddResponse(SignupQuestionCreationResult result, Guid id, string successMessage = "Question added.")
     {
         HasExactCommittedAddReplay = result.Replayed && result.QuestionId is not null;
         if (WantsAddJson()) return new JsonResult(result);
         SetStatus(Localize(result.Succeeded ? result.Message ?? successMessage : result.Error ?? "The add result could not be confirmed."),
             result.Succeeded ? result.RequiredNormalizedToOptional ? UiMessageType.Information : UiMessageType.Success : UiMessageType.Error);
-        return RedirectToQuestions(id, overlay);
+        return RedirectToQuestions(id);
     }
 
     public async Task<IActionResult> OnPostEditAccountAsync(
         Guid id,
         Guid questionId,
         [Bind(Prefix = "Account")] AccountPresentationInput account,
-        [FromForm] bool overlay,
         CancellationToken ct)
     {
-        overlay = ResolveSubmittedOverlay(overlay);
-        if (!HasSubmittedFormBaseline()) return RedirectToQuestions(id, overlay);
+        if (!HasSubmittedFormBaseline()) return RedirectToQuestions(id);
         if (!await CanEditAsync(id, ct))
         {
             SetLockedStatus();
-            return RedirectToQuestions(id, overlay);
+            return RedirectToQuestions(id);
         }
         if (!ModelState.IsValid)
         {
             SetStatus(Localize("Enter a question label."), UiMessageType.Error);
-            return RedirectToQuestions(id, overlay);
+            return RedirectToQuestions(id);
         }
 
         await using var transaction = await dbContext.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, ct);
@@ -318,9 +311,9 @@ public sealed class SignupSetupModel(ApplicationDbContext dbContext, TimeProvide
         if (lockedEvent is null || !CanEditSignupQuestions(lockedEvent.State, lockedEvent.DraftLocked))
         {
             SetLockedStatus();
-            return RedirectToQuestions(id, overlay);
+            return RedirectToQuestions(id);
         }
-        if (!await HasCurrentFormBaselineAsync(id, ct)) return RedirectToQuestions(id, overlay);
+        if (!await HasCurrentFormBaselineAsync(id, ct)) return RedirectToQuestions(id);
         var question = await dbContext.SignupQuestions.SingleOrDefaultAsync(item =>
             item.Id == questionId
             && item.EventId == id
@@ -331,7 +324,7 @@ public sealed class SignupSetupModel(ApplicationDbContext dbContext, TimeProvide
         if (question is null)
         {
             SetStatus(Localize("That account field cannot be edited."), UiMessageType.Error);
-            return RedirectToQuestions(id, overlay);
+            return RedirectToQuestions(id);
         }
 
         var before = Snapshot(question);
@@ -339,25 +332,23 @@ public sealed class SignupSetupModel(ApplicationDbContext dbContext, TimeProvide
         await CompleteMutationAsync(id, "signup_question.account_edited", question.Id.ToString(), before, Snapshot(question), ct);
         await transaction.CommitAsync(ct);
         SetStatus(Localize("Account field saved."), UiMessageType.Success);
-        return RedirectToQuestions(id, overlay);
+        return RedirectToQuestions(id);
     }
 
     public async Task<IActionResult> OnPostDeactivateAsync(
         Guid id,
         Guid questionId,
-        [FromForm] bool overlay,
         [FromForm] bool confirmed,
         [FromForm] int? expectedAnswerCount,
         [FromForm] int? expectedEventRegistrationReleaseCount,
         [FromForm] int? expectedQuestionVersion,
         CancellationToken ct)
     {
-        overlay = ResolveSubmittedOverlay(overlay);
         var actorId = User.GetAccountId();
         if (actorId is null)
         {
             SetStatus(Localize("Admin access is required."), UiMessageType.Error);
-            return RedirectToQuestions(id, overlay);
+            return RedirectToQuestions(id);
         }
         var result = await signupService.ApplyQuestionMutationAsync(new SignupQuestionMutationRequest(
             id,
@@ -371,26 +362,24 @@ public sealed class SignupSetupModel(ApplicationDbContext dbContext, TimeProvide
             expectedQuestionVersion ?? -1), ct);
         if (WantsAddJson()) return new JsonResult(result);
         SetStatus(result.Succeeded ? Localize("Question removed.") : Localize(result.Error ?? "The question could not be removed."), result.Succeeded ? UiMessageType.Success : UiMessageType.Error);
-        return RedirectToQuestions(id, overlay);
+        return RedirectToQuestions(id);
     }
 
     public async Task<IActionResult> OnPostCoCaptainAsync(
         Guid id,
         Guid questionId,
         [FromForm] bool enabled,
-        [FromForm] bool overlay,
         [FromForm] bool confirmed,
         [FromForm] int? expectedAnswerCount,
         [FromForm] int? expectedEventRegistrationReleaseCount,
         [FromForm] int? expectedQuestionVersion,
         CancellationToken ct)
     {
-        overlay = ResolveSubmittedOverlay(overlay);
         var actorId = User.GetAccountId();
         if (actorId is null)
         {
             SetStatus(Localize("Admin access is required."), UiMessageType.Error);
-            return RedirectToQuestions(id, overlay);
+            return RedirectToQuestions(id);
         }
         SignupAdministrationResult result;
         if (enabled)
@@ -415,22 +404,21 @@ public sealed class SignupSetupModel(ApplicationDbContext dbContext, TimeProvide
             ? Localize(enabled ? "Co-captain field enabled." : "Co-captain field disabled.")
             : Localize(result.Error ?? "The co-captain field could not be changed."),
             result.Succeeded ? UiMessageType.Success : UiMessageType.Error);
-        return RedirectToQuestions(id, overlay);
+        return RedirectToQuestions(id);
     }
 
-    public async Task<IActionResult> OnPostMoveAsync(Guid id, Guid questionId, bool up, [FromForm] bool overlay, CancellationToken ct)
+    public async Task<IActionResult> OnPostMoveAsync(Guid id, Guid questionId, bool up, CancellationToken ct)
     {
-        overlay = ResolveSubmittedOverlay(overlay);
-        if (!HasSubmittedFormBaseline()) return RedirectToQuestions(id, overlay);
-        if (!await CanEditAsync(id, ct)) { SetLockedStatus(); return RedirectToQuestions(id, overlay); }
+        if (!HasSubmittedFormBaseline()) return RedirectToQuestions(id);
+        if (!await CanEditAsync(id, ct)) { SetLockedStatus(); return RedirectToQuestions(id); }
         await using var transaction = await dbContext.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, ct);
         var lockedEvent = await LockEditableEventAsync(id, ct);
         if (lockedEvent is null || !CanEditSignupQuestions(lockedEvent.State, lockedEvent.DraftLocked))
         {
             SetLockedStatus();
-            return RedirectToQuestions(id, overlay);
+            return RedirectToQuestions(id);
         }
-        if (!await HasCurrentFormBaselineAsync(id, ct)) return RedirectToQuestions(id, overlay);
+        if (!await HasCurrentFormBaselineAsync(id, ct)) return RedirectToQuestions(id);
         var questions = await dbContext.SignupQuestions.Where(x => x.EventId == id && x.Active).OrderBy(x => x.Position).ToListAsync(ct);
         var customQuestions = questions.Where(x => x.SystemField == SignupSystemField.None && x.Type != SignupQuestionType.Account).ToList();
         var index = customQuestions.FindIndex(x => x.Id == questionId);
@@ -438,34 +426,33 @@ public sealed class SignupSetupModel(ApplicationDbContext dbContext, TimeProvide
         if (index < 0 || otherIndex < 0 || otherIndex >= customQuestions.Count)
         {
             SetStatus(Localize("That question cannot be reordered."), UiMessageType.Error);
-            return RedirectToQuestions(id, overlay);
+            return RedirectToQuestions(id);
         }
         var question = customQuestions[index]; var other = customQuestions[otherIndex]; var position = question.Position; question.MoveTo(other.Position); other.MoveTo(position);
         await CompleteMutationAsync(id, "signup_question.reordered", question.Id.ToString(), new { from = position }, new { to = question.Position }, ct); await transaction.CommitAsync(ct);
-        SetStatus(Localize("Question order saved."), UiMessageType.Success); return RedirectToQuestions(id, overlay);
+        SetStatus(Localize("Question order saved."), UiMessageType.Success); return RedirectToQuestions(id);
     }
 
-    public async Task<IActionResult> OnPostEditAsync(Guid id, Guid questionId, [Bind(Prefix = "Edit")] EditQuestionInput edit, [FromForm] bool overlay, CancellationToken ct)
+    public async Task<IActionResult> OnPostEditAsync(Guid id, Guid questionId, [Bind(Prefix = "Edit")] EditQuestionInput edit, CancellationToken ct)
     {
-        overlay = ResolveSubmittedOverlay(overlay);
-        if (!HasSubmittedFormBaseline()) return RedirectToQuestions(id, overlay);
-        if (!await CanEditAsync(id, ct)) { SetLockedStatus(); return RedirectToQuestions(id, overlay); }
+        if (!HasSubmittedFormBaseline()) return RedirectToQuestions(id);
+        if (!await CanEditAsync(id, ct)) { SetLockedStatus(); return RedirectToQuestions(id); }
 
         await using var transaction = await dbContext.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, ct);
         var lockedEvent = await LockEditableEventAsync(id, ct);
         if (lockedEvent is null || !CanEditSignupQuestions(lockedEvent.State, lockedEvent.DraftLocked))
         {
             SetLockedStatus();
-            return RedirectToQuestions(id, overlay);
+            return RedirectToQuestions(id);
         }
-        if (!await HasCurrentFormBaselineAsync(id, ct)) return RedirectToQuestions(id, overlay);
+        if (!await HasCurrentFormBaselineAsync(id, ct)) return RedirectToQuestions(id);
 
         var form = await dbContext.SignupForms.SingleAsync(x => x.EventId == id, ct);
         var question = await dbContext.SignupQuestions.SingleOrDefaultAsync(x => x.Id == questionId && x.EventId == id && x.Active, ct);
         if (question is null || question.SystemField != SignupSystemField.None || question.Type == SignupQuestionType.Account)
         {
             SetStatus(Localize("That question cannot be edited."), UiMessageType.Error);
-            return RedirectToQuestions(id, overlay);
+            return RedirectToQuestions(id);
         }
 
         if (form.FirstResponseAt is not null)
@@ -473,39 +460,38 @@ public sealed class SignupSetupModel(ApplicationDbContext dbContext, TimeProvide
             if (HasStructuralEditInput())
             {
                 SetStatus(Localize("Answer format is locked after the first response. Delete the old question with confirmation, then add a new optional question."), UiMessageType.Error);
-                return RedirectToQuestions(id, overlay);
+                return RedirectToQuestions(id);
             }
-            if (TryGetEditValidationError(out var error)) { SetStatus(error, UiMessageType.Error); return RedirectToQuestions(id, overlay); }
+            if (TryGetEditValidationError(out var error)) { SetStatus(error, UiMessageType.Error); return RedirectToQuestions(id); }
             var presentationBefore = Snapshot(question);
             question.UpdatePresentation(edit.Label, edit.HelpText);
             await CompleteMutationAsync(id, "signup_question.edited", question.Id.ToString(), presentationBefore, Snapshot(question), ct);
             await transaction.CommitAsync(ct);
             SetStatus(Localize("Question saved."), UiMessageType.Success);
-            return RedirectToQuestions(id, overlay);
+            return RedirectToQuestions(id);
         }
 
         if (edit.Type is null) ModelState.AddModelError("Edit.Type", Localize("Choose an answer format."));
-        if (TryGetEditValidationError(out var validationError)) { SetStatus(validationError, UiMessageType.Error); return RedirectToQuestions(id, overlay); }
+        if (TryGetEditValidationError(out var validationError)) { SetStatus(validationError, UiMessageType.Error); return RedirectToQuestions(id); }
         var type = edit.Type!.Value;
         var options = type == SignupQuestionType.SingleChoice ? NormalizeChoices(edit.Options) : null;
-        if (type == SignupQuestionType.SingleChoice && options is null) { SetStatus(Localize("Add unique nonblank choices."), UiMessageType.Error); return RedirectToQuestions(id, overlay); }
-        if (type == SignupQuestionType.Account) { SetStatus(Localize("Account fields are managed in the Playing and Alt account sections."), UiMessageType.Error); return RedirectToQuestions(id, overlay); }
+        if (type == SignupQuestionType.SingleChoice && options is null) { SetStatus(Localize("Add unique nonblank choices."), UiMessageType.Error); return RedirectToQuestions(id); }
+        if (type == SignupQuestionType.Account) { SetStatus(Localize("Account fields are managed in the Playing and Alt account sections."), UiMessageType.Error); return RedirectToQuestions(id); }
         if (form.FirstResponseAt is not null)
         {
             SetStatus(Localize("Answer format is locked after the first response. Delete the old question with confirmation, then add a new optional question."), UiMessageType.Error);
-            return RedirectToQuestions(id, overlay);
+            return RedirectToQuestions(id);
         }
         var before = Snapshot(question);
         question.UpdateDefinition(edit.Label, edit.HelpText, type, edit.Required == true, options, null);
         await CompleteMutationAsync(id, "signup_question.edited", question.Id.ToString(), before, Snapshot(question), ct); await transaction.CommitAsync(ct);
-        SetStatus(Localize("Question saved."), UiMessageType.Success); return RedirectToQuestions(id, overlay);
+        SetStatus(Localize("Question saved."), UiMessageType.Success); return RedirectToQuestions(id);
     }
 
-    public async Task<IActionResult> OnPostReplaceAsync(Guid id, Guid questionId, [Bind(Prefix = "Replacement")] QuestionInput replacementInput, [FromForm] bool overlay, CancellationToken ct)
+    public async Task<IActionResult> OnPostReplaceAsync(Guid id, Guid questionId, [Bind(Prefix = "Replacement")] QuestionInput replacementInput, CancellationToken ct)
     {
-        overlay = ResolveSubmittedOverlay(overlay);
         SetStatus(Localize("Format replacement is not a separate workflow. Delete the old question with its current impact confirmation, then add a new optional question."), UiMessageType.Error);
-        return RedirectToQuestions(id, overlay);
+        return RedirectToQuestions(id);
     }
 
     private async Task CompleteMutationAsync(Guid eventId, string action, string targetId, object? before, object? after, CancellationToken ct)
@@ -598,7 +584,7 @@ public sealed class SignupSetupModel(ApplicationDbContext dbContext, TimeProvide
         dbContext.ChangeTracker.Clear();
         executed.ExceptionHandled = true;
         SetStatus(Localize("This signup form changed while you were editing it. Review the latest values and try again."), UiMessageType.Error);
-        executed.Result = RedirectToQuestions((Guid)context.HandlerArguments["id"]!, IsOverlay);
+        executed.Result = RedirectToQuestions((Guid)context.HandlerArguments["id"]!);
     }
 
     private bool HasSubmittedFormBaseline()
@@ -669,18 +655,9 @@ public sealed class SignupSetupModel(ApplicationDbContext dbContext, TimeProvide
             Localize("Signup questions can only be changed before the draft starts."),
             UiMessageType.Error);
 
-    private IActionResult RedirectToQuestions(Guid id, bool? overlay = null) => WantsAddJson()
+    private IActionResult RedirectToQuestions(Guid id) => WantsAddJson()
         ? new JsonResult(new { succeeded = operationType != UiMessageType.Error, error = operationType == UiMessageType.Error ? operationMessage : null, message = operationMessage })
         : RedirectToPage("SignupSetup", new { id, tab = "form" });
-
-    private bool ResolveSubmittedOverlay(bool overlay)
-    {
-        if (!Request.HasFormContentType) return overlay;
-
-        var submitted = Request.Form["overlay"].ToString();
-        ModelState.Remove("overlay");
-        return overlay || string.Equals(submitted, "1", StringComparison.Ordinal);
-    }
 
     private string? operationMessage;
     private UiMessageType operationType;
