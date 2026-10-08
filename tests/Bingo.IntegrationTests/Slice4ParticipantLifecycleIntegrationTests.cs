@@ -418,12 +418,13 @@ public sealed class Slice4ParticipantLifecycleIntegrationTests(PostgreSqlTestFix
             db.DraftSessions.Add(new DraftSession(Guid.NewGuid(), manageSetup.EventId, 2));
             await db.SaveChangesAsync();
             var context = AdminContext(manageSetup.EnabledAdminId);
-            var draft = new Bingo.Web.Pages.Admin.Events.DraftModel(db, TimeProvider.System, null!, null!, Service(db), new EventParticipantCharacterService(db, TimeProvider.System))
+            // U6 (A10): the Teams withdrawal handler is retired; Participants owns withdrawal (S5).
+            var participants = new Bingo.Web.Pages.Admin.Events.ParticipantsModel(db, Service(db))
             {
                 PageContext = new PageContext(new ActionContext(context, new RouteData(), new PageActionDescriptor())),
                 TempData = new TempDataDictionary(context, new DictionaryTempDataProvider())
             };
-            Assert.IsType<RedirectToPageResult>(await draft.OnPostWithdrawParticipantAsync(manageSetup.EventId, promotedParticipantId, CancellationToken.None));
+            Assert.IsType<RedirectToPageResult>(await participants.OnPostWithdrawAsync(manageSetup.EventId, promotedParticipantId, CancellationToken.None, confirmLifecycleAction: true));
         }
         await using (var verify = new ApplicationDbContext(options))
         {

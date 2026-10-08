@@ -4665,4 +4665,1180 @@
   <data name="Approval reversed by {0} · {1}" xml:space="preserve"><value>Godkendelse tilbageført af {0} · {1}</value></data>
   <data name="AdminDesign.added {0}" xml:space="preserve"><value>tilføjede {0}</value></data>
   <data name="No evidence was submitted in {0}." xml:space="preserve"><value>Der blev ikke indsendt dokumentation i {0}.</value></data>
+  <data name="Teams can’t be added after the rosters are finalized. Correct the rosters by adding or removing members." xml:space="preserve">
+    <value>Hold kan ikke tilføjes, efter holdene er færdiggjort. Ret holdene ved at tilføje eller fjerne medlemmer.</value>
+  </data>
+  <data name="Another team already has this name." xml:space="preserve">
+    <value>Et andet hold har allerede dette navn.</value>
+  </data>
+  <data name="Teams can only be removed during team setup, before the event starts and before its configured end." xml:space="preserve">
+    <value>Hold kan kun fjernes under holdopsætningen, før eventet starter og før dets planlagte slutning.</value>
+  </data>
+  <data name="This team was already removed." xml:space="preserve">
+    <value>Dette hold er allerede fjernet.</value>
+  </data>
+  <data name="{0} now has members. Nothing was removed; check the team before trying again." xml:space="preserve">
+    <value>{0} har nu medlemmer. Intet blev fjernet; tjek holdet, før du prøver igen.</value>
+  </data>
+  <data name="{0} removed." xml:space="preserve">
+    <value>{0} fjernet.</value>
+  </data>
+  <data name="{0} removed. {1} player is signed up with no team." xml:space="preserve">
+    <value>{0} fjernet. {1} spiller er tilmeldt uden hold.</value>
+  </data>
+  <data name="{0} removed. {1} players are signed up with no team." xml:space="preserve">
+    <value>{0} fjernet. {1} spillere er tilmeldt uden hold.</value>
+  </data>
+  <data name="This team was removed." xml:space="preserve">
+    <value>Dette hold er fjernet.</value>
+  </data>
+  <data name="{0} was removed. Nothing was added." xml:space="preserve">
+    <value>{0} er fjernet. Intet blev tilføjet.</value>
+  </data>
+  <data name="We couldn’t confirm the response." xml:space="preserve">
+    <value>Vi kunne ikke bekræfte svaret.</value>
+  </data>
+  <data name="The current teams are shown; check them before trying again." xml:space="preserve">
+    <value>De aktuelle hold vises; tjek dem, før du prøver igen.</value>
+  </data>
+  <data name="Signups are closed" xml:space="preserve">
+    <value>Tilmeldingen er lukket</value>
+  </data>
+  <data name="Close signups first" xml:space="preserve">
+    <value>Luk tilmeldingen først</value>
+  </data>
+  <data name="Set the event end in Schedule" xml:space="preserve">
+    <value>Angiv eventets slutning under Tidsplan</value>
+  </data>
+  <data name="Add at least one team" xml:space="preserve">
+    <value>Tilføj mindst ét hold</value>
+  </data>
+  <data name="{0} needs a member" xml:space="preserve">
+    <value>{0} mangler et medlem</value>
+  </data>
+  <data name="{0} teams need a member" xml:space="preserve">
+    <value>{0} hold mangler et medlem</value>
+  </data>
+  <data name="Every team has a member" xml:space="preserve">
+    <value>Alle hold har et medlem</value>
+  </data>
+  <data name="Add" xml:space="preserve">
+    <value>Tilføj</value>
+  </data>
+  <data name="Every drafted team has a captain" xml:space="preserve">
+    <value>Alle draftede hold har en kaptajn</value>
+  </data>
+  <data name="{0} needs a captain" xml:space="preserve">
+    <value>{0} mangler en kaptajn</value>
+  </data>
+  <data name="{0} drafted teams need a captain" xml:space="preserve">
+    <value>{0} draftede hold mangler en kaptajn</value>
+  </data>
+  <data name="Assign" xml:space="preserve">
+    <value>Tildel</value>
+  </data>
+  <data name="Team sizes work out" xml:space="preserve">
+    <value>Holdstørrelserne går op</value>
+  </data>
+  <data name="{0} on teams" xml:space="preserve">
+    <value>{0} på hold</value>
+  </data>
+  <data name="{0} not on a team yet" xml:space="preserve">
+    <value>{0} endnu ikke på et hold</value>
+  </data>
+  <data name="A website draft needs at least two drafted teams." xml:space="preserve">
+    <value>Et website-draft kræver mindst to draftede hold.</value>
+  </data>
+  <data name="{0} of {1} and {2} of {3}" xml:space="preserve">
+    <value>{0} på {1} og {2} på {3}</value>
+  </data>
+  <data name="{0} teams of {1}" xml:space="preserve">
+    <value>{0} hold på {1}</value>
+  </data>
+  <data name="{0} players across {1} drafted teams: {2}." xml:space="preserve">
+    <value>{0} spillere fordelt på {1} draftede hold: {2}.</value>
+  </data>
+  <data name="1 manual-roster team ({0}) isn’t drafted." xml:space="preserve">
+    <value>1 manuelt hold ({0}) drafter ikke.</value>
+  </data>
+  <data name="{0} manual-roster teams ({1}) aren’t drafted." xml:space="preserve">
+    <value>{0} manuelle hold ({1}) drafter ikke.</value>
+  </data>
+  <data name="Add a team for each captain to get started." xml:space="preserve">
+    <value>Tilføj et hold for hver kaptajn for at komme i gang.</value>
+  </data>
+  <data name="Assemble each roster by hand, then finalize to publish them." xml:space="preserve">
+    <value>Sæt hvert hold sammen manuelt, og færdiggør dem derefter for at offentliggøre dem.</value>
+  </data>
+  <data name="Prepare teams and captains, then run the snake draft." xml:space="preserve">
+    <value>Forbered hold og kaptajner, og kør derefter snake-draftet.</value>
+  </data>
+  <data name="Published rosters for {0}." xml:space="preserve">
+    <value>Offentliggjorte hold for {0}.</value>
+  </data>
+  <data name="Rosters for {0}." xml:space="preserve">
+    <value>Hold for {0}.</value>
+  </data>
+  <data name="Finalize rosters…" xml:space="preserve">
+    <value>Færdiggør hold…</value>
+  </data>
+  <data name="Start draft…" xml:space="preserve">
+    <value>Start draft…</value>
+  </data>
+  <data name="Finish the steps above first" xml:space="preserve">
+    <value>Gør trinnene ovenfor færdige først</value>
+  </data>
+  <data name="Open Board" xml:space="preserve">
+    <value>Åbn pladen</value>
+  </data>
+  <data name="No board yet. Create one on the Board page." xml:space="preserve">
+    <value>Ingen plade endnu. Opret en på siden Plade.</value>
+  </data>
+  <data name="The current state didn’t load. Check before trying again, so nothing happens twice." xml:space="preserve">
+    <value>Den aktuelle tilstand blev ikke indlæst. Tjek igen, før du prøver igen, så intet sker to gange.</value>
+  </data>
+  <data name="Rosters published {0}." xml:space="preserve">
+    <value>Hold offentliggjort {0}.</value>
+  </data>
+  <data name="Until {0} first goes Live, you can add or remove members and change roles. Each change republishes the rosters." xml:space="preserve">
+    <value>Indtil {0} går live første gang, kan du tilføje eller fjerne medlemmer og ændre roller. Hver ændring offentliggør holdene igen.</value>
+  </data>
+  <data name="Rosters are locked." xml:space="preserve">
+    <value>Holdene er låst.</value>
+  </data>
+  <data name="{0} went Live {1}, so members can no longer be added or removed. Captain and Co-captain roles can still change." xml:space="preserve">
+    <value>{0} gik live {1}, så medlemmer kan ikke længere tilføjes eller fjernes. Kaptajn- og vicekaptajnroller kan stadig ændres.</value>
+  </data>
+  <data name="Rosters are final." xml:space="preserve">
+    <value>Holdene er endelige.</value>
+  </data>
+  <data name="{0} is in final review. Members can’t change; Captain and Co-captain roles can still change while uploads are open." xml:space="preserve">
+    <value>{0} er i endelig gennemgang. Medlemmer kan ikke ændres; kaptajn- og vicekaptajnroller kan stadig ændres, mens uploads er åbne.</value>
+  </data>
+  <data name="{0} is in final review and uploads are closed, so rosters and roles can no longer change." xml:space="preserve">
+    <value>{0} er i endelig gennemgang, og uploads er lukket, så hold og roller kan ikke længere ændres.</value>
+  </data>
+  <data name="This event is cancelled." xml:space="preserve">
+    <value>Dette event er aflyst.</value>
+  </data>
+  <data name="This event is archived." xml:space="preserve">
+    <value>Dette event er arkiveret.</value>
+  </data>
+  <data name="This event is finished." xml:space="preserve">
+    <value>Dette event er afsluttet.</value>
+  </data>
+  <data name="Rosters are shown as they were." xml:space="preserve">
+    <value>Holdene vises, som de var.</value>
+  </data>
+  <data name="Couldn’t load the teams" xml:space="preserve">
+    <value>Holdene kunne ikke indlæses</value>
+  </data>
+  <data name="Getting started" xml:space="preserve">
+    <value>Kom i gang</value>
+  </data>
+  <data name="Ready to finalize" xml:space="preserve">
+    <value>Klar til at færdiggøre</value>
+  </data>
+  <data name="Ready to start the draft" xml:space="preserve">
+    <value>Klar til at starte draftet</value>
+  </data>
+  <data name="Before finalizing" xml:space="preserve">
+    <value>Før færdiggørelse</value>
+  </data>
+  <data name="Before starting the draft" xml:space="preserve">
+    <value>Før draftet starter</value>
+  </data>
+  <data name="(note)" xml:space="preserve">
+    <value>(bemærkning)</value>
+  </data>
+  <data name="Drafted with pick {0}" xml:space="preserve">
+    <value>Draftet med valg {0}</value>
+  </data>
+  <data name="Added" xml:space="preserve">
+    <value>Tilføjet</value>
+  </data>
+  <data name="Added as a correction after the rosters were published" xml:space="preserve">
+    <value>Tilføjet som rettelse, efter holdene blev offentliggjort</value>
+  </data>
+  <data name="Pre" xml:space="preserve">
+    <value>Før</value>
+  </data>
+  <data name="Preassigned before the draft" xml:space="preserve">
+    <value>Tildelt før draftet</value>
+  </data>
+  <data name="No teams yet" xml:space="preserve">
+    <value>Ingen hold endnu</value>
+  </data>
+  <data name="Add a team for each captain. Teams in the website draft are filled by the draft; manual-roster teams are assembled here." xml:space="preserve">
+    <value>Tilføj et hold for hver kaptajn. Hold i website-draftet fyldes af draftet; manuelle hold sættes sammen her.</value>
+  </data>
+  <data name="This event has no teams." xml:space="preserve">
+    <value>Dette event har ingen hold.</value>
+  </data>
+  <data name="Needs a captain before the draft can start." xml:space="preserve">
+    <value>Skal have en kaptajn, før draftet kan starte.</value>
+  </data>
+  <data name="More preassigned members than the final size ({0})." xml:space="preserve">
+    <value>Flere tildelte medlemmer end den endelige størrelse ({0}).</value>
+  </data>
+  <data name="Needs at least one member before rosters can be finalized." xml:space="preserve">
+    <value>Skal have mindst ét medlem, før holdene kan færdiggøres.</value>
+  </data>
+  <data name="{0} preassigned · final size {1}" xml:space="preserve">
+    <value>{0} tildelt · endelig størrelse {1}</value>
+  </data>
+  <data name="Drafted (needs 2 teams)" xml:space="preserve">
+    <value>Draftet (kræver 2 hold)</value>
+  </data>
+  <data name="Website draft" xml:space="preserve">
+    <value>Website-draft</value>
+  </data>
+  <data name="Manual roster" xml:space="preserve">
+    <value>Manuelt hold</value>
+  </data>
+  <data name="No one preassigned yet. Assign a captain; everyone else joins through the draft." xml:space="preserve">
+    <value>Ingen er tildelt endnu. Tildel en kaptajn; alle andre kommer med gennem draftet.</value>
+  </data>
+  <data name="No members yet." xml:space="preserve">
+    <value>Ingen medlemmer endnu.</value>
+  </data>
+  <data name="Members of {0}" xml:space="preserve">
+    <value>Medlemmer af {0}</value>
+  </data>
+  <data name="Assign captain" xml:space="preserve">
+    <value>Tildel kaptajn</value>
+  </data>
+  <data name="Preassign player" xml:space="preserve">
+    <value>Tildel spiller på forhånd</value>
+  </data>
+  <data name="Add member" xml:space="preserve">
+    <value>Tilføj medlem</value>
+  </data>
+  <data name="Edit team…" xml:space="preserve">
+    <value>Rediger hold…</value>
+  </data>
+  <data name="Rename team…" xml:space="preserve">
+    <value>Omdøb hold…</value>
+  </data>
+  <data name="Add captain…" xml:space="preserve">
+    <value>Tilføj kaptajn…</value>
+  </data>
+  <data name="Remove team…" xml:space="preserve">
+    <value>Fjern hold…</value>
+  </data>
+  <data name="Make participant" xml:space="preserve">
+    <value>Gør til deltager</value>
+  </data>
+  <data name="Make captain" xml:space="preserve">
+    <value>Gør til kaptajn</value>
+  </data>
+  <data name="Make co-captain" xml:space="preserve">
+    <value>Gør til vicekaptajn</value>
+  </data>
+  <data name="Move to {0}" xml:space="preserve">
+    <value>Flyt til {0}</value>
+  </data>
+  <data name="Remove from team…" xml:space="preserve">
+    <value>Fjern fra hold…</value>
+  </data>
+  <data name="Remove from team" xml:space="preserve">
+    <value>Fjern fra hold</value>
+  </data>
+  <data name="Team actions" xml:space="preserve">
+    <value>Handlinger for hold</value>
+  </data>
+  <data name="Member actions" xml:space="preserve">
+    <value>Handlinger for medlem</value>
+  </data>
+  <data name="Draft actions" xml:space="preserve">
+    <value>Handlinger for draft</value>
+  </data>
+  <data name="e.g. Team Torva" xml:space="preserve">
+    <value>f.eks. Team Torva</value>
+  </data>
+  <data name="Takes part in the website draft" xml:space="preserve">
+    <value>Deltager i website-draftet</value>
+  </data>
+  <data name="Filled by the snake draft. Needs a captain before the draft starts." xml:space="preserve">
+    <value>Fyldes af snake-draftet. Skal have en kaptajn, før draftet starter.</value>
+  </data>
+  <data name="Not drafted: you assemble this roster by hand, and its members aren’t in the draft pool." xml:space="preserve">
+    <value>Drafter ikke: du sætter holdet sammen manuelt, og dets medlemmer er ikke i draftpuljen.</value>
+  </data>
+  <data name="Enter a team name." xml:space="preserve">
+    <value>Angiv et holdnavn.</value>
+  </data>
+  <data name="Use 30 characters or fewer." xml:space="preserve">
+    <value>Brug højst 30 tegn.</value>
+  </data>
+  <data name="Edit team" xml:space="preserve">
+    <value>Rediger hold</value>
+  </data>
+  <data name="Rename team" xml:space="preserve">
+    <value>Omdøb hold</value>
+  </data>
+  <data name="Up to 30 characters. Players see it on the team pages." xml:space="preserve">
+    <value>Op til 30 tegn. Spillerne ser det på holdsiderne.</value>
+  </data>
+  <data name="save {0}" xml:space="preserve">
+    <value>gemme {0}</value>
+  </data>
+  <data name="add {0}" xml:space="preserve">
+    <value>tilføje {0}</value>
+  </data>
+  <data name="{0} is saved." xml:space="preserve">
+    <value>{0} er gemt.</value>
+  </data>
+  <data name="A team named {0} now exists. It isn’t known whether this request created it." xml:space="preserve">
+    <value>Der findes nu et hold med navnet {0}. Det vides ikke, om denne handling oprettede det.</value>
+  </data>
+  <data name="{0} wasn’t saved." xml:space="preserve">
+    <value>{0} blev ikke gemt.</value>
+  </data>
+  <data name="No team named {0} exists." xml:space="preserve">
+    <value>Der findes intet hold med navnet {0}.</value>
+  </data>
+  <data name="{0} saved." xml:space="preserve">
+    <value>{0} gemt.</value>
+  </data>
+  <data name="{0} added." xml:space="preserve">
+    <value>{0} tilføjet.</value>
+  </data>
+  <data name="Who to add" xml:space="preserve">
+    <value>Hvem skal tilføjes</value>
+  </data>
+  <data name="Signed-up players" xml:space="preserve">
+    <value>Tilmeldte spillere</value>
+  </data>
+  <data name="Other website accounts" xml:space="preserve">
+    <value>Andre websitekonti</value>
+  </data>
+  <data name="{0} · {1}" xml:space="preserve">
+    <value>{0} · {1}</value>
+  </data>
+  <data name="A regular member." xml:space="preserve">
+    <value>Et almindeligt medlem.</value>
+  </data>
+  <data name="Leads the team and calls draft picks." xml:space="preserve">
+    <value>Leder holdet og vælger i draftet.</value>
+  </data>
+  <data name="Helps the captain; a separate role." xml:space="preserve">
+    <value>Hjælper kaptajnen; en særskilt rolle.</value>
+  </data>
+  <data name="Volunteering to captain doesn’t give anyone a role. Choose one here." xml:space="preserve">
+    <value>At melde sig som kaptajn giver ikke en rolle. Vælg en her.</value>
+  </data>
+  <data name="Preassigning is possible until the first pick. It counts toward the team’s size and can change whose turn comes next." xml:space="preserve">
+    <value>Forhåndstildeling er mulig indtil første valg. Den tæller med i holdets størrelse og kan ændre, hvis tur det er næste gang.</value>
+  </data>
+  <data name="Volunteers first" xml:space="preserve">
+    <value>Frivillige først</value>
+  </data>
+  <data name="Not signed up · @{0} · {1} EHB" xml:space="preserve">
+    <value>Ikke tilmeldt · @{0} · {1} EHB</value>
+  </data>
+  <data name="{0} of this team" xml:space="preserve">
+    <value>{0} på dette hold</value>
+  </data>
+  <data name="On this team" xml:space="preserve">
+    <value>På dette hold</value>
+  </data>
+  <data name="On {0}" xml:space="preserve">
+    <value>På {0}</value>
+  </data>
+  <data name="Not on this team" xml:space="preserve">
+    <value>Ikke på dette hold</value>
+  </data>
+  <data name="Primary account · {0} EHB" xml:space="preserve">
+    <value>Primær konto · {0} EHB</value>
+  </data>
+  <data name="Before the first pick" xml:space="preserve">
+    <value>Før første valg</value>
+  </data>
+  <data name="Preassign a player" xml:space="preserve">
+    <value>Tildel en spiller på forhånd</value>
+  </data>
+  <data name="Add captain" xml:space="preserve">
+    <value>Tilføj kaptajn</value>
+  </data>
+  <data name="Add to the published roster" xml:space="preserve">
+    <value>Tilføj til det offentliggjorte hold</value>
+  </data>
+  <data name="Add to {0}" xml:space="preserve">
+    <value>Tilføj til {0}</value>
+  </data>
+  <data name="Search players by account name" xml:space="preserve">
+    <value>Søg efter spillere via kontonavn</value>
+  </data>
+  <data name="Everyone here is already on a team" xml:space="preserve">
+    <value>Alle her er allerede på et hold</value>
+  </data>
+  <data name="Showing {0} of {1}" xml:space="preserve">
+    <value>Viser {0} af {1}</value>
+  </data>
+  <data name="not signed up for this event" xml:space="preserve">
+    <value>ikke tilmeldt dette event</value>
+  </data>
+  <data name="No players match “{0}”." xml:space="preserve">
+    <value>Ingen spillere matcher “{0}”.</value>
+  </data>
+  <data name="No players to choose from." xml:space="preserve">
+    <value>Ingen spillere at vælge imellem.</value>
+  </data>
+  <data name="Role on {0}" xml:space="preserve">
+    <value>Rolle på {0}</value>
+  </data>
+  <data name="They join as a confirmed participant with this playing account and its saved EHB, with the role chosen above. Saving republishes the rosters; original picks stay in the draft history." xml:space="preserve">
+    <value>De kommer med som bekræftet deltager med denne spillekonto og dens gemte EHB, med rollen valgt ovenfor. Når du gemmer, offentliggøres holdene igen; oprindelige valg bliver i drafthistorikken.</value>
+  </data>
+  <data name="They join {0} with the role chosen above. Saving republishes the rosters; original picks stay in the draft history. Corrections close when the event first goes Live." xml:space="preserve">
+    <value>De kommer på {0} med rollen valgt ovenfor. Når du gemmer, offentliggøres holdene igen; oprindelige valg bliver i drafthistorikken. Rettelser lukker, når eventet går live første gang.</value>
+  </data>
+  <data name="Membership is locked, so choose a current member of {0}. A team can have more than one Captain." xml:space="preserve">
+    <value>Medlemskab er låst, så vælg et nuværende medlem af {0}. Et hold kan have mere end én kaptajn.</value>
+  </data>
+  <data name="Choose a current member of {0}, or add a new member with a role. A team can have more than one Captain." xml:space="preserve">
+    <value>Vælg et nuværende medlem af {0}, eller tilføj et nyt medlem med en rolle. Et hold kan have mere end én kaptajn.</value>
+  </data>
+  <data name="Captains call the picks during the draft." xml:space="preserve">
+    <value>Kaptajner vælger spillere under draftet.</value>
+  </data>
+  <data name="Captain of a manual-roster team." xml:space="preserve">
+    <value>Kaptajn for et manuelt hold.</value>
+  </data>
+  <data name="A team can have more than one Captain, and Co-captain is a separate role in the member’s menu." xml:space="preserve">
+    <value>Et hold kan have mere end én kaptajn, og vicekaptajn er en særskilt rolle i medlemmets menu.</value>
+  </data>
+  <data name="Add as captain" xml:space="preserve">
+    <value>Tilføj som kaptajn</value>
+  </data>
+  <data name="Add and republish" xml:space="preserve">
+    <value>Tilføj og offentliggør igen</value>
+  </data>
+  <data name="Add to team" xml:space="preserve">
+    <value>Tilføj til hold</value>
+  </data>
+  <data name="Choose who will captain {0}." xml:space="preserve">
+    <value>Vælg, hvem der skal være kaptajn for {0}.</value>
+  </data>
+  <data name="Choose a player to add." xml:space="preserve">
+    <value>Vælg en spiller at tilføje.</value>
+  </data>
+  <data name="{0} is on {1}." xml:space="preserve">
+    <value>{0} er på {1}.</value>
+  </data>
+  <data name="{0} isn’t on {1}." xml:space="preserve">
+    <value>{0} er ikke på {1}.</value>
+  </data>
+  <data name="{0} added to {1} as {2}." xml:space="preserve">
+    <value>{0} tilføjet til {1} som {2}.</value>
+  </data>
+  <data name="change {0}’s role" xml:space="preserve">
+    <value>ændre rollen for {0}</value>
+  </data>
+  <data name="{0}’s role didn’t change." xml:space="preserve">
+    <value>Rollen for {0} blev ikke ændret.</value>
+  </data>
+  <data name="{0} is now {1} of {2}." xml:space="preserve">
+    <value>{0} er nu {1} på {2}.</value>
+  </data>
+  <data name="{0} was removed." xml:space="preserve">
+    <value>{0} blev fjernet.</value>
+  </data>
+  <data name="{0} is still on the team." xml:space="preserve">
+    <value>{0} er stadig på holdet.</value>
+  </data>
+  <data name="move {0}" xml:space="preserve">
+    <value>flytte {0}</value>
+  </data>
+  <data name="{0} didn’t move." xml:space="preserve">
+    <value>{0} blev ikke flyttet.</value>
+  </data>
+  <data name="{0} moved to {1}." xml:space="preserve">
+    <value>{0} flyttet til {1}.</value>
+  </data>
+  <data name="Start the draft?" xml:space="preserve">
+    <value>Start draftet?</value>
+  </data>
+  <data name="{0} teams and {1} players are in the draft. You’ll take control, then draw the team order as a separate step." xml:space="preserve">
+    <value>{0} hold og {1} spillere er med i draftet. Du får kontrollen og trækker derefter holdrækkefølgen som et separat trin.</value>
+  </data>
+  <data name="Team sizes: {0}." xml:space="preserve">
+    <value>Holdstørrelser: {0}.</value>
+  </data>
+  <data name="Drafted teams can’t be added, removed or switched out of the draft while it runs." xml:space="preserve">
+    <value>Draftede hold kan ikke tilføjes, fjernes eller tages ud af draftet, mens det kører.</value>
+  </data>
+  <data name="You can cancel and return to setup whenever no picks are active." xml:space="preserve">
+    <value>Du kan annullere og vende tilbage til opsætningen, når ingen valg er aktive.</value>
+  </data>
+  <data name="Starting…" xml:space="preserve">
+    <value>Starter…</value>
+  </data>
+  <data name="start the draft" xml:space="preserve">
+    <value>starte draftet</value>
+  </data>
+  <data name="The draft is running." xml:space="preserve">
+    <value>Draftet kører.</value>
+  </data>
+  <data name="The draft didn’t start." xml:space="preserve">
+    <value>Draftet startede ikke.</value>
+  </data>
+  <data name="Draft started. Draw the team order when captains are ready." xml:space="preserve">
+    <value>Draft startet. Træk holdrækkefølgen, når kaptajnerne er klar.</value>
+  </data>
+  <data name="Finalize the rosters?" xml:space="preserve">
+    <value>Færdiggør holdene?</value>
+  </data>
+  <data name="The board isn’t published and the event doesn’t start." xml:space="preserve">
+    <value>Pladen offentliggøres ikke, og eventet starter ikke.</value>
+  </data>
+  <data name="Until the event first goes Live, you can still add or remove individual members; each change republishes the rosters." xml:space="preserve">
+    <value>Indtil eventet går live første gang, kan du stadig tilføje eller fjerne enkelte medlemmer; hver ændring offentliggør holdene igen.</value>
+  </data>
+  <data name="Rosters can’t return to setup." xml:space="preserve">
+    <value>Holdene kan ikke vende tilbage til opsætningen.</value>
+  </data>
+  <data name="Finalize the draft?" xml:space="preserve">
+    <value>Færdiggør draftet?</value>
+  </data>
+  <data name="This publishes the rosters and the draft results ({0} picks) to players." xml:space="preserve">
+    <value>Dette offentliggør holdene og draftresultaterne ({0} valg) for spillerne.</value>
+  </data>
+  <data name="Until the event first goes Live, you can add or remove individual members; each change republishes the rosters and the original picks stay in the history." xml:space="preserve">
+    <value>Indtil eventet går live første gang, kan du tilføje eller fjerne enkelte medlemmer; hver ændring offentliggør holdene igen, og de oprindelige valg bliver i historikken.</value>
+  </data>
+  <data name="The draft can’t be reopened." xml:space="preserve">
+    <value>Draftet kan ikke genåbnes.</value>
+  </data>
+  <data name="Publishing…" xml:space="preserve">
+    <value>Offentliggør…</value>
+  </data>
+  <data name="finalize the rosters" xml:space="preserve">
+    <value>færdiggøre holdene</value>
+  </data>
+  <data name="finalize the draft" xml:space="preserve">
+    <value>færdiggøre draftet</value>
+  </data>
+  <data name="The rosters are published." xml:space="preserve">
+    <value>Holdene er offentliggjort.</value>
+  </data>
+  <data name="Nothing was published." xml:space="preserve">
+    <value>Intet blev offentliggjort.</value>
+  </data>
+  <data name="It has no members." xml:space="preserve">
+    <value>Det har ingen medlemmer.</value>
+  </data>
+  <data name="Removing…" xml:space="preserve">
+    <value>Fjerner…</value>
+  </data>
+  <data name="{0} wasn’t removed." xml:space="preserve">
+    <value>{0} blev ikke fjernet.</value>
+  </data>
+  <data name="Remove {0} from {1}?" xml:space="preserve">
+    <value>Fjern {0} fra {1}?</value>
+  </data>
+  <data name="The rosters are republished without them. {0}" xml:space="preserve">
+    <value>Holdene offentliggøres igen uden dem. {0}</value>
+  </data>
+  <data name="Their original pick stays in the draft history." xml:space="preserve">
+    <value>Deres oprindelige valg bliver i drafthistorikken.</value>
+  </data>
+  <data name="The publication history keeps a record of this change." xml:space="preserve">
+    <value>Offentliggørelseshistorikken gemmer denne ændring.</value>
+  </data>
+  <data name="To put them on another team, add them there afterwards." xml:space="preserve">
+    <value>For at sætte dem på et andet hold skal du tilføje dem der bagefter.</value>
+  </data>
+  <data name="{0} will have no captain until you assign one." xml:space="preserve">
+    <value>{0} har ingen kaptajn, før du tildeler en.</value>
+  </data>
+  <data name="Remove and republish" xml:space="preserve">
+    <value>Fjern og offentliggør igen</value>
+  </data>
+  <data name="Rosters published." xml:space="preserve">
+    <value>Holdene er offentliggjort.</value>
+  </data>
+  <data name="Rosters and draft results published." xml:space="preserve">
+    <value>Hold og draftresultater er offentliggjort.</value>
+  </data>
+  <data name="{0} confirmed player isn’t on a team. They won’t be on a published roster; this doesn’t block finalizing." xml:space="preserve">
+    <value>{0} bekræftet spiller er ikke på et hold. Spilleren kommer ikke med på et offentliggjort hold; det forhindrer ikke færdiggørelse.</value>
+  </data>
+  <data name="{0} confirmed players aren’t on a team. They won’t be on a published roster; this doesn’t block finalizing." xml:space="preserve">
+    <value>{0} bekræftede spillere er ikke på et hold. De kommer ikke med på et offentliggjort hold; det forhindrer ikke færdiggørelse.</value>
+  </data>
+  <data name="{0} member" xml:space="preserve">
+    <value>{0} medlem</value>
+  </data>
+  <data name="{0} members" xml:space="preserve">
+    <value>{0} medlemmer</value>
+  </data>
+  <data name="This publishes {0} team roster to players. No draft is run and no picks are recorded." xml:space="preserve">
+    <value>Dette offentliggør {0} hold for spillerne. Der køres intet draft, og ingen valg registreres.</value>
+  </data>
+  <data name="This publishes {0} team rosters to players. No draft is run and no picks are recorded." xml:space="preserve">
+    <value>Dette offentliggør {0} hold for spillerne. Der køres intet draft, og ingen valg registreres.</value>
+  </data>
+  <data name="{0} confirmed player isn’t on a team and won’t appear on a published roster. You can add them afterwards as corrections, until the first Live." xml:space="preserve">
+    <value>{0} bekræftet spiller er ikke på et hold og kommer ikke med på et offentliggjort hold. Du kan tilføje spilleren bagefter som en rettelse indtil første live.</value>
+  </data>
+  <data name="{0} confirmed players aren’t on a team and won’t appear on a published roster. You can add them afterwards as corrections, until the first Live." xml:space="preserve">
+    <value>{0} bekræftede spillere er ikke på et hold og kommer ikke med på et offentliggjort hold. Du kan tilføje dem bagefter som rettelser indtil første live.</value>
+  </data>
+  <data name="Its {0} member goes back to having no team. Nothing about the player changes; they stay signed up." xml:space="preserve">
+    <value>Dets {0} medlem står igen uden hold. Intet andet ved spilleren ændres; spilleren forbliver tilmeldt.</value>
+  </data>
+  <data name="Its {0} members go back to having no team. Nothing about the players changes; they stay signed up." xml:space="preserve">
+    <value>Dets {0} medlemmer står igen uden hold. Intet andet ved spillerne ændres; de forbliver tilmeldt.</value>
+  </data>
+  <data name="{1} will have {0} member." xml:space="preserve">
+    <value>{1} vil have {0} medlem.</value>
+  </data>
+  <data name="{1} will have {0} members." xml:space="preserve">
+    <value>{1} vil have {0} medlemmer.</value>
+  </data>
+  <data name="Loading teams" xml:space="preserve">
+    <value>Indlæser hold</value>
+  </data>
+  <data name="{0} is now a manual roster team." xml:space="preserve">
+    <value>{0} er nu et manuelt hold.</value>
+  </data>
+  <data name="{0} now participates in the website draft." xml:space="preserve">
+    <value>{0} deltager nu i website-draftet.</value>
+  </data>
+  <data name="Confirm this published roster addition before continuing." xml:space="preserve">
+    <value>Bekræft denne tilføjelse til det offentliggjorte hold, før du fortsætter.</value>
+  </data>
+  <data name="Confirm this published roster correction." xml:space="preserve">
+    <value>Bekræft denne rettelse af det offentliggjorte hold.</value>
+  </data>
+  <data name="Draft returned to setup. No picks were undone." xml:space="preserve">
+    <value>Draftet er tilbage i opsætningen. Ingen valg blev fortrudt.</value>
+  </data>
+  <data name="Finalized roster movement is retired. Remove the participant, then add them to the other team." xml:space="preserve">
+    <value>Flytning på færdiggjorte hold er udgået. Fjern deltageren, og tilføj dem derefter til det andet hold.</value>
+  </data>
+  <data name="Included rosters lock when the draft starts; published roster corrections require confirmation." xml:space="preserve">
+    <value>Draftede hold låses, når draftet starter; rettelser af offentliggjorte hold kræver bekræftelse.</value>
+  </data>
+  <data name="Manual roster additions are locked while the draft is running." xml:space="preserve">
+    <value>Tilføjelser til manuelle hold er låst, mens draftet kører.</value>
+  </data>
+  <data name="Manual roster finalized and published." xml:space="preserve">
+    <value>Manuelle hold færdiggjort og offentliggjort.</value>
+  </data>
+  <data name="Manual roster finalized and published. The board is approved and ready to publish separately." xml:space="preserve">
+    <value>Manuelle hold færdiggjort og offentliggjort. Pladen er godkendt og klar til at blive offentliggjort separat.</value>
+  </data>
+  <data name="Only confirmed participants can be assigned to a roster team." xml:space="preserve">
+    <value>Kun bekræftede deltagere kan sættes på et hold.</value>
+  </data>
+  <data name="The draft has an active pick membership even though its pick is not active. No changes were applied; inspect the draft history." xml:space="preserve">
+    <value>Draftet har et aktivt medlemskab fra et valg, selvom valget ikke er aktivt. Intet blev ændret; gennemgå drafthistorikken.</value>
+  </data>
+  <data name="The latest pick has no active membership to undo. Reload and inspect the draft history." xml:space="preserve">
+    <value>Det seneste valg har intet aktivt medlemskab at fortryde. Genindlæs, og gennemgå drafthistorikken.</value>
+  </data>
+  <data name="This historical paused draft is read-only; no roster changes are available." xml:space="preserve">
+    <value>Dette historiske, pauserede draft er skrivebeskyttet; ingen holdændringer er mulige.</value>
+  </data>
+  <data name="This membership changed or the role form is stale. Reload before changing its role." xml:space="preserve">
+    <value>Dette medlemskab er ændret, eller rolleformularen er forældet. Genindlæs, før du ændrer rollen.</value>
+  </data>
+  <data name="Undo the latest active pick before cancelling the draft. {0} active pick(s) remain; no membership or pick history was changed." xml:space="preserve">
+    <value>Fortryd det seneste aktive valg, før du annullerer draftet. Der er {0} aktive valg tilbage; intet medlemskab eller valghistorik blev ændret.</value>
+  </data>
+  <data name="Website-draft inclusion can only change during team setup." xml:space="preserve">
+    <value>Deltagelse i website-draftet kan kun ændres under holdopsætningen.</value>
+  </data>
+  <data name="Another admin took control of the draft." xml:space="preserve">
+    <value>En anden administrator har overtaget styringen af draftet.</value>
+  </data>
+  <data name="Your picks won’t go through until you take control back." xml:space="preserve">
+    <value>Dine valg går ikke igennem, før du overtager styringen igen.</value>
+  </data>
+  <data name="Your control lapsed." xml:space="preserve">
+    <value>Din styring er udløbet.</value>
+  </data>
+  <data name="Control is released when this page can’t renew it for {0} minutes, for example after a lost connection. Take control to keep picking." xml:space="preserve">
+    <value>Styringen frigives, når denne side ikke kan forny den i {0} minutter, for eksempel efter en mistet forbindelse. Overtag styringen for at fortsætte med at vælge.</value>
+  </data>
+  <data name="Live updates stopped." xml:space="preserve">
+    <value>Liveopdateringer er stoppet.</value>
+  </data>
+  <data name="While this page is disconnected it can’t renew your draft control or show other admins’ changes. Control lapses {0} minutes after its last renewal." xml:space="preserve">
+    <value>Mens siden er afbrudt, kan den ikke forny din styring af draftet eller vise andre administratorers ændringer. Styringen udløber {0} minutter efter sidste fornyelse.</value>
+  </data>
+  <data name="Historical paused draft." xml:space="preserve">
+    <value>Historisk draft på pause.</value>
+  </data>
+  <data name="Pausing was retired, so this draft is read-only and no roster changes are available." xml:space="preserve">
+    <value>Pause er udgået, så dette draft er skrivebeskyttet, og holdlisterne kan ikke ændres.</value>
+  </data>
+  <data name="Find a player" xml:space="preserve">
+    <value>Find en spiller</value>
+  </data>
+  <data name="Available players" xml:space="preserve">
+    <value>Ledige spillere</value>
+  </data>
+  <data name="Sort players" xml:space="preserve">
+    <value>Sortér spillere</value>
+  </data>
+  <data name="Not in the draft: {0}, assembled by hand." xml:space="preserve">
+    <value>Ikke med i draftet: {0}, sammensat manuelt.</value>
+  </data>
+  <data name="Drawing order" xml:space="preserve">
+    <value>Trækker rækkefølgen</value>
+  </data>
+  <data name="Moving the teams into the drawn order…" xml:space="preserve">
+    <value>Flytter holdene til den trukne rækkefølge…</value>
+  </data>
+  <data name="Shuffling the teams…" xml:space="preserve">
+    <value>Blander holdene…</value>
+  </data>
+  <data name="Drawing…" xml:space="preserve">
+    <value>Trækker…</value>
+  </data>
+  <data name="Order not drawn" xml:space="preserve">
+    <value>Rækkefølgen er ikke trukket</value>
+  </data>
+  <data name="Draw the team order when captains are ready. You can redraw it until the first pick." xml:space="preserve">
+    <value>Træk holdenes rækkefølge, når kaptajnerne er klar. Du kan trække igen indtil første valg.</value>
+  </data>
+  <data name="Waiting for the admin with control to draw the team order." xml:space="preserve">
+    <value>Venter på, at administratoren med styringen trækker holdenes rækkefølge.</value>
+  </data>
+  <data name="Draw order" xml:space="preserve">
+    <value>Træk rækkefølge</value>
+  </data>
+  <data name="Draft complete" xml:space="preserve">
+    <value>Draftet er færdigt</value>
+  </data>
+  <data name="Every player is on a team. Check the rosters, then finalize to publish them." xml:space="preserve">
+    <value>Alle spillere er på et hold. Kontrollér holdlisterne, og afslut derefter for at offentliggøre dem.</value>
+  </data>
+  <data name="Finalize…" xml:space="preserve">
+    <value>Afslut…</value>
+  </data>
+  <data name="Can’t continue" xml:space="preserve">
+    <value>Kan ikke fortsætte</value>
+  </data>
+  <data name="Undo picks back to zero, cancel the draft and fix the team in setup." xml:space="preserve">
+    <value>Fortryd valg tilbage til nul, annuller draftet, og ret holdet i opsætningen.</value>
+  </data>
+  <data name="No team can take the next pick." xml:space="preserve">
+    <value>Intet hold kan tage det næste valg.</value>
+  </data>
+  <data name="Pick {0} of {1}" xml:space="preserve">
+    <value>Valg {0} af {1}</value>
+  </data>
+  <data name="{0} again" xml:space="preserve">
+    <value>{0} igen</value>
+  </data>
+  <data name="You have control" xml:space="preserve">
+    <value>Du har styringen</value>
+  </data>
+  <data name="Release" xml:space="preserve">
+    <value>Frigiv</value>
+  </data>
+  <data name="Another admin has control" xml:space="preserve">
+    <value>En anden administrator har styringen</value>
+  </data>
+  <data name="No one has control" xml:space="preserve">
+    <value>Ingen har styringen</value>
+  </data>
+  <data name="Picking now:" xml:space="preserve">
+    <value>Vælger nu:</value>
+  </data>
+  <data name="then" xml:space="preserve">
+    <value>derefter</value>
+  </data>
+  <data name="Undo pick {0}: {1} to {2}" xml:space="preserve">
+    <value>Fortryd valg {0}: {1} til {2}</value>
+  </data>
+  <data name="No picks to undo" xml:space="preserve">
+    <value>Ingen valg at fortryde</value>
+  </data>
+  <data name="Undoing…" xml:space="preserve">
+    <value>Fortryder…</value>
+  </data>
+  <data name="Undo" xml:space="preserve">
+    <value>Fortryd</value>
+  </data>
+  <data name="More draft actions" xml:space="preserve">
+    <value>Flere draft-handlinger</value>
+  </data>
+  <data name="Pick {0}, saving" xml:space="preserve">
+    <value>Valg {0}, gemmer</value>
+  </data>
+  <data name="{0} roster" xml:space="preserve">
+    <value>Holdliste for {0}</value>
+  </data>
+  <data name="Picking opens once the drawn order has settled." xml:space="preserve">
+    <value>Valg åbner, når den trukne rækkefølge er på plads.</value>
+  </data>
+  <data name="Draw the team order to start picking." xml:space="preserve">
+    <value>Træk holdenes rækkefølge for at begynde at vælge.</value>
+  </data>
+  <data name="Another admin is picking. Take over to pick from here." xml:space="preserve">
+    <value>En anden administrator vælger. Overtag for at vælge herfra.</value>
+  </data>
+  <data name="Take control to pick." xml:space="preserve">
+    <value>Overtag styringen for at vælge.</value>
+  </data>
+  <data name="Check the last change before picking again." xml:space="preserve">
+    <value>Kontrollér den seneste ændring, før du vælger igen.</value>
+  </data>
+  <data name="No available player matches “{0}”." xml:space="preserve">
+    <value>Ingen ledig spiller matcher “{0}”.</value>
+  </data>
+  <data name="Everyone has been drafted." xml:space="preserve">
+    <value>Alle er blevet draftet.</value>
+  </data>
+  <data name="Available players. Choosing one drafts them to {0} straight away." xml:space="preserve">
+    <value>Ledige spillere. Vælger du en, draftes vedkommende straks til {0}.</value>
+  </data>
+  <data name="Available players." xml:space="preserve">
+    <value>Ledige spillere.</value>
+  </data>
+  <data name="Picking is paused." xml:space="preserve">
+    <value>Valg er sat på pause.</value>
+  </data>
+  <data name="Arrow keys move between players; Enter drafts the focused player. Press / to search; Enter in the search drafts a single match." xml:space="preserve">
+    <value>Piletasterne flytter mellem spillere; Enter drafter den markerede spiller. Tryk / for at søge; Enter i søgningen drafter et enkelt match.</value>
+  </data>
+  <data name="{0}, {1} EHB" xml:space="preserve">
+    <value>{0}, {1} EHB</value>
+  </data>
+  <data name="Draft to {0}" xml:space="preserve">
+    <value>Draft til {0}</value>
+  </data>
+  <data name="draft {0}" xml:space="preserve">
+    <value>drafte {0}</value>
+  </data>
+  <data name="{0} wasn’t drafted." xml:space="preserve">
+    <value>{0} blev ikke draftet.</value>
+  </data>
+  <data name="Pick {0}: {1} to {2}." xml:space="preserve">
+    <value>Valg {0}: {1} til {2}.</value>
+  </data>
+  <data name="undo pick {0}" xml:space="preserve">
+    <value>fortryde valg {0}</value>
+  </data>
+  <data name="Pick {0} is undone. {1} is back in the pool." xml:space="preserve">
+    <value>Valg {0} er fortrudt. {1} er tilbage i puljen.</value>
+  </data>
+  <data name="Pick {0} wasn’t undone." xml:space="preserve">
+    <value>Valg {0} blev ikke fortrudt.</value>
+  </data>
+  <data name="Pick {0} undone: {1} left {2}." xml:space="preserve">
+    <value>Valg {0} fortrudt: {1} forlod {2}.</value>
+  </data>
+  <data name="redraw the order" xml:space="preserve">
+    <value>trække rækkefølgen igen</value>
+  </data>
+  <data name="draw the order" xml:space="preserve">
+    <value>trække rækkefølgen</value>
+  </data>
+  <data name="A team order is drawn." xml:space="preserve">
+    <value>Der er trukket en holdrækkefølge.</value>
+  </data>
+  <data name="The order wasn’t drawn." xml:space="preserve">
+    <value>Rækkefølgen blev ikke trukket.</value>
+  </data>
+  <data name="Order drawn: {0}." xml:space="preserve">
+    <value>Rækkefølge trukket: {0}.</value>
+  </data>
+  <data name="Order redrawn. {0} picks first." xml:space="preserve">
+    <value>Rækkefølgen er trukket igen. {0} vælger først.</value>
+  </data>
+  <data name="Order drawn. {0} picks first." xml:space="preserve">
+    <value>Rækkefølgen er trukket. {0} vælger først.</value>
+  </data>
+  <data name="take over the draft" xml:space="preserve">
+    <value>overtage draftet</value>
+  </data>
+  <data name="take control of the draft" xml:space="preserve">
+    <value>overtage styringen af draftet</value>
+  </data>
+  <data name="You have control of the draft." xml:space="preserve">
+    <value>Du har styringen af draftet.</value>
+  </data>
+  <data name="You don’t have control." xml:space="preserve">
+    <value>Du har ikke styringen.</value>
+  </data>
+  <data name="release draft control" xml:space="preserve">
+    <value>frigive styringen af draftet</value>
+  </data>
+  <data name="Control is released." xml:space="preserve">
+    <value>Styringen er frigivet.</value>
+  </data>
+  <data name="You still have control." xml:space="preserve">
+    <value>Du har stadig styringen.</value>
+  </data>
+  <data name="Control released. Any admin can take it." xml:space="preserve">
+    <value>Styringen er frigivet. Alle administratorer kan overtage den.</value>
+  </data>
+  <data name="Redraw order" xml:space="preserve">
+    <value>Træk rækkefølge igen</value>
+  </data>
+  <data name="Fixed after the first pick" xml:space="preserve">
+    <value>Låst efter første valg</value>
+  </data>
+  <data name="Needs control" xml:space="preserve">
+    <value>Kræver styring</value>
+  </data>
+  <data name="Preassign a player…" xml:space="preserve">
+    <value>Tildel en spiller på forhånd…</value>
+  </data>
+  <data name="Closed after the first pick" xml:space="preserve">
+    <value>Lukket efter første valg</value>
+  </data>
+  <data name="Finalize draft…" xml:space="preserve">
+    <value>Afslut draft…</value>
+  </data>
+  <data name="Cancel draft…" xml:space="preserve">
+    <value>Annuller draft…</value>
+  </data>
+  <data name="Take over from {0}?" xml:space="preserve">
+    <value>Overtag fra {0}?</value>
+  </data>
+  <data name="Take over the draft?" xml:space="preserve">
+    <value>Overtag draftet?</value>
+  </data>
+  <data name="{0} has control of this draft. Taking over stops their picks from going through." xml:space="preserve">
+    <value>{0} har styringen af dette draft. Overtager du, går deres valg ikke igennem.</value>
+  </data>
+  <data name="Another admin has control of this draft. Taking over stops their picks from going through." xml:space="preserve">
+    <value>En anden administrator har styringen af dette draft. Overtager du, går deres valg ikke igennem.</value>
+  </data>
+  <data name="Only take over if they’ve stopped or asked you to." xml:space="preserve">
+    <value>Overtag kun, hvis de er stoppet eller har bedt dig om det.</value>
+  </data>
+  <data name="Their control lapses on its own {0} minutes after their page stops renewing it." xml:space="preserve">
+    <value>Deres styring udløber af sig selv {0} minutter efter, at deres side holder op med at forny den.</value>
+  </data>
+  <data name="Undo picks before cancelling" xml:space="preserve">
+    <value>Fortryd valg før annullering</value>
+  </data>
+  <data name="Use Undo to remove picks one at a time, latest first. When none are left, you can cancel and return to setup." xml:space="preserve">
+    <value>Brug Fortryd til at fjerne valg ét ad gangen, nyeste først. Når der ikke er flere, kan du annullere og vende tilbage til opsætningen.</value>
+  </data>
+  <data name="Cancel the draft?" xml:space="preserve">
+    <value>Annuller draftet?</value>
+  </data>
+  <data name="The draft returns to setup. Teams, captains and preassigned members stay as they are." xml:space="preserve">
+    <value>Draftet vender tilbage til opsætningen. Hold, kaptajner og forhåndstildelte medlemmer forbliver, som de er.</value>
+  </data>
+  <data name="The drawn order is kept, because a first pick was made." xml:space="preserve">
+    <value>Den trukne rækkefølge bevares, fordi der er foretaget et første valg.</value>
+  </data>
+  <data name="The drawn order is cleared; you’ll draw again after restarting." xml:space="preserve">
+    <value>Den trukne rækkefølge ryddes; du trækker igen efter genstart.</value>
+  </data>
+  <data name="cancel the draft" xml:space="preserve">
+    <value>annullere draftet</value>
+  </data>
+  <data name="The draft was cancelled." xml:space="preserve">
+    <value>Draftet blev annulleret.</value>
+  </data>
+  <data name="The draft is still running." xml:space="preserve">
+    <value>Draftet kører stadig.</value>
+  </data>
+  <data name="Draft cancelled. Teams are back in setup." xml:space="preserve">
+    <value>Draft annulleret. Holdene er tilbage i opsætningen.</value>
+  </data>
+  <data name="This event’s Wise Old Man competition isn’t managed from here, so its group isn’t changed." xml:space="preserve">
+    <value>Eventets Wise Old Man-konkurrence styres ikke herfra, så dens gruppe ændres ikke.</value>
+  </data>
+  <data name="Wise Old Man: the group update went through." xml:space="preserve">
+    <value>Wise Old Man: gruppeopdateringen gik igennem.</value>
+  </data>
+  <data name="Wise Old Man: the group update is waiting to be sent." xml:space="preserve">
+    <value>Wise Old Man: gruppeopdateringen venter på at blive sendt.</value>
+  </data>
+  <data name="Wise Old Man: the group update failed. Check the Wise Old Man page." xml:space="preserve">
+    <value>Wise Old Man: gruppeopdateringen mislykkedes. Se siden Wise Old Man.</value>
+  </data>
+  <data name="Wise Old Man: whether the group was updated isn’t known. Check the Wise Old Man page." xml:space="preserve">
+    <value>Wise Old Man: det vides ikke, om gruppen blev opdateret. Se siden Wise Old Man.</value>
+  </data>
+  <data name="Wise Old Man: the group update couldn’t be queued. Check the Wise Old Man page." xml:space="preserve">
+    <value>Wise Old Man: gruppeopdateringen kunne ikke sættes i kø. Se siden Wise Old Man.</value>
+  </data>
+  <data name="Whether the rosters were republished couldn’t be checked; the Wise Old Man outcome isn’t known." xml:space="preserve">
+    <value>Det kunne ikke kontrolleres, om holdlisterne blev genudgivet; resultatet for Wise Old Man kendes ikke.</value>
+  </data>
+  <data name="Rosters republished." xml:space="preserve">
+    <value>Holdlisterne er genudgivet.</value>
+  </data>
+  <data name="{0} pick" xml:space="preserve">
+    <value>{0} valg</value>
+  </data>
+  <data name="{0} picks" xml:space="preserve">
+    <value>{0} valg</value>
+  </data>
+  <data name="{0} player left" xml:space="preserve">
+    <value>{0} spiller tilbage</value>
+  </data>
+  <data name="{0} players left" xml:space="preserve">
+    <value>{0} spillere tilbage</value>
+  </data>
+  <data name="{0} active pick" xml:space="preserve">
+    <value>{0} aktivt valg</value>
+  </data>
+  <data name="{0} active picks" xml:space="preserve">
+    <value>{0} aktive valg</value>
+  </data>
+  <data name="The draft still has {0} active pick. Cancelling never removes picks for you." xml:space="preserve">
+    <value>Draftet har stadig {0} aktivt valg. Annullering fjerner aldrig valg for dig.</value>
+  </data>
+  <data name="The draft still has {0} active picks. Cancelling never removes picks for you." xml:space="preserve">
+    <value>Draftet har stadig {0} aktive valg. Annullering fjerner aldrig valg for dig.</value>
+  </data>
+  <data name="AdminDesign.Pick {0}" xml:space="preserve">
+    <value>Valg {0}</value>
+  </data>
+  <data name="The latest pick changed. Nothing was undone; the current board is shown." xml:space="preserve">
+    <value>Det seneste valg er ændret. Intet blev fortrudt; den aktuelle status vises.</value>
+  </data>
+  <data name="At least two active drafted teams are required." xml:space="preserve">
+    <value>Der kræves mindst to aktive hold i draftet.</value>
+  </data>
+  <data name="Every active drafted team must have a current roster projection." xml:space="preserve">
+    <value>Alle aktive hold i draftet skal have en aktuel holdlisteprojektion.</value>
+  </data>
+  <data name="Existing drafted-team assignments cannot fit the balanced final roster sizes." xml:space="preserve">
+    <value>De eksisterende tildelinger til hold i draftet passer ikke til de afbalancerede endelige holdstørrelser.</value>
+  </data>
+  <data name="Existing drafted-team assignments exceed the included participant total." xml:space="preserve">
+    <value>De eksisterende tildelinger til hold i draftet overstiger det samlede antal deltagere i draftet.</value>
+  </data>
+  <data name="Existing drafted-team assignments make a final maximum size difference of one impossible." xml:space="preserve">
+    <value>De eksisterende tildelinger til hold i draftet gør en endelig størrelsesforskel på højst én umulig.</value>
+  </data>
+  <data name="A website account cannot own more than one included participant." xml:space="preserve">
+    <value>En websitekonto kan ikke eje mere end én deltager i draftet.</value>
+  </data>
+  <data name="Every included confirmed participant must retain one valid primary-account reservation." xml:space="preserve">
+    <value>Hver bekræftet deltager i draftet skal beholde én gyldig reservation af hovedkontoen.</value>
+  </data>
+  <data name="A Playing character cannot be assigned to more than one included participant." xml:space="preserve">
+    <value>En spillende karakter kan ikke tildeles mere end én deltager i draftet.</value>
+  </data>
+  <data name="{0} will have {1} member, {2} below the drafted size of {3}." xml:space="preserve">
+    <value>{0} får {1} medlem, {2} under den draftede størrelse på {3}.</value>
+  </data>
+  <data name="{0} will have {1} members, {2} below the drafted size of {3}." xml:space="preserve">
+    <value>{0} får {1} medlemmer, {2} under den draftede størrelse på {3}.</value>
+  </data>
+  <data name="Participant added to {0}." xml:space="preserve">
+    <value>Deltageren er føjet til {0}.</value>
+  </data>
+  <data name="Participant added to {0}. The team remains short ({1}/{2})." xml:space="preserve">
+    <value>Deltageren er føjet til {0}. Holdet mangler stadig spillere ({1}/{2}).</value>
+  </data>
+  <data name="Participant removed from {0}." xml:space="preserve">
+    <value>Deltageren er fjernet fra {0}.</value>
+  </data>
+  <data name="Participant removed from {0}. The team remains short ({1}/{2})." xml:space="preserve">
+    <value>Deltageren er fjernet fra {0}. Holdet mangler stadig spillere ({1}/{2}).</value>
+  </data>
+  <data name="the selected team" xml:space="preserve">
+    <value>det valgte hold</value>
+  </data>
+  <data name="The team could not be created. Nothing was saved." xml:space="preserve">
+    <value>Holdet kunne ikke oprettes. Intet blev gemt.</value>
+  </data>
+  <data name="You no longer control this draft. Reload to see the current controller or explicitly take over." xml:space="preserve">
+    <value>Du styrer ikke længere dette draft. Genindlæs for at se, hvem der styrer det, eller overtag styringen udtrykkeligt.</value>
+  </data>
+  <data name="Another administrator currently controls this draft." xml:space="preserve">
+    <value>En anden administrator styrer i øjeblikket dette draft.</value>
+  </data>
+  <data name="A finalized draft cannot be controlled." xml:space="preserve">
+    <value>Et afsluttet draft kan ikke styres.</value>
+  </data>
+  <data name="Start the draft before finalizing it." xml:space="preserve">
+    <value>Start draftet, før du afslutter det.</value>
+  </data>
+  <data name="Only a running draft can be finalized." xml:space="preserve">
+    <value>Kun et igangværende draft kan afsluttes.</value>
+  </data>
+  <data name="A direct roster can only be finalized from setup." xml:space="preserve">
+    <value>En direkte trup kan kun afsluttes fra opsætningen.</value>
+  </data>
+  <data name="Only a draft in setup can start." xml:space="preserve">
+    <value>Kun et draft i opsætning kan startes.</value>
+  </data>
+  <data name="Only a running draft can be paused." xml:space="preserve">
+    <value>Kun et igangværende draft kan sættes på pause.</value>
+  </data>
+  <data name="Only a paused draft can resume." xml:space="preserve">
+    <value>Kun et draft på pause kan genoptages.</value>
+  </data>
+  <data name="Only a finalized draft can be reopened." xml:space="preserve">
+    <value>Kun et afsluttet draft kan genåbnes.</value>
+  </data>
+  <data name="Only an active private draft can return to setup." xml:space="preserve">
+    <value>Kun et aktivt privat draft kan vende tilbage til opsætningen.</value>
+  </data>
+  <data name="The draft can only be finalized before the event has started and while its configured end remains in the future." xml:space="preserve">
+    <value>Draftet kan kun afsluttes, før eventet er startet, og mens dets planlagte slutning stadig ligger i fremtiden.</value>
+  </data>
+  <data name="A manually assembled roster can only be finalized from setup." xml:space="preserve">
+    <value>En manuelt sammensat trup kan kun afsluttes fra opsætningen.</value>
+  </data>
+  <data name="A website draft must be running before it can be finalized." xml:space="preserve">
+    <value>Et website-draft skal være i gang, før det kan afsluttes.</value>
+  </data>
+  <data name="Scramble the drafted teams before finalizing." xml:space="preserve">
+    <value>Bland de draftede hold, før du afslutter.</value>
+  </data>
+  <data name="Every included participant must have exactly one active drafted-team membership before finalization." xml:space="preserve">
+    <value>Hver medtaget deltager skal have præcis ét aktivt medlemskab af et draftet hold, før draftet afsluttes.</value>
+  </data>
+  <data name="Every published roster entry requires exactly one retained playing-character identity." xml:space="preserve">
+    <value>Hver offentliggjort trupplads kræver præcis én bevaret spillekarakter.</value>
+  </data>
+  <data name="Published pre-formed corrections are unavailable after event start." xml:space="preserve">
+    <value>Rettelser af offentliggjorte forudformede trupper er ikke tilgængelige efter eventets start.</value>
+  </data>
+  <data name="The active roster publication no longer exists." xml:space="preserve">
+    <value>Den aktive offentliggørelse af trupperne findes ikke længere.</value>
+  </data>
+  <data name="Live roster role corrections are unavailable in the current event state." xml:space="preserve">
+    <value>Rettelser af roller i trupperne under live er ikke tilgængelige i eventets nuværende tilstand.</value>
+  </data>
+  <data name="The included participants cannot be exhausted into balanced drafted-team rosters." xml:space="preserve">
+    <value>De medtagne deltagere kan ikke fordeles helt i balancerede trupper på de draftede hold.</value>
+  </data>
+  <data name="Every active roster membership must use a supported team role." xml:space="preserve">
+    <value>Hvert aktivt medlemskab skal bruge en understøttet holdrolle.</value>
+  </data>
+  <data name="Every participant must have exactly one active team membership." xml:space="preserve">
+    <value>Hver deltager skal have præcis ét aktivt holdmedlemskab.</value>
+  </data>
+  <data name="Every active team must have at least one roster member before finalization." xml:space="preserve">
+    <value>Hvert aktivt hold skal have mindst ét medlem, før truppene afsluttes.</value>
+  </data>
+  <data name="Every published roster participant must be currently confirmed and eligible." xml:space="preserve">
+    <value>Hver offentliggjort deltager skal på nuværende tidspunkt være bekræftet og berettiget.</value>
+  </data>
+  <data name="A website account cannot own more than one participant in the event roster." xml:space="preserve">
+    <value>En websitekonto kan ikke eje mere end én deltager i eventets trupper.</value>
+  </data>
+  <data name="Every published roster participant must retain exactly one current Playing character." xml:space="preserve">
+    <value>Hver offentliggjort deltager skal beholde præcis én aktuel Playing-karakter.</value>
+  </data>
+  <data name="A Playing character cannot be assigned to more than one roster participant in the event." xml:space="preserve">
+    <value>En Playing-karakter kan ikke tildeles mere end én deltager i eventets trupper.</value>
+  </data>
+  <data name="The named drafted-team order does not match the derived distribution." xml:space="preserve">
+    <value>Rækkefølgen af de draftede hold passer ikke til den udledte fordeling.</value>
+  </data>
+  <data name="The current drafted-team rosters cannot produce a balanced distribution." xml:space="preserve">
+    <value>De nuværende trupper på de draftede hold kan ikke give en balanceret fordeling.</value>
+  </data>
 </root>

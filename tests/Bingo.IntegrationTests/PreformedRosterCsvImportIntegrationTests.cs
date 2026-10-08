@@ -136,7 +136,9 @@ public sealed class PreformedRosterCsvImportIntegrationTests(PostgreSqlTestFixtu
     [Fact]
     public async Task OperatorCsvTemplateRemainsAvailableWhileDraftRetiresTheCsvSurface()
     {
-        var markup = await File.ReadAllTextAsync(Path.Combine(FindRepositoryRoot(), "src", "Bingo.Web", "Pages", "Admin", "Events", "Draft.cshtml"));
+        // A10 (U6): the Teams page renders its team controls client-side, so the surface is the page markup plus its module.
+        var markup = await File.ReadAllTextAsync(Path.Combine(FindRepositoryRoot(), "src", "Bingo.Web", "Pages", "Admin", "Events", "Draft.cshtml"))
+            + await File.ReadAllTextAsync(Path.Combine(FindRepositoryRoot(), "src", "Bingo.Web", "wwwroot", "js", "admin-draft.js"));
         Assert.Equal("Account,EHB\r\n", Encoding.UTF8.GetString(PreformedRosterCsvImportService.Template()));
         Assert.Contains("includedInDraft", markup);
         Assert.DoesNotContain("Import external roster CSV", markup);

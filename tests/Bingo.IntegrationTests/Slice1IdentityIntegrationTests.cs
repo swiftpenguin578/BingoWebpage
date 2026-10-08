@@ -790,7 +790,8 @@ public sealed partial class Slice1IdentityIntegrationTests(PostgreSqlTestFixture
 
         var duplicateTeam = Page();
         Assert.IsType<RedirectToPageResult>(await duplicateTeam.OnPostAddTeamAsync(ev.Id, team.Name, TeamFormationType.Preformed, null, CancellationToken.None));
-        Assert.Equal("A team with that name already exists for this event.", duplicateTeam.TempData["StatusMessage"]);
+        // B-Teams-5 (U6, A10): the duplicate-name refusal now reads "Another team already has this name." and ignores case.
+        Assert.Equal("Another team already has this name.", duplicateTeam.TempData["StatusMessage"]);
         Assert.Equal(1, await db.Teams.CountAsync());
         Assert.Equal(0, await db.AuditEntries.CountAsync());
 
