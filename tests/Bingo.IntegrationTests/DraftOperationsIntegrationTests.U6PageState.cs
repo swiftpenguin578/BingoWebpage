@@ -9,7 +9,7 @@ public sealed partial class DraftOperationsIntegrationTests
 {
     internal static JsonElement DraftPageState(string html)
     {
-        var match = Regex.Match(html, "<script type=\"application/json\" data-draft-state>(.*?)</script>", RegexOptions.Singleline);
+        var match = Regex.Match(html, "<template data-draft-state>(.*?)</template>", RegexOptions.Singleline);
         Assert.True(match.Success, "The Teams / Draft page embeds its state.");
         return JsonDocument.Parse(match.Groups[1].Value.Replace("<\\/", "</", StringComparison.Ordinal)).RootElement.Clone();
     }
