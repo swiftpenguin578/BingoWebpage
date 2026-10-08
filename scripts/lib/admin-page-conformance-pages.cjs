@@ -1,5 +1,9 @@
 // Add a page here once. The conformance gate uses the real Razor fixture,
 // loading template, family stylesheet, and these page-specific interaction probes.
+// U11: a page whose table scrolls inside its own wrapper must not widen the page. The empty
+// fixture event has no table rows, so `rowProbe` adds (or swaps in for `replace`) a table built with the
+// page's real table classes before the horizontal-scroll check (see checkNoSidewaysScroll).
+const probeRows = (n, cell) => Array.from({ length: n }, (_, i) => `<div class="tr row" role="row">${cell(i)}</div>`).join('');
 module.exports = [
   // U8: Review queue (Review.dc.html). One module serves queue and workspace; its one POST path is the in-place decision.
   { family: 'review', postSaveCount: 1, countSummary: { words: ['pending'], wordsDa: ['afventer'], numberItems: [0] },
@@ -37,11 +41,13 @@ module.exports = [
   { family: 'wom', postSaveCount: 1, url: f => '/Admin/Events/WiseOldMan/' + f.events['autumn-bingo-2027'], fixture: 'autumn-bingo-2027',
     source: 'Pages/Admin/Events/WiseOldMan.cshtml', module: 'admin-wom.js', textRows: { 'wm-sk-line': ['control',1.45] },
     reference: 'Wom.dc.html', first: '.card', blocks: { first: '.card' }, style: ['.wm-content','display','grid'], titleDa: 'Wise Old Man',
+    rowProbe: { host: '.wm-content', html: '<section class="card wm-cov"><div class="tbl-wrap is-scroll"><div class="tbl wm-tbl sticky-first" role="table"><div class="tr th-row" role="row"><div class="th c-name">Team</div><div class="th">Accounts found</div><div class="th wm-num">Participants</div><div class="th">Not found on Wise Old Man</div></div><div class="rows" role="rowgroup">' + probeRows(4, i => `<div class="td c-name"><span class="cell-main wm-team">Team ${i}</span></div><div class="td"><span class="meter"><span class="meter-track"><span class="meter-fill" style="width:50%"></span></span><span class="meter-label">4 of 8</span></span></div><div class="td wm-num">8</div><div class="td"><span class="wm-missing">Player One, Player Two, Player Three</span></div>`) + '</div></div></div></section>' },
     update: { control: '#tech-btn', action: 'click', selected: '#tech-btn', attribute: ['aria-expanded','true'] } },
   { family: 'final-review', postSaveCount: 1, url: f => '/Admin/Events/Finalize/' + f.events['autumn-bingo-2027'], fixture: 'autumn-bingo-2027',
     source: 'Pages/Admin/Events/Finalize.cshtml', module: 'admin-final-review.js',
     textRows: { 'fr-sk-line': ['control',1.45] }, reference: 'FinalReview.dc.html', first: '.card', blocks: { first: '.card' },
     style: ['.fr-content','display','grid'], titleDa: 'Afsluttende gennemgang',
+    rowProbe: { host: '.fr-standings', replace: '.empty', html: '<div class="tbl-wrap is-scroll"><div class="tbl fr-tbl sticky-first" role="table"><div class="tr th-row" role="row"><div class="th c-name">Place and team</div><div class="th">Full board</div><div class="th fr-num">Lines</div><div class="th fr-num">Tiles</div><div class="th fr-num">Credited EHB</div><div class="th">Score reached</div></div><div class="rows" role="rowgroup">' + probeRows(4, i => `<div class="td c-name"><div class="fr-team"><span class="place">${i + 1}</span><div><span class="cell-main">Team ${i}</span><div class="cell-sub fr-why">Completed the board first</div></div></div></div><div class="td"><span class="tval">1 Jan 12:00</span></div><div class="td fr-num"><span class="tval">12</span></div><div class="td fr-num"><span class="tval">25</span></div><div class="td fr-num"><span class="tval">1,412.6</span></div><div class="td"><span class="tval">At completion</span></div>`) + '</div></div></div>' },
     update: { control: '#how-btn', action: 'click', selected: '#how-btn', attribute: ['aria-expanded','true'] } },
   // U4: Overview (Manage route). The h1 is the event's name, so the Danish title is the name too.
   { family: 'overview', postSaveCount: 1, url: f => '/Admin/Events/Manage/' + f.events['autumn-bingo-2027'], fixture: 'autumn-bingo-2027',

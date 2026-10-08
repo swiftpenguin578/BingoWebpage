@@ -1,5 +1,5 @@
 :where([data-page-family="final-review"]).page { max-width:1120px; }
-:where([data-page-family="final-review"]) .fr-content { display:grid; gap:var(--dk-space-5); }
+:where([data-page-family="final-review"]) .fr-content { display:grid; grid-template-columns:minmax(0,1fr); gap:var(--dk-space-5); }
 :where([data-page-family="final-review"]) .fr-title { display:flex; flex-wrap:wrap; align-items:center; gap:12px; }
 :where([data-page-family="final-review"]) .fr-pub-head { display:flex; align-items:flex-start; gap:14px; padding:var(--dk-space-5) var(--dk-space-6); }
 :where([data-page-family="final-review"]) .fr-pub-act { display:flex; flex-direction:column; align-items:flex-end; gap:6px; flex:none; max-width:260px; }

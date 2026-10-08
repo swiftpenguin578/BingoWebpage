@@ -4,7 +4,7 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
 const {chromium,webkit}=require('playwright');
 const {startFixture,login,referencePage}=require('./lib/admin-parity-fixture.cjs');
 const registrations=require('./lib/admin-page-conformance-pages.cjs');
-const {observe,checkFrames,checkLoaded,checkUpdate,checkDanish,checkSources,checkDocument,checkFast,checkLoadingSummary,checkRegisteredLinks,registeredBlockShifts}=require('./lib/admin-page-conformance-checks.cjs');
+const {observe,checkFrames,checkLoaded,checkUpdate,checkDanish,checkSources,checkNoSidewaysScroll,checkDocument,checkFast,checkLoadingSummary,checkRegisteredLinks,registeredBlockShifts}=require('./lib/admin-page-conformance-checks.cjs');
 async function until(page,fn){for(let i=0;i<200;i++)if(await page.evaluate(fn))return;throw Error('Microtask checkpoint not reached');}
 (async()=>{
  const name=process.env.PLAYWRIGHT_BROWSER||'chromium',engine=name==='webkit'?webkit:chromium,output=path.join(process.cwd(),'artifacts/page-conformance-'+name);
@@ -107,6 +107,7 @@ async function until(page,fn){for(let i=0;i<200;i++)if(await page.evaluate(fn))r
     assert.deepEqual(pageErrors,[],family+': no page errors');await caseContext.close();
    }
    await ref.close();
+   if(registration.rowProbe)await checkNoSidewaysScroll(browser,storageState,fixture,registration,paths[family]);
   }
   await context.close();await refs.close();await fixture.close();fixture=null;
   }
