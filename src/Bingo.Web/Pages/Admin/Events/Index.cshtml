@@ -1,129 +1,96 @@
 @page
 @model Bingo.Web.Pages.Admin.Events.IndexModel
-@using Bingo.Web.UI
+@using Bingo.Domain.Events
+@inject IStringLocalizer<AdminCommunityResource> D
 @{
-    ViewData["Title"] = T["Events"];
-    ViewData["CompactNavigation"] = true;
-    ViewData["AdminPageDescription"] = T["Create and manage bingo events."];
+    ViewData["Title"] = "Events";
+    ViewData["PageFamily"] = "events";
+    ViewData["LocalizedTitle"] = D["Events"].Value;
+    var views = new[] { ("all", "All", Model.VisibleCount), ("current", "Current & upcoming", Model.CurrentCount), ("past", "Past", Model.PastCount) };
+    var columns = new[] { ("identity", "Event", "c-name"), ("state", "Phase", ""), ("dates", "Dates", ""), ("signups", "Participants", ""), ("attention", "Needs attention", "") };
+    var hasFilters = Model.ActiveSearch.Length > 0 || Model.ActiveFilter != "all" || Model.ActiveAttention;
+    var emptyTitle = hasFilters ? "No matching events" : Model.ActiveView == "hidden" ? "No hidden events" : Model.VisibleCount == 0 ? "No events yet" : Model.ActiveView == "current" ? "Nothing current or upcoming" : "No past events yet";
+    var emptyText = hasFilters ? "Try a different search or clear the filters." : Model.ActiveView == "hidden" ? "Quarantined events appear here. They’re excluded from every other view, count and the Dashboard." : Model.VisibleCount == 0 ? "Create your first event. It starts as a private draft, so you can set it up before anyone sees it." : Model.ActiveView == "current" ? "Live events and events in setup or signups appear here." : "Events appear here once they reach final review, finish, are archived or are cancelled.";
 }
-
-@if (User.IsInRole("SuperAdmin"))
-{
-    <span data-admin-events-control hidden></span>
+@section HeaderSummary {
+    @if (Model.VisibleCount == 0) { <span>@D["No events yet"]</span> }
+    else {
+        <span><b class="tnum">@Model.LiveCount</b> @D["Live"].Value.ToLower(CultureInfo.CurrentCulture)</span>
+        <span><b class="tnum">@Model.UpcomingCount</b> @D["upcoming or in setup"]</span>
+        @if (Model.AttentionCount > 0) { <button type="button" class="summary-btn" aria-pressed="@Model.ActiveAttention.ToString().ToLowerInvariant()" data-directory-url="@Model.DirectoryUrl(attention: !Model.ActiveAttention)"><span class="dot"></span><span><b class="tnum">@Model.AttentionCount</b> @D["need attention"]</span></button> }
+        else if (!Model.ActionProjectionUnavailable) { <span>@D["Nothing needs attention"]</span> }
+    }
 }
-
-@section Scripts {
-    <script src="~/js/admin-collaboration.js" asp-append-version="true"></script>
+@section HeaderActions {
+    <div class="head-actions"><a class="btn btn-primary" href="/Admin/Events/Create" data-create-event><partial name="_AdminDesignIcon" model='new AdminDesignIcon("plus")' />@D["Create event"]</a></div>
 }
-
-<section class="admin-events-page">
-    <div class="admin-events-directory-controls">
-        <form class="admin-events-toolbar" method="get" data-admin-event-directory-search>
-            <div class="admin-search-field admin-events-search">
-                <label class="visually-hidden" for="event-search">@T["Search events by name or slug"]</label>
-                <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
-                <input id="event-search" class="admin-search-field-input form-control" type="search" name="search" value="@Model.ActiveSearch" placeholder="@T["Search events by title or slug…"]" data-admin-event-search-input />
-                <button class="admin-search-clear" type="button" data-admin-search-clear aria-label="@T["Clear event search"]" hidden="@(string.IsNullOrWhiteSpace(Model.ActiveSearch) ? "hidden" : null)"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 6 12 12" /><path d="m18 6-12 12" /></svg></button>
-            </div>
-            <div class="admin-events-state-filter admin-field">
-                <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" /></svg>
-                <label for="event-state">@T["State"]:</label>
-                <div class="admin-events-state-select">
-                    <select id="event-state" class="admin-filter-select form-select" name="filter" data-admin-event-state-filter>
-                        @foreach (var option in Model.StateOptions)
-                        {
-                            <option value="@option.Value" selected="@(Model.ActiveFilter == option.Value ? "selected" : null)">@option.Label</option>
-                        }
-                    </select>
-                    <svg class="admin-events-state-chevron" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 9 6 6 6-6" /></svg>
-                </div>
-            </div>
-        </form>
-        <a class="admin-button-create" asp-page="Create">
-            <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M5 12h14" /><path d="M12 5v14" /></svg>
-            <span>@T["Create New Event"]</span>
-        </a>
+<div data-events-directory data-phase-all="@D["All"]" data-directory-canonical="@Model.DirectoryUrl(page: Model.PageNumber)" data-sort-announcement="@(Model.ActiveSort.Length == 0 ? "" : D["Sorted by {0}, {1}.", D[columns.Single(column => column.Item1 == Model.ActiveSort).Item2].Value, D[Model.ActiveSortDirection == "desc" ? "descending" : "ascending"].Value])">
+<span class="sr" aria-live="polite" data-sort-status></span>
+<div data-directory-banners class="directory-fragments">
+@if (Model.DroppedLinkParts) { <div class="banner is-info page-banner" role="status"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("info")' /><span class="grow">@D["Some parts of this link weren’t available and were cleared. The remaining filters still apply."]</span></div> }
+@if (Model.ActionProjectionUnavailable) { <div class="banner is-info page-banner" role="status"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("info")' /><span class="grow">@D["Some attention counts could not be loaded. Events are shown, but attention information may be incomplete."]</span><button type="button" class="btn btn-sm" data-directory-url="@Model.DirectoryUrl(page: Model.PageNumber)">@D["Try again"]</button></div> }
+</div>
+<div class="toolbar">
+    <div class="tabs" role="radiogroup" aria-label="@D["Events view"]">
+    @foreach (var (key, label, count) in views) {
+        <label class="tab @(Model.ActiveView == key ? "is-on" : "")"><input class="sr" type="radio" name="view-tab" checked="@(Model.ActiveView == key)" data-directory-url="@Model.DirectoryUrl(view: key)"><span>@D[label]</span><span class="tab-count">@count</span></label>
+    }
+    @if (Model.IsSuperAdmin) { <span class="tab-sep" aria-hidden="true"></span><label class="tab @(Model.ActiveView == "hidden" ? "is-on" : "")" title="@D["SuperAdmin only: quarantined events"]"><input class="sr" type="radio" name="view-tab" checked="@(Model.ActiveView == "hidden")" data-directory-url="@Model.DirectoryUrl(view: "hidden")"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("hidden")' /><span>@D["Hidden"]</span><span class="tab-count">@Model.HiddenCount</span></label> }
     </div>
-
-    <div class="admin-events-table-wrap">
-        @if (Model.Events.Count == 0)
-        {
-            <div class="event-list-empty" role="status" aria-live="polite">
-                <h2>@T["No matching events"]</h2>
-                <p>@T["Change the search or state filter, or create a new event."]</p>
-            </div>
-        }
-        else
-        {
-            <div class="event-list-empty admin-local-filter-empty" data-admin-event-filter-empty role="status" aria-live="polite" hidden>
-                <h2>@T["No matching events"]</h2>
-                <p>@T["Change the search or state filter."]</p>
-            </div>
-            <div class="admin-events-table-scroll">
-                <table class="event-table" data-admin-event-table>
-                    <thead>
-                        <tr>
-                            <th aria-sort='@Model.AriaSort("identity")'>
-                                <a class="admin-events-sort-link" data-admin-event-sort-link data-sort-key="identity" data-sort-label='@T["Event identity"]' asp-page="Index" asp-route-search="@Model.ActiveSearch" asp-route-filter="@Model.ActiveFilter" asp-route-sort="identity" asp-route-direction='@Model.NextSortDirection("identity")' aria-label='@Model.SortAriaLabel(T["Event identity"].Value, "identity")'>
-                                    @T["Event identity"]
-                                    @if (Model.IsActiveSort("identity")) { <svg class="admin-events-sort-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="@Model.SortIconPath" /></svg> }
-                                </a>
-                            </th>
-                            <th aria-sort='@Model.AriaSort("state")'>
-                                <a class="admin-events-sort-link" data-admin-event-sort-link data-sort-key="state" data-sort-label='@T["State"]' asp-page="Index" asp-route-search="@Model.ActiveSearch" asp-route-filter="@Model.ActiveFilter" asp-route-sort="state" asp-route-direction='@Model.NextSortDirection("state")' aria-label='@Model.SortAriaLabel(T["State"].Value, "state")'>
-                                    @T["State"]
-                                    @if (Model.IsActiveSort("state")) { <svg class="admin-events-sort-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="@Model.SortIconPath" /></svg> }
-                                </a>
-                            </th>
-                            <th aria-sort='@Model.AriaSort("dates")'>
-                                <a class="admin-events-sort-link" data-admin-event-sort-link data-sort-key="dates" data-sort-label='@T["Event dates"]' asp-page="Index" asp-route-search="@Model.ActiveSearch" asp-route-filter="@Model.ActiveFilter" asp-route-sort="dates" asp-route-direction='@Model.NextSortDirection("dates")' aria-label='@Model.SortAriaLabel(T["Event dates"].Value, "dates")'>
-                                    @T["Event dates"]
-                                    @if (Model.IsActiveSort("dates")) { <svg class="admin-events-sort-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="@Model.SortIconPath" /></svg> }
-                                </a>
-                            </th>
-                            <th aria-sort='@Model.AriaSort("signups")'>
-                                <a class="admin-events-sort-link" data-admin-event-sort-link data-sort-key="signups" data-sort-label='@T["Signups"]' asp-page="Index" asp-route-search="@Model.ActiveSearch" asp-route-filter="@Model.ActiveFilter" asp-route-sort="signups" asp-route-direction='@Model.NextSortDirection("signups")' aria-label='@Model.SortAriaLabel(T["Signups"].Value, "signups")'>
-                                    @T["Signups"]
-                                    @if (Model.IsActiveSort("signups")) { <svg class="admin-events-sort-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="@Model.SortIconPath" /></svg> }
-                                </a>
-                            </th>
-                            <th class="event-needs-attention-heading" aria-sort='@Model.AriaSort("attention")'>
-                                <a class="admin-events-sort-link" data-admin-event-sort-link data-sort-key="attention" data-sort-label='@T["Needs attention"]' asp-page="Index" asp-route-search="@Model.ActiveSearch" asp-route-filter="@Model.ActiveFilter" asp-route-sort="attention" asp-route-direction='@Model.NextSortDirection("attention")' aria-label='@Model.SortAriaLabel(T["Needs attention"].Value, "attention")'>
-                                    @T["Needs attention"]
-                                    @if (Model.IsActiveSort("attention")) { <svg class="admin-events-sort-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="@Model.SortIconPath" /></svg> }
-                                </a>
-                            </th>
-                            <th class="event-actions-heading"><span class="event-actions-heading-label">@T["Actions"]</span></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var item in Model.Events)
-                        {
-                            var statePill = AdminEventStatePresentation.For(item.State, T);
-                            var playerSummary = item.Waiting > 0
-                                ? T["{0} / {1} players · {2} waiting", item.Confirmed, item.ParticipantCap, item.Waiting]
-                                : T["{0} / {1} players", item.Confirmed, item.ParticipantCap];
-                            <tr data-admin-event-row data-event-id="@item.Id" data-event-name="@item.Name" data-event-slug="@item.Slug" data-event-state="@item.State.ToString().ToLowerInvariant()" data-event-hidden="@item.IsHidden.ToString().ToLowerInvariant()" data-event-state-order="@((int)item.State)" data-event-start="@item.EventStartsAt?.UtcTicks" data-event-end="@item.EventEndsAt?.UtcTicks" data-event-confirmed="@item.Confirmed" data-event-waiting="@item.Waiting" data-event-cap="@item.ParticipantCap" data-event-attention="@item.PendingReviews">
-                                <td data-label="@T["Event"]"><strong>@item.Name</strong><small>@item.Slug</small></td>
-                                <td class="event-state-cell" data-label="@T["State"]"><span class="admin-status-pill @statePill.Modifier">@statePill.Label</span></td>
-                                <td data-label="@T["Event dates"]" class="event-date-cell @(item.EventStartsAt is null || item.EventEndsAt is null ? "is-incomplete" : null)"><strong>@Model.FormatDate(item.EventStartsAt, item.Timezone)</strong><small>@T["to"] @Model.FormatDate(item.EventEndsAt, item.Timezone)</small></td>
-                                <td data-label="@T["Signups"]" class="event-signup-cell"><strong>@Model.SignupSummary(item)</strong><small>@playerSummary</small></td>
-                                <td data-label="@T["Needs attention"]">
-                                    @if (item.PendingReviews > 0)
-                                    {
-                                        <span class="attention-count">@T["{0} to review", item.PendingReviews]</span>
-                                    }
-                                    else
-                                    {
-                                        <span class="muted-value" aria-label="@T["Nothing needs attention"]">—</span>
-                                    }
-                                </td>
-                                <td class="event-row-action"><a class="event-overview-row-action" asp-page="Manage" asp-route-id="@item.Id" asp-route-hidden="@(item.IsHidden ? "true" : null)">@(item.IsHidden ? T["Inspect"] : T["Workspace"])</a></td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-            </div>
-        }
+    <div class="tbar-right">
+    <span data-directory-chips class="directory-fragments">
+    @if (Model.ActiveAttention) { <button class="filter-chip" type="button" data-directory-url="@Model.DirectoryUrl(attention: false)" aria-label="@D["Remove filter: needs attention"]">@D["Needs attention"]<partial name="_AdminDesignIcon" model='new AdminDesignIcon("close")' /></button> }
+    </span>
+    <div class="search @(Model.ActiveSearch.Length > 0 ? "has-clear" : "")"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("search")' /><input class="input" id="search-input" type="search" placeholder="@D["Search event names"]" aria-label="@D["Search event names"]" value="@Model.ActiveSearch" data-directory-search>
+    <button class="icon-btn clear" type="button" data-directory-clear hidden="@(Model.ActiveSearch.Length == 0)" aria-label="@D["Clear search"]"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("close")' /></button>
     </div>
-</section>
+    <button class="btn filter-btn @(Model.ActiveFilter != "all" ? "is-active" : "")" id="phase-btn" type="button" data-menu-target="directory-phase-menu" data-menu-align="end" aria-haspopup="menu" aria-expanded="false"><span class="fb-lbl">@D["Phase"]</span><span data-directory-phase-value>@(Model.ActiveFilter == "all" ? D["All"].Value : Model.StateOptions.Single(option => option.Value == Model.ActiveFilter).Label)</span><partial name="_AdminDesignIcon" model='new AdminDesignIcon("chevron-down")' /></button>
+    <div class="menu" id="directory-phase-menu" role="menu" aria-label="@D["Filter by phase"]" hidden>
+    @foreach (var phase in Model.StateOptions) { <button class="menu-item" type="button" role="menuitemradio" aria-checked="@(Model.ActiveFilter == phase.Value ? "true" : "false")" data-phase-views="@string.Join(',', new[] { "all", "current", "past", "hidden" }.Where(view => Model.PhaseAllowed(phase.Value, view)))" data-directory-url="@Model.DirectoryUrl(phase: phase.Value)"><span class="grow">@phase.Label</span>@if (Model.ActiveFilter == phase.Value) { <partial name="_AdminDesignIcon" model='new AdminDesignIcon("check")' /> }</button> }
+    </div>
+    </div>
+</div>
+<div class="card"><div class="tbl-wrap" id="directory-table-scroll" data-admin-scroll-region data-directory-wrap><div class="tbl ev-tbl sticky-first" role="table" aria-label="@D["Events"]" aria-rowcount="@(Model.TotalCount + 1)">
+<div class="tr th-row" role="row">
+@foreach (var (key, label, cls) in columns) {
+    var next = Model.IsActiveSort(key) ? Model.NextSortDirection(key) : key is "attention" or "signups" ? "desc" : "asc";
+    <div class="th @cls @(Model.IsActiveSort(key) ? "is-sorted" : "")" role="columnheader" aria-sort="@Model.AriaSort(key)"><button class="th-btn" id="directory-sort-@key" type="button" data-sort-first="@(key is "attention" or "signups" ? "desc" : "asc")" data-sort-aria-asc="@D["Sort by {0}, {1}", D[label].Value, D["ascending"].Value]" data-sort-aria-desc="@D["Sort by {0}, {1}", D[label].Value, D["descending"].Value]" data-directory-url="@Model.DirectoryUrl(sort: key, direction: next)" aria-label="@D["Sort by {0}, {1}", D[label].Value, D[next == "desc" ? "descending" : "ascending"].Value]">@D[label]<svg class="ic sort-ic @(Model.IsActiveSort(key) ? Model.ActiveSortDirection == "asc" ? "is-asc" : "is-desc" : "")" viewBox="0 0 16 16"><path d="M4.5 10 8 6.5l3.5 3.5"/></svg></button></div>
+}
+</div>
+<div data-directory-results>
+@if (Model.Events.Count > 0) {
+<div class="rows" role="rowgroup">
+@foreach (var item in Model.Events) {
+    var state = item.State switch {
+        EventState.Draft => "Setup", EventState.SignupOpen => "Signups open",
+        EventState.SignupClosed => "Signups closed", EventState.Live => "Live",
+        EventState.AwaitingFinalReview => "Final review", EventState.Finalized => "Finished",
+        EventState.Archived => "Archived", _ => "Cancelled"
+    };
+    var overview = $"/Admin/Events/Manage/{item.Id}" + (item.IsHidden ? "?hidden=true" : "");
+    var context = Model.ContextDate(item);
+    var sub = Model.PeopleSub(item);
+    var labels = Model.AttentionLabels(item);
+    <div class="tr row @(item.State == EventState.Cancelled ? "is-cancelled" : "")" role="row" aria-rowindex="@(Model.FirstRow + Model.Events.ToList().IndexOf(item) + 1)" data-event-id="@item.Id" data-event-hidden="@(item.IsHidden ? "true" : "false")" data-open-url="@overview">
+        <div class="td c-name" role="cell"><div class="name-line"><a class="name-btn" id="open-@item.Id" href="@overview" title="@item.Name" data-shell-link>@item.Name</a>@if (item.Participation?.IsHistoricalImport == true) { <span class="pill is-neutral" title="@D["Imported history from before the platform"]">@D["Imported"]</span> }</div>@if (item.HiddenAt is { } hiddenAt) { <div class="sub">@D["Hidden {0}", DateTimePresentation.Format(hiddenAt, "d MMM yyyy", item.Timezone, CultureInfo.CurrentCulture)]</div> }</div>
+        <div class="td" role="cell"><span class="badge @AdminDesignPhasePresentation.For(item.State).BadgeClass">@D[state]</span></div>
+        <div class="td td-dates" role="cell"><div class="cell-main @(item.EventStartsAt is null ? "is-muted" : "")">@Model.Range(item)</div>@if (context.Length > 0) { <div class="sub">@context</div> }</div>
+        <div class="td" role="cell">
+        @if (item.IsPreparation && item.ParticipantCap is { } cap) { <div class="meter" title="@D["{0} of {1} places confirmed", item.Confirmed, cap]"><div class="meter-track" style="--meter-w:44px"><div class="meter-fill" style="width:@(Bingo.Web.Pages.Admin.IndexModel.Percent(cap > 0 ? Math.Min(1m, (decimal)item.Confirmed / cap) : 0))%"></div></div><span class="meter-label @(item.State == EventState.Draft && item.Confirmed == 0 ? "is-muted" : "")">@Model.PeopleMain(item)</span></div> }
+        else { <div class="cell-main tnum @(item.ParticipantCount is null || item.State == EventState.Cancelled || item.IsPreparation && item.Confirmed == 0 ? "is-muted" : "")">@Model.PeopleMain(item)</div> }
+        @if (sub.Length > 0) { <div class="sub">@sub</div> }
+        </div>
+        <div class="td" role="cell">@if (labels.Count == 0) { <span class="attn-none" title="@D["Nothing needs attention"]"><span aria-hidden="true">—</span><span class="sr">@D["Nothing needs attention"]</span></span> }
+        else { <div class="attn @(item.ScheduledStartPostponed || item.ScheduledOpeningFailed ? "is-failure" : "is-pending")"><span class="attn-main">@if (item.ScheduledStartPostponed || item.ScheduledOpeningFailed) { <partial name="_AdminDesignIcon" model='new AdminDesignIcon("error")' /> } else { <span class="dot" aria-hidden="true"></span> }<span class="attn-text">@labels[0]</span></span>@if (labels.Count > 1) { var more = string.Join(", ", labels.Skip(1)); <span class="hint attn-more tip-end" tabindex="0" aria-label="@D["{0} more: {1}", labels.Count - 1, more]">· +@(labels.Count - 1)<span class="hint-tip" aria-hidden="true">@D["Also: {0}. The event’s Overview explains everything.", more]</span></span> }</div> }</div>
+    </div>
+}
+</div>
+}
+else { <div class="empty" role="row"><div role="cell" style="display:contents"><div class="empty-ic"><partial name="_AdminDesignIcon" model='new AdminDesignIcon(hasFilters ? "search" : Model.ActiveView == "hidden" ? "hidden" : "calendar")' /></div><div class="empty-title">@D[emptyTitle]</div><div class="empty-text">@D[emptyText]</div>@if (hasFilters) { <button type="button" class="btn" data-directory-url="@Model.DirectoryUrl(view: Model.ActiveView == "hidden" ? "hidden" : "all", phase: "all", search: "", attention: false)">@D["Clear filters"]</button> } else if (Model.ActiveView != "hidden" && (Model.VisibleCount == 0 || Model.ActiveView == "current")) { <a class="btn @(Model.VisibleCount == 0 ? "btn-primary" : "")" href="/Admin/Events/Create" data-create-event>@D["Create event"]</a> }</div></div> }
+</div></div></div>
+<div data-directory-footer>
+@if (Model.TotalCount > 0) { <div class="tfoot"><div class="tfoot-left"><span class="tnum" aria-live="polite">@(Model.PageCount == 1 ? D["{0} events", Model.TotalCount] : D["{0}–{1} of {2} events", Model.FirstRow, Model.LastRow, Model.TotalCount])</span>@if (Model.ActiveSort.Length > 0) { <span class="tfoot-note">· @D["Sorted by {0}", D[columns.Single(column => column.Item1 == Model.ActiveSort).Item2].Value]</span><button type="button" class="btn btn-quiet btn-sm" data-directory-url="@Model.DirectoryUrl(sort: "", direction: "asc")">@D["Default order"]</button> }</div>@if (Model.PageCount > 1) { <nav class="pager" aria-label="@D["Pagination"]"><button type="button" class="pg" aria-label="@D["Previous page"]" disabled="@(Model.PageNumber == 1)" data-directory-url="@Model.DirectoryUrl(page: Model.PageNumber - 1)"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("chevron-left")' /></button>@for (var page = 1; page <= Model.PageCount; page++) { <button type="button" class="pg @(page == Model.PageNumber ? "is-current" : "")" aria-current="@(page == Model.PageNumber ? "page" : null)" aria-label="@D["Page {0}", page]" data-directory-url="@Model.DirectoryUrl(page: page)">@(page)</button> }<button type="button" class="pg" aria-label="@D["Next page"]" disabled="@(Model.PageNumber == Model.PageCount)" data-directory-url="@Model.DirectoryUrl(page: Model.PageNumber + 1)"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("chevron-right")' /></button></nav> }</div> }
+</div></div></div>
+<partial name="_AdminEventCreateTemplate" model="Model" />
+@section Styles { <link rel="stylesheet" href="~/css/admin-design-events.css" asp-append-version="true" data-admin-page-style /> }
+@section Scripts { <script type="module" src="~/js/admin-events.js" asp-append-version="true" data-admin-page-script></script> }

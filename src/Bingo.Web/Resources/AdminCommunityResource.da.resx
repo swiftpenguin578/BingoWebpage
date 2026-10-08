@@ -1,0 +1,899 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <data name="{0} events held · last ended {1}" xml:space="preserve"><value>{0} afholdte events · senest afsluttet {1}</value></data>
+  <data name="No events held yet" xml:space="preserve"><value>Ingen afholdte events endnu</value></data>
+  <data name="Not announced" xml:space="preserve"><value>Ikke annonceret</value></data>
+  <data name="Not recorded" xml:space="preserve"><value>Ikke registreret</value></data>
+  <data name="No compatible stored EHB coverage is available." xml:space="preserve"><value>Ingen kompatibel gemt EHB-dækning er tilgængelig.</value></data>
+  <data name="Wise Old Man · {0} of {1} accounts" xml:space="preserve"><value>Wise Old Man · {0} af {1} konti</value></data>
+  <data name=" · frozen snapshot" xml:space="preserve"><value> · frosset øjebliksbillede</value></data>
+  <data name=" · partial coverage" xml:space="preserve"><value> · delvis dækning</value></data>
+  <data name="Approved evidence submissions. Reconstructed imported contributions are excluded." xml:space="preserve"><value>Godkendte indsendelser med dokumentation. Rekonstruerede importerede bidrag er ikke medregnet.</value></data>
+  <data name="Imported history has no measured evidence submissions; its contributions were reconstructed." xml:space="preserve"><value>Importeret historik har ingen målte indsendelser med dokumentation; bidragene blev rekonstrueret.</value></data>
+  <data name="Published board approval or a usable event interval is unavailable." xml:space="preserve"><value>Et godkendt offentliggjort Board eller et brugbart eventinterval er ikke tilgængeligt.</value></data>
+  <data name="Start was due {0}" xml:space="preserve"><value>Start var planlagt til {0}</value></data>
+  <data name="opens {0}" xml:space="preserve"><value>åbner {0}</value></data>
+  <data name="closes {0}" xml:space="preserve"><value>lukker {0}</value></data>
+  <data name="ends {0}" xml:space="preserve"><value>slutter {0}</value></data>
+  <data name="starts {0}" xml:space="preserve"><value>starter {0}</value></data>
+  <data name="Setup" xml:space="preserve"><value>Opsætning</value></data>
+  <data name="Signups open" xml:space="preserve"><value>Tilmelding åben</value></data>
+  <data name="Signups closed" xml:space="preserve"><value>Tilmelding lukket</value></data>
+  <data name="Live" xml:space="preserve"><value>Live</value></data>
+  <data name="Final review" xml:space="preserve"><value>Afsluttende gennemgang</value></data>
+  <data name="Finalized" xml:space="preserve"><value>Afsluttet</value></data>
+  <data name="Archived" xml:space="preserve"><value>Arkiveret</value></data>
+  <data name="Events held" xml:space="preserve"><value>Afholdte events</value></data>
+  <data name="{0} live or awaiting final review" xml:space="preserve"><value>{0} live eller til afsluttende gennemgang</value></data>
+  <data name="since {0}" xml:space="preserve"><value>siden {0}</value></data>
+  <data name="Events that have gone Live, including Live and final review. Figures may still change." xml:space="preserve"><value>Events, der er gået Live, inklusive Live og afsluttende gennemgang. Tallene kan stadig ændre sig.</value></data>
+  <data name="Unique participants" xml:space="preserve"><value>Unikke deltagere</value></data>
+  <data name="not tracked yet" xml:space="preserve"><value>ikke registreret endnu</value></data>
+  <data name="tracked since {0}" xml:space="preserve"><value>registreret siden {0}</value></data>
+  <data name="A usable actual lifecycle interval is unavailable. Unknown is not zero." xml:space="preserve"><value>Et brugbart faktisk livscyklusinterval er ikke tilgængeligt. Ukendt er ikke nul.</value></data>
+  <data name="Counted by website account. Imported participants are not linked to accounts and are excluded." xml:space="preserve"><value>Talt efter webstedskonto. Importerede deltagere er ikke knyttet til konti og er ikke medregnet.</value></data>
+  <data name="Total participations" xml:space="preserve"><value>Samlede deltagelser</value></data>
+  <data name="each person once per event" xml:space="preserve"><value>hver person én gang pr. event</value></data>
+  <data name="Players summed across every event held, including imported history. Each person counts once per event." xml:space="preserve"><value>Spillere summeret på tværs af alle afholdte events, inklusive importeret historik. Hver person tæller én gang pr. event.</value></data>
+  <data name="Approved submissions" xml:space="preserve"><value>Godkendte indsendelser</value></data>
+  <data name="measured evidence only" xml:space="preserve"><value>kun målt dokumentation</value></data>
+  <data name="not available" xml:space="preserve"><value>ikke tilgængeligt</value></data>
+  <data name="Event" xml:space="preserve"><value>Event</value></data>
+  <data name="Players" xml:space="preserve"><value>Spillere</value></data>
+  <data name="Winner’s board" xml:space="preserve"><value>Vinderens Board</value></data>
+  <data name="EHB gained" xml:space="preserve"><value>Optjent EHB</value></data>
+  <data name="Winner" xml:space="preserve"><value>Vinder</value></data>
+  <data name="Current event" xml:space="preserve"><value>Aktuelt event</value></data>
+  <data name="Next event" xml:space="preserve"><value>Næste event</value></data>
+  <data name="{0} of {1} places filled" xml:space="preserve"><value>{0} af {1} pladser besat</value></data>
+  <data name="{0} confirmed · No capacity set" xml:space="preserve"><value>{0} bekræftede · Ingen kapacitet angivet</value></data>
+  <data name="Open" xml:space="preserve"><value>Åbn</value></data>
+  <data name="Sorted by {0}, {1}." xml:space="preserve"><value>Sorteret efter {0}, {1}.</value></data>
+  <data name="descending" xml:space="preserve"><value>faldende</value></data>
+  <data name="ascending" xml:space="preserve"><value>stigende</value></data>
+  <data name="No events have been held yet" xml:space="preserve"><value>Der er ikke afholdt nogen events endnu</value></data>
+  <data name="Participation and history appear once the first event goes Live." xml:space="preserve"><value>Deltagelse og historik vises, når det første event går Live.</value></data>
+  <data name="Go to Events" xml:space="preserve"><value>Gå til Events</value></data>
+  <data name="Headline statistics" xml:space="preserve"><value>Nøgletal</value></data>
+  <data name="new in the latest event" xml:space="preserve"><value>nye i det seneste event</value></data>
+  <data name="from the latest event" xml:space="preserve"><value>fra det seneste event</value></data>
+  <data name="Participation by event" xml:space="preserve"><value>Deltagelse pr. event</value></data>
+  <data name="Legend" xml:space="preserve"><value>Signaturforklaring</value></data>
+  <data name="Returning" xml:space="preserve"><value>Tilbagevendende</value></data>
+  <data name="First time" xml:space="preserve"><value>Første gang</value></data>
+  <data name="Imported (not linked)" xml:space="preserve"><value>Importeret (ikke tilknyttet)</value></data>
+  <data name="Provisional" xml:space="preserve"><value>Foreløbig</value></data>
+  <data name="Players per event" xml:space="preserve"><value>Spillere pr. event</value></data>
+  <data name="{0}: {1} players, {2} teams." xml:space="preserve"><value>{0}: {1} spillere, {2} hold.</value></data>
+  <data name="Imported" xml:space="preserve"><value>Importeret</value></data>
+  <data name="Tracking starts" xml:space="preserve"><value>Registrering starter</value></data>
+  <data name="{0} teams" xml:space="preserve"><value>{0} hold</value></data>
+  <data name="Returning share" xml:space="preserve"><value>Tilbagevendende andel</value></data>
+  <data name="Imported history. Players are not linked to website accounts." xml:space="preserve"><value>Importeret historik. Spillere er ikke knyttet til webstedskonti.</value></data>
+  <data name="Figures are provisional and may still change." xml:space="preserve"><value>Tallene er foreløbige og kan stadig ændre sig.</value></data>
+  <data name="Tracked history starts here; there is no earlier event to return from." xml:space="preserve"><value>Registreret historik starter her; der er intet tidligere event at vende tilbage fra.</value></data>
+  <data name="Each person counted once per event. Returning means an earlier tracked event." xml:space="preserve"><value>Hver person tælles én gang pr. event. Tilbagevendende betyder deltagelse i et tidligere registreret event.</value></data>
+  <data name="Latest event" xml:space="preserve"><value>Seneste event</value></data>
+  <data name="Imported · archived" xml:space="preserve"><value>Importeret · arkiveret</value></data>
+  <data name="Results provisional" xml:space="preserve"><value>Foreløbige resultater</value></data>
+  <data name="Final review in progress" xml:space="preserve"><value>Afsluttende gennemgang i gang</value></data>
+  <data name="The winner is shown once results are official." xml:space="preserve"><value>Vinderen vises, når resultaterne er officielle.</value></data>
+  <data name="Last official winner: {0} · {1}" xml:space="preserve"><value>Seneste officielle vinder: {0} · {1}</value></data>
+  <data name="{0} teams competed" xml:space="preserve"><value>{0} hold deltog</value></data>
+  <data name="Winner completed {0} of {1} tiles" xml:space="preserve"><value>Vinderen gennemførte {0} af {1} tiles</value></data>
+  <data name="may change in final review" xml:space="preserve"><value>kan ændres ved afsluttende gennemgang</value></data>
+  <data name="Imported history · attribution reconstructed" xml:space="preserve"><value>Importeret historik · fordeling rekonstrueret</value></data>
+  <data name="Finalized results" xml:space="preserve"><value>Afsluttede resultater</value></data>
+  <data name="Open event" xml:space="preserve"><value>Åbn event</value></data>
+  <data name="No ended event yet" xml:space="preserve"><value>Intet afsluttet event endnu</value></data>
+  <data name="The recap appears after an event has ended." xml:space="preserve"><value>Opsummeringen vises, når et event er afsluttet.</value></data>
+  <data name="Event history" xml:space="preserve"><value>Eventhistorik</value></data>
+  <data name="{0} events" xml:space="preserve"><value>{0} events</value></data>
+  <data name="Live · provisional" xml:space="preserve"><value>Live · foreløbig</value></data>
+  <data name="tiles" xml:space="preserve"><value>tiles</value></data>
+  <data name="Shown once results are official." xml:space="preserve"><value>Vises, når resultaterne er officielle.</value></data>
+  <data name="Not recorded." xml:space="preserve"><value>Ikke registreret.</value></data>
+  <data name="Official results are published after final review." xml:space="preserve"><value>Officielle resultater offentliggøres efter afsluttende gennemgang.</value></data>
+  <data name="Community" xml:space="preserve"><value>Fællesskab</value></data>
+  <data name="Current figures" xml:space="preserve"><value>Aktuelle tal</value></data>
+  <data name="Website accounts" xml:space="preserve"><value>Webstedskonti</value></data>
+  <data name="New accounts" xml:space="preserve"><value>Nye konti</value></data>
+  <data name="Logged in" xml:space="preserve"><value>Logget ind</value></data>
+  <data name="registered in total" xml:space="preserve"><value>registrerede i alt</value></data>
+  <data name="No usable actual ended boundary is available." xml:space="preserve"><value>Ingen brugbar faktisk afslutningsdato er tilgængelig.</value></data>
+  <data name="in the last 30 days" xml:space="preserve"><value>de seneste 30 dage</value></data>
+  <data name="Couldn’t load statistics" xml:space="preserve"><value>Kunne ikke indlæse statistik</value></data>
+  <data name="Check your connection and try again. Nothing was changed." xml:space="preserve"><value>Kontrollér din forbindelse, og prøv igen. Intet blev ændret.</value></data>
+  <data name="Try again" xml:space="preserve"><value>Prøv igen</value></data>
+  <data name="The dashboard figures didn’t load. Events and participants are unaffected." xml:space="preserve"><value>Dashboardets tal kunne ikke indlæses. Events og deltagere er ikke påvirket.</value></data>
+  <data name="{0} event since {1}" xml:space="preserve"><value>{0} event siden {1}</value></data>
+  <data name="{0} events since {1}" xml:space="preserve"><value>{0} events siden {1}</value></data>
+  <data name=" · last ended {0}" xml:space="preserve"><value> · senest afsluttet {0}</value></data>
+  <data name=" ({0} day ago)" xml:space="preserve"><value> (for {0} dag siden)</value></data>
+  <data name=" ({0} days ago)" xml:space="preserve"><value> (for {0} dage siden)</value></data>
+  <data name="Tracked players" xml:space="preserve"><value>Registrerede spillere</value></data>
+  <data name="New in the last 30 days" xml:space="preserve"><value>Nye de seneste 30 dage</value></data>
+  <data name="New since the last event" xml:space="preserve"><value>Nye siden det seneste event</value></data>
+  <data name="Logged in during the last 30 days" xml:space="preserve"><value>Logget ind de seneste 30 dage</value></data>
+  <data name="created recently" xml:space="preserve"><value>oprettet for nylig</value></data>
+  <data name="created after {0}" xml:space="preserve"><value>oprettet efter {0}</value></data>
+  <data name="{0}% of accounts" xml:space="preserve"><value>{0}% af kontiene</value></data>
+  <data name="{0}: participant count unavailable, {1} teams." xml:space="preserve"><value>{0}: deltagerantal ikke tilgængeligt, {1} hold.</value></data>
+  <data name="Events" xml:space="preserve"><value>Events</value></data>
+  <data name="All" xml:space="preserve"><value>Alle</value></data>
+  <data name="Current &amp; upcoming" xml:space="preserve"><value>Aktuelle og kommende</value></data>
+  <data name="Past" xml:space="preserve"><value>Tidligere</value></data>
+  <data name="Hidden" xml:space="preserve"><value>Skjulte</value></data>
+  <data name="Cancelled" xml:space="preserve"><value>Annulleret</value></data>
+  <data name="Phase" xml:space="preserve"><value>Fase</value></data>
+  <data name="Dates" xml:space="preserve"><value>Datoer</value></data>
+  <data name="Participants" xml:space="preserve"><value>Deltagere</value></data>
+  <data name="Needs attention" xml:space="preserve"><value>Kræver opmærksomhed</value></data>
+  <data name="All phases" xml:space="preserve"><value>Alle faser</value></data>
+  <data name="No events yet" xml:space="preserve"><value>Ingen events endnu</value></data>
+  <data name="upcoming or in setup" xml:space="preserve"><value>kommende eller under opsætning</value></data>
+  <data name="need attention" xml:space="preserve"><value>kræver opmærksomhed</value></data>
+  <data name="Nothing needs attention" xml:space="preserve"><value>Intet kræver opmærksomhed</value></data>
+  <data name="Create event" xml:space="preserve"><value>Opret event</value></data>
+  <data name="Events view" xml:space="preserve"><value>Eventvisning</value></data>
+  <data name="SuperAdmin only: quarantined events" xml:space="preserve"><value>Kun SuperAdmin: events i karantæne</value></data>
+  <data name="Search event names" xml:space="preserve"><value>Søg efter eventnavne</value></data>
+  <data name="Clear search" xml:space="preserve"><value>Ryd søgning</value></data>
+  <data name="Filter by phase" xml:space="preserve"><value>Filtrer efter fase</value></data>
+  <data name="Remove filter: needs attention" xml:space="preserve"><value>Fjern filter: kræver opmærksomhed</value></data>
+  <data name="Some parts of this link weren’t available and were cleared. The remaining filters still apply." xml:space="preserve"><value>Nogle dele af dette link var ikke tilgængelige og blev fjernet. De resterende filtre gælder stadig.</value></data>
+  <data name="Some attention counts could not be loaded. Events are shown, but attention information may be incomplete." xml:space="preserve"><value>Nogle opmærksomhedstal kunne ikke indlæses. Events vises, men oplysninger om opmærksomhed kan være ufuldstændige.</value></data>
+  <data name="Sort by {0}, {1}" xml:space="preserve"><value>Sorter efter {0}, {1}</value></data>
+  <data name="Hidden {0}" xml:space="preserve"><value>Skjult {0}</value></data>
+  <data name="Imported history from before the platform" xml:space="preserve"><value>Importeret historik fra før platformen</value></data>
+  <data name="{0} of {1} places confirmed" xml:space="preserve"><value>{0} af {1} pladser bekræftet</value></data>
+  <data name="{0} more: {1}" xml:space="preserve"><value>{0} yderligere: {1}</value></data>
+  <data name="Also: {0}. The event’s Overview explains everything." xml:space="preserve"><value>Desuden: {0}. Eventets Oversigt forklarer det hele.</value></data>
+  <data name="No matching events" xml:space="preserve"><value>Ingen matchende events</value></data>
+  <data name="No hidden events" xml:space="preserve"><value>Ingen skjulte events</value></data>
+  <data name="Nothing current or upcoming" xml:space="preserve"><value>Ingen aktuelle eller kommende events</value></data>
+  <data name="No past events yet" xml:space="preserve"><value>Ingen tidligere events endnu</value></data>
+  <data name="Try a different search or clear the filters." xml:space="preserve"><value>Prøv en anden søgning, eller ryd filtrene.</value></data>
+  <data name="Quarantined events appear here. They’re excluded from every other view, count and the Dashboard." xml:space="preserve"><value>Events i karantæne vises her. De er udeladt fra alle andre visninger, optællinger og Dashboard.</value></data>
+  <data name="Create your first event. It starts as a private draft, so you can set it up before anyone sees it." xml:space="preserve"><value>Opret dit første event. Det starter som en privat kladde, så du kan sætte det op, før andre ser det.</value></data>
+  <data name="Live events and events in setup or signups appear here." xml:space="preserve"><value>Live-events og events under opsætning eller tilmelding vises her.</value></data>
+  <data name="Events appear here once they reach final review, finish, are archived or are cancelled." xml:space="preserve"><value>Events vises her, når de når afsluttende gennemgang, afsluttes, arkiveres eller annulleres.</value></data>
+  <data name="Clear filters" xml:space="preserve"><value>Ryd filtre</value></data>
+  <data name="{0}–{1} of {2} events" xml:space="preserve"><value>{0}–{1} af {2} events</value></data>
+  <data name="Sorted by {0}" xml:space="preserve"><value>Sorteret efter {0}</value></data>
+  <data name="Default order" xml:space="preserve"><value>Standardrækkefølge</value></data>
+  <data name="Pagination" xml:space="preserve"><value>Sideinddeling</value></data>
+  <data name="Previous page" xml:space="preserve"><value>Forrige side</value></data>
+  <data name="Next page" xml:space="preserve"><value>Næste side</value></data>
+  <data name="Page {0}" xml:space="preserve"><value>Side {0}</value></data>
+  <data name="Loading events…" xml:space="preserve"><value>Indlæser events…</value></data>
+  <data name="Couldn’t load events" xml:space="preserve"><value>Kunne ikke indlæse events</value></data>
+  <data name="Not scheduled" xml:space="preserve"><value>Ikke planlagt</value></data>
+  <data name="in {0} days" xml:space="preserve"><value>om {0} dage</value></data>
+  <data name="Signups close {0}" xml:space="preserve"><value>Tilmelding lukker {0}</value></data>
+  <data name="Signups open {0}" xml:space="preserve"><value>Tilmelding åbner {0}</value></data>
+  <data name="Ended {0} days ago" xml:space="preserve"><value>Sluttede for {0} dage siden</value></data>
+  <data name="Didn’t take place" xml:space="preserve"><value>Fandt ikke sted</value></data>
+  <data name="{0} confirmed" xml:space="preserve"><value>{0} bekræftede</value></data>
+  <data name="{0} player" xml:space="preserve"><value>{0} spiller</value></data>
+  <data name="{0} players" xml:space="preserve"><value>{0} spillere</value></data>
+  <data name="{0} played" xml:space="preserve"><value>{0} spillede</value></data>
+  <data name="when it was cancelled" xml:space="preserve"><value>ved annulleringen</value></data>
+  <data name="Participant count unavailable" xml:space="preserve"><value>Deltagerantal ikke tilgængeligt</value></data>
+  <data name="No capacity set" xml:space="preserve"><value>Ingen kapacitet angivet</value></data>
+  <data name="Full" xml:space="preserve"><value>Fuldt</value></data>
+  <data name="{0} waiting" xml:space="preserve"><value>{0} på venteliste</value></data>
+  <data name="Signups not open" xml:space="preserve"><value>Tilmelding ikke åben</value></data>
+  <data name="{0} spots left" xml:space="preserve"><value>{0} ledige pladser</value></data>
+  <data name="Start postponed" xml:space="preserve"><value>Start udsat</value></data>
+  <data name="Signup opening failed" xml:space="preserve"><value>Åbning af tilmelding mislykkedes</value></data>
+  <data name="{0} to review" xml:space="preserve"><value>{0} til gennemgang</value></data>
+  <data name="Finished" xml:space="preserve"><value>Afsluttet</value></data>
+  <data name="Creating…" xml:space="preserve"><value>Opretter…</value></data>
+  <data name="Check again" xml:space="preserve"><value>Tjek igen</value></data>
+  <data name="Checking…" xml:space="preserve"><value>Tjekker…</value></data>
+  <data name="Event name" xml:space="preserve"><value>Eventnavn</value></data>
+  <data name="Timezone" xml:space="preserve"><value>Tidszone</value></data>
+  <data name="Cancel" xml:space="preserve"><value>Annuller</value></data>
+  <data name="Enter an event name." xml:space="preserve"><value>Indtast et eventnavn.</value></data>
+  <data name="Event names must be 50 characters or fewer." xml:space="preserve"><value>Eventnavne må højst være 50 tegn.</value></data>
+  <data name="Couldn’t create the event. Nothing was saved, and your details are still here." xml:space="preserve"><value>Eventet kunne ikke oprettes. Intet blev gemt, og dine oplysninger er stadig her.</value></data>
+  <data name="We couldn’t confirm whether the event was created. Check before trying again, so the event isn’t created twice." xml:space="preserve"><value>Vi kunne ikke bekræfte, om eventet blev oprettet. Tjek, før du prøver igen, så eventet ikke oprettes to gange.</value></data>
+  <data name="We couldn't find it. It may not have been created, or it was removed since. You can create it again with these details." xml:space="preserve"><value>Vi kunne ikke finde det. Det er måske ikke blevet oprettet, eller det er blevet fjernet siden. Du kan oprette det igen med disse oplysninger.</value></data>
+  <data name="An event called “{0}” already exists ({1}). You can still create another; it gets its own link." xml:space="preserve"><value>Der findes allerede et event med navnet “{0}” ({1}). Du kan stadig oprette et nyt; det får sit eget link.</value></data>
+  <data name="It starts as a private draft that players can’t see. You’ll add dates, capacity, artwork and signups in the event afterwards." xml:space="preserve"><value>Det starter som en privat kladde, som spillerne ikke kan se. Bagefter tilføjer du datoer, kapacitet, billeder og tilmelding i eventet.</value></data>
+  <data name="e.g. Autumn Bingo 2027" xml:space="preserve"><value>f.eks. Efterårs-bingo 2027</value></data>
+  <data name="Every date and time in this event uses this timezone. You can change it later." xml:space="preserve"><value>Alle datoer og tidspunkter i dette event bruger denne tidszone. Du kan ændre den senere.</value></data>
+  <data name="The name and timezone you entered haven’t been saved." xml:space="preserve"><value>Det navn og den tidszone, du har indtastet, er ikke blevet gemt.</value></data>
+  <data name="Leave before checking?" xml:space="preserve"><value>Forlad dialogen uden at tjekke?</value></data>
+  <data name="Leave anyway" xml:space="preserve"><value>Forlad alligevel</value></data>
+  <data name="The event may already have been created. Check again before creating another event. Leaving closes this dialog; it does not undo a creation." xml:space="preserve"><value>Eventet kan allerede være oprettet. Tjek igen, før du opretter et nyt event. Når du forlader dialogen, lukkes den; det fortryder ikke en oprettelse.</value></data>
+  <data name="Events that have gone Live, including any awaiting final review." xml:space="preserve"><value>Events, der er startet Live, herunder dem, der afventer afsluttende gennemgang.</value></data>
+  <data name="Counted by website account, tracked since {0}." xml:space="preserve"><value>Talt efter hjemmesidekonto, fulgt siden {0}.</value></data>
+  <data name=" Imported participants aren’t linked to accounts, so they aren’t included." xml:space="preserve"><value> Importerede deltagere er ikke knyttet til konti og tælles derfor ikke med.</value></data>
+  <data name="Imported participants aren’t linked to website accounts, so they can’t be counted as unique people." xml:space="preserve"><value>Importerede deltagere er ikke knyttet til hjemmesidekonti og kan derfor ikke tælles som unikke personer.</value></data>
+  <data name="Platform events only." xml:space="preserve"><value>Kun platformevents.</value></data>
+  <data name=" Reconstructed records from the imported event are excluded." xml:space="preserve"><value> Rekonstruerede poster fra det importerede event er udeladt.</value></data>
+  <data name=" {0} are from an event still in final review and may change." xml:space="preserve"><value> {0} er fra et event, der stadig er til afsluttende gennemgang, og kan ændre sig.</value></data>
+  <data name="The imported event has no evidence submissions." xml:space="preserve"><value>Det importerede event har ingen indsendt dokumentation.</value></data>
+  <data name="no platform events yet" xml:space="preserve"><value>ingen platformevents endnu</value></data>
+  <data name="platform events only" xml:space="preserve"><value>kun platformevents</value></data>
+  <data name="across {0} event" xml:space="preserve"><value>på tværs af {0} event</value></data>
+  <data name="across {0} events" xml:space="preserve"><value>på tværs af {0} events</value></data>
+  <data name="{0}: {1} players, imported, not linked to website accounts." xml:space="preserve"><value>{0}: {1} spillere, importeret, ikke knyttet til hjemmesidekonti.</value></data>
+  <data name="{0}: {1} players, all first tracked." xml:space="preserve"><value>{0}: {1} spillere, alle fulgt for første gang.</value></data>
+  <data name="{0}: {1} players, {2} returning, {3} first time." xml:space="preserve"><value>{0}: {1} spillere, {2} tilbagevendende, {3} for første gang.</value></data>
+  <data name="Provisional, awaiting final review." xml:space="preserve"><value>Foreløbigt, afventer afsluttende gennemgang.</value></data>
+  <data name="Wise Old Man wasn’t linked to this event." xml:space="preserve"><value>Wise Old Man var ikke knyttet til dette event.</value></data>
+  <data name="Not available for imported history: contributions were reconstructed, not submitted." xml:space="preserve"><value>Ikke tilgængeligt for importeret historik: bidragene blev rekonstrueret, ikke indsendt.</value></data>
+  <data name="Participation, results and history appear here once the first event has ended." xml:space="preserve"><value>Deltagelse, resultater og historik vises her, når det første event er afsluttet.</value></data>
+  <data name="Each person counted once per event." xml:space="preserve"><value>Hver person tælles én gang pr. event.</value></data>
+  <data name="Tracking by website account starts with {0}; returning means they played an earlier tracked event." xml:space="preserve"><value>Sporing efter hjemmesidekonto starter med {0}; tilbagevendende betyder, at de spillede i et tidligere sporet event.</value></data>
+  <data name="Tracking by website account starts with {0}; returning players appear from the next tracked event." xml:space="preserve"><value>Sporing efter hjemmesidekonto starter med {0}; tilbagevendende spillere vises fra det næste sporede event.</value></data>
+  <data name="Imported history. Players aren’t linked to website accounts, so they aren’t split into returning and first time." xml:space="preserve"><value>Importeret historik. Spillerne er ikke knyttet til hjemmesidekonti og opdeles derfor ikke i tilbagevendende og første gang.</value></data>
+  <data name="Tracked history starts here, so there’s no earlier event to return from." xml:space="preserve"><value>Den sporede historik starter her, så der er intet tidligere event at vende tilbage fra.</value></data>
+  <data name="Ended {0} · awaiting final review. Figures may still change." xml:space="preserve"><value>Afsluttet {0} · afventer afsluttende gennemgang. Tallene kan stadig ændre sig.</value></data>
+  <data name=" · {0}% returning" xml:space="preserve"><value> · {0}% tilbagevendende</value></data>
+  <data name="Imported history has no evidence submissions; its contributions were reconstructed." xml:space="preserve"><value>Importeret historik har ingen indsendt dokumentation; bidragene blev rekonstrueret.</value></data>
+  <data name="{0} of {1} accounts · Wise Old Man" xml:space="preserve"><value>{0} af {1} konti · Wise Old Man</value></data>
+  <data name=" (frozen)" xml:space="preserve"><value> (frosset)</value></data>
+  <data name="Ended {0}" xml:space="preserve"><value>Afsluttet {0}</value></data>
+  <data name="Participation by event appears once a second event has been held." xml:space="preserve"><value>Deltagelse pr. event vises, når der er afholdt endnu et event.</value></data>
+  <data name="The latest event is still in final review, so its figures are provisional." xml:space="preserve"><value>Det seneste event er stadig til endelig gennemgang, så tallene er foreløbige.</value></data>
+  <data name="Loading statistics" xml:space="preserve"><value>Indlæser statistik</value></data>
+  <!-- Lane T (T1): Accounts -->
+  <data name="Transfer ownership" xml:space="preserve"><value>Overdrag ejerskab</value></data>
+  <data name="Exceptional: the community always has exactly one Super Admin. This isn’t the same as granting Admin." xml:space="preserve"><value>Undtagelsesvis: fællesskabet har altid præcis én Super Admin. Det er ikke det samme som at give Admin-adgang.</value></data>
+  <data name="New Super Admin" xml:space="preserve"><value>Ny Super Admin</value></data>
+  <data name="Choose an active account" xml:space="preserve"><value>Vælg en aktiv konto</value></data>
+  <data name="{0} · {1}" xml:space="preserve"><value>{0} · {1}</value></data>
+  <data name="Active website accounts other than yours." xml:space="preserve"><value>Aktive hjemmesidekonti ud over din egen.</value></data>
+  <data name="Your current password" xml:space="preserve"><value>Din nuværende adgangskode</value></data>
+  <data name="Role change" xml:space="preserve"><value>Rolleændring</value></data>
+  <data name="Account" xml:space="preserve"><value>Konto</value></data>
+  <data name="Now" xml:space="preserve"><value>Nu</value></data>
+  <data name="After" xml:space="preserve"><value>Efter</value></data>
+  <data name="Type the new owner’s username" xml:space="preserve"><value>Skriv den nye ejers brugernavn</value></data>
+  <data name="Continue" xml:space="preserve"><value>Fortsæt</value></data>
+  <data name="Website account" xml:space="preserve"><value>Hjemmesidekonto</value></data>
+  <data name="Not found" xml:space="preserve"><value>Ikke fundet</value></data>
+  <data name="Close" xml:space="preserve"><value>Luk</value></data>
+  <data name="This account isn’t available" xml:space="preserve"><value>Denne konto er ikke tilgængelig</value></data>
+  <data name="The link may be incomplete, or it isn’t a website account." xml:space="preserve"><value>Linket er måske ufuldstændigt, eller det er ikke en hjemmesidekonto.</value></data>
+  <data name="Owns the community. The only account that manages Admins." xml:space="preserve"><value>Ejer fællesskabet. Den eneste konto, der administrerer Admins.</value></data>
+  <data name="Can use the admin area and manage User accounts." xml:space="preserve"><value>Kan bruge adminområdet og administrere brugerkonti.</value></data>
+  <data name="No admin access." xml:space="preserve"><value>Ingen adminadgang.</value></data>
+  <data name=" and " xml:space="preserve"><value> og </value></data>
+  <data name="Password" xml:space="preserve"><value>Adgangskode</value></data>
+  <data name="Discord" xml:space="preserve"><value>Discord</value></data>
+  <data name="This is your account. Your own role and status can’t be changed here; change your sign-in details in your account settings." xml:space="preserve"><value>Dette er din konto. Din egen rolle og status kan ikke ændres her; skift dine login-oplysninger i dine kontoindstillinger.</value></data>
+  <data name="This is your account. You can’t change your own role or status, or create a reset link for yourself." xml:space="preserve"><value>Dette er din konto. Du kan ikke ændre din egen rolle eller status eller oprette et nulstillingslink til dig selv.</value></data>
+  <data name="The Super Admin account is protected. It can’t be disabled, demoted or reset here; ownership moves only by transfer, and lost access needs Discord sign-in or operator recovery." xml:space="preserve"><value>Super Admin-kontoen er beskyttet. Den kan ikke deaktiveres, nedgraderes eller nulstilles her; ejerskab flyttes kun ved overdragelse, og mistet adgang kræver Discord-login eller gendannelse ved driften.</value></data>
+  <data name="Only the Super Admin manages Admin accounts." xml:space="preserve"><value>Kun Super Admin administrerer Admin-konti.</value></data>
+  <data name="Only the Super Admin can grant or revoke Admin access." xml:space="preserve"><value>Kun Super Admin kan give eller fjerne Admin-adgang.</value></data>
+  <data name="Confirmed" xml:space="preserve"><value>Bekræftet</value></data>
+  <data name="Waiting list" xml:space="preserve"><value>Venteliste</value></data>
+  <data name="Withdrawn" xml:space="preserve"><value>Trukket tilbage</value></data>
+  <data name="Disabled" xml:space="preserve"><value>Deaktiveret</value></data>
+  <data name="You" xml:space="preserve"><value>Dig</value></data>
+  <data name="Dismiss" xml:space="preserve"><value>Luk</value></data>
+  <data name="Disabled {0} by {1}." xml:space="preserve"><value>Deaktiveret {0} af {1}.</value></data>
+  <data name="Disabled {0}." xml:space="preserve"><value>Deaktiveret {0}.</value></data>
+  <data name="They can’t sign in; the account and its records are kept." xml:space="preserve"><value>Personen kan ikke logge ind; kontoen og dens data bevares.</value></data>
+  <data name="Access" xml:space="preserve"><value>Adgang</value></data>
+  <data name="Global role" xml:space="preserve"><value>Global rolle</value></data>
+  <data name="Event Captain roles are separate; see below." xml:space="preserve"><value>Kaptajnroller i events er separate; se nedenfor.</value></data>
+  <data name="Status" xml:space="preserve"><value>Status</value></data>
+  <data name="Active" xml:space="preserve"><value>Aktiv</value></data>
+  <data name="Can sign in." xml:space="preserve"><value>Kan logge ind.</value></data>
+  <data name="Can’t sign in." xml:space="preserve"><value>Kan ikke logge ind.</value></data>
+  <data name="Last login" xml:space="preserve"><value>Seneste login</value></data>
+  <data name="Never" xml:space="preserve"><value>Aldrig</value></data>
+  <data name="Sign-in" xml:space="preserve"><value>Login</value></data>
+  <data name="None set" xml:space="preserve"><value>Ingen angivet</value></data>
+  <data name="Linked" xml:space="preserve"><value>Tilknyttet</value></data>
+  <data name="Not linked" xml:space="preserve"><value>Ikke tilknyttet</value></data>
+  <data name="Last known display name “{0}”; it may be out of date." xml:space="preserve"><value>Senest kendte visningsnavn “{0}”; det kan være forældet.</value></data>
+  <data name="Display name not recorded." xml:space="preserve"><value>Visningsnavn ikke registreret.</value></data>
+  <data name="Manage access" xml:space="preserve"><value>Administrer adgang</value></data>
+  <data name="Admin access" xml:space="preserve"><value>Admin-adgang</value></data>
+  <data name="Lets them use the admin area. Event roles aren’t affected." xml:space="preserve"><value>Giver adgang til adminområdet. Roller i events påvirkes ikke.</value></data>
+  <data name="They’d become a User. Their account stays active, with its events, team roles and characters." xml:space="preserve"><value>Personen bliver Bruger. Kontoen forbliver aktiv med sine events, holdroller og karakterer.</value></data>
+  <data name="They’d become a User. Their account stays disabled, with its events, team roles and characters." xml:space="preserve"><value>Personen bliver Bruger. Kontoen forbliver deaktiveret med sine events, holdroller og karakterer.</value></data>
+  <data name="Grant Admin…" xml:space="preserve"><value>Giv Admin…</value></data>
+  <data name="Revoke Admin…" xml:space="preserve"><value>Fjern Admin…</value></data>
+  <data name="Restore the account before granting Admin access." xml:space="preserve"><value>Genaktiver kontoen, før du giver Admin-adgang.</value></data>
+  <data name="Password-reset link" xml:space="preserve"><value>Link til nulstilling af adgangskode</value></data>
+  <data name="A single-use link they can use within 60 minutes to set a new password. It replaces any earlier link. It doesn’t change the password or contact them; you pass it on." xml:space="preserve"><value>Et engangslink, der kan bruges inden for 60 minutter til at vælge en ny adgangskode. Det erstatter tidligere links. Det ændrer ikke adgangskoden og kontakter ikke personen; du giver det videre.</value></data>
+  <data name="A single-use link they can use within 60 minutes to set a password (they sign in with Discord only today). It replaces any earlier link. It doesn’t change the password or contact them; you pass it on." xml:space="preserve"><value>Et engangslink, der kan bruges inden for 60 minutter til at vælge en adgangskode (personen logger i dag kun ind med Discord). Det erstatter tidligere links. Det ændrer ikke adgangskoden og kontakter ikke personen; du giver det videre.</value></data>
+  <data name="Reset links are only for active accounts. Restore the account first." xml:space="preserve"><value>Nulstillingslinks er kun til aktive konti. Genaktiver kontoen først.</value></data>
+  <data name="Create reset link" xml:space="preserve"><value>Opret nulstillingslink</value></data>
+  <data name="Reset link for {0}" xml:space="preserve"><value>Nulstillingslink til {0}</value></data>
+  <data name="Expires {0}" xml:space="preserve"><value>Udløber {0}</value></data>
+  <data name="Reset link" xml:space="preserve"><value>Nulstillingslink</value></data>
+  <data name="Copy" xml:space="preserve"><value>Kopiér</value></data>
+  <data name="The link stops working after 60 minutes, after one use, or if this account’s role, status or ownership changes." xml:space="preserve"><value>Linket holder op med at virke efter 60 minutter, efter én brug, eller hvis denne kontos rolle, status eller ejerskab ændres.</value></data>
+  <data name="It doesn’t change their password or send them anything. Share it with {0} privately." xml:space="preserve"><value>Det ændrer ikke adgangskoden og sender ikke noget. Del det privat med {0}.</value></data>
+  <data name="Shown only here. Closing this account clears it." xml:space="preserve"><value>Vises kun her. Når du lukker kontoen, forsvinder det.</value></data>
+  <data name="Done" xml:space="preserve"><value>Færdig</value></data>
+  <data name="Disable account" xml:space="preserve"><value>Deaktiver konto</value></data>
+  <data name="Restore account" xml:space="preserve"><value>Genaktiver konto</value></data>
+  <data name="Stops them signing in and ends their sessions. The account, rosters and records are kept." xml:space="preserve"><value>Forhindrer login og afslutter sessioner. Kontoen, holdlister og data bevares.</value></data>
+  <data name="Lets them sign in again. Event signups and roles stay as they are now." xml:space="preserve"><value>Gør login muligt igen. Tilmeldinger og roller i events forbliver, som de er nu.</value></data>
+  <data name="Disable…" xml:space="preserve"><value>Deaktiver…</value></data>
+  <data name="Restore…" xml:space="preserve"><value>Genaktiver…</value></data>
+  <data name="Ownership" xml:space="preserve"><value>Ejerskab</value></data>
+  <data name="You’re the community’s only Super Admin. Ownership can move to another active account; you’d stay an Admin." xml:space="preserve"><value>Du er fællesskabets eneste Super Admin. Ejerskabet kan flyttes til en anden aktiv konto; du forbliver Admin.</value></data>
+  <data name="Transfer ownership…" xml:space="preserve"><value>Overdrag ejerskab…</value></data>
+  <data name="Linked OSRS characters" xml:space="preserve"><value>Tilknyttede OSRS-karakterer</value></data>
+  <data name="No characters linked. The account holder adds them in My Accounts." xml:space="preserve"><value>Ingen karakterer tilknyttet. Kontoindehaveren tilføjer dem under Mine konti.</value></data>
+  <data name="Preferred" xml:space="preserve"><value>Foretrukken</value></data>
+  <data name="Inactive" xml:space="preserve"><value>Inaktiv</value></data>
+  <data name="Events and team roles" xml:space="preserve"><value>Events og holdroller</value></data>
+  <data name="No event participation." xml:space="preserve"><value>Ingen deltagelse i events.</value></data>
+  <data name="No team" xml:space="preserve"><value>Intet hold</value></data>
+  <data name="CC" xml:space="preserve"><value>MK</value></data>
+  <data name="C" xml:space="preserve"><value>K</value></data>
+  <data name="{0} – {1}" xml:space="preserve"><value>{0} – {1}</value></data>
+  <data name="current" xml:space="preserve"><value>nu</value></data>
+  <data name="Disable and restore history" xml:space="preserve"><value>Historik for deaktivering og genaktivering</value></data>
+  <data name="Never disabled." xml:space="preserve"><value>Aldrig deaktiveret.</value></data>
+  <data name="Disabled by {0}" xml:space="preserve"><value>Deaktiveret af {0}</value></data>
+  <data name="Restored by {0}" xml:space="preserve"><value>Genaktiveret af {0}</value></data>
+  <data name="Username, Discord and characters belong to the account holder and are changed in their own settings. Team roles are managed on each event’s Teams page." xml:space="preserve"><value>Brugernavn, Discord og karakterer tilhører kontoindehaveren og ændres i deres egne indstillinger. Holdroller administreres på hvert events Hold-side.</value></data>
+  <data name="Granting…" xml:space="preserve"><value>Giver…</value></data>
+  <data name="Revoking…" xml:space="preserve"><value>Fjerner…</value></data>
+  <data name="Grant Admin access to {0}?" xml:space="preserve"><value>Giv {0} Admin-adgang?</value></data>
+  <data name="Revoke Admin access from {0}?" xml:space="preserve"><value>Fjern Admin-adgang fra {0}?</value></data>
+  <data name="They can use the admin area and manage User accounts. Only you can manage Admins." xml:space="preserve"><value>Personen kan bruge adminområdet og administrere brugerkonti. Kun du kan administrere Admins.</value></data>
+  <data name="Their current sessions end; they sign in again to use it. They’ll see a notification on the website." xml:space="preserve"><value>Personens aktuelle sessioner afsluttes; de logger ind igen for at bruge det. De får en notifikation på hjemmesiden.</value></data>
+  <data name="Their event roles don’t change." xml:space="preserve"><value>Personens roller i events ændres ikke.</value></data>
+  <data name="The account stays active. Event participation, team and Captain roles, and characters stay as they are." xml:space="preserve"><value>Kontoen forbliver aktiv. Deltagelse i events, hold- og kaptajnroller samt karakterer forbliver, som de er.</value></data>
+  <data name="The account stays disabled. Event participation, team and Captain roles, and characters stay as they are." xml:space="preserve"><value>Kontoen forbliver deaktiveret. Deltagelse i events, hold- og kaptajnroller samt karakterer forbliver, som de er.</value></data>
+  <data name="Their current sessions end. They’ll see a notification on the website." xml:space="preserve"><value>Personens aktuelle sessioner afsluttes. De får en notifikation på hjemmesiden.</value></data>
+  <data name="Grant Admin" xml:space="preserve"><value>Giv Admin</value></data>
+  <data name="Revoke Admin" xml:space="preserve"><value>Fjern Admin</value></data>
+  <data name="Disabling…" xml:space="preserve"><value>Deaktiverer…</value></data>
+  <data name="Disable {0}?" xml:space="preserve"><value>Deaktiver {0}?</value></data>
+  <data name="They can’t sign in, and every current session ends now." xml:space="preserve"><value>Personen kan ikke logge ind, og alle aktuelle sessioner afsluttes nu.</value></data>
+  <data name="Nothing is deleted: the account, username, Discord link, characters and history are kept." xml:space="preserve"><value>Intet slettes: kontoen, brugernavnet, Discord-tilknytningen, karaktererne og historikken bevares.</value></data>
+  <data name="Their place on event rosters, team roles, evidence and results are unchanged." xml:space="preserve"><value>Pladsen på holdlister, holdroller, dokumentation og resultater er uændrede.</value></data>
+  <data name="Reason" xml:space="preserve"><value>Begrundelse</value></data>
+  <data name="Why the account is being disabled" xml:space="preserve"><value>Hvorfor kontoen deaktiveres</value></data>
+  <data name="Kept in the account’s history and Audit. Other admins can read it." xml:space="preserve"><value>Gemmes i kontoens historik og i Audit. Andre admins kan læse den.</value></data>
+  <data name="Restoring…" xml:space="preserve"><value>Genaktiverer…</value></data>
+  <data name="Restore {0}?" xml:space="preserve"><value>Genaktiver {0}?</value></data>
+  <data name="They can sign in again with their password or Discord." xml:space="preserve"><value>Personen kan logge ind igen med adgangskode eller Discord.</value></data>
+  <data name="Only the website account is restored. Withdrawn signups and team roles that events have since ended stay as they are." xml:space="preserve"><value>Kun hjemmesidekontoen genaktiveres. Tilbagetrukne tilmeldinger og holdroller, som events siden har afsluttet, forbliver, som de er.</value></data>
+  <data name="They’ll see a notification on the website." xml:space="preserve"><value>Personen får en notifikation på hjemmesiden.</value></data>
+  <data name="Change" xml:space="preserve"><value>Ændring</value></data>
+  <data name="Accounts" xml:space="preserve"><value>Konti</value></data>
+  <data name="Nothing on page {0}" xml:space="preserve"><value>Intet på side {0}</value></data>
+  <data name="No accounts match" xml:space="preserve"><value>Ingen konti matcher</value></data>
+  <data name="There are fewer results now. Go back to the first page." xml:space="preserve"><value>Der er færre resultater nu. Gå tilbage til første side.</value></data>
+  <data name="Search looks at website usernames, not Discord names or OSRS characters." xml:space="preserve"><value>Søgningen ser på brugernavne på hjemmesiden, ikke Discord-navne eller OSRS-karakterer.</value></data>
+  <data name="Ownership wasn’t transferred." xml:space="preserve"><value>Ejerskabet blev ikke overdraget.</value></data>
+  <data name="Find accounts" xml:space="preserve"><value>Find konti</value></data>
+  <data name="Discord · {0}" xml:space="preserve"><value>Discord · {0}</value></data>
+  <data name="Discord linked" xml:space="preserve"><value>Discord tilknyttet</value></data>
+  <data name="No Discord link" xml:space="preserve"><value>Ingen Discord-tilknytning</value></data>
+  <data name="No event participation" xml:space="preserve"><value>Ingen deltagelse i events</value></data>
+  <data name="Today, {0}" xml:space="preserve"><value>I dag, {0}</value></data>
+  <data name="Yesterday, {0}" xml:space="preserve"><value>I går, {0}</value></data>
+  <data name="Go to the first page" xml:space="preserve"><value>Gå til første side</value></data>
+  <data name="Clear search and filter" xml:space="preserve"><value>Ryd søgning og filter</value></data>
+  <data name="Showing {0}–{1} matching · ordered by username" xml:space="preserve"><value>Viser {0}–{1} matchende · sorteret efter brugernavn</value></data>
+  <data name="Showing {0}–{1} · ordered by username" xml:space="preserve"><value>Viser {0}–{1} · sorteret efter brugernavn</value></data>
+  <data name="Pages" xml:space="preserve"><value>Sider</value></data>
+  <data name="Previous" xml:space="preserve"><value>Forrige</value></data>
+  <data name="Next" xml:space="preserve"><value>Næste</value></data>
+  <data name="Loading account" xml:space="preserve"><value>Indlæser konto</value></data>
+  <data name="Couldn’t load this account" xml:space="preserve"><value>Kontoen kunne ikke indlæses</value></data>
+  <data name="Loading…" xml:space="preserve"><value>Indlæser…</value></data>
+  <data name="Admin access granted." xml:space="preserve"><value>Admin-adgang givet.</value></data>
+  <data name="{0} is now an Admin. Their sessions were ended, so they’ll sign in again to use it." xml:space="preserve"><value>{0} er nu Admin. Sessionerne blev afsluttet, så personen logger ind igen for at bruge det.</value></data>
+  <data name="Admin access revoked." xml:space="preserve"><value>Admin-adgang fjernet.</value></data>
+  <data name="{0} is now a User. Their account, events, team roles and characters are unchanged; their sessions were ended." xml:space="preserve"><value>{0} er nu Bruger. Kontoen, events, holdroller og karakterer er uændrede; sessionerne blev afsluttet.</value></data>
+  <data name="Account disabled." xml:space="preserve"><value>Konto deaktiveret.</value></data>
+  <data name="{0} can’t sign in and their sessions were ended. Their account, rosters and records are kept." xml:space="preserve"><value>{0} kan ikke logge ind, og sessionerne blev afsluttet. Kontoen, holdlister og data bevares.</value></data>
+  <data name="Account restored." xml:space="preserve"><value>Konto genaktiveret.</value></data>
+  <data name="{0} can sign in again. Event signups and roles weren’t changed." xml:space="preserve"><value>{0} kan logge ind igen. Tilmeldinger og roller i events blev ikke ændret.</value></data>
+  <data name="That didn’t go through." xml:space="preserve"><value>Det gik ikke igennem.</value></data>
+  <data name="Nothing changed. Try again." xml:space="preserve"><value>Intet blev ændret. Prøv igen.</value></data>
+  <data name="This record was changed by another administrator." xml:space="preserve"><value>Denne post blev ændret af en anden administrator.</value></data>
+  <data name="Current values are shown; review them before trying again." xml:space="preserve"><value>De aktuelle værdier vises; gennemgå dem, før du prøver igen.</value></data>
+  <data name="That couldn’t be done." xml:space="preserve"><value>Det kunne ikke lade sig gøre.</value></data>
+  <data name="We couldn’t confirm the change." xml:space="preserve"><value>Vi kunne ikke bekræfte ændringen.</value></data>
+  <data name="It may have gone through. Check the current status before trying again." xml:space="preserve"><value>Den kan være gået igennem. Tjek den aktuelle status, før du prøver igen.</value></data>
+  <data name="Check current status" xml:space="preserve"><value>Tjek aktuel status</value></data>
+  <data name="It went through." xml:space="preserve"><value>Den gik igennem.</value></data>
+  <data name="It wasn’t changed." xml:space="preserve"><value>Den blev ikke ændret.</value></data>
+  <data name="The current values are shown. You can try again." xml:space="preserve"><value>De aktuelle værdier vises. Du kan prøve igen.</value></data>
+  <data name="The account shows this change now." xml:space="preserve"><value>Kontoen viser nu denne ændring.</value></data>
+  <data name="It may be yours or another administrator’s. The current values are shown; nothing was repeated." xml:space="preserve"><value>Den kan være din eller en anden administrators. De aktuelle værdier vises; intet blev gentaget.</value></data>
+  <data name="The account was changed, but not like this." xml:space="preserve"><value>Kontoen blev ændret, men ikke sådan.</value></data>
+  <data name="Another change happened since. The current values are shown; review them before trying again." xml:space="preserve"><value>En anden ændring er sket siden. De aktuelle værdier vises; gennemgå dem, før du prøver igen.</value></data>
+  <data name="Couldn’t check the current status." xml:space="preserve"><value>Den aktuelle status kunne ikke tjekkes.</value></data>
+  <data name="Nothing was repeated. Check again when you’re back online." xml:space="preserve"><value>Intet blev gentaget. Tjek igen, når du er online.</value></data>
+  <data name="Enter a reason." xml:space="preserve"><value>Skriv en begrundelse.</value></data>
+  <data name="Use 500 characters or fewer." xml:space="preserve"><value>Brug højst 500 tegn.</value></data>
+  <data name="{0} / 500" xml:space="preserve"><value>{0} / 500</value></data>
+  <data name="Copied" xml:space="preserve"><value>Kopieret</value></data>
+  <data name="Selected. Press Ctrl+C or ⌘C to copy." xml:space="preserve"><value>Markeret. Tryk Ctrl+C eller ⌘C for at kopiere.</value></data>
+  <data name="We couldn’t confirm whether a link was created" xml:space="preserve"><value>Vi kunne ikke bekræfte, om der blev oprettet et link</value></data>
+  <data name="If one was, it can’t be shown again; links are never stored in readable form." xml:space="preserve"><value>Hvis der blev, kan det ikke vises igen; links gemmes aldrig i læsbar form.</value></data>
+  <data name="Generate a new link only if {0} still needs one. It replaces any earlier link." xml:space="preserve"><value>Opret kun et nyt link, hvis {0} stadig har brug for et. Det erstatter tidligere links.</value></data>
+  <data name="Not now" xml:space="preserve"><value>Ikke nu</value></data>
+  <data name="Generate a new link" xml:space="preserve"><value>Opret et nyt link</value></data>
+  <data name="No link was created." xml:space="preserve"><value>Der blev ikke oprettet noget link.</value></data>
+  <data name="Action" xml:space="preserve"><value>Handling</value></data>
+  <data name="Grant Admin to {0}" xml:space="preserve"><value>Giv {0} Admin</value></data>
+  <data name="Revoke Admin from {0}" xml:space="preserve"><value>Fjern Admin fra {0}</value></data>
+  <data name="Disable {0}" xml:space="preserve"><value>Deaktiver {0}</value></data>
+  <data name="Restore {0}" xml:space="preserve"><value>Genaktiver {0}</value></data>
+  <data name="Create a reset link for {0}" xml:space="preserve"><value>Opret nulstillingslink til {0}</value></data>
+  <data name="Transfer ownership to {0}?" xml:space="preserve"><value>Overdrag ejerskab til {0}?</value></data>
+  <data name="Back" xml:space="preserve"><value>Tilbage</value></data>
+  <data name="Transferring…" xml:space="preserve"><value>Overdrager…</value></data>
+  <data name="Choose an account." xml:space="preserve"><value>Vælg en konto.</value></data>
+  <data name="Enter your current password." xml:space="preserve"><value>Skriv din nuværende adgangskode.</value></data>
+  <data name="Before" xml:space="preserve"><value>Før</value></data>
+  <data name="{0} (you)" xml:space="preserve"><value>{0} (dig)</value></data>
+  <data name="Super Admin" xml:space="preserve"><value>Super Admin</value></data>
+  <data name="Admin" xml:space="preserve"><value>Admin</value></data>
+  <data name="Both accounts are signed out and must sign in again." xml:space="preserve"><value>Begge konti logges ud og skal logge ind igen.</value></data>
+  <data name="{0} becomes Super Admin; your account remains an Admin." xml:space="preserve"><value>{0} bliver Super Admin; din konto forbliver Admin.</value></data>
+  <data name="Both accounts must sign in again. Only {0} could transfer it back." xml:space="preserve"><value>Begge konti skal logge ind igen. Kun {0} vil kunne overdrage det tilbage.</value></data>
+  <data name="Type {0} to confirm." xml:space="preserve"><value>Skriv {0} for at bekræfte.</value></data>
+  <data name="Type the new owner’s username to confirm." xml:space="preserve"><value>Skriv den nye ejers brugernavn for at bekræfte.</value></data>
+  <data name="This doesn’t match {0}." xml:space="preserve"><value>Det matcher ikke {0}.</value></data>
+  <data name="Choose another active website account. {0} was changed by another administrator a moment ago; choose again to continue." xml:space="preserve"><value>Vælg en anden aktiv hjemmesidekonto. {0} blev ændret af en anden administrator for et øjeblik siden; vælg igen for at fortsætte.</value></data>
+  <data name="Choose another active website account. {0} was disabled a moment ago." xml:space="preserve"><value>Vælg en anden aktiv hjemmesidekonto. {0} blev deaktiveret for et øjeblik siden.</value></data>
+  <data name="We couldn’t confirm the transfer" xml:space="preserve"><value>Vi kunne ikke bekræfte overdragelsen</value></data>
+  <data name="Don’t repeat it." xml:space="preserve"><value>Gentag den ikke.</value></data>
+  <data name="It may have gone through. Check who owns the community now." xml:space="preserve"><value>Den kan være gået igennem. Tjek, hvem der ejer fællesskabet nu.</value></data>
+  <data name="Check ownership" xml:space="preserve"><value>Tjek ejerskab</value></data>
+  <data name="Ownership transferred" xml:space="preserve"><value>Ejerskab overdraget</value></data>
+  <data name="Your session has ended. Sign in again to continue as an Admin." xml:space="preserve"><value>Din session er afsluttet. Log ind igen for at fortsætte som Admin.</value></data>
+  <data name="Sign in again" xml:space="preserve"><value>Log ind igen</value></data>
+  <data name="It didn’t go through." xml:space="preserve"><value>Den gik ikke igennem.</value></data>
+  <data name="You’re still the Super Admin. Nothing changed." xml:space="preserve"><value>Du er stadig Super Admin. Intet blev ændret.</value></data>
+  <data name="{0}: {1}" xml:space="preserve"><value>{0}: {1}</value></data>
+  <data name="User" xml:space="preserve"><value>Bruger</value></data>
+  <data name="Captain" xml:space="preserve"><value>Kaptajn</value></data>
+  <data name="Co-captain" xml:space="preserve"><value>Medkaptajn</value></data>
+  <data name="Member" xml:space="preserve"><value>Medlem</value></data>
+  <data name="Couldn’t load accounts" xml:space="preserve"><value>Konti kunne ikke indlæses</value></data>
+  <data name="Nothing was changed. Try again." xml:space="preserve"><value>Intet blev ændret. Prøv igen.</value></data>
+  <data name="Current event roles" xml:space="preserve"><value>Aktuelle roller i events</value></data>
+  <data name="{0} accounts" xml:space="preserve"><value>{0} konti</value></data>
+  <data name="{0} disabled" xml:space="preserve"><value>{0} deaktiveret</value></data>
+  <!-- Lane T (T1): Audit -->
+  <data name="Reason and context" xml:space="preserve"><value>Begrundelse og sammenhæng</value></data>
+  <data name="Context" xml:space="preserve"><value>Sammenhæng</value></data>
+  <data name="Automated" xml:space="preserve"><value>Automatisk</value></data>
+  <data name="Hidden event" xml:space="preserve"><value>Skjult event</value></data>
+  <data name="Summary" xml:space="preserve"><value>Oversigt</value></data>
+  <data name="When" xml:space="preserve"><value>Tidspunkt</value></data>
+  <data name="Actor" xml:space="preserve"><value>Udført af</value></data>
+  <data name="System (automatic)" xml:space="preserve"><value>System (automatisk)</value></data>
+  <data name="Unknown event" xml:space="preserve"><value>Ukendt event</value></data>
+  <data name="No event recorded" xml:space="preserve"><value>Intet event registreret</value></data>
+  <data name="Record" xml:space="preserve"><value>Post</value></data>
+  <data name="Changes" xml:space="preserve"><value>Ændringer</value></data>
+  <data name="1 field" xml:space="preserve"><value>1 felt</value></data>
+  <data name="{0} fields" xml:space="preserve"><value>{0} felter</value></data>
+  <data name="Field changes" xml:space="preserve"><value>Feltændringer</value></data>
+  <data name="Field" xml:space="preserve"><value>Felt</value></data>
+  <data name="Show full values" xml:space="preserve"><value>Vis hele værdierne</value></data>
+  <data name="Show less" xml:space="preserve"><value>Vis mindre</value></data>
+  <data name="Details are withheld because this action concerns a code, password or credential." xml:space="preserve"><value>Oplysningerne vises ikke, fordi handlingen vedrører en kode, adgangskode eller legitimation.</value></data>
+  <data name="A new record was added; there were no earlier values to compare. Its recorded values are in Technical details." xml:space="preserve"><value>En ny post blev tilføjet; der var ingen tidligere værdier at sammenligne med. Dens registrerede værdier står under Tekniske oplysninger.</value></data>
+  <data name="The record was deleted. Its last values are in Technical details." xml:space="preserve"><value>Posten blev slettet. Dens sidste værdier står under Tekniske oplysninger.</value></data>
+  <data name="No field changes were recorded for this entry." xml:space="preserve"><value>Der blev ikke registreret feltændringer for denne post.</value></data>
+  <data name="Technical details" xml:space="preserve"><value>Tekniske oplysninger</value></data>
+  <data name="Action key" xml:space="preserve"><value>Handlingsnøgle</value></data>
+  <data name="Details" xml:space="preserve"><value>Detaljer</value></data>
+  <data name="Newer entry" xml:space="preserve"><value>Nyere post</value></data>
+  <data name="Newer" xml:space="preserve"><value>Nyere</value></data>
+  <data name="Older entry" xml:space="preserve"><value>Ældre post</value></data>
+  <data name="Older" xml:space="preserve"><value>Ældre</value></data>
+  <data name="Audit" xml:space="preserve"><value>Audit</value></data>
+  <data name="{0} actions" xml:space="preserve"><value>{0}-handlinger</value></data>
+  <data name="Times in Copenhagen time ({0})" xml:space="preserve"><value>Tider i københavnsk tid ({0})</value></data>
+  <data name="Enter dates like 27 May 2027." xml:space="preserve"><value>Skriv datoer som 27 maj 2027.</value></data>
+  <data name="The start date must be on or before the end date." xml:space="preserve"><value>Startdatoen skal være på eller før slutdatoen.</value></data>
+  <data name="Use 100 characters or fewer." xml:space="preserve"><value>Brug højst 100 tegn.</value></data>
+  <data name="Filter the history" xml:space="preserve"><value>Filtrer historikken</value></data>
+  <data name="Clear actor filter" xml:space="preserve"><value>Ryd brugerfilter</value></data>
+  <data name="More filters" xml:space="preserve"><value>Flere filtre</value></data>
+  <data name="1 more filter applied" xml:space="preserve"><value>1 filter mere anvendt</value></data>
+  <data name="{0} more filters applied" xml:space="preserve"><value>{0} filtre mere anvendt</value></data>
+  <data name="Active filters" xml:space="preserve"><value>Aktive filtre</value></data>
+  <data name="Remove filter: {0}" xml:space="preserve"><value>Fjern filter: {0}</value></data>
+  <data name="Actor: {0}" xml:space="preserve"><value>Udført af: {0}</value></data>
+  <data name="Event: {0}" xml:space="preserve"><value>Event: {0}</value></data>
+  <data name="Action: {0}" xml:space="preserve"><value>Handling: {0}</value></data>
+  <data name="Record: {0}" xml:space="preserve"><value>Post: {0}</value></data>
+  <data name="From {0}" xml:space="preserve"><value>Fra {0}</value></data>
+  <data name="Until {0}" xml:space="preserve"><value>Til {0}</value></data>
+  <data name="Clear all" xml:space="preserve"><value>Ryd alle</value></data>
+  <data name="Some filters in the link weren’t recognised." xml:space="preserve"><value>Nogle filtre i linket blev ikke genkendt.</value></data>
+  <data name="They were left out; the rest are applied." xml:space="preserve"><value>De blev udeladt; resten er anvendt.</value></data>
+  <data name="Audit entries, newest first" xml:space="preserve"><value>Auditposter, nyeste først</value></data>
+  <data name="No event" xml:space="preserve"><value>Intet event</value></data>
+  <data name="System" xml:space="preserve"><value>System</value></data>
+  <data name="1 change" xml:space="preserve"><value>1 ændring</value></data>
+  <data name="{0} changes" xml:space="preserve"><value>{0} ændringer</value></data>
+  <data name="No entries on this page" xml:space="preserve"><value>Ingen poster på denne side</value></data>
+  <data name="No entries match these filters" xml:space="preserve"><value>Ingen poster matcher disse filtre</value></data>
+  <data name="No history yet" xml:space="preserve"><value>Ingen historik endnu</value></data>
+  <data name="The history may have changed since this link was made." xml:space="preserve"><value>Historikken kan have ændret sig, siden linket blev lavet.</value></data>
+  <data name="Try removing a filter or widening the date range." xml:space="preserve"><value>Prøv at fjerne et filter eller udvide datointervallet.</value></data>
+  <data name="Administrative actions appear here as they happen." xml:space="preserve"><value>Administrative handlinger vises her, når de sker.</value></data>
+  <data name="Showing 1 entry" xml:space="preserve"><value>Viser 1 post</value></data>
+  <data name="Showing {0} entries" xml:space="preserve"><value>Viser {0} poster</value></data>
+  <data name=" matching your filters" xml:space="preserve"><value> der matcher dine filtre</value></data>
+  <data name="Audit entry" xml:space="preserve"><value>Auditpost</value></data>
+  <data name="Entry not found" xml:space="preserve"><value>Post ikke fundet</value></data>
+  <data name="This entry isn’t available" xml:space="preserve"><value>Denne post er ikke tilgængelig</value></data>
+  <data name="The link may be incomplete, or the entry belongs to history you can’t view here. Audit entries are never edited or deleted." xml:space="preserve"><value>Linket er måske ufuldstændigt, eller posten hører til historik, du ikke kan se her. Auditposter bliver aldrig redigeret eller slettet.</value></data>
+  <data name="Event filter" xml:space="preserve"><value>Eventfilter</value></data>
+  <data name="All events" xml:space="preserve"><value>Alle events</value></data>
+  <data name="Hidden · {0}" xml:space="preserve"><value>Skjult · {0}</value></data>
+  <data name="Action filter" xml:space="preserve"><value>Handlingsfilter</value></data>
+  <data name="All actions" xml:space="preserve"><value>Alle handlinger</value></data>
+  <data name="Specific action" xml:space="preserve"><value>Bestemt handling</value></data>
+  <data name="Specific action…" xml:space="preserve"><value>Bestemt handling…</value></data>
+  <data name="Any action" xml:space="preserve"><value>Enhver handling</value></data>
+  <data name="Record type" xml:space="preserve"><value>Posttype</value></data>
+  <data name="Any record type" xml:space="preserve"><value>Enhver posttype</value></data>
+  <data name="Date range" xml:space="preserve"><value>Datointerval</value></data>
+  <data name="Copenhagen time" xml:space="preserve"><value>københavnsk tid</value></data>
+  <data name="From" xml:space="preserve"><value>Fra</value></data>
+  <data name="dd mmm yyyy" xml:space="preserve"><value>dd mmm åååå</value></data>
+  <data name="To" xml:space="preserve"><value>Til</value></data>
+  <data name="Both days are included. Leave either blank for no limit." xml:space="preserve"><value>Begge dage er medregnet. Lad et felt stå tomt for ingen grænse.</value></data>
+  <data name="Reset these" xml:space="preserve"><value>Nulstil disse</value></data>
+  <data name="Apply" xml:space="preserve"><value>Anvend</value></data>
+  <data name="Recorded" xml:space="preserve"><value>Registreret</value></data>
+  <data name="Today" xml:space="preserve"><value>I dag</value></data>
+  <data name="Last 7 days" xml:space="preserve"><value>Seneste 7 dage</value></data>
+  <data name="Last 30 days" xml:space="preserve"><value>Seneste 30 dage</value></data>
+  <data name="Couldn’t load the history" xml:space="preserve"><value>Historikken kunne ikke indlæses</value></data>
+  <data name="Your filters are kept. Check your connection and try again." xml:space="preserve"><value>Dine filtre er bevaret. Tjek din forbindelse, og prøv igen.</value></data>
+  <data name="Signups" xml:space="preserve"><value>Tilmeldinger</value></data>
+  <data name="Teams" xml:space="preserve"><value>Hold</value></data>
+  <data name="Draft" xml:space="preserve"><value>Draft</value></data>
+  <data name="Board" xml:space="preserve"><value>Plade</value></data>
+  <data name="Evidence" xml:space="preserve"><value>Dokumentation</value></data>
+  <data name="Catalogue" xml:space="preserve"><value>Katalog</value></data>
+  <data name="Search accounts" xml:space="preserve"><value>Søg i konti</value></data>
+  <data name="Filter by actor" xml:space="preserve"><value>Filtrer efter udførende</value></data>
+  <data name="Matches actors whose name contains what you type. Press Enter to apply." xml:space="preserve"><value>Matcher udførende, hvis navn indeholder det, du skriver. Tryk Enter for at anvende.</value></data>
+  <data name="Only technical fields changed. See Technical details." xml:space="preserve"><value>Kun tekniske felter blev ændret. Se Tekniske oplysninger.</value></data>
+  <!-- Lane T (T2): Catalogue -->
+  <data name="Roll group can only be changed by the Super Admin." xml:space="preserve"><value>Kastegruppen kan kun ændres af Super Admin.</value></data>
+  <data name="These rate settings can’t be changed here. Your changes were not saved. Reload the editor." xml:space="preserve"><value>Disse rateindstillinger kan ikke ændres her. Dine ændringer blev ikke gemt. Genindlæs redigeringen.</value></data>
+  <data name="Choose Boss, Skilling boss or Minigame." xml:space="preserve"><value>Vælg Boss, Skilling boss eller Minigame.</value></data>
+  <data name="Use 200 characters or fewer." xml:space="preserve"><value>Brug højst 200 tegn.</value></data>
+  <data name="Enter the item name." xml:space="preserve"><value>Angiv genstandens navn.</value></data>
+  <data name="Enter the drop rate, like 1/512." xml:space="preserve"><value>Angiv droprate, f.eks. 1/512.</value></data>
+  <data name="Enter a roll group of 120 characters or fewer." xml:space="preserve"><value>Angiv en kastegruppe på højst 120 tegn.</value></data>
+  <data name="Confirm the deactivation first. Nothing was changed." xml:space="preserve"><value>Bekræft deaktiveringen først. Intet blev ændret.</value></data>
+  <data name="Only the Super Admin can delete catalogue records." xml:space="preserve"><value>Kun Super Admin kan slette katalogposter.</value></data>
+  <data name="No activities yet" xml:space="preserve"><value>Ingen aktiviteter endnu</value></data>
+  <data name="{0} active activities" xml:space="preserve"><value>{0} aktive aktiviteter</value></data>
+  <data name="{0} drops" xml:space="preserve"><value>{0} drops</value></data>
+  <data name="Shared by every event’s board estimates" xml:space="preserve"><value>Bruges af alle events’ pladeestimater</value></data>
+  <data name="Add activity" xml:space="preserve"><value>Tilføj aktivitet</value></data>
+  <data name="Find activities and drops" xml:space="preserve"><value>Find aktiviteter og drops</value></data>
+  <data name="Search activities and drops" xml:space="preserve"><value>Søg i aktiviteter og drops</value></data>
+  <data name="Category" xml:space="preserve"><value>Kategori</value></data>
+  <data name="Activities" xml:space="preserve"><value>Aktiviteter</value></data>
+  <data name="Rate missing" xml:space="preserve"><value>Rate mangler</value></data>
+  <data name="{0} without probability" xml:space="preserve"><value>{0} uden sandsynlighed</value></data>
+  <data name="{0} without value" xml:space="preserve"><value>{0} uden værdi</value></data>
+  <data name="No drops" xml:space="preserve"><value>Ingen drops</value></data>
+  <data name="{0} runs/hr" xml:space="preserve"><value>{0} gennemførelser/t</value></data>
+  <data name="{0} kills/hr" xml:space="preserve"><value>{0} drab/t</value></data>
+  <data name="Not set" xml:space="preserve"><value>Ikke angivet</value></data>
+  <data name="matches {0}" xml:space="preserve"><value>matcher {0}</value></data>
+  <data name="{0} + {1} inactive" xml:space="preserve"><value>{0} + {1} inaktive</value></data>
+  <data name="The catalogue is empty" xml:space="preserve"><value>Kataloget er tomt</value></data>
+  <data name="No activities match" xml:space="preserve"><value>Ingen aktiviteter matcher</value></data>
+  <data name="No inactive activities" xml:space="preserve"><value>Ingen inaktive aktiviteter</value></data>
+  <data name="No active activities" xml:space="preserve"><value>Ingen aktive aktiviteter</value></data>
+  <data name="Add a boss or activity, then its drops, to give boards EHB estimates." xml:space="preserve"><value>Tilføj en boss eller aktivitet og derefter dens drops for at give plader EHB-estimater.</value></data>
+  <data name="Search looks at activity and drop names. Try another word or category." xml:space="preserve"><value>Søgningen ser på navne på aktiviteter og drops. Prøv et andet ord eller en anden kategori.</value></data>
+  <data name="Deactivated activities appear here." xml:space="preserve"><value>Deaktiverede aktiviteter vises her.</value></data>
+  <data name="Clear search and filters" xml:space="preserve"><value>Ryd søgning og filtre</value></data>
+  <data name="1 activity match" xml:space="preserve"><value>1 aktivitet matcher</value></data>
+  <data name="{0} activities match" xml:space="preserve"><value>{0} aktiviteter matcher</value></data>
+  <data name="1 activity" xml:space="preserve"><value>1 aktivitet</value></data>
+  <data name="{0} activities" xml:space="preserve"><value>{0} aktiviteter</value></data>
+  <data name="Loading activity" xml:space="preserve"><value>Indlæser aktivitet</value></data>
+  <data name="Couldn’t load this activity" xml:space="preserve"><value>Aktiviteten kunne ikke indlæses</value></data>
+  <data name="Boss" xml:space="preserve"><value>Boss</value></data>
+  <data name="Skilling boss" xml:space="preserve"><value>Skilling-boss</value></data>
+  <data name="Minigame" xml:space="preserve"><value>Minispil</value></data>
+  <data name="run" xml:space="preserve"><value>gennemførelse</value></data>
+  <data name="kill" xml:space="preserve"><value>drab</value></data>
+  <data name="No value" xml:space="preserve"><value>Ingen værdi</value></data>
+  <data name="untradeable, 0 gp" xml:space="preserve"><value>kan ikke handles, 0 gp</value></data>
+  <data name="{0} gp" xml:space="preserve"><value>{0} gp</value></data>
+  <data name="This activity isn’t available" xml:space="preserve"><value>Aktiviteten er ikke tilgængelig</value></data>
+  <data name="It may have been deleted, or the link is incomplete." xml:space="preserve"><value>Den kan være slettet, eller linket er ufuldstændigt.</value></data>
+  <data name="{0} · inactive" xml:space="preserve"><value>{0} · inaktiv</value></data>
+  <data name="Activity" xml:space="preserve"><value>Aktivitet</value></data>
+  <data name="Settings" xml:space="preserve"><value>Indstillinger</value></data>
+  <data name="Changed" xml:space="preserve"><value>Ændret</value></data>
+  <data name="Name" xml:space="preserve"><value>Navn</value></data>
+  <data name="Runs per hour" xml:space="preserve"><value>Gennemførelser pr. time</value></data>
+  <data name="Kills per hour" xml:space="preserve"><value>Drab pr. time</value></data>
+  <data name="Efficient runs or completions in one hour." xml:space="preserve"><value>Effektive gennemførelser på én time.</value></data>
+  <data name="Efficient kills in one hour, at the group size the drop rates assume." xml:space="preserve"><value>Effektive drab på én time ved den gruppestørrelse, som drop rates forudsætter.</value></data>
+  <data name="Team size" xml:space="preserve"><value>Holdstørrelse</value></data>
+  <data name="The group size the rates assume. It isn’t used in calculations." xml:space="preserve"><value>Den gruppestørrelse, raterne forudsætter. Den bruges ikke i beregninger.</value></data>
+  <data name="Image URL" xml:space="preserve"><value>Billed-URL</value></data>
+  <data name="optional" xml:space="preserve"><value>valgfri</value></data>
+  <data name="OSRS Wiki or direct image link" xml:space="preserve"><value>OSRS Wiki- eller direkte billedlink</value></data>
+  <data name="Verified" xml:space="preserve"><value>Bekræftet</value></data>
+  <data name="Unsupported" xml:space="preserve"><value>Ikke understøttet</value></data>
+  <data name="Couldn’t check" xml:space="preserve"><value>Kunne ikke tjekkes</value></data>
+  <data name="Not checked" xml:space="preserve"><value>Ikke tjekket</value></data>
+  <data name="Wise Old Man metric" xml:space="preserve"><value>Wise Old Man-metrik</value></data>
+  <data name="Lets events show Wise Old Man activity for this boss. A verified metric means Wise Old Man tracks it, not that every player has data." xml:space="preserve"><value>Lader events vise Wise Old Man-aktivitet for denne boss. En bekræftet metrik betyder, at Wise Old Man følger den, ikke at alle spillere har data.</value></data>
+  <data name="Metric" xml:space="preserve"><value>Metrik</value></data>
+  <data name="e.g. zulrah" xml:space="preserve"><value>f.eks. zulrah</value></data>
+  <data name="Suggest" xml:space="preserve"><value>Foreslå</value></data>
+  <data name="Use the metric for this exact activity or raid mode." xml:space="preserve"><value>Brug metrikken for præcis denne aktivitet eller raid-tilstand.</value></data>
+  <data name="Last checked {0}." xml:space="preserve"><value>Sidst tjekket {0}.</value></data>
+  <data name="Not checked yet." xml:space="preserve"><value>Ikke tjekket endnu.</value></data>
+  <data name="Validate and save" xml:space="preserve"><value>Valider og gem</value></data>
+  <data name="Save without validating" xml:space="preserve"><value>Gem uden at validere</value></data>
+  <data name="Drops" xml:space="preserve"><value>Drops</value></data>
+  <data name="Add drop" xml:space="preserve"><value>Tilføj drop</value></data>
+  <data name="Save the activity first. Its drops are added here afterwards." xml:space="preserve"><value>Gem aktiviteten først. Dens drops tilføjes her bagefter.</value></data>
+  <data name="No drops yet. Add the first one to give this activity EHB estimates." xml:space="preserve"><value>Ingen drops endnu. Tilføj det første for at give aktiviteten EHB-estimater.</value></data>
+  <data name="1 in {0} per {1}" xml:space="preserve"><value>1 ud af {0} pr. {1}</value></data>
+  <data name="No probability" xml:space="preserve"><value>Ingen sandsynlighed</value></data>
+  <data name="Shared" xml:space="preserve"><value>Delt</value></data>
+  <data name="EHB" xml:space="preserve"><value>EHB</value></data>
+  <data name="no rate" xml:space="preserve"><value>ingen rate</value></data>
+  <data name="no EHB" xml:space="preserve"><value>ingen EHB</value></data>
+  <data name="Edit {0}" xml:space="preserve"><value>Rediger {0}</value></data>
+  <data name="Item name" xml:space="preserve"><value>Genstandsnavn</value></data>
+  <data name="Shared with {0}. Name, image and value change there too." xml:space="preserve"><value>Delt med {0}. Navn, billede og værdi ændres også der.</value></data>
+  <data name="The item’s name everywhere it appears." xml:space="preserve"><value>Genstandens navn alle steder, den vises.</value></data>
+  <data name="Drop rate" xml:space="preserve"><value>Drop-rate</value></data>
+  <data name="Calculated EHB" xml:space="preserve"><value>Beregnet EHB</value></data>
+  <data name="shared item" xml:space="preserve"><value>delt genstand</value></data>
+  <data name="How the rate is counted" xml:space="preserve"><value>Sådan tælles raten</value></data>
+  <data name="Roll group: {0}" xml:space="preserve"><value>Kastegruppe: {0}</value></data>
+  <data name="Chance per {0}" xml:space="preserve"><value>Chance pr. {0}</value></data>
+  <data name="1 in {0} ({1} rolls of 1 in {2})" xml:space="preserve"><value>1 ud af {0} ({1} kast med 1 ud af {2})</value></data>
+  <data name="1 in {0}" xml:space="preserve"><value>1 ud af {0}</value></data>
+  <data name="Not set: the rate isn’t a probability" xml:space="preserve"><value>Ikke angivet: raten er ikke en sandsynlighed</value></data>
+  <data name="Source" xml:space="preserve"><value>Kilde</value></data>
+  <data name="Note" xml:space="preserve"><value>Note</value></data>
+  <data name="Roll group" xml:space="preserve"><value>Kastegruppe</value></data>
+  <data name="Save drop" xml:space="preserve"><value>Gem drop</value></data>
+  <data name="No changes yet." xml:space="preserve"><value>Ingen ændringer endnu.</value></data>
+  <data name="Value and item mapping" xml:space="preserve"><value>Værdi og genstandskobling</value></data>
+  <data name="Untradeable · 0 gp" xml:space="preserve"><value>Kan ikke handles · 0 gp</value></data>
+  <data name="Manual · {0} gp" xml:space="preserve"><value>Manuel · {0} gp</value></data>
+  <data name="Hourly price · {0} gp" xml:space="preserve"><value>Timepris · {0} gp</value></data>
+  <data name="These belong to the shared item (also used by {0}). Approved boards and event prices keep their own snapshot." xml:space="preserve"><value>Disse hører til den delte genstand (bruges også af {0}). Godkendte plader og eventpriser beholder deres eget øjebliksbillede.</value></data>
+  <data name="These belong to the shared item. Approved boards and event prices keep their own snapshot." xml:space="preserve"><value>Disse hører til den delte genstand. Godkendte plader og eventpriser beholder deres eget øjebliksbillede.</value></data>
+  <data name="Stored value" xml:space="preserve"><value>Gemt værdi</value></data>
+  <data name="None yet. Missing isn’t zero; tiles need a value." xml:space="preserve"><value>Ingen endnu. Manglende er ikke nul; felter skal have en værdi.</value></data>
+  <data name="{0} gp · hourly price" xml:space="preserve"><value>{0} gp · timepris</value></data>
+  <data name="{0} gp · manual, fixed during refreshes" xml:space="preserve"><value>{0} gp · manuel, fast ved opdateringer</value></data>
+  <data name="0 gp · untradeable" xml:space="preserve"><value>0 gp · kan ikke handles</value></data>
+  <data name="Item ID" xml:space="preserve"><value>Genstands-id</value></data>
+  <data name="Not in the item list" xml:space="preserve"><value>Ikke på genstandslisten</value></data>
+  <data name=" · ID {0}, checked {1}" xml:space="preserve"><value> · id {0}, tjekket {1}</value></data>
+  <data name=" · ID {0}" xml:space="preserve"><value> · id {0}</value></data>
+  <data name="An hourly price of {0} gp ({1}) looked like an unusual change and wasn’t used. The trusted value was kept." xml:space="preserve"><value>En timepris på {0} gp ({1}) lignede en usædvanlig ændring og blev ikke brugt. Den betroede værdi blev beholdt.</value></data>
+  <data name="Price source" xml:space="preserve"><value>Priskilde</value></data>
+  <data name="Manual value" xml:space="preserve"><value>Manuel værdi</value></data>
+  <data name="OSRS Wiki item ID" xml:space="preserve"><value>OSRS Wiki-genstands-id</value></data>
+  <data name="e.g. 12922" xml:space="preserve"><value>f.eks. 12922</value></data>
+  <data name="Validate and fetch price" xml:space="preserve"><value>Valider og hent pris</value></data>
+  <data name="Deactivate drop…" xml:space="preserve"><value>Deaktivér drop …</value></data>
+  <data name="Reactivate drop" xml:space="preserve"><value>Genaktivér drop</value></data>
+  <data name="Delete permanently…" xml:space="preserve"><value>Slet permanent …</value></data>
+  <data name="Availability" xml:space="preserve"><value>Tilgængelighed</value></data>
+  <data name="Deactivate" xml:space="preserve"><value>Deaktivér</value></data>
+  <data name="Reactivate" xml:space="preserve"><value>Genaktivér</value></data>
+  <data name="Hides it from new tiles. Draft boards that use it can’t be approved while it’s inactive; approved boards and history keep it." xml:space="preserve"><value>Skjuler den fra nye felter. Kladdeplader, der bruger den, kan ikke godkendes, mens den er inaktiv; godkendte plader og historik beholder den.</value></data>
+  <data name="Makes it available for new tiles again." xml:space="preserve"><value>Gør den tilgængelig for nye felter igen.</value></data>
+  <data name="Deactivate…" xml:space="preserve"><value>Deaktivér …</value></data>
+  <data name="Delete permanently" xml:space="preserve"><value>Slet permanent</value></data>
+  <data name="Only for an activity nothing uses. Super Admin only." xml:space="preserve"><value>Kun for en aktivitet, som intet bruger. Kun Super Admin.</value></data>
+  <data name="Delete…" xml:space="preserve"><value>Slet …</value></data>
+  <data name="Not added yet" xml:space="preserve"><value>Ikke tilføjet endnu</value></data>
+  <data name="Activity settings changed" xml:space="preserve"><value>Aktivitetsindstillinger ændret</value></data>
+  <data name="Save activity" xml:space="preserve"><value>Gem aktivitet</value></data>
+  <data name="New drop" xml:space="preserve"><value>Nyt drop</value></data>
+  <data name="e.g. Tanzanite fang" xml:space="preserve"><value>f.eks. Tanzanite fang</value></data>
+  <data name="1/512 or 2 x 1/1,024" xml:space="preserve"><value>1/512 eller 2 x 1/1,024</value></data>
+  <data name="Write it as shown on the Wiki. Your own chance, at the group size the activity rate uses." xml:space="preserve"><value>Skriv den som på Wikien. Din egen chance ved den gruppestørrelse, aktivitetens rate bruger.</value></data>
+  <data name="Catalogue value" xml:space="preserve"><value>Katalogværdi</value></data>
+  <data name="for the new item" xml:space="preserve"><value>for den nye genstand</value></data>
+  <data name="How to value it" xml:space="preserve"><value>Sådan værdisættes den</value></data>
+  <data name="Value in GP" xml:space="preserve"><value>Værdi i GP</value></data>
+  <data name="Hourly price" xml:space="preserve"><value>Timepris</value></data>
+  <data name="Manual" xml:space="preserve"><value>Manuel</value></data>
+  <data name="Untradeable" xml:space="preserve"><value>Kan ikke handles</value></data>
+  <data name="Enter value" xml:space="preserve"><value>Angiv værdi</value></data>
+  <data name="Fetch price" xml:space="preserve"><value>Hent pris</value></data>
+  <data name="Couldn’t load the catalogue" xml:space="preserve"><value>Kataloget kunne ikke indlæses</value></data>
+  <data name="no value yet" xml:space="preserve"><value>ingen værdi endnu</value></data>
+  <data name="value {0} gp" xml:space="preserve"><value>værdi {0} gp</value></data>
+  <data name="Checking what uses it…" xml:space="preserve"><value>Tjekker, hvad der bruger den …</value></data>
+  <data name="the new activity" xml:space="preserve"><value>den nye aktivitet</value></data>
+  <data name="the activity settings" xml:space="preserve"><value>aktivitetsindstillingerne</value></data>
+  <data name="your changes to {0}" xml:space="preserve"><value>dine ændringer af {0}</value></data>
+  <data name="the value and mapping changes for {0}" xml:space="preserve"><value>værdi- og koblingsændringerne for {0}</value></data>
+  <data name="the new drop" xml:space="preserve"><value>det nye drop</value></data>
+  <data name="Discard unsaved changes?" xml:space="preserve"><value>Kassér ikke-gemte ændringer?</value></data>
+  <data name="Discards {0}." xml:space="preserve"><value>Kasserer {0}.</value></data>
+  <data name="Keep editing" xml:space="preserve"><value>Fortsæt redigering</value></data>
+  <data name="Discard" xml:space="preserve"><value>Kassér</value></data>
+  <data name="Saving recalculates EHB for this activity’s {0} drops and any draft boards using them. Approved boards keep their snapshot." xml:space="preserve"><value>Når du gemmer, genberegnes EHB for aktivitetens {0} drops og kladdeplader, der bruger dem. Godkendte plader beholder deres øjebliksbillede.</value></data>
+  <data name="Without a rate, its drops have no EHB and draft tiles using them can’t be approved." xml:space="preserve"><value>Uden en rate har dens drops ingen EHB, og kladdefelter, der bruger dem, kan ikke godkendes.</value></data>
+  <data name="Enter a name." xml:space="preserve"><value>Angiv et navn.</value></data>
+  <data name="An activity named {0} already exists." xml:space="preserve"><value>Der findes allerede en aktivitet ved navn {0}.</value></data>
+  <data name="Enter a number above 0, like 35 or 7.5. Leave it empty if unknown." xml:space="preserve"><value>Angiv et tal over 0, f.eks. 35 eller 7,5. Lad feltet stå tomt, hvis det er ukendt.</value></data>
+  <data name="Enter a whole number of 1 or more." xml:space="preserve"><value>Angiv et helt tal på 1 eller mere.</value></data>
+  <data name="Enter a full link starting with https://." xml:space="preserve"><value>Angiv et fuldt link, der starter med https://.</value></data>
+  <data name="Adding…" xml:space="preserve"><value>Tilføjer …</value></data>
+  <data name="Saving…" xml:space="preserve"><value>Gemmer …</value></data>
+  <data name="{0} added. Add its drops next." xml:space="preserve"><value>{0} er tilføjet. Tilføj dens drops som det næste.</value></data>
+  <data name="{0} saved. EHB recalculated for its drops." xml:space="preserve"><value>{0} er gemt. EHB er genberegnet for dens drops.</value></data>
+  <data name="{0} saved." xml:space="preserve"><value>{0} er gemt.</value></data>
+  <data name="Another admin changed this activity." xml:space="preserve"><value>En anden administrator har ændret aktiviteten.</value></data>
+  <data name="Your changes weren’t saved. The current values are shown; check them and edit again." xml:space="preserve"><value>Dine ændringer blev ikke gemt. De aktuelle værdier vises; tjek dem, og rediger igen.</value></data>
+  <data name="That couldn’t be saved." xml:space="preserve"><value>Det kunne ikke gemmes.</value></data>
+  <data name="We couldn’t confirm the save." xml:space="preserve"><value>Vi kunne ikke bekræfte, at det blev gemt.</value></data>
+  <data name="It may have gone through. Check the current values before saving again." xml:space="preserve"><value>Det kan være gået igennem. Tjek de aktuelle værdier, før du gemmer igen.</value></data>
+  <data name="Check current values" xml:space="preserve"><value>Tjek aktuelle værdier</value></data>
+  <data name="Couldn’t check the current values." xml:space="preserve"><value>De aktuelle værdier kunne ikke tjekkes.</value></data>
+  <data name="It was added." xml:space="preserve"><value>Den blev tilføjet.</value></data>
+  <data name="The current values are shown." xml:space="preserve"><value>De aktuelle værdier vises.</value></data>
+  <data name="It wasn’t added." xml:space="preserve"><value>Den blev ikke tilføjet.</value></data>
+  <data name="Your entries are still here; add it again when ready." xml:space="preserve"><value>Dine indtastninger er her stadig; tilføj den igen, når du er klar.</value></data>
+  <data name="Saved." xml:space="preserve"><value>Gemt.</value></data>
+  <data name="The current values match what you entered." xml:space="preserve"><value>De aktuelle værdier svarer til det, du indtastede.</value></data>
+  <data name="It wasn’t saved." xml:space="preserve"><value>Det blev ikke gemt.</value></data>
+  <data name="Your entries are still here; save again when ready." xml:space="preserve"><value>Dine indtastninger er her stadig; gem igen, når du er klar.</value></data>
+  <data name="Suggested “{0}”. Validate to save it." xml:space="preserve"><value>Foreslog “{0}”. Valider for at gemme den.</value></data>
+  <data name="Wise Old Man isn’t responding. Nothing changed; you can still enter the metric yourself." xml:space="preserve"><value>Wise Old Man svarer ikke. Intet blev ændret; du kan stadig selv angive metrikken.</value></data>
+  <data name="Saved and verified. Wise Old Man tracks this metric; not every player will have data." xml:space="preserve"><value>Gemt og bekræftet. Wise Old Man følger metrikken; ikke alle spillere vil have data.</value></data>
+  <data name="Saved. Wise Old Man doesn’t recognise this metric; check the exact activity or raid mode." xml:space="preserve"><value>Gemt. Wise Old Man genkender ikke metrikken; tjek den præcise aktivitet eller raid-tilstand.</value></data>
+  <data name="Saved. Wise Old Man couldn’t be reached to check it; validate again later." xml:space="preserve"><value>Gemt. Wise Old Man kunne ikke nås for at tjekke den; valider igen senere.</value></data>
+  <data name="Saved without checking." xml:space="preserve"><value>Gemt uden tjek.</value></data>
+  <data name="Saved. No metric is set, so events can’t show Wise Old Man activity for it." xml:space="preserve"><value>Gemt. Der er ingen metrik, så events kan ikke vise Wise Old Man-aktivitet for den.</value></data>
+  <data name="We couldn’t confirm the save. Check the current values before saving again." xml:space="preserve"><value>Vi kunne ikke bekræfte, at det blev gemt. Tjek de aktuelle værdier, før du gemmer igen.</value></data>
+  <data name="{0} rolls of 1 in {1}" xml:space="preserve"><value>{0} kast med 1 ud af {1}</value></data>
+  <data name="about {0} EHB" xml:space="preserve"><value>ca. {0} EHB</value></data>
+  <data name="no EHB until the activity has a rate" xml:space="preserve"><value>ingen EHB, før aktiviteten har en rate</value></data>
+  <data name="This activity already has a drop named {0}." xml:space="preserve"><value>Aktiviteten har allerede et drop ved navn {0}.</value></data>
+  <data name="Confirm using the shared item, or change the name." xml:space="preserve"><value>Bekræft brugen af den delte genstand, eller skift navnet.</value></data>
+  <data name="Enter a rate like 1/512, 3/1,024 or 2 x 1/1,024." xml:space="preserve"><value>Angiv en rate som 1/512, 3/1,024 eller 2 x 1/1,024.</value></data>
+  <data name="Renames the shared item for {0} too." xml:space="preserve"><value>Omdøber også den delte genstand for {0}.</value></data>
+  <data name="Point this drop at the shared item instead. The current item keeps its own value and history." xml:space="preserve"><value>Lad dette drop pege på den delte genstand i stedet. Den nuværende genstand beholder sin egen værdi og historik.</value></data>
+  <data name="Used by {0} · {1}. Its rate here stays {2}." xml:space="preserve"><value>Bruges af {0} · {1}. Raten her forbliver {2}.</value></data>
+  <data name="no activity" xml:space="preserve"><value>ingen aktivitet</value></data>
+  <data name="Like 1/512, 3/1,024 or 2 x 1/1,024." xml:space="preserve"><value>F.eks. 1/512, 3/1,024 eller 2 x 1/1,024.</value></data>
+  <data name="{0} EHB" xml:space="preserve"><value>{0} EHB</value></data>
+  <data name="The activity has no runs per hour. Add it in Settings above." xml:space="preserve"><value>Aktiviteten har ingen gennemførelser pr. time. Tilføj det under Indstillinger ovenfor.</value></data>
+  <data name="The activity has no kills per hour. Add it in Settings above." xml:space="preserve"><value>Aktiviteten har ingen drab pr. time. Tilføj det under Indstillinger ovenfor.</value></data>
+  <data name="The rate can’t be turned into a probability. Enter it like 1/512." xml:space="preserve"><value>Raten kan ikke omregnes til en sandsynlighed. Angiv den som 1/512.</value></data>
+  <data name="Was {0}. Approved boards keep their snapshot." xml:space="preserve"><value>Var {0}. Godkendte plader beholder deres øjebliksbillede.</value></data>
+  <data name="Hours to get one at {0} runs per hour." xml:space="preserve"><value>Timer for at få én ved {0} gennemførelser pr. time.</value></data>
+  <data name="Hours to get one at {0} kills per hour." xml:space="preserve"><value>Timer for at få én ved {0} drab pr. time.</value></data>
+  <data name="Saves the name, rate, image and roll group." xml:space="preserve"><value>Gemmer navn, rate, billede og kastegruppe.</value></data>
+  <data name="Saves the name, rate and image." xml:space="preserve"><value>Gemmer navn, rate og billede.</value></data>
+  <data name="Uses the Wiki hourly price for the item ID. Validate to fetch it." xml:space="preserve"><value>Bruger Wikiens timepris for genstands-id’et. Valider for at hente den.</value></data>
+  <data name="A fixed value. Price refreshes don’t change it. Zero is fine." xml:space="preserve"><value>En fast værdi. Prisopdateringer ændrer den ikke. Nul er fint.</value></data>
+  <data name="Stored as 0 GP and never priced." xml:space="preserve"><value>Gemmes som 0 GP og prissættes aldrig.</value></data>
+  <data name="“{0}” is already a shared item" xml:space="preserve"><value>“{0}” er allerede en delt genstand</value></data>
+  <data name="{0} saved. EHB recalculated." xml:space="preserve"><value>{0} er gemt. EHB er genberegnet.</value></data>
+  <data name="Another admin changed this drop or its shared item." xml:space="preserve"><value>En anden administrator har ændret droppet eller dets delte genstand.</value></data>
+  <data name="It may have gone through. Check before saving again." xml:space="preserve"><value>Det kan være gået igennem. Tjek, før du gemmer igen.</value></data>
+  <data name="It was saved. The current values match what you entered." xml:space="preserve"><value>Det blev gemt. De aktuelle værdier svarer til det, du indtastede.</value></data>
+  <data name="Change the shared item?" xml:space="preserve"><value>Ændre den delte genstand?</value></data>
+  <data name="The activities using it changed." xml:space="preserve"><value>De aktiviteter, der bruger den, har ændret sig.</value></data>
+  <data name="Check the list again before confirming." xml:space="preserve"><value>Tjek listen igen, før du bekræfter.</value></data>
+  <data name="This also renames it for {0}." xml:space="preserve"><value>Det omdøber den også for {0}.</value></data>
+  <data name="This also changes its image for {0}." xml:space="preserve"><value>Det ændrer også dens billede for {0}.</value></data>
+  <data name="Names and images belong to the item, so every activity that uses it shows the change." xml:space="preserve"><value>Navne og billeder hører til genstanden, så alle aktiviteter, der bruger den, viser ændringen.</value></data>
+  <data name="Rename everywhere" xml:space="preserve"><value>Omdøb overalt</value></data>
+  <data name="Change everywhere" xml:space="preserve"><value>Ændr overalt</value></data>
+  <data name="Suggested an ID for “{0}”. Validate to save it." xml:space="preserve"><value>Foreslog et id for “{0}”. Valider for at gemme det.</value></data>
+  <data name="The item list couldn’t be reached. Nothing changed; enter the ID yourself or try later." xml:space="preserve"><value>Genstandslisten kunne ikke nås. Intet blev ændret; angiv selv id’et, eller prøv senere.</value></data>
+  <data name="Enter whole GP, like 2500. Zero is fine." xml:space="preserve"><value>Angiv hele GP, f.eks. 2500. Nul er fint.</value></data>
+  <data name="Enter a value. Zero is fine." xml:space="preserve"><value>Angiv en værdi. Nul er fint.</value></data>
+  <data name="Item IDs are whole numbers, like 12922." xml:space="preserve"><value>Genstands-id’er er hele tal, f.eks. 12922.</value></data>
+  <data name="That couldn’t be saved. Check the ID and value and try again." xml:space="preserve"><value>Det kunne ikke gemmes. Tjek id og værdi, og prøv igen.</value></data>
+  <data name="Use the shared item for this drop. Its name, image and value stay shared; the rate is only for this activity." xml:space="preserve"><value>Brug den delte genstand til dette drop. Dens navn, billede og værdi forbliver delte; raten gælder kun denne aktivitet.</value></data>
+  <data name="Used by {0} · {1}." xml:space="preserve"><value>Bruges af {0} · {1}.</value></data>
+  <data name="no activity yet" xml:space="preserve"><value>ingen aktivitet endnu</value></data>
+  <data name="Zero is fine. Manual values stay fixed when prices refresh." xml:space="preserve"><value>Nul er fint. Manuelle værdier forbliver faste, når priser opdateres.</value></data>
+  <data name="Looks up the exact name and its hourly price when you add the drop. If that fails, nothing is added." xml:space="preserve"><value>Slår det præcise navn og dets timepris op, når du tilføjer droppet. Hvis det mislykkes, tilføjes intet.</value></data>
+  <data name="Stored as 0 GP and marked untradeable." xml:space="preserve"><value>Gemmes som 0 GP og markeres som ikke-handlbar.</value></data>
+  <data name="Fetch price and add" xml:space="preserve"><value>Hent pris og tilføj</value></data>
+  <data name="{0} is already a drop for this activity." xml:space="preserve"><value>{0} er allerede et drop for denne aktivitet.</value></data>
+  <data name="Enter a value for the new item. Zero is fine." xml:space="preserve"><value>Angiv en værdi for den nye genstand. Nul er fint.</value></data>
+  <data name="Fetching…" xml:space="preserve"><value>Henter …</value></data>
+  <data name="{0} reactivated on {1}." xml:space="preserve"><value>{0} er genaktiveret på {1}.</value></data>
+  <data name="{0} added to {1}." xml:space="preserve"><value>{0} er tilføjet til {1}.</value></data>
+  <data name="Added with a manual value." xml:space="preserve"><value>Tilføjet med en manuel værdi.</value></data>
+  <data name="{0} The drop wasn’t added. Enter a manual value (zero is fine) and add it; you can set up price fetching later." xml:space="preserve"><value>{0} Droppet blev ikke tilføjet. Angiv en manuel værdi (nul er fint), og tilføj det; du kan opsætte prishentning senere.</value></data>
+  <data name="We couldn’t confirm whether it was added. Check the list below before adding it again." xml:space="preserve"><value>Vi kunne ikke bekræfte, om det blev tilføjet. Tjek listen nedenfor, før du tilføjer det igen.</value></data>
+  <data name="(correction)" xml:space="preserve"><value>(rettelse)</value></data>
+  <data name="and 1 hidden event" xml:space="preserve"><value>og 1 skjult event</value></data>
+  <data name="and {0} hidden events" xml:space="preserve"><value>og {0} skjulte events</value></data>
+  <data name="Deactivate {0}?" xml:space="preserve"><value>Vil du deaktivere {0}?</value></data>
+  <data name="It changed since you opened it." xml:space="preserve"><value>Den er ændret, siden du åbnede den.</value></data>
+  <data name="Another admin edited it. Close this, check the current values and try again." xml:space="preserve"><value>En anden administrator har redigeret den. Luk dette, tjek de aktuelle værdier, og prøv igen.</value></data>
+  <data name="Couldn’t check what uses it." xml:space="preserve"><value>Det kunne ikke tjekkes, hvad der bruger den.</value></data>
+  <data name="Nothing was changed. Close this and try again." xml:space="preserve"><value>Intet blev ændret. Luk dette, og prøv igen.</value></data>
+  <data name="It can’t be picked for new tiles. Its {0} drops stay with it." xml:space="preserve"><value>Den kan ikke vælges til nye felter. Dens {0} drops bliver hos den.</value></data>
+  <data name="It can’t be picked for new tiles. It stays on {0} and can be reactivated." xml:space="preserve"><value>Det kan ikke vælges til nye felter. Det bliver på {0} og kan genaktiveres.</value></data>
+  <data name="Draft boards that use it can’t be approved until it’s reactivated or those tiles change:" xml:space="preserve"><value>Kladdeplader, der bruger den, kan ikke godkendes, før den genaktiveres, eller felterne ændres:</value></data>
+  <data name="No draft board uses it now." xml:space="preserve"><value>Ingen kladdeplade bruger den nu.</value></data>
+  <data name="Approved and published boards keep their snapshot." xml:space="preserve"><value>Godkendte og offentliggjorte plader beholder deres øjebliksbillede.</value></data>
+  <data name="You can reactivate it at any time." xml:space="preserve"><value>Du kan genaktivere den når som helst.</value></data>
+  <data name="Deactivating…" xml:space="preserve"><value>Deaktiverer …</value></data>
+  <data name="Deactivate {0}" xml:space="preserve"><value>Deaktivér {0}</value></data>
+  <data name="{0} deactivated. Draft boards that use it can’t be approved until it’s reactivated." xml:space="preserve"><value>{0} er deaktiveret. Kladdeplader, der bruger den, kan ikke godkendes, før den genaktiveres.</value></data>
+  <data name="{0} deactivated. It stays in the catalogue and can be reactivated." xml:space="preserve"><value>{0} er deaktiveret. Den bliver i kataloget og kan genaktiveres.</value></data>
+  <data name="Reactivate {0}" xml:space="preserve"><value>Genaktivér {0}</value></data>
+  <data name="{0} reactivated. It can be picked for new tiles again." xml:space="preserve"><value>{0} er genaktiveret. Den kan vælges til nye felter igen.</value></data>
+  <data name="{0} reactivated. It can be picked for tiles again." xml:space="preserve"><value>{0} er genaktiveret. Det kan vælges til felter igen.</value></data>
+  <data name="Delete {0} permanently?" xml:space="preserve"><value>Vil du slette {0} permanent?</value></data>
+  <data name="{0} can’t be deleted" xml:space="preserve"><value>{0} kan ikke slettes</value></data>
+  <data name="It’s in use." xml:space="preserve"><value>Den er i brug.</value></data>
+  <data name="It has drops or is used by boards, so deleting it would break them. Deactivate it instead; it can be reactivated later." xml:space="preserve"><value>Den har drops eller bruges af plader, så sletning ville ødelægge dem. Deaktivér den i stedet; den kan genaktiveres senere.</value></data>
+  <data name="Boards use this drop, so deleting it would break them. Deactivate it instead." xml:space="preserve"><value>Plader bruger dette drop, så sletning ville ødelægge dem. Deaktivér det i stedet.</value></data>
+  <data name="Deactivate instead" xml:space="preserve"><value>Deaktivér i stedet</value></data>
+  <data name="Nothing uses it. It’s removed from the catalogue for good; this can’t be undone." xml:space="preserve"><value>Intet bruger den. Den fjernes fra kataloget for altid; det kan ikke fortrydes.</value></data>
+  <data name="Shared items, prices and Audit history are kept." xml:space="preserve"><value>Delte genstande, priser og revisionshistorik bevares.</value></data>
+  <data name="Only this activity’s drop is removed. The shared item, its value and Audit history are kept." xml:space="preserve"><value>Kun aktivitetens drop fjernes. Den delte genstand, dens værdi og revisionshistorik bevares.</value></data>
+  <data name="Deleting…" xml:space="preserve"><value>Sletter …</value></data>
+  <data name="Delete {0} permanently" xml:space="preserve"><value>Slet {0} permanent</value></data>
+  <data name="{0} permanently deleted. Shared items, prices and Audit history are kept." xml:space="preserve"><value>{0} er slettet permanent. Delte genstande, priser og revisionshistorik bevares.</value></data>
+  <data name="{0} permanently deleted from this activity. The shared item is kept." xml:space="preserve"><value>{0} er slettet permanent fra aktiviteten. Den delte genstand bevares.</value></data>
+  <data name="It became used by a board meanwhile, so it wasn’t deleted. Deactivate it instead." xml:space="preserve"><value>Den er imens blevet brugt af en plade, så den blev ikke slettet. Deaktivér den i stedet.</value></data>
+  <data name="It wasn’t deleted." xml:space="preserve"><value>Den blev ikke slettet.</value></data>
+  <data name="We couldn’t confirm the deletion. Close this and check the current values." xml:space="preserve"><value>Vi kunne ikke bekræfte sletningen. Luk dette, og tjek de aktuelle værdier.</value></data>
+  <data name="Activity changes discarded." xml:space="preserve"><value>Aktivitetsændringer er kasseret.</value></data>
+  <data name="Rate" xml:space="preserve"><value>Rate</value></data>
+  <data name="Unavailable" xml:space="preserve"><value>Utilgængelig</value></data>
+  <data name="An item named {0} already exists as a shared item. Confirm using that shared item, or change the name. Nothing was saved." xml:space="preserve"><value>Der findes allerede en delt genstand ved navn {0}. Bekræft brugen af den delte genstand, eller skift navnet. Intet blev gemt.</value></data>
+  <data name="No exact match. Enter the metric for this exact activity or raid mode." xml:space="preserve"><value>Intet præcist match. Angiv metrikken for præcis denne aktivitet eller raid-tilstand.</value></data>
+  <data name="Wise Old Man is limiting requests. Nothing changed; try again later." xml:space="preserve"><value>Wise Old Man begrænser forespørgsler. Intet blev ændret; prøv igen senere.</value></data>
+  <data name="No unique exact-name match. Enter the exact item ID, or mark it untradeable. Nothing changed." xml:space="preserve"><value>Intet entydigt match på det præcise navn. Angiv det præcise genstands-id, eller markér den som ikke-handlbar. Intet blev ændret.</value></data>
+  <data name="The price service is limiting requests, so the ID wasn’t checked." xml:space="preserve"><value>Pristjenesten begrænser forespørgsler, så id’et blev ikke tjekket.</value></data>
+  <data name="The price service isn’t responding, so the ID wasn’t checked." xml:space="preserve"><value>Pristjenesten svarer ikke, så id’et blev ikke tjekket.</value></data>
+  <data name="The stored value was kept." xml:space="preserve"><value>Den gemte værdi blev beholdt.</value></data>
+  <data name="No value is stored yet; enter a manual value or validate later." xml:space="preserve"><value>Der er ingen gemt værdi endnu; angiv en manuel værdi, eller valider senere.</value></data>
+  <data name="Saved. This ID isn’t in the tradeable item list; check the exact variant, or mark it untradeable." xml:space="preserve"><value>Gemt. Id’et er ikke på listen over handlbare genstande; tjek den præcise variant, eller markér den som ikke-handlbar.</value></data>
+  <data name="Verified. Hourly price saved: {0}." xml:space="preserve"><value>Bekræftet. Timepris gemt: {0}.</value></data>
+  <data name="Verified. The new price looked like an unusual change, so the trusted value was kept. Review it or enter a checked manual value." xml:space="preserve"><value>Bekræftet. Den nye pris lignede en usædvanlig ændring, så den betroede værdi blev beholdt. Gennemgå den, eller angiv en tjekket manuel værdi.</value></data>
+  <data name="Verified. Your chosen value was kept." xml:space="preserve"><value>Bekræftet. Din valgte værdi blev beholdt.</value></data>
+  <data name="Saved. {0} is a fixed value; price refreshes won’t change it." xml:space="preserve"><value>Gemt. {0} er en fast værdi; prisopdateringer ændrer den ikke.</value></data>
+  <data name="Saved as untradeable (0 GP)." xml:space="preserve"><value>Gemt som ikke-handlbar (0 GP).</value></data>
+  <data name="The old price was cleared with the old ID; validate or enter a manual value." xml:space="preserve"><value>Den gamle pris blev ryddet sammen med det gamle id; valider, eller angiv en manuel værdi.</value></data>
+  <data name="Validate to fetch the hourly price." xml:space="preserve"><value>Valider for at hente timeprisen.</value></data>
+  <data name="No unique exact-name item was found, so there’s no price." xml:space="preserve"><value>Der blev ikke fundet en entydig genstand med det præcise navn, så der er ingen pris.</value></data>
+  <data name="The price service is limiting requests." xml:space="preserve"><value>Pristjenesten begrænser forespørgsler.</value></data>
+  <data name="The price service isn’t responding." xml:space="preserve"><value>Pristjenesten svarer ikke.</value></data>
+  <data name="the Wise Old Man metric" xml:space="preserve"><value>Wise Old Man-metrikken</value></data>
+</root>

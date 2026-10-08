@@ -24,7 +24,10 @@ public sealed class Slice4SignupPersistenceDomainTests
         Assert.NotNull(answer.OsrsCharacterId);
         Assert.Throws<InvalidOperationException>(() => regular.Deactivate());
         Assert.Throws<InvalidOperationException>(() => captain.Deactivate());
-        Assert.Throws<InvalidOperationException>(() => coCaptain.Deactivate());
+        coCaptain.Deactivate(Guid.NewGuid(), now, "disabled");
+        Assert.False(coCaptain.Active);
+        coCaptain.EnableCoCaptain();
+        Assert.True(coCaptain.Active);
         Assert.Throws<ArgumentException>(() => new SignupQuestion(Guid.NewGuid(), form.Id, form.EventId, "bad", "Bad", SignupQuestionType.Account, false, 2, null));
     }
 

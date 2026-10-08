@@ -1,0 +1,1730 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Board · DK Legacy Admin</title>
+<script src="./vendor/react.js"></script>
+<script src="./vendor/react-dom.js"></script>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ui/tokens.css">
+<link rel="stylesheet" href="ui/components.css">
+<script src="ui/behavior.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&amp;family=Geist+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+/* Board page only. Shared tokens, components and behaviour: ui/tokens.css, ui/components.css, ui/behavior.js */
+.bd-page{max-width:1480px}
+.bd-title-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.bd-summary{align-items:center}
+.bd-summary .text-btn{font-size:var(--dk-fs-control)}
+.bd-head-acts{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.bd-work{display:grid;grid-template-columns:minmax(0,1fr) 280px;gap:16px;align-items:start}
+.bd-board{padding:14px;overflow-x:auto}
+.bd-side{display:flex;flex-direction:column;gap:12px;position:sticky;top:16px}
+.bd-side-note{margin:0;font-size:var(--dk-fs-small);color:var(--dk-text-3);line-height:1.5}
+.bd-help{margin:10px 0 0;font-size:var(--dk-fs-small);color:var(--dk-text-3);line-height:1.5}
+.bd-issues{margin:6px 0 0;padding-left:18px}
+.bd-issues li+li{margin-top:3px}
+.bd-sk{height:100%;min-height:96px;border-radius:var(--dk-radius-lg)}
+.bd-kind{display:flex;width:100%;margin-bottom:6px}
+.bd-kind .seg-opt{flex:1;justify-content:center;gap:7px}
+.bd-kind-ro{margin:0 0 12px;font-size:var(--dk-fs-control-sm);color:var(--dk-text-2)}
+.bd-desc{min-height:76px}
+.bd-manual{min-height:68px}
+.bd-size-row{display:flex;align-items:flex-end;gap:12px}
+.bd-size-x{padding-bottom:8px;color:var(--dk-text-3)}
+.bd-stepper{display:flex;align-items:center;gap:4px}
+.bd-stepper .input{width:56px;text-align:center;font-variant-numeric:tabular-nums}
+.bd-rz-impact{font-size:var(--dk-fs-control-sm);color:var(--dk-text-2);line-height:1.5}
+.bd-rz-impact.is-blocked{color:var(--dk-warning-fg)}
+.bd-rz-text{margin:0}
+.bd-rz-list{margin:6px 0 0;padding-left:18px;color:var(--dk-text)}
+.bd-pv{width:min(1040px,100%);max-height:calc(100vh - 32px);display:flex;flex-direction:column;padding:0}
+.bd-pv-head{display:flex;align-items:flex-start;gap:12px;padding:18px 20px 12px;border-bottom:1px solid var(--dk-border-subtle)}
+.bd-pv-head .grow{flex:1;min-width:0}
+.bd-pv-body{padding:18px 20px 22px;overflow:auto;background:var(--dk-bg)}
+.bd-pv-grid{display:grid;grid-template-columns:repeat(var(--cols),minmax(110px,1fr));gap:8px}
+.bd-pv-cell{display:flex;flex-direction:column;gap:6px;min-height:132px;padding:10px;border-radius:var(--dk-radius-lg);background:var(--dk-surface);border:1px solid var(--dk-border);font-size:var(--dk-fs-small);color:var(--dk-text-2);line-height:1.4}
+.bd-pv-art{display:block;width:100%;height:56px;border-radius:var(--dk-radius-sm);background:var(--art) center/cover no-repeat}
+.bd-pv-cell b{color:var(--dk-text);font-size:var(--dk-fs-control-sm)}
+.bd-pv-cell.is-empty{border-style:dashed;background:transparent;color:var(--dk-text-3);justify-content:center;align-items:center}
+/* wide boards (7–8 columns) give the board the full width; planning moves below */
+.bd-work.is-stacked{grid-template-columns:minmax(0,1fr)}
+.bd-work.is-stacked .bd-side{position:static;max-width:520px}
+@media (max-width:1180px){.bd-work{grid-template-columns:minmax(0,1fr)}.bd-side{position:static}}
+@media (max-width:640px){.bd-head-acts{width:100%;justify-content:flex-start}.page-head:has(.bd-head-acts){flex-wrap:wrap}}
+
+/* Prototype-only: simulated browser bar (same as the Events artboard; not part of the product UI) */
+.proto-bar{position:fixed;left:12px;bottom:12px;z-index:calc(var(--dk-z-toast) - 1);display:flex;align-items:center;gap:1px;max-width:min(620px,calc(100vw - 24px));padding:3px 12px 3px 3px;border-radius:var(--dk-radius-pill);background:var(--dk-surface-raised);border:1px dashed var(--dk-border-strong);box-shadow:var(--dk-shadow-sm);font-size:var(--dk-fs-meta);color:var(--dk-text-3)}
+.proto-bar .icon-btn{width:26px;height:26px;border-radius:50%}
+.proto-bar .icon-btn .ic{width:14px;height:14px}
+.proto-tag{margin:0 8px 0 4px;font-size:var(--dk-fs-caption);letter-spacing:.02em;white-space:nowrap}
+.proto-url{font-family:var(--dk-font-mono);font-size:var(--dk-fs-meta);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--dk-text-2);min-width:0}
+@media (min-width:1200px){.page .card.form-card{margin-bottom:40px}}
+@media (max-width:640px){.proto-bar{display:none}.form-bar .btn-primary{flex:1}}
+</style>
+</helmet>
+<div class="app dk-theme {{themeClass}}" id="app">
+
+<aside class="side {{sideCls}}" id="sidebar" aria-label="Administration" onKeyDown="{{sideKey}}">
+  <div class="side-top">
+    <button class="account-btn" id="user-btn" aria-haspopup="menu" aria-expanded="{{userMenuOpen}}" title="{{sideTip}}" onClick="{{openUserMenu}}">
+      <span class="logo" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M3 12.5V5.2L8 2.5l5 2.7v7.3"/><path d="M6 12.5V8.5h4v4"/></svg></span>
+      <span class="brand-text"><span class="brand-name">Iron Pact<svg class="ic" viewBox="0 0 16 16"><path d="M4.5 6.5 8 10l3.5-3.5"/></svg></span><span class="brand-sub">Administrator</span></span>
+    </button>
+    <button class="icon-btn collapse-btn" aria-label="{{collapseLabel}}" title="{{collapseLabel}}" aria-expanded="{{sideOpen}}" onClick="{{toggleSide}}"><svg class="ic" viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="11" height="11" rx="1.5"/><path d="M6 2.5v11"/><path class="{{collapseArrowCls}}" d="M10.6 6.2 8.8 8l1.8 1.8"/></svg></button>
+  </div>
+
+  <nav class="nav" aria-label="Administration">
+    <div class="nav-label">Administration</div>
+    <button class="nav-item {{nav.dashboard.cls}}" aria-current="{{nav.dashboard.current}}" title="{{nav.dashboard.tip}}" onClick="{{nav.dashboard.go}}"><svg class="ic" viewBox="0 0 16 16"><path d="M2.5 12a5.5 5.5 0 1 1 11 0"/><path d="M8 12l2.6-3.4"/><path d="M8 12h.01"/></svg><span class="nav-text">Dashboard</span><span class="nav-count">{{nav.dashboard.count}}</span></button>
+    <button class="nav-item {{nav.events.cls}}" aria-current="{{nav.events.current}}" title="{{nav.events.tip}}" onClick="{{nav.events.go}}"><svg class="ic" viewBox="0 0 16 16"><rect x="2.5" y="3.5" width="11" height="10" rx="1.5"/><path d="M2.5 6.5h11M5.5 2v3M10.5 2v3"/></svg><span class="nav-text">Events</span><span class="nav-count">{{nav.events.count}}</span></button>
+    <button class="nav-item {{nav.catalogue.cls}}" aria-current="{{nav.catalogue.current}}" title="{{nav.catalogue.tip}}" onClick="{{nav.catalogue.go}}"><svg class="ic" viewBox="0 0 16 16"><path d="M8 2.5 2.5 5.5 8 8.5l5.5-3z"/><path d="M2.5 8.2 8 11.2l5.5-3M2.5 10.8 8 13.8l5.5-3"/></svg><span class="nav-text">Catalogue</span><span class="nav-count">{{nav.catalogue.count}}</span></button>
+    <button class="nav-item {{nav.accounts.cls}}" aria-current="{{nav.accounts.current}}" title="{{nav.accounts.tip}}" onClick="{{nav.accounts.go}}"><svg class="ic" viewBox="0 0 16 16"><rect x="3" y="2.5" width="10" height="11" rx="1.5"/><circle cx="8" cy="7" r="1.8"/><path d="M5.3 11.5c.5-1.3 1.5-2 2.7-2s2.2.7 2.7 2"/></svg><span class="nav-text">Accounts</span><span class="nav-count">{{nav.accounts.count}}</span></button>
+    <button class="nav-item {{nav.audit.cls}}" aria-current="{{nav.audit.current}}" title="{{nav.audit.tip}}" onClick="{{nav.audit.go}}"><svg class="ic" viewBox="0 0 16 16"><path d="M4 2.5h8v11H4z"/><path d="M6 5.5h4M6 8h4M6 10.5h2.5"/></svg><span class="nav-text">Audit</span><span class="nav-count">{{nav.audit.count}}</span></button>
+  </nav>
+
+  <div class="side-rule" aria-hidden="true"></div>
+
+  <nav class="nav" aria-label="Event">
+    <button class="event-switch" id="event-switch" aria-haspopup="menu" aria-expanded="{{eventMenuOpen}}" title="{{evTip}}" onClick="{{openEventMenu}}">
+      <svg class="ic ev-ic" viewBox="0 0 16 16"><rect x="2.5" y="3.5" width="11" height="10" rx="1.5"/><path d="M2.5 6.5h11M5.5 2v3M10.5 2v3"/></svg>
+      <div class="ev-text" style="flex: 1; min-width: 0">
+        <div class="ev-lbl">Event</div>
+        <div class="ev-name">{{ev.name}}</div>
+        <div class="ev-meta"><span class="dot {{ev.toneCls}}"></span><span class="ev-meta-text" title="{{ev.stage}} · {{ev.when}}">{{ev.stage}} · {{ev.when}}</span></div>
+      </div>
+      <svg class="ic ev-chev" viewBox="0 0 16 16"><path d="M4.5 6.5 8 10l3.5-3.5"/></svg>
+    </button>
+    <div style="height: 8px"></div>
+    <button class="nav-item {{nav.overview.cls}}" aria-current="{{nav.overview.current}}" title="{{nav.overview.tip}}" onClick="{{nav.overview.go}}"><svg class="ic" viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="4.5" height="4.5" rx="1"/><rect x="9" y="2.5" width="4.5" height="4.5" rx="1"/><rect x="2.5" y="9" width="4.5" height="4.5" rx="1"/><rect x="9" y="9" width="4.5" height="4.5" rx="1"/></svg><span class="nav-text">Overview</span><span class="nav-count">{{nav.overview.count}}</span></button>
+    <button class="nav-item {{nav.identity.cls}}" aria-current="{{nav.identity.current}}" title="{{nav.identity.tip}}" onClick="{{nav.identity.go}}"><svg class="ic" viewBox="0 0 16 16"><path d="M3.5 14V2.5M3.5 3h8l-1.5 3 1.5 3h-8"/></svg><span class="nav-text">Identity</span><span class="nav-count">{{nav.identity.count}}</span></button>
+    <button class="nav-item {{nav.schedule.cls}}" aria-current="{{nav.schedule.current}}" title="{{nav.schedule.tip}}" onClick="{{nav.schedule.go}}"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5"/><path d="M8 5v3l2 1.5"/></svg><span class="nav-text">Schedule</span><span class="nav-count">{{nav.schedule.count}}</span></button>
+    <button class="nav-item {{nav.participants.cls}}" aria-current="{{nav.participants.current}}" title="{{nav.participants.tip}}" onClick="{{nav.participants.go}}"><svg class="ic" viewBox="0 0 16 16"><circle cx="6" cy="5.8" r="2.4"/><path d="M1.8 13.3c.5-2.4 2.2-3.5 4.2-3.5s3.7 1.1 4.2 3.5"/><path d="M10.6 3.7a2.3 2.3 0 0 1 0 4.3M11.9 10.1c1.2.5 2 1.5 2.3 3.2"/></svg><span class="nav-text">Participants</span><span class="nav-count">{{nav.participants.count}}</span></button>
+    <button class="nav-item {{nav.signup.cls}}" aria-current="{{nav.signup.current}}" title="{{nav.signup.tip}}" onClick="{{nav.signup.go}}"><svg class="ic" viewBox="0 0 16 16"><rect x="3.5" y="3" width="9" height="11" rx="1.5"/><path d="M6 3V2h4v1M6 7h4M6 9.5h4M6 12h2"/></svg><span class="nav-text">Signup setup</span><span class="nav-count">{{nav.signup.count}}</span></button>
+    <button class="nav-item {{nav.teams.cls}}" aria-current="{{nav.teams.current}}" title="{{nav.teams.tip}}" onClick="{{nav.teams.go}}"><svg class="ic" viewBox="0 0 16 16"><rect x="6" y="2" width="4" height="3" rx=".8"/><rect x="2" y="11" width="4" height="3" rx=".8"/><rect x="10" y="11" width="4" height="3" rx=".8"/><path d="M8 5v3M4 11V8h8v3"/></svg><span class="nav-text">Teams / Draft</span><span class="nav-count">{{nav.teams.count}}</span></button>
+    <button class="nav-item {{nav.board.cls}}" aria-current="{{nav.board.current}}" title="{{nav.board.tip}}" onClick="{{nav.board.go}}"><svg class="ic" viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="11" height="11" rx="1.5"/><path d="M6.2 2.5v11M9.8 2.5v11M2.5 6.2h11M2.5 9.8h11"/></svg><span class="nav-text">Board</span><span class="nav-count">{{nav.board.count}}</span></button>
+    <button class="nav-item {{nav.wom.cls}}" aria-current="{{nav.wom.current}}" title="{{nav.wom.tip}}" onClick="{{nav.wom.go}}"><svg class="ic" viewBox="0 0 16 16"><path d="M2.5 13.5h11"/><path d="M4 11l3-3.5 2.2 2L12.5 5"/></svg><span class="nav-text">WOM</span><span class="nav-count">{{nav.wom.count}}</span></button>
+    <button class="nav-item {{nav.review.cls}}" aria-current="{{nav.review.current}}" title="{{nav.review.tip}}" onClick="{{nav.review.go}}"><svg class="ic" viewBox="0 0 16 16"><path d="M2.5 9 4.3 3.5h7.4L13.5 9v4.5h-11z"/><path d="M2.5 9h3l.8 1.5h3.4l.8-1.5h3"/></svg><span class="nav-text">Review</span><span class="nav-count">{{nav.review.count}}</span></button>
+    <button class="nav-item {{nav.final.cls}}" aria-current="{{nav.final.current}}" title="{{nav.final.tip}}" onClick="{{nav.final.go}}"><svg class="ic" viewBox="0 0 16 16"><path d="M2.5 4l1 1 2-2M2.5 9l1 1 2-2"/><path d="M7.5 4.5h6M7.5 9.5h6M7.5 13h6"/></svg><span class="nav-text">Final review</span><span class="nav-count">{{nav.final.count}}</span></button>
+  </nav>
+</aside>
+
+<div class="nav-scrim {{navScrimCls}}" onClick="{{closeMobileNav}}"></div>
+<div class="main">
+  <header class="topbar">
+    <button class="icon-btn menu-toggle" id="menu-toggle" aria-label="Open navigation" aria-controls="sidebar" aria-expanded="{{mobileNav}}" onClick="{{openMobileNav}}"><svg class="ic" viewBox="0 0 16 16"><path d="M2.5 4.5h11M2.5 8h11M2.5 11.5h11"/></svg></button>
+    <div class="crumbs">
+      <button class="crumb-btn" onClick="{{crumbEvents}}">Events</button>
+      <sc-if value="{{crumb.hasEvent}}" hint-placeholder-val="{{true}}"><span class="crumb-sep">/</span><span class="crumb-mid">{{crumb.event}}</span></sc-if>
+      <span class="crumb-sep">/</span>
+      <span class="crumb-cur">{{crumb.page}}</span>
+    </div>
+    <div class="spacer"></div>
+    <div class="theme-seg" role="radiogroup" aria-label="Theme">
+      <label class="theme-opt {{lightCls}}" title="Light theme"><input class="sr" type="radio" name="theme" checked="{{isLight}}" onChange="{{setLight}}"><span class="sr">Light theme</span><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="2.8"/><path d="M8 1.8v1.4M8 12.8v1.4M1.8 8h1.4M12.8 8h1.4M3.6 3.6l1 1M11.4 11.4l1 1M3.6 12.4l1-1M11.4 4.6l1-1"/></svg></label>
+      <label class="theme-opt {{darkCls}}" title="Dark theme"><input class="sr" type="radio" name="theme" checked="{{isDark}}" onChange="{{setDark}}"><span class="sr">Dark theme</span><svg class="ic" viewBox="0 0 16 16"><path d="M13 9.6A5.4 5.4 0 0 1 6.4 3 5.4 5.4 0 1 0 13 9.6z"/></svg></label>
+    </div>
+  </header>
+
+  <div class="scroller {{scrollCls}}" id="scroller">
+
+    <sc-if value="{{isPage}}" hint-placeholder-val="{{true}}">
+    <div class="page bd-page">
+      <div class="page-head">
+        <div style="min-width: 0">
+          <div class="bd-title-row"><h1 class="h1" id="page-h1" tabindex="-1">Board</h1><sc-if value="{{head.hasBadge}}" hint-placeholder-val="{{true}}"><span class="badge {{head.badgeCls}}">{{head.badge}}</span></sc-if></div>
+          <p class="summary bd-summary"><span>{{head.size}}</span><sc-if value="{{head.canResize}}" hint-placeholder-val="{{true}}"><button class="text-btn" id="resize-btn" onClick="{{head.resize}}" disabled="{{head.busy}}">Resize</button></sc-if><span>{{head.filled}}</span><sc-if value="{{head.hasState}}" hint-placeholder-val="{{true}}"><span>{{head.state}}</span></sc-if></p>
+        </div>
+        <sc-if value="{{head.ready}}" hint-placeholder-val="{{true}}">
+          <div class="bd-head-acts">
+            <sc-if value="{{ctl.show}}" hint-placeholder-val="{{true}}"><span class="ctl {{ctl.cls}}" role="status" title="{{ctl.title}}"><span class="dot" aria-hidden="true"></span>{{ctl.text}}<sc-if value="{{ctl.hasAction}}" hint-placeholder-val="{{true}}"><button class="text-btn" id="ctl-btn" onClick="{{ctl.run}}" disabled="{{ctl.busy}}">{{ctl.action}}</button></sc-if></span></sc-if>
+            <button class="btn" id="preview-btn" onClick="{{head.preview}}" disabled="{{head.previewDisabled}}"><svg class="ic" viewBox="0 0 16 16"><path d="M1.8 8s2.3-4.3 6.2-4.3S14.2 8 14.2 8 11.9 12.3 8 12.3 1.8 8 1.8 8z"/><circle cx="8" cy="8" r="1.9"/></svg>Preview</button>
+            <sc-if value="{{head.hasPrimary}}" hint-placeholder-val="{{true}}"><button class="btn btn-primary {{head.primaryBusyCls}}" id="primary-btn" onClick="{{head.primary}}" disabled="{{head.primaryBusy}}" aria-disabled="{{head.primaryInert}}" title="{{head.primaryTitle}}" aria-describedby="{{head.primaryDescribedBy}}"><sc-if value="{{head.primaryBusy}}" hint-placeholder-val="{{false}}"><span class="spin"></span></sc-if>{{head.primaryLabel}}</button></sc-if>
+            <sc-if value="{{head.hasMore}}" hint-placeholder-val="{{true}}"><button class="icon-btn" id="more-btn" aria-label="More board actions" aria-haspopup="menu" aria-expanded="{{head.moreOpen}}" onClick="{{head.openMore}}"><svg class="ic" viewBox="0 0 16 16"><circle cx="3.5" cy="8" r="1"/><circle cx="8" cy="8" r="1"/><circle cx="12.5" cy="8" r="1"/></svg></button></sc-if>
+          </div>
+        </sc-if>
+      </div>
+
+      <sc-if value="{{loading}}" hint-placeholder-val="{{false}}">
+        <div class="bd-work" aria-busy="true" aria-label="Loading the board">
+          <div class="card bd-board"><div class="bgrid" style="--cols: 5"><sc-for list="{{skCells}}" as="sk" hint-placeholder-count="12"><div class="bcell"><div class="sk bd-sk"></div></div></sc-for></div></div>
+          <div class="card plan"><div class="sk" style="width: 50%"></div><div class="sk" style="width: 80%; margin-top: 16px"></div><div class="sk" style="width: 70%; margin-top: 12px"></div></div>
+        </div>
+      </sc-if>
+      <sc-if value="{{loadError}}" hint-placeholder-val="{{false}}">
+        <div class="card"><div class="empty is-error"><div class="empty-ic"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 5v3.5M8 11h.01"/></svg></div><div class="empty-title">Couldn’t load the board</div><div class="empty-text">Check your connection and try again. Nothing was changed.</div><button class="btn" id="retry-btn" onClick="{{retry}}">Try again</button></div></div>
+      </sc-if>
+
+      <sc-if value="{{banner.show}}" hint-placeholder-val="{{false}}">
+        <div class="banner {{banner.cls}} page-banner" role="{{banner.role}}" id="bd-banner" tabindex="-1"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 4.8v3.6M8 11h.01"/></svg><span class="grow"><b>{{banner.title}}</b> {{banner.text}}<sc-if value="{{banner.hasList}}" hint-placeholder-val="{{false}}"><ul class="bd-issues"><sc-for list="{{banner.list}}" as="it" hint-placeholder-count="2"><li><sc-if value="{{it.hasGo}}" hint-placeholder-val="{{false}}"><button class="banner-btn" onClick="{{it.go}}">{{it.label}}</button></sc-if><sc-if value="{{it.noGo}}" hint-placeholder-val="{{true}}">{{it.label}}</sc-if> {{it.text}}</li></sc-for></ul></sc-if></span><sc-if value="{{banner.hasAction}}" hint-placeholder-val="{{false}}"><button class="banner-btn" id="bd-banner-act" onClick="{{banner.run}}" disabled="{{banner.busy}}">{{banner.action}}</button></sc-if></div>
+      </sc-if>
+
+      <sc-if value="{{ready}}" hint-placeholder-val="{{true}}">
+        <sc-if value="{{move.show}}" hint-placeholder-val="{{false}}">
+          <div class="bmove-bar" role="status"><svg class="ic" viewBox="0 0 16 16"><path d="M8 2v12M2 8h12M8 2 6 4M8 2l2 2M8 14l-2-2M8 14l2-2M2 8l2-2M2 8l2 2M14 8l-2-2M14 8l-2 2"/></svg><span class="grow">{{move.text}}</span><button class="btn btn-sm" id="move-cancel" onClick="{{move.cancel}}">Cancel</button></div>
+        </sc-if>
+        <div class="bd-work {{grid.workCls}} fade-in">
+          <section class="card bd-board" aria-label="Board layout">
+            <div class="bgrid {{grid.cls}}" id="bgrid" role="grid" aria-label="{{grid.label}}" aria-describedby="grid-help" style="--cols: {{grid.cols}}; --tile-h: {{grid.tileH}}" onKeyDown="{{grid.onKey}}">
+              <sc-for list="{{grid.rows}}" as="r" hint-placeholder-count="5">
+                <div class="bgrid-row" role="row">
+                  <sc-for list="{{r.cells}}" as="c" hint-placeholder-count="5">
+                    <div class="bcell {{c.wrapCls}}" role="gridcell" onDragOver="{{c.onDragOver}}" onDragLeave="{{c.onDragLeave}}" onDrop="{{c.onDrop}}">
+                      <sc-if value="{{c.isTile}}" hint-placeholder-val="{{true}}">
+                        <button class="bcell btile {{c.cls}}" id="{{c.id}}" type="button" tabindex="{{c.ti}}" draggable="{{c.draggable}}" aria-label="{{c.aria}}" onClick="{{c.open}}" onDragStart="{{c.onDragStart}}" onDragEnd="{{c.onDragEnd}}">
+                          <span class="btile-top"><sc-if value="{{c.hasArt}}" hint-placeholder-val="{{false}}"><span class="btile-art" style="--art: url(&quot;{{c.art}}&quot;)" aria-hidden="true"></span></sc-if><span class="btile-name">{{c.name}}</span></span>
+                          <span class="btile-foot"><span class="btile-ehb">{{c.ehb}}<small>{{c.ehbUnit}}</small></span><span class="btile-flags"><sc-if value="{{c.overridden}}" hint-placeholder-val="{{false}}"><span class="pill is-neutral" title="Manual EHB replaces the calculated estimate">Manual</span></sc-if><sc-if value="{{c.manualKind}}" hint-placeholder-val="{{false}}"><svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><title>Manual challenge</title><rect x="4" y="2.5" width="8" height="11" rx="1.5"/><path d="M6.2 6h3.6M6.2 8.5h3.6M6.2 11h2"/></svg></sc-if><sc-if value="{{c.multi}}" hint-placeholder-val="{{false}}"><span class="pill is-neutral" title="{{c.multiTitle}}">{{c.multiLabel}}</span></sc-if><sc-if value="{{c.locked}}" hint-placeholder-val="{{false}}"><svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><rect x="3.5" y="7" width="9" height="6.5" rx="1.5"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/></svg></sc-if><sc-if value="{{c.issue}}" hint-placeholder-val="{{false}}"><svg class="ic btile-flag-issue" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2.5 14 13H2z"/><path d="M8 6.5v3M8 11.2h.01"/></svg></sc-if></span></span>
+                        </button>
+                      </sc-if>
+                      <sc-if value="{{c.isEmpty}}" hint-placeholder-val="{{false}}">
+                        <button class="bcell bempty {{c.cls}}" id="{{c.id}}" type="button" tabindex="{{c.ti}}" aria-label="{{c.aria}}" onClick="{{c.open}}"><span><sc-if value="{{c.canAdd}}" hint-placeholder-val="{{true}}"><svg class="ic" viewBox="0 0 16 16"><path d="M8 3.5v9M3.5 8h9"/></svg></sc-if>{{c.emptyLabel}}</span></button>
+                      </sc-if>
+                    </div>
+                  </sc-for>
+                  <div class="bline {{r.cls}}" role="gridcell" aria-label="{{r.aria}}" title="{{r.title}}"><b>{{r.total}}</b><sc-if value="{{r.hasNote}}" hint-placeholder-val="{{false}}"><span><sc-if value="{{r.up}}" hint-placeholder-val="{{false}}"><svg class="ic" viewBox="0 0 16 16"><path d="M8 13V3M4 7l4-4 4 4"/></svg></sc-if><sc-if value="{{r.down}}" hint-placeholder-val="{{false}}"><svg class="ic" viewBox="0 0 16 16"><path d="M8 3v10M4 9l4 4 4-4"/></svg></sc-if>{{r.note}}</span></sc-if></div>
+                </div>
+              </sc-for>
+              <div class="bgrid-row" role="row">
+                <sc-for list="{{grid.colTotals}}" as="ct" hint-placeholder-count="5">
+                  <div class="bline is-col {{ct.cls}}" role="gridcell" aria-label="{{ct.aria}}" title="{{ct.title}}"><b>{{ct.total}}</b><sc-if value="{{ct.hasNote}}" hint-placeholder-val="{{false}}"><span><sc-if value="{{ct.up}}" hint-placeholder-val="{{false}}"><svg class="ic" viewBox="0 0 16 16"><path d="M8 13V3M4 7l4-4 4 4"/></svg></sc-if><sc-if value="{{ct.down}}" hint-placeholder-val="{{false}}"><svg class="ic" viewBox="0 0 16 16"><path d="M8 3v10M4 9l4 4 4-4"/></svg></sc-if>{{ct.note}}</span></sc-if></div>
+                </sc-for>
+                <div class="bline is-corner" role="gridcell" aria-label="Line totals in EHB">EHB</div>
+              </div>
+            </div>
+            <p class="bd-help" id="grid-help">{{grid.help}}</p>
+          </section>
+
+          <aside class="bd-side">
+            <section class="card plan" aria-labelledby="plan-title">
+              <h2 class="sec-title" id="plan-title">Planning</h2>
+              <div class="plan-total"><b>{{plan.total}}</b><span>EHB on the board</span></div>
+              <dl class="plan-list">
+                <div class="plan-row"><dt><label for="team-size" id="team-size-lbl">Players per team</label></dt><dd>
+                  <sc-if value="{{plan.sizeEditable}}" hint-placeholder-val="{{true}}"><input class="input {{plan.sizeCls}}" id="team-size" type="text" inputmode="numeric" value="{{plan.size}}" onChange="{{plan.onSize}}" onBlur="{{plan.commitSize}}" onKeyDown="{{plan.sizeKey}}" disabled="{{plan.sizeBusy}}" aria-describedby="team-size-hint" aria-invalid="{{plan.sizeInvalid}}"></sc-if>
+                  <sc-if value="{{plan.sizeReadOnly}}" hint-placeholder-val="{{false}}"><span>{{plan.sizeText}}</span></sc-if>
+                  <sc-if value="{{plan.sizeSaving}}" hint-placeholder-val="{{false}}"><span class="spin" aria-label="Saving"></span></sc-if><sc-if value="{{plan.sizeSaved}}" hint-placeholder-val="{{false}}"><span class="plan-ok" role="status"><svg class="ic" viewBox="0 0 16 16"><path d="M3.8 8.4 6.6 11.2 12.2 5"/></svg><span class="sr">Saved</span></span></sc-if>
+                </dd></div>
+                <sc-if value="{{plan.hasSizeErr}}" hint-placeholder-val="{{false}}"><div class="field-err" id="team-size-err"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 5v3.5M8 11h.01"/></svg>{{plan.sizeErr}}</div></sc-if>
+                <div class="plan-row"><dt>EHB per player</dt><dd>{{plan.perPlayer}}</dd></div>
+                <div class="plan-row"><dt>Per player each day</dt><dd>{{plan.perDay}}<small>{{plan.days}}</small></dd></div>
+                <div class="plan-row"><dt>Line spread</dt><dd>{{plan.spread}}<small>{{plan.spreadPct}}</small></dd></div>
+              </dl>
+              <p class="field-hint" id="team-size-hint">{{plan.sizeHint}}</p>
+              <button class="disc-btn {{plan.moreCls}}" id="plan-more" aria-expanded="{{plan.moreOpen}}" aria-controls="plan-more-list" onClick="{{plan.toggleMore}}" style="margin-top: 12px"><span class="sec-aside">More figures</span><svg class="ic" viewBox="0 0 16 16"><path d="M4.5 6.5 8 10l3.5-3.5"/></svg></button>
+              <sc-if value="{{plan.moreOpen}}" hint-placeholder-val="{{false}}">
+                <dl class="kv" id="plan-more-list">
+                  <sc-for list="{{plan.more}}" as="m" hint-placeholder-count="5"><dt>{{m.k}}</dt><dd>{{m.v}}</dd></sc-for>
+                </dl>
+              </sc-if>
+            </section>
+            <sc-if value="{{side.hasNote}}" hint-placeholder-val="{{false}}"><p class="bd-side-note">{{side.note}}</p></sc-if>
+          </aside>
+        </div>
+        <p class="sr" aria-live="polite">{{live}}</p>
+      </sc-if>
+    </div>
+    </sc-if>
+
+    <sc-if value="{{isOther}}" hint-placeholder-val="{{false}}">
+      <div class="page">
+        <div class="page-head"><div><h1 class="h1" id="page-h1" tabindex="-1">{{otherTitle}}</h1><p class="summary"><span>{{otherScope}}</span></p></div></div>
+        <div class="card">
+          <div class="empty ph-card">
+            <div class="empty-ic"><svg class="ic" viewBox="0 0 16 16"><rect x="2.5" y="3" width="11" height="10" rx="2"/><path d="M2.5 6h11"/></svg></div>
+            <div class="empty-title">{{otherTitle}} isn’t part of this artboard</div>
+            <div class="empty-text">{{otherText}}</div>
+            <button class="btn" onClick="{{backToPage}}"><svg class="ic" viewBox="0 0 16 16"><path d="M10 4 6 8l4 4"/></svg>Back</button>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+  </div>
+</div>
+
+<!-- menus -->
+<sc-if value="{{menu.show}}" hint-placeholder-val="{{false}}">
+  <div class="catcher" onClick="{{menu.close}}"></div>
+  <div class="menu {{menu.cls}}" id="menu" role="menu" aria-label="{{menu.label}}" style="left: {{menu.x}}px; top: {{menu.y}}px; width: {{menu.w}}px" onKeyDown="{{menu.onKey}}">
+    <sc-for list="{{menu.items}}" as="it" hint-placeholder-count="4">
+      <sc-if value="{{it.isHeader}}" hint-placeholder-val="{{false}}"><div class="menu-head" role="presentation"><b>{{it.label}}</b>{{it.hint}}</div></sc-if>
+      <sc-if value="{{it.isSep}}" hint-placeholder-val="{{false}}"><div class="menu-sep" role="separator"></div></sc-if>
+      <sc-if value="{{it.isItem}}" hint-placeholder-val="{{true}}">
+        <button class="menu-item {{it.cls}}" role="{{it.role}}" aria-checked="{{it.checked}}" disabled="{{it.disabled}}" title="{{it.title}}" onClick="{{it.run}}">
+          <span class="grow">{{it.label}}</span>
+          <span class="menu-hint">{{it.hint}}</span>
+          <sc-if value="{{it.showCheck}}" hint-placeholder-val="{{false}}"><svg class="ic menu-check" viewBox="0 0 16 16"><path d="M3.8 8.4 6.6 11.2 12.2 5"/></svg></sc-if>
+        </button>
+      </sc-if>
+    </sc-for>
+  </div>
+</sc-if>
+
+<!-- tile editor: one drawer for creating, editing and (read-only) viewing a tile -->
+<sc-if value="{{ed.show}}" hint-placeholder-val="{{false}}">
+  <div class="scrim {{ed.closingCls}}" id="ed-scrim" onClick="{{ed.requestClose}}"></div>
+  <div class="drawer is-wide {{ed.closingCls}} {{ed.behindCls}}" id="ed" role="dialog" aria-modal="true" aria-labelledby="ed-title" aria-busy="{{ed.busy}}" onKeyDown="{{ed.onKey}}">
+    <div class="dr-head">
+      <div class="grow">
+        <div class="eyebrow">{{ed.eyebrow}}</div>
+        <h2 class="dr-title" id="ed-title">{{ed.title}}</h2>
+        <sc-if value="{{ed.hasBadges}}" hint-placeholder-val="{{false}}"><div class="dr-badges"><sc-for list="{{ed.badges}}" as="bg" hint-placeholder-count="1"><span class="badge {{bg.cls}}">{{bg.label}}</span></sc-for></div></sc-if>
+      </div>
+      <button class="icon-btn" id="ed-close" aria-label="Close" onClick="{{ed.requestClose}}" disabled="{{ed.busy}}"><svg class="ic" viewBox="0 0 16 16"><path d="M4.5 4.5l7 7M11.5 4.5l-7 7"/></svg></button>
+    </div>
+    <div class="dr-body" id="ed-body">
+      <sc-if value="{{ed.loading}}" hint-placeholder-val="{{false}}">
+        <div class="sec" aria-busy="true"><div class="sk" style="width: 40%"></div><div class="sk" style="width: 90%; margin-top: 14px"></div><div class="sk" style="width: 70%; margin-top: 12px"></div><div class="sk" style="width: 80%; margin-top: 28px"></div><div class="sk" style="width: 60%; margin-top: 12px"></div></div>
+      </sc-if>
+      <sc-if value="{{ed.loadError}}" hint-placeholder-val="{{false}}">
+        <div class="empty is-error"><div class="empty-ic"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 5v3.5M8 11h.01"/></svg></div><div class="empty-title">Couldn’t load the tile editor</div><div class="empty-text">The catalogue choices didn’t load. Nothing was changed.</div><button class="btn" id="ed-retry" onClick="{{ed.retry}}">Try again</button></div>
+      </sc-if>
+      <sc-if value="{{ed.hasBanner}}" hint-placeholder-val="{{false}}">
+        <div class="dr-banners"><div class="banner {{ed.bannerCls}}" role="alert" id="ed-banner" tabindex="-1"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 4.8v3.6M8 11h.01"/></svg><span class="grow"><b>{{ed.bannerTitle}}</b> {{ed.bannerText}}</span><sc-if value="{{ed.bannerHasAction}}" hint-placeholder-val="{{false}}"><button class="banner-btn" id="ed-banner-act" onClick="{{ed.bannerRun}}" disabled="{{ed.busy}}">{{ed.bannerAction}}</button></sc-if></div></div>
+      </sc-if>
+      <sc-if value="{{ed.ready}}" hint-placeholder-val="{{true}}">
+        <!-- tile: name, description, artwork -->
+        <section class="sec" aria-labelledby="ed-sec-tile">
+          <div class="sec-head"><h3 class="sec-title" id="ed-sec-tile">Tile</h3></div>
+          <div class="form-fields">
+            <div class="field">
+              <label class="lbl" for="ed-name">Name</label>
+              <sc-if value="{{ed.ro}}" hint-placeholder-val="{{false}}"><div class="ro-value">{{ed.nameRo}}</div></sc-if>
+              <sc-if value="{{ed.rw}}" hint-placeholder-val="{{true}}"><input class="input {{ed.nameCls}}" id="ed-name" value="{{ed.name}}" onChange="{{ed.onName}}" disabled="{{ed.busy}}" autocomplete="off" placeholder="{{ed.namePlaceholder}}" aria-describedby="ed-name-hint {{ed.nameErrId}}" aria-invalid="{{ed.nameInvalid}}"></sc-if>
+              <sc-if value="{{ed.hasNameErr}}" hint-placeholder-val="{{false}}"><div class="field-err" id="ed-name-err"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 5v3.5M8 11h.01"/></svg>{{ed.nameErr}}</div></sc-if>
+              <sc-if value="{{ed.rw}}" hint-placeholder-val="{{true}}"><div class="field-hint" id="ed-name-hint">{{ed.nameHint}}</div></sc-if>
+            </div>
+            <div class="field">
+              <div class="lbl-row"><span class="lbl" id="ed-desc-lbl">Description</span><sc-if value="{{ed.descShowCount}}" hint-placeholder-val="{{false}}"><span class="field-count {{ed.descCountCls}}" aria-live="polite">{{ed.descCount}}</span></sc-if></div>
+              <sc-if value="{{ed.descAuto}}" hint-placeholder-val="{{true}}">
+                <div class="auto-text {{ed.autoCls}}" aria-labelledby="ed-desc-lbl">{{ed.autoText}}</div>
+                <div class="count-sum" style="margin-top: 6px"><span>Written automatically from the objectives.</span><sc-if value="{{ed.rw}}" hint-placeholder-val="{{true}}"><button class="text-btn" id="ed-desc-write" onClick="{{ed.writeDesc}}" disabled="{{ed.busy}}">Write your own</button></sc-if></div>
+              </sc-if>
+              <sc-if value="{{ed.descManual}}" hint-placeholder-val="{{false}}">
+                <sc-if value="{{ed.rw}}" hint-placeholder-val="{{true}}"><textarea class="textarea bd-desc {{ed.descCls}}" id="ed-desc" value="{{ed.desc}}" onChange="{{ed.onDesc}}" disabled="{{ed.busy}}" aria-labelledby="ed-desc-lbl" aria-describedby="ed-desc-hint {{ed.descErrId}}" aria-invalid="{{ed.descInvalid}}"></textarea></sc-if>
+                <sc-if value="{{ed.ro}}" hint-placeholder-val="{{false}}"><div class="ro-value" aria-labelledby="ed-desc-lbl">{{ed.desc}}</div></sc-if>
+                <sc-if value="{{ed.hasDescErr}}" hint-placeholder-val="{{false}}"><div class="field-err" id="ed-desc-err"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 5v3.5M8 11h.01"/></svg>{{ed.descErr}}</div></sc-if>
+                <div class="count-sum" style="margin-top: 6px" id="ed-desc-hint"><span>Your own wording. Players see it instead of the automatic description.</span><sc-if value="{{ed.rw}}" hint-placeholder-val="{{true}}"><button class="text-btn" id="ed-desc-auto" onClick="{{ed.autoDesc}}" disabled="{{ed.busy}}">Use automatic description</button></sc-if></div>
+              </sc-if>
+            </div>
+            <div class="field">
+              <span class="lbl" id="ed-art-lbl">Artwork <span class="opt">· optional</span></span>
+              <div class="art-pick" role="group" aria-labelledby="ed-art-lbl">
+                <div class="art-thumb"><sc-if value="{{ed.hasArt}}" hint-placeholder-val="{{false}}"><span class="art-img" role="img" aria-label="Current tile artwork" style="--art: url(&quot;{{ed.art}}&quot;)"></span></sc-if><sc-if value="{{ed.noArt}}" hint-placeholder-val="{{true}}"><svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><rect x="2.5" y="3" width="11" height="10" rx="1.5"/><circle cx="6" cy="6.5" r="1.2"/><path d="m3 12 3.5-3.5 2.5 2.5 1.5-1.5L13 12"/></svg></sc-if></div>
+                <div>
+                  <sc-if value="{{ed.rw}}" hint-placeholder-val="{{true}}"><div class="art-acts"><label class="btn btn-sm" for="ed-art-file" id="ed-art-btn" tabindex="0" onKeyDown="{{ed.artKey}}">{{ed.artLabel}}</label><input type="file" id="ed-art-file" accept="image/png,image/jpeg,image/webp" onChange="{{ed.onArt}}" disabled="{{ed.busy}}"><sc-if value="{{ed.hasArt}}" hint-placeholder-val="{{false}}"><button class="btn btn-sm btn-quiet-danger" id="ed-art-remove" onClick="{{ed.removeArt}}" disabled="{{ed.busy}}">Remove</button></sc-if></div></sc-if>
+                  <div class="field-hint" style="margin-top: 4px">{{ed.artHint}}</div>
+                  <sc-if value="{{ed.hasArtErr}}" hint-placeholder-val="{{false}}"><div class="field-err"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 5v3.5M8 11h.01"/></svg>{{ed.artErr}}</div></sc-if>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- objectives -->
+        <section class="sec" aria-labelledby="ed-sec-obj">
+          <div class="sec-head"><h3 class="sec-title" id="ed-sec-obj">{{ed.objTitle}}</h3><sc-if value="{{ed.hasObjAside}}" hint-placeholder-val="{{false}}"><span class="sec-aside">{{ed.objAside}}</span></sc-if></div>
+          <sc-if value="{{ed.kindEditable}}" hint-placeholder-val="{{true}}">
+            <div class="seg seg-lg bd-kind" role="radiogroup" aria-label="Objective kind" aria-describedby="ed-kind-hint">
+              <label class="seg-opt {{ed.kindDropsCls}}"><input class="sr" type="radio" name="ed-kind" checked="{{ed.kindDrops}}" onChange="{{ed.useDrops}}" disabled="{{ed.busy}}"><svg class="ic" viewBox="0 0 16 16"><path d="M3 5.5 8 3l5 2.5v5L8 13l-5-2.5z"/><path d="M3 5.5 8 8l5-2.5M8 8v5"/></svg>Collect drops</label>
+              <label class="seg-opt {{ed.kindManualCls}}"><input class="sr" type="radio" name="ed-kind" checked="{{ed.kindManual}}" onChange="{{ed.useManual}}" disabled="{{ed.busy}}"><svg class="ic" viewBox="0 0 16 16"><rect x="4" y="2.5" width="8" height="11" rx="1.5"/><path d="M6.2 6h3.6M6.2 8.5h3.6M6.2 11h2"/></svg>Manual challenge</label>
+            </div>
+            <div class="field-hint" id="ed-kind-hint" style="margin-bottom: 14px">{{ed.kindHint}}</div>
+          </sc-if>
+          <sc-if value="{{ed.kindReadOnly}}" hint-placeholder-val="{{false}}"><p class="bd-kind-ro">{{ed.kindLabel}}</p></sc-if>
+
+          <sc-for list="{{ed.objs}}" as="o" hint-placeholder-count="1">
+            <div class="obj {{o.cls}}" id="{{o.id}}">
+              <sc-if value="{{o.hasHead}}" hint-placeholder-val="{{false}}">
+                <div class="obj-head">
+                  <span class="obj-num" aria-hidden="true">{{o.n}}</span>
+                  <button class="disc-btn obj-toggle {{o.toggleCls}}" id="{{o.toggleId}}" aria-expanded="{{o.open}}" aria-controls="{{o.bodyId}}" onClick="{{o.toggle}}" style="margin: 0; width: auto; flex: 1; min-width: 0"><span class="obj-sum"><span class="sr">Objective {{o.n}}: </span>{{o.summary}}<small>{{o.ehbText}}</small></span><svg class="ic" viewBox="0 0 16 16"><path d="M4.5 6.5 8 10l3.5-3.5"/></svg></button>
+                  <sc-if value="{{o.locked}}" hint-placeholder-val="{{false}}"><span class="flag" title="Evidence submitted: requirements locked"><svg class="ic" viewBox="0 0 16 16"><rect x="3.5" y="7" width="9" height="6.5" rx="1.5"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/></svg><span class="sr">Locked by submitted evidence</span></span></sc-if>
+                  <sc-if value="{{o.canRemove}}" hint-placeholder-val="{{false}}"><button class="icon-btn" id="{{o.removeId}}" aria-label="Remove objective {{o.n}}" title="Remove objective" onClick="{{o.remove}}" disabled="{{o.busy}}"><svg class="ic" viewBox="0 0 16 16"><path d="M4.5 4.5l7 7M11.5 4.5l-7 7"/></svg></button></sc-if>
+                </div>
+              </sc-if>
+              <sc-if value="{{o.open}}" hint-placeholder-val="{{true}}">
+                <div class="obj-body" id="{{o.bodyId}}">
+                  <sc-if value="{{o.hasLock}}" hint-placeholder-val="{{false}}"><div class="field-lock"><svg class="ic" viewBox="0 0 16 16"><rect x="3.5" y="7" width="9" height="6.5" rx="1.5"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/></svg>{{o.lockText}}</div></sc-if>
+                  <!-- drops -->
+                  <sc-if value="{{o.isDrops}}" hint-placeholder-val="{{true}}">
+                    <div class="field">
+                      <label class="lbl" for="{{o.srcInputId}}" id="{{o.srcLblId}}">Bosses or activities</label>
+                      <div class="combo">
+                        <div class="combo-chips" aria-label="Chosen bosses or activities"><sc-for list="{{o.chips}}" as="ch" hint-placeholder-count="1"><span class="combo-chip">{{ch.name}}<sc-if value="{{ch.canRemove}}" hint-placeholder-val="{{true}}"><button type="button" aria-label="Remove {{ch.name}}" onClick="{{ch.remove}}"><svg class="ic" viewBox="0 0 16 16"><path d="M4.5 4.5l7 7M11.5 4.5l-7 7"/></svg></button></sc-if></span></sc-for></div>
+                        <sc-if value="{{o.srcEditable}}" hint-placeholder-val="{{true}}">
+                          <div class="search" style="width: 100%"><svg class="ic" viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3 3"/></svg><input class="input {{o.srcCls}}" id="{{o.srcInputId}}" role="combobox" aria-expanded="{{o.popOpen}}" aria-controls="{{o.popId}}" aria-activedescendant="{{o.activeId}}" aria-autocomplete="list" aria-describedby="{{o.srcErrId}}" aria-invalid="{{o.srcInvalid}}" value="{{o.q}}" onChange="{{o.onQ}}" onFocus="{{o.openPop}}" onBlur="{{o.blurPop}}" onKeyDown="{{o.srcKey}}" placeholder="Search the catalogue" autocomplete="off" disabled="{{o.busy}}"></div>
+                          <sc-if value="{{o.popOpen}}" hint-placeholder-val="{{false}}">
+                            <div class="combo-pop" id="{{o.popId}}" role="listbox" aria-multiselectable="true" aria-labelledby="{{o.srcLblId}}">
+                              <sc-for list="{{o.opts}}" as="op" hint-placeholder-count="4"><button type="button" class="combo-opt {{op.cls}}" id="{{op.id}}" role="option" aria-selected="{{op.on}}" tabindex="-1" onMouseDown="{{op.pick}}"><span class="grow">{{op.name}}</span><small>{{op.meta}}</small><sc-if value="{{op.on}}" hint-placeholder-val="{{false}}"><svg class="ic menu-check" viewBox="0 0 16 16"><path d="M3.8 8.4 6.6 11.2 12.2 5"/></svg></sc-if></button></sc-for>
+                              <sc-if value="{{o.noOpts}}" hint-placeholder-val="{{false}}"><div class="combo-empty">{{o.noOptsText}}</div></sc-if>
+                            </div>
+                          </sc-if>
+                        </sc-if>
+                      </div>
+                      <sc-if value="{{o.hasSrcErr}}" hint-placeholder-val="{{false}}"><div class="field-err" id="{{o.srcErrId}}"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 5v3.5M8 11h.01"/></svg>{{o.srcErr}}</div></sc-if>
+                    </div>
+                    <div class="field">
+                      <div class="lbl" id="{{o.dropsLblId}}">Eligible drops</div>
+                      <sc-if value="{{o.noSources}}" hint-placeholder-val="{{true}}"><div class="placeholder">Choose a boss or activity to see its drops.</div></sc-if>
+                      <sc-for list="{{o.groups}}" as="g" hint-placeholder-count="1">
+                        <div class="drop-group" role="group" aria-label="{{g.name}} drops">
+                          <div class="drop-group-head"><span>{{g.name}}</span><span class="drop-group-count">{{g.count}}</span><sc-if value="{{g.canExpand}}" hint-placeholder-val="{{false}}"><button class="text-btn" id="{{g.expandId}}" aria-expanded="{{g.expanded}}" onClick="{{g.toggleExpand}}">{{g.expandLabel}}</button></sc-if><sc-if value="{{g.canAll}}" hint-placeholder-val="{{true}}"><button class="text-btn" onClick="{{g.toggleAll}}" disabled="{{o.busy}}">{{g.allLabel}}</button></sc-if></div>
+                          <div class="drop-list">
+                            <sc-for list="{{g.drops}}" as="d" hint-placeholder-count="3">
+                              <div class="drop-row {{d.cls}}">
+                                <label><input type="checkbox" id="{{d.id}}" checked="{{d.on}}" onChange="{{d.toggle}}" disabled="{{d.disabled}}"><span class="grow">{{d.name}}</span></label>
+                                <span class="drop-rate {{d.rateCls}}" title="{{d.rateTitle}}">{{d.rate}}</span>
+                                <sc-if value="{{d.showWeight}}" hint-placeholder-val="{{false}}"><span class="drop-weight"><label for="{{d.wId}}">counts as</label><input class="input {{d.wCls}}" id="{{d.wId}}" type="text" inputmode="numeric" value="{{d.w}}" onChange="{{d.onW}}" disabled="{{d.disabled}}" aria-invalid="{{d.wInvalid}}"></span></sc-if>
+                              </div>
+                            </sc-for>
+                          </div>
+                        </div>
+                      </sc-for>
+                      <sc-if value="{{o.hasDropErr}}" hint-placeholder-val="{{false}}"><div class="field-err" id="{{o.dropErrId}}"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 5v3.5M8 11h.01"/></svg>{{o.dropErr}}</div></sc-if>
+                      <sc-if value="{{o.hasSources}}" hint-placeholder-val="{{false}}"><div class="field-hint">Missing a drop or rate? <a class="text-btn" href="#" onClick="{{o.goCatalogue}}">Open Catalogue</a>, then come back; your entries stay here.</div></sc-if>
+                    </div>
+                    <div class="field">
+                      <div class="count-line"><label for="{{o.targetId}}">Collect</label><input class="input {{o.targetCls}}" id="{{o.targetId}}" type="text" inputmode="numeric" value="{{o.target}}" onChange="{{o.onTarget}}" disabled="{{o.lockedOrBusy}}" aria-invalid="{{o.targetInvalid}}" aria-describedby="{{o.targetErrId}} {{o.countSumId}}"><span>{{o.targetUnit}}</span></div>
+                      <sc-if value="{{o.hasTargetErr}}" hint-placeholder-val="{{false}}"><div class="field-err" id="{{o.targetErrId}}"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 5v3.5M8 11h.01"/></svg>{{o.targetErr}}</div></sc-if>
+                      <div class="count-sum" id="{{o.countSumId}}" style="margin-top: 8px"><span>{{o.countSummary}}</span><sc-if value="{{o.canCount}}" hint-placeholder-val="{{true}}"><button class="text-btn" id="{{o.countBtnId}}" aria-expanded="{{o.countOpen}}" onClick="{{o.toggleCount}}">{{o.countAction}}</button></sc-if></div>
+                      <sc-if value="{{o.countOpen}}" hint-placeholder-val="{{false}}">
+                        <div class="count-opts">
+                          <label class="check-row {{o.repeatsCls}}"><input type="checkbox" checked="{{o.repeats}}" onChange="{{o.toggleRepeats}}" disabled="{{o.lockedOrBusy}}"><span><span class="choice-title" style="display: block">The same drop can count more than once</span><span class="choice-sub" style="display: block">Off: each chosen drop counts once, so the target needs that many different drops.</span></span></label>
+                          <label class="check-row {{o.weightsCls}}"><input type="checkbox" checked="{{o.weightsOn}}" onChange="{{o.toggleWeights}}" disabled="{{o.lockedOrBusy}}"><span><span class="choice-title" style="display: block">Some drops count as more than one</span><span class="choice-sub" style="display: block">Set how much each chosen drop counts toward the target, for example a rare drop counting as 2.</span></span></label>
+                        </div>
+                      </sc-if>
+                    </div>
+                  </sc-if>
+                  <!-- manual -->
+                  <sc-if value="{{o.isManual}}" hint-placeholder-val="{{false}}">
+                    <div class="field">
+                      <label class="lbl" for="{{o.textId}}">What must be completed?</label>
+                      <textarea class="textarea bd-manual {{o.textCls}}" id="{{o.textId}}" value="{{o.text}}" onChange="{{o.onText}}" disabled="{{o.lockedOrBusy}}" aria-invalid="{{o.textInvalid}}" aria-describedby="{{o.textErrId}}" placeholder="e.g. Complete a four-player Theatre of Blood in under 22:00"></textarea>
+                      <sc-if value="{{o.hasTextErr}}" hint-placeholder-val="{{false}}"><div class="field-err" id="{{o.textErrId}}"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 5v3.5M8 11h.01"/></svg>{{o.textErr}}</div></sc-if>
+                    </div>
+                    <div class="field">
+                      <div class="count-line"><label for="{{o.targetId}}">Complete</label><input class="input {{o.targetCls}}" id="{{o.targetId}}" type="text" inputmode="numeric" value="{{o.target}}" onChange="{{o.onTarget}}" disabled="{{o.lockedOrBusy}}" aria-invalid="{{o.targetInvalid}}" aria-describedby="{{o.targetErrId}}"><span>{{o.targetUnit}}</span></div>
+                      <sc-if value="{{o.hasTargetErr}}" hint-placeholder-val="{{false}}"><div class="field-err" id="{{o.targetErrId}}"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 5v3.5M8 11h.01"/></svg>{{o.targetErr}}</div></sc-if>
+                      <div class="field-hint">Each approved completion counts once. Evidence and approval are still required.</div>
+                    </div>
+                  </sc-if>
+                </div>
+              </sc-if>
+            </div>
+          </sc-for>
+          <sc-if value="{{ed.canAddObj}}" hint-placeholder-val="{{true}}"><button class="btn btn-sm btn-quiet" id="ed-add-obj" onClick="{{ed.addObj}}" disabled="{{ed.busy}}" style="margin-top: 10px"><svg class="ic" viewBox="0 0 16 16"><path d="M8 3.5v9M3.5 8h9"/></svg>{{ed.addObjLabel}}</button></sc-if>
+        </section>
+
+        <!-- estimate -->
+        <section class="sec is-last" aria-labelledby="ed-sec-ehb">
+          <div class="sec-head"><h3 class="sec-title" id="ed-sec-ehb">Estimate</h3><span class="sec-aside">Effective <b>{{ed.effective}}</b></span></div>
+          <div class="ehb-box">
+            <sc-if value="{{ed.isDrops}}" hint-placeholder-val="{{true}}">
+              <div class="ehb-row"><span class="grow">Calculated from catalogue rates</span><span class="ehb-val {{ed.calcCls}}">{{ed.calc}}</span></div>
+              <sc-for list="{{ed.calcNotes}}" as="cn" hint-placeholder-count="0"><div class="ehb-note"><svg class="ic" viewBox="0 0 16 16"><path d="M8 2.5 14 13H2z"/><path d="M8 6.5v3M8 11.2h.01"/></svg><span>{{cn.text}} <sc-if value="{{cn.hasLink}}" hint-placeholder-val="{{true}}"><a href="#" onClick="{{cn.go}}">Open Catalogue</a></sc-if></span></div></sc-for>
+              <sc-if value="{{ed.hasOverride}}" hint-placeholder-val="{{false}}">
+                <div class="ehb-row"><label class="grow" for="ed-ehb">Manual EHB for this tile</label><input class="input {{ed.ehbCls}}" id="ed-ehb" type="text" inputmode="decimal" value="{{ed.ehb}}" onChange="{{ed.onEhb}}" disabled="{{ed.ehbLocked}}" aria-invalid="{{ed.ehbInvalid}}" aria-describedby="ed-ehb-hint {{ed.ehbErrId}}"></div>
+                <sc-if value="{{ed.hasEhbErr}}" hint-placeholder-val="{{false}}"><div class="field-err" id="ed-ehb-err"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 5v3.5M8 11h.01"/></svg>{{ed.ehbErr}}</div></sc-if>
+                <div class="count-sum" id="ed-ehb-hint"><span>Replaces the calculated estimate for this event’s tile only. Catalogue rates aren’t changed.</span><sc-if value="{{ed.canOverride}}" hint-placeholder-val="{{true}}"><button class="text-btn" id="ed-ehb-calc" onClick="{{ed.useCalc}}" disabled="{{ed.busy}}">Use calculated</button></sc-if></div>
+              </sc-if>
+              <sc-if value="{{ed.offerOverride}}" hint-placeholder-val="{{true}}"><div class="count-sum"><span>Uses the calculated estimate.</span><button class="text-btn" id="ed-ehb-set" onClick="{{ed.setOverride}}" disabled="{{ed.busy}}">Set EHB manually</button></div></sc-if>
+            </sc-if>
+            <sc-if value="{{ed.isManual}}" hint-placeholder-val="{{false}}">
+              <div class="ehb-row"><label class="grow" for="ed-ehb">Estimated EHB <span class="opt" style="color: var(--dk-text-3)">· required</span></label><sc-if value="{{ed.rw}}" hint-placeholder-val="{{true}}"><input class="input {{ed.ehbCls}}" id="ed-ehb" type="text" inputmode="decimal" value="{{ed.ehb}}" onChange="{{ed.onEhb}}" disabled="{{ed.ehbLocked}}" aria-invalid="{{ed.ehbInvalid}}" aria-describedby="ed-ehb-hint {{ed.ehbErrId}}"></sc-if><sc-if value="{{ed.ro}}" hint-placeholder-val="{{false}}"><span class="ehb-val">{{ed.ehbRo}}</span></sc-if></div>
+              <sc-if value="{{ed.hasEhbErr}}" hint-placeholder-val="{{false}}"><div class="field-err" id="ed-ehb-err"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 5v3.5M8 11h.01"/></svg>{{ed.ehbErr}}</div></sc-if>
+              <div class="field-hint" id="ed-ehb-hint">Manual challenges have no drop rates to calculate from, so enter the expected hours for one player.</div>
+            </sc-if>
+            <sc-if value="{{ed.hasEhbLock}}" hint-placeholder-val="{{false}}"><div class="field-lock"><svg class="ic" viewBox="0 0 16 16"><rect x="3.5" y="7" width="9" height="6.5" rx="1.5"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/></svg>Evidence has been submitted for this tile, so its EHB is part of its scoring and can’t change.</div></sc-if>
+          </div>
+          <sc-if value="{{ed.hasApprovalNote}}" hint-placeholder-val="{{false}}"><p class="field-hint" style="margin-top: 12px">{{ed.approvalNote}}</p></sc-if>
+        </section>
+      </sc-if>
+    </div>
+    <div class="dr-foot">
+      <sc-if value="{{ed.canRemove}}" hint-placeholder-val="{{false}}"><button class="btn btn-quiet-danger" id="ed-remove" onClick="{{ed.remove}}" disabled="{{ed.busy}}">Remove tile…</button></sc-if>
+      <sc-if value="{{ed.removeBlocked}}" hint-placeholder-val="{{false}}"><span class="field-lock" style="margin: 0"><svg class="ic" viewBox="0 0 16 16"><rect x="3.5" y="7" width="9" height="6.5" rx="1.5"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/></svg>Can’t be removed: evidence was submitted</span></sc-if>
+      <div class="spacer"></div>
+      <sc-if value="{{ed.dirty}}" hint-placeholder-val="{{false}}"><span class="dirty" role="status"><span class="dot"></span>Unsaved changes</span></sc-if>
+      <button class="btn" id="ed-cancel" onClick="{{ed.requestClose}}" disabled="{{ed.busy}}">{{ed.cancelLabel}}</button>
+      <sc-if value="{{ed.hasSave}}" hint-placeholder-val="{{true}}"><button class="btn btn-primary {{ed.busyCls}}" id="ed-save" onClick="{{ed.save}}" disabled="{{ed.saveDisabled}}" style="min-width: 112px"><sc-if value="{{ed.busy}}" hint-placeholder-val="{{false}}"><span class="spin"></span></sc-if>{{ed.saveLabel}}</button></sc-if>
+    </div>
+  </div>
+</sc-if>
+
+<!-- board size -->
+<sc-if value="{{rz.show}}" hint-placeholder-val="{{false}}">
+  <div class="m-scrim {{rz.closingCls}}" id="rz-scrim" onClick="{{rz.dismiss}}"></div>
+  <div class="m-wrap">
+    <div class="modal modal-form {{rz.closingCls}}" id="rz" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="rz-title" aria-busy="{{rz.busy}}" onKeyDown="{{rz.onKey}}">
+      <div class="mf-head"><h2 class="m-title" id="rz-title">Board size</h2><p class="m-body">Rows and columns from 1 to 8. Tiles keep their positions.</p></div>
+      <div class="mf-body">
+        <sc-if value="{{rz.hasBanner}}" hint-placeholder-val="{{false}}"><div class="banner {{rz.bannerCls}}" role="alert" id="rz-banner" tabindex="-1"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 4.8v3.6M8 11h.01"/></svg><span class="grow"><b>{{rz.bannerTitle}}</b> {{rz.bannerText}}</span></div></sc-if>
+        <div class="bd-size-row">
+          <div class="field"><label class="lbl" for="rz-rows">Rows</label><div class="bd-stepper"><button class="icon-btn" aria-label="Fewer rows" onClick="{{rz.rowsDown}}" disabled="{{rz.rowsMin}}"><svg class="ic" viewBox="0 0 16 16"><path d="M3.5 8h9"/></svg></button><input class="input" id="rz-rows" type="text" inputmode="numeric" value="{{rz.rows}}" onChange="{{rz.onRows}}" disabled="{{rz.busy}}" aria-describedby="rz-impact"><button class="icon-btn" aria-label="More rows" onClick="{{rz.rowsUp}}" disabled="{{rz.rowsMax}}"><svg class="ic" viewBox="0 0 16 16"><path d="M8 3.5v9M3.5 8h9"/></svg></button></div></div>
+          <span class="bd-size-x" aria-hidden="true">×</span>
+          <div class="field"><label class="lbl" for="rz-cols">Columns</label><div class="bd-stepper"><button class="icon-btn" aria-label="Fewer columns" onClick="{{rz.colsDown}}" disabled="{{rz.colsMin}}"><svg class="ic" viewBox="0 0 16 16"><path d="M3.5 8h9"/></svg></button><input class="input" id="rz-cols" type="text" inputmode="numeric" value="{{rz.cols}}" onChange="{{rz.onCols}}" disabled="{{rz.busy}}" aria-describedby="rz-impact"><button class="icon-btn" aria-label="More columns" onClick="{{rz.colsUp}}" disabled="{{rz.colsMax}}"><svg class="ic" viewBox="0 0 16 16"><path d="M8 3.5v9M3.5 8h9"/></svg></button></div></div>
+        </div>
+        <div id="rz-impact" class="{{rz.impactCls}}" role="status">
+          <p class="bd-rz-text">{{rz.impact}}</p>
+          <sc-if value="{{rz.hasBlocked}}" hint-placeholder-val="{{false}}"><ul class="bd-rz-list"><sc-for list="{{rz.blocked}}" as="bt" hint-placeholder-count="2"><li>{{bt}}</li></sc-for></ul></sc-if>
+        </div>
+      </div>
+      <div class="mf-foot">
+        <button class="btn" id="rz-cancel" onClick="{{rz.dismiss}}" disabled="{{rz.busy}}">Cancel</button>
+        <button class="btn btn-primary {{rz.busyCls}}" id="rz-apply" onClick="{{rz.apply}}" disabled="{{rz.busy}}" aria-disabled="{{rz.inert}}"><sc-if value="{{rz.busy}}" hint-placeholder-val="{{false}}"><span class="spin"></span></sc-if>{{rz.applyLabel}}</button>
+      </div>
+    </div>
+  </div>
+</sc-if>
+
+<!-- player-facing preview: never approves or publishes -->
+<sc-if value="{{pv.show}}" hint-placeholder-val="{{false}}">
+  <div class="m-scrim {{pv.closingCls}}" id="pv-scrim" onClick="{{pv.dismiss}}"></div>
+  <div class="m-wrap">
+    <div class="modal bd-pv {{pv.closingCls}}" id="pv" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="pv-title" onKeyDown="{{pv.onKey}}">
+      <div class="bd-pv-head">
+        <div class="grow"><div class="eyebrow">{{pv.eyebrow}}</div><h2 class="m-title" id="pv-title">{{pv.title}}</h2></div>
+        <button class="icon-btn" id="pv-close" aria-label="Close preview" onClick="{{pv.dismiss}}"><svg class="ic" viewBox="0 0 16 16"><path d="M4.5 4.5l7 7M11.5 4.5l-7 7"/></svg></button>
+      </div>
+      <div class="bd-pv-body">
+        <div class="bd-pv-grid" style="--cols: {{pv.cols}}">
+          <sc-for list="{{pv.cells}}" as="pc" hint-placeholder-count="9">
+            <div class="bd-pv-cell {{pc.cls}}"><sc-if value="{{pc.hasArt}}" hint-placeholder-val="{{false}}"><span class="bd-pv-art" style="--art: url(&quot;{{pc.art}}&quot;)" aria-hidden="true"></span></sc-if><b>{{pc.name}}</b><span>{{pc.desc}}</span></div>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+  </div>
+</sc-if>
+
+<!-- confirmations: publish, start correction (reason), publish correction, discard correction, remove tile, take over -->
+<sc-if value="{{cx.show}}" hint-placeholder-val="{{false}}">
+  <div class="m-scrim {{cx.stackCls}} {{cx.closingCls}}" id="cx-scrim" onClick="{{cx.dismiss}}"></div>
+  <div class="m-wrap">
+    <div class="modal {{cx.wideCls}} {{cx.closingCls}}" id="cx" tabindex="-1" role="alertdialog" aria-modal="true" aria-labelledby="cx-title" aria-describedby="cx-desc" aria-busy="{{cx.busy}}" onKeyDown="{{cx.onKey}}">
+      <h2 class="m-title" id="cx-title">{{cx.title}}</h2>
+      <div id="cx-desc">
+        <p class="m-body">{{cx.body}}</p>
+        <sc-if value="{{cx.hasPoints}}" hint-placeholder-val="{{false}}"><ul class="m-points"><sc-for list="{{cx.points}}" as="pt" hint-placeholder-count="2"><li>{{pt}}</li></sc-for></ul></sc-if>
+      </div>
+      <sc-if value="{{cx.hasErr}}" hint-placeholder-val="{{false}}"><div class="banner is-error m-banner" role="alert" id="cx-banner" tabindex="-1"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 5v3.5M8 11h.01"/></svg><span class="grow">{{cx.err}}</span></div></sc-if>
+      <sc-if value="{{cx.hasReason}}" hint-placeholder-val="{{false}}">
+        <div class="field" style="margin-top: 16px">
+          <div class="lbl-row"><label class="lbl" for="cx-reason">Reason</label><sc-if value="{{cx.showCount}}" hint-placeholder-val="{{false}}"><span class="field-count {{cx.countCls}}" aria-live="polite">{{cx.count}}</span></sc-if></div>
+          <textarea class="textarea {{cx.reasonCls}}" id="cx-reason" value="{{cx.reason}}" onChange="{{cx.onReason}}" disabled="{{cx.busy}}" aria-invalid="{{cx.reasonInvalid}}" aria-describedby="cx-reason-hint {{cx.reasonErrId}}" placeholder="e.g. Tile C4 named the wrong boss."></textarea>
+          <div class="field-hint" id="cx-reason-hint">Required. Kept in the board history.</div>
+          <sc-if value="{{cx.hasReasonErr}}" hint-placeholder-val="{{false}}"><div class="field-err" id="cx-reason-err"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 5v3.5M8 11h.01"/></svg>{{cx.reasonErr}}</div></sc-if>
+        </div>
+      </sc-if>
+      <div class="m-actions">
+        <button class="btn" id="cx-cancel" onClick="{{cx.dismiss}}" disabled="{{cx.busy}}">{{cx.cancelLabel}}</button>
+        <button class="btn {{cx.confirmCls}} {{cx.busyCls}}" id="cx-confirm" onClick="{{cx.confirm}}" disabled="{{cx.busy}}"><sc-if value="{{cx.busy}}" hint-placeholder-val="{{false}}"><span class="spin"></span></sc-if>{{cx.confirmLabel}}</button>
+      </div>
+    </div>
+  </div>
+</sc-if>
+
+<!-- shared discard / uncertain-leave confirmation -->
+<sc-if value="{{md.show}}" hint-placeholder-val="{{false}}">
+  <div class="m-scrim {{md.stackCls}} {{md.closingCls}}" id="confirm-scrim" onClick="{{md.dismiss}}"></div>
+  <div class="m-wrap">
+    <div class="modal {{md.closingCls}}" id="modal" tabindex="-1" role="alertdialog" aria-modal="true" aria-labelledby="modal-title" aria-describedby="modal-desc" onKeyDown="{{md.onKey}}">
+      <h2 class="m-title" id="modal-title">{{md.title}}</h2>
+      <p class="m-body" id="modal-desc">{{md.body}}</p>
+      <div class="m-actions">
+        <button class="btn {{md.secondaryCls}}" id="modal-cancel" onClick="{{md.secondary}}">{{md.secondaryLabel}}</button>
+        <button class="btn {{md.primaryCls}}" id="modal-confirm" onClick="{{md.primary}}">{{md.primaryLabel}}</button>
+      </div>
+    </div>
+  </div>
+</sc-if>
+
+<!-- prototype only: simulated browser (URL and history) -->
+<sc-if value="{{pb.show}}" hint-placeholder-val="{{true}}">
+  <div class="proto-bar" role="group" aria-label="Simulated browser, prototype only">
+    <button class="icon-btn" aria-label="Back" title="Back" disabled="{{pb.noBack}}" onClick="{{pb.back}}"><svg class="ic" viewBox="0 0 16 16"><path d="M13 8H3.5M7.5 4 3.5 8l4 4"/></svg></button>
+    <button class="icon-btn" aria-label="Forward" title="Forward" disabled="{{pb.noFwd}}" onClick="{{pb.fwd}}"><svg class="ic" viewBox="0 0 16 16"><path d="M3 8h9.5M8.5 4l4 4-4 4"/></svg></button>
+    <button class="icon-btn" aria-label="Reload" title="Reload" onClick="{{pb.reload}}"><svg class="ic" viewBox="0 0 16 16"><path d="M13 8a5 5 0 1 1-1.5-3.6"/><path d="M13 2.8v2.8h-2.8"/></svg></button>
+    <span class="proto-tag">Prototype URL</span>
+    <span class="proto-url" title="{{pb.url}}">{{pb.url}}</span>
+  </div>
+</sc-if>
+
+<div class="toasts" aria-live="polite" aria-atomic="false">
+  <sc-for list="{{toasts}}" as="t" hint-placeholder-count="0">
+    <div class="toast {{t.cls}}" role="status" data-toast="{{t.id}}">
+      <sc-if value="{{t.isError}}" hint-placeholder-val="{{false}}"><svg class="ic t-ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 5v3.5M8 11h.01"/></svg></sc-if>
+      <sc-if value="{{t.isOk}}" hint-placeholder-val="{{true}}"><svg class="ic t-ic" viewBox="0 0 16 16"><path d="M3.8 8.4 6.6 11.2 12.2 5"/></svg></sc-if>
+      <span class="grow">{{t.text}}</span>
+      <sc-if value="{{t.hasAction}}" hint-placeholder-val="{{false}}"><button class="toast-act" onClick="{{t.act}}">{{t.actionLabel}}</button></sc-if>
+      <button class="toast-x" aria-label="Dismiss notification" onClick="{{t.close}}"><svg class="ic" viewBox="0 0 16 16" style="width: 14px; height: 14px"><path d="M4.5 4.5l7 7M11.5 4.5l-7 7"/></svg></button>
+    </div>
+  </sc-for>
+</div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+// DK Legacy Admin — Board (reference prototype). Synthetic data; "today" is 2 Jun 2027, 10:00 in Copenhagen.
+// Verified against the current implementation (participants-functionality: Admin/Events/Board and its page model,
+// _BoardRequirementEditor, BoardEstimateService, EhbCalculator, TileDescriptionFormatter, FUNCTIONAL_CONTRACTS 6.2/6.3,
+// PRODUCT_REQUIREMENTS 8, 10, 11 and BRD-01/BRD-02):
+// - Rectangular 1–8 × 1–8. Create in empty positions; move into empty positions or swap. Resizing never relocates a tile;
+//   shrinking is blocked while any tile sits outside the new bounds.
+// - One objective kind per tile (catalogue drops or manual challenge); every objective must be completed.
+// - Drop objectives: sources, eligible drops, target, "the same drop can count more than once", per-drop weights.
+//   Stored maximum-contribution caps are kept by the application but have no editor control (none is added).
+// - Description: blank = automatic (ported from TileDescriptionFormatter); text = override; clearing restores automatic.
+// - EHB: calculated from catalogue rates (simplified port of EhbCalculator); manual challenges need an entered estimate.
+//   APPROVED CHANGE (queued, not in the backend yet): any tile may carry a manual EHB override that replaces its effective
+//   EHB; the calculated value stays visible. Missing catalogue rates still block approval (contracts: an override can't
+//   repair a broken standard tile) — see README decisions.
+// - Approve validates the whole board and freezes it privately (no confirmation). Competitive edits to an approved,
+//   unpublished board return it to draft (history kept). Publish needs finalized rosters, before the event starts,
+//   one confirmation; it doesn't start the event. Published corrections: reason + confirmation to start; the public
+//   board stays until the corrected copy is published (approve + publish, confirmed); discarding restores the working copy.
+// - Evidence: once submitted against an objective, its requirements and the tile's scoring (target total, EHB) are locked,
+//   and the tile can't be removed. Wording (name, description) and artwork stay editable.
+// - Editing control: one editor (5-minute lease renewed by board activity and the open page), others view; take over
+//   asks first. Planning players-per-team stays editable after rosters are finalized (APPROVED CHANGE).
+// The browser is simulated (prototype URL bar). DKAdmin.mock stands in for request latency.
+const TODAY = Date.UTC(2027, 5, 2, 8, 0);
+const DAY = 86400000;
+const OTHER_ADMIN = 'Mia Kowalski';
+const PHASES = {
+  draft: { label: 'Setup', tone: 'tone-draft' }, signupopen: { label: 'Signups open', tone: 'tone-open' }, signupclosed: { label: 'Signups closed', tone: 'tone-draft' },
+  live: { label: 'Live', tone: 'tone-live' }, awaitingfinalreview: { label: 'Final review', tone: 'tone-live' }
+};
+const OUTCOMES = { ok: 'Succeeds', fail: 'Fails, nothing changed', timeoutSaved: 'Times out · went through', timeoutNot: 'Times out · didn’t go through', conflict: 'Another admin changes the board first' };
+const NAV = [['dashboard', 'Dashboard'], ['events', 'Events'], ['catalogue', 'Catalogue'], ['accounts', 'Accounts'], ['audit', 'Audit'],
+  ['overview', 'Overview'], ['identity', 'Identity'], ['schedule', 'Schedule'], ['participants', 'Participants'], ['signup', 'Signup setup'], ['teams', 'Teams / Draft'], ['board', 'Board'], ['wom', 'WOM'], ['review', 'Review'], ['final', 'Final review']];
+const TITLES = {}; NAV.forEach(([k, l]) => { TITLES[k] = l; });
+const EVENT_PAGES = ['overview', 'identity', 'schedule', 'participants', 'signup', 'teams', 'board', 'wom', 'review', 'final'];
+const clone = o => JSON.parse(JSON.stringify(o));
+const fmt1 = n => (n == null ? '—' : (Math.round(n * 10) / 10).toLocaleString('en-GB', { maximumFractionDigits: 1 }));
+const fmtDay = ms => new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Copenhagen', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(ms));
+const ROWS = 'ABCDEFGH';
+const posName = (pos, cols) => ROWS[Math.floor(pos / cols)] + (pos % cols + 1);
+
+/* ---------------- catalogue (synthetic; Catalogue owns these records) ---------------- */
+// kph: efficient completions per hour (per player, already normalised by the catalogue); p: chance per completion.
+const BOSSES = [
+  ['tob', 'Theatre of Blood', 2.4], ['cox', 'Chambers of Xeric', 1.9], ['toa', 'Tombs of Amascut', 2.2], ['nex', 'Nex', 6], ['zul', 'Zulrah', 34],
+  ['vork', 'Vorkath', 31], ['barrows', 'Barrows', 22], ['gwdb', 'General Graardor', 26], ['gwda', 'Kree’arra', 24], ['duke', 'Duke Sucellus', 30],
+  ['vard', 'Vardorvis', 38], ['levi', 'The Leviathan', 28], ['whisp', 'The Whisperer', 25], ['moons', 'Moons of Peril', 14], ['wt', 'Wintertodt', 4.2],
+  ['cg', 'Corrupted Gauntlet', 6.5], ['corp', 'Corporeal Beast', 9], ['colo', 'Fortis Colosseum', 1.2]
+].map(([id, name, kph]) => ({ id, name, kph }));
+const ITEMS = {}; let ITEM_SEQ = 0;
+const DROPS = [];
+function drop(boss, item, den, gp) { if (!ITEMS[item]) ITEMS[item] = 'i' + (++ITEM_SEQ); DROPS.push({ id: boss + ':' + ITEMS[item], bossId: boss, itemId: ITEMS[item], item, den, p: den ? 1 / den : null, gp: gp === undefined ? 1 : gp }); }
+[['Avernic defender hilt', 73], ['Ghrazi rapier', 290], ['Sanguinesti staff', 290], ['Justiciar faceguard', 290], ['Justiciar chestguard', 290], ['Justiciar legguards', 290], ['Scythe of Vitur', 580]].forEach(([n, d]) => drop('tob', n, d));
+[['Dexterous prayer scroll', 120], ['Arcane prayer scroll', 120], ['Twisted buckler', 300], ['Dragon hunter crossbow', 300], ['Ancestral hat', 400], ['Ancestral robe top', 400], ['Ancestral robe bottom', 400], ['Dragon claws', 400], ['Elder maul', 1000], ['Kodai insignia', 1000], ['Twisted bow', 1000]].forEach(([n, d]) => drop('cox', n, d));
+[['Lightbearer', 60], ['Osmumten’s fang', 60], ['Elidinis’ ward', 120], ['Masori mask', 150], ['Masori body', 150], ['Masori chaps', 150], ['Tumeken’s shadow', 400]].forEach(([n, d]) => drop('toa', n, d));
+[['Zaryte vambraces', 172], ['Nihil horn', 258], ['Torva full helm', 258], ['Torva platebody', 258], ['Torva platelegs', 258], ['Ancient hilt', 516]].forEach(([n, d]) => drop('nex', n, d));
+[['Tanzanite fang', 512], ['Magic fang', 512], ['Serpentine visage', 512], ['Tanzanite mutagen', 13106]].forEach(([n, d]) => drop('zul', n, d));
+[['Vorkath’s head', 50], ['Dragonbone necklace', 1000], ['Jar of decay', 3000], ['Draconic visage', 5000]].forEach(([n, d]) => drop('vork', n, d));
+[['Dharok’s helm', 392], ['Dharok’s platebody', 392], ['Dharok’s platelegs', 392], ['Dharok’s greataxe', 392], ['Ahrim’s hood', 392], ['Ahrim’s robetop', 392], ['Ahrim’s robeskirt', 392], ['Ahrim’s staff', 392]].forEach(([n, d]) => drop('barrows', n, d));
+[['Bandos chestplate', 381], ['Bandos tassets', 381], ['Bandos boots', 381], ['Bandos hilt', 508]].forEach(([n, d]) => drop('gwdb', n, d));
+[['Armadyl helmet', 381], ['Armadyl chestplate', 381], ['Armadyl chainskirt', 381], ['Armadyl hilt', 508]].forEach(([n, d]) => drop('gwda', n, d));
+[['duke', 'Magus vestige', 720], ['duke', 'Eye of the duke', 720], ['vard', 'Ultor vestige', 1088], ['vard', 'Executioner’s axe head', 1088], ['levi', 'Venator vestige', 1152], ['levi', 'Leviathan’s lure', 1152], ['whisp', 'Bellator vestige', 512], ['whisp', 'Siren’s staff', 512]].forEach(([b, n, d]) => drop(b, n, d));
+['duke', 'vard', 'levi', 'whisp'].forEach(b => [['Virtus mask', 2160], ['Virtus robe top', 2160], ['Virtus robe bottom', 2160]].forEach(([n, d]) => drop(b, n, d)));
+[['Blood moon helm', 56], ['Blood moon chestplate', 56], ['Blood moon tassets', 56], ['Blue moon helm', 56], ['Eclipse moon helm', 56, null]].forEach(([n, d, g]) => drop('moons', n, d, g));
+[['Pyromancer hood', 150], ['Tome of fire', 1000], ['Phoenix', 5000], ['Dragon axe', 10000]].forEach(([n, d]) => drop('wt', n, d));
+[['Crystal armour seed', 50], ['Enhanced crystal weapon seed', 400]].forEach(([n, d]) => drop('cg', n, d));
+[['Holy elixir', 171], ['Spectral sigil', 1365], ['Arcane sigil', 1365], ['Elysian sigil', 4095]].forEach(([n, d]) => drop('corp', n, d));
+[['Sunfire fanatic helm', null], ['Sunfire fanatic cuirass', null], ['Dizana’s quiver', null]].forEach(([n, d]) => drop('colo', n, d));
+const bossById = id => BOSSES.find(b => b.id === id);
+const dropById = id => DROPS.find(d => d.id === id);
+const rateText = d => (d.den ? '1/' + d.den.toLocaleString('en-GB') : 'No rate');
+
+/* ---------------- EHB (simplified port of EhbCalculator) ---------------- */
+// Repeats allowed: expected hours to reach the target from the best source, progressing by each drop's weight.
+// Repeats off: exact expected hours to collect enough different items (by weight), choosing the best source per state.
+function calcObjective(o) {
+  if (!o.sources.length || !o.drops.length) return { ehb: null, reason: 'Choose sources and drops to calculate.' };
+  const drops = o.drops.map(dropById).filter(Boolean).filter(d => o.sources.indexOf(d.bossId) >= 0);
+  const missing = drops.filter(d => !d.p);
+  if (missing.length) return { ehb: null, reason: missing.map(d => d.item).join(', ') + (missing.length === 1 ? ' has' : ' have') + ' no drop rate in the catalogue.', catalogue: true };
+  const t = Math.max(1, parseInt(o.target, 10) || 1);
+  const w = d => Math.max(1, parseInt((o.weights || {})[d.id], 10) || 1);
+  const bySource = {}; drops.forEach(d => { (bySource[d.bossId] = bySource[d.bossId] || []).push(d); });
+  if (o.repeats) {
+    let best = null;
+    Object.keys(bySource).forEach(b => { const per = bySource[b].reduce((a, d) => a + d.p * Math.min(w(d), t), 0); const h = t / (per * bossById(b).kph); best = best == null ? h : Math.min(best, h); });
+    return { ehb: best };
+  }
+  const items = []; drops.forEach(d => { if (items.indexOf(d.itemId) < 0) items.push(d.itemId); });
+  const iw = items.map(id => w(drops.find(d => d.itemId === id)));
+  if (iw.reduce((a, x) => a + x, 0) < t) return { ehb: null, reason: 'Without repeats, the chosen drops can’t reach a target of ' + t + '. Choose more drops, lower the target or allow repeats.' };
+  if (items.length > 12) return { ehb: null, reason: 'Too many different drops to estimate without repeats.' };
+  const memo = {};
+  const weightOf = mask => items.reduce((a, _, i) => a + ((mask >> i) & 1 ? iw[i] : 0), 0);
+  const solve = mask => {
+    if (weightOf(mask) >= t) return 0;
+    if (memo[mask] != null) return memo[mask];
+    let best = Infinity;
+    Object.keys(bySource).forEach(b => {
+      const opts = bySource[b].filter(d => !((mask >> items.indexOf(d.itemId)) & 1));
+      const pAny = opts.reduce((a, d) => a + d.p, 0); if (!pAny) return;
+      const fut = opts.reduce((a, d) => a + d.p * solve(mask | (1 << items.indexOf(d.itemId))), 0);
+      best = Math.min(best, (1 / bossById(b).kph + fut) / pAny);
+    });
+    memo[mask] = best; return best;
+  };
+  const r = solve(0);
+  return isFinite(r) ? { ehb: r } : { ehb: null, reason: 'These drops can’t reach the target.' };
+}
+function tileCalc(tile) {
+  if (tile.kind === 'manual') { const m = parseFloat(tile.ehbManual); return { calc: null, effective: m > 0 ? m : null, overridden: false, notes: m > 0 ? [] : [{ text: 'Needs an EHB estimate.' }] }; }
+  let sum = 0, ok = true; const notes = [];
+  tile.objectives.forEach((o, i) => { const r = calcObjective(o); if (r.ehb == null) { ok = false; notes.push({ text: (tile.objectives.length > 1 ? 'Objective ' + (i + 1) + ': ' : '') + r.reason, catalogue: !!r.catalogue }); } else sum += r.ehb; });
+  const calc = ok ? sum : null; const ov = parseFloat(tile.ehbManual);
+  const overridden = ov > 0;
+  return { calc, effective: overridden ? ov : calc, overridden, notes };
+}
+// TileDescriptionFormatter.Format
+function autoDesc(tile) {
+  const objs = tile.objectives;
+  if (!objs.length) return '';
+  if (tile.kind === 'manual') return objs.map(o => (o.text || '').trim()).filter(Boolean).join(' & ');
+  if (!objs.some(o => o.drops.length)) return '';
+  return objs.map(o => {
+    const t = Math.max(1, parseInt(o.target, 10) || 1);
+    const ds = o.drops.map(dropById).filter(d => d && o.sources.indexOf(d.bossId) >= 0);
+    const items = []; ds.forEach(d => { if (items.indexOf(d.item) < 0) items.push(d.item); });
+    if (items.length === 1) return 'Collect ' + t + ' ' + items[0];
+    const srcs = []; ds.forEach(d => { const n = bossById(d.bossId).name; if (srcs.indexOf(n) < 0) srcs.push(n); }); srcs.sort();
+    const base = 'Collect ' + t + ' eligible drop' + (t === 1 ? '' : 's');
+    return srcs.length ? base + ' from ' + srcs.join(' or ') : base;
+  }).join(' & ');
+}
+function suggestName(tile) {
+  if (tile.kind === 'manual') { const t = (tile.objectives[0] && tile.objectives[0].text || '').trim(); return t ? (t.length > 34 ? t.slice(0, 32).trim() + '…' : t) : ''; }
+  const srcs = []; tile.objectives.forEach(o => o.sources.forEach(s => { const n = bossById(s).name; if (srcs.indexOf(n) < 0) srcs.push(n); }));
+  return srcs.slice(0, 3).join(' / ');
+}
+const tileName = t => (t.name || '').trim() || suggestName(t) || 'Untitled tile';
+
+/* ---------------- artwork (sample presets; uploads use the chosen file) ---------------- */
+function art(hue, glyph) {
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 60"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="hsl(' + hue + ',45%,46%)"/><stop offset="1" stop-color="hsl(' + (hue + 30) + ',50%,28%)"/></linearGradient></defs><rect width="60" height="60" fill="url(#g)"/><text x="30" y="39" font-family="Georgia,serif" font-size="26" fill="rgba(255,255,255,.88)" text-anchor="middle">' + glyph + '</text></svg>';
+  return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+}
+
+/* ---------------- samples ---------------- */
+let OID = 1;
+const D = (name, sources, items, target, opt) => {
+  opt = opt || {};
+  const drops = []; sources.forEach(s => items.forEach(it => { const d = DROPS.find(x => x.bossId === s && x.item === it); if (d) drops.push(d.id); }));
+  const weights = {}; Object.keys(opt.weights || {}).forEach(it => drops.forEach(id => { if (dropById(id).item === it) weights[id] = opt.weights[it]; }));
+  return { name, kind: 'drops', art: opt.art || null, desc: opt.desc || '', ehbManual: opt.ehb != null ? String(opt.ehb) : '',
+    objectives: [{ id: 'o' + (OID++), sources: sources.slice(), drops, target: String(target), repeats: opt.repeats !== false, weights }].concat((opt.more || []).map(m => Object.assign({ id: 'o' + (OID++) }, m))) };
+};
+const DO = (sources, items, target, repeats) => { const drops = []; sources.forEach(s => items.forEach(it => { const d = DROPS.find(x => x.bossId === s && x.item === it); if (d) drops.push(d.id); })); return { sources: sources.slice(), drops, target: String(target), repeats: repeats !== false, weights: {} }; };
+const MAN = (name, text, target, ehb, opt) => ({ name, kind: 'manual', art: (opt && opt.art) || null, desc: '', ehbManual: String(ehb), objectives: [{ id: 'o' + (OID++), text, target: String(target) }] });
+const PURPLES = ['Scythe of Vitur', 'Twisted bow', 'Tumeken’s shadow'];
+function pool() {
+  return [
+    D('Scythe of Vitur', ['tob'], ['Scythe of Vitur'], 1, { art: art(350, 'S') }),
+    D('Twisted bow', ['cox'], ['Twisted bow'], 1, { art: art(140, 'T') }),
+    D('Tumeken’s shadow', ['toa'], ['Tumeken’s shadow'], 1),
+    D('Torva set', ['nex'], ['Torva full helm', 'Torva platebody', 'Torva platelegs'], 3, { repeats: false }),
+    D('Zulrah uniques', ['zul'], ['Tanzanite fang', 'Magic fang', 'Serpentine visage'], 3),
+    D('Bandos pieces', ['gwdb'], ['Bandos chestplate', 'Bandos tassets', 'Bandos boots'], 2),
+    MAN('Speedy Theatre', 'Complete a four-player Theatre of Blood in under 22:00', 1, 6),
+    D('Masori armour', ['toa'], ['Masori mask', 'Masori body', 'Masori chaps'], 3, { repeats: false }),
+    D('Raid purples', ['tob', 'cox', 'toa'], ['Scythe of Vitur', 'Ghrazi rapier', 'Sanguinesti staff', 'Twisted bow', 'Kodai insignia', 'Elder maul', 'Tumeken’s shadow', 'Masori body'], 5, { weights: { 'Scythe of Vitur': 2, 'Twisted bow': 2, 'Tumeken’s shadow': 2 } }),
+    D('Barrows and Moons', ['barrows'], ['Ahrim’s hood', 'Ahrim’s robetop', 'Ahrim’s robeskirt', 'Ahrim’s staff'], 3, { more: [DO(['moons'], ['Blood moon helm', 'Blood moon chestplate', 'Blood moon tassets'], 3, false)] }),
+    D('Virtus piece', ['duke', 'vard', 'levi', 'whisp'], ['Virtus mask', 'Virtus robe top', 'Virtus robe bottom'], 1, { ehb: 45, art: art(270, 'V') }),
+    D('Vorkath heads', ['vork'], ['Vorkath’s head'], 10),
+    MAN('Infernal cape', 'Obtain an Infernal cape', 1, 18, { art: art(18, 'I') }),
+    D('Tome of fire', ['wt'], ['Tome of fire'], 1),
+    D('Enhanced seed', ['cg'], ['Enhanced crystal weapon seed'], 1),
+    D('Armadyl pieces', ['gwda'], ['Armadyl helmet', 'Armadyl chestplate', 'Armadyl chainskirt'], 2),
+    D('Spirit shield sigil', ['corp'], ['Spectral sigil', 'Arcane sigil', 'Elysian sigil'], 1),
+    D('Dharok’s set', ['barrows'], ['Dharok’s helm', 'Dharok’s platebody', 'Dharok’s platelegs', 'Dharok’s greataxe'], 4, { repeats: false }),
+    D('Blood moon set', ['moons'], ['Blood moon helm', 'Blood moon chestplate', 'Blood moon tassets'], 3, { repeats: false }),
+    D('Zaryte vambraces', ['nex'], ['Zaryte vambraces'], 1),
+    D('Kodai or Elder maul', ['cox'], ['Kodai insignia', 'Elder maul'], 1),
+    D('Nihil horn', ['nex'], ['Nihil horn'], 1),
+    D('Leviathan’s lure', ['levi'], ['Leviathan’s lure'], 1),
+    MAN('Colosseum wave 12', 'Reach wave 12 of the Fortis Colosseum', 1, 4),
+    MAN('Gauntlet sub-6', 'Complete the Corrupted Gauntlet in under 6:00', 3, 5)
+  ];
+}
+let TID = 1;
+function place(list, positions) { return list.map((t, i) => Object.assign({ id: 't' + (TID++), pos: positions[i], evidence: [] }, t)); }
+function mkEvent(o) {
+  return Object.assign({ tz: 'Europe/Copenhagen', version: 1, teamSize: 10, rosterFinalized: false, started: false,
+    board: { rows: 5, cols: 5, state: 'draft', correction: false, tiles: [], approved: null, published: null, approvedAt: null, publishedAt: null, history: 0, reason: '' }, control: { who: 'me' } }, o);
+}
+function freeze(b) { return { rows: b.rows, cols: b.cols, tiles: clone(b.tiles).map(t => Object.assign(t, { frozenEhb: tileCalc(t).effective, frozenDesc: (t.desc || '').trim() || autoDesc(t), frozenName: tileName(t) })) }; }
+function buildWorld() {
+  OID = 1; TID = 1; const W = {};
+  let p = pool();
+  W['raids-week-2027'] = mkEvent({ slug: 'raids-week-2027', name: 'Raids Week 2027', phase: 'signupclosed', when: 'draft running', teamSize: 11, start: Date.UTC(2027, 5, 19, 16), end: Date.UTC(2027, 5, 26, 20),
+    board: Object.assign(mkEvent({}).board, { tiles: place(p.slice(0, 18), [0, 1, 2, 3, 5, 6, 7, 8, 10, 11, 12, 13, 15, 16, 17, 18, 20, 22]) }) });
+  W['autumn-bingo-2027'] = mkEvent({ slug: 'autumn-bingo-2027', name: 'Autumn Bingo 2027', phase: 'signupopen', when: 'closes 15 Jun', teamSize: 10, start: Date.UTC(2027, 5, 27, 16), end: Date.UTC(2027, 6, 6, 20) });
+  p = pool();
+  const cc = p.slice(0, 23).concat([D('Sunfire fanatic piece', ['colo'], ['Sunfire fanatic helm', 'Sunfire fanatic cuirass'], 1), D('Eclipse moon helm', ['moons'], ['Eclipse moon helm'], 1)]);
+  W['clan-cup-pvm-week'] = mkEvent({ slug: 'clan-cup-pvm-week', name: 'Clan Cup: PvM Week', phase: 'signupclosed', when: 'starts 14 Jun', teamSize: 10, start: Date.UTC(2027, 5, 14, 18), end: Date.UTC(2027, 5, 20, 22),
+    board: Object.assign(mkEvent({}).board, { tiles: place(cc, cc.map((_, i) => i)) }) });
+  p = pool();
+  const nn = mkEvent({ slug: 'nordic-night-bingo', name: 'Nordic Night Bingo', phase: 'signupclosed', when: 'draft running', teamSize: 10, start: Date.UTC(2027, 7, 20, 17), end: Date.UTC(2027, 7, 22, 20),
+    board: Object.assign(mkEvent({}).board, { rows: 4, cols: 4, tiles: place(p.slice(0, 16), [...Array(16).keys()]) }) });
+  nn.board.state = 'approved'; nn.board.approvedAt = Date.UTC(2027, 5, 1, 15, 20); nn.board.approved = freeze(nn.board); nn.board.history = 1; W[nn.slug] = nn;
+  p = pool();
+  const br = mkEvent({ slug: 'boss-rush-weekend', name: 'Boss Rush Weekend', phase: 'signupclosed', when: 'start postponed', teamSize: 10, rosterFinalized: true, start: Date.UTC(2027, 5, 5, 16), end: Date.UTC(2027, 5, 7, 20),
+    board: Object.assign(mkEvent({}).board, { tiles: place(p, [...Array(25).keys()]) }) });
+  br.board.state = 'approved'; br.board.approvedAt = Date.UTC(2027, 4, 30, 19, 5); br.board.approved = freeze(br.board); br.board.history = 2; W[br.slug] = br;
+  p = pool();
+  const ms = mkEvent({ slug: 'midsummer-skilling-sprint', name: 'Midsummer Skilling Sprint', phase: 'live', when: 'ends 6 Jun', teamSize: 9, rosterFinalized: true, started: true, start: Date.UTC(2027, 4, 28, 16), end: Date.UTC(2027, 5, 6, 20),
+    board: Object.assign(mkEvent({}).board, { tiles: place(p, [...Array(25).keys()]) }), control: { who: null } });
+  ms.board.tiles.forEach((t, i) => { if (i % 3 !== 2) t.evidence = t.objectives.map(o => o.id); });
+  ms.board.state = 'published'; ms.board.approvedAt = Date.UTC(2027, 4, 26, 18); ms.board.publishedAt = Date.UTC(2027, 4, 26, 18, 10); ms.board.approved = freeze(ms.board); ms.board.published = ms.board.approved; ms.board.history = 1; W[ms.slug] = ms;
+  p = pool();
+  const sb = mkEvent({ slug: 'summer-bingo-2027', name: 'Summer Bingo 2027', phase: 'awaitingfinalreview', when: 'ended 23 May', teamSize: 12, rosterFinalized: true, started: true, start: Date.UTC(2027, 4, 14, 16), end: Date.UTC(2027, 4, 23, 20),
+    board: Object.assign(mkEvent({}).board, { tiles: place(p, [...Array(25).keys()]) }) });
+  sb.board.tiles.forEach((t, i) => { if (i % 4 !== 3) t.evidence = t.objectives.map(o => o.id); });
+  sb.board.state = 'published'; sb.board.approvedAt = Date.UTC(2027, 4, 12, 17); sb.board.publishedAt = Date.UTC(2027, 4, 12, 17, 30); sb.board.approved = freeze(sb.board); sb.board.published = sb.board.approved; sb.board.history = 1;
+  sb.board.correction = true; sb.board.reason = 'Tile D4 named the wrong boss in its description.'; sb.board.tiles[18].desc = 'Collect 3 Blood moon armour pieces from the Moons of Peril (no duplicates)'; W[sb.slug] = sb;
+  return W;
+}
+const ORDER = ['raids-week-2027', 'autumn-bingo-2027', 'clan-cup-pvm-week', 'nordic-night-bingo', 'boss-rush-weekend', 'midsummer-skilling-sprint', 'summer-bingo-2027'];
+
+class Component extends DCLogic {
+  constructor(...args) {
+    super(...args);
+    this.timers = [];
+    this.world = buildWorld();
+    this.hist = { entries: [{ url: '/admin/events/raids-week-2027/board', scroll: 0 }], idx: 0 };
+    let dark = false;
+    try { dark = window.matchMedia('(prefers-color-scheme: dark)').matches; } catch (e) {}
+    this.state = {
+      theme: dark ? 'dark' : 'light', route: 'board', slug: 'raids-week-2027', otherKey: null,
+      loading: false, loadError: false, failNext: false, failEditorNext: false, outcome: 'ok', showBar: true,
+      snap: clone(this.world['raids-week-2027']), pending: null, unsure: null, checking: false, notice: null, issues: null,
+      focusPos: 0, moving: null, dragFrom: null, dragOver: null, live: '', planMore: false,
+      sizeDraft: null, sizeSaved: false, sizeErr: '',
+      ed: null, rz: null, pv: null, cx: null, modal: null, menu: null, layerErr: null, toasts: [],
+      sideOpen: true, mobileNav: false, vw: 1440, histRev: 0
+    };
+  }
+  componentDidMount() {
+    this.onResize = () => { const vw = window.innerWidth; if (vw !== this.state.vw) this.setState(s => ({ vw, mobileNav: vw > 860 ? false : s.mobileNav })); };
+    window.addEventListener('resize', this.onResize); this.onResize();
+  }
+  componentWillUnmount() { this.timers.forEach(clearTimeout); window.removeEventListener('resize', this.onResize); }
+  later(fn, ms) { const t = setTimeout(() => { this.timers = this.timers.filter(x => x !== t); fn(); }, ms); this.timers.push(t); return t; }
+  isMobile() { return this.state.vw <= 860; }
+  toast(o) { DKAdmin.toast(this, o); }
+
+  /* ---------------- data ---------------- */
+  ev() { return this.world[this.state.slug]; }
+  view() { return this.state.snap; }
+  refresh(extra, cb) { this.setState(Object.assign({ snap: clone(this.ev()) }, extra || {}), cb); }
+  busy() { const S = this.state; return !!S.pending || S.checking; }
+  blocked() { return this.busy() || !!this.state.unsure; }
+  // stage of the board as admins see it
+  mode(v) { v = v || this.view(); const b = v.board; return b.state === 'published' ? (b.correction ? 'correction' : 'published') : b.state; }
+  boardEditable(v) { v = v || this.view(); const m = this.mode(v); return m === 'draft' || m === 'approved' || m === 'correction'; }
+  canEdit(v) { v = v || this.view(); return this.boardEditable(v) && v.control.who === 'me'; }
+  tileAt(v, pos) { return v.board.tiles.find(t => t.pos === pos) || null; }
+  locked(tile) { return !!tile && tile.evidence && tile.evidence.length > 0; }
+  objLocked(tile, oid) { return !!tile && (tile.evidence || []).indexOf(oid) >= 0; }
+  correctionLiveTiles(v) { return v.board.published ? v.board.published.tiles : []; }
+  changedTile(v, t) {
+    if (this.mode(v) !== 'correction') return false;
+    const pub = this.correctionLiveTiles(v).find(x => x.id === t.id); if (!pub) return true;
+    const pick = x => JSON.stringify({ n: x.name, d: x.desc, a: x.art, k: x.kind, e: x.ehbManual, o: x.objectives, p: x.pos });
+    return pick(pub) !== pick(t);
+  }
+  lines(v) {
+    const b = v.board; const rows = [], cols = [];
+    for (let r = 0; r < b.rows; r++) { let s = 0, n = 0, miss = 0; for (let c = 0; c < b.cols; c++) { const t = this.tileAt(v, r * b.cols + c); if (t) { n++; const e = tileCalc(t).effective; if (e == null) miss++; else s += e; } } rows.push({ total: s, full: n === b.cols && !miss, n }); }
+    for (let c = 0; c < b.cols; c++) { let s = 0, n = 0, miss = 0; for (let r = 0; r < b.rows; r++) { const t = this.tileAt(v, r * b.cols + c); if (t) { n++; const e = tileCalc(t).effective; if (e == null) miss++; else s += e; } } cols.push({ total: s, full: n === b.rows && !miss, n }); }
+    const full = rows.concat(cols).filter(l => l.full); const avg = full.length ? full.reduce((a, l) => a + l.total, 0) / full.length : null;
+    return { rows, cols, avg, full };
+  }
+  stats(v) {
+    const tiles = v.board.tiles; const eff = tiles.map(t => tileCalc(t).effective);
+    const total = eff.reduce((a, e) => a + (e || 0), 0); const size = parseInt(v.teamSize, 10) || null;
+    const days = Math.max(1, (v.end - v.start) / DAY); const L = this.lines(v);
+    const full = L.full.map(l => l.total); const lo = full.length ? Math.min.apply(null, full) : null, hi = full.length ? Math.max.apply(null, full) : null;
+    return { total, size, perPlayer: size ? total / size : null, perDay: size ? total / size / days : null, days,
+      avgTile: tiles.length ? total / tiles.length : null, lo, hi, spread: full.length > 1 ? hi - lo : null, spreadPct: full.length > 1 && L.avg ? (hi - lo) / L.avg * 100 : null,
+      missing: eff.filter(e => e == null).length, filled: tiles.length, cells: v.board.rows * v.board.cols };
+  }
+  // Approval validation (the application's BoardApprovalValidationException cases that apply to this reference)
+  validate(v) {
+    const b = v.board; const out = [];
+    const empty = b.rows * b.cols - b.tiles.length;
+    if (empty > 0) out.push({ label: 'Fill every board position', text: '(' + empty + ' empty).', pos: [...Array(b.rows * b.cols).keys()].find(p => !this.tileAt(v, p)) });
+    b.tiles.slice().sort((a, c) => a.pos - c.pos).forEach(t => {
+      const c = tileCalc(t); const where = posName(t.pos, b.cols) + ' ' + tileName(t);
+      if (t.kind === 'drops' && c.calc == null) out.push({ label: where, text: c.notes.some(n => n.catalogue) ? 'needs automatic EHB: ' + c.notes.map(n => n.text).join(' ') + ' Correct the rate in Catalogue; a manual EHB can’t replace it.' : 'needs automatic EHB: ' + c.notes.map(n => n.text).join(' '), pos: t.pos });
+      else if (t.kind === 'manual' && c.effective == null) out.push({ label: where, text: 'needs a positive EHB estimate.', pos: t.pos });
+      if (t.kind === 'drops') {
+        const noGp = []; t.objectives.forEach(o => o.drops.forEach(id => { const d = dropById(id); if (d && d.gp == null && noGp.indexOf(d.item) < 0) noGp.push(d.item); }));
+        if (noGp.length) out.push({ label: where, text: 'uses drops with no catalogue GP value (' + noGp.join(', ') + '). Set a value in Catalogue; an explicit 0 is valid.', pos: t.pos });
+      }
+    });
+    return out;
+  }
+
+  /* ---------------- URL (simulated browser) ---------------- */
+  cur() { return this.hist.entries[this.hist.idx]; }
+  bumpHist() { this.setState(s => ({ histRev: s.histRev + 1 })); }
+  push(url) { this.hist.entries = this.hist.entries.slice(0, this.hist.idx + 1).concat([{ url, scroll: 0 }]); this.hist.idx++; this.bumpHist(); }
+  replaceUrl(url) { this.hist.entries[this.hist.idx] = { url, scroll: 0 }; this.bumpHist(); }
+  baseUrl() { return '/admin/events/' + this.state.slug + '/board'; }
+  parse(url) {
+    const [path, q] = url.split('?');
+    let m = path.match(/^\/admin\/events\/([a-z0-9-]+)\/([a-z]+)$/);
+    if (m) return { route: m[2] === 'board' ? 'board' : 'other', slug: m[1], key: m[2], tile: q && /^tile=([A-H][1-8])$/.test(q) ? q.slice(5) : null };
+    if (path === '/admin/events') return { route: 'other', key: 'events', slug: this.state.slug };
+    m = path.match(/^\/admin\/([a-z]+)$/);
+    return { route: 'other', key: m ? m[1] : 'dashboard', slug: this.state.slug };
+  }
+  applyEntry(how) {
+    const r = this.parse(this.cur().url);
+    const base = { menu: null, modal: null, cx: null, ed: null, rz: null, pv: null, layerErr: null, mobileNav: false, moving: null };
+    if (r.route === 'board') {
+      const same = how === 'pop' && r.slug === this.state.slug && this.state.route === 'board' && !this.state.loadError;
+      this.setState(Object.assign(base, { route: 'board', slug: r.slug, otherKey: null }), () => { if (!same) this.load(r.tile); });
+    } else {
+      this.setState(Object.assign(base, { route: 'other', slug: r.slug || this.state.slug, otherKey: r.key }), () => { const el = document.getElementById('scroller'); if (el) el.scrollTop = 0; DKAdmin.focusSoon('page-h1'); });
+    }
+  }
+  edDirty() { const e = this.state.ed; return !!e && !e.readOnly && !e.loading && !e.loadError && e.base !== JSON.stringify(e.f); }
+  leave(go) {
+    if (this.state.route === 'board') {
+      if (this.busy()) { this.toast({ text: 'Wait for the current change to finish.' }); return; }
+      if (this.state.unsure) { this.openDiscard(go, 'uncertain'); return; }
+      if (this.edDirty()) { this.openDiscard(() => { this.setState({ ed: null }); go(); }, 'discard'); return; }
+    }
+    go();
+  }
+  popLayer() {
+    const S = this.state;
+    if (S.modal) return true;
+    if (S.cx) { this.closeCx(); return true; }
+    if (S.pv) { this.closePv(); return true; }
+    if (S.rz) { this.closeRz(); return true; }
+    if (S.ed) { this.requestCloseEd(); return true; }
+    if (S.menu) { this.closeMenu(false); return true; }
+    if (S.moving) { this.cancelMove(); return true; }
+    return false;
+  }
+  back() { if (this.hist.idx === 0 || this.popLayer()) return; this.leave(() => { this.hist.idx--; this.bumpHist(); this.applyEntry('pop'); }); }
+  forward() { if (this.hist.idx >= this.hist.entries.length - 1 || this.popLayer()) return; this.leave(() => { this.hist.idx++; this.bumpHist(); this.applyEntry('pop'); }); }
+  reload() { if (this.state.modal || this.state.cx) return; this.leave(() => this.applyEntry('load')); }
+  directVisit(url) { this.leave(() => { this.hist = { entries: [{ url, scroll: 0 }], idx: 0 }; this.bumpHist(); this.applyEntry('load'); }); }
+  goNav(k) {
+    this.closeMobileNav(false);
+    const url = k === 'events' ? '/admin/events' : EVENT_PAGES.indexOf(k) >= 0 ? '/admin/events/' + this.state.slug + '/' + k : '/admin/' + k;
+    if (url === this.cur().url) return;
+    this.leave(() => { this.push(url); this.applyEntry('push'); });
+  }
+  switchEvent(slug) { const url = '/admin/events/' + slug + '/board'; if (url === this.cur().url) return; this.leave(() => { this.push(url); this.applyEntry('push'); }); }
+  backToPage() {
+    const prev = this.hist.entries[this.hist.idx - 1];
+    if (prev && this.parse(prev.url).route === 'board') this.back();
+    else { this.push(this.baseUrl()); this.applyEntry('push'); }
+  }
+  // Catalogue opens in a new tab in the application (entries in the editor stay); the prototype says so.
+  goCatalogue(e) { if (e && e.preventDefault) e.preventDefault(); this.toast({ text: 'Opens Catalogue in a new tab in the application. Your entries here stay as they are.' }); }
+
+  /* ---------------- load ---------------- */
+  load(tileRef) {
+    const willFail = this.state.failNext;
+    this.setState({ loading: true, loadError: false, failNext: false, pending: null, unsure: null, checking: false, notice: null, issues: null, moving: null, sizeDraft: null, sizeSaved: false, sizeErr: '', live: '' });
+    DKAdmin.mock.request(this, () => {
+      if (willFail) { this.setState({ loading: false, loadError: true }, () => DKAdmin.focusSoon('retry-btn')); return; }
+      this.refresh({ loading: false, focusPos: 0 }, () => {
+        const el = document.getElementById('scroller'); if (el) el.scrollTop = 0;
+        if (tileRef) { const v = this.view(); const pos = ROWS.indexOf(tileRef[0]) * v.board.cols + (parseInt(tileRef.slice(1), 10) - 1); if (pos >= 0 && pos < v.board.rows * v.board.cols && parseInt(tileRef.slice(1), 10) <= v.board.cols) this.openEd(pos); else this.replaceUrl(this.baseUrl()); }
+      });
+    });
+  }
+
+  /* ---------------- requests ---------------- */
+  run(o) {
+    const outcome = this.state.outcome; const started = Date.now(); const layer = o.layer || null;
+    const patch = { outcome: 'ok', pending: { kind: o.kind }, layerErr: null, notice: null };
+    if (layer && this.state[layer]) patch[layer] = Object.assign({}, this.state[layer], { busy: true });
+    this.setState(patch);
+    DKAdmin.mock.request(this, () => {
+      const srv = this.ev(); let res;
+      if (outcome === 'fail') res = { status: 'failed' };
+      else if (outcome === 'conflict') { this.otherEdit(srv, true); res = { status: 'conflict' }; }
+      else if (outcome === 'timeoutNot') res = { status: 'uncertain' };
+      else {
+        const r = o.apply(srv);
+        if (!r.ok) res = { status: 'rejected', msg: r.msg, list: r.list };
+        else { srv.version++; res = { status: outcome === 'timeoutSaved' ? 'uncertain' : 'ok', r }; }
+      }
+      const done = () => this.settleRun(o, res);
+      if (o.quick) DKAdmin.settle(this, started, done, DKAdmin.motion.busyMinQuick); else DKAdmin.settle(this, started, done);
+    }, o.quick ? DKAdmin.mock.quickLatency : undefined);
+  }
+  settleRun(o, res) {
+    const layer = o.layer || null;
+    const sel = layer === 'ed' ? '#ed, #ed-scrim' : '#' + layer + ', #' + layer + '-scrim';
+    const closeLayer = fn => {
+      if (!layer || !this.state[layer]) { fn(); return; }
+      this.setState(s => ({ [layer]: Object.assign({}, s[layer], { busy: false }) }), () => DKAdmin.closeLayer(this, layer, sel, fn));
+    };
+    if (res.status === 'ok') { closeLayer(() => this.refreshShown({ pending: null }, o.reorder, () => { if (o.onOk) o.onOk(res.r || {}); })); return; }
+    if (res.status === 'uncertain') { closeLayer(() => this.setState({ pending: null, unsure: { what: o.what, verify: o.verify, okText: o.okText, notText: o.notText } }, () => DKAdmin.focusSoon('bd-banner'))); return; }
+    const err = res.status === 'failed' ? { cls: 'is-error', title: 'Couldn’t ' + o.what + '.', text: 'Nothing changed. Try again.' }
+      : res.status === 'conflict' ? { cls: 'is-warning', title: 'Another admin changed the board first.', text: 'Nothing was saved. The latest board is shown; review it, then try again.' }
+        : { cls: 'is-error', title: 'Couldn’t ' + o.what + '.', text: res.msg, list: res.list };
+    if (res.status !== 'failed') this.refresh();
+    if (layer && this.state[layer]) {
+      this.setState(s => ({ pending: null, layerErr: err, [layer]: Object.assign({}, s[layer], { busy: false }) }), () => DKAdmin.focusSoon(layer + '-banner'));
+      return;
+    }
+    if (res.list) { this.setState({ pending: null, issues: { title: err.title, text: err.text, list: res.list } }, () => DKAdmin.focusSoon('bd-banner')); return; }
+    this.setState({ pending: null });
+    if (res.status === 'conflict') this.setState({ notice: err }, () => DKAdmin.focusSoon('bd-banner'));
+    else this.toast({ text: err.title + ' ' + err.text, tone: 'error' });
+  }
+  refreshShown(extra, reorder, cb) {
+    if (!reorder) { this.refresh(extra, cb); return; }
+    const before = DKAdmin.reorder.measure('.btile');
+    this.refresh(extra, () => DKAdmin.reorder.play(this, before, '.btile', cb));
+  }
+  check() {
+    const u = this.state.unsure; if (!u || this.state.checking) return;
+    this.setState({ checking: true });
+    DKAdmin.mock.request(this, () => {
+      const happened = u.verify(this.ev());
+      this.refresh({ checking: false, unsure: null, notice: happened ? null : { cls: 'is-info', title: u.notText, text: 'Nothing changed, so it’s safe to try again.' } }, () => {
+        if (happened) this.toast({ text: u.okText });
+        DKAdmin.focusSoon(happened ? 'page-h1' : 'bd-banner');
+      });
+    });
+  }
+  // A competitive edit to an approved, unpublished board returns it to draft (the approval stays in history).
+  competitive(srv) { if (srv.board.state === 'approved') { srv.board.state = 'draft'; srv.board.approved = null; return true; } return false; }
+  invalidatedText(was) { return was ? ' The board is back in draft; approve it again when you’re ready.' : ''; }
+
+  /* ---------------- editing control ---------------- */
+  takeControl(force) {
+    if (this.blocked()) return;
+    this.run({ kind: 'control', quick: !force, layer: force ? 'cx' : null, what: force ? 'take over editing' : 'start editing',
+      apply: srv => { if (srv.control.who === 'other' && !force) return { ok: false, msg: OTHER_ADMIN + ' started editing just now.' }; srv.control = { who: 'me' }; return { ok: true }; },
+      verify: srv => srv.control.who === 'me', okText: 'You’re editing the board.', notText: 'You aren’t editing the board.',
+      onOk: () => {
+        // an editor that lost control becomes editable again with its entries intact
+        const ed = this.state.ed; if (ed && ed.lost) this.setState({ ed: Object.assign({}, ed, { readOnly: false, lost: false }) }, () => DKAdmin.focusSoon('ed-save'));
+        this.toast({ text: ed && ed.lost ? 'You’re editing again. Your entries are still here; save when ready.' : 'You’re editing the board. Other admins can view it.' });
+      } });
+  }
+  release() {
+    if (this.blocked()) return;
+    if (this.edDirty()) { this.openDiscard(() => { this.setState({ ed: null }); this.release(); }, 'discard'); return; }
+    this.run({ kind: 'release', quick: true, what: 'stop editing',
+      apply: srv => { if (srv.control.who === 'me') srv.control = { who: null }; return { ok: true }; },
+      verify: srv => srv.control.who !== 'me', okText: 'Editing control released.', notText: 'You’re still editing.',
+      onOk: () => { this.setState({ ed: null }); this.toast({ text: 'Editing control released. Any admin can start editing.' }); } });
+  }
+
+  /* ---------------- moving ---------------- */
+  startMove(pos) {
+    const v = this.view(); const t = this.tileAt(v, pos);
+    if (!t || !this.canEdit(v) || this.blocked()) return;
+    this.setState({ moving: { from: pos, to: pos }, menu: null, live: 'Moving ' + tileName(t) + '. Use the arrow keys to choose a position, then press Enter. Escape cancels.' }, () => DKAdmin.focusSoon(this.cellId(v, pos)));
+  }
+  cancelMove() { const m = this.state.moving; if (!m) return; const v = this.view(); this.setState({ moving: null, live: 'Move cancelled.' }, () => DKAdmin.focusSoon(this.cellId(v, m.from))); }
+  move(from, to) {
+    const v = this.view(); const a = this.tileAt(v, from); const b = this.tileAt(v, to);
+    if (!a || from === to) { this.setState({ moving: null }); return; }
+    const was = v.board.state === 'approved';
+    const what = b ? 'swap ' + tileName(a) + ' and ' + tileName(b) : 'move ' + tileName(a);
+    this.setState({ moving: null, dragFrom: null, dragOver: null });
+    this.run({ kind: 'move', quick: true, reorder: true, what,
+      apply: srv => {
+        if (srv.control.who !== 'me') return { ok: false, msg: 'You don’t have editing control.' };
+        const ta = srv.board.tiles.find(t => t.id === a.id); const tb = srv.board.tiles.find(t => t.pos === to);
+        if (!ta || ta.pos !== from) return { ok: false, msg: 'That tile moved. The latest board is shown.' };
+        if (tb) tb.pos = from; ta.pos = to; this.competitive(srv); return { ok: true };
+      },
+      verify: srv => { const ta = srv.board.tiles.find(t => t.id === a.id); return !!ta && ta.pos === to; },
+      okText: 'The tile moved.', notText: 'The tile didn’t move.',
+      onOk: () => { const nv = this.view(); this.setState({ focusPos: to, live: (b ? 'Swapped ' + tileName(a) + ' with ' + tileName(b) : 'Moved ' + tileName(a)) + ' to ' + posName(to, nv.board.cols) + '.' }); DKAdmin.focusSoon(this.cellId(nv, to), { preventScroll: true }); if (was) this.toast({ text: 'Tile moved.' + this.invalidatedText(true) }); } });
+  }
+  cellId(v, pos) { const t = this.tileAt(v, pos); return t ? 'bt-' + t.id : 'be-' + pos; }
+  gridKey(e) {
+    const S = this.state; const v = this.view(); const b = v.board; const cols = b.cols, n = b.rows * b.cols;
+    const m = S.moving; let p = m ? m.to : S.focusPos; let q = p;
+    if (e.key === 'ArrowRight') q = Math.min(n - 1, p + 1); else if (e.key === 'ArrowLeft') q = Math.max(0, p - 1);
+    else if (e.key === 'ArrowDown') q = p + cols < n ? p + cols : p; else if (e.key === 'ArrowUp') q = p - cols >= 0 ? p - cols : p;
+    else if (e.key === 'Home') q = Math.floor(p / cols) * cols; else if (e.key === 'End') q = Math.floor(p / cols) * cols + cols - 1;
+    else if (m && e.key === 'Enter') { e.preventDefault(); this.move(m.from, m.to); return; }
+    else if (m && e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); this.cancelMove(); return; }
+    else if (!m && (e.key === 'm' || e.key === 'M')) { if (this.tileAt(v, p) && this.canEdit(v)) { e.preventDefault(); this.startMove(p); } return; }
+    else if (!m && (e.key === 'Delete' || e.key === 'Backspace')) { const t = this.tileAt(v, p); if (t && this.canEdit(v)) { e.preventDefault(); this.askRemove(t.id); } return; }
+    else return;
+    e.preventDefault();
+    if (m) { const t = this.tileAt(v, q); this.setState({ moving: Object.assign({}, m, { to: q }), live: posName(q, cols) + (q === m.from ? ', current position' : t ? ', swap with ' + tileName(t) : ', empty') }); return; }
+    this.setState({ focusPos: q }, () => DKAdmin.focusSoon(this.cellId(v, q), { preventScroll: false }));
+  }
+
+  /* ---------------- tile editor ---------------- */
+  blankObj(kind) { return kind === 'manual' ? { id: 'n' + (OID++), text: '', target: '1' } : { id: 'n' + (OID++), sources: [], drops: [], target: '1', repeats: true, weights: {} }; }
+  openEd(pos) {
+    const v = this.view(); const t = this.tileAt(v, pos);
+    if (this.blocked() || this.state.moving) return;
+    if (!t && !this.canEdit(v)) return;
+    const act = document.activeElement; this.edReturn = act && act !== document.body ? act : null;
+    const readOnly = !this.canEdit(v);
+    const f = t ? { name: t.name || '', desc: t.desc || '', descManual: !!(t.desc || '').trim(), art: t.art || null, kind: t.kind, ehb: t.ehbManual || '', override: t.kind === 'drops' && !!(t.ehbManual || '').trim(),
+      objs: { drops: t.kind === 'drops' ? clone(t.objectives) : [this.blankObj('drops')], manual: t.kind === 'manual' ? clone(t.objectives) : [this.blankObj('manual')] } }
+      : { name: '', desc: '', descManual: false, art: null, kind: 'drops', ehb: '', override: false, objs: { drops: [this.blankObj('drops')], manual: [this.blankObj('manual')] } };
+    const willFail = this.state.failEditorNext;
+    // sources that already have chosen drops open collapsed to those drops; new sources open in full
+    const expand = {}; if (t && t.kind === 'drops') t.objectives.forEach(o => o.sources.forEach(bid => { if (o.drops.some(id => dropById(id) && dropById(id).bossId === bid)) expand[o.id + ':' + bid] = false; }));
+    this.replaceUrl(this.baseUrl() + '?tile=' + posName(pos, v.board.cols));
+    this.setState({ failEditorNext: false, menu: null, layerErr: null, ed: { pos, tileId: t ? t.id : null, readOnly, f, base: JSON.stringify(f), open: 0, countOpen: {}, expand, combo: null, showErr: false, artErr: '', loading: true, loadError: false, closing: false, busy: false } });
+    // the editor loads catalogue choices on demand (the application's EditorData handler)
+    DKAdmin.mock.request(this, () => {
+      if (!this.state.ed) return;
+      this.setState(s => ({ ed: Object.assign({}, s.ed, { loading: false, loadError: willFail }) }), () => DKAdmin.focusSoon(willFail ? 'ed-retry' : readOnly ? 'ed-close' : 'ed-name'));
+    }, DKAdmin.mock.quickLatency);
+  }
+  retryEd() { const e = this.state.ed; if (!e) return; this.setState({ ed: Object.assign({}, e, { loading: true, loadError: false }) }); DKAdmin.mock.request(this, () => { if (this.state.ed) this.setState(s => ({ ed: Object.assign({}, s.ed, { loading: false }) }), () => DKAdmin.focusSoon('ed-name')); }, DKAdmin.mock.quickLatency); }
+  requestCloseEd() { const e = this.state.ed; if (!e || e.busy || this.state.modal || this.state.cx) return; if (this.edDirty()) { this.openDiscard(() => this.closeEd(), 'discard'); return; } this.closeEd(); }
+  closeEd() {
+    const e = this.state.ed; if (!e) return; const v = this.view();
+    this.replaceUrl(this.baseUrl());
+    DKAdmin.closeLayer(this, 'ed', '#ed, #ed-scrim', () => { this.setState({ layerErr: null, focusPos: e.pos }); DKAdmin.restoreFocus(this.edReturn, this.cellId(v, e.pos)); });
+  }
+  setF(patch) { this.setState(s => ({ ed: Object.assign({}, s.ed, { f: Object.assign({}, s.ed.f, patch) }) })); }
+  objsOf(f) { return f.objs[f.kind]; }
+  setObj(i, patch) { this.setState(s => { const f = s.ed.f; const list = f.objs[f.kind].slice(); list[i] = Object.assign({}, list[i], patch); return { ed: Object.assign({}, s.ed, { f: Object.assign({}, f, { objs: Object.assign({}, f.objs, { [f.kind]: list }) }) }) }; }); }
+  draftTile(f) { const e = this.state.ed; return { id: e.tileId, pos: e.pos, name: f.name, desc: f.descManual ? f.desc : '', art: f.art, kind: f.kind, ehbManual: f.kind === 'manual' || f.override ? f.ehb : '', objectives: f.objs[f.kind] }; }
+  edErrors() {
+    const e = this.state.ed; const f = e.f; const out = { objs: [] };
+    if ((f.name || '').trim().length > 80) out.name = 'Use 80 characters or fewer.';
+    if (f.descManual && !(f.desc || '').trim()) out.desc = 'Write a description, or use the automatic one.';
+    if (f.descManual && (f.desc || '').length > 4000) out.desc = 'Use 4,000 characters or fewer.';
+    this.objsOf(f).forEach((o, i) => {
+      const oe = {}; const t = parseInt(o.target, 10);
+      if (!/^\d+$/.test(String(o.target).trim()) || t < 1 || t > 10000) oe.target = 'Enter a whole number from 1 to 10,000.';
+      if (f.kind === 'drops') {
+        if (!o.sources.length) oe.src = 'Choose at least one boss or activity.';
+        else if (!o.drops.length) oe.drops = 'Choose at least one eligible drop.';
+        if (Object.keys(o.weights || {}).some(id => o.drops.indexOf(id) >= 0 && !(/^\d+$/.test(String(o.weights[id])) && +o.weights[id] >= 1 && +o.weights[id] <= 10000))) oe.weights = 'Each drop counts as a whole number from 1 to 10,000.';
+      } else if (!(o.text || '').trim()) oe.text = 'Describe what must be completed.';
+      out.objs[i] = oe;
+    });
+    const n = parseFloat(String(f.ehb).replace(',', '.'));
+    if (f.kind === 'manual' && !(n > 0 && n <= 100000)) out.ehb = 'Enter an EHB estimate above 0 (up to 100,000).';
+    if (f.kind === 'drops' && f.override && !(n > 0 && n <= 100000)) out.ehb = 'Enter an EHB above 0 (up to 100,000), or use the calculated estimate.';
+    out.count = (out.name ? 1 : 0) + (out.desc ? 1 : 0) + (out.ehb ? 1 : 0) + out.objs.reduce((a, oe) => a + Object.keys(oe).length, 0);
+    return out;
+  }
+  saveEd() {
+    const e = this.state.ed; if (!e || e.busy || e.readOnly || e.loading || e.loadError) return;
+    if (e.tileId && !this.edDirty()) { this.closeEd(); return; }
+    const errs = this.edErrors();
+    if (errs.count) {
+      const firstObj = errs.objs.findIndex(oe => oe && Object.keys(oe).length);
+      this.setState({ ed: Object.assign({}, e, { showErr: true, open: firstObj >= 0 ? firstObj : e.open }) }, () => {
+        const oe = errs.objs[firstObj] || {}; const id = errs.name ? 'ed-name' : errs.desc ? 'ed-desc' : firstObj >= 0 ? (oe.src ? 'ed-o' + firstObj + '-src' : oe.drops ? 'ed-o' + firstObj + '-drops-lbl' : oe.text ? 'ed-o' + firstObj + '-text' : 'ed-o' + firstObj + '-target') : 'ed-ehb';
+        const el = document.getElementById(id); if (el && el.scrollIntoView) el.scrollIntoView({ block: 'center' }); DKAdmin.focusSoon(id);
+      });
+      return;
+    }
+    const v = this.view(); const draft = this.draftTile(e.f); const isNew = !e.tileId; const pos = e.pos; const name = tileName(draft);
+    const was = v.board.state === 'approved';
+    this.run({ kind: 'tile', layer: 'ed', what: isNew ? 'add ' + name : 'save ' + name,
+      apply: srv => {
+        if (srv.control.who !== 'me') return { ok: false, msg: 'You no longer have editing control.' };
+        if (isNew) {
+          if (srv.board.tiles.some(t => t.pos === pos)) return { ok: false, msg: 'That position is no longer empty.' };
+          srv.board.tiles.push(Object.assign(clone(draft), { id: 't' + (TID++), pos, evidence: [] }));
+        } else {
+          const t = srv.board.tiles.find(x => x.id === e.tileId); if (!t) return { ok: false, msg: 'This tile was removed.' };
+          if (this.locked(t)) {
+            const ev = t.evidence; const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+            const keptObjs = draft.objectives.filter(o => ev.indexOf(o.id) >= 0);
+            if (keptObjs.length !== ev.length || draft.objectives.length !== t.objectives.length || !ev.every(id => same(t.objectives.find(o => o.id === id), draft.objectives.find(o => o.id === id))) || (t.ehbManual || '') !== (draft.ehbManual || '') || t.kind !== draft.kind)
+              return { ok: false, msg: 'Objectives with submitted evidence can’t change their requirements or scoring, or be removed. Only wording can change.' };
+          }
+          Object.assign(t, clone(draft), { id: t.id, pos: t.pos, evidence: t.evidence });
+        }
+        this.competitive(srv); return { ok: true };
+      },
+      verify: srv => isNew ? srv.board.tiles.some(t => t.pos === pos) : JSON.stringify((srv.board.tiles.find(t => t.id === e.tileId) || {}).objectives) === JSON.stringify(draft.objectives),
+      okText: name + ' is saved.', notText: name + ' wasn’t saved.',
+      onOk: () => { this.replaceUrl(this.baseUrl()); const nv = this.view(); this.setState({ focusPos: pos }); this.toast({ text: (isNew ? name + ' added to ' : name + ' saved at ') + posName(pos, nv.board.cols) + '.' + this.invalidatedText(was) }); DKAdmin.focusSoon(this.cellId(nv, pos), { preventScroll: true }); } });
+  }
+  askRemove(tileId) {
+    const v = this.view(); const t = v.board.tiles.find(x => x.id === tileId); if (!t || this.blocked()) return;
+    if (this.locked(t)) { this.toast({ text: tileName(t) + ' can’t be removed: evidence was submitted against it.', tone: 'error' }); return; }
+    this.openCx('remove', { tileId, name: tileName(t), pos: t.pos });
+  }
+
+  /* ---------------- board-level actions ---------------- */
+  approve() {
+    const v = this.view(); if (this.blocked() || !this.canEdit(v)) return;
+    this.setState({ issues: null });
+    this.run({ kind: 'approve', what: 'approve the board',
+      apply: srv => {
+        if (srv.control.who !== 'me') return { ok: false, msg: 'You don’t have editing control.' };
+        const list = this.validate(srv);
+        if (list.length) return { ok: false, msg: list.length === 1 ? 'One thing needs fixing first.' : list.length + ' things need fixing first.', list };
+        srv.board.state = 'approved'; srv.board.approvedAt = TODAY; srv.board.approved = freeze(srv.board); srv.board.history++; return { ok: true };
+      },
+      verify: srv => srv.board.state === 'approved', okText: 'The board is approved.', notText: 'The board wasn’t approved.',
+      onOk: () => { this.toast({ text: 'Board approved privately. Publishing is a separate step.' }); DKAdmin.focusSoon('primary-btn'); } });
+  }
+  unapprove() {
+    if (this.blocked()) return;
+    this.run({ kind: 'unapprove', quick: true, what: 'return the board to draft',
+      apply: srv => { if (srv.board.state !== 'approved') return { ok: false, msg: 'The board isn’t approved.' }; srv.board.state = 'draft'; srv.board.approved = null; return { ok: true }; },
+      verify: srv => srv.board.state === 'draft', okText: 'The board is back in draft.', notText: 'The board is still approved.',
+      onOk: () => { this.toast({ text: 'Board returned to draft. The approval stays in its history.' }); DKAdmin.focusSoon('primary-btn'); } });
+  }
+  publishReady(v) {
+    const out = [];
+    if (!v.rosterFinalized) out.push({ text: 'Finalize the team rosters first.', go: 'teams', goLabel: 'Teams / Draft' });
+    if (v.started) out.push({ text: 'The event has already started.' });
+    if (TODAY >= v.end) out.push({ text: 'The event’s end has passed.' });
+    return out;
+  }
+  confirmCx() {
+    const c = this.state.cx; if (!c || c.busy) return;
+    if (c.kind === 'takeover') { this.takeControl(true); return; }
+    if (c.kind === 'publish') {
+      this.run({ kind: 'publish', layer: 'cx', what: 'publish the board',
+        apply: srv => { const r = this.publishReady(srv); if (r.length) return { ok: false, msg: r.map(x => x.text).join(' ') }; if (srv.board.state !== 'approved') return { ok: false, msg: 'The board isn’t approved any more. Approve it again first.' }; srv.board.state = 'published'; srv.board.publishedAt = TODAY; srv.board.published = srv.board.approved; return { ok: true }; },
+        verify: srv => srv.board.state === 'published', okText: 'The board is published.', notText: 'The board wasn’t published.',
+        onOk: () => { this.toast({ text: 'Board published. Players can see it; the event starts separately.' }); DKAdmin.focusSoon('page-h1'); } });
+      return;
+    }
+    if (c.kind === 'correct') {
+      const reason = (c.reason || '').trim();
+      if (!reason || reason.length > 2000) { this.setState({ cx: Object.assign({}, c, { showErr: true }) }, () => DKAdmin.focusSoon('cx-reason')); return; }
+      this.run({ kind: 'correct', layer: 'cx', what: 'start the correction',
+        apply: srv => { if (srv.board.state !== 'published' || srv.board.correction) return { ok: false, msg: 'A correction is already open, or the board isn’t published.' }; srv.board.correction = true; srv.board.reason = reason; srv.control = { who: 'me' }; return { ok: true }; },
+        verify: srv => srv.board.correction, okText: 'The correction is open.', notText: 'No correction was started.',
+        onOk: () => { this.toast({ text: 'Private correction started. Players still see the published board.' }); DKAdmin.focusSoon('page-h1'); } });
+      return;
+    }
+    if (c.kind === 'publishCorrection') {
+      this.run({ kind: 'publishCorrection', layer: 'cx', what: 'publish the correction',
+        apply: srv => {
+          if (!srv.board.correction) return { ok: false, msg: 'There’s no open correction.' };
+          const list = this.validate(srv); if (list.length) return { ok: false, msg: 'The corrected board doesn’t validate yet.', list };
+          srv.board.approved = freeze(srv.board); srv.board.published = srv.board.approved; srv.board.publishedAt = TODAY; srv.board.correction = false; srv.board.reason = ''; srv.board.history++; return { ok: true };
+        },
+        verify: srv => !srv.board.correction, okText: 'The correction is published.', notText: 'The correction wasn’t published.',
+        onOk: () => { this.toast({ text: 'Corrected board published. The earlier version stays in history.' }); DKAdmin.focusSoon('page-h1'); } });
+      return;
+    }
+    if (c.kind === 'discard') {
+      this.run({ kind: 'discard', layer: 'cx', what: 'discard the correction',
+        apply: srv => { if (!srv.board.correction) return { ok: false, msg: 'There’s no open correction.' }; const pub = srv.board.published; srv.board.tiles = clone(pub.tiles).map(t => { delete t.frozenEhb; delete t.frozenDesc; delete t.frozenName; return t; }); srv.board.rows = pub.rows; srv.board.cols = pub.cols; srv.board.correction = false; srv.board.reason = ''; return { ok: true }; },
+        verify: srv => !srv.board.correction, okText: 'The correction was discarded.', notText: 'The correction is still open.',
+        onOk: () => { this.toast({ text: 'Correction discarded. The working board matches the published one again.' }); DKAdmin.focusSoon('page-h1'); } });
+      return;
+    }
+    if (c.kind === 'remove') {
+      const was = this.view().board.state === 'approved';
+      this.run({ kind: 'remove', layer: 'cx', what: 'remove ' + c.name,
+        apply: srv => { const t = srv.board.tiles.find(x => x.id === c.tileId); if (!t) return { ok: false, msg: 'This tile was already removed.' }; if (this.locked(t)) return { ok: false, msg: 'A tile with submitted evidence can’t be removed.' }; srv.board.tiles = srv.board.tiles.filter(x => x.id !== c.tileId); this.competitive(srv); return { ok: true }; },
+        verify: srv => !srv.board.tiles.some(x => x.id === c.tileId), okText: c.name + ' was removed.', notText: c.name + ' wasn’t removed.',
+        onOk: () => { if (this.state.ed) this.setState({ ed: null }); this.replaceUrl(this.baseUrl()); this.setState({ focusPos: c.pos }); this.toast({ text: c.name + ' removed. ' + posName(c.pos, this.view().board.cols) + ' is empty.' + this.invalidatedText(was) }); DKAdmin.focusSoon('be-' + c.pos); } });
+    }
+  }
+  // players per team: a planning figure for the statistics; it doesn't change rosters or scoring
+  commitSize() {
+    const S = this.state; if (S.sizeDraft == null) return;
+    const raw = String(S.sizeDraft).trim(); const n = parseInt(raw, 10);
+    if (raw === String(this.view().teamSize)) { this.setState({ sizeDraft: null, sizeErr: '' }); return; }
+    if (!/^\d+$/.test(raw) || n < 1 || n > 100) { this.setState({ sizeErr: 'Enter a whole number from 1 to 100.' }); return; }
+    this.setState({ sizeErr: '' });
+    this.run({ kind: 'size', quick: true, what: 'save players per team',
+      apply: srv => { srv.teamSize = n; return { ok: true }; },
+      verify: srv => srv.teamSize === n, okText: 'Players per team saved.', notText: 'Players per team wasn’t saved.',
+      onOk: () => { this.setState({ sizeDraft: null, sizeSaved: true }); this.later(() => this.setState({ sizeSaved: false }), 1800); } });
+  }
+
+  /* ---------------- resize ---------------- */
+  openRz() {
+    const v = this.view(); if (!this.canEdit(v) || this.blocked()) return;
+    const act = document.activeElement; this.rzReturn = act && act !== document.body ? act : null;
+    this.setState({ rz: { rows: String(v.board.rows), cols: String(v.board.cols), closing: false, busy: false, tried: false }, layerErr: null, menu: null }, () => DKAdmin.focusSoon('rz-rows'));
+  }
+  closeRz() { const r = this.state.rz; if (!r || r.busy) return; DKAdmin.closeLayer(this, 'rz', '#rz, #rz-scrim', () => { this.setState({ layerErr: null }); DKAdmin.restoreFocus(this.rzReturn, 'resize-btn'); }); }
+  rzOutside(v, rows, cols) { return v.board.tiles.filter(t => Math.floor(t.pos / v.board.cols) >= rows || t.pos % v.board.cols >= cols); }
+  applyRz() {
+    const r = this.state.rz; if (!r || r.busy) return; const v = this.view();
+    const rows = parseInt(r.rows, 10), cols = parseInt(r.cols, 10);
+    if (!(rows >= 1 && rows <= 8 && cols >= 1 && cols <= 8)) { this.setState({ rz: Object.assign({}, r, { tried: true }) }); return; }
+    if (rows === v.board.rows && cols === v.board.cols) { this.closeRz(); return; }
+    if (this.rzOutside(v, rows, cols).length) { this.setState({ rz: Object.assign({}, r, { tried: true }) }, () => DKAdmin.focusSoon('rz-impact')); return; }
+    const was = v.board.state === 'approved';
+    this.run({ kind: 'resize', layer: 'rz', what: 'resize the board',
+      apply: srv => {
+        const out = this.rzOutside(srv, rows, cols); if (out.length) return { ok: false, msg: 'Move or remove ' + out.length + ' tile' + (out.length === 1 ? '' : 's') + ' outside the new size first.' };
+        const oc = srv.board.cols; srv.board.tiles.forEach(t => { t.pos = Math.floor(t.pos / oc) * cols + (t.pos % oc); }); srv.board.rows = rows; srv.board.cols = cols; this.competitive(srv); return { ok: true };
+      },
+      verify: srv => srv.board.rows === rows && srv.board.cols === cols, okText: 'The board is ' + rows + ' × ' + cols + '.', notText: 'The board size didn’t change.',
+      onOk: () => { this.setState({ focusPos: 0 }); this.toast({ text: 'Board resized to ' + rows + ' × ' + cols + '; every tile kept its position.' + this.invalidatedText(was) }); DKAdmin.focusSoon('resize-btn'); } });
+  }
+
+  /* ---------------- confirmations / preview / discard ---------------- */
+  openCx(kind, extra) {
+    if (this.blocked() && kind !== 'takeover') return;
+    const act = document.activeElement; this.cxReturn = act && act !== document.body ? act : null;
+    this.setState({ cx: Object.assign({ kind, closing: false, busy: false, reason: '', showErr: false }, extra || {}), layerErr: null, menu: null }, () => DKAdmin.focusSoon(kind === 'correct' ? 'cx-reason' : 'cx-confirm'));
+  }
+  closeCx() { const c = this.state.cx; if (!c || c.busy) return; DKAdmin.closeLayer(this, 'cx', '#cx, #cx-scrim', () => { this.setState({ layerErr: null }); DKAdmin.restoreFocus(this.cxReturn, this.state.ed ? 'ed-remove' : 'primary-btn'); }); }
+  openPv() { const act = document.activeElement; this.pvReturn = act && act !== document.body ? act : null; this.setState({ pv: { closing: false }, menu: null }, () => DKAdmin.focusSoon('pv-close')); }
+  closePv() { DKAdmin.closeLayer(this, 'pv', '#pv, #pv-scrim', () => DKAdmin.restoreFocus(this.pvReturn, 'preview-btn')); }
+  openDiscard(go, kind) {
+    this.discardThen = go;
+    const act = document.activeElement; this.modalReturn = act && act !== document.body ? act : null;
+    this.setState({ modal: { closing: false, kind: kind || 'discard' }, menu: null }, () => DKAdmin.focusSoon(kind === 'uncertain' ? 'modal-confirm' : 'modal-cancel'));
+  }
+  keepEditing() { DKAdmin.closeLayer(this, 'modal', '#modal, #confirm-scrim', () => DKAdmin.restoreFocus(this.modalReturn, 'page-h1')); }
+  confirmDiscard() {
+    const go = this.discardThen; this.discardThen = null; const kind = this.state.modal && this.state.modal.kind;
+    DKAdmin.closeLayer(this, 'modal', '#modal, #confirm-scrim', () => {
+      if (kind === 'uncertain') { this.setState({ unsure: null }, () => { if (go) go(); }); return; }
+      if (go) go();
+    });
+  }
+  checkInstead() { this.discardThen = null; DKAdmin.closeLayer(this, 'modal', '#modal, #confirm-scrim', () => this.check()); }
+
+  /* ---------------- prototype: other admins and catalogue ---------------- */
+  otherEdit(srv, silent) {
+    // another admin's competitive edit (as after a takeover): renames a tile and nudges the board version
+    const t = srv.board.tiles[0]; if (t && !this.locked(t)) t.name = tileName(t).replace(/ \(updated\)$/, '') + ' (updated)';
+    srv.version++;
+    if (!silent) { this.refresh(); this.toast({ text: OTHER_ADMIN + ' changed ' + (t ? tileName(t) : 'the board') + '.' }); }
+  }
+  protoTakeover() {
+    const srv = this.ev(); if (!this.boardEditable(srv)) { this.toast({ text: 'Prototype: this board isn’t editable now.' }); return; }
+    const mine = srv.control.who === 'me'; srv.control = { who: 'other' }; srv.version++;
+    const open = this.state.ed && !this.state.ed.readOnly;
+    this.refresh({ notice: mine ? { cls: 'is-warning', title: OTHER_ADMIN + ' took over editing.', text: open ? 'Your tile wasn’t saved; your entries stay in the editor until you close it.' : 'You can still view the board.', action: 'Take over…', run: () => this.openCx('takeover') } : null }, () => {
+      if (open) this.setState(s => ({ ed: Object.assign({}, s.ed, { readOnly: true, lost: true }) }));
+      if (!mine) this.toast({ text: 'Prototype: ' + OTHER_ADMIN + ' is editing.' });
+    });
+  }
+  protoOtherEdit() {
+    const srv = this.ev(); if (srv.control.who === 'me') { this.toast({ text: 'Prototype: while you hold editing control, other admins can’t edit. Let them take over first.' }); return; }
+    this.otherEdit(srv, false);
+  }
+  protoCatalogue() {
+    const d = DROPS.find(x => x.item === 'Sunfire fanatic helm'); const d2 = DROPS.find(x => x.item === 'Sunfire fanatic cuirass');
+    if (d.den) { this.toast({ text: 'Prototype: the catalogue rates are already set.' }); return; }
+    d.den = 120; d.p = 1 / 120; d2.den = 120; d2.p = 1 / 120;
+    this.refresh(); this.toast({ text: 'Catalogue updated: draft estimates recalculated. Approved and published boards keep their frozen values.' });
+  }
+  protoEvidence() {
+    const srv = this.ev(); const t = srv.board.tiles.find(x => !this.locked(x));
+    if (!t || (srv.board.state !== 'published')) { this.toast({ text: 'Prototype: evidence can only arrive on a published board.' }); return; }
+    t.evidence = t.objectives.map(o => o.id); srv.version++;
+    this.refresh(); this.toast({ text: 'Prototype: evidence was submitted for ' + tileName(t) + '. Its requirements are now locked.' });
+  }
+
+  /* ---------------- menus ---------------- */
+  menuItems(m) {
+    const S = this.state; const v = this.view();
+    if (m.kind === 'event') {
+      const items = [{ type: 'header', label: 'Switch event', hint: 'Opens its Board' }];
+      ORDER.forEach(slug => { const e = this.world[slug]; items.push({ label: e.name, hint: PHASES[e.phase].label, check: S.slug === slug, action: () => this.switchEvent(slug) }); });
+      items.push({ type: 'sep' }); items.push({ label: 'All events', action: () => this.goNav('events') });
+      return items;
+    }
+    if (m.kind === 'more') {
+      const md = this.mode(v); const me = this.canEdit(v); const items = [];
+      if (this.boardEditable(v)) items.push({ label: 'Board size…', disabled: !me, hint: me ? v.board.rows + ' × ' + v.board.cols : 'Start editing first', action: () => this.openRz() });
+      if (md === 'approved') items.push({ label: 'Return to draft', disabled: !me, hint: me ? '' : 'Start editing first', action: () => this.unapprove() });
+      if (md === 'published') { const ok = ['signupclosed', 'live', 'awaitingfinalreview'].indexOf(v.phase) >= 0; items.push({ label: 'Correct published board…', disabled: !ok, hint: ok ? '' : 'Not available in this event state', action: () => this.openCx('correct') }); }
+      if (md === 'correction') { if (items.length) items.push({ type: 'sep' }); items.push({ label: 'Discard correction…', danger: true, disabled: !me, hint: me ? '' : 'Start editing first', action: () => this.openCx('discard') }); }
+      return items;
+    }
+    return [
+      { type: 'header', label: 'Nils Andersen', hint: '@nils · Administrator of Iron Pact' },
+      { type: 'sep' },
+      { type: 'header', label: 'Next change', hint: 'Prototype · resets after use' },
+      ...Object.keys(OUTCOMES).map(k => ({ label: OUTCOMES[k], check: S.outcome === k, action: () => this.setState({ outcome: k }) })),
+      { type: 'sep' },
+      { type: 'header', label: 'Other admins and data', hint: 'Prototype' },
+      { label: OTHER_ADMIN + ' takes over editing', action: () => this.protoTakeover() },
+      { label: OTHER_ADMIN + ' edits the board', action: () => this.protoOtherEdit() },
+      { label: 'Catalogue adds the missing rates', action: () => this.protoCatalogue() },
+      { label: 'Evidence arrives for a tile', action: () => this.protoEvidence() },
+      { type: 'sep' },
+      { type: 'header', label: 'Loading and browser', hint: 'Prototype' },
+      { label: 'Fail next load', checkbox: true, checked: S.failNext, action: () => { const on = !this.state.failNext; this.setState({ failNext: on }); this.toast({ text: on ? 'The next load will fail. Reload to try it.' : 'Simulated failure turned off.' }); } },
+      { label: 'Fail next tile editor load', checkbox: true, checked: S.failEditorNext, action: () => this.setState(s => ({ failEditorNext: !s.failEditorNext })) },
+      { label: 'Open this page directly', action: () => this.directVisit(this.baseUrl()) },
+      { label: 'Open tile B3 directly', action: () => this.directVisit(this.baseUrl() + '?tile=B3') },
+      { label: 'Show browser bar', checkbox: true, checked: S.showBar, action: () => this.setState(s => ({ showBar: !s.showBar })) }
+    ];
+  }
+  openMenu(kind, e) {
+    const m = this.state.menu;
+    if (m && !m.closing && m.kind === kind) { this.closeMenu(true); return; }
+    this.menuReturn = e.currentTarget;
+    const r = e.currentTarget.getBoundingClientRect(); const spec = { kind };
+    const place = kind === 'event' ? DKAdmin.placeMenu(r, { width: Math.max(r.width, 256), align: !this.state.sideOpen && !this.isMobile() ? 'side' : 'start' })
+      : kind === 'user' ? DKAdmin.placeMenu(r, { width: 256, align: 'start' }) : DKAdmin.placeMenu(r, { width: 236, align: 'end', height: DKAdmin.menuHeight(this.menuItems(spec)) });
+    this.setState({ menu: Object.assign(spec, place) }, () => DKAdmin.focusFirstMenuItem('menu'));
+  }
+  closeMenu(restore) { if (DKAdmin.closeLayer(this, 'menu', '#menu') && restore) DKAdmin.restoreFocus(this.menuReturn); }
+  vmMenu() {
+    const m = this.state.menu;
+    if (!m) return { show: false, items: [], x: 0, y: 0, w: 236 };
+    const items = this.menuItems(m).map(it => {
+      if (it.type === 'sep') return { isSep: true };
+      if (it.type === 'header') return { isHeader: true, label: it.label, hint: it.hint };
+      return { isItem: true, label: it.label, hint: it.hint || '', disabled: !!it.disabled, cls: it.danger ? 'is-danger' : '', title: undefined,
+        role: it.checkbox ? 'menuitemcheckbox' : (it.check !== undefined ? 'menuitemradio' : 'menuitem'),
+        checked: it.checkbox ? !!it.checked : (it.check !== undefined ? !!it.check : undefined), showCheck: !!(it.checked || it.check),
+        run: () => { const ret = this.menuReturn; this.closeMenu(false); DKAdmin.restoreFocus(ret); it.action(); } };
+    });
+    return { show: true, items, x: m.x, y: m.y, w: m.w, cls: (m.up ? 'is-up' : '') + (m.closing ? ' is-closing' : ''), label: { event: 'Events', user: 'Account', more: 'Board actions' }[m.kind],
+      close: () => this.closeMenu(true), onKey: e => DKAdmin.menuKeydown(e, 'menu', () => this.closeMenu(true)) };
+  }
+  openMobileNav(e) { this.navReturn = e && e.currentTarget; this.setState({ mobileNav: true, menu: null }, () => DKAdmin.focusSoon('user-btn', { preventScroll: true })); }
+  closeMobileNav(restore) { if (!this.state.mobileNav) return; this.setState({ mobileNav: false }, () => { if (restore !== false) DKAdmin.restoreFocus(this.navReturn, 'menu-toggle'); }); }
+
+  /* ---------------- view models ---------------- */
+  vmHead(v) {
+    const S = this.state; const md = this.mode(v); const b = v.board; const me = this.canEdit(v); const busy = this.blocked();
+    const badge = { draft: ['Draft · private', 'badge-neutral'], approved: ['Approved · private', 'badge-success'], published: ['Published', 'badge-success'], correction: ['Correction · private', 'badge-warning'] }[md];
+    let state = '';
+    if (md === 'approved') state = 'Approved ' + fmtDay(b.approvedAt) + '. Any tile, position or size change returns it to draft.';
+    if (md === 'published') state = 'Published ' + fmtDay(b.publishedAt) + '. Players see this board.';
+    if (md === 'correction') state = 'Players see the version published ' + fmtDay(b.publishedAt) + ' until you publish this correction.';
+    let primary = null;
+    const pend = S.pending ? S.pending.kind : '';
+    if (md === 'draft') primary = { label: pend === 'approve' ? 'Approving…' : 'Approve board', busy: pend === 'approve', inert: !me || busy, title: me ? undefined : 'Start editing to approve', run: () => this.approve() };
+    if (md === 'approved') { const r = this.publishReady(v); primary = { label: 'Publish board…', busy: false, inert: r.length > 0 || busy, title: r.length ? r.map(x => x.text).join(' ') : undefined, describedBy: r.length ? 'bd-banner' : undefined, run: () => { if (!r.length && !this.blocked()) this.openCx('publish'); else if (r.length) DKAdmin.focusSoon('bd-banner'); } }; }
+    if (md === 'correction') primary = { label: 'Publish correction…', busy: false, inert: !me || busy, title: me ? undefined : 'Start editing to publish', run: () => { if (this.canEdit() && !this.blocked()) this.openCx('publishCorrection'); } };
+    const more = this.menuItems({ kind: 'more' });
+    return { ready: true, hasBadge: true, badge: badge[0], badgeCls: badge[1], size: b.rows + ' × ' + b.cols, canResize: this.boardEditable(v) && me, resize: () => this.openRz(), busy,
+      filled: b.tiles.length + ' of ' + b.rows * b.cols + ' tiles', hasState: !!state, state,
+      preview: () => this.openPv(), previewDisabled: false,
+      hasPrimary: !!primary, primaryLabel: primary ? primary.label : '', primaryBusy: primary ? primary.busy : false, primaryBusyCls: primary && primary.busy ? 'is-busy' : '', primaryInert: primary && primary.inert ? 'true' : 'false', primaryTitle: primary ? primary.title : undefined, primaryDescribedBy: primary ? primary.describedBy : undefined,
+      primary: () => { if (primary && !primary.inert) primary.run(); else if (primary && primary.describedBy) primary.run(); },
+      hasMore: more.length > 0, moreOpen: !!(S.menu && S.menu.kind === 'more'), openMore: e => this.openMenu('more', e) };
+  }
+  vmCtl(v) {
+    const who = v.control.who; const busy = this.blocked();
+    if (!this.boardEditable(v)) return { show: false };
+    if (who === 'me') return { show: true, cls: '', text: 'You’re editing', hasAction: true, action: 'Stop', busy, title: 'Editing control renews while you work and lapses after five minutes without board activity.', run: () => this.release() };
+    if (who === 'other') return { show: true, cls: 'is-other', text: OTHER_ADMIN + ' is editing', hasAction: true, action: 'Take over…', busy, title: 'You can view everything. Their control lapses after five minutes without board activity.', run: () => this.openCx('takeover') };
+    return { show: true, cls: 'is-none', text: 'Viewing', hasAction: true, action: 'Start editing', busy, title: 'Start editing to change the board.', run: () => this.takeControl(false) };
+  }
+  vmGrid(v) {
+    const S = this.state; const b = v.board; const me = this.canEdit(v); const L = this.lines(v); const m = S.moving;
+    const issuePos = S.issues ? S.issues.list.map(x => x.pos) : [];
+    const maxH = b.rows <= 4 ? 120 : b.rows <= 5 ? 108 : b.rows <= 6 ? 96 : 84;
+    const lineVm = (l, kind, i) => {
+      const label = (kind === 'row' ? 'Row ' + ROWS[i] : 'Column ' + (i + 1));
+      if (!l.full) return { total: l.n ? fmt1(l.total) : '—', cls: 'is-partial', hasNote: false, aria: label + ': ' + (l.n ? fmt1(l.total) + ' EHB so far, incomplete' : 'no tiles yet'), title: 'Incomplete line' };
+      const dev = L.avg ? (l.total - L.avg) / L.avg : 0; const far = Math.abs(dev) >= 0.25 && L.full.length > 2;
+      const pct = Math.round(Math.abs(dev) * 100);
+      return { total: fmt1(l.total), cls: far ? (dev > 0 ? 'is-high' : 'is-low') : '', hasNote: far, up: far && dev > 0, down: far && dev < 0, note: pct + '%',
+        aria: label + ': ' + fmt1(l.total) + ' EHB' + (far ? ', ' + pct + '% ' + (dev > 0 ? 'above' : 'below') + ' the average line' : ''), title: far ? pct + '% ' + (dev > 0 ? 'above' : 'below') + ' the average line (' + fmt1(L.avg) + ' EHB)' : 'Average line ' + fmt1(L.avg) + ' EHB' };
+    };
+    const rowsOut = [];
+    for (let r = 0; r < b.rows; r++) {
+      const cells = [];
+      for (let c = 0; c < b.cols; c++) {
+        const pos = r * b.cols + c; const t = this.tileAt(v, pos); const where = posName(pos, b.cols);
+        const isFocus = (m ? m.to : S.focusPos) === pos;
+        const wrap = [m && m.from === pos ? 'is-src' : '', m && m.to === pos && m.from !== pos ? 'is-target' : '', S.dragOver === pos && S.dragFrom != null && S.dragFrom !== pos ? 'is-target' : '', S.dragFrom === pos ? 'is-src' : ''].join(' ');
+        const dnd = {
+          onDragOver: e => { if (this.state.dragFrom == null) return; e.preventDefault(); if (this.state.dragOver !== pos) this.setState({ dragOver: pos }); },
+          onDragLeave: () => { if (this.state.dragOver === pos) this.setState({ dragOver: null }); },
+          onDrop: e => { e.preventDefault(); const from = this.state.dragFrom; this.setState({ dragFrom: null, dragOver: null }); if (from != null && from !== pos) this.move(from, pos); }
+        };
+        if (t) {
+          const tc = tileCalc(t); const multi = t.objectives.length > 1;
+          cells.push(Object.assign({ isTile: true, isEmpty: false, id: 'bt-' + t.id, wrapCls: wrap, ti: isFocus ? '0' : '-1', draggable: me && !this.blocked() ? 'true' : 'false',
+            cls: (issuePos.indexOf(pos) >= 0 ? 'is-issue' : '') + (this.changedTile(v, t) ? ' is-changed' : ''),
+            hasArt: !!t.art, art: t.art || '', name: tileName(t), ehb: tc.effective == null ? 'No estimate' : fmt1(tc.effective), ehbUnit: tc.effective == null ? '' : ' EHB',
+            overridden: tc.overridden, manualKind: t.kind === 'manual', multi, multiLabel: t.objectives.length + ' parts', multiTitle: t.objectives.length + ' objectives, all required',
+            locked: this.locked(t), issue: tc.effective == null || (t.kind === 'drops' && tc.calc == null),
+            aria: where + ': ' + tileName(t) + ', ' + (tc.effective == null ? 'no estimate' : fmt1(tc.effective) + ' EHB' + (tc.overridden ? ' (manual)' : '')) + (multi ? ', ' + t.objectives.length + ' objectives' : '') + (this.locked(t) ? ', evidence submitted' : '') + (m ? (m.from === pos ? ', moving' : ', press Enter to swap here') : me ? '. Enter to edit, M to move' : '. Enter to view'),
+            open: () => { if (this.state.moving) { this.move(this.state.moving.from, pos); return; } this.setState({ focusPos: pos }); this.openEd(pos); },
+            onDragStart: e => { if (!me || this.blocked()) { e.preventDefault(); return; } try { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', t.id); } catch (x) {} this.setState({ dragFrom: pos }); },
+            onDragEnd: () => this.setState({ dragFrom: null, dragOver: null }) }, dnd));
+        } else {
+          cells.push(Object.assign({ isTile: false, isEmpty: true, id: 'be-' + pos, wrapCls: wrap, ti: isFocus ? '0' : '-1', cls: (me ? '' : 'is-readonly') + (issuePos.indexOf(pos) >= 0 ? ' is-issue' : ''), canAdd: me, emptyLabel: me ? 'Add tile' : 'Empty',
+            aria: where + ': empty' + (m ? ', press Enter to move here' : me ? '. Enter to add a tile' : ''),
+            open: () => { if (this.state.moving) { this.move(this.state.moving.from, pos); return; } this.setState({ focusPos: pos }); if (me) this.openEd(pos); } }, dnd));
+        }
+      }
+      rowsOut.push(Object.assign({ cells }, lineVm(L.rows[r], 'row', r)));
+    }
+    return { cols: b.cols, workCls: b.cols >= 7 ? 'is-stacked' : '', tileH: maxH + 'px', rows: rowsOut, colTotals: L.cols.map((l, i) => lineVm(l, 'col', i)), cls: m ? 'is-moving' : '',
+      label: 'Board ' + b.rows + ' rows by ' + b.cols + ' columns', onKey: e => this.gridKey(e),
+      help: me ? 'Arrow keys move between positions. Enter edits a tile or adds one; M picks a tile up to move or swap it (or drag it), Delete removes it. Row and column totals are in EHB; ↑ and ↓ mark lines 25% or more from the average.' : 'Arrow keys move between positions; Enter opens a tile. Row and column totals are in EHB.' };
+  }
+  vmPlan(v) {
+    const S = this.state; const st = this.stats(v); const editable = v.control.who !== 'other' && !this.blocked() || (S.pending && S.pending.kind === 'size');
+    return { total: fmt1(st.total), perPlayer: st.perPlayer == null ? '—' : fmt1(st.perPlayer), perDay: st.perDay == null ? '—' : fmt1(st.perDay), days: ' over ' + fmt1(st.days) + ' days',
+      spread: st.spread == null ? '—' : fmt1(st.spread), spreadPct: st.spreadPct == null ? '' : ' · ' + Math.round(st.spreadPct) + '%',
+      sizeEditable: v.control.who !== 'other', sizeReadOnly: v.control.who === 'other', sizeText: st.size || 'Not set',
+      size: S.sizeDraft != null ? S.sizeDraft : String(v.teamSize || ''), onSize: e => this.setState({ sizeDraft: e.target.value, sizeErr: '', sizeSaved: false }),
+      commitSize: () => this.commitSize(), sizeKey: e => { if (e.key === 'Enter') { e.preventDefault(); this.commitSize(); } else if (e.key === 'Escape' && this.state.sizeDraft != null) { e.preventDefault(); e.stopPropagation(); this.setState({ sizeDraft: null, sizeErr: '' }); } },
+      sizeBusy: !editable || (S.pending && S.pending.kind === 'size'), sizeSaving: !!(S.pending && S.pending.kind === 'size'), sizeSaved: S.sizeSaved,
+      sizeCls: S.sizeErr ? 'is-invalid' : '', sizeInvalid: S.sizeErr ? 'true' : 'false', hasSizeErr: !!S.sizeErr, sizeErr: S.sizeErr,
+      sizeHint: 'An estimate for the planning figures. It doesn’t change rosters or scoring.',
+      moreOpen: S.planMore, moreCls: S.planMore ? 'is-open' : '', toggleMore: () => this.setState(s => ({ planMore: !s.planMore })),
+      more: [{ k: 'Tiles', v: st.filled + ' of ' + st.cells }, { k: 'Average tile', v: st.avgTile == null ? '—' : fmt1(st.avgTile) + ' EHB' }, { k: 'Lowest line', v: st.lo == null ? '—' : fmt1(st.lo) + ' EHB' }, { k: 'Highest line', v: st.hi == null ? '—' : fmt1(st.hi) + ' EHB' }, { k: 'Without an estimate', v: st.missing ? st.missing + (st.missing === 1 ? ' tile' : ' tiles') : 'None' }, { k: 'Event length', v: fmt1(st.days) + ' days' }] };
+  }
+  vmBanner(v) {
+    const S = this.state; const md = this.mode(v);
+    if (S.unsure || S.checking) return { show: true, role: 'alert', cls: 'is-warning', title: S.checking ? 'Checking…' : 'We couldn’t confirm whether this went through: ' + S.unsure.what + '.', text: 'Check before trying again, so nothing happens twice.', hasAction: !S.checking, action: 'Check again', busy: S.checking, run: () => this.check() };
+    if (S.issues) return { show: true, role: 'alert', cls: 'is-error', title: S.issues.title, text: S.issues.text, hasList: true, list: S.issues.list.map(x => ({ label: x.label, text: x.text, hasGo: x.pos != null, noGo: x.pos == null, go: () => { this.setState({ focusPos: x.pos }); const t = this.tileAt(this.view(), x.pos); if (t || this.canEdit()) this.openEd(x.pos); else DKAdmin.focusSoon(this.cellId(this.view(), x.pos)); } })), hasAction: true, action: 'Dismiss', run: () => this.setState({ issues: null }, () => DKAdmin.focusSoon('primary-btn')) };
+    if (S.notice) return { show: true, role: 'alert', cls: S.notice.cls, title: S.notice.title, text: S.notice.text, hasAction: !!S.notice.action, action: S.notice.action || '', busy: this.busy(), run: S.notice.run || (() => {}) };
+    if (md === 'approved') { const r = this.publishReady(v); if (r.length) return { show: true, role: 'status', cls: 'is-info', title: 'Ready to publish once:', text: r.map(x => x.text).join(' '), hasAction: !!r[0].go, action: r[0].goLabel ? 'Open ' + r[0].goLabel : '', run: () => this.goNav(r[0].go) }; }
+    if (md === 'correction') return { show: true, role: 'status', cls: 'is-warning', title: 'Private correction.', text: 'Reason: ' + v.board.reason + ' Objectives with submitted evidence keep their requirements and scoring; wording can change. Changed tiles are marked with a dot.', hasAction: false };
+    return { show: false };
+  }
+  vmEd(v) {
+    const e = this.state.ed; if (!e) return { show: false, objs: [], badges: [], calcNotes: [] };
+    const S = this.state; const f = e.f; const tile = e.tileId ? v.board.tiles.find(t => t.id === e.tileId) : null;
+    const ro = e.readOnly; const busy = !!e.busy; const tileLocked = this.locked(tile);
+    const errs = e.showErr ? this.edErrors() : { objs: [] };
+    const draft = this.draftTile(f); const tc = tileCalc(draft);
+    const b = v.board; const where = 'Row ' + ROWS[Math.floor(e.pos / b.cols)] + ' · Column ' + (e.pos % b.cols + 1) + ' (' + posName(e.pos, b.cols) + ')';
+    const objs = this.objsOf(f); const multi = objs.length > 1; const err = S.layerErr && S.ed ? S.layerErr : null;
+    const lockedObj = o => !!tile && this.objLocked(tile, o.id);
+    const badges = []; if (ro && !e.lost) badges.push({ label: v.control.who === 'other' ? OTHER_ADMIN + ' is editing' : this.boardEditable(v) ? 'View only' : 'Read-only', cls: 'badge-neutral' });
+    if (tileLocked) badges.push({ label: 'Evidence submitted', cls: 'badge-warning' });
+    const vmObj = (o, i) => {
+      const lk = lockedObj(o) || ro; const oe = errs.objs[i] || {}; const open = !multi || e.open === i; const id = 'ed-o' + i;
+      const base = { id, n: i + 1, cls: (multi ? '' : 'is-single') + (open ? '' : ' is-collapsed') + (lockedObj(o) ? ' is-locked' : ''), hasHead: multi, open, toggleCls: open ? 'is-open' : '', toggleId: id + '-toggle', bodyId: id + '-body',
+        toggle: () => this.setState(s => ({ ed: Object.assign({}, s.ed, { open: s.ed.open === i ? -1 : i }) })),
+        locked: lockedObj(o), canRemove: multi && !lk && !ro, removeId: id + '-remove', busy,
+        remove: () => this.setState(s => { const ff = s.ed.f; const list = ff.objs[ff.kind].filter((_, j) => j !== i); return { ed: Object.assign({}, s.ed, { open: Math.max(0, Math.min(s.ed.open, list.length - 1)), f: Object.assign({}, ff, { objs: Object.assign({}, ff.objs, { [ff.kind]: list }) }) }) }; }, () => DKAdmin.focusSoon('ed-add-obj')),
+        hasLock: lockedObj(o), lockText: 'Evidence has been submitted for this objective, so what it requires and how it counts can’t change.',
+        isDrops: f.kind === 'drops', isManual: f.kind === 'manual', lockedOrBusy: lk || busy,
+        targetId: id + '-target', target: o.target, onTarget: ev => this.setObj(i, { target: ev.target.value }), targetCls: oe.target ? 'is-invalid' : '', targetInvalid: oe.target ? 'true' : 'false', hasTargetErr: !!oe.target, targetErr: oe.target || '', targetErrId: id + '-target-err' };
+      const r = f.kind === 'drops' ? calcObjective(o) : null;
+      base.ehbText = f.kind === 'drops' ? (r.ehb == null ? 'no estimate' : fmt1(r.ehb) + ' EHB') : '';
+      if (f.kind === 'manual') {
+        const t = parseInt(o.target, 10) || 0;
+        return Object.assign(base, { summary: (o.text || '').trim() || 'New manual objective', targetUnit: t === 1 ? 'time' : 'times', textId: id + '-text', text: o.text, onText: ev => this.setObj(i, { text: ev.target.value }), textCls: oe.text ? 'is-invalid' : '', textInvalid: oe.text ? 'true' : 'false', hasTextErr: !!oe.text, textErr: oe.text || '', textErrId: id + '-text-err' });
+      }
+      const combo = e.combo && e.combo.i === i ? e.combo : null; const q = combo ? combo.q : '';
+      const optsAll = BOSSES.filter(bs => !q.trim() || bs.name.toLowerCase().indexOf(q.trim().toLowerCase()) >= 0);
+      const active = combo ? Math.min(combo.active, optsAll.length - 1) : -1;
+      const toggleSource = bid => { const cur = this.objsOf(this.state.ed.f)[i]; const on = cur.sources.indexOf(bid) >= 0; const sources = on ? cur.sources.filter(x => x !== bid) : cur.sources.concat([bid]); const drops = on ? cur.drops.filter(d => dropById(d).bossId !== bid) : cur.drops; this.setObj(i, { sources, drops }); };
+      const t = parseInt(o.target, 10) || 0; const weightsOn = !!o.weightsOn || Object.keys(o.weights || {}).some(k => o.drops.indexOf(k) >= 0 && +o.weights[k] > 1);
+      const heavier = o.drops.filter(d => +(o.weights || {})[d] > 1).length;
+      const countSummary = (o.repeats ? 'The same drop can count again' : 'Each chosen drop counts once') + ' · ' + (heavier ? heavier + (heavier === 1 ? ' drop counts extra' : ' drops count extra') : 'every drop counts as 1');
+      const countOpen = !!(e.countOpen || {})[i];
+      return Object.assign(base, {
+        summary: autoDesc({ kind: 'drops', objectives: [o] }) || 'New objective',
+        srcLblId: id + '-src-lbl', srcInputId: id + '-src', popId: id + '-pop', q, srcEditable: !lk, srcCls: oe.src ? 'is-invalid' : '', srcInvalid: oe.src ? 'true' : 'false', hasSrcErr: !!oe.src, srcErr: oe.src || '', srcErrId: id + '-src-err',
+        chips: o.sources.map(bid => ({ name: bossById(bid).name, canRemove: !lk, remove: () => toggleSource(bid) })),
+        popOpen: !!combo && combo.open && !lk, activeId: active >= 0 && combo && combo.open ? id + '-opt' + active : '',
+        opts: optsAll.map((bs, k) => ({ id: id + '-opt' + k, name: bs.name, meta: DROPS.filter(d => d.bossId === bs.id).length + ' drops', on: o.sources.indexOf(bs.id) >= 0, cls: k === active ? 'is-active' : '', pick: ev => { ev.preventDefault(); toggleSource(bs.id); } })),
+        noOpts: !optsAll.length, noOptsText: 'Nothing in the catalogue matches “' + q.trim() + '”. Add it in Catalogue first.',
+        onQ: ev => this.setState(s => ({ ed: Object.assign({}, s.ed, { combo: { i, q: ev.target.value, active: 0, open: true } }) })),
+        openPop: () => this.setState(s => ({ ed: Object.assign({}, s.ed, { combo: { i, q: s.ed.combo && s.ed.combo.i === i ? s.ed.combo.q : '', active: 0, open: true } }) })),
+        blurPop: () => this.later(() => { if (this.state.ed && this.state.ed.combo && this.state.ed.combo.i === i && document.activeElement && document.activeElement.id !== id + '-src') this.setState(s => ({ ed: Object.assign({}, s.ed, { combo: Object.assign({}, s.ed.combo, { open: false }) }) })); }, 0),
+        srcKey: ev => {
+          const c = this.state.ed.combo && this.state.ed.combo.i === i ? this.state.ed.combo : { i, q: '', active: 0, open: false };
+          if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') { ev.preventDefault(); const n = optsAll.length; if (!n) return; const a = !c.open ? 0 : (c.active + (ev.key === 'ArrowDown' ? 1 : -1) + n) % n; this.setState(s => ({ ed: Object.assign({}, s.ed, { combo: Object.assign({}, c, { open: true, active: a }) }) }), () => { const el = document.getElementById(id + '-opt' + a); if (el && el.scrollIntoView) el.scrollIntoView({ block: 'nearest' }); }); }
+          else if (ev.key === 'Enter') { ev.preventDefault(); if (c.open && optsAll[c.active]) toggleSource(optsAll[c.active].id); }
+          else if (ev.key === 'Escape' && c.open) { ev.preventDefault(); ev.stopPropagation(); this.setState(s => ({ ed: Object.assign({}, s.ed, { combo: Object.assign({}, c, { open: false }) }) })); }
+          else if (ev.key === 'Backspace' && !c.q && o.sources.length && !lk) { toggleSource(o.sources[o.sources.length - 1]); }
+        },
+        noSources: !o.sources.length, hasSources: o.sources.length > 0 && !lk, dropsLblId: id + '-drops-lbl', goCatalogue: ev => this.goCatalogue(ev),
+        groups: o.sources.map(bid => {
+          const ds = DROPS.filter(d => d.bossId === bid); const allOn = ds.every(d => o.drops.indexOf(d.id) >= 0);
+          // chosen drops only, unless expanded: keeps a typical one-drop objective short; a source with nothing chosen opens
+          const key = o.id + ':' + bid; const chosen = ds.filter(d => o.drops.indexOf(d.id) >= 0).length;
+          const exp = (e.expand || {})[key] != null ? e.expand[key] : true;
+          const shown = exp ? ds : ds.filter(d => o.drops.indexOf(d.id) >= 0);
+          return { name: bossById(bid).name, canAll: !lk && exp, allLabel: allOn ? 'Clear' : 'Select all', count: chosen + ' of ' + ds.length + ' chosen',
+            canExpand: chosen > 0 && chosen < ds.length, expanded: exp ? 'true' : 'false', expandLabel: exp ? 'Show chosen only' : 'Show all ' + ds.length, expandId: id + '-x-' + bid,
+            toggleExpand: () => this.setState(s => ({ ed: Object.assign({}, s.ed, { expand: Object.assign({}, s.ed.expand, { [key]: !exp }) }) })),
+            toggleAll: () => { const cur = this.objsOf(this.state.ed.f)[i]; const ids = ds.map(d => d.id); const drops = allOn ? cur.drops.filter(x => ids.indexOf(x) < 0) : cur.drops.concat(ids.filter(x => cur.drops.indexOf(x) < 0)); this.setObj(i, { drops }); },
+            drops: shown.map(d => { const on = o.drops.indexOf(d.id) >= 0; const w = (o.weights || {})[d.id];
+              return { id: id + '-d-' + d.id.replace(':', '-'), name: d.item, on, cls: (on ? 'is-on' : '') + (lk ? ' is-locked' : ''), disabled: lk || busy, rate: rateText(d), rateCls: d.den ? '' : 'is-missing', rateTitle: d.den ? 'Chance per completion' : 'No drop rate in the catalogue; EHB can’t be calculated',
+                toggle: () => { const cur = this.objsOf(this.state.ed.f)[i]; const drops = on ? cur.drops.filter(x => x !== d.id) : cur.drops.concat([d.id]); this.setObj(i, { drops }); },
+                showWeight: weightsOn && on, wId: id + '-w-' + d.id.replace(':', '-'), w: w == null ? '1' : String(w), onW: ev => { const cur = this.objsOf(this.state.ed.f)[i]; this.setObj(i, { weights: Object.assign({}, cur.weights, { [d.id]: ev.target.value }) }); },
+                wCls: oe.weights && !(/^\d+$/.test(String(w == null ? 1 : w)) && +(w == null ? 1 : w) >= 1) ? 'is-invalid' : '', wInvalid: 'false' }; }) };
+        }),
+        hasDropErr: !!(oe.drops || oe.weights), dropErr: oe.drops || oe.weights || '', dropErrId: id + '-drops-err',
+        targetUnit: o.drops.length === 1 ? (t === 1 ? 'drop' : 'drops') : (t === 1 ? 'of the chosen drops' : 'of the chosen drops'),
+        countSumId: id + '-count', countSummary, canCount: !lk, countBtnId: id + '-count-btn', countOpen: countOpen && !lk, countAction: countOpen ? 'Done' : 'Change',
+        toggleCount: () => this.setState(s => ({ ed: Object.assign({}, s.ed, { countOpen: Object.assign({}, s.ed.countOpen, { [i]: !countOpen }) }) })),
+        repeats: !!o.repeats, repeatsCls: o.repeats ? 'is-on' : '', toggleRepeats: ev => this.setObj(i, { repeats: ev.target.checked }),
+        weightsOn, weightsCls: weightsOn ? 'is-on' : '', toggleWeights: ev => this.setObj(i, ev.target.checked ? { weightsOn: true } : { weightsOn: false, weights: {} })
+      });
+    };
+    const autoText = autoDesc(draft);
+    const descLen = (f.desc || '').length;
+    const ehbLocked = tileLocked || ro || busy;
+    const kindLocked = tileLocked || ro;
+    const hasOverride = f.kind === 'drops' && f.override;
+    const approvalNote = v.board.state === 'approved' && !ro ? 'Saving any change returns the approved board to draft.' : this.mode(v) === 'correction' && !ro ? 'Changes stay private until you publish the correction.' : '';
+    return {
+      show: true, closingCls: e.closing ? 'is-closing' : '', behindCls: (S.modal && !S.modal.closing) || (S.cx && !S.cx.closing) ? 'is-behind' : '', busy, busyCls: busy ? 'is-busy' : '',
+      eyebrow: where, title: e.tileId ? tileName(draft) : 'New tile', hasBadges: badges.length > 0, badges,
+      loading: e.loading, loadError: e.loadError, retry: () => this.retryEd(), ready: !e.loading && !e.loadError,
+      hasBanner: !!err || !!e.lost, bannerCls: err ? err.cls : 'is-warning', bannerTitle: err ? err.title : OTHER_ADMIN + ' took over editing.', bannerText: err ? err.text : 'This tile wasn’t saved. Your entries stay here until you close the editor.',
+      bannerHasAction: !err && !!e.lost, bannerAction: 'Take over…', bannerRun: () => this.openCx('takeover'),
+      ro, rw: !ro,
+      nameRo: tileName(draft), name: f.name, onName: ev => this.setF({ name: ev.target.value }), namePlaceholder: suggestName(draft) || 'Name this tile',
+      nameHint: suggestName(draft) ? 'Leave blank to use “' + suggestName(draft) + '”.' : 'Shown on the board and to players.', nameCls: errs.name ? 'is-invalid' : '', nameInvalid: errs.name ? 'true' : 'false', hasNameErr: !!errs.name, nameErr: errs.name || '', nameErrId: errs.name ? 'ed-name-err' : '',
+      descAuto: !f.descManual, descManual: f.descManual, autoText: autoText || 'Appears once the objectives are set.', autoCls: autoText ? '' : 'is-empty',
+      writeDesc: () => this.setF({ descManual: true, desc: f.desc || autoText }, DKAdmin.focusSoon('ed-desc')), autoDesc: () => { this.setF({ descManual: false, desc: '' }); DKAdmin.focusSoon('ed-desc-write'); },
+      desc: f.desc, onDesc: ev => this.setF({ desc: ev.target.value }), descCls: errs.desc ? 'is-invalid' : '', descInvalid: errs.desc ? 'true' : 'false', hasDescErr: !!errs.desc, descErr: errs.desc || '', descErrId: errs.desc ? 'ed-desc-err' : '',
+      descShowCount: f.descManual && descLen > 3500, descCount: descLen.toLocaleString('en-GB') + ' / 4,000', descCountCls: descLen > 4000 ? 'is-over' : '',
+      hasArt: !!f.art, noArt: !f.art, art: f.art || '', artLabel: f.art ? 'Replace' : 'Upload', artHint: 'PNG, JPEG or WebP. Shown on the tile instead of the default artwork.', hasArtErr: !!e.artErr, artErr: e.artErr,
+      artKey: ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); const el = document.getElementById('ed-art-file'); if (el) el.click(); } },
+      onArt: ev => { const file = ev.target.files && ev.target.files[0]; if (!file) return; if (['image/png', 'image/jpeg', 'image/webp'].indexOf(file.type) < 0) { this.setState(s => ({ ed: Object.assign({}, s.ed, { artErr: 'Choose a PNG, JPEG or WebP image.' }) })); return; } const r = new FileReader(); r.onload = () => this.setState(s => ({ ed: Object.assign({}, s.ed, { artErr: '', f: Object.assign({}, s.ed.f, { art: r.result }) }) })); r.readAsDataURL(file); ev.target.value = ''; },
+      removeArt: () => { this.setF({ art: null }); DKAdmin.focusSoon('ed-art-btn'); },
+      objTitle: f.kind === 'manual' ? (multi ? 'Challenges' : 'Challenge') : (multi ? 'Objectives' : 'Objective'), hasObjAside: multi, objAside: 'All ' + objs.length + ' must be completed',
+      kindEditable: !kindLocked, kindReadOnly: kindLocked, kindLabel: f.kind === 'manual' ? 'Manual challenge · completed with evidence and approval' : 'Collect catalogue drops',
+      kindDrops: f.kind === 'drops', kindManual: f.kind === 'manual', kindDropsCls: f.kind === 'drops' ? 'is-on' : '', kindManualCls: f.kind === 'manual' ? 'is-on' : '',
+      kindHint: 'One kind per tile; switching keeps what you entered for the other kind until you save.',
+      useDrops: () => this.setF({ kind: 'drops' }), useManual: () => this.setF({ kind: 'manual' }),
+      objs: objs.map(vmObj), canAddObj: !ro && !tileLocked, addObjLabel: f.kind === 'manual' ? 'Add another challenge' : 'Add another objective',
+      addObj: () => this.setState(s => { const ff = s.ed.f; const list = ff.objs[ff.kind].concat([this.blankObj(ff.kind)]); return { ed: Object.assign({}, s.ed, { open: list.length - 1, f: Object.assign({}, ff, { objs: Object.assign({}, ff.objs, { [ff.kind]: list }) }) }) }; }, () => DKAdmin.focusSoon('ed-o' + (this.objsOf(this.state.ed.f).length - 1) + (this.state.ed.f.kind === 'manual' ? '-text' : '-src'))),
+      isDrops: f.kind === 'drops', isManual: f.kind === 'manual',
+      effective: tc.effective == null ? 'none yet' : fmt1(tc.effective) + ' EHB',
+      calc: tc.calc == null ? 'Can’t calculate' : fmt1(tc.calc) + ' EHB', calcCls: hasOverride && tc.calc != null ? 'is-struck' : '',
+      calcNotes: f.kind === 'drops' ? tc.notes.filter(n => !/^(Objective \d+: )?Choose sources/.test(n.text)).map(n => ({ text: n.text, hasLink: !!n.catalogue, go: ev => this.goCatalogue(ev) })) : [],
+      hasOverride, offerOverride: f.kind === 'drops' && !f.override && !ehbLocked, canOverride: !ehbLocked,
+      setOverride: () => { this.setF({ override: true, ehb: f.ehb || (tc.calc != null ? String(Math.round(tc.calc * 10) / 10) : '') }); DKAdmin.focusSoon('ed-ehb'); },
+      useCalc: () => { this.setF({ override: false, ehb: '' }); DKAdmin.focusSoon('ed-ehb-set'); },
+      ehb: f.ehb, ehbRo: tc.effective == null ? '—' : fmt1(tc.effective), onEhb: ev => this.setF({ ehb: ev.target.value }), ehbLocked, ehbCls: errs.ehb ? 'is-invalid' : '', ehbInvalid: errs.ehb ? 'true' : 'false', hasEhbErr: !!errs.ehb, ehbErr: errs.ehb || '', ehbErrId: errs.ehb ? 'ed-ehb-err' : '',
+      hasEhbLock: tileLocked, hasApprovalNote: !!approvalNote, approvalNote,
+      canRemove: !!e.tileId && !ro && !tileLocked, removeBlocked: !!e.tileId && !ro && tileLocked, remove: () => this.askRemove(e.tileId),
+      dirty: this.edDirty() && !busy, cancelLabel: ro ? 'Close' : 'Cancel', hasSave: !ro, saveDisabled: busy || e.loading || e.loadError, saveLabel: busy ? 'Saving…' : e.tileId ? 'Save tile' : 'Add tile',
+      save: () => this.saveEd(), requestClose: () => this.requestCloseEd(),
+      onKey: ev => { if (this.state.modal || this.state.cx) return; if (ev.key === 'Escape') { ev.preventDefault(); ev.stopPropagation(); this.requestCloseEd(); } else if ((ev.metaKey || ev.ctrlKey) && ev.key === 'Enter') { ev.preventDefault(); this.saveEd(); } else DKAdmin.trapTab(ev, 'ed'); }
+    };
+  }
+  vmRz(v) {
+    const r = this.state.rz; if (!r) return { show: false, blocked: [] };
+    const S = this.state; const busy = !!r.busy; const rows = parseInt(r.rows, 10), cols = parseInt(r.cols, 10);
+    const valid = rows >= 1 && rows <= 8 && cols >= 1 && cols <= 8; const out = valid ? this.rzOutside(v, rows, cols) : [];
+    const err = S.layerErr && S.rz ? S.layerErr : null; const same = valid && rows === v.board.rows && cols === v.board.cols;
+    let impact = !valid ? 'Rows and columns must each be from 1 to 8.' : same ? 'This is the current size.' : out.length ? (out.length === 1 ? 'This tile is outside ' : 'These ' + out.length + ' tiles are outside ') + rows + ' × ' + cols + '. Move or remove ' + (out.length === 1 ? 'it' : 'them') + ' first:' : (rows * cols > v.board.rows * v.board.cols ? 'Adds ' + (rows * cols - v.board.rows * v.board.cols) + ' empty positions. ' : rows * cols < v.board.rows * v.board.cols ? 'Removes ' + (v.board.rows * v.board.cols - rows * cols) + ' empty positions. ' : '') + 'Every tile keeps its row and column.' + (v.board.state === 'approved' ? ' The approved board returns to draft.' : '');
+    const step = (k, d) => () => { const c = this.state.rz; const n = Math.max(1, Math.min(8, (parseInt(c[k], 10) || 0) + d)); this.setState({ rz: Object.assign({}, c, { [k]: String(n) }) }); };
+    return { show: true, closingCls: r.closing ? 'is-closing' : '', busy, busyCls: busy ? 'is-busy' : '',
+      rows: r.rows, cols: r.cols, onRows: ev => this.setState({ rz: Object.assign({}, this.state.rz, { rows: ev.target.value }) }), onCols: ev => this.setState({ rz: Object.assign({}, this.state.rz, { cols: ev.target.value }) }),
+      rowsDown: step('rows', -1), rowsUp: step('rows', 1), colsDown: step('cols', -1), colsUp: step('cols', 1),
+      rowsMin: busy || rows <= 1, rowsMax: busy || rows >= 8, colsMin: busy || cols <= 1, colsMax: busy || cols >= 8,
+      impact, impactCls: 'bd-rz-impact' + (out.length || !valid ? ' is-blocked' : ''), hasBlocked: out.length > 0, blocked: out.map(t => posName(t.pos, v.board.cols) + ' · ' + tileName(t)),
+      hasBanner: !!err, bannerCls: err ? err.cls : '', bannerTitle: err ? err.title : '', bannerText: err ? err.text : '',
+      inert: (!valid || out.length > 0) ? 'true' : 'false', applyLabel: busy ? 'Resizing…' : 'Apply size', apply: () => this.applyRz(), dismiss: () => this.closeRz(),
+      onKey: ev => { if (ev.key === 'Escape') { ev.preventDefault(); ev.stopPropagation(); this.closeRz(); } else if (ev.key === 'Enter' && ev.target.tagName === 'INPUT') { ev.preventDefault(); this.applyRz(); } else DKAdmin.trapTab(ev, 'rz'); } };
+  }
+  vmPv(v) {
+    const p = this.state.pv; if (!p) return { show: false, cells: [] };
+    const md = this.mode(v);
+    const src = md === 'approved' ? v.board.approved : md === 'published' ? v.board.published : null;
+    const b = src || v.board; const cells = [];
+    for (let i = 0; i < b.rows * b.cols; i++) {
+      const t = b.tiles.find(x => x.pos === i);
+      if (!t) cells.push({ cls: 'is-empty', hasArt: false, name: 'Empty position', desc: '' });
+      else cells.push({ cls: '', hasArt: !!t.art, art: t.art || '', name: src ? t.frozenName : tileName(t), desc: src ? t.frozenDesc : ((t.desc || '').trim() || autoDesc(t)) });
+    }
+    const eyebrow = { draft: 'Preview · current draft values · nothing is approved or published', approved: 'Preview · the approved version · not published', published: 'Preview · what players see now', correction: 'Preview · your private correction · players still see the published version' }[md];
+    return { show: true, closingCls: p.closing ? 'is-closing' : '', eyebrow, title: v.name, cols: b.cols, cells, dismiss: () => this.closePv(),
+      onKey: ev => { if (ev.key === 'Escape') { ev.preventDefault(); ev.stopPropagation(); this.closePv(); } else DKAdmin.trapTab(ev, 'pv'); } };
+  }
+  vmCx(v) {
+    const c = this.state.cx; if (!c) return { show: false, points: [] };
+    const S = this.state; const busy = !!c.busy; const err = S.layerErr && S.cx ? S.layerErr : null; let o = {};
+    const changed = v.board.tiles.filter(t => this.changedTile(v, t)).length;
+    if (c.kind === 'publish') o = { title: 'Publish the board?', body: 'Players will see the approved ' + v.board.rows + ' × ' + v.board.cols + ' board for ' + v.name + '.', points: ['Publishing doesn’t start the event; it starts at its scheduled time or from Overview.', 'After publishing, changes need a correction with a reason.'], confirmLabel: 'Publish board', confirmCls: 'btn-primary' };
+    else if (c.kind === 'correct') { const r = (c.reason || '').trim(); const rErr = c.showErr ? (!r ? 'Enter a reason.' : r.length > 2000 ? 'Use 2,000 characters or fewer.' : '') : ''; o = { title: 'Correct the published board?', body: 'This is for exceptional fixes. You edit a private copy; players keep the current board until you publish the correction.', points: ['Objectives with submitted evidence keep their requirements and scoring; wording can change.', 'Results, evidence and the published history stay as they are.'], confirmLabel: 'Start correction', confirmCls: 'btn-primary', reason: true, rErr, wide: true }; }
+    else if (c.kind === 'publishCorrection') o = { title: 'Publish the correction?', body: (changed ? changed + (changed === 1 ? ' tile differs' : ' tiles differ') : 'No tiles differ') + ' from the published board. The corrected board is validated and replaces it for players.', points: ['The earlier version stays in history; evidence and results aren’t rescored.', 'Reason: ' + v.board.reason], confirmLabel: 'Publish correction', confirmCls: 'btn-primary', wide: true };
+    else if (c.kind === 'discard') o = { title: 'Discard the correction?', body: 'All unpublished edits in this correction will be lost, and the working board returns to the published version.', points: ['Published results and submitted evidence stay as they are.'], confirmLabel: 'Discard correction', confirmCls: 'btn-danger' };
+    else if (c.kind === 'remove') o = { title: 'Remove ' + c.name + '?', body: posName(c.pos, v.board.cols) + ' becomes empty. The tile and its objectives are deleted from this board.' + (v.board.state === 'approved' ? ' The approved board returns to draft.' : ''), confirmLabel: 'Remove tile', confirmCls: 'btn-danger' };
+    else if (c.kind === 'takeover') o = { title: 'Take over editing from ' + OTHER_ADMIN + '?', body: OTHER_ADMIN + ' returns to view mode straight away, and anything they haven’t saved is lost.', points: ['Only take over if they’ve stopped or asked you to; their control lapses on its own after five minutes without board activity.'], confirmLabel: 'Take over', confirmCls: 'btn-primary' };
+    return { show: true, closingCls: c.closing ? 'is-closing' : '', stackCls: S.ed ? 'is-stacked' : '', wideCls: o.wide ? 'is-wide' : '', busy, busyCls: busy ? 'is-busy' : '',
+      title: o.title, body: o.body, hasPoints: !!(o.points && o.points.length), points: o.points || [], hasErr: !!err, err: err ? err.title + ' ' + err.text : '',
+      hasReason: !!o.reason, reason: c.reason, onReason: ev => this.setState({ cx: Object.assign({}, this.state.cx, { reason: ev.target.value }) }), reasonCls: o.rErr ? 'is-invalid' : '', reasonInvalid: o.rErr ? 'true' : 'false', reasonErrId: o.rErr ? 'cx-reason-err' : '', hasReasonErr: !!o.rErr, reasonErr: o.rErr || '',
+      showCount: (c.reason || '').length > 1700, count: (c.reason || '').length.toLocaleString('en-GB') + ' / 2,000', countCls: (c.reason || '').length > 2000 ? 'is-over' : '',
+      confirmLabel: busy ? 'Working…' : o.confirmLabel, confirmCls: o.confirmCls, cancelLabel: 'Cancel', dismiss: () => this.closeCx(), confirm: () => this.confirmCx(),
+      onKey: ev => { if (ev.key === 'Escape') { ev.preventDefault(); ev.stopPropagation(); this.closeCx(); } else DKAdmin.trapTab(ev, 'cx'); } };
+  }
+  vmModal() {
+    const m = this.state.modal; if (!m) return { show: false };
+    const unsure = m.kind === 'uncertain'; const S = this.state;
+    return { show: true, closingCls: m.closing ? 'is-closing' : '', stackCls: S.ed || S.cx ? 'is-stacked' : '',
+      title: unsure ? 'Leave before checking?' : 'Discard your changes to this tile?',
+      body: unsure ? 'We couldn’t confirm your last change, and it may already have gone through. Check again to find out, or leave now and check when you come back.' : 'What you entered in the tile editor hasn’t been saved.',
+      secondaryLabel: unsure ? 'Leave anyway' : 'Keep editing', secondaryCls: unsure ? 'btn-outline-danger' : '',
+      primaryLabel: unsure ? 'Check again' : 'Discard', primaryCls: unsure ? 'btn-primary' : 'btn-danger',
+      secondary: () => (unsure ? this.confirmDiscard() : this.keepEditing()), primary: () => (unsure ? this.checkInstead() : this.confirmDiscard()),
+      dismiss: () => this.keepEditing(),
+      onKey: e => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); this.keepEditing(); } else DKAdmin.trapTab(e, 'modal'); } };
+  }
+
+  renderVals() {
+    const S = this.state; const e = this.ev(); const v = S.snap;
+    const ready = S.route === 'board' && !S.loading && !S.loadError && !!v;
+    const navKey = S.route === 'board' ? 'board' : S.otherKey;
+    const nav = {}; NAV.forEach(([k, label]) => { nav[k] = { cls: navKey === k ? 'is-current' : '', current: navKey === k ? 'page' : undefined, tip: (S.sideOpen || this.isMobile()) ? undefined : label, count: '', go: () => this.goNav(k) }; });
+    const m = S.moving; const mv = ready && m ? this.tileAt(v, m.from) : null;
+    const md = ready ? this.mode(v) : 'draft';
+    return {
+      themeClass: S.theme === 'dark' ? 'theme-dark' : 'theme-light', isLight: S.theme === 'light', isDark: S.theme === 'dark', lightCls: S.theme === 'light' ? 'is-on' : '', darkCls: S.theme === 'dark' ? 'is-on' : '',
+      setLight: () => this.setState({ theme: 'light' }), setDark: () => this.setState({ theme: 'dark' }),
+      nav, sideCls: (S.sideOpen ? '' : 'is-collapsed') + (S.mobileNav ? ' is-mobile-open' : ''), sideOpen: this.isMobile() ? S.mobileNav : S.sideOpen,
+      sideTip: (S.sideOpen || this.isMobile()) ? undefined : 'Iron Pact · Administrator', mobileNav: S.mobileNav, navScrimCls: S.mobileNav ? 'is-on' : '',
+      openMobileNav: x => this.openMobileNav(x), closeMobileNav: () => this.closeMobileNav(),
+      sideKey: x => { if (!this.state.mobileNav || this.state.menu) return; if (x.key === 'Escape') { x.preventDefault(); this.closeMobileNav(); } else DKAdmin.trapTab(x, 'sidebar'); },
+      collapseLabel: this.isMobile() ? 'Close navigation' : (S.sideOpen ? 'Collapse sidebar' : 'Expand sidebar'), collapseArrowCls: (S.sideOpen || this.isMobile()) ? '' : 'is-flip',
+      toggleSide: () => { if (this.isMobile()) { this.closeMobileNav(); return; } this.setState(s => ({ sideOpen: !s.sideOpen, menu: null })); },
+      ev: { name: e.name, stage: PHASES[e.phase].label, when: e.when, toneCls: PHASES[e.phase].tone },
+      evTip: (S.sideOpen || this.isMobile()) ? undefined : 'Switch event',
+      eventMenuOpen: !!(S.menu && S.menu.kind === 'event'), userMenuOpen: !!(S.menu && S.menu.kind === 'user'),
+      openEventMenu: x => this.openMenu('event', x), openUserMenu: x => this.openMenu('user', x),
+      scrollCls: S.mobileNav || S.cx || S.rz || S.pv || S.modal || S.ed ? 'is-locked' : '',
+      crumb: { hasEvent: S.otherKey !== 'events' && ['dashboard', 'catalogue', 'accounts', 'audit'].indexOf(S.otherKey) < 0, event: e.name, page: S.route === 'board' ? 'Board' : (TITLES[S.otherKey] || '') },
+      crumbEvents: () => this.goNav('events'),
+      isPage: S.route === 'board', isOther: S.route === 'other',
+      otherTitle: TITLES[S.otherKey] || '', otherScope: ['events', 'dashboard', 'catalogue', 'accounts', 'audit'].indexOf(S.otherKey) >= 0 ? 'Community-wide' : e.name,
+      otherText: ['events', 'participants', 'dashboard', 'overview', 'identity', 'signup', 'schedule', 'teams'].indexOf(S.otherKey) >= 0 ? TITLES[S.otherKey] + ' has its own artboard on the canvas.' : 'This artboard shows Board. Back returns to it.',
+      backToPage: () => this.backToPage(),
+      head: ready ? this.vmHead(v) : { ready: false, hasBadge: false, size: '', filled: '' }, ctl: ready ? this.vmCtl(v) : { show: false },
+      loading: S.route === 'board' && S.loading, loadError: S.route === 'board' && S.loadError, retry: () => this.load(), skCells: [...Array(12).keys()],
+      banner: ready ? this.vmBanner(v) : { show: false }, ready,
+      move: { show: !!mv, text: mv ? 'Moving ' + tileName(mv) + ' from ' + posName(m.from, v.board.cols) + '. Choose a position with the arrow keys and press Enter, or click it. Esc cancels.' : '', cancel: () => this.cancelMove() },
+      grid: ready ? this.vmGrid(v) : { rows: [], colTotals: [] }, plan: ready ? this.vmPlan(v) : { more: [] },
+      side: { hasNote: ready && md === 'published', note: 'Published boards are read-only. Use Correct published board in the menu for an exceptional fix.' },
+      live: S.live,
+      ed: ready ? this.vmEd(v) : { show: false, objs: [], badges: [], calcNotes: [] }, rz: ready ? this.vmRz(v) : { show: false, blocked: [] }, pv: ready ? this.vmPv(v) : { show: false, cells: [] }, cx: ready ? this.vmCx(v) : { show: false, points: [] },
+      md: this.vmModal(), menu: this.vmMenu(),
+      pb: { show: S.showBar, url: this.cur().url, noBack: this.hist.idx === 0, noFwd: this.hist.idx >= this.hist.entries.length - 1, back: () => this.back(), fwd: () => this.forward(), reload: () => this.reload() },
+      toasts: DKAdmin.toastView(this)
+    };
+  }
+}
+</script>
+</body>
+</html>

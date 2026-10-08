@@ -1,0 +1,2 @@
+command=git diff --check -- tests/Bingo.IntegrationTests/Slice4ParticipantLifecycleIntegrationTests.cs
+exit_code=0

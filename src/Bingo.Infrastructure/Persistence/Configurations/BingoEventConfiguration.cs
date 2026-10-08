@@ -19,6 +19,8 @@ public sealed class BingoEventConfiguration : IEntityTypeConfiguration<BingoEven
         entity.HasIndex(item => item.Slug).IsUnique();
         entity.Property(item => item.Description).HasColumnName("description").HasMaxLength(4_000);
         entity.Property(item => item.Timezone).HasColumnName("timezone").HasMaxLength(100);
+        entity.Property(item => item.PlacementRule).HasColumnName("placement_rule").HasConversion<int>().ValueGeneratedNever()
+            .Metadata.SetAfterSaveBehavior(Microsoft.EntityFrameworkCore.Metadata.PropertySaveBehavior.Throw);
         entity.Property(item => item.State).HasColumnName("state").HasConversion<string>().HasMaxLength(40);
         entity.Property(item => item.HiddenAt).HasColumnName("hidden_at");
         entity.Property(item => item.HiddenByAccountId).HasColumnName("hidden_by_account_id");
@@ -26,8 +28,6 @@ public sealed class BingoEventConfiguration : IEntityTypeConfiguration<BingoEven
         entity.HasIndex(item => item.HiddenAt);
         entity.HasOne<Account>().WithMany().HasForeignKey(item => item.HiddenByAccountId).OnDelete(DeleteBehavior.Restrict);
         entity.ToTable(table => table.HasCheckConstraint("ck_events_hidden_metadata", "(hidden_at IS NULL AND hidden_by_account_id IS NULL AND hidden_reason IS NULL) OR (hidden_at IS NOT NULL AND hidden_by_account_id IS NOT NULL AND hidden_reason IS NOT NULL AND btrim(hidden_reason) <> '')"));
-        entity.Property(item => item.BannerAssetId).HasColumnName("banner_asset_id");
-        entity.HasOne<EventBannerAsset>().WithMany().HasForeignKey(item => item.BannerAssetId).OnDelete(DeleteBehavior.SetNull);
         entity.Property(item => item.FirstPublicAt).HasColumnName("first_public_at");
         entity.Property(item => item.SignupOpensAt).HasColumnName("signup_opens_at");
         entity.Property(item => item.SignupClosesAt).HasColumnName("signup_closes_at");
@@ -79,46 +79,6 @@ public sealed class BingoEventConfiguration : IEntityTypeConfiguration<BingoEven
         entity.Property(item => item.Version).HasColumnName("version").IsConcurrencyToken();
         entity.Property(item => item.CreatedByAccountId).HasColumnName("created_by_account_id");
         entity.Property(item => item.CreatedAt).HasColumnName("created_at");
-    }
-}
-
-public sealed class EventBannerAssetConfiguration : IEntityTypeConfiguration<EventBannerAsset>
-{
-    public void Configure(EntityTypeBuilder<EventBannerAsset> builder)
-    {
-        builder.ToTable("event_banner_assets");
-        builder.HasKey(item => item.Id);
-        builder.Property(item => item.Id).HasColumnName("id");
-        builder.Property(item => item.EventId).HasColumnName("event_id");
-        builder.Property(item => item.StorageKey).HasColumnName("storage_key").HasMaxLength(500);
-        builder.Property(item => item.OriginalFilename).HasColumnName("original_filename").HasMaxLength(255);
-        builder.Property(item => item.MediaType).HasColumnName("media_type").HasMaxLength(100);
-        builder.Property(item => item.ByteSize).HasColumnName("byte_size");
-        builder.Property(item => item.Width).HasColumnName("width");
-        builder.Property(item => item.Height).HasColumnName("height");
-        builder.Property(item => item.Checksum).HasColumnName("checksum").HasMaxLength(64);
-        builder.Property(item => item.UploadedByAccountId).HasColumnName("uploaded_by_account_id");
-        builder.Property(item => item.UploadedAt).HasColumnName("uploaded_at");
-        builder.Property(item => item.ReplacedAt).HasColumnName("replaced_at");
-        builder.HasIndex(item => new { item.EventId, item.ReplacedAt });
-    }
-}
-
-public sealed class EventBannerCleanupConfiguration : IEntityTypeConfiguration<EventBannerCleanup>
-{
-    public void Configure(EntityTypeBuilder<EventBannerCleanup> builder)
-    {
-        builder.ToTable("event_banner_cleanups");
-        builder.HasKey(item => item.Id);
-        builder.Property(item => item.Id).HasColumnName("id");
-        builder.Property(item => item.EventId).HasColumnName("event_id");
-        builder.Property(item => item.StorageKey).HasColumnName("storage_key").HasMaxLength(500);
-        builder.Property(item => item.QueuedAt).HasColumnName("queued_at");
-        builder.Property(item => item.LastAttemptedAt).HasColumnName("last_attempted_at");
-        builder.Property(item => item.LastFailure).HasColumnName("last_failure").HasMaxLength(1_000);
-        builder.Property(item => item.AttemptCount).HasColumnName("attempt_count");
-        builder.HasIndex(item => new { item.EventId, item.StorageKey }).IsUnique();
-        builder.HasOne<BingoEvent>().WithMany().HasForeignKey(item => item.EventId).OnDelete(DeleteBehavior.Restrict);
     }
 }
 

@@ -176,16 +176,24 @@
                                         </div>
                                         <p class="public-ui-header-popover__empty public-ui-supporting-text" data-notification-empty hidden="@(shell.Notifications.Count > 0)">@shell.Notifications.EmptyText</p>
                                         <a class="public-ui-header-popover__action public-ui-action public-ui-action--text public-ui-action--hyperlink public-ui-action--compact" data-notification-overview href="@shell.Notifications.OverviewUrl" hidden="@(string.IsNullOrWhiteSpace(shell.Notifications.OverviewUrl))">@shell.Notifications.OverviewLabel</a>
-                                        @if (shell.Notifications.AdminActionCount > 0 || shell.Notifications.AdminItems.Count > 0)
+                                        @if (shell.Notifications.AdminActionsUnavailable || shell.Notifications.AdminActionCount > 0 || shell.Notifications.AdminItems.Count > 0)
                                         {
                                             <div class="public-ui-header-popover__heading"><strong class="public-ui-section-heading">@shell.Notifications.AdminHeading</strong><span class="public-ui-supporting-text">@shell.Notifications.AdminActionCount</span></div>
-                                            <div class="public-ui-header-popover__list">
-                                                @foreach (var item in shell.Notifications.AdminItems)
-                                                {
-                                                    <a class="public-ui-header-popover__item" href="@item.Url"><strong class="public-ui-section-heading">@item.Title</strong><span class="public-ui-supporting-text">@item.Detail</span></a>
-                                                }
-                                            </div>
-                                            <a class="public-ui-header-popover__action public-ui-action public-ui-action--text public-ui-action--hyperlink public-ui-action--compact" href="@shell.Notifications.AdminOverviewUrl">@shell.Notifications.AdminOverviewLabel</a>
+                                            @if (shell.Notifications.AdminActionsUnavailable)
+                                            {
+                                                <p class="public-ui-header-popover__empty public-ui-supporting-text">@T["Admin actions are temporarily unavailable. Refresh to retry."]</p>
+                                                <a class="public-ui-header-popover__action public-ui-action public-ui-action--text public-ui-action--hyperlink public-ui-action--compact" href="/notifications#admin-actions-heading">@T["Retry"]</a>
+                                            }
+                                            else
+                                            {
+                                                <div class="public-ui-header-popover__list">
+                                                    @foreach (var item in shell.Notifications.AdminItems)
+                                                    {
+                                                        <a class="public-ui-header-popover__item" href="@item.Url"><strong class="public-ui-section-heading">@item.Title</strong><span class="public-ui-supporting-text">@item.Detail</span></a>
+                                                    }
+                                                </div>
+                                                <a class="public-ui-header-popover__action public-ui-action public-ui-action--text public-ui-action--hyperlink public-ui-action--compact" href="@shell.Notifications.AdminOverviewUrl">@shell.Notifications.AdminOverviewLabel</a>
+                                            }
                                         }
                                     </div>
                                 </div>

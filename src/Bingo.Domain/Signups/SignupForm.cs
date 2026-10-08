@@ -24,6 +24,10 @@ public sealed class SignupForm
     public void Publish(DateTimeOffset now) => PublishedAt ??= now.ToUniversalTime();
     public void Close(DateTimeOffset now) => ClosedAt = now.ToUniversalTime();
     public void RecordAcceptedResponse(DateTimeOffset now) => FirstResponseAt ??= now.ToUniversalTime();
+    /// <summary>
+    /// Retained as a compatibility mirror for historical form rows.  The
+    /// owning event is the only active source for admission-code decisions.
+    /// </summary>
     public void ConfigureSignupCode(bool required, string? hash)
     {
         if (required && string.IsNullOrWhiteSpace(hash)) throw new ArgumentException("A required signup code needs a hash.", nameof(hash));

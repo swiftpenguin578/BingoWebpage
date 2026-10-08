@@ -40,6 +40,16 @@
         @if (Model.CanEdit) { <a class="editorial-button editorial-button--coral" asp-page="/Events/Signup" asp-route-slug="@Model.EventSlug" asp-route-edit="true">@T["Edit my signup"]</a> }
     @if (Model.CanWithdraw) { <form method="post" asp-page-handler="Withdraw" data-confirm-message="@T["Withdraw from this event? This will release your place."]" onsubmit="if (!window.confirm(this.dataset.confirmMessage)) return false; this.elements['ConfirmLifecycleAction'].value = 'true';"><input type="hidden" name="ConfirmLifecycleAction" value="false" /><button class="editorial-button editorial-button--coral-outline" type="submit">@T["Withdraw from event"]</button></form> }
     @if (Model.CanViewTable) { <a class="editorial-link editorial-link--arrow" asp-page="/Events/Signups" asp-route-slug="@Model.EventSlug"><span>@T["View signup table"]</span></a> }
-        @if (Model.CanRejoin) { <form method="post" asp-page-handler="Rejoin" data-confirm-message="@T["Rejoin this event? You will join at the end of the queue."]" onsubmit="if (!window.confirm(this.dataset.confirmMessage)) return false; this.elements['ConfirmLifecycleAction'].value = 'true';"><input type="hidden" name="ConfirmLifecycleAction" value="false" /><button class="editorial-button editorial-button--coral" type="submit">@T["Rejoin signup"]</button></form> }
+        @if (Model.CanRejoin)
+        {
+            <form method="post" asp-page-handler="Rejoin" data-confirm-message="@T["Rejoin this event? You will join at the end of the queue."]" onsubmit="if (!window.confirm(this.dataset.confirmMessage)) return false; this.elements['ConfirmLifecycleAction'].value = 'true';">
+                <input type="hidden" name="ConfirmLifecycleAction" value="false" />
+                @if (Model.RequiresSignupCode)
+                {
+                    <label class="confirmation-code-field"><span>@T["Event code"]</span><input name="SignupCode" type="password" autocomplete="off" required aria-describedby="confirmation-code-help" /><small id="confirmation-code-help">@T["Enter the current event code to rejoin."]</small></label>
+                }
+                <button class="editorial-button editorial-button--coral" type="submit">@T["Rejoin signup"]</button>
+            </form>
+        }
     </nav>
 </section>

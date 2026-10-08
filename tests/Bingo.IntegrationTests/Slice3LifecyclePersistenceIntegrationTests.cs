@@ -10,7 +10,7 @@ namespace Bingo.IntegrationTests;
 public sealed class Slice3LifecyclePersistenceIntegrationTests : IAsyncLifetime
 {
     private const string PreviousMigration = "20260726201926_TransitionParticipantCharacterAuthority";
-    private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine")
+    private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine").WithLoopbackPort()
         .WithDatabase("bingo_slice3_lifecycle_rehearsal")
         .WithUsername("bingo")
         .WithPassword("bingo_test_password")
@@ -19,8 +19,8 @@ public sealed class Slice3LifecyclePersistenceIntegrationTests : IAsyncLifetime
 
     public async Task InitializeAsync()
     {
-        await database.StartAsync();
-        options = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetConnectionString()).Options;
+        await PostgreSqlReadiness.StartAsync(database);
+        options = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetOwnedConnectionString()).Options;
     }
 
     public Task DisposeAsync() => database.DisposeAsync().AsTask();
@@ -95,7 +95,7 @@ public sealed class Slice3LifecyclePersistenceIntegrationTests : IAsyncLifetime
         {
             await clean.Database.EnsureDeletedAsync();
             await clean.Database.MigrateAsync();
-            var draft = new BingoEvent(Guid.NewGuid(), "Minimal", "slice3-minimal", "Europe/Copenhagen", Guid.NewGuid(), DateTimeOffset.UtcNow);
+            var draft = new BingoEvent(Guid.NewGuid(), "Minimal", "slice3-minimal", "Europe/Copenhagen", Guid.NewGuid(), DateTimeOffset.UtcNow, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
             clean.Events.Add(draft);
             await clean.SaveChangesAsync();
             Assert.Null((await clean.Events.SingleAsync()).Description);

@@ -1,0 +1,122 @@
+[
+  {
+    "group": "reference",
+    "path": "/Users/christopher/Documents/BingoWebpage/docs/references/admin-ui/Schedule.dc.html",
+    "relative": "Schedule.dc.html",
+    "sha256": "1a99643cb5deacfd37a65b6ff4bcb49cce11ad3bf9c65c86b798a82cd95dccd6",
+    "after_sha256": "1a99643cb5deacfd37a65b6ff4bcb49cce11ad3bf9c65c86b798a82cd95dccd6",
+    "stable": true
+  },
+  {
+    "group": "reference",
+    "path": "/Users/christopher/Documents/BingoWebpage/docs/references/admin-ui/ui/behavior.js",
+    "relative": "ui/behavior.js",
+    "sha256": "32482cb2ac00e653285b149ae12455df9dd850f18113cb3e1c2b97dc4e1de138",
+    "after_sha256": "32482cb2ac00e653285b149ae12455df9dd850f18113cb3e1c2b97dc4e1de138",
+    "stable": true
+  },
+  {
+    "group": "reference",
+    "path": "/Users/christopher/Documents/BingoWebpage/docs/references/admin-ui/ui/tokens.css",
+    "relative": "ui/tokens.css",
+    "sha256": "d77d28088763b33a5b8e7ffa61288de25fa37aa388a699d1f16cc61ef4f2346d",
+    "after_sha256": "d77d28088763b33a5b8e7ffa61288de25fa37aa388a699d1f16cc61ef4f2346d",
+    "stable": true
+  },
+  {
+    "group": "reference",
+    "path": "/Users/christopher/Documents/BingoWebpage/docs/references/admin-ui/ui/components.css",
+    "relative": "ui/components.css",
+    "sha256": "aa91c9c5f89254ba52c6104ec15827b1e861cf6b477c5ffda6d115391f0f0437",
+    "after_sha256": "aa91c9c5f89254ba52c6104ec15827b1e861cf6b477c5ffda6d115391f0f0437",
+    "stable": true
+  },
+  {
+    "group": "reference",
+    "path": "/Users/christopher/Documents/BingoWebpage/docs/references/admin-ui/Overview.dc.html",
+    "relative": "Overview.dc.html",
+    "sha256": "5cc13dece3220edfada4bef6eaf667324afa0275b2748e89495a264e8c50e42a",
+    "after_sha256": "5cc13dece3220edfada4bef6eaf667324afa0275b2748e89495a264e8c50e42a",
+    "stable": true
+  },
+  {
+    "group": "reference",
+    "path": "/Users/christopher/Documents/BingoWebpage/docs/references/admin-ui/Components.dc.html",
+    "relative": "Components.dc.html",
+    "sha256": "86e6385e81cec37f1215ec0089038a82d7440697ad4718ba69fe8db45ad03265",
+    "after_sha256": "86e6385e81cec37f1215ec0089038a82d7440697ad4718ba69fe8db45ad03265",
+    "stable": true
+  },
+  {
+    "group": "reference",
+    "path": "/Users/christopher/Documents/BingoWebpage/docs/references/admin-ui/README.md",
+    "relative": "README.md",
+    "sha256": "b3e7f9bddddf47e972d90f268fd3e83e285df45271bba328ae818b6e9b36391a",
+    "after_sha256": "b3e7f9bddddf47e972d90f268fd3e83e285df45271bba328ae818b6e9b36391a",
+    "stable": true
+  },
+  {
+    "group": "application",
+    "path": "/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/src/Bingo.Web/Pages/Admin/Events/Schedule.cshtml",
+    "relative": "src/Bingo.Web/Pages/Admin/Events/Schedule.cshtml",
+    "sha256": "07a909c8f9b9f1f846cae6c266286377aefb67b7dbe99cf2a7e1bb1441c4b81a",
+    "after_sha256": "07a909c8f9b9f1f846cae6c266286377aefb67b7dbe99cf2a7e1bb1441c4b81a",
+    "stable": true
+  },
+  {
+    "group": "application",
+    "path": "/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/src/Bingo.Web/Pages/Admin/Events/Schedule.cshtml.cs",
+    "relative": "src/Bingo.Web/Pages/Admin/Events/Schedule.cshtml.cs",
+    "sha256": "f0a7c709e03b8b4f4bda8856f8ee3b108dd679d09d25c6a2dc1494949d093dbe",
+    "after_sha256": "f0a7c709e03b8b4f4bda8856f8ee3b108dd679d09d25c6a2dc1494949d093dbe",
+    "stable": true
+  },
+  {
+    "group": "application",
+    "path": "/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/src/Bingo.Infrastructure/Events/EventSignupLifecycleService.cs",
+    "relative": "src/Bingo.Infrastructure/Events/EventSignupLifecycleService.cs",
+    "sha256": "bad93e9f2daecda6188bb9d9e59cf2353024ffa4ea7448d9b772f80926fd1644",
+    "after_sha256": "bad93e9f2daecda6188bb9d9e59cf2353024ffa4ea7448d9b772f80926fd1644",
+    "stable": true
+  },
+  {
+    "group": "application",
+    "path": "/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/src/Bingo.Infrastructure/Events/EventLifecycleService.cs",
+    "relative": "src/Bingo.Infrastructure/Events/EventLifecycleService.cs",
+    "sha256": "4efae3b18d277a9a203bd0e1d0fe6056f3bc01df9b650342b101b492721ee194",
+    "after_sha256": "4efae3b18d277a9a203bd0e1d0fe6056f3bc01df9b650342b101b492721ee194",
+    "stable": true
+  },
+  {
+    "group": "application",
+    "path": "/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/src/Bingo.Domain/Events/BingoEvent.cs",
+    "relative": "src/Bingo.Domain/Events/BingoEvent.cs",
+    "sha256": "41dc68ec0c8d219566e42622d5df84b0381154cbf4236ffc92d09b8946be4012",
+    "after_sha256": "41dc68ec0c8d219566e42622d5df84b0381154cbf4236ffc92d09b8946be4012",
+    "stable": true
+  },
+  {
+    "group": "application",
+    "path": "/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/src/Bingo.Web/Pages/Admin/Events/Manage.cshtml.cs",
+    "relative": "src/Bingo.Web/Pages/Admin/Events/Manage.cshtml.cs",
+    "sha256": "7c256656ea65e0a7aa776e11fd6dc1d440a8182e772786acabf3ef893b9f6a18",
+    "after_sha256": "7c256656ea65e0a7aa776e11fd6dc1d440a8182e772786acabf3ef893b9f6a18",
+    "stable": true
+  },
+  {
+    "group": "application",
+    "path": "/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/src/Bingo.Application/Events/IEventSignupLifecycleService.cs",
+    "relative": "src/Bingo.Application/Events/IEventSignupLifecycleService.cs",
+    "sha256": "be3747eb287f93a734bbab5530ee1de599714d046e1c8625b3e7e00c8e741ba0",
+    "after_sha256": "be3747eb287f93a734bbab5530ee1de599714d046e1c8625b3e7e00c8e741ba0",
+    "stable": true
+  },
+  {
+    "group": "application",
+    "path": "/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/src/Bingo.Web/Security/EventMutationCapabilityPageFilter.cs",
+    "relative": "src/Bingo.Web/Security/EventMutationCapabilityPageFilter.cs",
+    "sha256": "9da3be31f27c420297209abcfc5d6f916f7a75461226f5cd75feee16096919e3",
+    "after_sha256": "9da3be31f27c420297209abcfc5d6f916f7a75461226f5cd75feee16096919e3",
+    "stable": true
+  }
+]

@@ -1,0 +1,11 @@
+PASS chromium-1440-light: 0 differences
+PASS chromium-1440-dark: 0 differences
+PASS chromium-390-light: 0 differences
+PASS chromium-390-dark: 0 differences
+PASS chromium-failure-composition: 0 differences
+PASS webkit-1440-light: 0 differences
+PASS webkit-1440-dark: 0 differences
+PASS webkit-390-light: 0 differences
+PASS webkit-390-dark: 0 differences
+PASS webkit-failure-composition: 0 differences
+U2 Events: 28 passed, 0 failed

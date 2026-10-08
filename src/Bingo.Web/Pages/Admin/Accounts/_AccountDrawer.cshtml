@@ -1,0 +1,193 @@
+@model Bingo.Web.Pages.Admin.Accounts.IndexModel
+@using Bingo.Domain.Access
+@using Bingo.Domain.Signups
+@using Bingo.Domain.Teams
+@using Bingo.Web.Pages.Admin.Accounts
+@inject IStringLocalizer<AdminCommunityResource> D
+@{
+    var item = Model.AccountView;
+}
+@* The page script moves this content into the shared drawer layer. Every value here is
+   authoritative for the account named in data-account-id; nothing is carried between accounts. *@
+@if (item is null)
+{
+    <template data-account-drawer data-account-id="" data-account-missing="true">
+        <div class="dr-head"><span class="avatar is-lg" aria-hidden="true"></span><div class="grow"><div class="eyebrow">@D["Website account"]</div><h2 class="dr-title" id="drawer-title">@D["Not found"]</h2></div><button class="icon-btn" type="button" id="drawer-close" aria-label="@D["Close"]" data-account-drawer-close><partial name="_AdminDesignIcon" model='new AdminDesignIcon("close")' /></button></div>
+        <div class="dr-body" id="drawer-body"><div class="empty"><div class="empty-title">@D["This account isn’t available"]</div><div class="empty-text">@D["The link may be incomplete, or it isn’t a website account."]</div></div></div>
+        <div class="dr-foot"><div class="spacer"></div><button class="btn" type="button" id="dr-cancel" data-account-drawer-close>@D["Close"]</button></div>
+    </template>
+    return;
+}
+@{
+    var caps = item.Capabilities;
+    var role = item.Role ?? GlobalRole.User;
+    var roleLabel = Model.RoleLabel(role);
+    var roleBadge = role switch { GlobalRole.SuperAdmin => "badge-accent", GlobalRole.Admin => "badge-outline", _ => "badge-neutral" };
+    var roleText = role switch
+    {
+        GlobalRole.SuperAdmin => D["Owns the community. The only account that manages Admins."].Value,
+        GlobalRole.Admin => D["Can use the admin area and manage User accounts."].Value,
+        _ => D["No admin access."].Value
+    };
+    var captainRoles = item.EventRoles.Any(e => e.TeamRoles.Any(t => t.Role != TeamMembershipRole.Participant && t.LeftAt is null));
+    var signIn = string.Join(D[" and "].Value, new[] { item.HasPassword ? D["Password"].Value : null, item.DiscordLinked ? D["Discord"].Value : null }.Where(value => value is not null));
+    var lastDisabled = item.DisableHistory.FirstOrDefault(entry => entry.State == "Disabled");
+    var disabledReason = item.DisabledReason ?? lastDisabled?.Reason;
+    var disabledBy = item.DisabledBy ?? lastDisabled?.ActorName;
+    var note = caps.Note switch
+    {
+        "self-owner" => D["This is your account. Your own role and status can’t be changed here; change your sign-in details in your account settings."].Value,
+        "self" => D["This is your account. You can’t change your own role or status, or create a reset link for yourself."].Value,
+        "protected" => D["The Super Admin account is protected. It can’t be disabled, demoted or reset here; ownership moves only by transfer, and lost access needs Discord sign-in or operator recovery."].Value,
+        "admin-only" => D["Only the Super Admin manages Admin accounts."].Value,
+        "owner-roles" => D["Only the Super Admin can grant or revoke Admin access."].Value,
+        _ => null
+    };
+    string StatusLabel(SignupStatus status) => status switch { SignupStatus.Confirmed => D["Confirmed"].Value, SignupStatus.WaitingList => D["Waiting list"].Value, _ => D["Withdrawn"].Value };
+    string StatusClass(SignupStatus status) => status switch { SignupStatus.Confirmed => "is-success", SignupStatus.Withdrawn => "is-neutral", _ => "is-warning" };
+    var url = Model.DirectoryUrl(account: item.Id);
+    var link = Model.ResetLink is { } generated && generated.AccountId == item.Id ? generated : null;
+}
+<template data-account-drawer data-account-id="@item.Id" data-account-name="@item.Username" data-account-version="@item.AuthorizationVersion" data-account-role="@IndexModel.RoleKey(role)" data-account-active="@(item.Active ? "true" : "false")" data-account-disabled-by-me="@(item.DisabledByMe ? "true" : "false")" data-account-disabled-reason="@(item.Active ? null : item.DisabledReason)" data-account-change-stale="@(Model.AccountChangeStale ? "true" : "false")" data-account-banner-message="@Model.Banner?.Message">
+    <div class="dr-head">
+        <span class="avatar is-lg" aria-hidden="true">@AccountsPresentation.Initials(item.Username)</span>
+        <div class="grow">
+            <div class="eyebrow">@D["Website account"]</div>
+            <h2 class="dr-title" id="drawer-title">@item.Username</h2>
+            <div class="dr-badges"><span class="badge @roleBadge">@roleLabel</span>@if (!item.Active) { <span class="badge badge-danger">@D["Disabled"]</span> }@if (item.IsSelf) { <span class="badge badge-neutral">@D["You"]</span> }</div>
+        </div>
+        <button class="icon-btn" type="button" id="drawer-close" aria-label="@D["Close"]" data-account-drawer-close><partial name="_AdminDesignIcon" model='new AdminDesignIcon("close")' /></button>
+    </div>
+    <div class="dr-body" id="drawer-body">
+        <div data-account-banner-slot>@if (Model.Banner is { } banner) { <div class="ac-dr-banner"><div class="banner @banner.Tone" role="alert" id="dr-banner" tabindex="-1"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("warning")' /><span class="grow"><b>@banner.Title</b> @banner.Text</span><button type="button" class="banner-btn" data-account-banner-dismiss>@D["Dismiss"]</button></div></div> }</div>
+        @if (!item.Active)
+        {
+            <div class="ac-dr-banner"><div class="banner is-warning" id="dis-note"><svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6"/><path d="M5 11 11 5"/></svg><span class="grow"><b>@(disabledBy is { Length: > 0 } ? D["Disabled {0} by {1}.", item.DisabledAt is { } at ? AccountsPresentation.FullTime(at) : string.Empty, disabledBy] : D["Disabled {0}.", item.DisabledAt is { } when ? AccountsPresentation.FullTime(when) : string.Empty])</b> @if (disabledReason is { Length: > 0 }) { <text>“@disabledReason” </text> }@D["They can’t sign in; the account and its records are kept."]</span></div></div>
+        }
+        <section class="sec" aria-labelledby="sec-access">
+            <div class="sec-head"><h3 class="sec-title" id="sec-access" tabindex="-1">@D["Access"]</h3></div>
+            <dl class="kv ac-kv">
+                <dt>@D["Global role"]</dt><dd><span class="ac-strong">@roleLabel</span><span class="ac-sub">@roleText@(captainRoles ? " " + D["Event Captain roles are separate; see below."].Value : string.Empty)</span></dd>
+                <dt>@D["Status"]</dt><dd><span class="ac-strong @(item.Active ? null : "is-danger")">@(item.Active ? D["Active"] : D["Disabled"])</span><span class="ac-sub">@(item.Active ? D["Can sign in."] : D["Can’t sign in."])</span></dd>
+                <dt>@D["Last login"]</dt><dd><span class="@(item.LastLoginAt is null ? "ac-muted" : null)">@(item.LastLoginAt is { } login ? AccountsPresentation.FullTime(login) : D["Never"].Value)</span></dd>
+                <dt>@D["Sign-in"]</dt><dd><span>@(signIn.Length > 0 ? signIn : D["None set"].Value)</span></dd>
+                <dt>@D["Discord"]</dt><dd><span class="@(item.DiscordLinked ? null : "ac-muted")">@(item.DiscordLinked ? D["Linked"] : D["Not linked"])</span>@if (item.DiscordLinked) { <span class="ac-sub">@(item.DiscordDisplayName is { Length: > 0 } name ? D["Last known display name “{0}”; it may be out of date.", name] : D["Display name not recorded."])</span> }</dd>
+            </dl>
+        </section>
+        <section class="sec" aria-labelledby="sec-manage">
+            <div class="sec-head"><h3 class="sec-title" id="sec-manage">@D["Manage access"]</h3></div>
+            @if (note is not null) { <p class="perm-note" id="perm-note"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("lock")' /><span>@note</span></p> }
+            <div class="ac-acts">
+                @if (caps.Role is "grant" or "revoke")
+                {
+                    var handler = caps.Role == "grant" ? "GrantAdmin" : "RevokeAdmin";
+                    <div class="act-row"><div class="ac-act-copy"><div class="ac-act-title">@D["Admin access"]</div><div class="ac-act-text">@(caps.Role == "grant" ? D["Lets them use the admin area. Event roles aren’t affected."] : item.Active ? D["They’d become a User. Their account stays active, with its events, team roles and characters."] : D["They’d become a User. Their account stays disabled, with its events, team roles and characters."])</div></div>
+                        <form method="post" action="@url&handler=@handler" asp-antiforgery="true" data-account-action="@handler"><input type="hidden" name="ExpectedAuthorizationVersion" value="@item.AuthorizationVersion" /><button class="btn btn-sm" type="submit" id="a-role">@(caps.Role == "grant" ? D["Grant Admin…"] : D["Revoke Admin…"])</button></form></div>
+                }
+                else if (caps.Role == "grant-blocked")
+                {
+                    <div class="act-row"><div class="ac-act-copy"><div class="ac-act-title">@D["Admin access"]</div><div class="ac-act-text">@D["Restore the account before granting Admin access."]</div></div></div>
+                }
+                @if (caps.Reset || caps.ResetBlocked)
+                {
+                    <div class="act-row ac-reset-row"><div class="ac-act-copy"><div class="ac-act-title">@D["Password-reset link"]</div><div class="ac-act-text">@(caps.Reset ? item.HasPassword ? D["A single-use link they can use within 60 minutes to set a new password. It replaces any earlier link. It doesn’t change the password or contact them; you pass it on."] : D["A single-use link they can use within 60 minutes to set a password (they sign in with Discord only today). It replaces any earlier link. It doesn’t change the password or contact them; you pass it on."] : D["Reset links are only for active accounts. Restore the account first."])</div></div>
+                        @if (caps.Reset) { <form method="post" action="@url&handler=GenerateResetLink" asp-antiforgery="true" data-account-action="GenerateResetLink"><button class="btn btn-sm" type="submit" id="a-reset" hidden="@(link is not null)"><span class="spin" hidden></span><span data-component-text>@D["Create reset link"]</span></button></form> }</div>
+                    <div data-account-reset-slot>
+                    @if (link is not null)
+                    {
+                        <div class="secret-result" role="region" aria-labelledby="sr-title" id="sr" tabindex="-1" data-account-secret-for="@item.Id">
+                            <div class="secret-head"><svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><circle cx="5.5" cy="10.5" r="2.5"/><path d="M7.3 8.7 13 3M11 5l1.5 1.5M9.5 6.5 11 8"/></svg><span class="secret-title" id="sr-title">@D["Reset link for {0}", item.Username]</span><span class="secret-exp">@D["Expires {0}", link.Expires]</span></div>
+                            <div class="copy-field" role="group" aria-label="@D["Reset link"]"><span class="mono" id="sr-link">@link.Link</span><button class="btn btn-sm btn-quiet" type="button" id="sr-copy" data-account-copy><partial name="_AdminDesignIcon" model='new AdminDesignIcon("copy")' /><span data-component-text>@D["Copy"]</span></button></div>
+                            <ul class="secret-notes"><li>@D["The link stops working after 60 minutes, after one use, or if this account’s role, status or ownership changes."]</li><li>@D["It doesn’t change their password or send them anything. Share it with {0} privately.", item.Username]</li></ul>
+                            <div class="secret-foot"><span>@D["Shown only here. Closing this account clears it."]</span><button class="btn btn-sm" type="button" id="sr-done" data-account-secret-done>@D["Done"]</button></div>
+                        </div>
+                    }
+                    </div>
+                }
+                @if (caps.Status is "disable" or "restore")
+                {
+                    var handler = caps.Status == "disable" ? "Disable" : "Restore";
+                    <div class="act-row"><div class="ac-act-copy"><div class="ac-act-title">@(caps.Status == "disable" ? D["Disable account"] : D["Restore account"])</div><div class="ac-act-text">@(caps.Status == "disable" ? D["Stops them signing in and ends their sessions. The account, rosters and records are kept."] : D["Lets them sign in again. Event signups and roles stay as they are now."])</div></div>
+                        <form method="post" action="@url&handler=@handler" asp-antiforgery="true" data-account-action="@handler"><input type="hidden" name="ExpectedAuthorizationVersion" value="@item.AuthorizationVersion" /><button class="btn btn-sm @(caps.Status == "disable" ? "btn-quiet-danger" : null)" type="submit" id="a-status">@(caps.Status == "disable" ? D["Disable…"] : D["Restore…"])</button></form></div>
+                }
+                @if (caps.Transfer && Model.IsSuperAdmin)
+                {
+                    <div class="act-row"><div class="ac-act-copy"><div class="ac-act-title">@D["Ownership"]</div><div class="ac-act-text">@D["You’re the community’s only Super Admin. Ownership can move to another active account; you’d stay an Admin."]</div></div><button class="btn btn-sm btn-quiet" type="button" id="a-transfer" data-account-transfer-open>@D["Transfer ownership…"]</button></div>
+                }
+            </div>
+        </section>
+        <section class="sec" aria-labelledby="sec-chars">
+            <div class="sec-head"><h3 class="sec-title" id="sec-chars">@D["Linked OSRS characters"] <span class="ac-count">@(item.Characters.Count > 0 ? item.Characters.Count.ToString(CultureInfo.CurrentCulture) : null)</span></h3></div>
+            @if (item.Characters.Count == 0) { <p class="ac-none">@D["No characters linked. The account holder adds them in My Accounts."]</p> }
+            else { <ul class="ac-list">@foreach (var character in item.Characters) { <li class="ac-li @(character.Active ? null : "is-inactive")"><span class="ac-li-name">@character.DisplayName</span>@if (character.Preferred) { <span class="pill is-accent">@D["Preferred"]</span> } else if (!character.Active) { <span class="pill is-neutral">@D["Inactive"]</span> }</li> }</ul> }
+        </section>
+        <section class="sec" aria-labelledby="sec-events">
+            <div class="sec-head"><h3 class="sec-title" id="sec-events">@D["Events and team roles"] <span class="ac-count">@(item.EventRoles.Count > 0 ? item.EventRoles.Count.ToString(CultureInfo.CurrentCulture) : null)</span></h3></div>
+            @if (item.EventRoles.Count == 0) { <p class="ac-none">@D["No event participation."]</p> }
+            else
+            {
+                <ul class="ac-evlist">
+                @foreach (var entry in item.EventRoles)
+                {
+                    <li class="ac-evitem">
+                        <div class="ac-evhead"><span class="ac-li-name">@entry.EventName</span><span class="pill @StatusClass(entry.ParticipationState)">@StatusLabel(entry.ParticipationState)</span></div>
+                        @if (entry.TeamRoles.Count == 0) { <div class="ac-evsub">@D["No team"]</div> }
+                        @foreach (var team in entry.TeamRoles)
+                        {
+                            <div class="ac-evrole @(team.LeftAt is null ? null : "is-past")">@if (team.Role != TeamMembershipRole.Participant) { <span class="role-badge @(team.Role == TeamMembershipRole.CoCaptain ? "is-co" : null)" title="@Model.TeamRoleLabel(team.Role)"><span aria-hidden="true">@(team.Role == TeamMembershipRole.CoCaptain ? D["CC"] : D["C"])</span><span class="sr">@Model.TeamRoleLabel(team.Role)</span></span> }<span class="ac-evrole-main">@D["{0} · {1}", Model.TeamRoleLabel(team.Role), team.TeamName]</span><span class="ac-evrole-when">@D["{0} – {1}", AccountsPresentation.Day(team.JoinedAt, entry.Timezone), team.LeftAt is { } left ? AccountsPresentation.Day(left, entry.Timezone) : D["current"].Value]</span></div>
+                        }
+                    </li>
+                }
+                </ul>
+            }
+        </section>
+        <section class="sec is-last" aria-labelledby="sec-hist">
+            <div class="sec-head"><h3 class="sec-title" id="sec-hist">@D["Disable and restore history"]</h3></div>
+            @if (item.DisableHistory.Count == 0) { <p class="ac-none">@D["Never disabled."]</p> }
+            else { <ol class="tl">@foreach (var history in item.DisableHistory) { <li class="tl-item"><div class="tl-head"><span class="tl-what">@(history.State == "Disabled" ? D["Disabled by {0}", history.ActorName] : D["Restored by {0}", history.ActorName])</span><span class="tl-when">@AccountsPresentation.FullTime(history.OccurredAt)</span></div>@if (!string.IsNullOrWhiteSpace(history.Reason)) { <div class="tl-reason">@history.Reason</div> }</li> }</ol> }
+            <p class="ac-foot-note">@D["Username, Discord and characters belong to the account holder and are changed in their own settings. Team roles are managed on each event’s Teams page."]</p>
+        </section>
+    </div>
+    <div class="dr-foot"><div class="spacer"></div><button class="btn" type="button" id="dr-cancel" data-account-drawer-close>@D["Close"]</button></div>
+    @* Confirmations: alert dialogs over the drawer (reference cm). *@
+    @if (caps.Role is "grant" or "revoke")
+    {
+        var grant = caps.Role == "grant";
+        <template data-account-confirm="@(grant ? "GrantAdmin" : "RevokeAdmin")" data-account-confirm-class="@(grant ? "btn-primary" : "btn-danger")" data-account-busy="@(grant ? D["Granting…"] : D["Revoking…"])">
+            <h2 class="m-title" data-confirm-title>@(grant ? D["Grant Admin access to {0}?", item.Username] : D["Revoke Admin access from {0}?", item.Username])</h2>
+            <div data-confirm-description>
+                <partial name="_AccountChange" model='new AccountChangeRow(item.Username, grant ? Model.RoleLabel(GlobalRole.User) : Model.RoleLabel(GlobalRole.Admin), grant ? Model.RoleLabel(GlobalRole.Admin) : Model.RoleLabel(GlobalRole.User))' />
+                <ul class="m-points">@if (grant) { <li>@D["They can use the admin area and manage User accounts. Only you can manage Admins."]</li><li>@D["Their current sessions end; they sign in again to use it. They’ll see a notification on the website."]</li><li>@D["Their event roles don’t change."]</li> } else { <li>@(item.Active ? D["The account stays active. Event participation, team and Captain roles, and characters stay as they are."] : D["The account stays disabled. Event participation, team and Captain roles, and characters stay as they are."])</li><li>@D["Their current sessions end. They’ll see a notification on the website."]</li> }</ul>
+            </div>
+            <div class="m-actions"><button class="btn" type="button" data-account-confirm-cancel autofocus>@D["Cancel"]</button><button class="btn @(grant ? "btn-primary" : "btn-danger")" type="button" data-account-confirm-accept><span class="spin" hidden></span><span data-component-text>@(grant ? D["Grant Admin"] : D["Revoke Admin"])</span></button></div>
+        </template>
+    }
+    @if (caps.Status == "disable")
+    {
+        <template data-account-confirm="Disable" data-account-confirm-class="btn-danger" data-account-busy="@D["Disabling…"]">
+            <h2 class="m-title" data-confirm-title>@D["Disable {0}?", item.Username]</h2>
+            <div data-confirm-description>
+                <partial name="_AccountChange" model='new AccountChangeRow(item.Username, D["Active"].Value, D["Disabled"].Value)' />
+                <ul class="m-points"><li>@D["They can’t sign in, and every current session ends now."]</li><li>@D["Nothing is deleted: the account, username, Discord link, characters and history are kept."]</li><li>@D["Their place on event rosters, team roles, evidence and results are unchanged."]</li></ul>
+            </div>
+            <div class="m-extra"><div class="field">
+                <label class="lbl" for="cm-reason">@D["Reason"]</label>
+                <textarea class="textarea" id="cm-reason" name="Reason" maxlength="500" aria-describedby="cm-reason-hint cm-reason-err" placeholder="@D["Why the account is being disabled"]" autofocus data-account-reason></textarea>
+                <div class="field-meta"><span class="field-hint" id="cm-reason-hint">@D["Kept in the account’s history and Audit. Other admins can read it."]</span><span class="field-count" aria-hidden="true" data-account-reason-count>0 / 500</span></div>
+                <div class="field-err" id="cm-reason-err" hidden><partial name="_AdminDesignIcon" model='new AdminDesignIcon("error")' /><span data-component-text></span></div>
+            </div></div>
+            <div class="m-actions"><button class="btn" type="button" data-account-confirm-cancel>@D["Cancel"]</button><button class="btn btn-danger" type="button" data-account-confirm-accept><span class="spin" hidden></span><span data-component-text>@D["Disable account"]</span></button></div>
+        </template>
+    }
+    @if (caps.Status == "restore")
+    {
+        <template data-account-confirm="Restore" data-account-confirm-class="btn-primary" data-account-busy="@D["Restoring…"]">
+            <h2 class="m-title" data-confirm-title>@D["Restore {0}?", item.Username]</h2>
+            <div data-confirm-description>
+                <partial name="_AccountChange" model='new AccountChangeRow(item.Username, D["Disabled"].Value, D["Active"].Value)' />
+                <ul class="m-points"><li>@D["They can sign in again with their password or Discord."]</li><li>@D["Only the website account is restored. Withdrawn signups and team roles that events have since ended stay as they are."]</li><li>@D["They’ll see a notification on the website."]</li></ul>
+            </div>
+            <div class="m-actions"><button class="btn" type="button" data-account-confirm-cancel autofocus>@D["Cancel"]</button><button class="btn btn-primary" type="button" data-account-confirm-accept><span class="spin" hidden></span><span data-component-text>@D["Restore account"]</span></button></div>
+        </template>
+    }
+</template>

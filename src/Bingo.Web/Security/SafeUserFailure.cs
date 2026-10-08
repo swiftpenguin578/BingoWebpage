@@ -29,12 +29,24 @@ public static class SafeUserFailure
         "Your username change conflicted with another update. Please reload and try again.",
         "An OSRS character name is required.",
         "An OSRS character name must be 100 characters or fewer.",
+        Bingo.Domain.Access.RsnRule.Message, // U5-Q4
         "That character is already in your My Accounts list.",
         "That character is no longer available in your My Accounts list.",
         "That move is not available.",
         "That corrected character already has a separate My Accounts link.",
         "Saved EHB cannot be negative.",
-        "Your My Accounts changes conflicted with another update. Please reload and try again."
+        "Your My Accounts changes conflicted with another update. Please reload and try again.",
+        // Evidence submission refusals a player can act on or should understand.
+        "New submissions are not currently open.",
+        "Evidence codes are enabled, but no code is active at the current time. Ask an administrator to activate one before submitting.",
+        "Participants may submit evidence only for themselves.",
+        "Choose a current member of your team.",
+        "The credited player is not eligible for this team at the evidence time.",
+        "The credited participant has no active Playing account at the evidence time.",
+        "Choose a tile from the published event board.",
+        "Choose a requirement from that tile.",
+        "Choose an eligible drop.",
+        "This drop has already reached its approved contribution limit."
     ];
 
     public static string Message(IStringLocalizer<SharedResource> text, ILogger logger, Exception exception)

@@ -1,0 +1,749 @@
+{
+  "provenance": "Implementer item7 focused checks; precommit production content. Final-commit build and JS executions are reported in dispatcher callback. Whole .NET suite not run by implementer.",
+  "integration": {
+    "source": "/private/tmp/bingo-u1-item7-trx/_Christophers-MacBook-Air_2026-10-05_16_51_31_net10.0.trx",
+    "counters": {
+      "total": "47",
+      "executed": "47",
+      "passed": "47",
+      "failed": "0",
+      "error": "0",
+      "timeout": "0",
+      "aborted": "0",
+      "inconclusive": "0",
+      "passedButRunAborted": "0",
+      "notRunnable": "0",
+      "notExecuted": "0",
+      "disconnected": "0",
+      "warning": "0",
+      "completed": "0",
+      "inProgress": "0",
+      "pending": "0"
+    },
+    "results": [
+      {
+        "test": "Bingo.IntegrationTests.Slice3CreationIdentityPersistenceIntegrationTests.ScheduleHandlerRejectsInvalidOrAmbiguousLocalWallTimeWithoutChangingScheduleVersionOrAudit(localTime: \"2026-10-25T02:30\")",
+        "outcome": "Passed",
+        "duration": "00:00:00.0313413"
+      },
+      {
+        "test": "Bingo.IntegrationTests.IdentityFieldConflictIntegrationTests.ConflictResolutionIsExplicitAtomicAndMustMatchReviewedCurrentField(choice: \"KeepMine\")",
+        "outcome": "Passed",
+        "duration": "00:00:01.4434759"
+      },
+      {
+        "test": "Bingo.IntegrationTests.AdminDesignShellIntegrationTests.IdentitySaveAndCurrentRedirectLostOrDisabledSessionWithoutData(disabled: False, post: False)",
+        "outcome": "Passed",
+        "duration": "00:00:00.2580986"
+      },
+      {
+        "test": "Bingo.IntegrationTests.Slice3CreationIdentityPersistenceIntegrationTests.PublicSchedulePreviewPreservesLockedSignupOpeningWhenPostOmitsIt",
+        "outcome": "Passed",
+        "duration": "00:00:00.1203687"
+      },
+      {
+        "test": "Bingo.IntegrationTests.AdminDesignShellIntegrationTests.BoundIdentityTerminalReadsAreFullColourAndWritesStillRefused(state: Finalized)",
+        "outcome": "Passed",
+        "duration": "00:00:00.3106047"
+      },
+      {
+        "test": "Bingo.IntegrationTests.IdentityFieldConflictIntegrationTests.ActualLiveAndFinalReviewTransportAllowsTextButNeverTimezoneChanges",
+        "outcome": "Passed",
+        "duration": "00:00:00.2946515"
+      },
+      {
+        "test": "Bingo.IntegrationTests.Slice3CreationIdentityPersistenceIntegrationTests.CreationAllocatesDistinctAutomaticSlugsAndRejectsRetiredExplicitLinks",
+        "outcome": "Passed",
+        "duration": "00:00:00.0653396"
+      },
+      {
+        "test": "Bingo.IntegrationTests.IdentityFieldConflictIntegrationTests.IdentityReadbackObservesFullCurrentTupleWithoutAttributionOrWrites(scenario: \"unapplied\")",
+        "outcome": "Passed",
+        "duration": "00:00:00.2979922"
+      },
+      {
+        "test": "Bingo.IntegrationTests.Slice3CreationIdentityPersistenceIntegrationTests.IdentityShowsExplicitUtcFallbackForRetainedUnresolvableTimezone",
+        "outcome": "Passed",
+        "duration": "00:00:00.0032837"
+      },
+      {
+        "test": "Bingo.IntegrationTests.IdentityFieldConflictIntegrationTests.ActualConcurrentClientsMergeDisjointEditsAndRejectSameField(sameField: False)",
+        "outcome": "Passed",
+        "duration": "00:00:00.4177641"
+      },
+      {
+        "test": "Bingo.IntegrationTests.Slice3CreationIdentityPersistenceIntegrationTests.SignupSettingsHandlerPromotesWaitingParticipantOnlyAfterCapacityIncrease",
+        "outcome": "Passed",
+        "duration": "00:00:00.1151678"
+      },
+      {
+        "test": "Bingo.IntegrationTests.IdentityFieldConflictIntegrationTests.IdentityReadbackObservesFullCurrentTupleWithoutAttributionOrWrites(scenario: \"other-admin-matching\")",
+        "outcome": "Passed",
+        "duration": "00:00:00.4905325"
+      },
+      {
+        "test": "Bingo.IntegrationTests.IdentityFieldConflictIntegrationTests.IdentityReadbackObservesFullCurrentTupleWithoutAttributionOrWrites(scenario: \"other-admin-different\")",
+        "outcome": "Passed",
+        "duration": "00:00:00.5892164"
+      },
+      {
+        "test": "Bingo.IntegrationTests.AdminDesignShellIntegrationTests.IdentitySaveAndCurrentRedirectLostOrDisabledSessionWithoutData(disabled: True, post: False)",
+        "outcome": "Passed",
+        "duration": "00:00:00.3522516"
+      },
+      {
+        "test": "Bingo.IntegrationTests.Slice3CreationIdentityPersistenceIntegrationTests.ConcurrentCreationAllocatesDistinctSlugsAndLeavesNoPartialAggregates",
+        "outcome": "Passed",
+        "duration": "00:00:00.0281650"
+      },
+      {
+        "test": "Bingo.IntegrationTests.Slice3DestructiveLifecycleIntegrationTests.TerminalEventRoutesRejectEveryAuditedAdminMutationBeforeAnySideEffect",
+        "outcome": "Passed",
+        "duration": "00:00:02.8532039"
+      },
+      {
+        "test": "Bingo.IntegrationTests.AdminDesignShellIntegrationTests.IdentitySaveAndCurrentRedirectLostOrDisabledSessionWithoutData(disabled: False, post: True)",
+        "outcome": "Passed",
+        "duration": "00:00:00.2521112"
+      },
+      {
+        "test": "Bingo.IntegrationTests.AdminDesignShellIntegrationTests.IdentitySaveAndCurrentRedirectLostOrDisabledSessionWithoutData(disabled: True, post: True)",
+        "outcome": "Passed",
+        "duration": "00:00:00.3352712"
+      },
+      {
+        "test": "Bingo.IntegrationTests.Slice3CreationIdentityPersistenceIntegrationTests.CreationHttpAcceptsOnlyNameAndTimezoneAndCreatesAtomicDefaultAggregate",
+        "outcome": "Passed",
+        "duration": "00:00:00.5611788"
+      },
+      {
+        "test": "Bingo.IntegrationTests.AdminDesignShellIntegrationTests.SwitcherUsesEligiblePhasesStableStartOrderPastSelectionAndHiddenOverview",
+        "outcome": "Passed",
+        "duration": "00:00:00.1110262"
+      },
+      {
+        "test": "Bingo.IntegrationTests.IdentityFieldConflictIntegrationTests.IdentityReadbackObservesFullCurrentTupleWithoutAttributionOrWrites(scenario: \"unseen-disjoint-merge\")",
+        "outcome": "Passed",
+        "duration": "00:00:00.4372298"
+      },
+      {
+        "test": "Bingo.IntegrationTests.Slice3CreationIdentityPersistenceIntegrationTests.ScheduleHandlerRejectsInvalidOrAmbiguousLocalWallTimeWithoutChangingScheduleVersionOrAudit(localTime: \"2026-03-29T02:30\")",
+        "outcome": "Passed",
+        "duration": "00:00:00.0584493"
+      },
+      {
+        "test": "Bingo.IntegrationTests.Slice3CreationIdentityPersistenceIntegrationTests.ScheduleHandlerLoadsMachineValuesAndPreservesUntouchedInstants",
+        "outcome": "Passed",
+        "duration": "00:00:00.1177334"
+      },
+      {
+        "test": "Bingo.IntegrationTests.IdentityFieldConflictIntegrationTests.MissingAndPartialStaleBaselinesFailClosedWithoutAdvancingLegacyVersion",
+        "outcome": "Passed",
+        "duration": "00:00:00.4027083"
+      },
+      {
+        "test": "Bingo.IntegrationTests.Slice3CreationIdentityPersistenceIntegrationTests.CreationHandlerCommitsMinimalDraftAndRejectsRetiredOptionalInputWithoutResidue",
+        "outcome": "Passed",
+        "duration": "00:00:00.0261424"
+      },
+      {
+        "test": "Bingo.IntegrationTests.Slice3CreationIdentityPersistenceIntegrationTests.IdentityTreatsWrappedProviderConflictsAsStale",
+        "outcome": "Passed",
+        "duration": "00:00:00.0385133"
+      },
+      {
+        "test": "Bingo.IntegrationTests.IdentityFieldConflictIntegrationTests.ConflictResolutionIsExplicitAtomicAndMustMatchReviewedCurrentField(choice: \"UseCurrent\")",
+        "outcome": "Passed",
+        "duration": "00:00:00.3758202"
+      },
+      {
+        "test": "Bingo.IntegrationTests.AdminDesignShellIntegrationTests.BoundIdentityHiddenGetReadbackAndPostAreNotFound",
+        "outcome": "Passed",
+        "duration": "00:00:00.7119323"
+      },
+      {
+        "test": "Bingo.IntegrationTests.IdentityFieldConflictIntegrationTests.IdentityReadbackObservesFullCurrentTupleWithoutAttributionOrWrites(scenario: \"applied-lost-response\")",
+        "outcome": "Passed",
+        "duration": "00:00:00.3386132"
+      },
+      {
+        "test": "Bingo.IntegrationTests.AdminDesignShellIntegrationTests.BoundIdentityTerminalReadsAreFullColourAndWritesStillRefused(state: Cancelled)",
+        "outcome": "Passed",
+        "duration": "00:00:00.4478713"
+      },
+      {
+        "test": "Bingo.IntegrationTests.IdentityFieldConflictIntegrationTests.ActualConcurrentClientsMergeDisjointEditsAndRejectSameField(sameField: True)",
+        "outcome": "Passed",
+        "duration": "00:00:00.3367642"
+      },
+      {
+        "test": "Bingo.IntegrationTests.IdentityFieldConflictIntegrationTests.ActualTransportPreservesUnicodeAndUtf16LimitsAndPermanentSlug",
+        "outcome": "Passed",
+        "duration": "00:00:00.3316561"
+      },
+      {
+        "test": "Bingo.IntegrationTests.IdentityFieldConflictIntegrationTests.NonAdminActualTransportCannotReadOrSaveIdentity",
+        "outcome": "Passed",
+        "duration": "00:00:00.3851545"
+      },
+      {
+        "test": "Bingo.IntegrationTests.AdminDesignShellIntegrationTests.BoundIdentityUsesNewLayoutAndRendersLocalAssetsTokenAndTempData",
+        "outcome": "Passed",
+        "duration": "00:00:01.6069488"
+      },
+      {
+        "test": "Bingo.IntegrationTests.AdminDesignShellIntegrationTests.IdentityLostCommitRendersPostedDraftWithoutReadsEvenWhenRollbackFails",
+        "outcome": "Passed",
+        "duration": "00:00:00.3773440"
+      },
+      {
+        "test": "Bingo.IntegrationTests.AdminDesignShellIntegrationTests.BoundIdentityTerminalReadsAreFullColourAndWritesStillRefused(state: Archived)",
+        "outcome": "Passed",
+        "duration": "00:00:00.2896551"
+      },
+      {
+        "test": "Bingo.IntegrationTests.Slice3CreationIdentityPersistenceIntegrationTests.CreationAllowsOnlyCopenhagenAndUtcTimezones",
+        "outcome": "Passed",
+        "duration": "00:00:00.0359501"
+      },
+      {
+        "test": "Bingo.IntegrationTests.Slice3CreationIdentityPersistenceIntegrationTests.SchedulePageSavesFutureOpeningWithAnIncompletePrivateWindow",
+        "outcome": "Passed",
+        "duration": "00:00:00.0418824"
+      },
+      {
+        "test": "Bingo.IntegrationTests.Slice3CreationIdentityPersistenceIntegrationTests.CreationRollsBackTheWholeAggregateWhenARequiredInsertFails",
+        "outcome": "Passed",
+        "duration": "00:00:00.0143851"
+      },
+      {
+        "test": "Bingo.IntegrationTests.AdminDesignShellIntegrationTests.IdentityTimezoneTemplatesUseAllFiveScheduledMomentsWithDstOffsetsAndPermanentSignupList",
+        "outcome": "Passed",
+        "duration": "00:00:00.2727167"
+      },
+      {
+        "test": "Bingo.IntegrationTests.AdminDesignShellIntegrationTests.IdentitySaveAndNoChangePrgStayOnIdentityWithQuietSavedAndNoExtraAudit",
+        "outcome": "Passed",
+        "duration": "00:00:00.3228632"
+      },
+      {
+        "test": "Bingo.IntegrationTests.IdentityFieldConflictIntegrationTests.IdentityReadbackUsesExistingAuthorizationAndHiddenEventBoundary",
+        "outcome": "Passed",
+        "duration": "00:00:00.3858759"
+      },
+      {
+        "test": "Bingo.IntegrationTests.Slice3CreationIdentityPersistenceIntegrationTests.CreationDefaultsUseTheRequiredSignupQuestionsAndAnEmptyFiveByFiveBoard",
+        "outcome": "Passed",
+        "duration": "00:00:00.3443116"
+      },
+      {
+        "test": "Bingo.IntegrationTests.IdentityFieldConflictIntegrationTests.ScheduleOnlyChangeRequiresFreshTimezoneReviewAtPersistedMicrosecondPrecision",
+        "outcome": "Passed",
+        "duration": "00:00:00.2832834"
+      },
+      {
+        "test": "Bingo.IntegrationTests.IdentityFieldConflictIntegrationTests.IdentityReadbackObservesFullCurrentTupleWithoutAttributionOrWrites(scenario: \"use-current\")",
+        "outcome": "Passed",
+        "duration": "00:00:00.4369113"
+      },
+      {
+        "test": "Bingo.IntegrationTests.IdentityFieldConflictIntegrationTests.AlreadyMatchingAndUnchangedFieldsAreNoOpsAndRetainOtherAdminsChanges",
+        "outcome": "Passed",
+        "duration": "00:00:00.2742430"
+      },
+      {
+        "test": "Bingo.IntegrationTests.Slice3CreationIdentityPersistenceIntegrationTests.IdentityHandlerPreservesUtcAndSupportsLiveContentEditsButLocksSlugAndPostLiveTimezone",
+        "outcome": "Passed",
+        "duration": "00:00:00.0644620"
+      }
+    ]
+  },
+  "browserDotnet": {
+    "source": "/private/tmp/bingo-u1-item7-ui-final-trx/_Christophers-MacBook-Air_2026-10-05_16_59_45_net10.0.trx",
+    "counters": {
+      "total": "33",
+      "executed": "33",
+      "passed": "33",
+      "failed": "0",
+      "error": "0",
+      "timeout": "0",
+      "aborted": "0",
+      "inconclusive": "0",
+      "passedButRunAborted": "0",
+      "notRunnable": "0",
+      "notExecuted": "0",
+      "disconnected": "0",
+      "warning": "0",
+      "completed": "0",
+      "inProgress": "0",
+      "pending": "0"
+    },
+    "results": [
+      {
+        "test": "Bingo.BrowserTests.AdminDesignLocalizationTests.EveryNewShellAndOptedInPageLiteralHasANonEmptyDanishEntry",
+        "outcome": "Passed",
+        "duration": "00:00:00.0413884"
+      },
+      {
+        "test": "Bingo.BrowserTests.EventCreationUiTests.ManageBlockerMappingUsesTheRealResolutionRoute(code: \"EVENT_WINDOW_OVERLAP\", routeTemplate: \"/Admin/Events\", label: \"Review events\")",
+        "outcome": "Passed",
+        "duration": "00:00:00.2922204"
+      },
+      {
+        "test": "Bingo.BrowserTests.EventCreationUiTests.QuestionsMoveAndEditMutationsPreserveSubmittedOverlayState",
+        "outcome": "Passed",
+        "duration": "00:00:00.0015171"
+      },
+      {
+        "test": "Bingo.BrowserTests.EventCreationUiTests.AnonymousVisitorsAreRedirectedFromCreationAndIdentityRoutes",
+        "outcome": "Passed",
+        "duration": "00:00:00.3964925"
+      },
+      {
+        "test": "Bingo.BrowserTests.EventCreationUiTests.ManageBlockerMappingUsesTheRealResolutionRoute(code: \"SCHEDULE_INVALID\", routeTemplate: \"/Admin/Events/Schedule/{0}\", label: \"Review schedule\")",
+        "outcome": "Passed",
+        "duration": "00:00:00.0000043"
+      },
+      {
+        "test": "Bingo.BrowserTests.EventCreationUiTests.RetiredConfirmSignupHandlerIsAbsentFromTheManagePageHandlerDescriptor",
+        "outcome": "Passed",
+        "duration": "00:00:00.0015054"
+      },
+      {
+        "test": "Bingo.BrowserTests.EventCreationUiTests.ManageBlockerMappingUsesTheRealResolutionRoute(code: \"CURRENT_EVENT_EXISTS\", routeTemplate: \"/Admin/Events\", label: \"Review events\")",
+        "outcome": "Passed",
+        "duration": "00:00:00.0000056"
+      },
+      {
+        "test": "Bingo.BrowserTests.EventCreationUiTests.ManageBlockerMappingUsesTheRealResolutionRoute(code: \"BOARD_NOT_PUBLISHED\", routeTemplate: \"/Admin/Events/Board/{0}\", label: \"Review board\")",
+        "outcome": "Passed",
+        "duration": "00:00:00.0000030"
+      },
+      {
+        "test": "Bingo.BrowserTests.EventCreationUiTests.ManageBlockerMappingUsesTheRealResolutionRoute(code: \"SIGNUP_CODE_UNUSABLE\", routeTemplate: \"/Admin/Events/Questions/{0}\", label: \"Review signup form\")",
+        "outcome": "Passed",
+        "duration": "00:00:00.0001264"
+      },
+      {
+        "test": "Bingo.BrowserTests.ManagedCompetitionUiTests.CompetitionLinkMarkupDoesNotOfferProviderScheduleImport",
+        "outcome": "Passed",
+        "duration": "00:00:00.0082744"
+      },
+      {
+        "test": "Bingo.BrowserTests.EventCreationUiTests.ManageBlockerMappingUsesTheRealResolutionRoute(code: \"DRAFT_NOT_FINALIZED\", routeTemplate: \"/Admin/Events/Draft/{0}\", label: \"Review teams and draft\")",
+        "outcome": "Passed",
+        "duration": "00:00:00.0000030"
+      },
+      {
+        "test": "Bingo.BrowserTests.EventCreationUiTests.ManageEventControlBranchesKeepRightOwnedActions(branch: \"scheduled action\", branchMarker: \"Model.ScheduledAction is not null || showAllContro\"\u00b7\u00b7\u00b7, actionMarker: \"Scheduled lifecycle action\", cssMarker: \".event-manage-page .event-admin-controls > .event-\"\u00b7\u00b7\u00b7, controlStartMarker: \"@if (Model.ScheduledAction is not null || showAllC\"\u00b7\u00b7\u00b7, controlEndMarker: \"@if (showSignupControls)\")",
+        "outcome": "Passed",
+        "duration": "00:00:00.0406004"
+      },
+      {
+        "test": "Bingo.BrowserTests.EventCreationUiTests.ManageEventControlBranchesKeepRightOwnedActions(branch: \"final review\", branchMarker: \"showFinalReviewControls\", actionMarker: \"asp-page=\\\"Finalize\\\"\", cssMarker: \".event-manage-page .event-reopen-form > button\", controlStartMarker: \"@if (showFinalReviewControls)\", controlEndMarker: \"@if (showResultsControl)\")",
+        "outcome": "Passed",
+        "duration": "00:00:00.0406038"
+      },
+      {
+        "test": "Bingo.BrowserTests.ManagedCompetitionUiTests.TeamParticipationUsesIncludedFlagAndRetiresLegacyRosterCreationSurfaces",
+        "outcome": "Passed",
+        "duration": "00:00:00.0098535"
+      },
+      {
+        "test": "Bingo.BrowserTests.EventCreationUiTests.ManageImportantInformationUsesOneEffectiveTimeline",
+        "outcome": "Passed",
+        "duration": "00:00:00.0021452"
+      },
+      {
+        "test": "Bingo.BrowserTests.EventCreationUiTests.SignupCloseDecisionRequiresAcceptanceOnlyForAnInvalidCloseWithAProposal",
+        "outcome": "Passed",
+        "duration": "00:00:00.0011886"
+      },
+      {
+        "test": "Bingo.BrowserTests.EventCreationUiTests.ScheduleEndUsesTheCanonicalDateTimeAdapterAndOneSharedConfirmation",
+        "outcome": "Passed",
+        "duration": "00:00:00.0026319"
+      },
+      {
+        "test": "Bingo.BrowserTests.EventCreationUiTests.ManageEventControlBranchesKeepRightOwnedActions(branch: \"verification codes\", branchMarker: \"event-admin-code-group\", actionMarker: \"event-code-toggle-form\", cssMarker: \".event-manage-page .event-code-toggle-form\", controlStartMarker: \"<section class=\\\"event-admin-control-group event-a\"\u00b7\u00b7\u00b7, controlEndMarker: \"@if (showAllControlStages || eventView.State == Ev\"\u00b7\u00b7\u00b7)",
+        "outcome": "Passed",
+        "duration": "00:00:00.1081073"
+      },
+      {
+        "test": "Bingo.BrowserTests.ManagedCompetitionUiTests.NewAndChangedNamesKeepTheProviderLimitsWhileHistoryCanRemainLonger",
+        "outcome": "Passed",
+        "duration": "00:00:00.0022675"
+      },
+      {
+        "test": "Bingo.BrowserTests.EventCreationUiTests.ManageEventControlBranchesKeepRightOwnedActions(branch: \"live controls\", branchMarker: \"showLiveControls\", actionMarker: \"asp-page-handler=\\\"EndEvent\\\"\", cssMarker: \".event-manage-page .event-admin-event-actions\", controlStartMarker: \"@if (showLiveControls)\", controlEndMarker: \"@if (showFinalReviewControls)\")",
+        "outcome": "Passed",
+        "duration": "00:00:00.0419628"
+      },
+      {
+        "test": "Bingo.BrowserTests.EventCreationUiTests.ManageParticipantPlayingMappingPreservesItsParticipantCorrectionRoute",
+        "outcome": "Passed",
+        "duration": "00:00:00.0002018"
+      },
+      {
+        "test": "Bingo.BrowserTests.ManagedCompetitionUiTests.ManagePageUsesSeparateManagedActionsAndOneTimeProtectedCredentialInput",
+        "outcome": "Passed",
+        "duration": "00:00:00.0018795"
+      },
+      {
+        "test": "Bingo.BrowserTests.EventCreationUiTests.ManageEventControlBranchesKeepRightOwnedActions(branch: \"resume subsection\", branchMarker: \"event-control-subsection\", actionMarker: \"asp-page-handler=\\\"ResumeEvent\\\"\", cssMarker: \".event-manage-page .event-control-subsection\", controlStartMarker: \"<section class=\\\"event-admin-control-group event-c\"\u00b7\u00b7\u00b7, controlEndMarker: \"</section>\\n                    }\")",
+        "outcome": "Passed",
+        "duration": "00:00:00.0422584"
+      },
+      {
+        "test": "Bingo.BrowserTests.EventCreationUiTests.ManageEventControlBranchesKeepRightOwnedActions(branch: \"signup-closed start\", branchMarker: \"showStartControl\", actionMarker: \"asp-page-handler=\\\"StartEvent\\\"\", cssMarker: \".event-manage-page .event-admin-event-actions\", controlStartMarker: \"@if (showStartControl)\", controlEndMarker: \"@if (showLiveControls)\")",
+        "outcome": "Passed",
+        "duration": "00:00:00.0474634"
+      },
+      {
+        "test": "Bingo.BrowserTests.EventCreationUiTests.ManageEventControlBranchesKeepRightOwnedActions(branch: \"danger zone\", branchMarker: \"showDestructivePreLiveControl\", actionMarker: \"event-danger-zone-container\", cssMarker: \".event-manage-page .event-danger-zone-form\", controlStartMarker: \"@if (showDestructivePreLiveControl)\", controlEndMarker: \"</section>\\n                }\\n            </artic\"\u00b7\u00b7\u00b7)",
+        "outcome": "Passed",
+        "duration": "00:00:00.0437360"
+      },
+      {
+        "test": "Bingo.BrowserTests.EventCreationUiTests.CreationAndIdentityMarkupKeepTheMinimalCreationAndNativeRouteBoundaries",
+        "outcome": "Passed",
+        "duration": "00:00:00.0246045"
+      },
+      {
+        "test": "Bingo.BrowserTests.EventCreationUiTests.ParticipantActionsKeepRouteFallbackAndShareDesktopDialogContract",
+        "outcome": "Passed",
+        "duration": "00:00:00.1856670"
+      },
+      {
+        "test": "Bingo.BrowserTests.EventCreationUiTests.ManageBlockerMappingUsesTheRealResolutionRoute(code: \"SIGNUP_FORM_MISSING\", routeTemplate: \"/Admin/Events/Questions/{0}\", label: \"Review signup form\")",
+        "outcome": "Passed",
+        "duration": "00:00:00.0000027"
+      },
+      {
+        "test": "Bingo.BrowserTests.EventCreationUiTests.ManageEventControlBranchesKeepRightOwnedActions(branch: \"terminal\", branchMarker: \"eventView.State == EventState.Cancelled\", actionMarker: \"Event cancelled\", cssMarker: \".event-manage-page .event-admin-controls > .event-\"\u00b7\u00b7\u00b7, controlStartMarker: \"@if (showAllControlStages || eventView.State == Ev\"\u00b7\u00b7\u00b7, controlEndMarker: \"@if (User.IsInRole(\\\"SuperAdmin\\\")\")",
+        "outcome": "Passed",
+        "duration": "00:00:00.0405534"
+      },
+      {
+        "test": "Bingo.BrowserTests.EventCreationUiTests.ManageEventControlBranchesKeepRightOwnedActions(branch: \"signup-open schedule\", branchMarker: \"Automatic signup opening scheduled for:\", actionMarker: \"event-control-supporting\", cssMarker: \".event-manage-page .event-signup-group\", controlStartMarker: \"@if (showSignupControls)\", controlEndMarker: \"@if (showStartControl || showLiveControls || showF\"\u00b7\u00b7\u00b7)",
+        "outcome": "Passed",
+        "duration": "00:00:00.0421509"
+      },
+      {
+        "test": "Bingo.BrowserTests.EventCreationUiTests.ManageEventControlBranchesKeepRightOwnedActions(branch: \"pre-live signup\", branchMarker: \"showSignupControls\", actionMarker: \"event-signup-group\", cssMarker: \".event-manage-page .event-signup-group { display: \"\u00b7\u00b7\u00b7, controlStartMarker: \"@if (showSignupControls)\", controlEndMarker: \"@if (showStartControl || showLiveControls || showF\"\u00b7\u00b7\u00b7)",
+        "outcome": "Passed",
+        "duration": "00:00:00.0421360"
+      },
+      {
+        "test": "Bingo.BrowserTests.EventCreationUiTests.ManageEventControlBranchesKeepRightOwnedActions(branch: \"Wise Old Man\", branchMarker: \"Model.CompetitionIntegration?.Configured == true\", actionMarker: \"asp-page=\\\"WiseOldMan\\\"\", cssMarker: \".event-overview-dates-panel\", controlStartMarker: \"<div class=\\\"event-overview-date-row @(Model.Compe\"\u00b7\u00b7\u00b7, controlEndMarker: \"</div>\\n            </dl>\")",
+        "outcome": "Passed",
+        "duration": "00:00:00.0396846"
+      },
+      {
+        "test": "Bingo.BrowserTests.EventCreationUiTests.ManageBlockerMappingUsesTheRealResolutionRoute(code: \"SIGNUP_QUESTIONS_INVALID\", routeTemplate: \"/Admin/Events/Questions/{0}\", label: \"Review signup form\")",
+        "outcome": "Passed",
+        "duration": "00:00:00.0000040"
+      }
+    ]
+  },
+  "javascript": {
+    "total": 41,
+    "passed": 41,
+    "failed": 0,
+    "results": [
+      {
+        "file": "account-manage-dialog.test.js",
+        "passed": true,
+        "exitCode": 0,
+        "signal": null,
+        "milliseconds": 37
+      },
+      {
+        "file": "account-support.browser.js",
+        "passed": true,
+        "exitCode": 0,
+        "signal": null,
+        "milliseconds": 2306
+      },
+      {
+        "file": "admin-confirmation-dismiss.browser.js",
+        "passed": true,
+        "exitCode": 0,
+        "signal": null,
+        "milliseconds": 644
+      },
+      {
+        "file": "admin-confirmation-navigation.browser.js",
+        "passed": true,
+        "exitCode": 0,
+        "signal": null,
+        "milliseconds": 1332
+      },
+      {
+        "file": "admin-confirmation.browser.js",
+        "passed": true,
+        "exitCode": 0,
+        "signal": null,
+        "milliseconds": 1039
+      },
+      {
+        "file": "admin-design-fetch.browser.js",
+        "passed": true,
+        "exitCode": 0,
+        "signal": null,
+        "milliseconds": 663
+      },
+      {
+        "file": "admin-design-shell.browser.js",
+        "passed": true,
+        "exitCode": 0,
+        "signal": null,
+        "milliseconds": 6951
+      },
+      {
+        "file": "admin-design-theme.browser.js",
+        "passed": true,
+        "exitCode": 0,
+        "signal": null,
+        "milliseconds": 681
+      },
+      {
+        "file": "admin-lifecycle-confirmation.browser.js",
+        "passed": true,
+        "exitCode": 0,
+        "signal": null,
+        "milliseconds": 816
+      },
+      {
+        "file": "admin-review-queue.test.js",
+        "passed": true,
+        "exitCode": 0,
+        "signal": null,
+        "milliseconds": 22
+      },
+      {
+        "file": "admin-stale-change.browser.js",
+        "passed": true,
+        "exitCode": 0,
+        "signal": null,
+        "milliseconds": 1877
+      },
+      {
+        "file": "board-dialog.test.js",
+        "passed": true,
+        "exitCode": 0,
+        "signal": null,
+        "milliseconds": 31
+      },
+      {
+        "file": "board-objective-kind.test.js",
+        "passed": true,
+        "exitCode": 0,
+        "signal": null,
+        "milliseconds": 26
+      },
+      {
+        "file": "captain-ledger.test.js",
+        "passed": true,
+        "exitCode": 0,
+        "signal": null,
+        "milliseconds": 37
+      },
+      {
+        "file": "catalogue-admin.test.js",
+        "passed": true,
+        "exitCode": 0,
+        "signal": null,
+        "milliseconds": 46
+      },
+      {
+        "file": "catalogue-deletion.browser.js",
+        "passed": true,
+        "exitCode": 0,
+        "signal": null,
+        "milliseconds": 1053
+      },
+      {
+        "file": "draft-add-team-dialog.test.js",
+        "passed": true,
+        "exitCode": 0,
+        "signal": null,
+        "milliseconds": 35
+      },
+      {
+        "file": "draft-roster-dialog.test.js",
+        "passed": true,
+        "exitCode": 0,
+        "signal": null,
+        "milliseconds": 46
+      },
+      {
+        "file": "drop-announcement-races.test.js",
+        "passed": true,
+        "exitCode": 0,
+        "signal": null,
+        "milliseconds": 36
+      },
+      {
+        "file": "drop-announcement-reconciliation.test.js",
+        "passed": true,
+        "exitCode": 0,
+        "signal": null,
+        "milliseconds": 35
+      },
+      {
+        "file": "drop-announcement.test.js",
+        "passed": true,
+        "exitCode": 0,
+        "signal": null,
+        "milliseconds": 26
+      },
+      {
+        "file": "event-create-datetime.test.js",
+        "passed": true,
+        "exitCode": 0,
+        "signal": null,
+        "milliseconds": 23
+      },
+      {
+        "file": "identity-binding.browser.js",
+        "passed": true,
+        "exitCode": 0,
+        "signal": null,
+        "milliseconds": 976
+      },
+      {
+        "file": "identity-readback.transport.js",
+        "passed": true,
+        "exitCode": 0,
+        "signal": null,
+        "milliseconds": 1800
+      },
+      {
+        "file": "identity-timezone-confirmation.browser.js",
+        "passed": true,
+        "exitCode": 0,
+        "signal": null,
+        "milliseconds": 1865
+      },
+      {
+        "file": "onboarding-wom-fetch.test.js",
+        "passed": true,
+        "exitCode": 0,
+        "signal": null,
+        "milliseconds": 23
+      },
+      {
+        "file": "participant-add-dialog.test.js",
+        "passed": true,
+        "exitCode": 0,
+        "signal": null,
+        "milliseconds": 33
+      },
+      {
+        "file": "participant-edit-dialog.test.js",
+        "passed": true,
+        "exitCode": 0,
+        "signal": null,
+        "milliseconds": 34
+      },
+      {
+        "file": "participants-ui.test.js",
+        "passed": true,
+        "exitCode": 0,
+        "signal": null,
+        "milliseconds": 39
+      },
+      {
+        "file": "public-countdown.test.js",
+        "passed": true,
+        "exitCode": 0,
+        "signal": null,
+        "milliseconds": 31
+      },
+      {
+        "file": "public-evidence.test.js",
+        "passed": true,
+        "exitCode": 0,
+        "signal": null,
+        "milliseconds": 31
+      },
+      {
+        "file": "public-header-popover.test.js",
+        "passed": true,
+        "exitCode": 0,
+        "signal": null,
+        "milliseconds": 26
+      },
+      {
+        "file": "public-leaderboards.test.js",
+        "passed": true,
+        "exitCode": 0,
+        "signal": null,
+        "milliseconds": 69
+      },
+      {
+        "file": "public-recent-drops-live.test.js",
+        "passed": true,
+        "exitCode": 0,
+        "signal": null,
+        "milliseconds": 145
+      },
+      {
+        "file": "public-recent-drops.test.js",
+        "passed": true,
+        "exitCode": 0,
+        "signal": null,
+        "milliseconds": 1144
+      },
+      {
+        "file": "schedule-readback.transport.js",
+        "passed": true,
+        "exitCode": 0,
+        "signal": null,
+        "milliseconds": 88
+      },
+      {
+        "file": "signup-code-settings.browser.js",
+        "passed": true,
+        "exitCode": 0,
+        "signal": null,
+        "milliseconds": 590
+      },
+      {
+        "file": "signup-questions-overlay.test.js",
+        "passed": true,
+        "exitCode": 0,
+        "signal": null,
+        "milliseconds": 29
+      },
+      {
+        "file": "stats-production.test.js",
+        "passed": true,
+        "exitCode": 0,
+        "signal": null,
+        "milliseconds": 10964
+      },
+      {
+        "file": "team-board-overlay.test.js",
+        "passed": true,
+        "exitCode": 0,
+        "signal": null,
+        "milliseconds": 68
+      },
+      {
+        "file": "transient-toast.test.js",
+        "passed": true,
+        "exitCode": 0,
+        "signal": null,
+        "milliseconds": 25
+      }
+    ]
+  },
+  "releaseBuild": {
+    "command": "dotnet build Bingo.slnx --configuration Release --no-restore",
+    "warnings": 0,
+    "errors": 0,
+    "log": "/private/tmp/bingo-u1-item7-final-build.log"
+  }
+}

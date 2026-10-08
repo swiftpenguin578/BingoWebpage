@@ -1,0 +1,508 @@
+{
+  "checkedAt": "2026-10-07T16:02:11.322Z",
+  "results": [
+    {
+      "group": "Schedule / Signup setup",
+      "name": "Private setup — schedule",
+      "url": "http://127.0.0.1:5310/Admin/Events/Schedule/c1b03bc4-bbbd-4c58-a3cc-115fe9b358ad",
+      "username": "ReviewAdmin",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5310/Admin/Events/Schedule/c1b03bc4-bbbd-4c58-a3cc-115fe9b358ad"
+    },
+    {
+      "group": "Schedule / Signup setup",
+      "name": "Private setup — signup settings",
+      "url": "http://127.0.0.1:5310/Admin/Events/SignupSetup/c1b03bc4-bbbd-4c58-a3cc-115fe9b358ad",
+      "username": "ReviewAdmin",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5310/Admin/Events/SignupSetup/c1b03bc4-bbbd-4c58-a3cc-115fe9b358ad"
+    },
+    {
+      "group": "Schedule / Signup setup",
+      "name": "Signups open — schedule",
+      "url": "http://127.0.0.1:5310/Admin/Events/Schedule/bd9723c6-7fcb-4a2f-8b10-a2fd48bf1d1e",
+      "username": "ReviewAdmin",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5310/Admin/Events/Schedule/bd9723c6-7fcb-4a2f-8b10-a2fd48bf1d1e"
+    },
+    {
+      "group": "Schedule / Signup setup",
+      "name": "Signups open — signup settings",
+      "url": "http://127.0.0.1:5310/Admin/Events/SignupSetup/bd9723c6-7fcb-4a2f-8b10-a2fd48bf1d1e",
+      "username": "ReviewAdmin",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5310/Admin/Events/SignupSetup/bd9723c6-7fcb-4a2f-8b10-a2fd48bf1d1e"
+    },
+    {
+      "group": "Schedule / Signup setup",
+      "name": "Signups closed — finalized affiliated rosters — schedule",
+      "url": "http://127.0.0.1:5310/Admin/Events/Schedule/5281522c-b2ca-40ec-b2b7-8e9402c65dff",
+      "username": "ReviewAdmin",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5310/Admin/Events/Schedule/5281522c-b2ca-40ec-b2b7-8e9402c65dff"
+    },
+    {
+      "group": "Schedule / Signup setup",
+      "name": "Signups closed — finalized affiliated rosters — signup settings",
+      "url": "http://127.0.0.1:5310/Admin/Events/SignupSetup/5281522c-b2ca-40ec-b2b7-8e9402c65dff",
+      "username": "ReviewAdmin",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5310/Admin/Events/SignupSetup/5281522c-b2ca-40ec-b2b7-8e9402c65dff"
+    },
+    {
+      "group": "Schedule",
+      "name": "Archived — affiliated roster history [Archived] — end-only or read-only schedule",
+      "url": "http://127.0.0.1:5310/Admin/Events/Schedule/120cd562-dce7-4bb4-a08e-dfdf4ecf627e",
+      "username": "ReviewAdmin",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5310/Admin/Events/Schedule/120cd562-dce7-4bb4-a08e-dfdf4ecf627e"
+    },
+    {
+      "group": "Schedule",
+      "name": "Archived — WOM end could not update [Archived] — end-only or read-only schedule",
+      "url": "http://127.0.0.1:5310/Admin/Events/Schedule/25af9600-6151-4009-a8ee-56037efe87d7",
+      "username": "ReviewAdmin",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5310/Admin/Events/Schedule/25af9600-6151-4009-a8ee-56037efe87d7"
+    },
+    {
+      "group": "Schedule",
+      "name": "Imported — frozen synthetic history [Archived] — end-only or read-only schedule",
+      "url": "http://127.0.0.1:5310/Admin/Events/Schedule/9c3560a7-e04a-4b6d-b307-3d9f5dadc0de",
+      "username": "ReviewAdmin",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5310/Admin/Events/Schedule/9c3560a7-e04a-4b6d-b307-3d9f5dadc0de"
+    },
+    {
+      "group": "Schedule",
+      "name": "Cancelled with signup history [Cancelled] — end-only or read-only schedule",
+      "url": "http://127.0.0.1:5310/Admin/Events/Schedule/8e8fd53e-44e0-4813-bba5-51072a1c0d70",
+      "username": "ReviewAdmin",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5310/Admin/Events/Schedule/8e8fd53e-44e0-4813-bba5-51072a1c0d70"
+    },
+    {
+      "group": "Schedule",
+      "name": "Live — published board correction [Live] — end-only or read-only schedule",
+      "url": "http://127.0.0.1:5310/Admin/Events/Schedule/9dbd1dcb-40f9-4246-9852-9e732870e930",
+      "username": "ReviewAdmin",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5310/Admin/Events/Schedule/9dbd1dcb-40f9-4246-9852-9e732870e930"
+    },
+    {
+      "group": "Signup setup",
+      "name": "Private setup [Draft] — signup form",
+      "url": "http://127.0.0.1:5310/Admin/Events/SignupSetup/c1b03bc4-bbbd-4c58-a3cc-115fe9b358ad?tab=form",
+      "username": "ReviewAdmin",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5310/Admin/Events/SignupSetup/c1b03bc4-bbbd-4c58-a3cc-115fe9b358ad?tab=form"
+    },
+    {
+      "group": "Signup setup",
+      "name": "Signups open [SignupOpen] — signup form",
+      "url": "http://127.0.0.1:5310/Admin/Events/SignupSetup/bd9723c6-7fcb-4a2f-8b10-a2fd48bf1d1e?tab=form",
+      "username": "ReviewAdmin",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5310/Admin/Events/SignupSetup/bd9723c6-7fcb-4a2f-8b10-a2fd48bf1d1e?tab=form"
+    },
+    {
+      "group": "Signup setup",
+      "name": "Signups closed — finalized affiliated rosters [SignupClosed] — signup form",
+      "url": "http://127.0.0.1:5310/Admin/Events/SignupSetup/5281522c-b2ca-40ec-b2b7-8e9402c65dff?tab=form",
+      "username": "ReviewAdmin",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5310/Admin/Events/SignupSetup/5281522c-b2ca-40ec-b2b7-8e9402c65dff?tab=form"
+    },
+    {
+      "group": "Signup setup",
+      "name": "Unknown timezone [SignupClosed] — signup form",
+      "url": "http://127.0.0.1:5310/Admin/Events/SignupSetup/487ad41b-e06e-49b5-b515-beeecdd49e44?tab=form",
+      "username": "ReviewAdmin",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5310/Admin/Events/SignupSetup/487ad41b-e06e-49b5-b515-beeecdd49e44?tab=form"
+    },
+    {
+      "group": "Signup setup",
+      "name": "Upcoming setup 01 [Draft] — signup form",
+      "url": "http://127.0.0.1:5310/Admin/Events/SignupSetup/9519d556-a6dc-4069-97b6-af366241370d?tab=form",
+      "username": "ReviewAdmin",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5310/Admin/Events/SignupSetup/9519d556-a6dc-4069-97b6-af366241370d?tab=form"
+    },
+    {
+      "group": "Signup setup",
+      "name": "Upcoming setup 02 [Draft] — signup form",
+      "url": "http://127.0.0.1:5310/Admin/Events/SignupSetup/208c295d-8a5e-4f9c-9386-36ea60a07eda?tab=form",
+      "username": "ReviewAdmin",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5310/Admin/Events/SignupSetup/208c295d-8a5e-4f9c-9386-36ea60a07eda?tab=form"
+    },
+    {
+      "group": "Signup setup",
+      "name": "Upcoming setup 03 [Draft] — signup form",
+      "url": "http://127.0.0.1:5310/Admin/Events/SignupSetup/c9bb18b9-740a-468c-bd5c-bd075c995635?tab=form",
+      "username": "ReviewAdmin",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5310/Admin/Events/SignupSetup/c9bb18b9-740a-468c-bd5c-bd075c995635?tab=form"
+    },
+    {
+      "group": "Signup setup",
+      "name": "Upcoming setup 04 [Draft] — signup form",
+      "url": "http://127.0.0.1:5310/Admin/Events/SignupSetup/043d739a-9448-49c2-a629-3c1130c94438?tab=form",
+      "username": "ReviewAdmin",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5310/Admin/Events/SignupSetup/043d739a-9448-49c2-a629-3c1130c94438?tab=form"
+    },
+    {
+      "group": "Signup setup",
+      "name": "Upcoming setup 05 [Draft] — signup form",
+      "url": "http://127.0.0.1:5310/Admin/Events/SignupSetup/6b4ec9f4-c59e-4385-817e-8c7b94d07419?tab=form",
+      "username": "ReviewAdmin",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5310/Admin/Events/SignupSetup/6b4ec9f4-c59e-4385-817e-8c7b94d07419?tab=form"
+    },
+    {
+      "group": "Signup setup",
+      "name": "Upcoming setup 06 [Draft] — signup form",
+      "url": "http://127.0.0.1:5310/Admin/Events/SignupSetup/89649273-37d3-42f3-90ba-b77f71eb30b0?tab=form",
+      "username": "ReviewAdmin",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5310/Admin/Events/SignupSetup/89649273-37d3-42f3-90ba-b77f71eb30b0?tab=form"
+    },
+    {
+      "group": "Signup setup",
+      "name": "Upcoming setup 07 [Draft] — signup form",
+      "url": "http://127.0.0.1:5310/Admin/Events/SignupSetup/ed84fe5b-40f3-4820-8aa1-9a2f9cbadc76?tab=form",
+      "username": "ReviewAdmin",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5310/Admin/Events/SignupSetup/ed84fe5b-40f3-4820-8aa1-9a2f9cbadc76?tab=form"
+    },
+    {
+      "group": "Signup setup",
+      "name": "Upcoming setup 08 [Draft] — signup form",
+      "url": "http://127.0.0.1:5310/Admin/Events/SignupSetup/c26364f4-3d47-4d9b-968c-de43798c0392?tab=form",
+      "username": "ReviewAdmin",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5310/Admin/Events/SignupSetup/c26364f4-3d47-4d9b-968c-de43798c0392?tab=form"
+    },
+    {
+      "group": "Signup setup",
+      "name": "Upcoming setup 09 [Draft] — signup form",
+      "url": "http://127.0.0.1:5310/Admin/Events/SignupSetup/39f0c906-b9f3-4229-9865-28ca3bfa025f?tab=form",
+      "username": "ReviewAdmin",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5310/Admin/Events/SignupSetup/39f0c906-b9f3-4229-9865-28ca3bfa025f?tab=form"
+    },
+    {
+      "group": "Signup setup",
+      "name": "alpha [Draft] — signup form",
+      "url": "http://127.0.0.1:5310/Admin/Events/SignupSetup/fa17510e-1b94-49e6-a35d-a0e02b3e41cd?tab=form",
+      "username": "ReviewAdmin",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5310/Admin/Events/SignupSetup/fa17510e-1b94-49e6-a35d-a0e02b3e41cd?tab=form"
+    },
+    {
+      "group": "Signup setup",
+      "name": "Alpha [Draft] — signup form",
+      "url": "http://127.0.0.1:5310/Admin/Events/SignupSetup/ea6c4d1d-1248-4c6e-a82b-7b7ceb5a878e?tab=form",
+      "username": "ReviewAdmin",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5310/Admin/Events/SignupSetup/ea6c4d1d-1248-4c6e-a82b-7b7ceb5a878e?tab=form"
+    },
+    {
+      "group": "Signup setup",
+      "name": "Ægir [Draft] — signup form",
+      "url": "http://127.0.0.1:5310/Admin/Events/SignupSetup/8687f00a-60a0-4149-88e2-561c43fef179?tab=form",
+      "username": "ReviewAdmin",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5310/Admin/Events/SignupSetup/8687f00a-60a0-4149-88e2-561c43fef179?tab=form"
+    },
+    {
+      "group": "Signup setup",
+      "name": "Ørn [Draft] — signup form",
+      "url": "http://127.0.0.1:5310/Admin/Events/SignupSetup/2192423e-8493-4f1f-be42-915fcd5ebb88?tab=form",
+      "username": "ReviewAdmin",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5310/Admin/Events/SignupSetup/2192423e-8493-4f1f-be42-915fcd5ebb88?tab=form"
+    },
+    {
+      "group": "Signup setup",
+      "name": "År [Draft] — signup form",
+      "url": "http://127.0.0.1:5310/Admin/Events/SignupSetup/7983012b-8081-4385-8b08-042cc4c591c6?tab=form",
+      "username": "ReviewAdmin",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5310/Admin/Events/SignupSetup/7983012b-8081-4385-8b08-042cc4c591c6?tab=form"
+    },
+    {
+      "group": "Signup setup",
+      "name": "No capacity limit [Draft] — signup form",
+      "url": "http://127.0.0.1:5310/Admin/Events/SignupSetup/08bc3c78-301f-4bda-a6d7-02b304c7c88e?tab=form",
+      "username": "ReviewAdmin",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5310/Admin/Events/SignupSetup/08bc3c78-301f-4bda-a6d7-02b304c7c88e?tab=form"
+    },
+    {
+      "group": "Signup setup",
+      "name": "No dates configured [Draft] — signup form",
+      "url": "http://127.0.0.1:5310/Admin/Events/SignupSetup/4323c318-0af3-400f-af43-18a773fdd208?tab=form",
+      "username": "ReviewAdmin",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5310/Admin/Events/SignupSetup/4323c318-0af3-400f-af43-18a773fdd208?tab=form"
+    },
+    {
+      "group": "Signup setup",
+      "name": "Upcoming setup 17 [Draft] — signup form",
+      "url": "http://127.0.0.1:5310/Admin/Events/SignupSetup/6885e804-5ec0-4e8c-b30e-cb832d235158?tab=form",
+      "username": "ReviewAdmin",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5310/Admin/Events/SignupSetup/6885e804-5ec0-4e8c-b30e-cb832d235158?tab=form"
+    },
+    {
+      "group": "Signup setup",
+      "name": "Upcoming setup 18 [Draft] — signup form",
+      "url": "http://127.0.0.1:5310/Admin/Events/SignupSetup/c111a190-2410-48ef-b829-4fb5c9db2970?tab=form",
+      "username": "ReviewAdmin",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5310/Admin/Events/SignupSetup/c111a190-2410-48ef-b829-4fb5c9db2970?tab=form"
+    },
+    {
+      "group": "Signup setup",
+      "name": "Upcoming setup 19 [Draft] — signup form",
+      "url": "http://127.0.0.1:5310/Admin/Events/SignupSetup/a3855a12-0b00-4dbd-9c7e-16a5fba50b04?tab=form",
+      "username": "ReviewAdmin",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5310/Admin/Events/SignupSetup/a3855a12-0b00-4dbd-9c7e-16a5fba50b04?tab=form"
+    },
+    {
+      "group": "Signup setup",
+      "name": "Upcoming setup 20 [Draft] — signup form",
+      "url": "http://127.0.0.1:5310/Admin/Events/SignupSetup/54164149-28d4-44e8-8889-98ec642a311d?tab=form",
+      "username": "ReviewAdmin",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5310/Admin/Events/SignupSetup/54164149-28d4-44e8-8889-98ec642a311d?tab=form"
+    },
+    {
+      "group": "Signup setup",
+      "name": "Upcoming setup 21 [Draft] — signup form",
+      "url": "http://127.0.0.1:5310/Admin/Events/SignupSetup/a75fdf99-03a1-4245-9838-1c98d8435958?tab=form",
+      "username": "ReviewAdmin",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5310/Admin/Events/SignupSetup/a75fdf99-03a1-4245-9838-1c98d8435958?tab=form"
+    },
+    {
+      "group": "Signup setup",
+      "name": "Upcoming setup 22 [Draft] — signup form",
+      "url": "http://127.0.0.1:5310/Admin/Events/SignupSetup/47568210-fa8e-4680-9a99-510e4be60cc4?tab=form",
+      "username": "ReviewAdmin",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5310/Admin/Events/SignupSetup/47568210-fa8e-4680-9a99-510e4be60cc4?tab=form"
+    },
+    {
+      "group": "Signup setup",
+      "name": "Signup opening failed [Draft] — signup form",
+      "url": "http://127.0.0.1:5310/Admin/Events/SignupSetup/e2887da5-c87a-4604-b9aa-000b447dd125?tab=form",
+      "username": "ReviewAdmin",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5310/Admin/Events/SignupSetup/e2887da5-c87a-4604-b9aa-000b447dd125?tab=form"
+    },
+    {
+      "group": "Signup setup",
+      "name": "Archived — affiliated roster history [Archived] — signup form",
+      "url": "http://127.0.0.1:5310/Admin/Events/SignupSetup/120cd562-dce7-4bb4-a08e-dfdf4ecf627e?tab=form",
+      "username": "ReviewAdmin",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5310/Admin/Events/SignupSetup/120cd562-dce7-4bb4-a08e-dfdf4ecf627e?tab=form"
+    },
+    {
+      "group": "Signup setup",
+      "name": "Archived — WOM end could not update [Archived] — signup form",
+      "url": "http://127.0.0.1:5310/Admin/Events/SignupSetup/25af9600-6151-4009-a8ee-56037efe87d7?tab=form",
+      "username": "ReviewAdmin",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5310/Admin/Events/SignupSetup/25af9600-6151-4009-a8ee-56037efe87d7?tab=form"
+    },
+    {
+      "group": "Signup setup",
+      "name": "Imported — frozen synthetic history [Archived] — signup form",
+      "url": "http://127.0.0.1:5310/Admin/Events/SignupSetup/9c3560a7-e04a-4b6d-b307-3d9f5dadc0de?tab=form",
+      "username": "ReviewAdmin",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5310/Admin/Events/SignupSetup/9c3560a7-e04a-4b6d-b307-3d9f5dadc0de?tab=form"
+    },
+    {
+      "group": "Signup setup",
+      "name": "Cancelled with signup history [Cancelled] — signup form",
+      "url": "http://127.0.0.1:5310/Admin/Events/SignupSetup/8e8fd53e-44e0-4813-bba5-51072a1c0d70?tab=form",
+      "username": "ReviewAdmin",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5310/Admin/Events/SignupSetup/8e8fd53e-44e0-4813-bba5-51072a1c0d70?tab=form"
+    },
+    {
+      "group": "Signup setup",
+      "name": "Live — published board correction [Live] — signup form",
+      "url": "http://127.0.0.1:5310/Admin/Events/SignupSetup/9dbd1dcb-40f9-4246-9852-9e732870e930?tab=form",
+      "username": "ReviewAdmin",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5310/Admin/Events/SignupSetup/9dbd1dcb-40f9-4246-9852-9e732870e930?tab=form"
+    },
+    {
+      "group": "Accounts",
+      "name": "Plain Admin, Admin role filter — Admin accounts explained, not offered",
+      "url": "http://127.0.0.1:5310/Admin/Accounts?role=admin",
+      "username": "ReviewAdmin",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5310/Admin/Accounts?role=admin"
+    },
+    {
+      "group": "Accounts",
+      "name": "Plain Admin — the Super Admin account is protected",
+      "url": "http://127.0.0.1:5310/Admin/Accounts?account=d6468bfc-242b-459e-b1e6-ffda2f554ae8",
+      "username": "ReviewAdmin",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5310/Admin/Accounts?account=d6468bfc-242b-459e-b1e6-ffda2f554ae8"
+    },
+    {
+      "group": "Accounts",
+      "name": "Disabled account — notice, reason and Restore",
+      "url": "http://127.0.0.1:5310/Admin/Accounts?account=2b42a557-0201-487d-8d13-fc4594bc13a3",
+      "username": "ReviewAdmin",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5310/Admin/Accounts?account=2b42a557-0201-487d-8d13-fc4594bc13a3"
+    },
+    {
+      "group": "Accounts",
+      "name": "Captain — events, team roles, reset link and Disable",
+      "url": "http://127.0.0.1:5310/Admin/Accounts?account=2eb3194d-5031-43e0-8fac-b15ccf5fa9f0",
+      "username": "ReviewAdmin",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5310/Admin/Accounts?account=2eb3194d-5031-43e0-8fac-b15ccf5fa9f0"
+    },
+    {
+      "group": "Accounts",
+      "name": "Former member — ended team role",
+      "url": "http://127.0.0.1:5310/Admin/Accounts?account=300ef264-3a44-48eb-8ab8-c036362e29e4",
+      "username": "ReviewAdmin",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5310/Admin/Accounts?account=300ef264-3a44-48eb-8ab8-c036362e29e4"
+    },
+    {
+      "group": "Accounts",
+      "name": "Search ignores case",
+      "url": "http://127.0.0.1:5310/Admin/Accounts?q=REVIEWSECOND",
+      "username": "ReviewAdmin",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5310/Admin/Accounts?q=REVIEWSECOND"
+    },
+    {
+      "group": "Accounts",
+      "name": "No accounts match / Clear search and filter",
+      "url": "http://127.0.0.1:5310/Admin/Accounts?q=nobody-here&role=superadmin",
+      "username": "ReviewAdmin",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5310/Admin/Accounts?q=nobody-here&role=superadmin"
+    },
+    {
+      "group": "Accounts",
+      "name": "Link to an account that isn’t available",
+      "url": "http://127.0.0.1:5310/Admin/Accounts?account=00000000-0000-0000-0000-000000000001",
+      "username": "ReviewAdmin",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5310/Admin/Accounts?account=00000000-0000-0000-0000-000000000001"
+    },
+    {
+      "group": "Audit",
+      "name": "History, newest first — filters, chips and the entry drawer",
+      "url": "http://127.0.0.1:5310/Admin/Audit",
+      "username": "ReviewAdmin",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5310/Admin/Audit"
+    },
+    {
+      "group": "Audit",
+      "name": "Participants area (S11) — moved team membership keys",
+      "url": "http://127.0.0.1:5310/Admin/Audit?action=participant.",
+      "username": "ReviewAdmin",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5310/Admin/Audit?action=participant."
+    },
+    {
+      "group": "Audit",
+      "name": "Signups area (S11) — automatic signup opening failures, Automated",
+      "url": "http://127.0.0.1:5310/Admin/Audit?action=signup.",
+      "username": "ReviewAdmin",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5310/Admin/Audit?action=signup."
+    },
+    {
+      "group": "Audit",
+      "name": "Actor search ignores case and a leading @",
+      "url": "http://127.0.0.1:5310/Admin/Audit?actor=%40reviewowner",
+      "username": "ReviewAdmin",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5310/Admin/Audit?actor=%40reviewowner"
+    },
+    {
+      "group": "Audit",
+      "name": "Link with unrecognised filters — notice, the rest applies",
+      "url": "http://127.0.0.1:5310/Admin/Audit?type=spaceship&from=2027-13-40&actor=ReviewOwner",
+      "username": "ReviewAdmin",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5310/Admin/Audit?type=spaceship&from=2027-13-40&actor=ReviewOwner"
+    },
+    {
+      "group": "Audit",
+      "name": "Entry link that isn’t available",
+      "url": "http://127.0.0.1:5310/Admin/Audit?entry=00000000-0000-0000-0000-000000000001",
+      "username": "ReviewAdmin",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5310/Admin/Audit?entry=00000000-0000-0000-0000-000000000001"
+    },
+    {
+      "group": "Accounts",
+      "name": "Directory as the Super Admin — Transfer ownership in the header",
+      "url": "http://127.0.0.1:5310/Admin/Accounts",
+      "username": "ReviewOwner",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5310/Admin/Accounts"
+    },
+    {
+      "group": "Accounts",
+      "name": "Your own drawer as the Super Admin — Ownership row",
+      "url": "http://127.0.0.1:5310/Admin/Accounts?account=d6468bfc-242b-459e-b1e6-ffda2f554ae8",
+      "username": "ReviewOwner",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5310/Admin/Accounts?account=d6468bfc-242b-459e-b1e6-ffda2f554ae8"
+    },
+    {
+      "group": "Accounts",
+      "name": "Admin account drawer as the Super Admin — Revoke Admin",
+      "url": "http://127.0.0.1:5310/Admin/Accounts?account=dbd51441-9271-4a2f-9dde-189c15e72370",
+      "username": "ReviewOwner",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5310/Admin/Accounts?account=dbd51441-9271-4a2f-9dde-189c15e72370"
+    },
+    {
+      "group": "Audit",
+      "name": "Hidden event history, marked Hidden",
+      "url": "http://127.0.0.1:5310/Admin/Audit?event=4ce5f43e-ce91-4d51-9503-3f2990e16b13",
+      "username": "ReviewOwner",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5310/Admin/Audit?event=4ce5f43e-ce91-4d51-9503-3f2990e16b13"
+    }
+  ],
+  "checks": [
+    {
+      "engine": "chromium",
+      "imported": "PASS exact EN/DA absence, explicit Current, read-only Settings; no invented fields",
+      "normalForm": "PASS normal form remains interactive, custom drawer opens/closes",
+      "accountsAudit": "PASS live family pages render, no JavaScript errors; not a conformance pass"
+    },
+    {
+      "engine": "webkit",
+      "imported": "PASS exact EN/DA absence, explicit Current, read-only Settings; no invented fields",
+      "normalForm": "PASS normal form remains interactive, custom drawer opens/closes",
+      "accountsAudit": "PASS live family pages render, no JavaScript errors; not a conformance pass"
+    }
+  ],
+  "failures": []
+}

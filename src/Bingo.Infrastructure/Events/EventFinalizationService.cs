@@ -2,20 +2,31 @@ using System.Data;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Bingo.Application.Boards;
 using Bingo.Application.Events;
 using Bingo.Domain.Access;
 using Bingo.Domain.Auditing;
 using Bingo.Domain.Events;
 using Bingo.Domain.Evidence;
+using Bingo.Domain.Integrations.WiseOldMan;
 using Bingo.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 
 namespace Bingo.Infrastructure.Events;
 
-public sealed class EventFinalizationService(ApplicationDbContext db, IPublicBoardService publicBoards, TimeProvider time, IProgressNotifier? progressNotifier = null) : IEventFinalizationService
+public sealed class EventFinalizationService(ApplicationDbContext db, IPublicBoardService publicBoards, TimeProvider time, IProgressNotifier? progressNotifier = null, IEventCompetitionSynchronizationService? competitionSynchronization = null) : IEventFinalizationService
 {
+    private static readonly JsonSerializerOptions FinalWomRefreshJsonOptions = new()
+    {
+        Converters = { new JsonStringEnumConverter() }
+    };
+
+    private static string[] CompetitiveInputNames(PlacementRule rule) => rule == PlacementRule.CreditedEhbThenScoreTime
+        ? ["board completion", "completion time", "completed lines", "completed tiles", "EHB", "current score time"]
+        : ["board completion", "completion time", "completed lines", "completed tiles", "current score time", "EHB"];
+
     public async Task<FinalReviewReadiness?> GetReadinessAsync(Guid eventId, CancellationToken ct = default)
     {
         if (db.Database.CurrentTransaction is not null) return await ReadReadinessAsync(eventId, ct);
@@ -54,186 +65,185 @@ public sealed class EventFinalizationService(ApplicationDbContext db, IPublicBoa
         var pending = await db.Submissions.AsNoTracking().Where(x => x.EventId == eventId && x.Status == SubmissionStatus.Pending).Select(x => x.Id).ToListAsync(ct);
         if (pending.Count > 0) blockers.Add(new(BlockerKey("pending-submissions", pending), "Pending submissions", $"{pending.Count} submission(s) still need a decision.", $"/Admin/Review?eventId={eventId:D}&status=Pending", true, false, null));
 
-        var corrections = cycleId == Guid.Empty
-            ? new Dictionary<Guid, TeamCompletionCorrection>()
-            : await db.TeamCompletionCorrections.AsNoTracking().Where(x => x.EventId == eventId && x.ReviewCycleId == cycleId).ToDictionaryAsync(x => x.TeamId, ct);
         var placements = new List<ProvisionalPlacement>();
         if (boardView is not null)
         {
             var unranked = boardView.Teams.Select(team =>
             {
-                var progress = team.Progress;
-                if (progress.BoardComplete && corrections.TryGetValue(team.TeamId, out var correction))
-                    progress = progress with
-                    {
-                        BoardCompletedAt = correction.CorrectedCompletedAt,
-                        CurrentScoreReachedAt = correction.CorrectedCompletedAt
-                    };
-                return new UnrankedTeamProgress(team.TeamId, team.TeamName, progress);
+                return new UnrankedTeamProgress(team.TeamId, team.TeamName, team.Progress);
             }).ToList();
-            var ranked = PublicProgressCalculator.Rank(unranked);
+            var ranked = PublicProgressCalculator.Rank(unranked, ev.PlacementRule);
             placements = ranked.Select(value =>
             {
-                var original = boardView.Teams.Single(team => team.TeamId == value.TeamId);
                 return new ProvisionalPlacement(value.TeamId, value.TeamName, value.Rank, value.Progress.BoardComplete,
-                    original.Progress.BoardCompletedAt, corrections.GetValueOrDefault(value.TeamId)?.CorrectedCompletedAt,
+                    value.Progress.BoardCompletedAt, null,
                     value.Progress.CompletedRows.Count + value.Progress.CompletedColumns.Count,
                     value.Progress.CompletedTiles, value.Progress.EhbTiebreak, value.Progress.CurrentScoreReachedAt);
             }).ToList();
-            var inspectionKeys = await CompletionAcknowledgementKeysAsync(eventId, cycleId, placements, corrections, ct);
-            foreach (var completed in placements.Where(x => x.BoardComplete))
-                blockers.Add(new(inspectionKeys[completed.TeamId], "Completion time inspected", $"Confirm that {completed.TeamName}'s completion time was inspected.", null, false, false, null, true, completed.TeamId));
-            foreach (var tie in placements.GroupBy(x => x.Placement).Where(x => x.Count() > 1)) blockers.Add(new(PlacementTieKey(tie), $"Tie at placement {tie.Key}", $"{string.Join(", ", tie.Select(x => x.TeamName))} currently have identical ranking values. Confirm the tie or correct a completion time.", null, true, false, null));
+            if (placements.Count == 0)
+                blockers.Add(new("calculated-placements", "Calculated placements required", "The published board has no active teams to rank. Finalize the roster and recalculate the board before publishing official results.", "/Admin/Events/Board/" + eventId, false, false, null));
+            else if (placements.Any(x => x.TeamId == Guid.Empty || x.Placement < 1) || placements.Select(x => x.TeamId).Distinct().Count() != placements.Count)
+                blockers.Add(new("calculated-placements", "Calculated placements are invalid", "The current board projection returned duplicate or incomplete team identities. Correct the retained board and try again.", "/Admin/Events/Board/" + eventId, false, false, null));
         }
-
-        var resolutions = cycleId == Guid.Empty ? [] : await db.FinalReviewResolutions.AsNoTracking().Where(x => x.ReviewCycleId == cycleId).OrderByDescending(x => x.ResolvedAt).ToListAsync(ct);
-        blockers = blockers.Select(blocker =>
-        {
-            var resolution = resolutions.FirstOrDefault(x => x.BlockerKey == blocker.Key && (blocker.IsCompletionTimeAcknowledgement ? x.Kind == FinalReviewResolutionKind.CompletionTimeAcknowledgement : x.Kind == FinalReviewResolutionKind.ExceptionalOverride));
-            return resolution is null ? blocker : blocker with { Resolved = true, ResolutionReason = resolution.Reason };
-        }).ToList();
 
         var finalIds = finals.Select(x => x.Id).ToList();
         var official = finalIds.Count == 0 ? [] : await db.OfficialPlacements.AsNoTracking().Where(x => finalIds.Contains(x.FinalizationId)).OrderBy(x => x.Placement).ThenBy(x => x.TeamName).ToListAsync(ct);
-        var history = finals.Select(f => new FinalizationHistoryRow(f.Id, f.Version, f.FinalizedAt, f.UnfinalizedAt is null, f.UnfinalizedAt, f.UnfinalizeReason, official.Where(x => x.FinalizationId == f.Id).Select(x => new OfficialPlacementRow(x.Placement, x.TeamName, x.BoardComplete, x.BoardCompletedAt, x.CompletedLines, x.CompletedTiles, x.EhbTiebreak, x.CurrentScoreReachedAt)).ToList())).ToList();
+        var historyActorIds = finals.SelectMany(f => new[] { (Guid?)f.FinalizedByAccountId, f.UnfinalizedByAccountId })
+            .Where(id => id.HasValue).Select(id => id!.Value).Distinct().ToArray();
+        var historyActors = await db.Accounts.AsNoTracking().Where(account => historyActorIds.Contains(account.Id))
+            .ToDictionaryAsync(account => account.Id, account => account.PublicUsername, ct);
+        var history = finals.Select(f => new FinalizationHistoryRow(f.Id, f.Version, f.FinalizedAt, f.UnfinalizedAt is null, f.UnfinalizedAt, f.UnfinalizeReason, official.Where(x => x.FinalizationId == f.Id).Select(x => new OfficialPlacementRow(x.Placement, x.TeamName, x.BoardComplete, x.BoardCompletedAt, x.CompletedLines, x.CompletedTiles, x.EhbTiebreak, x.CurrentScoreReachedAt)).ToList(),
+            f.FinalizedByAccountId, historyActors.GetValueOrDefault(f.FinalizedByAccountId),
+            f.UnfinalizedByAccountId, f.UnfinalizedByAccountId is { } reopenedBy ? historyActors.GetValueOrDefault(reopenedBy) : null,
+            ReadFinalWomRefresh(f.CalculationInputsJson))).ToList();
         if (activeFinal is not null && (ev.State is EventState.Finalized or EventState.Archived)) placements = official.Where(x => x.FinalizationId == activeFinal.Id).Select(x => new ProvisionalPlacement(x.TeamId, x.TeamName, x.Placement, x.BoardComplete, x.BoardCompletedAt, null, x.CompletedLines, x.CompletedTiles, x.EhbTiebreak, x.CurrentScoreReachedAt)).ToList();
-        return new(eventId, ev.Name, ev.State, scheduledStart, scheduledEnd, effectiveCutoff, ev.AcceptsNewSubmissions(now), blockers, placements, history, cycleId, ev.Version);
+        var endStatus = await db.EventCompetitionSynchronizations.AsNoTracking().Where(x => x.EventId == eventId)
+            .Select(x => (EventCompetitionEndUpdateStatus?)x.EndUpdateStatus).SingleOrDefaultAsync(ct);
+        FinalReviewBlockingEvent? blockingEvent = null;
+        if (ev.State is EventState.Finalized or EventState.Archived)
+        {
+            var development = string.Equals(Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT"), "Development", StringComparison.OrdinalIgnoreCase);
+            var current = await db.Events.AsNoTracking().Where(value => value.Id != eventId && value.HiddenAt == null
+                && (value.State == EventState.Live || value.State == EventState.AwaitingFinalReview || value.State == EventState.Finalized)
+                && !(development && value.IsDevelopmentFixture)).OrderBy(value => value.Name)
+                .Select(value => new { value.Id, value.Name, value.State }).FirstOrDefaultAsync(ct);
+            if (current is not null) blockingEvent = new(current.Id, current.Name, current.State, CurrentEventBlockMessage(current.Name, current.State, "reopening this event"));
+        }
+        return new(eventId, ev.Name, ev.State, scheduledStart, scheduledEnd, effectiveCutoff, ev.AcceptsNewSubmissions(now), blockers, placements, history, cycleId, ev.Version, ev.PlacementRule,
+            endStatus ?? EventCompetitionEndUpdateStatus.NotRequired, blockingEvent);
     }
 
-    public async Task ResolveBlockerAsync(Guid eventId, string blockerKey, string reason, bool confirmed, Guid adminId, long? expectedVersion = null, Guid? expectedReviewCycleId = null, CancellationToken ct = default)
+    public Task ResolveBlockerAsync(Guid eventId, string blockerKey, string reason, bool confirmed, Guid adminId, long? expectedVersion = null, Guid? expectedReviewCycleId = null, CancellationToken ct = default)
+        => throw new InvalidOperationException("Final-review overrides are retired. Resolve the underlying blocker before publishing official results.");
+
+    public Task AcknowledgeCompletionTimeAsync(Guid eventId, Guid teamId, Guid adminId, long? expectedVersion = null, Guid? expectedReviewCycleId = null, string? expectedInspectionKey = null, CancellationToken ct = default)
+        => throw new InvalidOperationException("Completion-time inspection is retired. Calculated completion facts are authoritative.");
+
+    public Task CorrectCompletionAsync(Guid eventId, Guid teamId, DateTimeOffset correctedAt, string reason, Guid adminId, long? expectedVersion = null, Guid? expectedReviewCycleId = null, CancellationToken ct = default)
+        => throw new InvalidOperationException("Manual completion-time corrections are retired. Calculated completion facts are authoritative.");
+
+    public async Task<FinalizationOperationResult> FinalizeAsync(Guid eventId, LifecycleActor actor, long? expectedVersion = null, CancellationToken ct = default)
     {
-        if (!confirmed) throw new InvalidOperationException("Confirm that this exceptional override is safe.");
-        if (string.IsNullOrWhiteSpace(reason)) throw new InvalidOperationException("A reason is required.");
+        string? operationFeedback = null;
+        EventCompetitionEndUpdateStatus? endUpdateStatus = null;
+        long? resultingVersion = null;
+        Guid? latestFinalizationId = null;
+        FinalWomRefreshOutcome? finalRefresh = null;
         try
         {
-            await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
-            var (ev, readiness, now, actorName, stale) = await LockReviewMutationAsync(eventId, adminId, expectedVersion, expectedReviewCycleId, ct);
-            var blocker = readiness.Blockers.SingleOrDefault(x => x.Key == blockerKey) ?? throw new InvalidOperationException("This item has already resolved automatically.");
-            if (!blocker.CanOverride || blocker.IsCompletionTimeAcknowledgement) throw new InvalidOperationException("This item must be fixed or explicitly inspected.");
-            var existing = await db.FinalReviewResolutions.SingleOrDefaultAsync(x => x.ReviewCycleId == readiness.ReviewCycleId && x.BlockerKey == blocker.Key, ct);
-            if (existing is not null)
+            actor = await EventMutationAuthorization.EnsureAuthorizedAsync(db, actor, ct);
+            if (expectedVersion is not > 0) throw new InvalidOperationException("This final-review form is stale or incomplete. Reload before finalizing.");
+            var preflight = await db.Events.AsNoTracking().SingleOrDefaultAsync(x => x.Id == eventId && x.HiddenAt == null, ct)
+                ?? throw new InvalidOperationException("Event not found.");
+            var hasActiveFinalization = await db.EventFinalizations.AsNoTracking()
+                .AnyAsync(x => x.EventId == eventId && x.UnfinalizedAt == null, ct);
+            var archivedRetry = preflight.State == EventState.Archived && hasActiveFinalization && expectedVersion == preflight.Version - 1;
+            if (preflight.Version != expectedVersion && !archivedRetry) throw new InvalidOperationException("This event changed in another session. Reload before finalizing.");
+            EventCompetitionRefreshResult? refreshResult = null;
+            Exception? refreshFailure = null;
+            if (!archivedRetry && preflight.State == EventState.AwaitingFinalReview && competitionSynchronization is not null)
             {
-                if (string.Equals(existing.Reason, reason.Trim(), StringComparison.Ordinal)) { await tx.CommitAsync(ct); return; }
-                throw new InvalidOperationException("This final-review item was resolved differently in another request. Reload the current cycle.");
+                // The fetch owns its own short lease transaction and HTTP request.
+                // A skip or provider failure intentionally leaves publication available,
+                // while its outcome is retained in the publication operation feedback.
+                try { refreshResult = await competitionSynchronization.RefreshForFinalReviewAsync(eventId, ct); }
+                catch (OperationCanceledException ex) when (!ct.IsCancellationRequested) { refreshFailure = ex; }
+                catch (Exception ex) { refreshFailure = ex; }
             }
-            if (stale) throw StaleReviewMutation();
-            db.FinalReviewResolutions.Add(new FinalReviewResolution(Guid.NewGuid(), ev.Id, readiness.ReviewCycleId, blocker.Key, blocker.Description, reason, adminId, now));
-            AddReviewAudit(ev, adminId, actorName, now, "event.final_review_overridden", JsonSerializer.Serialize(new { blockerKey, reason = reason.Trim(), reviewCycleId = readiness.ReviewCycleId }));
-            ev.AdvanceVersion();
-            await db.SaveChangesAsync(ct);
-            await tx.CommitAsync(CancellationToken.None);
-        }
-        catch (Exception ex) when (IsReviewPersistenceConflict(ex)) { throw StaleReviewMutation(); }
-    }
 
-    public async Task AcknowledgeCompletionTimeAsync(Guid eventId, Guid teamId, Guid adminId, long? expectedVersion = null, Guid? expectedReviewCycleId = null, string? expectedInspectionKey = null, CancellationToken ct = default)
-    {
-        try
-        {
             await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
-            var (ev, readiness, now, actorName, stale) = await LockReviewMutationAsync(eventId, adminId, expectedVersion, expectedReviewCycleId, ct);
-            var blocker = readiness.Blockers.SingleOrDefault(x => x.TeamId == teamId && x.IsCompletionTimeAcknowledgement) ?? throw new InvalidOperationException("That team does not require completion-time inspection.");
-            // Check the submitted identity before considering an authorized duplicate replay.
-            if (!string.Equals(expectedInspectionKey, blocker.Key, StringComparison.Ordinal)) throw StaleReviewMutation();
-            var existing = await db.FinalReviewResolutions.SingleOrDefaultAsync(x => x.ReviewCycleId == readiness.ReviewCycleId && x.BlockerKey == blocker.Key, ct);
-            if (existing is not null)
-            {
-                if (existing.Kind == FinalReviewResolutionKind.CompletionTimeAcknowledgement && existing.TeamId == teamId) { await tx.CommitAsync(ct); return; }
-                throw new InvalidOperationException("This completion review was resolved differently in another request. Reload the current cycle.");
-            }
-            if (stale) throw StaleReviewMutation();
-            db.FinalReviewResolutions.Add(new FinalReviewResolution(Guid.NewGuid(), ev.Id, readiness.ReviewCycleId, blocker.Key, blocker.Description, null, adminId, now, FinalReviewResolutionKind.CompletionTimeAcknowledgement, teamId));
-            AddReviewAudit(ev, adminId, actorName, now, "event.completion_time_inspected", JsonSerializer.Serialize(new { teamId, reviewCycleId = readiness.ReviewCycleId }));
-            ev.AdvanceVersion();
-            await db.SaveChangesAsync(ct);
-            await tx.CommitAsync(CancellationToken.None);
-        }
-        catch (Exception ex) when (IsReviewPersistenceConflict(ex)) { throw StaleReviewMutation(); }
-    }
-
-    public async Task CorrectCompletionAsync(Guid eventId, Guid teamId, DateTimeOffset correctedAt, string reason, Guid adminId, long? expectedVersion = null, Guid? expectedReviewCycleId = null, CancellationToken ct = default)
-    {
-        if (string.IsNullOrWhiteSpace(reason)) throw new InvalidOperationException("A reason is required.");
-        try
-        {
-            await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
-            var (ev, readiness, now, actorName, stale) = await LockReviewMutationAsync(eventId, adminId, expectedVersion, expectedReviewCycleId, ct);
-            var team = readiness.Placements.SingleOrDefault(x => x.TeamId == teamId) ?? throw new InvalidOperationException("Team not found.");
-            if (!team.BoardComplete) throw new InvalidOperationException("Only a completed board has a completion time.");
-            if (readiness.EventStartsAt is not { } startsAt || readiness.EventEndsAt is not { } endsAt || correctedAt < startsAt || correctedAt > endsAt) throw new InvalidOperationException("The corrected completion time must be within the event window.");
-            var row = await db.TeamCompletionCorrections.SingleOrDefaultAsync(x => x.EventId == eventId && x.ReviewCycleId == readiness.ReviewCycleId && x.TeamId == teamId, ct);
-            if (stale) throw StaleReviewMutation();
-            if (row is not null && row.CorrectedCompletedAt == correctedAt.ToUniversalTime() && string.Equals(row.Reason, reason.Trim(), StringComparison.Ordinal)) { await tx.CommitAsync(ct); return; }
-            if (row is null) db.TeamCompletionCorrections.Add(new TeamCompletionCorrection(Guid.NewGuid(), ev.Id, readiness.ReviewCycleId, teamId, correctedAt, reason, adminId, now)); else row.Update(correctedAt, reason, adminId, now);
-            AddReviewAudit(ev, adminId, actorName, now, "event.completion_time_corrected", JsonSerializer.Serialize(new { teamId, correctedAt = correctedAt.ToUniversalTime(), reason = reason.Trim(), reviewCycleId = readiness.ReviewCycleId }));
-            ev.AdvanceStatsEvidenceRevision();
-            ev.AdvanceVersion();
-            await db.SaveChangesAsync(ct);
-            await Bingo.Infrastructure.Stats.PublicStatsService.RefreshCheckpointAsync(db, time, eventId, ct);
-            await tx.CommitAsync(CancellationToken.None);
-        }
-        catch (Exception ex) when (IsReviewPersistenceConflict(ex)) { throw StaleReviewMutation(); }
-    }
-
-    public async Task FinalizeAsync(Guid eventId, LifecycleActor actor, long? expectedVersion = null, CancellationToken ct = default)
-    {
-        if (expectedVersion is not > 0) throw new InvalidOperationException("This final-review form is stale or incomplete. Reload before finalizing.");
-        try
-        {
-            await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
+            actor = await EventMutationAuthorization.EnsureAuthorizedAsync(db, actor, ct);
             await db.Database.ExecuteSqlRawAsync("SELECT pg_advisory_xact_lock(7303004)", ct);
             var ev = await db.Events.FromSqlInterpolated($"SELECT * FROM events WHERE id = {eventId} AND hidden_at IS NULL FOR UPDATE").SingleOrDefaultAsync(ct) ?? throw new InvalidOperationException("Event not found.");
-            var activeFinal = await db.EventFinalizations.AnyAsync(x => x.EventId == eventId && x.UnfinalizedAt == null, ct);
-            if ((ev.State is EventState.Finalized or EventState.Archived) && activeFinal && expectedVersion == ev.Version - 1) { await tx.CommitAsync(ct); return; }
+            var activeFinal = await db.EventFinalizations.Where(x => x.EventId == eventId && x.UnfinalizedAt == null).OrderByDescending(x => x.Version).FirstOrDefaultAsync(ct);
+            if (ev.State == EventState.Archived && activeFinal is not null && expectedVersion == ev.Version - 1) { await tx.CommitAsync(ct); return new(true, true, State: ev.State, Version: ev.Version, LatestFinalizationId: activeFinal.Id, FinalRefresh: ReadFinalWomRefresh(activeFinal.CalculationInputsJson)); }
+            // A pre-existing Finalized row is a legacy resting state from the
+            // old two-step workflow. It may only be completed when its
+            // immutable official snapshot is already present; never recalculate
+            // or create a replacement snapshot during this compatibility path.
+            if (ev.State == EventState.Finalized)
+            {
+                if (activeFinal is null || !ev.ResultsPublished)
+                    throw new InvalidOperationException("This legacy Finalized event has no complete official snapshot. Resolve the retained history through the controlled rollout procedure.");
+                if (expectedVersion != ev.Version) throw new InvalidOperationException("This event changed in another session. Reload before completing its legacy publication.");
+                var legacyNow = time.GetUtcNow();
+                ev.Archive(legacyNow);
+                ev.AdvanceVersion();
+                AddLifecycleHistory(ev, EventState.Finalized, actor, "event.legacy_finalized_archived", "Retained official results completed the legacy Finalized transition", legacyNow);
+                await db.SaveChangesAsync(ct);
+                await tx.CommitAsync(ct);
+                return new(true, false, State: ev.State, Version: ev.Version, LatestFinalizationId: activeFinal.Id, FinalRefresh: ReadFinalWomRefresh(activeFinal.CalculationInputsJson));
+            }
             if (expectedVersion is { } supplied && supplied != ev.Version) throw new InvalidOperationException("This event changed in another session. Reload before finalizing.");
             if (ev.State != EventState.AwaitingFinalReview) throw new InvalidOperationException("Only an event in final review can be finalized.");
             var development = string.Equals(Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT"), "Development", StringComparison.OrdinalIgnoreCase);
-            var current = await db.Events.AsNoTracking().Where(value => value.Id != eventId && value.HiddenAt == null && (value.State == EventState.Live || value.State == EventState.AwaitingFinalReview || value.State == EventState.Finalized) && !(development && value.IsDevelopmentFixture)).OrderBy(value => value.Name).Select(value => value.Name).FirstOrDefaultAsync(ct);
-            if (current is not null) throw new InvalidOperationException($"{current} is already the current event. Archive it before finalizing this event.");
+            var current = await db.Events.AsNoTracking().Where(value => value.Id != eventId && value.HiddenAt == null && (value.State == EventState.Live || value.State == EventState.AwaitingFinalReview || value.State == EventState.Finalized) && !(development && value.IsDevelopmentFixture)).OrderBy(value => value.Name).Select(value => new { value.Name, value.State }).FirstOrDefaultAsync(ct);
+            if (current is not null) throw new InvalidOperationException(CurrentEventBlockMessage(current.Name, current.State, "finalizing this event"));
             var readiness = await GetReadinessAsync(eventId, ct) ?? throw new InvalidOperationException("Event not found.");
             if (readiness.EventVersion != ev.Version || !readiness.CanFinalize) throw new InvalidOperationException("Resolve every final-review item before finalizing.");
             if (readiness.ReviewCycleId == Guid.Empty) throw new InvalidOperationException("The final-review cycle is unavailable.");
+            var endState = await db.EventCompetitionSynchronizations
+                .FromSqlInterpolated($"SELECT * FROM event_competition_synchronizations WHERE event_id = {eventId} FOR UPDATE").SingleOrDefaultAsync(ct);
+            if (endState is not null) await db.Entry(endState).ReloadAsync(ct);
+            if (endState?.HasUnmatchedEnd(ev.EventEndsAt) == true)
+            {
+                endState.MarkEndCouldNotBeUpdated();
+                refreshResult = new(false, true, "WOM end could not be updated; the last pre-end competition data was retained.", SkipReason: EventCompetitionRefreshSkipReason.EndCouldNotBeUpdated);
+                refreshFailure = null;
+            }
+            endUpdateStatus = endState?.EndUpdateStatus;
             var now = time.GetUtcNow();
             var version = (await db.EventFinalizations.Where(x => x.EventId == eventId).MaxAsync(x => (int?)x.Version, ct) ?? 0) + 1;
-            var currentKeys = readiness.Blockers.Where(x => x.Resolved).Select(x => x.Key).ToList();
-            var resolutions = await db.FinalReviewResolutions.Where(x => x.ReviewCycleId == readiness.ReviewCycleId && currentKeys.Contains(x.BlockerKey)).OrderBy(x => x.ResolvedAt).ToListAsync(ct);
-            var calcInputs = JsonSerializer.Serialize(new { readiness.ReviewCycleId, readiness.EventStartsAt, readiness.EventEndsAt, readiness.SubmissionCutoff, resolutions = resolutions.Select(x => new { x.Id, x.BlockerKey, x.Kind, x.TeamId }), teams = readiness.Placements.Select(x => new { x.TeamId, x.TeamName, x.BoardComplete, x.CalculatedCompletedAt, x.CorrectedCompletedAt, x.CurrentScoreReachedAt }) });
+            var ties = readiness.Placements.GroupBy(x => x.Placement).Where(x => x.Count() > 1).Select(group => new
+            {
+                Placement = group.Key,
+                Teams = group.Select(x => new
+                {
+                    x.TeamId,
+                    x.TeamName,
+                    x.BoardComplete,
+                    CompletedAt = x.CalculatedCompletedAt,
+                    x.CompletedLines,
+                    x.CompletedTiles,
+                    x.CurrentScoreReachedAt,
+                    x.EhbTiebreak
+                }).ToArray(),
+                Explanation = "Shared rank: every competitive input is exactly equal; team name is presentation order only."
+            }).ToArray();
+            var calcInputs = JsonSerializer.Serialize(new
+            {
+                readiness.ReviewCycleId,
+                readiness.EventStartsAt,
+                readiness.EventEndsAt,
+                readiness.SubmissionCutoff,
+                finalWomRefresh = JsonSerializer.SerializeToElement(FinalWomRefresh(refreshResult, refreshFailure), FinalWomRefreshJsonOptions),
+                placementRule = ev.PlacementRule.ToString(),
+                competitiveInputs = CompetitiveInputNames(ev.PlacementRule),
+                teams = readiness.Placements.Select(x => new { x.TeamId, x.TeamName, x.BoardComplete, x.CalculatedCompletedAt, x.CompletedLines, x.CompletedTiles, x.CurrentScoreReachedAt, x.EhbTiebreak }),
+                exactTieExplanations = ties
+            });
             var calcResults = JsonSerializer.Serialize(readiness.Placements);
-            var snapshot = new EventFinalizationSnapshot(Guid.NewGuid(), eventId, version, now, actor.Id, readiness.ReviewCycleId, JsonSerializer.Serialize(resolutions.Select(x => x.Id)), calcInputs, calcResults);
+            var snapshot = new EventFinalizationSnapshot(Guid.NewGuid(), eventId, version, now, actor.Id, readiness.ReviewCycleId, null, calcInputs, calcResults);
             db.EventFinalizations.Add(snapshot);
-            foreach (var row in readiness.Placements) db.OfficialPlacements.Add(new OfficialPlacementSnapshot(Guid.NewGuid(), snapshot.Id, eventId, row.TeamId, row.TeamName, row.Placement, row.BoardComplete, row.CorrectedCompletedAt ?? row.CalculatedCompletedAt, row.CompletedLines, row.CompletedTiles, row.EhbTiebreak, row.CurrentScoreReachedAt));
+            foreach (var row in readiness.Placements) db.OfficialPlacements.Add(new OfficialPlacementSnapshot(Guid.NewGuid(), snapshot.Id, eventId, row.TeamId, row.TeamName, row.Placement, row.BoardComplete, row.CalculatedCompletedAt, row.CompletedLines, row.CompletedTiles, row.EhbTiebreak, row.CurrentScoreReachedAt));
             var from = ev.State;
             ev.ClearAnnouncements();
-            ev.FinalizeResults(now);
-            foreach (var access in await db.AccountEventAccesses.Where(x => x.EventId == eventId).ToListAsync(ct)) access.Disable();
-            AddLifecycleHistory(ev, from, actor, "event.finalized", "Official placements snapshotted and published", now);
+            ev.PublishOfficialResults(now);
+            ev.AdvanceVersion();
+            AddLifecycleHistory(ev, from, actor, "event.results_published", PublicationDetail(refreshResult, refreshFailure), now);
+            operationFeedback = PublicationFeedback(refreshResult, refreshFailure);
+            resultingVersion = ev.Version;
+            latestFinalizationId = snapshot.Id;
+            finalRefresh = FinalWomRefresh(refreshResult, refreshFailure);
             await AddResultNotificationsAsync(ev, now, ct);
             await db.SaveChangesAsync(ct);
-            await Bingo.Infrastructure.Stats.PublicStatsService.RefreshCheckpointAsync(db, time, eventId, ct);
             await tx.CommitAsync(ct);
         }
         catch (Exception ex) when (IsReviewPersistenceConflict(ex)) { throw new InvalidOperationException("This event changed in another session. Reload before finalizing."); }
         await NotifyProgressAsync(eventId, ct);
+        return new(true, false, operationFeedback, endUpdateStatus, EventState.Archived, resultingVersion, latestFinalizationId, finalRefresh);
     }
 
-    private async Task<(BingoEvent Event, FinalReviewReadiness Readiness, DateTimeOffset Now, string ActorName, bool VersionStale)> LockReviewMutationAsync(Guid eventId, Guid adminId, long? expectedVersion, Guid? expectedReviewCycleId, CancellationToken ct)
-    {
-        if (expectedVersion is not > 0 || expectedReviewCycleId is not { } suppliedCycle || suppliedCycle == Guid.Empty)
-            throw new InvalidOperationException("This final-review form is stale or incomplete. Reload the current final-review cycle.");
-        var ev = await db.Events.FromSqlInterpolated($"SELECT * FROM events WHERE id = {eventId} AND hidden_at IS NULL FOR UPDATE").SingleOrDefaultAsync(ct)
-            ?? throw new InvalidOperationException("Event not found.");
-        var actorName = await db.Accounts.AsNoTracking().Where(x => x.Id == adminId && x.Active && (x.GlobalRole == GlobalRole.Admin || x.GlobalRole == GlobalRole.SuperAdmin)).Select(x => x.LoginName).SingleOrDefaultAsync(ct)
-            ?? throw new InvalidOperationException("Administrator access is required.");
-        if (ev.State != EventState.AwaitingFinalReview) throw new InvalidOperationException("Final-review changes are available only while the event is awaiting final review.");
-        var readiness = await GetReadinessAsync(eventId, ct) ?? throw new InvalidOperationException("Event not found.");
-        if (readiness.EventVersion != ev.Version || readiness.State != EventState.AwaitingFinalReview) throw new InvalidOperationException("This final-review cycle changed in another request. Reload before saving.");
-        if (readiness.ReviewCycleId == Guid.Empty) throw new InvalidOperationException("The final-review cycle is unavailable.");
-        if (readiness.ReviewCycleId != suppliedCycle || !await db.EventStateTransitions.AsNoTracking().AnyAsync(x => x.Id == suppliedCycle && x.EventId == eventId && x.ToState == EventState.AwaitingFinalReview, ct))
-            throw new InvalidOperationException("This final-review cycle is stale. Reload the current final-review cycle.");
-        return (ev, readiness, time.GetUtcNow().ToUniversalTime(), actorName, expectedVersion.Value != ev.Version);
-    }
-
-    private static InvalidOperationException StaleReviewMutation() => new("This final-review item changed while you were saving. Reload the current final-review cycle and try again.");
     private static bool IsReviewPersistenceConflict(Exception exception)
     {
         for (var current = exception; current is not null; current = current.InnerException)
@@ -241,14 +251,16 @@ public sealed class EventFinalizationService(ApplicationDbContext db, IPublicBoa
         return false;
     }
 
-    private void AddReviewAudit(BingoEvent ev, Guid actorId, string actorName, DateTimeOffset at, string action, string details)
-        => db.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), at, actorId, actorName, action, "event", ev.Id.ToString(), details, ev.Id));
-
     public async Task UnfinalizeAsync(Guid eventId, string reason, bool confirmed, LifecycleActor actor, long? expectedVersion = null, CancellationToken ct = default)
     {
+        if (reason.Length > IEventFinalizationService.MaximumUnfinalizeReasonLength)
+            throw new InvalidOperationException("The reopening reason must be 2000 characters or fewer.");
+        await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
+        actor = await EventMutationAuthorization.EnsureAuthorizedAsync(db, actor, ct);
+
+        if (expectedVersion is not > 0) throw new InvalidOperationException("This final-review form is stale or incomplete. Reload before reopening it.");
         if (!confirmed) throw new InvalidOperationException("Confirm that you want to reopen the official results.");
         if (string.IsNullOrWhiteSpace(reason)) throw new InvalidOperationException("A reason is required.");
-        await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
         await db.Database.ExecuteSqlRawAsync("SELECT pg_advisory_xact_lock(7303004)", ct);
         var ev = await db.Events.SingleOrDefaultAsync(x => x.Id == eventId && x.HiddenAt == null, ct) ?? throw new InvalidOperationException("Event not found.");
         if (expectedVersion is { } supplied && supplied != ev.Version) throw new InvalidOperationException("This event changed in another session. Reload before reopening it.");
@@ -256,36 +268,31 @@ public sealed class EventFinalizationService(ApplicationDbContext db, IPublicBoa
         if (ev.State == EventState.Archived || ev.State == EventState.Finalized)
         {
             var development = string.Equals(Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT"), "Development", StringComparison.OrdinalIgnoreCase);
-            var current = await db.Events.AsNoTracking().Where(x => x.Id != eventId && x.HiddenAt == null && (x.State == EventState.Live || x.State == EventState.AwaitingFinalReview || x.State == EventState.Finalized) && !(development && x.IsDevelopmentFixture)).OrderBy(x => x.Name).Select(x => x.Name).FirstOrDefaultAsync(ct);
-            if (current is not null) throw new InvalidOperationException($"{current} is already the current event. Archive it before reopening this event.");
+            var current = await db.Events.AsNoTracking().Where(x => x.Id != eventId && x.HiddenAt == null && (x.State == EventState.Live || x.State == EventState.AwaitingFinalReview || x.State == EventState.Finalized) && !(development && x.IsDevelopmentFixture)).OrderBy(x => x.Name).Select(x => new { x.Name, x.State }).FirstOrDefaultAsync(ct);
+            if (current is not null) throw new InvalidOperationException(CurrentEventBlockMessage(current.Name, current.State, "reopening this event"));
         }
         var active = await db.EventFinalizations.Where(x => x.EventId == eventId && x.UnfinalizedAt == null).OrderByDescending(x => x.Version).FirstOrDefaultAsync(ct) ?? throw new InvalidOperationException("No active official result exists.");
         var now = time.GetUtcNow();
         var from = ev.State;
-        active.Unfinalize(now, actor.Id, reason);
-        ev.Unfinalize(reason);
-        AddLifecycleHistory(ev, from, actor, "event.unfinalized", reason.Trim(), now);
+        var normalizedReason = reason.Trim();
+        active.Unfinalize(now, actor.Id, normalizedReason);
+        ev.Unfinalize(normalizedReason);
+        ev.AdvanceVersion();
+        AddLifecycleHistory(ev, from, actor, "event.unfinalized", BoundedTransitionReason(normalizedReason), now, normalizedReason);
         await db.SaveChangesAsync(ct);
-        await Bingo.Infrastructure.Stats.PublicStatsService.RefreshCheckpointAsync(db, time, eventId, ct);
         await tx.CommitAsync(ct);
     }
 
-    public async Task ArchiveAsync(Guid eventId, bool confirmed, LifecycleActor actor, CancellationToken ct = default)
-    {
-        if (!confirmed) throw new InvalidOperationException("Confirm that you want to archive this finalized event.");
-        await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
-        await db.Database.ExecuteSqlRawAsync("SELECT pg_advisory_xact_lock(7303004)", ct);
-        var ev = await db.Events.SingleOrDefaultAsync(x => x.Id == eventId && x.HiddenAt == null, ct) ?? throw new InvalidOperationException("Event not found.");
-        if (ev.State == EventState.Archived) { await tx.CommitAsync(ct); return; }
-        if (ev.State != EventState.Finalized) throw new InvalidOperationException("Only finalized results can be archived.");
-        var now = time.GetUtcNow();
-        var from = ev.State;
-        ev.Archive(now);
-        AddLifecycleHistory(ev, from, actor, "event.archived", "Official event archived", now);
-        await db.SaveChangesAsync(ct);
-        await Bingo.Infrastructure.Stats.PublicStatsService.RefreshCheckpointAsync(db, time, eventId, ct);
-        await tx.CommitAsync(ct);
-    }
+    [Obsolete("Official publication now archives the event atomically; use FinalizeAsync.")]
+    public Task ArchiveAsync(Guid eventId, bool confirmed, LifecycleActor actor, CancellationToken ct = default)
+        => Task.FromException(new InvalidOperationException("The separate Archive action is retired. Publish official results from final review."));
+
+    private static string CurrentEventBlockMessage(string name, EventState state, string operation) => state == EventState.Live
+        ? $"{name} is still live. End it first, then publish its results before {operation}."
+        : operation != "reopening this event" ? $"Publish official results for {name} before {operation}."
+        : state == EventState.Finalized
+            ? $"{name} is still the current event. Contact the Super Admin to archive it."
+            : $"Publish the results of {name} first.";
 
     private async Task AddResultNotificationsAsync(BingoEvent ev, DateTimeOffset now, CancellationToken ct)
     {
@@ -297,83 +304,89 @@ public sealed class EventFinalizationService(ApplicationDbContext db, IPublicBoa
         }
     }
 
-    private void AddLifecycleHistory(BingoEvent ev, EventState from, LifecycleActor actor, string action, string detail, DateTimeOffset now)
+    private static string? PublicationFeedback(EventCompetitionRefreshResult? refreshResult, Exception? refreshFailure)
+    {
+        const string published = "Official results were published.";
+        if (refreshFailure is not null)
+            return published + " Final-review competition refresh failed before completion.";
+        if (refreshResult is { Succeeded: false })
+        {
+            var state = refreshResult.Skipped ? "skipped" : "failed";
+            return published + $" Final-review competition refresh {state}: " +
+                BoundedFeedback(refreshResult.Message ?? refreshResult.ErrorKind ?? "no detail");
+        }
+        if (refreshResult?.Message is { Length: > 0 } message)
+            return published + " Final-review competition refresh note: " + BoundedFeedback(message);
+        return null;
+    }
+
+    private static FinalWomRefreshOutcome FinalWomRefresh(EventCompetitionRefreshResult? result, Exception? failure)
+    {
+        if (failure is not null) return new(FinalWomRefreshStatus.Failed);
+        if (result is null) return new(FinalWomRefreshStatus.Skipped, EventCompetitionRefreshSkipReason.ServiceUnavailable);
+        if (result.Skipped) return new(FinalWomRefreshStatus.Skipped, result.SkipReason, result.RetryAt);
+        return new(result.Succeeded ? FinalWomRefreshStatus.Succeeded : FinalWomRefreshStatus.Failed);
+    }
+
+    private static FinalWomRefreshOutcome? ReadFinalWomRefresh(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return null;
+        try
+        {
+            using var document = JsonDocument.Parse(json);
+            if (document.RootElement.ValueKind != JsonValueKind.Object || !document.RootElement.TryGetProperty("finalWomRefresh", out var value)) return null;
+            if (value.ValueKind != JsonValueKind.Object || !value.TryGetProperty(nameof(FinalWomRefreshOutcome.Status), out _)) return null;
+            var outcome = value.Deserialize<FinalWomRefreshOutcome>(FinalWomRefreshJsonOptions);
+            return outcome is not null && Enum.IsDefined(outcome.Status)
+                && (outcome.SkipReason is null || Enum.IsDefined(outcome.SkipReason.Value)) ? outcome : null;
+        }
+        catch (JsonException) { return null; }
+    }
+
+    private static string PublicationDetail(EventCompetitionRefreshResult? refreshResult, Exception? refreshFailure)
+    {
+        const string published = "Official placements snapshotted and event archived";
+        if (refreshFailure is not null)
+            return published + ". Final-review competition refresh failed: " + BoundedFeedback(refreshFailure.Message);
+        if (refreshResult is { Succeeded: false })
+        {
+            var state = refreshResult.Skipped ? "skipped" : "failed";
+            return published + $". Final-review competition refresh {state}: " + BoundedFeedback(refreshResult.Message ?? refreshResult.ErrorKind ?? "no detail");
+        }
+        if (refreshResult?.Message is { Length: > 0 } message)
+            return published + ". Final-review competition refresh note: " + BoundedFeedback(message);
+        return published;
+    }
+
+    private static string BoundedFeedback(string? value)
+    {
+        var detail = string.IsNullOrWhiteSpace(value) ? "no detail" : value.Trim().Replace('\n', ' ').Replace('\r', ' ');
+        return detail.Length <= 240 ? detail : detail[..240];
+    }
+
+    private void AddLifecycleHistory(BingoEvent ev, EventState from, LifecycleActor actor, string action, string detail, DateTimeOffset now, string? auditDetail = null)
     {
         db.EventStateTransitions.Add(new EventStateTransition(Guid.NewGuid(), ev.Id, from, ev.State, actor.Id, now, detail, effectiveAt: now));
-        db.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), now, actor.Id, actor.Username, action, "event", ev.Id.ToString(), detail, ev.Id, JsonSerializer.Serialize(new { state = from }), JsonSerializer.Serialize(new { state = ev.State })));
+        db.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), now, actor.Id, actor.Username, action, "event", ev.Id.ToString(), auditDetail ?? detail, ev.Id, JsonSerializer.Serialize(new { state = from }), JsonSerializer.Serialize(new { state = ev.State })));
+    }
+
+    private static string BoundedTransitionReason(string reason)
+    {
+        // EventStateTransition.reason is a legacy 1,000-character history
+        // column. The finalization snapshot and audit entry retain the full
+        // user reason up to their 2,000-character contract limit.
+        const int transitionReasonLength = 1_000;
+        return reason.Length <= transitionReasonLength ? reason : $"{reason[..(transitionReasonLength - 1)]}…";
     }
 
     private static Guid DeterministicId(string purpose, Guid target, Guid recipient)
     { var bytes = SHA256.HashData(Encoding.UTF8.GetBytes($"{purpose}:{target:N}:{recipient:N}")); return new Guid(bytes[..16]); }
-    private async Task<Dictionary<Guid, string>> CompletionAcknowledgementKeysAsync(Guid eventId, Guid cycleId, IReadOnlyList<ProvisionalPlacement> placements, IReadOnlyDictionary<Guid, TeamCompletionCorrection> corrections, CancellationToken ct)
+    private static string BlockerKey(string prefix, IEnumerable<Guid> ids)
     {
-        var teamIds = placements.Where(x => x.BoardComplete).Select(x => x.TeamId).ToList();
-        if (teamIds.Count == 0) return [];
-        var approvalId = await db.Boards.AsNoTracking().Where(x => x.EventId == eventId).Select(x => x.ActiveApprovalSnapshotId).SingleOrDefaultAsync(ct);
-        var mutations = await (from action in db.ReviewActions.AsNoTracking()
-                               join submission in db.Submissions.AsNoTracking() on action.SubmissionId equals submission.Id
-                               where submission.EventId == eventId && teamIds.Contains(submission.TeamId) &&
-                                     (action.Action == ReviewActionType.Approve || action.Action == ReviewActionType.ReverseApproval || action.Action == ReviewActionType.RebalanceContribution)
-                               select new { submission.TeamId, action.Id }).ToListAsync(ct);
-        var contributions = await (from contribution in db.SubmissionContributions.AsNoTracking()
-                                   join submission in db.Submissions.AsNoTracking() on contribution.SubmissionId equals submission.Id
-                                   where submission.EventId == eventId && teamIds.Contains(contribution.TeamId)
-                                   select new { contribution.TeamId, contribution.Id, contribution.SubmissionId, contribution.RequirementId, contribution.DropSnapshotId, contribution.Amount, contribution.AppliedAt, contribution.ReversedAt, submission.Status }).ToListAsync(ct);
-        var correctionAudits = await db.AuditEntries.AsNoTracking().Where(x => x.EventId == eventId && x.Action == "event.completion_time_corrected").Select(x => new { x.Id, x.Details }).ToListAsync(ct);
-        var correctionMutationIds = new Dictionary<Guid, List<Guid>>();
-        foreach (var audit in correctionAudits)
-        {
-            try
-            {
-                using var details = JsonDocument.Parse(audit.Details ?? "null");
-                if (details.RootElement.ValueKind != JsonValueKind.Object ||
-                    !details.RootElement.TryGetProperty("reviewCycleId", out var cycle) || !cycle.TryGetGuid(out var auditCycle) || auditCycle == Guid.Empty ||
-                    !details.RootElement.TryGetProperty("teamId", out var team) || !team.TryGetGuid(out var auditTeam) || auditTeam == Guid.Empty)
-                    throw new InvalidOperationException("Completion correction history cannot identify its review cycle and team. Completion inspection is unavailable.");
-                if (auditCycle != cycleId || !teamIds.Contains(auditTeam)) continue;
-                if (!correctionMutationIds.TryGetValue(auditTeam, out var ids)) correctionMutationIds[auditTeam] = ids = [];
-                ids.Add(audit.Id);
-            }
-            catch (JsonException) { throw new InvalidOperationException("Completion correction history cannot identify its review cycle and team. Completion inspection is unavailable."); }
-        }
-        return placements.Where(x => x.BoardComplete).ToDictionary(x => x.TeamId, x =>
-        {
-            var correction = corrections.GetValueOrDefault(x.TeamId);
-            var identity = JsonSerializer.Serialize(new
-            {
-                eventId,
-                cycleId,
-                x.TeamId,
-                approvalId,
-                mutations = mutations.Where(m => m.TeamId == x.TeamId).Select(m => m.Id).OrderBy(id => id),
-                contributions = contributions.Where(c => c.TeamId == x.TeamId).OrderBy(c => c.Id),
-                correction = correction is null ? null : new { correction.Id, correction.CorrectedCompletedAt },
-                correctionMutations = (correctionMutationIds.GetValueOrDefault(x.TeamId) ?? []).OrderBy(id => id),
-                x.CalculatedCompletedAt,
-                x.CompletedLines,
-                x.CompletedTiles,
-                x.CurrentScoreReachedAt,
-                x.EhbTiebreak
-            });
-            return $"completion-time-inspected-v3-{x.TeamId:N}-{Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(identity)))}";
-        });
+        var value = string.Join(',', ids.OrderBy(x => x));
+        var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value)))[..16];
+        return $"{prefix}-{hash}";
     }
-    private static string PlacementTieKey(IGrouping<int, ProvisionalPlacement> tie)
-    {
-        var identity = JsonSerializer.Serialize(tie.OrderBy(x => x.TeamId).Select(x => new
-        {
-            x.TeamId,
-            x.BoardComplete,
-            EffectiveCompletedAt = x.BoardComplete ? x.CorrectedCompletedAt ?? x.CalculatedCompletedAt : null,
-            x.CompletedLines,
-            x.CompletedTiles,
-            x.CurrentScoreReachedAt,
-            x.EhbTiebreak
-        }));
-        return $"placement-tie-{tie.Key}-v2-{Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(identity)))}";
-    }
-
-    private static string BlockerKey(string prefix, IEnumerable<Guid> ids) { var value = string.Join(',', ids.OrderBy(x => x)); var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value)))[..16]; return $"{prefix}-{hash}"; }
 
     private async Task NotifyProgressAsync(Guid eventId, CancellationToken ct)
     {

@@ -28,7 +28,7 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests
             try
             {
                 var snapshots = new CatalogueSnapshotService(verify, TimeProvider.System);
-                await snapshots.ExportAsync(path);
+                await CatalogueSnapshotTestFixture.WriteAsync(verify, path);
                 saved.RestorePriceRejection(null, null); await verify.SaveChangesAsync();
                 await snapshots.ApplyAsync(path);
                 Assert.Equal(201, (await verify.CatalogueItems.SingleAsync(x => x.Id == item.Id)).RejectedPriceGp);

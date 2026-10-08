@@ -1,0 +1,35 @@
+@using Bingo.Web.Pages.Admin.Events
+@{
+    var tabs = new[] { "AdminDesign.Confirmed", "Waiting list", "Withdrawn", "All" };
+    var payments = new[] { "Any", "Paid", "Unpaid" };
+    var columns = new[] { ("Participant", "c-name"), ("Status", ""), ("Draft EHB", "num"), ("Payment", ""), ("Captain", "c-cap"), ("Team", "c-team"), ("Signed up", "c-signed") };
+}
+@* U5: Participants page-family load states. Fresh on every visit: no remembered counts or rows. *@
+<template data-page-header-template="participants">
+    <header class="page-head" data-page-family="participants"><div style="min-width:0"><h1 class="h1" tabindex="-1">@T["Participants"]</h1><p class="summary" aria-hidden="true">@* Count summaries load like the tab counts: fixed words, a number-sized bar per number. *@<span>@ParticipantsPresentation.Fill(T["{0} of {1} confirmed"].Value, ParticipantsPresentation.PendingNumber, ParticipantsPresentation.PendingNumber)</span><span>@ParticipantsPresentation.Fill(T["{0} waiting"].Value, ParticipantsPresentation.PendingNumber)</span><span>@ParticipantsPresentation.Fill(T["{0} unpaid"].Value, ParticipantsPresentation.PendingNumber)</span></p></div><div class="head-actions"><button class="btn btn-primary" type="button" tabindex="-1" disabled><partial name="_AdminDesignIcon" model='new AdminDesignIcon("plus")' />@T["Add participant"]</button></div></header>
+</template>
+@foreach (var failed in new[] { false, true })
+{
+    <template data-page-@(failed ? "failure" : "loading")-template="participants" data-page-title="@(failed ? null : T["Participants"].Value)">
+        <link rel="stylesheet" href="~/css/admin-design-participants.css" asp-append-version="true" />
+        <div class="toolbar">
+            <div class="tabs" role="radiogroup" aria-label="@T["Participation status"]">@foreach (var label in tabs) { <label class="tab @(label == "AdminDesign.Confirmed" ? "is-on" : null)"><input class="sr" type="radio" name="pending-status-tab" checked="@(label == "AdminDesign.Confirmed")" disabled><span>@T[label]</span><span class="tab-count" data-pending-count><span class="sk" aria-hidden="true"></span></span></label> }</div>
+            <div class="tbar-right">
+                <div class="search"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("search")' /><input class="input" type="search" placeholder="@T["Search RSN, account or Discord"]" aria-label="@T["Search participants"]" autocomplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" disabled></div>
+                <span class="filter-lbl">@T["Payment"]</span>
+                <div class="seg" role="radiogroup" aria-label="@T["Payment"]">@foreach (var label in payments) { <label class="seg-opt @(label == "Any" ? "is-on" : null)"><input class="sr" type="radio" name="pending-pay-filter" checked="@(label == "Any")" disabled>@T[label]</label> }</div>
+            </div>
+        </div>
+        <div class="card"><div class="tbl-wrap"><div class="tbl pa-tbl" role="table" aria-label="@T["Participants"]" aria-busy="@(failed ? "false" : "true")">
+            <div class="tr th-row" role="row">@foreach (var (label, cls) in columns) { <div class="th @cls" role="columnheader"><button class="th-btn" type="button" tabindex="-1" disabled>@T[label]<partial name="_AdminDesignIcon" model='new AdminDesignIcon("sort", "ic sort-ic")' /></button></div> }<div class="th c-act" role="columnheader"><span class="sr">@T["Actions"]</span></div></div>
+            @if (failed)
+            {
+                <div class="empty is-error" role="row"><div role="cell" class="pa-cell-contents"><div class="empty-ic"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("error")' /></div><div class="empty-title">@T["Couldn’t load participants"]</div><div class="empty-text">@T["Nothing was changed. Try again."]</div><button class="btn" type="button" data-load-retry>@T["Try again"]</button></div></div>
+            }
+            else
+            {
+                @for (var i = 0; i < 8; i++) { <div class="tr sk-row" role="row" aria-hidden="true"><div class="td c-name"><div class="pa-sk-line"><div class="sk pa-sk-w46"></div></div><div class="pa-sk-sub"><div class="sk pa-sk-w70"></div></div></div><div class="td"><div class="pa-sk-line"><div class="sk pa-sk-w70"></div></div></div><div class="td num"><div class="pa-sk-line"><div class="sk pa-sk-w60 pa-sk-end"></div></div></div><div class="td"><div class="pa-sk-line"><div class="sk pa-sk-w64"></div></div></div><div class="td c-cap"><div class="pa-sk-cell"><div class="sk pa-sk-w50"></div></div></div><div class="td c-team"><div class="pa-sk-cell"><div class="sk pa-sk-w55"></div></div></div><div class="td c-signed"><div class="pa-sk-cell"><div class="sk pa-sk-w60"></div></div></div><div class="td"></div></div> }
+            }
+        </div></div></div>
+    </template>
+}

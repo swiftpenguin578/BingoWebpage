@@ -3,7 +3,6 @@ using System.Globalization;
 using Bingo.Application.Access;
 using Bingo.Application.Auditing;
 using Bingo.Application.Events;
-using Bingo.Application.Integrations.WiseOldMan;
 using Bingo.Application.Signups;
 using Bingo.Domain.Auditing;
 using Bingo.Domain.Boards;
@@ -13,6 +12,7 @@ using Bingo.Domain.Signups;
 using Bingo.Domain.Teams;
 using Bingo.Infrastructure.Persistence;
 using Bingo.Infrastructure.Signups;
+using Bingo.Infrastructure.Teams;
 using Bingo.Web.Security;
 using Bingo.Web.UI;
 using Microsoft.AspNetCore.Authorization;
@@ -25,31 +25,23 @@ using Microsoft.Extensions.Localization;
 namespace Bingo.Web.Pages.Admin.Events;
 
 [Authorize(Policy = AuthorizationPolicies.Admin)]
-public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService signupService, EventParticipantCharacterService characterService, IAuditWriter auditWriter, IEventReadinessEvaluator readinessEvaluator, IEventSignupLifecycleService signupLifecycle, IEventLifecycleService eventLifecycle, IEventDestructiveLifecycleService destructiveLifecycle, TimeProvider timeProvider, IEventCompetitionSynchronizationService? competitionSynchronization = null, IStringLocalizer<SharedResource>? text = null, IHostEnvironment? environment = null, IEventFinalizationService? finalizationService = null, IEventQuarantineService? quarantine = null, IEventCompetitionManagementService? competitionManagement = null) : PageModel
+[AdminDesign]
+public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService signupService, EventParticipantCharacterService characterService, IAuditWriter auditWriter, IEventReadinessEvaluator readinessEvaluator, IEventSignupLifecycleService signupLifecycle, IEventLifecycleService eventLifecycle, IEventDestructiveLifecycleService destructiveLifecycle, TimeProvider timeProvider, IEventCompetitionSynchronizationService? competitionSynchronization = null, IStringLocalizer<SharedResource>? text = null, IHostEnvironment? environment = null, IEventFinalizationService? finalizationService = null, IEventQuarantineService? quarantine = null, IStringLocalizer<AuditResource>? auditText = null) : PageModel
 {
-    public EventDetails? EventView { get; private set; }
-    public IReadOnlyList<EvidenceCodeRow> EvidenceCodes { get; private set; } = [];
-    public SignupReadiness? SignupReadiness { get; private set; }
-    public EventStartReadiness? StartReadiness { get; private set; }
-    public FinalReviewReadiness? FinalReviewReadiness { get; private set; }
-    public IReadOnlyList<ReadinessItem> OverviewBlockers { get; private set; } = [];
-    public IReadOnlyList<TimelineRow> EffectiveTimeline { get; private set; } = [];
-    public ScheduledActionView? ScheduledAction { get; private set; }
-    public int PendingReviewCount { get; private set; }
-    public int SubmissionCount { get; private set; }
-    public bool CanDiscard { get; private set; }
-    public bool CanConfigureEvidenceCodes { get; private set; }
-    public bool ResumeRequiresReplacement { get; private set; }
-    public bool ShowDevelopmentCompetitionControl { get; private set; }
-    public bool ShowAllControlStages { get; private set; }
-    public EventCompetitionView? CompetitionIntegration { get; private set; }
-    public EventCompetitionManagementView? CompetitionManagement { get; private set; }
-    public string? PrivateCancellationReason { get; private set; }
+    // U4 / OS-1: Overview.dc.html binding (OverviewPresenter). The old readiness block,
+    // its blocker list and labels, the dead captain-access row and the development
+    // all-controls preview are retired (brief 85, 42c §1.3).
+    public OverviewView? Overview { get; private set; }
+    public string CurrentJson { get; private set; } = "{}";
+    // Razor HTML-encodes the attribute; keep Danish letters readable in the snapshot.
+    private static readonly System.Text.Json.JsonSerializerOptions WebJson = new(System.Text.Json.JsonSerializerDefaults.Web) { Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
+    public Guid EventId { get; private set; }
+    public string EventTimezone { get; private set; } = "UTC";
+    public DateTimeOffset CurrentInstant => timeProvider.GetUtcNow();
+    public bool HiddenView { get; private set; }
+    public string Fmt(DateTimeOffset value) => DateTimePresentation.Format(value, "d MMM yyyy, HH':'mm", EventTimezone, CultureInfo.CurrentCulture);
     public IReadOnlyList<QuarantineAuditRow> QuarantineAuditHistory { get; private set; } = [];
-    public bool SignupWarningAcknowledged => EventView is not null && WarningsAcknowledged(EventView.Id, SignupReadiness);
-    public bool SignupCloseAcknowledged => EventView is not null && TempData.Peek(SignupConfirmationKey(EventView.Id, "close")) is not null;
-    public bool SignupCloseRequiresAcceptance => (EventView?.State is EventState.Draft or EventState.SignupClosed) && SignupReadiness?.CloseDecision.RequiresAcceptance == true;
-    [BindProperty, Range(1, 10000), Display(Name = "New participant cap")] public int NewCap { get; set; }
+    [BindProperty, Display(Name = "New participant cap")] public int NewCap { get; set; }
     [BindProperty, DataType(DataType.DateTime), Display(Name = "Signups open")] public DateTimeOffset NewSignupOpening { get; set; }
     [BindProperty, DataType(DataType.DateTime), Display(Name = "New signup closing")] public DateTimeOffset NewSignupClosing { get; set; }
     [BindProperty, StringLength(1000), Display(Name = "Reason for reopening")] public string? StateReason { get; set; }
@@ -60,16 +52,7 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
     [BindProperty, DataType(DataType.DateTime), Display(Name = "Reopen until")] public DateTimeOffset? ReopenUntil { get; set; }
     [BindProperty, Display(Name = "Reopen until")] public string? ReopenUntilLocal { get; set; }
     [BindProperty] public long EventVersion { get; set; }
-    [BindProperty, Range(1, long.MaxValue)] public long? CompetitionId { get; set; }
-    [BindProperty] public bool SynchronizeCompetitionSchedule { get; set; }
-    [BindProperty] public bool ConfirmCompetitionSchedule { get; set; }
-    [BindProperty] public bool ConfirmCompetitionClear { get; set; }
-    [BindProperty, StringLength(2000)] public string? CompetitionClearReason { get; set; }
-    [BindProperty] public bool ConfirmManagedCompetitionDelete { get; set; }
-    [BindProperty, Range(1, long.MaxValue)] public long? ManagedCompetitionDeleteId { get; set; }
-    [BindProperty] public bool AcknowledgeSignupWarnings { get; set; }
-    [BindProperty] public string[] SignupWarningCodes { get; set; } = [];
-    [BindProperty] public bool AcceptProposedClose { get; set; }
+    [BindProperty] public bool ConfirmSignupAction { get; set; }
     [BindProperty] public bool ConfirmStartEvent { get; set; }
     [BindProperty, StringLength(2000)] public string? StartReason { get; set; }
     [BindProperty] public bool ConfirmEndEvent { get; set; }
@@ -83,214 +66,152 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
     [BindProperty, StringLength(2000)] public string? CancellationReason { get; set; }
     [BindProperty(SupportsGet = true, Name = "hidden")] public bool HiddenInspection { get; set; }
     [BindProperty, StringLength(200), Display(Name = "Event name confirmation")] public string? EventNameConfirmation { get; set; }
-    [BindProperty, Required, StringLength(2000), Display(Name = "Reason")] public string? QuarantineReason { get; set; }
+    [BindProperty, StringLength(2000), Display(Name = "Reason")] public string? QuarantineReason { get; set; }
     [BindProperty(SupportsGet = true, Name = "confirm")] public string? ConfirmationAction { get; set; }
-    public async Task<IActionResult> OnGetAsync(Guid id, CancellationToken ct) { _ = characterService; return await LoadAsync(id, ct) ? Page() : NotFound(); }
-    public static OverviewMilestone NextMilestoneFor(EventDetails eventView) => eventView.State switch
-    {
-        EventState.Draft => new("Signup opens", eventView.SignupOpensAt),
-        EventState.SignupOpen => new("Signup closes", eventView.SignupClosesAt),
-        EventState.SignupClosed => new("Event starts", eventView.StartsAt),
-        EventState.Live => new("Event ends", eventView.EndsAt),
-        EventState.AwaitingFinalReview => new("Submission cutoff", eventView.SubmissionCutoffAt),
-        EventState.Finalized => new("Finalized", eventView.FinalizedAt),
-        EventState.Archived => new("Archived", eventView.ArchivedAt),
-        EventState.Cancelled => new("Cancelled", eventView.CancelledAt),
-        _ => new("Event ends", eventView.EndsAt)
-    };
+    public async Task<IActionResult> OnGetAsync(Guid id, CancellationToken ct) { _ = characterService; _ = environment; return await LoadAsync(id, ct) ? Page() : NotFound(); }
     public async Task<IActionResult> OnPostStateAsync(Guid id, EventState target, CancellationToken ct)
     {
-        if (target == EventState.SignupClosed) return await OnPostCloseSignupAsync(id, ct);
-        var current = await dbContext.Events.AsNoTracking().Where(x => x.Id == id).Select(x => x.State).SingleOrDefaultAsync(ct);
-        return current == EventState.SignupClosed ? await OnPostReopenSignupAsync(id, ct) : await OnPostOpenSignupAsync(id, ct);
+        return BadRequest("The legacy State handler is retired.");
     }
-    public async Task<IActionResult> OnPostOpenSignupAsync(Guid id, CancellationToken ct) => await SignupResult(await signupLifecycle.OpenAsync(id, EventVersion, AcknowledgeSignupWarnings ? SignupWarningCodes : [], AcceptProposedClose, Actor, ct), id, "Signups opened.", ct);
-    public async Task<IActionResult> OnPostCloseSignupAsync(Guid id, CancellationToken ct) => await SignupResult(await signupLifecycle.CloseAsync(id, EventVersion, Actor, ct), id, "Signups closed.", ct);
-    public async Task<IActionResult> OnPostReopenSignupAsync(Guid id, CancellationToken ct) => await SignupResult(await signupLifecycle.ReopenAsync(id, EventVersion, AcknowledgeSignupWarnings ? SignupWarningCodes : [], AcceptProposedClose, Actor, ct), id, "Signups reopened.", ct);
-    public async Task<IActionResult> OnPostCapacityAsync(Guid id, CancellationToken ct)
+    // U4 transport: lifecycle dialogs post through AdminFetch (Accept: application/json)
+    // and receive an OverviewOutcome; plain form posts keep the PRG fallback.
+    public async Task<IActionResult> OnPostOpenSignupAsync(Guid id, CancellationToken ct)
     {
-        if (HasBindingErrors(nameof(NewCap))) { TempData["StatusMessage"] = Localize("Enter a valid player cap."); return RedirectToPage(new { id }); }
-        var current = await dbContext.Events.AsNoTracking().Where(e => e.Id == id && e.HiddenAt == null).Select(e => new { e.WaitingListEnabled }).SingleOrDefaultAsync(ct);
-        if (current is null) return NotFound();
-        try
-        {
-            var result = await signupService.UpdateSignupAdministrationAsync(id, EventVersion, NewCap, current.WaitingListEnabled, User.GetAccountId()!.Value, User.Identity!.Name!, cancellationToken: ct);
-            if (!result.Succeeded) TempData["StatusMessage"] = result.Error;
-            else TempData["StatusMessage"] = Localize("Capacity increased. {0} participant(s) promoted.", result.PromotedParticipants);
-        }
-        catch (InvalidOperationException ex) { TempData["StatusMessage"] = ex.Message; }
-        return RedirectToPage(new { id });
+        if (WantsJson && await StaleAsync(id, ct) is { } stale) return stale;
+        return await SignupResult(await signupLifecycle.OpenAsync(id, EventVersion, [], ConfirmSignupAction, Actor, ct), id, "Signups are open for {0}.", ct);
+    }
+    public async Task<IActionResult> OnPostCloseSignupAsync(Guid id, CancellationToken ct)
+    {
+        if (WantsJson && await StaleAsync(id, ct) is { } stale) return stale;
+        return await SignupResult(await signupLifecycle.CloseAsync(id, EventVersion, ConfirmSignupAction, Actor, ct), id, "Signups are closed for {0}.", ct);
+    }
+    public async Task<IActionResult> OnPostReopenSignupAsync(Guid id, CancellationToken ct)
+    {
+        if (WantsJson && await StaleAsync(id, ct) is { } stale) return stale;
+        return await SignupResult(await signupLifecycle.ReopenAsync(id, EventVersion, [], ConfirmSignupAction, Actor, ct), id, "Signups are open again for {0}.", ct);
+    }
+    // Retired capacity owner (DP:966–971/C4). D16 still refuses terminal POSTs
+    // before this stub, preserving test14's exact Manage redirect/read-only result.
+    public IActionResult OnPostCapacity(Guid id)
+    {
+        _ = signupService; // Preserve the existing constructor contract while retiring this handler.
+        TempData["StatusMessage"] = Localize("Change the participant capacity on Signup setup.");
+        return RedirectToPage("SignupSetup", new { id });
     }
     public async Task<IActionResult> OnPostSignupWindowAsync(Guid id, CancellationToken ct)
     {
         if (!await dbContext.Events.AnyAsync(e => e.Id == id, ct)) return NotFound();
         return RedirectToPage("Schedule", new { id });
     }
-    public Task<IActionResult> OnPostPrepareSignupConfirmationAsync(Guid id, CancellationToken ct) => PrepareConfirmation(id, "signup", ct);
-    public Task<IActionResult> OnPostPrepareStartConfirmationAsync(Guid id, CancellationToken ct) => PrepareConfirmation(id, "start", ct);
-    public Task<IActionResult> OnPostPrepareEndConfirmationAsync(Guid id, CancellationToken ct) => PrepareConfirmation(id, "end", ct);
-    public Task<IActionResult> OnPostPrepareResumeConfirmationAsync(Guid id, CancellationToken ct) => PrepareConfirmation(id, "resume", ct);
-    public Task<IActionResult> OnPostPrepareDestructiveConfirmationAsync(Guid id, CancellationToken ct) => PrepareConfirmation(id, "destructive", ct);
-    public async Task<IActionResult> OnPostConfirmSignupAsync(Guid id, CancellationToken ct)
-    {
-        var state = await dbContext.Events.AsNoTracking().Where(item => item.Id == id).Select(item => item.State).SingleOrDefaultAsync(ct);
-        if (state == EventState.SignupOpen)
-            return await SignupResult(await signupLifecycle.CloseAsync(id, EventVersion, Actor, ct), id, "Signups closed.", ct);
-
-        var readiness = await readinessEvaluator.GetSignupReadinessAsync(id, state == EventState.SignupClosed ? SignupOpeningMode.Reopen : SignupOpeningMode.OpenNow, timeProvider.GetUtcNow(), ct);
-        var acknowledgeWarnings = Request.Form.ContainsKey(nameof(AcknowledgeSignupWarnings));
-        var acceptProposedClose = Request.Form.ContainsKey(nameof(AcceptProposedClose));
-        if (acknowledgeWarnings) TempData[SignupConfirmationKey(id, "warnings")] = string.Join(',', SignupWarningCodes.Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal));
-        if (acceptProposedClose) TempData[SignupConfirmationKey(id, "close")] = true;
-        var warningsConfirmed = (readiness?.Warnings.Count ?? 0) == 0 || WarningsAcknowledged(id, readiness);
-        var closeConfirmed = state is not (EventState.Draft or EventState.SignupClosed) || readiness?.CloseDecision.RequiresAcceptance != true || acceptProposedClose || TempData.Peek(SignupConfirmationKey(id, "close")) is not null;
-        if (!warningsConfirmed || !closeConfirmed)
-        {
-            SetStatus(Localize("Confirm each listed signup consequence before continuing."), UiMessageType.Information);
-            return RedirectToPage(new { id, confirm = "signup" });
-        }
-        return await SignupResult(state == EventState.SignupClosed
-            ? await signupLifecycle.ReopenAsync(id, EventVersion, AcknowledgedSignupWarningCodes(id), closeConfirmed, Actor, ct)
-            : await signupLifecycle.OpenAsync(id, EventVersion, AcknowledgedSignupWarningCodes(id), closeConfirmed, Actor, ct), id, state == EventState.SignupClosed ? "Signups reopened." : "Signups opened.", ct);
-    }
+    // Retained prepare shims keep old compiled callers source-compatible; the
+    // prepare/ladder workflow is no longer reachable from the page markup.
+    [NonAction] public Task<IActionResult> OnPostPrepareSignupConfirmationAsync(Guid id, CancellationToken ct) => PrepareConfirmation(id, "signup", ct);
+    [NonAction] public Task<IActionResult> OnPostPrepareStartConfirmationAsync(Guid id, CancellationToken ct) => PrepareConfirmation(id, "start", ct);
+    [NonAction] public Task<IActionResult> OnPostPrepareEndConfirmationAsync(Guid id, CancellationToken ct) => PrepareConfirmation(id, "end", ct);
+    [NonAction] public Task<IActionResult> OnPostPrepareResumeConfirmationAsync(Guid id, CancellationToken ct) => PrepareConfirmation(id, "resume", ct);
+    [NonAction] public Task<IActionResult> OnPostPrepareDestructiveConfirmationAsync(Guid id, CancellationToken ct) => PrepareConfirmation(id, "destructive", ct);
+    public Task<IActionResult> OnPostConfirmSignupAsync(Guid id, CancellationToken ct) =>
+        Task.FromResult<IActionResult>(BadRequest(Localize("The old signup confirmation handler is retired. Use the Open, Close, or Reopen action.")));
     public async Task<IActionResult> OnPostStartEventAsync(Guid id, CancellationToken ct)
     {
+        if (WantsJson && await StaleAsync(id, ct) is { } stale) return stale;
         var result = await eventLifecycle.StartNowAsync(id, EventVersion, ConfirmStartEvent, StartReason, Actor, ct);
         if (!result.Succeeded)
-            return await LifecycleFailureAsync(id, "start", result.Blockers is { Count: > 0 }
-                ? string.Join(" ", result.Blockers.Select(blocker => LocalizeStartBlocker(blocker).Description))
-                : result.Error ?? Localize("The event could not be started."), ct);
-        SetStatus(Localize("Event started."), UiMessageType.Success);
-        return RedirectToPage(new { id });
+        {
+            var message = result.Blockers is { Count: > 0 }
+                ? string.Join(" ", result.Blockers.Select(blocker => LocalizeRefusal(LocalizeStartBlocker(blocker).Description)))
+                : result.Error ?? "The event could not be started.";
+            return WantsJson ? Refused(message, id) : await LifecycleFailureAsync(id, "start", Localize(message), ct);
+        }
+        return await AppliedAsync(id, "{0} is live.", ct);
     }
     public async Task<IActionResult> OnPostEndEventAsync(Guid id, CancellationToken ct)
     {
+        if (WantsJson && await StaleAsync(id, ct) is { } stale) return stale;
         var result = await eventLifecycle.EndNowAsync(id, EventVersion, ConfirmEndEvent, EndReason, Actor, ct);
         if (!result.Succeeded)
-            return await LifecycleFailureAsync(id, "end", result.Error ?? Localize("The event could not be ended."), ct);
-        SetStatus(Localize("Event ended and moved to final review."), UiMessageType.Success);
-        return RedirectToPage(new { id });
+            return WantsJson ? Refused(result.Error ?? "The event could not be ended.", id) : await LifecycleFailureAsync(id, "end", result.Error ?? Localize("The event could not be ended."), ct);
+        return await AppliedAsync(id, "{0} ended and is in final review.", ct);
     }
     public async Task<IActionResult> OnPostResumeEventAsync(Guid id, CancellationToken ct)
     {
         var timezoneId = await dbContext.Events.AsNoTracking().Where(x => x.Id == id).Select(x => x.Timezone).SingleOrDefaultAsync(ct);
         if (timezoneId is null) return NotFound();
+        if (WantsJson && await StaleAsync(id, ct) is { } stale) return stale;
         var replacementEnd = ParseEventLocal(ReplacementEventEndsAtLocal, timezoneId, nameof(ReplacementEventEndsAtLocal), "Replacement event end")
             ?? (string.IsNullOrWhiteSpace(ReplacementEventEndsAtLocal) && ReplacementEventEndsAt != default ? ReplacementEventEndsAt.ToUniversalTime() : null);
+        if (WantsJson && FieldError(nameof(ReplacementEventEndsAtLocal)) is { } invalidEnd) return Invalid(invalidEnd, "until");
         var result = await eventLifecycle.ResumePrematureEndAsync(id, EventVersion, ConfirmResumeEvent, ResumeReason, replacementEnd, Actor, ct);
         if (!result.Succeeded)
-            return await LifecycleFailureAsync(id, "resume", result.Error ?? Localize("The event could not be resumed."), ct);
-        SetStatus(Localize("Event resumed and returned to live play."), UiMessageType.Success);
-        return RedirectToPage(new { id });
-    }
-    public async Task<IActionResult> OnPostCompetitionAsync(Guid id, CancellationToken ct)
-    {
-        if (HasBindingErrors(nameof(CompetitionId))) { SetStatus(Localize("Enter a valid competition ID."), UiMessageType.Error); return RedirectToPage(new { id }); }
-        try
-        {
-            var result = await (competitionSynchronization ?? throw new InvalidOperationException("Competition synchronization is not configured.")).ConfigureAsync(id, EventVersion, CompetitionId, SynchronizeCompetitionSchedule, Actor, ConfirmCompetitionSchedule, ct);
-            SetStatus(result.Succeeded ? CompetitionId is null ? Localize("Competition integration cleared.") : Localize("Competition linked and validated.") : result.Error ?? Localize("The competition could not be configured."), result.Succeeded ? UiMessageType.Success : UiMessageType.Error);
-        }
-        catch (UnauthorizedAccessException exception) { SetStatus(exception.Message, UiMessageType.Error); }
-        return RedirectToPage(new { id });
-    }
-    public async Task<IActionResult> OnPostClearCompetitionAsync(Guid id, CancellationToken ct)
-    {
-        try
-        {
-            var result = await (competitionSynchronization ?? throw new InvalidOperationException("Competition synchronization is not configured.")).ConfigureAsync(id, EventVersion, null, false, Actor, confirmScheduleChanges: false, confirmCompetitionClear: ConfirmCompetitionClear, competitionClearReason: CompetitionClearReason, cancellationToken: ct);
-            SetStatus(result.Succeeded ? Localize("Competition integration cleared.") : result.Error ?? Localize("The competition could not be cleared."), result.Succeeded ? UiMessageType.Success : UiMessageType.Error);
-        }
-        catch (UnauthorizedAccessException exception) { SetStatus(exception.Message, UiMessageType.Error); }
-        return RedirectToPage(new { id });
-    }
-    public async Task<IActionResult> OnPostRefreshCompetitionAsync(Guid id, CancellationToken ct)
-    {
-        try
-        {
-            var result = await (competitionSynchronization ?? throw new InvalidOperationException("Competition synchronization is not configured.")).RefreshAsync(id, Actor, ct);
-            var message = result.Succeeded
-                ? Localize("Competition refresh completed.")
-                : result.Skipped
-                    ? Localize("The cached competition result is still within its refresh window.")
-                    : CompetitionRefreshFailure(result);
-            SetStatus(message, result.Succeeded ? UiMessageType.Success : UiMessageType.Error);
-        }
-        catch (UnauthorizedAccessException exception) { SetStatus(exception.Message, UiMessageType.Error); }
-        return RedirectToPage(new { id });
-    }
-    public async Task<IActionResult> OnPostCreateManagedCompetitionAsync(Guid id, CancellationToken ct)
-    {
-        try
-        {
-            var result = await (competitionManagement ?? throw new InvalidOperationException("Managed competition management is not configured.")).CreateAsync(id, EventVersion, Actor, ct);
-            SetStatus(result.Succeeded ? Localize("Managed WOM competition creation recorded.") : LocalizeManagedError(result.ErrorCode, result.Error, "The managed WOM competition could not be created."), result.Succeeded ? UiMessageType.Success : UiMessageType.Error);
-        }
-        catch (UnauthorizedAccessException exception) { SetStatus(exception.Message, UiMessageType.Error); }
-        return RedirectToPage(new { id });
-    }
-    public async Task<IActionResult> OnPostDeleteManagedCompetitionAsync(Guid id, CancellationToken ct)
-    {
-        if (HasBindingErrors(nameof(ManagedCompetitionDeleteId))) { SetStatus(Localize("Select the exact managed WOM competition before deleting it."), UiMessageType.Error); return RedirectToPage(new { id }); }
-        try
-        {
-            var result = await (competitionManagement ?? throw new InvalidOperationException("Managed competition management is not configured.")).DeleteAsync(id, EventVersion, ManagedCompetitionDeleteId!.Value, ConfirmManagedCompetitionDelete, Actor, ct);
-            SetStatus(result.Succeeded ? Localize("Managed WOM competition deletion recorded.") : LocalizeManagedError(result.ErrorCode, result.Error, "The managed WOM competition could not be deleted."), result.Succeeded ? UiMessageType.Success : UiMessageType.Error);
-        }
-        catch (UnauthorizedAccessException exception) { SetStatus(exception.Message, UiMessageType.Error); }
-        return RedirectToPage(new { id });
-    }
-    public async Task<IActionResult> OnPostMakeDevelopmentCompetitionDueAsync(Guid id, CancellationToken ct)
-    {
-        if (environment?.IsDevelopment() != true) return NotFound();
-        try
-        {
-            var madeDue = await (competitionSynchronization ?? throw new InvalidOperationException("Competition synchronization is not configured.")).MakeDevelopmentRefreshDueAsync(id, Actor, ct);
-            SetStatus(madeDue ? Localize("Development TEST 15 competition refresh is due.") : Localize("The Development TEST 15 refresh control is unavailable."), madeDue ? UiMessageType.Success : UiMessageType.Error);
-        }
-        catch (UnauthorizedAccessException exception) { SetStatus(exception.Message, UiMessageType.Error); }
-        return RedirectToPage(new { id });
+            return WantsJson ? Refused(result.Error ?? "The event could not be resumed.", id) : await LifecycleFailureAsync(id, "resume", Localize(result.Error ?? "The event could not be resumed."), ct);
+        return await AppliedAsync(id, "{0} is live again.", ct);
     }
     public async Task<IActionResult> OnPostDiscardAsync(Guid id, CancellationToken ct)
     {
+        if (WantsJson && await StaleAsync(id, ct) is { } stale) return stale;
+        var discardedName = await NameAsync(id, ct);
         var result = await destructiveLifecycle.DiscardAsync(id, EventVersion, ConfirmDestructiveAction, Actor, ct);
         if (!result.Succeeded)
-            return await LifecycleFailureAsync(id, "destructive", result.Error ?? Localize("The event could not be discarded."), ct);
+            return WantsJson ? Refused(result.Error ?? "The event could not be discarded.", id) : await LifecycleFailureAsync(id, "destructive", result.Error ?? Localize("The event could not be discarded."), ct);
+        if (WantsJson) return Outcome(new(true, "applied", Message: Localize("{0} was deleted.", discardedName ?? string.Empty), Location: "/Admin/Events/Index"));
         SetStatus(Localize("Event discarded."), UiMessageType.Success);
         return RedirectToPage("Index");
     }
     public async Task<IActionResult> OnPostCancelAsync(Guid id, CancellationToken ct)
     {
+        if (WantsJson && await StaleAsync(id, ct) is { } stale) return stale;
         var result = await destructiveLifecycle.CancelAsync(id, EventVersion, ConfirmDestructiveAction, CancellationReason, Actor, ct);
         if (!result.Succeeded)
-            return await LifecycleFailureAsync(id, "destructive", result.Error ?? Localize("The event could not be cancelled."), ct);
-        SetStatus(Localize("Event cancelled."), UiMessageType.Success);
-        return RedirectToPage(new { id });
+            return WantsJson ? Refused(result.Error ?? "The event could not be cancelled.", id) : await LifecycleFailureAsync(id, "destructive", result.Error ?? Localize("The event could not be cancelled."), ct);
+        return await AppliedAsync(id, "{0} was cancelled.", ct);
     }
     public async Task<IActionResult> OnPostHideAsync(Guid id, CancellationToken ct)
     {
+        if (!ConfirmDestructiveAction)
+        {
+            if (WantsJson) return Refused("Confirm that you want to hide this event.", id);
+            SetStatus(Localize("Confirm that you want to hide this event."), UiMessageType.Error);
+            return RedirectToPage(new { id });
+        }
         var result = await (quarantine ?? throw new InvalidOperationException("Event quarantine is not configured.")).HideAsync(id, EventVersion, EventNameConfirmation, QuarantineReason, Actor, ct);
-        SetStatus(result.Succeeded ? Localize("Event hidden from all ordinary surfaces.") : result.Error ?? Localize("The event could not be hidden."), result.Succeeded ? UiMessageType.Success : UiMessageType.Error);
+        if (WantsJson) return QuarantineOutcome(result, id, Localize("{0} is hidden.", await NameAsync(id, ct) ?? string.Empty));
+        SetStatus(result.Succeeded ? Localize("Event hidden from all ordinary surfaces.") : result.Error ?? Localize("The event could not be hidden."), QuarantineSeverity(result));
         return result.Succeeded ? RedirectToPage("Index", new { filter = "hidden" }) : RedirectToPage(new { id });
     }
     public async Task<IActionResult> OnPostRestoreHiddenAsync(Guid id, CancellationToken ct)
     {
+        if (!ConfirmDestructiveAction)
+        {
+            if (WantsJson) return Refused("Confirm that you want to restore this event.", id);
+            SetStatus(Localize("Confirm that you want to restore this event."), UiMessageType.Error);
+            return RedirectToPage(new { id });
+        }
         var result = await (quarantine ?? throw new InvalidOperationException("Event quarantine is not configured.")).RestoreAsync(id, EventVersion, EventNameConfirmation, QuarantineReason, Actor, ct);
-        SetStatus(result.Succeeded ? Localize("Event restored with its lifecycle and retained history unchanged.") : result.Error ?? Localize("The event could not be restored."), result.Succeeded ? UiMessageType.Success : UiMessageType.Error);
-        return result.Succeeded ? RedirectToPage("Index") : RedirectToPage(new { id, hidden = true });
+        if (WantsJson) return QuarantineOutcome(result, id, Localize("{0} was restored.", await NameAsync(id, ct) ?? string.Empty));
+        SetStatus(result.Succeeded ? Localize("Event restored with its lifecycle and retained history unchanged.") : result.Error ?? Localize("The event could not be restored."), QuarantineSeverity(result));
+        // U4-Q3 (c): the plain event URL is the Super Admin's hidden view.
+        return result.Succeeded ? RedirectToPage("Index") : RedirectToPage(new { id });
     }
     public async Task<IActionResult> OnPostReopenSubmissionsAsync(Guid id, CancellationToken ct)
     {
         var item = await dbContext.Events.SingleOrDefaultAsync(x => x.Id == id, ct);
         if (item is null) return NotFound();
-        var reopenUntil = ParseEventLocal(ReopenUntilLocal, item.Timezone, nameof(ReopenUntilLocal), "Reopen cutoff")
+        var reopenUntil = ParseEventLocal(ReopenUntilLocal, item.Timezone, nameof(ReopenUntilLocal), "Reopen until")
             ?? (string.IsNullOrWhiteSpace(ReopenUntilLocal) ? ReopenUntil?.ToUniversalTime() : null);
+        if (WantsJson)
+        {
+            if (item.Version != EventVersion) return Outcome(new(false, "stale", Localize("This event changed in another request. Reload before reopening submissions.")));
+            if (FieldError(nameof(ReopenUntilLocal)) is { } invalidUntil) return Invalid(invalidUntil, "until");
+            if (reopenUntil is null) return Invalid(Localize("Choose a date and time."), "until");
+            if (string.IsNullOrWhiteSpace(StateReason)) return Invalid(Localize("Enter a reason."), "reason");
+        }
         if (reopenUntil is null || string.IsNullOrWhiteSpace(StateReason))
         {
             TempData["StatusMessage"] = Localize("A valid future cutoff and reason are required.");
             return RedirectToPage(new { id });
         }
 
+        string? failure = null;
         await using var transaction = await dbContext.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, ct);
         try
         {
@@ -298,6 +219,7 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
             {
                 await transaction.RollbackAsync(CancellationToken.None);
                 dbContext.ChangeTracker.Clear();
+                if (WantsJson) return Outcome(new(false, "stale", Localize("This event changed in another request. Reload before reopening submissions.")));
                 TempData["StatusMessage"] = Localize("This event changed in another request. Reload before reopening submissions.");
                 return RedirectToPage(new { id });
             }
@@ -305,19 +227,26 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
             item.ReopenSubmissions(reopenUntil.Value, timeProvider.GetUtcNow());
             await AuditAsync("event.submissions_reopened", item, $"Until {reopenUntil:O}; {StateReason}", ct);
             await transaction.CommitAsync(ct);
-            TempData["StatusMessage"] = Localize("Submissions reopened until {0}.", DateTimePresentation.Format(reopenUntil.Value, "dd MMM yyyy, HH:mm", item.Timezone, CultureInfo.CurrentCulture));
+            var message = Localize("Uploads are open until {0}.", DateTimePresentation.Format(reopenUntil.Value, "d MMM yyyy, HH':'mm", item.Timezone, CultureInfo.CurrentCulture));
+            if (WantsJson) return Outcome(new(true, "applied", Message: message));
+            TempData["StatusMessage"] = message;
         }
         catch (InvalidOperationException ex)
         {
             await transaction.RollbackAsync(CancellationToken.None);
             dbContext.ChangeTracker.Clear();
-            TempData["StatusMessage"] = ex.Message;
+            failure = ex.Message;
         }
         catch (DbUpdateException)
         {
             await transaction.RollbackAsync(CancellationToken.None);
             dbContext.ChangeTracker.Clear();
-            TempData["StatusMessage"] = Localize("The submission window could not be reopened safely. Reload and try again.");
+            failure = "The submission window could not be reopened safely. Reload and try again.";
+        }
+        if (failure is not null)
+        {
+            if (WantsJson) return Refused(failure, id);
+            TempData["StatusMessage"] = Localize(failure);
         }
         return RedirectToPage(new { id });
     }
@@ -334,28 +263,26 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
             {
                 await transaction.RollbackAsync(CancellationToken.None);
                 dbContext.ChangeTracker.Clear();
-                TempData["StatusMessage"] = Localize("This event changed in another request. Reload before changing verification codes.");
-                return RedirectToPage(new { id });
+                return CodeOutcome(id, false, "This event changed in another request. Reload before changing verification codes.", "stale");
             }
 
             item.SetEvidenceCodeEnabled(enabled, timeProvider.GetUtcNow());
             await AuditAsync("event.evidence_code_mode", item, enabled ? "Enabled" : "Disabled", ct);
             await transaction.CommitAsync(ct);
-            TempData["StatusMessage"] = enabled ? Localize("Verification codes enabled.") : Localize("Verification codes disabled.");
+            return CodeOutcome(id, true, enabled ? "Evidence codes are required." : "Evidence codes are off.");
         }
         catch (InvalidOperationException ex)
         {
             await transaction.RollbackAsync(CancellationToken.None);
             dbContext.ChangeTracker.Clear();
-            TempData["StatusMessage"] = ex.Message;
+            return CodeOutcome(id, false, ex.Message);
         }
         catch (DbUpdateException)
         {
             await transaction.RollbackAsync(CancellationToken.None);
             dbContext.ChangeTracker.Clear();
-            TempData["StatusMessage"] = Localize("Verification codes could not be changed safely. Reload and try again.");
+            return CodeOutcome(id, false, "Verification codes could not be changed safely. Reload and try again.");
         }
-        return RedirectToPage(new { id });
     }
     public Task<IActionResult> OnPostCreateEvidenceCodeAsync(Guid id, CancellationToken ct) => CreateEvidenceCode(id, NewEvidenceCode, ct);
     private async Task<IActionResult> CreateEvidenceCode(Guid id, string? code, CancellationToken ct)
@@ -363,21 +290,14 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
         var item = await dbContext.Events.SingleOrDefaultAsync(x => x.Id == id, ct);
         if (item is null) return NotFound();
         if (HasBindingErrors(nameof(NewEvidenceCode), nameof(EvidenceCodeActivatesAtLocal), nameof(EvidenceCodeNote)))
-        {
-            TempData["StatusMessage"] = Localize("Check the verification code details and try again.");
-            return RedirectToPage(new { id });
-        }
+            return CodeOutcome(id, false, "Check the verification code details and try again.", "invalid");
         if (string.IsNullOrWhiteSpace(code))
-        {
-            TempData["StatusMessage"] = Localize("Enter or generate a code first.");
-            return RedirectToPage(new { id });
-        }
-        var activates = ParseEventLocal(EvidenceCodeActivatesAtLocal, item.Timezone, nameof(EvidenceCodeActivatesAtLocal), "Activation time");
+            return CodeOutcome(id, false, "Enter or generate a code first.", "invalid", "code");
+        var activates = ParseEventLocal(EvidenceCodeActivatesAtLocal, item.Timezone, nameof(EvidenceCodeActivatesAtLocal), "Activates at");
         if (!string.IsNullOrWhiteSpace(EvidenceCodeActivatesAtLocal) && activates is null)
-        {
-            TempData["StatusMessage"] = Localize("Check the verification code details and try again.");
-            return RedirectToPage(new { id });
-        }
+            return WantsJson && FieldError(nameof(EvidenceCodeActivatesAtLocal)) is { } invalidFrom
+                ? Invalid(invalidFrom, "from")
+                : CodeOutcome(id, false, "Check the verification code details and try again.", "invalid");
         var now = timeProvider.GetUtcNow();
         var activatedAt = activates ?? EvidenceCodeActivatesAt?.ToUniversalTime() ?? now;
 
@@ -388,23 +308,20 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
             {
                 await transaction.RollbackAsync(CancellationToken.None);
                 dbContext.ChangeTracker.Clear();
-                TempData["StatusMessage"] = Localize("This event changed in another request. Reload before creating a verification code.");
-                return RedirectToPage(new { id });
+                return CodeOutcome(id, false, "This event changed in another request. Reload before creating a verification code.", "stale");
             }
             if (!item.EvidenceCodeEnabled)
             {
                 await transaction.RollbackAsync(CancellationToken.None);
                 dbContext.ChangeTracker.Clear();
-                TempData["StatusMessage"] = Localize("Enable evidence codes first.");
-                return RedirectToPage(new { id });
+                return CodeOutcome(id, false, "Enable evidence codes first.");
             }
             item.SetEvidenceCodeEnabled(item.EvidenceCodeEnabled, now);
             if (await dbContext.EvidenceCodes.AnyAsync(x => x.EventId == id && x.ActivatesAt == activatedAt, ct))
             {
                 await transaction.RollbackAsync(CancellationToken.None);
                 dbContext.ChangeTracker.Clear();
-                TempData["StatusMessage"] = Localize("Another code already activates at that exact time.");
-                return RedirectToPage(new { id });
+                return CodeOutcome(id, false, "Another code already activates at that exact time.", "invalid", "from");
             }
 
             var created = new EvidenceCode(Guid.NewGuid(), id, code, activatedAt, User.GetAccountId()!.Value, now, EvidenceCodeNote);
@@ -415,53 +332,38 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
             for (var index = 0; index < codes.Count; index++)
                 codes[index].SetRetiresAt(index + 1 < codes.Count ? codes[index + 1].ActivatesAt : null);
             item.AdvanceVersion();
-            await AuditAsync("evidence_code.created", item, $"{created.Code}; activates {activatedAt:O}", ct);
+            await AuditAsync("evidence_code.created", item, $"Activates {activatedAt:O}", ct);
             await transaction.CommitAsync(ct);
-            TempData["StatusMessage"] = Localize("Evidence code {0} saved.", created.Code);
+            return CodeOutcome(id, true, Localize("Code {0} saved.", created.Code));
         }
         catch (InvalidOperationException ex)
         {
             await transaction.RollbackAsync(CancellationToken.None);
             dbContext.ChangeTracker.Clear();
-            TempData["StatusMessage"] = ex.Message;
+            return CodeOutcome(id, false, ex.Message);
         }
         catch (DbUpdateException)
         {
             await transaction.RollbackAsync(CancellationToken.None);
             dbContext.ChangeTracker.Clear();
-            TempData["StatusMessage"] = Localize("The verification code could not be saved safely. Reload and try again.");
+            return CodeOutcome(id, false, "The verification code could not be saved safely. Reload and try again.");
         }
+    }
+    // Evidence codes keep their PRG response for plain posts (Pass3 tests construct
+    // the page model directly); AdminFetch receives the same outcome as JSON.
+    private IActionResult CodeOutcome(Guid id, bool succeeded, string message, string? outcome = null, string? field = null)
+    {
+        var localized = Localize(message);
+        if (WantsJson) return Outcome(new(succeeded, outcome ?? (succeeded ? "applied" : "refused"), succeeded ? null : localized,
+            field is null ? null : new Dictionary<string, string> { [field] = localized }, succeeded ? localized : null));
+        TempData["StatusMessage"] = localized;
         return RedirectToPage(new { id });
     }
     private async Task<bool> LoadAsync(Guid id, CancellationToken ct)
     {
-        var item = await dbContext.Events.AsNoTracking().SingleOrDefaultAsync(e => e.Id == id && e.State != EventState.Discarded, ct); if (item is null || item.IsHidden && (!HiddenInspection || !User.IsInRole("SuperAdmin"))) return false;
-        var allParticipants = await dbContext.EventParticipants.AsNoTracking().Where(p => p.EventId == id).OrderBy(p => p.SignedUpAt).ThenBy(p => p.SignupSequence).ToListAsync(ct);
-        var activeTeamIds = await dbContext.Teams.AsNoTracking().Where(team => team.EventId == id && team.Active).Select(team => team.Id).ToListAsync(ct);
-        var membershipCounts = activeTeamIds.Count == 0
-            ? new Dictionary<Guid, int>()
-            : await dbContext.TeamMemberships.AsNoTracking().Where(membership => activeTeamIds.Contains(membership.TeamId) && membership.LeftAt == null).GroupBy(membership => membership.TeamId).ToDictionaryAsync(group => group.Key, group => group.Count(), ct);
-        var teamSizes = activeTeamIds.Select(teamId => membershipCounts.GetValueOrDefault(teamId)).ToList();
-        var actualTeamSize = teamSizes.Count == 0 ? null : teamSizes.Min() == teamSizes.Max() ? teamSizes[0].ToString(CultureInfo.InvariantCulture) : $"{teamSizes.Min()}–{teamSizes.Max()}";
-        var board = await dbContext.Boards.AsNoTracking().Where(value => value.EventId == id).Select(value => new { value.Rows, value.Columns, value.State }).SingleOrDefaultAsync(ct);
-        var boardSize = board is null ? null : $"{board.Rows} × {board.Columns}";
-        int? boardRows = board?.Rows ?? item.ExpectedBoardRows;
-        int? boardColumns = board?.Columns ?? item.ExpectedBoardColumns;
-        int? configuredBoardTileCount = board is null ? null : await dbContext.BoardTiles.AsNoTracking().CountAsync(tile => tile.BoardId == id, ct);
-        int? expectedBoardCellCount = boardRows is { } rows && boardColumns is { } columns ? rows * columns : null;
-        var draftReady = await dbContext.DraftSessions.AsNoTracking().AnyAsync(session => session.EventId == id && session.State == DraftState.Finalized, ct);
-        var canStartEvent = board?.State == BoardState.Published && draftReady;
-        var postponed = await dbContext.ScheduledEventStartAttempts.AsNoTracking().Where(x => x.EventId == id && x.ScheduledFor <= timeProvider.GetUtcNow() && !x.Started && x.ResolvedAt == null).OrderByDescending(x => x.AttemptedAt).FirstOrDefaultAsync(ct);
-        StartReadiness = await eventLifecycle.GetStartReadinessAsync(id, ct);
-        if (StartReadiness is not null) StartReadiness = new(StartReadiness.Blockers.Select(LocalizeStartBlocker).ToArray());
-        EvidenceCodes = await dbContext.EvidenceCodes.AsNoTracking().Where(x => x.EventId == id).OrderByDescending(x => x.ActivatesAt).Select(x => new EvidenceCodeRow(x.Id, x.Code, x.ActivatesAt, x.RetiresAt, x.Note)).ToListAsync(ct);
-        SubmissionCount = await dbContext.Submissions.CountAsync(x => x.EventId == id, ct);
-        PendingReviewCount = await dbContext.Submissions.CountAsync(x => x.EventId == id && x.Status == SubmissionStatus.Pending, ct);
-        FinalReviewReadiness = item.State == EventState.AwaitingFinalReview && finalizationService is not null ? await finalizationService.GetReadinessAsync(id, ct) : null;
-        EventView = new EventDetails(item.Id, item.Name, item.Slug, item.Description, item.Timezone, item.State, item.FirstPublicAt, item.BoardPublished, item.SignupOpensAt, item.SignupClosesAt, item.DraftAt, item.EventStartsAt, item.EventEndsAt, item.ActualSignupOpenedAt, item.ActualSignupClosedAt, item.ActualStartedAt, item.ActualEndedAt, item.ActualEndedAt ?? item.EventEndsAt, item.SubmissionCutoffAt, item.SubmissionsClosedAt, item.ScheduledSignupOpeningEnabled, item.ReopenedSubmissionCutoffAt, item.ParticipantCap ?? 0, allParticipants.Count(p => p.SignupStatus == SignupStatus.Confirmed), allParticipants.Count(p => p.SignupStatus == SignupStatus.WaitingList), item.DraftLocked, item.EvidenceCodeEnabled, activeTeamIds.Count, actualTeamSize, boardSize, boardRows, boardColumns, configuredBoardTileCount, expectedBoardCellCount, item.ExpectedTeamCount, item.ExpectedTeamSize, item.ExpectedBoardRows is not null && item.ExpectedBoardColumns is not null ? $"{item.ExpectedBoardRows} × {item.ExpectedBoardColumns}" : null, canStartEvent, item.FinalizedAt, item.ArchivedAt, item.CancelledAt, item.IsHidden, item.HiddenAt, item.HiddenByAccountId, item.HiddenReason);
-        var evidenceCodeNow = timeProvider.GetUtcNow();
-        CanConfigureEvidenceCodes = item.State is EventState.Draft or EventState.SignupOpen or EventState.SignupClosed or EventState.Live
-            || item.State == EventState.AwaitingFinalReview && item.AcceptsNewSubmissions(evidenceCodeNow);
+        // U4-Q3 (c): the plain URL opens the Super Admin's limited hidden view; ?hidden=true is accepted and ignored.
+        var item = await dbContext.Events.AsNoTracking().SingleOrDefaultAsync(e => e.Id == id && e.State != EventState.Discarded, ct); if (item is null || item.IsHidden && !User.IsInRole("SuperAdmin")) return false;
+        EventId = item.Id; EventTimezone = item.Timezone; HiddenView = item.IsHidden;
         if (item.IsHidden)
         {
             EventNameConfirmation = item.Name;
@@ -470,71 +372,162 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
                 .OrderByDescending(entry => entry.OccurredAt)
                 .Select(entry => new QuarantineAuditRow(entry.Action, entry.OccurredAt, entry.ActorUsername, entry.Details))
                 .ToListAsync(ct);
-            EventVersion = item.Version;
-            return true;
         }
-        EffectiveTimeline = EffectiveTimelineFor(new(
-            item.SignupOpensAt,
-            item.SignupClosesAt,
-            item.DraftAt,
-            item.EventStartsAt,
-            item.EventEndsAt,
-            item.ActualSignupOpenedAt,
-            item.ActualSignupClosedAt,
-            item.ActualStartedAt,
-            item.ActualEndedAt,
-            item.SubmissionCutoffAt,
-            item.SubmissionsClosedAt,
-            item.CancelledAt));
-        SignupReadiness = await readinessEvaluator.GetSignupReadinessAsync(id, item.State == EventState.SignupClosed ? SignupOpeningMode.Reopen : SignupOpeningMode.OpenNow, timeProvider.GetUtcNow(), ct);
-        CanDiscard = item.State is EventState.Draft or EventState.SignupOpen or EventState.SignupClosed
+        var state = await CurrentStateAsync(item, ct);
+        Overview = state.View;
+        CurrentJson = System.Text.Json.JsonSerializer.Serialize(state, WebJson);
+        EventVersion = item.Version;
+        return true;
+    }
+
+    private async Task<OverviewInput> OverviewInputAsync(BingoEvent item, CancellationToken ct)
+    {
+        var id = item.Id; var now = timeProvider.GetUtcNow();
+        var pre = item.State is EventState.Draft or EventState.SignupOpen or EventState.SignupClosed;
+        var participants = await dbContext.EventParticipants.AsNoTracking().Where(p => p.EventId == id).GroupBy(p => p.SignupStatus).Select(g => new { g.Key, Count = g.Count() }).ToListAsync(ct);
+        var activeTeamIds = await dbContext.Teams.AsNoTracking().Where(team => team.EventId == id && team.Active).Select(team => team.Id).ToListAsync(ct);
+        var players = activeTeamIds.Count == 0 ? 0 : await dbContext.TeamMemberships.AsNoTracking().CountAsync(m => activeTeamIds.Contains(m.TeamId) && m.LeftAt == null, ct);
+        var board = await dbContext.Boards.AsNoTracking().Where(value => value.EventId == id).Select(value => new { value.Id, value.Rows, value.Columns, value.State }).SingleOrDefaultAsync(ct);
+        var configured = board is null ? 0 : await dbContext.BoardTiles.AsNoTracking().CountAsync(tile => tile.BoardId == board.Id, ct);
+        var submissions = await dbContext.Submissions.AsNoTracking().Where(x => x.EventId == id).GroupBy(x => x.Status).Select(g => new { g.Key, Count = g.Count() }).ToListAsync(ct);
+        var startBlockers = item.State == EventState.SignupClosed || pre && !item.IsHidden
+            ? (await eventLifecycle.GetStartReadinessAsync(id, ct))?.Blockers.Select(LocalizeStartBlocker).ToArray() ?? [] : [];
+        var signup = item.State == EventState.Draft && !item.IsHidden ? await readinessEvaluator.GetSignupReadinessAsync(id, SignupOpeningMode.OpenNow, now, ct) : null;
+        var reopen = item.State == EventState.SignupClosed && !item.IsHidden ? await readinessEvaluator.GetSignupReadinessAsync(id, SignupOpeningMode.Reopen, now, ct) : null;
+        var overlap = item.State is EventState.Draft or EventState.SignupClosed && !item.IsHidden ? await readinessEvaluator.GetCurrentEventOverlapAsync(id, ct) : null;
+        var final = item.State == EventState.AwaitingFinalReview && finalizationService is not null && !item.IsHidden ? await finalizationService.GetReadinessAsync(id, ct) : null;
+        var everFinalized = item.State == EventState.AwaitingFinalReview && await dbContext.EventFinalizations.AnyAsync(x => x.EventId == id, ct);
+        var postponed = pre ? await dbContext.ScheduledEventStartAttempts.AsNoTracking().Where(x => x.EventId == id && x.ScheduledFor == item.EventStartsAt && x.ScheduledFor <= now && !x.Started && x.ResolvedAt == null).OrderByDescending(x => x.AttemptedAt).FirstOrDefaultAsync(ct) : null;
+        var failedOpening = item.State == EventState.Draft ? await dbContext.ScheduledSignupOpeningAttempts.AsNoTracking().Where(x => x.EventId == id && x.ScheduledFor == item.SignupOpensAt && x.ScheduledFor <= now && !x.Opened && x.ResolvedAt == null).OrderByDescending(x => x.AttemptedAt).FirstOrDefaultAsync(ct) : null;
+        var wom = competitionSynchronization is null || item.IsHidden ? null : await competitionSynchronization.GetAsync(id, ct);
+        var codes = await dbContext.EvidenceCodes.AsNoTracking().Where(x => x.EventId == id).OrderByDescending(x => x.ActivatesAt).Select(x => new EvidenceCodeRow(x.Id, x.Code, x.ActivatesAt, x.RetiresAt, x.Note)).ToListAsync(ct);
+        var other = pre || item.State == EventState.AwaitingFinalReview ? await eventLifecycle.GetOtherCurrentEventAsync(id, ct) : null;
+        var canDiscard = pre
             && !await dbContext.EventParticipants.AnyAsync(x => x.EventId == id, ct)
             && !await dbContext.Teams.AnyAsync(x => x.EventId == id, ct)
             && !await dbContext.AccountEventAccesses.AnyAsync(x => x.EventId == id, ct)
             && !await dbContext.Submissions.AnyAsync(x => x.EventId == id, ct);
-        PrivateCancellationReason = item.State == EventState.Cancelled ? item.CancellationReason : null;
-        CompetitionIntegration = competitionSynchronization is null ? null : await competitionSynchronization.GetAsync(id, ct);
-        CompetitionManagement = competitionManagement is null ? null : await competitionManagement.GetAsync(id, ct);
-        ShowAllControlStages = environment?.IsDevelopment() == true && Request.Query.ContainsKey("preview-all-controls");
-        ShowDevelopmentCompetitionControl = environment?.IsDevelopment() == true && item.IsDevelopmentFixture && item.Slug == "test-15-dkl-live" && item.State == EventState.Live && CompetitionIntegration?.Configured == true;
-        var failedOpening = await dbContext.ScheduledSignupOpeningAttempts.AsNoTracking().Where(x => x.EventId == id && !x.Opened && x.ResolvedAt == null).OrderByDescending(x => x.AttemptedAt).FirstOrDefaultAsync(ct);
-        ScheduledAction = postponed is not null && item.State is EventState.Draft or EventState.SignupOpen or EventState.SignupClosed
-            ? new("Automatic start postponed", postponed.ScheduledFor, postponed.AttemptedAt, StartReadiness?.Blockers ?? [])
-            : failedOpening is not null ? new("Scheduled signup opening failed", failedOpening.ScheduledFor, failedOpening.AttemptedAt,
-                failedOpening.Details.Count > 0
-                    ? failedOpening.Details.Select(detail => new ReadinessItem("SCHEDULED_OPENING_FAILED", detail, $"/Admin/Events/Schedule/{id}")).ToArray()
-                    : failedOpening.Blockers.Select(code => DescribeBlocker(code, id, item.State)).ToArray()) : null;
-        var overviewBlockers = new List<ReadinessItem>();
-        if (item.State is EventState.Draft or EventState.SignupOpen)
-            overviewBlockers.AddRange(SignupReadiness?.Blockers.Select(x => AddResolutionRoute(x, id, item.State)) ?? []);
-        if (item.State is EventState.SignupClosed or EventState.Live)
-            overviewBlockers.AddRange(StartReadiness?.Blockers ?? []);
-        if (item.State == EventState.AwaitingFinalReview)
-            overviewBlockers.AddRange(FinalReviewReadiness?.Blockers.Where(x => !x.Resolved).Select(x => AddResolutionRoute(new ReadinessItem(x.Key, x.Description, x.Link), id, item.State)) ?? []);
-        if (ScheduledAction is not null)
-            overviewBlockers.AddRange(ScheduledAction.Blockers);
-        OverviewBlockers = overviewBlockers.DistinctBy(x => (x.Code, x.Description, x.Route)).ToList();
-        var now = timeProvider.GetUtcNow();
-        ResumeRequiresReplacement = item.EventEndsAt is not { } configuredEnd || configuredEnd <= now;
-        EventVersion = item.Version; CompetitionId = CompetitionIntegration?.CompetitionId; NewCap = item.ParticipantCap ?? 0; NewSignupOpening = item.SignupOpensAt ?? now; NewSignupClosing = item.SignupClosesAt ?? now.AddDays(1); EvidenceCodeActivatesAt = now; EvidenceCodeActivatesAtLocal = DateTimePresentation.Format(EvidenceCodeActivatesAt.Value, "yyyy-MM-ddTHH:mm", item.Timezone, CultureInfo.InvariantCulture); ReopenUntil = now.AddHours(1); ReopenUntilLocal = DateTimePresentation.Format(ReopenUntil.Value, "yyyy-MM-ddTHH:mm", item.Timezone, CultureInfo.InvariantCulture); ReplacementEventEndsAt = item.EventEndsAt ?? now.AddHours(1); ReplacementEventEndsAtLocal = DateTimePresentation.Format(ReplacementEventEndsAt, "yyyy-MM-ddTHH:mm", item.Timezone, CultureInfo.InvariantCulture); return true;
+        var cancelledBy = item.State == EventState.Cancelled ? await dbContext.AuditEntries.AsNoTracking().Where(x => x.EventId == id && x.Action == "event.cancelled").OrderByDescending(x => x.OccurredAt).Select(x => x.ActorUsername).FirstOrDefaultAsync(ct) : null;
+        var hiddenBy = item.IsHidden ? await dbContext.AuditEntries.AsNoTracking().Where(x => x.EventId == id && x.Action == "event.hidden").OrderByDescending(x => x.OccurredAt).Select(x => x.ActorUsername).FirstOrDefaultAsync(ct) : null;
+        var placings = new List<OverviewPlacing>();
+        if (item.State is EventState.Archived or EventState.Finalized)
+        {
+            var official = await dbContext.EventFinalizations.AsNoTracking().Where(x => x.EventId == id && x.UnfinalizedAt == null).OrderByDescending(x => x.Version).Select(x => (Guid?)x.Id).FirstOrDefaultAsync(ct);
+            if (official is { } finalId)
+                placings = await dbContext.OfficialPlacements.AsNoTracking().Where(x => x.FinalizationId == finalId).OrderBy(x => x.Placement).ThenBy(x => x.TeamName)
+                    .Select(x => new OverviewPlacing(x.TeamName, x.Placement, x.CompletedTiles)).ToListAsync(ct);
+        }
+        return new(item, now, HttpContext?.User.IsInRole("SuperAdmin") == true,
+            participants.Where(x => x.Key == SignupStatus.Confirmed).Sum(x => x.Count), participants.Where(x => x.Key == SignupStatus.WaitingList).Sum(x => x.Count),
+            activeTeamIds.Count, players, configured, board is null ? 0 : board.Rows * board.Columns, board?.State == BoardState.Published,
+            await dbContext.ActiveRosterPublications(id).AnyAsync(ct),
+            submissions.Where(x => x.Key == SubmissionStatus.Pending).Sum(x => x.Count), submissions.Where(x => x.Key == SubmissionStatus.Approved).Sum(x => x.Count),
+            startBlockers, signup, reopen, overlap, final, everFinalized, postponed, failedOpening, wom, codes, other, canDiscard, cancelledBy, hiddenBy, placings,
+            HttpContext is null ? string.Empty : $"{Request.Scheme}://{Request.Host}");
     }
     private LifecycleActor Actor => new(User.GetAccountId()!.Value, User.Identity!.Name!);
+
+    // U4 current-state read for Check again, stale and "gone" (42c §1.5 item 14). Same
+    // Admin/hidden/discarded filter as the page; it reports current values only and
+    // cannot tell which request wrote them.
+    public async Task<IActionResult> OnGetCurrentAsync(Guid id, CancellationToken ct)
+    {
+        Response.Headers.CacheControl = "no-store";
+        var item = await dbContext.Events.AsNoTracking().SingleOrDefaultAsync(e => e.Id == id && e.State != EventState.Discarded, ct);
+        if (item is null || item.IsHidden && !User.IsInRole("SuperAdmin")) return NotFound();
+        return new JsonResult(await CurrentStateAsync(item, ct));
+    }
+    private async Task<OverviewCurrentState> CurrentStateAsync(BingoEvent item, CancellationToken ct)
+    {
+        var input = await OverviewInputAsync(item, ct);
+        var view = new OverviewPresenter(input, (key, args) => Localize(key, args), CultureInfo.CurrentCulture).Build();
+        var codes = input.Codes.OrderBy(x => x.ActivatesAt).Select(x => new OverviewCurrentCode(x.Code, x.ActivatesAt, x.RetiresAt)).ToList();
+        // Stale banner: the latest recorded change to this event (actor and readable action).
+        var last = await dbContext.AuditEntries.AsNoTracking().Where(x => x.EventId == item.Id).OrderByDescending(x => x.OccurredAt).Select(x => new { x.Action, x.ActorUsername }).FirstOrDefaultAsync(ct);
+        var lastChange = last is null ? null : Localize("{0} ({1})", AuditPresenter.ActionLabels.TryGetValue(last.Action, out var label) ? auditText?[label].Value ?? label : last.Action, last.ActorUsername);
+        // L6: the hidden view (U4-Q3 (c)) needs only the restore dialog; no other dialog, evidence code or last change is emitted.
+        if (item.IsHidden)
+            return new(item.Id, item.Version.ToString(CultureInfo.InvariantCulture), item.State.ToString(), true, null, null, false, [],
+                view.Dialogs.Where(pair => pair.Key == "restore").ToDictionary(pair => pair.Key, pair => pair.Value),
+                new OverviewCodes(false, false, string.Empty, [], view.Codes.Timezone, string.Empty), null, view);
+        return new(item.Id, item.Version.ToString(CultureInfo.InvariantCulture), item.State.ToString(), item.IsHidden,
+            item.ReopenedSubmissionCutoffAt, item.EventEndsAt, item.EvidenceCodeEnabled, codes, view.Dialogs, view.Codes, lastChange, view);
+    }
+    private bool WantsJson => Request.GetTypedHeaders().Accept?.Any(value => value.MediaType.Value == "application/json") == true;
+    private static JsonResult Outcome(OverviewOutcome outcome) => new(outcome);
+    private async Task<IActionResult?> StaleAsync(Guid id, CancellationToken ct)
+    {
+        // The version read when the dialog opened is checked first, so a changed
+        // event is reported as stale and re-evaluated, not as a refusal.
+        var version = await dbContext.Events.AsNoTracking().Where(x => x.Id == id).Select(x => (long?)x.Version).SingleOrDefaultAsync(ct);
+        return version is { } current && current != EventVersion ? Outcome(new(false, "stale", Localize("This event changed while this was open."))) : null;
+    }
+    // Success toasts follow the reference ("Signups are open for X." etc.).
+    private async Task<IActionResult> AppliedAsync(Guid id, string message, CancellationToken ct)
+    {
+        var text = Localize(message, await NameAsync(id, ct) ?? string.Empty);
+        if (WantsJson) return Outcome(new(true, "applied", Message: text));
+        SetStatus(text, UiMessageType.Success);
+        return RedirectToPage(new { id });
+    }
+    private Task<string?> NameAsync(Guid id, CancellationToken ct) => dbContext.Events.AsNoTracking().Where(x => x.Id == id).Select(x => x.Name).SingleOrDefaultAsync(ct);
+    private JsonResult Refused(string error, Guid id)
+    {
+        // A service refusal that is really a concurrent change stays a stale outcome.
+        var stale = error.StartsWith("This event changed while", StringComparison.Ordinal);
+        var field = error switch
+        {
+            "Enter a reason when ending the event before its configured end." or "Enter a reason for resuming the event." or "Enter a reason for cancelling the event." or "Enter a reason for hiding the event." => "reason",
+            "Choose a future replacement event end." or "The replacement event end must be in the future." or "Choose a time in five-minute increments." or "The replacement event end must be after the event start." => "until",
+            _ => null
+        };
+        var localized = LocalizeRefusal(error);
+        _ = id;
+        return Outcome(new(false, stale ? "stale" : field is null ? "refused" : "invalid", localized, field is null ? null : new Dictionary<string, string> { [field] = localized }));
+    }
+    private static JsonResult Invalid(string error, string field) => Outcome(new(false, "invalid", error, new Dictionary<string, string> { [field] = error }));
+    private JsonResult QuarantineOutcome(EventQuarantineResult result, Guid id, string success) => result.Outcome switch
+    {
+        EventQuarantineOutcome.Applied => Outcome(new(true, "applied", Message: Localize(success))),
+        EventQuarantineOutcome.Stale => Outcome(new(false, "stale", Localize(result.Error ?? "This event changed while this was open."))),
+        EventQuarantineOutcome.ValidationFailed => Outcome(new(false, "invalid", Localize(result.Error ?? "Enter a reason."), result.FieldErrors.ToDictionary(x => x.Key, x => Localize(x.Value)))),
+        _ => Refused(result.Error ?? "The event could not be changed.", id)
+    };
+    private string? FieldError(string field) => ModelState.TryGetValue(field, out var entry) && entry.Errors.Count > 0 ? entry.Errors[0].ErrorMessage : null;
+    // Service refusals that name another event (S2, U4-Q4/Q5) are localized by pattern.
+    private string LocalizeRefusal(string error)
+    {
+        var publish = System.Text.RegularExpressions.Regex.Match(error, "^Publish the results of (.+) first\\.$");
+        if (publish.Success) return Localize("Publish the results of {0} first.", publish.Groups[1].Value);
+        var still = System.Text.RegularExpressions.Regex.Match(error, "^(.+) is still the current event\\. Contact the Super Admin to archive it\\.$");
+        if (still.Success) return Localize("{0} is still the current event. Contact the Super Admin to archive it.", still.Groups[1].Value);
+        var overlap = System.Text.RegularExpressions.Regex.Match(error, "^This event window overlaps (.+) \\(([^()]+)\\)\\.$");
+        if (overlap.Success) return Localize("This event window overlaps {0} ({1}).", overlap.Groups[1].Value, LocalizeWindow(overlap.Groups[2].Value));
+        var replacement = System.Text.RegularExpressions.Regex.Match(error, "^The replacement lifecycle window overlaps (.+)\\.$");
+        if (replacement.Success) return Localize("The replacement lifecycle window overlaps {0}.", replacement.Groups[1].Value);
+        return Localize(error);
+    }
+    // The lifecycle service formats the window ("dd MMM yyyy, HH:mm – dd MMM yyyy, HH:mm Zone") under the request culture; parse it with that same culture and show it in the request culture like every other date on this page.
+    private static string LocalizeWindow(string window)
+    {
+        var match = System.Text.RegularExpressions.Regex.Match(window, "^(.+?) – (.+?) (\\S+)$");
+        if (!match.Success) return window;
+        const string format = "dd MMM yyyy, HH:mm";
+        if (!DateTime.TryParseExact(match.Groups[1].Value, format, CultureInfo.CurrentCulture, DateTimeStyles.None, out var start)
+            || !DateTime.TryParseExact(match.Groups[2].Value, format, CultureInfo.CurrentCulture, DateTimeStyles.None, out var end)) return window;
+        return $"{start.ToString("d MMM yyyy, HH':'mm", CultureInfo.CurrentCulture)} – {end.ToString("d MMM yyyy, HH':'mm", CultureInfo.CurrentCulture)} {match.Groups[3].Value}";
+    }
     private async Task<IActionResult> SignupResult(SignupLifecycleResult result, Guid id, string success, CancellationToken ct)
     {
-        if (result.Succeeded)
-        {
-            TempData.Remove(SignupConfirmationKey(id, "warnings"));
-            TempData.Remove(SignupConfirmationKey(id, "close"));
-            SetStatus(Localize(success), UiMessageType.Success);
-            return RedirectToPage(new { id });
-        }
+        if (result.Succeeded) return await AppliedAsync(id, success, ct);
+        if (WantsJson) return Refused(result.Error ?? "The signup change could not be completed.", id);
 
         var postedVersion = EventVersion;
         if (!await LoadAsync(id, ct)) return NotFound();
         var versionChanged = EventVersion != postedVersion;
         ModelState.Remove(nameof(EventVersion));
         var message = result.ProposedClose is { } close
-            ? $"{result.Error ?? Localize("Review the proposed signup close.")} Proposed close: {DateTimePresentation.Format(close, "dd MMM yyyy, HH:mm", EventView?.Timezone, CultureInfo.CurrentCulture)}."
+            ? $"{result.Error ?? Localize("Review the proposed signup close.")} Proposed close: {DateTimePresentation.Format(close, "dd MMM yyyy, HH:mm", EventTimezone, CultureInfo.CurrentCulture)}."
             : result.Error ?? Localize("The signup change could not be completed.");
         if (versionChanged) message = $"{message} {LifecycleRefreshNotice()}";
         SetStatus(message, result.ProposedClose is not null ? UiMessageType.Information : UiMessageType.Error);
@@ -558,81 +551,16 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
         return Page();
     }
     private string LifecycleRefreshNotice() => Localize("The event details were refreshed. Your entries were kept. Review them before retrying.");
-    private Task AuditAsync(string action, BingoEvent item, string details, CancellationToken ct) => auditWriter.WriteAsync(User.GetAccountId(), User.Identity!.Name!, action, "event", item.Id.ToString(), details, item.Id, ct);
+    private Task AuditAsync(string action, BingoEvent item, string details, CancellationToken ct) => auditWriter.WriteAndSaveAsync(User.GetAccountId(), User.Identity!.Name!, action, "event", item.Id.ToString(), details, item.Id, ct);
     private void SetStatus(string message, UiMessageType type) { TempData["StatusMessage"] = message; TempData[UiMessage.TypeKey] = type.ToString(); }
-    private string CompetitionRefreshFailure(EventCompetitionRefreshResult result)
+    private static UiMessageType QuarantineSeverity(EventQuarantineResult result) => result.Outcome switch
     {
-        var retryAt = result.RetryAt is { } value ? DateTimePresentation.Format(value, "dd MMM yyyy, HH:mm", provider: CultureInfo.CurrentCulture) : null;
-        return result.ErrorKind switch
-        {
-            "RateLimited" when retryAt is not null => Localize("Wise Old Man refresh is temporarily rate-limited. Try again after {0}.", retryAt),
-            "RateLimited" => Localize("Wise Old Man refresh is temporarily rate-limited."),
-            "NotFound" => Localize("Wise Old Man could not find that competition."),
-            "Invalid" => Localize("Wise Old Man returned invalid competition details."),
-            _ when retryAt is not null => Localize("Wise Old Man refresh is temporarily unavailable. Try again after {0}.", retryAt),
-            _ => Localize("Wise Old Man refresh failed.")
-        };
-    }
-
+        EventQuarantineOutcome.Applied => UiMessageType.Success,
+        EventQuarantineOutcome.Stale => UiMessageType.Warning,
+        _ => UiMessageType.Error
+    };
     private string Localize(string key, params object[] arguments)
         => text?[key, arguments].Value ?? string.Format(CultureInfo.CurrentCulture, key, arguments);
-    public string LocalizeManagedError(string? code, string? message, string fallback)
-    {
-        if (string.Equals(code, "SharedSource", StringComparison.Ordinal)) return Localize("This managed WOM competition is referenced by another event; automatic updates are paused.");
-        if (string.Equals(code, "ExternalDrift", StringComparison.Ordinal)) return Localize("The managed WOM competition changed outside Bingo; automatic updates are paused for Admin review.");
-        if (string.Equals(code, "SourceMissing", StringComparison.Ordinal)) return Localize("The managed WOM competition no longer exists; automatic updates are paused.");
-        if (string.Equals(code, "UnknownOutcome", StringComparison.Ordinal) || string.Equals(code, "ClaimExpired", StringComparison.Ordinal) || string.Equals(code, "ReconciliationUnavailable", StringComparison.Ordinal)) return Localize("The WOM operation outcome is uncertain and is being checked without another write.");
-        if (string.Equals(code, "DeleteStillPresent", StringComparison.Ordinal)) return Localize("The WOM competition still exists; deletion was not retried and will be checked again.");
-        if (string.Equals(code, "DeleteReconciliationRequired", StringComparison.Ordinal) || string.Equals(code, "ReconciliationRequired", StringComparison.Ordinal)) return Localize("The WOM operation outcome remains unresolved; Admin review is required.");
-        if (string.Equals(code, "AdminRevoked", StringComparison.Ordinal)) return Localize("The originating Admin is no longer enabled for this WOM operation.");
-        if (string.Equals(code, "StaleCreate", StringComparison.Ordinal) || string.Equals(code, "StaleUpdate", StringComparison.Ordinal) || string.Equals(code, "StaleDelete", StringComparison.Ordinal)) return Localize("The event changed before the WOM operation was dispatched; review the current values and retry.");
-        if (string.Equals(code, "InvalidConfiguration", StringComparison.Ordinal) && !string.IsNullOrWhiteSpace(message))
-            return string.Join(" ", message.Split(". ", StringSplitOptions.RemoveEmptyEntries).Select(part => LocalizeManagedErrorText(part.EndsWith('.') ? part : part + ".", "The managed WOM operation needs Admin attention.")));
-        if (!string.IsNullOrWhiteSpace(code)) return Localize("The managed WOM operation needs Admin attention.");
-        return string.IsNullOrWhiteSpace(message) ? Localize(fallback) : LocalizeManagedErrorText(message, fallback);
-    }
-    private string LocalizeManagedErrorText(string message, string? fallback = null)
-    {
-        const string emptyTeamPrefix = "Cannot create WOM competition with empty teams. Affected team: ";
-        if (message.StartsWith(emptyTeamPrefix, StringComparison.Ordinal))
-            return Localize("Cannot create WOM competition with empty teams. Affected team: {0}.", message[emptyTeamPrefix.Length..].TrimEnd('.'));
-        const string assignmentPrefix = "Participant ";
-        const string assignmentSeparator = " has no eligible Playing assignment for team ";
-        if (message.StartsWith(assignmentPrefix, StringComparison.Ordinal) && message.Contains(assignmentSeparator, StringComparison.Ordinal))
-        {
-            var separator = message.IndexOf(assignmentSeparator, StringComparison.Ordinal);
-            return Localize("Participant {0} has no eligible Playing assignment for team {1}.", message[assignmentPrefix.Length..separator], message[(separator + assignmentSeparator.Length)..].TrimEnd('.'));
-        }
-        const string duplicateTeamPrefix = "Team name '";
-        if (message.StartsWith(duplicateTeamPrefix, StringComparison.Ordinal) && message.EndsWith(" is empty or duplicated after WOM normalization.", StringComparison.Ordinal))
-            return Localize("Team name '{0}' is empty or duplicated after WOM normalization.", message[duplicateTeamPrefix.Length..^" is empty or duplicated after WOM normalization.".Length]);
-        const string teamLengthPrefix = "Team '";
-        if (message.StartsWith(teamLengthPrefix, StringComparison.Ordinal) && message.EndsWith(" must be between 1 and 30 characters for WOM.", StringComparison.Ordinal))
-            return Localize("Team '{0}' must be between 1 and 30 characters for WOM.", message[teamLengthPrefix.Length..^" must be between 1 and 30 characters for WOM.".Length]);
-        const string invalidPlayerPrefix = "Player name '";
-        if (message.StartsWith(invalidPlayerPrefix, StringComparison.Ordinal) && message.EndsWith(" is not a valid WOM name.", StringComparison.Ordinal))
-            return Localize("Player name '{0}' is not a valid WOM name.", message[invalidPlayerPrefix.Length..^" is not a valid WOM name.".Length]);
-        if (message.StartsWith(invalidPlayerPrefix, StringComparison.Ordinal) && message.EndsWith(" is duplicated after WOM normalization.", StringComparison.Ordinal))
-            return Localize("Player name '{0}' is duplicated after WOM normalization.", message[invalidPlayerPrefix.Length..^" is duplicated after WOM normalization.".Length]);
-        return message switch
-        {
-            "The event name must be between 1 and 50 characters for WOM." => Localize("The event name must be between 1 and 50 characters for WOM."),
-            "The WOM competition end must be after its start." => Localize("The WOM competition end must be after its start."),
-            "The WOM competition schedule must be in the future." => Localize("The WOM competition schedule must be in the future."),
-            "A WOM competition can only be created before the event starts." => Localize("A WOM competition can only be created before the event starts."),
-            "The event must be visible before WOM management." => Localize("The event must be visible before WOM management."),
-            "The event must have a configured start and end before WOM management." => Localize("The event must have a configured start and end before WOM management."),
-            "The event must have at least one active team before WOM management." => Localize("The event must have at least one active team before WOM management."),
-            _ => Localize(fallback ?? "The managed WOM operation needs Admin attention.")
-        };
-    }
-    private string[] AcknowledgedSignupWarningCodes(Guid id)
-        => (TempData.Peek(SignupConfirmationKey(id, "warnings")) as string ?? string.Empty).Split(',', StringSplitOptions.RemoveEmptyEntries);
-    private bool WarningsAcknowledged(Guid id, SignupReadiness? readiness)
-        => readiness is not null && TempData.Peek(SignupConfirmationKey(id, "warnings")) is string scope && scope == WarningScope(readiness);
-    private static string WarningScope(SignupReadiness? readiness)
-        => string.Join(',', (readiness?.Warnings.Select(item => item.Code) ?? []).Order(StringComparer.Ordinal));
-    private static string SignupConfirmationKey(Guid id, string kind) => $"ManageSignupConfirmation:{id}:{kind}";
     private async Task<IActionResult> PrepareConfirmation(Guid id, string action, CancellationToken ct)
     {
         if (!await dbContext.Events.AnyAsync(item => item.Id == id && item.State != EventState.Discarded, ct)) return NotFound();
@@ -650,18 +578,8 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
         var timezone = TimeZoneInfo.FindSystemTimeZoneById(timezoneId);
         var local = DateTime.SpecifyKind(entered, DateTimeKind.Unspecified);
         if (timezone.IsInvalidTime(local)) { ModelState.AddModelError(field, Localize("That local time does not exist because the clocks change at that time.")); return null; }
-        if (timezone.IsAmbiguousTime(local)) { ModelState.AddModelError(field, Localize("{0} is ambiguous because of daylight-saving time. Choose another time.", label)); return null; }
+        if (timezone.IsAmbiguousTime(local)) { ModelState.AddModelError(field, Localize("{0} is ambiguous because of daylight-saving time. Choose another time.", Localize(label))); return null; }
         return new DateTimeOffset(local, timezone.GetUtcOffset(local)).ToUniversalTime();
-    }
-    public string EventDate(DateTimeOffset? value, string missing = "Not set")
-    {
-        return FormatEventDate(value, "dd MMM yyyy, HH:mm", missing);
-    }
-    public string EventDateOnly(DateTimeOffset? value, string missing = "Not set") => FormatEventDate(value, "dd MMM yyyy", missing);
-    private string FormatEventDate(DateTimeOffset? value, string format, string missing)
-    {
-        if (value is null) return missing;
-        return DateTimePresentation.Format(value.Value, format, EventView?.Timezone, CultureInfo.CurrentCulture);
     }
     public static IReadOnlyList<TimelineRow> EffectiveTimelineFor(EffectiveTimelineInput input)
     {
@@ -684,48 +602,12 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
     {
         if (scheduled is { } scheduledAt && (cancelledAt is null || scheduledAt <= cancelledAt)) rows.Add(new(label, scheduledAt));
     }
-    public sealed record EventDetails(Guid Id, string Name, string Slug, string? Description, string Timezone, EventState State, DateTimeOffset? FirstPublicAt, bool BoardPublished, DateTimeOffset? SignupOpensAt, DateTimeOffset? SignupClosesAt, DateTimeOffset? DraftAt, DateTimeOffset? StartsAt, DateTimeOffset? EndsAt, DateTimeOffset? ActualSignupOpenedAt, DateTimeOffset? ActualSignupClosedAt, DateTimeOffset? ActualStartedAt, DateTimeOffset? ActualEndedAt, DateTimeOffset? EffectiveEndsAt, DateTimeOffset? SubmissionCutoffAt, DateTimeOffset? SubmissionsClosedAt, bool ScheduledSignupOpeningEnabled, DateTimeOffset? ReopenedCutoff, int ParticipantCap, int Confirmed, int Waiting, bool DraftLocked, bool EvidenceCodeEnabled, int ActualTeamCount, string? ActualTeamSize, string? ActualBoardSize, int? BoardRows, int? BoardColumns, int? ConfiguredBoardTileCount, int? ExpectedBoardCellCount, int? ExpectedTeamCount, int? ExpectedTeamSize, string? ExpectedBoardSize, bool CanStartEvent, DateTimeOffset? FinalizedAt, DateTimeOffset? ArchivedAt, DateTimeOffset? CancelledAt, bool IsHidden = false, DateTimeOffset? HiddenAt = null, Guid? HiddenByAccountId = null, string? HiddenReason = null);
     public sealed record EffectiveTimelineInput(DateTimeOffset? SignupOpensAt, DateTimeOffset? SignupClosesAt, DateTimeOffset? DraftAt, DateTimeOffset? EventStartsAt, DateTimeOffset? EventEndsAt, DateTimeOffset? ActualSignupOpenedAt, DateTimeOffset? ActualSignupClosedAt, DateTimeOffset? ActualStartedAt, DateTimeOffset? ActualEndedAt, DateTimeOffset? SubmissionCutoffAt, DateTimeOffset? SubmissionsClosedAt, DateTimeOffset? CancelledAt);
     public sealed record TimelineRow(string Label, DateTimeOffset At);
-    public sealed record OverviewMilestone(string Label, DateTimeOffset? At);
-    public static ReadinessItem ResolveBlocker(ReadinessItem item, Guid eventId, EventState eventState) => AddResolutionRoute(item, eventId, eventState);
-    public static string BlockerActionLabel(ReadinessItem item) => item.Code switch
-    {
-        "PARTICIPANT_PLAYING_ASSIGNMENT_INVALID" => "Review participants",
-        "DRAFT_NOT_FINALIZED" or "TEAM_ACCESS_MISSING" or "DRAFT_LOCKED" => "Review teams and draft",
-        "BOARD_NOT_PUBLISHED" => "Review board",
-        "SIGNUP_FORM_MISSING" or "SIGNUP_QUESTIONS_INVALID" or "SIGNUP_CODE_UNUSABLE" => "Review signup form",
-        "CURRENT_EVENT_EXISTS" or "EVENT_WINDOW_OVERLAP" => "Review events",
-        "EVENT_END_PASSED" => "Review event",
-        "SCHEDULE_INVALID" or "EVENT_START_REQUIRED" or "EVENT_END_REQUIRED" or "EVENT_WINDOW_INVALID" or "SIGNUP_CLOSE_REQUIRED" or "SIGNUP_CLOSE_NOT_FUTURE" or "SIGNUP_CLOSE_AFTER_EVENT_START" or "SCHEDULED_OPENING_INVALID" or "SCHEDULED_WINDOW_INVALID" or "SCHEDULED_OPENING_FAILED" => "Review schedule",
-        _ when item.Code.StartsWith("UNACKNOWLEDGED_", StringComparison.Ordinal) => "Review schedule",
-        _ when item.Route?.Contains("/Participant/", StringComparison.Ordinal) == true => "Review participants",
-        _ => "Review configuration"
-    };
-    private static ReadinessItem AddResolutionRoute(ReadinessItem item, Guid eventId, EventState eventState)
-        => item.Route is not null ? item : item with { Route = DescribeBlocker(item.Code, eventId, eventState).Route };
-    private static ReadinessItem DescribeBlocker(string code, Guid eventId, EventState eventState) => code switch
-    {
-        "DRAFT_NOT_FINALIZED" => new(code, "Finalize the team draft.", $"/Admin/Events/Draft/{eventId}"),
-        "BOARD_NOT_PUBLISHED" => new(code, "Publish the approved board.", $"/Admin/Events/Board/{eventId}"),
-        "TEAM_ACCESS_MISSING" => new(code, "Give every active team a current Captain or enabled emergency credential.", $"/Admin/Events/Draft/{eventId}"),
-        "PARTICIPANT_PLAYING_ASSIGNMENT_INVALID" => new(code, "Review the participant's current Playing assignment."),
-        "LIFECYCLE_STATE_INVALID" when eventState == EventState.Draft => new(code, "Signup has not been opened and closed. Open signup, then close it before starting the event.", $"/Admin/Events/Manage/{eventId}"),
-        "LIFECYCLE_STATE_INVALID" when eventState == EventState.SignupOpen => new(code, "Signup is still open. Close signup before starting the event.", $"/Admin/Events/Manage/{eventId}"),
-        "LIFECYCLE_STATE_INVALID" => new(code, "The scheduled start was postponed until signup lifecycle requirements are resolved.", $"/Admin/Events/Manage/{eventId}"),
-        "SCHEDULE_INVALID" => new(code, "Configure a valid event start and end.", $"/Admin/Events/Schedule/{eventId}"),
-        "EVENT_END_PASSED" => new(code, "The configured event end has passed; cancel this event or replace its schedule before starting it.", $"/Admin/Events/Manage/{eventId}"),
-        "EVENT_START_REQUIRED" or "EVENT_END_REQUIRED" or "EVENT_WINDOW_INVALID" or "SIGNUP_CLOSE_REQUIRED" or "SIGNUP_CLOSE_NOT_FUTURE" or "SIGNUP_CLOSE_AFTER_EVENT_START" or "SCHEDULED_OPENING_INVALID" or "SCHEDULED_WINDOW_INVALID" => new(code, "Review the event schedule.", $"/Admin/Events/Schedule/{eventId}"),
-        "SIGNUP_FORM_MISSING" or "SIGNUP_QUESTIONS_INVALID" or "SIGNUP_CODE_UNUSABLE" => new(code, "Review the signup form and its questions.", $"/Admin/Events/Questions/{eventId}"),
-        "DRAFT_LOCKED" => new(code, "The draft has started; review the teams and draft.", $"/Admin/Events/Draft/{eventId}"),
-        "CURRENT_EVENT_EXISTS" => new(code, "Another event is already Live, in final review, or finalized.", "/Admin/Events"),
-        "EVENT_WINDOW_OVERLAP" => new(code, "The event window overlaps another active lifecycle window.", "/Admin/Events"),
-        "DESCRIPTION_REQUIRED" => new(code, "Add a public event description.", $"/Admin/Events/Identity/{eventId}"),
-        "PARTICIPANT_CAP_REQUIRED" => new(code, "Set a participant capacity.", $"/Admin/Events/Schedule/{eventId}"),
-        _ when code.StartsWith("UNACKNOWLEDGED_", StringComparison.Ordinal) => new(code, "A signup warning became active after scheduling and needs Admin review.", $"/Admin/Events/Schedule/{eventId}"),
-        _ => new(code, "Review the event configuration and resolve this lifecycle blocker.", $"/Admin/Events/Manage/{eventId}")
-    };
-    public sealed record ScheduledActionView(string Title, DateTimeOffset ScheduledFor, DateTimeOffset AttemptedAt, IReadOnlyList<ReadinessItem> Blockers);
+    public sealed record OverviewOutcome(bool Succeeded, string Outcome, string? Error = null, IReadOnlyDictionary<string, string>? FieldErrors = null, string? Message = null, string? Location = null);
+    public sealed record OverviewCurrentCode(string Code, DateTimeOffset ActivatesAt, DateTimeOffset? RetiresAt);
+    public sealed record OverviewCurrentState(Guid EventId, string Version, string Phase, bool Hidden, DateTimeOffset? ReopenedUntil, DateTimeOffset? EventEndsAt, bool EvidenceCodesEnabled, IReadOnlyList<OverviewCurrentCode> EvidenceCodes,
+        IReadOnlyDictionary<string, OverviewDialog> Dialogs, OverviewCodes Codes, string? LastChange, [property: System.Text.Json.Serialization.JsonIgnore] OverviewView View);
     public sealed record EvidenceCodeRow(Guid Id, string Code, DateTimeOffset ActivatesAt, DateTimeOffset? RetiresAt, string? Note);
     public sealed record QuarantineAuditRow(string Action, DateTimeOffset OccurredAt, string ActorUsername, string? Details);
 }

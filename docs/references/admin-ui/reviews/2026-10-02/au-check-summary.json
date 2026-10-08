@@ -1,0 +1,864 @@
+[
+  {
+    "ticket": "AU01",
+    "retained_execution_artifacts": [
+      {
+        "original": "/private/tmp/au01-implementation-20261002/au01-focused.trx",
+        "sha256": "e8133063d39b1213048b288d41f065483b3a4217f4d374f5e475bf9405a7e6ac",
+        "counters": {
+          "total": "9",
+          "executed": "9",
+          "passed": "9",
+          "failed": "0",
+          "error": "0",
+          "timeout": "0",
+          "aborted": "0",
+          "inconclusive": "0",
+          "passedButRunAborted": "0",
+          "notRunnable": "0",
+          "notExecuted": "0",
+          "disconnected": "0",
+          "warning": "0",
+          "completed": "0",
+          "inProgress": "0",
+          "pending": "0"
+        }
+      },
+      {
+        "original": "/private/tmp/au01-implementation-20261002/au01-regression.trx",
+        "sha256": "1bb5346fd68e7889dd365305deebcb0b74b535e129de18b1b01cf7b3fd86dfe5",
+        "counters": {
+          "total": "3",
+          "executed": "3",
+          "passed": "3",
+          "failed": "0",
+          "error": "0",
+          "timeout": "0",
+          "aborted": "0",
+          "inconclusive": "0",
+          "passedButRunAborted": "0",
+          "notRunnable": "0",
+          "notExecuted": "0",
+          "disconnected": "0",
+          "warning": "0",
+          "completed": "0",
+          "inProgress": "0",
+          "pending": "0"
+        }
+      }
+    ],
+    "build_artifacts": [
+      {
+        "original": "/private/tmp/au01-implementation-20261002/release-build.log",
+        "sha256": "dea1a1d6084ef119cb860aa5b8ffd710ef10acfd7bd4618e7a11c1adb785578f",
+        "summary": [
+          "Build succeeded.",
+          "0 Warning(s)",
+          "0 Error(s)"
+        ]
+      }
+    ]
+  },
+  {
+    "ticket": "AU02",
+    "retained_execution_artifacts": [
+      {
+        "original": "/private/tmp/au02-implementation-20261002/au02-focused.trx",
+        "sha256": "08a033a9775a00bdb13c6a1b35505682b6cb00894e76d109571f2662e2b64c7d",
+        "counters": {
+          "total": "5",
+          "executed": "5",
+          "passed": "5",
+          "failed": "0",
+          "error": "0",
+          "timeout": "0",
+          "aborted": "0",
+          "inconclusive": "0",
+          "passedButRunAborted": "0",
+          "notRunnable": "0",
+          "notExecuted": "0",
+          "disconnected": "0",
+          "warning": "0",
+          "completed": "0",
+          "inProgress": "0",
+          "pending": "0"
+        }
+      },
+      {
+        "original": "/private/tmp/au02-implementation-20261002/au02-initial-execution.trx",
+        "sha256": "0a5bcd136962973f6828839b6acd65b62d5686f049849eeed8f9f955673bca8c",
+        "counters": {
+          "total": "5",
+          "executed": "5",
+          "passed": "4",
+          "failed": "1",
+          "error": "0",
+          "timeout": "0",
+          "aborted": "0",
+          "inconclusive": "0",
+          "passedButRunAborted": "0",
+          "notRunnable": "0",
+          "notExecuted": "0",
+          "disconnected": "0",
+          "warning": "0",
+          "completed": "0",
+          "inProgress": "0",
+          "pending": "0"
+        }
+      }
+    ],
+    "build_artifacts": [
+      {
+        "original": "/private/tmp/au02-implementation-20261002/initial-build.log",
+        "sha256": "9f9df8f03ee0d97f7b5b3183cbd2595dd276e3cac1c28acff046e8298a8cbb71",
+        "summary": []
+      },
+      {
+        "original": "/private/tmp/au02-implementation-20261002/release-build.log",
+        "sha256": "c2d14dd260e069d3b9c3c1591bfe35896182ff3fde0b873f2e211f9e13cd880a",
+        "summary": [
+          "Build succeeded.",
+          "0 Warning(s)",
+          "0 Error(s)"
+        ]
+      },
+      {
+        "original": "/private/tmp/au02-implementation-20261002/second-build.log",
+        "sha256": "3481092efdf921f4e71b86082d84b243ef812ff9b1404002695dfe51eef42dfc",
+        "summary": []
+      }
+    ]
+  },
+  {
+    "ticket": "AU03",
+    "retained_execution_artifacts": [
+      {
+        "original": "/private/tmp/au03-implementation-20261002/au03-application-architecture.trx",
+        "sha256": "75981031ef8523bd6bfb268d577417d12b654ef296045f0429fae49f712c16c7",
+        "counters": {
+          "total": "1",
+          "executed": "1",
+          "passed": "1",
+          "failed": "0",
+          "error": "0",
+          "timeout": "0",
+          "aborted": "0",
+          "inconclusive": "0",
+          "passedButRunAborted": "0",
+          "notRunnable": "0",
+          "notExecuted": "0",
+          "disconnected": "0",
+          "warning": "0",
+          "completed": "0",
+          "inProgress": "0",
+          "pending": "0"
+        }
+      },
+      {
+        "original": "/private/tmp/au03-implementation-20261002/au03-domain-architecture.trx",
+        "sha256": "18675fdbc53885a14c2bb8b299a0d58653a3aa2710fea040a5f199083ba01f06",
+        "counters": {
+          "total": "1",
+          "executed": "1",
+          "passed": "1",
+          "failed": "0",
+          "error": "0",
+          "timeout": "0",
+          "aborted": "0",
+          "inconclusive": "0",
+          "passedButRunAborted": "0",
+          "notRunnable": "0",
+          "notExecuted": "0",
+          "disconnected": "0",
+          "warning": "0",
+          "completed": "0",
+          "inProgress": "0",
+          "pending": "0"
+        }
+      },
+      {
+        "original": "/private/tmp/au03-implementation-20261002/au03-first-execution.trx",
+        "sha256": "1dde86f40343de79dc09cc4487232515391353414dc1158f119ec47a2b1eadc4",
+        "counters": {
+          "total": "13",
+          "executed": "13",
+          "passed": "11",
+          "failed": "2",
+          "error": "0",
+          "timeout": "0",
+          "aborted": "0",
+          "inconclusive": "0",
+          "passedButRunAborted": "0",
+          "notRunnable": "0",
+          "notExecuted": "0",
+          "disconnected": "0",
+          "warning": "0",
+          "completed": "0",
+          "inProgress": "0",
+          "pending": "0"
+        }
+      },
+      {
+        "original": "/private/tmp/au03-implementation-20261002/au03-focused.trx",
+        "sha256": "1dde86f40343de79dc09cc4487232515391353414dc1158f119ec47a2b1eadc4",
+        "counters": {
+          "total": "13",
+          "executed": "13",
+          "passed": "11",
+          "failed": "2",
+          "error": "0",
+          "timeout": "0",
+          "aborted": "0",
+          "inconclusive": "0",
+          "passedButRunAborted": "0",
+          "notRunnable": "0",
+          "notExecuted": "0",
+          "disconnected": "0",
+          "warning": "0",
+          "completed": "0",
+          "inProgress": "0",
+          "pending": "0"
+        }
+      },
+      {
+        "original": "/private/tmp/au03-implementation-20261002/au03-remediated-fixtures.trx",
+        "sha256": "8b17259fe57b5fca7a06ddb288f5dd8af5cb5241a47b27f850b7262b5029bd6e",
+        "counters": {
+          "total": "2",
+          "executed": "2",
+          "passed": "2",
+          "failed": "0",
+          "error": "0",
+          "timeout": "0",
+          "aborted": "0",
+          "inconclusive": "0",
+          "passedButRunAborted": "0",
+          "notRunnable": "0",
+          "notExecuted": "0",
+          "disconnected": "0",
+          "warning": "0",
+          "completed": "0",
+          "inProgress": "0",
+          "pending": "0"
+        }
+      },
+      {
+        "original": "/private/tmp/au03-implementation-20261002/au03-reset-first-execution.trx",
+        "sha256": "6e32f31286170ba3fdc9bab961c84d035f6b487f0133868a190d69e9a6b60a3f",
+        "counters": {
+          "total": "1",
+          "executed": "1",
+          "passed": "0",
+          "failed": "1",
+          "error": "0",
+          "timeout": "0",
+          "aborted": "0",
+          "inconclusive": "0",
+          "passedButRunAborted": "0",
+          "notRunnable": "0",
+          "notExecuted": "0",
+          "disconnected": "0",
+          "warning": "0",
+          "completed": "0",
+          "inProgress": "0",
+          "pending": "0"
+        }
+      },
+      {
+        "original": "/private/tmp/au03-implementation-20261002/au03-reset-remediation.trx",
+        "sha256": "7a842c3deeb01a790f0dca864a7e4ed088d497b812932d9e3e69741e5be94419",
+        "counters": {
+          "total": "1",
+          "executed": "1",
+          "passed": "1",
+          "failed": "0",
+          "error": "0",
+          "timeout": "0",
+          "aborted": "0",
+          "inconclusive": "0",
+          "passedButRunAborted": "0",
+          "notRunnable": "0",
+          "notExecuted": "0",
+          "disconnected": "0",
+          "warning": "0",
+          "completed": "0",
+          "inProgress": "0",
+          "pending": "0"
+        }
+      },
+      {
+        "original": "/private/tmp/au03-implementation-20261002/au03-slug.trx",
+        "sha256": "709bebe6129afdaca4c3dd72c517308ce81dce9ef3e7ae9c41395e7eaa1b73de",
+        "counters": {
+          "total": "6",
+          "executed": "6",
+          "passed": "6",
+          "failed": "0",
+          "error": "0",
+          "timeout": "0",
+          "aborted": "0",
+          "inconclusive": "0",
+          "passedButRunAborted": "0",
+          "notRunnable": "0",
+          "notExecuted": "0",
+          "disconnected": "0",
+          "warning": "0",
+          "completed": "0",
+          "inProgress": "0",
+          "pending": "0"
+        }
+      }
+    ],
+    "build_artifacts": [
+      {
+        "original": "/private/tmp/au03-implementation-20261002/initial-build.log",
+        "sha256": "64397de1075705acc7ef316e34284d5e544d302bcce80c6a633722f8b87f292c",
+        "summary": [
+          "Build FAILED.",
+          "0 Warning(s)",
+          "1 Error(s)"
+        ]
+      },
+      {
+        "original": "/private/tmp/au03-implementation-20261002/release-build.log",
+        "sha256": "71c286ae895e1be066d47a0007f00ce443e8c5249f22001dbf1ad1e3fc424170",
+        "summary": [
+          "Build succeeded.",
+          "0 Warning(s)",
+          "0 Error(s)"
+        ]
+      },
+      {
+        "original": "/private/tmp/au03-implementation-20261002/reset-release-build.log",
+        "sha256": "2d1dac50adda9f53698441a9f4ed08cfdb0be3fece93577a4913f0fe75ac4a8b",
+        "summary": [
+          "Build succeeded.",
+          "0 Warning(s)",
+          "0 Error(s)"
+        ]
+      }
+    ]
+  },
+  {
+    "ticket": "AU04",
+    "retained_execution_artifacts": [
+      {
+        "original": "/private/tmp/au04-implementation-20261002/au04-attention-remediation.trx",
+        "sha256": "ed929267e4a2839b6032ed2686da5ff36fc3e11a891959c1b8bdd6f96bad8aed",
+        "counters": {
+          "total": "1",
+          "executed": "1",
+          "passed": "1",
+          "failed": "0",
+          "error": "0",
+          "timeout": "0",
+          "aborted": "0",
+          "inconclusive": "0",
+          "passedButRunAborted": "0",
+          "notRunnable": "0",
+          "notExecuted": "0",
+          "disconnected": "0",
+          "warning": "0",
+          "completed": "0",
+          "inProgress": "0",
+          "pending": "0"
+        }
+      },
+      {
+        "original": "/private/tmp/au04-implementation-20261002/au04-focused.trx",
+        "sha256": "3d3861345a323a13e70d79d6ecff4d89346dc2faf53a8d9198e97b3bb11f99b7",
+        "counters": {
+          "total": "8",
+          "executed": "8",
+          "passed": "7",
+          "failed": "1",
+          "error": "0",
+          "timeout": "0",
+          "aborted": "0",
+          "inconclusive": "0",
+          "passedButRunAborted": "0",
+          "notRunnable": "0",
+          "notExecuted": "0",
+          "disconnected": "0",
+          "warning": "0",
+          "completed": "0",
+          "inProgress": "0",
+          "pending": "0"
+        }
+      },
+      {
+        "original": "/private/tmp/au04-implementation-20261002/au04-retained-corrected.trx",
+        "sha256": "18eab7a0f6e9300a493ecf50ec2cc42b13e676383a1401c6fa1c4984d6055fab",
+        "counters": {
+          "total": "1",
+          "executed": "1",
+          "passed": "1",
+          "failed": "0",
+          "error": "0",
+          "timeout": "0",
+          "aborted": "0",
+          "inconclusive": "0",
+          "passedButRunAborted": "0",
+          "notRunnable": "0",
+          "notExecuted": "0",
+          "disconnected": "0",
+          "warning": "0",
+          "completed": "0",
+          "inProgress": "0",
+          "pending": "0"
+        }
+      }
+    ],
+    "build_artifacts": [
+      {
+        "original": "/private/tmp/au04-implementation-20261002/build-final.log",
+        "sha256": "020afd389f0c9c0cf612fcd8b09e79b94507a18bb9557851972e00112426c369",
+        "summary": [
+          "Build succeeded.",
+          "0 Warning(s)",
+          "0 Error(s)"
+        ]
+      },
+      {
+        "original": "/private/tmp/au04-implementation-20261002/build-initial.log",
+        "sha256": "ef1073942fd73ac715b5a97eb6378e5dfa3f0a64d9077c51f5cb30e55ce5d390",
+        "summary": [
+          "Build FAILED.",
+          "0 Warning(s)",
+          "2 Error(s)"
+        ]
+      }
+    ]
+  },
+  {
+    "ticket": "AU05",
+    "retained_execution_artifacts": [
+      {
+        "original": "/private/tmp/au05-implementation-20261002/au05-conflict-corrected.trx",
+        "sha256": "4468fb063837c5e60f39a18a9fadf1bea4abd613721149356eac5bc130fde955",
+        "counters": {
+          "total": "2",
+          "executed": "2",
+          "passed": "2",
+          "failed": "0",
+          "error": "0",
+          "timeout": "0",
+          "aborted": "0",
+          "inconclusive": "0",
+          "passedButRunAborted": "0",
+          "notRunnable": "0",
+          "notExecuted": "0",
+          "disconnected": "0",
+          "warning": "0",
+          "completed": "0",
+          "inProgress": "0",
+          "pending": "0"
+        }
+      },
+      {
+        "original": "/private/tmp/au05-implementation-20261002/au05-corrected.trx",
+        "sha256": "1a6f409e81bccc223f54fc11871cd526a2891f5f3d4485a8d56d10ab42c9d3bf",
+        "counters": {
+          "total": "14",
+          "executed": "14",
+          "passed": "13",
+          "failed": "1",
+          "error": "0",
+          "timeout": "0",
+          "aborted": "0",
+          "inconclusive": "0",
+          "passedButRunAborted": "0",
+          "notRunnable": "0",
+          "notExecuted": "0",
+          "disconnected": "0",
+          "warning": "0",
+          "completed": "0",
+          "inProgress": "0",
+          "pending": "0"
+        }
+      },
+      {
+        "original": "/private/tmp/au05-implementation-20261002/au05-focused-compiled.trx",
+        "sha256": "cfaf3a98c97ae92a0710e0a9e215ee4ac3c1f3cab49ef5be1634803422d16b3f",
+        "counters": {
+          "total": "21",
+          "executed": "21",
+          "passed": "17",
+          "failed": "4",
+          "error": "0",
+          "timeout": "0",
+          "aborted": "0",
+          "inconclusive": "0",
+          "passedButRunAborted": "0",
+          "notRunnable": "0",
+          "notExecuted": "0",
+          "disconnected": "0",
+          "warning": "0",
+          "completed": "0",
+          "inProgress": "0",
+          "pending": "0"
+        }
+      },
+      {
+        "original": "/private/tmp/au05-implementation-20261002/au05-settings-final.trx",
+        "sha256": "a476b35dcfd2e410bf40cab63b00826d058ca290dd343534be633428a4cfb2a7",
+        "counters": {
+          "total": "4",
+          "executed": "4",
+          "passed": "4",
+          "failed": "0",
+          "error": "0",
+          "timeout": "0",
+          "aborted": "0",
+          "inconclusive": "0",
+          "passedButRunAborted": "0",
+          "notRunnable": "0",
+          "notExecuted": "0",
+          "disconnected": "0",
+          "warning": "0",
+          "completed": "0",
+          "inProgress": "0",
+          "pending": "0"
+        }
+      }
+    ],
+    "build_artifacts": [
+      {
+        "original": "/private/tmp/au05-implementation-20261002/build-assigned.log",
+        "sha256": "fc0b9ef04a058fefc727422569fe9f44cad73cbfa0f42ec22942c6419dd4336e",
+        "summary": [
+          "Build succeeded.",
+          "0 Warning(s)",
+          "0 Error(s)"
+        ]
+      },
+      {
+        "original": "/private/tmp/au05-implementation-20261002/build-final.log",
+        "sha256": "cab4770876171a09778ca059f00f0fe68ed5921d80889723ed0a14066b7f567c",
+        "summary": [
+          "Build succeeded.",
+          "0 Warning(s)",
+          "0 Error(s)"
+        ]
+      },
+      {
+        "original": "/private/tmp/au05-implementation-20261002/build-initial.log",
+        "sha256": "07ad3085273d667081dd57b63fcfe7e2efc15ab8e32bc32785ee5551c4c35242",
+        "summary": [
+          "Build succeeded.",
+          "0 Warning(s)",
+          "0 Error(s)"
+        ]
+      }
+    ]
+  },
+  {
+    "ticket": "AU06",
+    "retained_execution_artifacts": [
+      {
+        "original": "/private/tmp/au06-implementation-20261002/au06-focused.trx",
+        "sha256": "dc274a1d0042f9dd4b0e0e1310ead6bc50005a6f01b4813b0bd2afbf7ca421b4",
+        "counters": {
+          "total": "12",
+          "executed": "12",
+          "passed": "10",
+          "failed": "2",
+          "error": "0",
+          "timeout": "0",
+          "aborted": "0",
+          "inconclusive": "0",
+          "passedButRunAborted": "0",
+          "notRunnable": "0",
+          "notExecuted": "0",
+          "disconnected": "0",
+          "warning": "0",
+          "completed": "0",
+          "inProgress": "0",
+          "pending": "0"
+        }
+      },
+      {
+        "original": "/private/tmp/au06-implementation-20261002/au06-http.trx",
+        "sha256": "0d1b5b07e7b2557ae7d0dd48889b77fb30202aa61dbce7a928e6052008b65ee1",
+        "counters": {
+          "total": "2",
+          "executed": "2",
+          "passed": "2",
+          "failed": "0",
+          "error": "0",
+          "timeout": "0",
+          "aborted": "0",
+          "inconclusive": "0",
+          "passedButRunAborted": "0",
+          "notRunnable": "0",
+          "notExecuted": "0",
+          "disconnected": "0",
+          "warning": "0",
+          "completed": "0",
+          "inProgress": "0",
+          "pending": "0"
+        }
+      }
+    ],
+    "build_artifacts": [
+      {
+        "original": "/private/tmp/au06-implementation-20261002/build-final.log",
+        "sha256": "6ac8484422037c6a0716b94cb4df23cf7d4ef7d499efb828b56afa7fa0351e87",
+        "summary": [
+          "Build succeeded.",
+          "0 Warning(s)",
+          "0 Error(s)"
+        ]
+      },
+      {
+        "original": "/private/tmp/au06-implementation-20261002/initial-build.log",
+        "sha256": "675efb8c5876c5a06c7bebabaf316ea66c70fd0ac8a79c1e388114c6b6888a48",
+        "summary": [
+          "Build FAILED.",
+          "0 Warning(s)",
+          "1 Error(s)"
+        ]
+      }
+    ]
+  },
+  {
+    "ticket": "AU07",
+    "retained_execution_artifacts": [
+      {
+        "original": "/private/tmp/au07-implementation-20261002/au07-contention.trx",
+        "sha256": "02a464ac962602a300591defdd18446b77c0e2d473c437d24a65e1bf6a2c5d5e",
+        "counters": {
+          "total": "2",
+          "executed": "2",
+          "passed": "2",
+          "failed": "0",
+          "error": "0",
+          "timeout": "0",
+          "aborted": "0",
+          "inconclusive": "0",
+          "passedButRunAborted": "0",
+          "notRunnable": "0",
+          "notExecuted": "0",
+          "disconnected": "0",
+          "warning": "0",
+          "completed": "0",
+          "inProgress": "0",
+          "pending": "0"
+        }
+      },
+      {
+        "original": "/private/tmp/au07-implementation-20261002/au07-focused.trx",
+        "sha256": "320bda71cb94444eadbae305349b0e82f5d9ecabff5d1377376e243af6d3d943",
+        "counters": {
+          "total": "21",
+          "executed": "21",
+          "passed": "20",
+          "failed": "1",
+          "error": "0",
+          "timeout": "0",
+          "aborted": "0",
+          "inconclusive": "0",
+          "passedButRunAborted": "0",
+          "notRunnable": "0",
+          "notExecuted": "0",
+          "disconnected": "0",
+          "warning": "0",
+          "completed": "0",
+          "inProgress": "0",
+          "pending": "0"
+        }
+      }
+    ],
+    "build_artifacts": [
+      {
+        "original": "/private/tmp/au07-implementation-20261002/build-final.log",
+        "sha256": "9b521d94e59c8f70f51d2910152ce4bffdbad96a46719d8e2ddf8e06cc82a251",
+        "summary": [
+          "Build succeeded.",
+          "0 Warning(s)",
+          "0 Error(s)"
+        ]
+      }
+    ]
+  },
+  {
+    "ticket": "AU08",
+    "retained_execution_artifacts": [
+      {
+        "original": "/private/tmp/au08-implementation-20261002/au08-corrections.trx",
+        "sha256": "58be7953aa89430c77496dd4b81c34b960cbed4786ad55f0a799dca77c267f76",
+        "counters": {
+          "total": "4",
+          "executed": "4",
+          "passed": "4",
+          "failed": "0",
+          "error": "0",
+          "timeout": "0",
+          "aborted": "0",
+          "inconclusive": "0",
+          "passedButRunAborted": "0",
+          "notRunnable": "0",
+          "notExecuted": "0",
+          "disconnected": "0",
+          "warning": "0",
+          "completed": "0",
+          "inProgress": "0",
+          "pending": "0"
+        }
+      },
+      {
+        "original": "/private/tmp/au08-implementation-20261002/au08-focused.trx",
+        "sha256": "39356afa838fc6a7ae313fe5a381de86b2ea2f89cfc85601e85476ba78bf29a6",
+        "counters": {
+          "total": "14",
+          "executed": "14",
+          "passed": "13",
+          "failed": "1",
+          "error": "0",
+          "timeout": "0",
+          "aborted": "0",
+          "inconclusive": "0",
+          "passedButRunAborted": "0",
+          "notRunnable": "0",
+          "notExecuted": "0",
+          "disconnected": "0",
+          "warning": "0",
+          "completed": "0",
+          "inProgress": "0",
+          "pending": "0"
+        }
+      }
+    ],
+    "build_artifacts": [
+      {
+        "original": "/private/tmp/au08-implementation-20261002/build.log",
+        "sha256": "1e639afe706788d6f23d9e582049d21a39b72fcc19688786aa97c765624fd46d",
+        "summary": [
+          "Build succeeded.",
+          "0 Warning(s)",
+          "0 Error(s)"
+        ]
+      }
+    ]
+  },
+  {
+    "ticket": "AU09",
+    "retained_execution_artifacts": [
+      {
+        "original": "/private/tmp/au09-implementation-20261002/au09-correction.trx",
+        "sha256": "0de44d22f1fa1c5b5acc01a09ceea272c642091d1439d0a7214fa0bde159642b",
+        "counters": {
+          "total": "1",
+          "executed": "1",
+          "passed": "1",
+          "failed": "0",
+          "error": "0",
+          "timeout": "0",
+          "aborted": "0",
+          "inconclusive": "0",
+          "passedButRunAborted": "0",
+          "notRunnable": "0",
+          "notExecuted": "0",
+          "disconnected": "0",
+          "warning": "0",
+          "completed": "0",
+          "inProgress": "0",
+          "pending": "0"
+        }
+      },
+      {
+        "original": "/private/tmp/au09-implementation-20261002/au09-focused.trx",
+        "sha256": "291912449943ed0e282205759def7c5398a18788b50f56d3a770f92ac6af0d7b",
+        "counters": {
+          "total": "7",
+          "executed": "7",
+          "passed": "6",
+          "failed": "1",
+          "error": "0",
+          "timeout": "0",
+          "aborted": "0",
+          "inconclusive": "0",
+          "passedButRunAborted": "0",
+          "notRunnable": "0",
+          "notExecuted": "0",
+          "disconnected": "0",
+          "warning": "0",
+          "completed": "0",
+          "inProgress": "0",
+          "pending": "0"
+        }
+      }
+    ],
+    "build_artifacts": [
+      {
+        "original": "/private/tmp/au09-implementation-20261002/build.log",
+        "sha256": "d1216b8648f8aa6589e56f3bd4a604f74984d515952db0b148deb3ba2310d9f6",
+        "summary": [
+          "Build succeeded.",
+          "0 Warning(s)",
+          "0 Error(s)"
+        ]
+      }
+    ]
+  },
+  {
+    "ticket": "AU10",
+    "retained_execution_artifacts": [
+      {
+        "original": "/private/tmp/au10-implementation-20261002/au10-focused.trx",
+        "sha256": "3c0b7694643ce40d1f53def31cb22eeb02b134593a6f1fdec1e090fdefd1a84e",
+        "counters": {
+          "total": "12",
+          "executed": "12",
+          "passed": "12",
+          "failed": "0",
+          "error": "0",
+          "timeout": "0",
+          "aborted": "0",
+          "inconclusive": "0",
+          "passedButRunAborted": "0",
+          "notRunnable": "0",
+          "notExecuted": "0",
+          "disconnected": "0",
+          "warning": "0",
+          "completed": "0",
+          "inProgress": "0",
+          "pending": "0"
+        }
+      },
+      {
+        "original": "/private/tmp/au10-implementation-20261002/au10-live-field-errors.trx",
+        "sha256": "24c2330eaa1f318609b4c7200fe47153984bd80bf16ac884ed020f2d3479784e",
+        "counters": {
+          "total": "1",
+          "executed": "1",
+          "passed": "1",
+          "failed": "0",
+          "error": "0",
+          "timeout": "0",
+          "aborted": "0",
+          "inconclusive": "0",
+          "passedButRunAborted": "0",
+          "notRunnable": "0",
+          "notExecuted": "0",
+          "disconnected": "0",
+          "warning": "0",
+          "completed": "0",
+          "inProgress": "0",
+          "pending": "0"
+        }
+      }
+    ],
+    "build_artifacts": [
+      {
+        "original": "/private/tmp/au10-implementation-20261002/build.log",
+        "sha256": "ad3c20f28011ccf5b6484202cc8be3fbc0e06ebe59a55f81ff5b3fe389b32147",
+        "summary": [
+          "Build succeeded.",
+          "0 Warning(s)",
+          "0 Error(s)"
+        ]
+      }
+    ]
+  }
+]

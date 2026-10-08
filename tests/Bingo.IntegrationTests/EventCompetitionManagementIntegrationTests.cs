@@ -15,8 +15,14 @@ using Bingo.Infrastructure.Persistence;
 using Bingo.Web;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
+using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.Mvc.ViewFeatures;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
@@ -26,13 +32,13 @@ using Testcontainers.PostgreSql;
 
 namespace Bingo.IntegrationTests;
 
-public sealed class EventCompetitionManagementIntegrationTests : IAsyncLifetime
+public sealed partial class EventCompetitionManagementIntegrationTests(PostgreSqlTestFixture databaseFixture) : IAsyncLifetime, IClassFixture<PostgreSqlTestFixture>
 {
-    private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine")
+    private readonly PostgreSqlTestDatabase database = databaseFixture.CreateDatabase(new PostgreSqlBuilder("postgres:17-alpine")
         .WithDatabase("bingo_wom_management")
         .WithUsername("bingo")
         .WithPassword("bingo_test_password")
-        .Build();
+        );
 
     // Keep the seed input deliberately non-microsecond-aligned so this class
     // exercises the PostgreSQL timestamp boundary. SeedEventAsync derives the
@@ -47,7 +53,6 @@ public sealed class EventCompetitionManagementIntegrationTests : IAsyncLifetime
         await database.StartAsync();
         connectionString = database.GetConnectionString();
         await using var db = CreateDb();
-        await db.Database.MigrateAsync();
     }
 
     public Task DisposeAsync() => database.DisposeAsync().AsTask();
@@ -161,6 +166,137 @@ public sealed class EventCompetitionManagementIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task RecreatingAfterManagedDeletionRebindsTheWebsiteOwnedConnection()
+    {
+        var clock = new TestClock(DateTimeOffset.UtcNow);
+        var fixture = await SeedEventAsync(clock, live: false);
+        var createIds = new Queue<long>([7711, 7712]);
+        var managementClient = new RecordingManagementClient
+        {
+            CreateHandler = (payload, _) =>
+            {
+                var id = createIds.Dequeue();
+                var competition = new WiseOldManCompetition(
+                    id,
+                    payload.Title,
+                    payload.StartsAt,
+                    payload.EndsAt,
+                    clock.GetUtcNow(),
+                    payload.Teams.SelectMany(team => team.Participants)
+                        .Select(name => new WiseOldManCompetitionParticipant(name, "REGULAR", null))
+                        .ToArray());
+                return Task.FromResult(new WiseOldManCompetitionWriteResult(
+                    WiseOldManCompetitionWriteStatus.Success,
+                    competition,
+                    ProtectedVerificationCode: $"recreate-code-{id}"));
+            }
+        };
+
+        await using (var firstCreateDb = CreateDb())
+        {
+            var created = await CreateService(firstCreateDb, managementClient,
+                new RecordingCompetitionClient(_ => new(WiseOldManCompetitionStatus.Unavailable)), clock)
+                .CreateAsync(fixture.EventId, fixture.EventVersion, fixture.Actor);
+            Assert.True(created.Succeeded, created.Error);
+        }
+
+        long versionAfterDelete;
+        await using (var deleteDb = CreateDb())
+        {
+            var current = await deleteDb.Events.AsNoTracking().SingleAsync(x => x.Id == fixture.EventId);
+            var deleted = await CreateService(deleteDb, managementClient,
+                new RecordingCompetitionClient(_ => new(WiseOldManCompetitionStatus.Unavailable)), clock)
+                .DeleteAsync(fixture.EventId, current.Version, 7711, true, fixture.Actor);
+            Assert.True(deleted.Succeeded, deleted.Error);
+            versionAfterDelete = (await deleteDb.Events.AsNoTracking().SingleAsync(x => x.Id == fixture.EventId)).Version;
+        }
+
+        await using (var recreateDb = CreateDb())
+        {
+            var recreated = await CreateService(recreateDb, managementClient,
+                new RecordingCompetitionClient(_ => new(WiseOldManCompetitionStatus.Unavailable)), clock)
+                .CreateAsync(fixture.EventId, versionAfterDelete, fixture.Actor);
+            Assert.True(recreated.Succeeded, recreated.Error);
+        }
+
+        await using var verify = CreateDb();
+        var synchronization = await verify.EventCompetitionSynchronizations.SingleAsync(x => x.EventId == fixture.EventId);
+        var management = await verify.EventCompetitionManagements.SingleAsync(x => x.EventId == fixture.EventId);
+        Assert.Equal(7712L, synchronization.CompetitionId);
+        Assert.Equal(7712L, management.CompetitionId);
+        Assert.Equal(synchronization.Id, management.SynchronizationId);
+        Assert.Equal(EventCompetitionProvenance.WebsiteCreated, synchronization.Provenance);
+        Assert.Equal(EventCompetitionProvenance.WebsiteCreated, management.Provenance);
+        Assert.True(management.CanDelete);
+    }
+
+    [Fact]
+    public async Task ExternalIdOnlyLinkCanAdoptProtectedCodeWithoutSyntheticProviderWriteOrDeleteAuthority()
+    {
+        var clock = new TestClock(DateTimeOffset.UtcNow);
+        var fixture = await SeedEventAsync(clock, live: false);
+        await AddManualCompetitionLinkAsync(fixture.EventId, 7721, clock.GetUtcNow());
+        var managementClient = new RecordingManagementClient();
+
+        await using (var db = CreateDb())
+        {
+            var result = await CreateService(db, managementClient,
+                new RecordingCompetitionClient(_ => new(WiseOldManCompetitionStatus.Unavailable)), clock)
+                .AdoptCredentialAsync(fixture.EventId, fixture.EventVersion, "external-secret", fixture.Actor);
+            Assert.True(result.Succeeded, result.Error);
+            Assert.Equal("Unverified", result.Status);
+        }
+
+        await using var verify = CreateDb();
+        var management = await verify.EventCompetitionManagements.SingleAsync(x => x.EventId == fixture.EventId);
+        Assert.Equal(EventCompetitionProvenance.External, management.Provenance);
+        Assert.Equal(EventCompetitionWriteCapability.Writable, management.WriteCapability);
+        Assert.Equal(EventCompetitionCredentialStatus.Unverified, management.CredentialStatus);
+        Assert.False(management.CanDelete);
+        Assert.NotEqual("external-secret", management.ProtectedVerificationCode);
+        Assert.Equal(0, managementClient.CreateCalls);
+        Assert.Empty(managementClient.Updates);
+        Assert.Empty(managementClient.UpdateAllCalls);
+    }
+
+    [Fact]
+    public async Task ManagePageAcceptsExternalManagementCodeWithoutRenderingTheSecret()
+    {
+        var clock = new TestClock(DateTimeOffset.UtcNow);
+        var fixture = await SeedEventAsync(clock, live: false);
+        await AddManualCompetitionLinkAsync(fixture.EventId, 7722, clock.GetUtcNow());
+        await SetAdminPasswordAsync(fixture.Actor.Id, clock.GetUtcNow());
+        await using var factory = CreateAdminFactory(clock);
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            AllowAutoRedirect = false,
+            BaseAddress = new Uri("https://localhost")
+        });
+        await LoginAsync(client, fixture.Actor.Username);
+
+        var workspaceRoute = $"/Admin/Events/WiseOldMan/{fixture.EventId}";
+        var page = WebUtility.HtmlDecode(await client.GetStringAsync(workspaceRoute));
+        Assert.Contains("management code", page, StringComparison.Ordinal);
+        Assert.Contains("autocomplete=\"new-password\"", page, StringComparison.Ordinal);
+        var token = InputValue(page, "__RequestVerificationToken");
+        var eventVersion = InputValue(page, "EventVersion");
+        using var response = await client.PostAsync($"{workspaceRoute}?handler=AdoptCompetitionCredential", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["EventVersion"] = eventVersion,
+            ["CompetitionVerificationCode"] = "http-secret",
+            ["__RequestVerificationToken"] = token
+        }));
+
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        await using var verify = CreateDb();
+        var management = await verify.EventCompetitionManagements.SingleAsync(x => x.EventId == fixture.EventId);
+        Assert.Equal(EventCompetitionProvenance.External, management.Provenance);
+        Assert.Equal(EventCompetitionCredentialStatus.Unverified, management.CredentialStatus);
+        var after = WebUtility.HtmlDecode(await client.GetStringAsync(workspaceRoute));
+        Assert.DoesNotContain("http-secret", after, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task ManagePageShowsCreateOnlyForDefinitiveFailedOrCancelledCreateWithoutLinks()
     {
         var clock = new TestClock(DateTimeOffset.UtcNow);
@@ -205,11 +341,136 @@ public sealed class EventCompetitionManagementIntegrationTests : IAsyncLifetime
                 BaseAddress = new Uri("https://localhost")
             });
             await LoginAsync(client, fixture.Actor.Username);
-            var page = WebUtility.HtmlDecode(await client.GetStringAsync($"/Admin/Events/Manage/{fixture.EventId}"));
-            var showsCreate = page.Contains("Create managed WOM competition", StringComparison.Ordinal);
+            var page = WebUtility.HtmlDecode(await client.GetStringAsync($"/Admin/Events/WiseOldMan/{fixture.EventId}"));
+            // A10 / U9 2a: the shared WOM page always renders the Create control; it is offered only while it is enabled.
+            var createButton = Regex.Match(page, "<button[^>]*id=\"create-btn\"[^>]*>");
+            var showsCreate = createButton.Success && !createButton.Value.Contains("disabled", StringComparison.Ordinal);
             Assert.True(scenario.Expected == showsCreate,
                 $"Scenario '{scenario.Name}' expected Create visible={scenario.Expected}, actual={showsCreate}.");
             scenarioIndex++;
+        }
+    }
+
+    [Fact]
+    public async Task WiseOldManTerminalGetRendersInspectionOnly()
+    {
+        var clock = new TestClock(DateTimeOffset.UtcNow);
+        var fixture = await SeedEventAsync(clock, live: false);
+        await using (var db = CreateDb())
+        {
+            var eventItem = await db.Events.SingleAsync(item => item.Id == fixture.EventId);
+            eventItem.Cancel(fixture.Actor.Id, clock.GetUtcNow(), "Terminal Wise Old Man inspection fixture.", protectedHistoryExists: true);
+            await db.SaveChangesAsync();
+        }
+
+        await SetAdminPasswordAsync(fixture.Actor.Id, clock.GetUtcNow());
+        await using var factory = CreateAdminFactory(clock);
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            AllowAutoRedirect = false,
+            BaseAddress = new Uri("https://localhost")
+        });
+        await LoginAsync(client, fixture.Actor.Username);
+
+        using var response = await client.GetAsync($"/Admin/Events/WiseOldMan/{fixture.EventId}");
+        var page = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        // A10 / U9 2a: the shared WOM page states the read-only terminal wording.
+        Assert.Contains("This event was cancelled. Its Wise Old Man connection is read-only.", page, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task WiseOldManUnknownPostHandlerRedirectsWithoutMutation()
+    {
+        var clock = new TestClock(DateTimeOffset.UtcNow);
+        var fixture = await SeedEventAsync(clock, live: false);
+        await SetAdminPasswordAsync(fixture.Actor.Id, clock.GetUtcNow());
+        await using var factory = CreateAdminFactory(clock);
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            AllowAutoRedirect = false,
+            BaseAddress = new Uri("https://localhost")
+        });
+        await LoginAsync(client, fixture.Actor.Username);
+
+        var workspaceRoute = $"/Admin/Events/WiseOldMan/{fixture.EventId}";
+        var page = WebUtility.HtmlDecode(await client.GetStringAsync(workspaceRoute));
+        using var response = await client.PostAsync($"{workspaceRoute}?handler=UnknownWomMutation", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["EventVersion"] = InputValue(page, "EventVersion"),
+            ["__RequestVerificationToken"] = InputValue(page, "__RequestVerificationToken")
+        }));
+
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        Assert.Equal($"/Admin/Events/Manage/{fixture.EventId}", response.Headers.Location?.ToString());
+        await using var verify = CreateDb();
+        Assert.Empty(await verify.EventCompetitionSynchronizations.Where(item => item.EventId == fixture.EventId).ToListAsync());
+        Assert.Empty(await verify.EventCompetitionManagements.Where(item => item.EventId == fixture.EventId).ToListAsync());
+        Assert.Empty(await verify.EventCompetitionManagementOperations.Where(item => item.EventId == fixture.EventId).ToListAsync());
+    }
+
+    [Theory]
+    [InlineData(DraftPublicationMethod.HistoricalUnknown)]
+    [InlineData(DraftPublicationMethod.WebsiteDraft)]
+    [InlineData(DraftPublicationMethod.DirectRoster)]
+    public async Task WomPreviewUsesTheImmutablePublishedRosterForEveryPublicationMethod(DraftPublicationMethod method)
+    {
+        var clock = new TestClock(NonMicrosecondFixtureNow);
+        var fixture = await SeedEventAsync(clock, live: false, publicationMethod: method);
+
+        await using var db = CreateDb();
+        var preview = await CreateService(db, new RecordingManagementClient(), new RecordingCompetitionClient(_ => new(WiseOldManCompetitionStatus.Unavailable)), clock)
+            .PreviewAsync(fixture.EventId);
+
+        var team = Assert.Single(preview!.Teams);
+        Assert.True(preview.Valid, string.Join(" ", preview.Errors));
+        Assert.Equal([await PublishedCharacterNameAsync(fixture.EventId)], team.Participants);
+        await using var verify = CreateDb();
+        Assert.Equal(method, await verify.DraftPublicationCycles.Where(x => x.SupersededAt == null)
+            .Select(x => x.PublicationMethod).SingleAsync());
+        Assert.NotEmpty(preview.Fingerprint);
+    }
+
+    [Fact]
+    public async Task HistoricalPublicationRetainsEmptyActiveTeamWomValidationAndPublicRosterUsesSamePublicationSet()
+    {
+        var clock = new TestClock(NonMicrosecondFixtureNow);
+        var fixture = await SeedEventAsync(clock, live: false, publicationMethod: DraftPublicationMethod.HistoricalUnknown);
+        Guid emptyTeamId;
+        string slug;
+        await using (var seed = CreateDb())
+        {
+            var item = await seed.Events.SingleAsync(value => value.Id == fixture.EventId);
+            slug = item.Slug;
+            var emptyTeam = new Team(Guid.NewGuid(), fixture.EventId, "Empty published team", $"empty-published-{Guid.NewGuid():N}", TeamFormationType.Preformed, null, false, clock.GetUtcNow());
+            emptyTeam.Finalize(clock.GetUtcNow());
+            emptyTeamId = emptyTeam.Id;
+            seed.Teams.Add(emptyTeam);
+            await seed.SaveChangesAsync();
+        }
+
+        await using (var db = CreateDb())
+        {
+            var preview = await CreateService(db, new RecordingManagementClient(), new RecordingCompetitionClient(_ => new(WiseOldManCompetitionStatus.Unavailable)), clock)
+                .PreviewAsync(fixture.EventId);
+            Assert.NotNull(preview);
+            Assert.False(preview!.Valid);
+            Assert.Contains(preview.Teams, team => team.TeamId == emptyTeamId && team.Empty);
+            Assert.Contains(preview.Errors, error => error.Contains("Empty published team", StringComparison.Ordinal));
+        }
+
+        await using (var db = CreateDb())
+        {
+            var page = new Bingo.Web.Pages.Events.TeamsModel(db, clock)
+            {
+                PageContext = new PageContext(new ActionContext(new DefaultHttpContext(), new RouteData(), new PageActionDescriptor()))
+                {
+                    ViewData = new ViewDataDictionary(new EmptyModelMetadataProvider(), new ModelStateDictionary())
+                }
+            };
+            Assert.IsType<PageResult>(await page.OnGetAsync(slug, CancellationToken.None));
+            Assert.Single(page.Teams);
+            Assert.DoesNotContain(page.Teams, team => team.Name == "Empty published team");
         }
     }
 
@@ -219,6 +480,7 @@ public sealed class EventCompetitionManagementIntegrationTests : IAsyncLifetime
         var clock = new TestClock(NonMicrosecondFixtureNow);
         var fixture = await SeedEventAsync(clock, live: true, competitionId: 4101);
         var remote = fixture.RemoteCompetition!;
+        var beforeWrite = await SeedUnappliedManagedWriteAsync(fixture, clock);
         var managementClient = new RecordingManagementClient();
         var oldPayload = new WiseOldManCompetitionWritePayload(
             "Old queued title",
@@ -240,12 +502,12 @@ public sealed class EventCompetitionManagementIntegrationTests : IAsyncLifetime
 
         await using (var first = CreateDb())
         {
-            await CreateService(first, managementClient, new RecordingCompetitionClient(_ => new(WiseOldManCompetitionStatus.Success, remote)), clock)
+            await CreateService(first, managementClient, new RecordingCompetitionClient(_ => new(WiseOldManCompetitionStatus.Success, beforeWrite)), clock)
                 .ProcessDueAsync();
         }
         await using (var second = CreateDb())
         {
-            await CreateService(second, managementClient, new RecordingCompetitionClient(_ => new(WiseOldManCompetitionStatus.Success, remote)), clock)
+            await CreateService(second, managementClient, new RecordingCompetitionClient(_ => new(WiseOldManCompetitionStatus.Success, beforeWrite)), clock)
                 .ProcessDueAsync();
         }
 
@@ -321,13 +583,13 @@ public sealed class EventCompetitionManagementIntegrationTests : IAsyncLifetime
     [Fact]
     public async Task ManualLinkWaitsForManagedProviderWriteOnTheSameCompetition()
     {
-        var clock = new TestClock(DateTimeOffset.UtcNow);
+        var clock = new TestClock(NonMicrosecondFixtureNow);
         var managed = await SeedEventAsync(clock, live: true, competitionId: 4201);
         var manual = await SeedEventAsync(clock, live: false, startsOverride: managed.RemoteCompetition!.StartsAt, endsOverride: managed.RemoteCompetition.EndsAt);
         var remote = managed.RemoteCompetition!;
-        var providerCurrent = remote;
+        var providerCurrent = await SeedUnappliedManagedWriteAsync(managed, clock);
         var managementClient = new RecordingManagementClient();
-        var managedCompetitionClient = new RecordingCompetitionClient(_ => new(WiseOldManCompetitionStatus.Success, remote));
+        var managedCompetitionClient = new RecordingCompetitionClient(_ => new(WiseOldManCompetitionStatus.Success, providerCurrent));
         var manualProviderRead = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var manualCompetitionClient = new RecordingCompetitionClient(_ =>
         {
@@ -368,9 +630,10 @@ public sealed class EventCompetitionManagementIntegrationTests : IAsyncLifetime
         var updateResult = await managedUpdate;
         await manualProviderRead.Task.WaitAsync(TimeSpan.FromSeconds(10));
         var linkResult = await manualLink;
-        Assert.True(updateResult.Succeeded, updateResult.Error);
+        Assert.False(updateResult.Succeeded);
+        Assert.Equal("Unknown", updateResult.Status); // Receipt does not match the requested window.
         Assert.False(linkResult.Succeeded);
-        Assert.Contains("within five minutes", linkResult.Error, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("configured website UTC window exactly", linkResult.Error, StringComparison.OrdinalIgnoreCase);
 
         await using var verify = CreateDb();
         Assert.False(await verify.EventCompetitionSynchronizations.AnyAsync(x => x.EventId == manual.EventId));
@@ -382,6 +645,7 @@ public sealed class EventCompetitionManagementIntegrationTests : IAsyncLifetime
         var clock = new TestClock(NonMicrosecondFixtureNow);
         var fixture = await SeedEventAsync(clock, live: true, competitionId: 4301);
         var remote = fixture.RemoteCompetition!;
+        var beforeWrite = await SeedUnappliedManagedWriteAsync(fixture, clock);
         var interceptor = new ThrowOnceAfterArmingInterceptor();
         var managementClient = new RecordingManagementClient();
         managementClient.UpdateHandler = (_, payload, _, _) =>
@@ -410,7 +674,7 @@ public sealed class EventCompetitionManagementIntegrationTests : IAsyncLifetime
         }
 
         await using (var db = CreateDb(interceptor))
-            await CreateService(db, managementClient, new RecordingCompetitionClient(_ => new(WiseOldManCompetitionStatus.Success, remote)), clock)
+            await CreateService(db, managementClient, new RecordingCompetitionClient(_ => new(WiseOldManCompetitionStatus.Success, beforeWrite)), clock)
                 .ProcessDueAsync();
 
         await using var verify = CreateDb();
@@ -753,7 +1017,7 @@ public sealed class EventCompetitionManagementIntegrationTests : IAsyncLifetime
         var item = await db.Events.AsNoTracking().SingleAsync(x => x.Id == eventId);
         db.EventCompetitionSynchronizations.Add(new EventCompetitionSynchronization(
             Guid.NewGuid(), eventId, 1, competitionId, item.Name,
-            item.EventStartsAt!.Value, item.EventEndsAt!.Value, "manual-link-fixture", now));
+            item.EventStartsAt!.Value, item.EventEndsAt!.Value, "manual-link-fixture", now, EventCompetitionProvenance.External));
         await db.SaveChangesAsync();
     }
 
@@ -826,7 +1090,8 @@ public sealed class EventCompetitionManagementIntegrationTests : IAsyncLifetime
         bool live,
         long? competitionId = null,
         DateTimeOffset? startsOverride = null,
-        DateTimeOffset? endsOverride = null)
+        DateTimeOffset? endsOverride = null,
+        DraftPublicationMethod publicationMethod = DraftPublicationMethod.HistoricalUnknown)
     {
         var now = clock.GetUtcNow();
         var adminLoginName = $"admin-{Guid.NewGuid():N}";
@@ -850,7 +1115,8 @@ public sealed class EventCompetitionManagementIntegrationTests : IAsyncLifetime
         var draft = new DraftSession(Guid.NewGuid(), eventItem.Id, 1);
         draft.Start(now.AddHours(-2));
         draft.Finalize(now.AddHours(-1));
-        var publication = new DraftPublicationCycle(Guid.NewGuid(), draft.Id, 1, now.AddHours(-1), admin.Id);
+        var publication = new DraftPublicationCycle(Guid.NewGuid(), draft.Id, 1, now.AddHours(-1), admin.Id, publicationMethod);
+        var publishedRoster = new DraftPublicationRoster(Guid.NewGuid(), publication.Id, team.Id, participant.Id, TeamMembershipRole.Participant, null, characterName);
 
         EventCompetitionSynchronization? state = null;
         EventCompetitionManagement? management = null;
@@ -871,7 +1137,7 @@ public sealed class EventCompetitionManagementIntegrationTests : IAsyncLifetime
         }
 
         await using var db = CreateDb();
-        db.AddRange(admin, eventItem, team, participant, character, assignment, membership, draft, publication);
+        db.AddRange(admin, eventItem, team, participant, character, assignment, membership, draft, publication, publishedRoster);
         if (state is not null) db.Add(state);
         if (management is not null) db.Add(management);
         await db.SaveChangesAsync();
@@ -889,6 +1155,28 @@ public sealed class EventCompetitionManagementIntegrationTests : IAsyncLifetime
         return new(eventItem.Id, eventItem.Version, new(admin.Id, admin.LoginName), management?.Id, remote);
     }
 
+    private async Task<WiseOldManCompetition> SeedUnappliedManagedWriteAsync(Fixture fixture, TestClock clock)
+    {
+        // Retain a known previous provider configuration while the website has
+        // the desired title. Already-matching provider state correctly avoids a write.
+        var previous = fixture.RemoteCompetition! with { Title = "Previous managed event" };
+        await using var db = CreateDb();
+        var management = await db.EventCompetitionManagements.SingleAsync(x => x.Id == fixture.ManagementId);
+        management.MarkApplied(Guid.NewGuid(), "previous-local-fingerprint", RemoteFingerprint(previous), "[]",
+            previous.Title, previous.StartsAt, previous.EndsAt, clock.GetUtcNow());
+        await db.SaveChangesAsync();
+        return previous;
+    }
+
+    private async Task<string> PublishedCharacterNameAsync(Guid eventId)
+    {
+        await using var db = CreateDb();
+        return await db.DraftPublicationRosters
+            .Where(x => db.DraftPublicationCycles.Any(cycle => cycle.Id == x.DraftPublicationCycleId && db.DraftSessions.Any(draft => draft.Id == cycle.DraftSessionId && draft.EventId == eventId)))
+            .Select(x => x.PublicCharacterName)
+            .SingleAsync();
+    }
+
     private static string RemoteFingerprint(WiseOldManCompetition competition) =>
         WiseOldManCompetitionRules.Fingerprint(new { competition.Id, competition.Title, competition.StartsAt, competition.EndsAt });
 
@@ -904,6 +1192,7 @@ public sealed class EventCompetitionManagementIntegrationTests : IAsyncLifetime
     private sealed class RecordingManagementClient : IWiseOldManCompetitionManagementClient
     {
         public int CreateCalls { get; private set; }
+        public int DeleteCalls { get; private set; }
         public List<WiseOldManCompetitionWritePayload> Updates { get; } = [];
         public ConcurrentQueue<(long CompetitionId, string VerificationCode)> UpdateAllCalls { get; } = [];
         public Func<WiseOldManCompetitionWritePayload, CancellationToken, Task<WiseOldManCompetitionWriteResult>>? CreateHandler { get; init; }
@@ -926,9 +1215,12 @@ public sealed class EventCompetitionManagementIntegrationTests : IAsyncLifetime
                 new WiseOldManCompetition(competitionId, payload.Title, payload.StartsAt, payload.EndsAt, DateTimeOffset.UtcNow, []));
         }
 
-        public Task<WiseOldManCompetitionWriteResult> DeleteAsync(long competitionId, string verificationCode, CancellationToken cancellationToken = default) =>
-            Task.FromResult(new WiseOldManCompetitionWriteResult(WiseOldManCompetitionWriteStatus.Success,
+        public Task<WiseOldManCompetitionWriteResult> DeleteAsync(long competitionId, string verificationCode, CancellationToken cancellationToken = default)
+        {
+            DeleteCalls++;
+            return Task.FromResult(new WiseOldManCompetitionWriteResult(WiseOldManCompetitionWriteStatus.Success,
                 new WiseOldManCompetition(competitionId, "Deleted", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddHours(1), null, [])));
+        }
 
         public async Task<WiseOldManUpdateAllResult> UpdateAllAsync(long competitionId, string verificationCode, DateTimeOffset dispatchDeadline, Func<CancellationToken, Task<bool>> recheckEligibility, CancellationToken cancellationToken = default)
         {

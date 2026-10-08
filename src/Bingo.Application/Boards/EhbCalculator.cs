@@ -180,11 +180,13 @@ public static class EhbCalculator
         IEnumerable<(bool Manual, decimal? Estimate)> requirements, decimal? manualEhb)
     {
         var values = requirements.ToList();
-        if (values.Count == 0) return 0;
+        if (values.Count == 0 || manualEhb is < 0.0001m or > 100000m) return 0;
         if (objectiveType == ObjectiveType.Manual && values.All(x => x.Manual))
             return manualEhb is > 0 ? manualEhb.Value : 0;
         if (objectiveType != ObjectiveType.DropRequirements || values.Any(x => x.Manual)) return 0;
-        return SumRequirements(values.Select(x => x.Estimate));
+        // An override changes effort only; it cannot repair invalid catalogue mechanics.
+        if (values.Any(x => x.Estimate is not > 0)) return 0;
+        return manualEhb ?? SumRequirements(values.Select(x => x.Estimate));
     }
 
     public static decimal SumRequirements(IEnumerable<decimal?> requirementEstimates, decimal? manualOverride = null)

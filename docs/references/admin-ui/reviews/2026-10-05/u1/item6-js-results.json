@@ -1,0 +1,287 @@
+{
+  "total": 40,
+  "passed": 40,
+  "failed": 0,
+  "results": [
+    {
+      "file": "account-manage-dialog.test.js",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "milliseconds": 47
+    },
+    {
+      "file": "account-support.browser.js",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "milliseconds": 2264
+    },
+    {
+      "file": "admin-confirmation-dismiss.browser.js",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "milliseconds": 624
+    },
+    {
+      "file": "admin-confirmation-navigation.browser.js",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "milliseconds": 1251
+    },
+    {
+      "file": "admin-confirmation.browser.js",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "milliseconds": 1021
+    },
+    {
+      "file": "admin-design-fetch.browser.js",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "milliseconds": 614
+    },
+    {
+      "file": "admin-design-shell.browser.js",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "milliseconds": 6739
+    },
+    {
+      "file": "admin-design-theme.browser.js",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "milliseconds": 609
+    },
+    {
+      "file": "admin-lifecycle-confirmation.browser.js",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "milliseconds": 723
+    },
+    {
+      "file": "admin-review-queue.test.js",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "milliseconds": 24
+    },
+    {
+      "file": "admin-stale-change.browser.js",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "milliseconds": 2104
+    },
+    {
+      "file": "board-dialog.test.js",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "milliseconds": 31
+    },
+    {
+      "file": "board-objective-kind.test.js",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "milliseconds": 23
+    },
+    {
+      "file": "captain-ledger.test.js",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "milliseconds": 35
+    },
+    {
+      "file": "catalogue-admin.test.js",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "milliseconds": 44
+    },
+    {
+      "file": "catalogue-deletion.browser.js",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "milliseconds": 1008
+    },
+    {
+      "file": "draft-add-team-dialog.test.js",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "milliseconds": 34
+    },
+    {
+      "file": "draft-roster-dialog.test.js",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "milliseconds": 47
+    },
+    {
+      "file": "drop-announcement-races.test.js",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "milliseconds": 37
+    },
+    {
+      "file": "drop-announcement-reconciliation.test.js",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "milliseconds": 36
+    },
+    {
+      "file": "drop-announcement.test.js",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "milliseconds": 35
+    },
+    {
+      "file": "event-create-datetime.test.js",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "milliseconds": 31
+    },
+    {
+      "file": "identity-readback.transport.js",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "milliseconds": 928
+    },
+    {
+      "file": "identity-timezone-confirmation.browser.js",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "milliseconds": 1616
+    },
+    {
+      "file": "onboarding-wom-fetch.test.js",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "milliseconds": 23
+    },
+    {
+      "file": "participant-add-dialog.test.js",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "milliseconds": 30
+    },
+    {
+      "file": "participant-edit-dialog.test.js",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "milliseconds": 32
+    },
+    {
+      "file": "participants-ui.test.js",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "milliseconds": 37
+    },
+    {
+      "file": "public-countdown.test.js",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "milliseconds": 28
+    },
+    {
+      "file": "public-evidence.test.js",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "milliseconds": 29
+    },
+    {
+      "file": "public-header-popover.test.js",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "milliseconds": 25
+    },
+    {
+      "file": "public-leaderboards.test.js",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "milliseconds": 68
+    },
+    {
+      "file": "public-recent-drops-live.test.js",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "milliseconds": 141
+    },
+    {
+      "file": "public-recent-drops.test.js",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "milliseconds": 1157
+    },
+    {
+      "file": "schedule-readback.transport.js",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "milliseconds": 88
+    },
+    {
+      "file": "signup-code-settings.browser.js",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "milliseconds": 663
+    },
+    {
+      "file": "signup-questions-overlay.test.js",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "milliseconds": 27
+    },
+    {
+      "file": "stats-production.test.js",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "milliseconds": 10902
+    },
+    {
+      "file": "team-board-overlay.test.js",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "milliseconds": 65
+    },
+    {
+      "file": "transient-toast.test.js",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "milliseconds": 24
+    }
+  ]
+}

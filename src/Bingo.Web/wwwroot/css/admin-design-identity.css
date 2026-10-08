@@ -1,0 +1,18 @@
+/* Identity-specific sizing from the frozen reference; shared form components stay unchanged. */
+/* User "No load fades": only load markers; interaction animations stay frozen. */
+:where([data-page-family="identity"]) .fade-in,:where([data-page-family="identity"]) .page-banner,:where([data-page-family="identity"]) .no-load-fade{animation:none}
+/* Q-SK2: section-title bars reserve the real title's one-line typography. */
+:where([data-page-family="identity"]) .identity-sk-title{min-height:calc(var(--dk-fs-control)*var(--dk-lh-body))}
+:where([data-page-family="identity"]) .id-desc{min-height:132px}:where([data-page-family="identity"]) .id-name{max-width:480px}:where([data-page-family="identity"]) .id-buyin{min-height:76px}
+:where([data-page-family="identity"]) .identity-editor-form .validation-summary-valid,:where([data-page-family="identity"]) .identity-editor-form .field-validation-valid{display:none}
+:where([data-page-family="identity"]) .identity-editor-form .ro-value{white-space:pre-wrap;overflow-wrap:anywhere}
+:where([data-page-family="identity"]) .identity-editor-form .copy-field .mono{overflow-wrap:anywhere;min-width:0}
+:where([data-page-family="identity"]) .identity-editor-form .field-err:empty{display:none}
+@media(min-width:1200px){:where([data-page-family="identity"]).page .card.form-card{margin-bottom:40px}}
+@media(max-width:640px){:where([data-page-family="identity"]) .id-name{max-width:none}:where([data-page-family="identity"]) .identity-editor-form .form-bar .btn-primary{flex:1}}
+
+:where([data-page-family="identity"]) .form-banners:not(:has(.banner:not([hidden]):not(.validation-summary-valid))){display:none}
+
+/* MVC server errors use the same visible error row and input border as client validation. */
+:where([data-page-family="identity"]) .identity-editor-form .field-validation-error{display:flex}
+:where([data-page-family="identity"]) .identity-editor-form .input-validation-error{border-color:var(--dk-danger)}

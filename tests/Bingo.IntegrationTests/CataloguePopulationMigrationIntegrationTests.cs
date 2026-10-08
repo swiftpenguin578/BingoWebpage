@@ -30,18 +30,22 @@ public sealed class CataloguePopulationMigrationIntegrationTests : IAsyncLifetim
     {
         Converters = { new JsonStringEnumConverter() }
     };
-    private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine")
+    private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine").WithLoopbackPort()
         .WithDatabase("bingo_catalogue_population")
         .WithUsername("bingo")
         .WithPassword("bingo_test_password")
         .Build();
     private DbContextOptions<ApplicationDbContext> options = null!;
+    private DbContextOptions<HistoricalApplicationDbContext> historicalOptions = null!;
 
     public async Task InitializeAsync()
     {
-        await database.StartAsync();
+        await PostgreSqlReadiness.StartAsync(database);
         options = new DbContextOptionsBuilder<ApplicationDbContext>()
-            .UseNpgsql(database.GetConnectionString())
+            .UseNpgsql(database.GetOwnedConnectionString())
+            .Options;
+        historicalOptions = new DbContextOptionsBuilder<HistoricalApplicationDbContext>()
+            .UseNpgsql(database.GetOwnedConnectionString())
             .Options;
     }
 
@@ -198,6 +202,8 @@ public sealed class CataloguePopulationMigrationIntegrationTests : IAsyncLifetim
 
         await using (var migrate = new ApplicationDbContext(options))
             await migrate.GetService<IMigrator>().MigrateAsync();
+        await PublishPreLiveBoardAsync(fixture);
+        await PublishPreLiveRosterAsync(fixture);
 
         Guid apiItemId;
         Guid untradeableItemId;
@@ -264,6 +270,33 @@ public sealed class CataloguePopulationMigrationIntegrationTests : IAsyncLifetim
         Assert.Equal(EventItemPriceSource.CatalogueFallback, untradeablePrice.Source);
         Assert.Equal(CataloguePriceSource.Untradeable, untradeablePrice.FallbackCatalogueSource);
         Assert.Equal(EventPriceFallbackReason.NoMapping, untradeablePrice.FallbackReason);
+    }
+
+    private async Task PublishPreLiveRosterAsync(RetainedFixture fixture)
+    {
+        await using var db = new ApplicationDbContext(options);
+        var item = await db.Events.SingleAsync(value => value.Id == fixture.PreLiveEventId);
+        var draft = await db.DraftSessions.SingleAsync(value => value.EventId == fixture.PreLiveEventId);
+        var team = await db.Teams.SingleAsync(value => value.EventId == fixture.PreLiveEventId);
+        var characterName = await (
+            from assignment in db.EventParticipantCharacters
+            join character in db.OsrsCharacters on assignment.OsrsCharacterId equals character.Id
+            where assignment.EventParticipantId == fixture.PreLiveParticipantId && assignment.EventRole == EventCharacterRole.Playing
+            select character.DisplayName).SingleAsync();
+        var publication = new DraftPublicationCycle(
+            Guid.NewGuid(), draft.Id, 1, draft.FinalizedAt!.Value, fixture.PreLiveAccountId, DraftPublicationMethod.DirectRoster);
+        var roster = new DraftPublicationRoster(
+            Guid.NewGuid(), publication.Id, team.Id, fixture.PreLiveParticipantId, TeamMembershipRole.Participant,
+            null, characterName);
+        db.AddRange(publication, roster);
+        await db.SaveChangesAsync();
+    }
+
+    private async Task PublishPreLiveBoardAsync(RetainedFixture fixture)
+    {
+        await using var db = new ApplicationDbContext(options);
+        var board = await db.Boards.SingleAsync(value => value.EventId == fixture.PreLiveEventId);
+        await BoardApprovalFixture.PublishAsync(db, board, new DateTimeOffset(2026, 9, 18, 8, 0, 0, TimeSpan.Zero));
     }
 
     [Fact]
@@ -341,18 +374,28 @@ public sealed class CataloguePopulationMigrationIntegrationTests : IAsyncLifetim
     public async Task CleanBootstrapMigrationDefersToTheReviewedFullSnapshotImporter()
     {
         var snapshotPath = Path.Combine(AppContext.BaseDirectory, "data", "osrs-catalogue.json");
+        await using (var migrateToPrevious = new ApplicationDbContext(options))
+            await migrateToPrevious.GetService<IMigrator>().MigrateAsync(PreviousMigration);
+
+        await using (var historical = new HistoricalApplicationDbContext(historicalOptions))
+        {
+            Assert.True(await historical.CatalogueItems.CountAsync() < 311);
+            Assert.True(await historical.BossActivities.CountAsync() < 68);
+            Assert.Empty(await historical.Accounts.ToListAsync());
+            Assert.Empty(await historical.Events.ToListAsync());
+        }
+
         await using (var migrate = new ApplicationDbContext(options))
         {
-            await migrate.GetService<IMigrator>().MigrateAsync(PreviousMigration);
-            Assert.True(await migrate.CatalogueItems.CountAsync() < 311);
-            Assert.True(await migrate.BossActivities.CountAsync() < 68);
-            Assert.Empty(await migrate.Accounts.ToListAsync());
-            Assert.Empty(await migrate.Events.ToListAsync());
             await migrate.GetService<IMigrator>().MigrateAsync();
             Assert.True(await HasAppliedMigrationAsync(migrate, Migration));
-            Assert.True(await migrate.CatalogueItems.CountAsync() < 311);
-            Assert.True(await migrate.BossActivities.CountAsync() < 68);
-            Assert.Empty(await migrate.AuditEntries.Where(x => x.ActorUsername == MigrationActor).ToListAsync());
+        }
+
+        await using (var verifyMigration = new ApplicationDbContext(options))
+        {
+            Assert.True(await verifyMigration.CatalogueItems.CountAsync() < 311);
+            Assert.True(await verifyMigration.BossActivities.CountAsync() < 68);
+            Assert.Empty(await verifyMigration.AuditEntries.Where(x => x.ActorUsername == MigrationActor).ToListAsync());
         }
 
         await using (var apply = new ApplicationDbContext(options))
@@ -373,8 +416,10 @@ public sealed class CataloguePopulationMigrationIntegrationTests : IAsyncLifetim
         bool includeProtectedHistory,
         bool includePreLiveStartFixture = false)
     {
-        await using var migrate = new ApplicationDbContext(options);
-        await migrate.GetService<IMigrator>().MigrateAsync(PreviousMigration);
+        await using (var migrateToPrevious = new ApplicationDbContext(options))
+            await migrateToPrevious.GetService<IMigrator>().MigrateAsync(PreviousMigration);
+
+        await using var migrate = new HistoricalApplicationDbContext(historicalOptions);
         var now = new DateTimeOffset(2026, 9, 16, 9, 0, 0, TimeSpan.Zero);
         var items = await migrate.CatalogueItems.ToListAsync();
         var bosses = await migrate.BossActivities.ToListAsync();
@@ -448,7 +493,8 @@ public sealed class CataloguePopulationMigrationIntegrationTests : IAsyncLifetim
         if (includePreLiveStartFixture)
         {
             preLiveAccount = Account.CreateWebsite(Guid.NewGuid(), "catalogue-migration-prelive", "CATALOGUE-MIGRATION-PRELIVE", now);
-            preLiveEvent = new BingoEvent(Guid.NewGuid(), "Retained pre-live event", "retained-pre-live-event", "UTC", preLiveAccount.Id, now);
+            preLiveAccount.SetGlobalRole(GlobalRole.Admin);
+            preLiveEvent = new BingoEvent(Guid.NewGuid(), "Retained pre-live event", "retained-pre-live-event", "UTC", preLiveAccount.Id, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
             preLiveEvent.ConfigureSchedule(
                 now.AddDays(-2),
                 now.AddDays(-1),
@@ -477,19 +523,23 @@ public sealed class CataloguePopulationMigrationIntegrationTests : IAsyncLifetim
                 Guid.NewGuid(), preLiveEvent.Id, preLiveParticipant.Id, character.Id, 0,
                 now.AddHours(-2), preLiveAccount.Id, primaryQuestion.Id, EventCharacterRole.Playing,
                 0m, EhbSource.Manual, null);
+            var team = new Team(Guid.NewGuid(), preLiveEvent.Id, "Retained pre-live team", "retained-pre-live-team", TeamFormationType.Drafted, null, true);
+            team.Finalize(now.AddHours(-2));
+            var membership = new TeamMembership(
+                Guid.NewGuid(), team.Id, preLiveParticipant.Id, TeamMembershipRole.Participant,
+                now.AddHours(-2), null, "Retained pre-live fixture");
             var board = new Board(Guid.NewGuid(), preLiveEvent.Id, "Published retained board", 1, 1);
             var draft = new DraftSession(Guid.NewGuid(), preLiveEvent.Id, 1);
-            draft.Start(now.AddHours(-3));
-            draft.Finalize(now.AddHours(-2));
+            draft.FinalizeDirect(now.AddHours(-2));
+            preLiveEvent.SetDraftRosterPublication(true);
             migrate.AddRange(preLiveAccount, preLiveEvent, form, primaryQuestion, captainQuestion,
-                preLiveParticipant, character, assignment, board, draft);
-            await BoardApprovalFixture.PublishAsync(migrate, board, now);
+                preLiveParticipant, character, assignment, team, membership, board, draft);
         }
 
         if (includeProtectedHistory)
         {
             var account = Account.CreateWebsite(Guid.NewGuid(), "catalogue-migration-history", "CATALOGUE-MIGRATION-HISTORY", now);
-            protectedEvent = new BingoEvent(Guid.NewGuid(), "Protected catalogue history", "protected-catalogue-history", "UTC", account.Id, now);
+            protectedEvent = new BingoEvent(Guid.NewGuid(), "Protected catalogue history", "protected-catalogue-history", "UTC", account.Id, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
             protectedEvent.OpenSignups(now);
             protectedEvent.CloseSignups(now.AddMinutes(1));
             protectedEvent.StartEvent(new DateTimeOffset(2026, 9, 16, 12, 0, 0, TimeSpan.Zero));
@@ -573,11 +623,11 @@ public sealed class CataloguePopulationMigrationIntegrationTests : IAsyncLifetim
         Assert.Equal("zalcano", snapshot.Bosses.Single(x => x.Name == "Zalcano").ExternalIdentifier);
     }
 
-    private static async Task<bool> HasAppliedMigrationAsync(ApplicationDbContext db, string migration)
+    private static async Task<bool> HasAppliedMigrationAsync(DbContext db, string migration)
         => await db.Database.SqlQuery<bool>($"SELECT EXISTS (SELECT 1 FROM \"__EFMigrationsHistory\" WHERE \"MigrationId\" = {migration}) AS \"Value\"").SingleAsync();
 
-    private static async Task<string> SourceDropFingerprintAsync(ApplicationDbContext db)
-        => JsonSerializer.Serialize(await db.SourceDrops.AsNoTracking().OrderBy(x => x.Id).Select(x => new
+    private static async Task<string> SourceDropFingerprintAsync(DbContext db)
+        => JsonSerializer.Serialize(await db.Set<SourceDrop>().AsNoTracking().OrderBy(x => x.Id).Select(x => new
         {
             x.Id,
             x.BossActivityId,

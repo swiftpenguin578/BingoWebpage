@@ -1,0 +1,132 @@
+[
+  {
+    "item": 1,
+    "sha": "7bd6660c6f7dc3984170fa35f12f1617c2ebff06",
+    "files": [
+      "CURRENT_STATUS.md",
+      "DELIVERY_PLAN.md",
+      "docs/references/admin-ui/reviews/2026-10-06/u2/remediation-2/item1-events-update.md",
+      "src/Bingo.Web/Pages/Admin/Events/Index.cshtml",
+      "src/Bingo.Web/wwwroot/css/admin-design-events.css",
+      "src/Bingo.Web/wwwroot/js/admin-design-shell.js",
+      "src/Bingo.Web/wwwroot/js/admin-events.js",
+      "tests/Bingo.BrowserTests/admin-design-events-update.browser.js"
+    ]
+  },
+  {
+    "item": 2,
+    "sha": "f1caca5ee47645b4017deebeb3d7dcb81e15a12d",
+    "files": [
+      "docs/references/admin-ui/reviews/2026-10-06/u2/remediation-2/item2-shell-hold.md",
+      "src/Bingo.Web/Pages/Admin/Events/Index.cshtml",
+      "src/Bingo.Web/wwwroot/js/admin-design-shell.js",
+      "tests/Bingo.BrowserTests/admin-design-events-update.browser.js",
+      "tests/Bingo.BrowserTests/admin-design-loading.browser.js"
+    ]
+  },
+  {
+    "item": 3,
+    "sha": "5555c25d9b19a06ad3b6cec4b59f2c4dde75a4ae",
+    "files": [
+      "docs/references/admin-ui/reviews/2026-10-06/u2/remediation-2/item3-create-history.md",
+      "scripts/check-u2-create.cjs",
+      "src/Bingo.Web/wwwroot/js/admin-design-shell.js",
+      "src/Bingo.Web/wwwroot/js/admin-event-create.js"
+    ]
+  },
+  {
+    "item": 4,
+    "sha": "a6d208268db444bb4b8cb511fa88c91b94de2d7c",
+    "files": [
+      "docs/references/admin-ui/reviews/2026-10-06/u2/remediation-2/item4-dashboard-texts.md",
+      "scripts/check-u2-dashboard.cjs",
+      "src/Bingo.Web/Pages/Admin/Index.cshtml",
+      "src/Bingo.Web/Pages/Admin/Index.cshtml.cs",
+      "src/Bingo.Web/wwwroot/js/admin-dashboard.js",
+      "tests/Bingo.BrowserTests/AdminDesignLocalizationTests.cs",
+      "tests/Bingo.BrowserTests/U2DashboardPresentationTests.cs"
+    ]
+  },
+  {
+    "item": 5,
+    "sha": "bd0254a7bfaf8fff93b06d7df7e3478df997d6f3",
+    "files": [
+      "CURRENT_STATUS.md",
+      "DELIVERY_PLAN.md",
+      "docs/references/admin-ui/reviews/2026-10-06/u2/remediation-2/item5-header-positions.json",
+      "docs/references/admin-ui/reviews/2026-10-06/u2/remediation-2/item5-header-question.md",
+      "scripts/check-u2-dashboard.cjs",
+      "scripts/measure-u2-header.cjs",
+      "src/Bingo.Web/Pages/Admin/Index.cshtml",
+      "src/Bingo.Web/Pages/Shared/_AdminDashboardLoadStates.cshtml",
+      "src/Bingo.Web/wwwroot/css/admin-design-dashboard.css",
+      "tests/AdminDesignParityFixture/FixtureHost.cs"
+    ]
+  },
+  {
+    "item": 6,
+    "sha": "9bdf614498bbceda4bf8ddf05b22133bdc97ba27",
+    "files": [
+      "DELIVERY_PLAN.md",
+      "docs/references/admin-ui/reviews/2026-10-06/u2/remediation-2/item6-linked-competition.md",
+      "tests/Bingo.IntegrationTests/U2DashboardIntegrationTests.cs"
+    ]
+  },
+  {
+    "item": 7,
+    "sha": "71a5e6a87aa80301a0103620a81d98584c828564",
+    "files": [
+      "docs/references/admin-ui/reviews/2026-10-06/u2/remediation-2/item7-importer-seed.md",
+      "src/Bingo.Infrastructure/Events/EventSignupLifecycleService.cs",
+      "src/Bingo.Web/TestData/UiReviewScenarioSeeder.cs",
+      "tests/Bingo.IntegrationTests/UiReviewScenarioIntegrationTests.cs"
+    ]
+  },
+  {
+    "item": 8,
+    "sha": "see owning commit of this file",
+    "files": [
+      "CURRENT_STATUS.md",
+      "UI_PAGE_MATRIX.md",
+      "tests/AdminDesignParityFixture/AdminDesignParityFixture.csproj",
+      "tests/AdminDesignParityFixture/FixtureHost.cs",
+      "tests/Bingo.BrowserTests/Bingo.BrowserTests.csproj",
+      "tests/Bingo.BrowserTests/BrowserTestApplicationFactory.cs",
+      "tests/Bingo.IntegrationTests/AccessAndAuditTests.cs",
+      "tests/Bingo.IntegrationTests/AccountOverviewTests.cs",
+      "tests/Bingo.IntegrationTests/Au12PlacementRuleIntegrationTests.cs",
+      "tests/Bingo.IntegrationTests/BannerRetirementMigrationTests.cs",
+      "tests/Bingo.IntegrationTests/Bingo.IntegrationTests.csproj",
+      "tests/Bingo.IntegrationTests/BoardEstimateFreshnessMigrationTests.cs",
+      "tests/Bingo.IntegrationTests/C33FinalizationFreshnessTests.cs",
+      "tests/Bingo.IntegrationTests/Cat1TeamSizeIntegrationTests.cs",
+      "tests/Bingo.IntegrationTests/CataloguePopulationMigrationIntegrationTests.cs",
+      "tests/Bingo.IntegrationTests/EventQuarantineIntegrationTests.cs",
+      "tests/Bingo.IntegrationTests/PostgreSqlConnectivityTests.cs",
+      "tests/Bingo.IntegrationTests/ProductionCataloguePreflightIntegrationTests.cs",
+      "tests/Bingo.IntegrationTests/PublishedContentRetentionIntegrationTests.cs",
+      "tests/Bingo.IntegrationTests/Slice10Pass102CompetitionSynchronizationTests.cs",
+      "tests/Bingo.IntegrationTests/Slice1MigrationRehearsalTests.cs",
+      "tests/Bingo.IntegrationTests/Slice2MigrationRehearsalTests.cs",
+      "tests/Bingo.IntegrationTests/Slice3LifecyclePersistenceIntegrationTests.cs",
+      "tests/Bingo.IntegrationTests/Slice3ScheduledLifecycleIntegrationTests.cs",
+      "tests/Bingo.IntegrationTests/Slice4AuthenticatedSignupIntegrationTests.cs",
+      "tests/Bingo.IntegrationTests/Slice5MigrationRejectionTests.cs",
+      "tests/Bingo.IntegrationTests/Slice6CatalogueAdministrationIntegrationTests.cs",
+      "tests/Bingo.IntegrationTests/Slice6RateVariantRetirementMigrationTests.cs",
+      "tests/Bingo.IntegrationTests/Slice7Pass71IntegrationTests.cs",
+      "tests/Bingo.IntegrationTests/Slice8Pass81PersistenceIntegrationTests.cs",
+      "tests/Bingo.IntegrationTests/SubmissionWorkflowTests.cs",
+      "tests/Bingo.IntegrationTests/WiseOldManConnectionProvenanceMigrationTests.cs",
+      "tests/PostgreSqlTestDatabase.cs",
+      "docs/references/admin-ui/reviews/2026-10-06/u2/remediation-2/changed-files.json",
+      "docs/references/admin-ui/reviews/2026-10-06/u2/remediation-2/item8-design-checks.json",
+      "docs/references/admin-ui/reviews/2026-10-06/u2/remediation-2/item8-js-results.json",
+      "docs/references/admin-ui/reviews/2026-10-06/u2/remediation-2/item8-postgres-endpoints.md",
+      "scripts/check-u2-postgres-concurrency.cjs",
+      "scripts/probe-u2-postgres-endpoints.cs",
+      "tests/Bingo.IntegrationTests/PostgreSqlEndpointIsolationTests.cs",
+      "tests/PostgreSqlTestEndpoint.cs"
+    ]
+  }
+]

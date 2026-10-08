@@ -1,0 +1,187 @@
+@model Bingo.Web.Pages.Admin.Catalogue.IndexModel
+@using Bingo.Domain.Catalogue
+@using Bingo.Web.Catalogue
+@using Bingo.Web.Pages.Admin.Catalogue
+@inject IStringLocalizer<AdminCommunityResource> D
+@inject OsrsWikiImageCache WikiImages
+@{
+    var drawer = Model.Drawer!;
+    var a = drawer.Activity;
+    var isNew = a is null && !drawer.Missing;
+    string Art(string? url) => WikiImages.GetPublicUrl(url) is { } src ? $"--art:url(\"{src}\")" : "--art:none";
+    string Invariant(decimal? value) => value?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty;
+    var minigame = a is not null && IndexModel.IsMinigame(a.Category);
+    var unit = minigame ? D["run"].Value : D["kill"].Value;
+    string ValueText(CatalogueItem item) => item.CatalogueValueGp is not { } value ? D["No value"].Value
+        : item.PriceSource == CataloguePriceSource.Untradeable ? D["untradeable, 0 gp"].Value : D["{0} gp", IndexModel.Gp(value)].Value;
+}
+@* The page script moves this content into the shared drawer layer. Every value here belongs to the activity in
+   data-activity-id; nothing is carried between activities. Drop editors are templates so one opens at a time. *@
+<template data-catalogue-drawer data-activity-id="@a?.Id" data-activity-version="@a?.Version" data-activity-name="@a?.Name" data-activity-active="@((a?.Active ?? false) ? "true" : "false")"
+          data-activity-rate="@Invariant(a?.EfficientCompletionsPerHour)" data-activity-category="@a?.Category" data-activity-team="@a?.TeamSize" data-activity-image="@a?.ImageUrl" data-missing="@(drawer.Missing ? "true" : "false")" data-new="@(isNew ? "true" : "false")" data-open-drop="@drawer.OpenDrop">
+@if (drawer.Missing)
+{
+    <div class="dr-head"><span class="thumb is-lg" aria-hidden="true"></span><div class="grow"><div class="eyebrow">@D["Catalogue"]</div><h2 class="dr-title" id="drawer-title">@D["Not found"]</h2></div><button class="icon-btn" type="button" id="drawer-close" aria-label="@D["Close"]" data-catalogue-close><partial name="_AdminDesignIcon" model='new AdminDesignIcon("close")' /></button></div>
+    <div class="dr-body" id="drawer-body"><div class="empty"><div class="empty-title">@D["This activity isn’t available"]</div><div class="empty-text">@D["It may have been deleted, or the link is incomplete."]</div></div></div>
+    <div class="dr-foot"><div class="spacer"></div><button class="btn" type="button" id="dr-cancel" data-catalogue-close>@D["Close"]</button></div>
+}
+else
+{
+    <div class="dr-head">
+        <span class="thumb is-lg" style="@Art(a?.ImageUrl)" aria-hidden="true" data-catalogue-art></span>
+        <div class="grow ct-min">
+            <div class="eyebrow">@(isNew ? D["Catalogue"].Value : a!.Active ? D[a.Category].Value : D["{0} · inactive", D[a.Category].Value].Value)</div>
+            <h2 class="dr-title" id="drawer-title">@(isNew ? D["Add activity"].Value : a!.Name)</h2>
+            @if (a is { Active: false }) { <div class="dr-badges"><span class="badge badge-neutral">@D["Inactive"]</span></div> }
+        </div>
+        <button class="icon-btn" type="button" id="drawer-close" aria-label="@D["Close"]" data-catalogue-close><partial name="_AdminDesignIcon" model='new AdminDesignIcon("close")' /></button>
+    </div>
+    <div class="dr-body" id="drawer-body">
+        <div data-catalogue-banner-slot></div>
+        <section class="sec" aria-labelledby="sec-act">
+            <div class="sec-head"><h3 class="sec-title" id="sec-act">@(isNew ? D["Activity"] : D["Settings"])</h3><span class="dirty" data-catalogue-act-dirty hidden><span class="dot"></span>@D["Changed"]</span></div>
+            <form class="ct-grid" data-catalogue-activity-form novalidate>
+                <input type="hidden" name="recordId" value="@a?.Id" /><input type="hidden" name="expectedVersion" value="@a?.Version" />
+                <div class="field"><label class="lbl" for="a-name">@D["Name"]</label><input class="input" id="a-name" name="name" maxlength="200" autocomplete="off" value="@a?.Name" aria-describedby="error-a-name" data-field="name"><partial name="_AdminDesignFieldError" model='new AdminDesignFieldError("a-name")' /></div>
+                <div class="field"><label class="lbl" for="a-cat">@D["Category"]</label><div class="select-wrap"><select class="select select-field" id="a-cat" name="category" aria-describedby="error-a-cat" data-field="category">@foreach (var category in IndexModel.Categories) { <option value="@category" selected="@((a?.Category ?? "Boss") == category)">@D[category]</option> }</select><partial name="_AdminDesignIcon" model='new AdminDesignIcon("chevron-down")' /></div><partial name="_AdminDesignFieldError" model='new AdminDesignFieldError("a-cat")' /></div>
+                <div class="field"><label class="lbl" for="a-rate" data-catalogue-rate-label>@(minigame ? D["Runs per hour"] : D["Kills per hour"])</label><input class="input" id="a-rate" name="efficientRate" inputmode="decimal" autocomplete="off" value="@(a?.EfficientCompletionsPerHour is { } rate ? rate.ToString("0.####", System.Globalization.CultureInfo.CurrentCulture) : string.Empty)" aria-describedby="a-rate-hint error-a-rate" data-field="rate"><div class="field-hint" id="a-rate-hint" data-catalogue-rate-hint>@(minigame ? D["Efficient runs or completions in one hour."] : D["Efficient kills in one hour, at the group size the drop rates assume."])</div><partial name="_AdminDesignFieldError" model='new AdminDesignFieldError("a-rate")' /></div>
+                <div class="field"><label class="lbl" for="a-team">@D["Team size"]</label><input class="input" id="a-team" name="teamSize" inputmode="numeric" autocomplete="off" value="@(a?.TeamSize ?? 1)" aria-describedby="a-team-hint error-a-team" data-field="teamSize"><div class="field-hint" id="a-team-hint">@D["The group size the rates assume. It isn’t used in calculations."]</div><partial name="_AdminDesignFieldError" model='new AdminDesignFieldError("a-team")' /></div>
+                <div class="field ct-span"><label class="lbl" for="a-img">@D["Image URL"] <span class="opt">· @D["optional"]</span></label><div class="thumb-field"><span class="thumb" style="@Art(a?.ImageUrl)" aria-hidden="true"></span><input class="input" id="a-img" name="imageUrl" type="url" autocomplete="off" value="@a?.ImageUrl" placeholder="@D["OSRS Wiki or direct image link"]" aria-describedby="error-a-img" data-field="image"></div><partial name="_AdminDesignFieldError" model='new AdminDesignFieldError("a-img")' /></div>
+            </form>
+            <p class="ct-note" data-catalogue-recalc hidden><partial name="_AdminDesignIcon" model='new AdminDesignIcon("info")' /><span data-component-text></span></p>
+            @if (a is not null)
+            {
+                var status = a.ExternalIdentifier is null ? "none" : a.MappingStatus switch { ApiMappingStatus.Verified => "verified", ApiMappingStatus.Unsupported => "unsupported", ApiMappingStatus.TemporarilyUnavailable => "unavailable", _ => "unchecked" };
+                var statusText = status switch { "verified" => D["Verified"], "unsupported" => D["Unsupported"], "unavailable" => D["Couldn’t check"], "unchecked" => D["Not checked"], _ => D["Not set"] };
+                var statusClass = status switch { "verified" => "is-ok", "unsupported" => "is-bad", "unavailable" => "is-warn", _ => null };
+                <div class="ct-disc">
+                    <button class="disc-btn ct-disc-btn" type="button" id="map-btn" aria-expanded="false" aria-controls="map-body" data-catalogue-disclosure="map-body"><span>@D["Wise Old Man metric"]</span><span class="ct-disc-meta"><span class="ct-map @statusClass">@statusText</span><partial name="_AdminDesignIcon" model='new AdminDesignIcon("chevron-down")' /></span></button>
+                    <div class="ct-disc-body" id="map-body" hidden data-catalogue-map data-version="@a.Version">
+                        <p class="ct-help">@D["Lets events show Wise Old Man activity for this boss. A verified metric means Wise Old Man tracks it, not that every player has data."]</p>
+                        <div class="field"><label class="lbl" for="m-metric">@D["Metric"]</label><div class="ct-inline"><input class="input" id="m-metric" name="externalIdentifier" maxlength="200" value="@a.ExternalIdentifier" placeholder="@D["e.g. zulrah"]" autocomplete="off"><button class="btn btn-sm" type="button" id="m-suggest" data-catalogue-map-suggest>@D["Suggest"]</button></div><div class="field-hint">@D["Use the metric for this exact activity or raid mode."] @(a.MappingCheckedAt is { } checkedAt ? D["Last checked {0}.", IndexModel.When(checkedAt)] : D["Not checked yet."])</div></div>
+                        <p class="ct-result" role="status" id="m-result" tabindex="-1" hidden></p>
+                        <div class="ct-acts"><button class="btn btn-sm" type="button" id="m-validate" data-catalogue-map-save="validate"><span class="spin" hidden></span><span data-component-text>@D["Validate and save"]</span></button><button class="btn btn-sm btn-quiet" type="button" id="m-save" data-catalogue-map-save="save"><span class="spin" hidden></span><span data-component-text>@D["Save without validating"]</span></button></div>
+                    </div>
+                </div>
+            }
+        </section>
+        <section class="sec" aria-labelledby="sec-drops">
+            <div class="sec-head"><h3 class="sec-title" id="sec-drops" tabindex="-1">@D["Drops"] <span class="ct-count">@(a is null ? null : drawer.Drops.Count)</span></h3>@if (a is not null) { <button class="btn btn-sm" type="button" id="add-drop" aria-expanded="false" data-catalogue-add-open><partial name="_AdminDesignIcon" model='new AdminDesignIcon("plus")' />@D["Add drop"]</button> }</div>
+            @if (a is null)
+            {
+                <p class="ct-help">@D["Save the activity first. Its drops are added here afterwards."]</p>
+            }
+            else
+            {
+                <div data-catalogue-add-slot></div>
+                <div class="ct-none" data-catalogue-none hidden="@(drawer.Drops.Count > 0)">@D["No drops yet. Add the first one to give this activity EHB estimates."]</div>
+                <ul class="dlist" aria-label="@D["Drops"]">
+                @foreach (var view in drawer.Drops)
+                {
+                    var drop = view.Drop; var item = view.Item;
+                    var rolls = drop.RollsPerCompletion;
+                    var sub = drop.DisplayRate + (view.ChancePerCompletion is > 0 ? " · " + D["1 in {0} per {1}", IndexModel.OneIn(view.ChancePerCompletion), unit].Value : string.Empty)
+                        + (item.CatalogueValueGp is not null ? " · " + ValueText(item) : string.Empty);
+                    var ehb = drop.DefaultEhbEstimate;
+                    var mode = item.PriceSource switch { CataloguePriceSource.Manual => "Manual", CataloguePriceSource.Untradeable => "Untradeable", _ => "Api" };
+                    var itemMap = item.ExternalIdentifier is null ? "none" : item.MappingStatus switch { ApiMappingStatus.Verified => "verified", ApiMappingStatus.Unsupported => "unsupported", ApiMappingStatus.TemporarilyUnavailable => "unavailable", _ => "unchecked" };
+                    var others = string.Join(", ", view.OtherActivities.Select(x => x.Name));
+                    <li class="dlist-item @(drop.Active ? null : "is-inactive")" data-drop-id="@drop.Id">
+                        <button class="dlist-row" type="button" id="row-@drop.Id" aria-expanded="false" aria-controls="ed-@drop.Id" data-catalogue-drop-toggle="@drop.Id">
+                            <span class="thumb" style="@Art(item.ImageUrl)" aria-hidden="true"></span>
+                            <span class="dlist-main"><span class="dlist-name">@item.Name</span><span class="dlist-sub">@sub</span></span>
+                            <span class="dlist-flags">@if (!drop.Active) { <span class="pill is-neutral">@D["Inactive"]</span> }@if (drop.NumericProbability is not > 0) { <span class="pill is-warning">@D["No probability"]</span> }@if (item.CatalogueValueGp is null) { <span class="pill is-warning">@D["No value"]</span> }@if (view.OtherActivities.Count > 0) { <span class="pill is-neutral">@D["Shared"]</span> }</span>
+                            <span class="dlist-fig"><span class="dlist-ehb @(ehb is null ? "is-muted" : null)">@(ehb is { } e ? IndexModel.Ehb(e) : "—")</span><span class="dlist-fig-k">@(ehb is not null ? D["EHB"] : a.EfficientCompletionsPerHour is not > 0 ? D["no rate"] : D["no EHB"])</span></span>
+                            <partial name="_AdminDesignIcon" model='new AdminDesignIcon("chevron-down", "ic dlist-chev")' />
+                        </button>
+                        <template data-catalogue-drop-editor="@drop.Id" data-version="@drop.Version" data-item-id="@item.Id" data-item-version="@item.Version" data-item-name="@item.Name" data-rate="@drop.DisplayRate"
+                                  data-rolls="@rolls" data-image="@item.ImageUrl" data-roll-group="@drop.RollGroup" data-active="@(drop.Active ? "true" : "false")" data-ehb="@(ehb is { } ev ? IndexModel.Ehb(ev) : null)"
+                                  data-others="@others" data-price-mode="@mode" data-price-value="@item.CatalogueValueGp" data-external-id="@item.ExternalIdentifier" data-normalized="@item.NormalizedName">
+                            <div class="dlist-ed" id="ed-@drop.Id" role="group" aria-label="@D["Edit {0}", item.Name]">
+                                <div data-catalogue-editor-banner></div>
+                                <div class="ct-grid">
+                                    <div class="field"><label class="lbl" for="e-name">@D["Item name"]</label><input class="input" id="e-name" name="itemName" maxlength="200" autocomplete="off" value="@item.Name" aria-describedby="e-name-hint error-e-name" data-field="name"><div class="field-hint" id="e-name-hint">@(view.OtherActivities.Count > 0 ? D["Shared with {0}. Name, image and value change there too.", others] : D["The item’s name everywhere it appears."])</div><partial name="_AdminDesignFieldError" model='new AdminDesignFieldError("e-name")' /></div>
+                                    <div class="field"><label class="lbl" for="e-rate">@D["Drop rate"]</label><input class="input" id="e-rate" name="displayRate" maxlength="200" autocomplete="off" value="@drop.DisplayRate" aria-describedby="e-rate-hint error-e-rate" data-field="rate"><div class="field-hint" id="e-rate-hint" data-catalogue-preview></div><partial name="_AdminDesignFieldError" model='new AdminDesignFieldError("e-rate")' /></div>
+                                </div>
+                                <div data-catalogue-merge-slot></div>
+                                <div class="ct-calc"><span class="ct-calc-k">@D["Calculated EHB"]</span><span class="ct-calc-v" id="e-ehb" data-catalogue-calc></span><span class="ct-calc-note" data-catalogue-calc-note></span></div>
+                                <div class="field"><label class="lbl" for="e-img">@D["Image URL"] <span class="opt">· @(view.OtherActivities.Count > 0 ? D["shared item"] : D["optional"])</span></label><div class="thumb-field"><span class="thumb" style="@Art(item.ImageUrl)" aria-hidden="true"></span><input class="input" id="e-img" name="imageUrl" type="url" autocomplete="off" value="@item.ImageUrl" placeholder="@D["OSRS Wiki or direct image link"]" data-field="image"></div></div>
+                                <div class="ct-acts"><button class="btn btn-primary btn-sm" type="button" id="e-save" aria-describedby="e-save-what" disabled data-catalogue-drop-save><span class="spin" hidden></span><span data-component-text>@D["Save drop"]</span></button><button class="btn btn-sm" type="button" id="e-cancel" data-catalogue-drop-cancel>@D["Close"]</button><span class="ct-save-what" id="e-save-what" data-catalogue-save-what>@D["No changes yet."]</span></div>
+                                <div class="ct-disc">
+                                    <button class="disc-btn ct-disc-btn" type="button" id="mech-btn" aria-expanded="false" aria-controls="mech-body" data-catalogue-disclosure="mech-body"><span>@D["How the rate is counted"]</span><span class="ct-disc-meta"><span class="ct-disc-sum">@D["Roll group: {0}", drop.RollGroup]</span><partial name="_AdminDesignIcon" model='new AdminDesignIcon("chevron-down")' /></span></button>
+                                    <div class="ct-disc-body" id="mech-body" hidden>
+                                        <dl class="kv ct-kv">
+                                            <dt>@D["Chance per {0}", unit]</dt><dd>@(view.ChancePerCompletion is > 0 ? (rolls > 1 ? D["1 in {0} ({1} rolls of 1 in {2})", IndexModel.OneIn(view.ChancePerCompletion), rolls, IndexModel.OneIn(drop.NumericProbability)] : D["1 in {0}", IndexModel.OneIn(view.ChancePerCompletion)]) : D["Not set: the rate isn’t a probability"])</dd>
+                                            <dt>@D["Source"]</dt><dd>@(string.IsNullOrWhiteSpace(drop.DataSource) ? D["Not recorded"].Value : drop.DataSource)</dd>
+                                            @if (!string.IsNullOrWhiteSpace(drop.RateConditionNote)) { <dt>@D["Note"]</dt><dd>@drop.RateConditionNote</dd> }
+                                            <dt>@D["Roll group"]</dt><dd>@if (Model.IsSuperAdmin) { <input class="input ct-group" id="e-group" name="rollGroup" maxlength="120" autocomplete="off" value="@drop.RollGroup" aria-label="@D["Roll group"]" aria-describedby="error-e-group" data-field="rollGroup"><partial name="_AdminDesignFieldError" model='new AdminDesignFieldError("e-group")' /> } else { @drop.RollGroup }</dd>
+                                        </dl>
+                                        <p class="ct-help">@D["Roll group can only be changed by the Super Admin."]</p>
+                                    </div>
+                                </div>
+                                <div class="ct-disc">
+                                    <button class="disc-btn ct-disc-btn" type="button" id="price-btn" aria-expanded="false" aria-controls="price-body" data-catalogue-disclosure="price-body"><span>@D["Value and item mapping"]</span><span class="ct-disc-meta"><span class="ct-disc-sum @(item.CatalogueValueGp is null ? "is-warn" : null)">@(item.CatalogueValueGp is not { } gp ? D["No value"] : item.PriceSource == CataloguePriceSource.Untradeable ? D["Untradeable · 0 gp"] : item.PriceSource == CataloguePriceSource.Manual ? D["Manual · {0} gp", IndexModel.Gp(gp)] : D["Hourly price · {0} gp", IndexModel.Gp(gp)])</span><partial name="_AdminDesignIcon" model='new AdminDesignIcon("chevron-down")' /></span></button>
+                                    <div class="ct-disc-body" id="price-body" hidden data-catalogue-price>
+                                        <p class="ct-help">@(view.OtherActivities.Count > 0 ? D["These belong to the shared item (also used by {0}). Approved boards and event prices keep their own snapshot.", others] : D["These belong to the shared item. Approved boards and event prices keep their own snapshot."])</p>
+                                        <dl class="kv ct-kv"><dt>@D["Stored value"]</dt><dd>@(item.CatalogueValueGp is not { } stored ? D["None yet. Missing isn’t zero; tiles need a value."].Value : item.PriceSource switch { CataloguePriceSource.Api => D["{0} gp · hourly price", IndexModel.Gp(stored)].Value, CataloguePriceSource.Manual => D["{0} gp · manual, fixed during refreshes", IndexModel.Gp(stored)].Value, CataloguePriceSource.Untradeable => D["0 gp · untradeable"].Value, _ => D["{0} gp", IndexModel.Gp(stored)].Value })</dd>
+                                            <dt>@D["Item ID"]</dt><dd><span class="ct-map @(itemMap switch { "verified" => "is-ok", "unsupported" => "is-bad", "unavailable" => "is-warn", _ => null })">@(itemMap switch { "verified" => D["Verified"], "unsupported" => D["Not in the item list"], "unavailable" => D["Couldn’t check"], "unchecked" => D["Not checked"], _ => D["Not set"] })</span>@(item.ExternalIdentifier is { } wikiId ? (item.MappingCheckedAt is { } mapped ? D[" · ID {0}, checked {1}", wikiId, IndexModel.When(mapped)].Value : D[" · ID {0}", wikiId].Value) : null)</dd></dl>
+                                        @if (item.RejectedPriceGp is { } rejected) { <p class="ct-result is-warn">@D["An hourly price of {0} gp ({1}) looked like an unusual change and wasn’t used. The trusted value was kept.", IndexModel.Gp(rejected), item.RejectedPriceObservedAt is { } at ? IndexModel.When(at) : "—"]</p> }
+                                        <div class="field"><div class="lbl" id="p-mode-lbl">@D["Price source"]</div><div class="seg" role="radiogroup" aria-labelledby="p-mode-lbl">@foreach (var (key, label) in new[] { ("Api", "Hourly price"), ("Manual", "Manual"), ("Untradeable", "Untradeable") }) { <label class="seg-opt @(mode == key ? "is-on" : null)"><input class="sr" type="radio" name="priceMode" value="@key" checked="@(mode == key)">@D[label]</label> }</div><div class="field-hint" data-catalogue-mode-hint></div></div>
+                                        <div class="field" data-catalogue-manual><label class="lbl" for="p-gp">@D["Manual value"]</label><div class="ct-inline"><input class="input ct-gp" id="p-gp" name="manualValue" inputmode="numeric" autocomplete="off" value="@item.CatalogueValueGp" aria-describedby="error-p-gp"><span class="ct-unit">GP</span></div><partial name="_AdminDesignFieldError" model='new AdminDesignFieldError("p-gp")' /></div>
+                                        <div class="field" data-catalogue-item-id><label class="lbl" for="p-id">@D["OSRS Wiki item ID"]</label><div class="ct-inline"><input class="input ct-gp" id="p-id" name="externalIdentifier" inputmode="numeric" autocomplete="off" value="@item.ExternalIdentifier" placeholder="@D["e.g. 12922"]"><button class="btn btn-sm" type="button" id="p-suggest" data-catalogue-price-suggest>@D["Suggest"]</button></div></div>
+                                        <p class="ct-result" role="status" id="p-result" tabindex="-1" hidden></p>
+                                        <div class="ct-acts"><button class="btn btn-sm" type="button" id="p-validate" data-catalogue-price-save="validate"><span class="spin" hidden></span><span data-component-text data-api="@D["Validate and fetch price"]" data-other="@D["Validate and save"]">@(mode == "Api" ? D["Validate and fetch price"] : D["Validate and save"])</span></button><button class="btn btn-sm btn-quiet" type="button" id="p-save" data-catalogue-price-save="save"><span class="spin" hidden></span><span data-component-text>@D["Save without validating"]</span></button></div>
+                                    </div>
+                                </div>
+                                <div class="ct-ed-foot">
+                                    <button class="btn btn-sm btn-quiet" type="button" id="e-toggle" data-catalogue-drop-active>@(drop.Active ? D["Deactivate drop…"] : D["Reactivate drop"])</button>
+                                    @if (Model.IsSuperAdmin) { <button class="btn btn-sm btn-quiet-danger" type="button" id="e-delete" data-catalogue-delete="drop">@D["Delete permanently…"]</button> }
+                                </div>
+                            </div>
+                        </template>
+                    </li>
+                }
+                </ul>
+            }
+        </section>
+        @if (a is not null)
+        {
+            <section class="sec is-last" aria-labelledby="sec-manage">
+                <div class="sec-head"><h3 class="sec-title" id="sec-manage">@D["Availability"]</h3></div>
+                <div class="act-row"><div class="ct-min"><div class="ct-act-title">@(a.Active ? D["Deactivate"] : D["Reactivate"])</div><div class="ct-act-text">@(a.Active ? D["Hides it from new tiles. Draft boards that use it can’t be approved while it’s inactive; approved boards and history keep it."] : D["Makes it available for new tiles again."])</div></div><button class="btn btn-sm" type="button" id="a-toggle" data-catalogue-activity-active>@(a.Active ? D["Deactivate…"] : D["Reactivate"])</button></div>
+                @if (Model.IsSuperAdmin) { <div class="act-row"><div class="ct-min"><div class="ct-act-title">@D["Delete permanently"]</div><div class="ct-act-text">@D["Only for an activity nothing uses. Super Admin only."]</div></div><button class="btn btn-sm btn-quiet-danger" type="button" id="a-delete" data-catalogue-delete="boss">@D["Delete…"]</button></div> }
+            </section>
+        }
+    </div>
+    <div class="dr-foot">
+        <span class="dirty" role="status" data-catalogue-foot-note hidden><span class="dot"></span><span data-component-text>@(isNew ? D["Not added yet"] : D["Activity settings changed"])</span></span>
+        <div class="spacer"></div>
+        <button class="btn" type="button" id="dr-cancel" data-catalogue-cancel>@(isNew ? D["Cancel"] : D["Close"])</button>
+        <button class="btn btn-primary" type="button" id="dr-save" data-catalogue-save hidden="@(!isNew)"><span class="spin" hidden></span><span data-component-text>@(isNew ? D["Add activity"] : D["Save activity"])</span></button>
+    </div>
+    @if (a is not null)
+    {
+        <template data-catalogue-add-template>
+            <div class="ct-add" role="group" aria-labelledby="add-title">
+                <div class="ct-add-head"><h4 class="ct-h4" id="add-title">@D["New drop"]</h4></div>
+                <div class="ct-grid">
+                    <div class="field"><label class="lbl" for="n-name">@D["Item name"]</label><input class="input" id="n-name" name="BossDrop.ItemName" maxlength="200" autocomplete="off" placeholder="@D["e.g. Tanzanite fang"]" aria-describedby="error-n-name" data-field="name"><partial name="_AdminDesignFieldError" model='new AdminDesignFieldError("n-name")' /></div>
+                    <div class="field"><label class="lbl" for="n-rate">@D["Drop rate"]</label><input class="input" id="n-rate" name="BossDrop.DisplayRate" maxlength="200" autocomplete="off" placeholder="@D["1/512 or 2 x 1/1,024"]" aria-describedby="n-rate-hint error-n-rate" data-field="rate"><div class="field-hint" id="n-rate-hint" data-catalogue-preview>@D["Write it as shown on the Wiki. Your own chance, at the group size the activity rate uses."]</div><partial name="_AdminDesignFieldError" model='new AdminDesignFieldError("n-rate")' /></div>
+                </div>
+                <div data-catalogue-shared-slot></div>
+                <div class="ct-value" role="group" aria-labelledby="val-lbl" data-catalogue-value>
+                    <div class="lbl" id="val-lbl">@D["Catalogue value"] <span class="opt">· @D["for the new item"]</span></div>
+                    <div class="seg" role="radiogroup" aria-label="@D["How to value it"]">@foreach (var (key, label) in new[] { ("manual", "Enter value"), ("fetch", "Fetch price"), ("untradeable", "Untradeable") }) { <label class="seg-opt @(key == "manual" ? "is-on" : null)"><input class="sr" type="radio" name="addMode" value="@key" checked="@(key == "manual")">@D[label]</label> }</div>
+                    <div class="ct-inline ct-gp-row" data-catalogue-add-gp><input class="input ct-gp" id="n-gp" name="BossDrop.InitialValueGp" inputmode="numeric" autocomplete="off" aria-label="@D["Value in GP"]" aria-describedby="n-gp-hint error-n-gp" data-field="value"><span class="ct-unit">GP</span></div>
+                    <div class="field-hint" id="n-gp-hint" data-catalogue-value-hint></div>
+                    <partial name="_AdminDesignFieldError" model='new AdminDesignFieldError("n-gp")' />
+                </div>
+                <div class="field"><label class="lbl" for="n-img">@D["Image URL"] <span class="opt">· @D["optional"]</span></label><input class="input" id="n-img" name="BossDrop.ImageUrl" type="url" autocomplete="off" placeholder="@D["OSRS Wiki or direct image link"]" data-field="image"></div>
+                <div data-catalogue-add-banner></div>
+                <div class="ct-acts"><button class="btn btn-primary btn-sm" type="button" id="add-save" data-catalogue-add-save><span class="spin" hidden></span><span data-component-text>@D["Add drop"]</span></button><button class="btn btn-sm" type="button" id="add-cancel" data-catalogue-add-cancel>@D["Cancel"]</button></div>
+            </div>
+        </template>
+    }
+    <script type="application/json" data-catalogue-items>@Html.Raw(drawer.ItemIndexJson)</script>
+}
+</template>

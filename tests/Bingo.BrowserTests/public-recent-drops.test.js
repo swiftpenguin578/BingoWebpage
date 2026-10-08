@@ -169,11 +169,12 @@ initialize(root);
   assert.doesNotMatch(window.replacedUrl, /dropSearch=/);
 
   const boardMarkup = fs.readFileSync(path.join(__dirname, "../../src/Bingo.Web/Pages/Events/Board.cshtml"), "utf8");
-  assert.match(boardMarkup, /var showSubmitDrop = Model\.Board\.SubmissionsOpen;/, "masthead uses the projected submission-open state");
-  const resultSection = boardMarkup.match(/<section[^>]*public-board-masthead__result"[\s\S]*?<\/section>/)?.[0];
+  const mastheadMarkup = fs.readFileSync(path.join(__dirname, "../../src/Bingo.Web/Pages/Shared/_EventMasthead.cshtml"), "utf8");
+  assert.match(mastheadMarkup, /var showSubmitDrop = Model\.Board\.SubmissionsOpen;/, "masthead uses the projected submission-open state");
+  const resultSection = mastheadMarkup.match(/<section[^>]*public-board-masthead__result"[\s\S]*?<\/section>/)?.[0];
   assert.ok(resultSection, "masthead retains its current-result section");
   assert.match(resultSection, /aria-label="@T\["Current result"\]"[\s\S]*@leadLabel[\s\S]*leadResult is \{ \} currentResult[\s\S]*public-board-masthead__rank">01<\/strong>[\s\S]*@currentResult\.TeamName[\s\S]*@leadCompletionText/, "result identifies the leading team, first-place rank and completion");
-  assert.match(boardMarkup, /leadResult\?\.IsOfficial == true \? \(resultTeams\.Count > 1 \? T\["Tie"\] : T\["Winner"\]\) : leadResult is not null \? T\["In the lead"\] : T\["Results pending"\]/, "result labels distinguish official winners/ties from provisional leaders and pending results");
+  assert.match(mastheadMarkup, /leadResult\?\.IsOfficial == true \? \(resultTeams\.Count > 1 \? T\["Tie"\] : T\["Winner"\]\) : leadResult is not null \? T\["In the lead"\] : T\["Results pending"\]/, "result labels distinguish official winners/ties from provisional leaders and pending results");
   assert.match(resultSection, /else\s*\{\s*<span[^>]*>@T\["Results pending"\]<\/span>/, "missing results retain their explicit pending state");
   assert.doesNotMatch(resultSection, /<a\b/, "current-result team is displayed as text");
   assert.match(boardMarkup, /class="public-ui-action public-ui-action--text public-ui-recent-drop-back" data-public-recent-drops-focus="back" href="#recent-drops-latest"/, "Back to latest is a fragment link");

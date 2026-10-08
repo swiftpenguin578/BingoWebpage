@@ -5,6 +5,13 @@ using Bingo.Domain.Teams;
 using Bingo.Infrastructure.Persistence;
 using Bingo.Web.Pages.Admin.Accounts;
 using Bingo.Web.Security;
+using Bingo.Web.UI;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.AspNetCore.Mvc.ViewFeatures;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using Testcontainers.PostgreSql;
 
@@ -12,13 +19,13 @@ namespace Bingo.IntegrationTests;
 
 public sealed class AccountOverviewTests : IAsyncLifetime
 {
-    private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine").WithDatabase("bingo_account_overview").WithUsername("bingo").WithPassword("bingo_test_password").Build();
+    private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine").WithLoopbackPort().WithDatabase("bingo_account_overview").WithUsername("bingo").WithPassword("bingo_test_password").Build();
     private DbContextOptions<ApplicationDbContext> options = null!;
 
     public async Task InitializeAsync()
     {
-        await database.StartAsync();
-        options = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetConnectionString()).Options;
+        await PostgreSqlReadiness.StartAsync(database);
+        options = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetOwnedConnectionString()).Options;
         await using var db = new ApplicationDbContext(options);
         await db.Database.EnsureCreatedAsync();
         var now = DateTimeOffset.UtcNow;
@@ -30,6 +37,7 @@ public sealed class AccountOverviewTests : IAsyncLifetime
             var username = $"overview-user-{index:D2}";
             var web = Account.CreateWebsite(Guid.NewGuid(), username, AccountAuthenticationService.NormalizeUsername(username), now);
             if (index == 0) web.SetGlobalRole(GlobalRole.Admin);
+            if (index == 1) web.Disable(now, reason: "overview fixture");
             var character = new OsrsCharacter(Guid.NewGuid(), username, AccountAuthenticationService.NormalizeUsername(username), now);
             var participant = new EventParticipant(Guid.NewGuid(), ev.Id, SignupStatus.Confirmed, index, now, SignupSource.Website);
             participant.AssignOwner(web);
@@ -45,45 +53,93 @@ public sealed class AccountOverviewTests : IAsyncLifetime
 
     public Task DisposeAsync() => database.DisposeAsync().AsTask();
 
+    // A10 (T1): the directory now binds the reference query names q/role/page; the counts,
+    // normalized search and paging rules are unchanged.
     [Fact]
     public async Task WebsiteAndEmergencyPagingFilteringAndProjectionRemainIndependent()
     {
         await using var db = new ApplicationDbContext(options);
-        var page = new IndexModel(db)
-        {
-            WebsitePage = 2,
-            EmergencyPage = 1,
-            WebsiteRole = GlobalRole.User,
-            EmergencySearch = "overview-emergency-24"
-        };
+        var page = AccountsPageTestFactory.Create(db, role: "user", page: "2");
 
         await page.OnGetAsync(CancellationToken.None);
 
+        Assert.Equal(27, page.WebsiteTotalCount);
+        Assert.Equal(1, page.WebsiteDisabledCount);
         Assert.Single(page.WebsiteAccounts);
-        Assert.Single(page.EmergencyCredentials);
-        Assert.DoesNotContain("not-a-real-password-hash", string.Join(' ', page.EmergencyCredentials.Select(row => row.Username)), StringComparison.Ordinal);
         Assert.Contains("Overview event", page.WebsiteAccounts[0].EventRoleSummary);
 
-        var searchedWebsite = new IndexModel(db) { WebsiteSearch = "overview-user-01", WebsiteRole = GlobalRole.User };
+        var searchedWebsite = AccountsPageTestFactory.Create(db, q: "overview-user-01", role: "user");
         await searchedWebsite.OnGetAsync(CancellationToken.None);
+        Assert.Equal(27, searchedWebsite.WebsiteTotalCount);
+        Assert.Equal(1, searchedWebsite.WebsiteDisabledCount);
         Assert.Single(searchedWebsite.WebsiteAccounts);
         Assert.Equal("overview-user-01", searchedWebsite.WebsiteAccounts[0].Username);
-
-        var searchedEmergency = new IndexModel(db) { EmergencySearch = "overview-emergency-01" };
-        await searchedEmergency.OnGetAsync(CancellationToken.None);
-        Assert.Single(searchedEmergency.EmergencyCredentials);
-        Assert.Equal("overview-emergency-01", searchedEmergency.EmergencyCredentials[0].Username);
     }
 
     [Fact]
     public async Task OutOfRangeAndCombinedFiltersReturnEmptyWithoutChangingOtherDataset()
     {
         await using var db = new ApplicationDbContext(options);
-        var page = new IndexModel(db) { WebsitePage = 99, EmergencyPage = 99 };
+        var page = AccountsPageTestFactory.Create(db, page: "999999999");
         await page.OnGetAsync(CancellationToken.None);
 
         Assert.Empty(page.WebsiteAccounts);
-        Assert.Empty(page.EmergencyCredentials);
-        Assert.False(page.EmergencyHasNextPage);
+        Assert.True(page.BeyondResults);
+        Assert.Equal(27, page.MatchingCount);
+    }
+
+    [Fact]
+    public async Task SearchIgnoresCaseAndInvalidQueryPartsFallBackToTheirDefaults()
+    {
+        await using var db = new ApplicationDbContext(options);
+        // A7: username search is normalized on both sides.
+        var upper = AccountsPageTestFactory.Create(db, q: "  OVERVIEW-USER-02  ");
+        await upper.OnGetAsync(CancellationToken.None);
+        Assert.Equal("overview-user-02", Assert.Single(upper.WebsiteAccounts).Username);
+        Assert.Equal("OVERVIEW-USER-02", upper.Search);
+
+        foreach (var junk in new[] { "2abc", "0", "-1", "+2", " 2", "1e1", "99999999999" })
+        {
+            var page = AccountsPageTestFactory.Create(db, page: junk, role: "nobody");
+            await page.OnGetAsync(CancellationToken.None);
+            Assert.Equal(1, page.PageNumber);
+            Assert.Null(page.Role);
+            Assert.Equal(25, page.WebsiteAccounts.Count);
+            Assert.Equal("/Admin/Accounts", page.DirectoryUrl());
+        }
+
+        var longSearch = AccountsPageTestFactory.Create(db, q: new string('x', 140), role: "SuperAdmin", page: "3");
+        await longSearch.OnGetAsync(CancellationToken.None);
+        Assert.Equal(100, longSearch.Search.Length);
+        Assert.Equal(GlobalRole.SuperAdmin, longSearch.Role);
+        Assert.Equal("/Admin/Accounts?q=" + new string('x', 100) + "&role=superadmin&page=3", longSearch.DirectoryUrl());
+    }
+
+    [Fact]
+    public async Task RowsNameOnlyCurrentCaptainRolesAndDrawerKeepsHiddenEventsOut()
+    {
+        await using var db = new ApplicationDbContext(options);
+        var page = AccountsPageTestFactory.Create(db, q: "overview-user-0");
+        await page.OnGetAsync(CancellationToken.None);
+        Assert.Equal("Overview event: Captain", page.WebsiteAccounts.Single(row => row.Username == "overview-user-00").EventRoleSummary);
+        Assert.Equal("Overview event", page.WebsiteAccounts.Single(row => row.Username == "overview-user-03").EventRoleSummary);
+
+        var target = await db.Accounts.SingleAsync(account => account.PublicUsername == "overview-user-00");
+        var drawer = AccountsPageTestFactory.Create(db, account: target.Id.ToString());
+        await drawer.OnGetAsync(CancellationToken.None);
+        Assert.Equal("overview-user-00", drawer.AccountView!.Username);
+        Assert.Single(drawer.AccountView.EventRoles);
+
+        var emergency = await db.Accounts.FirstAsync(account => account.AccountType == AccountType.EmergencyCaptain);
+        var missing = AccountsPageTestFactory.Create(db, account: emergency.Id.ToString());
+        await missing.OnGetAsync(CancellationToken.None);
+        Assert.True(missing.DrawerRequested);
+        Assert.Null(missing.AccountView);
+    }
+
+    private sealed class DictionaryTempDataProvider : ITempDataProvider
+    {
+        public IDictionary<string, object> LoadTempData(HttpContext context) => new Dictionary<string, object>();
+        public void SaveTempData(HttpContext context, IDictionary<string, object> values) { }
     }
 }

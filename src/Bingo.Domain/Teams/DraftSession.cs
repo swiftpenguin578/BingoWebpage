@@ -16,6 +16,7 @@ public sealed class DraftSession
     public DateTimeOffset? ControllerLeaseExpiresAt { get; private set; }
     public long ControlVersion { get; private set; }
     public DateTimeOffset? FirstPickRecordedAt { get; private set; }
+    public bool RequiresFreshOrder { get; private set; }
     public long Version { get; private set; } = 1;
     [Obsolete("Draft sizing is derived from participants and active drafted teams.")]
     public void ConfigureTargetSize(int size) => throw new InvalidOperationException("Draft team size is derived and cannot be configured.");
@@ -23,6 +24,25 @@ public sealed class DraftSession
     public void Pause() { if (State != DraftState.Running) throw new InvalidOperationException("Only a running draft can be paused."); State = DraftState.Paused; }
     public void Resume() { if (State != DraftState.Paused) throw new InvalidOperationException("Only a paused draft can resume."); State = DraftState.Running; }
     public void Finalize(DateTimeOffset now) { if (State is not (DraftState.Running or DraftState.Paused)) throw new InvalidOperationException("Start the draft before finalizing it."); State = DraftState.Finalized; FinalizedAt = now.ToUniversalTime(); }
+    public void FinalizeWebsiteDraft(DateTimeOffset now)
+    {
+        if (State != DraftState.Running) throw new InvalidOperationException("Only a running draft can be finalized.");
+        State = DraftState.Finalized;
+        FinalizedAt = now.ToUniversalTime();
+        ControllerAccountId = null;
+        ControllerLeaseExpiresAt = null;
+        ControlVersion++;
+    }
+    /// <summary>Finalizes a manually assembled roster without inventing a draft run or pick ledger.</summary>
+    public void FinalizeDirect(DateTimeOffset now)
+    {
+        if (State != DraftState.Setup) throw new InvalidOperationException("A direct roster can only be finalized from setup.");
+        State = DraftState.Finalized;
+        FinalizedAt = now.ToUniversalTime();
+        ControllerAccountId = null;
+        ControllerLeaseExpiresAt = null;
+        ControlVersion++;
+    }
     public void Reopen(DateTimeOffset now)
     {
         if (State != DraftState.Finalized) throw new InvalidOperationException("Only a finalized draft can be reopened.");
@@ -35,14 +55,18 @@ public sealed class DraftSession
     public void ReturnToSetup()
     {
         if (State is not (DraftState.Running or DraftState.Paused)) throw new InvalidOperationException("Only an active private draft can return to setup.");
+        RequiresFreshOrder = FirstPickRecordedAt is not null;
         State = DraftState.Setup;
         LockedAt = null;
-        FirstPickRecordedAt = null;
         ControllerAccountId = null;
         ControllerLeaseExpiresAt = null;
         ControlVersion++;
     }
-    public void RecordFirstPick(DateTimeOffset now) => FirstPickRecordedAt ??= now.ToUniversalTime();
+    public void RecordFirstPick(DateTimeOffset now)
+    {
+        FirstPickRecordedAt ??= now.ToUniversalTime();
+        RequiresFreshOrder = false;
+    }
     public void AdvanceVersion() => Version++;
     public bool HasActiveController(DateTimeOffset now) => ControllerAccountId is not null && ControllerLeaseExpiresAt > now.ToUniversalTime();
     public Guid? AcquireControl(Guid accountId, DateTimeOffset now, TimeSpan leaseDuration, bool force = false)

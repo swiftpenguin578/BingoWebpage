@@ -231,8 +231,6 @@ else
     failure_stage=database_migration
     run_logged "database migration" compose run --rm --no-deps web --migrate
     capture_post_migration_history
-    failure_stage=catalogue_snapshot
-    run_logged "catalogue snapshot application" compose run --rm --no-deps web --apply-catalogue-snapshot
     failure_stage=initial_owner_bootstrap
     if [[ "$bootstrap_state_value" == interrupted ]]; then
         owner_count=$(active_super_admin_count)
@@ -256,6 +254,8 @@ if [[ "$retained" == true ]]; then
     run_logged "database migration" compose run --rm --no-deps web --migrate
     capture_post_migration_history
 fi
+failure_stage=luck_checkpoint_conversion
+run_logged "Luck checkpoint conversion" compose run --rm --no-deps web --convert-luck-checkpoints
 failure_stage=production_preflight
 run_logged "production preflight" compose run --rm --no-deps web --production-preflight
 if [[ "$retained" == false ]]; then set_bootstrap_state completed; fi

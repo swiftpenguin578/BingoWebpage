@@ -9,7 +9,9 @@ COPY src/Bingo.Infrastructure/Bingo.Infrastructure.csproj src/Bingo.Infrastructu
 RUN dotnet restore src/Bingo.Web/Bingo.Web.csproj
 
 COPY src/ src/
-RUN dotnet publish src/Bingo.Web/Bingo.Web.csproj --configuration Release --no-restore --output /app
+RUN --mount=type=secret,id=sixlabors_license_key \
+    SIXLABORS_LICENSE_KEY="$(cat /run/secrets/sixlabors_license_key 2>/dev/null || true)" \
+    dotnet publish src/Bingo.Web/Bingo.Web.csproj --configuration Release --no-restore --output /app
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app

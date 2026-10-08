@@ -63,6 +63,9 @@ public sealed class EventCompetitionUpdateAllService(
                               on management.SynchronizationId equals synchronization.Id
                           join item in db.Events.AsNoTracking() on management.EventId equals item.Id
                           where management.Status == EventCompetitionManagementStatus.Active
+                              && management.WriteCapability == EventCompetitionWriteCapability.Writable
+                              && (management.CredentialStatus == EventCompetitionCredentialStatus.Unverified
+                                  || management.CredentialStatus == EventCompetitionCredentialStatus.Valid)
                               && synchronization.EventId == management.EventId
                               && synchronization.CompetitionId == management.CompetitionId
                               && item.HiddenAt == null
@@ -342,6 +345,14 @@ public sealed class EventCompetitionUpdateAllService(
             reason = ("ManagementChanged", "The managed WOM competition link changed before this slot was dispatched.");
             return true;
         }
+        if (management.WriteCapability != EventCompetitionWriteCapability.Writable
+            || management.CredentialStatus is EventCompetitionCredentialStatus.Invalid
+                or EventCompetitionCredentialStatus.Revoked
+                or EventCompetitionCredentialStatus.Unavailable)
+        {
+            reason = ("CredentialUnavailable", "The managed Wise Old Man credential is not currently writable.");
+            return true;
+        }
         if (synchronization is null || synchronization.EventId != slot.EventId || synchronization.CompetitionId != slot.CompetitionId
             || synchronization.Id != slot.SynchronizationId)
         {
@@ -389,6 +400,13 @@ public sealed class EventCompetitionUpdateAllService(
             slot.MarkUnknown(code, message, now);
         else
             slot.Fail(code, message, now);
+
+        if (result.Status == WiseOldManUpdateAllStatus.Unauthorized)
+        {
+            var management = await db.EventCompetitionManagements
+                .SingleOrDefaultAsync(x => x.Id == slot.ManagementId, cancellationToken);
+            management?.MarkCredentialInvalid(now);
+        }
 
         await db.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);

@@ -529,42 +529,70 @@
   });
   chart.addEventListener('blur',hideTip);
   document.addEventListener('pointerdown',event=>{if(!event.target.closest('.chart-wrap'))hideTip();});
-  function setTabs(container,selected){container.querySelectorAll('button').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.mode===selected)));}
+  function setTabs(container,selected){container.querySelectorAll('button').forEach(button=>{const key=button.dataset.mode===undefined?'valueMode':'mode';button.setAttribute('aria-pressed',String(button.dataset[key]===selected));});}
   $('#gp-tabs').addEventListener('click',event=>{
     const button=event.target.closest('button[data-mode]');if(!button)return;
     holdGpLayout();mode=button.dataset.mode;selectedTeamId=null;resetComparison();renderGp();
   });
   let luckTeamId=null,luckPinnedId=null,luckHighlightId=null,luckFrame=null,luckMoving=[];
   let lastLuckTeamId,lastLuckPinnedId=null,luckHeadingMotion=null,luckRemoval=null,luckHasDrawn=false;
+  let luckValueMode='percentage';
+  const luckPanel=$('.luck-panel');
+  const luckText=(key,fallback)=>luckPanel?.dataset[key]||fallback;
+  const roundLuck=value=>{const rounded=Number(value.toFixed(1));return Object.is(rounded,-0)?0:rounded};
+  function luckMetric(entry) {
+    const value=luckValueMode==='kc'?entry.kcDifference:entry.value;
+    return value==null?null:Number(value);
+  }
+  function luckDelta(entry) {
+    const value=luckMetric(entry);
+    return value==null?null:luckValueMode==='percentage'?value-50:value;
+  }
+  function luckLabel(entry) {
+    return luckValueMode==='kc'?(entry.kcLabel||entry.label):entry.label;
+  }
+  function luckAnnotation(entry) {
+    if(!entry?.result)return '';
+    return entry.result.zeroRecordedApproximation?' '+String.fromCharCode(183)+' '+luckText('luckZeroRecorded','zero-recorded estimate'):
+      entry.result.estimated?' '+String.fromCharCode(183)+' '+luckText('luckEstimated','estimated'):'';
+  }
+  function luckFormat(value,entry) {
+    if(value==null)return 'Unavailable';
+    const rounded=roundLuck(value);
+    const base=luckValueMode==='kc'?(rounded>0?'+':'')+rounded+' KC':rounded+'%';
+    return base+luckAnnotation(entry);
+  }
   function luckPlayers() {
-    return [...luck.players].sort((a,b)=>(a.value==null)-(b.value==null)||(a.value??0)-(b.value??0)||a.id.localeCompare(b.id));
+    return [...luck.players].sort((a,b)=>{
+      const av=luckMetric(a),bv=luckMetric(b);
+      return (av==null)-(bv==null)||(av??0)-(bv??0)||a.id.localeCompare(b.id);
+    });
   }
   function luckExtremes(roster=luckPlayers()) {
-    const ranked=roster.filter(player=>player.value!=null);
+    const ranked=roster.filter(player=>luckMetric(player)!=null);
     return roster.length<=10?roster:ranked.length>10?[...ranked.slice(0,5),...ranked.slice(-5)]:ranked.length?ranked:roster.slice(0,10);
   }
-  let luckScale=60,luckSpan=40,luckLayoutItems=[];
+  let luckScale=50,luckSpan=40,luckLayoutItems=[];
   function fitLuckLabels() {
     if(!luckLayoutItems.length)return;
-    // Include the decimal place used by intermediate count-up frames, even when
-    // the final value is an integer. Tabular digits make this a shared safe budget.
-    const labelWidth=Math.max(...luckLayoutItems.map(({number,value})=>measureStatsText(number,`${value<0?'-':'+'}${Math.ceil(Math.abs(value))}.0%`).width));
-    const reserve=Math.ceil(labelWidth)+11; // 7px bar gap + 4px outer clearance.
+    const labelWidth=Math.max(...luckLayoutItems.map(({number,displayValue,entry})=>measureStatsText(number,luckFormat(displayValue,entry)).width));
+    const reserve=Math.ceil(labelWidth)+11;
     $('.luck-panel').style.setProperty('--luck-label-reserve',`${reserve}px`);
     const widths=luckLayoutItems.map(({bar})=>bar.parentElement.getBoundingClientRect().width).filter(width=>width>0);
     luckSpan=widths.length?Math.max(0,Math.min(40,...widths.map(width=>(width/2-reserve)/width*100))):40;
     luckLayoutItems.forEach(item=>{
-      const width=Math.abs(item.value)/luckScale*luckSpan;
-      item.bar.style.width=`${width}%`;item.bar.style.left=`${item.value<0?50-width:50}%`;
+      const width=Math.abs(item.delta)/luckScale*luckSpan;
+      item.bar.style.width=`${width}%`;item.bar.style.left=`${item.delta<0?50-width:50}%`;
       paintLuckMotion(item,item.progress??1);
     });
   }
   function paintLuckMotion(item,progress) {
-    const {bar,number,value}=item;item.progress=progress;
+    const {bar,number,delta,displayValue,entry}=item;item.progress=progress;
     bar.style.transform=`scaleX(${progress})`;
-    const count=Number((value*progress).toFixed(1)),edge=50+Math.abs(value)/luckScale*luckSpan*progress;
-    number.textContent=`${count>0?'+':''}${count}%`;
-    if(value<0)number.style.right=`calc(${edge}% + 7px)`;else number.style.left=`calc(${edge}% + 7px)`;
+    const value=luckValueMode==='percentage'?50+delta*progress:delta*progress;
+    const edge=50+Math.abs(delta)/luckScale*luckSpan*progress;
+    number.textContent=luckFormat(value,entry);
+    if(delta<0)number.style.right=`calc(${edge}% + 7px)`;else number.style.left=`calc(${edge}% + 7px)`;
   }
   function finishLuckMotion() {
     if(luckFrame!==null)cancelAnimationFrame(luckFrame);
@@ -617,8 +645,6 @@
     const list=$('#luck-rows');
     [...list.children].forEach(row=>row.classList.toggle('is-highlighted',row.dataset.player===id));
     const row=[...list.children].find(row=>row.dataset.player===id);
-    // Rows use this positioned list as their offset parent: keep scroll coordinates local.
-    // Align the row bottom with the viewport bottom so the whole result is visible.
     if(row){
       const top=row.dataset.player===luckPinnedId?0:Math.max(0,row.offsetTop+row.offsetHeight-list.clientHeight);
       if(list.scrollTo)list.scrollTo({top,behavior:motionAllowed()?'smooth':'instant'});else list.scrollTop=top;
@@ -629,7 +655,7 @@
     closeLuckSearch(true);luckHighlightId=id;
     if(!luckExtremes().some(player=>player.id===id)) {luckPinnedId=id;renderLuck(false);}
     highlightLuckPlayer(id);
-    $('#luck-status').textContent=`${player.name}: ${player.label} luck${luckPinnedId===id?', pinned for comparison':''}.`;
+    $('#luck-status').textContent=`${player.name}: ${luckLabel(player)}${luckPinnedId===id?', pinned for comparison':''}.`;
   }
   function searchLuckPlayers() {
     const results=$('#luck-search-results'),query=$('#luck-player-search').value.trim().toLocaleLowerCase();
@@ -666,19 +692,28 @@
     finishLuckMotion();
     const list=$('#luck-rows'),roster=luckPlayers(),team=teams.find(team=>team.id===luckTeamId);
     const extremes=luckExtremes(roster),pinned=roster.find(player=>player.id===luckPinnedId);
-    const entries=luckMode==='teams'?(team?roster.filter(player=>player.teamId===team.id):[...luck.teams].sort((a,b)=>(a.value==null)-(b.value==null)||(a.value??0)-(b.value??0)||a.id.localeCompare(b.id))):[...(pinned&&!extremes.some(player=>player.id===pinned.id)?[pinned]:[]),...extremes];
-    luckScale=Math.max(60,...entries.filter(entry=>Number.isFinite(entry.value)).map(entry=>Math.abs(entry.value)));
+    const entries=luckMode==='teams'?(team?roster.filter(player=>player.teamId===team.id):[...luck.teams].sort((a,b)=>{
+      const av=luckMetric(a),bv=luckMetric(b);return (av==null)-(bv==null)||(av??0)-(bv??0)||a.id.localeCompare(b.id);
+    })): [...(pinned&&!extremes.some(player=>player.id===pinned.id)?[pinned]:[]),...extremes];
+    const deltas=entries.map(luckDelta).filter(value=>Number.isFinite(value));
+    luckScale=luckValueMode==='percentage'?50:Math.max(60,...deltas.map(value=>Math.abs(value)),0);
     list.replaceChildren();list.scrollTop=0;
     list.style.setProperty('--luck-visible-rows',Math.max(3,Math.min(6,teams.length)));
-    list.setAttribute('aria-label',team?`${team.name} player luck`:luckMode==='players'?'Five unluckiest and five luckiest players':'Team luck');
+    list.setAttribute('aria-label',team?team.name+' player '+(luckValueMode==='kc'?luckText('kcLabel','KC difference'):luckText('luckLabel','Luck %')):luckMode==='players'?'Five unluckiest and five luckiest players':'Team luck');
     $('#luck-team-label').textContent=team?.name||'';$('#luck-team-label').hidden=!team;
     $('#luck-team-label').title=team?.name||'';$('#luck-back').hidden=!team;
-    $('#luck-search-toggle').hidden=luckMode!=='players';setTabs($('#luck-tabs'),luckMode);
-    const luckMeta=data.stats.luck;
-    $('.luck-panel .subheading').textContent=luckMeta.stale?`Stale · calculated ${data.date(Date.parse(luckMeta.calculatedAt),true)}`:window.StatsAdapter.luckText(luckMeta.result);
-    $('.luck-panel .subheading').title=`Received ${luckMeta.result.received}; expected ${luckMeta.result.expected??'unavailable'}. Evidence revision ${luckMeta.evidenceRevision}. ${luckMeta.upstreamUpdatedAt?'Provider updated '+data.date(Date.parse(luckMeta.upstreamUpdatedAt),true):'Provider update time unavailable'}`;
-    $('#luck-help-text').textContent=luckMode==='players'?'Shows the five unluckiest and five luckiest players. Search and select a player to compare their luck against them.':'Click a team to explore its players. Use the back arrow to return to all teams.';
-    $('#luck-help-text').textContent+=' Luck compares approved drops with expected drops from retained rates and recorded Playing-account activity. Estimates, missing activity and stale results are labelled.';
+    $('#luck-search-toggle').hidden=luckMode!=='players';setTabs($('#luck-tabs'),luckMode);setTabs($('#luck-value-tabs'),luckValueMode==='kc'?'kc':'percentage');
+    const modeLabel=luckValueMode==='kc'?luckText('kcLabel','KC difference'):luckText('luckLabel','Luck %');
+    const luckMeta=data.stats.luck,updated=luckMeta.fetchedAt||luckMeta.calculatedAt;
+    $('#luck-subheading').textContent=updated?`${luckText('lastUpdated','Last updated')} · ${data.date(Date.parse(updated),true)}`:modeLabel;
+    $('#luck-subheading').title=`${modeLabel}. Received ${luckMeta.result.received}; expected ${luckMeta.result.expected??'unavailable'}. ${luckMeta.upstreamUpdatedAt?`Provider updated ${data.date(Date.parse(luckMeta.upstreamUpdatedAt),true)}`:''} ${luckValueMode==='kc'?luckText('kcSpeedHelp','KC totals don’t account for differences in boss kill speed.') : ''}`.trim();
+    $('#luck-axis-left').textContent=luckValueMode==='kc'?luckText('kcAxisLeft','Below rate'):'0%';
+    $('#luck-axis-mid').textContent=luckValueMode==='kc'?luckText('kcAxisMid','Zero'):'50%';
+    $('#luck-axis-right').textContent=luckValueMode==='kc'?luckText('kcAxisRight','Above rate'):'100%';
+    const guidance=team?`${team.name}: `:'';
+    const viewHelp=luckMode==='players'?'Shows the five lowest and five highest results. Search and select a player to compare them.':'Click a team to explore its players. Use the back arrow to return to all teams.';
+    const modeHelp=luckValueMode==='kc'?`${luckText('kcHelp','KC difference shows the rate-equivalent balance from approved drops and recorded activity.')} ${luckText('kcSpeedHelp','KC totals don’t account for differences in boss kill speed.')}`:luckText('luckHelp','Luck compares approved drops with modeled outcomes at the same recorded activity and retained rates. Higher percentages mean luckier outcomes; expectation is not forced to the midpoint.');
+    $('#luck-help-text').textContent=guidance+viewHelp+' '+modeHelp;
     if(lastLuckTeamId!==undefined&&lastLuckTeamId!==luckTeamId){
       luckHeadingMotion?.cancel();
       luckHeadingMotion=animateGp($('.luck-title-group'),[{opacity:0,transform:'translateX(-4px)'},{opacity:1,transform:'translateX(0)'}],180);
@@ -686,44 +721,43 @@
     lastLuckTeamId=luckTeamId;
     const comparisonChanged=luckPinnedId!==null&&luckPinnedId!==lastLuckPinnedId;
     const moving=[];let pinnedRow=null;
-
     entries.forEach((entry,index)=>{
-      const {name,value}=entry,isPinned=luckMode==='players'&&entry.id===luckPinnedId&&!extremes.some(player=>player.id===entry.id);
+      const displayValue=luckMetric(entry),delta=luckDelta(entry),isPinned=luckMode==='players'&&entry.id===luckPinnedId&&!extremes.some(player=>player.id===entry.id);
       const row=document.createElement('div');row.className='luck-row';
       row.dataset.player=team||luckMode==='players'?entry.id:'';
-      if(luckMode==='players'&&extremes.length===10&&roster.filter(p=>p.value!=null).length>10&&entry.id===extremes[5].id)row.classList.add('luck-group-start');
+      if(luckMode==='players'&&extremes.length===10&&roster.filter(p=>luckMetric(p)!=null).length>10&&entry.id===extremes[5].id)row.classList.add('luck-group-start');
       if(isPinned)row.classList.add('luck-pinned-row');
-      row.setAttribute('aria-label',`${name}: ${entry.label}${isPinned?', pinned comparison':''}`);
-      const label=document.createElement(luckMode==='teams'&&!team?'button':'span');label.className='luck-name';label.textContent=name;
-      label.title=entry.teamName?`${name} · ${entry.teamName}`:name;
-      if(luckMode==='teams'&&!team){label.type='button';label.setAttribute('aria-label',`Explore ${name} players`);label.addEventListener('click',()=>openLuckTeam(entry.id));}
+      row.setAttribute('aria-label',entry.name+': '+(displayValue==null?luckLabel(entry):luckFormat(displayValue,entry))+(isPinned?', pinned comparison':''));
+      const label=document.createElement(luckMode==='teams'&&!team?'button':'span');label.className='luck-name';label.textContent=entry.name;
+      label.title=entry.teamName?`${entry.name} · ${entry.teamName}`:entry.name;
+      if(luckMode==='teams'&&!team){label.type='button';label.setAttribute('aria-label',`Explore ${entry.name} players`);label.addEventListener('click',()=>openLuckTeam(entry.id));}
       const track=document.createElement('div');track.className='luck-track';track.setAttribute('aria-hidden','true');
       if(luckMode==='teams'&&!team){track.style.cursor='pointer';track.addEventListener('click',()=>openLuckTeam(entry.id));}
-      const width=Math.abs(value)/luckScale*40;
-      const bar=document.createElement('span');bar.className=`luck-bar${value<0?' negative':''}`;
-      bar.style.width=`${width}%`;bar.style.left=`${value<0?50-width:50}%`;bar.style.transformOrigin=value<0?'right center':'left center';
-      const number=document.createElement('span');number.className=`luck-value${value<0?' negative':''}`;
-      number.textContent=value==null?entry.label:`${value>0?'+':''}${Number(value.toFixed(1))}%`;
-      if(value==null){bar.hidden=true;number.classList.add('luck-unavailable');}
-      if(value!=null){if(value<0)number.style.right=`calc(${50+width}% + 7px)`;else number.style.left=`calc(${50+width}% + 7px)`;}
-      number.title=entry.label;
+      const width=delta==null?0:Math.abs(delta)/luckScale*40;
+      const bar=document.createElement('span');bar.className=`luck-bar${delta!=null&&delta<0?' negative':''}`;
+      bar.style.width=`${width}%`;bar.style.left=`${delta!=null&&delta<0?50-width:50}%`;bar.style.transformOrigin=delta!=null&&delta<0?'right center':'left center';
+      const number=document.createElement('span');number.className=`luck-value${delta!=null&&delta<0?' negative':''}`;
+      number.textContent=displayValue==null?luckLabel(entry):luckFormat(displayValue,entry);
+      if(displayValue==null){bar.hidden=true;number.classList.add('luck-unavailable');}
+      if(delta!=null){if(delta<0)number.style.right=`calc(${50+width}% + 7px)`;else number.style.left=`calc(${50+width}% + 7px)`;}
+      number.title=displayValue==null?luckLabel(entry):luckFormat(displayValue,entry);
       track.append(bar,number);row.append(label,track);
-      if(isPinned){const clear=document.createElement('button');clear.type='button';clear.className='luck-clear-pin';clear.textContent='×';clear.setAttribute('aria-label',`Remove ${name} comparison`);clear.addEventListener('click',()=>removeLuckComparison(row));const nameText=document.createElement('span');nameText.className='luck-pinned-name';nameText.textContent=name;label.replaceChildren(nameText,clear);}
-      list.append(row);if(value!=null)moving.push({bar,number,value,id:entry.id});if(isPinned)pinnedRow=row;
+      if(isPinned){const clear=document.createElement('button');clear.type='button';clear.className='luck-clear-pin';clear.textContent='×';clear.setAttribute('aria-label',`Remove ${entry.name} comparison`);clear.addEventListener('click',()=>removeLuckComparison(row));const nameText=document.createElement('span');nameText.className='luck-pinned-name';nameText.textContent=entry.name;label.replaceChildren(nameText,clear);}
+      list.append(row);if(displayValue!=null)moving.push({bar,number,delta,displayValue,entry,id:entry.id});if(isPinned)pinnedRow=row;
     });
     luckLayoutItems=moving;fitLuckLabels();
     if(comparisonChanged&&pinnedRow){
       const height=pinnedRow.offsetHeight;
-      animateGp(pinnedRow,lastLuckPinnedId===null?[
-        {height:'0px',marginBottom:'0px',opacity:0,overflow:'hidden'},
-        {height:`${height}px`,marginBottom:'12px',opacity:1,overflow:'hidden'}
-      ]:[{opacity:0},{opacity:1}],220);
+      animateGp(pinnedRow,lastLuckPinnedId===null?[{height:'0px',marginBottom:'0px',opacity:0,overflow:'hidden'},{height:`${height}px`,marginBottom:'12px',opacity:1,overflow:'hidden'}]:[{opacity:0},{opacity:1}],220);
     }
-    if(animate)animateLuckRows(moving,luckHasDrawn?420:1000);
-    else if(comparisonChanged&&pinnedRow)animateLuckRows(moving.filter(item=>item.id===luckPinnedId));
+    if(animate)animateLuckRows(moving,luckHasDrawn?420:1000);else if(comparisonChanged&&pinnedRow)animateLuckRows(moving.filter(item=>item.id===luckPinnedId));
     luckHasDrawn=true;lastLuckPinnedId=luckPinnedId;
     if(luckHighlightId)highlightLuckPlayer(luckHighlightId);
   }
+  $('#luck-value-tabs').addEventListener('click',event=>{
+    const button=event.target.closest('button[data-value-mode]');if(!button||button.dataset.valueMode===luckValueMode)return;
+    luckValueMode=button.dataset.valueMode;finishLuckMotion();renderLuck();
+  });
   $('#luck-tabs').addEventListener('click',event=>{
     const button=event.target.closest('button[data-mode]');if(!button||button.dataset.mode===luckMode&&!luckTeamId)return;
     closeLuckSearch();luckMode=button.dataset.mode;luckTeamId=null;luckPinnedId=null;luckHighlightId=null;renderLuck();

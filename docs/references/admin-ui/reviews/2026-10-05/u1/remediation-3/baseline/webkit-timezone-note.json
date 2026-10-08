@@ -1,0 +1,177 @@
+{
+  "actual": [
+    {
+      "name": "timezone note",
+      "missing": true
+    }
+  ],
+  "expected": [
+    {
+      "name": "timezone note",
+      "text": "This event has been public, so you’ll review the affected times before saving.",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "12.5px",
+        "fontWeight": "400",
+        "lineHeight": "18.125px",
+        "color": "rgb(84, 86, 91)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "6px",
+        "marginBottom": "0px",
+        "gap": "6px",
+        "borderRadius": "0px"
+      },
+      "icons": [
+        {
+          "tag": "circle",
+          "attrs": {
+            "cx": "8",
+            "cy": "8",
+            "r": "6"
+          }
+        },
+        {
+          "tag": "path",
+          "attrs": {
+            "d": "M8 7.2v3.8M8 5h.01"
+          }
+        }
+      ],
+      "rect": {
+        "width": 324,
+        "height": 36.25
+      },
+      "options": {
+        "text": true,
+        "icon": true,
+        "required": true
+      }
+    }
+  ],
+  "classes": {
+    "used": [
+      "account-btn",
+      "app",
+      "banner",
+      "brand-name",
+      "brand-sub",
+      "brand-text",
+      "btn",
+      "btn-primary",
+      "btn-quiet",
+      "btn-sm",
+      "card",
+      "collapse-btn",
+      "compare",
+      "compare-head",
+      "compare-k",
+      "compare-label",
+      "compare-new",
+      "compare-old",
+      "compare-row",
+      "copy-field",
+      "crumbs",
+      "design-event-crumb",
+      "design-event-menu",
+      "design-event-options",
+      "design-notifications-menu",
+      "design-skip",
+      "design-top-actions",
+      "dk-theme",
+      "dot",
+      "ev-chev",
+      "ev-ic",
+      "ev-lbl",
+      "ev-meta",
+      "ev-meta-text",
+      "ev-name",
+      "ev-text",
+      "event-switch",
+      "field",
+      "field-count",
+      "field-err",
+      "field-hint",
+      "field-narrow",
+      "field-note",
+      "field-validation-valid",
+      "form-banners",
+      "form-bar",
+      "form-card",
+      "form-fields",
+      "form-sec",
+      "form-sec-head",
+      "form-sec-sub",
+      "form-sec-title",
+      "grow",
+      "h1",
+      "ic",
+      "icon-btn",
+      "id-buyin",
+      "id-desc",
+      "id-name",
+      "identity-editor-form",
+      "input",
+      "is-current",
+      "is-error",
+      "is-on",
+      "is-warning",
+      "lbl",
+      "lbl-row",
+      "logo",
+      "m-body",
+      "main",
+      "menu",
+      "menu-head",
+      "menu-hint",
+      "menu-item",
+      "menu-sep",
+      "menu-toggle",
+      "mono",
+      "nav",
+      "nav-item",
+      "nav-label",
+      "nav-scrim",
+      "nav-text",
+      "page",
+      "page-head",
+      "saved-note",
+      "scroller",
+      "select",
+      "select-field",
+      "side",
+      "side-rule",
+      "side-top",
+      "sk",
+      "sk-block",
+      "textarea",
+      "theme-opt",
+      "theme-seg",
+      "toasts",
+      "tone-open",
+      "topbar"
+    ],
+    "undefined": [
+      "sk-block"
+    ]
+  },
+  "differences": [
+    {
+      "element": "timezone note",
+      "property": "presence",
+      "actual": false,
+      "expected": true
+    },
+    {
+      "element": "shipped CSS",
+      "property": "undefined classes",
+      "actual": [
+        "sk-block"
+      ],
+      "expected": []
+    }
+  ]
+}

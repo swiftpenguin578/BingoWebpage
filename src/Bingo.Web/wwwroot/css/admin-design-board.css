@@ -1,0 +1,57 @@
+/* Board page only (Board.dc.html style block). Tokens and shared components stay authoritative.
+   The drawer and dialogs carry data-page-family="board" so these rules reach them. */
+:where([data-page-family="board"]) .bd-title-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+/* User "No load fades": load markers swap in one step; interaction animations (drawer, dialogs, menus) stay. */
+:where([data-page-family="board"]) .empty,:where([data-page-family="board"]) .page-banner,:where([data-page-family="board"]) .fade-in,:where([data-page-family="board"]) .results{animation:none}
+:where([data-page-family="board"]) .bd-summary{align-items:center}
+:where([data-page-family="board"]) .bd-summary .text-btn{font-size:var(--dk-fs-control)}
+:where([data-page-family="board"]) .bd-head-acts{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+:where([data-page-family="board"]) .bd-work{display:grid;grid-template-columns:minmax(0,1fr) 280px;gap:16px;align-items:start}
+:where([data-page-family="board"]) .bd-work[hidden]{display:none}
+:where([data-page-family="board"]) .bd-board{padding:14px;overflow-x:auto}
+:where([data-page-family="board"]) .bd-side{display:flex;flex-direction:column;gap:12px;position:sticky;top:16px}
+:where([data-page-family="board"]) .bd-help{margin:10px 0 0;font-size:var(--dk-fs-small);color:var(--dk-text-3);line-height:1.5}
+:where([data-page-family="board"]) .bd-issues{margin:6px 0 0;padding-left:18px}
+:where([data-page-family="board"]) .bd-issues li+li{margin-top:3px}
+:where([data-page-family="board"]) .bd-sk{height:100%;min-height:96px;border-radius:var(--dk-radius-lg)}
+:where([data-page-family="board"]) .bd-plan-more{margin-top:12px}
+:where([data-page-family="board"]) .plan-list .ro-value{display:inline-flex;align-items:center;gap:6px}
+:where([data-page-family="board"]) .bd-kind{display:flex;width:100%;margin-bottom:6px}
+:where([data-page-family="board"]) .bd-kind .seg-opt{flex:1;justify-content:center;gap:7px}
+:where([data-page-family="board"]) .bd-kind-ro{margin:0 0 12px;font-size:var(--dk-fs-control-sm);color:var(--dk-text-2)}
+:where([data-page-family="board"]) .bd-kind-hint{margin-bottom:14px}
+:where([data-page-family="board"]) .bd-desc{min-height:76px}
+:where([data-page-family="board"]) .bd-manual{min-height:68px}
+:where([data-page-family="board"]) .bd-count-sum{margin-top:6px}
+:where([data-page-family="board"]) .bd-obj-toggle{margin:0;width:auto;flex:1;min-width:0}
+:where([data-page-family="board"]) .bd-add-obj{margin-top:10px}
+:where([data-page-family="board"]) .bd-field-hint-gap{margin-top:4px}
+:where([data-page-family="board"]) .bd-approval-note{margin-top:12px}
+:where([data-page-family="board"]) .bd-choice-line{display:block}
+:where([data-page-family="board"]) .bd-size-row{display:flex;align-items:flex-end;gap:12px}
+:where([data-page-family="board"]) .bd-size-x{padding-bottom:8px;color:var(--dk-text-3)}
+:where([data-page-family="board"]) .bd-stepper{display:flex;align-items:center;gap:4px}
+:where([data-page-family="board"]) .bd-stepper .input{width:56px;text-align:center;font-variant-numeric:tabular-nums}
+:where([data-page-family="board"]) .bd-rz-impact{font-size:var(--dk-fs-control-sm);color:var(--dk-text-2);line-height:1.5}
+:where([data-page-family="board"]) .bd-rz-impact.is-blocked{color:var(--dk-warning-fg)}
+:where([data-page-family="board"]) .bd-rz-text{margin:0}
+:where([data-page-family="board"]) .bd-rz-list{margin:6px 0 0;padding-left:18px;color:var(--dk-text)}
+:where([data-page-family="board"]) .bd-reason{margin-top:16px}
+:where([data-page-family="board"]).modal.bd-pv{width:min(1040px,100%);max-height:calc(100vh - 32px);display:flex;flex-direction:column;padding:0}
+:where([data-page-family="board"]) .bd-pv-head{display:flex;align-items:flex-start;gap:12px;padding:18px 20px 12px;border-bottom:1px solid var(--dk-border-subtle)}
+:where([data-page-family="board"]) .bd-pv-head .grow{flex:1;min-width:0}
+:where([data-page-family="board"]) .bd-pv-body{padding:18px 20px 22px;overflow:auto;background:var(--dk-bg)}
+/* U7-Q3: the preview's tile area is the plain background with "Not supported yet". */
+:where([data-page-family="board"]) .bd-pv-none{display:flex;align-items:center;justify-content:center;min-height:240px;color:var(--dk-text-3);font-size:var(--dk-fs-control)}
+/* wide boards (7–8 columns) give the board the full width; planning moves below */
+:where([data-page-family="board"]) .bd-work.is-stacked{grid-template-columns:minmax(0,1fr)}
+:where([data-page-family="board"]) .bd-work.is-stacked .bd-side{position:static;max-width:520px}
+@media (max-width:1180px){:where([data-page-family="board"]) .bd-work{grid-template-columns:minmax(0,1fr)}:where([data-page-family="board"]) .bd-side{position:static}}
+@media (max-width:640px){:where([data-page-family="board"]) .bd-head-acts{width:100%;justify-content:flex-start}:where([data-page-family="board"]).page-head:has(.bd-head-acts){flex-wrap:wrap}}
+:where([data-page-family="board"]) .bd-sk-line{display:flex;align-items:center;height:calc(var(--dk-fs-control) * 1.45)}
+:where([data-page-family="board"]) .bd-sk-line+.bd-sk-line{margin-top:12px}
+:where([data-page-family="board"]) .bd-lock-inline{margin:0}
+:where([data-page-family="board"]) .bd-layer{display:contents}
+/* U7-L2 (moved from inline JS in U10 part 2, rule 20): the reference's Save width, so "Saving…" does not shift Cancel. */
+:where([data-page-family="board"]) .bd-save{min-width:112px}
+:where([data-page-family="board"]) [hidden]{display:none}

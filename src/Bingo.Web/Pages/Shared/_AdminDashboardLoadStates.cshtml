@@ -1,0 +1,26 @@
+@inject IStringLocalizer<AdminCommunityResource> D
+<template data-page-header-template="dashboard">
+    <header class="page-head" data-page-family="dashboard" data-page-header-loading><div style="min-width:0"><h1 class="h1" tabindex="-1">@T["Dashboard"]</h1><p class="summary" aria-hidden="true"><span>&nbsp;</span></p></div>
+    <div class="next-event" data-dashboard-loading-card aria-hidden="true"><div class="grow">
+        <div class="next-label dash-sk-header-line">&nbsp;<span class="sk dash-sk-header-label"></span></div>
+        <div class="next-name dash-sk-header-line">&nbsp;<span class="sk dash-sk-header-name"></span></div>
+        <div class="next-meta dash-sk-header-line">&nbsp;<span class="sk dash-sk-header-meta"></span></div>
+    </div><span class="sk dash-sk-header-meter"></span><span class="sk dash-sk-header-open"></span></div>
+    </header>
+</template>
+<template data-page-loading-template="dashboard" data-page-title="@T["Dashboard"]">
+    <link rel="stylesheet" href="~/css/admin-design-dashboard.css" asp-append-version="true" />
+    <div class="card" aria-busy="true" aria-label="@D["Loading statistics"]"><div class="stat-strip">
+    @for (var i = 0; i < 4; i++)
+    {
+        <div class="stat"><div class="dash-sk-stat-lines"><div class="dash-sk-stat-label"><div class="sk" style="width:46%"></div></div><div class="dash-sk-stat-value"><div class="sk" style="width:38%"></div></div><div class="dash-sk-stat-note"><div class="sk" style="width:62%;height:8px"></div></div></div></div>
+    }
+    </div></div>
+    <div class="dash-grid">
+        <div class="card panel"><div class="dash-sk-panel-title"><div class="sk" style="width:30%"></div></div><div class="sk dash-sk-chart"></div></div>
+        <div class="card panel"><div class="dash-sk-panel-title"><div class="sk" style="width:40%"></div></div><div class="sk dash-sk-recap"></div><div class="dash-sk-fact-first"><div class="sk" style="width:80%"></div></div><div class="dash-sk-fact"><div class="sk" style="width:70%"></div></div><div class="dash-sk-fact"><div class="sk" style="width:75%"></div></div></div>
+    </div>
+</template>
+<template data-page-failure-template="dashboard">
+    <div class="card"><div class="empty is-error" role="alert"><div class="empty-ic"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("error")' /></div><div class="empty-title">@D["Couldn’t load statistics"]</div><div class="empty-text">@D["The dashboard figures didn’t load. Events and participants are unaffected."]</div><button type="button" class="btn" data-load-retry>@D["Try again"]</button></div></div>
+</template>

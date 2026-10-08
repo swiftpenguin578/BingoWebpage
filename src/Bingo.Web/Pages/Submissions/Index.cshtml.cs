@@ -89,7 +89,7 @@ public sealed class IndexModel(
         if (board is null) return NotFound();
         EventId = scope.EventId;
         TeamId = scope.TeamId;
-        IsCaptainWorkspace = scope.Kind is EvidenceActorKind.Captain or EvidenceActorKind.EmergencyCaptain;
+        IsCaptainWorkspace = scope.Kind is EvidenceActorKind.Captain;
         Search = search;
         PlayerFilter = player;
         RequestedLedgerPage = ledgerPage;
@@ -169,7 +169,7 @@ public sealed class IndexModel(
             scope = new(EvidenceActorKind.Captain, actorAccountId, leadership.EventId, leadership.TeamId, leadership.ParticipantId);
         }
 
-        if (scope.Kind is not (EvidenceActorKind.Participant or EvidenceActorKind.Captain or EvidenceActorKind.EmergencyCaptain)) return null;
+        if (scope.Kind is not (EvidenceActorKind.Participant or EvidenceActorKind.Captain)) return null;
 
         var validScope = await (from eventItem in db.Events.AsNoTracking()
                                 join team in db.Teams.AsNoTracking() on eventItem.Id equals team.EventId
@@ -182,7 +182,7 @@ public sealed class IndexModel(
     {
         EventId = scope.EventId;
         TeamId = scope.TeamId;
-        IsCaptainWorkspace = scope.Kind is EvidenceActorKind.Captain or EvidenceActorKind.EmergencyCaptain;
+        IsCaptainWorkspace = scope.Kind is EvidenceActorKind.Captain;
         var now = time.GetUtcNow();
         var context = await (from eventItem in db.Events.AsNoTracking()
                              join team in db.Teams.AsNoTracking() on eventItem.Id equals team.EventId

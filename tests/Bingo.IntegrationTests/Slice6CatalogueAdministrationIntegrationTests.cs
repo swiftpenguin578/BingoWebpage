@@ -2,6 +2,7 @@ using System.Data.Common;
 using System.Globalization;
 using System.Net;
 using System.Security.Claims;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using Bingo.Application.Access;
 using Bingo.Application.Boards;
@@ -13,8 +14,10 @@ using Bingo.Domain.Auditing;
 using Bingo.Domain.Boards;
 using Bingo.Domain.Catalogue;
 using Bingo.Domain.Events;
+using Bingo.Domain.Signups;
 using Bingo.Domain.Teams;
 using Bingo.Infrastructure.Auditing;
+using Bingo.Infrastructure.Boards;
 using Bingo.Infrastructure.Persistence;
 using Bingo.Infrastructure.Teams;
 using Bingo.Web;
@@ -25,6 +28,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
@@ -40,7 +44,7 @@ namespace Bingo.IntegrationTests;
 
 public sealed partial class Slice6CatalogueAdministrationIntegrationTests : IAsyncLifetime
 {
-    private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine")
+    private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine").WithLoopbackPort()
         .WithDatabase("bingo_slice6_catalogue_administration")
         .WithUsername("bingo")
         .WithPassword("bingo_test_password")
@@ -49,8 +53,8 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests : IAsy
 
     public async Task InitializeAsync()
     {
-        await database.StartAsync();
-        options = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetConnectionString()).Options;
+        await PostgreSqlReadiness.StartAsync(database);
+        options = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetOwnedConnectionString()).Options;
         await using var db = new ApplicationDbContext(options);
         await db.Database.MigrateAsync();
     }
@@ -74,19 +78,21 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests : IAsy
             await setup.SaveChangesAsync();
         }
 
-        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString()));
+        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetOwnedConnectionString()));
         using var adminClient = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         using var superClient = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         await LoginAsync(adminClient, admin.LoginName);
         await LoginAsync(superClient, superAdmin.LoginName);
 
-        var adminPage = await adminClient.GetStringAsync($"/Admin/Catalogue?bossId={boss.Id}");
-        var dropForm = Regex.Match(adminPage, $"<form[^>]*id=\"catalogue-drop-form-{drop.Id}\".*?</form>", RegexOptions.Singleline).Value;
-        Assert.NotEmpty(dropForm);
-        Assert.Contains($"catalogue-drop-form-{destroyDrop.Id}", adminPage, StringComparison.Ordinal);
-        Assert.DoesNotContain($"delete-drop-{drop.Id}", adminPage, StringComparison.Ordinal);
-        var superAdminPage = await superClient.GetStringAsync($"/Admin/Catalogue?bossId={boss.Id}");
-        Assert.Contains($"delete-drop-{drop.Id}", superAdminPage, StringComparison.Ordinal);
+        // A10 (T2 Catalogue binding): each drop's editor is a template in the activity drawer (?activity=);
+        // delete stays Super Admin only, now the editor's "Delete permanently…" control.
+        static string Editor(string page, Guid id) => Regex.Match(page, $"<template data-catalogue-drop-editor=\"{id}\".*?</template>", RegexOptions.Singleline).Value;
+        var adminPage = await adminClient.GetStringAsync($"/Admin/Catalogue?activity={boss.Id}");
+        Assert.NotEmpty(Editor(adminPage, drop.Id));
+        Assert.NotEmpty(Editor(adminPage, destroyDrop.Id));
+        Assert.DoesNotContain("data-catalogue-delete=", adminPage, StringComparison.Ordinal);
+        var superAdminPage = await superClient.GetStringAsync($"/Admin/Catalogue?activity={boss.Id}");
+        Assert.Contains("data-catalogue-delete=\"drop\"", Editor(superAdminPage, drop.Id), StringComparison.Ordinal);
         Assert.DoesNotContain("RateVariant", adminPage, StringComparison.Ordinal);
         Assert.DoesNotContain("<h2 id=\"catalogue-items-heading\">Items", adminPage, StringComparison.Ordinal);
         Assert.DoesNotContain("handler=UpdateItem", adminPage, StringComparison.Ordinal);
@@ -112,7 +118,7 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests : IAsy
         await using (var referencedContext = new ApplicationDbContext(options))
         {
             var page = CataloguePage(referencedContext, owner.Id, superAdmin: true);
-            Assert.IsType<RedirectToPageResult>(await page.OnPostDeleteAsync("drop", referencedDrop.Id, referencedDrop.Version, "DELETE", CancellationToken.None));
+            Assert.IsType<RedirectToPageResult>(await page.OnPostDeleteAsync("drop", referencedDrop.Id, referencedDrop.Version, true, CancellationToken.None));
             Assert.Contains("referenced and cannot be permanently deleted", page.TempData["StatusMessage"]?.ToString(), StringComparison.OrdinalIgnoreCase);
             Assert.True(await referencedContext.SourceDrops.AnyAsync(x => x.Id == referencedDrop.Id));
         }
@@ -120,7 +126,7 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests : IAsy
         await using (var staleContext = new ApplicationDbContext(options))
         {
             var page = CataloguePage(staleContext, owner.Id, superAdmin: true);
-            Assert.IsType<RedirectToPageResult>(await page.OnPostDeleteAsync("drop", referencedDrop.Id, referencedDrop.Version + 1, "DELETE", CancellationToken.None));
+            Assert.IsType<RedirectToPageResult>(await page.OnPostDeleteAsync("drop", referencedDrop.Id, referencedDrop.Version + 1, true, CancellationToken.None));
             Assert.Contains("changed by another administrator", page.TempData["StatusMessage"]?.ToString(), StringComparison.OrdinalIgnoreCase);
             Assert.True(await staleContext.SourceDrops.AnyAsync(x => x.Id == referencedDrop.Id));
         }
@@ -147,6 +153,70 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests : IAsy
         Assert.Equal(decimal.Round(EhbCalculator.CalculateDropRequirement(1,
             [new EligibleDropRate(10m, persisted.NumericProbability, persisted.ItemId, persisted.BossActivityId, RollsPerCompletion: persisted.RollsPerCompletion)])!.Value, 4),
             persisted.DefaultEhbEstimate);
+    }
+
+    [Fact]
+    public async Task CatalogueActivityEditUsesAddValidationAndWritesOnlyValidChanges()
+    {
+        var now = new DateTimeOffset(2026, 10, 5, 12, 0, 0, TimeSpan.Zero);
+        var owner = Website("f3-catalogue-owner", now);
+        owner.SetGlobalRole(GlobalRole.SuperAdmin);
+        var boss = new BossActivity(Guid.NewGuid(), "F3 original activity", "f3-original-activity", "Boss", 10m, now);
+        var item = new CatalogueItem(Guid.NewGuid(), "F3 drop", "F3 DROP");
+        var drop = new SourceDrop(Guid.NewGuid(), boss.Id, item.Id, "1/100", .01m, 10m, now);
+        await using (var setup = new ApplicationDbContext(options))
+        {
+            setup.AddRange(owner, boss, item, drop);
+            await setup.SaveChangesAsync();
+        }
+
+        async Task<string?> AddMessage(CatalogueIndexModel.BossInput input)
+        {
+            await using var db = new ApplicationDbContext(options);
+            var page = CataloguePage(db, owner.Id, superAdmin: true, clock: new FixedTimeProvider(now));
+            page.Boss = input;
+            await page.OnPostBossAsync(CancellationToken.None);
+            return page.TempData["StatusMessage"]?.ToString();
+        }
+
+        async Task<string?> EditMessage(string name, decimal? rate, long expectedVersion, int? requestedTeamSize = null)
+        {
+            await using var db = new ApplicationDbContext(options);
+            var page = CataloguePage(db, owner.Id, superAdmin: true, clock: new FixedTimeProvider(now));
+            await page.OnPostUpdateBossAsync(boss.Id, expectedVersion, name, "Boss", rate, null, null, CancellationToken.None, requestedTeamSize);
+            return page.TempData["StatusMessage"]?.ToString();
+        }
+
+        var addNegativeMessage = await AddMessage(new CatalogueIndexModel.BossInput { Name = "F3 invalid negative", Category = "Boss", EfficientRate = -1m, TeamSize = 1 });
+        var editNegativeMessage = await EditMessage("F3 original activity", -1m, 1);
+        Assert.Equal(addNegativeMessage, editNegativeMessage);
+        await using (var afterNegative = new ApplicationDbContext(options))
+        {
+            var saved = await afterNegative.BossActivities.SingleAsync(x => x.Id == boss.Id);
+            Assert.Equal("F3 original activity", saved.Name);
+            Assert.Equal(10m, saved.EfficientCompletionsPerHour);
+            Assert.Equal(0, await afterNegative.AuditEntries.CountAsync(x => x.Action == "catalogue.boss_created" && x.TargetId == boss.Id.ToString()));
+        }
+
+        var overlongName = new string('X', 201);
+        var addOverlongMessage = await AddMessage(new CatalogueIndexModel.BossInput { Name = overlongName, Category = "Boss", EfficientRate = 10m, TeamSize = 1 });
+        var editOverlongMessage = await EditMessage(overlongName, 10m, 1);
+        Assert.Equal(addOverlongMessage, editOverlongMessage);
+        await using (var afterOverlong = new ApplicationDbContext(options))
+        {
+            Assert.Equal(1, await afterOverlong.BossActivities.CountAsync(x => x.Id == boss.Id));
+            Assert.Equal(0, await afterOverlong.AuditEntries.CountAsync(x => x.Action == "catalogue.boss_created" && x.TargetId == boss.Id.ToString()));
+        }
+
+        var valid = await EditMessage("F3 edited activity", 12m, 1, requestedTeamSize: 2);
+        Assert.Equal("F3 edited activity updated.", valid);
+        await using var verify = new ApplicationDbContext(options);
+        var edited = await verify.BossActivities.SingleAsync(x => x.Id == boss.Id);
+        Assert.Equal("F3 edited activity", edited.Name);
+        Assert.Equal(12m, edited.EfficientCompletionsPerHour);
+        Assert.Equal(2, edited.TeamSize);
+        Assert.Equal(decimal.Round(1m / (12m * .01m), 4), await verify.SourceDrops.Where(x => x.Id == drop.Id).Select(x => x.DefaultEhbEstimate).SingleAsync());
+        Assert.Equal(1, await verify.AuditEntries.CountAsync(x => x.Action == "catalogue.boss_updated" && x.TargetId == boss.Id.ToString()));
     }
 
     [Theory]
@@ -222,8 +292,8 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests : IAsy
     {
         var now = DateTimeOffset.UtcNow;
         var admin = Website($"slice6-board-admin-{Guid.NewGuid():N}", now);
-        var firstEvent = new BingoEvent(Guid.NewGuid(), "First board", $"first-board-{Guid.NewGuid():N}", "UTC", admin.Id, now);
-        var secondEvent = new BingoEvent(Guid.NewGuid(), "Second board", $"second-board-{Guid.NewGuid():N}", "UTC", admin.Id, now);
+        var firstEvent = new BingoEvent(Guid.NewGuid(), "First board", $"first-board-{Guid.NewGuid():N}", "UTC", admin.Id, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
+        var secondEvent = new BingoEvent(Guid.NewGuid(), "Second board", $"second-board-{Guid.NewGuid():N}", "UTC", admin.Id, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         var boss = new BossActivity(Guid.NewGuid(), "Current boss", "current-boss", "Boss", 10m, now);
         var item = new CatalogueItem(Guid.NewGuid(), "Current item", "CURRENT ITEM");
         item.SetPrice(0, CataloguePriceSource.Manual, now);
@@ -256,6 +326,16 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests : IAsy
             currentBoss.Update("Updated boss", "Boss", 20m, null, "manual", null, now.AddMinutes(1));
             currentDrop.Update("1/5", .2m, null, null, "manual", now.AddMinutes(1));
             await catalogueChange.SaveChangesAsync();
+        }
+
+        // Catalogue edits refresh only affected mutable working tiles. Exercise
+        // that cache boundary explicitly; the later approval still proves that
+        // its frozen drop snapshot retains the current values.
+        await using (var refresh = new ApplicationDbContext(options))
+        {
+            var stale = await BoardEstimateService.RefreshStaleDraftTilesAsync(refresh, firstEvent.Id, now.AddMinutes(2), CancellationToken.None);
+            Assert.Contains(firstTile.Id, stale);
+            await refresh.SaveChangesAsync();
         }
 
         var updated = await LoadBoardAsync(firstEvent.Id, admin.Id);
@@ -297,11 +377,11 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests : IAsy
     }
 
     [Fact]
-    public async Task ResizeCompactsDraftTilesFromTheTopLeftInExistingOrder()
+    public async Task ResizeRejectsOccupiedOutOfBoundsTilesWithoutMutation()
     {
         var now = DateTimeOffset.UtcNow;
         var admin = Website($"slice6-resize-admin-{Guid.NewGuid():N}", now);
-        var bingoEvent = new BingoEvent(Guid.NewGuid(), "Resize board", $"resize-board-{Guid.NewGuid():N}", "UTC", admin.Id, now);
+        var bingoEvent = new BingoEvent(Guid.NewGuid(), "Resize board", $"resize-board-{Guid.NewGuid():N}", "UTC", admin.Id, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         var board = new Board(Guid.NewGuid(), bingoEvent.Id, "Board", 2, 2);
         board.AcquireEditing(admin.Id, now, TimeSpan.FromMinutes(5));
         var tiles = new[]
@@ -325,14 +405,73 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests : IAsy
             page.BoardVersion = 1;
 
             Assert.IsType<RedirectToPageResult>(await page.OnPostResizeAsync(bingoEvent.Id, CancellationToken.None));
+            Assert.Contains("Move or remove 1 tile(s)", page.TempData["StatusMessage"]?.ToString(), StringComparison.Ordinal);
         }
 
         await using var verify = new ApplicationDbContext(options);
-        var compacted = await verify.BoardTiles.Where(tile => tile.BoardId == board.Id).OrderBy(tile => tile.ColumnIndex).ToListAsync();
-        Assert.Collection(compacted,
-            tile => Assert.Equal(("Top left", 0, 0), (tile.NameSnapshot, tile.RowIndex, tile.ColumnIndex)),
-            tile => Assert.Equal(("Top right", 0, 1), (tile.NameSnapshot, tile.RowIndex, tile.ColumnIndex)),
-            tile => Assert.Equal(("Bottom left", 0, 2), (tile.NameSnapshot, tile.RowIndex, tile.ColumnIndex)));
+        var persistedBoard = await verify.Boards.SingleAsync(value => value.Id == board.Id);
+        Assert.Equal((2, 2, 1L), (persistedBoard.Rows, persistedBoard.Columns, persistedBoard.Version));
+        var persistedTiles = await verify.BoardTiles.Where(tile => tile.BoardId == board.Id)
+            .OrderBy(tile => tile.RowIndex).ThenBy(tile => tile.ColumnIndex)
+            .Select(tile => new { tile.Id, tile.NameSnapshot, tile.RowIndex, tile.ColumnIndex })
+            .ToListAsync();
+        Assert.Equal(tiles.Select(tile => (tile.Id, tile.NameSnapshot, tile.RowIndex, tile.ColumnIndex)),
+            persistedTiles.Select(tile => (tile.Id, tile.NameSnapshot, tile.RowIndex, tile.ColumnIndex)));
+        Assert.Empty(await verify.AuditEntries.Where(value => value.EventId == bingoEvent.Id && value.Action == "board.resized").ToListAsync());
+    }
+
+    [Theory]
+    [InlineData(2, 2)]
+    [InlineData(4, 4)]
+    public async Task SafeResizePreservesOccupiedCoordinatesAndWritesAudit(int rows, int columns)
+    {
+        var now = DateTimeOffset.UtcNow;
+        var admin = Website($"slice6-safe-resize-admin-{Guid.NewGuid():N}", now);
+        var bingoEvent = new BingoEvent(Guid.NewGuid(), "Safe resize board", $"safe-resize-board-{Guid.NewGuid():N}", "UTC", admin.Id, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
+        var board = new Board(Guid.NewGuid(), bingoEvent.Id, "Board", 3, 3);
+        board.AcquireEditing(admin.Id, now, TimeSpan.FromMinutes(5));
+        var tiles = new[]
+        {
+            new BoardTile(Guid.NewGuid(), board.Id, Guid.NewGuid(), 0, 0, "Top left", "", "", 1m),
+            new BoardTile(Guid.NewGuid(), board.Id, Guid.NewGuid(), 0, 1, "Top right", "", "", 1m),
+            new BoardTile(Guid.NewGuid(), board.Id, Guid.NewGuid(), 1, 0, "Bottom left", "", "", 1m)
+        };
+        await using (var seed = new ApplicationDbContext(options))
+        {
+            seed.AddRange(admin, bingoEvent, board);
+            seed.AddRange(tiles);
+            await seed.SaveChangesAsync();
+        }
+
+        await using (var db = new ApplicationDbContext(options))
+        {
+            var page = Page(db, admin.Id);
+            page.Rows = rows;
+            page.Columns = columns;
+            page.BoardVersion = 1;
+
+            Assert.IsType<RedirectToPageResult>(await page.OnPostResizeAsync(bingoEvent.Id, CancellationToken.None));
+        }
+
+        await using var verify = new ApplicationDbContext(options);
+        var persistedBoard = await verify.Boards.SingleAsync(value => value.Id == board.Id);
+        Assert.Equal((rows, columns, 2L), (persistedBoard.Rows, persistedBoard.Columns, persistedBoard.Version));
+        var persistedTiles = await verify.BoardTiles.Where(tile => tile.BoardId == board.Id)
+            .OrderBy(tile => tile.RowIndex).ThenBy(tile => tile.ColumnIndex)
+            .Select(tile => new { tile.Id, tile.NameSnapshot, tile.RowIndex, tile.ColumnIndex })
+            .ToListAsync();
+        Assert.Equal(tiles.Select(tile => (tile.Id, tile.NameSnapshot, tile.RowIndex, tile.ColumnIndex)),
+            persistedTiles.Select(tile => (tile.Id, tile.NameSnapshot, tile.RowIndex, tile.ColumnIndex)));
+
+        var resizeAudit = Assert.Single(await verify.AuditEntries
+            .Where(value => value.EventId == bingoEvent.Id && value.Action == "board.resized")
+            .ToListAsync());
+        Assert.Equal(board.Id.ToString(), resizeAudit.TargetId);
+        using var details = JsonDocument.Parse(resizeAudit.Details!);
+        Assert.Equal(3, details.RootElement.GetProperty("before").GetProperty("Rows").GetInt32());
+        Assert.Equal(3, details.RootElement.GetProperty("before").GetProperty("Columns").GetInt32());
+        Assert.Equal(rows, details.RootElement.GetProperty("after").GetProperty("Rows").GetInt32());
+        Assert.Equal(columns, details.RootElement.GetProperty("after").GetProperty("Columns").GetInt32());
     }
 
     [Fact]
@@ -340,7 +479,7 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests : IAsy
     {
         var now = DateTimeOffset.UtcNow;
         var admin = Website($"slice6-team-size-admin-{Guid.NewGuid():N}", now);
-        var bingoEvent = new BingoEvent(Guid.NewGuid(), "Team size board", $"team-size-board-{Guid.NewGuid():N}", "UTC", admin.Id, now);
+        var bingoEvent = new BingoEvent(Guid.NewGuid(), "Team size board", $"team-size-board-{Guid.NewGuid():N}", "UTC", admin.Id, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         var board = new Board(Guid.NewGuid(), bingoEvent.Id, "Board", 1, 1);
         board.AcquireEditing(admin.Id, now, TimeSpan.FromMinutes(5));
 
@@ -364,11 +503,111 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests : IAsy
     }
 
     [Fact]
+    public async Task FinalizedBoardStatisticsUseFrozenRosterAfterMembershipChanges()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var admin = Website($"slice6-frozen-roster-admin-{Guid.NewGuid():N}", now);
+        var bingoEvent = new BingoEvent(Guid.NewGuid(), "Frozen roster board", $"frozen-roster-board-{Guid.NewGuid():N}", "UTC", admin.Id, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
+        bingoEvent.SetExpectedTeamSize(4);
+        var draft = new DraftSession(Guid.NewGuid(), bingoEvent.Id, 2);
+        draft.Start(now); draft.Finalize(now);
+        var team = new Team(Guid.NewGuid(), bingoEvent.Id, "Frozen team", "frozen-team", TeamFormationType.Drafted, null, true);
+        team.Finalize(now);
+        var first = new EventParticipant(Guid.NewGuid(), bingoEvent.Id, SignupStatus.Confirmed, 1, now, SignupSource.Website);
+        var second = new EventParticipant(Guid.NewGuid(), bingoEvent.Id, SignupStatus.Confirmed, 2, now.AddSeconds(1), SignupSource.Website);
+        var third = new EventParticipant(Guid.NewGuid(), bingoEvent.Id, SignupStatus.Confirmed, 3, now.AddSeconds(2), SignupSource.Website);
+        var cycle = new DraftPublicationCycle(Guid.NewGuid(), draft.Id, 1, now, admin.Id, DraftPublicationMethod.HistoricalUnknown);
+        var frozenRoster = new[]
+        {
+            new DraftPublicationRoster(Guid.NewGuid(), cycle.Id, team.Id, first.Id, TeamMembershipRole.Participant, null, "Frozen first"),
+            new DraftPublicationRoster(Guid.NewGuid(), cycle.Id, team.Id, second.Id, TeamMembershipRole.Participant, null, "Frozen second")
+        };
+        var board = new Board(Guid.NewGuid(), bingoEvent.Id, "Board", 1, 1);
+        board.AcquireEditing(admin.Id, now, TimeSpan.FromMinutes(5));
+        var initialMembership = new TeamMembership(Guid.NewGuid(), team.Id, first.Id, TeamMembershipRole.Participant, now, null, "Before roster publication");
+
+        await using (var setup = new ApplicationDbContext(options))
+        {
+            setup.AddRange(admin, bingoEvent, draft, team, first, second, third, cycle, board, initialMembership);
+            setup.AddRange(frozenRoster);
+            await setup.SaveChangesAsync();
+        }
+
+        await using (var membershipChange = new ApplicationDbContext(options))
+        {
+            membershipChange.AddRange(
+                new TeamMembership(Guid.NewGuid(), team.Id, second.Id, TeamMembershipRole.Participant, now.AddMinutes(1), null, "Post-publication membership edit"),
+                new TeamMembership(Guid.NewGuid(), team.Id, third.Id, TeamMembershipRole.Participant, now.AddMinutes(1), null, "Post-publication membership edit"));
+            await membershipChange.SaveChangesAsync();
+        }
+
+        var page = await LoadBoardAsync(bingoEvent.Id, admin.Id);
+
+        Assert.True(page.DraftFinalized);
+        // U7 (brief 88, Retired; A10): the per-team workload panel is retired. AU13 is
+        // unchanged: the planning size, never a roster size, drives the board figures.
+        Assert.Equal(4, page.Statistics!.TeamSize);
+    }
+
+    [Fact]
+    public async Task FinalizedBoardKeepsManualEstimateForUnequalRostersAndAllowsCorrection()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var admin = Website($"slice6-team-estimate-admin-{Guid.NewGuid():N}", now);
+        var bingoEvent = new BingoEvent(Guid.NewGuid(), "Team estimate board", $"team-estimate-board-{Guid.NewGuid():N}", "UTC", admin.Id, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
+        bingoEvent.SetExpectedTeamSize(4);
+        var draft = new DraftSession(Guid.NewGuid(), bingoEvent.Id, 2);
+        draft.Start(now);
+        draft.Finalize(now);
+        var alpha = new Team(Guid.NewGuid(), bingoEvent.Id, "Alpha", "alpha", TeamFormationType.Drafted, null, true);
+        var beta = new Team(Guid.NewGuid(), bingoEvent.Id, "Beta", "beta", TeamFormationType.Drafted, null, true);
+        alpha.Finalize(now);
+        beta.Finalize(now);
+        var participants = Enumerable.Range(1, 5)
+            .Select(index => new EventParticipant(Guid.NewGuid(), bingoEvent.Id, SignupStatus.Confirmed, index, now.AddSeconds(index), SignupSource.Website))
+            .ToArray();
+        var cycle = new DraftPublicationCycle(Guid.NewGuid(), draft.Id, 1, now, admin.Id, DraftPublicationMethod.HistoricalUnknown);
+        var frozenRoster = participants.Select((participant, index) => new DraftPublicationRoster(
+            Guid.NewGuid(), cycle.Id, index < 2 ? alpha.Id : beta.Id, participant.Id,
+            TeamMembershipRole.Participant, null, $"Frozen player {index + 1}")).ToArray();
+        var board = new Board(Guid.NewGuid(), bingoEvent.Id, "Board", 1, 1);
+        board.AcquireEditing(admin.Id, now, TimeSpan.FromMinutes(5));
+        board.SetTotalEhb(120m);
+
+        await using (var setup = new ApplicationDbContext(options))
+        {
+            setup.AddRange(admin, bingoEvent, draft, alpha, beta, cycle, board);
+            setup.AddRange(participants);
+            setup.AddRange(frozenRoster);
+            await setup.SaveChangesAsync();
+        }
+
+        await using (var db = new ApplicationDbContext(options))
+        {
+            var page = Page(db, admin.Id);
+            Assert.IsType<PageResult>(await page.OnGetAsync(bingoEvent.Id, CancellationToken.None));
+            Assert.True(page.DraftFinalized);
+            Assert.Equal(4, page.Statistics!.TeamSize);
+            Assert.Equal(0m, page.Statistics.EhbPerPlayer);
+            // U7 (Retired; A10): no per-team workload panel; AU13 planning size only.
+            Assert.IsType<RedirectToPageResult>(await page.OnPostTeamSizeAsync(bingoEvent.Id, 6, CancellationToken.None));
+        }
+
+        await using var verify = new ApplicationDbContext(options);
+        Assert.Equal(6, await verify.Events.Where(value => value.Id == bingoEvent.Id).Select(value => value.ExpectedTeamSize).SingleAsync());
+        var reloaded = Page(verify, admin.Id);
+        Assert.IsType<PageResult>(await reloaded.OnGetAsync(bingoEvent.Id, CancellationToken.None));
+        Assert.Equal(6, reloaded.Statistics!.TeamSize);
+        Assert.Equal(0m, reloaded.Statistics.EhbPerPlayer);
+        // U7 (Retired; A10): the per-team breakdown is gone; the planning size drives the figures.
+    }
+
+    [Fact]
     public async Task PrivateApprovalFreezesOneSnapshotAndUnapprovalRetainsHistory()
     {
         var now = DateTimeOffset.UtcNow;
         var admin = Website($"slice6-approval-admin-{Guid.NewGuid():N}", now);
-        var bingoEvent = new BingoEvent(Guid.NewGuid(), "Approval board", $"approval-board-{Guid.NewGuid():N}", "UTC", admin.Id, now);
+        var bingoEvent = new BingoEvent(Guid.NewGuid(), "Approval board", $"approval-board-{Guid.NewGuid():N}", "UTC", admin.Id, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         var board = new Board(Guid.NewGuid(), bingoEvent.Id, "Board", 1, 1);
         board.AcquireEditing(admin.Id, now, TimeSpan.FromMinutes(5));
         var template = new TileTemplate(Guid.NewGuid(), "Manual tile", "Private description", ObjectiveType.Manual, string.Empty, 4m);
@@ -445,15 +684,17 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests : IAsy
     {
         var now = DateTimeOffset.UtcNow;
         var admin = Website($"slice6-publish-admin-{Guid.NewGuid():N}", now); admin.SetGlobalRole(GlobalRole.Admin); SetPassword(admin, now);
-        var bingoEvent = new BingoEvent(Guid.NewGuid(), "Publication board", $"publication-board-{Guid.NewGuid():N}", "UTC", admin.Id, now);
+        var bingoEvent = new BingoEvent(Guid.NewGuid(), "Publication board", $"publication-board-{Guid.NewGuid():N}", "UTC", admin.Id, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         bingoEvent.ConfigureSchedule(now.AddDays(-2), now.AddDays(-1), null, now.AddHours(-2), now.AddDays(2), 10);
         bingoEvent.OpenSignups(now.AddDays(-2));
         bingoEvent.CloseSignups(now.AddDays(-1));
         var draft = new Bingo.Domain.Teams.DraftSession(Guid.NewGuid(), bingoEvent.Id, 1);
         draft.Start(now); draft.Finalize(now);
-        bingoEvent.SetDraftRosterPublication(true);
         var team = new Bingo.Domain.Teams.Team(Guid.NewGuid(), bingoEvent.Id, "Frozen team", "frozen-team", Bingo.Domain.Teams.TeamFormationType.Drafted, null, true);
         team.Finalize(now);
+        var participant = new EventParticipant(Guid.NewGuid(), bingoEvent.Id, SignupStatus.Confirmed, 1, now, SignupSource.Website);
+        var publicationCycle = new DraftPublicationCycle(Guid.NewGuid(), draft.Id, 1, now, admin.Id, DraftPublicationMethod.HistoricalUnknown);
+        var roster = new DraftPublicationRoster(Guid.NewGuid(), publicationCycle.Id, team.Id, participant.Id, TeamMembershipRole.Participant, null, "Frozen player");
         var board = new Board(Guid.NewGuid(), bingoEvent.Id, "Board", 1, 1);
         board.AcquireEditing(admin.Id, now, TimeSpan.FromMinutes(5));
         var template = new TileTemplate(Guid.NewGuid(), "Manual tile", "Frozen", ObjectiveType.Manual, string.Empty, 4m);
@@ -462,7 +703,7 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests : IAsy
         var requirement = new BoardRequirementSnapshot(Guid.NewGuid(), tile.Id, 1, 1, true, false, "Complete", true);
         await using (var setup = new ApplicationDbContext(options))
         {
-            setup.AddRange(admin, bingoEvent, draft, team, board, template, tile, requirement);
+            setup.AddRange(admin, bingoEvent, draft, team, participant, publicationCycle, roster, board, template, tile, requirement);
             await setup.SaveChangesAsync();
             setup.Add(image);
             await setup.SaveChangesAsync();
@@ -487,7 +728,7 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests : IAsy
             Assert.Contains(readiness!.Blockers, x => x.Code == "BOARD_NOT_PUBLISHED");
             Assert.True((await prePublication.Events.Where(x => x.Id == bingoEvent.Id).Select(x => x.EventStartsAt).SingleAsync()) < now);
         }
-        await using (var missingConfirmationFactory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString())))
+        await using (var missingConfirmationFactory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetOwnedConnectionString())))
         {
             using var missingConfirmationClient = missingConfirmationFactory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
             await LoginAsync(missingConfirmationClient, admin.LoginName);
@@ -553,7 +794,7 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests : IAsy
         var liveEvent = await verify.Events.SingleAsync(value => value.Id == bingoEvent.Id);
         liveEvent.StartEvent(now);
         await verify.SaveChangesAsync();
-        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString()));
+        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetOwnedConnectionString()));
         using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         await LoginAsync(client, admin.LoginName);
         var boardPage = await client.GetStringAsync($"/Admin/Events/Board/{bingoEvent.Id}");
@@ -757,7 +998,7 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests : IAsy
 
     private async Task<Guid> CreatePublishedCorrectionFixtureAsync(Guid eventId, EventState targetState, bool hidden, Account admin, DateTimeOffset now, int columns = 1)
     {
-        var bingoEvent = new BingoEvent(eventId, $"Correction boundary {eventId:N}", $"correction-boundary-{eventId:N}", "UTC", admin.Id, now);
+        var bingoEvent = new BingoEvent(eventId, $"Correction boundary {eventId:N}", $"correction-boundary-{eventId:N}", "UTC", admin.Id, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         bingoEvent.ConfigureSchedule(now.AddDays(-3), now.AddDays(-2), null, now.AddDays(-1), now.AddDays(2), 10);
         if (targetState == EventState.SignupOpen)
         {
@@ -803,11 +1044,11 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests : IAsy
     }
 
     [Fact]
-    public async Task PrivatePreviewUsesDeterministicDemoProgressWithoutAnyCompetitiveWrite()
+    public async Task RetiredPrivatePreviewRedirectsToTheBoardWithoutAnyWrite()
     {
         var now = DateTimeOffset.UtcNow;
         var admin = Website($"slice6-preview-admin-{Guid.NewGuid():N}", now);
-        var bingoEvent = new BingoEvent(Guid.NewGuid(), "Preview", $"preview-{Guid.NewGuid():N}", "UTC", admin.Id, now);
+        var bingoEvent = new BingoEvent(Guid.NewGuid(), "Preview", $"preview-{Guid.NewGuid():N}", "UTC", admin.Id, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         var board = new Board(Guid.NewGuid(), bingoEvent.Id, "Preview board", 1, 3);
         var template = new TileTemplate(Guid.NewGuid(), "Preview tile", string.Empty, ObjectiveType.Manual, string.Empty, 4m);
         var tiles = Enumerable.Range(0, 3).Select(index => new BoardTile(Guid.NewGuid(), board.Id, template.Id, 0, index, $"Tile {index + 1}", string.Empty, string.Empty, 4m)).ToArray();
@@ -828,21 +1069,12 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests : IAsy
             Requirements = await previewContext.BoardRequirementSnapshots.CountAsync(),
             Audits = await previewContext.AuditEntries.CountAsync()
         };
-        var preview = new BoardPreviewModel(previewContext);
-        Assert.IsType<PageResult>(await preview.OnGetAsync(bingoEvent.Id, null, null, CancellationToken.None));
-        Assert.Collection(preview.Tiles,
-            first => Assert.Equal(4, first.Approved),
-            second => Assert.Equal(2, second.Approved),
-            third => Assert.Equal(0, third.Approved));
-        Assert.Collection(preview.Teams,
-            first => Assert.Equal("Preview team Alpha", first.Name),
-            second => Assert.Equal("Preview team Bravo", second.Name));
-        var team = preview.Teams[0];
-        Assert.IsType<PageResult>(await preview.OnGetAsync(bingoEvent.Id, team.Slug, null, CancellationToken.None));
-        Assert.Equal(team, preview.SelectedTeam);
-        var tile = preview.Tiles[0];
-        Assert.IsType<PageResult>(await preview.OnGetAsync(bingoEvent.Id, team.Slug, tile.Id, CancellationToken.None));
-        Assert.Equal(tile, preview.SelectedTile);
+        // U7-Q3 (A10): the retired preview route redirects to the Board, with or without
+        // team/tile segments; it still writes nothing and stays Admin-only.
+        var preview = new BoardPreviewModel();
+        var redirect = Assert.IsType<RedirectToPageResult>(preview.OnGet(bingoEvent.Id));
+        Assert.Equal("Board", redirect.PageName);
+        Assert.Equal(bingoEvent.Id, redirect.RouteValues!["id"]);
         Assert.Contains(typeof(BoardPreviewModel).GetCustomAttributes(typeof(AuthorizeAttribute), inherit: true).Cast<AuthorizeAttribute>(), x => x.Policy == AuthorizationPolicies.Admin);
         var after = new
         {
@@ -859,13 +1091,17 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests : IAsy
     {
         var now = DateTimeOffset.UtcNow;
         var admin = Website($"slice6-publication-race-{Guid.NewGuid():N}", now);
-        var bingoEvent = new BingoEvent(Guid.NewGuid(), "Publication race", $"publication-race-{Guid.NewGuid():N}", "UTC", admin.Id, now);
+        var bingoEvent = new BingoEvent(Guid.NewGuid(), "Publication race", $"publication-race-{Guid.NewGuid():N}", "UTC", admin.Id, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         bingoEvent.ConfigureSchedule(now.AddDays(-2), now.AddDays(-1), null, now.AddDays(2), now.AddDays(4), 10);
         bingoEvent.OpenSignups(now.AddDays(-2));
         bingoEvent.CloseSignups(now.AddDays(-1));
         var draft = new Bingo.Domain.Teams.DraftSession(Guid.NewGuid(), bingoEvent.Id, 1);
         draft.Start(now); draft.Finalize(now);
-        bingoEvent.SetDraftRosterPublication(true);
+        var team = new Team(Guid.NewGuid(), bingoEvent.Id, "Frozen team", "frozen-team", TeamFormationType.Drafted, null, true);
+        team.Finalize(now);
+        var participant = new EventParticipant(Guid.NewGuid(), bingoEvent.Id, SignupStatus.Confirmed, 1, now, SignupSource.Website);
+        var publicationCycle = new DraftPublicationCycle(Guid.NewGuid(), draft.Id, 1, now, admin.Id, DraftPublicationMethod.HistoricalUnknown);
+        var roster = new DraftPublicationRoster(Guid.NewGuid(), publicationCycle.Id, team.Id, participant.Id, TeamMembershipRole.Participant, null, "Frozen player");
         var board = new Board(Guid.NewGuid(), bingoEvent.Id, "Board", 1, 1);
         board.AcquireEditing(admin.Id, now, TimeSpan.FromMinutes(5));
         var template = new TileTemplate(Guid.NewGuid(), "Manual", string.Empty, ObjectiveType.Manual, string.Empty, 2m);
@@ -873,7 +1109,7 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests : IAsy
         var requirement = new BoardRequirementSnapshot(Guid.NewGuid(), tile.Id, 1, 1, true, false, "Manual", true);
         await using (var setup = new ApplicationDbContext(options))
         {
-            setup.AddRange(admin, bingoEvent, draft, board, template, tile, requirement);
+            setup.AddRange(admin, bingoEvent, draft, team, participant, publicationCycle, roster, board, template, tile, requirement);
             await setup.SaveChangesAsync();
         }
         await using (var approval = new ApplicationDbContext(options))
@@ -962,6 +1198,15 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests : IAsy
             beforeAuditCount = await baseline.AuditEntries.CountAsync(value => value.EventId == eventId);
         }
 
+        // Prepare the real approval form before cancellation takes the event
+        // lock. Board GET intentionally locks that row while it establishes the
+        // read-only workspace, so loading it after the barrier would only test
+        // the GET lock wait rather than the POST race.
+        var publicationForm = await LoadBoardAsync(eventId, admin.Id);
+        Assert.Equal(boardVersion, publicationForm.BoardVersion);
+        var publicationBoardVersion = publicationForm.BoardVersion;
+        var publicationCatalogueFingerprint = publicationForm.ApprovalCatalogueFingerprint;
+
         var cancellationBarrier = new CancellationSaveBarrier();
         var publicationBarrier = new PublicationEventQueryBarrier();
         var cancellationOptions = new DbContextOptionsBuilder<ApplicationDbContext>(options).AddInterceptors(cancellationBarrier).Options;
@@ -979,30 +1224,43 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests : IAsy
         var publicationOptions = new DbContextOptionsBuilder<ApplicationDbContext>(options).AddInterceptors(publicationBarrier).Options;
         await using var publicationContext = new ApplicationDbContext(publicationOptions);
         var publicationPage = Page(publicationContext, admin.Id);
-        publicationPage.BoardVersion = boardVersion;
-        publicationPage.ApprovalCatalogueFingerprint = (await LoadBoardAsync(eventId, admin.Id)).ApprovalCatalogueFingerprint;
-        var publication = publicationPage.OnPostApproveAsync(eventId, true, CancellationToken.None);
-        Task observed;
+        publicationPage.BoardVersion = publicationBoardVersion;
+        publicationPage.ApprovalCatalogueFingerprint = publicationCatalogueFingerprint;
+        Task<IActionResult>? publication = null;
+        IActionResult? publicationResult = null;
         try
         {
+            // This is the real POST path, dispatched while cancellation still
+            // owns the event row lock. The query interceptor observes its
+            // event-boundary attempt without changing the production code.
+            publication = publicationPage.OnPostApproveAsync(eventId, true, CancellationToken.None);
+            Task observed;
             observed = await Task.WhenAny(publicationBarrier.NonLockingEventRead.Task, publicationBarrier.LockingEventReadAttempted.Task)
                 .WaitAsync(TimeSpan.FromSeconds(10));
+            Assert.True(ReferenceEquals(observed, publicationBarrier.NonLockingEventRead.Task) || ReferenceEquals(observed, publicationBarrier.LockingEventReadAttempted.Task));
+
+            // Let cancellation commit first; the posted correction must then
+            // recheck the now-cancelled lifecycle and reject without approval.
+            cancellationBarrier.Release.TrySetResult(true);
+            var cancellationResult = await cancellation;
+            Assert.True(cancellationResult.Succeeded, cancellationResult.Error);
+            publicationBarrier.ReleaseNonLockingEventRead.TrySetResult(true);
+            publicationResult = await publication;
         }
-        catch
+        finally
         {
+            // Always release both held barriers, including assertion/timeout
+            // paths, so no disposable context remains blocked during teardown.
             cancellationBarrier.Release.TrySetResult(true);
             publicationBarrier.ReleaseNonLockingEventRead.TrySetResult(true);
+            if (publication is not null) await publication;
             await cancellation;
-            await publication;
-            throw;
         }
 
-        Assert.True(ReferenceEquals(observed, publicationBarrier.NonLockingEventRead.Task) || ReferenceEquals(observed, publicationBarrier.LockingEventReadAttempted.Task));
-        cancellationBarrier.Release.TrySetResult(true);
-        var cancellationResult = await cancellation;
-        Assert.True(cancellationResult.Succeeded, cancellationResult.Error);
-        publicationBarrier.ReleaseNonLockingEventRead.TrySetResult(true);
-        await publication;
+        Assert.IsType<RedirectToPageResult>(publicationResult);
+        var publicationStatus = publicationPage.TempData["StatusMessage"]?.ToString();
+        Assert.NotNull(publicationStatus);
+        Assert.DoesNotContain("Corrected board published as a replacement snapshot.", publicationStatus, StringComparison.Ordinal);
 
         await using var verify = new ApplicationDbContext(options);
         var afterBoard = await verify.Boards.AsNoTracking().SingleAsync(value => value.Id == boardId);
@@ -1109,7 +1367,7 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests : IAsy
             }
         }
 
-        using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString()));
+        using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetOwnedConnectionString()));
         using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         await LoginAsync(client, admin.LoginName);
         var managePage = await client.GetStringAsync($"/Admin/Events/Manage/{eventId}");
@@ -1183,12 +1441,12 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests : IAsy
     {
         var now = DateTimeOffset.UtcNow;
         var admin = Website($"slice6-approval-invalid-{Guid.NewGuid():N}", now);
-        var incompleteEvent = new BingoEvent(Guid.NewGuid(), "Incomplete", $"incomplete-{Guid.NewGuid():N}", "UTC", admin.Id, now);
+        var incompleteEvent = new BingoEvent(Guid.NewGuid(), "Incomplete", $"incomplete-{Guid.NewGuid():N}", "UTC", admin.Id, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         var incompleteBoard = new Board(Guid.NewGuid(), incompleteEvent.Id, "Board", 1, 2);
         var incompleteTemplate = new TileTemplate(Guid.NewGuid(), "Tile", string.Empty, ObjectiveType.Manual, string.Empty, 3m);
         var incompleteTile = new BoardTile(Guid.NewGuid(), incompleteBoard.Id, incompleteTemplate.Id, 0, 0, "Tile", string.Empty, string.Empty, 3m);
         var incompleteRequirement = new BoardRequirementSnapshot(Guid.NewGuid(), incompleteTile.Id, 1, 1, true, false, "Manual", true);
-        var missingEhbEvent = new BingoEvent(Guid.NewGuid(), "Missing EHB", $"missing-ehb-{Guid.NewGuid():N}", "UTC", admin.Id, now);
+        var missingEhbEvent = new BingoEvent(Guid.NewGuid(), "Missing EHB", $"missing-ehb-{Guid.NewGuid():N}", "UTC", admin.Id, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         var missingEhbBoard = new Board(Guid.NewGuid(), missingEhbEvent.Id, "Board", 1, 1);
         var missingEhbTemplate = new TileTemplate(Guid.NewGuid(), "No EHB", string.Empty, ObjectiveType.Manual, string.Empty, null);
         var missingEhbTile = new BoardTile(Guid.NewGuid(), missingEhbBoard.Id, missingEhbTemplate.Id, 0, 0, "No EHB", string.Empty, string.Empty, 0m);
@@ -1223,7 +1481,7 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests : IAsy
     {
         var now = DateTimeOffset.UtcNow;
         var admin = Website($"slice6-approval-race-{Guid.NewGuid():N}", now);
-        var bingoEvent = new BingoEvent(Guid.NewGuid(), "Approval race", $"approval-race-{Guid.NewGuid():N}", "UTC", admin.Id, now);
+        var bingoEvent = new BingoEvent(Guid.NewGuid(), "Approval race", $"approval-race-{Guid.NewGuid():N}", "UTC", admin.Id, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         var board = new Board(Guid.NewGuid(), bingoEvent.Id, "Board", 1, 1);
         board.AcquireEditing(admin.Id, now, TimeSpan.FromMinutes(5));
         var template = new TileTemplate(Guid.NewGuid(), "Manual", string.Empty, ObjectiveType.Manual, string.Empty, 2m);
@@ -1290,7 +1548,7 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests : IAsy
         public string? RouteUrl(Microsoft.AspNetCore.Mvc.Routing.UrlRouteContext route) => "/fixture-tile-image";
     }
 
-    private static CatalogueIndexModel CataloguePage(ApplicationDbContext db, Guid accountId, bool superAdmin, ICatalogueApiClient? api = null)
+    private static CatalogueIndexModel CataloguePage(ApplicationDbContext db, Guid accountId, bool superAdmin, ICatalogueApiClient? api = null, TimeProvider? clock = null)
     {
         var claims = new List<Claim>
         {
@@ -1298,12 +1556,18 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests : IAsy
             new(ClaimTypes.Name, "owner")
         };
         if (superAdmin) claims.Add(new Claim(ClaimTypes.Role, GlobalRole.SuperAdmin.ToString()));
-        var context = new DefaultHttpContext { User = new ClaimsPrincipal(new ClaimsIdentity(claims, "test")) };
-        return new CatalogueIndexModel(db, TimeProvider.System, catalogueApi: api)
+        var context = new DefaultHttpContext
+        {
+            User = new ClaimsPrincipal(new ClaimsIdentity(claims, "test")),
+            RequestServices = new ServiceCollection().AddMvcCore().AddDataAnnotations().Services.BuildServiceProvider()
+        };
+        var page = new CatalogueIndexModel(db, clock ?? TimeProvider.System, catalogueApi: api)
         {
             PageContext = new PageContext(new ActionContext(context, new RouteData(), new PageActionDescriptor())),
             TempData = new TempDataDictionary(context, new TestTempDataProvider())
         };
+        page.PageContext.ViewData = new ViewDataDictionary(new EmptyModelMetadataProvider(), new ModelStateDictionary());
+        return page;
     }
 
     private sealed class TestTempDataProvider : ITempDataProvider
@@ -1433,5 +1697,10 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests : IAsy
     private sealed class WallClock : TimeProvider
     {
         public override DateTimeOffset GetUtcNow() => DateTimeOffset.UtcNow;
+    }
+
+    private sealed class FixedTimeProvider(DateTimeOffset value) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => value;
     }
 }

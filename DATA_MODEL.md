@@ -3,8 +3,167 @@
 ## Data Model and Calculation Specification
 
 **Status:** Planning Pass 2 target model v0.2; implementation and migration details are maintained in the current checkout
-**Last updated:** 2026-08-31
+**Last updated:** 2026-10-02 (whole-branch requirement reconciliation)
 **Companion document:** `PRODUCT_REQUIREMENTS.md`
+
+## Events directory projection — AU04, 2026-10-02
+
+No persistence is added. Directory Live/past participation uses the existing
+Dashboard population mapper and valid retained membership intervals, including
+import provenance. Missing actual start/end remains unavailable (including
+pre-Live cancellation), never current confirmed signups or fabricated zero.
+Nullable capacity remains nullable. Directory reads use the same repeatable-read
+participation boundary and enabled Admin check; hidden records require an enabled
+SuperAdmin and never enter ordinary directory populations or Dashboard totals.
+
+## Community Dashboard read projection — 2026-10-01
+
+The approved Dashboard backend adds no entity, column, table, migration or
+background job. `IAdminDashboardService` reads the existing PostgreSQL model in
+one repeatable-read snapshot after capturing one request clock and confirming an
+enabled Admin or Super Admin. The projection is read-only and no provider sync,
+lifecycle transition or cache write is part of the read.
+
+The source mapping is:
+
+- Visible statistics, chart, history and recap events come from the event
+  lifecycle and actual dates. Live, AwaitingFinalReview, Finalized and Archived
+  are eligible; HiddenAt, cancellation and discard exclude an event everywhere.
+  Live and AwaitingFinalReview are provisional. Missing authoritative actual dates
+  remain unavailable rather than borrowing CreatedAt.
+- People come from event-owned participants, team memberships and their valid
+  `[JoinedAt, LeftAt)` intervals. A pre-Live departure at or before the event
+  start, or a membership joined at or after the event end, is excluded. Live
+  eligibility requires `JoinedAt <= requestClock` and `LeftAt > actualStart`
+  (with `LeftAt == requestClock` still eligible); zero-length and reversed
+  intervals are rejected. Linked people are
+  deduplicated by `(EventId, WebsiteAccountId)` and unlinked people by
+  `(EventId, ParticipantId)`; character/name guesses and current signup status
+  are not identity sources. Disabled WebsiteAccounts remain historical people;
+  EmergencyCaptain accounts do not.
+- Approved submissions use distinct SubmissionId rows, active unreversed
+  authoritative contributions, published approval requirements and matching
+  event/team ownership. Reconstructed import contributions are excluded. A
+  normal real submission set can measure zero; imported-only coverage without a
+  later authoritative set is unavailable.
+- Winners use the latest active EventFinalizationSnapshot with
+  `UnfinalizedAt IS NULL` for Finalized/Archived events, retain snapshot TeamName
+  and preserve all placement-one ties. Reopened/provisional events do not borrow
+  an old official winner. Board completion divides the snapshot-approved tile
+  count by the immutable active published BoardApproval snapshot denominator,
+  never by working dimensions.
+- EHB uses compatible stored event/competition/generation/fingerprint activity
+  against the expected Playing character assignment set over retained membership
+  intervals. Deduplicated matching accounts can report Complete, Partial or
+  MeasuredZero. Missing or incompatible historical coverage reports Unavailable;
+  the current-roster projection is not called per history row and no WOM/provider
+  fetch or signup EHB substitution is permitted.
+- Community CreatedAt and stored LastLoginAt figures use the same captured clock;
+  strict date boundaries exclude null or future values. New accounts use the
+  interval after the latest actual ended event, or 30 days only when no ended
+  event exists. Login counts always use the independent 30-day interval. If an
+  eligible ended-state event exists but its actual boundary is missing or
+  inverted, `NewWebsiteAccounts` is unavailable and `Since` is null; that
+  unavailable boundary cannot create a 30-day ended-event fallback. An eligible
+  event with missing or inverted actual dates keeps related aggregate values
+  unavailable. The card chooses latest-start Live, then the earliest scheduled
+  preparation including overdue events, then an unscheduled setup fallback
+  ordered by stable ID.
+
+Application results expose typed dates, stable IDs and value/coverage metadata so
+later UI binding can preserve unavailable versus zero, provisional versus
+official, and real event destinations without adding persistence.
+
+## Participants data-contract refinement — 2026-09-30
+
+Apply the [approved Participants operations](PRODUCT_REQUIREMENTS.md#participants-backend-changes--approved-2026-09-30)
+without rewriting existing snapshots/history. These are implementation targets,
+not a claim of migration or rollout completion.
+
+- Selected confirmation, selected override restore and selected override Add
+  serialize on authoritative capacity/participant state. A full-event override
+  adds exactly one place and consumes it for that participant in the same
+  transaction. Ordinary capacity-increase promotion remains unchanged. Retried or
+  stale intent must not double-increment capacity or duplicate audit/notifications.
+- Moving Confirmed to Waiting retains current event-character reservations,
+  preserves other queue ordering, appends the moved participant to the queue and
+  promotes the next pre-existing eligible waiter atomically. Keep membership and
+  leadership history while ending current authority. No-waiter and open-place
+  requests fail without mutation.
+- Restoration keeps the participant identity and existing new signup/queue
+  sequencing. Default placement is capacity-driven; explicitly selected expansion
+  is the sole new full-event exception. Preserve reservation reacquisition checks.
+- Question-free Admin Add still uses an existing active website account, unique
+  event ownership, at least one Playing assignment, non-negative supported EHB,
+  configured slot limits and exactly one primary. Save selected payment atomically;
+  captain is false, while unrelated unanswered questions remain absent.
+- The first/protected Playing question is the existing primary authority. Prefer
+  reusing that representation by consistently mapping the selected primary into
+  it and preserving other account/value associations; confirm the concrete mapping
+  in readiness. Avoid a second competing primary flag or destructive migration.
+  Keep all directly affected read/draft consumers consistent. Do not alter Live
+  active-account switching or historical snapshot semantics.
+- Admin event-only corrections do not change AccountOsrsCharacter links/defaults
+  or rename a shared OsrsCharacter identity. Reassignment selects/resolves a
+  character for this event, retaining assignment history and event uniqueness.
+  This scopes the legacy saved-default update clause below: public self-signup and
+  explicit My accounts behavior are unchanged by this admin correction pass.
+- Global links remain non-exclusive. Event assignment conflicts, configured account
+  roles and existing numeric precision remain authoritative. Optional Alt accounts
+  are not Playing slots and do not supply EHB.
+
+No new tables, background jobs or dependencies are budgeted. Prefer existing
+entities/services; if a schema change proves necessary, return the concrete need
+and preserve migration/designer/snapshot and retained-data rollout requirements.
+
+## Approved Admin simplification data contract — 2026-09-26
+
+The [approved product target](PRODUCT_REQUIREMENTS.md#approved-admin-simplification-target--2026-09-26)
+supersedes conflicting future state/operation rules below. Remove future authority
+before deleting historical storage. Retain harmless enum values, columns and
+foreign keys for emergency actors, accountless participants, old formation types,
+departures/replacement links, legacy resubmission predecessors, review resolutions/manual
+corrections, legacy Finalized events and old planning fields. Historical records
+must stay readable without reactivating retired commands.
+
+New roster publication distinguishes direct manual assembly (0/1 included team)
+from an actual website draft (2+); never infer no-draft from absence of active
+picks alone or fabricate pick/Running history. Backfill only from reliable evidence,
+retaining historical unknown where necessary. Preserve original picks and prior
+publication versions. First actual Live permanently fixes membership/registration;
+disablement affects access only. New official publication creates Archived plus
+an immutable placement version atomically; exact equality of all competitive
+inputs alone permits shared rank. Old official versions, board approvals and
+evidence-attribution snapshots retain their saved identities/values.
+
+Immediate Playing switching preserves old transitions and submitted attribution;
+handle existing future-effective switches explicitly before rollout. Ordering and
+concurrency must survive PostgreSQL microsecond precision. WOM provenance and
+credential/write capability are separate; unknown provenance cannot gain delete
+permission. Existing external ID-only links remain read-only, and protected
+credentials never become output or Audit content.
+
+For unfinished/Live events, do not automatically resume Paused drafts, match
+accountless participants to names, cancel pending remote operations, enable disabled
+scheduled opening, rewrite finalized rosters or recalculate historical results.
+Each affected transition requires a deterministic rule with evidence or a controlled
+operator decision. The [release-readiness gate](DELIVERY_PLAN.md#release-readiness-gate-3-october-2026)
+owns the release-time PRE-01 checks and bounded blockers. Future waiting-list enablement must not invoke legacy promote-all
+or silently expand capacity.
+
+Physical banner removal requires authoritative checks of database references,
+stored objects and cleanup state, then explicit retention/disposal treatment for
+meaningful assets. Complete required cleanup before deleting its mechanism; protect
+shared evidence/team/tile storage. Empty development data or absent visible banners
+is insufficient. PRE-01 performs no transformations.
+
+Only one migration owner at a time; migration/designer/snapshot move together.
+Retain historical migrations, rehearse from the verified deployed schema, check
+foreign keys/filtered uniqueness on PostgreSQL and respect timestamp precision.
+Use normal backup/deployment procedures, never reset-based rollout. Private inputs
+stay outside committed artifacts. Data findings must record source, observation
+time, release/schema identity where known, aggregate count/state category and
+limitations; source-code capability or old logs are not current production counts.
 
 ## 1. Purpose
 
@@ -16,7 +175,7 @@ The model must support:
 - Hybrid-authenticated normal website accounts plus admin-created/imported/external roster records without inferred website ownership
 - Capacity limits and an ordered waiting list
 - Admin-operated snake drafts
-- Event-scoped captain and co-captain roles, with disabled-by-default emergency credentials
+- Event-scoped captain and co-captain membership roles; emergency identities/access remain historical only
 - Flexible bingo tile requirements
 - Screenshot evidence and reversible admin review
 - Live public boards and rankings
@@ -121,7 +280,6 @@ Required fields:
 Optional fields:
 
 - `description`
-- `banner_asset_id`
 - `first_public_at`
 - `signup_opens_at`
 - `signup_closes_at`
@@ -177,9 +335,24 @@ DRAFT → SIGNUP_OPEN → SIGNUP_CLOSED → LIVE
 LIVE → AWAITING_FINAL_REVIEW → FINALIZED → ARCHIVED
 ```
 
-Exceptional admin transitions may reopen signups, reopen submissions, or unfinalize an event. Each exceptional transition requires an audit reason.
+Reopen signups uses shared confirmation without a written reason. Reopen submissions and official results require reason/confirmation; every transition remains audited.
 
-The scheduled end transition sets `actual_ended_at = event_ends_at`, even if a background check persists the transition later. An authorized early-end command sets `actual_ended_at` to its authoritative confirmation time and requires a reason in the audit record. The event moves from `LIVE` to `AWAITING_FINAL_REVIEW` at that effective instant. `submission_cutoff_at` remains independent and is not rewritten by early end.
+The scheduled end transition sets `actual_ended_at = event_ends_at`, even if a background check persists the transition later. An authorized early-end command sets `actual_ended_at` to its authoritative confirmation time and requires a reason in the audit record. The event moves from `LIVE` to `AWAITING_FINAL_REVIEW` at that effective instant. Early end sets the normal `submission_cutoff_at` to actual end plus 30 minutes.
+
+Early end sets the configured end and requested WOM end to the click instant
+rounded up to the next whole minute (an exact minute stays unchanged); actual end
+retains the precise click. Resume requires the Admin's validated future replacement
+end using the existing schedule increments, with no rounding. Both actions commit
+locally within ordinary lifecycle rules and record a pending end update for a linked WOM competition.
+WOM matching uses exact configured UTC start/end at every stage, including Final
+Review; actual times still own eligibility/cutoff/review. The existing management
+worker attempts the update immediately, then uses spaced retries until publication
+or permanent rejection. While the end is unmatched, post-actual-end fetches are
+suppressed. Publication persists CouldNotUpdate and an AU18 skipped outcome, using
+the last pre-end cache as official WOM data with its original Luck freshness.
+This state is exposed through service/read models only; new UI placement remains
+for UI integration. AU20 implementation/check evidence is under
+`docs/references/admin-ui/reviews/2026-10-04/au-b3/`; independent review is pending.
 
 An incomplete `DRAFT` requires only a valid name, unique slug, timezone, creator, and creation time. Schedule, signup, capacity, and planning fields become required only at the readiness gate for the transition that uses them. A field being available during initial creation does not make it required for the first save.
 
@@ -187,9 +360,20 @@ Duplicate event names are allowed. The slug is unique and may change until the e
 
 `first_public_at` records the first instant any event-owned public page is intentionally exposed and is never cleared. It is the authoritative slug-lock boundary.
 
-Description may be null while the event remains a private draft and is required before signup publication. `banner_asset_id` is optional in every state and references a managed decorative asset. Replacing or removing the banner does not change event history or competitive snapshots. Discard creates an `EventBannerCleanup` record before removing event-owned banner metadata: it retains the discarded event ID, event-scoped managed storage key, queued/last-attempt times, attempt count, and safe operational failure detail. The record is unique per event/key and can only represent a key under that event's managed storage namespace; it is removed only after deletion succeeds or the object is already absent.
+Description may be null while the event remains a private draft and is required before signup publication. Events have no event-level banner/artwork field or active banner asset relation. The BNR-01 retirement migration removes the legacy banner reference, asset table, and cleanup outbox only after its temporary exact-key ledger records every legacy object as deleted, missing, or shared-retained. That one-time cleanup does not rewrite event history, competitive snapshots, evidence, team images, board/tile artwork, catalogue data, or other storage references.
 
-Timezone defaults to `Europe/Copenhagen` and stores a supported canonical timezone ID. Changing timezone changes only how stored UTC instants are displayed; it never rewrites those instants. Before Live, identity and timezone changes may be saved where allowed with the owning Admin confirmation; once Live begins, identity and timezone are read-only.
+Timezone defaults to `Europe/Copenhagen` and stores a supported canonical timezone ID. Changing timezone changes only how stored UTC instants are displayed; it never rewrites those instants. Name/description/buy-in remain editable through Live/Final Review; timezone locks permanently at first Live. Public timezone changes require confirmation of current participant-facing timestamp consequences.
+
+AU08 Identity concurrency uses original/intended/current canonical field values.
+Untouched fields take current; intended values apply when current equals original
+or already equals intent. Other same-field changes block the atomic save until
+explicitly resolved against the reviewed current value, which is rechecked inside
+the existing Serializable transaction. Failure does not advance unresolved original
+baselines or erase drafts. Legacy stale requests without complete baselines fail
+closed. Timezone confirmation additionally compares the current timeline consequence
+fingerprint, using UTC timestamps at PostgreSQL microsecond precision; schedule-only
+changes require a fresh review independently of Identity field conflicts. No new
+persistence, receipt or historical rewrite is introduced.
 
 Schedule fields may be null in an incomplete private draft. Signup publication requires `signup_closes_at`, `event_starts_at`, and `event_ends_at`; `signup_opens_at` is required only for scheduled opening and retains the configured/scheduled opening instant as historical data. `actual_signup_opened_at` records the actual opening and becomes the effective lower boundary once signups have opened; manual opening records it without overwriting `signup_opens_at`. `draft_at` is optional and informational. The invariants are:
 
@@ -198,7 +382,7 @@ effective_signup_opening_at = actual_signup_opened_at ?? signup_opens_at
 effective_signup_opening_at < signup_closes_at <= event_starts_at < event_ends_at <= submission_cutoff_at
 ```
 
-An unchanged stored timestamp remains valid. A changed or newly entered timestamp must be future, and a stored boundary at or before the authoritative current time cannot be changed or cleared. Signup opening and `scheduled_signup_opening_enabled` lock at the opening boundary; `SIGNUP_CLOSED` makes closing read-only and Reopen owns any replacement. Published start/end are non-nullable through Schedule. No additional ordering rule applies to optional `draft_at`. Normal `submission_cutoff_at` is rederived as `event_ends_at + 30 minutes` whenever event end changes. Schedule mutations of `SIGNUP_OPEN` or `SIGNUP_CLOSED` retain the event-window non-overlap invariant, and a linked competition's stored start/end must remain within five minutes of the proposed event interval.
+Unchanged stored timestamps retain exact UTC precision. Changed local values follow future/timezone/order checks. Passed signup boundaries remain historical; draft time locks at actual draft start. Until first actual Live, event start/end may be repaired to future instants even after configured boundaries pass. Published start/end cannot be cleared. Schedule does not own capacity or a user-facing opening toggle. Normal cutoff derives from end plus 30 minutes. Preserve overlap checks and existing legacy disabled-overdue opening behavior; exact configured WOM start/end matching replaces the former five-minute tolerance.
 
 For manual opening with no explicit closing time:
 
@@ -213,13 +397,25 @@ A valid explicit future closing time no later than event start is preserved. An 
 
 `CANCELLED` is a terminal preserved state for an event with protected records that will not take place. It is reachable only before `LIVE`, requires actor/time/reason, suppresses every scheduled transition, and ends ordinary event-scoped mutations without deleting configuration, participants, assignments, teams, draft history, board data, submissions, evidence, or audit records. A never-public cancelled event remains non-public; an already-public cancelled event exposes only its previously published projection plus a generic cancellation status.
 
-`ARCHIVED` is read-only public history derived only from `FINALIZED`. Archive does not supersede finalization snapshots or alter public URLs. Unfinalization may move an archived event back to final review with a reason only when the production current-event policy permits it.
+`ARCHIVED` is entered atomically by official publication, with immutable results/public URLs preserved. Legacy `FINALIZED` remains readable, not a new intermediate resting state. Reasoned reopening returns to Final Review only when current-event exclusivity permits.
 
 Each authoritative transition into `AWAITING_FINAL_REVIEW` identifies one immutable review cycle. Completion-time acknowledgements, completion corrections, exceptional blocker resolutions, and finalization snapshots are scoped to that cycle; prior-cycle records remain retained and cannot authorize a later cycle. Finalization snapshots retain the consumed resolution identities and authoritative calculation inputs/results used for the official projection. A former participant of an archived event may read only their own rejected/withdrawn evidence history through the normal account-history route; this does not grant team-private or mutation authority.
 
 Evidence eligibility is derived from the append-only lifecycle transitions. If an event resumes from `AWAITING_FINAL_REVIEW` to `LIVE`, the interval between those authoritative effective times remains ineligible; review projections identify evidence timestamps in that gap without rewriting the submission or asset timestamp. Normal finalization also requires an explicit server-validated confirmation value; browser confirmation is only an enhancement.
 
-Production permits multiple `SIGNUP_OPEN` and `SIGNUP_CLOSED` events only when their configured half-open event windows `[event_starts_at, event_ends_at)` do not overlap; an end exactly equal to another start is allowed. Only `LIVE`, `AWAITING_FINAL_REVIEW`, and `FINALIZED` are singleton current states. Drafts do not reserve a window, and cancelled, discarded, or archived events do not block a new one. `is_development_fixture` is an internal persisted marker set only by the Development scenario seeder; ordinary Admin input cannot set it and Production lifecycle commands never honor it.
+Production permits multiple `SIGNUP_OPEN` and `SIGNUP_CLOSED` events only when their configured half-open event windows `[event_starts_at, event_ends_at)` do not overlap; an end exactly equal to another start is allowed. Only `LIVE`, `AWAITING_FINAL_REVIEW`, and `FINALIZED` are singleton current states. Never allow two visible current events (authority: [quoted Step 0 user assignment](docs/references/admin-ui/reviews/2026-10-04/au-step0/approval-record.md)): every entry path (Start, restore/unhide, reopen, future imports or repairs) must enforce the same authoritative singleton boundary. Hidden events are excluded; historical imports enter Archived. Two current events would mutually block finalization and subsequent starts. This is the approved invariant from the quoted Step 0 assignment, not new implemented behavior. Drafts do not reserve a window, and cancelled, discarded, or archived events do not block a new one. `is_development_fixture` is an internal persisted marker set only by the Development scenario seeder; ordinary Admin input cannot set it and Production lifecycle commands never honor it.
+
+### Event creation operation (AU03)
+
+`event_creation_operations` stores `(actor_account_id, request_id)` as its composite
+primary key, the original trimmed `name` and supported `timezone`, and unique
+`event_id`. The row is immutable and commits with the event's complete minimal
+aggregate and creation audit. Restrictive account/event foreign keys retain the
+outcome through rename, quarantine and discard (the event tombstone remains).
+No backfill or synthetic request identity is assigned to pre-existing events.
+Payload comparison is ordinal on the stored strings; timestamps, current event
+metadata and slug allocation are not part of request identity. A new key denotes
+a new operation even when names match. Validation failure leaves no operation row.
 
 ### 5.1.1 Event quarantine metadata
 
@@ -332,11 +528,11 @@ Fields:
 - `blocker_codes`
 - `resolved_at`, nullable
 
-When the scheduled instant arrives, the event may enter `LIVE` only if draft finalization, board publication, Captain/emergency-access readiness, and every other event-start invariant pass in the same transaction. A blocked attempt leaves the event pre-live, retains the original scheduled instant, creates the **Automatic start postponed** admin action/notification, and never backdates later eligibility. It is not automatically retried after blockers clear. The later manual start resolves the attempt/action, uses its actual transition time, and requires no written reason when `now >= scheduled_for`; an early manual start requires one.
+When the scheduled instant arrives, the event may enter `LIVE` only if draft finalization, board publication, and every other event-start invariant pass in the same transaction. A blocked attempt leaves the event pre-live, retains the original scheduled instant, creates the **Automatic start postponed** admin action/notification, and never backdates later eligibility. It is not automatically retried after blockers clear. The later manual start resolves the attempt/action, uses its actual transition time, and requires one confirmation but no written reason for either early or overdue manual start.
 
 ### 5.3.2 ScheduledSignupOpeningAttempt
 
-`scheduled_signup_opening_enabled` is the explicit automatic-opening control. Event creation defaults it on when an opening time is supplied and off otherwise; Schedule may turn it off only before the boundary passes, while an unchanged enabled overdue value remains historical. `scheduled_signup_warning_codes` stores the stable warning codes confirmed for that purpose. One `ScheduledSignupOpeningAttempt` per `(event_id, scheduled_for)` records the actual attempt time, success, stable blocker/unconfirmed-warning codes, and optional resolution time. The unique boundary plus the lifecycle transaction makes worker retries and manual/scheduled races idempotent without making notification read state authoritative.
+`scheduled_signup_opening_enabled` remains compatibility state, not an Admin control. Future opening timestamps schedule the action; manual actions supersede their corresponding scheduled transition. Preserve the legacy disabled/overdue exception so unchanged old data cannot activate a new opening. One ScheduledSignupOpeningAttempt per event/boundary stores the actual attempt, outcome and resolution; transaction/uniqueness guards make scheduled/manual races idempotent. Readiness is always rechecked; old warning acknowledgments grant no new authority.
 
 ## 5A. Global public content
 
@@ -372,6 +568,29 @@ Fields:
 - `closed_at`
 - `first_response_at`, nullable and never cleared after the first accepted/imported response
 - `require_signup_code`
+
+AU05 client baselines: custom/account-field add, custom edit, account rename, move and co-captain enable submit the rendered `SignupForm.version` as `expectedFormVersion`. Missing or malformed baselines fail closed; stale baselines are rejected under the event lock before writes. Delete/disable retain their existing question-version and impact-count confirmation contract. Existing forms forward this token without introducing a new UI workflow. Settings results retain the immutable submitted event version separately from the authoritative saved/current event version, capacity, waiting-list state, code-required and code-present flags; code values/hashes are never returned. Capacity and code remain separate transactions.
+
+AU07 response boundary: the ordinary null-to-first-accepted `FirstResponseAt`
+transition alone is response metadata and preserves the editable form version.
+Any simultaneous definition/settings mutation or explicit Version mark/advance
+still advances it. No stale-baseline bypass is permitted. The immutable first
+marker, required/type restrictions and all current guards are rechecked under the
+existing Serializable event lock. A required custom add after that boundary succeeds
+as optional with an explicit `CompletedAsOptional` outcome, explanation and original
+committed definition; there is no rejection or backfill. Exact replay/readback uses
+AU06 identity plus its uniquely linked immutable creation audit and verified original
+intent, preserving the normalization and definition after later edits. Missing or
+corrupt creation audit fails closed without returning a guessed definition or writing.
+
+AU06 uses one `SignupQuestionCreationOperation` per committed add: globally unique
+`request_id`, `actor_account_id`, `event_id`, SHA-256 of the canonical requested
+shape (including original `expectedFormVersion`) and `question_id`. The operation,
+question, audit and form-version advance commit atomically. Actor/event references
+are restricted; question identity is retained without a deletion-cascading foreign
+key so cleanup cannot erase retry history. Deleted/inactive fields are never
+recreated by replay. Development reset clears operations with event-owned data.
+There is no backfill, request receipt for failed writes, expiry or generic framework.
 
 ### 6.2 SignupQuestion
 
@@ -413,18 +632,19 @@ INFORMATIONAL
 
 The user-facing role names are **Regular account** for `PLAYING` and **Alt account** for `INFORMATIONAL`. The built-in primary OSRS account is a required public `ACCOUNT` question with role `PLAYING`; its compound answer requires EHB. Additional Account questions may create regular or alt assignments but are always optional at the question level. When an optional regular Account question is answered, its EHB child value becomes required. An alt Account answer has no EHB. A Yes/No support-alt question creates no OSRS-character assignment. The primary Account/EHB and captain-volunteer system questions cannot be removed.
 
-Every participant-facing answer is public on the unlisted signup table in version one. `public_on_signup_board` remains fixed/defaulted true so selective visibility can be added later without a destructive schema change. There are no admin-only custom signup questions or post-draft privacy mutations. Payment and Admin notes remain separate private data.
+Every active participant-facing answer is public on the unlisted signup table in version one. Inactive legacy questions and their retained answers remain available to authorized private/admin history views but are excluded from public signup-table projections. `public_on_signup_board` remains fixed/defaulted true for active participant-facing questions; it is not historical disclosure evidence and no disclosure-tracking field or backfill is introduced. Private fields and co-captain answers remain outside the public projection. There are no admin-only custom signup questions or post-draft privacy mutations. Payment and Admin notes remain separate private data.
 
-Before `first_response_at`, a custom question may be structurally edited or deleted while the form is private/closed. After it is set:
+Before draft start, custom questions may be added, edited, reordered, or deleted while signup is open or closed. Before `first_response_at`, an existing question's answer shape may change. After it is set:
 
 - new participant-facing questions must have `required = false`;
 - `type`, `account_answer_role`, `options`, stable `key`, and answer-shape constraints are immutable;
-- label, help text, and position may change while signup is closed and before draft start;
-- structural replacement disables the original question and retains its answers; explicit custom-question deletion removes every answer and excludes the question from ordinary signup/question views, even when it was never answered;
+- an optional question cannot become required;
+- label, help text, and position may change while signup is open or closed and before draft start;
+- changing a question's format is an explicit delete-then-create operation: deletion removes every answer permanently and releases only affected event assignments/reservations, then ordinary creation adds the new question; existing inactive legacy questions and retained answers remain authorized private history only and are excluded from every public signup-table projection;
 - deleting an optional Account question releases its current event assignments/reservations atomically without deleting assignment/audit history or global My accounts links; restoration must not reacquire assignments from deleted questions; the definition may remain an internal historical tombstone;
 - every change increments `SignupForm.version` and is audited.
 
-Draft start freezes ordinary question metadata. Structural replacement disables the original question and creates a new optional question with a new stable key; it never rewrites existing answers. Deletion uses an internal tombstone so assignment and audit references remain valid, but removes all answer rows and releases current optional assignments in the same transaction under the event lock; form and affected participant versions advance. Repeated deletion is harmless and cannot reinterpret a replacement or retained-conversion record. Upgrade repair of earlier deletion-only deactivations is limited to pre-draft Draft/SignupOpen/SignupClosed events and excludes system, replacement and retained-conversion/legacy questions. Already draft-locked or later event records are preserved unchanged; this correction does not rewrite competitive history.
+Draft start freezes ordinary question metadata. Delete-then-create gives the new question a new stable key; it never rewrites the deleted answers. Deletion uses an internal tombstone so assignment and audit references remain valid, but removes all answer rows and releases current optional assignments in the same transaction under the event lock; form and affected participant versions advance. Repeated deletion is harmless and cannot reinterpret a replacement or retained-conversion record. Upgrade repair of earlier deletion-only deactivations is limited to pre-draft Draft/SignupOpen/SignupClosed events and excludes system, replacement and retained-conversion/legacy questions. Already draft-locked or later event records are preserved unchanged; this correction does not rewrite competitive history.
 
 ### 6.3 EventParticipant
 
@@ -448,7 +668,7 @@ Fields:
 
 `(event_id, account_id)` is unique when `account_id` is not null. One website account can therefore own at most one participant record in an event while participating in several different events.
 
-New normal signups have `account_id` at creation. The participant may edit signup fields only while the event is `SIGNUP_OPEN`. Imported or external participants without a verified website-account relationship remain valid roster records. Event-facing names come from registered OSRS-character assignments rather than the website username. Slice 4 removes the temporary private-edit-token model without adding a participant claim-token model.
+All new ordinary signup/Admin additions require an existing active website account at creation. The participant may edit signup fields only while the event is `SIGNUP_OPEN`. Retained or explicitly operator-imported records without an account remain readable, but ordinary UI cannot create or claim them. Event-facing names come from registered OSRS-character assignments rather than the website username. Slice 4 removes the temporary private-edit-token model without adding a participant claim-token model.
 
 Editing does not change `signed_up_at`, `signup_sequence`, or queue status. Cancelling/withdrawing changes status and releases current character assignments. Rejoining while signup is open reactivates the same participant identity but assigns a new `signed_up_at` and `signup_sequence` at the end of the queue. Admin restoration before draft start follows the same current-capacity calculation and never restores a former queue position.
 
@@ -527,7 +747,7 @@ IMPORT
 ADMIN_CORRECTION
 ```
 
-The assignment created by the built-in primary Account question supplies the participant's draft EHB. Secondary values never contribute to that derived draft value. A fetched value records `WISE_OLD_MAN` and `ehb_fetched_at`; editing it afterward changes the source to `MANUAL`. The event snapshot remains authoritative after signup closes even if the external profile changes.
+Exactly one explicitly selected primary Playing assignment supplies draft EHB (F05). Switching preserves all per-account snapshots; other accounts never add to that draft value. A fetched value records `WISE_OLD_MAN` and `ehb_fetched_at`; editing it afterward changes the source to `MANUAL`. The event snapshot remains authoritative after signup closes even if the external profile changes.
 
 My accounts stores only an optional numeric saved-EHB default. A WoM lookup performed there may populate that value, but it does not add durable source/fetch metadata to `AccountOsrsCharacter`. Using the saved default later is therefore `MANUAL`. Only a fresh signed lookup submitted and verified with an event signup may create a `WISE_OLD_MAN` event snapshot.
 
@@ -541,28 +761,49 @@ An event may have at most one Wise Old Man integration-state record. It owns:
 - separate fixed-hourly normal-slot and retry due times. A normal slot is UTC and anchored to the event's retained `actual_started_at` (first slot +1h); a missing anchor leaves the normal due explicitly `NULL` rather than creating a rolling fallback;
 - retry count;
 - opaque synchronization lease owner and expiry;
-- observed request-budget diagnostics needed by Admin projection.
+- observed request-budget diagnostics needed by Admin projection;
+- end-update status (NotRequired, Pending, Succeeded, Rejected, CouldNotUpdate), UTC
+  target/requested timestamps and a sanitized safe rejection code. End-update status
+  is persisted by name: NotRequired, Pending, Succeeded, Rejected and CouldNotUpdate
+  are immutable stored names and must never be renamed. The AU20 migration
+  backfills existing rows as NotRequired with no inferred target; Down removes only
+  the new fields and cannot preserve pending end requests across rollback.
 
-The competition interval must match the configured Bingo start/end within five minutes unless an Admin explicitly synchronizes a pre-Live event schedule to the exact competition instants through the existing schedule boundary. Live correction requires an already matching interval; AwaitingFinalReview, Finalized, Archived, and Cancelled configuration is immutable.
+The competition interval must match both website UTC boundaries exactly (configured window, including Final Review). Website dates cannot be imported from WOM. Matching replacement is allowed before/during Live and local disconnect before first Live, with active/unresolved-operation guards and no external remote deletion or credential reuse. Final Review and terminal connection configuration stays read-only.
 
 Each synchronization attempt snapshots a generation identity, competition ID, and fingerprint of all current unreleased `PLAYING` event assignments. Cached per-character activity rows belong to that generation and store the event, participant, character, gained EHB, and fetch time. Alt/informational and released assignments are excluded.
 
-Lease acquisition and HTTP do not share a database transaction. Final cache publication succeeds only while the event remains `LIVE` and the competition ID, opaque lease owner, and assignment fingerprint still match. A later complete or partial generation is authoritative for projection and replaces older displayed values, although older rows may remain retained for recovery/diagnosis. A successful response with missing expected accounts persists only matched current-generation rows; missing accounts have no row, are never represented as zero, and never carry forward an older value. Partial projections show available totals and coverage when at least one expected account matches; zero matches show no rankings.
+Lease acquisition and HTTP do not share a database transaction. Final cache publication succeeds only while the event remains `LIVE` or `AWAITING_FINAL_REVIEW` and the competition ID, opaque lease owner, and assignment fingerprint still match. A later complete or partial generation is authoritative for projection and replaces older displayed values, although older rows may remain retained for recovery/diagnosis. A successful response with missing expected accounts persists only matched current-generation rows; missing accounts have no row, are never represented as zero, and never carry forward an older value. Partial projections show available totals and coverage when at least one expected account matches; zero matches show no rankings.
 
-Participant activity is the sum of their current generation's matched regular-character deltas. Team total sums current-member participant totals once; team average divides by current participants with at least one matched account rather than accounts. Every participant tied for the highest available total is a provisional MVP; coverage makes the partial state explicit. Synchronization stops outside `LIVE`; the latest generation state is retained without mutation and may resume only after a legitimate return to `LIVE`. Existing Live rows are reconciled lazily to the current anchored slot; a consumed current slot is detected from its recorded attempt time even when its legacy due value came from the old rolling cadence, so recovery advances to the next future slot without replaying a slot. Downtime does not backfill a burst, and retries/manual/urgent requests do not move the normal anchor.
+Participant activity is the sum of their current generation's matched regular-character deltas. Team total sums current-member participant totals once; team average divides by current participants with at least one matched account rather than accounts. Every participant tied for the highest available total is a provisional MVP; coverage makes the partial state explicit. Synchronization stops outside `LIVE` and `AWAITING_FINAL_REVIEW`; the latest generation state is retained without mutation and may resume only after a legitimate return to `LIVE`. Existing Live rows are reconciled lazily to the current anchored slot; a consumed current slot is detected from its recorded attempt time even when its legacy due value came from the old rolling cadence, so recovery advances to the next future slot without replaying a slot. Downtime does not backfill a burst, and retries/manual/urgent requests do not move the normal anchor.
+
+AU20 persisted WOM outcome compatibility:
+
+AU18 refresh skip reasons retain their stored names and explicit numbers:
+EventUnavailable=0, EventNotInFinalReview=1, IncompleteEventWindow=2, NoCompetition=3,
+RefreshInProgress=4, RetryDelay=5, NotDue=6, ServiceUnavailable=7. AU20 appends
+EndWindowUnmatched=8 and EndCouldNotBeUpdated=9. Published CalculationInputsJson
+continues to read old string/numeric outcomes; names/numbers must never be reused.
+Fallback publication records Skipped / EndCouldNotBeUpdated without replacing the
+pre-end cache or its fetched/calculated timestamps with fresh values or zeroes.
 
 #### Admin-managed Wise Old Man competition state — authorized 2026-09-22
 
 The existing event competition link remains the source identity for both manual
-and managed integrations. A separate management record is created only after a
-successful explicit Create through the Admin-managed flow. It stores the event
+and managed integrations. A separate management record is created after a
+successful explicit Create or explicit protected-code adoption on an external link. It stores the event
 and link identity, encrypted versioned management code, managed-field scope,
 management status, last applied local and remote fingerprints, last acknowledged
 roster, management version, and the permanent `actual_started_at` cutover
 observed for destructive/roster decisions. The code is never stored in
 cleartext, public/statistics DTOs, TempData, logs, exceptions, or raw operation
-payloads. Manually linked records have no management record and cannot be
-upgraded by importing a credential.
+payloads. ID-only links have no writable management capability. Explicit code adoption may
+add it without changing External provenance or authorizing remote deletion.
+External replacement/disconnect retires the local management connection, removes
+its protected credential and current-operation receipt, and preserves operation
+history. A later explicit code adoption rebinds the unique management row with the
+new code, never the retired credential. Replacement resets end-update state for
+the new configured connection.
 
 Durable management operations retain only an operation ID/type, authorized
 actor or originating local change, immutable desired fingerprint/payload
@@ -600,9 +841,9 @@ Fields:
 - `effective_at_utc`
 - `recorded_at_utc`
 - `recorded_by_account_id`
-- `reason`, required for admin corrections or backdated transitions
+- `reason`, retained where present in historical records; no new backdated switch workflow
 
-Both referenced characters must be current `PLAYING` assignments belonging to that event participant. The initial transition activates the assignment from the built-in primary Account question at event start. Normal participant/captain swaps are accepted only while the event is `LIVE`. A normal swap's `recorded_at_utc` is the request time and `effective_at_utc` is the first whole UTC minute strictly after it. The latest applicable transition determines the active character. A swap transaction locks or concurrency-checks the participant's current transition, verifies that `previous_osrs_character_id` is still current, rejects another request while a future-effective transition is pending, and appends exactly one next transition. Swaps are unlimited during live play and never rewrite earlier event assignments or swap history. Event end closes normal swaps.
+Normal participant swaps select that participant's frozen Playing assignments while Live, take effect at authoritative server time and serialize with submission attribution. There is no new next-minute pending swap or Captain/Admin switch-on-behalf authority. Exactly one active account supplies future submissions; historical transitions and original evidence snapshots remain unchanged. PostgreSQL precision applies. Initial activation uses the selected primary.
 
 Signup status:
 
@@ -642,7 +883,7 @@ The label snapshot preserves meaning if the form question is later edited.
 
 An answer row is not guaranteed to exist for every active question and participant. Questions may be added after some players have signed up, optional questions may be left blank, and external roster members may not have a website signup at all. Team, roster, draft, and admin views must load answers with left-join/optional semantics and render missing values without throwing an exception.
 
-Answers to disabled questions remain queryable. Public signup-table projection retains participant-facing historical answers and renders later missing optional answers as **Not answered**. Website username, Discord identity, payment, Admin notes, security data, and audit data are never included in that projection.
+Answers to disabled questions remain queryable for authorized history. Public signup-table projection includes active participant-facing answers only and renders later missing optional answers as **Not answered**; inactive legacy answers, private fields, and co-captain answers are excluded. Website username, Discord identity, payment, Admin notes, security data, and audit data are never included in that projection.
 
 ### 6.9 Waiting-list calculation
 
@@ -671,13 +912,15 @@ open_places = participant_cap - confirmed_count
 promote the first open_places waiting-list records
 ```
 
-The capacity value is the submitted authoritative value. Before first publication any positive value is allowed; afterward it may only increase. Promotion, each participant status audit entry, participant notification, Admin notification, capacity mutation, and schedule audit commit atomically.
+Capacity is editable before team-draft lock and cannot fall below the Confirmed count across all event participants, regardless of team inclusion or manual-team membership. Manual-team membership never frees a signup place; manual teams still consume no draft turns. Ordinary increases promote earliest eligible waiters atomically with the capacity write, audit and notifications. F01–F04 explicit selected-person +1 exceptions never promote anyone else. Waiting remains enabled while open.
 
 The participant cap can be increased but not lowered. If signups close below the cap, the confirmed participants at that time are simply the available participant pool.
 
 Cancellation/withdrawal, rejoin, admin restoration, character reservation changes, status assignment, and waiting-list promotion are atomic. Restoration or rejoin must reacquire every required character reservation and fails without partial state if any is unavailable. Participant- and admin-initiated withdrawal share `WITHDRAWN`; `withdrawn_by_account_id` plus automatic transition history preserves who acted.
 
-After the draft is locked, automatic promotion stops. Replacements require explicit admin action.
+After the draft is locked, automatic promotion stops. Replacement workflows are
+retired. Finalized pre-first-Live roster Add/Remove uses the separate correction
+flow; first Live locks membership permanently.
 
 ## 7. Team and draft domain
 
@@ -689,16 +932,16 @@ Fields:
 - `name`
 - `slug`
 - `image_asset_id`
-- `formation_type`: `DRAFTED` or `PREFORMED`
+- `formation_type`: retained historical `DRAFTED`/`PREFORMED` compatibility only
 - `affiliation_name`: optional clan or community name
 - `included_in_draft`
 - `draft_position`
 - `active`
 - `finalized_at`
 
-`included_in_draft` determines whether the team receives snake-draft turns. A pre-formed team can be added before or after the website draft and can have its roster assigned manually. Pre-formed teams compete normally but do not affect draft order, drafted-team count, derived roster-size distribution, or pick ownership. Once the first pick is recorded, changing whether a team participates in that draft is blocked. Permitted pre-event roster corrections retain automatic structured history without requiring a typed reason.
+`included_in_draft` alone determines draft participation; formation_type is historical compatibility and grants no restriction or exemption. New teams require existing-account members. With 0/1 included team finalize manual rosters; 2+ use balanced website draft. Original picks/publications remain immutable.
 
-Team display name is unique within its event. `slug` is a stable event-scoped URL identifier and does not change when the display name changes. `image_asset_id` references a managed uploaded decorative asset; Team has no arbitrary image-URL field. Name, image, and affiliation may change until event start and are ordinarily locked afterward. A pre-formed team may be created before event start, including after website-draft finalization. Once any pick has been recorded, the drafted-team set and formation types remain structurally locked even if all picks are later undone.
+Team display name is unique within its event and its slug is stable. Retained image/affiliation fields are history/compatibility; the accepted Teams UI removes those controls. IncludedInDraft alone controls participation; first-pick structural locks persist after Undo. No new preformed/accountless workflow or finalized-draft reopening is permitted.
 
 ### 7.2 TeamMembership
 
@@ -714,7 +957,7 @@ Fields:
 - `membership_source`
 - `replaces_team_membership_id`, nullable
 
-`assigned_by_draft_pick_id` is null for manually assigned members of a pre-formed team. Manual roster assignments record the structured assignment source/action and audit actor. Ordinary corrections before event start do not require an administrator to type a reason. A participant may be created directly within the event for an invited roster and does not need to have submitted the public signup form.
+`assigned_by_draft_pick_id` is null for manually assigned members. Manual roster assignments record the structured assignment source/action and audit actor. Ordinary corrections before event start do not require an administrator to type a reason. A participant may be created directly within the event for an invited roster and does not need to have submitted the public signup form.
 
 Membership role:
 
@@ -734,7 +977,10 @@ PREFORMED
 ROSTER_REPLACEMENT
 ```
 
-A post-draft withdrawal sets `left_at` without deleting the membership or its draft-pick link. A replacement membership uses `ROSTER_REPLACEMENT`, points to the ended membership, and begins prospectively. The replacement participant normally comes from the waiting list, becomes `CONFIRMED`, and retains their frozen event-character assignments/EHB. When no waiting participant is available, an admin-created participant may instead supply the required valid unique assignments/EHB and join directly as the replacement. The vacancy may also remain unfilled. The departed participant's post-draft assignments are not released.
+Historical departure/replacement memberships, former left_at and ROSTER_REPLACEMENT links remain readable. New finalized pre-first-Live Add/Remove updates current publication and preserves original picks/prior versions. First Live permanently locks membership/registration; no future vacancy/replacement workflow or notification is generated.
+
+`ROSTER_REPLACEMENT` is a retained historical membership source only. The current
+draft and Live workflows do not create new vacancy or replacement actions.
 
 For live changes, `left_at` is the first full UTC minute after withdrawal confirmation and the replacement `joined_at` is the first full UTC minute after replacement confirmation. These timestamps may leave a gap and must never overlap. The replacement's initial `EventParticipantCharacterSwap` activates their primary playing assignment at the same `joined_at` instant.
 
@@ -752,9 +998,12 @@ Fields:
 
 Only an active membership may receive a current captain/co-captain role. Withdrawing the member appends the required revocation transition atomically. Role authorization resolves from the latest applicable transition/current membership rather than an OSRS character or stale credential.
 
-Draft-start readiness requires every active `DRAFTED` team to have a current `CAPTAIN` membership. `CO_CAPTAIN` alone does not satisfy the gate. Every captain/co-captain assignment occupies a normal roster position used by the derived-size calculation.
+Draft-start readiness requires every active team with `included_in_draft = true` to
+have a current `CAPTAIN` membership. `CO_CAPTAIN` alone does not satisfy the gate.
+Every captain/co-captain assignment occupies a normal roster position used for the
+derived-size calculation.
 
-Event-start readiness requires every active team to have a current `CAPTAIN` membership with explicit active website-account ownership or an active team-scoped emergency captain access record. A co-captain alone does not satisfy the gate. This invariant is a start-transition blocker, not a live-event invariant; losing the final captain during live play creates an urgent unresolved warning.
+Live-start readiness does not require a current Captain or credential. Actual website-draft start and finalization retain their current-Captain requirements. Losing a current Captain during live play can still produce an unresolved support warning; that warning grants no fallback authority.
 
 ### 7.2.2 TeamFocusMarker
 
@@ -786,6 +1035,8 @@ Fields:
 - `type`: `SNAKE`
 - `state`
 - `initial_order_randomized_at`
+- `first_pick_recorded_at`: retained first-ever pick time, including after Undo/cancel
+- `requires_fresh_order`: discard the prior order on restart after a picked attempt was cancelled; establish a fresh order before picks
 - `started_at`
 - `paused_at`
 - `finalized_at`
@@ -795,22 +1046,24 @@ Draft state:
 
 ```text
 SETUP
-READY
-LIVE
-PAUSED
+RUNNING
 FINALIZED
 ```
 
+`PAUSED` remains a readable legacy state for historical rows only; it is not a
+current draft control state. `included_in_draft` is the only current participation
+flag; the retained `formation_type` values do not decide eligibility.
+
 Team count and target size are not authoritative stored configuration:
 
-- `team_count` is derived from active `DRAFTED` teams included in the draft.
+- `team_count` is derived from active teams with `included_in_draft = true`.
 - The drafted-team participant total includes confirmed internal participants either available for the website draft or already assigned to a drafted team.
 - `larger_size = ceiling(participant_total / team_count)`.
 - `smaller_size = floor(participant_total / team_count)`.
 - `larger_team_count = participant_total mod team_count`; the remaining teams receive `smaller_size`.
 - When the remainder is zero, every team receives the same size.
 
-Captain/co-captain memberships count toward these sizes. Pre-formed teams and all members assigned to them are absent from this calculation. The board editor's team-count/team-size estimates are a separate board-EHB planning input and never become draft constraints.
+Captain/co-captain memberships count toward derived draft sizes. Teams not included in the draft and their assigned members do not consume draft turns. Planning team size is separate; AU13 preserves its editability after finalization.
 
 Before the first pick, the application derives a balanced per-team turn/capacity plan from the participant total, existing drafted-team memberships, and randomized order. A setup is invalid when an existing preassignment makes a maximum final size difference of one impossible. A team whose current membership count exceeds the smallest drafted-team membership count is ineligible until lower-count teams catch up. The partial final round determines which named teams receive the larger final size. The plan is not a user-entered target and cannot strand a confirmed included participant.
 
@@ -860,13 +1113,21 @@ Undo may be repeated against the latest remaining active pick until no active pi
 
 Every confirmed participant remains visible during the draft. Drafted players display their assigned team rather than disappearing.
 
-The available draft pool excludes participants already assigned to pre-formed teams. Adding or editing a pre-formed team after draft finalization does not add retrospective picks or alter the immutable draft order and pick history.
+The available draft pool is recomputed after each pick and excludes participants
+already assigned according to current membership and `IncludedInDraft`; it therefore
+shrinks as teams fill and a picked participant cannot return until that pick is
+undone. Formation labels do not decide eligibility. Finalized pre-first-Live
+Add/Remove never fabricates picks or changes original order.
 
 Draft finalization requires every confirmed participant included in the drafted-team total to have one active drafted-team membership and every drafted team to satisfy the derived balanced distribution.
 
 The public finalized-draft projection includes only active picks, ordered by effective overall pick number, with participant and team. Undone/superseded attempts, recorded-by identity, timestamps, and correction details remain in the admin ledger.
 
-Before event start, `FINALIZED` may transition back to controlled correction mode only with strong confirmation and a non-empty written reason. The current public roster and pick-order projection becomes unavailable until re-finalization, while the drafted-team set/formation lock remains. Finalization and reopening transitions are append-only so prior publication cycles, actors, times, reasons, and superseded picks are never overwritten. An already published board snapshot is independent and remains published.
+A finalized draft cannot reopen. Before first actual Live, separate roster Add/Remove republishes current membership without altering original picks/prior versions; those corrections do not withdraw the public roster. Cancel is available only for a private Running draft after individual latest-pick Undo leaves zero active picks. Cancel returns the draft to Setup. If any pick was ever recorded,
+`requires_fresh_order` is true. Start clears prior team positions when no pick
+has ever been recorded or `RequiresFreshOrder` is set; the separate Scramble action
+establishes the new random order before picks. `first_pick_recorded_at` is retained.
+Historical reopened/paused state and audit remain readable without new transition authority.
 
 ## 8. Account and access domain
 
@@ -881,7 +1142,7 @@ Fields:
 - `profile_osrs_character_id`, the character selected during onboarding
 - `onboarding_completed_at`
 - `login_username`, nullable and used only for emergency or legacy password credentials
-- `password_hash`, required for completed normal-account onboarding and enabled emergency credentials; nullable only while a disabled emergency credential awaits initial setup
+- `password_hash`, required for completed normal-account onboarding; retained emergency rows may have a password hash or null, neither grants authentication
 - `account_type`
 - `global_role`
 - `authorization_version`
@@ -929,7 +1190,7 @@ Fields:
 - `used_at`, nullable
 - `superseded_at`, nullable
 
-Only hashes of cryptographically random setup/reset tokens are stored. A token is purpose-bound, single-use, expires 60 minutes after creation, and is valid only while unexpired and not superseded. Generating another setup/reset token for the account supersedes every unused prior token. Completion updates `password_hash`/`password_changed_at`, increments `password_version`, consumes the token, and records automatic actor/target/time history. Initial emergency setup leaves the credential disabled. It does not require a written reason.
+Only hashes of cryptographically random setup/reset tokens are stored. A token is purpose-bound, single-use, expires 60 minutes after creation, and is valid only while unexpired and not superseded. Generating another setup/reset token for the account supersedes every unused prior token. Completion updates `password_hash`/`password_changed_at`, increments `password_version`, consumes the token, and records automatic actor/target/time history. Retained emergency setup/reset tokens and any token targeting an emergency account are rejected without consuming the token or changing account history. It does not require a written reason.
 
 An enabled Admin may generate a link for a `USER`; only the Super Admin may generate one for an `ADMIN`. No in-product admin-generated reset is available for the current Super Admin.
 
@@ -963,16 +1224,7 @@ Fields:
 - `manually_disabled_at`
 - `re_enabled_at`
 
-An emergency captain account is an individual credential separately scoped to one event/team and disabled by default. Any enabled Admin may create multiple individual credentials for the same team. Its globally unique login username shares the normal login-identifier namespace. Initial password setup and later reset use the hashed 60-minute single-use token flow; the Admin never selects or sees the lasting password. Only an initialized credential may be explicitly enabled. Creation, setup/reset, enablement, use, and disablement are audited.
-
-Approved C38 policy (2026-09-14): finalized-draft pre-start emergency enablement is
-an explicit current grant. Its `active_from` must not retain a future scheduled-start
-floor that prevents usable access after an authorized early actual start; record the
-explicit enablement instant without retroactive eligibility. Actual event start and
-current lifecycle/role gates independently prohibit pre-start submission mutations.
-Do not bulk rewrite existing grants or disable/enable history. Cutoff disablement and
-explicit reopen/re-enable retain their established semantics.
-
+Retained emergency accounts and event/team access rows preserve historical foreign keys, actor identity, username reservation and past Audit. Their enabled/expiry/setup fields no longer grant authority. No provisioning, token consumption, enable/disable, expiry-worker mutation or identity conversion is performed.
 
 `expires_at` applies only to emergency or legacy password access, not to normal website-account captain/co-captain roles. Captain role history remains on `TeamMembershipRoleTransition`; lifecycle authorization determines whether that historical role can still mutate the event.
 
@@ -985,10 +1237,10 @@ CO_CAPTAIN
 
 Captain authorization requires all of:
 
-- Account is active
-- Event access is active
-- Current time is within access window, unless manually re-enabled without expiry
-- Submission team matches the access team
+- Account is an active normal website account
+- Participant ownership and current Captain/Co-captain membership match the event/team
+- Event is visible
+- Submission team matches the current membership
 - Event state and active upload window permit the requested submission mutation
 
 An admin identity transfer updates the event participant's owning `account_id` and any derived normal participant/captain access atomically. The destination `(event_id, account_id)` uniqueness constraint must succeed first. The transfer does not move `AccountOsrsCharacter` rows or merge `Account` records; it preserves all event-owned participant, assignment, team, evidence, and history rows.
@@ -1019,13 +1271,13 @@ page. Event-linked notifications are filtered through `EventId` plus the
 explicit visible-event predicate so hiding cannot leak stale event actions or
 destinations.
 
-Reading a notification is recipient-scoped and marks `ReadAt` only when it is not already set, so repeated reads are idempotent. Notifications are retained, and reading or following a destination never resolves the underlying workflow or Admin action. Pending review, waiting-list follow-up, postponed start, vacancy, missing-Captain, and other operational state disappears only when its authoritative record is resolved.
+Reading a notification is recipient-scoped and marks `ReadAt` only when it is not already set, so repeated reads are idempotent. Notifications are retained, and reading or following a destination never resolves the underlying workflow or Admin action. Current pending review and unresolved scheduled opening/start failures disappear only when their authoritative condition resolves. Retired vacancy, promotion-follow-up and missing-Captain categories generate no new actions.
 
-Required notifications are written with their surrounding accepted mutation. Retry-sensitive producers use deterministic IDs and their owning transition/recipient boundary where implemented, including live withdrawal/replacement and evidence rejection. Ordinary notification producers may use fresh GUIDs and rely on the surrounding accepted transaction or action; notification persistence has no universal recipient-transition deduplication rule.
+Required notifications are written with their surrounding accepted mutation. Retry-sensitive producers use deterministic IDs and their owning transition/recipient boundary where implemented, including retained historical withdrawal/replacement records and current evidence rejection. Ordinary notification producers may use fresh GUIDs and rely on the surrounding accepted transaction or action; notification persistence has no universal recipient-transition deduplication rule.
 
 Waiting-list promotion notifies the linked participant when present and enabled administrators, with the participant confirmation or Admin management destination and no private custom-answer, payment, note, OAuth-secret, or other unnecessary account data. Payment changes, private-note changes, and ordinary non-account answer corrections create no participant notification.
 
-Vacancy and replacement notifications target enabled administrators and the remaining or newly linked current Captain/co-Captain recipients as applicable. Evidence rejection targets the linked credited participant and current linked Captain/co-Captains, includes only the necessary event/tile/drop/reason detail, and does not target ordinary team members. When the credited participant is unlinked, the current Captain/co-Captain recipients cover the notification.
+New vacancy/replacement notifications are retired. Retain historical notifications without generating new actions. Evidence rejection targets the credited participant and current authorized Captain/co-captains; pending reviews and unresolved scheduled failures remain operational actions.
 
 ### 8.4 Participant drop-announcement state
 
@@ -1072,6 +1324,7 @@ Fields:
 - `image_asset_id`
 - `source_image_url`, nullable
 - `efficient_completions_per_hour`
+- `team_size` (informational agreed activity team size; integer >= 1, default 1)
 - `external_identifier`
 - `data_source`
 - `data_updated_at`
@@ -1102,10 +1355,10 @@ Fields:
 - `item_id`
 - `display_rate`
 - `numeric_probability`
-- `probability_scope` (legacy; new and edited values are always `Participant`)
-- `conditional_on_parent` (legacy)
-- `parent_probability` (legacy)
-- `assumed_participants` (legacy)
+- `probability_scope` (retained context; final chance is in-name; AU23 backend delivered)
+- `conditional_on_parent` (retained; new input retired by AU23)
+- `parent_probability` (retained with parent flag/history)
+- `assumed_participants` (retained per-drop history; activity context moved to BossActivity by CAT-1)
 - `rolls_per_completion`
 - `roll_group`
 - `rate_condition_note`
@@ -1114,11 +1367,43 @@ Fields:
 - `data_updated_at`
 - `active`
 
-`numeric_probability` stores the final effective chance paired with the boss/activity's efficient-completion rate. For ordinary solo content this is the item's full drop chance. Group content may use either a personal in-name probability with the corresponding team completion rate, or a full-contribution probability with a completion rate already normalized per invested player-hour. The pair must represent the same strategy, scale, difficulty, team size, and contribution assumptions so group size is applied exactly once. It accepts any valid fraction numerator, not only `1/x`. Raid-specific purple-table, points, scale, and difficulty assumptions are resolved before entry and recorded in `rate_condition_note`; the EHB calculator never applies raid-specific conversions. The older scope/parent columns remain only for migration compatibility and are ignored by calculation. Repeated rolls remain explicit. `roll_group` identifies mutually exclusive results from the same roll; different groups are independent. The probability remains empty when no reviewed effective probability is available.
+**4 October final-chance decision, implemented by B4 AU23/CAT-1 backend:** `numeric_probability`
+is paired with the activity's efficient completion rate for the same agreed team
+size/strategy and stores the final in-name chance per roll; `N x` explicitly
+records repeated rolls. Valid fraction numerators are allowed. Enter a raid's
+final item chance with the purple chance already included; never add “Only after”
+for that final rate. Retire parent input/editor/panel controls, retaining
+`conditional_on_parent` and `parent_probability` columns/values for history and
+snapshot integrity. No EHB parent-chance fix ticket is created. Existing Luck code
+can still apply retained parent mechanics while EHB currently ignores them; the
+user reported zero conditional production drops on 4 October, so this decision
+does not rewrite historical calculations. Recheck before change and stop if any
+unexpected conditional records appear.
+
+Scope/assumed-participant context never multiplies a calculation. CAT-1 moves the
+agreed team size to one informational activity value (integer >=1, default 1),
+editable by every Admin beside efficient completions/hour. The production query
+reported zero non-default per-drop contexts on 4 October; recheck set values and
+per-activity conflicts before migration, with no silent loss and no rewriting
+approved/published snapshots. The activity `team_size` column is now the current
+field; the retired per-drop columns remain for history and snapshots.
+
+New or attempted writes of `probability_scope`, `conditional_on_parent`,
+`parent_probability`, or `assumed_participants` are refused for every role.
+Their retained values remain readable in historical rows and snapshots.
+
+`roll_group` remains a real EHB/Luck calculation input for mutually exclusive
+results from one roll; different groups are independent. New drops use `default`;
+existing production groups (`barrows-equipment`, `purple table`,
+`doom-1-16-aggregate`, `fortis-full-run-unique`, 56 active rows reported by the user)
+are preserved. Only SuperAdmin edits advanced groups; ordinary Admins may add/edit
+`N x` rate text under AU23. The effective chance remains empty without a reviewed
+rate. Source/strategy details belong in `rate_condition_note`, never ad hoc
+calculator exceptions. Operator-reported counts are not agent verification.
 
 Each `SourceDrop` is one authoritative drop record with one displayed rate and numeric probability. Conditional mechanics are recorded in `rate_condition_note`; distinct real drops, such as `Nid` and `Nid (Destroy)`, remain separate records rather than rate choices beneath one drop.
 
-Catalogue records use deactivate/reactivate for normal lifecycle changes. Permanent deletion is Super-Admin-only and succeeds only when a transactional dependency query finds no catalogue relationship, board draft reference, approval/publication snapshot, asset/cache metadata, import-review record, or other historical reference. Deletion of a genuinely unused row requires confirmation but no reason. Bulk import preview/apply is Super-Admin-only; apply verifies the preview version/hash and never hard-deletes referenced data.
+Catalogue records use deactivate/reactivate for normal lifecycle changes. Permanent deletion is Super-Admin-only and succeeds only when a transactional dependency query finds no catalogue relationship, board draft reference, approval/publication snapshot, asset/cache metadata, import-review record, or other historical reference. Deletion of a genuinely unused row requires confirmation but no reason. The reviewed catalogue snapshot loader is a CI/Development/manual-test data loader, validates retired per-drop context before writing, and never runs as a production deployment step.
 
 ## 10. Board and tile domain
 
@@ -1150,7 +1435,7 @@ ARCHIVED
 
 Only one board is active for competitive progress in version one.
 
-A board draft may be created as soon as its event exists and remains privately editable while signups are open or closed and while teams are being prepared. Event publication and signup opening do not require a complete board and do not publish it. While `DRAFT`, board queries derive catalogue-backed names, artwork, source-drop rates, and EHB from current catalogue rows; cached totals are non-authoritative and are invalidated/recalculated after relevant catalogue changes. `VALIDATED` means the complete board passed validation and an admin explicitly approved and snapshotted it. Draft finalization publishes that active immutable approval snapshot when it is ready; otherwise the board remains private and may be validated/published later.
+A board draft may be created as soon as its event exists and remains privately editable while signups are open or closed and while teams are being prepared. Event publication and signup opening do not require a complete board and do not publish it. While `DRAFT`, board queries derive catalogue-backed names, artwork, source-drop rates, and EHB from current catalogue rows; cached totals are non-authoritative and are invalidated/recalculated after relevant catalogue changes. `VALIDATED` means the complete board passed validation and an admin explicitly approved and snapshotted it. Draft finalization makes a valid roster available but does not publish the board; the separately confirmed publication command uses the immutable approval snapshot.
 
 Validation requires every grid position to contain a valid tile. Any enabled admin may approve. Approval locks/rechecks referenced catalogue versions, calculates the complete board, creates a `BoardApprovalSnapshot`, and assigns `active_approval_snapshot_id` atomically. Explicit unapproval or editing any tile/competitive board content changes an unpublished `VALIDATED` board back to `DRAFT`, clears the active pointer without deleting its immutable snapshot, and resumes live catalogue derivation. Prior approval actor/time/data remains append-only history and no typed reason is required while private.
 
@@ -1168,7 +1453,9 @@ Fields:
 - `description_is_automatic`
 - `image_asset_id`
 - `objective_type`
-- `manual_ehb`, nullable and valid only for `MANUAL`
+- `manual_ehb`: optional total event-tile override, persisted in the existing
+  tile-local `tile_templates.manual_ehb_override` column. Manual objectives require
+  this estimate. AU11 requires no schema migration.
 - `active`
 
 Objective type:
@@ -1178,7 +1465,11 @@ DROP_REQUIREMENTS
 MANUAL
 ```
 
-`DROP_REQUIREMENTS` derives EHB from current catalogue/rate mechanics while the board is `DRAFT` and from its immutable approval snapshot once `VALIDATED`. It cannot store or use `manual_ehb`. `MANUAL` represents a custom objective and requires its explicitly configured manual EHB before board approval. Every requirement in a tile/template must match that single objective kind; mixed manual/drop requirements are invalid. Reject mixed create/update or new approval attempts without partial changes. Existing approved snapshots and historical competitive results are not rewritten; any retained invalid draft requires an explicit user correction into separate tiles.
+`DROP_REQUIREMENTS` derives EHB from current catalogue/rate mechanics while the board is `DRAFT` and from its immutable approval snapshot once `VALIDATED`. AU11 supersedes the old manual-only restriction: a valid calculated tile may
+have an optional total tile override with its automatic baseline retained/resettable.
+The editor readback includes the calculated baseline; clearing the override restores
+the automatic effective value. Approval freezes the effective total. Overrides never bypass missing mechanics,
+change catalogue rates or rewrite evidence-bound/approved/historical scoring. `MANUAL` represents a custom objective and requires its explicitly configured manual EHB before board approval. Every requirement in a tile/template must match that single objective kind; mixed manual/drop requirements are invalid. Reject mixed create/update or new approval attempts without partial changes. Existing approved snapshots and historical competitive results are not rewritten; any retained invalid draft requires an explicit user correction into separate tiles.
 
 `description_is_automatic` records whether the tile description is derived from
 its current ordered requirements. New blank/whitespace-only edits set it true
@@ -1286,16 +1577,18 @@ context; current ordinary submissions continue to use the active published contr
 
 ### 10.7 Board resizing
 
-Before publication, board dimensions may change. When shrinking, placed tiles are compacted toward the top-left in their existing row-major relative order.
+Before publication, board dimensions may change without relocating occupied tiles. Every occupied tile must fit within the proposed row and column bounds; resizing is blocked until any out-of-bounds tile is moved or removed.
 
 ```text
-new_capacity = new_rows × new_columns
-placed_tile_count = count(active board tiles)
+new_rows, new_columns ∈ [1, 8]
+for every active board tile:
+  0 ≤ tile.row_index < new_rows
+  0 ≤ tile.column_index < new_columns
 ```
 
-If `placed_tile_count <= new_capacity`, the system previews the compacted layout before applying it.
+If every occupied tile fits, the system applies the dimension change while preserving each tile's identity and coordinates.
 
-If `placed_tile_count > new_capacity`, resizing is blocked. A confirmation popup explains that `placed_tile_count - new_capacity` tiles must be removed before the smaller dimensions can be used.
+If any occupied tile falls outside the proposed bounds, resizing is blocked. The board dimensions, tile layout, approval/history and public snapshot remain unchanged; the tile must be moved or removed before the smaller dimensions can be used.
 
 After publication, resizing requires explicit confirmation, an audit reason, and recalculation of every team's board and line state.
 
@@ -1363,7 +1656,7 @@ Fields:
 - `submitted_at`
 - `submitter_note`
 - `status`
-- `resubmits_submission_id`, nullable self-reference to a rejected or reversed submission
+- `resubmits_submission_id`, nullable self-reference retained for legacy rejected/reversed history display; new ordinary attempts leave it null
 - `rejection_reason`, nullable and required when status is `REJECTED`
 - `expected_evidence_code`: Immutable snapshot of the code interval active at `submitted_at`; null when verification was disabled
 
@@ -1395,7 +1688,7 @@ Intervals may be scheduled in advance. Adding a code recalculates adjacent retir
 
 For an ordinary participant submission, `credited_event_participant_id` is the submitter's current event participant. For a captain/co-captain submission, the captain selects one current teammate. In both cases the create command resolves that participant's active character at `submitted_at` and snapshots it as `credited_osrs_character_id`; the submitter never selects a credited account. Pending submitter edits preserve both credited fields. Only a reasoned admin correction may change the credited playing account before approval/rejection.
 
-A submission created through **Resubmit** references exactly one Rejected or Reversed predecessor. It copies that predecessor's credited participant and playing-character snapshots even when the participant's active character has since changed, because the new evidence is correcting the same claimed drop rather than claiming a new one. Those two copied fields are submitter-read-only. Event/team and ordinary structured evidence values are prefilled, tile/requirement/drop/note remain editable under normal validation, and a new evidence asset is required. `resubmits_submission_id` is unique, preventing concurrent direct children; a child that is later rejected may itself be resubmitted to form an append-only chain. A Reversed predecessor remains inactive and cannot be directly re-approved.
+An ordinary later submission after rejection or reversal is an independent record. It resolves the credited participant and active playing-character snapshot through the same normal create rules, receives a new immutable server submission time and evidence asset, and is reviewed independently; it does not copy predecessor attribution or require a predecessor link. Existing `resubmission_of_submission_id` predecessor links and `ReviewActionType.Resubmit` values remain retained for historical display only. They do not authorize, limit, or form new linked children, and a Reversed predecessor remains inactive and cannot be directly re-approved.
 
 ### 11.2 EvidenceAsset
 
@@ -1458,9 +1751,9 @@ PENDING → WITHDRAWN
 APPROVED → REVERSED
 ```
 
-An admin may correct a pending submission's tile/requirement, qualifying drop, or credited playing character with a required reason and complete revalidation. Credited participant is derived from the event-unique playing-character assignment and is never independently edited. Server submission time, calculated contribution, and submitted evidence asset are immutable to the reviewer. Snapshot weight is not manually editable; retargeting atomically replaces it with the selected destination requirement/drop's frozen authoritative weight. Correcting an approved submission requires reversal.
+An admin may correct a pending submission's tile/requirement, qualifying drop, or credited character from current or released Playing assignments in the event belonging to current members of the submission’s own team or former members whose membership covered the upload time (joined at or before SubmittedAt and not ended before it; D12) with a required reason (AU17a; D11 option b, Informational accounts excluded) and complete revalidation. Credited participant is derived from the unambiguous event-pool character identity, including retained/non-current entries under AU17a and is never independently edited. Server submission time, calculated contribution, and submitted evidence asset are immutable to the reviewer. Snapshot weight is not manually editable; retargeting atomically replaces it with the selected destination requirement/drop's frozen authoritative weight. Correcting an approved submission requires reversal.
 
-A corrected attempt after rejection or reversal is a new `PENDING` submission rather than a transition or direct reapproval of the predecessor. It is accepted only while the active/reopened upload window permits new submissions and requires a new evidence asset. The predecessor must be `REJECTED` or `REVERSED`, visible to the submitter under the ordinary participant/captain scope, and have no existing direct resubmission. The command copies and locks the predecessor's credited participant/account snapshots, revalidates the editable structured values, and atomically claims the unique predecessor link. A repeated or racing request cannot create two corrected children. Approval of a child creates a new contribution; a reversed predecessor's contribution stays inactive.
+A later attempt after rejection or reversal is a new `PENDING` submission rather than a transition or direct reapproval of the predecessor. It is accepted only while the active/reopened upload window permits new submissions and requires a new evidence asset. The attempt follows ordinary participant/captain authorization and validation, resolves its own credited participant/account snapshots, and creates its own review history and contribution if approved. Existing predecessor links and `ReviewActionType.Resubmit` values remain display-only legacy history; no unique-child claim, predecessor copy, or linked-chain rule applies to new submissions. A reversed predecessor's contribution stays inactive.
 
 ### 11.5 Submission timing validity
 
@@ -1546,7 +1839,7 @@ per event, team, board tile, and approval snapshot. A completed row stores that
 tile time and JSON provenance for its qualifying requirement/contribution/
 submission identities and effective amounts. Approval and reversal/rebalance
 transactions reconcile affected rows from approved, non-reversed effective
-contributions; a linked correction child contributes its own immutable
+contributions; every later ordinary submission contributes its own immutable
 `SubmittedAt`. Reversal can update a still-complete tile's active-generation
 fact when its surviving threshold evidence changes. Replacement approval
 creates facts for the new generation without deleting prior-generation facts.
@@ -1629,36 +1922,51 @@ reconstructed contributions retain null drop identity.
 
 ### 13.1 Team ranking tuple
 
-Teams are ordered using the following comparison priority:
+Persisted legacy comparator (`placement_rule = 0`): full-board finishers first, earliest
+full-board completion among finishers, completed lines descending, completed tiles
+descending, current score completion time ascending, then credited EHB descending.
+Team name is display ordering only and does not break a competitive tie.
+
+Persisted new-event comparator (`placement_rule = 1`) comparison priority:
 
 1. Full-board completion status
 2. Full-board obtained completion time, earliest first among finishers
 3. Completed rows and columns, highest first
 4. Completed tiles, highest first
-5. Current score completion time, earliest first
-6. Configured EHB tie-break value, highest first
+5. Credited EHB tie-break value, highest first
+6. Current score completion time, earliest first
 
-Conceptually, non-finishers are compared using:
+Both comparators are implemented and selected by the immutable event placement rule.
+Only new ordinary events adopt AU12; retained events keep their prior rule, and saved
+historical/official placements retain their existing ordering and inputs.
+
+For the AU12 new-event rule only, non-finishers are compared using:
 
 ```text
 (
     completed_line_count,
     completed_tile_count,
-    current_score_reached_at,
-    ehb_tiebreak_value
+    ehb_tiebreak_value,
+    current_score_reached_at
 )
 ```
 
 `current_score_reached_at` is the latest completion time among the team's
 currently complete tiles, using only the active approval generation; it is
 null when no tile is complete. For a complete board it agrees with the
-effective board finish time. The effective full-board finish (including an
-approved completion-time correction) remains the higher-priority comparison.
-Equal or null current-score times fall through to EHB and can remain tied.
+effective board finish time. Retained `TeamCompletionCorrection` rows are
+historical only: current readiness and ranking ignore them. An existing official
+snapshot keeps its stored order and fields, while the current calculation uses
+the immutable evidence-derived times. This does not reintroduce manual time
+correction.
+Under AU12, credited EHB is rounded to four decimals for both ordering and shared-rank
+equality; equal credited EHB falls through to current-score time. Equality of all
+applicable inputs, including the defined null-time rule, can remain tied. Legacy
+comparisons retain full-precision credited EHB.
 
 Finishers rank ahead of all non-finishers and are ordered by completion time.
 
-If every defined value is equal, the teams remain tied until an admin applies the event's documented tie procedure.
+If every competitive input is equal, teams share the rank. No discretionary, name or identifier tiebreak separates them.
 
 ### 13.2 Provisional and official placements
 
@@ -1715,7 +2023,7 @@ Every catalogue probability supplied to the calculator is already a final effect
 
 For more complex requirements the calculator models one completion at a time. Drops in the same roll group are mutually exclusive, separate roll groups are independent, and `rolls_per_completion` repeats that roll. It calculates the expected remaining person-hours for each possible progress state, including credited weights and already-collected identities, and chooses the most efficient available boss/activity from that state. Separate objectives are calculated independently and then added.
 
-If a required probability, efficient-completion rate, or source-drop assumption is missing or inconsistent, automatic EHB returns no estimate and the catalogue-backed/drop tile fails board validation. The administrator must correct the catalogue or requirement configuration. The system does not guess and does not permit a manual override for that tile. Only a `MANUAL` custom objective uses its required explicit manual EHB value.
+If a required probability, efficient-completion rate, or source-drop assumption is missing or inconsistent, automatic EHB returns no estimate and the catalogue-backed/drop tile fails board validation. The administrator must correct the catalogue or requirement configuration. The system does not guess: AU11 permits an override only after a valid automatic estimate exists, never as a bypass. `MANUAL` custom objectives still require their explicit manual EHB value. Preserve the original calculated baseline and immutable effective-value snapshots.
 
 Every board tile stores the EHB estimate used when the board was published.
 
@@ -1804,54 +2112,43 @@ Submission visibility is derived from status and team access.
 
 - Complete evidence, metadata, prior evidence versions, review actions, and audit history
 
-There is no participant/captain evidence-privacy request, public-player hiding flag, or hidden-but-still-approved evidence state. If an approved screenshot must cease being public, an admin reverses approval with a reason; the corrected/redacted attempt is a new submission under the ordinary cutoff and resubmission rules.
+There is no participant/captain evidence-privacy request, public-player hiding flag, or hidden-but-still-approved evidence state. If an approved screenshot must cease being public, an admin reverses approval with a reason; the corrected/redacted attempt is an ordinary new submission under the normal cutoff. Any old predecessor link on historical data remains display-only.
 
 ## 17. Finalization and blockers
 
 ### 17.1 Finalization blockers
 
-The event cannot finalize while any configured competitive blocker is active, including:
-
-- Pending submissions that may affect results
-- Required completion-time inspections not acknowledged
-- Invalid or unreproducible progress calculation
-- Open manual placement correction
-
-Checklist items are derived from underlying records. They normally clear when those records are resolved.
-
-An admin may use a one-click **Mark resolved anyway** override for an edge case where the outstanding condition cannot affect the clear result or does not require action. The override:
-
-- Shows a confirmation popup describing the unresolved condition
-- Requires an admin reason
-- Stores the unresolved count and relevant record identifiers
-- Clears the condition only as a finalization blocker
-- Does not approve, reject, withdraw, or otherwise change the underlying submissions
-- Is recorded in the audit log and finalization snapshot
-
-C33 freshness uses the existing event version for stale final-review forms, advanced
-in the same transaction as relevant review mutations. An inspection's identity also
-includes the review cycle, team and a non-reusable revision of its relevant competitive
-inputs. Derive that bounded identity from existing immutable mutation identities and
-applicable publication/completion-correction facts; totals or timestamps alone cannot
-prove freshness after a change-and-return sequence. Keep prior resolutions as history
-and exclude stale identities from current readiness; do not delete them to simulate
-invalidation. Acknowledgment writes are not competitive-input changes. Use existing
-persistence by default; a demonstrated need for schema change requires planner resolution
-before code. Missing/ambiguous historical identity is not permission for reconstruction.
+Closed uploads, zero Pending and valid reproducible placements are mandatory.
+Current-event/lifecycle/version checks also apply. No completion inspection,
+manual placement correction, tie acknowledgment or Mark resolved anyway override
+may bypass a gate. Retained legacy resolutions are historical data, not authority.
+Review mutations advance relevant competitive freshness atomically.
 
 ### 17.2 Finalization
 
-Finalization:
-
-1. Verifies blockers are clear.
-2. Recalculates all progress and rankings.
-3. Stores official placement snapshots.
-4. Records the finalization actor and time.
-5. Publishes official results.
-
-Normal finalization requires strong confirmation but no reason. Every `PENDING` submission is a blocker. `APPROVED`, `REJECTED`, `WITHDRAWN`, and `REVERSED` submissions do not block solely because of status.
-
-At `submissions_closed_at`, every enabled emergency captain `AccountEventAccess` record for the event receives `manually_disabled_at` through the automatic cutoff actor/context. Normal website-account captain/co-captain roles are not deleted, expired, or rewritten. Reopening submissions does not clear emergency disablement.
+Within one transaction, recheck gates and versions, calculate using the event's
+applicable ranking rule, store immutable official placements and actor/time/audit,
+and transition to Archived. Existing events retain their rule; AU12 applies only to
+new events via immutable `events.placement_rule`: `0` = LegacyScoreTimeThenEhb,
+`1` = CreditedEhbThenScoreTime. The AU12 migration backfills every retained row to 0
+and removes its temporary database default. EventCreationService explicitly inserts 1;
+the historical import factory calls the compatibility constructor, which explicitly
+passes legacy 0 to the basic constructor. The basic constructor requires a placement
+rule argument; retained development/test fixtures explicitly pass legacy 0, and
+transient schedule-validation copies preserve their source event rule. No date inference.
+The domain exposes no rule mutation and EF rejects changing a saved rule. Each new
+official snapshot records the rule in its calculation inputs. Shared ranks require exact equality across
+all applicable inputs. Optional WOM refresh failure does not block publication.
+AU18 stores typed `finalWomRefresh` status, skip reason and optional next-eligible
+time in each new finalization's existing `calculation_inputs_json`; no schema or
+historical backfill is required. Missing metadata displays Not recorded. Reasons
+come from the actual existing lease refusal branch, never from a later state read.
+Publication/reopening actor IDs and timestamps remain the retained history; public
+usernames are resolved for display. Provider error text is not persisted in the new
+outcome metadata. Recorded eligibility time is informational.
+Prior official versions are never silently recomputed. There is no separate Archive.
+At upload closure ordinary roles remain historical; authorization stops mutations.
+Retained emergency identities never gain authority on reopening.
 
 ### 17.3 Unfinalization
 
@@ -1918,7 +2215,7 @@ Audited actions include:
 - Approval reversals
 - Placement finalization and unfinalization
 - Captain access changes
-- Catalogue imports and overrides
+- Retained operator-import history and authorized catalogue edits; no application import workflow
 
 Audit snapshots must avoid storing password hashes, private edit tokens, or other authentication secrets.
 
@@ -1936,8 +2233,8 @@ The implementation must enforce these rules atomically:
 8. A contribution cannot exceed requirement or per-drop caps.
 9. Finalization cannot occur while blockers remain.
 10. Historical snapshots are not rewritten by catalogue updates.
-11. Pre-formed teams do not receive draft turns or alter snake-draft calculations.
-12. A participant assigned to a pre-formed team is excluded from the available draft pool.
+11. Only IncludedInDraft teams receive turns and affect snake-draft sizes.
+12. Already assigned participants are excluded from the available draft pool.
 13. Hide/restore authorization, eligibility, confirmation, metadata, and audit are atomic; hidden events cannot be returned by ordinary event projections or routes, and Restore does not rewrite lifecycle or retained competitive data.
 
 ## 21. Representative tile mappings
@@ -2044,9 +2341,9 @@ The data model is ready for architecture planning when it can represent and expl
 16. Recalculation after reversing approved evidence.
 17. Final-review blockers and admin-confirmed placements.
 18. Historical event snapshots that survive catalogue updates.
-19. Temporary emergency captain access and automatic submission-cutoff disablement without expiring website-account role history.
+19. Retained emergency actor/access history with no authentication or mutation authority; normal website membership role history remains preserved.
 20. Auditable corrections without destructive history deletion.
-21. Pre-formed internal or external teams added before or after a draft without altering draft history.
+21. Existing-account manual roster assembly and finalized pre-first-Live corrections preserve draft history.
 22. A partially built private board that remains editable while event signups are open.
 23. Orthogonal post-Live event quarantine metadata, retained relations, event-linked notification filtering, and fail-closed hide/restore access semantics.
 
@@ -2137,7 +2434,13 @@ All regular Playing assignments contribute full competition deltas; informationa
 assignments are excluded. The EHB table and its existing projection remain the EHB owners.
 
 
-## Stats Pass 4 evidence revisions and full Luck checkpoint — implemented 2026-09-15
+## Stats Pass 4 evidence revisions and full Luck checkpoint — superseded historical text (2026-09-15)
+
+This v1 checkpoint description is retained as migration and review history. The
+active [Luck checkpoint v2 and retained-input conversion](#luck-checkpoint-v2-and-retained-input-conversion--active-2026-10-01)
+section below owns current writes, reads, retention, and conversion. In particular,
+v2 does not use this section's v1 schema, read-time presentation invalidation, or
+read-time recalculation language as current behavior.
 
 `events.stats_evidence_revision` advances in the existing event transaction for successful
 approval/reversal (including rebalanced contributions), board approval/publication changes,
@@ -2195,3 +2498,35 @@ owner-only saves. Existing `CatalogueItem` owns nullable artwork X/Y (0–100), 
 editor's percentages/degrees. All six are null for the original responsive fit, or all
 are present and bounded. Super Admin saves/reset use the existing item version and
 audit transaction; Cancel does not write. No additional preferences/artwork table.
+
+## Luck checkpoint v2 and retained-input conversion — active 2026-10-01
+
+The active Luck result is an `event_stats_luck_checkpoints` row containing one
+bounded v2 JSON payload per event. The payload identifies the fixed 0–100
+mid-rank percentile and the KC-difference algorithm, and carries the aggregate,
+team, player, tile, contributor and boss/activity results needed to project both
+Stats modes without read-time reconstruction. Each activity result retains its
+character identity, boss identity and metric, KC, received and expected counts,
+Luck, KC difference, availability and estimate/zero flags. The payload also keeps
+its source mechanics, attribution and calculation/provider provenance so a tile or
+activity view cannot reconstruct an old result from newer evidence or rates.
+
+New writes use `schema_version = 2`; the PostgreSQL check constraint accepts v1
+and v2 during rollout while retaining the 8 MiB object bound and restrictive event
+foreign key. Stale-writer guards reject a lower-version or older incompatible
+candidate. A v1 row is not relabelled: an explicit conversion reads only that row's
+retained observations, received totals, rates and coherent attribution, writes a
+v2 payload when a supported scope can be rebuilt, and records separate conversion
+and algorithm provenance. Original `calculated_at`, provider fetch and upstream
+times are preserved. Conversion is idempotent under the event lock; malformed,
+incomplete or un-attributable scopes remain unavailable with a diagnostic.
+
+Synchronization finalization captures and publishes a candidate only after the
+accepted provider batch, approved evidence, competition/generation, assignment,
+source and lifecycle identities pass the existing transaction and lease fences.
+Reads never write or rescore. Approval/reversal and normal lifecycle transitions
+retain a compatible prior whole snapshot, including its times. A partial new batch
+does not combine new boss/activity rows with an old aggregate; independently
+complete scopes may be emitted only when no compatible complete snapshot exists.
+An oversized candidate is discarded with a diagnostic and the previous snapshot is
+retained when available.

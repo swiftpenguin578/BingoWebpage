@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using Bingo.Domain.Access;
 using Bingo.Domain.Auditing;
 using Bingo.Domain.Signups;
 using Bingo.Domain.Teams;
@@ -42,6 +43,12 @@ public sealed class PreformedRosterCsvImportService(ApplicationDbContext db, Eve
         foreach (var row in parsed.Rows)
             foreach (var account in row.Accounts)
                 if (duplicateNames.Contains(Normalize(account))) errors.Add(new RowError(row.Number, "Each OSRS account may appear only once in this import."));
+
+        // U5-Q4: new names follow the shared RSN rule; a name that already exists as a stored character is unchanged.
+        var invalidNames = allNames.Where(name => name.Trim().Length > 0 && !RsnRule.IsValid(name)).Select(Normalize).Distinct().ToList();
+        var storedNames = invalidNames.Count == 0 ? [] : await db.OsrsCharacters.Where(character => invalidNames.Contains(character.NormalizedName)).Select(character => character.NormalizedName).ToListAsync(ct);
+        foreach (var row in parsed.Rows.Where(row => row.Accounts.Any(account => account.Trim().Length > 0 && !RsnRule.IsValid(account) && !storedNames.Contains(Normalize(account)))))
+            errors.Add(new RowError(row.Number, RsnRule.Message));
 
         var normalized = allNames.Select(Normalize).Where(value => value.Length > 0).Distinct().ToList();
         var reserved = await (from assignment in db.EventParticipantCharacters
@@ -96,7 +103,7 @@ public sealed class PreformedRosterCsvImportService(ApplicationDbContext db, Eve
     }
 
     public static byte[] Template() => new UTF8Encoding(false).GetBytes("Account,EHB\r\n");
-    private async Task<bool> IsEligibleTeamAsync(Guid eventId, Guid teamId, CancellationToken ct) => await db.Teams.AnyAsync(team => team.Id == teamId && team.EventId == eventId && team.Active && team.FormationType == TeamFormationType.Preformed, ct) && await db.Events.AnyAsync(ev => ev.Id == eventId && ev.HiddenAt == null && ev.ActualStartedAt == null, ct);
+    private async Task<bool> IsEligibleTeamAsync(Guid eventId, Guid teamId, CancellationToken ct) => await db.Teams.AnyAsync(team => team.Id == teamId && team.EventId == eventId && team.Active && !team.IncludedInDraft, ct) && await db.Events.AnyAsync(ev => ev.Id == eventId && ev.HiddenAt == null && ev.ActualStartedAt == null, ct);
     private static List<RowError> ValidateShape(Parsed parsed)
     {
         var errors = new List<RowError>();

@@ -19,11 +19,11 @@ using Testcontainers.PostgreSql;
 
 namespace Bingo.IntegrationTests;
 
-public sealed class CaptainAuthorityIntegrationTests : IAsyncLifetime
+public sealed class CaptainAuthorityIntegrationTests(PostgreSqlTestFixture databaseFixture) : IAsyncLifetime, IClassFixture<PostgreSqlTestFixture>
 {
-    private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine").WithDatabase("bingo_captain_authority").WithUsername("bingo").WithPassword("bingo_test_password").Build();
+    private readonly PostgreSqlTestDatabase database = databaseFixture.CreateDatabase(new PostgreSqlBuilder("postgres:17-alpine").WithDatabase("bingo_captain_authority").WithUsername("bingo").WithPassword("bingo_test_password"));
     private DbContextOptions<ApplicationDbContext> options = null!;
-    public async Task InitializeAsync() { await database.StartAsync(); options = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetConnectionString()).Options; await using var db = new ApplicationDbContext(options); await db.Database.MigrateAsync(); }
+    public async Task InitializeAsync() { await database.StartAsync(); options = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetConnectionString()).Options; await using var db = new ApplicationDbContext(options); }
     public Task DisposeAsync() => database.DisposeAsync().AsTask();
 
     [Fact]
@@ -33,7 +33,7 @@ public sealed class CaptainAuthorityIntegrationTests : IAsyncLifetime
         await using var db = new ApplicationDbContext(options);
         var admin = Website("captain-admin", now); admin.SetGlobalRole(GlobalRole.Admin);
         var owner = Website("captain-owner", now);
-        var item = new BingoEvent(Guid.NewGuid(), "Captain authority", "captain-authority", "UTC", admin.Id, now);
+        var item = new BingoEvent(Guid.NewGuid(), "Captain authority", "captain-authority", "UTC", admin.Id, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         var team = new Team(Guid.NewGuid(), item.Id, "Drafted", "drafted", TeamFormationType.Drafted, null, true);
         var participant = new EventParticipant(Guid.NewGuid(), item.Id, SignupStatus.Confirmed, 1, now, SignupSource.AdminCreated); participant.AssignOwner(owner);
         var membership = new TeamMembership(Guid.NewGuid(), team.Id, participant.Id, TeamMembershipRole.Participant, now, null, "seed");
@@ -70,12 +70,12 @@ public sealed class CaptainAuthorityIntegrationTests : IAsyncLifetime
         var admin = Website($"awaiting-role-admin-{suffix}-{Guid.NewGuid():N}", now); admin.SetGlobalRole(GlobalRole.Admin);
         var owner = Website($"awaiting-role-owner-{suffix}-{Guid.NewGuid():N}", now);
         var eventEnd = uploadOpen ? now.AddHours(1) : now.AddHours(-1);
-        var item = new BingoEvent(Guid.NewGuid(), $"Awaiting roles {suffix}", $"awaiting-roles-{suffix}-{Guid.NewGuid():N}", "UTC", admin.Id, now.AddDays(-1));
+        var item = new BingoEvent(Guid.NewGuid(), $"Awaiting roles {suffix}", $"awaiting-roles-{suffix}-{Guid.NewGuid():N}", "UTC", admin.Id, now.AddDays(-1), Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         item.ConfigureSchedule(now.AddHours(-4), now.AddHours(-3), null, now.AddHours(-2), eventEnd, 20);
         item.OpenSignups(now.AddHours(-4));
         item.CloseSignups(now.AddHours(-3));
         item.StartEvent(now.AddHours(-2));
-        item.EndEvent(now.AddMinutes(-1));
+        item.EndEvent(uploadOpen ? now.AddMinutes(-1) : now.AddHours(-1));
         var team = new Team(Guid.NewGuid(), item.Id, "Awaiting team", $"awaiting-team-{Guid.NewGuid():N}", TeamFormationType.Drafted, null, true);
         var participant = new EventParticipant(Guid.NewGuid(), item.Id, SignupStatus.Confirmed, 1, now.AddHours(-4), SignupSource.Website); participant.AssignOwner(owner);
         var membership = new TeamMembership(Guid.NewGuid(), team.Id, participant.Id, TeamMembershipRole.Participant, now.AddHours(-2), null, "seed");
@@ -141,7 +141,7 @@ public sealed class CaptainAuthorityIntegrationTests : IAsyncLifetime
 
         var lifecycle = new EventLifecycleService(db, null!, TimeProvider.System);
         var blocked = await lifecycle.GetStartReadinessAsync(item.Id);
-        Assert.Contains(blocked!.Blockers, x => x.Code == "TEAM_ACCESS_MISSING" && x.Description.Contains("Preformed", StringComparison.Ordinal) && x.Route == $"/Admin/Events/Draft/{item.Id}");
+        Assert.DoesNotContain(blocked!.Blockers, x => x.Code == "TEAM_ACCESS_MISSING");
         Assert.DoesNotContain(blocked.Blockers, x => x.Route == $"/Admin/Events/Teams/{item.Id}");
 
         var emergency = Account.CreateEmergency(Guid.NewGuid(), "readiness-emergency", "READINESS-EMERGENCY", now); emergency.SetPassword(new PasswordHasher<Account>().HashPassword(emergency, "password"), false, now, false); emergency.Enable();
@@ -155,7 +155,7 @@ public sealed class CaptainAuthorityIntegrationTests : IAsyncLifetime
         var roles = new TeamCaptainAuthorityService(db, TimeProvider.System);
         Assert.True((await roles.ChangeRoleAsync(new(item.Id, captain.Id, TeamMembershipRole.Participant, admin.Id, admin.LoginName))).Succeeded);
         Assert.Equal(EventState.Live, await db.Events.Where(x => x.Id == item.Id).Select(x => x.State).SingleAsync());
-        Assert.Single((await lifecycle.GetStartReadinessAsync(item.Id))!.Blockers, x => x.Code == "TEAM_ACCESS_MISSING" && x.Description.StartsWith("Drafted needs", StringComparison.Ordinal) && x.Route == $"/Admin/Events/Draft/{item.Id}");
+        Assert.DoesNotContain((await lifecycle.GetStartReadinessAsync(item.Id))!.Blockers, x => x.Code == "TEAM_ACCESS_MISSING");
         Assert.True((await roles.ChangeRoleAsync(new(item.Id, captain.Id, TeamMembershipRole.Captain, admin.Id, admin.LoginName))).Succeeded);
         Assert.DoesNotContain((await lifecycle.GetStartReadinessAsync(item.Id))!.Blockers, x => x.Code == "TEAM_ACCESS_MISSING" && x.Description.StartsWith("Drafted needs", StringComparison.Ordinal));
 
@@ -171,7 +171,7 @@ public sealed class CaptainAuthorityIntegrationTests : IAsyncLifetime
         await using (var setup = new ApplicationDbContext(options))
         {
             var admin = Website("race-admin", now); admin.SetGlobalRole(GlobalRole.Admin); var owner = Website("race-owner", now);
-            var item = new BingoEvent(Guid.NewGuid(), "Race", "race", "UTC", admin.Id, now); var team = new Team(Guid.NewGuid(), item.Id, "Team", "team", TeamFormationType.Drafted, null, true);
+            var item = new BingoEvent(Guid.NewGuid(), "Race", "race", "UTC", admin.Id, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb); var team = new Team(Guid.NewGuid(), item.Id, "Team", "team", TeamFormationType.Drafted, null, true);
             var participant = new EventParticipant(Guid.NewGuid(), item.Id, SignupStatus.Confirmed, 1, now, SignupSource.AdminCreated); participant.AssignOwner(owner);
             var membership = new TeamMembership(Guid.NewGuid(), team.Id, participant.Id, TeamMembershipRole.Participant, now, null, "seed");
             setup.AddRange(admin, owner, item, team, participant, membership); await setup.SaveChangesAsync(); eventId = item.Id; membershipId = membership.Id; adminId = admin.Id; ownerId = owner.Id;
@@ -267,7 +267,7 @@ public sealed class CaptainAuthorityIntegrationTests : IAsyncLifetime
         var result = await page.OnPostStartAsync(eventId, CancellationToken.None); return (result, page.TempData["StatusMessage"]?.ToString() ?? string.Empty);
     }
 
-    private static BingoEvent ClosedEvent(Guid adminId, string slug, DateTimeOffset now) { var item = new BingoEvent(Guid.NewGuid(), slug, slug, "UTC", adminId, now.AddDays(-1)); item.ConfigureSchedule(now.AddDays(-1), now.AddHours(-1), null, now.AddHours(1), now.AddDays(1), 20); item.ConfigureSignup(true, false, null); item.OpenSignups(now.AddDays(-1)); item.CloseSignups(now); return item; }
+    private static BingoEvent ClosedEvent(Guid adminId, string slug, DateTimeOffset now) { var item = new BingoEvent(Guid.NewGuid(), slug, slug, "UTC", adminId, now.AddDays(-1), Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb); item.ConfigureSchedule(now.AddDays(-1), now.AddHours(-1), null, now.AddHours(1), now.AddDays(1), 20); item.ConfigureSignup(true, false, null); item.OpenSignups(now.AddDays(-1)); item.CloseSignups(now); return item; }
     private static Account PasswordWebsite(string name, string password, DateTimeOffset now) { var account = Website(name, now); account.SetPassword(new PasswordHasher<Account>().HashPassword(account, password), false, now, false); return account; }
     private static async Task LoginAsync(HttpClient client, string username) { var page = await client.GetStringAsync("/Account/Login"); var token = Regex.Match(page, "name=\"__RequestVerificationToken\" type=\"hidden\" value=\"([^\"]+)\"").Groups[1].Value; var result = await client.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string> { ["Input.Username"] = username, ["Input.Password"] = "password", ["__RequestVerificationToken"] = token })); Assert.Equal(HttpStatusCode.Redirect, result.StatusCode); }
 

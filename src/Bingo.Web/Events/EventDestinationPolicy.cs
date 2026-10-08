@@ -31,7 +31,7 @@ public static class EventDestinationPolicy
 
     public static EventRouteState From(BingoEvent item, bool rosterExists = false, bool boardPublished = false) => new(
         item.State, item.FirstPublicAt, item.ActualSignupOpenedAt is not null || item.State is EventState.SignupOpen or EventState.SignupClosed || item.DraftLocked,
-        rosterExists || item.TeamRostersPublished || item.DraftResultsPublished,
+        rosterExists,
         item.BoardPublished || boardPublished,
         item.ResultsPublished,
         item.IsHidden);

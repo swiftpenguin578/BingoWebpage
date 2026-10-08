@@ -1,0 +1,1490 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Participants · Event admin</title>
+<script src="./vendor/react.js"></script>
+<script src="./vendor/react-dom.js"></script>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ui/tokens.css">
+<link rel="stylesheet" href="ui/components.css">
+<script src="ui/behavior.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&amp;family=Geist+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+/* Participants page only. Shared tokens, components and behaviour: ui/tokens.css, ui/components.css, ui/behavior.js */
+.tbl{--table-cols:minmax(230px,2.3fr) 150px 108px 124px minmax(120px,1fr) minmax(120px,1fr) 116px 52px;--table-min:1020px}
+.row.is-withdrawn .name-btn{color:var(--dk-text-2)}
+.row.is-withdrawn .td.num{color:var(--dk-text-3)}
+.acct-head{display:grid;grid-template-columns:54px 1fr 118px 34px;gap:8px;font-size:var(--dk-fs-meta);color:var(--dk-text-3);padding:0 0 6px}
+.acct-row{display:grid;grid-template-columns:54px 1fr 118px 34px;gap:8px;align-items:start;padding:4px 0;animation:rowIn var(--dk-dur-content-in) ease-out}
+.acct-row.is-removing{animation:rowOut var(--dk-dur-item-out) ease-in forwards}
+.acct-radio{height:var(--dk-control-h);display:flex;align-items:center;justify-content:center}
+.acct-row .icon-btn{margin-top:1px}
+.prim-tag{font-size:var(--dk-fs-caption);color:var(--dk-accent);font-weight:600}
+.ehb-in{text-align:right;font-variant-numeric:tabular-nums}
+.picks{display:flex;flex-direction:column;gap:6px}
+.pick{display:grid;grid-template-columns:18px 1fr auto auto;gap:12px;align-items:center;padding:9px 12px;border:1px solid var(--dk-border);border-radius:var(--dk-radius-lg);transition:background-color var(--dk-dur-select),border-color var(--dk-dur-select);animation:rowIn var(--dk-dur-content-in) ease-out}
+.pick.is-checked{border-color:var(--dk-accent-border);background:var(--dk-accent-soft)}
+.pick.is-disabled{background:var(--dk-track);border-color:transparent}
+.pick.is-disabled .pick-name{color:var(--dk-text-2)}
+.pick-name{font-weight:550;font-size:var(--dk-fs-control)}
+.pick-sub{font-size:var(--dk-fs-small);color:var(--dk-text-3)}
+.pick-ehb{font-size:var(--dk-fs-control-sm);font-variant-numeric:tabular-nums;color:var(--dk-text-2);text-align:right}
+.pick-ehb.is-missing{color:var(--dk-warning-fg);font-size:var(--dk-fs-small)}
+.pick-prim{display:flex;align-items:center;gap:6px;font-size:var(--dk-fs-small);color:var(--dk-text-2);cursor:pointer;min-width:74px;justify-content:flex-end}
+.pick-prim.is-hidden{visibility:hidden}
+@media (max-width:1260px){.tbl{--table-cols:minmax(210px,2.2fr) 140px 100px 120px minmax(110px,1fr) minmax(110px,1fr) 52px;--table-min:842px}.c-signed{display:none}}
+@media (max-width:1080px){.tbl{--table-cols:minmax(200px,2fr) 136px 96px 118px minmax(110px,1fr) 52px;--table-min:712px}.c-team{display:none}}
+@media (max-width:860px){.tbl{--table-cols:minmax(180px,2fr) 130px 92px 116px 52px;--table-min:570px}.c-cap{display:none}}
+</style>
+</helmet>
+<div class="app dk-theme {{themeClass}}" id="app">
+
+<aside class="side {{sideCls}}" id="sidebar" aria-label="Administration" onKeyDown="{{sideKey}}">
+  <div class="side-top">
+    <button class="account-btn" id="user-btn" aria-haspopup="menu" aria-expanded="{{userMenuOpen}}" title="{{sideTip}}" onClick="{{openUserMenu}}">
+      <span class="logo" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M3 12.5V5.2L8 2.5l5 2.7v7.3"/><path d="M6 12.5V8.5h4v4"/></svg></span>
+      <span class="brand-text"><span class="brand-name">Iron Pact<svg class="ic" viewBox="0 0 16 16"><path d="M4.5 6.5 8 10l3.5-3.5"/></svg></span><span class="brand-sub">Administrator</span></span>
+    </button>
+    <button class="icon-btn collapse-btn" aria-label="{{collapseLabel}}" title="{{collapseLabel}}" aria-expanded="{{sideOpen}}" onClick="{{toggleSide}}"><svg class="ic" viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="11" height="11" rx="1.5"/><path d="M6 2.5v11"/><path class="{{collapseArrowCls}}" d="M10.6 6.2 8.8 8l1.8 1.8"/></svg></button>
+  </div>
+
+  <nav class="nav" aria-label="Administration">
+    <div class="nav-label">Administration</div>
+    <button class="nav-item {{nav.dashboard.cls}}" aria-current="{{nav.dashboard.current}}" title="{{nav.dashboard.tip}}" onClick="{{nav.dashboard.go}}"><svg class="ic" viewBox="0 0 16 16"><path d="M2.5 12a5.5 5.5 0 1 1 11 0"/><path d="M8 12l2.6-3.4"/><path d="M8 12h.01"/></svg><span class="nav-text">Dashboard</span><span class="nav-count">{{nav.dashboard.count}}</span></button>
+    <button class="nav-item {{nav.events.cls}}" aria-current="{{nav.events.current}}" title="{{nav.events.tip}}" onClick="{{nav.events.go}}"><svg class="ic" viewBox="0 0 16 16"><rect x="2.5" y="3.5" width="11" height="10" rx="1.5"/><path d="M2.5 6.5h11M5.5 2v3M10.5 2v3"/></svg><span class="nav-text">Events</span><span class="nav-count">{{nav.events.count}}</span></button>
+    <button class="nav-item {{nav.catalogue.cls}}" aria-current="{{nav.catalogue.current}}" title="{{nav.catalogue.tip}}" onClick="{{nav.catalogue.go}}"><svg class="ic" viewBox="0 0 16 16"><path d="M8 2.5 2.5 5.5 8 8.5l5.5-3z"/><path d="M2.5 8.2 8 11.2l5.5-3M2.5 10.8 8 13.8l5.5-3"/></svg><span class="nav-text">Catalogue</span><span class="nav-count">{{nav.catalogue.count}}</span></button>
+    <button class="nav-item {{nav.accounts.cls}}" aria-current="{{nav.accounts.current}}" title="{{nav.accounts.tip}}" onClick="{{nav.accounts.go}}"><svg class="ic" viewBox="0 0 16 16"><rect x="3" y="2.5" width="10" height="11" rx="1.5"/><circle cx="8" cy="7" r="1.8"/><path d="M5.3 11.5c.5-1.3 1.5-2 2.7-2s2.2.7 2.7 2"/></svg><span class="nav-text">Accounts</span><span class="nav-count">{{nav.accounts.count}}</span></button>
+    <button class="nav-item {{nav.audit.cls}}" aria-current="{{nav.audit.current}}" title="{{nav.audit.tip}}" onClick="{{nav.audit.go}}"><svg class="ic" viewBox="0 0 16 16"><path d="M4 2.5h8v11H4z"/><path d="M6 5.5h4M6 8h4M6 10.5h2.5"/></svg><span class="nav-text">Audit</span><span class="nav-count">{{nav.audit.count}}</span></button>
+  </nav>
+
+  <div class="side-rule" aria-hidden="true"></div>
+
+  <nav class="nav" aria-label="Event">
+    <button class="event-switch" id="event-switch" aria-haspopup="menu" aria-expanded="{{eventMenuOpen}}" title="{{evTip}}" onClick="{{openEventMenu}}">
+      <svg class="ic ev-ic" viewBox="0 0 16 16"><rect x="2.5" y="3.5" width="11" height="10" rx="1.5"/><path d="M2.5 6.5h11M5.5 2v3M10.5 2v3"/></svg>
+      <div class="ev-text" style="flex: 1; min-width: 0">
+        <div class="ev-lbl">Event</div>
+        <div class="ev-name">{{ev.name}}</div>
+        <div class="ev-meta"><span class="dot {{ev.toneCls}}"></span><span class="ev-meta-text" title="{{ev.stage}} · {{ev.when}}">{{ev.stage}} · {{ev.when}}</span></div>
+      </div>
+      <svg class="ic ev-chev" viewBox="0 0 16 16"><path d="M4.5 6.5 8 10l3.5-3.5"/></svg>
+    </button>
+    <div style="height: 8px"></div>
+    <button class="nav-item {{nav.overview.cls}}" aria-current="{{nav.overview.current}}" title="{{nav.overview.tip}}" onClick="{{nav.overview.go}}"><svg class="ic" viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="4.5" height="4.5" rx="1"/><rect x="9" y="2.5" width="4.5" height="4.5" rx="1"/><rect x="2.5" y="9" width="4.5" height="4.5" rx="1"/><rect x="9" y="9" width="4.5" height="4.5" rx="1"/></svg><span class="nav-text">Overview</span><span class="nav-count">{{nav.overview.count}}</span></button>
+    <button class="nav-item {{nav.identity.cls}}" aria-current="{{nav.identity.current}}" title="{{nav.identity.tip}}" onClick="{{nav.identity.go}}"><svg class="ic" viewBox="0 0 16 16"><path d="M3.5 14V2.5M3.5 3h8l-1.5 3 1.5 3h-8"/></svg><span class="nav-text">Identity</span><span class="nav-count">{{nav.identity.count}}</span></button>
+    <button class="nav-item {{nav.schedule.cls}}" aria-current="{{nav.schedule.current}}" title="{{nav.schedule.tip}}" onClick="{{nav.schedule.go}}"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5"/><path d="M8 5v3l2 1.5"/></svg><span class="nav-text">Schedule</span><span class="nav-count">{{nav.schedule.count}}</span></button>
+    <button class="nav-item {{nav.participants.cls}}" aria-current="{{nav.participants.current}}" title="{{nav.participants.tip}}" onClick="{{nav.participants.go}}"><svg class="ic" viewBox="0 0 16 16"><circle cx="6" cy="5.8" r="2.4"/><path d="M1.8 13.3c.5-2.4 2.2-3.5 4.2-3.5s3.7 1.1 4.2 3.5"/><path d="M10.6 3.7a2.3 2.3 0 0 1 0 4.3M11.9 10.1c1.2.5 2 1.5 2.3 3.2"/></svg><span class="nav-text">Participants</span><span class="nav-count">{{nav.participants.count}}</span></button>
+    <button class="nav-item {{nav.signup.cls}}" aria-current="{{nav.signup.current}}" title="{{nav.signup.tip}}" onClick="{{nav.signup.go}}"><svg class="ic" viewBox="0 0 16 16"><rect x="3.5" y="3" width="9" height="11" rx="1.5"/><path d="M6 3V2h4v1M6 7h4M6 9.5h4M6 12h2"/></svg><span class="nav-text">Signup setup</span><span class="nav-count">{{nav.signup.count}}</span></button>
+    <button class="nav-item {{nav.teams.cls}}" aria-current="{{nav.teams.current}}" title="{{nav.teams.tip}}" onClick="{{nav.teams.go}}"><svg class="ic" viewBox="0 0 16 16"><rect x="6" y="2" width="4" height="3" rx=".8"/><rect x="2" y="11" width="4" height="3" rx=".8"/><rect x="10" y="11" width="4" height="3" rx=".8"/><path d="M8 5v3M4 11V8h8v3"/></svg><span class="nav-text">Teams / Draft</span><span class="nav-count">{{nav.teams.count}}</span></button>
+    <button class="nav-item {{nav.board.cls}}" aria-current="{{nav.board.current}}" title="{{nav.board.tip}}" onClick="{{nav.board.go}}"><svg class="ic" viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="11" height="11" rx="1.5"/><path d="M6.2 2.5v11M9.8 2.5v11M2.5 6.2h11M2.5 9.8h11"/></svg><span class="nav-text">Board</span><span class="nav-count">{{nav.board.count}}</span></button>
+    <button class="nav-item {{nav.wom.cls}}" aria-current="{{nav.wom.current}}" title="{{nav.wom.tip}}" onClick="{{nav.wom.go}}"><svg class="ic" viewBox="0 0 16 16"><path d="M2.5 13.5h11"/><path d="M4 11l3-3.5 2.2 2L12.5 5"/></svg><span class="nav-text">WOM</span><span class="nav-count">{{nav.wom.count}}</span></button>
+    <button class="nav-item {{nav.review.cls}}" aria-current="{{nav.review.current}}" title="{{nav.review.tip}}" onClick="{{nav.review.go}}"><svg class="ic" viewBox="0 0 16 16"><path d="M2.5 9 4.3 3.5h7.4L13.5 9v4.5h-11z"/><path d="M2.5 9h3l.8 1.5h3.4l.8-1.5h3"/></svg><span class="nav-text">Review</span><span class="nav-count">{{nav.review.count}}</span></button>
+    <button class="nav-item {{nav.final.cls}}" aria-current="{{nav.final.current}}" title="{{nav.final.tip}}" onClick="{{nav.final.go}}"><svg class="ic" viewBox="0 0 16 16"><path d="M2.5 4l1 1 2-2M2.5 9l1 1 2-2"/><path d="M7.5 4.5h6M7.5 9.5h6M7.5 13h6"/></svg><span class="nav-text">Final review</span><span class="nav-count">{{nav.final.count}}</span></button>
+  </nav>
+</aside>
+
+<div class="nav-scrim {{navScrimCls}}" onClick="{{closeMobileNav}}"></div>
+<div class="main">
+  <header class="topbar">
+    <button class="icon-btn menu-toggle" id="menu-toggle" aria-label="Open navigation" aria-controls="sidebar" aria-expanded="{{mobileNav}}" onClick="{{openMobileNav}}"><svg class="ic" viewBox="0 0 16 16"><path d="M2.5 4.5h11M2.5 8h11M2.5 11.5h11"/></svg></button>
+    <div class="crumbs">
+      <button class="crumb-btn" onClick="{{goEvents}}">Events</button>
+      <span class="crumb-sep">/</span>
+      <span>{{ev.name}}</span>
+      <span class="crumb-sep">/</span>
+      <span class="crumb-cur">{{pageTitle}}</span>
+    </div>
+    <div class="spacer"></div>
+    <div class="theme-seg" role="radiogroup" aria-label="Theme">
+      <label class="theme-opt {{lightCls}}" title="Light theme"><input class="sr" type="radio" name="theme" checked="{{isLight}}" onChange="{{setLight}}"><span class="sr">Light theme</span><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="2.8"/><path d="M8 1.8v1.4M8 12.8v1.4M1.8 8h1.4M12.8 8h1.4M3.6 3.6l1 1M11.4 11.4l1 1M3.6 12.4l1-1M11.4 4.6l1-1"/></svg></label>
+      <label class="theme-opt {{darkCls}}" title="Dark theme"><input class="sr" type="radio" name="theme" checked="{{isDark}}" onChange="{{setDark}}"><span class="sr">Dark theme</span><svg class="ic" viewBox="0 0 16 16"><path d="M13 9.6A5.4 5.4 0 0 1 6.4 3 5.4 5.4 0 1 0 13 9.6z"/></svg></label>
+    </div>
+  </header>
+
+  <div class="scroller {{scrollCls}}" id="scroller" onScroll="{{onScroll}}">
+
+    <sc-if value="{{isParticipants}}" hint-placeholder-val="{{true}}">
+    <div class="page">
+      <div class="page-head">
+        <div>
+          <h1 class="h1">Participants</h1>
+          <p class="summary">
+            <sc-if value="{{hasAny}}" hint-placeholder-val="{{true}}">
+              <span><b class="tnum">{{sum.confirmed}}</b> of {{sum.capacity}} confirmed</span>
+              <span><b class="tnum">{{sum.waiting}}</b> waiting</span>
+              <span><b class="tnum">{{sum.unpaid}}</b> unpaid</span>
+            </sc-if>
+            <sc-if value="{{noneAtAll}}" hint-placeholder-val="{{false}}"><span>{{sum.capacity}} spots · no signups yet</span></sc-if>
+          </p>
+        </div>
+        <div class="head-actions">
+          <sc-if value="{{locked}}" hint-placeholder-val="{{false}}">
+            <span class="lock-chip" title="{{lockTitle}}"><svg class="ic" viewBox="0 0 16 16"><rect x="3.5" y="7" width="9" height="6.5" rx="1.5"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/></svg>Roster locked</span>
+          </sc-if>
+          <button class="btn btn-primary" id="add-btn" onClick="{{openAdd}}" disabled="{{locked}}" title="{{addTitle}}"><svg class="ic" viewBox="0 0 16 16"><path d="M8 3.5v9M3.5 8h9"/></svg>Add participant</button>
+        </div>
+      </div>
+
+      <sc-if value="{{locked}}" hint-placeholder-val="{{false}}">
+        <div class="banner is-info page-banner"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 7.2v3.8M8 5h.01"/></svg><span class="grow">{{lockBanner}} Accounts, signup answers and statuses can’t be changed. Payments and private notes can still be updated.</span></div>
+      </sc-if>
+
+      <div class="toolbar">
+        <div class="tabs" role="radiogroup" aria-label="Participation status">
+          <sc-for list="{{tabs}}" as="t" hint-placeholder-count="4">
+            <label class="tab {{t.cls}}"><input class="sr" type="radio" name="status-tab" checked="{{t.on}}" onChange="{{t.pick}}"><span>{{t.label}}</span><span class="tab-count">{{t.count}}</span></label>
+          </sc-for>
+        </div>
+        <div class="tbar-right">
+          <div class="search {{searchCls}}">
+            <svg class="ic" viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5 13.5 13.5"/></svg>
+            <input class="input" id="search-input" type="search" placeholder="Search RSN, account or Discord" aria-label="Search participants" value="{{q}}" onChange="{{onSearch}}" onKeyDown="{{onSearchKey}}">
+            <sc-if value="{{hasQ}}" hint-placeholder-val="{{false}}">
+              <button class="icon-btn clear" aria-label="Clear search" onClick="{{clearSearch}}"><svg class="ic" viewBox="0 0 16 16"><path d="M4.5 4.5l7 7M11.5 4.5l-7 7"/></svg></button>
+            </sc-if>
+          </div>
+          <span class="filter-lbl" id="pay-filter-lbl">Payment</span>
+          <div class="seg" role="radiogroup" aria-labelledby="pay-filter-lbl">
+            <sc-for list="{{payFilters}}" as="f" hint-placeholder-count="3">
+              <label class="seg-opt {{f.cls}}"><input class="sr" type="radio" name="pay-filter" checked="{{f.on}}" onChange="{{f.pick}}">{{f.label}}</label>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="tbl-wrap {{scrollXCls}}" id="tbl-wrap">
+        <div class="tbl" role="table" aria-label="Participants" aria-busy="{{loading}}">
+          <div class="tr th-row" role="row">
+            <sc-for list="{{cols}}" as="h" hint-placeholder-count="8">
+              <div class="th {{h.cls}}" role="columnheader" aria-sort="{{h.ariaSort}}">
+                <sc-if value="{{h.sortable}}" hint-placeholder-val="{{true}}">
+                  <button class="th-btn" onClick="{{h.sort}}">{{h.label}}<svg class="ic sort-ic {{h.dirCls}}" viewBox="0 0 16 16"><path d="M4.5 10 8 6.5l3.5 3.5"/></svg></button>
+                </sc-if>
+                <sc-if value="{{h.plain}}" hint-placeholder-val="{{false}}"><span class="sr">{{h.label}}</span></sc-if>
+              </div>
+            </sc-for>
+          </div>
+
+          <sc-if value="{{loading}}" hint-placeholder-val="{{false}}">
+            <sc-for list="{{skeleton}}" as="s" hint-placeholder-count="8">
+              <div class="tr sk-row" role="row" aria-hidden="true">
+                <div class="td c-name"><div class="sk" style="width: 46%; margin-bottom: 8px"></div><div class="sk" style="width: 70%; height: 8px"></div></div>
+                <div class="td"><div class="sk" style="width: 70%"></div></div>
+                <div class="td"><div class="sk" style="width: 60%; margin-left: auto"></div></div>
+                <div class="td"><div class="sk" style="width: 64%"></div></div>
+                <div class="td c-cap"><div class="sk" style="width: 50%"></div></div>
+                <div class="td c-team"><div class="sk" style="width: 55%"></div></div>
+                <div class="td c-signed"><div class="sk" style="width: 60%"></div></div>
+                <div class="td"></div>
+              </div>
+            </sc-for>
+          </sc-if>
+
+          <sc-if value="{{showRows}}" hint-placeholder-val="{{true}}">
+            <div class="rows {{rowsAnim}}" role="rowgroup">
+            <sc-for list="{{rows}}" as="r" hint-placeholder-count="10">
+              <div class="tr row {{r.cls}}" role="row" onClick="{{r.rowClick}}">
+                <div class="td c-name" role="cell">
+                  <div class="name-line">
+                    <button class="name-btn" id="{{r.openId}}" onClick="{{r.open}}" aria-label="{{r.openLabel}}">{{r.rsn}}</button>
+                    <sc-if value="{{r.hasAdminNote}}" hint-placeholder-val="{{false}}"><span class="flag" title="Has a private admin note"><svg class="ic" viewBox="0 0 16 16"><path d="M4 2.5h5.5L12 5v8.5H4z"/><path d="M6.2 7.5h3.6M6.2 10h2.6"/></svg><span class="sr">Private note</span></span></sc-if>
+                    <sc-if value="{{r.hasNote}}" hint-placeholder-val="{{false}}"><span class="flag" title="Participant left a note"><svg class="ic" viewBox="0 0 16 16"><path d="M2.5 3.5h11v7h-6.2l-2.8 2.3v-2.3h-2z"/></svg><span class="sr">Participant note</span></span></sc-if>
+                  </div>
+                  <div class="sub">{{r.sub}}</div>
+                </div>
+                <div class="td" role="cell"><span class="badge {{r.statusCls}}">{{r.statusLabel}}</span></div>
+                <div class="td num" role="cell">{{r.ehb}}</div>
+                <div class="td" role="cell">
+                  <button class="pay {{r.payCls}}" aria-pressed="{{r.paid}}" aria-label="{{r.payAria}}" title="{{r.payTitle}}" disabled="{{r.payDisabled}}" onClick="{{r.togglePay}}">
+                    <sc-if value="{{r.busy}}" hint-placeholder-val="{{false}}"><span class="spin" style="width: 12px; height: 12px"></span></sc-if>
+                    <sc-if value="{{r.showPaidIc}}" hint-placeholder-val="{{true}}"><svg class="ic" viewBox="0 0 16 16"><path d="M3.8 8.4 6.6 11.2 12.2 5"/></svg></sc-if>
+                    <sc-if value="{{r.showUnpaidIc}}" hint-placeholder-val="{{false}}"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="4.6" stroke-dasharray="2.4 2"/></svg></sc-if>
+                    {{r.payLabel}}
+                  </button>
+                </div>
+                <div class="td c-cap" role="cell"><div class="cell-main {{r.capCls}}" title="{{r.capTitle}}">{{r.cap}}</div><sc-if value="{{r.hasCapSub}}" hint-placeholder-val="{{false}}"><div class="sub">{{r.capSub}}</div></sc-if></div>
+                <div class="td c-team" role="cell"><div class="cell-main {{r.teamCls}}">{{r.team}}</div></div>
+                <div class="td c-signed" role="cell"><div class="cell-main tnum">#{{r.order}}</div><div class="sub">{{r.date}}</div></div>
+                <div class="td c-act" role="cell">
+                  <button class="icon-btn {{r.menuCls}}" aria-label="{{r.menuLabel}}" aria-haspopup="menu" aria-expanded="{{r.menuOpen}}" onClick="{{r.openMenu}}"><svg class="ic-fill" viewBox="0 0 16 16"><circle cx="3.5" cy="8" r="1.25"/><circle cx="8" cy="8" r="1.25"/><circle cx="12.5" cy="8" r="1.25"/></svg></button>
+                </div>
+              </div>
+            </sc-for>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{empty.show}}" hint-placeholder-val="{{false}}">
+            <div class="empty {{empty.cls}}" role="row"><div role="cell" style="display: contents">
+              <div class="empty-ic">
+                <sc-if value="{{empty.isError}}" hint-placeholder-val="{{false}}"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 5v3.5M8 11h.01"/></svg></sc-if>
+                <sc-if value="{{empty.isSearch}}" hint-placeholder-val="{{false}}"><svg class="ic" viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5 13.5 13.5"/></svg></sc-if>
+                <sc-if value="{{empty.isPeople}}" hint-placeholder-val="{{true}}"><svg class="ic" viewBox="0 0 16 16"><circle cx="6" cy="5.8" r="2.4"/><path d="M1.8 13.3c.5-2.4 2.2-3.5 4.2-3.5s3.7 1.1 4.2 3.5"/><path d="M10.6 3.7a2.3 2.3 0 0 1 0 4.3M11.9 10.1c1.2.5 2 1.5 2.3 3.2"/></svg></sc-if>
+              </div>
+              <div class="empty-title">{{empty.title}}</div>
+              <div class="empty-text">{{empty.text}}</div>
+              <sc-if value="{{empty.hasAction}}" hint-placeholder-val="{{false}}"><button class="btn" onClick="{{empty.action}}" disabled="{{empty.actionDisabled}}">{{empty.actionLabel}}</button></sc-if>
+            </div></div>
+          </sc-if>
+        </div>
+        </div>
+
+        <sc-if value="{{showFooter}}" hint-placeholder-val="{{true}}">
+        <div class="tfoot">
+          <div class="tfoot-left">
+            <label for="per-page">Rows per page</label>
+            <select class="select" id="per-page" value="{{perPageStr}}" onChange="{{onPerPage}}">
+              <option value="10">10</option>
+              <option value="25">25</option>
+              <option value="50">50</option>
+              <option value="100">100</option>
+            </select>
+            <span class="tnum" aria-live="polite" style="margin-left: 8px">{{rangeText}}</span>
+          </div>
+          <nav class="pager" aria-label="Pagination">
+            <button class="pg" aria-label="Previous page" disabled="{{prevDisabled}}" onClick="{{prevPage}}"><svg class="ic" viewBox="0 0 16 16"><path d="M10 4 6 8l4 4"/></svg></button>
+            <sc-for list="{{pages}}" as="pg" hint-placeholder-count="3">
+              <sc-if value="{{pg.isGap}}" hint-placeholder-val="{{false}}"><span class="pg-gap" aria-hidden="true">…</span></sc-if>
+              <sc-if value="{{pg.isBtn}}" hint-placeholder-val="{{true}}"><button class="pg {{pg.cls}}" aria-current="{{pg.current}}" aria-label="{{pg.aria}}" onClick="{{pg.go}}">{{pg.label}}</button></sc-if>
+            </sc-for>
+            <button class="pg" aria-label="Next page" disabled="{{nextDisabled}}" onClick="{{nextPage}}"><svg class="ic" viewBox="0 0 16 16"><path d="M6 4l4 4-4 4"/></svg></button>
+          </nav>
+        </div>
+        </sc-if>
+      </div>
+    </div>
+    </sc-if>
+
+    <sc-if value="{{isOther}}" hint-placeholder-val="{{false}}">
+      <div class="page">
+        <div class="page-head"><div><h1 class="h1">{{pageTitle}}</h1><p class="summary"><span>{{otherScope}}</span></p></div></div>
+        <div class="card">
+          <div class="empty ph-card">
+            <div class="empty-ic"><svg class="ic" viewBox="0 0 16 16"><rect x="2.5" y="3" width="11" height="10" rx="2"/><path d="M2.5 6h11"/></svg></div>
+            <div class="empty-title">{{pageTitle}} isn’t part of this prototype</div>
+            <div class="empty-text">Only the Participants page is built out. Navigation is here to show where it sits in the admin.</div>
+            <button class="btn" onClick="{{goParticipants}}">Back to Participants</button>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+  </div>
+</div>
+
+<!-- menus -->
+<sc-if value="{{menu.show}}" hint-placeholder-val="{{false}}">
+  <div class="catcher" onClick="{{menu.close}}"></div>
+  <div class="menu {{menu.cls}}" id="menu" role="menu" aria-label="{{menu.label}}" style="left: {{menu.x}}px; top: {{menu.y}}px; width: {{menu.w}}px" onKeyDown="{{menu.onKey}}">
+    <sc-for list="{{menu.items}}" as="it" hint-placeholder-count="4">
+      <sc-if value="{{it.isHeader}}" hint-placeholder-val="{{false}}"><div class="menu-head" role="presentation"><b>{{it.label}}</b>{{it.hint}}</div></sc-if>
+      <sc-if value="{{it.isSep}}" hint-placeholder-val="{{false}}"><div class="menu-sep" role="separator"></div></sc-if>
+      <sc-if value="{{it.isItem}}" hint-placeholder-val="{{true}}">
+        <button class="menu-item {{it.cls}}" role="{{it.role}}" aria-checked="{{it.checked}}" disabled="{{it.disabled}}" title="{{it.title}}" onClick="{{it.run}}">
+          <span class="grow">{{it.label}}</span>
+          <span class="menu-hint">{{it.hint}}</span>
+          <sc-if value="{{it.showCheck}}" hint-placeholder-val="{{false}}"><svg class="ic menu-check" viewBox="0 0 16 16"><path d="M3.8 8.4 6.6 11.2 12.2 5"/></svg></sc-if>
+        </button>
+      </sc-if>
+    </sc-for>
+  </div>
+</sc-if>
+
+<!-- drawer -->
+<sc-if value="{{dr.show}}" hint-placeholder-val="{{false}}">
+  <div class="scrim {{dr.closingCls}}" onClick="{{dr.requestClose}}"></div>
+  <div class="drawer {{dr.closingCls}}" id="drawer" role="dialog" aria-modal="true" aria-labelledby="drawer-title" onKeyDown="{{dr.onKey}}">
+
+    <sc-if value="{{dr.isEdit}}" hint-placeholder-val="{{true}}">
+      <div class="dr-head">
+        <div class="grow">
+          <div class="eyebrow">Participant · @{{e.username}}</div>
+          <h2 class="dr-title" id="drawer-title">{{e.title}}</h2>
+          <div class="dr-badges">
+            <span class="badge {{e.statusCls}}">{{e.statusLabel}}</span>
+            <span class="chip"><svg class="ic" viewBox="0 0 16 16"><circle cx="6" cy="5.8" r="2.4"/><path d="M1.8 13.3c.5-2.4 2.2-3.5 4.2-3.5s3.7 1.1 4.2 3.5"/><path d="M10.6 3.7a2.3 2.3 0 0 1 0 4.3M11.9 10.1c1.2.5 2 1.5 2.3 3.2"/></svg>{{e.teamLabel}}</span>
+          </div>
+        </div>
+        <button class="icon-btn" id="drawer-close" aria-label="Close" onClick="{{dr.requestClose}}"><svg class="ic" viewBox="0 0 16 16"><path d="M4.5 4.5l7 7M11.5 4.5l-7 7"/></svg></button>
+      </div>
+
+      <div class="dr-body" id="drawer-body">
+        <div class="dr-banners">
+          <sc-if value="{{e.saveError}}" hint-placeholder-val="{{false}}"><div class="banner is-error" role="alert"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 5v3.5M8 11h.01"/></svg><span class="grow">Couldn’t save. Your edits are still here.</span><button class="banner-btn" id="save-retry" onClick="{{e.save}}">Try again</button></div></sc-if>
+          <sc-if value="{{e.hasErrSummary}}" hint-placeholder-val="{{false}}"><div class="banner is-error" role="alert"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 5v3.5M8 11h.01"/></svg><span class="grow">{{e.errSummary}}</span></div></sc-if>
+          <sc-if value="{{e.locked}}" hint-placeholder-val="{{false}}"><div class="banner is-info"><svg class="ic" viewBox="0 0 16 16"><rect x="3.5" y="7" width="9" height="6.5" rx="1.5"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/></svg><span class="grow">Roster is locked for this event. You can still change payment and the private note.</span></div></sc-if>
+        </div>
+
+        <section class="sec" aria-labelledby="pay-lbl">
+          <div class="sec-head">
+            <h3 class="sec-title" id="pay-lbl">Entry payment</h3>
+            <sc-if value="{{e.payChanged}}" hint-placeholder-val="{{false}}"><span class="sec-aside">Was {{e.payWas}}</span></sc-if>
+          </div>
+          <div class="seg seg-lg" role="radiogroup" aria-labelledby="pay-lbl">
+            <label class="seg-opt {{e.paidCls}}"><input class="sr" type="radio" name="d-pay" checked="{{e.paid}}" disabled="{{e.payDisabled}}" onChange="{{e.setPaid}}"><svg class="ic" viewBox="0 0 16 16"><path d="M3.8 8.4 6.6 11.2 12.2 5"/></svg>Paid</label>
+            <label class="seg-opt {{e.unpaidCls}}"><input class="sr" type="radio" name="d-pay" checked="{{e.unpaid}}" disabled="{{e.payDisabled}}" onChange="{{e.setUnpaid}}"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="4.6" stroke-dasharray="2.4 2"/></svg>Unpaid</label>
+          </div>
+        </section>
+
+        <section class="sec" aria-labelledby="sec-accts">
+          <div class="sec-head">
+            <h3 class="sec-title" id="sec-accts">Playing accounts</h3>
+            <span class="sec-aside">Draft value <b>{{e.draftValue}}</b> EHB</span>
+          </div>
+          <sc-if value="{{e.editable}}" hint-placeholder-val="{{true}}">
+            <div class="acct-head" aria-hidden="true"><span style="text-align: center">Primary</span><span>RSN</span><span style="text-align: right; padding-right: 10px">EHB</span><span></span></div>
+            <div role="radiogroup" aria-label="Primary account">
+            <sc-for list="{{e.accounts}}" as="a" hint-placeholder-count="2">
+              <div class="acct-row {{a.rowCls}}">
+                <div class="acct-radio"><input type="radio" name="primary-acct" checked="{{a.isPrimary}}" onChange="{{a.setPrimary}}" aria-label="{{a.primaryAria}}"></div>
+                <div>
+                  <input class="input {{a.rsnCls}}" id="{{a.rsnId}}" value="{{a.rsn}}" onChange="{{a.onRsn}}" onBlur="{{a.onRsnBlur}}" placeholder="RSN" list="owner-accounts" aria-label="{{a.rsnAria}}" aria-invalid="{{a.rsnInvalid}}" aria-describedby="{{a.rsnErrId}}">
+                  <sc-if value="{{a.hasRsnErr}}" hint-placeholder-val="{{false}}"><div class="field-err" id="{{a.rsnErrId}}"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 5v3.5M8 11h.01"/></svg>{{a.rsnErr}}</div></sc-if>
+                  <sc-if value="{{a.hasHint}}" hint-placeholder-val="{{false}}"><div class="field-hint">{{a.hint}}</div></sc-if>
+                </div>
+                <div>
+                  <input class="input ehb-in {{a.ehbCls}}" id="{{a.ehbId}}" type="number" min="0" step="0.1" value="{{a.ehb}}" onChange="{{a.onEhb}}" onBlur="{{a.onEhbBlur}}" placeholder="—" aria-label="{{a.ehbAria}}" aria-invalid="{{a.ehbInvalid}}" aria-describedby="{{a.ehbErrId}}">
+                  <sc-if value="{{a.hasEhbErr}}" hint-placeholder-val="{{false}}"><div class="field-err" id="{{a.ehbErrId}}">{{a.ehbErr}}</div></sc-if>
+                </div>
+                <button class="icon-btn" aria-label="{{a.removeLabel}}" title="{{a.removeTitle}}" disabled="{{a.removeDisabled}}" onClick="{{a.remove}}"><svg class="ic" viewBox="0 0 16 16"><path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.6 4.5l.5 9h5.8l.5-9"/></svg></button>
+              </div>
+            </sc-for>
+            </div>
+            <datalist id="owner-accounts">
+              <sc-for list="{{e.ownerOpts}}" as="o" hint-placeholder-count="0"><option value="{{o.rsn}}">{{o.hint}}</option></sc-for>
+            </datalist>
+            <div class="add-row">
+              <button class="btn btn-quiet btn-sm add-link" id="add-acct" onClick="{{e.addAcct}}" disabled="{{e.addDisabled}}" title="{{e.addTitle}}"><svg class="ic" viewBox="0 0 16 16"><path d="M8 3.5v9M3.5 8h9"/></svg>Add playing account</button>
+              <span class="field-hint tnum">{{e.slotText}}</span>
+            </div>
+          </sc-if>
+          <sc-if value="{{e.locked}}" hint-placeholder-val="{{false}}">
+            <div class="ro-list">
+              <sc-for list="{{e.readAccounts}}" as="a" hint-placeholder-count="1">
+                <div class="ro-row"><span class="grow">{{a.rsn}}</span><sc-if value="{{a.isPrimary}}" hint-placeholder-val="{{false}}"><span class="pill">Primary</span></sc-if><span class="tnum" style="min-width: 70px; text-align: right">{{a.ehb}}</span></div>
+              </sc-for>
+            </div>
+          </sc-if>
+        </section>
+
+        <section class="sec">
+          <label class="lbl" for="alt-input">Alt account <span class="opt">· optional, no EHB</span></label>
+          <sc-if value="{{e.editable}}" hint-placeholder-val="{{true}}">
+            <input class="input {{e.altCls}}" id="alt-input" value="{{e.alt}}" onChange="{{e.onAlt}}" onBlur="{{e.onAltBlur}}" placeholder="None" aria-invalid="{{e.altInvalid}}" aria-describedby="e-alt">
+            <sc-if value="{{e.hasAltErr}}" hint-placeholder-val="{{false}}"><div class="field-err" id="e-alt"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 5v3.5M8 11h.01"/></svg>{{e.altErr}}</div></sc-if>
+          </sc-if>
+          <sc-if value="{{e.locked}}" hint-placeholder-val="{{false}}"><div class="kv-v {{e.altRoCls}}">{{e.altRo}}</div></sc-if>
+        </section>
+
+        <section class="sec" aria-labelledby="sec-answers">
+          <div class="sec-head"><h3 class="sec-title" id="sec-answers">Signup answers</h3></div>
+          <div class="lbl" id="cap-lbl">Volunteers to captain</div>
+          <div class="seg" role="radiogroup" aria-labelledby="cap-lbl">
+            <sc-for list="{{e.capOpts}}" as="c" hint-placeholder-count="3">
+              <label class="seg-opt {{c.cls}}"><input class="sr" type="radio" name="d-cap" checked="{{c.on}}" disabled="{{c.disabled}}" onChange="{{c.pick}}">{{c.label}}</label>
+            </sc-for>
+          </div>
+          <div style="margin-top: 14px">
+            <label class="lbl" for="cocap-input">Requested co-captain <span class="opt">· optional</span></label>
+            <input class="input" id="cocap-input" value="{{e.coCap}}" onChange="{{e.onCoCap}}" placeholder="{{e.coCapPlaceholder}}" disabled="{{e.coCapDisabled}}">
+          </div>
+          <div style="margin-top: 16px">
+            <div class="lbl">Participant’s note</div>
+            <div class="quote {{e.pNoteCls}}">{{e.pNote}}</div>
+          </div>
+        </section>
+
+        <section class="sec">
+          <label class="lbl" for="admin-note">Private note <span class="opt">· only admins see this</span></label>
+          <textarea class="textarea" id="admin-note" disabled="{{e.payDisabled}}" value="{{e.adminNote}}" onChange="{{e.onAdminNote}}" placeholder="Add context for other admins"></textarea>
+          <div class="note-meta"><span></span><span class="{{e.noteCountCls}}">{{e.noteCount}}</span></div>
+        </section>
+
+        <section class="sec">
+          <button class="disc-btn {{e.detailsCls}}" aria-expanded="{{e.detailsOpen}}" aria-controls="signup-details" onClick="{{e.toggleDetails}}">Signup details<svg class="ic" viewBox="0 0 16 16"><path d="M4 6l4 4 4-4"/></svg></button>
+          <sc-if value="{{e.detailsOpen}}" hint-placeholder-val="{{false}}">
+            <dl class="kv {{e.kvCls}}" id="signup-details">
+              <sc-for list="{{e.details}}" as="k" hint-placeholder-count="6"><dt>{{k.k}}</dt><dd class="{{k.cls}}">{{k.v}}</dd></sc-for>
+            </dl>
+          </sc-if>
+        </section>
+      </div>
+
+      <div class="dr-foot">
+        <sc-if value="{{e.canWithdraw}}" hint-placeholder-val="{{true}}"><button class="btn btn-outline-danger" id="dr-status-btn" disabled="{{e.locked}}" title="{{e.statusTitle}}" onClick="{{e.withdraw}}">Withdraw…</button></sc-if>
+        <sc-if value="{{e.canRestore}}" hint-placeholder-val="{{false}}"><button class="btn" id="dr-status-btn" disabled="{{e.locked}}" title="{{e.statusTitle}}" onClick="{{e.restore}}">Restore…</button></sc-if>
+        <div class="spacer"></div>
+        <sc-if value="{{e.dirty}}" hint-placeholder-val="{{false}}"><span class="dirty" role="status"><span class="dot"></span>Unsaved changes</span></sc-if>
+        <button class="btn" onClick="{{dr.requestClose}}" disabled="{{e.saving}}">Cancel</button>
+        <button class="btn btn-primary {{e.busyCls}}" onClick="{{e.save}}" disabled="{{e.saveDisabled}}" style="min-width: 118px">
+          <sc-if value="{{e.saving}}" hint-placeholder-val="{{false}}"><span class="spin"></span></sc-if>{{e.saveLabel}}
+        </button>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{dr.isAdd}}" hint-placeholder-val="{{false}}">
+      <div class="dr-head">
+        <div class="grow">
+          <div class="eyebrow">{{ev.name}}</div>
+          <h2 class="dr-title" id="drawer-title">Add participant</h2>
+        </div>
+        <button class="icon-btn" id="drawer-close" aria-label="Close" onClick="{{dr.requestClose}}"><svg class="ic" viewBox="0 0 16 16"><path d="M4.5 4.5l7 7M11.5 4.5l-7 7"/></svg></button>
+      </div>
+      <div class="dr-body" id="drawer-body">
+        <div class="dr-banners">
+          <sc-if value="{{ad.saveError}}" hint-placeholder-val="{{false}}"><div class="banner is-error" role="alert"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 5v3.5M8 11h.01"/></svg><span class="grow">Couldn’t add the participant. Nothing was saved.</span><button class="banner-btn" id="save-retry" onClick="{{ad.submit}}">Try again</button></div></sc-if>
+        </div>
+
+        <section class="sec" aria-labelledby="add-acc-lbl">
+          <div class="sec-head"><h3 class="sec-title" id="add-acc-lbl">Website account</h3></div>
+          <sc-if value="{{ad.noUser}}" hint-placeholder-val="{{true}}">
+            <div class="search" style="width: 100%">
+              <svg class="ic" viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5 13.5 13.5"/></svg>
+              <input class="input {{ad.userCls}}" id="add-search" type="search" value="{{ad.q}}" onChange="{{ad.onQ}}" onKeyDown="{{ad.onQKey}}" placeholder="Search by username, Discord or RSN" aria-label="Search website accounts" aria-describedby="add-search-err" aria-invalid="{{ad.userInvalid}}">
+            </div>
+            <sc-if value="{{ad.hasUserErr}}" hint-placeholder-val="{{false}}"><div class="field-err" id="add-search-err"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 5v3.5M8 11h.01"/></svg>{{ad.userErr}}</div></sc-if>
+            <div class="results" id="add-results" onKeyDown="{{ad.onListKey}}">
+              <div class="res-label">{{ad.resultsLabel}}</div>
+              <sc-for list="{{ad.results}}" as="u" hint-placeholder-count="5">
+                <button class="res" disabled="{{u.disabled}}" onClick="{{u.pick}}">
+                  <span class="avatar">{{u.initials}}</span>
+                  <span class="grow"><span class="res-name" style="display: block">@{{u.username}}</span><span class="res-sub" style="display: block">{{u.sub}}</span></span>
+                  <span class="res-note">{{u.note}}</span>
+                </button>
+              </sc-for>
+              <sc-if value="{{ad.noResults}}" hint-placeholder-val="{{false}}"><div class="res-empty">No website accounts match “{{ad.q}}”.</div></sc-if>
+            </div>
+          </sc-if>
+          <sc-if value="{{ad.hasUser}}" hint-placeholder-val="{{false}}">
+            <div class="picked">
+              <span class="avatar">{{ad.user.initials}}</span>
+              <span class="grow"><span class="res-name" style="display: block">@{{ad.user.username}}</span><span class="res-sub" style="display: block">{{ad.user.sub}}</span></span>
+              <button class="btn btn-sm" id="add-change" onClick="{{ad.changeUser}}">Change</button>
+            </div>
+          </sc-if>
+        </section>
+
+        <section class="sec" aria-labelledby="add-pl-lbl">
+          <div class="sec-head">
+            <h3 class="sec-title" id="add-pl-lbl">Playing accounts</h3>
+            <sc-if value="{{ad.hasDraft}}" hint-placeholder-val="{{false}}"><span class="sec-aside">Draft value <b>{{ad.draftValue}}</b> EHB</span></sc-if>
+          </div>
+          <sc-if value="{{ad.noUser}}" hint-placeholder-val="{{true}}"><div class="placeholder">Choose a website account to see its saved playing accounts.</div></sc-if>
+          <sc-if value="{{ad.hasUser}}" hint-placeholder-val="{{false}}">
+            <div class="picks" id="add-accounts" role="group" aria-labelledby="add-pl-lbl" aria-describedby="add-accounts-err">
+              <sc-for list="{{ad.accounts}}" as="a" hint-placeholder-count="2">
+                <div class="pick {{a.cls}}">
+                  <input type="checkbox" id="{{a.cbId}}" checked="{{a.checked}}" disabled="{{a.disabled}}" onChange="{{a.toggle}}">
+                  <label for="{{a.cbId}}" style="min-width: 0; cursor: pointer"><div class="pick-name">{{a.rsn}}</div><sc-if value="{{a.hasReason}}" hint-placeholder-val="{{false}}"><div class="pick-sub">{{a.reason}}</div></sc-if></label>
+                  <div class="pick-ehb {{a.ehbCls}}">{{a.ehbText}}</div>
+                  <label class="pick-prim {{a.primCls}}"><input type="radio" name="add-primary" checked="{{a.isPrimary}}" disabled="{{a.primDisabled}}" onChange="{{a.setPrimary}}">Primary</label>
+                </div>
+              </sc-for>
+            </div>
+            <sc-if value="{{ad.hasAccErr}}" hint-placeholder-val="{{false}}"><div class="field-err" id="add-accounts-err"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 5v3.5M8 11h.01"/></svg>{{ad.accErr}}</div></sc-if>
+            <div class="field-hint">EHB comes from the saved account and can be changed for this event after adding. Up to {{ad.slots}} playing accounts per participant.</div>
+          </sc-if>
+        </section>
+
+        <section class="sec" aria-labelledby="add-place-lbl">
+          <div class="sec-head"><h3 class="sec-title" id="add-place-lbl">Add to</h3></div>
+          <div class="choices" role="radiogroup" aria-labelledby="add-place-lbl">
+            <label class="choice {{ad.pcCls}}"><input type="radio" name="add-place" checked="{{ad.pcOn}}" onChange="{{ad.setPc}}"><span><span class="choice-title" style="display: block">{{ad.pcTitle}}</span><span class="choice-sub" style="display: block">{{ad.pcSub}}</span></span></label>
+            <label class="choice {{ad.pwCls}}"><input type="radio" name="add-place" checked="{{ad.pwOn}}" disabled="{{ad.pwDisabled}}" onChange="{{ad.setPw}}"><span><span class="choice-title" style="display: block">Waiting list</span><span class="choice-sub" style="display: block">{{ad.pwSub}}</span></span></label>
+          </div>
+          <sc-if value="{{ad.hasCapHint}}" hint-placeholder-val="{{false}}"><div class="field-hint" role="status">{{ad.capHint}}</div></sc-if>
+          <div style="margin-top: 16px">
+            <div class="lbl" id="add-pay-lbl">Entry payment</div>
+            <div class="seg" role="radiogroup" aria-labelledby="add-pay-lbl">
+              <label class="seg-opt {{ad.unpaidCls}}"><input class="sr" type="radio" name="add-pay" checked="{{ad.unpaid}}" onChange="{{ad.setUnpaid}}">Unpaid</label>
+              <label class="seg-opt {{ad.paidCls}}"><input class="sr" type="radio" name="add-pay" checked="{{ad.paid}}" onChange="{{ad.setPaid}}">Paid</label>
+            </div>
+          </div>
+        </section>
+      </div>
+      <div class="dr-foot">
+        <div class="spacer"></div>
+        <button class="btn" onClick="{{dr.requestClose}}" disabled="{{ad.saving}}">Cancel</button>
+        <button class="btn btn-primary {{ad.busyCls}}" onClick="{{ad.submit}}" disabled="{{ad.saving}}" style="min-width: 138px">
+          <sc-if value="{{ad.saving}}" hint-placeholder-val="{{false}}"><span class="spin"></span></sc-if>{{ad.submitLabel}}
+        </button>
+      </div>
+    </sc-if>
+  </div>
+</sc-if>
+
+<!-- modal -->
+<sc-if value="{{md.show}}" hint-placeholder-val="{{false}}">
+  <div class="m-scrim {{md.closingCls}}" onClick="{{md.dismiss}}"></div>
+  <div class="m-wrap">
+    <div class="modal {{md.closingCls}}" id="modal" role="alertdialog" aria-modal="true" aria-labelledby="modal-title" aria-describedby="modal-desc" onKeyDown="{{md.onKey}}">
+      <h2 class="m-title" id="modal-title">{{md.title}}</h2>
+      <p class="m-body" id="modal-desc">{{md.body}}</p>
+      <sc-if value="{{md.hasChoice}}" hint-placeholder-val="{{false}}">
+        <div class="m-extra" role="radiogroup" aria-label="Restore to">
+          <label class="check-row {{md.wCls}}"><input type="radio" name="restore-to" checked="{{md.wOn}}" disabled="{{md.wDisabled}}" onChange="{{md.setW}}"><span><span style="display: block; font-weight: 550">Waiting list</span><span class="choice-sub" style="display: block">{{md.wSub}}</span></span></label>
+          <label class="check-row {{md.cCls}}"><input type="radio" name="restore-to" checked="{{md.cOn}}" onChange="{{md.setC}}"><span><span style="display: block; font-weight: 550">{{md.cTitle}}</span><span class="choice-sub" style="display: block">{{md.cSub}}</span></span></label>
+        </div>
+      </sc-if>
+      <sc-if value="{{md.hasError}}" hint-placeholder-val="{{false}}"><div class="banner is-error" role="alert" style="margin-top: 14px"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 5v3.5M8 11h.01"/></svg><span class="grow">{{md.error}}</span></div></sc-if>
+      <div class="m-actions">
+        <button class="btn" id="modal-cancel" onClick="{{md.dismiss}}" disabled="{{md.busy}}">{{md.cancelLabel}}</button>
+        <button class="btn {{md.confirmCls}} {{md.busyCls}}" onClick="{{md.confirm}}" disabled="{{md.busy}}"><sc-if value="{{md.busy}}" hint-placeholder-val="{{false}}"><span class="spin"></span></sc-if>{{md.confirmLabel}}</button>
+      </div>
+    </div>
+  </div>
+</sc-if>
+
+<div class="toasts" aria-live="polite" aria-atomic="false">
+  <sc-for list="{{toasts}}" as="t" hint-placeholder-count="0">
+    <div class="toast {{t.cls}}" role="status" data-toast="{{t.id}}">
+      <sc-if value="{{t.isError}}" hint-placeholder-val="{{false}}"><svg class="ic t-ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 5v3.5M8 11h.01"/></svg></sc-if>
+      <sc-if value="{{t.isOk}}" hint-placeholder-val="{{true}}"><svg class="ic t-ic" viewBox="0 0 16 16"><path d="M3.8 8.4 6.6 11.2 12.2 5"/></svg></sc-if>
+      <span class="grow">{{t.text}}</span>
+      <sc-if value="{{t.hasAction}}" hint-placeholder-val="{{false}}"><button class="toast-act" onClick="{{t.act}}">{{t.actionLabel}}</button></sc-if>
+      <button class="toast-x" aria-label="Dismiss notification" onClick="{{t.close}}"><svg class="ic" viewBox="0 0 16 16" style="width: 14px; height: 14px"><path d="M4.5 4.5l7 7M11.5 4.5l-7 7"/></svg></button>
+    </div>
+  </sc-for>
+</div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+const VIEW_KEYS = ['tab', 'pay', 'sortKey', 'sortDir', 'page', 'perPage', 'eventId', 'loading'];
+class Component extends DCLogic {
+  constructor(...args) {
+    super(...args);
+    this.timers = [];
+    this.seq = 1;
+    this.world = this.genWorld();
+    let dark = false;
+    try { dark = window.matchMedia('(prefers-color-scheme: dark)').matches; } catch (e) {}
+    this.state = {
+      theme: dark ? 'dark' : 'light', eventId: 'autumn', loading: false, loadError: false, nav: 'participants',
+      tab: 'confirmed', pay: 'any', q: '', sortKey: 'default', sortDir: 'asc', page: 1, perPage: 25,
+      menu: null, drawer: null, modal: null, toasts: [], busy: {}, failNext: false, flash: null, rev: 0, detailsOpen: false, detailsClosing: false, sideOpen: true, mobileNav: false, vw: 1440, viewKey: 0, scrollX: false
+    };
+  }
+
+  componentDidMount() {
+    this.onResize = () => { const vw = window.innerWidth; if (vw !== this.state.vw) this.setState(s => ({ vw, mobileNav: vw > 860 ? false : s.mobileNav })); };
+    window.addEventListener('resize', this.onResize); this.onResize();
+    this.overflow = DKAdmin.watchOverflowX(this, 'tbl-wrap', 'scrollX', 'scroller');
+    this.viewSig = DKAdmin.viewSignature(this.state, VIEW_KEYS);
+  }
+  componentDidUpdate() {
+    // View changes (not search typing) replay the table fade. Own snapshot: older runtimes don't pass prevState.
+    const sig = DKAdmin.viewSignature(this.state, VIEW_KEYS);
+    if (this.viewSig !== sig) { this.viewSig = sig; this.setState(s => ({ viewKey: s.viewKey + 1 })); }
+    if (this.overflow) this.overflow.check();
+  }
+  componentWillUnmount() { this.timers.forEach(clearTimeout); if (this.onResize) window.removeEventListener('resize', this.onResize); if (this.overflow) this.overflow.disconnect(); }
+  isMobile() { return this.state.vw <= 860; }
+  openMobileNav(e) {
+    this.navReturn = e && e.currentTarget;
+    this.setState({ mobileNav: true, menu: null }, () => this.focusId('user-btn', { preventScroll: true }));
+  }
+  closeMobileNav(restore) {
+    if (!this.state.mobileNav) return;
+    this.setState({ mobileNav: false }, () => { if (restore !== false) this.restoreFocus(this.navReturn, 'menu-toggle'); });
+  }
+  later(fn, ms) { const t = setTimeout(() => { this.timers = this.timers.filter(x => x !== t); fn(); }, ms); this.timers.push(t); return t; }
+  bump(extra, done) { this.setState(s => Object.assign({ rev: s.rev + 1 }, typeof extra === 'function' ? extra(s) : (extra || {})), done); }
+  // Shared behaviour (ui/behavior.js)
+  focusId(id, opts) { DKAdmin.focusSoon(id, opts); }
+  restoreFocus(el, fallbackId) { DKAdmin.restoreFocus(el, fallbackId); }
+  flash(pid) { this.bump({ flash: pid }, () => DKAdmin.afterExit(this, '.row.is-flash', () => { if (this.state.flash === pid) this.setState({ flash: null }); })); }
+
+  /* ---------------- synthetic data ---------------- */
+  genWorld() {
+    let s = 0x2f6a74;
+    const rnd = () => { s |= 0; s = (s + 0x6D2B79F5) | 0; let t = Math.imul(s ^ (s >>> 15), 1 | s); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+    const pick = a => a[Math.floor(rnd() * a.length)];
+    const cap = w => w[0].toUpperCase() + w.slice(1);
+    const HAND = ['Mossy Rock','Kiwi Crab','Salty Shrimp','Oak Plank','Tbow Enjoyer','Iron Brekkie','Fe Lynx','Gnome Child7','Lumby Local','Dragon Skim','Coal Truck','Rune Ess','Bank Stand','Yew Longbow','Cabbage Bro','Draynor Pat','Zulrah Fan','Barrows Bert','Kraken Kate','Mith Mike','Addy Annie','Steel Sally','Bronze Ben','Shark Lure','Lobster Pot','Karamja Kev','Swamp Paste','Ferox Fox','Vork Dork','Hydra Heidi','Olm Tickler','Nex Nerd','Wildy Wendy','Maple Moe','Willow Wisp','Redwood Rae','Ranarr Rob','Torstol Tess','Cannon Carl','Chin Chiller','Slayer Sam','Turael Tom','Konar Kid','Void Knight','Pest Pat','Rooftop Rhi','Graceful G','Anglerfish','Karambwan','Monkfish Mo','Tuna Potato','Alch Andy','High Alch Hal','Law Rune Lu','Blood Burst','Ice Barrage','Dharok Dave','Verac Vic','Ahrim Ash','Karil Kai','Torag Tori','Bandos Bo','Armadyl Ari','Kril Kris','Nightmare Ned','Muspah Max','Duke Dukey','Sol Heredit','Tithe Farmer','Mahogany Mo','Crystal Saw','Gauntlet Gem','Hunllef Hunt','Gotr Gary','Wintertodt','Brew Sipper','Prayer Flick','Spec Dagger','Dwh Denise','Zcb Zach','Fang Enjoyer','Shadow Sam','Masori Mae','Torva Tom','Lightbearer','Stam Pot','Rune Pouch','Seed Box Sue','Herb Sack','Coal Bag Cal','Ham Joint','Pie Shell'];
+    const FIRST = ['mikkel','sarah','jonas','emily','liam','freya','noah','ava','oskar','mia','lucas','isla','elias','nora','theo','ida','finn','clara','magnus','julia','kai','alma','leo','sofie','hugo','ella','adam','maja','felix','lea','anton','ellen','carl','astrid','william','olivia','victor','emma','johan','laura','rasmus','hanna','tobias','signe','marcus','amelia','daniel','chloe','sebastian','grace','mateo','zoe','ruben','nina','owen','ruby','jakob','iris','milo','vera'];
+    const used = new Set();
+    const uniq = n => { n = n.slice(0, 12).trim(); let k = n, i = 2; while (used.has(k.toLowerCase())) { k = (n.slice(0, 10) + ' ' + i).trim(); i++; } used.add(k.toLowerCase()); return k; };
+    const ehbMain = () => { if (rnd() < 0.06) return 0; return Math.round(Math.pow(rnd(), 1.5) * 1880 * 10) / 10; };
+    const ehbSec = () => { if (rnd() < 0.22) return 0; return Math.round(Math.pow(rnd(), 2) * 820 * 10) / 10; };
+    const users = []; const unames = new Set(); let accSeq = 1;
+    for (let i = 0; i < 96; i++) {
+      const f = FIRST[(i * 7) % FIRST.length];
+      const st = Math.floor(rnd() * 4);
+      let un = st === 0 ? f : st === 1 ? f + '.' + String.fromCharCode(97 + Math.floor(rnd() * 26)) : st === 2 ? f + '_' + (10 + Math.floor(rnd() * 89)) : f + String.fromCharCode(97 + Math.floor(rnd() * 26), 97 + Math.floor(rnd() * 26));
+      while (unames.has(un)) un = un + Math.floor(rnd() * 9);
+      unames.add(un);
+      const num = 1012 + i * 13 + Math.floor(rnd() * 9);
+      const discord = rnd() < 0.86 ? (un.replace(/[._]/g, '') + (rnd() < 0.35 ? '_' + Math.floor(rnd() * 99) : '')) : null;
+      const joined = Date.UTC(2022 + Math.floor(rnd() * 4), Math.floor(rnd() * 12), 1 + Math.floor(rnd() * 27));
+      users.push({ id: 'u' + num, num, username: un, first: f, discord, joined, saved: [{ id: 'a' + (accSeq++), rsn: uniq(HAND[i] || (cap(f) + ' ' + pick(['Scape', 'Btw', 'Ftw']))), ehb: ehbMain() }], alt: null });
+    }
+    users.forEach(u => {
+      const r = rnd(); const extra = r < 0.72 ? 0 : r < 0.93 ? 1 : 2;
+      for (let k = 0; k < extra; k++) u.saved.push({ id: 'a' + (accSeq++), rsn: uniq(pick(['Iron', 'Gim', 'HC', 'Uim', 'Pure']) + ' ' + cap(u.first)), ehb: ehbSec() });
+      if (rnd() < 0.32) u.alt = uniq(cap(u.first) + ' ' + pick(['Alt', 'Bank', 'Mule', 'Skill']));
+    });
+    // accounts not yet participating: some missing EHB, one character also saved by another website account (shared link, allowed)
+    users[72].saved.push({ id: 'a' + (accSeq++), rsn: uniq('Iron ' + cap(users[72].first)), ehb: null });
+    users[80].saved.forEach(a => { a.ehb = null; });
+    const sharedAcc = { id: 'a' + (accSeq++), rsn: uniq('Zerk ' + cap(users[77].first)), ehb: 212.4 };
+    users[77].saved.push(sharedAcc);
+    users[74].saved.push({ id: 'a' + (accSeq++), rsn: uniq('Gim ' + cap(users[74].first)), ehb: 0 });
+    const userMap = {}; users.forEach(u => { userMap[u.id] = u; });
+
+    const PNOTES = ['Available evenings CET, weekends all day.', 'Would love to be on a team with Kiwi Crab if possible.', 'First bingo — really looking forward to it!', 'Away 18–20 Oct for a wedding, will catch up after.', 'Happy to host the team voice channel.', 'Mostly skilling right now, happy to grind whatever the team needs.', 'Ironman, so I can’t trade drops. Keep that in mind for tiles.', 'Mobile only on weekdays.', 'Can do raids but still learning ToA 300+.', 'I signed up my alt by mistake too, please ignore that one.'];
+    const ANOTES = ['Paid via GP drop to Jonas on 4 Sep — confirmed in #payments.', 'Asked to switch primary to their main after quest cape.', 'Moved up from the waiting list after a drop-out.', 'Discord not linked — pinged in #signups on 6 Sep.', 'Checked for a duplicate older account: not a dupe.', 'Promised payment by Friday.'];
+    const TEAMS = ['Salt Mines', 'Dry Streak', 'Spade Squad', 'Bank Standers', 'Log Pile', 'Tick Perfect', 'Pet Hunters', 'RNG Refugees'];
+    let pSeq = 1;
+    const mk = (u, i, t, admin, scale) => {
+      const useAll = u.saved.length > 1 && rnd() < 0.7;
+      const accs = (useAll ? u.saved : [u.saved[0]]).filter(a => a.ehb != null).map(a => ({ id: a.id, rsn: a.rsn, ehb: Math.round(a.ehb * scale * 10) / 10 }));
+      const primaryId = accs.length > 1 && rnd() < 0.12 ? accs[1].id : accs[0].id;
+      return {
+        id: 'p' + (pSeq++), userId: u.id, accounts: accs, primaryId, alt: u.alt && rnd() < 0.85 ? u.alt : null,
+        status: 'confirmed', queue: null, paid: false, captain: admin ? 'no' : (rnd() < 0.2 ? 'yes' : 'no'), coCaptain: '', team: null,
+        order: i + 1, signedAt: t, source: admin ? 'Added by admin (@nils)' : (rnd() < 0.68 ? 'Website signup form' : 'Discord /signup command'),
+        note: (!admin && rnd() < 0.34) ? pick(PNOTES) : '', adminNote: rnd() < 0.15 ? pick(ANOTES) : '', prev: null
+      };
+    };
+
+    // accountSlots = playing accounts allowed per participant. Prototype fixture values,
+    // standing in for the event's configured slots; not the application's real limit.
+    // Autumn (open)
+    const autumn = { id: 'autumn', name: 'Autumn Bingo 2026', stage: 'Signups open', tone: 'open', when: 'closes 10 Oct', phase: 'SIGNUP_OPEN', draftLocked: false, capacity: 60, accountSlots: 3, participants: [] };
+    let t = Date.UTC(2026, 8, 1, 16, 4);
+    const wA = new Set([6, 19, 33, 61, 66]); const adminA = new Set([44, 58, 68]);
+    users.slice(0, 70).forEach((u, i) => { t += (i < 20 ? 3 + rnd() * 40 : 30 + rnd() * 900) * 60000; autumn.participants.push(mk(u, i, t, adminA.has(i), 1)); });
+    let conf = 0, qn = 1;
+    autumn.participants.forEach((p, i) => {
+      if (wA.has(i)) { p.status = 'withdrawn'; p.prev = { status: i < 40 ? 'confirmed' : 'waiting', queue: null, team: null }; p.paid = rnd() < 0.4; return; }
+      if (conf < 58) { p.status = 'confirmed'; conf++; p.paid = rnd() < 0.83; }
+      else { p.status = 'waiting'; p.queue = qn++; p.paid = rnd() < 0.25; }
+    });
+    const act = autumn.participants.filter(p => p.status !== 'withdrawn');
+    let tk = 0;
+    autumn.participants.forEach(p => {
+      if (p.captain === 'yes') {
+        if (rnd() < 0.55) { const o = pick(act); if (o !== p) p.coCaptain = o.accounts[0].rsn; }
+        if (p.status === 'confirmed' && tk < TEAMS.length) p.team = TEAMS[tk++];
+      }
+    });
+
+    // Summer (in progress, locked)
+    const summer = { id: 'summer', name: 'Summer Bingo 2026', stage: 'In progress', tone: 'live', when: 'ends 5 Oct', phase: 'LIVE', draftLocked: true, everLive: true, capacity: 48, accountSlots: 3, participants: [] };
+    t = Date.UTC(2026, 5, 2, 15, 0);
+    const wS = new Set([4, 22, 40]); const adminS = new Set([30]);
+    users.slice(8, 61).forEach((u, i) => { t += (15 + rnd() * 600) * 60000; summer.participants.push(mk(u, i, t, adminS.has(i), 0.88)); });
+    conf = 0; qn = 1; let ti = 0;
+    const unpaidS = new Set([11, 27, 45]);
+    summer.participants.forEach((p, i) => {
+      if (wS.has(i)) { p.status = 'withdrawn'; p.prev = { status: 'confirmed', queue: null, team: null }; p.paid = i === 22; return; }
+      if (conf < 48) { p.status = 'confirmed'; conf++; p.paid = !unpaidS.has(i); const r = Math.floor(ti / 6) % 2 ? 5 - (ti % 6) : ti % 6; p.team = TEAMS[r]; ti++; }
+      else { p.status = 'waiting'; p.queue = qn++; p.paid = false; }
+    });
+
+    const winter = { id: 'winter', name: 'Winter League 2027', stage: 'Draft', tone: 'draft', when: 'not announced', phase: 'DRAFT', draftLocked: false, capacity: 80, accountSlots: 2, participants: [] };
+    // shared link added after rosters are generated so the sample data stays stable
+    users[5].saved.push({ ...sharedAcc });
+    [autumn, summer, winter].forEach(e => { const pol = this.rosterPolicy(e); e.locked = !pol.editable; e.privateEditable = pol.privateEditable; e.lockReason = pol.reason; });
+    return { users, userMap, events: { autumn, summer, winter }, order: ['autumn', 'summer', 'winter'] };
+  }
+
+  /* ---------------- helpers ---------------- */
+  // Which event phases allow admin roster changes (add, confirm, move, withdraw, restore, account/answer edits).
+  // Mirrors the application's rule: the event states DRAFT, SIGNUP_OPEN and SIGNUP_CLOSED allow admin participant
+  // management as long as the team draft isn't locked (SignupService.CanAdministerParticipants). (Event DRAFT is not the team draft.) Roster membership
+  // is locked once the event has ever gone LIVE; finalized pre-Live roster add/remove is a separate workflow.
+  // Payment and the private admin note stay editable in every phase.
+  rosterPolicy(ev) {
+    const pre = ['DRAFT', 'SIGNUP_OPEN', 'SIGNUP_CLOSED'].indexOf(ev.phase) >= 0;
+    const privateEditable = ev.phase !== 'DISCARDED';  // payment + private note (CanEditPrivateParticipantMetadata)
+    if (pre && !ev.draftLocked && !ev.everLive) return { editable: true, privateEditable, reason: '' };
+    const reasons = {
+      DRAFT: 'The team draft for ' + ev.name + ' has started.',
+      SIGNUP_OPEN: 'The team draft for ' + ev.name + ' has started.',
+      SIGNUP_CLOSED: 'The team draft for ' + ev.name + ' has started.',
+      LIVE: ev.name + ' is in progress.',
+      AWAITING_FINAL_REVIEW: ev.name + ' is awaiting final review.',
+      FINALIZED: ev.name + ' is finalized.', ARCHIVED: ev.name + ' is archived.',
+      CANCELLED: ev.name + ' was cancelled.', DISCARDED: ev.name + ' was discarded.'
+    };
+    return { editable: false, privateEditable, reason: reasons[ev.phase] || 'Roster changes aren’t allowed in this event phase.' };
+  }
+  guardRoster() {
+    const ev = this.ev(); if (!ev.locked) return true;
+    this.toast({ tone: 'error', text: 'Roster changes aren’t allowed: ' + ev.lockReason });
+    return false;
+  }
+  ev() { return this.world.events[this.state.eventId]; }
+  userById(id) { return this.world.userMap[id]; }
+  pById(pid) { return this.ev().participants.find(p => p.id === pid); }
+  primaryOf(p) { return p.accounts.find(a => a.id === p.primaryId) || p.accounts[0]; }
+  fmtEhb(v) { if (v === null || v === undefined || v === '' || isNaN(Number(v))) return '—'; return Number(v).toLocaleString('en-US', { maximumFractionDigits: 1 }); }
+  fmtDate(ts) { try { return new Date(ts).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'Europe/Copenhagen' }); } catch (e) { return new Date(ts).toDateString(); } }
+  fmtDateTime(ts) { try { return new Date(ts).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Copenhagen' }); } catch (e) { return new Date(ts).toString(); } }
+  initials(u) { return u.username.replace(/[^a-z]/gi, '').slice(0, 2).toUpperCase(); }
+  normQueue(ev) {
+    const w = ev.participants.filter(p => p.status === 'waiting').sort((a, b) => (a.queue || 999) - (b.queue || 999) || a.order - b.order);
+    w.forEach((p, i) => { p.queue = i + 1; });
+    ev.participants.forEach(p => { if (p.status !== 'waiting') p.queue = null; });
+  }
+  counts(ev) { const c = { confirmed: 0, waiting: 0, withdrawn: 0, unpaid: 0 }; ev.participants.forEach(p => { c[p.status]++; if (p.status !== 'withdrawn' && !p.paid) c.unpaid++; }); return c; }
+  spotsLeft(ev) { return ev.capacity - this.counts(ev).confirmed; }
+  firstWaiting(ev) { return ev.participants.filter(p => p.status === 'waiting').sort((a, b) => a.queue - b.queue)[0] || null; }
+  // A website account's saved playing accounts. Saved links are not exclusive:
+  // the same character may be saved by several website accounts.
+  savedOf(u, rsn) {
+    const k = rsn.trim().toLowerCase(); if (!k || !u) return null;
+    return u.saved.find(a => a.rsn.toLowerCase() === k) || null;
+  }
+  slotsOf(ev) { return ev.accountSlots; }
+  inEventByRsn(ev, rsn, exceptPid) {
+    const k = rsn.trim().toLowerCase();
+    return ev.participants.find(p => p.id !== exceptPid && (p.accounts.some(a => a.rsn.toLowerCase() === k) || (p.alt && p.alt.toLowerCase() === k))) || null;
+  }
+  statusTone(p) { return { confirmed: 'badge-success', waiting: 'badge-warning', withdrawn: 'badge-neutral' }[p.status]; }
+  statusText(p, ev) {
+    if (p.status === 'confirmed') return 'Confirmed';
+    if (p.status === 'waiting') return 'Waiting · #' + p.queue;
+    return 'Withdrawn';
+  }
+  sim(ms, ok, fail) {
+    const willFail = this.state.failNext;
+    if (willFail) this.setState({ failNext: false });
+    this.later(() => (willFail ? fail() : ok()), ms);
+  }
+  toast(o) { return DKAdmin.toast(this, o); }
+  dismissToast(id) { DKAdmin.dismissToast(this, id); }
+  trap(e, id) { DKAdmin.trapTab(e, id); }
+
+  /* ---------------- navigation & event ---------------- */
+  switchEvent(id) {
+    if (id === this.state.eventId && !this.state.loadError) { this.setState({ nav: 'participants' }); return; }
+    this.setState({ eventId: id, nav: 'participants', loading: true, loadError: false, tab: 'confirmed', q: '', pay: 'any', page: 1, sortKey: 'default', sortDir: 'asc' });
+    const el = document.getElementById('scroller'); if (el) el.scrollTop = 0;
+    this.sim(650, () => this.setState({ loading: false }), () => this.setState({ loading: false, loadError: true }));
+  }
+  retryLoad() {
+    this.setState({ loading: true, loadError: false });
+    this.sim(650, () => this.setState({ loading: false }), () => this.setState({ loading: false, loadError: true }));
+  }
+  effSort() { const S = this.state; if (S.sortKey !== 'default') return S.sortKey; return (S.tab === 'waiting' || S.tab === 'all') ? 'status' : 'signup'; }
+  setSort(key) {
+    const cur = this.effSort();
+    if (cur === key) this.setState(s => ({ sortKey: key, sortDir: s.sortDir === 'asc' ? 'desc' : 'asc', page: 1 }));
+    else this.setState({ sortKey: key, sortDir: key === 'ehb' ? 'desc' : 'asc', page: 1 });
+  }
+
+  /* ---------------- menus ---------------- */
+  menuItems(kind, pid) {
+    const ev = this.ev();
+    if (kind === 'event') {
+      const items = [{ type: 'header', label: 'Switch event', hint: '' }];
+      this.world.order.forEach(id => { const e = this.world.events[id]; items.push({ label: e.name, hint: e.stage, check: id === this.state.eventId, action: () => this.switchEvent(id) }); });
+      items.push({ type: 'sep' });
+      items.push({ label: 'All events', hint: '', action: () => this.setState({ nav: 'events' }) });
+      return items;
+    }
+    if (kind === 'user') {
+      return [
+        { type: 'header', label: 'Nils Andersen', hint: '@nils · Administrator of Iron Pact' },
+        { type: 'sep' },
+        { label: 'Fail next request', hint: 'Prototype', checkbox: true, checked: this.state.failNext, action: () => { const on = !this.state.failNext; this.setState({ failNext: on }); this.toast({ text: on ? 'The next save, payment or status change will fail.' : 'Simulated failure turned off.' }); } },
+        { label: 'Reset prototype data', hint: '', action: () => { this.world = this.genWorld(); this.setState({ drawer: null, modal: null, busy: {}, page: 1, q: '', pay: 'any', rev: this.state.rev + 1, loadError: false }); this.toast({ text: 'Prototype data reset.' }); } }
+      ];
+    }
+    const p = this.pById(pid); if (!p) return [];
+    const locked = ev.locked; const left = this.spotsLeft(ev); const full = left <= 0;
+    const waitList = ev.participants.filter(x => x.status === 'waiting');
+    const items = [
+      { label: 'Open details', action: ret => this.openEdit(pid, ret), overlay: true },
+      { label: p.paid ? 'Mark as unpaid' : 'Mark as paid', disabled: !ev.privateEditable, action: () => this.setPaid(pid, !p.paid) },
+      { type: 'sep' }
+    ];
+    if (p.status === 'waiting') {
+      if (full) items.push({ label: locked ? 'Confirm and add a place' : 'Confirm and add a place…', hint: locked ? 'Locked' : '', disabled: locked, overlay: true, title: locked ? undefined : 'The event is full. Capacity increases by one and ' + this.primaryOf(p).rsn + ' gets the new place.', action: ret => this.openModal('confirmFull', { pid }, ret) });
+      else items.push({ label: 'Confirm', hint: locked ? 'Locked' : left + ' left', disabled: locked, action: () => this.confirmFromWaiting(pid) });
+      // Manual queue reordering: not part of the approved change; disposition undecided. Left as it was.
+      items.push({ label: 'Move up in queue', disabled: locked || p.queue <= 1, action: () => this.moveQueue(pid, -1) });
+      items.push({ label: 'Move down in queue', disabled: locked || p.queue >= waitList.length, action: () => this.moveQueue(pid, 1) });
+    }
+    if (p.status === 'confirmed') {
+      const noOneWaiting = !waitList.length;
+      const why = locked ? undefined : !full ? 'Only available when the event is full. With places open, nobody is waiting for this place.' : noOneWaiting ? 'Nobody is on the waiting list to take this place.' : undefined;
+      items.push({ label: full && !noOneWaiting && !locked ? 'Move to waiting list…' : 'Move to waiting list', hint: locked ? 'Locked' : !full ? 'Places open' : noOneWaiting ? 'No one waiting' : '', disabled: locked || !full || noOneWaiting, overlay: true, title: why, action: ret => this.openModal('toWaiting', { pid }, ret) });
+    }
+    if (p.status !== 'withdrawn') {
+      if (p.status === 'confirmed') items.push({ type: 'sep' });
+      items.push({ label: 'Withdraw…', hint: locked ? 'Locked' : '', danger: true, disabled: locked, overlay: true, action: ret => this.openModal('withdraw', { pid }, ret) });
+    } else {
+      items.push({ label: 'Restore…', hint: locked ? 'Locked' : '', disabled: locked, overlay: true, action: ret => this.openModal('restore', { pid }, ret) });
+    }
+    return items;
+  }
+  openMenu(kind, e, pid) {
+    if (e && e.stopPropagation) e.stopPropagation();
+    const m = this.state.menu;
+    if (m && !m.closing && m.kind === kind && m.pid === pid) { this.closeMenu(true); return; }
+    const btn = e.currentTarget; const r = btn.getBoundingClientRect();
+    this.menuReturn = btn;
+    const items = this.menuItems(kind, pid);
+    const height = DKAdmin.menuHeight(items);
+    const place = kind === 'event'
+      ? DKAdmin.placeMenu(r, { width: Math.max(r.width, 236), align: !this.state.sideOpen && !this.isMobile() ? 'side' : 'start' })
+      : kind === 'user' ? DKAdmin.placeMenu(r, { width: 236, align: 'start' })
+      : DKAdmin.placeMenu(r, { width: 236, height, align: 'end' });
+    this.setState({ menu: { kind, pid, x: place.x, y: place.y, w: place.w, up: place.up } }, () => DKAdmin.focusFirstMenuItem('menu'));
+  }
+  closeMenu(restore) {
+    if (DKAdmin.closeLayer(this, 'menu', '#menu') && restore) this.restoreFocus(this.menuReturn);
+  }
+  menuKey(e) { DKAdmin.menuKeydown(e, 'menu', () => this.closeMenu(true)); }
+
+  /* ---------------- quick actions ---------------- */
+  setPaid(pid, val) {
+    const ev = this.ev(); const p = this.pById(pid); if (!p) return;
+    const name = this.primaryOf(p).rsn;
+    this.setState(s => ({ busy: { ...s.busy, [pid]: true } }));
+    this.sim(450, () => {
+      p.paid = val;
+      this.bump(s => ({ busy: { ...s.busy, [pid]: false } }));
+      this.toast({ text: name + ' marked as ' + (val ? 'paid' : 'unpaid') });
+    }, () => {
+      this.setState(s => ({ busy: { ...s.busy, [pid]: false } }));
+      this.toast({ tone: 'error', text: 'Couldn’t update payment for ' + name + '.', action: { label: 'Retry', run: () => this.setPaid(pid, val) } });
+    });
+  }
+  // Confirm while a place is open. When the event is full, confirming goes through the
+  // 'confirmFull' dialog instead (adds a place for this participant only).
+  confirmFromWaiting(pid) {
+    if (!this.guardRoster()) return;
+    const ev = this.ev(); const p = this.pById(pid); const name = this.primaryOf(p).rsn;
+    if (this.spotsLeft(ev) <= 0) { this.openModal('confirmFull', { pid }, this.menuReturn); return; }
+    this.sim(350, () => {
+      p.status = 'confirmed'; this.normQueue(ev); this.flash(pid);
+      this.toast({ text: name + ' confirmed' });
+    }, () => this.toast({ tone: 'error', text: 'Couldn’t confirm ' + name + '.', action: { label: 'Retry', run: () => this.confirmFromWaiting(pid) } }));
+  }
+  moveQueue(pid, dir) {
+    if (!this.guardRoster()) return;
+    const ev = this.ev(); const p = this.pById(pid);
+    const w = ev.participants.filter(x => x.status === 'waiting').sort((a, b) => a.queue - b.queue);
+    const i = w.indexOf(p); const j = i + dir; if (j < 0 || j >= w.length) return;
+    const other = w[j]; const q = p.queue; p.queue = other.queue; other.queue = q;
+    this.normQueue(ev); this.flash(pid);
+  }
+
+  /* ---------------- modal ---------------- */
+  openModal(kind, data, ret) {
+    if (kind !== 'discard' && !this.guardRoster()) return;
+    this.modalReturn = ret || document.activeElement;
+    const ev = this.ev();
+    const m = { kind, closing: false, busy: false, error: '', ...data };
+    // Restore follows capacity: a place open -> confirmed; full -> waiting by default.
+    if (kind === 'restore') m.choice = this.spotsLeft(ev) > 0 ? 'confirmed' : 'waiting';
+    this.setState({ modal: m, menu: null }, () => this.focusId('modal-cancel'));
+  }
+  closeModal(skipRestore) {
+    const m = this.state.modal;
+    DKAdmin.closeLayer(this, 'modal', '#modal, .m-scrim', () => {
+      if (skipRestore) return;
+      const dr = this.state.drawer;
+      this.restoreFocus(this.modalReturn, dr ? 'drawer-close' : (m.pid ? 'open-' + m.pid : 'add-btn'));
+    });
+  }
+  confirmModal() {
+    const m = this.state.modal; if (!m || m.busy) return;
+    if (m.kind === 'discard') { this.setState({ modal: null }); this.closeDrawer(); return; }
+    const ev = this.ev(); const p = this.pById(m.pid); const name = this.primaryOf(p).rsn;
+    if (ev.locked) { this.setState({ modal: { ...m, error: 'Roster changes aren’t allowed: ' + ev.lockReason } }); return; }
+    this.setState({ modal: { ...m, busy: true, error: '' } });
+    const fail = verb => () => this.setState(s => ({ modal: s.modal && { ...s.modal, busy: false, error: 'Couldn’t ' + verb + ' ' + name + '. Nothing was changed.' } }));
+    if (m.kind === 'withdraw') {
+      // Withdrawing a confirmed participant promotes the next waiting participant automatically.
+      // (Prototype: promotion happens whenever withdrawal is allowed, i.e. the roster isn't locked.)
+      this.sim(650, () => {
+        const next = p.status === 'confirmed' ? this.firstWaiting(ev) : null;
+        p.prev = { status: p.status, queue: p.queue, team: p.team };
+        p.status = 'withdrawn'; p.team = null;
+        if (next) next.status = 'confirmed';
+        this.normQueue(ev); this.closeModal(); this.flash(p.id);
+        this.toast({ text: name + ' withdrawn' + (next ? ' · ' + this.primaryOf(next).rsn + ' confirmed' : '') });
+      }, fail('withdraw'));
+    }
+    if (m.kind === 'restore') {
+      this.sim(650, () => {
+        const full = this.spotsLeft(ev) <= 0;
+        const to = full ? m.choice : 'confirmed';
+        const added = to === 'confirmed' && full;
+        if (added) ev.capacity += 1;
+        p.status = to; p.queue = to === 'waiting' ? 9999 : null; this.normQueue(ev); this.closeModal(); this.flash(p.id);
+        this.toast({ text: name + ' restored to ' + (to === 'confirmed' ? 'confirmed' : 'the waiting list (#' + p.queue + ')') + (added ? ' · capacity now ' + ev.capacity : '') });
+      }, fail('restore'));
+    }
+    if (m.kind === 'confirmFull') {
+      // Adds one place and gives it to this participant only; the rest of the waiting list keeps its order.
+      this.sim(650, () => {
+        const added = this.spotsLeft(ev) <= 0;
+        if (added) ev.capacity += 1;
+        p.status = 'confirmed'; this.normQueue(ev); this.closeModal(); this.flash(p.id);
+        this.toast({ text: name + ' confirmed' + (added ? ' · capacity now ' + ev.capacity : '') });
+      }, fail('confirm'));
+    }
+    if (m.kind === 'toWaiting') {
+      // Only offered when the event is full and someone is waiting: the moved participant goes to the
+      // end of the waiting list and the next waiting participant takes the vacated place.
+      this.sim(650, () => {
+        const next = this.firstWaiting(ev);
+        if (!next || this.spotsLeft(ev) > 0) { this.setState(s => ({ modal: s.modal && { ...s.modal, busy: false, error: 'The roster changed. Nothing was moved.' } })); return; }
+        next.status = 'confirmed';
+        p.status = 'waiting'; p.team = null; p.queue = 9999;
+        this.normQueue(ev); this.closeModal(); this.flash(p.id);
+        this.toast({ text: name + ' moved to the waiting list (#' + p.queue + ') · ' + this.primaryOf(next).rsn + ' confirmed' });
+      }, fail('move'));
+    }
+  }
+
+  /* ---------------- edit drawer ---------------- */
+  makeDraft(p) {
+    return { accounts: p.accounts.map(a => ({ key: a.id, id: a.id, rsn: a.rsn, ehb: String(a.ehb), hint: '' })), primaryKey: p.primaryId, alt: p.alt || '', captain: p.captain, coCaptain: p.coCaptain || '', paid: p.paid, adminNote: p.adminNote || '' };
+  }
+  draftSig(d) {
+    const live = d.accounts.filter(a => !a.removing);
+    const prim = live.find(a => a.key === d.primaryKey) || live[0];
+    return JSON.stringify({ a: live.map(a => [a.rsn.trim(), String(a.ehb).trim()]), p: prim ? prim.rsn.trim() : '', alt: d.alt.trim(), c: d.captain, cc: d.captain === 'yes' ? d.coCaptain.trim() : '', paid: d.paid, n: d.adminNote });
+  }
+  openEdit(pid, ret) {
+    const p = this.pById(pid); if (!p) return;
+    this.drawerReturn = ret || null;
+    const draft = this.makeDraft(p);
+    this.setState({ drawer: { mode: 'edit', pid, draft, orig: this.draftSig(draft), touched: {}, showErrors: false, saving: false, saveError: false, closing: false }, menu: null, detailsOpen: false, detailsClosing: false }, () => this.focusId('drawer-close', { preventScroll: true }));
+  }
+  isDirty() {
+    const dr = this.state.drawer; if (!dr) return false;
+    if (dr.mode === 'edit') return this.draftSig(dr.draft) !== dr.orig;
+    return !!(dr.q.trim() || dr.userId);
+  }
+  requestClose() {
+    const dr = this.state.drawer; if (!dr || dr.closing || dr.saving) return;
+    if (this.state.modal) return;
+    if (this.isDirty()) this.openModal('discard', { pid: dr.pid }, document.activeElement);
+    else this.closeDrawer();
+  }
+  closeDrawer() {
+    const dr = this.state.drawer;
+    DKAdmin.closeLayer(this, 'drawer', '#drawer, .scrim', () => this.restoreFocus(this.drawerReturn, dr.pid ? 'open-' + dr.pid : 'add-btn'));
+  }
+  updDraft(fn, done) {
+    this.setState(s => { if (!s.drawer || s.drawer.mode !== 'edit') return null; const d = { ...s.drawer.draft, accounts: s.drawer.draft.accounts.slice() }; fn(d); return { drawer: { ...s.drawer, draft: d } }; }, done);
+  }
+  touch(id) { this.setState(s => (s.drawer ? { drawer: { ...s.drawer, touched: { ...s.drawer.touched, [id]: true } } } : null)); }
+  rsnBlur(key) {
+    const dr = this.state.drawer; if (!dr) return;
+    const p = this.pById(dr.pid); const a = dr.draft.accounts.find(x => x.key === key);
+    this.touch('rsn-' + key);
+    if (!a || !a.rsn.trim()) return;
+    const u = this.userById(p.userId);
+    const saved = this.savedOf(u, a.rsn);
+    // Reads the saved account only; event edits never write back to saved accounts.
+    if (saved && String(a.ehb).trim() === '' && saved.ehb != null) this.updDraft(d => { d.accounts = d.accounts.map(y => (y.key === key ? { ...y, rsn: saved.rsn, ehb: String(saved.ehb), hint: 'EHB filled in from the saved account' } : y)); });
+    else if (!saved && this.validRsn(a.rsn.trim())) this.updDraft(d => { d.accounts = d.accounts.map(y => (y.key === key ? { ...y, hint: 'Not one of @' + u.username + '’s saved accounts. Used for this event only.' } : y)); });
+  }
+  addAcct() {
+    const dr = this.state.drawer; if (!dr) return;
+    if (this.ev().locked || dr.draft.accounts.filter(a => !a.removing).length >= this.slotsOf(this.ev())) return;
+    const key = 'n' + (this.seq++);
+    this.updDraft(d => { d.accounts = d.accounts.concat([{ key, id: null, rsn: '', ehb: '', hint: '', isNew: true }]); });
+    this.focusId('rsn-' + key);
+  }
+  removeAcct(key) {
+    const dr = this.state.drawer; if (!dr || this.ev().locked) return;
+    const live = dr.draft.accounts.filter(a => !a.removing); if (live.length <= 1) return;
+    this.updDraft(d => {
+      d.accounts = d.accounts.map(a => (a.key === key ? { ...a, removing: true } : a));
+      if (d.primaryKey === key) { const n = d.accounts.find(a => !a.removing); d.primaryKey = n.key; }
+    }, () => DKAdmin.afterExit(this, '.acct-row.is-removing', () => this.updDraft(d => { d.accounts = d.accounts.filter(a => a.key !== key); })));
+    this.focusId('add-acct', { preventScroll: true });
+  }
+  validRsn(r) { return /^[A-Za-z0-9 _-]{1,12}$/.test(r); }
+  validateEdit(p, d) {
+    const err = {}; const ev = this.ev(); const seen = {};
+    if (ev.locked) return err;
+    d.accounts.filter(a => !a.removing).forEach(a => {
+      const r = a.rsn.trim(); const idR = 'rsn-' + a.key, idE = 'ehb-' + a.key;
+      if (!r) err[idR] = 'Enter an RSN.';
+      else if (!this.validRsn(r)) err[idR] = 'Use up to 12 letters, numbers, spaces, - or _.';
+      else {
+        const k = r.toLowerCase();
+        if (seen[k]) err[idR] = 'This account is already listed.';
+        seen[k] = 1;
+        // Other website accounts saving the same character is fine (links aren't exclusive);
+        // only a conflicting assignment within this event is rejected.
+        if (!err[idR]) { const q = this.inEventByRsn(ev, r, p.id); if (q) err[idR] = 'Already used by ' + this.primaryOf(q).rsn + ' in this event.'; }
+      }
+      const e = String(a.ehb).trim();
+      if (e === '') err[idE] = 'Required. 0 is valid.';
+      else if (/^-/.test(e)) err[idE] = 'Can’t be negative.';
+      else if (!/^\d+(\.\d+)?$/.test(e)) err[idE] = 'Enter a number.';
+    });
+    const alt = d.alt.trim();
+    if (alt) {
+      if (!this.validRsn(alt)) err['alt-input'] = 'Use up to 12 letters, numbers, spaces, - or _.';
+      else if (seen[alt.toLowerCase()]) err['alt-input'] = 'This is already a playing account.';
+    }
+    return err;
+  }
+  save() {
+    const S = this.state; const dr = S.drawer; if (!dr || dr.saving) return;
+    const ev = this.ev(); const p = this.pById(dr.pid); const d = dr.draft;
+    const err = this.validateEdit(p, d); const ids = Object.keys(err);
+    if (ids.length) { this.setState({ drawer: { ...dr, showErrors: true, saveError: false } }, () => this.focusId(ids[0])); return; }
+    this.setState({ drawer: { ...dr, saving: true, saveError: false, showErrors: true } });
+    this.sim(700, () => {
+      const u = this.userById(p.userId);
+      if (!ev.locked) {
+        const live = d.accounts.filter(a => !a.removing);
+        // Event-only change: saved accounts (u.saved) are never added, renamed, overwritten or
+        // deleted here, and the event EHB is kept on the participant, not written back.
+        p.accounts = live.map(a => {
+          const r = a.rsn.trim();
+          const saved = this.savedOf(u, r);
+          const id = saved ? saved.id : 'e' + (1000 + this.seq++);
+          if (a.key === d.primaryKey) a._id = id;
+          return { id, rsn: r, ehb: Number(a.ehb) };
+        });
+        const pk = live.find(a => a.key === d.primaryKey) || live[0];
+        p.primaryId = pk._id || p.accounts[0].id;
+        p.alt = d.alt.trim() || null;
+        p.captain = d.captain; p.coCaptain = d.captain === 'yes' ? d.coCaptain.trim() : '';
+      }
+      p.paid = d.paid; p.adminNote = d.adminNote;
+      this.flash(p.id);
+      this.closeDrawer();
+      this.toast({ text: 'Changes to ' + this.primaryOf(p).rsn + ' saved' });
+    }, () => {
+      this.setState(s => ({ drawer: s.drawer && { ...s.drawer, saving: false, saveError: true } }), () => this.focusId('save-retry'));
+    });
+  }
+
+  /* ---------------- add drawer ---------------- */
+  openAdd() {
+    const ev = this.ev(); if (ev.locked) return;
+    this.drawerReturn = document.getElementById('add-btn');
+    this.setState({ drawer: { mode: 'add', q: '', userId: null, sel: {}, primary: null, place: this.spotsLeft(ev) > 0 ? 'confirmed' : 'waiting', paid: false, showErrors: false, saving: false, saveError: false, closing: false }, menu: null }, () => this.focusId('add-search', { preventScroll: true }));
+  }
+  updAdd(patch) { this.setState(s => (s.drawer && s.drawer.mode === 'add' ? { drawer: { ...s.drawer, ...(typeof patch === 'function' ? patch(s.drawer) : patch) } } : null)); }
+  accEligibility(ev, u, a) {
+    if (a.ehb == null) return 'No saved EHB — update the account first';
+    const q = this.inEventByRsn(ev, a.rsn, null); if (q) return 'Already in this event';
+    return '';
+  }
+  pickUser(uid) {
+    const ev = this.ev(); const u = this.userById(uid);
+    const ok = u.saved.filter(a => !this.accEligibility(ev, u, a));
+    const sel = {}; let primary = null;
+    if (ok.length === 1) { sel[ok[0].id] = true; primary = ok[0].id; }
+    this.updAdd({ userId: uid, sel, primary });
+    const first = ok[0];
+    this.focusId(first ? 'addacc-' + first.id : 'add-change', { preventScroll: true });
+  }
+  submitAdd() {
+    const dr = this.state.drawer; if (!dr || dr.saving) return;
+    const ev = this.ev();
+    if (ev.locked) { this.updAdd({ saveError: false }); this.guardRoster(); return; }
+    const selIds = Object.keys(dr.sel).filter(k => dr.sel[k]);
+    if (!dr.userId) { this.updAdd({ showErrors: true }); this.focusId('add-search'); return; }
+    if (!selIds.length) { this.updAdd({ showErrors: true }); this.focusId('add-accounts'); const u = this.userById(dr.userId); const f = u.saved.find(a => !this.accEligibility(ev, u, a)); if (f) this.focusId('addacc-' + f.id); return; }
+    this.updAdd({ saving: true, saveError: false, showErrors: true });
+    this.sim(750, () => {
+      const u = this.userById(dr.userId);
+      const accs = u.saved.filter(a => dr.sel[a.id]).map(a => ({ id: a.id, rsn: a.rsn, ehb: a.ehb }));
+      // Places open -> confirmed. Full -> waiting, unless the admin chose "Confirm and add a place".
+      const full = this.spotsLeft(ev) <= 0;
+      const place = full ? dr.place : 'confirmed';
+      const added = full && place === 'confirmed';
+      if (added) ev.capacity += 1;
+      const maxOrder = ev.participants.reduce((m, p) => Math.max(m, p.order), 0);
+      const p = { id: 'p' + (5000 + this.seq++), userId: u.id, accounts: accs, primaryId: dr.primary && dr.sel[dr.primary] ? dr.primary : accs[0].id, alt: null, status: place, queue: place === 'waiting' ? 9999 : null, paid: dr.paid, captain: 'no', coCaptain: '', team: null, order: maxOrder + 1, signedAt: Date.now(), source: 'Added by admin (@nils)', note: '', adminNote: '', prev: null };
+      ev.participants.push(p); this.normQueue(ev);
+      const name = this.primaryOf(p).rsn;
+      this.closeDrawer(); this.flash(p.id);
+      this.toast({ text: name + ' added to ' + (place === 'confirmed' ? 'confirmed' : 'the waiting list (#' + p.queue + ')') + (added ? ' · capacity now ' + ev.capacity : ''), action: { label: 'Show', run: () => { this.setState({ tab: place, q: name, pay: 'any', page: 1, nav: 'participants' }); this.flash(p.id); } } });
+    }, () => { this.updAdd({ saving: false, saveError: true }); this.focusId('save-retry'); });
+  }
+  listKey(e) { DKAdmin.listKeydown(e, 'add-results', 'button.res:not([disabled])', 'add-search'); }
+
+  /* ---------------- view models ---------------- */
+  vmTable(ev) {
+    const S = this.state;
+    const all = ev.participants;
+    const c = this.counts(ev);
+    const q = S.q.trim().toLowerCase();
+    const matchQ = p => { if (!q) return true; const u = this.userById(p.userId); return [...p.accounts.map(a => a.rsn), p.alt || '', u.username, u.discord || ''].join('\n').toLowerCase().includes(q); };
+    const list = all.filter(p => (S.tab === 'all' || p.status === S.tab) && (S.pay === 'any' || (S.pay === 'paid' ? p.paid : !p.paid)) && matchQ(p));
+    const sk = this.effSort(); const dir = S.sortDir === 'desc' ? -1 : 1;
+    const rank = { confirmed: 0, waiting: 1, withdrawn: 2 }; const capR = { yes: 0, no: 1 };
+    const cmp = {
+      name: (a, b) => this.primaryOf(a).rsn.localeCompare(this.primaryOf(b).rsn),
+      status: (a, b) => rank[a.status] - rank[b.status] || (a.queue || 0) - (b.queue || 0),
+      ehb: (a, b) => this.primaryOf(a).ehb - this.primaryOf(b).ehb,
+      paid: (a, b) => (a.paid ? 1 : 0) - (b.paid ? 1 : 0),
+      captain: (a, b) => capR[a.captain] - capR[b.captain] || (b.coCaptain ? 1 : 0) - (a.coCaptain ? 1 : 0),
+      team: (a, b) => (a.team || '').localeCompare(b.team || ''),
+      signup: (a, b) => a.order - b.order
+    };
+    list.sort((a, b) => {
+      if (sk === 'team' && !!a.team !== !!b.team) return a.team ? -1 : 1;
+      return cmp[sk](a, b) * dir || a.order - b.order;
+    });
+    const n = list.length; const per = S.perPage;
+    const pageCount = Math.max(1, Math.ceil(n / per)); const page = Math.min(S.page, pageCount);
+    const start = (page - 1) * per; const slice = list.slice(start, start + per);
+    const dr = S.drawer; const menu = S.menu;
+    const rows = slice.map(p => {
+      const u = this.userById(p.userId); const prim = this.primaryOf(p);
+      const extra = p.accounts.length - 1;
+      const subParts = ['@' + u.username];
+      if (extra > 0) subParts.push('+' + extra + ' account' + (extra > 1 ? 's' : ''));
+      if (p.alt) subParts.push('alt ' + p.alt);
+      const busy = !!S.busy[p.id];
+      const capMap = { yes: 'Volunteer', no: 'No' };
+      return {
+        id: p.id, openId: 'open-' + p.id, rsn: prim.rsn, sub: subParts.join(' · '), openLabel: 'Open details for ' + prim.rsn,
+        cls: [p.status === 'withdrawn' ? 'is-withdrawn' : '', dr && dr.pid === p.id ? 'is-selected' : '', S.flash === p.id ? 'is-flash' : ''].join(' '),
+        hasAdminNote: !!p.adminNote, hasNote: !!p.note,
+        statusCls: this.statusTone(p), statusLabel: this.statusText(p, ev),
+        ehb: this.fmtEhb(prim.ehb),
+        paid: p.paid, busy, payDisabled: busy || !ev.privateEditable, payCls: (p.paid ? 'is-paid' : 'is-unpaid') + (busy ? ' is-busy' : ''), payLabel: p.paid ? 'Paid' : 'Unpaid',
+        showPaidIc: !busy && p.paid, showUnpaidIc: !busy && !p.paid,
+        payAria: 'Payment for ' + prim.rsn + ': ' + (p.paid ? 'paid' : 'unpaid') + '. Activate to mark as ' + (p.paid ? 'unpaid' : 'paid') + '.',
+        payTitle: 'Mark as ' + (p.paid ? 'unpaid' : 'paid'),
+        cap: capMap[p.captain], capCls: p.captain === 'yes' ? '' : 'muted',
+        capTitle: undefined,
+        hasCapSub: p.captain === 'yes' && !!p.coCaptain, capSub: 'with ' + p.coCaptain,
+        team: p.team || (p.status === 'withdrawn' ? '—' : 'Unassigned'), teamCls: p.team ? '' : 'muted',
+        order: p.order, date: this.fmtDate(p.signedAt),
+        menuOpen: !!(menu && menu.kind === 'row' && menu.pid === p.id), menuCls: menu && menu.kind === 'row' && menu.pid === p.id ? 'is-open' : '',
+        menuLabel: 'Actions for ' + prim.rsn,
+        rowClick: e => { if (e.target.closest('button,a,input,label')) return; this.openEdit(p.id, null); },
+        open: e => { e.stopPropagation(); this.openEdit(p.id, e.currentTarget); },
+        togglePay: e => { e.stopPropagation(); this.setPaid(p.id, !p.paid); },
+        openMenu: e => this.openMenu('row', e, p.id)
+      };
+    });
+    const pages = DKAdmin.pageList(page, pageCount).map(x => x.gap ? { isGap: true, isBtn: false }
+      : { isBtn: true, isGap: false, label: String(x.page), cls: x.page === page ? 'is-current' : '', current: x.page === page ? 'page' : undefined, aria: 'Page ' + x.page, go: () => this.setState({ page: x.page }) });
+    const colDefs = [['name', 'Participant', 'c-name'], ['status', 'Status', ''], ['ehb', 'Draft EHB', 'num'], ['paid', 'Payment', ''], ['captain', 'Captain', 'c-cap'], ['team', 'Team', 'c-team'], ['signup', 'Signed up', 'c-signed'], ['act', 'Actions', 'c-act']];
+    const cols = colDefs.map(([k, label, cls]) => {
+      const sortable = k !== 'act'; const on = sortable && sk === k;
+      return { label, sortable, plain: !sortable, cls: cls + (on ? ' is-sorted' : ''), ariaSort: sortable ? (on ? (S.sortDir === 'asc' ? 'ascending' : 'descending') : 'none') : undefined, dirCls: on ? (S.sortDir === 'asc' ? 'is-asc' : 'is-desc') : '', sort: () => this.setSort(k) };
+    });
+    // empty states
+    let empty = { show: false };
+    const filtersOn = !!q || S.pay !== 'any';
+    if (!S.loading) {
+      if (S.loadError) empty = { show: true, cls: 'is-error', isError: true, title: 'Couldn’t load participants', text: 'The roster for ' + ev.name + ' didn’t load. Your filters are kept.', hasAction: true, actionLabel: 'Try again', action: () => this.retryLoad() };
+      else if (!all.length) empty = { show: true, isPeople: true, title: 'No participants yet', text: 'People appear here when they sign up, or you can add someone from an existing website account.', hasAction: !ev.locked, actionLabel: 'Add participant', action: () => this.openAdd() };
+      else if (!n && filtersOn) empty = { show: true, isSearch: true, title: 'No matches', text: 'No ' + (S.tab === 'all' ? '' : { confirmed: 'confirmed ', waiting: 'waiting ', withdrawn: 'withdrawn ' }[S.tab]) + 'participants match ' + (q ? '“' + S.q.trim() + '”' : 'this filter') + (q && S.pay !== 'any' ? ' with ' + S.pay + ' payment' : '') + '.', hasAction: true, actionLabel: 'Clear search and filters', action: () => { this.setState({ q: '', pay: 'any', page: 1 }); this.focusId('search-input'); } };
+      else if (!n) empty = { show: true, isPeople: true, title: { confirmed: 'No confirmed participants', waiting: 'The waiting list is empty', withdrawn: 'No one has withdrawn', all: 'No participants' }[S.tab], text: { confirmed: 'Confirm people from the waiting list or add them directly.', waiting: 'People join the waiting list once the confirmed roster is full.', withdrawn: 'Withdrawn participants are kept here and can be restored.', all: '' }[S.tab], hasAction: false };
+    }
+    const tabDefs = [['confirmed', 'Confirmed', c.confirmed], ['waiting', 'Waiting list', c.waiting], ['withdrawn', 'Withdrawn', c.withdrawn], ['all', 'All', all.length]];
+    return {
+      sum: { confirmed: c.confirmed, capacity: ev.capacity, waiting: c.waiting, unpaid: c.unpaid },
+      hasAny: all.length > 0, noneAtAll: all.length === 0,
+      tabs: tabDefs.map(([k, label, count]) => ({ label, count, on: S.tab === k, cls: S.tab === k ? 'is-on' : '', pick: () => this.setState({ tab: k, page: 1, sortKey: 'default', sortDir: 'asc' }) })),
+      payFilters: [['any', 'Any'], ['paid', 'Paid'], ['unpaid', 'Unpaid']].map(([k, label]) => ({ label, on: S.pay === k, cls: S.pay === k ? 'is-on' : '', pick: () => this.setState({ pay: k, page: 1 }) })),
+      cols, rows, pages, empty,
+      showRows: !S.loading && !S.loadError && n > 0,
+      showFooter: !S.loadError && all.length > 0 && (S.loading || n > 0),
+      skeleton: [1, 2, 3, 4, 5, 6, 7, 8],
+      rangeText: S.loading ? 'Loading…' : (n ? (start + 1) + '–' + Math.min(start + per, n) + ' of ' + n : '0 results'),
+      prevDisabled: page <= 1 || S.loading, nextDisabled: page >= pageCount || S.loading,
+      prevPage: () => this.setState({ page: Math.max(1, page - 1) }), nextPage: () => this.setState({ page: Math.min(pageCount, page + 1) }),
+      navCount: all.length
+    };
+  }
+
+  vmMenu() {
+    const m = this.state.menu;
+    if (!m) return { show: false, items: [], x: 0, y: 0, w: 236 };
+    const items = this.menuItems(m.kind, m.pid).map(it => {
+      if (it.type === 'sep') return { isSep: true };
+      if (it.type === 'header') return { isHeader: true, label: it.label, hint: it.hint };
+      return {
+        isItem: true, label: it.label, hint: it.hint || '', disabled: !!it.disabled, title: it.title || (it.hint === 'Locked' ? this.ev().lockReason : undefined),
+        cls: (it.danger ? 'is-danger' : ''), role: it.checkbox ? 'menuitemcheckbox' : (it.check !== undefined ? 'menuitemradio' : 'menuitem'),
+        checked: it.checkbox ? !!it.checked : (it.check !== undefined ? !!it.check : undefined),
+        showCheck: !!(it.checked || it.check),
+        run: () => {
+          if (it.disabled) return;
+          const ret = this.menuReturn;
+          this.closeMenu(false);
+          if (!it.overlay) this.restoreFocus(ret);
+          it.action(ret);
+        }
+      };
+    });
+    const label = m.kind === 'event' ? 'Events' : m.kind === 'user' ? 'Account' : 'Participant actions';
+    return { show: true, items, x: m.x, y: m.y, w: m.w, cls: (m.up ? 'is-up' : '') + (m.closing ? ' is-closing' : ''), label, close: () => this.closeMenu(true), onKey: e => this.menuKey(e) };
+  }
+
+  vmEdit(ev) {
+    const S = this.state; const dr = S.drawer;
+    const stub = { accounts: [], readAccounts: [], details: [], ownerOpts: [], capOpts: [] };
+    if (!dr || dr.mode !== 'edit') return stub;
+    const p = this.pById(dr.pid); if (!p) return stub;
+    const u = this.userById(p.userId); const d = dr.draft; const locked = ev.locked;
+    const err = this.validateEdit(p, d);
+    const show = id => ((dr.showErrors || dr.touched[id]) ? (err[id] || '') : '');
+    const live = d.accounts.filter(a => !a.removing);
+    const prim = live.find(a => a.key === d.primaryKey) || live[0];
+    const accounts = d.accounts.map(a => {
+      const rid = 'rsn-' + a.key, eid = 'ehb-' + a.key; const re = show(rid), ee = show(eid);
+      const nm = a.rsn.trim() || 'new account';
+      return {
+        key: a.key, rsn: a.rsn, ehb: a.ehb, isPrimary: a.key === d.primaryKey, rsnId: rid, ehbId: eid, rsnErrId: 'e-' + rid, ehbErrId: 'e-' + eid,
+        rsnErr: re, ehbErr: ee, hasRsnErr: !!re, hasEhbErr: !!ee, rsnInvalid: !!re, ehbInvalid: !!ee, rsnCls: re ? 'is-invalid' : '', ehbCls: ee ? 'is-invalid' : '',
+        rowCls: a.removing ? 'is-removing' : '', hint: a.hint || '', hasHint: !!a.hint && !re,
+        primaryAria: 'Use ' + nm + ' as primary account', rsnAria: 'RSN for ' + nm, ehbAria: 'EHB for ' + nm,
+        setPrimary: () => this.updDraft(x => { x.primaryKey = a.key; }),
+        onRsn: e => { const v = e.target.value.slice(0, 12); this.updDraft(x => { x.accounts = x.accounts.map(y => (y.key === a.key ? { ...y, rsn: v, hint: '' } : y)); }); },
+        onEhb: e => { const v = e.target.value; this.updDraft(x => { x.accounts = x.accounts.map(y => (y.key === a.key ? { ...y, ehb: v, hint: '' } : y)); }); },
+        onRsnBlur: () => this.rsnBlur(a.key), onEhbBlur: () => this.touch(eid),
+        remove: () => this.removeAcct(a.key), removeDisabled: live.length <= 1 || !!a.removing,
+        removeLabel: 'Remove ' + nm, removeTitle: live.length <= 1 ? 'At least one playing account is required' : 'Remove account'
+      };
+    });
+    const inDraft = new Set(live.map(a => a.rsn.trim().toLowerCase()));
+    const ownerOpts = u.saved.filter(a => !inDraft.has(a.rsn.toLowerCase())).map(a => ({ rsn: a.rsn, hint: a.ehb == null ? 'No saved EHB' : this.fmtEhb(a.ehb) + ' EHB saved' }));
+    const primEhb = prim && /^\d+(\.\d+)?$/.test(String(prim.ehb).trim()) ? this.fmtEhb(prim.ehb) : '—';
+    const errCount = Object.keys(err).length;
+    const dirty = this.draftSig(d) !== dr.orig;
+    const captainOpts = [['yes', 'Yes'], ['no', 'No']];
+    const slots = this.slotsOf(ev); const slotsFull = live.length >= slots;
+    const statusLong = p.status === 'confirmed' ? 'Confirmed' : p.status === 'waiting' ? 'Waiting list · #' + p.queue + ' of ' + this.counts(ev).waiting : 'Withdrawn';
+    const pNote = p.note ? '“' + p.note + '”' : (p.source.indexOf('admin') >= 0 ? 'Added by an admin — no note.' : 'No note left at signup.');
+    const details = [
+      { k: 'Signup order', v: '#' + p.order + ' of ' + ev.participants.length },
+      { k: 'Signed up', v: this.fmtDateTime(p.signedAt) },
+      { k: 'Source', v: p.source },
+      { k: 'Website account', v: '@' + u.username + ' · ID ' + u.num },
+      { k: 'Member since', v: new Date(u.joined).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }) },
+      { k: 'Discord', v: u.discord ? u.discord + ' · linked' : 'Not linked', cls: u.discord ? '' : 'muted' }
+    ];
+    return {
+      title: this.primaryOf(p).rsn, username: u.username,
+      statusCls: this.statusTone(p), statusLabel: this.statusText(p, ev), statusLong,
+      teamLabel: p.team ? p.team : 'No team yet',
+      locked, editable: !locked,
+      paid: d.paid, unpaid: !d.paid, payDisabled: !ev.privateEditable, paidCls: (d.paid ? 'is-on' : '') + (ev.privateEditable ? '' : ' is-disabled'), unpaidCls: (d.paid ? '' : 'is-on') + (ev.privateEditable ? '' : ' is-disabled'),
+      setPaid: () => this.updDraft(x => { x.paid = true; }), setUnpaid: () => this.updDraft(x => { x.paid = false; }),
+      payChanged: d.paid !== p.paid, payWas: p.paid ? 'paid' : 'unpaid',
+      accounts, ownerOpts,
+      readAccounts: p.accounts.map(a => ({ rsn: a.rsn, ehb: this.fmtEhb(a.ehb), isPrimary: a.id === p.primaryId })),
+      addAcct: () => this.addAcct(),
+      addDisabled: slotsFull, addTitle: slotsFull ? 'All ' + slots + ' account slots for this event are used' : undefined,
+      slotText: live.length + ' of ' + slots + ' account slots',
+      draftValue: locked ? this.fmtEhb(this.primaryOf(p).ehb) : primEhb,
+      alt: d.alt, onAlt: e => { const v = e.target.value.slice(0, 12); this.updDraft(x => { x.alt = v; }); }, onAltBlur: () => this.touch('alt-input'),
+      altErr: show('alt-input'), hasAltErr: !!show('alt-input'), altInvalid: !!show('alt-input'), altCls: show('alt-input') ? 'is-invalid' : '',
+      altRo: p.alt || 'None', altRoCls: p.alt ? '' : 'muted',
+      capOpts: captainOpts.map(([k, label]) => ({ label, on: d.captain === k, cls: (d.captain === k ? 'is-on' : '') + (locked ? ' is-disabled' : ''), disabled: locked, pick: () => this.updDraft(x => { x.captain = k; }) })),
+      coCap: d.coCaptain, onCoCap: e => { const v = e.target.value.slice(0, 40); this.updDraft(x => { x.coCaptain = v; }); },
+      coCapDisabled: locked || d.captain !== 'yes', coCapPlaceholder: d.captain === 'yes' ? 'No request' : 'Only for captain volunteers',
+      pNote, pNoteCls: p.note ? '' : 'is-empty',
+      adminNote: d.adminNote, onAdminNote: e => { const v = e.target.value.slice(0, 500); this.updDraft(x => { x.adminNote = v; }); },
+      noteCount: d.adminNote.length > 350 ? d.adminNote.length + ' / 500' : '', noteCountCls: d.adminNote.length > 450 ? 'is-near' : '',
+      details, detailsOpen: S.detailsOpen, detailsCls: S.detailsOpen && !S.detailsClosing ? 'is-open' : '', kvCls: S.detailsClosing ? 'is-closing' : '',
+      toggleDetails: () => {
+        if (!this.state.detailsOpen) { this.setState({ detailsOpen: true, detailsClosing: false }); return; }
+        if (this.state.detailsClosing) return;
+        this.setState({ detailsClosing: true }, () => DKAdmin.afterExit(this, '#signup-details', () => this.setState({ detailsOpen: false, detailsClosing: false })));
+      },
+      canWithdraw: p.status !== 'withdrawn', canRestore: p.status === 'withdrawn',
+      statusTitle: locked ? ev.lockReason : '',
+      withdraw: e => this.openModal('withdraw', { pid: p.id }, e.currentTarget), restore: e => this.openModal('restore', { pid: p.id }, e.currentTarget),
+      dirty, saving: dr.saving, busyCls: dr.saving ? 'is-busy' : '', saveDisabled: dr.saving || !dirty, saveLabel: dr.saving ? 'Saving…' : 'Save changes', save: () => this.save(),
+      saveError: dr.saveError,
+      hasErrSummary: dr.showErrors && errCount > 0 && !dr.saving,
+      errSummary: errCount === 1 ? 'Fix the highlighted field to save.' : 'Fix the ' + errCount + ' highlighted fields to save.'
+    };
+  }
+
+  vmAdd(ev) {
+    const S = this.state; const dr = S.drawer;
+    const stub = { results: [], accounts: [], user: {} };
+    if (!dr || dr.mode !== 'add') return stub;
+    const inEv = uid => ev.participants.find(p => p.userId === uid);
+    const q = dr.q.trim().toLowerCase();
+    let users;
+    if (q) users = this.world.users.filter(u => (u.username + '\n' + (u.discord || '') + '\n' + u.saved.map(a => a.rsn).join('\n')).toLowerCase().includes(q)).slice(0, 8);
+    else users = this.world.users.slice().sort((a, b) => b.joined - a.joined).slice(0, 6);
+    const results = users.map(u => {
+      const pe = inEv(u.id);
+      const matched = q && u.saved.find(a => a.rsn.toLowerCase().includes(q) && !u.username.toLowerCase().includes(q));
+      const rsnList = u.saved.map(a => a.rsn).join(', ');
+      return {
+        username: u.username, initials: this.initials(u),
+        sub: (matched ? 'Owns ' + matched.rsn : rsnList) + (u.discord ? ' · ' + u.discord : ' · Discord not linked'),
+        disabled: !!pe, note: pe ? (pe.status === 'withdrawn' ? 'Withdrawn · restore instead' : 'Already in event') : u.saved.length + ' saved account' + (u.saved.length > 1 ? 's' : ''),
+        pick: () => this.pickUser(u.id)
+      };
+    });
+    const u = dr.userId ? this.userById(dr.userId) : null;
+    const selCount = Object.keys(dr.sel).filter(k => dr.sel[k]).length;
+    const slots = this.slotsOf(ev);
+    const accounts = u ? u.saved.map(a => {
+      const checked = !!dr.sel[a.id];
+      const reason = this.accEligibility(ev, u, a) || (!checked && selCount >= slots ? 'All ' + slots + ' account slots are used' : '');
+      return {
+        id: a.id, cbId: 'addacc-' + a.id, rsn: a.rsn, ehbText: a.ehb == null ? 'No EHB' : this.fmtEhb(a.ehb) + ' EHB', ehbCls: a.ehb == null ? 'is-missing' : '',
+        checked, disabled: !!reason, reason, hasReason: !!reason,
+        cls: reason ? 'is-disabled' : (checked ? 'is-checked' : ''),
+        isPrimary: dr.primary === a.id, primDisabled: !checked, primCls: checked ? '' : 'is-hidden',
+        toggle: () => this.updAdd(d => {
+          if (!d.sel[a.id] && Object.keys(d.sel).filter(k => d.sel[k]).length >= slots) return {};
+          const sel = { ...d.sel, [a.id]: !d.sel[a.id] }; let primary = d.primary;
+          if (sel[a.id] && !primary) primary = a.id;
+          if (!sel[a.id] && primary === a.id) primary = Object.keys(sel).find(k => sel[k]) || null;
+          return { sel, primary };
+        }),
+        setPrimary: () => this.updAdd({ primary: a.id })
+      };
+    }) : [];
+    const prim = u && dr.primary ? u.saved.find(a => a.id === dr.primary) : null;
+    const left = this.spotsLeft(ev); const waitN = this.counts(ev).waiting;
+    const userErr = dr.showErrors && !u ? 'Choose a website account.' : '';
+    const accErr = dr.showErrors && u && !selCount ? (accounts.some(a => !a.disabled) ? 'Select at least one playing account.' : 'This account has no playing accounts that can be added.') : '';
+    const full = left <= 0; const cap = ev.capacity;
+    const capHint = full && dr.place === 'confirmed' ? 'Capacity will increase from ' + cap + ' to ' + (cap + 1) + ' when you add this participant.' : '';
+    return {
+      q: dr.q, onQ: e => this.updAdd({ q: e.target.value }),
+      onQKey: e => { if (e.key === 'ArrowDown') { e.preventDefault(); const c = document.getElementById('add-results'); const f = c && c.querySelector('button.res:not([disabled])'); if (f) f.focus(); } },
+      onListKey: e => this.listKey(e),
+      noUser: !u, hasUser: !!u,
+      results, noResults: !!q && !results.length, resultsLabel: q ? (results.length ? results.length + ' match' + (results.length > 1 ? 'es' : '') : 'No matches') : 'Recently joined',
+      user: u ? { username: u.username, initials: this.initials(u), sub: (u.discord ? u.discord : 'Discord not linked') + ' · ID ' + u.num } : {},
+      changeUser: () => { this.updAdd({ userId: null, sel: {}, primary: null }); this.focusId('add-search'); },
+      userErr, hasUserErr: !!userErr, userInvalid: !!userErr, userCls: userErr ? 'is-invalid' : '',
+      accounts, accErr, hasAccErr: !!accErr,
+      hasDraft: !!prim, draftValue: prim ? this.fmtEhb(prim.ehb) : '—',
+      slots,
+      pcOn: dr.place === 'confirmed', pwOn: dr.place === 'waiting', pwDisabled: !full,
+      pcCls: dr.place === 'confirmed' ? 'is-on' : '', pwCls: !full ? 'is-disabled' : (dr.place === 'waiting' ? 'is-on' : ''),
+      pcTitle: full ? 'Confirm and add a place' : 'Confirmed',
+      pcSub: full ? 'Full · capacity ' + cap + ' → ' + (cap + 1) : left + ' of ' + cap + ' spots left',
+      pwSub: full ? 'Joins at #' + (waitN + 1) : 'Only when the event is full',
+      capHint, hasCapHint: !!capHint,
+      setPc: () => this.updAdd({ place: 'confirmed' }), setPw: () => this.updAdd({ place: 'waiting' }),
+      paid: dr.paid, unpaid: !dr.paid, paidCls: dr.paid ? 'is-on' : '', unpaidCls: dr.paid ? '' : 'is-on',
+      setPaid: () => this.updAdd({ paid: true }), setUnpaid: () => this.updAdd({ paid: false }),
+      saving: dr.saving, busyCls: dr.saving ? 'is-busy' : '', saveError: dr.saveError, submitLabel: dr.saving ? 'Adding…' : 'Add participant', submit: () => this.submitAdd()
+    };
+  }
+
+  vmModal(ev) {
+    const m = this.state.modal;
+    if (!m) return { show: false };
+    const base = { show: true, closingCls: m.closing ? 'is-closing' : '', busy: m.busy, busyCls: m.busy ? 'is-busy' : '', error: m.error, hasError: !!m.error, confirm: () => this.confirmModal(),
+      dismiss: () => { if (!m.busy) this.closeModal(); },
+      onKey: e => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); if (!m.busy) this.closeModal(); } else this.trap(e, 'modal'); } };
+    if (m.kind === 'discard') {
+      const dr = this.state.drawer; const p = dr && dr.pid ? this.pById(dr.pid) : null;
+      return { ...base, title: 'Discard unsaved changes?', body: p ? 'Your changes to ' + this.primaryOf(p).rsn + ' haven’t been saved.' : 'This participant hasn’t been added yet.', cancelLabel: 'Keep editing', confirmLabel: 'Discard', confirmCls: 'btn-danger' };
+    }
+    const p = this.pById(m.pid); const name = this.primaryOf(p).rsn;
+    if (m.kind === 'withdraw') {
+      const next = this.firstWaiting(ev);
+      let body;
+      if (p.status === 'confirmed') body = next ? name + ' will leave the confirmed roster, and ' + this.primaryOf(next).rsn + ', next on the waiting list, will take their place.' : name + ' will leave the confirmed roster. Nobody is waiting, so their place stays open for the next signup.';
+      else body = name + ' will leave the waiting list and everyone behind them moves up. No confirmed place is freed.';
+      if (p.team) body += ' They’ll also be removed from ' + p.team + '.';
+      if (p.paid) body += ' Their payment stays recorded — handle any refund separately.';
+      body += ' You can restore them later.';
+      return { ...base, title: 'Withdraw ' + name + '?', body,
+        cancelLabel: 'Cancel', confirmLabel: m.busy ? 'Withdrawing…' : 'Withdraw', confirmCls: 'btn-danger' };
+    }
+    const left = this.spotsLeft(ev); const waitN = this.counts(ev).waiting; const cap = ev.capacity; const full = left <= 0;
+    if (m.kind === 'confirmFull') {
+      return { ...base, title: 'Confirm ' + name + ' and add a place?', body: ev.name + ' is full (' + cap + '/' + cap + '). Capacity increases to ' + (cap + 1) + ' and ' + name + ' gets the new place. Nobody else is promoted, and everyone else on the waiting list keeps their order.',
+        cancelLabel: 'Cancel', confirmLabel: m.busy ? 'Confirming…' : 'Confirm and add a place', confirmCls: 'btn-primary' };
+    }
+    if (m.kind === 'toWaiting') {
+      const next = this.firstWaiting(ev);
+      let body = name + ' goes to the end of the waiting list (#' + (waitN + 1 - (next ? 1 : 0)) + ')' + (next ? ', and ' + this.primaryOf(next).rsn + ', next on the waiting list, takes their confirmed place.' : '.');
+      if (p.team) body += ' They’ll also be removed from ' + p.team + '.';
+      return { ...base, title: 'Move ' + name + ' to the waiting list?', body,
+        cancelLabel: 'Cancel', confirmLabel: m.busy ? 'Moving…' : 'Move to waiting list', confirmCls: 'btn-primary' };
+    }
+    const addPlace = full && m.choice === 'confirmed';
+    return { ...base, title: 'Restore ' + name + '?', body: (full ? ev.name + ' is full, so they return to the waiting list unless you add a place.' : 'A place is open, so they return as confirmed.') + ' Their accounts, answers and notes were kept.', hasChoice: true,
+      wOn: m.choice === 'waiting', cOn: m.choice === 'confirmed', wDisabled: !full,
+      wCls: !full ? 'is-disabled' : (m.choice === 'waiting' ? 'is-on' : ''), cCls: m.choice === 'confirmed' ? 'is-on' : '',
+      wSub: full ? 'Joins at #' + (waitN + 1) : 'Only when the event is full',
+      cTitle: full ? 'Confirm and add a place' : 'Confirmed',
+      cSub: full ? 'Capacity ' + cap + ' → ' + (cap + 1) + ', and they get the new place' : left + ' spot' + (left > 1 ? 's' : '') + ' left',
+      setW: () => this.setState(s => ({ modal: { ...s.modal, choice: 'waiting' } })), setC: () => this.setState(s => ({ modal: { ...s.modal, choice: 'confirmed' } })),
+      cancelLabel: 'Cancel', confirmLabel: m.busy ? 'Restoring…' : (addPlace ? 'Restore and add a place' : 'Restore'), confirmCls: 'btn-primary' };
+  }
+
+  renderVals() {
+    const S = this.state; const ev = this.ev();
+    const T = this.vmTable(ev);
+    const NAV = [['overview', 'Overview'], ['identity', 'Identity'], ['schedule', 'Schedule'], ['participants', 'Participants'], ['signup', 'Signup setup'], ['teams', 'Teams / Draft'], ['board', 'Board'], ['wom', 'WOM'], ['review', 'Review'], ['final', 'Final review']];
+    const COMM = [['dashboard', 'Dashboard'], ['events', 'Events'], ['catalogue', 'Catalogue'], ['accounts', 'Accounts'], ['audit', 'Audit']];
+    const titles = {}; NAV.concat(COMM).forEach(([k, l]) => { titles[k] = l; });
+    const nav = {};
+    NAV.concat(COMM).forEach(([k, label]) => { nav[k] = { count: k === 'participants' ? String(T.navCount) : '', cls: S.nav === k ? 'is-current' : '', current: S.nav === k ? 'page' : undefined, tip: (S.sideOpen || this.isMobile()) ? undefined : label, go: () => { this.setState({ nav: k, menu: null }); this.closeMobileNav(false); } }; });
+    const dr = S.drawer; const overlay = !!(dr || S.modal);
+    const drVm = dr ? {
+      show: true, isEdit: dr.mode === 'edit', isAdd: dr.mode === 'add', closingCls: dr.closing ? 'is-closing' : '',
+      requestClose: () => this.requestClose(),
+      onKey: e => { if (e.key === 'Escape') { e.preventDefault(); this.requestClose(); } else this.trap(e, 'drawer'); }
+    } : { show: false };
+    const toasts = DKAdmin.toastView(this);
+    const isParticipants = S.nav === 'participants';
+    return Object.assign({}, T, {
+      themeClass: S.theme === 'dark' ? 'theme-dark' : 'theme-light',
+      isLight: S.theme === 'light', isDark: S.theme === 'dark', lightCls: S.theme === 'light' ? 'is-on' : '', darkCls: S.theme === 'dark' ? 'is-on' : '',
+      setLight: () => this.setState({ theme: 'light' }), setDark: () => this.setState({ theme: 'dark' }),
+      ev: { name: ev.name, stage: ev.stage, when: ev.when, toneCls: 'tone-' + ev.tone },
+      locked: ev.locked, addTitle: ev.locked ? ev.lockReason : '', lockTitle: ev.lockReason || '', lockBanner: ev.lockReason || '',
+      nav, sideCls: (S.sideOpen ? '' : 'is-collapsed') + (S.mobileNav ? ' is-mobile-open' : ''), sideOpen: this.isMobile() ? S.mobileNav : S.sideOpen, sideTip: (S.sideOpen || this.isMobile()) ? undefined : 'Iron Pact · Administrator',
+      mobileNav: S.mobileNav, navScrimCls: S.mobileNav ? 'is-on' : '',
+      openMobileNav: e => this.openMobileNav(e), closeMobileNav: () => this.closeMobileNav(),
+      sideKey: e => { if (!this.state.mobileNav || this.state.menu) return; if (e.key === 'Escape') { e.preventDefault(); this.closeMobileNav(); } else this.trap(e, 'sidebar'); },
+      rowsAnim: S.viewKey % 2 ? 'swap-a' : 'swap-b',
+      evTip: (S.sideOpen || this.isMobile()) ? undefined : ev.name + ' · ' + ev.stage,
+      collapseLabel: this.isMobile() ? 'Close navigation' : (S.sideOpen ? 'Collapse sidebar' : 'Expand sidebar'), collapseArrowCls: (S.sideOpen || this.isMobile()) ? '' : 'is-flip',
+      toggleSide: () => { if (this.isMobile()) { this.closeMobileNav(); return; } this.setState(s => ({ sideOpen: !s.sideOpen, menu: null })); },
+      isParticipants, isOther: !isParticipants, pageTitle: titles[S.nav] || 'Participants',
+      otherScope: ['dashboard', 'events', 'catalogue', 'accounts', 'audit'].indexOf(S.nav) >= 0 ? 'Community-wide' : ev.name,
+      goParticipants: () => this.setState({ nav: 'participants' }), goEvents: () => this.setState({ nav: 'events' }),
+      eventMenuOpen: !!(S.menu && S.menu.kind === 'event'), userMenuOpen: !!(S.menu && S.menu.kind === 'user'),
+      openEventMenu: e => this.openMenu('event', e), openUserMenu: e => this.openMenu('user', e),
+      scrollCls: (overlay || S.mobileNav) ? 'is-locked' : '',
+      onScroll: () => { if (this.state.menu && this.state.menu.kind === 'row') this.closeMenu(false); },
+      loading: S.loading, scrollXCls: S.scrollX ? 'is-scroll' : '',
+      q: S.q, hasQ: !!S.q, searchCls: S.q ? 'has-clear' : '',
+      onSearch: e => this.setState({ q: e.target.value, page: 1 }),
+      onSearchKey: e => { if (e.key === 'Escape' && this.state.q) { e.preventDefault(); this.setState({ q: '', page: 1 }); } },
+      clearSearch: () => { this.setState({ q: '', page: 1 }); this.focusId('search-input'); },
+      perPageStr: String(S.perPage), onPerPage: e => this.setState({ perPage: Number(e.target.value), page: 1 }),
+      openAdd: () => this.openAdd(),
+      menu: this.vmMenu(),
+      dr: drVm, e: this.vmEdit(ev), ad: this.vmAdd(ev), md: this.vmModal(ev),
+      toasts
+    });
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,36 @@
+Checkout: /Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage
+Branch/base: codex/participants-functionality / 993c90e9835d1f2d74fc9c03ed4d8f6306a7e37c
+
+Executed final focused PostgreSQL command (normal require_escalated approval granted):
+dotnet test tests/Bingo.IntegrationTests/Bingo.IntegrationTests.csproj --configuration Release --no-restore --filter 'FullyQualifiedName~BoundedLuckLegacyConversionRejectsMalformedRetainedPayloadAndSupportsPartialScopes|FullyQualifiedName~StatsPass4RealFinalReview'
+Exit 0. Passed 5, failed 0, skipped 0. Duration 17 s. Release compilation passed with no warnings/errors emitted.
+Log: focused-postgresql-corrected.txt
+Includes the existing malformed scenario (17 malformed inputs including eight nested tile team/player shapes, then partial conversion), the existing final-refresh failure and lease/race cases, and the actual-window case now parameterized for accepted actual end vs rejected planned end.
+Actual end: deterministic 2026-09-15 12:00:00 UTC; planned end: 2026-09-15 22:00:00 UTC; refresh: 13:00:00 UTC. All microsecond aligned. No changed boundary requires 100ns precision.
+
+Executed final Stats Node command:
+/Users/christopher/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node --test tests/Bingo.BrowserTests/stats-production.test.js
+Exit 0. Passed 67, failed 0, skipped 2 (existing optional PostgreSQL DTO skips), total 69.
+Log: node-stats-production-corrected.txt
+Both affected CSS assertions pass, retaining all baseline rules/order/query ancestry plus the three exact approved #luck-value-tabs rules. Exact function comparison retains every executable character and removes only two named explanatory comments from the baseline highlightLuckPlayer comparison. Unaffected assertions retained.
+
+Executed scoped formatter (normal require_escalated approval granted):
+dotnet format whitespace Bingo.slnx --no-restore --verify-no-changes --include src/Bingo.Infrastructure/Stats/PublicStatsService.Luck.cs tests/Bingo.IntegrationTests/StatsPass4QueryIntegrationTests.cs tests/Bingo.IntegrationTests/StatsPass4ReviewCorrectionsIntegrationTests.cs
+Exit 0, no diagnostics. Log: scoped-format.txt
+
+Executed whitespace check:
+git diff --check -- src/Bingo.Infrastructure/Stats/PublicStatsService.Luck.cs tests/Bingo.IntegrationTests/StatsPass4QueryIntegrationTests.cs tests/Bingo.IntegrationTests/StatsPass4ReviewCorrectionsIntegrationTests.cs tests/Bingo.BrowserTests/stats-production.test.js
+Exit 0. Record: scoped-diff-check.txt
+
+Initial attempts preserved:
+focused-postgresql.txt: stopped during compilation with CS1061 from the newly written incorrect UpdatedAt DTO assertion; no scenarios ran. Corrected to the participant UpstreamUpdatedAt minimum used by production, then rerun above passed.
+node-stats-production.txt: 66 passed, 1 failed, 2 skipped. Both CSS comparisons passed; subsequent exact function assertion exposed two removed explanatory comments. Narrow exact-comment normalization then rerun above passed. This failure was not classified as unrelated.
+
+Four-file before snapshots: before/
+Recovery-only delta: recovery-delta.diff
+Full candidate base-to-current diff (including untracked Luck migrations): candidate-base-to-current.diff
+Four-file before/after identities: before-manifest.json / after-manifest.json
+26-file stable candidate: candidate-manifest.txt / candidate-manifest.sha256
+Candidate manifest SHA256: c3ecfa73d424021eb6e6456e321157ad3c7d71ed9239ff24fbaf5373af4bf7be
+22 prior candidate sources remain byte-for-byte unchanged. No authority/reference changes.
+No unresolved implementation finding in the three assigned gaps. Independent review remains pending; manual visual acceptance deferred. No live WOM, user-database migration/mutation, app restart, staging, commit, push, merge, package or deployment.

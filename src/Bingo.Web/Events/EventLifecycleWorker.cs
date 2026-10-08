@@ -18,8 +18,6 @@ public sealed partial class EventLifecycleWorker(IServiceScopeFactory scopes, Ti
     {
         await using var scope = scopes.CreateAsyncScope();
         await scope.ServiceProvider.GetRequiredService<IEventLifecycleService>().ProcessDueAsync(ct);
-        await scope.ServiceProvider.GetRequiredService<IEventBannerCleanupService>().ProcessPendingAsync(ct);
-        await scope.ServiceProvider.GetRequiredService<EmergencyCredentialLifecycleService>().ApplyAsync(ct);
     }
     [LoggerMessage(Level = LogLevel.Error, Message = "Scheduled event lifecycle update failed.")]
     private static partial void LogFailure(ILogger logger, Exception exception);

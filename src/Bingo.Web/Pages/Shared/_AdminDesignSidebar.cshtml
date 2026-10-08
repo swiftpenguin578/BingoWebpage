@@ -1,0 +1,67 @@
+@model Bingo.Web.Navigation.AdminDesignShell
+@{
+    var currentPage = ViewContext.RouteData.Values["page"]?.ToString();
+    var selected = Model.SelectedEvent;
+    var boardLabel = CultureInfo.CurrentUICulture.TextInfo.ToTitleCase(T["board"].Value);
+}
+<aside class="side" id="admin-design-sidebar" aria-label="@T["Administration"]" data-shell-sidebar>
+    <div class="side-top">
+        @* U10 part 2 (user): expanded, the logo is its own link to the public front page (it leaves Admin, so no data-shell-link) and hover highlights only the account button.
+           U10-E1 (user): collapsed, the logo stays visible and opens the account popout instead (as the reference's collapsed account button does); CSS swaps the two logo controls. *@
+        <a class="logo design-logo-link" href="/" aria-label="@T["Go to the public site"]"><img src="~/images/branding/login-artwork.svg" asp-append-version="true" alt="" /></a>
+        <button type="button" class="logo design-logo-account" data-menu-target="admin-account-menu" aria-haspopup="menu" aria-expanded="false" aria-label="@Model.AccountName · @Model.AccountRole" data-collapsed-title="@Model.AccountName · @Model.AccountRole"><img src="~/images/branding/login-artwork.svg" asp-append-version="true" alt="" /></button>
+        <button class="account-btn" data-menu-target="admin-account-menu" aria-haspopup="menu" aria-expanded="false">
+            <span class="brand-text"><span class="brand-name">@Model.AccountName<partial name="_AdminDesignIcon" model='new AdminDesignIcon("chevron", "ic")' /></span><span class="brand-sub">@Model.AccountRole</span></span>
+        </button>
+        <button class="icon-btn collapse-btn" data-side-toggle aria-label="@T["Collapse sidebar"]" title="@T["Collapse sidebar"]" aria-expanded="true"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("collapse", "ic")' /></button>
+    </div>
+    <nav class="nav" aria-label="@T["Administration"]"><div class="nav-label">@T["Administration"]</div>
+        <a class="nav-item @(currentPage is "/Admin" or "/Admin/Index" ? "is-current" : null)" href="/Admin" data-shell-link aria-current="@(currentPage is "/Admin" or "/Admin/Index" ? "page" : null)" data-collapsed-title="@T["Dashboard"]"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("dashboard", "ic")' /><span class="nav-text">@T["Dashboard"]</span></a>
+        <a class="nav-item @(currentPage == "/Admin/Events/Index" ? "is-current" : null)" href="/Admin/Events/Index" data-shell-link aria-current="@(currentPage == "/Admin/Events/Index" ? "page" : null)" data-collapsed-title="@T["AdminDesign.Events"]"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("events", "ic")' /><span class="nav-text">@T["AdminDesign.Events"]</span></a>
+        <a class="nav-item @(currentPage == "/Admin/Catalogue/Index" ? "is-current" : null)" href="/Admin/Catalogue/Index" data-shell-link aria-current="@(currentPage == "/Admin/Catalogue/Index" ? "page" : null)" data-collapsed-title="@T["Catalogue"]"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("catalogue", "ic")' /><span class="nav-text">@T["Catalogue"]</span></a>
+        <a class="nav-item @(currentPage == "/Admin/Accounts/Index" ? "is-current" : null)" href="/Admin/Accounts/Index" data-shell-link aria-current="@(currentPage == "/Admin/Accounts/Index" ? "page" : null)" data-collapsed-title="@T["Accounts"]"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("accounts", "ic")' /><span class="nav-text">@T["Accounts"]</span></a>
+        <a class="nav-item @(currentPage == "/Admin/Audit/Index" ? "is-current" : null)" href="/Admin/Audit/Index" data-shell-link aria-current="@(currentPage == "/Admin/Audit/Index" ? "page" : null)" data-collapsed-title="@T["Audit"]"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("audit", "ic")' /><span class="nav-text">@T["Audit"]</span></a>
+    </nav>
+    <div class="side-rule" aria-hidden="true"></div>
+    <nav class="nav" aria-label="@T["AdminDesign.Event"]" data-shell-event-context data-selected-event-id="@selected?.Id">
+        <button class="event-switch" data-menu-target="admin-event-menu" aria-haspopup="menu" aria-expanded="false" data-collapsed-title="@T["Switch event"]">
+            <partial name="_AdminDesignIcon" model='new AdminDesignIcon("events", "ic ev-ic")' />
+            <div class="ev-text"><div class="ev-lbl">@T["AdminDesign.Event"]</div><div class="ev-name">@(selected?.Name ?? T["Select an event"].Value)</div>
+            @if (selected is not null) { <div class="ev-meta"><span class="dot @selected.Tone"></span><div class="ev-meta-text">@selected.Stage · @selected.When</div></div> }
+            </div><partial name="_AdminDesignIcon" model='new AdminDesignIcon("chevron", "ic ev-chev")' />
+        </button>
+        <div style="height:8px"></div>
+        @if (selected is not null)
+        {
+            <a class="nav-item @(currentPage == "/Admin/Events/Manage" ? "is-current" : null)" href="@Bingo.Web.Navigation.SharedShellService.AdminDesignEventUrl("/Admin/Events/Manage", selected.Id, selected.Hidden)" data-shell-link aria-current="@(currentPage == "/Admin/Events/Manage" ? "page" : null)" data-collapsed-title="@T["Overview"]"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("overview", "ic")' /><span class="nav-text">@T["Overview"]</span></a>
+            <a class="nav-item @(currentPage == "/Admin/Events/Identity" ? "is-current" : null)" href="@Bingo.Web.Navigation.SharedShellService.AdminDesignEventUrl("/Admin/Events/Identity", selected.Id)" data-shell-link aria-current="@(currentPage == "/Admin/Events/Identity" ? "page" : null)" data-collapsed-title="@T["Identity"]"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("identity", "ic")' /><span class="nav-text">@T["Identity"]</span></a>
+            <a class="nav-item @(currentPage == "/Admin/Events/Schedule" ? "is-current" : null)" href="@Bingo.Web.Navigation.SharedShellService.AdminDesignEventUrl("/Admin/Events/Schedule", selected.Id)" data-shell-link aria-current="@(currentPage == "/Admin/Events/Schedule" ? "page" : null)" data-collapsed-title="@T["Schedule"]"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("schedule", "ic")' /><span class="nav-text">@T["Schedule"]</span></a>
+            <a class="nav-item @(currentPage == "/Admin/Events/Participants" ? "is-current" : null)" href="@Bingo.Web.Navigation.SharedShellService.AdminDesignEventUrl("/Admin/Events/Participants", selected.Id)" data-shell-link aria-current="@(currentPage == "/Admin/Events/Participants" ? "page" : null)" data-collapsed-title="@T["Participants"]"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("participants", "ic")' /><span class="nav-text">@T["Participants"]</span></a>
+            <a class="nav-item @(currentPage == "/Admin/Events/SignupSetup" ? "is-current" : null)" href="@Bingo.Web.Navigation.SharedShellService.AdminDesignEventUrl("/Admin/Events/SignupSetup", selected.Id)" data-shell-link aria-current="@(currentPage == "/Admin/Events/SignupSetup" ? "page" : null)" data-collapsed-title="@T["Signup setup"]"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("signup", "ic")' /><span class="nav-text">@T["Signup setup"]</span></a>
+            <a class="nav-item @(currentPage == "/Admin/Events/Draft" ? "is-current" : null)" href="@Bingo.Web.Navigation.SharedShellService.AdminDesignEventUrl("/Admin/Events/Draft", selected.Id)" data-shell-link aria-current="@(currentPage == "/Admin/Events/Draft" ? "page" : null)" data-collapsed-title="@T["Teams / Draft"]"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("teams", "ic")' /><span class="nav-text">@T["Teams / Draft"]</span></a>
+            <a class="nav-item @(currentPage == "/Admin/Events/Board" ? "is-current" : null)" href="@Bingo.Web.Navigation.SharedShellService.AdminDesignEventUrl("/Admin/Events/Board", selected.Id)" data-shell-link aria-current="@(currentPage == "/Admin/Events/Board" ? "page" : null)" data-collapsed-title="@boardLabel"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("board", "ic")' /><span class="nav-text">@boardLabel</span></a>
+            <a class="nav-item @(currentPage == "/Admin/Events/WiseOldMan" ? "is-current" : null)" href="@Bingo.Web.Navigation.SharedShellService.AdminDesignEventUrl("/Admin/Events/WiseOldMan", selected.Id)" data-shell-link aria-current="@(currentPage == "/Admin/Events/WiseOldMan" ? "page" : null)" data-collapsed-title="@T["WOM"]"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("wom", "ic")' /><span class="nav-text">@T["WOM"]</span></a>
+            <a class="nav-item @(currentPage is "/Admin/Review/Index" or "/Admin/Review/Details" ? "is-current" : null)" href="@Bingo.Web.Navigation.SharedShellService.AdminDesignEventUrl("/Admin/Review/Index", selected.Id)" data-shell-link aria-current="@(currentPage is "/Admin/Review/Index" or "/Admin/Review/Details" ? "page" : null)" data-collapsed-title="@T["Review"]"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("review", "ic")' /><span class="nav-text">@T["Review"]</span></a>
+            <a class="nav-item @(currentPage == "/Admin/Events/Finalize" ? "is-current" : null)" href="@Bingo.Web.Navigation.SharedShellService.AdminDesignEventUrl("/Admin/Events/Finalize", selected.Id)" data-shell-link aria-current="@(currentPage == "/Admin/Events/Finalize" ? "page" : null)" data-collapsed-title="@T["Final review"]"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("final", "ic")' /><span class="nav-text">@T["Final review"]</span></a>
+        }
+    </nav>
+    <div class="design-mobile-preferences" data-mobile-preferences></div>
+</aside>
+<div class="menu" id="admin-account-menu" role="menu" hidden data-shell-menu>
+    <partial name="_AdminDesignMenuHeader" model='new AdminDesignMenuHeader(Model.AccountName, $"@{Model.AccountName} · {Model.AccountRole}")' />
+    <div class="menu-sep" role="separator"></div>
+    <a class="menu-item" role="menuitem" href="/Account/Settings">@T["Account settings"]</a>
+    <a class="menu-item" role="menuitem" href="/Account/ChangePassword">@T["Change password"]</a>
+    <a class="menu-item" role="menuitem" href="/">@T["View public site"]</a>
+    <form method="post" asp-page="/Account/Logout"><button class="menu-item" role="menuitem" type="submit">@T["Sign out"]</button></form>
+</div>
+<div class="menu design-event-menu" id="admin-event-menu" role="menu" hidden data-shell-menu>
+    <partial name="_AdminDesignMenuHeader" model='new AdminDesignMenuHeader(T["Switch event"].Value)' />
+    <div class="design-event-options">
+        @foreach (var item in Model.Events)
+        {
+            <a class="menu-item" role="menuitemradio" aria-checked="@(item.Id == selected?.Id ? "true" : "false")" href="@item.Url" data-shell-link data-event-id="@item.Id" data-event-name="@item.Name" data-event-stage="@item.Stage" data-event-when="@item.When" data-event-tone="@item.Tone" aria-current="@(item.Id == selected?.Id ? "page" : null)"><span class="grow">@item.Name</span><span class="menu-hint">@item.Stage</span>@if (item.Id == selected?.Id) { <partial name="_AdminDesignIcon" model='new AdminDesignIcon("check", "ic menu-check")' /> }@if (item.Hidden) { <span>@T["Hidden"]</span> }</a>
+        }
+    </div>
+    <div class="menu-sep" role="separator"></div><a class="menu-item" role="menuitem" href="/Admin/Events/Index" data-shell-link>@T["All events"]</a>
+</div>

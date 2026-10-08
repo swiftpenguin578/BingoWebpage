@@ -241,7 +241,7 @@ public sealed class DevelopmentScenarioSeeder(
     {
         var bingoEvent = new BingoEvent(
             Guid.NewGuid(), "Februarbingo 2026", "test-04-readiness-blockers",
-            "Europe/Copenhagen", adminId, now);
+            "Europe/Copenhagen", adminId, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         db.Entry(bingoEvent).Property(nameof(BingoEvent.IsDevelopmentFixture)).CurrentValue = true;
         db.Events.Add(bingoEvent);
         AddSignupFoundation(bingoEvent, now);
@@ -351,7 +351,7 @@ public sealed class DevelopmentScenarioSeeder(
     {
         var bingoEvent = new BingoEvent(
             Guid.NewGuid(), "Søndagsbingo 2026", "test-87-discarded-empty-draft",
-            "Europe/Copenhagen", adminId, now);
+            "Europe/Copenhagen", adminId, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         db.Entry(bingoEvent).Property(nameof(BingoEvent.IsDevelopmentFixture)).CurrentValue = true;
         db.Events.Add(bingoEvent);
         bingoEvent.Discard(adminId, now, protectedHistoryExists: false);
@@ -362,7 +362,7 @@ public sealed class DevelopmentScenarioSeeder(
     {
         var bingoEvent = new BingoEvent(
             Guid.NewGuid(), "Det Store Danske Efterårsbingo 2026", "test-91-overlapping-scheduled-opening",
-            "Europe/Copenhagen", adminId, now);
+            "Europe/Copenhagen", adminId, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         bingoEvent.ConfigureSignup(true, false, null);
         bingoEvent.ConfigurePlanning("Seeded scheduled-opening overlap rules.", null, null, 2, 3, 5, 5);
         bingoEvent.ConfigureSchedule(
@@ -2161,7 +2161,8 @@ public sealed class DevelopmentScenarioSeeder(
                 board_requirement_drop_snapshots, board_requirement_boss_snapshots, board_requirement_snapshots,
                 board_tile_image_assets, board_tiles, template_requirement_drops, template_requirement_bosses, tile_template_requirements,
                 tile_templates, boards, signup_answers, event_participant_characters, signup_questions, signup_forms, event_participants,
-                scheduled_signup_opening_attempts, scheduled_event_start_attempts, event_state_transitions, event_banner_cleanups, events, audit_entries, personal_notifications,
+                event_creation_operations, signup_question_creation_operations,
+                scheduled_signup_opening_attempts, scheduled_event_start_attempts, event_state_transitions, events, audit_entries, personal_notifications,
                 account_event_accesses, password_credential_tokens, account_discord_identity_transitions,
                 waiting_list_promotion_follow_ups,
                 tile_completion_facts,

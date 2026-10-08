@@ -1,7 +1,6 @@
 using System.Globalization;
 using System.Text.RegularExpressions;
 using Bingo.Application.Events;
-using Bingo.Application.Evidence;
 using Bingo.Domain.Access;
 using Bingo.Domain.Boards;
 using Bingo.Domain.Events;
@@ -19,14 +18,13 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging.Abstractions;
 using Testcontainers.PostgreSql;
 
 namespace Bingo.IntegrationTests;
 
-public sealed class Slice3DestructiveLifecycleIntegrationTests : IAsyncLifetime
+public sealed class Slice3DestructiveLifecycleIntegrationTests(PostgreSqlTestFixture databaseFixture) : IAsyncLifetime, IClassFixture<PostgreSqlTestFixture>
 {
-    private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine").WithDatabase("slice3_destructive").WithUsername("bingo").WithPassword("bingo_test_password").Build();
+    private readonly PostgreSqlTestDatabase database = databaseFixture.CreateDatabase(new PostgreSqlBuilder("postgres:17-alpine").WithDatabase("slice3_destructive").WithUsername("bingo").WithPassword("bingo_test_password"));
     private readonly DateTimeOffset now = new(2026, 7, 27, 18, 0, 0, TimeSpan.Zero);
     private DbContextOptions<ApplicationDbContext> options = null!;
 
@@ -35,7 +33,6 @@ public sealed class Slice3DestructiveLifecycleIntegrationTests : IAsyncLifetime
         await database.StartAsync();
         options = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetConnectionString()).Options;
         await using var db = new ApplicationDbContext(options);
-        await db.Database.MigrateAsync();
     }
 
     public Task DisposeAsync() => database.DisposeAsync().AsTask();
@@ -44,13 +41,13 @@ public sealed class Slice3DestructiveLifecycleIntegrationTests : IAsyncLifetime
     public async Task SetupHeavyEmptyEventDiscardsToReservedMinimalTombstone()
     {
         var actor = Account.CreateWebsite(Guid.NewGuid(), "Admin", "ADMIN", now); actor.SetGlobalRole(GlobalRole.Admin);
-        var eventId = Guid.NewGuid(); var boardId = Guid.NewGuid(); var tileId = Guid.NewGuid(); var requirementId = Guid.NewGuid(); var bannerId = Guid.NewGuid();
+        var eventId = Guid.NewGuid(); var boardId = Guid.NewGuid(); var tileId = Guid.NewGuid(); var requirementId = Guid.NewGuid();
         await using (var setup = new ApplicationDbContext(options))
         {
-            var item = Draft(eventId, "reserved-discard-slug", actor.Id); item.ConfigurePlanning("Rules", "Buy-in", null, null, null, 2, 2); item.ConfigureSchedule(now.AddDays(1), now.AddDays(2), null, now.AddDays(3), now.AddDays(4), 20); item.ConfigureScheduledSignupOpening(true, []); item.SetBannerAsset(bannerId);
+            var item = Draft(eventId, "reserved-discard-slug", actor.Id); item.ConfigurePlanning("Rules", "Buy-in", null, null, null, 2, 2); item.ConfigureSchedule(now.AddDays(1), now.AddDays(2), null, now.AddDays(3), now.AddDays(4), 20); item.ConfigureScheduledSignupOpening(true, []);
             var form = new SignupForm(Guid.NewGuid(), eventId, now);
             var question = new SignupQuestion(Guid.NewGuid(), form.Id, eventId, "question", "Question", SignupQuestionType.Text, false, 0, null);
-            setup.AddRange(actor, item, new EventBannerAsset(bannerId, eventId, "event/banner", "banner.png", "image/png", 10, 1, 1, "checksum", actor.Id, now), new Board(boardId, eventId, "Setup board", 1, 1), new BoardTile(tileId, boardId, Guid.NewGuid(), 0, 0, "Tile", string.Empty, string.Empty, 1, null), new BoardRequirementSnapshot(requirementId, tileId, 0, 1, false, false, "Requirement", true), form, question, new DraftSession(Guid.NewGuid(), eventId, 1), new EvidenceCode(Guid.NewGuid(), eventId, "ABC123", now, actor.Id, now, null), new ScheduledEventStartAttempt(Guid.NewGuid(), eventId, now.AddDays(3), now, false, ["BOARD_NOT_PUBLISHED"]), new ScheduledSignupOpeningAttempt(Guid.NewGuid(), eventId, now.AddDays(1), now, false, ["DESCRIPTION_REQUIRED"]));
+            setup.AddRange(actor, item, new Board(boardId, eventId, "Setup board", 1, 1), new BoardTile(tileId, boardId, Guid.NewGuid(), 0, 0, "Tile", string.Empty, string.Empty, 1, null), new BoardRequirementSnapshot(requirementId, tileId, 0, 1, false, false, "Requirement", true), form, question, new DraftSession(Guid.NewGuid(), eventId, 1), new EvidenceCode(Guid.NewGuid(), eventId, "ABC123", now, actor.Id, now, null), new ScheduledEventStartAttempt(Guid.NewGuid(), eventId, now.AddDays(3), now, false, ["BOARD_NOT_PUBLISHED"]), new ScheduledSignupOpeningAttempt(Guid.NewGuid(), eventId, now.AddDays(1), now, false, ["DESCRIPTION_REQUIRED"]));
             await setup.SaveChangesAsync();
         }
         await using (var mutation = new ApplicationDbContext(options))
@@ -67,104 +64,11 @@ public sealed class Slice3DestructiveLifecycleIntegrationTests : IAsyncLifetime
         await using (var verify = new ApplicationDbContext(options))
         {
             var tombstone = await verify.Events.SingleAsync(x => x.Id == eventId);
-            Assert.Equal(EventState.Discarded, tombstone.State); Assert.Equal("reserved-discard-slug", tombstone.Slug); Assert.Equal(actor.Id, tombstone.CreatedByAccountId); Assert.Equal(actor.Id, tombstone.DiscardedByAccountId); Assert.Null(tombstone.Description); Assert.Null(tombstone.EventStartsAt); Assert.Null(tombstone.BannerAssetId);
-            Assert.Empty(await verify.Boards.Where(x => x.EventId == eventId).ToListAsync()); Assert.Empty(await verify.SignupQuestions.Where(x => x.EventId == eventId).ToListAsync()); Assert.Empty(await verify.SignupForms.Where(x => x.EventId == eventId).ToListAsync()); Assert.Empty(await verify.DraftSessions.Where(x => x.EventId == eventId).ToListAsync()); Assert.Empty(await verify.EventBannerAssets.Where(x => x.EventId == eventId).ToListAsync());
+            Assert.Equal(EventState.Discarded, tombstone.State); Assert.Equal("reserved-discard-slug", tombstone.Slug); Assert.Equal(actor.Id, tombstone.CreatedByAccountId); Assert.Equal(actor.Id, tombstone.DiscardedByAccountId); Assert.Null(tombstone.Description); Assert.Null(tombstone.EventStartsAt);
+            Assert.Empty(await verify.Boards.Where(x => x.EventId == eventId).ToListAsync()); Assert.Empty(await verify.SignupQuestions.Where(x => x.EventId == eventId).ToListAsync()); Assert.Empty(await verify.SignupForms.Where(x => x.EventId == eventId).ToListAsync()); Assert.Empty(await verify.DraftSessions.Where(x => x.EventId == eventId).ToListAsync());
             Assert.Single(await verify.EventStateTransitions.Where(x => x.EventId == eventId && x.ToState == EventState.Discarded).ToListAsync()); Assert.Single(await verify.AuditEntries.Where(x => x.EventId == eventId && x.Action == "event.discarded").ToListAsync());
             verify.Events.Add(Draft(Guid.NewGuid(), "reserved-discard-slug", actor.Id)); await Assert.ThrowsAsync<DbUpdateException>(() => verify.SaveChangesAsync());
         }
-    }
-
-    [Fact]
-    public async Task DiscardedManagedBannerCleanupPersistsAcrossStorageFailureAndRetriesSafely()
-    {
-        var actor = Account.CreateWebsite(Guid.NewGuid(), "Cleanup Admin", "CLEANUP ADMIN", now);
-        var discardedId = Guid.NewGuid();
-        var unrelatedId = Guid.NewGuid();
-        var discardedBanner = new EventBannerAsset(Guid.NewGuid(), discardedId, $"{discardedId:N}/banner.png", "banner.png", "image/png", 10, 1, 1, "cleanup", actor.Id, now);
-        var unrelatedBanner = new EventBannerAsset(Guid.NewGuid(), unrelatedId, $"{unrelatedId:N}/banner.png", "other.png", "image/png", 10, 1, 1, "other", actor.Id, now);
-        var storage = new FlakyStorage(discardedBanner.StorageKey, unrelatedBanner.StorageKey);
-        await using (var setup = new ApplicationDbContext(options))
-        {
-            var discarded = Draft(discardedId, "discard-cleanup", actor.Id); discarded.SetBannerAsset(discardedBanner.Id);
-            var unrelated = Draft(unrelatedId, "unrelated-banner", actor.Id); unrelated.SetBannerAsset(unrelatedBanner.Id);
-            setup.AddRange(actor, discarded, unrelated, discardedBanner, unrelatedBanner);
-            await setup.SaveChangesAsync();
-        }
-
-        await using (var mutation = new ApplicationDbContext(options))
-        {
-            var cleanup = new EventBannerCleanupService(mutation, storage, new FixedClock(now), NullLogger<EventBannerCleanupService>.Instance);
-            var item = await mutation.Events.SingleAsync(x => x.Id == discardedId);
-            Assert.True((await new EventDestructiveLifecycleService(mutation, new FixedClock(now), cleanup).DiscardAsync(discardedId, item.Version, true, new LifecycleActor(actor.Id, "Cleanup Admin"))).Succeeded);
-        }
-        await using (var verify = new ApplicationDbContext(options))
-        {
-            Assert.Equal(EventState.Discarded, (await verify.Events.SingleAsync(x => x.Id == discardedId)).State);
-            var pending = Assert.Single(await verify.EventBannerCleanups.Where(x => x.EventId == discardedId).ToListAsync());
-            Assert.Equal(discardedBanner.StorageKey, pending.StorageKey);
-            Assert.NotNull(pending.LastAttemptedAt);
-            Assert.True(pending.AttemptCount > 0);
-            Assert.Empty(await verify.EventBannerAssets.Where(x => x.EventId == discardedId).ToListAsync());
-            Assert.NotNull((await verify.Events.SingleAsync(x => x.Id == unrelatedId)).BannerAssetId);
-        }
-
-        storage.FailDeletes = false;
-        async Task RetryInNewContext()
-        {
-            await using var retry = new ApplicationDbContext(options);
-            await new EventBannerCleanupService(retry, storage, new FixedClock(now.AddMinutes(1)), NullLogger<EventBannerCleanupService>.Instance).ProcessPendingAsync();
-        }
-        await Task.WhenAll(RetryInNewContext(), RetryInNewContext());
-        await using (var verify = new ApplicationDbContext(options))
-            Assert.Empty(await verify.EventBannerCleanups.Where(x => x.EventId == discardedId).ToListAsync());
-        Assert.Contains(discardedBanner.StorageKey, storage.Deleted);
-        Assert.DoesNotContain(unrelatedBanner.StorageKey, storage.Deleted);
-
-        var missingId = Guid.NewGuid();
-        var missingKey = $"{missingId:N}/already-missing.png";
-        storage.Allow(missingKey);
-        storage.MissingDeletes = true;
-        await using (var setup = new ApplicationDbContext(options))
-        {
-            var missing = Draft(missingId, "missing-cleanup", actor.Id); missing.Discard(actor.Id, now, false);
-            setup.AddRange(missing, new EventBannerCleanup(Guid.NewGuid(), missingId, missingKey, now));
-            await setup.SaveChangesAsync();
-        }
-        await using (var retry = new ApplicationDbContext(options))
-            await new EventBannerCleanupService(retry, storage, new FixedClock(now.AddMinutes(2)), NullLogger<EventBannerCleanupService>.Instance).ProcessPendingAsync();
-        await using (var verify = new ApplicationDbContext(options))
-            Assert.Empty(await verify.EventBannerCleanups.Where(x => x.EventId == missingId).ToListAsync());
-    }
-
-    [Fact]
-    public async Task DiscardDatabaseFailureLeavesNoTombstoneCleanupRecordOrStorageDeletion()
-    {
-        var actor = Account.CreateWebsite(Guid.NewGuid(), "Rollback cleanup Admin", "ROLLBACK CLEANUP ADMIN", now);
-        var eventId = Guid.NewGuid();
-        var banner = new EventBannerAsset(Guid.NewGuid(), eventId, $"{eventId:N}/rollback.png", "rollback.png", "image/png", 10, 1, 1, "rollback", actor.Id, now);
-        var storage = new FlakyStorage(banner.StorageKey, "unrelated/key");
-        await using (var setup = new ApplicationDbContext(options))
-        {
-            var item = Draft(eventId, "rollback-cleanup", actor.Id); item.SetBannerAsset(banner.Id);
-            setup.AddRange(actor, item, banner);
-            await setup.SaveChangesAsync();
-        }
-        var failingOptions = new DbContextOptionsBuilder<ApplicationDbContext>(options).AddInterceptors(new ThrowOnCleanupInsert()).Options;
-        await using (var mutation = new ApplicationDbContext(failingOptions))
-        {
-            var cleanup = new EventBannerCleanupService(mutation, storage, new FixedClock(now), NullLogger<EventBannerCleanupService>.Instance);
-            var item = await mutation.Events.SingleAsync(value => value.Id == eventId);
-            var result = await new EventDestructiveLifecycleService(mutation, new FixedClock(now), cleanup).DiscardAsync(eventId, item.Version, true, new LifecycleActor(actor.Id, "Rollback cleanup Admin"));
-            Assert.False(result.Succeeded);
-        }
-        await using (var verify = new ApplicationDbContext(options))
-        {
-            Assert.Equal(EventState.Draft, (await verify.Events.SingleAsync(value => value.Id == eventId)).State);
-            Assert.NotNull((await verify.Events.SingleAsync(value => value.Id == eventId)).BannerAssetId);
-            Assert.Single(await verify.EventBannerAssets.Where(value => value.EventId == eventId).ToListAsync());
-            Assert.Empty(await verify.EventBannerCleanups.Where(value => value.EventId == eventId).ToListAsync());
-        }
-        Assert.Empty(storage.Deleted);
     }
 
     [Theory]
@@ -205,7 +109,7 @@ public sealed class Slice3DestructiveLifecycleIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task CancellationArchiveAndArchivedUnfinalizationPreserveHistoryAndCurrentBoundary()
+    public async Task BFinal2CancellationArchiveAndArchivedUnfinalizationPreserveHistoryAndCurrentBoundary()
     {
         var actor = Account.CreateWebsite(Guid.NewGuid(), "Lifecycle Admin", "LIFECYCLE ADMIN", now); actor.SetGlobalRole(GlobalRole.Admin);
         var cancelledId = Guid.NewGuid(); var archivedId = Guid.NewGuid();
@@ -219,7 +123,12 @@ public sealed class Slice3DestructiveLifecycleIntegrationTests : IAsyncLifetime
         {
             var cancelled = await mutation.Events.SingleAsync(x => x.Id == cancelledId); var result = await new EventDestructiveLifecycleService(mutation, new FixedClock(now)).CancelAsync(cancelledId, cancelled.Version, true, "Private operational reason", new LifecycleActor(actor.Id, actor.PublicUsername!)); Assert.True(result.Succeeded, result.Error);
         }
-        await using (var mutation = new ApplicationDbContext(options)) await new EventFinalizationService(mutation, null!, new FixedClock(now)).ArchiveAsync(archivedId, true, new LifecycleActor(actor.Id, actor.PublicUsername!));
+        await using (var mutation = new ApplicationDbContext(options))
+        {
+            var archived = await mutation.Events.SingleAsync(x => x.Id == archivedId);
+            await new EventFinalizationService(mutation, null!, new FixedClock(now))
+                .FinalizeAsync(archivedId, new LifecycleActor(actor.Id, actor.PublicUsername!), archived.Version);
+        }
         await using (var verify = new ApplicationDbContext(options))
         {
             Assert.Equal(EventState.Cancelled, (await verify.Events.SingleAsync(x => x.Id == cancelledId)).State); Assert.Single(await verify.EventParticipants.Where(x => x.EventId == cancelledId).ToListAsync()); Assert.Equal("Private operational reason", (await verify.Events.SingleAsync(x => x.Id == cancelledId)).CancellationReason); Assert.Equal(EventState.Archived, (await verify.Events.SingleAsync(x => x.Id == archivedId)).State); Assert.Single(await verify.EventFinalizations.Where(x => x.EventId == archivedId).ToListAsync());
@@ -227,9 +136,9 @@ public sealed class Slice3DestructiveLifecycleIntegrationTests : IAsyncLifetime
         }
         var competingId = Guid.NewGuid();
         await using (var setup = new ApplicationDbContext(options)) { var competing = Draft(competingId, "competing-current", actor.Id); competing.ConfigureSchedule(now.AddHours(-2), now.AddHours(-1), null, now.AddMinutes(-30), now.AddHours(2), 20); competing.OpenSignups(now.AddHours(-2)); competing.CloseSignups(now.AddHours(-1)); competing.StartEvent(now.AddMinutes(-30)); setup.Events.Add(competing); await setup.SaveChangesAsync(); }
-        await using (var blocked = new ApplicationDbContext(options)) await Assert.ThrowsAsync<InvalidOperationException>(() => new EventFinalizationService(blocked, null!, new FixedClock(now.AddMinutes(1))).UnfinalizeAsync(archivedId, "Blocked correction", true, new LifecycleActor(actor.Id, actor.PublicUsername!)));
+        await using (var blocked = new ApplicationDbContext(options)) await Assert.ThrowsAsync<InvalidOperationException>(async () => await new EventFinalizationService(blocked, null!, new FixedClock(now.AddMinutes(1))).UnfinalizeAsync(archivedId, "Blocked correction", true, new LifecycleActor(actor.Id, actor.PublicUsername!), (await blocked.Events.SingleAsync(x => x.Id == archivedId)).Version));
         await using (var verify = new ApplicationDbContext(options)) { Assert.Equal(EventState.Archived, (await verify.Events.SingleAsync(x => x.Id == archivedId)).State); Assert.Null((await verify.EventFinalizations.SingleAsync(x => x.EventId == archivedId)).UnfinalizedAt); await verify.Events.Where(x => x.Id == competingId).ExecuteDeleteAsync(); }
-        await using (var mutation = new ApplicationDbContext(options)) await new EventFinalizationService(mutation, null!, new FixedClock(now.AddMinutes(1))).UnfinalizeAsync(archivedId, "Correct official history", true, new LifecycleActor(actor.Id, actor.PublicUsername!));
+        await using (var mutation = new ApplicationDbContext(options)) await new EventFinalizationService(mutation, null!, new FixedClock(now.AddMinutes(1))).UnfinalizeAsync(archivedId, "Correct official history", true, new LifecycleActor(actor.Id, actor.PublicUsername!), (await mutation.Events.SingleAsync(x => x.Id == archivedId)).Version);
         await using (var verify = new ApplicationDbContext(options)) { Assert.Equal(EventState.AwaitingFinalReview, (await verify.Events.SingleAsync(x => x.Id == archivedId)).State); Assert.NotNull((await verify.EventFinalizations.SingleAsync(x => x.EventId == archivedId)).UnfinalizedAt); }
     }
 
@@ -296,6 +205,50 @@ public sealed class Slice3DestructiveLifecycleIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task RetiredGenericStateHandlerFailsClosedWithoutMutatingTheEvent()
+    {
+        var admin = Account.CreateWebsite(Guid.NewGuid(), "Retired state Admin", "RETIRED STATE ADMIN", now);
+        admin.SetGlobalRole(GlobalRole.Admin);
+        admin.SetPassword(new PasswordHasher<Account>().HashPassword(admin, "retired-state-password"), false, now, incrementVersion: false);
+        var item = Draft(Guid.NewGuid(), "retired-state-handler", admin.Id);
+        await using (var setup = new ApplicationDbContext(options))
+        {
+            setup.AddRange(admin, item);
+            await setup.SaveChangesAsync();
+        }
+
+        using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
+            builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString()));
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        var login = await client.GetStringAsync("/Account/Login");
+        using var loggedIn = await client.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["Input.Username"] = admin.PublicUsername!,
+            ["Input.Password"] = "retired-state-password",
+            ["__RequestVerificationToken"] = AntiforgeryToken(login)
+        }));
+        Assert.Equal(System.Net.HttpStatusCode.Redirect, loggedIn.StatusCode);
+
+        var path = $"/Admin/Events/Manage/{item.Id}";
+        var manage = await client.GetStringAsync(path);
+        using var forged = await client.PostAsync($"{path}?handler=State", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["EventVersion"] = InputValue(manage, "EventVersion"),
+            ["target"] = EventState.SignupClosed.ToString(),
+            ["ConfirmSignupAction"] = "true",
+            ["__RequestVerificationToken"] = AntiforgeryToken(manage)
+        }));
+        Assert.Equal(System.Net.HttpStatusCode.BadRequest, forged.StatusCode);
+
+        await using var verify = new ApplicationDbContext(options);
+        var unchanged = await verify.Events.SingleAsync(value => value.Id == item.Id);
+        Assert.Equal(EventState.Draft, unchanged.State);
+        Assert.Equal(item.Version, unchanged.Version);
+        Assert.Empty(await verify.EventStateTransitions.Where(value => value.EventId == item.Id).ToListAsync());
+        Assert.Empty(await verify.AuditEntries.Where(value => value.EventId == item.Id).ToListAsync());
+    }
+
+    [Fact]
     public async Task PrepareDestructiveConfirmationRendersCancellationUiWithoutMutatingEvent()
     {
         var admin = Account.CreateWebsite(Guid.NewGuid(), "Prepare cancellation Admin", "PREPARE CANCELLATION ADMIN", now);
@@ -329,10 +282,20 @@ public sealed class Slice3DestructiveLifecycleIntegrationTests : IAsyncLifetime
         Assert.Equal(System.Net.HttpStatusCode.Redirect, prepareResponse.StatusCode);
         Assert.Equal($"{path}?confirm=destructive", prepareResponse.Headers.Location!.OriginalString);
 
-        var confirmation = await client.GetStringAsync(prepareResponse.Headers.Location!.OriginalString);
-        Assert.Contains("Cancellation reason", confirmation, StringComparison.Ordinal);
-        Assert.Contains("Confirm cancellation", confirmation, StringComparison.Ordinal);
-        Assert.Contains("name=\"ConfirmDestructiveAction\"", confirmation, StringComparison.Ordinal);
+        var currentManage = await client.GetStringAsync(prepareResponse.Headers.Location!.OriginalString);
+        // U4 / OS-1 (brief 85 "Retired"): the prepare redirect is kept; the Overview offers Cancel
+        // as a dialog built from its dialog model (confirm field and reason field).
+        Assert.Contains("data-overview-action=\"cancel\"", currentManage, StringComparison.Ordinal);
+        Assert.Contains("ConfirmDestructiveAction", currentManage, StringComparison.Ordinal);
+        Assert.Contains("CancellationReason", currentManage, StringComparison.Ordinal);
+
+        using var unconfirmedCancel = await client.PostAsync($"{path}?handler=Cancel", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["EventVersion"] = InputValue(currentManage, "EventVersion"),
+            ["ConfirmDestructiveAction"] = "false",
+            ["__RequestVerificationToken"] = AntiforgeryToken(currentManage)
+        }));
+        Assert.Equal(System.Net.HttpStatusCode.OK, unconfirmedCancel.StatusCode);
 
         await using var verify = new ApplicationDbContext(options);
         var unchanged = await verify.Events.SingleAsync(item => item.Id == eventItem.Id);
@@ -360,7 +323,10 @@ public sealed class Slice3DestructiveLifecycleIntegrationTests : IAsyncLifetime
         }
 
         using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
-            builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString()));
+        {
+            builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString());
+            builder.ConfigureServices(services => services.AddSingleton<TimeProvider>(new FixedClock(now)));
+        });
         using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         var login = await client.GetStringAsync("/Account/Login");
         using var loggedIn = await client.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string>
@@ -378,7 +344,20 @@ public sealed class Slice3DestructiveLifecycleIntegrationTests : IAsyncLifetime
             ["__RequestVerificationToken"] = AntiforgeryToken(manage)
         }));
         Assert.Equal(System.Net.HttpStatusCode.Redirect, prepareResponse.StatusCode);
-        Assert.Equal($"{path}?confirm=end", prepareResponse.Headers.Location!.OriginalString);
+        Assert.Equal(path, prepareResponse.Headers.Location!.OriginalString);
+
+        var currentManage = await client.GetStringAsync(path);
+        // U4 / OS-1 (brief 85 "Retired"): End is an Overview dialog with its confirm field.
+        Assert.Contains("data-overview-action=\"end\"", currentManage, StringComparison.Ordinal);
+        Assert.Contains("ConfirmEndEvent", currentManage, StringComparison.Ordinal);
+
+        await using (var verify = new ApplicationDbContext(options))
+        {
+            var unchanged = await verify.Events.SingleAsync(value => value.Id == eventItem.Id);
+            Assert.Equal(EventState.Live, unchanged.State);
+            Assert.Empty(await verify.EventStateTransitions.Where(value => value.EventId == eventItem.Id && value.ToState == EventState.AwaitingFinalReview).ToListAsync());
+            Assert.Empty(await verify.AuditEntries.Where(value => value.EventId == eventItem.Id && value.Action == "event.ended").ToListAsync());
+        }
     }
 
     [Fact]
@@ -488,7 +467,8 @@ public sealed class Slice3DestructiveLifecycleIntegrationTests : IAsyncLifetime
         }));
 
         Assert.Equal(System.Net.HttpStatusCode.Redirect, response.StatusCode);
-        Assert.Equal($"/Admin/Events/Manage/{liveId}", response.Headers.Location!.OriginalString);
+        // OS-1: stay on Schedule after saving (reference README:1172).
+        Assert.Equal($"/Admin/Events/Schedule/{liveId}", response.Headers.Location!.OriginalString);
         await using var verify = new ApplicationDbContext(options);
         var saved = await verify.Events.SingleAsync(value => value.Id == liveId);
         Assert.Equal(changedEnd, saved.EventEndsAt);
@@ -543,9 +523,11 @@ public sealed class Slice3DestructiveLifecycleIntegrationTests : IAsyncLifetime
             ["__RequestVerificationToken"] = AntiforgeryToken(awaitingPage)
         }));
         Assert.Equal(System.Net.HttpStatusCode.Redirect, prepareResume.StatusCode);
-        Assert.Equal($"{awaitingRoute}?confirm=resume", prepareResume.Headers.Location!.OriginalString);
-        var resumeConfirmation = await client.GetStringAsync(prepareResume.Headers.Location!.OriginalString);
-        Assert.Contains("Confirm resume", resumeConfirmation, StringComparison.Ordinal);
+        Assert.Equal(awaitingRoute, prepareResume.Headers.Location!.OriginalString);
+        var resumeConfirmation = await client.GetStringAsync(awaitingRoute);
+        // U4 / OS-1 (brief 85 "Retired"): Resume is an Overview dialog with its confirm field.
+        Assert.Contains("data-overview-action=\"resume\"", resumeConfirmation, StringComparison.Ordinal);
+        Assert.Contains("ConfirmResumeEvent", resumeConfirmation, StringComparison.Ordinal);
         long currentEventVersion;
         await using (var versionCheck = new ApplicationDbContext(options))
         {
@@ -646,7 +628,7 @@ public sealed class Slice3DestructiveLifecycleIntegrationTests : IAsyncLifetime
         }
     }
 
-    private BingoEvent Draft(Guid id, string slug, Guid actorId) => new(id, slug, slug, "UTC", actorId, now);
+    private BingoEvent Draft(Guid id, string slug, Guid actorId) => new(id, slug, slug, "UTC", actorId, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
     private EventParticipant Participant(Guid eventId, SignupStatus status, long sequence) => new(Guid.NewGuid(), eventId, status, sequence, now, SignupSource.Website, null);
     private static async Task AssertReadOnlyPostAsync(HttpClient client, Guid eventId, string route)
     {
@@ -655,6 +637,11 @@ public sealed class Slice3DestructiveLifecycleIntegrationTests : IAsyncLifetime
         {
             ["__RequestVerificationToken"] = AntiforgeryToken(manage)
         }));
+        if (route.Contains("/Finalize/", StringComparison.Ordinal) && route.Contains("handler=Resolve", StringComparison.Ordinal))
+        {
+            Assert.Equal(System.Net.HttpStatusCode.BadRequest, response.StatusCode);
+            return;
+        }
         Assert.Equal(System.Net.HttpStatusCode.Redirect, response.StatusCode);
         Assert.Equal($"/Admin/Events/Manage/{eventId}", response.Headers.Location!.OriginalString);
         var result = await client.GetStringAsync(response.Headers.Location!.OriginalString);
@@ -670,30 +657,5 @@ public sealed class Slice3DestructiveLifecycleIntegrationTests : IAsyncLifetime
             eventData.Context!.ChangeTracker.Entries<PersonalNotification>().Any(entry => entry.State == EntityState.Added)
                 ? ValueTask.FromException<InterceptionResult<int>>(new InvalidOperationException("Simulated notification persistence failure."))
                 : ValueTask.FromResult(result);
-    }
-    private sealed class ThrowOnCleanupInsert : SaveChangesInterceptor
-    {
-        public override ValueTask<InterceptionResult<int>> SavingChangesAsync(DbContextEventData eventData, InterceptionResult<int> result, CancellationToken cancellationToken = default) =>
-            eventData.Context!.ChangeTracker.Entries<EventBannerCleanup>().Any(entry => entry.State == EntityState.Added)
-                ? ValueTask.FromException<InterceptionResult<int>>(new InvalidOperationException("Simulated cleanup outbox persistence failure."))
-                : ValueTask.FromResult(result);
-    }
-    private sealed class FlakyStorage(params string[] knownKeys) : IEvidenceStorage
-    {
-        private readonly HashSet<string> keys = new(knownKeys, StringComparer.Ordinal);
-        public bool FailDeletes { get; set; } = true;
-        public bool MissingDeletes { get; set; }
-        public List<string> Deleted { get; } = [];
-        public void Allow(string storageKey) => keys.Add(storageKey);
-        public Task<StoredEvidence> StoreAsync(Guid eventId, Guid submissionId, string originalFilename, Stream content, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public Task<Stream> OpenReadAsync(string storageKey, CancellationToken cancellationToken = default) => throw new FileNotFoundException();
-        public Task DeleteAsync(string storageKey, CancellationToken cancellationToken = default)
-        {
-            if (!keys.Contains(storageKey)) throw new InvalidOperationException("Unexpected storage key.");
-            if (MissingDeletes) throw new FileNotFoundException();
-            if (FailDeletes) throw new IOException("Simulated storage failure.");
-            Deleted.Add(storageKey);
-            return Task.CompletedTask;
-        }
     }
 }

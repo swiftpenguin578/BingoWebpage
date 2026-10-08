@@ -16,13 +16,13 @@ using Testcontainers.PostgreSql;
 
 namespace Bingo.IntegrationTests;
 
-public sealed class Slice3PublicCurrentSelectionIntegrationTests : IAsyncLifetime
+public sealed class Slice3PublicCurrentSelectionIntegrationTests(PostgreSqlTestFixture databaseFixture) : IAsyncLifetime, IClassFixture<PostgreSqlTestFixture>
 {
-    private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine")
+    private readonly PostgreSqlTestDatabase database = databaseFixture.CreateDatabase(new PostgreSqlBuilder("postgres:17-alpine")
         .WithDatabase("bingo_slice3_current_selection")
         .WithUsername("bingo")
         .WithPassword("bingo_test_password")
-        .Build();
+        );
     private readonly DateTimeOffset now = new(2026, 7, 27, 15, 0, 0, TimeSpan.Zero);
     private DbContextOptions<ApplicationDbContext> options = null!;
 
@@ -31,7 +31,6 @@ public sealed class Slice3PublicCurrentSelectionIntegrationTests : IAsyncLifetim
         await database.StartAsync();
         options = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetConnectionString()).Options;
         await using var db = new ApplicationDbContext(options);
-        await db.Database.MigrateAsync();
     }
 
     public Task DisposeAsync() => database.DisposeAsync().AsTask();
@@ -119,17 +118,19 @@ public sealed class Slice3PublicCurrentSelectionIntegrationTests : IAsyncLifetim
         var eventId = Guid.NewGuid();
         var actorId = Guid.NewGuid();
         var slug = $"teams-navigation-{Guid.NewGuid():N}";
-        var item = new BingoEvent(eventId, "Teams navigation", slug, "UTC", actorId, now);
+        var item = new BingoEvent(eventId, "Teams navigation", slug, "UTC", actorId, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         item.ConfigureSchedule(now.AddDays(-2), now.AddDays(-1), null, now.AddDays(-1), now.AddDays(2), 1);
         item.ConfigureSignup(true, false, null);
         item.OpenSignups(now.AddDays(-2));
         item.CloseSignups(now.AddDays(-1));
         item.MarkFirstPublic(now.AddDays(-1));
+        item.SetDraftRosterPublication(true);
         var participant = new EventParticipant(Guid.NewGuid(), eventId, SignupStatus.Confirmed, 1, now.AddDays(-2), SignupSource.Website);
         var team = new Team(Guid.NewGuid(), eventId, "Navigation team", "navigation-team", TeamFormationType.Drafted, null, true);
         team.Finalize(now.AddDays(-1));
         var draft = new DraftSession(Guid.NewGuid(), eventId, 1);
-        var cycle = new DraftPublicationCycle(Guid.NewGuid(), draft.Id, 1, now.AddDays(-1), actorId);
+        draft.FinalizeDirect(now.AddDays(-1));
+        var cycle = new DraftPublicationCycle(Guid.NewGuid(), draft.Id, 1, now.AddDays(-1), actorId, DraftPublicationMethod.DirectRoster);
         var roster = new DraftPublicationRoster(Guid.NewGuid(), cycle.Id, team.Id, participant.Id, TeamMembershipRole.Participant, 1, "Navigation player");
         var board = new Board(Guid.NewGuid(), eventId, "Navigation board", 1, 1);
 
@@ -164,7 +165,7 @@ public sealed class Slice3PublicCurrentSelectionIntegrationTests : IAsyncLifetim
     private async Task AddCurrentEventAsync(ApplicationDbContext db, string slug, bool fixture, bool publishBoard = true)
     {
         var eventId = Guid.NewGuid();
-        var item = new BingoEvent(eventId, slug, slug, "UTC", Guid.NewGuid(), now);
+        var item = new BingoEvent(eventId, slug, slug, "UTC", Guid.NewGuid(), now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         item.UpdateIdentity(slug, slug, "Public event description", "UTC");
         item.ConfigureSchedule(now.AddDays(-2), now.AddDays(-1), null, now.AddDays(-1), now.AddDays(1), 20);
         item.ConfigureSignup(true, false, null);
@@ -191,7 +192,7 @@ public sealed class Slice3PublicCurrentSelectionIntegrationTests : IAsyncLifetim
     private async Task AddPublicationCaseAsync(ApplicationDbContext db, string slug, bool rosterPublished, bool boardPublished)
     {
         var eventId = Guid.NewGuid();
-        var item = new BingoEvent(eventId, slug, slug, "UTC", Guid.NewGuid(), now);
+        var item = new BingoEvent(eventId, slug, slug, "UTC", Guid.NewGuid(), now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         item.UpdateIdentity(slug, slug, "Public event description", "UTC");
         item.ConfigureSchedule(now.AddDays(-2), now.AddDays(-1), null, now.AddDays(-1), now.AddDays(1), 20);
         item.ConfigureSignup(true, false, null);
@@ -202,8 +203,12 @@ public sealed class Slice3PublicCurrentSelectionIntegrationTests : IAsyncLifetim
         if (rosterPublished)
         {
             var draft = new DraftSession(Guid.NewGuid(), eventId, 1);
+            draft.FinalizeDirect(now);
+            item.SetDraftRosterPublication(true);
             db.Add(draft);
-            db.Add(new DraftPublicationCycle(Guid.NewGuid(), draft.Id, 1, now, Guid.NewGuid()));
+            var cycle = new DraftPublicationCycle(Guid.NewGuid(), draft.Id, 1, now, item.CreatedByAccountId, DraftPublicationMethod.DirectRoster);
+            db.Add(cycle);
+            db.Add(new DraftPublicationRoster(Guid.NewGuid(), cycle.Id, Guid.NewGuid(), Guid.NewGuid(), TeamMembershipRole.Participant, null, "Published player"));
         }
 
         if (boardPublished)
@@ -219,7 +224,7 @@ public sealed class Slice3PublicCurrentSelectionIntegrationTests : IAsyncLifetim
     private async Task AddSignupOnlyEventAsync(ApplicationDbContext db, string slug, bool publicEvent)
     {
         var eventId = Guid.NewGuid();
-        var item = new BingoEvent(eventId, slug, slug, "UTC", Guid.NewGuid(), now);
+        var item = new BingoEvent(eventId, slug, slug, "UTC", Guid.NewGuid(), now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         item.UpdateIdentity(slug, slug, "Public signup event", "UTC");
         item.ConfigureSchedule(now.AddDays(-2), now.AddDays(5), null, now.AddDays(7), now.AddDays(12), 6);
         item.ConfigureSignup(true, false, null);

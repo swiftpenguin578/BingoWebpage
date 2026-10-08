@@ -1,0 +1,10 @@
+AssertionError [ERR_ASSERTION]: U3-Q6 phone/wide summary reservation: 43.125 vs 39.15
+    at close (/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/check-admin-page-conformance.cjs:69:51)
+    at /Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/check-admin-page-conformance.cjs:70:5 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: false,
+  expected: true,
+  operator: '==',
+  diff: 'simple'
+}

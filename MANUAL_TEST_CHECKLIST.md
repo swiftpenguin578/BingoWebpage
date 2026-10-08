@@ -1,12 +1,88 @@
+> Historical walkthrough/test ledger. Dated Passed/Failed/waived records below
+> describe the code and requirements at that time, not current product authority or
+> instructions to reactivate retired workflows. In particular emergency access,
+> vacancies/replacements, owner transfer, finalization overrides and old Luck rules
+> are superseded by PRODUCT_REQUIREMENTS/FUNCTIONAL_CONTRACTS. Use the current
+> DELIVERY_PLAN ticket gates for new work; UI_PAGE_MATRIX owns visual acceptance.
+> No old checked box represents a rerun on the current branch candidate.
+
 # Manual Test Checklist
 
 **Status:** Current September follow-up, managed WOM functionality and boss leaderboards accepted by the user on 2026-09-23, with the explicit waivers/deferrals below. Older slice checklists remain separate history.
 
-**Last updated:** 2026-09-23
+**Last updated:** 2026-10-01
 
 **Purpose:** Preserve the user's manual acceptance checks outside chat without adding testing controls to the application.
 
 **Authority boundary:** This file records manual verification journeys, observed results, and accepted evidence only. Product behavior and scope, workflow contracts, data invariants, technical architecture, and UI rules/approval are owned by the active authority documents linked from `README.md`; this checklist does not redefine them.
+
+## Dashboard backend proof complete; UI integration deferred — 2026-10-01
+
+The read-only backend contract and focused PostgreSQL proof are complete. This
+section does not claim manual or visual acceptance. Recorded automated evidence is retained in
+`docs/references/admin-ui/reviews/2026-10-03/doc-ticket-cleanup/h1/dashboard/dashboard-backend-final.meta`:
+`dashboard-ordering-fixed4.trx` (2/2)
+and `dashboard-b2-post-ordering.trx` (7/7), with Release builds for the
+Application.Tests and IntegrationTests projects passing with 0 warnings/errors.
+Named review-remediation evidence is retained in
+`docs/references/admin-ui/reviews/2026-10-03/doc-ticket-cleanup/h1/dashboard/dashboard-remediation-final.meta`.
+The earlier `dashboard-remediation-r1-r5-fixturefixed.trx` (9/9) was reported
+historically but is not retained in the durable copy. Retained metadata covers
+`dashboard-remediation-ordering.trx` (2/2) and the latest bounded
+continuation evidence: `dashboard-remediation-r2-r3-r1-r5.trx` (8/9 with one
+PostgreSQL initialization-only authentication failure), its isolated
+`dashboard-remediation-r5-queryshape-retry.trx` (1/1), and the affected
+`dashboard-remediation-r3-original-login-boundary.trx` (1/1). The latest cases
+cover the focused R1–R5 backend boundaries, including unavailable ended-date
+classification, weighted published-drop/importless-roster submissions and
+reopened winner suppression. The independent Dashboard source review is PASS
+after the same reviewer resolved R1–R5 and their direct consequences. It inspected
+source and recorded evidence without rerunning tests. Later UI integration and
+manual acceptance remain pending.
+
+After UI integration:
+
+- Open Dashboard as an enabled Admin with no events, imported-only history,
+  one tracked event and mixed history; confirm truthful coverage and matching
+  totals/chart/history. Live and final-review figures are Provisional; the recap
+  remains ended-only and the current-event card retains the actual phase.
+- Open chart, history, recap and current-card destinations; verify stable event
+  identity, direct entry/reload and Back preserving sort/context.
+- Check provisional, finalized and reopened results, winner ties and missing/
+  partial EHB without invented zero or stale official winner.
+- Exercise controlled read failure and retry, newer-response ownership and lost
+  authorization; confirm no write/sync side effect or fabricated success.
+- Accept both themes, narrow horizontal table scrolling, chart keyboard/touch
+  details, focus, localization and reduced motion on the real integrated page.
+Page visual approval remains exclusively in UI_PAGE_MATRIX.md.
+
+## Participants new UI integration — deferred 2026-09-30
+
+The user explicitly deferred manual testing until the new Participants UI is
+integrated. Backend work is authorized now with automated checks and independent
+review; none of the journeys below is claimed manually passed.
+
+Later bind/test the actual new Participants table, Add and edit drawer:
+
+- In an event Draft before signups open, then SignupOpen/SignupClosed before team
+  draft, perform authorized admin Add/corrections; distinguish team-draft lock.
+- Confirm a selected waiter in an open place and at full capacity with explicit
+  +1 confirmation; see the intended person and unchanged remaining queue order.
+- Move a confirmed team member to Waiting, disclose team removal, observe the next
+  waiter promoted; disabled/no-op cases include open places and no eligible waiter.
+- Withdraw and restore with normal and explicit expanded-capacity placement;
+  observe refreshed counts, queue order and applicable confirmations.
+- Add existing saved accounts, select primary and payment without signup questions
+  or WOM; exercise configured limits and actionable missing-data/conflict feedback.
+- Switch primary and edit event accounts; reopen and verify primary/EHB while the
+  member's saved accounts/defaults remain unchanged.
+- Exercise stale requests, changed permission/lifecycle and failure recovery;
+  payment/private notes retain their existing broader administration window.
+- Verify drawer/direct URL/Back/Forward, dirty closing, focus, filters/scroll and
+  responsive feedback against the approved new reference during UI integration.
+
+No temporary controls, demonstration seeds or user-database reset are authorized
+by this deferred checklist.
 
 ## Current walkthrough disposition — user acceptance, 2026-09-23
 
@@ -717,15 +793,19 @@ The retained account/catalogue foundations remain preserved by the real PostgreS
 
 Use a disposable Development database, never a retained-data copy. Start PostgreSQL with `docker compose up -d postgres`, then run the app with the Development connection string from `src/Bingo.Web/appsettings.json`. Configure a disposable Discord application through user secrets (do not commit them): `DiscordAuthentication:ClientId`, `DiscordAuthentication:ClientSecret`, and its redirect URI `https://localhost:7131/Account/DiscordCallback`; the exact HTTPS URL printed by `dotnet run` takes precedence. The app deliberately leaves Discord unavailable when these values are absent.
 
-Before running the cases, apply the migration and catalogue snapshot, provision one intended owner through the explicit operator command, and create the remaining roles through the UI:
+Before running the cases, apply the migrations to the disposable Development database, provision one intended owner through the explicit operator command, and create the remaining roles through the UI. The catalogue snapshot loader is reserved for CI, Development, and manual-test data; clean-production rehearsal uses the restored database backup path:
 
 ```bash
 dotnet user-secrets set --project src/Bingo.Web "Slice1:BootstrapOwnerPassword" "<10+-character-disposable-password>"
-dotnet run --project src/Bingo.Web -- --apply-catalogue-snapshot
 dotnet run --project src/Bingo.Web -- --slice1-bootstrap-owner --username slice1-owner --confirm-username slice1-owner
 dotnet run --project src/Bingo.Web -- --reset-test-data
 dotnet run --project src/Bingo.Web
 ```
+
+For a disposable manual-test database that needs the reviewed catalogue data, run
+`dotnet run --project src/Bingo.Web -- --apply-catalogue-snapshot` after migrations
+and before owner bootstrap. This loader is never part of the production deployment
+path.
 
 The bootstrap command works only with an empty account table and creates the sole Super Admin; its password is read only from user secrets. The recovery command only promotes an existing active website account. The seed command creates the labelled workflow scenarios and prints the secondary Admin and captain credentials: `SeedAdminTwo` / `SeedAdmin!1234`, and generated captain usernames / `SeedCaptain!1234`. Sign in as `slice1-owner` with the user-secret password. Create a normal User and disabled User through Discord onboarding when credentials are available; create an emergency credential under `/Admin/Accounts` for a real seeded team, generate its setup link, choose a password, then enable it. Use two independent browser profiles for stale-session checks. The exact local URLs are `https://localhost:7131/Account/Login`, `/Account/Settings`, `/Admin/Accounts`, `/Admin/Accounts/Transfer`, `/Admin/Audit`, and `/Captain`; HTTP is `http://localhost:5164`. A retained legacy-database migration rehearsal must use a separate copied database and begin with `--slice1-migration-preflight --slice1-owner <existing-admin-id-or-username>` before applying the migration.
 
@@ -734,7 +814,7 @@ The bootstrap command works only with an empty account table and creates the sol
 - [ ] **S1-01** — Migration preflight identifies every legacy Admin/Captain, preserves account IDs, flags ambiguous usernames/scopes, and requires an explicit initial owner.
 - [ ] **S1-02** — The selected existing account becomes the sole Super Admin; another Admin remains Admin; both retained password hashes still authenticate.
 - [ ] **S1-03** — Every legacy Captain becomes a disabled emergency credential with the correct event/team/participant role scope, and no free-text participant Discord name is linked.
-- [ ] **S1-04** — Clean-production rehearsal applies migrations to an empty database, initializes the reviewed catalogue snapshot, creates no Development/test account or workflow data, and provisions exactly one intended Super Admin through controlled operator setup.
+- [ ] **S1-04** — Clean-production rehearsal rebuilds from the reviewed database backup after migrations, creates no Development/test account or workflow data, and provisions exactly one intended Super Admin through controlled operator setup.
 - [ ] **S1-05** — First-time Discord authentication reaches onboarding; cancelling, provider failure, or 15-minute onboarding-state expiry creates no account.
 - [ ] **S1-06** — Successful onboarding atomically creates the website account, unique public/password-login username, password, initial OSRS character, preferred link, and completed state.
 - [ ] **S1-07** — Password creation/change rejects fewer than 10 characters, accepts a valid 10-character password and long printable passphrase, and imposes no character-class composition rule.

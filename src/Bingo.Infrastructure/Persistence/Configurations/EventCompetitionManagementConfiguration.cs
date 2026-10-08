@@ -19,6 +19,11 @@ public sealed class EventCompetitionManagementConfiguration : IEntityTypeConfigu
         builder.Property(x => x.CompetitionStartsAt).HasColumnName("competition_starts_at");
         builder.Property(x => x.CompetitionEndsAt).HasColumnName("competition_ends_at");
         builder.Property(x => x.ProtectedVerificationCode).HasColumnName("protected_verification_code").HasMaxLength(4000);
+        builder.Property(x => x.Provenance).HasColumnName("provenance").HasConversion<string>().HasMaxLength(30);
+        builder.Property(x => x.WriteCapability).HasColumnName("write_capability").HasConversion<string>().HasMaxLength(30);
+        builder.Property(x => x.CredentialStatus).HasColumnName("credential_status").HasConversion<string>().HasMaxLength(30);
+        builder.Property(x => x.CredentialUpdatedAt).HasColumnName("credential_updated_at");
+        builder.Property(x => x.CredentialValidatedAt).HasColumnName("credential_validated_at");
         builder.Property(x => x.ManagedFieldScope).HasColumnName("managed_field_scope").HasMaxLength(200);
         builder.Property(x => x.Status).HasColumnName("status").HasConversion<string>().HasMaxLength(30);
         builder.Property(x => x.LastAppliedLocalFingerprint).HasColumnName("last_applied_local_fingerprint").HasMaxLength(64);

@@ -1,0 +1,50 @@
+Dashboard backend named-remediation handoff evidence
+Date: 2026-10-01
+Checkout: /Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage
+Branch: codex/participants-functionality
+HEAD/base: 993c90e9835d1f2d74fc9c03ed4d8f6306a7e37c
+Implementer: /root/dashboard_backend/implementation, gpt-5.6-luna/max
+Orchestrator: /root/dashboard_backend, gpt-6.1-sol/high
+Independent reviewer: /root/dashboard_backend/independent_review, gpt-6.1-sol/high
+Review disposition before recheck: CHANGES REQUIRED, R1-R5 named remediation complete; PASS not yet claimed.
+
+Final source/document identity (shasum -a 256):
+871051bc2e148237ab7d9927de2c56cb44b3e1d06ca3fb47afccdca4ccc70f99  src/Bingo.Application/Dashboard/IAdminDashboardService.cs
+846aed4b65b5ac3f1a853dda275a6e6269cdb97453600eaeb82e4fd99bc5d55f  src/Bingo.Infrastructure/Dashboard/AdminDashboardService.cs
+4049db4761256ca88ee337611c773de16f01fd8c8728963b0c9849d6937a0b20  src/Bingo.Infrastructure/DependencyInjection.cs
+9aa4d8dc593df6bc2e7a0412789a7f4b8e49c8d1df615932e67b45a85ce0764b  tests/Bingo.Application.Tests/DashboardHistoryOrderingTests.cs
+12cd03c760a5ae89a6a3e717f9b97a65ed8fc059b5cfcda261a58d93411432c3  tests/Bingo.IntegrationTests/AdminDashboardIntegrationTests.cs
+0f11d3eff911346cbc67e067d9f0ad21d0fb4f1d4e0ce9e4b5527a80565d57f6  tests/Bingo.IntegrationTests/AdminDashboardRemediationIntegrationTests.cs
+54d6742dc6f753b0607880ac76bc81f0f11caffb0e898b8d8cd952e10d8630bd  CURRENT_STATUS.md
+3d51363e2f0da44290ab3eaea42716ce0d957eacaab15bb04503ee26477f475b  DELIVERY_PLAN.md
+02a180046cbcd73d59dc5566ed1b5f05d69e6ca2e76caa24d6580ef321b2e3d3  DATA_MODEL.md
+2d59627cf5ee22bfad8ce9695ee5de8a2d898f20afc00ef3b0c72a6eb55015d2  FUNCTIONAL_CONTRACTS.md
+4d7416ed037913ec34ccc5712a29a9eb20f5a1bb298bc1005bb0d48466a1d55c  MANUAL_TEST_CHECKLIST.md
+
+Commands and results:
+1. dotnet test tests/Bingo.Application.Tests/Bingo.Application.Tests.csproj --no-build --configuration Release --filter FullyQualifiedName~DashboardHistoryOrderingTests --logger "trx;LogFileName=dashboard-remediation-ordering.trx" --results-directory /private/tmp/dashboard-remediation-20261001
+   PASS; Failed 0, Passed 2, Skipped 0, Total 2; TRX dashboard-remediation-ordering.trx.
+2. dotnet test tests/Bingo.IntegrationTests/Bingo.IntegrationTests.csproj --configuration Release --no-restore --filter FullyQualifiedName~AdminDashboardRemediationIntegrationTests --logger "trx;LogFileName=dashboard-remediation-r2-r3-r1-r5.trx" --results-directory /private/tmp/dashboard-remediation-20261001
+   PARTIAL; Failed 1, Passed 8, Skipped 0, Total 9. The failed test hit PostgreSQL 28P01 password authentication during InitializeAsync before its body; TRX dashboard-remediation-r2-r3-r1-r5.trx.
+3. dotnet test tests/Bingo.IntegrationTests/Bingo.IntegrationTests.csproj --configuration Release --no-restore --filter FullyQualifiedName~AdminDashboardRemediationIntegrationTests.ReadUsesOneSnapshotBulkQueryShapePropagatesDatabaseFailureAndDoesNotWrite --logger "trx;LogFileName=dashboard-remediation-r5-queryshape-retry.trx" --results-directory /private/tmp/dashboard-remediation-20261001
+   PASS; Failed 0, Passed 1, Skipped 0, Total 1; TRX dashboard-remediation-r5-queryshape-retry.trx.
+4. dotnet test tests/Bingo.IntegrationTests/Bingo.IntegrationTests.csproj --configuration Release --no-restore --filter FullyQualifiedName~AdminDashboardIntegrationTests.DashboardDistinguishesImportedUnlinkedNormalZeroAndEqualStartCohorts --logger "trx;LogFileName=dashboard-remediation-r3-original-login-boundary.trx" --results-directory /private/tmp/dashboard-remediation-20261001
+   PASS; Failed 0, Passed 1, Skipped 0, Total 1; TRX dashboard-remediation-r3-original-login-boundary.trx.
+5. dotnet build tests/Bingo.IntegrationTests/Bingo.IntegrationTests.csproj --configuration Release --no-restore
+   PASS; Build succeeded; 0 Warning(s); 0 Error(s).
+6. dotnet build tests/Bingo.Application.Tests/Bingo.Application.Tests.csproj --configuration Release --no-restore
+   PASS; Build succeeded; 0 Warning(s); 0 Error(s).
+7. dotnet format Bingo.slnx --no-restore --verify-no-changes --verbosity minimal --include src/Bingo.Application/Dashboard/IAdminDashboardService.cs src/Bingo.Infrastructure/Dashboard/AdminDashboardService.cs src/Bingo.Infrastructure/DependencyInjection.cs tests/Bingo.Application.Tests/DashboardHistoryOrderingTests.cs tests/Bingo.IntegrationTests/AdminDashboardIntegrationTests.cs tests/Bingo.IntegrationTests/AdminDashboardRemediationIntegrationTests.cs
+   PASS; exit 0, no output.
+8. git diff --check
+   PASS; exit 0, no output.
+
+Named proof details across the latest focused class run and isolated retry:
+- One-microsecond PostgreSQL inverted actual-date boundary plus unavailable aggregate/fallback assertions.
+- Controlled repeatable-read snapshot excludes a concurrently committed LastLoginAt change.
+- Fixed reader command count for one versus two events, all bulk query commands captured as SELECT, no tracked writes, one captured request clock.
+- Interceptor-injected database read failure propagates without a fabricated result.
+- Historical import action excludes reconstructed approved submission; later weighted published-drop submission is counted once, and a separate importless AdminCreated roster submission is measured.
+- Active reopened finalization retains two placement-one names and uses one published approval tile despite 2x2 working dimensions.
+
+Prior evidence retained separately under /private/tmp/dashboard-backend-20261001/; no broad suite rerun. No UI/HTTP/reference work, schema/migration/job/policy/provider fetch, app restart, user DB mutation, staging, commit, push, merge, or deployment.

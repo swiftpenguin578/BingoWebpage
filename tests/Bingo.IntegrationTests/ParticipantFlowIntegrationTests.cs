@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Net;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
 using Bingo.Application.Integrations.WiseOldMan;
@@ -25,13 +26,14 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Http;
+using Npgsql;
 using Testcontainers.PostgreSql;
 
 namespace Bingo.IntegrationTests;
 
-public sealed class ParticipantFlowIntegrationTests : IAsyncLifetime
+public sealed class ParticipantFlowIntegrationTests(PostgreSqlTestFixture databaseFixture) : IAsyncLifetime, IClassFixture<PostgreSqlTestFixture>
 {
-    private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine").WithDatabase("bingo_participant_flow").WithUsername("bingo").WithPassword("bingo_test_password").Build();
+    private readonly PostgreSqlTestDatabase database = databaseFixture.CreateDatabase(new PostgreSqlBuilder("postgres:17-alpine").WithDatabase("bingo_participant_flow").WithUsername("bingo").WithPassword("bingo_test_password"));
     private readonly DateTimeOffset now = DateTimeOffset.UtcNow;
     private DbContextOptions<ApplicationDbContext> options = null!;
 
@@ -40,7 +42,6 @@ public sealed class ParticipantFlowIntegrationTests : IAsyncLifetime
         await database.StartAsync();
         options = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetConnectionString()).Options;
         await using var db = new ApplicationDbContext(options);
-        await db.Database.MigrateAsync();
     }
 
     public Task DisposeAsync() => database.DisposeAsync().AsTask();
@@ -62,8 +63,8 @@ public sealed class ParticipantFlowIntegrationTests : IAsyncLifetime
         await using (var db = new ApplicationDbContext(options))
         {
             var service = new SignupService(db, new SecretHasher(), new FixedClock(now));
-            await Assert.ThrowsAsync<InvalidOperationException>(() => service.CreateAdminParticipantAsync(new(item.Id, null, admin.Id, admin.LoginName, null,
-                new Dictionary<Guid, AdminAccountAnswer> { [question.Id] = new("Unverified Internal", 1m) }, new Dictionary<Guid, string>())));
+            await Assert.ThrowsAsync<InvalidOperationException>(() => service.CreateAdminParticipantAsync(new(item.Id, null, admin.Id, admin.LoginName, admin.Id,
+                new Dictionary<Guid, AdminAccountAnswer> { [question.Id] = new("Unverified", 1m) }, new Dictionary<Guid, string>())));
         }
 
         await using var verify = new ApplicationDbContext(options);
@@ -94,63 +95,54 @@ public sealed class ParticipantFlowIntegrationTests : IAsyncLifetime
         using var client = Client(factory);
         client.DefaultRequestHeaders.AcceptLanguage.ParseAdd("da");
         await LoginAsync(client, admin);
-        var route = $"/Admin/Events/Participant/{item.Id}/Participants/{participant.Id}";
-        var initialPage = await client.GetStringAsync(route);
+        // A10 (U5-Q1, item 1b): the old detail form and its WOM outage confirmation are retired.
+        // The drawer save takes a typed RSN as an event-only account without any WOM request,
+        // and a post to the old detail route is refused before any write.
+        var oldRoute = $"/Admin/Events/Participant/{item.Id}/Participants/{participant.Id}";
+        var route = $"/Admin/Events/Participants/{item.Id}";
+        var page = await client.GetStringAsync(route);
         var editVersion = await CurrentResponseVersionAsync(participant.Id);
-
-        async Task<(HttpStatusCode Status, string Html)> PostEditAsync(string token, string characterName)
+        using (var retired = await client.PostAsync(oldRoute, new FormUrlEncodedContent(new Dictionary<string, string>
         {
-            using var response = await client.PostAsync(route, new FormUrlEncodedContent(new Dictionary<string, string>
-            {
-                ["__RequestVerificationToken"] = Token(initialPage),
-                ["Input.ExpectedResponseVersion"] = editVersion.ToString(CultureInfo.InvariantCulture),
-                ["Input.WomValidationConfirmationToken"] = token,
-                [$"Input.AccountAnswers[{question.Id}].CharacterName"] = characterName,
-                [$"Input.AccountAnswers[{question.Id}].Ehb"] = "5.5"
-            }));
-            return (response.StatusCode, WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync()));
-        }
-
-        var first = await PostEditAsync("", "First Outage Edit");
-        Assert.Equal(HttpStatusCode.OK, first.Status);
-        Assert.Equal("edit-confirmation-1", HiddenValue(first.Html, "Input.WomValidationConfirmationToken"));
-        Assert.Contains("Wise Old Man er ikke tilgængelig. Bekræft igen for at gemme disse ubekræftede konti, eller annullér for at lade holdlisten være uændret.", first.Html, StringComparison.Ordinal);
-        Assert.Contains("value=\"First Outage Edit\"", first.Html, StringComparison.Ordinal);
-        Assert.Contains("value=\"5.5\"", first.Html, StringComparison.Ordinal);
-
-        // Abandoning the pending edit by reopening the route performs no write and starts with no hidden confirmation token.
-        var cancelled = await client.GetStringAsync(route);
-        Assert.Equal(string.Empty, HiddenValue(WebUtility.HtmlDecode(cancelled), "Input.WomValidationConfirmationToken"));
+            ["__RequestVerificationToken"] = Token(page),
+            ["Input.ExpectedResponseVersion"] = editVersion.ToString(CultureInfo.InvariantCulture),
+            [$"Input.AccountAnswers[{question.Id}].CharacterName"] = "First Outage",
+            [$"Input.AccountAnswers[{question.Id}].Ehb"] = "5.5"
+        }))) Assert.Equal(HttpStatusCode.NotFound, retired.StatusCode);
         Assert.Equal("Existing Edit Account", await CurrentParticipantCharacterAsync(participant.Id));
 
-        var changed = await PostEditAsync("edit-confirmation-1", "Changed Outage Edit");
-        Assert.Equal(HttpStatusCode.OK, changed.Status);
-        Assert.Equal("edit-confirmation-2", HiddenValue(changed.Html, "Input.WomValidationConfirmationToken"));
-        Assert.Contains("value=\"Changed Outage Edit\"", changed.Html, StringComparison.Ordinal);
-        Assert.Contains("value=\"5.5\"", changed.Html, StringComparison.Ordinal);
-
-        var accepted = await PostEditAsync("edit-confirmation-2", "Changed Outage Edit");
-        Assert.Equal(HttpStatusCode.Redirect, accepted.Status);
-        Assert.Equal("Changed Outage Edit", await CurrentParticipantCharacterAsync(participant.Id));
+        using var request = new HttpRequestMessage(HttpMethod.Post, $"{route}?handler=SaveParticipant")
+        {
+            Content = new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["participantId"] = participant.Id.ToString(),
+                ["expectedResponseVersion"] = editVersion.ToString(CultureInfo.InvariantCulture),
+                ["expectedPaid"] = "false",
+                ["expectedNote"] = "",
+                ["paid"] = "false",
+                ["note"] = "",
+                ["accounts"] = $"[{{\"assignmentId\":\"{existingAssignment.Id}\",\"name\":\"Changed Edit\",\"ehb\":5.5,\"role\":\"playing\",\"primary\":true}}]",
+                ["answers"] = "{}"
+            })
+        };
+        request.Headers.Add("Accept", "application/json"); request.Headers.Add("RequestVerificationToken", Token(page));
+        using (var saved = await client.SendAsync(request))
+        {
+            Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
+            using var json = System.Text.Json.JsonDocument.Parse(await saved.Content.ReadAsStringAsync());
+            Assert.Equal("saved", json.RootElement.GetProperty("outcome").GetString());
+        }
+        Assert.Equal("Changed Edit", await CurrentParticipantCharacterAsync(participant.Id));
         await using (var verify = new ApplicationDbContext(options))
             Assert.Equal((decimal?)5.5m, await verify.EventParticipantCharacters.Where(value => value.EventParticipantId == participant.Id && value.ReleasedAt == null).Select(value => value.EhbSnapshot).SingleAsync());
-        Assert.Equal(3, validation.Requests.Count);
-        Assert.Equal("First Outage Edit", Assert.Single(validation.Requests[0].CharacterNames));
-        Assert.Equal("Changed Outage Edit", Assert.Single(validation.Requests[1].CharacterNames));
-        Assert.Equal("Changed Outage Edit", Assert.Single(validation.Requests[2].CharacterNames));
-        Assert.Equal("participant.edit", validation.Requests[^1].Action);
-        Assert.Equal(participant.Id, validation.Requests[^1].ParticipantId);
+        Assert.Empty(validation.Requests);
     }
 
-    [Theory]
-    [InlineData("encoding", "en")]
-    [InlineData("encoding", "da")]
-    [InlineData("primary", "en")]
-    [InlineData("primary", "da")]
-    public async Task InvalidCsvUploadReturnsRecoverablePreviewWithoutApplyOrRecords(string failure, string culture)
+    [Fact]
+    public async Task RetiredCsvHandlersReturnNotFoundWithoutWrites()
     {
         var admin = Website("csv-admin", GlobalRole.Admin);
-        var item = new BingoEvent(Guid.NewGuid(), "CSV preview event", "csv-preview", "UTC", admin.Id, now);
+        var item = new BingoEvent(Guid.NewGuid(), "CSV preview event", "csv-preview", "UTC", admin.Id, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         var team = new Team(Guid.NewGuid(), item.Id, "CSV team", "csv-team", TeamFormationType.Preformed, null, false);
         await using (var db = new ApplicationDbContext(options))
         {
@@ -160,30 +152,37 @@ public sealed class ParticipantFlowIntegrationTests : IAsyncLifetime
         await using var factory = Factory();
         using var client = Client(factory);
         await LoginAsync(client, admin);
-        client.DefaultRequestHeaders.AcceptLanguage.ParseAdd(culture);
         var route = $"/Admin/Events/Draft/{item.Id}";
         var page = await client.GetStringAsync($"{route}?rosterTeamId={team.Id}");
         using var upload = new MultipartFormDataContent();
         upload.Add(new StringContent(Token(page)), "__RequestVerificationToken");
         upload.Add(new StringContent(team.Id.ToString()), "teamId");
-        var bytes = Encoding.UTF8.GetBytes("Account,EHB,Account\r\nValid Main,1,\r\n");
-        bytes = failure == "encoding" ? [.. bytes, 0xC3, 0x28] : Encoding.UTF8.GetBytes("Account,EHB,Account\r\nValid Main,1,\r\n,2,Secondary\r\n");
-        upload.Add(new ByteArrayContent(bytes), "csv", "roster.csv");
-        using var preview = await client.PostAsync($"{route}?handler=PreviewRosterCsv&culture={culture}&ui-culture={culture}", upload);
-        Assert.Equal(HttpStatusCode.OK, preview.StatusCode);
-        var html = WebUtility.HtmlDecode(await preview.Content.ReadAsStringAsync());
-        Assert.Contains("draft-csv-callout-error", html);
-        Assert.Contains(failure == "encoding" ? culture == "da" ? "Gem den som UTF-8" : "Save it as UTF-8" : culture == "da" ? "Den primære konto er påkrævet." : "Primary Account is required.", html);
-        Assert.DoesNotContain("name=\"previewToken\"", html);
-        Assert.DoesNotContain("DecoderFallbackException", html);
-        Assert.DoesNotContain("Secondary", html);
+        upload.Add(new ByteArrayContent(Encoding.UTF8.GetBytes("Account,EHB\r\nLegacy Main,1\r\n")), "csv", "roster.csv");
+        using var preview = await client.PostAsync($"{route}?handler=PreviewRosterCsv", upload);
+        Assert.Equal(HttpStatusCode.NotFound, preview.StatusCode);
         using var apply = await client.PostAsync($"{route}?handler=ApplyRosterCsv", new FormUrlEncodedContent(new Dictionary<string, string>
         {
-            ["__RequestVerificationToken"] = Token(html),
+            ["__RequestVerificationToken"] = Token(page),
             ["teamId"] = team.Id.ToString(),
             ["previewToken"] = ""
         }));
-        Assert.Equal(HttpStatusCode.Redirect, apply.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, apply.StatusCode);
+        using var external = await client.PostAsync($"{route}?handler=AddExternalMember", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["__RequestVerificationToken"] = Token(page),
+            ["teamId"] = team.Id.ToString(),
+            ["name"] = "Legacy Main",
+            ["ehb"] = "1"
+        }));
+        Assert.Equal(HttpStatusCode.NotFound, external.StatusCode);
+        using var remove = await client.PostAsync($"{route}?handler=RemoveExternalTeam", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["__RequestVerificationToken"] = Token(page),
+            ["teamId"] = team.Id.ToString()
+        }));
+        Assert.Equal(HttpStatusCode.NotFound, remove.StatusCode);
+        using var template = await client.GetAsync($"{route}?handler=RosterCsvTemplate&teamId={team.Id}");
+        Assert.Equal(HttpStatusCode.NotFound, template.StatusCode);
         await using var verify = new ApplicationDbContext(options);
         Assert.Empty(await verify.EventParticipants.ToListAsync());
         Assert.Empty(await verify.OsrsCharacters.ToListAsync());
@@ -193,11 +192,72 @@ public sealed class ParticipantFlowIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task SetupTeamConfigurationCanChangeDraftInclusionAndKeepsFormationHistory()
+    {
+        var admin = Website($"inclusion-admin-{Guid.NewGuid():N}", GlobalRole.Admin);
+        var item = ClosedEvent(admin, $"inclusion-event-{Guid.NewGuid():N}");
+        var team = new Team(Guid.NewGuid(), item.Id, "Historical manual team", "historical-manual-team", TeamFormationType.Preformed, "Legacy clan", false);
+        await using (var db = new ApplicationDbContext(options))
+        {
+            db.AddRange(admin, item, team, new DraftSession(Guid.NewGuid(), item.Id, 1));
+            await db.SaveChangesAsync();
+        }
+
+        await using var factory = Factory();
+        using var client = Client(factory);
+        await LoginAsync(client, admin);
+        var route = $"/Admin/Events/Draft/{item.Id}";
+
+        async Task AddManualTeamAsync(string name)
+        {
+            var setupPage = await client.GetStringAsync(route);
+            using var add = await client.PostAsync($"{route}?handler=AddTeam", new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["__RequestVerificationToken"] = Token(setupPage),
+                ["name"] = name,
+                ["affiliation"] = "Descriptive only",
+                ["includedInDraft"] = "false"
+            }));
+            Assert.Equal(HttpStatusCode.Redirect, add.StatusCode);
+        }
+
+        // Both Add Team surfaces use the same bound handler; an unchecked box
+        // posts the explicit false value rather than falling back to inclusion.
+        await AddManualTeamAsync("Manual setup team");
+        await AddManualTeamAsync("Manual dialog team");
+        var page = await client.GetStringAsync($"{route}?rosterTeamId={team.Id}");
+        using var response = await client.PostAsync($"{route}?handler=UpdateTeam", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["__RequestVerificationToken"] = Token(page),
+            ["teamId"] = team.Id.ToString(),
+            ["rosterTeamId"] = team.Id.ToString(),
+            ["name"] = team.Name,
+            ["affiliation"] = team.AffiliationName ?? string.Empty,
+            ["version"] = "1",
+            ["removeImage"] = "false",
+            ["includedInDraft"] = "true"
+        }));
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+
+        await using var verify = new ApplicationDbContext(options);
+        var saved = await verify.Teams.SingleAsync(value => value.Id == team.Id);
+        Assert.True(saved.IncludedInDraft);
+        Assert.Equal(TeamFormationType.Preformed, saved.FormationType);
+        var manualTeams = await verify.Teams.Where(value => value.Name == "Manual setup team" || value.Name == "Manual dialog team").ToListAsync();
+        Assert.Equal(2, manualTeams.Count);
+        Assert.All(manualTeams, value => Assert.False(value.IncludedInDraft));
+        var audit = await verify.AuditEntries.SingleAsync(value => value.EventId == item.Id && value.Action == "team.inclusion_changed");
+        Assert.Contains(team.Id.ToString(), audit.Details ?? string.Empty, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task InterleavedPreformedMemberKeepsWaitingRanksAndOrdinaryAdmission()
     {
         var admin = Website("queue-admin", GlobalRole.Admin);
         var item = ClosedEvent(admin, "queue");
-        var team = new Team(Guid.NewGuid(), item.Id, "External team", "external-team", TeamFormationType.Preformed, null, false);
+        // Keep the historical value intentionally inconsistent: current signup
+        // promotion must follow IncludedInDraft, not FormationType.
+        var team = new Team(Guid.NewGuid(), item.Id, "External team", "external-team", TeamFormationType.Drafted, null, false);
         var form = new SignupForm(Guid.NewGuid(), item.Id, now);
         var question = new SignupQuestion(Guid.NewGuid(), form.Id, item.Id, "primary_regular_account", "Account", SignupQuestionType.Account, true, 0, null, SignupSystemField.PrimaryRegularAccount, EventCharacterRole.Playing);
         var first = new EventParticipant(Guid.NewGuid(), item.Id, SignupStatus.Confirmed, 1, now.AddMinutes(-1), SignupSource.AdminCreated);
@@ -209,7 +269,10 @@ public sealed class ParticipantFlowIntegrationTests : IAsyncLifetime
         async Task<Guid> AddWaiterAsync(string name)
         {
             await using var db = new ApplicationDbContext(options);
-            var result = await new SignupService(db, new SecretHasher(), new FixedClock(now), accountValidation: new SuccessfulWiseOldManAccountValidation()).CreateAdminParticipantAsync(new(item.Id, null, admin.Id, admin.LoginName, null,
+            var owner = Website($"{name.Replace(' ', '-').ToLowerInvariant()}-{Guid.NewGuid():N}", GlobalRole.User);
+            db.Accounts.Add(owner);
+            await db.SaveChangesAsync();
+            var result = await new SignupService(db, new SecretHasher(), new FixedClock(now), accountValidation: new SuccessfulWiseOldManAccountValidation()).CreateAdminParticipantAsync(new(item.Id, null, admin.Id, admin.LoginName, owner.Id,
                 new Dictionary<Guid, AdminAccountAnswer> { [question.Id] = new(name, 1m) }, new Dictionary<Guid, string>()));
             Assert.True(result.Succeeded, result.Error);
             return result.ParticipantId!.Value;
@@ -219,13 +282,19 @@ public sealed class ParticipantFlowIntegrationTests : IAsyncLifetime
         {
             using var cache = new MemoryCache(new MemoryCacheOptions());
             var service = new PreformedRosterCsvImportService(db, new EventParticipantCharacterService(db, new FixedClock(now)), cache, new FixedClock(now));
-            await using var csv = new MemoryStream(Encoding.UTF8.GetBytes("Account,EHB\r\nExternal Main,1\r\n"));
+            await using var csv = new MemoryStream(Encoding.UTF8.GetBytes("Account,EHB\r\nExtern Main,1\r\n" /* U5-Q4: CSV import enforces the 12-character RSN rule (U5 review L1) */));
             var preview = await service.PreviewAsync(admin.Id, item.Id, team.Id, csv, CancellationToken.None);
             Assert.True(preview.IsValid);
             Assert.True((await service.ApplyAsync(admin.Id, admin.LoginName, item.Id, team.Id, preview.Nonce!, CancellationToken.None)).Succeeded);
         }
         var waiterB = await AddWaiterAsync("Waiter B");
         await using var factory = Factory();
+        using var adminClient = Client(factory);
+        await LoginAsync(adminClient, admin);
+        // A10: Signup setup owns capacity counts; preserve both exact queue/count assertions.
+        var signupSetupHtml = await adminClient.GetStringAsync($"/Admin/Events/SignupSetup/{item.Id}");
+        Assert.Equal("2 of 1", WebUtility.HtmlDecode(Regex.Match(signupSetupHtml, "<dd[^>]*data-confirmed[^>]*>([^<]+)</dd>").Groups[1].Value));
+        Assert.Equal("2", WebUtility.HtmlDecode(Regex.Match(signupSetupHtml, "<dd[^>]*data-waiting[^>]*>([^<]+)</dd>").Groups[1].Value));
         using var anonymous = Client(factory);
         var html = await anonymous.GetStringAsync($"/Events/{item.Slug}/Signups");
         var waitingRows = Regex.Matches(html, "<th scope=\"row\" data-label=\"Position\">(\\d+)</th>").Select(x => x.Groups[1].Value).ToArray();
@@ -241,11 +310,57 @@ public sealed class ParticipantFlowIntegrationTests : IAsyncLifetime
             Assert.True((await new SignupService(db, new SecretHasher(), new FixedClock(now)).WithdrawAsync(item.Id, first.Id, admin.Id, admin.LoginName, true)).Succeeded);
         }
         await using var verify = new ApplicationDbContext(options);
-        Assert.Equal(SignupStatus.Confirmed, (await verify.EventParticipants.FindAsync(waiterA))!.SignupStatus);
+        // The manual-team participant still consumes the only confirmed place;
+        // withdrawing the other confirmed participant cannot promote a waiter.
+        Assert.Equal(SignupStatus.WaitingList, (await verify.EventParticipants.FindAsync(waiterA))!.SignupStatus);
         Assert.Equal(SignupStatus.WaitingList, (await verify.EventParticipants.FindAsync(waiterB))!.SignupStatus);
         Assert.Equal(new long[] { 1, 2, 3, 4 }, await verify.EventParticipants.OrderBy(x => x.SignupSequence).Select(x => x.SignupSequence).ToArrayAsync());
         html = await anonymous.GetStringAsync($"/Events/{item.Slug}/Signups");
-        Assert.Equal<string>(["01"], Regex.Matches(html, "<th scope=\"row\" data-label=\"Position\">(\\d+)</th>").Select(x => x.Groups[1].Value).ToArray());
+        Assert.Equal<string>(["01", "02"], Regex.Matches(html, "<th scope=\"row\" data-label=\"Position\">(\\d+)</th>").Select(x => x.Groups[1].Value).ToArray());
+    }
+
+    [Fact]
+    public async Task CapacityDoesNotChangeWhenAIncludedTeamBecomesManualOrIsRestored()
+    {
+        var admin = Website($"capacity-inclusion-admin-{Guid.NewGuid():N}", GlobalRole.Admin);
+        var item = new BingoEvent(Guid.NewGuid(), "Capacity inclusion event", $"capacity-inclusion-{Guid.NewGuid():N}", "UTC", admin.Id, now.AddDays(-3), Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
+        item.ConfigureInitialSchedule(now.AddDays(-2), now.AddDays(-1), null, now.AddHours(1), now.AddHours(4), 2);
+        item.MarkFirstPublic(now.AddDays(-2));
+        item.OpenSignups(now.AddDays(-2));
+        item.CloseSignups(now.AddDays(-1));
+        var team = new Team(Guid.NewGuid(), item.Id, "Switchable team", "switchable-team", TeamFormationType.Drafted, null, true);
+        var draft = new DraftSession(Guid.NewGuid(), item.Id, 1);
+        var confirmed = new EventParticipant(Guid.NewGuid(), item.Id, SignupStatus.Confirmed, 1, now.AddMinutes(-3), SignupSource.AdminCreated);
+        var secondConfirmed = new EventParticipant(Guid.NewGuid(), item.Id, SignupStatus.Confirmed, 2, now.AddMinutes(-2), SignupSource.AdminCreated);
+        var waiter = new EventParticipant(Guid.NewGuid(), item.Id, SignupStatus.Confirmed, 3, now.AddMinutes(-1), SignupSource.AdminCreated);
+        waiter.MoveToWaiting(3, now.AddMinutes(-1));
+        var membership = new TeamMembership(Guid.NewGuid(), team.Id, confirmed.Id, TeamMembershipRole.Participant, now.AddMinutes(-2), null, "seed");
+        await using (var seed = new ApplicationDbContext(options))
+        {
+            seed.AddRange(admin, item, team, draft, confirmed, secondConfirmed, waiter, membership);
+            await seed.SaveChangesAsync();
+        }
+
+        await using (var manual = new ApplicationDbContext(options))
+        {
+            (await manual.Teams.SingleAsync(value => value.Id == team.Id)).SetIncludedInDraft(false);
+            await manual.SaveChangesAsync();
+            var promoted = await new SignupService(manual, new SecretHasher(), new FixedClock(now)).PromoteAvailablePlacesAsync(item.Id);
+            Assert.Equal(0, promoted);
+        }
+        await using (var afterManual = new ApplicationDbContext(options))
+        {
+            Assert.Equal(2, await afterManual.EventParticipants.CountAsync(value => value.EventId == item.Id && value.SignupStatus == SignupStatus.Confirmed));
+            Assert.Equal(SignupStatus.WaitingList, await afterManual.EventParticipants.Where(value => value.Id == waiter.Id).Select(value => value.SignupStatus).SingleAsync());
+            (await afterManual.Teams.SingleAsync(value => value.Id == team.Id)).SetIncludedInDraft(true);
+            await afterManual.SaveChangesAsync();
+            var promoted = await new SignupService(afterManual, new SecretHasher(), new FixedClock(now)).PromoteAvailablePlacesAsync(item.Id);
+            Assert.Equal(0, promoted);
+        }
+        await using var verify = new ApplicationDbContext(options);
+        Assert.Equal(2, await verify.EventParticipants.CountAsync(value => value.EventId == item.Id && value.SignupStatus == SignupStatus.Confirmed));
+        Assert.Equal(SignupStatus.WaitingList, await verify.EventParticipants.Where(value => value.Id == waiter.Id).Select(value => value.SignupStatus).SingleAsync());
+        Assert.True(await verify.Teams.Where(value => value.Id == team.Id).Select(value => value.IncludedInDraft).SingleAsync());
     }
 
     [Theory]
@@ -257,15 +372,18 @@ public sealed class ParticipantFlowIntegrationTests : IAsyncLifetime
         var admin = Website("role-admin", GlobalRole.Admin);
         var owner = Website("role-owner", ownerRole);
         var outsider = Website("role-outsider");
-        var item = new BingoEvent(Guid.NewGuid(), "Role notification event", "role-event", "UTC", admin.Id, now.AddDays(-3));
+        var item = new BingoEvent(Guid.NewGuid(), "Role notification event", "role-event", "UTC", admin.Id, now.AddDays(-3), Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         var team = new Team(Guid.NewGuid(), item.Id, "Private roster team", "private-team", TeamFormationType.Drafted, null, true);
         var member = new EventParticipant(Guid.NewGuid(), item.Id, SignupStatus.Confirmed, 1, now.AddDays(-2), SignupSource.AdminCreated);
         member.AssignOwner(owner);
+        var memberCharacter = new OsrsCharacter(Guid.NewGuid(), "Published player", "PUBLISHED PLAYER", now.AddDays(-2));
+        var memberPlayingCharacter = new EventParticipantCharacter(Guid.NewGuid(), item.Id, member.Id, memberCharacter.Id, 0, now.AddDays(-2),
+            admin.Id, null, EventCharacterRole.Playing, 1m, EhbSource.Manual, null);
         var membership = new TeamMembership(Guid.NewGuid(), team.Id, member.Id, TeamMembershipRole.Participant, now.AddDays(-1), null, "Fixture");
         var draft = new DraftSession(Guid.NewGuid(), item.Id, 1);
         await using (var db = new ApplicationDbContext(options))
         {
-            db.AddRange(admin, owner, outsider, item, team, member, membership, draft);
+            db.AddRange(admin, owner, outsider, item, team, member, memberCharacter, memberPlayingCharacter, membership, draft);
             await db.SaveChangesAsync();
         }
         await using var factory = Factory();
@@ -274,10 +392,21 @@ public sealed class ParticipantFlowIntegrationTests : IAsyncLifetime
         await LoginAsync(client, owner);
         await LoginAsync(other, outsider);
         using var adminClient = Client(factory);
-        if (publishBoard) await LoginAsync(adminClient, admin);
+        await LoginAsync(adminClient, admin);
         var seen = new HashSet<Guid>();
         foreach (var phase in new[] { "private", "closed", "published", "reopened", "live" })
         {
+            if (phase == "published")
+            {
+                var draftRoute = $"/Admin/Events/Draft/{item.Id}";
+                var draftHtml = await adminClient.GetStringAsync(draftRoute);
+                using var finalized = await adminClient.PostAsync($"{draftRoute}?handler=Finalize", new FormUrlEncodedContent(new Dictionary<string, string>
+                {
+                    ["__RequestVerificationToken"] = Token(draftHtml),
+                    ["confirmed"] = "true"
+                }));
+                Assert.Equal(HttpStatusCode.Redirect, finalized.StatusCode);
+            }
             if (phase == "reopened" && publishBoard)
             {
                 var draftRoute = $"/Admin/Events/Draft/{item.Id}";
@@ -288,7 +417,12 @@ public sealed class ParticipantFlowIntegrationTests : IAsyncLifetime
                     ["confirmed"] = "true",
                     ["reason"] = "Fixture reopened roster correction"
                 }));
-                Assert.Equal(HttpStatusCode.Redirect, reopened.StatusCode);
+                Assert.Equal(HttpStatusCode.NotFound, reopened.StatusCode);
+                await using var unchanged = new ApplicationDbContext(options);
+                var unchangedEvent = await unchanged.Events.SingleAsync(x => x.Id == item.Id);
+                Assert.True(unchangedEvent.TeamRostersPublished);
+                Assert.True(unchangedEvent.DraftResultsPublished);
+                Assert.Single(await unchanged.DraftPublicationCycles.Where(x => x.SupersededAt == null).ToListAsync());
             }
             await using (var db = new ApplicationDbContext(options))
             {
@@ -302,13 +436,12 @@ public sealed class ParticipantFlowIntegrationTests : IAsyncLifetime
                 }
                 if (phase == "reopened")
                 {
-                    if (!publishBoard)
+                    var activeCycle = await db.DraftPublicationCycles.SingleAsync(x => x.SupersededAt == null);
+                    activeCycle.Supersede(now, admin.Id, "Fixture reopened roster correction");
+                    current.SetDraftRosterPublication(false);
+                    if (publishBoard)
                     {
-                        (await db.DraftPublicationCycles.SingleAsync()).Supersede(now, admin.Id, "Fixture reopen");
-                        current.SetDraftRosterPublication(false);
-                    }
-                    else
-                    {
+                        await db.SaveChangesAsync();
                         Assert.True(current.BoardPublished);
                         Assert.False(current.TeamRostersPublished);
                         Assert.False(current.DraftResultsPublished);
@@ -323,18 +456,14 @@ public sealed class ParticipantFlowIntegrationTests : IAsyncLifetime
                             new EventParticipantCharacter(Guid.NewGuid(), item.Id, peer.Id, peerCharacter.Id, 0, now, admin.Id, null, EventCharacterRole.Playing, 1m, EhbSource.Manual, null));
                     }
                 }
-                if (phase is "published" or "live")
+                if (phase == "published")
                 {
-                    var cycle = new DraftPublicationCycle(Guid.NewGuid(), draft.Id, phase == "published" ? 1 : 2, now, admin.Id);
-                    db.AddRange(cycle, new DraftPublicationRoster(Guid.NewGuid(), cycle.Id, team.Id, member.Id, TeamMembershipRole.Participant, null, "Published player"));
-                    current.SetDraftRosterPublication(true);
-                    if (phase == "published" && publishBoard)
+                    Assert.True(current.TeamRostersPublished);
+                    Assert.True(current.DraftResultsPublished);
+                    Assert.Single(await db.DraftPublicationCycles.Where(x => x.SupersededAt == null).ToListAsync());
+                    Assert.Single(await db.DraftPublicationRosters.ToListAsync());
+                    if (publishBoard)
                     {
-                        var session = await db.DraftSessions.SingleAsync();
-                        session.Start(now);
-                        session.Finalize(now);
-                        current.SetDraftLocked(true);
-                        (await db.Teams.SingleAsync()).Finalize(now);
                         var board = new Board(Guid.NewGuid(), item.Id, "Role notification board", 1, 1);
                         var tile = new BoardTile(Guid.NewGuid(), board.Id, Guid.NewGuid(), 0, 0, "Published tile", "Fixture objective", "", 1m);
                         var requirement = new BoardRequirementSnapshot(Guid.NewGuid(), tile.Id, 0, 1, true, false, "Fixture requirement", true);
@@ -342,6 +471,12 @@ public sealed class ParticipantFlowIntegrationTests : IAsyncLifetime
                         await BoardApprovalFixture.PublishAsync(db, board, now, [tile], [requirement]);
                         current.SetBoardPublication(true, now);
                     }
+                }
+                if (phase == "live")
+                {
+                    var cycle = new DraftPublicationCycle(Guid.NewGuid(), draft.Id, 2, now, admin.Id);
+                    db.AddRange(cycle, new DraftPublicationRoster(Guid.NewGuid(), cycle.Id, team.Id, member.Id, TeamMembershipRole.Participant, null, "Published player"));
+                    current.SetDraftRosterPublication(true);
                 }
                 if (phase == "live") current.StartEvent(now);
                 await db.SaveChangesAsync();
@@ -425,51 +560,77 @@ public sealed class ParticipantFlowIntegrationTests : IAsyncLifetime
                     recipient == coCaptain ? TeamMembershipRole.CoCaptain : TeamMembershipRole.Captain, now.AddDays(-1), null, "Fixture"));
             }
             await db.SaveChangesAsync();
-            var failedOptions = new DbContextOptionsBuilder<ApplicationDbContext>(options).AddInterceptors(new RejectNotifications()).Options;
-            await using (var failedDb = new ApplicationDbContext(failedOptions))
-            {
-                await Assert.ThrowsAsync<DbUpdateException>(() => new SignupService(failedDb, new SecretHasher(), new FixedClock(now))
-                    .WithdrawLiveAsync(new(item.Id, departed.Id, admin.Id, admin.LoginName, departedMembership.Version)));
-            }
-            await using (var rolledBack = new ApplicationDbContext(options))
-            {
-                Assert.Equal(SignupStatus.Confirmed, (await rolledBack.EventParticipants.FindAsync(departed.Id))!.SignupStatus);
-                Assert.Null((await rolledBack.TeamMemberships.FindAsync(departedMembership.Id))!.LeftAt);
-                Assert.Empty(await rolledBack.PersonalNotifications.ToListAsync());
-                Assert.Empty(await rolledBack.AuditEntries.Where(x => x.Action == "participant.live_withdrawn").ToListAsync());
-            }
-            var service = new SignupService(db, new SecretHasher(), new FixedClock(now));
-            var result = await service.WithdrawLiveAsync(new(item.Id, departed.Id, admin.Id, admin.LoginName, departedMembership.Version));
-            Assert.True(result.Succeeded, result.Error);
-            Assert.False((await service.WithdrawLiveAsync(new(item.Id, departed.Id, admin.Id, admin.LoginName, departedMembership.Version))).Changed);
+        }
+        var before = await StateHashAsync();
+        await using (var db = new ApplicationDbContext(options))
+        {
+            var result = await new SignupService(db, new SecretHasher(), new FixedClock(now))
+                .WithdrawLiveAsync(new(item.Id, departed.Id, admin.Id, admin.LoginName, departedMembership.Version));
+            Assert.False(result.Succeeded);
+            Assert.Contains("Roster membership is fixed after the event first goes Live.", result.Error, StringComparison.Ordinal);
+            var replacement = await new SignupService(db, new SecretHasher(), new FixedClock(now))
+                .ReplaceVacancyAsync(new(item.Id, departedMembership.Id, admin.Id, admin.LoginName, Guid.NewGuid()));
+            Assert.False(replacement.Succeeded);
+            Assert.Contains("replacements and vacancies are retired", replacement.Error, StringComparison.OrdinalIgnoreCase);
+        }
+        Assert.Equal(before, await StateHashAsync());
+        await using (var verify = new ApplicationDbContext(options))
+        {
+            Assert.Equal(SignupStatus.Confirmed, (await verify.EventParticipants.FindAsync(departed.Id))!.SignupStatus);
+            Assert.Null((await verify.TeamMemberships.FindAsync(departedMembership.Id))!.LeftAt);
+            Assert.Equal(departedMembership.Version, (await verify.TeamMemberships.FindAsync(departedMembership.Id))!.Version);
+            Assert.Empty(await verify.PersonalNotifications.ToListAsync());
+            Assert.Empty(await verify.AuditEntries.ToListAsync());
         }
         await using var factory = Factory();
-        await using var verify = new ApplicationDbContext(options);
-        var notices = await verify.PersonalNotifications.Where(x => x.Title == "participant.live_withdrawn").ToListAsync();
-        Assert.Equal(4, notices.Count);
-        Assert.Equal(4, notices.Select(x => x.RecipientAccountId).Distinct().Count());
-        foreach (var recipient in new[] { admin, superAdmin, leader, coCaptain })
+        using var client = Client(factory);
+        await LoginAsync(client, admin);
+        // A10 (U5 items 0a/1b, S5): the old detail route only redirects; its Withdraw and FillVacancy
+        // posts are refused before any write, and the Participants Withdraw is refused from Live on.
+        var participantPath = $"/Admin/Events/Participant/{item.Id}/Participants/{departed.Id}";
+        var participantsPath = $"/Admin/Events/Participants/{item.Id}";
+        var participantPage = await client.GetStringAsync(participantsPath);
+        Assert.DoesNotContain("Fill open vacancy", await client.GetStringAsync($"{participantsPath}?handler=Current&participant={departed.Id}"), StringComparison.Ordinal);
+        using (var rejected = await client.PostAsync($"{participantsPath}?handler=Withdraw", new FormUrlEncodedContent(new Dictionary<string, string>
         {
-            using var client = Client(factory);
-            await LoginAsync(client, recipient);
-            var notice = Assert.Single(notices, x => x.RecipientAccountId == recipient.Id);
-            var html = await FollowNoticeAsync(client, notice);
-            Assert.Contains(item.Name, html);
-            if (recipient.GlobalRole is GlobalRole.Admin or GlobalRole.SuperAdmin)
+            ["participantId"] = departed.Id.ToString(),
+            ["confirmLifecycleAction"] = "true",
+            ["__RequestVerificationToken"] = Token(participantPage)
+        }))) { Assert.Equal(HttpStatusCode.Redirect, rejected.StatusCode); Assert.Equal($"/Admin/Events/Manage/{item.Id}", rejected.Headers.Location?.OriginalString); }
+        foreach (var handler in new[] { "Withdraw", "FillVacancy" })
+        {
+            using var forged = await client.PostAsync($"{participantPath}?handler={handler}", new FormUrlEncodedContent(new Dictionary<string, string>
             {
-                Assert.Equal($"/Admin/Events/Participant/{item.Id}/Participants/{departed.Id}", notice.Route);
-                Assert.Contains("vacancy", html, StringComparison.OrdinalIgnoreCase);
-            }
-            else
-            {
-                Assert.Contains(team.Name, html);
-                Assert.DoesNotContain("Admin notes", html);
-                using var denied = await client.GetAsync($"/Admin/Events/Participant/{item.Id}/Participants/{departed.Id}");
-                AssertDenied(denied);
-            }
+                ["VacancyMembershipId"] = departedMembership.Id.ToString(),
+                ["VacancyMembershipVersion"] = departedMembership.Version.ToString(CultureInfo.InvariantCulture),
+                ["ReplacementWaitingParticipantId"] = Guid.NewGuid().ToString(),
+                ["ConfirmLifecycleAction"] = "true",
+                ["__RequestVerificationToken"] = Token(participantPage)
+            }));
+            Assert.Equal(HttpStatusCode.NotFound, forged.StatusCode);
         }
-        Assert.Equal(SignupStatus.Withdrawn, (await verify.EventParticipants.FindAsync(departed.Id))!.SignupStatus);
-        Assert.Single(await verify.AuditEntries.Where(x => x.Action == "participant.live_withdrawn").ToListAsync());
+        Assert.Equal(before, await StateHashAsync());
+    }
+
+    private async Task<string> StateHashAsync()
+    {
+        var tables = new[]
+        {
+            "events", "event_participants", "event_participant_characters", "osrs_characters", "signup_answers",
+            "team_memberships", "team_membership_role_transitions", "draft_sessions", "draft_picks",
+            "draft_publication_cycles", "draft_publication_rosters", "audit_entries", "personal_notifications",
+            "waiting_list_promotion_follow_ups", "event_participant_character_swaps", "submissions",
+            "submission_contributions", "event_competition_synchronizations"
+        };
+        await using var connection = new NpgsqlConnection(database.GetConnectionString());
+        await connection.OpenAsync();
+        var state = new StringBuilder();
+        foreach (var table in tables)
+        {
+            await using var command = new NpgsqlCommand($"SELECT COALESCE(jsonb_agg(to_jsonb(row) ORDER BY to_jsonb(row)::text), '[]'::jsonb)::text FROM {table} row", connection);
+            state.Append(table).Append(':').Append(await command.ExecuteScalarAsync());
+        }
+        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(state.ToString())));
     }
 
     private static void AssertDenied(HttpResponseMessage response) => Assert.True(response.StatusCode == HttpStatusCode.Forbidden ||
@@ -514,7 +675,7 @@ public sealed class ParticipantFlowIntegrationTests : IAsyncLifetime
     }
     private BingoEvent ClosedEvent(Account admin, string slug)
     {
-        var item = new BingoEvent(Guid.NewGuid(), $"Participant flow {slug}", slug, "UTC", admin.Id, now.AddDays(-3));
+        var item = new BingoEvent(Guid.NewGuid(), $"Participant flow {slug}", slug, "UTC", admin.Id, now.AddDays(-3), Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         item.ConfigureInitialSchedule(now.AddDays(-2), now.AddDays(-1), null, now.AddHours(1), now.AddHours(4), 1);
         item.MarkFirstPublic(now.AddDays(-2));
         item.OpenSignups(now.AddDays(-2));

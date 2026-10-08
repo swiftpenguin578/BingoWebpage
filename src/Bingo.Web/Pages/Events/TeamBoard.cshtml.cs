@@ -64,9 +64,9 @@ public sealed class TeamBoardModel(
             try
             {
                 var scope = await evidenceAuthority.ResolveActorAsync(actorAccountId, Board.EventId, Team.TeamId, (time ?? TimeProvider.System).GetUtcNow(), cancellationToken);
-                CanOpenSubmissionWorkspace = scope.Kind is EvidenceActorKind.Participant or EvidenceActorKind.Captain or EvidenceActorKind.EmergencyCaptain
+                CanOpenSubmissionWorkspace = scope.Kind is EvidenceActorKind.Participant or EvidenceActorKind.Captain
                     && scope.EventId == Board.EventId && scope.TeamId == Team.TeamId;
-                CanOpenCaptainWorkspace = scope.Kind is EvidenceActorKind.Captain or EvidenceActorKind.EmergencyCaptain
+                CanOpenCaptainWorkspace = scope.Kind is EvidenceActorKind.Captain
                     && scope.EventId == Board.EventId && scope.TeamId == Team.TeamId;
                 CanSubmit = CanOpenSubmissionWorkspace;
             }
@@ -111,7 +111,7 @@ public sealed class TeamBoardModel(
             board.EventId, Input.ParticipantId, Input.ExpectedCurrentCharacterId, Input.NextCharacterId,
             accountId.Value, User.Identity?.Name ?? "participant"), cancellationToken);
         TempData["StatusMessage"] = result.Succeeded
-            ? (text?["Account swap saved. It becomes active at {0}.", result.EffectiveAtUtc!.Value.ToString("dd MMM yyyy HH:mm 'UTC'", CultureInfo.InvariantCulture)].Value ?? $"Account swap saved. It becomes active at {result.EffectiveAtUtc!.Value:dd MMM yyyy HH:mm 'UTC'}.")
+            ? (text?["Playing account changed to {0}, active from {1}.", result.CharacterName!, result.EffectiveAtUtc!.Value.ToString("dd MMM yyyy HH:mm:ss.ffffff 'UTC'", CultureInfo.InvariantCulture)].Value ?? $"Playing account changed to {result.CharacterName}, active from {result.EffectiveAtUtc!.Value:dd MMM yyyy HH:mm:ss.ffffff 'UTC'}.")
             : (text?[result.Error ?? "The account swap could not be saved."].Value ?? result.Error ?? "The account swap could not be saved.");
         TempData[Bingo.Web.UI.UiMessage.TypeKey] = (result.Succeeded ? Bingo.Web.UI.UiMessageType.Success : Bingo.Web.UI.UiMessageType.Error).ToString();
         return RedirectToPage(new { slug, teamSlug, participantId = Input.ParticipantId });
@@ -140,7 +140,7 @@ public sealed class TeamBoardModel(
         try
         {
             var scope = await evidenceAuthority.ResolveActorAsync(accountId, eventId, teamId, (time ?? TimeProvider.System).GetUtcNow(), cancellationToken);
-            return scope.Kind is EvidenceActorKind.Participant or EvidenceActorKind.Captain or EvidenceActorKind.EmergencyCaptain
+            return scope.Kind is EvidenceActorKind.Participant or EvidenceActorKind.Captain
                 && scope.EventId == eventId && scope.TeamId == teamId;
         }
         catch (InvalidOperationException) { return false; }

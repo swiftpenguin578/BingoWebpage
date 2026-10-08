@@ -160,19 +160,13 @@ The import preserves boss/activity records and clan EHB rates, replaces their im
 
 ### Preserve and restore the reviewed OSRS catalogue
 
-The reviewed catalogue is versioned at `src/Bingo.Web/data/osrs-catalogue.json`. After deliberately reviewing or manually correcting catalogue data, export the database state into that file:
-
-```bash
-dotnet run --project src/Bingo.Web -- --export-catalogue-snapshot
-```
-
-To populate a freshly migrated deployment whose catalogue tables are empty:
+The reviewed catalogue is versioned at `src/Bingo.Web/data/osrs-catalogue.json`. Production rebuilds start from the restored database backup and do not apply this snapshot during deployment. The snapshot loader is retained for CI, Development, and manual-test databases only:
 
 ```bash
 dotnet run --project src/Bingo.Web -- --apply-catalogue-snapshot
 ```
 
-Applying the snapshot safely updates the catalogue created by older migrations and adds missing records; it does not delete catalogue records that historical boards may reference. The Wiki import remains a discovery/update workflow; it is not the authoritative deployment seed. Commit and review snapshot changes alongside the catalogue edits that produced them.
+Applying the snapshot safely updates a disposable catalogue created by migrations and adds missing records; it does not delete catalogue records that historical boards may reference. The Wiki import remains a discovery/update workflow; it is not the authoritative deployment seed. Commit and review snapshot changes alongside the catalogue edits that produced them.
 
 ### Catalogue API mapping and price reports
 
@@ -254,7 +248,7 @@ environment overrides must retain a valid contact-bearing structured User-Agent.
 
 Boss and item records retain their original OSRS Wiki image URLs, but the web UI serves those images through a same-origin persistent cache. Development uses the Git-ignored `src/Bingo.Web/data/catalogue-images` directory. In production, set `CatalogueImageCache__LocalPath` to a mounted persistent-volume path; do not rely on a container's temporary filesystem.
 
-Images populate on first use. A deployment can prewarm all reviewed catalogue and board artwork after applying the catalogue snapshot:
+Images populate on first use. A deployment can prewarm all reviewed catalogue and board artwork after the database restore/rebuild:
 
 ```bash
 dotnet run --project src/Bingo.Web -- --sync-catalogue-images
@@ -270,7 +264,15 @@ docker compose down --volumes
 
 ## Test
 
-Docker must be running because the integration suite starts an isolated PostgreSQL container.
+Docker must be running. Ordinary PostgreSQL integration tests reuse one
+`postgres:17-alpine` container and one migrated template per existing xUnit class
+collection. Each test receives a uniquely named clean database cloned from that
+template, then drops it during teardown. Migration, intermediate/fresh-schema and
+server-fact exceptions retain dedicated containers; see the
+[TS exception list](docs/references/admin-ui/reviews/2026-10-06/ts/item3-exceptions.md).
+Both shared and dedicated fixtures validate their actual database credentials on
+a real connection before use, with a bounded 60-second readiness wait. These tests
+use their own Testcontainers databases, not local application or review databases.
 
 ```bash
 dotnet test Bingo.slnx --no-restore
@@ -320,3 +322,93 @@ connection fields support ordinary punctuation such as `@`, `#`, `!`, `$`,
 - [Current status](CURRENT_STATUS.md)
 - [Delivery plan](DELIVERY_PLAN.md)
 - [Manual test checklist](MANUAL_TEST_CHECKLIST.md)
+
+### JavaScript and Playwright checks
+
+The UI batch gate also runs **every** `tests/Bingo.BrowserTests/*.js` file in an
+isolated Node process. Install Node 22, pnpm 11.25.0 and the pinned dependencies:
+
+```sh
+pnpm install --frozen-lockfile
+pnpm exec playwright install --with-deps chromium chrome webkit
+export BINGO_ADMIN_STALE_EVIDENCE_DIRECTORY="$PWD/artifacts/js-fixtures"
+dotnet test tests/Bingo.IntegrationTests/Bingo.IntegrationTests.csproj --configuration Release --filter FullyQualifiedName~AccountConfirmationRejectsCompletedInterveningChangesThenAcceptsFreshAction
+dotnet build tests/AdminDesignParityFixture/AdminDesignParityFixture.csproj --configuration Release
+pnpm test:js
+pnpm test:parity
+```
+
+Docker is required for the controlled PostgreSQL fixture-generation step. No
+running application or user database is used. The runner defaults to Playwright
+Chromium; `PLAYWRIGHT_CHANNEL=chrome` can select an installed Chrome locally. `BROWSER_TEST_TIMEOUT_MS` raises the per-file timeout (default 120000) when a loaded machine times out.
+The shell and Identity browser files also run in WebKit. One legacy test selects
+Chrome explicitly. Each execution is recorded by file and engine in
+`artifacts/js-tests/`; any failure fails the gate. `test:parity` compares the frozen
+Identity reference with actual Kestrel-served Razor and fingerprinted assets in both
+engines, using only its own PostgreSQL container and synthetic account. Its exact
+text/icon/style reports and screenshot pairs are written to `artifacts/admin-parity/`.
+It never reads review credentials or uses an existing app/database. Set
+`BINGO_PARITY_ROOT` to an extracted baseline with the same standalone fixture built
+to run the identical assertions against that source; no baseline assertions are waived.
+
+### Isolated UI review environment
+
+From this checkout, run:
+
+```sh
+python3 scripts/ui-review.py create
+python3 scripts/ui-review.py refresh final-review
+python3 scripts/ui-review.py refresh live
+python3 scripts/ui-review.py stop
+```
+
+`live` is the default profile for create/refresh; `final-review` ends the sole
+visible current event into Final review. Both commands rebuild the owned review
+database from HEAD migrations, the checked-in catalogue snapshot and the separate
+review scenarios. Dates are rebuilt relative to that run. Docker, Python 3 and the
+repository .NET SDK are required. The older `--reset-test-data` scenario set is
+unchanged.
+
+The app runs at <http://127.0.0.1:5310> and references at
+<http://127.0.0.1:5320>. The fixed PostgreSQL 17 container `bingo-ui-review`
+(`postgres:17-alpine`) binds only
+`127.0.0.1:54339`, using database/user `bingo_ui_review`. Its local-only synthetic
+password is `LocalReview!1234`. Owner label, exact container name/ID/port, local
+marker and PostgreSQL marker must agree before destructive review rebuilding.
+Create/refresh refuses an existing container with a different image.
+The command refuses databases named in `appsettings.Local.json` and user containers
+`bingowebpage-postgres-1`, `bingo-admin-acceptance-20260928` and
+`bingo-ticket-manual-20260914`. Occupied app/reference ports fail with a diagnostic;
+foreign processes are never stopped. `stop` validates and stops only matching
+owned processes/container, retaining review storage and the stopped database.
+
+Storage, ownership markers, logs and `scenarios.md` live in gitignored
+`artifacts/ui-review/`; symlinked review storage is refused. Evidence and catalogue
+images use owned local directories. WOM always uses the local
+`WiseOldManDevelopmentFakeHandler`, with live calls and automatic synchronization
+disabled. This command is Development-only.
+
+Create/refresh prints the grouped page/state list also written to
+`artifacts/ui-review/scenarios.md`. Each full link names its account. The current
+set has 21 events and 11 accounts: Draft/open/closed signup, unknown timezone,
+more than eight upcoming setups, current Live/Final review, published correction,
+blocked evidence approval, affiliated finalized rosters/former members, Archived,
+Cancelled and retained audit. The three hidden scenarios are Final review, legacy
+Finalized and Archived; hidden event pages require ReviewOwner. Discarded events
+have no event link or event population entry; their immutable audit remains visible.
+The WOM pages cover Pending, Rejected and could-not-update end outcomes.
+
+As with the existing Development seed credentials, all invented review accounts
+use the local-only password `ReviewOnly!1234`, without forced password changes.
+Sign out before switching accounts. ReviewDisabled is deliberately refused at login.
+
+| Account | Review role |
+| --- | --- |
+| ReviewOwner | SuperAdmin, including hidden event pages |
+| ReviewAdmin | Plain Admin |
+| ReviewCaptain / ReviewSecondCaptain | Team captains |
+| ReviewCoCaptain / ReviewSecondCoCaptain | Team co-captains |
+| ReviewParticipant / ReviewSecondMember | Team participants |
+| ReviewFormer | Former team member with retained history |
+| ReviewWebsite | Plain website account with no event membership |
+| ReviewDisabled | Disabled website account |

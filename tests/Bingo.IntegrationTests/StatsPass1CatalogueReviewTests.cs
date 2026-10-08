@@ -138,7 +138,7 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests
         });
         using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         await LoginAsync(client, actor.LoginName);
-        var path = $"/Admin/Catalogue?bossId={boss.Id}";
+        var path = $"/Admin/Catalogue?activity={boss.Id}";
         var html = await client.GetStringAsync(path);
         Assert.Equal(0, api.Calls);
         var name = failure == "no-name-match" ? "Unknown exact name" : "Fresh fixture";
@@ -156,7 +156,11 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests
         using var response = await PostAsync(client, "/Admin/Catalogue?handler=BossDrop", html, form);
         Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
         var result = await client.GetStringAsync(response.Headers.Location!.OriginalString);
-        var feedback = WebUtility.HtmlDecode(Regex.Match(result, "data-catalogue-status-message=\"([^\"]*)\"").Groups[1].Value);
+        // A10 (T2 Catalogue binding): the plain-form status message is the shared server toast
+        // (error tone for Error) instead of the retired data-catalogue-status-* attributes.
+        var toast = Regex.Match(result, "<div class=\"toast ?(?<tone>is-error)?\" data-toast[^>]*>.*?<span class=\"grow\" data-component-text>(?<text>[^<]*)</span>", RegexOptions.Singleline);
+        Assert.True(toast.Success);
+        var feedback = WebUtility.HtmlDecode(toast.Groups["text"].Value);
         var expectedReason = failure switch
         {
             "mapping-outage" => "item mapping API is temporarily unavailable",
@@ -172,13 +176,13 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests
         if (!manualFallback)
         {
             Assert.Null(savedItem);
-            Assert.Contains("data-catalogue-status-type=\"Error\"", result, StringComparison.Ordinal);
+            Assert.True(toast.Groups["tone"].Success, "Error status is the error toast");
             Assert.Contains("drop was not added", feedback, StringComparison.Ordinal);
             Assert.Contains("manual catalogue value", feedback, StringComparison.Ordinal);
             return;
         }
         Assert.NotNull(savedItem); Assert.Equal(17L, savedItem.CatalogueValueGp); Assert.Equal(CataloguePriceSource.Manual, savedItem.PriceSource);
-        Assert.Contains("data-catalogue-status-type=\"Information\"", result, StringComparison.Ordinal);
+        Assert.False(toast.Groups["tone"].Success, "Information status is the ordinary toast");
         Assert.Contains("manual value (17 GP) was used and stays fixed", feedback, StringComparison.Ordinal);
         Assert.Contains("validate again to use API pricing", feedback, StringComparison.Ordinal);
         var expectedStatus = failure switch

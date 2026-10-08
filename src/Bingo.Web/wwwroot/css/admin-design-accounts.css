@@ -1,0 +1,82 @@
+/* Page rules from the frozen Accounts.dc.html style block; shared primitives stay frozen.
+   The drawer and the dialogs carry data-page-family="accounts" so these rules reach them. */
+/* User "No load fades": only load markers; interaction animations stay frozen. */
+:where([data-page-family="accounts"]) .fade-in,:where([data-page-family="accounts"]) .results,:where([data-page-family="accounts"]) .empty,:where([data-page-family="accounts"]) .page-banner,:where([data-page-family="accounts"]) .kv{animation:none}
+:where([data-page-family="accounts"]).page{max-width:1240px}
+:where([data-page-family="accounts"]) .directory-fragments{display:contents}
+:where([data-page-family="accounts"]) .ac-toolbar{gap:10px 16px}
+:where([data-page-family="accounts"]) .ac-filters{flex:1;min-width:0}
+:where([data-page-family="accounts"]) .ac-tbl{--table-cols:minmax(220px,1.5fr) 120px 110px minmax(220px,1.8fr) 170px;--table-min:900px}
+:where([data-page-family="accounts"]) .ac-tbl .td{padding-top:10px;padding-bottom:10px}
+:where([data-page-family="accounts"]) .ac-tbl .row{cursor:pointer}
+:where([data-page-family="accounts"]) .ac-tbl .row.is-disabled .name-btn{color:var(--dk-text-2)}
+:where([data-page-family="accounts"]) .ac-who{display:flex;align-items:center;gap:12px;min-width:0}
+:where([data-page-family="accounts"]) .ac-who .name-btn{max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* Reference inline style="min-width: 0" on the name/sub block and display:contents cell wrapper. */
+:where([data-page-family="accounts"]) .ac-who-text{min-width:0}
+:where([data-page-family="accounts"]) .ac-cell-contents{display:contents}
+:where([data-page-family="accounts"]) .cell-sub.is-muted,:where([data-page-family="accounts"]) .ac-muted,:where([data-page-family="accounts"]) .ac-plain{color:var(--dk-text-3)}
+:where([data-page-family="accounts"]) .ac-plain,:where([data-page-family="accounts"]) .ac-active{font-size:var(--dk-fs-control-sm)}
+:where([data-page-family="accounts"]) .ac-active{color:var(--dk-text-2)}
+:where([data-page-family="accounts"]) .ac-ev{display:block;font-size:var(--dk-fs-control-sm);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+:where([data-page-family="accounts"]) .ac-ev.is-muted{color:var(--dk-text-3)}
+/* drawer */
+:where([data-page-family="accounts"]) .ac-dr-banner{padding:16px var(--dk-space-6) 0}
+:where([data-page-family="accounts"]) .ac-dr-banner .banner:focus{outline:none}
+:where([data-page-family="accounts"]) #sec-access:focus{outline:none}
+:where([data-page-family="accounts"]) .ac-kv{margin-top:0;grid-template-columns:120px minmax(0,1fr)}
+:where([data-page-family="accounts"]) .ac-kv dd{display:flex;flex-direction:column;gap:1px}
+:where([data-page-family="accounts"]) .ac-strong{font-weight:550}
+:where([data-page-family="accounts"]) .ac-strong.is-danger{color:var(--dk-danger-fg)}
+:where([data-page-family="accounts"]) .ac-sub{font-size:var(--dk-fs-small);color:var(--dk-text-3);line-height:1.45}
+/* Reference inline style="min-width: 0" on each action row's text block. */
+:where([data-page-family="accounts"]) .ac-act-copy{min-width:0}
+:where([data-page-family="accounts"]) .ac-act-title{font-size:var(--dk-fs-control);font-weight:550}
+:where([data-page-family="accounts"]) .ac-act-text{margin-top:2px;font-size:var(--dk-fs-control-sm);color:var(--dk-text-2);line-height:1.45;max-width:58ch}
+:where([data-page-family="accounts"]) .ac-reset-row+[data-account-reset-slot] .secret-result{margin-top:0}
+:where([data-page-family="accounts"]) .ac-count{color:var(--dk-text-3);font-weight:400;margin-left:4px;font-variant-numeric:tabular-nums}
+:where([data-page-family="accounts"]) .ac-count:empty{display:none}
+:where([data-page-family="accounts"]) .ac-none{margin:0;font-size:var(--dk-fs-control-sm);color:var(--dk-text-3)}
+:where([data-page-family="accounts"]) .ac-list,:where([data-page-family="accounts"]) .ac-evlist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+:where([data-page-family="accounts"]) .ac-li{display:flex;align-items:center;gap:8px;padding:7px 0;border-top:1px solid var(--dk-border-subtle);min-width:0}
+:where([data-page-family="accounts"]) .ac-li:first-child{border-top:0;padding-top:0}
+:where([data-page-family="accounts"]) .ac-li.is-inactive .ac-li-name{color:var(--dk-text-3)}
+:where([data-page-family="accounts"]) .ac-li-name{font-size:var(--dk-fs-control);font-weight:500;min-width:0;overflow-wrap:anywhere}
+:where([data-page-family="accounts"]) .ac-evitem{padding:9px 0;border-top:1px solid var(--dk-border-subtle)}
+:where([data-page-family="accounts"]) .ac-evitem:first-child{border-top:0;padding-top:0}
+:where([data-page-family="accounts"]) .ac-evhead{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+:where([data-page-family="accounts"]) .ac-evsub{margin-top:3px;font-size:var(--dk-fs-small);color:var(--dk-text-3)}
+:where([data-page-family="accounts"]) .ac-evrole{display:flex;align-items:center;gap:8px;margin-top:5px;font-size:var(--dk-fs-control-sm);color:var(--dk-text-2);min-width:0}
+:where([data-page-family="accounts"]) .ac-evrole.is-past{color:var(--dk-text-3)}
+:where([data-page-family="accounts"]) .ac-evrole.is-past .role-badge{opacity:.6}
+:where([data-page-family="accounts"]) .ac-evrole-main{min-width:0;overflow-wrap:anywhere}
+:where([data-page-family="accounts"]) .ac-evrole-when{margin-left:auto;flex:none;font-size:var(--dk-fs-small);color:var(--dk-text-3);font-variant-numeric:tabular-nums}
+:where([data-page-family="accounts"]) .ac-foot-note{margin:16px 0 0;font-size:var(--dk-fs-small);color:var(--dk-text-3);line-height:1.5}
+/* confirmations */
+:where([data-page-family="accounts"]) .ac-chg{margin:2px 0 12px}
+:where([data-page-family="accounts"]) .ac-after{font-weight:600}
+:where([data-page-family="accounts"]) .ac-tm-fields{display:flex;flex-direction:column;gap:12px;margin-bottom:12px}
+:where([data-page-family="accounts"]) .ac-tm-fields .field{margin:0}
+/* Skeletons (reference inline sizes as classes). Q-SK2: text bars sit in real line-height rows. */
+:where([data-page-family="accounts"]) .ac-sk-avatar{width:28px;height:28px;border-radius:var(--dk-radius-pill);flex:none}
+:where([data-page-family="accounts"]) .ac-sk-text{flex:1;min-width:0;min-height:calc(var(--dk-fs-body)*var(--dk-lh-body));display:flex;align-items:center}
+:where([data-page-family="accounts"]) .ac-sk-line{min-height:calc(var(--dk-fs-control-sm)*var(--dk-lh-body));display:flex;align-items:center}
+:where([data-page-family="accounts"]) .ac-sk-line>.sk,:where([data-page-family="accounts"]) .ac-sk-text>.sk{flex:none}
+:where([data-page-family="accounts"]) .ac-sk-gap{margin-top:4px}
+:where([data-page-family="accounts"]) .ac-sk-w40{width:40%}:where([data-page-family="accounts"]) .ac-sk-w45{width:45%}:where([data-page-family="accounts"]) .ac-sk-w50{width:50%}:where([data-page-family="accounts"]) .ac-sk-w55{width:55%}
+:where([data-page-family="accounts"]) .ac-sk-w60{width:60%}:where([data-page-family="accounts"]) .ac-sk-w70{width:70%}:where([data-page-family="accounts"]) .ac-sk-w85{width:85%}
+/* U2 loading decision: the summary keeps reserved lines while loading; it may grow when loaded. */
+:where([data-page-family="accounts"])[data-page-skeleton="accounts"] .summary{min-height:calc(var(--dk-fs-control)*var(--dk-lh-body))}
+/* Loading counts use the Events tab-count placeholder markup (number-sized bar); the words stay. */
+:where([data-page-family="accounts"]) .summary .tab-count{display:inline-flex;align-items:center;justify-content:center;min-width:2ch;width:2ch;height:calc(var(--dk-fs-control)*var(--dk-lh-body));vertical-align:bottom}
+:where([data-page-family="accounts"]) [data-pending-count]>.sk{display:block;width:100%;height:10px}
+/* U3-Q6: phone-width loading header reserves two summary lines. */
+@media (max-width:640px){:where([data-page-family="accounts"])[data-page-skeleton="accounts"] .summary{min-height:calc(2*var(--dk-fs-control)*var(--dk-lh-body))}}
+:where([data-page-family="accounts"])[data-accounts-load-failed] .summary{min-height:0}
+@media (max-width:640px){
+  :where([data-page-family="accounts"]) .ac-filters .search{width:100%;flex:1 1 100%}
+  :where([data-page-family="accounts"]) .ac-filters .seg{max-width:100%;overflow-x:auto}
+  :where([data-page-family="accounts"]) .ac-kv{grid-template-columns:minmax(0,1fr)}
+  :where([data-page-family="accounts"]) .ac-evrole{flex-wrap:wrap}
+  :where([data-page-family="accounts"]) .ac-evrole-when{margin-left:0;flex-basis:100%;padding-left:26px}
+}

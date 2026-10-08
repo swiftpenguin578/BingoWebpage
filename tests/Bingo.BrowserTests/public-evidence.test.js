@@ -24,7 +24,9 @@ assert.doesNotMatch(script, /data-evidence-zoom-in|data-evidence-zoom-out|data-e
 assert.match(script, /pointerdown[\s\S]*pointermove[\s\S]*pinchDistance/, "evidence viewers support bounded pointer and touch pan/zoom");
 assert.match(script, /event\.key === "ArrowLeft"[\s\S]*event\.key === "ArrowDown"/, "evidence viewers support keyboard panning");
 assert.match(css, /public-evidence-viewer__viewport[\s\S]*touch-action: none/, "public evidence viewports accept practical touch gestures");
-assert.match(css, /admin-review-lightbox__viewport[\s\S]*touch-action: none/, "admin evidence viewports accept practical touch gestures");
+// U8 1d: the retired admin lightbox CSS is gone; the Review inline viewer stage (.iv-stage, shared admin components) carries the touch rule.
+const adminComponentsCss = fs.readFileSync(path.join(root, "src/Bingo.Web/wwwroot/css/admin-design-components.css"), "utf8");
+assert.match(adminComponentsCss, /\.iv-stage\{[^}]*touch-action:\s*none/, "admin evidence viewports accept practical touch gestures");
 assert.match(css, /html\[data-public-theme="dark"\] body\.public-event-shell\.public-ui-pass1 \.public-lightbox::backdrop \{[^}]*background: color-mix\(in srgb, #000 72%, transparent\);[^}]*backdrop-filter: none;[^}]*\}[\s\S]*html\[data-public-theme="dark"\] body\.public-event-shell\.public-ui-pass1 \.public-evidence-viewer,[\s\S]*\.public-evidence-viewer__figure,[\s\S]*\.public-evidence-viewer__meta \{[^}]*background: var\(--board-surface\);[^}]*filter: none;/, "dark Public UI evidence lightboxes use a neutral translucent backdrop and continuous Board surface");
 
 class RuntimeElement {

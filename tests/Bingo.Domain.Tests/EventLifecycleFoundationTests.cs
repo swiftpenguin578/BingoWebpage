@@ -23,7 +23,7 @@ public sealed class EventLifecycleFoundationTests
     [Fact]
     public void PrivateDraftCanPersistWithoutOptionalPlanningFields()
     {
-        var item = new BingoEvent(Guid.NewGuid(), "Minimal", "minimal", "Europe/Copenhagen", Guid.NewGuid(), Now);
+        var item = new BingoEvent(Guid.NewGuid(), "Minimal", "minimal", "Europe/Copenhagen", Guid.NewGuid(), Now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
 
         Assert.Equal(EventState.Draft, item.State);
         Assert.Null(item.Description);
@@ -38,28 +38,28 @@ public sealed class EventLifecycleFoundationTests
     }
 
     [Fact]
-    public void IdentityCanBeEditedWhilePrivateButThePublicSlugIsLockedAfterPublication()
+    public void IdentityKeepsItsPermanentSlugAndAllowsContentEditsBeforeFirstLive()
     {
-        var item = new BingoEvent(Guid.NewGuid(), "Original", "original", "Europe/Copenhagen", Guid.NewGuid(), Now);
+        var item = new BingoEvent(Guid.NewGuid(), "Original", "original", "Europe/Copenhagen", Guid.NewGuid(), Now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
 
-        item.UpdateIdentity("Renamed", "renamed", "An optional description", "UTC");
+        item.UpdateIdentity("Renamed", "original", "An optional description", "UTC");
         item.MarkFirstPublic(Now.AddHours(1));
 
         Assert.Equal("Renamed", item.Name);
-        Assert.Equal("renamed", item.Slug);
+        Assert.Equal("original", item.Slug);
         Assert.Equal("UTC", item.Timezone);
         Assert.Throws<InvalidOperationException>(() => item.UpdateIdentity("Renamed again", "another-link", "Updated description", "UTC"));
 
-        item.UpdateIdentity("Renamed again", "renamed", "Updated description", "Europe/London");
+        item.UpdateIdentity("Renamed again", "original", "Updated description", "Europe/London");
         Assert.Equal("Renamed again", item.Name);
-        Assert.Equal("renamed", item.Slug);
+        Assert.Equal("original", item.Slug);
         Assert.Equal("Europe/London", item.Timezone);
     }
 
     [Fact]
     public void InitialScheduleRetainsOptionalInstantsInUtc()
     {
-        var item = new BingoEvent(Guid.NewGuid(), "Minimal", "minimal", "Europe/Copenhagen", Guid.NewGuid(), Now);
+        var item = new BingoEvent(Guid.NewGuid(), "Minimal", "minimal", "Europe/Copenhagen", Guid.NewGuid(), Now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         var localOffset = TimeSpan.FromHours(2);
 
         item.ConfigureInitialSchedule(new DateTimeOffset(2026, 8, 1, 10, 0, 0, localOffset), null, null, null, null, null);
@@ -71,7 +71,7 @@ public sealed class EventLifecycleFoundationTests
     [Fact]
     public void NormalSubmissionCutoffTracksTheCurrentEventEndAndIsAbsentWithoutOne()
     {
-        var item = new BingoEvent(Guid.NewGuid(), "Minimal", "minimal", "Europe/Copenhagen", Guid.NewGuid(), Now);
+        var item = new BingoEvent(Guid.NewGuid(), "Minimal", "minimal", "Europe/Copenhagen", Guid.NewGuid(), Now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
 
         item.ConfigureInitialSchedule(null, null, null, Now.AddDays(1), Now.AddDays(2), null);
         Assert.Equal(Now.AddDays(2).AddMinutes(30), item.SubmissionCutoffAt);
@@ -86,7 +86,7 @@ public sealed class EventLifecycleFoundationTests
     [Fact]
     public void ScheduleKeepsLifecycleHistoryAndRejectsInvalidWindows()
     {
-        var item = new BingoEvent(Guid.NewGuid(), "Minimal", "minimal", "Europe/Copenhagen", Guid.NewGuid(), Now);
+        var item = new BingoEvent(Guid.NewGuid(), "Minimal", "minimal", "Europe/Copenhagen", Guid.NewGuid(), Now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         Assert.Throws<InvalidOperationException>(() => item.ConfigureSchedule(null, null, null, Now.AddDays(2), Now.AddDays(1), 10));
         Assert.Throws<InvalidOperationException>(() => item.ConfigureSchedule(null, Now.AddDays(3), null, Now.AddDays(2), Now.AddDays(4), 10));
 
@@ -99,23 +99,25 @@ public sealed class EventLifecycleFoundationTests
     }
 
     [Fact]
-    public void IdentityAndScheduleEditsAreSupportedBeforeLiveButRejectedDuringLive()
+    public void IdentityContentEditsRemainAvailableDuringLiveButTimezoneAndScheduleDoNot()
     {
-        var item = new BingoEvent(Guid.NewGuid(), "Original", "original", "Europe/Copenhagen", Guid.NewGuid(), Now);
-        item.UpdateIdentity("Updated", "updated", "Description", "UTC");
+        var item = new BingoEvent(Guid.NewGuid(), "Original", "original", "Europe/Copenhagen", Guid.NewGuid(), Now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
+        item.UpdateIdentity("Updated", "original", "Description", "UTC");
         item.ConfigureSchedule(null, null, null, Now.AddDays(1), Now.AddDays(2), 10);
         item.OpenSignups(Now);
         item.CloseSignups(Now);
         item.StartEvent(Now);
 
-        Assert.Throws<InvalidOperationException>(() => item.UpdateIdentity("Live update", "updated", null, "UTC"));
+        item.UpdateIdentity("Live update", "original", null, "UTC");
+        Assert.Equal("Live update", item.Name);
+        Assert.Throws<InvalidOperationException>(() => item.UpdateIdentity("Timezone update", "original", null, "Europe/Copenhagen"));
         Assert.Throws<InvalidOperationException>(() => item.ConfigureSchedule(null, null, null, Now.AddDays(3), Now.AddDays(4), 10));
     }
 
     [Fact]
     public void FinalizedDraftWindowChangeOnlyChangesFutureEventBoundariesAndRedrivesCutoff()
     {
-        var item = new BingoEvent(Guid.NewGuid(), "Finalized", "finalized", "UTC", Guid.NewGuid(), Now);
+        var item = new BingoEvent(Guid.NewGuid(), "Finalized", "finalized", "UTC", Guid.NewGuid(), Now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         item.ConfigureSchedule(Now.AddHours(-1), Now.AddHours(1), null, Now.AddDays(1), Now.AddDays(2), 10);
         item.OpenSignups(Now);
         item.CloseSignups(Now);
@@ -132,7 +134,7 @@ public sealed class EventLifecycleFoundationTests
     [Fact]
     public void LiveEventEndChangeRequiresAFutureEndAndRedrivesCutoff()
     {
-        var item = new BingoEvent(Guid.NewGuid(), "Live", "live", "UTC", Guid.NewGuid(), Now);
+        var item = new BingoEvent(Guid.NewGuid(), "Live", "live", "UTC", Guid.NewGuid(), Now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         item.ConfigureSchedule(null, null, null, Now.AddHours(-1), Now.AddDays(1), 10);
         item.OpenSignups(Now.AddHours(-2));
         item.CloseSignups(Now.AddHours(-1));
@@ -150,7 +152,7 @@ public sealed class EventLifecycleFoundationTests
     [InlineData(5, 9)]
     public void PlanningRejectsBoardDimensionsOutsideTheApprovedRange(int rows, int columns)
     {
-        var item = new BingoEvent(Guid.NewGuid(), "Minimal", "minimal", "Europe/Copenhagen", Guid.NewGuid(), Now);
+        var item = new BingoEvent(Guid.NewGuid(), "Minimal", "minimal", "Europe/Copenhagen", Guid.NewGuid(), Now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
 
         Assert.Throws<ArgumentOutOfRangeException>(() => item.ConfigurePlanning(null, null, null, null, null, rows, columns));
     }
@@ -164,6 +166,7 @@ public sealed class EventLifecycleFoundationTests
                 var expected = capability switch
                 {
                     EventCapability.ConfigureIdentityOrSchedule or EventCapability.ConfigureSignup or EventCapability.CancelOrDiscard => state is EventState.Draft or EventState.SignupOpen or EventState.SignupClosed,
+                    EventCapability.ConfigureIdentity => state is EventState.Draft or EventState.SignupOpen or EventState.SignupClosed or EventState.Live or EventState.AwaitingFinalReview,
                     EventCapability.ParticipantSignup => state == EventState.SignupOpen,
                     EventCapability.ReopenSignup or EventCapability.StartEvent => state == EventState.SignupClosed,
                     EventCapability.ResumeEvent => state == EventState.AwaitingFinalReview,
@@ -322,7 +325,7 @@ public sealed class EventLifecycleFoundationTests
         Assert.False(item.AcceptsNewSubmissions(Now.AddDays(4).AddMinutes(1)));
         item.ReopenSubmissions(Now.AddDays(5), Now.AddDays(4));
         Assert.True(item.AcceptsNewSubmissions(Now.AddDays(4).AddMinutes(1)));
-        Assert.True(item.AcceptsEmergencySubmissions(Now.AddDays(4).AddMinutes(1)));
+        Assert.False(item.AcceptsEmergencySubmissions(Now.AddDays(4).AddMinutes(1)));
         Assert.True(item.CloseSubmissionsIfDue(Now.AddDays(5)));
         Assert.True(item.AcceptsNewSubmissions(Now.AddDays(5)));
         Assert.False(item.AcceptsEmergencySubmissions(Now.AddDays(5)));
@@ -342,7 +345,7 @@ public sealed class EventLifecycleFoundationTests
         item.StartEvent(Now.AddDays(2));
         item.EndEvent(Now.AddDays(3));
         var cutoff = item.SubmissionCutoffAt!.Value;
-        Assert.True(item.AcceptsEmergencySubmissions(cutoff.AddTicks(-1)));
+        Assert.False(item.AcceptsEmergencySubmissions(cutoff.AddTicks(-1)));
         Assert.True(item.CloseSubmissionsIfDue(cutoff));
         Assert.True(item.AcceptsNewSubmissions(cutoff));
         Assert.False(item.AcceptsEmergencySubmissions(cutoff));

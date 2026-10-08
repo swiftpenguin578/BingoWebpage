@@ -278,10 +278,17 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests
             {
                 edit.BoardRequirementBossSnapshots.Add(new BoardRequirementBossSnapshot(Guid.NewGuid(), second.Id, fixture.Boss.Id, fixture.Boss.Name, 10m));
                 edit.BoardRequirementDropSnapshots.Add(new BoardRequirementDropSnapshot(Guid.NewGuid(), second.Id, fixture.Drop.Id, fixture.Item.Id, fixture.Boss.Name, fixture.Item.Name, "1/10", .1m, null, null));
-                // Simulate an old override without using the now-protected template write API.
-                edit.Entry(await edit.TileTemplates.SingleAsync(x => x.Id == fixture.Template.Id)).Property(x => x.ManualEhbOverride).CurrentValue = 99m;
             }
             await edit.SaveChangesAsync();
+        }
+        // Directly inserted working requirements must pass through the same
+        // derived-cache boundary as an ordinary board edit before the overview
+        // is asserted. Approved snapshots remain created by the real approval
+        // path below.
+        await using (var refresh = new ApplicationDbContext(options))
+        {
+            await BoardEstimateService.RefreshTilesAsync(refresh, [fixture.Tile.Id], DateTimeOffset.UtcNow, CancellationToken.None);
+            await refresh.SaveChangesAsync();
         }
         await using var factory = ApprovalBatchFactory();
         using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
@@ -289,7 +296,11 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests
         var displayed = await client.GetStringAsync(fixture.Path);
         var live = await LoadBoardAsync(fixture.Event.Id, fixture.Admin.Id);
         Assert.Equal(manual ? 7m : 2m, live.Tiles.Single().Ehb);
-        if (!manual) Assert.Null(live.TileEditors.Single().ManualEhb);
+        if (!manual)
+        {
+            Assert.Null(live.TileEditors.Single().ManualEhb);
+            Assert.Equal(2m, live.TileEditors.Single().CalculatedEhb);
+        }
         var result = await PostApprovalBatchAsync(client, fixture, displayed);
         Assert.Contains("Board approved privately.", result, StringComparison.Ordinal);
         await using var verify = new ApplicationDbContext(options);
@@ -494,8 +505,8 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests
     }
 
     [Theory]
-    [InlineData("en", "Auto-generated from tile requirements")]
-    [InlineData("da", "Genereres automatisk ud fra tile-krav")]
+    [InlineData("en", "Written automatically from the objectives when you save.")]
+    [InlineData("da", "Skrives automatisk ud fra målene, når du gemmer.")]
     public async Task BoardDescriptionPlaceholderUsesRequestedCulture(string culture, string expected)
     {
         var fixture = await SeedApprovalBatchAsync();
@@ -503,17 +514,18 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests
         using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         client.DefaultRequestHeaders.AcceptLanguage.ParseAdd(culture);
         await LoginAsync(client, fixture.Admin.LoginName);
-        var html = WebUtility.HtmlDecode(await client.GetStringAsync(fixture.Path));
+        var html = await client.GetStringAsync(fixture.Path);
 
-        Assert.Contains($"placeholder=\"{expected}\"", html, StringComparison.Ordinal);
+        // A10: was Contains(placeholder="Auto-generated from tile requirements" / da). The drawer
+        // is painted client-side and its automatic-description placeholder text comes from the
+        // served label set, so assert that set carries the text in the requested culture.
+        Assert.Equal(expected, BoardPageData.Labels(html).GetProperty("Written automatically from the objectives when you save.").GetString());
     }
 
     [Theory]
-    [InlineData("CreateTile", false)]
-    [InlineData("EditTile", false)]
     [InlineData("CreateTile", true)]
     [InlineData("EditTile", true)]
-    public async Task BoardApprovalBatchRejectsForgedManualOverrideOrMixedSavesAtomically(string handler, bool mixed)
+    public async Task BoardApprovalBatchRejectsMixedSavesAtomically(string handler, bool mixed)
     {
         var fixture = await SeedApprovalBatchAsync(missingEstimate: true);
         await using (var edit = new ApplicationDbContext(options))
@@ -612,8 +624,20 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests
         var now = DateTimeOffset.UtcNow;
         var team = new Bingo.Domain.Teams.Team(Guid.NewGuid(), fixture.Event.Id, "Batch team", "batch-team", Bingo.Domain.Teams.TeamFormationType.Preformed, null, false, now);
         team.Finalize(now);
+        var participant = new EventParticipant(Guid.NewGuid(), fixture.Event.Id, SignupStatus.Confirmed, 1, now, SignupSource.AdminCreated);
+        var character = new OsrsCharacter(Guid.NewGuid(), "Batch player", "BATCH PLAYER", now);
+        var assignment = new EventParticipantCharacter(Guid.NewGuid(), fixture.Event.Id, participant.Id, character.Id, 0, now,
+            fixture.Admin.Id, null, EventCharacterRole.Playing, 1m, EhbSource.Manual, null);
+        var membership = new TeamMembership(Guid.NewGuid(), team.Id, participant.Id, TeamMembershipRole.Participant, now, null, "public board fixture");
+        var draft = new DraftSession(Guid.NewGuid(), fixture.Event.Id, 1);
+        draft.FinalizeDirect(now);
+        var publication = new DraftPublicationCycle(Guid.NewGuid(), draft.Id, 1, now, fixture.Admin.Id, DraftPublicationMethod.DirectRoster);
+        var roster = new DraftPublicationRoster(Guid.NewGuid(), publication.Id, team.Id, participant.Id, TeamMembershipRole.Participant, null, character.DisplayName);
         await using var db = new ApplicationDbContext(options);
-        db.Teams.Add(team);
+        var bingoEvent = await db.Events.SingleAsync(value => value.Id == fixture.Event.Id);
+        bingoEvent.SetDraftRosterPublication(true);
+        bingoEvent.SetBoardPublication(true, now);
+        db.AddRange(team, participant, character, assignment, membership, draft, publication, roster);
         await db.SaveChangesAsync();
     }
     private async Task<ManualCompletionFixture> AddCompletionAsync(ApprovalBatchFixture fixture)
@@ -648,7 +672,7 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests
     {
         var now = DateTimeOffset.UtcNow;
         var admin = Website("batch-approval-admin", now); admin.SetGlobalRole(GlobalRole.Admin); SetPassword(admin, now);
-        var bingoEvent = new BingoEvent(Guid.NewGuid(), "Batch approval", "batch-approval", "UTC", admin.Id, now);
+        var bingoEvent = new BingoEvent(Guid.NewGuid(), "Batch approval", "batch-approval", "UTC", admin.Id, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         var board = new Board(Guid.NewGuid(), bingoEvent.Id, "Batch board", 1, 1);
         board.AcquireEditing(admin.Id, now, TimeSpan.FromMinutes(10));
         var template = new TileTemplate(Guid.NewGuid(), "Batch tile", "Batch objective", manual ? ObjectiveType.Manual : ObjectiveType.DropRequirements, "", manual && !missingEstimate ? 7m : null);

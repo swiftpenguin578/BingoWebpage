@@ -1,8 +1,8 @@
+using System.Globalization;
 using System.Net;
 using System.Security.Claims;
 using System.Text.RegularExpressions;
 using Bingo.Application.Events;
-using Bingo.Application.Evidence;
 using Bingo.Application.Integrations.WiseOldMan;
 using Bingo.Domain.Access;
 using Bingo.Domain.Events;
@@ -23,6 +23,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using Microsoft.AspNetCore.Mvc.ViewFeatures.Infrastructure;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -32,13 +33,13 @@ using Testcontainers.PostgreSql;
 
 namespace Bingo.IntegrationTests;
 
-public sealed class Slice3CreationIdentityPersistenceIntegrationTests : IAsyncLifetime
+public sealed class Slice3CreationIdentityPersistenceIntegrationTests(PostgreSqlTestFixture databaseFixture) : IAsyncLifetime, IClassFixture<PostgreSqlTestFixture>
 {
-    private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine")
+    private readonly PostgreSqlTestDatabase database = databaseFixture.CreateDatabase(new PostgreSqlBuilder("postgres:17-alpine")
         .WithDatabase("bingo_slice3_creation_identity")
         .WithUsername("bingo")
         .WithPassword("bingo_test_password")
-        .Build();
+        );
     private DbContextOptions<ApplicationDbContext> options = null!;
     private readonly DateTimeOffset now = new(2026, 7, 27, 12, 0, 0, TimeSpan.Zero);
 
@@ -47,13 +48,12 @@ public sealed class Slice3CreationIdentityPersistenceIntegrationTests : IAsyncLi
         await database.StartAsync();
         options = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetConnectionString()).Options;
         await using var db = new ApplicationDbContext(options);
-        await db.Database.MigrateAsync();
     }
 
     public Task DisposeAsync() => database.DisposeAsync().AsTask();
 
     [Fact]
-    public async Task CreationHttpRecoversInvalidSchedulesAndRetainsInputsWithoutResidue()
+    public async Task CreationHttpAcceptsOnlyNameAndTimezoneAndCreatesAtomicDefaultAggregate()
     {
         var admin = Account.CreateWebsite(Guid.NewGuid(), "create-admin", "CREATE-ADMIN", now);
         admin.SetGlobalRole(GlobalRole.Admin);
@@ -63,8 +63,7 @@ public sealed class Slice3CreationIdentityPersistenceIntegrationTests : IAsyncLi
             setup.Accounts.Add(admin);
             await setup.SaveChangesAsync();
         }
-        var storage = new MemoryStorage();
-        var competition = new StubCompetitionClient(now.AddDays(2), now.AddDays(3));
+
         await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
         {
             builder.UseEnvironment("Testing").UseSetting("ConnectionStrings:Database", database.GetConnectionString());
@@ -72,8 +71,6 @@ public sealed class Slice3CreationIdentityPersistenceIntegrationTests : IAsyncLi
             {
                 services.RemoveAll<IHostedService>();
                 services.AddSingleton<TimeProvider>(new FixedTimeProvider(now));
-                services.AddSingleton<IEvidenceStorage>(storage);
-                services.AddSingleton<IWiseOldManCompetitionClient>(competition);
                 services.AddDataProtection().UseEphemeralDataProtectionProvider();
             });
         });
@@ -86,107 +83,163 @@ public sealed class Slice3CreationIdentityPersistenceIntegrationTests : IAsyncLi
             ["__RequestVerificationToken"] = Token(loginPage)
         }));
         Assert.Equal(HttpStatusCode.Redirect, login.StatusCode);
-        var createPage = await client.GetStringAsync("/Admin/Events/Create");
+
+        using var createEntry = await client.GetAsync("/Admin/Events/Create");
+        Assert.Equal(HttpStatusCode.Redirect, createEntry.StatusCode);
+        Assert.Equal("/Admin/Events?create=1", createEntry.Headers.Location!.OriginalString);
+        var createPage = await client.GetStringAsync(createEntry.Headers.Location);
         var token = Token(createPage);
-        var baseline = new Dictionary<string, string>
+        using (var retired = await PostAsync(new()
         {
-            ["Input.Name"] = "Retained draft",
+            ["Input.Name"] = "Retired wizard post",
             ["Input.Timezone"] = "UTC",
-            ["Input.Description"] = "Retained description",
-            ["Input.ParticipantCap"] = "20",
-            ["Input.WaitingListEnabled"] = "true",
-            ["Input.CustomQuestions[0].Label"] = "Retained question",
-            ["Input.CustomQuestions[0].Type"] = "Text"
-        };
-        foreach (var (field, message) in new[]
+            ["Input.Description"] = "This must not be accepted."
+        }))
         {
-            ("SignupOpensLocal", "Signup opening must be in the future."),
-            ("SignupClosesLocal", "Signup closing must be in the future."),
-            ("DraftLocal", "Draft time must be in the future."),
-            ("EventStartsLocal", "Event start must be in the future."),
-            ("EventEndsLocal", "Event end must be in the future.")
-        })
-        {
-            await InvalidAsync(new() { [$"Input.{field}"] = "2026-07-27T12:00" }, field, message);
+            // A10 (U10 part 2): the old page is retired; the refusal returns to the Create dialog and shows its reason as an error toast.
+            Assert.Equal(HttpStatusCode.Redirect, retired.StatusCode);
+            Assert.Equal("/Admin/Events?create=1", retired.Headers.Location!.OriginalString);
+            var html = WebUtility.HtmlDecode(await client.GetStringAsync(retired.Headers.Location));
+            Assert.Matches("class=\"toast is-error\" data-toast role=\"alert\">[\\s\\S]{0,800}?only a name and timezone", html);
         }
-        await InvalidAsync(new() { ["Input.SignupClosesLocal"] = "2026-07-30T12:00", ["Input.EventStartsLocal"] = "2026-07-29T12:00" }, "SignupClosesLocal", "Signup closing must be no later than event start.");
-        await InvalidAsync(new() { ["Input.SignupOpensLocal"] = "2026-07-29T12:00", ["Input.SignupClosesLocal"] = "2026-07-29T12:00" }, "SignupClosesLocal", "Signup closing must be after signup opening.");
-        await InvalidAsync(new() { ["Input.EventStartsLocal"] = "2026-07-29T12:00", ["Input.EventEndsLocal"] = "2026-07-28T12:00" }, "EventEndsLocal", "Event end must be after event start.");
-        competition.Starts = now.AddDays(-1);
-        await InvalidAsync(new() { ["Input.CompetitionId"] = "123" }, "CompetitionId", "Event start must be in the future.");
-        competition.Starts = now.AddDays(2);
-        competition.Ends = now;
-        await InvalidAsync(new() { ["Input.CompetitionId"] = "123" }, "CompetitionId", "Event end must be in the future.");
-        competition.Ends = now.AddDays(1);
-        await InvalidAsync(new() { ["Input.CompetitionId"] = "123" }, "CompetitionId", "Event end must be after event start.");
-        competition.Ends = now.AddDays(3);
-        await InvalidAsync(new() { ["Input.CompetitionId"] = "123", ["Input.SignupClosesLocal"] = "2026-07-30T12:00" }, "SignupClosesLocal", "Signup closing must be no later than event start.");
-        Assert.Equal(0, storage.StoreCalls);
 
-        using (var minimal = await PostAsync(new() { ["Input.Name"] = "HTTP minimal", ["Input.Timezone"] = "UTC" }, banner: false))
-            Assert.Equal(HttpStatusCode.Redirect, minimal.StatusCode);
-        var valid = new Dictionary<string, string>(baseline)
+        await using (var empty = new ApplicationDbContext(options))
         {
-            ["Input.CompetitionId"] = "123",
-            ["Input.SignupOpensLocal"] = "2026-07-28T12:00",
-            ["Input.SignupClosesLocal"] = "2026-07-29T12:00",
-            ["Input.DraftLocal"] = "2026-07-29T12:00"
-        };
-        using (var created = await PostAsync(valid, banner: true)) Assert.Equal(HttpStatusCode.Redirect, created.StatusCode);
+            Assert.Empty(await empty.Events.ToListAsync());
+            Assert.Empty(await empty.SignupForms.ToListAsync());
+            Assert.Empty(await empty.SignupQuestions.ToListAsync());
+            Assert.Empty(await empty.Boards.ToListAsync());
+            Assert.Empty(await empty.AuditEntries.ToListAsync());
+        }
+
+        using (var created = await PostAsync(new() { ["Input.Name"] = "HTTP minimal", ["Input.Timezone"] = "UTC" }))
+            Assert.Equal(HttpStatusCode.Redirect, created.StatusCode);
+
         await using var verify = new ApplicationDbContext(options);
-        Assert.Equal(2, await verify.Events.CountAsync());
-        var saved = await verify.Events.SingleAsync(item => item.Name == baseline["Input.Name"]);
-        Assert.Equal(competition.Starts, saved.EventStartsAt);
-        Assert.Equal(competition.Ends, saved.EventEndsAt);
+        var saved = await verify.Events.SingleAsync(item => item.Name == "HTTP minimal");
         Assert.Equal(EventState.Draft, saved.State);
-        Assert.Equal(2, await verify.SignupForms.CountAsync());
-        Assert.Equal(7, await verify.SignupQuestions.CountAsync());
-        Assert.Equal(3, await verify.AuditEntries.CountAsync());
-        Assert.Single(await verify.EventCompetitionSynchronizations.ToListAsync());
-        Assert.Single(await verify.EventBannerAssets.ToListAsync());
-        Assert.Equal(1, storage.FileCount);
+        Assert.Equal("UTC", saved.Timezone);
+        Assert.Equal("http-minimal", saved.Slug);
+        Assert.Null(saved.Description);
+        Assert.Null(saved.ParticipantCap);
+        Assert.Single(await verify.SignupForms.Where(form => form.EventId == saved.Id).ToListAsync());
+        var questions = await verify.SignupQuestions.Where(question => question.EventId == saved.Id).OrderBy(question => question.Position).ToListAsync();
+        Assert.Equal(3, questions.Count);
+        Assert.Equal(["primary_regular_account", "captain_volunteer", SignupQuestion.CoCaptainKey], questions.Select(question => question.Key).ToArray());
+        Assert.True(questions[1].Required);
+        var board = await verify.Boards.SingleAsync(item => item.EventId == saved.Id);
+        Assert.Equal(5, board.Rows);
+        Assert.Equal(5, board.Columns);
+        Assert.Single(await verify.AuditEntries.Where(entry => entry.EventId == saved.Id && entry.Action == "event.created").ToListAsync());
 
-        async Task InvalidAsync(Dictionary<string, string> values, string field, string message)
+        saved.ConfigureInitialSchedule(now.AddDays(-4), now.AddDays(-3), null, now.AddDays(-1), now.AddDays(1), null);
+        saved.MarkFirstPublic(now.AddDays(-4));
+        saved.OpenSignups(now.AddDays(-4));
+        saved.CloseSignups(now.AddDays(-3));
+        await verify.SaveChangesAsync();
+        var identityVersion = saved.Version;
+        var identityPage = await client.GetStringAsync($"/Admin/Events/Identity/{saved.Id}");
+        var identityToken = Token(identityPage);
+        var identityValues = new Dictionary<string, string>
         {
-            var posted = new Dictionary<string, string>(baseline);
-            foreach (var pair in values) posted[pair.Key] = pair.Value;
-            using var response = await PostAsync(posted, banner: true);
-            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-            var html = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
-            Assert.Contains(message, html);
-            Assert.Contains($"data-valmsg-for=\"Input.{field}\"", html);
-            Assert.Contains("Retained draft", html);
-            Assert.Contains("Retained description", html);
-            Assert.Contains("Retained question", html);
-            foreach (var value in values.Values) Assert.Contains(value, html);
-            await using var db = new ApplicationDbContext(options);
-            Assert.Empty(await db.Events.ToListAsync());
-            Assert.Empty(await db.SignupForms.ToListAsync());
-            Assert.Empty(await db.SignupQuestions.ToListAsync());
-            Assert.Empty(await db.AuditEntries.ToListAsync());
-            Assert.Empty(await db.EventCompetitionSynchronizations.ToListAsync());
-            Assert.Empty(await db.EventBannerAssets.ToListAsync());
-            Assert.Equal(0, storage.FileCount);
-        }
-        Task<HttpResponseMessage> PostAsync(Dictionary<string, string> values, bool banner)
+            ["Input.Name"] = saved.Name,
+            ["Input.Description"] = string.Empty,
+            ["Input.BuyInDescription"] = string.Empty,
+            ["Input.Timezone"] = "Europe/Copenhagen",
+            ["Input.Version"] = identityVersion.ToString(CultureInfo.InvariantCulture),
+            ["Input.TimezoneConfirmationOriginal"] = "UTC",
+            ["Input.TimezoneConfirmationProposed"] = "Europe/Copenhagen"
+        };
+        using (var preview = await PostIdentityAsync(identityValues, identityToken))
         {
-            var form = new MultipartFormDataContent();
-            foreach (var pair in values) form.Add(new StringContent(pair.Value), pair.Key);
-            form.Add(new StringContent(token), "__RequestVerificationToken");
-            if (banner) form.Add(new ByteArrayContent([1, 2, 3]), "Input.Banner", "test-banner.png");
-            return client.PostAsync("/Admin/Events/Create", form);
+            Assert.Equal(HttpStatusCode.OK, preview.StatusCode);
+            var html = WebUtility.HtmlDecode(await preview.Content.ReadAsStringAsync());
+            Assert.Contains("<span class=\"compare-label\" role=\"rowheader\">Signups open</span>", html);
+            Assert.Contains("<span class=\"compare-label\" role=\"rowheader\">Signups close</span>", html);
+            Assert.Contains("name=\"Input.Version\"", html);
+            Assert.Contains("value=\"" + identityVersion.ToString(CultureInfo.InvariantCulture) + "\"", html);
+            Assert.Contains("name=\"Input.TimezoneConfirmationOriginal\"", html);
+            Assert.Contains("value=\"UTC\"", html);
+            Assert.Contains("name=\"Input.TimezoneConfirmationProposed\"", html);
+            Assert.Contains("value=\"Europe/Copenhagen\"", html);
+            identityToken = Token(html);
+            identityValues["Input.TimezoneConfirmationSchedule"] = Regex.Match(html, "id=\"Input_TimezoneConfirmationSchedule\"[^>]*value=\"([^\"]+)\"").Groups[1].Value;
         }
+
+        identityValues["Input.ConfirmTimezoneChange"] = "true";
+        using (var confirmed = await PostIdentityAsync(identityValues, identityToken))
+            Assert.Equal(HttpStatusCode.Redirect, confirmed.StatusCode);
+        verify.ChangeTracker.Clear();
+        saved = await verify.Events.SingleAsync(item => item.Id == saved.Id);
+        Assert.Equal("Europe/Copenhagen", saved.Timezone);
+
+        var forgedSlugPage = await client.GetStringAsync($"/Admin/Events/Identity/{saved.Id}");
+        using (var forgedSlug = await client.PostAsync($"/Admin/Events/Identity/{saved.Id}", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["Input.Name"] = saved.Name,
+            ["Input.Slug"] = "forged-public-link",
+            ["Input.Description"] = string.Empty,
+            ["Input.BuyInDescription"] = string.Empty,
+            ["Input.Timezone"] = saved.Timezone,
+            ["Input.Version"] = saved.Version.ToString(CultureInfo.InvariantCulture),
+            ["__RequestVerificationToken"] = Token(forgedSlugPage)
+        })))
+        {
+            Assert.Equal(HttpStatusCode.OK, forgedSlug.StatusCode);
+            var html = WebUtility.HtmlDecode(await forgedSlug.Content.ReadAsStringAsync());
+            Assert.Contains("public event link is permanent", html, StringComparison.OrdinalIgnoreCase);
+        }
+
+        var staleVersion = saved.Version;
+        var stalePage = await client.GetStringAsync($"/Admin/Events/Identity/{saved.Id}");
+        var staleToken = Token(stalePage);
+        saved.UpdateIdentity("HTTP winner", saved.Slug, saved.Description, saved.BuyInDescription, saved.Timezone);
+        await verify.SaveChangesAsync();
+        verify.ChangeTracker.Clear();
+        var staleValues = new Dictionary<string, string>
+        {
+            ["Input.Name"] = "Stale proposal",
+            ["Input.Description"] = string.Empty,
+            ["Input.BuyInDescription"] = string.Empty,
+            ["Input.Timezone"] = "Europe/Copenhagen",
+            ["Input.Version"] = staleVersion.ToString(CultureInfo.InvariantCulture),
+            ["Input.TimezoneConfirmationOriginal"] = "Europe/Copenhagen",
+            ["Input.TimezoneConfirmationProposed"] = "Europe/Copenhagen"
+        };
+        using (var stale = await PostIdentityAsync(staleValues, staleToken))
+        {
+            Assert.Equal(HttpStatusCode.OK, stale.StatusCode);
+            var html = WebUtility.HtmlDecode(await stale.Content.ReadAsStringAsync());
+            Assert.Contains("This event changed while you were editing it", html);
+            Assert.Contains("name=\"Input.Version\"", html);
+            Assert.Contains("value=\"" + staleVersion.ToString(CultureInfo.InvariantCulture) + "\"", html);
+            Assert.Contains("Stale proposal", html);
+        }
+
+        async Task<HttpResponseMessage> PostAsync(Dictionary<string, string> values)
+        {
+            values["__RequestVerificationToken"] = token;
+            values["Input.RequestId"] = Regex.Match(createPage, "id=\"Input_RequestId\"[^>]*value=\"([^\"]+)\"").Groups[1].Value;
+            return await client.PostAsync("/Admin/Events/Create", new FormUrlEncodedContent(values));
+        }
+
+        async Task<HttpResponseMessage> PostIdentityAsync(Dictionary<string, string> values, string requestToken)
+        {
+            values["__RequestVerificationToken"] = requestToken;
+            return await client.PostAsync($"/Admin/Events/Identity/{saved.Id}", new FormUrlEncodedContent(values));
+        }
+
         static string Token(string page) => Regex.Match(page, "name=\"__RequestVerificationToken\" type=\"hidden\" value=\"([^\"]+)\"").Groups[1].Value;
     }
 
     [Fact]
-    public async Task CreationAllocatesDistinctAutomaticSlugsAndPreservesExplicitConflicts()
+    public async Task CreationAllocatesDistinctAutomaticSlugsAndRejectsRetiredExplicitLinks()
     {
         await using var db = new ApplicationDbContext(options);
         var actor = Guid.NewGuid();
         foreach (var name in new[] { "Duplicate display name", "Duplicate display name", new string('a', 50), new string('a', 50) })
         {
-            var page = Creation(db, new MemoryStorage(), actor, new() { Name = name, Timezone = "UTC" });
+            var page = Creation(db, actor, new() { Name = name, Timezone = "UTC" });
             Assert.IsType<RedirectToPageResult>(await page.OnPostAsync(CancellationToken.None));
         }
         var before = await db.Events.AsNoTracking().OrderBy(item => item.Slug).Select(item => new { item.Id, item.Slug }).ToListAsync();
@@ -194,69 +247,44 @@ public sealed class Slice3CreationIdentityPersistenceIntegrationTests : IAsyncLi
         Assert.Contains(before, item => item.Slug == "duplicate-display-name");
         Assert.Contains(before, item => item.Slug == "duplicate-display-name-2");
         Assert.All(before, item => Assert.InRange(item.Slug.Length, 1, 120));
-        var explicitConflict = Creation(db, new MemoryStorage(), actor, new() { Name = "Another display name", Slug = "duplicate-display-name", Timezone = "UTC" });
-        Assert.IsType<PageResult>(await explicitConflict.OnPostAsync(CancellationToken.None));
-        Assert.Contains(explicitConflict.ModelState["Input.Slug"]!.Errors, error => error.ErrorMessage == "That event link is already in use.");
+        var retiredExplicitLink = Creation(db, actor, new() { Name = "Another display name", Slug = "duplicate-display-name", Timezone = "UTC" });
+        AssertReturnedToCreateDialog(await retiredExplicitLink.OnPostAsync(CancellationToken.None));
+        Assert.Contains(retiredExplicitLink.ModelState[string.Empty]!.Errors, error => error.ErrorMessage.Contains("only a name and timezone", StringComparison.OrdinalIgnoreCase));
         Assert.Equal(before, await db.Events.AsNoTracking().OrderBy(item => item.Slug).Select(item => new { item.Id, item.Slug }).ToListAsync());
         Assert.Equal(4, await db.SignupForms.CountAsync());
         Assert.Equal(12, await db.SignupQuestions.CountAsync());
+        Assert.Equal(4, await db.Boards.CountAsync());
         Assert.Equal(4, await db.AuditEntries.CountAsync());
     }
 
-    [Theory]
-    [InlineData(true, false)]
-    [InlineData(false, false)]
-    [InlineData(true, true)]
-    public async Task CreationSlugRaceRollsBackUploadsAndRetriesOnlyAutomaticAllocation(bool automatic, bool exhaustRetries)
+    [Fact]
+    public async Task ConcurrentCreationAllocatesDistinctSlugsAndLeavesNoPartialAggregates()
     {
         var actor = Guid.NewGuid();
-        var storage = new MemoryStorage
-        {
-            BeforeStore = async call =>
-            {
-                if (call > 1 && !exhaustRetries) return;
-                await using var rivalDb = new ApplicationDbContext(options);
-                var rival = Creation(rivalDb, new MemoryStorage(), actor, new()
-                {
-                    Name = "Concurrent winner",
-                    Timezone = "UTC",
-                    Slug = call == 1 ? "racing-draft" : $"racing-draft-{call}"
-                });
-                Assert.IsType<RedirectToPageResult>(await rival.OnPostAsync(CancellationToken.None));
-            }
-        };
-        await using var db = new ApplicationDbContext(options);
-        var page = Creation(db, storage, actor, new() { Name = "Racing draft", Slug = automatic ? null : "racing-draft", Timezone = "UTC", Banner = Upload("race.png") });
-        var result = await page.OnPostAsync(CancellationToken.None);
-        var succeeded = automatic && !exhaustRetries;
-        if (succeeded) Assert.IsType<RedirectToPageResult>(result);
-        else
-        {
-            Assert.IsType<PageResult>(result);
-            Assert.Contains(page.ModelState["Input.Slug"]!.Errors, error => error.ErrorMessage == (automatic
-                ? "An event link could not be allocated. Try creating the event again." : "That event link is already in use."));
-        }
+        await using var firstDb = new ApplicationDbContext(options);
+        await using var secondDb = new ApplicationDbContext(options);
+        var first = Creation(firstDb, actor, new() { Name = "Concurrent draft", Timezone = "UTC" });
+        var second = Creation(secondDb, actor, new() { Name = "Concurrent draft", Timezone = "UTC" });
+        var results = await Task.WhenAll(first.OnPostAsync(CancellationToken.None), second.OnPostAsync(CancellationToken.None));
+        Assert.All(results, result => Assert.IsType<RedirectToPageResult>(result));
+
         await using var verify = new ApplicationDbContext(options);
-        var expectedCount = exhaustRetries ? 3 : succeeded ? 2 : 1;
-        Assert.Equal(expectedCount, await verify.Events.CountAsync());
-        Assert.Equal(expectedCount, await verify.SignupForms.CountAsync());
-        Assert.Equal(expectedCount * 3, await verify.SignupQuestions.CountAsync());
-        Assert.Equal(expectedCount, await verify.AuditEntries.CountAsync());
-        Assert.Equal(succeeded ? 1 : 0, await verify.EventBannerAssets.CountAsync());
-        Assert.Equal(succeeded ? 1 : 0, storage.FileCount);
-        Assert.Equal(exhaustRetries ? 3 : succeeded ? 2 : 1, storage.StoreCalls);
-        Assert.Equal(exhaustRetries ? 3 : 1, storage.DeleteCalls);
-        Assert.Equal("racing-draft", (await verify.Events.SingleAsync(item => item.Slug == "racing-draft")).Slug);
-        if (succeeded) Assert.Equal("racing-draft-2", (await verify.Events.SingleAsync(item => item.Name == "Racing draft")).Slug);
+        var events = await verify.Events.Where(item => item.Name == "Concurrent draft").OrderBy(item => item.Slug).ToListAsync();
+        var eventIds = events.Select(item => item.Id).ToArray();
+        Assert.Equal(2, events.Count);
+        Assert.Equal(["concurrent-draft", "concurrent-draft-2"], events.Select(item => item.Slug).ToArray());
+        Assert.Equal(2, await verify.SignupForms.CountAsync(form => eventIds.Contains(form.EventId)));
+        Assert.Equal(6, await verify.SignupQuestions.CountAsync(question => eventIds.Contains(question.EventId)));
+        Assert.Equal(2, await verify.Boards.CountAsync(board => eventIds.Contains(board.EventId)));
+        Assert.Equal(2, await verify.AuditEntries.CountAsync(entry => entry.EventId.HasValue && eventIds.Contains(entry.EventId.Value)));
     }
 
     [Fact]
-    public async Task CreationHandlerCommitsMinimalDraftAndAuditAndRejectsPartialOptionalInput()
+    public async Task CreationHandlerCommitsMinimalDraftAndRejectsRetiredOptionalInputWithoutResidue()
     {
         var actor = Guid.NewGuid();
-        var storage = new MemoryStorage();
         await using var db = new ApplicationDbContext(options);
-        var success = Creation(db, storage, actor, new CreateModel.CreateInput { Name = "Minimal draft", Timezone = "Europe/Copenhagen" });
+        var success = Creation(db, actor, new CreateModel.CreateInput { Name = "Minimal draft", Timezone = "Europe/Copenhagen" });
 
         Assert.IsType<RedirectToPageResult>(await success.OnPostAsync(CancellationToken.None));
         var created = await db.Events.SingleAsync();
@@ -265,46 +293,54 @@ public sealed class Slice3CreationIdentityPersistenceIntegrationTests : IAsyncLi
         Assert.Null(created.ParticipantCap);
         Assert.False(created.ScheduledSignupOpeningEnabled);
         Assert.Equal(created.Id, (await db.AuditEntries.SingleAsync()).EventId);
+        Assert.Equal(5, await db.Boards.Where(board => board.EventId == created.Id).Select(board => board.Rows).SingleAsync());
+        Assert.Equal(5, await db.Boards.Where(board => board.EventId == created.Id).Select(board => board.Columns).SingleAsync());
 
-        var invalid = Creation(db, storage, actor, new CreateModel.CreateInput { Name = "Partial schedule", Timezone = "Europe/Copenhagen", SignupOpensLocal = "2026-08-01" });
-        Assert.IsType<PageResult>(await invalid.OnPostAsync(CancellationToken.None));
-        Assert.True(invalid.ModelState.ContainsKey("Input.SignupOpensLocal"));
+        var invalid = Creation(db, actor, new CreateModel.CreateInput
+        {
+            Name = "Retired optional input",
+            Timezone = "Europe/Copenhagen",
+            Description = "Description is no longer accepted during creation.",
+            SignupOpensLocal = "2026-08-01",
+            ExpectedBoardRows = 4,
+            WaitingListEnabled = false
+        });
+        AssertReturnedToCreateDialog(await invalid.OnPostAsync(CancellationToken.None));
+        Assert.Contains(invalid.ModelState[string.Empty]!.Errors, error => error.ErrorMessage.Contains("only a name and timezone", StringComparison.OrdinalIgnoreCase));
+        Assert.Equal("Description is no longer accepted during creation.", invalid.Input.Description);
         Assert.Equal("2026-08-01", invalid.Input.SignupOpensLocal);
         Assert.Equal(1, await db.Events.CountAsync());
+    }
 
-        var invalidDimensions = Creation(db, storage, actor, new CreateModel.CreateInput { Name = "Oversized board", Timezone = "Europe/Copenhagen", ExpectedBoardRows = 9, ExpectedBoardColumns = 5 });
-        Assert.IsType<PageResult>(await invalidDimensions.OnPostAsync(CancellationToken.None));
-        Assert.True(invalidDimensions.ModelState.ContainsKey("Input.ExpectedBoardRows"));
-        Assert.Equal(9, invalidDimensions.Input.ExpectedBoardRows);
-        Assert.Equal(1, await db.Events.CountAsync());
-
-        var fiveMinuteFallback = Creation(db, storage, actor, new CreateModel.CreateInput
+    [Fact]
+    public async Task CreationRollsBackTheWholeAggregateWhenARequiredInsertFails()
+    {
+        var actor = Guid.NewGuid();
+        await using var db = new ApplicationDbContext(options);
+        await db.Database.ExecuteSqlRawAsync("""
+            CREATE OR REPLACE FUNCTION slice3_fail_board_insert() RETURNS trigger LANGUAGE plpgsql AS $$
+            BEGIN
+                RAISE EXCEPTION 'slice3 forced board failure';
+            END;
+            $$;
+            CREATE TRIGGER slice3_fail_board_insert BEFORE INSERT ON boards FOR EACH ROW EXECUTE FUNCTION slice3_fail_board_insert();
+            """);
+        try
         {
-            Name = "Five minute fallback",
-            Timezone = "UTC",
-            Description = "Public event description",
-            ParticipantCap = 20,
-            WaitingListEnabled = true,
-            SignupOpensLocal = "2026-08-01T10:05",
-            SignupClosesLocal = "2026-08-01T11:10",
-            DraftLocal = "2026-08-01T11:15",
-            EventStartsLocal = "2026-08-01T12:20",
-            EventEndsLocal = "2026-08-01T13:25"
-        });
-        Assert.IsType<RedirectToPageResult>(await fiveMinuteFallback.OnPostAsync(CancellationToken.None));
-        var fallbackEvent = await db.Events.SingleAsync(x => x.Name == "Five minute fallback");
-        Assert.Equal(new DateTimeOffset(2026, 8, 1, 10, 5, 0, TimeSpan.Zero), fallbackEvent.SignupOpensAt);
-        Assert.Equal(new DateTimeOffset(2026, 8, 1, 11, 15, 0, TimeSpan.Zero), fallbackEvent.DraftAt);
-        Assert.True(fallbackEvent.ScheduledSignupOpeningEnabled);
-
-        var due = new FixedTimeProvider(new DateTimeOffset(2026, 8, 1, 10, 5, 0, TimeSpan.Zero));
-        var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+            var failed = Creation(db, actor, new CreateModel.CreateInput { Name = "Rollback draft", Timezone = "UTC" });
+            AssertReturnedToCreateDialog(await failed.OnPostAsync(CancellationToken.None));
+            Assert.Contains(failed.ModelState[string.Empty]!.Errors, error => error.ErrorMessage.Contains("creation outcome could not be confirmed", StringComparison.OrdinalIgnoreCase));
+            Assert.Empty(await db.Events.ToListAsync());
+            Assert.Empty(await db.EventCreationOperations.ToListAsync());
+            Assert.Empty(await db.SignupForms.ToListAsync());
+            Assert.Empty(await db.SignupQuestions.ToListAsync());
+            Assert.Empty(await db.Boards.ToListAsync());
+            Assert.Empty(await db.AuditEntries.ToListAsync());
+        }
+        finally
         {
-            ["DiscordAuthentication:ClientId"] = "test",
-            ["DiscordAuthentication:ClientSecret"] = "test"
-        }).Build();
-        await new EventLifecycleService(db, new EventSignupLifecycleService(db, new EventReadinessEvaluator(db, configuration), due), due).ProcessDueAsync();
-        Assert.Equal(EventState.SignupOpen, (await db.Events.SingleAsync(x => x.Id == fallbackEvent.Id)).State);
+            await db.Database.ExecuteSqlRawAsync("DROP TRIGGER IF EXISTS slice3_fail_board_insert ON boards; DROP FUNCTION IF EXISTS slice3_fail_board_insert();");
+        }
     }
 
     [Fact]
@@ -315,7 +351,7 @@ public sealed class Slice3CreationIdentityPersistenceIntegrationTests : IAsyncLi
 
         foreach (var timezone in new[] { "Europe/Copenhagen", "UTC" })
         {
-            var creation = Creation(db, new MemoryStorage(), actor, new CreateModel.CreateInput
+            var creation = Creation(db, actor, new CreateModel.CreateInput
             {
                 Name = $"Supported {timezone}",
                 Timezone = timezone
@@ -324,31 +360,26 @@ public sealed class Slice3CreationIdentityPersistenceIntegrationTests : IAsyncLi
             Assert.IsType<RedirectToPageResult>(await creation.OnPostAsync(CancellationToken.None));
         }
 
-        var invalid = Creation(db, new MemoryStorage(), actor, new CreateModel.CreateInput
+        var invalid = Creation(db, actor, new CreateModel.CreateInput
         {
             Name = "Unsupported timezone",
             Timezone = "Europe/London"
         });
 
-        Assert.IsType<PageResult>(await invalid.OnPostAsync(CancellationToken.None));
+        AssertReturnedToCreateDialog(await invalid.OnPostAsync(CancellationToken.None));
         Assert.True(invalid.ModelState.ContainsKey("Input.Timezone"));
         Assert.Equal(2, await db.Events.CountAsync());
     }
 
     [Fact]
-    public async Task CreationDefaultsUseZeroBasedSignupQuestionsAndOpenUntilAQuestionIsActuallyMalformed()
+    public async Task CreationDefaultsUseTheRequiredSignupQuestionsAndAnEmptyFiveByFiveBoard()
     {
         var actor = Guid.NewGuid();
         await using var db = new ApplicationDbContext(options);
-        var creation = Creation(db, new MemoryStorage(), actor, new CreateModel.CreateInput
+        var creation = Creation(db, actor, new CreateModel.CreateInput
         {
             Name = "Default signup readiness",
-            Timezone = "UTC",
-            Description = "A public description for signup readiness.",
-            ParticipantCap = 20,
-            SignupClosesLocal = "2026-07-29T12:00",
-            EventStartsLocal = "2026-07-30T12:00",
-            EventEndsLocal = "2026-08-01T12:00"
+            Timezone = "UTC"
         });
 
         Assert.IsType<RedirectToPageResult>(await creation.OnPostAsync(CancellationToken.None));
@@ -368,7 +399,7 @@ public sealed class Slice3CreationIdentityPersistenceIntegrationTests : IAsyncLi
             {
                 Assert.Equal("captain_volunteer", question.Key);
                 Assert.Equal(SignupQuestionType.YesNo, question.Type);
-                Assert.False(question.Required);
+                Assert.True(question.Required);
                 Assert.Equal(SignupSystemField.CaptainVolunteer, question.SystemField);
                 Assert.Equal(1, question.Position);
             },
@@ -380,76 +411,166 @@ public sealed class Slice3CreationIdentityPersistenceIntegrationTests : IAsyncLi
                 Assert.Equal(SignupSystemField.CoCaptainName, question.SystemField);
                 Assert.Equal(2, question.Position);
             });
-
-        var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["DiscordAuthentication:ClientId"] = "test", ["DiscordAuthentication:ClientSecret"] = "test" }).Build();
-        var readiness = new EventReadinessEvaluator(db, configuration);
-        var beforeOpen = await readiness.GetSignupReadinessAsync(bingoEvent.Id, SignupOpeningMode.OpenNow, now);
-        Assert.DoesNotContain(beforeOpen!.Blockers, blocker => blocker.Code == "SIGNUP_QUESTIONS_INVALID");
-        var lifecycle = new EventSignupLifecycleService(db, readiness, new FixedTimeProvider(now));
-        var opened = await lifecycle.OpenAsync(bingoEvent.Id, bingoEvent.Version, acknowledgedWarningCodes: beforeOpen.Warnings.Select(warning => warning.Code).ToArray(), acceptProposedClose: true, actor: new LifecycleActor(actor, "admin"));
-        Assert.True(opened.Succeeded, opened.Error);
-        Assert.Equal(EventState.SignupOpen, await db.Events.Where(item => item.Id == bingoEvent.Id).Select(item => item.State).SingleAsync());
-
-        await db.Database.ExecuteSqlInterpolatedAsync($"UPDATE signup_questions SET position = {-1} WHERE id = {questions[0].Id}");
-        db.ChangeTracker.Clear();
-        var malformed = await readiness.GetSignupReadinessAsync(bingoEvent.Id, SignupOpeningMode.OpenNow, now);
-        Assert.Contains(malformed!.Blockers, blocker => blocker.Code == "SIGNUP_QUESTIONS_INVALID");
+        var board = await db.Boards.SingleAsync(item => item.EventId == bingoEvent.Id);
+        Assert.Equal(5, board.Rows);
+        Assert.Equal(5, board.Columns);
+        Assert.Empty(await db.BoardTiles.Where(tile => tile.BoardId == board.Id).ToListAsync());
+        Assert.Equal(EventState.Draft, bingoEvent.State);
+        Assert.Null(bingoEvent.PublicRules);
+        Assert.Null(bingoEvent.PrizeDescription);
+        Assert.Null(bingoEvent.ExpectedTeamCount);
+        Assert.Null(bingoEvent.ExpectedBoardRows);
+        Assert.Null(bingoEvent.ExpectedBoardColumns);
     }
 
     [Fact]
-    public async Task IdentityHandlerPreservesUtcAndMapsLocksConcurrencyAndSlugCollisionsToSafeFeedback()
+    public async Task IdentityHandlerPreservesUtcAndSupportsLiveContentEditsButLocksSlugAndPostLiveTimezone()
     {
         var actor = Guid.NewGuid();
         var eventId = await SeedEventAsync("identity-target", actor);
+        DateTimeOffset originalStart;
         await using (var db = new ApplicationDbContext(options))
         {
             var item = await db.Events.SingleAsync(x => x.Id == eventId);
-            var edit = Identity(db, new MemoryStorage(), actor, new IdentityModel.InputModel { Name = "Renamed", Slug = "renamed", Description = "Description", Timezone = "Europe/Copenhagen", Version = item.Version });
+            item.ConfigureInitialSchedule(null, null, null, now.AddDays(1), now.AddDays(2), null);
+            originalStart = item.EventStartsAt!.Value;
+            await db.SaveChangesAsync();
+            item = await db.Events.SingleAsync(x => x.Id == eventId);
+            var edit = Identity(db, actor, new IdentityModel.InputModel
+            {
+                Name = "Renamed",
+                Slug = item.Slug,
+                Description = "Description",
+                BuyInDescription = "Buy-in details",
+                Timezone = "UTC",
+                Version = item.Version
+            });
             Assert.IsType<RedirectToPageResult>(await edit.OnPostAsync(eventId, CancellationToken.None));
         }
 
-        DateTimeOffset originalStart;
-        long publicVersion;
         await using (var db = new ApplicationDbContext(options))
         {
             var item = await db.Events.SingleAsync(x => x.Id == eventId);
-            item.MarkFirstPublic(now);
-            item.ConfigureInitialSchedule(null, null, null, now.AddDays(1), now.AddDays(2), null);
-            item.OpenSignups();
-            item.CloseSignups();
-            item.StartEvent(now);
+            Assert.Equal("Renamed", item.Name);
+            Assert.Equal("identity-target", item.Slug);
+            Assert.Equal("UTC", item.Timezone);
+            Assert.Equal("Description", item.Description);
+            Assert.Equal("Buy-in details", item.BuyInDescription);
+            Assert.Equal(originalStart, item.EventStartsAt);
+            Assert.Single(await db.AuditEntries.Where(entry => entry.EventId == eventId && entry.Action == "event.identity_updated").ToListAsync());
+
+            var lockedSlug = Identity(db, actor, new IdentityModel.InputModel
+            {
+                Name = item.Name,
+                Slug = "cannot-change",
+                Description = item.Description,
+                BuyInDescription = item.BuyInDescription,
+                Timezone = item.Timezone,
+                Version = item.Version
+            });
+            Assert.IsType<PageResult>(await lockedSlug.OnPostAsync(eventId, CancellationToken.None));
+            Assert.True(lockedSlug.ModelState.ContainsKey("Input.Slug"));
+        }
+
+        var liveEventId = await SeedEventAsync("identity-live", actor);
+        await using (var db = new ApplicationDbContext(options))
+        {
+            var live = await db.Events.SingleAsync(x => x.Id == liveEventId);
+            live.MarkFirstPublic(now);
+            live.ConfigureInitialSchedule(null, null, null, now.AddDays(1), now.AddDays(2), null);
+            live.OpenSignups();
+            live.CloseSignups();
+            live.StartEvent(now);
             await db.SaveChangesAsync();
-            originalStart = item.EventStartsAt!.Value;
-            publicVersion = item.Version;
         }
 
         await using (var db = new ApplicationDbContext(options))
         {
-            var liveIdentity = Identity(db, new MemoryStorage(), actor, new IdentityModel.InputModel { Name = "Live update", Slug = "renamed", Description = "Changed", Timezone = "UTC", Version = publicVersion, ConfirmTimezoneChange = true });
-            Assert.IsType<PageResult>(await liveIdentity.OnPostAsync(eventId, CancellationToken.None));
-            Assert.True(liveIdentity.ModelState.ContainsKey(string.Empty));
+            var live = await db.Events.SingleAsync(x => x.Id == liveEventId);
+            var liveIdentity = Identity(db, actor, new IdentityModel.InputModel
+            {
+                Name = "Live update",
+                Slug = live.Slug,
+                Description = "Changed",
+                BuyInDescription = "Live buy-in",
+                Timezone = live.Timezone,
+                Version = live.Version
+            });
+            Assert.IsType<RedirectToPageResult>(await liveIdentity.OnPostAsync(liveEventId, CancellationToken.None));
+            live = await db.Events.AsNoTracking().SingleAsync(x => x.Id == liveEventId);
+            Assert.Equal("Live update", live.Name);
+            Assert.Equal("Changed", live.Description);
+            Assert.Equal("Live buy-in", live.BuyInDescription);
+
+            var timezoneLocked = Identity(db, actor, new IdentityModel.InputModel
+            {
+                Name = live.Name,
+                Slug = live.Slug,
+                Description = live.Description,
+                BuyInDescription = live.BuyInDescription,
+                Timezone = "UTC",
+                Version = live.Version,
+                ConfirmTimezoneChange = true,
+                TimezoneConfirmationOriginal = live.Timezone,
+                TimezoneConfirmationProposed = "UTC"
+            });
+            Assert.IsType<PageResult>(await timezoneLocked.OnPostAsync(liveEventId, CancellationToken.None));
+            Assert.True(timezoneLocked.ModelState.ContainsKey("Input.Timezone"));
+            Assert.Equal("Europe/Copenhagen", (await db.Events.AsNoTracking().SingleAsync(x => x.Id == liveEventId)).Timezone);
         }
 
-        var editableId = await SeedEventAsync("identity-editable", actor);
+        var previewId = await SeedEventAsync("identity-preview", actor);
+        DateTimeOffset previewStart;
+        long previewVersion;
         await using (var db = new ApplicationDbContext(options))
         {
-            var live = await db.Events.SingleAsync(x => x.Id == eventId);
-            Assert.Equal("Europe/Copenhagen", live.Timezone);
-            Assert.Equal("Renamed", live.Name);
-            Assert.Equal(originalStart, live.EventStartsAt);
-            var editable = await db.Events.SingleAsync(x => x.Id == editableId);
-            editable.MarkFirstPublic(now);
+            var previewEvent = await db.Events.SingleAsync(x => x.Id == previewId);
+            previewEvent.MarkFirstPublic(now);
+            previewEvent.ConfigureInitialSchedule(null, null, null, now.AddDays(3), now.AddDays(4), null);
+            previewStart = previewEvent.EventStartsAt!.Value;
             await db.SaveChangesAsync();
-            var locked = Identity(db, new MemoryStorage(), actor, new IdentityModel.InputModel { Name = editable.Name, Slug = "cannot-change", Description = editable.Description, Timezone = editable.Timezone, Version = editable.Version });
-            Assert.IsType<PageResult>(await locked.OnPostAsync(editableId, CancellationToken.None));
-            Assert.True(locked.ModelState.ContainsKey("Input.Slug"));
+            previewVersion = previewEvent.Version;
+            var preview = Identity(db, actor, new IdentityModel.InputModel
+            {
+                Name = previewEvent.Name,
+                Slug = previewEvent.Slug,
+                Timezone = "UTC",
+                Version = previewVersion
+            });
+            Assert.IsType<PageResult>(await preview.OnPostAsync(previewId, CancellationToken.None));
+            Assert.True(preview.ModelState.ContainsKey("Input.ConfirmTimezoneChange"));
+            Assert.NotEmpty(preview.TimezonePreview);
+            Assert.Contains(preview.TimezonePreview, row => row.Scheduled && row.CurrentOffset == "UTC+02:00" && row.NewOffset == "UTC+00:00");
 
-            db.Events.Add(new BingoEvent(Guid.NewGuid(), "Other", "taken-link", "UTC", actor, now));
-            await db.SaveChangesAsync();
-            editable = await db.Events.SingleAsync(x => x.Id == editableId);
-            var collision = Identity(db, new MemoryStorage(), actor, new IdentityModel.InputModel { Name = editable.Name, Slug = "taken-link", Description = editable.Description, Timezone = editable.Timezone, Version = editable.Version });
-            Assert.IsType<PageResult>(await collision.OnPostAsync(editableId, CancellationToken.None));
-            Assert.True(collision.ModelState.ContainsKey("Input.Slug"));
+            var invalidTimezone = Identity(db, actor, new IdentityModel.InputModel
+            {
+                Name = previewEvent.Name,
+                Slug = previewEvent.Slug,
+                Timezone = "Mars/Olympus",
+                Version = previewVersion
+            });
+            Assert.IsType<PageResult>(await invalidTimezone.OnPostAsync(previewId, CancellationToken.None));
+            Assert.True(invalidTimezone.ModelState.ContainsKey("Input.Timezone"));
+            Assert.Empty(invalidTimezone.TimezonePreview);
+
+            var confirmed = Identity(db, actor, new IdentityModel.InputModel
+            {
+                Name = previewEvent.Name,
+                Slug = previewEvent.Slug,
+                Timezone = "UTC",
+                Version = previewVersion,
+                ConfirmTimezoneChange = true,
+                TimezoneConfirmationOriginal = "Europe/Copenhagen",
+                TimezoneConfirmationProposed = "UTC",
+                TimezoneConfirmationSchedule = preview.Input.TimezoneConfirmationSchedule
+            });
+            Assert.IsType<RedirectToPageResult>(await confirmed.OnPostAsync(previewId, CancellationToken.None));
+        }
+        await using (var db = new ApplicationDbContext(options))
+        {
+            var previewEvent = await db.Events.SingleAsync(x => x.Id == previewId);
+            Assert.Equal("UTC", previewEvent.Timezone);
+            Assert.Equal(previewStart, previewEvent.EventStartsAt);
         }
 
         var staleEventId = await SeedEventAsync("identity-stale", actor);
@@ -462,76 +583,71 @@ public sealed class Slice3CreationIdentityPersistenceIntegrationTests : IAsyncLi
                 winner.UpdateIdentity("Winner", winner.Slug, winner.Description, "Europe/Copenhagen");
                 await winnerDb.SaveChangesAsync();
             }
-            var stale = Identity(staleDb, new MemoryStorage(), actor, new IdentityModel.InputModel { Name = "Stale", Slug = "renamed", Description = "Description", Timezone = "UTC", Version = staleVersion });
+            var stale = Identity(staleDb, actor, new IdentityModel.InputModel { Name = "Stale", Slug = "identity-stale", Description = "Description", Timezone = "UTC", Version = staleVersion });
             Assert.IsType<PageResult>(await stale.OnPostAsync(staleEventId, CancellationToken.None));
             Assert.True(stale.ModelState.ContainsKey(string.Empty));
-        }
-
-        await using (var db = new ApplicationDbContext(options))
-        {
-            var raceTarget = new BingoEvent(Guid.NewGuid(), "Race target", "race-target", "UTC", actor, now);
-            var rival = new BingoEvent(Guid.NewGuid(), "Race rival", "race-rival", "UTC", actor, now);
-            db.Events.AddRange(raceTarget, rival);
-            await db.SaveChangesAsync();
-            await ForceSlugRaceAsync(db, raceTarget.Id, rival.Id);
-            try
-            {
-                var raced = Identity(db, new MemoryStorage(), actor, new IdentityModel.InputModel { Name = raceTarget.Name, Slug = "race-winner", Timezone = "UTC", Version = raceTarget.Version });
-                Assert.IsType<PageResult>(await raced.OnPostAsync(raceTarget.Id, CancellationToken.None));
-                Assert.True(raced.ModelState.ContainsKey("Input.Slug"));
-                Assert.Equal("race-winner", raced.Input.Slug);
-                Assert.Equal("race-target", (await db.Events.AsNoTracking().SingleAsync(x => x.Id == raceTarget.Id)).Slug);
-            }
-            finally
-            {
-                await db.Database.ExecuteSqlRawAsync("DROP TRIGGER IF EXISTS slice3_force_slug_race ON events; DROP FUNCTION IF EXISTS slice3_force_slug_race();");
-            }
         }
     }
 
     [Fact]
-    public async Task BannerHandlersServeReplaceRemoveAndRollbackWithoutChangingTheActiveReference()
+    public async Task IdentityTreatsWrappedProviderConflictsAsStale()
     {
         var actor = Guid.NewGuid();
-        var eventId = await SeedEventAsync("banner-target", actor);
-        var storage = new MemoryStorage();
-        Guid firstBanner;
-        await using (var db = new ApplicationDbContext(options))
+        var eventId = await SeedEventAsync("identity-wrapped-conflict", actor);
+        var interceptedOptions = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseNpgsql(database.GetConnectionString())
+            .AddInterceptors(new WrappedProviderConflict())
+            .Options;
+        await using var db = new ApplicationDbContext(interceptedOptions);
+        var item = await db.Events.AsNoTracking().SingleAsync(x => x.Id == eventId);
+        var model = Identity(db, actor, new IdentityModel.InputModel
         {
-            var item = await db.Events.SingleAsync(x => x.Id == eventId);
-            var add = Identity(db, storage, actor, new IdentityModel.InputModel { Name = item.Name, Slug = item.Slug, Timezone = item.Timezone, Version = item.Version, Banner = Upload("first.png") });
-            Assert.IsType<RedirectToPageResult>(await add.OnPostAsync(eventId, CancellationToken.None));
-            firstBanner = (await db.Events.SingleAsync(x => x.Id == eventId)).BannerAssetId!.Value;
-            await Assert.ThrowsAsync<PostgresException>(() => db.Database.ExecuteSqlInterpolatedAsync($"UPDATE events SET banner_asset_id = {Guid.NewGuid()} WHERE id = {eventId}"));
-            var response = await new BannerModel(db, storage).OnGetAsync(eventId, CancellationToken.None);
-            var file = Assert.IsType<FileStreamResult>(response);
-            Assert.Equal("image/png", file.ContentType);
+            Name = "Wrapped conflict proposal",
+            Slug = item.Slug,
+            Description = item.Description,
+            BuyInDescription = item.BuyInDescription,
+            Timezone = item.Timezone,
+            Version = item.Version
+        });
+
+        Assert.IsType<PageResult>(await model.OnPostAsync(eventId, CancellationToken.None));
+        Assert.Contains(model.ModelState[string.Empty]!.Errors, error => error.ErrorMessage.Contains("event changed", StringComparison.OrdinalIgnoreCase));
+        await using var verify = new ApplicationDbContext(options);
+        var unchanged = await verify.Events.AsNoTracking().SingleAsync(x => x.Id == eventId);
+        Assert.Equal("identity-wrapped-conflict", unchanged.Name);
+        Assert.Empty(await verify.AuditEntries.Where(entry => entry.EventId == eventId && entry.Action == "event.identity_updated").ToListAsync());
+    }
+
+    [Fact]
+    public async Task IdentityShowsExplicitUtcFallbackForRetainedUnresolvableTimezone()
+    {
+        var actor = Guid.NewGuid();
+        var eventId = Guid.NewGuid();
+        await using (var setup = new ApplicationDbContext(options))
+        {
+            setup.Events.Add(new BingoEvent(eventId, "Retained timezone", "retained-timezone", "Legacy/Unknown", actor, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb));
+            await setup.SaveChangesAsync();
         }
 
-        await using (var db = new ApplicationDbContext(options))
-        {
-            var item = await db.Events.SingleAsync(x => x.Id == eventId);
-            var replace = Identity(db, storage, actor, new IdentityModel.InputModel { Name = item.Name, Slug = item.Slug, Timezone = item.Timezone, Version = item.Version, Banner = Upload("second.png") });
-            Assert.IsType<RedirectToPageResult>(await replace.OnPostAsync(eventId, CancellationToken.None));
-            var active = (await db.Events.SingleAsync(x => x.Id == eventId)).BannerAssetId!.Value;
-            Assert.NotEqual(firstBanner, active);
-            Assert.NotNull((await db.EventBannerAssets.SingleAsync(x => x.Id == firstBanner)).ReplacedAt);
-
-            var failing = Identity(db, new MemoryStorage { ReturnOversizedFilename = true }, actor, new IdentityModel.InputModel { Name = item.Name, Slug = item.Slug, Timezone = item.Timezone, Version = (await db.Events.SingleAsync(x => x.Id == eventId)).Version, Banner = Upload("failure.png") });
-            Assert.IsType<PageResult>(await failing.OnPostAsync(eventId, CancellationToken.None));
-            Assert.Equal(active, (await db.Events.SingleAsync(x => x.Id == eventId)).BannerAssetId);
-
-            var remove = Identity(db, storage, actor, new IdentityModel.InputModel { Name = item.Name, Slug = item.Slug, Timezone = item.Timezone, Version = (await db.Events.SingleAsync(x => x.Id == eventId)).Version, RemoveBanner = true });
-            Assert.IsType<RedirectToPageResult>(await remove.OnPostAsync(eventId, CancellationToken.None));
-            Assert.Null((await db.Events.SingleAsync(x => x.Id == eventId)).BannerAssetId);
-            Assert.IsType<NotFoundResult>(await new BannerModel(db, storage).OnGetAsync(eventId, CancellationToken.None));
-        }
+        await using var db = new ApplicationDbContext(options);
+        var model = Identity(db, actor, new IdentityModel.InputModel());
+        Assert.IsType<PageResult>(await model.OnGetAsync(eventId, CancellationToken.None));
+        Assert.True(model.HasUnresolvableTimezone);
+        Assert.Equal("Legacy/Unknown", model.StoredTimezoneId);
+        Assert.Contains("UTC fallback", model.EventDate(now), StringComparison.Ordinal);
     }
 
     [Fact]
     public async Task ScheduleHandlerLoadsMachineValuesAndPreservesUntouchedInstants()
     {
         var actor = Guid.NewGuid();
+        await using (var accountDb = new ApplicationDbContext(options))
+        {
+            var admin = Account.CreateWebsite(actor, "schedule-admin", "SCHEDULE-ADMIN", now);
+            admin.SetGlobalRole(GlobalRole.Admin);
+            accountDb.Accounts.Add(admin);
+            await accountDb.SaveChangesAsync();
+        }
         var eventId = await SeedEventAsync("schedule-round-trip", actor);
         var opens = new DateTimeOffset(2026, 8, 1, 8, 10, 0, TimeSpan.Zero);
         var closes = new DateTimeOffset(2026, 8, 2, 9, 20, 0, TimeSpan.Zero);
@@ -568,7 +684,7 @@ public sealed class Slice3CreationIdentityPersistenceIntegrationTests : IAsyncLi
             model = Schedule(db, actor);
             Assert.IsType<PageResult>(await model.OnGetAsync(eventId, CancellationToken.None));
             model.Input.EventEndsLocal = "2026-08-06T14:50";
-            model.Input.ParticipantCap = 25;
+            // OS-5 (C4): Schedule no longer binds a capacity input.
             model.Input.ScheduledSignupOpeningEnabled = true;
             model.Input.ConfirmChanges = true;
             Assert.IsType<RedirectToPageResult>(await model.OnPostAsync(eventId, CancellationToken.None));
@@ -582,8 +698,8 @@ public sealed class Slice3CreationIdentityPersistenceIntegrationTests : IAsyncLi
             Assert.Equal(draft, saved.DraftAt);
             Assert.Equal(starts, saved.EventStartsAt);
             Assert.Equal(new DateTimeOffset(2026, 8, 6, 12, 50, 0, TimeSpan.Zero), saved.EventEndsAt);
-            Assert.Equal(25, saved.ParticipantCap);
-            Assert.True(saved.ScheduledSignupOpeningEnabled);
+            Assert.Equal(20, saved.ParticipantCap);
+            Assert.False(saved.ScheduledSignupOpeningEnabled);
 
             var model = Schedule(db, actor);
             Assert.IsType<PageResult>(await model.OnGetAsync(eventId, CancellationToken.None));
@@ -610,6 +726,36 @@ public sealed class Slice3CreationIdentityPersistenceIntegrationTests : IAsyncLi
             Assert.Equal(new DateTimeOffset(2026, 7, 27, 16, 40, 0, TimeSpan.Zero), saved.EventStartsAt);
             Assert.Equal(new DateTimeOffset(2026, 7, 28, 16, 40, 0, TimeSpan.Zero), saved.EventEndsAt);
         }
+    }
+
+    [Fact]
+    public async Task SchedulePageSavesFutureOpeningWithAnIncompletePrivateWindow()
+    {
+        var actor = Guid.NewGuid();
+        await using (var accountDb = new ApplicationDbContext(options))
+        {
+            var admin = Account.CreateWebsite(actor, "partial-schedule-admin", "PARTIAL-SCHEDULE-ADMIN", now);
+            admin.SetGlobalRole(GlobalRole.Admin);
+            accountDb.Accounts.Add(admin);
+            await accountDb.SaveChangesAsync();
+        }
+        var eventId = await SeedEventAsync("partial-schedule-page", actor);
+        await using var db = new ApplicationDbContext(options);
+        var model = Schedule(db, actor);
+        Assert.IsType<PageResult>(await model.OnGetAsync(eventId, CancellationToken.None));
+        model.Input.SignupOpensLocal = "2026-08-01T10:00";
+        model.Input.SignupClosesLocal = "2026-08-02T10:00";
+        model.Input.ScheduledSignupOpeningEnabled = true;
+
+        Assert.IsType<RedirectToPageResult>(await model.OnPostAsync(eventId, CancellationToken.None));
+        db.ChangeTracker.Clear();
+        var saved = await db.Events.AsNoTracking().SingleAsync(x => x.Id == eventId);
+        Assert.Equal(EventState.Draft, saved.State);
+        Assert.True(saved.ScheduledSignupOpeningEnabled);
+        Assert.Equal(new DateTimeOffset(2026, 8, 1, 8, 0, 0, TimeSpan.Zero), saved.SignupOpensAt);
+        Assert.Equal(new DateTimeOffset(2026, 8, 2, 8, 0, 0, TimeSpan.Zero), saved.SignupClosesAt);
+        Assert.Null(saved.EventStartsAt);
+        Assert.Null(saved.EventEndsAt);
     }
 
     [Theory]
@@ -679,6 +825,9 @@ public sealed class Slice3CreationIdentityPersistenceIntegrationTests : IAsyncLi
         var signupOpens = now.AddDays(-2);
         await using (var db = new ApplicationDbContext(options))
         {
+            var admin = Account.CreateWebsite(actor, "schedule-preview-admin", "SCHEDULE-PREVIEW-ADMIN", now);
+            admin.SetGlobalRole(GlobalRole.Admin);
+            db.Accounts.Add(admin);
             var item = await db.Events.SingleAsync(x => x.Id == eventId);
             item.UpdateIdentity(item.Name, item.Slug, "Public description", item.Timezone);
             item.ConfigureSchedule(signupOpens, now.AddDays(-1), null, now.AddDays(1), now.AddDays(3), 20);
@@ -705,40 +854,69 @@ public sealed class Slice3CreationIdentityPersistenceIntegrationTests : IAsyncLi
     }
 
     [Fact]
-    public async Task SignupSettingsHandlerDisablesWaitingListOnlyAfterConfirmingQueuedPromotion()
+    public async Task SignupSettingsHandlerPromotesWaitingParticipantOnlyAfterCapacityIncrease()
     {
         var actor = Guid.NewGuid();
+        await using (var accountDb = new ApplicationDbContext(options))
+        {
+            var admin = Account.CreateWebsite(actor, "waiting-list-admin", "WAITING-LIST-ADMIN", now);
+            admin.SetGlobalRole(GlobalRole.Admin);
+            accountDb.Accounts.Add(admin);
+            await accountDb.SaveChangesAsync();
+        }
+
         var eventId = await SeedEventAsync("waiting-list-settings", actor);
         await using var db = new ApplicationDbContext(options);
         var item = await db.Events.SingleAsync(x => x.Id == eventId);
-        item.ConfigureSchedule(null, null, null, null, null, 10);
-        item.ConfigureSignup(false, false, null);
+        item.ConfigureSchedule(null, null, null, null, null, 1);
+        item.ConfigureSignup(true, false, null);
         await db.SaveChangesAsync();
-        var settings = new ParticipantsModel(db, new SignupService(db, new SecretHasher(), new FixedTimeProvider(now))) { SignupAdministration = new ParticipantsModel.SignupAdministrationInput { ParticipantCap = 10, WaitingListEnabled = true, Version = item.Version } };
+        db.EventParticipants.AddRange(
+            new EventParticipant(Guid.NewGuid(), eventId, SignupStatus.Confirmed, 1, now, SignupSource.Website),
+            new EventParticipant(Guid.NewGuid(), eventId, SignupStatus.WaitingList, 2, now.AddMinutes(1), SignupSource.Website));
+        await db.SaveChangesAsync();
+
+        var settings = new SignupSetupModel(db, new FixedTimeProvider(now), new SignupService(db, new SecretHasher(), new FixedTimeProvider(now))) { SignupAdministration = new SignupSetupModel.SignupAdministrationInput { ParticipantCap = 1, WaitingListEnabled = true, Version = item.Version } };
         SetAdmin(settings, actor);
         Assert.IsType<RedirectToPageResult>(await settings.OnPostSignupAdministrationAsync(eventId, CancellationToken.None));
-        Assert.True((await db.Events.SingleAsync(x => x.Id == eventId)).WaitingListEnabled);
-        db.EventParticipants.Add(new Bingo.Domain.Signups.EventParticipant(Guid.NewGuid(), eventId, Bingo.Domain.Signups.SignupStatus.WaitingList, 1, now, Bingo.Domain.Signups.SignupSource.Website, null));
-        await db.SaveChangesAsync();
-        item = await db.Events.SingleAsync(x => x.Id == eventId);
-        settings = new ParticipantsModel(db, new SignupService(db, new SecretHasher(), new FixedTimeProvider(now))) { SignupAdministration = new ParticipantsModel.SignupAdministrationInput { ParticipantCap = item.ParticipantCap!.Value, WaitingListEnabled = false, Version = item.Version } };
-        SetAdmin(settings, actor);
-        Assert.IsType<RedirectToPageResult>(await settings.OnPostSignupAdministrationAsync(eventId, CancellationToken.None));
-        Assert.True((await db.Events.SingleAsync(x => x.Id == eventId)).WaitingListEnabled);
 
         item = await db.Events.SingleAsync(x => x.Id == eventId);
-        settings = new ParticipantsModel(db, new SignupService(db, new SecretHasher(), new FixedTimeProvider(now))) { SignupAdministration = new ParticipantsModel.SignupAdministrationInput { ParticipantCap = item.ParticipantCap!.Value, WaitingListEnabled = false, Version = item.Version, ConfirmWaitingListDisablement = true } };
+        Assert.True(item.WaitingListEnabled);
+        Assert.Equal(1, item.ParticipantCap);
+        Assert.Equal(1, await db.EventParticipants.CountAsync(x => x.EventId == eventId && x.SignupStatus == SignupStatus.Confirmed));
+        Assert.Equal(1, await db.EventParticipants.CountAsync(x => x.EventId == eventId && x.SignupStatus == SignupStatus.WaitingList));
+        Assert.Empty(await db.AuditEntries.Where(x => x.EventId == eventId && x.Action == "participant.promoted").ToListAsync());
+        var unchangedAdministration = Assert.Single(await db.AuditEntries.Where(x => x.EventId == eventId && x.Action == "event.signup_administration_updated").ToListAsync());
+        Assert.Equal(actor, unchangedAdministration.ActorAccountId);
+        Assert.Equal("waiting-list-admin", unchangedAdministration.ActorUsername);
+        Assert.NotEqual("admin", unchangedAdministration.ActorUsername);
+
+        settings = new SignupSetupModel(db, new FixedTimeProvider(now), new SignupService(db, new SecretHasher(), new FixedTimeProvider(now))) { SignupAdministration = new SignupSetupModel.SignupAdministrationInput { ParticipantCap = 2, WaitingListEnabled = true, Version = item.Version } };
         SetAdmin(settings, actor);
         Assert.IsType<RedirectToPageResult>(await settings.OnPostSignupAdministrationAsync(eventId, CancellationToken.None));
-        Assert.False((await db.Events.SingleAsync(x => x.Id == eventId)).WaitingListEnabled);
-        Assert.Equal(SignupStatus.Confirmed, await db.EventParticipants.Where(x => x.EventId == eventId).Select(x => x.SignupStatus).SingleAsync());
-        Assert.Single(await db.AuditEntries.Where(x => x.EventId == eventId && x.Action == "participant.promoted").ToListAsync());
-        Assert.Equal(2, await db.AuditEntries.CountAsync(x => x.EventId == eventId && x.Action == "event.signup_administration_updated"));
+
+        item = await db.Events.SingleAsync(x => x.Id == eventId);
+        Assert.True(item.WaitingListEnabled);
+        Assert.Equal(2, item.ParticipantCap);
+        Assert.Equal(2, await db.EventParticipants.CountAsync(x => x.EventId == eventId && x.SignupStatus == SignupStatus.Confirmed));
+        Assert.Empty(await db.EventParticipants.Where(x => x.EventId == eventId && x.SignupStatus == SignupStatus.WaitingList).ToListAsync());
+        var promotion = Assert.Single(await db.AuditEntries.Where(x => x.EventId == eventId && x.Action == "participant.promoted").ToListAsync());
+        Assert.Equal(actor, promotion.ActorAccountId);
+        Assert.Equal("waiting-list-admin", promotion.ActorUsername);
+        Assert.NotEqual("admin", promotion.ActorUsername);
+        var administrationAudits = await db.AuditEntries.Where(x => x.EventId == eventId && x.Action == "event.signup_administration_updated").ToListAsync();
+        Assert.Equal(2, administrationAudits.Count);
+        Assert.All(administrationAudits, audit =>
+        {
+            Assert.Equal(actor, audit.ActorAccountId);
+            Assert.Equal("waiting-list-admin", audit.ActorUsername);
+            Assert.NotEqual("admin", audit.ActorUsername);
+        });
     }
 
     private async Task<Guid> SeedEventAsync(string slug, Guid actor)
     {
-        var item = new BingoEvent(Guid.NewGuid(), slug, slug, "Europe/Copenhagen", actor, now);
+        var item = new BingoEvent(Guid.NewGuid(), slug, slug, "Europe/Copenhagen", actor, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         var form = new SignupForm(Guid.NewGuid(), item.Id, now);
         var regular = new SignupQuestion(Guid.NewGuid(), form.Id, item.Id, "primary_regular_account", "Account", SignupQuestionType.Account, true, 0, null, SignupSystemField.PrimaryRegularAccount, EventCharacterRole.Playing);
         var captain = new SignupQuestion(Guid.NewGuid(), form.Id, item.Id, "captain_volunteer", "Captain volunteer", SignupQuestionType.YesNo, false, 1, null, SignupSystemField.CaptainVolunteer);
@@ -760,16 +938,24 @@ public sealed class Slice3CreationIdentityPersistenceIntegrationTests : IAsyncLi
         """);
 #pragma warning restore EF1002
 
-    private CreateModel Creation(ApplicationDbContext db, IEvidenceStorage storage, Guid actor, CreateModel.CreateInput input)
+    private CreateModel Creation(ApplicationDbContext db, Guid actor, CreateModel.CreateInput input)
     {
-        var model = new CreateModel(db, new SecretHasher(), storage, new FixedTimeProvider(now)) { Input = input };
+        if (!db.Accounts.Any(x => x.Id == actor))
+        {
+            var account = Account.CreateWebsite(actor, $"create-{actor:N}", $"CREATE-{actor:N}", now);
+            account.SetGlobalRole(GlobalRole.Admin);
+            db.Accounts.Add(account);
+            db.SaveChanges();
+        }
+        input.RequestId = Guid.NewGuid();
+        var model = new CreateModel(new EventCreationService(db, new FixedTimeProvider(now))) { Input = input };
         SetAdmin(model, actor);
         return model;
     }
 
-    private IdentityModel Identity(ApplicationDbContext db, IEvidenceStorage storage, Guid actor, IdentityModel.InputModel input)
+    private IdentityModel Identity(ApplicationDbContext db, Guid actor, IdentityModel.InputModel input)
     {
-        var model = new IdentityModel(db, storage, new FixedTimeProvider(now)) { Input = input };
+        var model = new IdentityModel(db, new FixedTimeProvider(now)) { Input = input };
         SetAdmin(model, actor);
         return model;
     }
@@ -783,6 +969,14 @@ public sealed class Slice3CreationIdentityPersistenceIntegrationTests : IAsyncLi
         return model;
     }
 
+    // A10 (U10 part 2, Events/Create retired): a refused non-dialog POST returns to the Events directory with the Create dialog open instead of re-rendering the old page; the refusal reason stays in ModelState and becomes the error toast.
+    private static void AssertReturnedToCreateDialog(IActionResult result)
+    {
+        var redirect = Assert.IsType<RedirectToPageResult>(result);
+        Assert.Equal("Index", redirect.PageName);
+        Assert.Equal(1, redirect.RouteValues?["create"]);
+    }
+
     private static void SetAdmin(PageModel model, Guid actor)
     {
         var context = new DefaultHttpContext { User = new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, actor.ToString()), new Claim(ClaimTypes.Name, "admin")], "test")) };
@@ -790,28 +984,12 @@ public sealed class Slice3CreationIdentityPersistenceIntegrationTests : IAsyncLi
         model.TempData = new TempDataDictionary(context, new EmptyTempDataProvider());
     }
 
-    private static FormFile Upload(string filename) => new(new MemoryStream([1, 2, 3]), 0, 3, "Input.Banner", filename) { Headers = new HeaderDictionary(), ContentType = "image/png" };
-
     private sealed class FixedTimeProvider(DateTimeOffset value) : TimeProvider { public override DateTimeOffset GetUtcNow() => value; }
 
-    private sealed class MemoryStorage : IEvidenceStorage
+    private sealed class WrappedProviderConflict : SaveChangesInterceptor
     {
-        private readonly Dictionary<string, byte[]> files = [];
-        public bool ReturnOversizedFilename { get; init; }
-        public Func<int, Task>? BeforeStore { get; init; }
-        public int FileCount => files.Count;
-        public int StoreCalls { get; private set; }
-        public int DeleteCalls { get; private set; }
-        public async Task<StoredEvidence> StoreAsync(Guid eventId, Guid submissionId, string originalFilename, Stream content, CancellationToken cancellationToken = default)
-        {
-            StoreCalls++;
-            if (BeforeStore is not null) await BeforeStore(StoreCalls);
-            var key = $"{eventId:N}/{submissionId:N}.png";
-            files[key] = [1, 2, 3];
-            return new StoredEvidence(key, ReturnOversizedFilename ? new string('x', 300) : originalFilename, "image/png", 3, 1, 1, new string('a', 64));
-        }
-        public Task<Stream> OpenReadAsync(string storageKey, CancellationToken cancellationToken = default) => files.TryGetValue(storageKey, out var value) ? Task.FromResult<Stream>(new MemoryStream(value)) : throw new FileNotFoundException();
-        public Task DeleteAsync(string storageKey, CancellationToken cancellationToken = default) { DeleteCalls++; files.Remove(storageKey); return Task.CompletedTask; }
+        public override ValueTask<InterceptionResult<int>> SavingChangesAsync(DbContextEventData _, InterceptionResult<int> result, CancellationToken cancellationToken = default) =>
+            throw new DbUpdateException("Controlled wrapped provider conflict", new PostgresException("Controlled deadlock", "ERROR", "ERROR", PostgresErrorCodes.DeadlockDetected));
     }
 
     private sealed class StubCompetitionClient(DateTimeOffset starts, DateTimeOffset ends) : IWiseOldManCompetitionClient

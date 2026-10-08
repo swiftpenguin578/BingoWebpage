@@ -1,5 +1,10 @@
 namespace Bingo.Domain.Integrations.WiseOldMan;
 
+public enum EventCompetitionEndUpdateStatus
+{
+    NotRequired = 0, Pending = 1, Succeeded = 2, Rejected = 3, CouldNotUpdate = 4
+}
+
 public sealed class EventCompetitionSynchronization
 {
     private static readonly TimeSpan NormalSlotInterval = TimeSpan.FromHours(1);
@@ -9,7 +14,8 @@ public sealed class EventCompetitionSynchronization
     public EventCompetitionSynchronization(
         Guid id, Guid eventId, int generation, long? competitionId, string? title,
         DateTimeOffset? competitionStartsAt, DateTimeOffset? competitionEndsAt,
-        string assignmentFingerprint, DateTimeOffset now)
+        string assignmentFingerprint, DateTimeOffset now,
+        EventCompetitionProvenance provenance = EventCompetitionProvenance.Unknown)
     {
         Id = id;
         EventId = eventId;
@@ -19,8 +25,46 @@ public sealed class EventCompetitionSynchronization
         CompetitionStartsAt = competitionStartsAt?.ToUniversalTime();
         CompetitionEndsAt = competitionEndsAt?.ToUniversalTime();
         AssignmentFingerprint = assignmentFingerprint;
+        Provenance = provenance;
         CycleStartedAt = now.ToUniversalTime();
         NormalDueAt = competitionId is null ? null : now.ToUniversalTime();
+    }
+
+    public EventCompetitionEndUpdateStatus EndUpdateStatus { get; private set; }
+    public DateTimeOffset? EndUpdateTargetAt { get; private set; }
+    public DateTimeOffset? EndUpdateRequestedAt { get; private set; }
+    public string? EndUpdateErrorCode { get; private set; }
+
+    public void RequestEndUpdate(DateTimeOffset target, DateTimeOffset now)
+    {
+        if (CompetitionId is null) return;
+        EndUpdateTargetAt = target.ToUniversalTime();
+        EndUpdateRequestedAt = now.ToUniversalTime();
+        EndUpdateStatus = EventCompetitionEndUpdateStatus.Pending;
+        EndUpdateErrorCode = null;
+    }
+
+    public bool HasUnmatchedEnd(DateTimeOffset? configuredEnd) => CompetitionId is not null &&
+        (CompetitionEndsAt != configuredEnd || EndUpdateStatus is EventCompetitionEndUpdateStatus.Pending
+            or EventCompetitionEndUpdateStatus.Rejected or EventCompetitionEndUpdateStatus.CouldNotUpdate);
+
+    public void MarkEndCouldNotBeUpdated()
+    {
+        EndUpdateStatus = EventCompetitionEndUpdateStatus.CouldNotUpdate;
+    }
+
+    public void RejectEndUpdate(DateTimeOffset target, string code)
+    {
+        if (EndUpdateStatus != EventCompetitionEndUpdateStatus.Pending || EndUpdateTargetAt != target) return;
+        EndUpdateStatus = EventCompetitionEndUpdateStatus.Rejected;
+        EndUpdateErrorCode = code.Length <= 100 ? code : code[..100];
+    }
+
+    public void CompleteEndUpdate(DateTimeOffset target)
+    {
+        if (EndUpdateStatus != EventCompetitionEndUpdateStatus.Pending || EndUpdateTargetAt != target) return;
+        EndUpdateStatus = EventCompetitionEndUpdateStatus.Succeeded;
+        EndUpdateErrorCode = null;
     }
 
     public Guid Id { get; private set; }
@@ -30,6 +74,7 @@ public sealed class EventCompetitionSynchronization
     public string? CompetitionTitle { get; private set; }
     public DateTimeOffset? CompetitionStartsAt { get; private set; }
     public DateTimeOffset? CompetitionEndsAt { get; private set; }
+    public EventCompetitionProvenance Provenance { get; private set; }
     public DateTimeOffset? LastAttemptAt { get; private set; }
     public DateTimeOffset? LastSuccessfulAt { get; private set; }
     public DateTimeOffset? LastUpstreamUpdatedAt { get; private set; }
@@ -83,14 +128,19 @@ public sealed class EventCompetitionSynchronization
 
     public void Reconfigure(
         long? competitionId, string? title, DateTimeOffset? competitionStartsAt,
-        DateTimeOffset? competitionEndsAt, string assignmentFingerprint, DateTimeOffset now)
+        DateTimeOffset? competitionEndsAt, string assignmentFingerprint, DateTimeOffset now,
+        EventCompetitionProvenance? provenance = null)
     {
+        EndUpdateStatus = EventCompetitionEndUpdateStatus.NotRequired;
+        EndUpdateTargetAt = EndUpdateRequestedAt = null;
+        EndUpdateErrorCode = null;
         Generation++;
         SourceRequestFingerprint = null; MetricActivityBatchId = null; LatestMetricsComplete = null; LastMetricAttemptAt = null;
         CompetitionId = competitionId;
         CompetitionTitle = title?.Trim();
         CompetitionStartsAt = competitionStartsAt?.ToUniversalTime();
         CompetitionEndsAt = competitionEndsAt?.ToUniversalTime();
+        if (provenance is { } source) Provenance = source;
         AssignmentFingerprint = assignmentFingerprint;
         LastAttemptAt = null;
         LastSuccessfulAt = null;
@@ -112,12 +162,14 @@ public sealed class EventCompetitionSynchronization
         string? title,
         DateTimeOffset? competitionStartsAt,
         DateTimeOffset? competitionEndsAt,
-        DateTimeOffset now)
+        DateTimeOffset now,
+        EventCompetitionProvenance? provenance = null)
     {
         CompetitionId = competitionId;
         CompetitionTitle = title?.Trim();
         CompetitionStartsAt = competitionStartsAt?.ToUniversalTime();
         CompetitionEndsAt = competitionEndsAt?.ToUniversalTime();
+        if (provenance is { } source) Provenance = source;
         CycleStartedAt ??= now.ToUniversalTime();
     }
 

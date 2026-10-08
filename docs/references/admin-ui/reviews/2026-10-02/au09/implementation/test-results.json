@@ -1,0 +1,44 @@
+[
+  {
+    "file": "au09-focused.trx",
+    "results": [
+      {
+        "name": "Bingo.IntegrationTests.IdentityFieldConflictIntegrationTests.IdentityReadbackObservesFullCurrentTupleWithoutAttributionOrWrites(scenario: \"applied-lost-response\")",
+        "outcome": "Passed"
+      },
+      {
+        "name": "Bingo.IntegrationTests.IdentityFieldConflictIntegrationTests.IdentityReadbackUsesExistingAuthorizationAndHiddenEventBoundary",
+        "outcome": "Failed"
+      },
+      {
+        "name": "Bingo.IntegrationTests.IdentityFieldConflictIntegrationTests.IdentityReadbackObservesFullCurrentTupleWithoutAttributionOrWrites(scenario: \"unapplied\")",
+        "outcome": "Passed"
+      },
+      {
+        "name": "Bingo.IntegrationTests.IdentityFieldConflictIntegrationTests.IdentityReadbackObservesFullCurrentTupleWithoutAttributionOrWrites(scenario: \"other-admin-matching\")",
+        "outcome": "Passed"
+      },
+      {
+        "name": "Bingo.IntegrationTests.IdentityFieldConflictIntegrationTests.IdentityReadbackObservesFullCurrentTupleWithoutAttributionOrWrites(scenario: \"use-current\")",
+        "outcome": "Passed"
+      },
+      {
+        "name": "Bingo.IntegrationTests.IdentityFieldConflictIntegrationTests.IdentityReadbackObservesFullCurrentTupleWithoutAttributionOrWrites(scenario: \"unseen-disjoint-merge\")",
+        "outcome": "Passed"
+      },
+      {
+        "name": "Bingo.IntegrationTests.IdentityFieldConflictIntegrationTests.IdentityReadbackObservesFullCurrentTupleWithoutAttributionOrWrites(scenario: \"other-admin-different\")",
+        "outcome": "Passed"
+      }
+    ]
+  },
+  {
+    "file": "au09-correction.trx",
+    "results": [
+      {
+        "name": "Bingo.IntegrationTests.IdentityFieldConflictIntegrationTests.IdentityReadbackUsesExistingAuthorizationAndHiddenEventBoundary",
+        "outcome": "Passed"
+      }
+    ]
+  }
+]

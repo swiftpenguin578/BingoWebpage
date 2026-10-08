@@ -1,0 +1,122 @@
+[
+  {
+    "group": "reference",
+    "path": "/Users/christopher/Documents/BingoWebpage/docs/references/admin-ui/SignupSetup.dc.html",
+    "relative": "SignupSetup.dc.html",
+    "sha256": "ac28a9a454a0be8037055d1b4699cef867444142353f85a3d69670d75d4c09b3"
+  },
+  {
+    "group": "reference",
+    "path": "/Users/christopher/Documents/BingoWebpage/docs/references/admin-ui/README.md",
+    "relative": "README.md",
+    "sha256": "86ff93209faff73d45b380fbc7ab10740e9c93efad2ef9ca32e74c30faed2d7f"
+  },
+  {
+    "group": "reference",
+    "path": "/Users/christopher/Documents/BingoWebpage/docs/references/admin-ui/Components.dc.html",
+    "relative": "Components.dc.html",
+    "sha256": "b979ac63dfbb452553487055a5ad04821fcf8828a2b4aa3d036bb7c56428098e"
+  },
+  {
+    "group": "reference",
+    "path": "/Users/christopher/Documents/BingoWebpage/docs/references/admin-ui/ui/components.css",
+    "relative": "ui/components.css",
+    "sha256": "646090f62ef1426026dd8ef43f9f674bda31f8f59de12fe34803e0eaec4978f2"
+  },
+  {
+    "group": "reference",
+    "path": "/Users/christopher/Documents/BingoWebpage/docs/references/admin-ui/ui/tokens.css",
+    "relative": "ui/tokens.css",
+    "sha256": "d77d28088763b33a5b8e7ffa61288de25fa37aa388a699d1f16cc61ef4f2346d"
+  },
+  {
+    "group": "reference",
+    "path": "/Users/christopher/Documents/BingoWebpage/docs/references/admin-ui/ui/behavior.js",
+    "relative": "ui/behavior.js",
+    "sha256": "7a22e96ded80f3c7f502b122bb50a7f9996a8ba6ea258574695c5090fa8ed2b2"
+  },
+  {
+    "group": "application",
+    "path": "/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/src/Bingo.Web/Pages/Admin/Events/Questions.cshtml",
+    "relative": "src/Bingo.Web/Pages/Admin/Events/Questions.cshtml",
+    "sha256": "288d05ef35eff0562bd5945def2556340252318302e5cd9c3988d80444dccca5"
+  },
+  {
+    "group": "application",
+    "path": "/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/src/Bingo.Web/Pages/Admin/Events/Questions.cshtml.cs",
+    "relative": "src/Bingo.Web/Pages/Admin/Events/Questions.cshtml.cs",
+    "sha256": "be14045a741cef90ef3b6de2b4939be1672833eef210ab000fd80324bffbf511"
+  },
+  {
+    "group": "application",
+    "path": "/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/src/Bingo.Web/Pages/Admin/Events/Participants.cshtml.cs",
+    "relative": "src/Bingo.Web/Pages/Admin/Events/Participants.cshtml.cs",
+    "sha256": "9231652131b13f9baa61d8de678ac65c5b6663402201c8836eb8352ff2c4ae07"
+  },
+  {
+    "group": "application",
+    "path": "/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/src/Bingo.Web/Pages/Admin/Events/Manage.cshtml.cs",
+    "relative": "src/Bingo.Web/Pages/Admin/Events/Manage.cshtml.cs",
+    "sha256": "7c256656ea65e0a7aa776e11fd6dc1d440a8182e772786acabf3ef893b9f6a18"
+  },
+  {
+    "group": "application",
+    "path": "/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/src/Bingo.Infrastructure/Signups/SignupService.cs",
+    "relative": "src/Bingo.Infrastructure/Signups/SignupService.cs",
+    "sha256": "e456e03236c8468bdfc5cb400b84d3e5028ae579ccf8f5c015f788b02231cff1"
+  },
+  {
+    "group": "application",
+    "path": "/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/src/Bingo.Domain/Events/BingoEvent.cs",
+    "relative": "src/Bingo.Domain/Events/BingoEvent.cs",
+    "sha256": "41dc68ec0c8d219566e42622d5df84b0381154cbf4236ffc92d09b8946be4012"
+  },
+  {
+    "group": "application",
+    "path": "/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/src/Bingo.Application/Signups/ISignupService.cs",
+    "relative": "src/Bingo.Application/Signups/ISignupService.cs",
+    "sha256": "868897ba03b053f0fc091c0572fe9bf224bb1ea7890e5376c222a74da978cfa9"
+  },
+  {
+    "group": "application",
+    "path": "/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/src/Bingo.Domain/Signups/SignupQuestion.cs",
+    "relative": "src/Bingo.Domain/Signups/SignupQuestion.cs",
+    "sha256": "d1afb5132ef3318c3e88f0b09801fd6b44756d67276bd9d6e8f81deccbcd275f"
+  },
+  {
+    "group": "application",
+    "path": "/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/src/Bingo.Domain/Signups/SignupForm.cs",
+    "relative": "src/Bingo.Domain/Signups/SignupForm.cs",
+    "sha256": "f59da6c97ffd74624dec4bab79c0a2500c4c777fea384ae2c8f9bb5e1d034709"
+  },
+  {
+    "group": "application",
+    "path": "/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/src/Bingo.Web/Pages/Events/Signup.cshtml",
+    "relative": "src/Bingo.Web/Pages/Events/Signup.cshtml",
+    "sha256": "1c76f79552bb6cd187b46abd060a068e49088480a1c9d1479c1b2c33d6553dfd"
+  },
+  {
+    "group": "application",
+    "path": "/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/src/Bingo.Web/Pages/Events/Signups.cshtml.cs",
+    "relative": "src/Bingo.Web/Pages/Events/Signups.cshtml.cs",
+    "sha256": "d621ac86ef80a239e8c24e1e9921685ee561987f9dec270fec47a06451b6ea47"
+  },
+  {
+    "group": "application",
+    "path": "/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/src/Bingo.Infrastructure/Security/SecretHasher.cs",
+    "relative": "src/Bingo.Infrastructure/Security/SecretHasher.cs",
+    "sha256": "ea077aebf3c09e7eca2354c24f68a3c002092922e21f5be07156ea824eafbd8b"
+  },
+  {
+    "group": "application",
+    "path": "/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/src/Bingo.Web/Program.cs",
+    "relative": "src/Bingo.Web/Program.cs",
+    "sha256": "6208d7ea6c4a028fb62f068cb6fc27d12199c712a3bbca153da945852d21f078"
+  },
+  {
+    "group": "application",
+    "path": "/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/src/Bingo.Web/Security/EventMutationCapabilityPageFilter.cs",
+    "relative": "src/Bingo.Web/Security/EventMutationCapabilityPageFilter.cs",
+    "sha256": "9da3be31f27c420297209abcfc5d6f916f7a75461226f5cd75feee16096919e3"
+  }
+]

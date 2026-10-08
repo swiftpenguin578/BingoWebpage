@@ -43,12 +43,12 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests
         var tile = await ReadTileActivityAsync(f);
         Assert.Equal(1, tile.Team.Result.Received);
         Assert.Equal(4.5m, tile.Team.Result.Expected);
-        AssertLuckScore(-93.3049094961478m, tile.Team.Result);
+        AssertLuckScore(3.52620213290041m, tile.Team.Result);
         Assert.Equal(300m, Assert.Single(tile.Team.Metrics).Count);
         Assert.Equal(200m, Assert.Single(tile.Team.Players.Single(x => x.PlayerId == f.Players[0].Id).Metrics).Count);
         Assert.Equal(100m, Assert.Single(tile.Team.Players.Single(x => x.PlayerId == f.Players[1].Id).Metrics).Count);
         Assert.Equal(0, tile.Team.Players.Single(x => x.PlayerId == f.Players[1].Id).Result.Received);
-        AssertLuckScore(-79.4163665582917m, tile.Team.Players.Single(x => x.PlayerId == f.Players[1].Id).Result);
+        AssertLuckScore(11.0304455234694m, tile.Team.Players.Single(x => x.PlayerId == f.Players[1].Id).Result);
         Assert.Equal(2, (await ReadStatsAsync(f)).Luck.Result.Received);
         Assert.Equal(1, (await ReadTileActivityAsync(f, 1)).Team.Result.Received);
         Assert.False((await ReadTileActivityAsync(f, 2)).HasDropOutcomes);
@@ -72,6 +72,7 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests
             setup.Add(new TeamMembership(Guid.NewGuid(), otherTeam.Id, f.Players[1].Id, TeamMembershipRole.Participant, f.Clock.GetUtcNow(), null, "Controlled team split"));
             await setup.SaveChangesAsync();
         }
+        await PublishCurrentRosterAsync(f);
         await ApproveStatsAsync(f, await PendingStatsAsync(f, 0, 0, 10));
         await ApproveStatsAsync(f, await PendingStatsAsync(f, 0, 1, 11));
         await ApproveStatsAsync(f, await PendingStatsAsync(f, 0, 1, 12));
@@ -80,7 +81,7 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests
         await using var db = new ApplicationDbContext(options);
         var stats = new PublicStatsService(db, f.Clock);
         var other = (await stats.GetTileAsync(f.Event.Slug, otherTeam.Id, f.Tiles[0].Id))!;
-        Assert.Equal(2, other.Team.Result.Received); AssertLuckScore(61.7447060227591m, other.Team.Result);
+        Assert.Equal(2, other.Team.Result.Received); AssertLuckScore(82.8194388335393m, other.Team.Result);
         Assert.Equal(100m, Assert.Single(other.Team.Metrics).Count);
         Assert.Null(await stats.GetTileAsync(f.Event.Slug, Guid.NewGuid(), f.Tiles[0].Id));
         Assert.Null(await stats.GetTileAsync(f.Event.Slug, otherTeam.Id, Guid.NewGuid()));
@@ -118,6 +119,11 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests
         Assert.Equal(13m, tile.Team.Metrics.Single(x => x.Metric == "chambers_of_xeric").Count);
         Assert.Equal(7m, tile.Team.Metrics.Single(x => x.Metric == "chambers_of_xeric_challenge_mode").Count);
         Assert.Equal(.33m, tile.Team.Result.Expected); // 13 × .01 × 2 + 7 × .005 × 2; no team-size division.
+        Assert.Equal(2, tile.Team.Result.Activities!.Count);
+        Assert.Equal(37m, tile.Team.Result.Activities.Single(x => x.Metric == "chambers_of_xeric").KcDifference);
+        Assert.Equal(-7m, tile.Team.Result.Activities.Single(x => x.Metric == "chambers_of_xeric_challenge_mode").KcDifference);
+        Assert.Equal(37m, tile.Team.Metrics.Single(x => x.Metric == "chambers_of_xeric").KcDifference);
+        Assert.Equal(-7m, tile.Team.Metrics.Single(x => x.Metric == "chambers_of_xeric_challenge_mode").KcDifference);
         await using (var correction = new ApplicationDbContext(options))
             await correction.Database.ExecuteSqlRawAsync("UPDATE board_approval_requirement_drop_snapshots SET numeric_probability = 0.9");
         Assert.Equal(.33m, (await ReadTileActivityAsync(f)).Team.Result.Expected);
@@ -159,7 +165,7 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests
     }
 
     [Fact]
-    public async Task TileActivityRetainsWholeSnapshotDuringOutageAndInvalidatesAfterReversal()
+    public async Task TileActivityRetainsWholeSnapshotDuringOutageAndReversal()
     {
         var f = await FullStatsFixtureAsync();
         var original = await PendingStatsAsync(f, 0, 0, 10); await ApproveStatsAsync(f, original); await SyncStatsAsync(f, 100);
@@ -169,16 +175,16 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests
         await ApproveStatsAsync(f, await PendingStatsAsync(f, 0, 0, 12));
         await ApproveStatsAsync(f, await PendingStatsAsync(f, 1, 0, 13));
         var stale = await ReadTileActivityAsync(f);
-        Assert.True(stale.Stale); Assert.Equal(1, stale.Team.Result.Received); Assert.Equal(0m, stale.Team.Result.Percentage);
+        Assert.True(stale.Stale); Assert.Equal(1, stale.Team.Result.Received); Assert.Equal(first.Team.Result.Percentage, stale.Team.Result.Percentage);
         Assert.Equal(first.CalculatedAt, stale.CalculatedAt); Assert.Equal(first.EvidenceRevision, stale.EvidenceRevision);
         Assert.Equal(0, (await ReadTileActivityAsync(f, 1)).Team.Result.Received);
         await ReverseStatsAsync(f, original);
         var reversed = await ReadTileActivityAsync(f);
-        Assert.False(reversed.Stale); Assert.Equal(1, reversed.Team.Result.Received); Assert.Null(reversed.Team.Result.Percentage);
-        Assert.Null(Assert.Single(reversed.Team.Metrics).Count); Assert.Null(reversed.CalculatedAt);
+        Assert.True(reversed.Stale); Assert.Equal(1, reversed.Team.Result.Received); Assert.Equal(first.Team.Result.Percentage, reversed.Team.Result.Percentage);
+        Assert.Equal(100m, Assert.Single(reversed.Team.Metrics).Count); Assert.Equal(first.CalculatedAt, reversed.CalculatedAt);
         f.Clock.Advance(TimeSpan.FromHours(3)); await SyncStatsAsync(f, 200);
         var recovered = await ReadTileActivityAsync(f);
-        AssertLuckScore(-50.1883643902809m, recovered.Team.Result); Assert.Equal(200m, Assert.Single(recovered.Team.Metrics).Count);
+        AssertLuckScore(26.9312679764995m, recovered.Team.Result); Assert.Equal(200m, Assert.Single(recovered.Team.Metrics).Count);
     }
 
     [Fact]
@@ -187,22 +193,23 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests
         var f = await FullStatsFixtureAsync(players: 2); await SyncStatsAsync(f, 100);
         var pending = await PendingStatsAsync(f, 0, 0, 10);
         await using (var correction = new ApplicationDbContext(options))
-            await new SubmissionService(correction, null!, f.Clock).EditMetadataAsync(new(pending, f.Admin.Id,
+            await new SubmissionService(correction, null!, f.Clock).EditMetadataCurrentAsync(new(pending, f.Admin.Id,
                 f.Tiles[1].Id, f.Requirements[1].Id, f.Drops.Single(x => x.RequirementId == f.Requirements[1].Id).Id,
                 f.Characters[1].Id, "Controlled tile and character correction"));
         await ApproveStatsAsync(f, pending);
+        f.Clock.Advance(TimeSpan.FromHours(3)); await SyncStatsAsync(f, 100);
         Assert.Equal(0, (await ReadTileActivityAsync(f)).Team.Result.Received);
         var corrected = await ReadTileActivityAsync(f, 1);
         Assert.Equal(1, corrected.Team.Result.Received);
         Assert.Equal(1, corrected.Team.Players.Single(x => x.PlayerId == f.Players[1].Id).Result.Received);
         Assert.Equal(0, corrected.Team.Players.Single(x => x.PlayerId == f.Players[0].Id).Result.Received);
-        AssertLuckScore(-50.1883643902809m, corrected.Team.Result);
+        AssertLuckScore(26.9312679764995m, corrected.Team.Result);
     }
 
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task TileActivityLegacyCheckpointRetainsExpiredKcAndCoherentTileLuckWithoutReadWrites(bool refreshFailure)
+    public async Task TileActivityPartialCheckpointWithoutRetainedTileProjectionFailsClosed(bool refreshFailure)
     {
         var f = await FullStatsFixtureAsync(players: 2, extraRegular: true);
         await ApproveStatsAsync(f, await PendingStatsAsync(f, 0, 0, 10));
@@ -216,17 +223,13 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests
         f.Clock.Advance(TimeSpan.FromHours(3));
         if (refreshFailure) await SyncStatsAsync(f, new WiseOldManCompetitionResult(WiseOldManCompetitionStatus.Unavailable, null));
         var retained = await ReadTileActivityAsync(f);
-        Assert.True(retained.Stale);
-        Assert.Equal(300m, Assert.Single(retained.Team.Metrics).Count);
-        Assert.Equal(3, retained.Team.Result.Received); // Event-wide received is four; only three belong here.
-        Assert.Equal(0m, retained.Team.Result.Percentage);
-        AssertLuckScore(-50.1883643902809m, retained.Team.Players.Single(x => x.PlayerId == f.Players[0].Id).Result);
-        AssertLuckScore(61.7447060227591m, retained.Team.Players.Single(x => x.PlayerId == f.Players[1].Id).Result);
+        Assert.True(retained.Stale); Assert.True(retained.HasDropOutcomes);
+        Assert.Empty(retained.Team.Metrics); Assert.Equal(0, retained.Team.Result.Received);
+        Assert.Null(retained.Team.Result.Expected); Assert.Null(retained.Team.Result.Percentage);
+        Assert.Equal(StatsLuckStatus.WaitingForActivityData, retained.Team.Result.Status);
         Assert.Equal(first.CalculatedAt, retained.CalculatedAt);
         Assert.Equal(first.FetchedAt, retained.FetchedAt);
         Assert.Equal(first.EvidenceRevision, retained.EvidenceRevision);
-        Assert.Equal(1, (await ReadTileActivityAsync(f, 1)).Team.Result.Received);
-        await AssertRetainedTileHttpAsync(f, retained);
         await using var verify = new ApplicationDbContext(options);
         var checkpoint = await verify.EventStatsLuckCheckpoints.SingleAsync();
         Assert.False(JsonDocument.Parse(checkpoint.Payload).RootElement.TryGetProperty("Tiles", out _));
@@ -235,7 +238,7 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests
     }
 
     [Fact]
-    public async Task TileActivityLegacyCheckpointRetainsKcButWithholdsLuckAfterAdditiveEvidence()
+    public async Task TileActivityPartialCheckpointReturnsUnavailableAfterAdditiveEvidence()
     {
         var f = await FullStatsFixtureAsync(players: 2, extraRegular: true);
         await ApproveStatsAsync(f, await PendingStatsAsync(f, 0, 0, 10));
@@ -246,12 +249,10 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests
         f.Clock.Advance(TimeSpan.FromHours(3));
         await ApproveStatsAsync(f, await PendingStatsAsync(f, 0, 1, 11));
         var retained = await ReadTileActivityAsync(f);
-        Assert.True(retained.Stale);
-        Assert.Equal(300m, Assert.Single(retained.Team.Metrics).Count);
-        Assert.Equal(2, retained.Team.Result.Received);
+        Assert.True(retained.Stale); Assert.True(retained.HasDropOutcomes);
+        Assert.Empty(retained.Team.Metrics); Assert.Equal(0, retained.Team.Result.Received);
         Assert.Null(retained.Team.Result.Expected); Assert.Null(retained.Team.Result.Percentage);
         Assert.Equal(StatsLuckStatus.WaitingForActivityData, retained.Team.Result.Status);
-        Assert.All(retained.Team.Players, player => Assert.Null(player.Result.Percentage));
         Assert.Equal(first.CalculatedAt, retained.CalculatedAt); Assert.Equal(first.FetchedAt, retained.FetchedAt);
         Assert.Equal(first.EvidenceRevision, retained.EvidenceRevision);
     }
@@ -259,24 +260,21 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task TileActivityWithoutCheckpointRetainsCompatibleExpiredRawKcWithoutInventingLuck(bool refreshFailure)
+    public async Task TileActivityWithoutCheckpointReturnsUnavailableWithoutInventingLuck(bool refreshFailure)
     {
         var f = await FullStatsFixtureAsync(players: 2, extraRegular: true);
         await ApproveStatsAsync(f, await PendingStatsAsync(f, 0, 0, 10));
         await SyncStatsAsync(f, 100);
-        var first = await ReadTileActivityAsync(f);
         await using (var setup = new ApplicationDbContext(options))
             await setup.EventStatsLuckCheckpoints.ExecuteDeleteAsync();
         f.Clock.Advance(TimeSpan.FromHours(3));
         if (refreshFailure) await SyncStatsAsync(f, new WiseOldManCompetitionResult(WiseOldManCompetitionStatus.Unavailable, null));
-        var retained = await ReadTileActivityAsync(f);
-        Assert.True(retained.Stale);
-        Assert.Equal(300m, Assert.Single(retained.Team.Metrics).Count);
-        Assert.Equal(200m, Assert.Single(retained.Team.Players.Single(x => x.PlayerId == f.Players[0].Id).Metrics).Count);
-        Assert.Equal(100m, Assert.Single(retained.Team.Players.Single(x => x.PlayerId == f.Players[1].Id).Metrics).Count);
-        Assert.Null(retained.Team.Result.Expected); Assert.Null(retained.Team.Result.Percentage);
-        Assert.Null(retained.CalculatedAt); Assert.Equal(first.FetchedAt, retained.FetchedAt);
-        await AssertRetainedTileHttpAsync(f, retained);
+        var unavailable = await ReadTileActivityAsync(f);
+        Assert.False(unavailable.Stale); Assert.True(unavailable.HasDropOutcomes);
+        Assert.Empty(unavailable.Team.Metrics);
+        Assert.Equal(StatsLuckStatus.WaitingForActivityData, unavailable.Team.Result.Status);
+        Assert.Null(unavailable.Team.Result.Expected); Assert.Null(unavailable.Team.Result.Percentage);
+        Assert.Null(unavailable.CalculatedAt); Assert.Null(unavailable.FetchedAt);
         await using var verify = new ApplicationDbContext(options);
         Assert.Empty(await verify.EventStatsLuckCheckpoints.ToListAsync());
     }

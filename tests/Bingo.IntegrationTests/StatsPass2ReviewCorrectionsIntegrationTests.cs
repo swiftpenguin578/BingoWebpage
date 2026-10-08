@@ -94,7 +94,8 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests
         });
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var result = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
-        Assert.Contains($"<span>{expected}</span>", result, StringComparison.Ordinal);
+        // U4 / OS-1: Manage renders on the design layout; the refusal is the design toast text.
+        Assert.Contains($"data-component-text>{expected}</span>", result, StringComparison.Ordinal);
         Assert.DoesNotContain("These drops have no catalogue GP value", result, StringComparison.Ordinal);
         Assert.DoesNotContain("These drops have no catalogue GP value: {0}", result, StringComparison.Ordinal);
         await using var verify = new ApplicationDbContext(options);

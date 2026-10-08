@@ -14,6 +14,8 @@ class Node {
   addEventListener(type, listener) { (this.listeners[type] ??= []).push(listener); }
   prepend(...children) { children.reverse().forEach(child => { if (child && typeof child === "object") child.parentElement = this; this.children.unshift(child); }); }
   dispatch(event) { return (this.listeners[event.type] ?? []).map(listener => listener(event)); }
+  replaceChildren(...children) { this.children = []; this.append(...children); }
+  setAttribute(name, value) { this.attributes ??= {}; this.attributes[name] = String(value); }
   remove() { this.parentElement?.children.splice(this.parentElement.children.indexOf(this), 1); }
   querySelector(selector) { return this.querySelectorAll(selector)[0] ?? null; }
   querySelectorAll(selector) {
@@ -45,14 +47,15 @@ const historicalSameTimeId = "00000000-0000-0000-0000-000000000005";
 const lateLiveId = "00000000-0000-0000-0000-000000000030";
 const titleA = new Node({ className: "public-ui-recent-drop-title" });
 const titleB = new Node({ className: "public-ui-recent-drop-title" });
-const cardA = new Node({ dataset: { publicRecentDropId: "a", publicRecentDropApprovedAt: oldApprovedAt }, children: [titleA] });
-const cardB = new Node({ dataset: { publicRecentDropId: initialNewestId, publicRecentDropApprovedAt: secondLiveApprovedAt }, children: [titleB] });
+const cardA = new Node({ dataset: { publicRecentDropId: "a", publicRecentDropSubmittedAt: oldApprovedAt, publicRecentDropReviewedAt: oldApprovedAt }, children: [titleA] });
+const cardB = new Node({ dataset: { publicRecentDropId: initialNewestId, publicRecentDropSubmittedAt: secondLiveApprovedAt, publicRecentDropReviewedAt: secondLiveApprovedAt }, children: [titleB] });
 const loadedCards = [cardA, cardB];
-for (let index = 2; index < 25; index++) loadedCards.push(new Node({ dataset: { publicRecentDropId: `loaded-${index}`, publicRecentDropApprovedAt: oldApprovedAt } }));
+for (let index = 2; index < 25; index++) loadedCards.push(new Node({ dataset: { publicRecentDropId: `loaded-${index}`, publicRecentDropSubmittedAt: oldApprovedAt, publicRecentDropReviewedAt: oldApprovedAt } }));
 const grid = new Node({ className: "public-ui-recent-drop-grid", children: loadedCards });
 const feed = new Node({ className: "public-ui-recent-drop-feed", children: [grid] });
-const region = new Node({ dataset: { publicRecentDrops: "", evidenceAltTemplate: "Godkendt bevis fra {0}", justNowLabel: "Lige nu" }, children: [feed] });
-const root = new Node({ children: [marker, region] });
+const region = new Node({ dataset: { publicRecentDrops: "", publicRecentDropsSince: liveApprovedAt, evidenceAltTemplate: "Godkendt bevis fra {0}", justNowLabel: "Lige nu" }, children: [feed] });
+const firstDivider = new Node({ dataset: { publicRecentDropsFirstDivider: "", publicRecentDropsGroupHeading: "last-hour" } });
+const root = new Node({ children: [marker, firstDivider, region] });
 const listeners = {};
 let newIds = ["a", initialNewestId];
 let recentFetchCalls = 0;
@@ -63,7 +66,8 @@ const historicalDrops = Array.from({ length: 99 }, (_, index) => ({
   bossName: "Old boss",
   playerName: "Old player",
   teamName: "Team",
-  approvedAt: new Date(fixedNow - (26 + index) * 60 * 1000).toISOString()
+  submittedAt: new Date(fixedNow - (26 + index) * 60 * 1000).toISOString(),
+  reviewedAt: new Date(fixedNow - (26 + index) * 60 * 1000).toISOString()
 }));
 const windowObject = {
   location: { href: "https://example.test/Events/event-a/Board?view=drops", pathname: "/Events/event-a/Board" },
@@ -71,12 +75,12 @@ const windowObject = {
     if (url.toString().includes("/recent-drops")) {
       recentFetchCalls++;
       const drops = [
-        { submissionId: liveId, dropName: "Live drop", tileName: "Tile", bossName: "Boss", evidenceAssetId: "asset", playerName: "Player", teamName: "Team", approvedAt: liveApprovedAt },
-        { submissionId: sameTimeLiveId, dropName: "Same-time live drop", tileName: "Tile", bossName: "Boss", playerName: "Second player", teamName: "Team", approvedAt: secondLiveApprovedAt },
-        { submissionId: historicalSameTimeId, dropName: "Initial-boundary drop", tileName: "Tile", bossName: "Boss", playerName: "Boundary player", teamName: "Team", approvedAt: secondLiveApprovedAt },
+        { submissionId: liveId, dropName: "Live drop", tileName: "Tile", bossName: "Boss", evidenceAssetId: "asset", playerName: "Player", teamName: "Team", submittedAt: liveApprovedAt, reviewedAt: liveApprovedAt },
+        { submissionId: sameTimeLiveId, dropName: "Same-time live drop", tileName: "Tile", bossName: "Boss", playerName: "Second player", teamName: "Team", submittedAt: secondLiveApprovedAt, reviewedAt: liveApprovedAt },
+        { submissionId: historicalSameTimeId, dropName: "Initial-boundary drop", tileName: "Tile", bossName: "Boss", playerName: "Boundary player", teamName: "Team", submittedAt: secondLiveApprovedAt, reviewedAt: secondLiveApprovedAt },
         ...historicalDrops
       ];
-      if (recentFetchCalls > 1) drops.splice(2, 0, { submissionId: lateLiveId, dropName: "Same-time live drop", tileName: "Tile", bossName: "Boss", playerName: "Late player", teamName: "Team", approvedAt: lateApprovedAt });
+      if (recentFetchCalls > 1) drops.splice(2, 0, { submissionId: lateLiveId, dropName: "Same-time live drop", tileName: "Tile", bossName: "Boss", playerName: "Late player", teamName: "Team", submittedAt: lateApprovedAt, reviewedAt: lateApprovedAt });
       return { ok: true, json: async () => ({ drops }) };
     }
     assert.match(url, /api\/drop-announcements\/new/);
@@ -99,12 +103,13 @@ initialize(root, windowObject, documentObject);
   const liveCard = region.querySelector(`[data-public-recent-drop-id="${liveId}"]`);
   assert.equal(liveCard.querySelector(".public-ui-recent-drop-thumbnail").dataset.evidenceAlt, "Godkendt bevis fra Player", "live evidence alt text uses the rendered Danish template");
   assert.equal(liveCard.querySelector(".public-ui-recent-drop-thumbnail").children[0].alt, "Godkendt bevis fra Player", "live evidence image alt text matches the localized template");
-  assert.equal(liveCard.dataset.publicRecentDropApprovedAt, liveApprovedAt, "live card retains the authoritative approval timestamp");
-  assert.equal(liveCard.querySelector(".public-ui-recent-drop-player").textContent, "Player · 2 min ago", "live relative time is derived from approvedAt");
+  assert.equal(liveCard.dataset.publicRecentDropReviewedAt, liveApprovedAt, "live card retains the authoritative review timestamp");
+  assert.equal(liveCard.querySelector(".public-ui-recent-drop-player").textContent, "Player · 2 min ago", "live relative time is derived from submittedAt");
   assert.equal(region.querySelector('[data-public-recent-drop-id="historical-0"]'), null, "unloaded historical rows are not promoted into the live feed");
-  assert.equal(grid.querySelectorAll("[data-public-recent-drop-id]").length, 27, "new approvals are added to the initial 25 cards");
+  const currentGrid = region.querySelector(".public-ui-recent-drop-grid");
+  assert.equal(currentGrid.querySelectorAll("[data-public-recent-drop-id]").length, 25, "live reconciliation keeps the requested 25-card window");
   assert.equal(region.querySelector(`[data-public-recent-drop-id="${historicalSameTimeId}"]`), null, "an unseen lower-ID row at the initial timestamp remains historical");
-  assert.deepEqual(grid.querySelectorAll("[data-public-recent-drop-id]").slice(0, 3).map(card => card.dataset.publicRecentDropId), [liveId, sameTimeLiveId, "a"], "new approvals are prepended in approval order ahead of existing cards");
+  assert.deepEqual(currentGrid.querySelectorAll("[data-public-recent-drop-id]").slice(0, 3).map(card => card.dataset.publicRecentDropId), [liveId, sameTimeLiveId, initialNewestId], "live and existing cards stay ordered by submitted time and canonical ID");
 
   windowObject.dispatchEvent({ type: "bingo-progress-changed" });
   await new Promise(resolve => setImmediate(resolve));
@@ -114,22 +119,25 @@ initialize(root, windowObject, documentObject);
   assert.equal(region.querySelectorAll(`[data-public-recent-drop-id="${historicalSameTimeId}"]`).length, 0, "the lower-ID same-time historical row remains absent");
   assert.equal(titleA.parentElement, cardA, "existing card remains in place after reconciliation");
 
+  newIds = ["a", initialNewestId, sameTimeLiveId];
   await Promise.all([listeners["bingo-progress-changed"](), listeners["bingo-progress-changed"]()]);
   await new Promise(resolve => setImmediate(resolve));
   assert.equal(region.querySelectorAll(`[data-public-recent-drop-id="${liveId}"]`).length, 1, "overlapping invalidations do not duplicate a live card");
 
   newIds = ["b"];
-  windowObject.dispatchEvent({ type: "drop-announcement-acknowledged", detail: { eventId: "event-a", submissionIds: ["a"] } });
+  windowObject.dispatchEvent({ type: "drop-announcement-acknowledged", detail: { eventId: "event-a", submissionIds: [initialNewestId] } });
   await new Promise(resolve => setImmediate(resolve));
-  assert.equal(titleA.querySelector(".public-drop-new"), null, "successful viewed-one acknowledgement removes its loaded badge");
-  assert.ok(titleB.querySelector(".public-drop-new"), "successful viewed-one acknowledgement preserves other badges");
+  const currentTitleB = region.querySelector(`[data-public-recent-drop-id="${initialNewestId}"]`)?.querySelector(".public-ui-recent-drop-title");
+  const currentTitleC = region.querySelector(`[data-public-recent-drop-id="${sameTimeLiveId}"]`)?.querySelector(".public-ui-recent-drop-title");
+  assert.equal(currentTitleB?.querySelector(".public-drop-new"), null, "successful viewed-one acknowledgement removes its loaded badge");
+  assert.ok(currentTitleC?.querySelector(".public-drop-new"), "successful viewed-one acknowledgement preserves other badges");
 
   // A failed server acknowledgement emits no success event, so the badge remains.
-  assert.ok(titleB.querySelector(".public-drop-new"), "failed acknowledgement leaves the badge in place");
+  assert.ok(currentTitleC?.querySelector(".public-drop-new"), "failed acknowledgement leaves the badge in place");
 
   newIds = [];
   windowObject.dispatchEvent({ type: "drop-announcement-acknowledged", detail: { eventId: "event-a", all: true } });
   await new Promise(resolve => setImmediate(resolve));
-  assert.equal(titleA.querySelector(".public-drop-new"), null, "CLEAR ALL removes the first loaded badge");
-  assert.equal(titleB.querySelector(".public-drop-new"), null, "CLEAR ALL removes every loaded badge");
+  assert.equal(region.querySelector(`[data-public-recent-drop-id="${initialNewestId}"]`)?.querySelector(".public-drop-new"), null, "CLEAR ALL removes the first loaded badge");
+  assert.equal(region.querySelector(`[data-public-recent-drop-id="${sameTimeLiveId}"]`)?.querySelector(".public-drop-new"), null, "CLEAR ALL removes every loaded badge");
 })().catch(error => { setImmediate(() => { throw error; }); });

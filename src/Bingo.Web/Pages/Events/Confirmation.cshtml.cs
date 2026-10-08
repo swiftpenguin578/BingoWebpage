@@ -2,6 +2,7 @@ using Bingo.Application.Signups;
 using Bingo.Domain.Events;
 using Bingo.Domain.Signups;
 using Bingo.Infrastructure.Persistence;
+using Bingo.Infrastructure.Teams;
 using Bingo.Web.Events;
 using Bingo.Web.Security;
 using Microsoft.AspNetCore.Mvc;
@@ -22,8 +23,10 @@ public sealed class ConfirmationModel(ApplicationDbContext db, TimeProvider time
     public bool CanRejoin { get; private set; }
     public bool CanViewTable { get; private set; }
     public bool IsReadOnly { get; private set; }
+    public bool RequiresSignupCode { get; private set; }
     public string NextStep { get; private set; } = "Your signup will appear in the event roster when it is published.";
     [BindProperty] public bool ConfirmLifecycleAction { get; set; }
+    [BindProperty] public string? SignupCode { get; set; }
     public IReadOnlyList<AccountView> Accounts { get; private set; } = [];
     public IReadOnlyList<AnswerView> Answers { get; private set; } = [];
 
@@ -40,7 +43,7 @@ public sealed class ConfirmationModel(ApplicationDbContext db, TimeProvider time
                              where participant.Id == participantId && participant.AccountId == accountId && item.HiddenAt == null && item.Slug == slug
                              select new { Participant = participant, Event = item }).SingleOrDefaultAsync(ct);
             if (row is null) return Forbid();
-            var rosterExists = await db.DraftPublicationCycles.AsNoTracking().AnyAsync(x => x.SupersededAt == null && db.DraftSessions.Any(d => d.Id == x.DraftSessionId && d.EventId == row.Event.Id), ct);
+            var rosterExists = await db.ActiveRosterPublications(row.Event.Id).AnyAsync(ct);
             // Reopening withdraws the roster without necessarily withdrawing the board.
             // Keep pre-Live owner confirmation private until a roster is published again.
             if (!User.IsInRole("Admin") && (rosterExists || row.Event.ActualStartedAt is not null))
@@ -60,14 +63,24 @@ public sealed class ConfirmationModel(ApplicationDbContext db, TimeProvider time
             }
             EventName = row.Event.Name;
             EventSlug = row.Event.Slug;
+            RequiresSignupCode = row.Event.RequireSignupCode;
             CanViewTable = EventDestinationPolicy.MayUseSignupTable(EventDestinationPolicy.From(row.Event, rosterExists), User.IsInRole("Admin"));
             Status = DisplayStatus(row.Participant.SignupStatus.ToString());
-            CanEdit = row.Participant.SignupStatus is SignupStatus.Confirmed or SignupStatus.WaitingList && row.Event.State == EventState.SignupOpen && row.Event.AcceptsSignups(timeProvider.GetUtcNow());
-            CanWithdraw = !row.Event.DraftLocked && row.Event.State is EventState.SignupOpen or EventState.SignupClosed && row.Participant.SignupStatus is SignupStatus.Confirmed or SignupStatus.WaitingList;
+            CanEdit = row.Participant.SignupStatus is (SignupStatus.Confirmed or SignupStatus.WaitingList) && row.Event.State == EventState.SignupOpen && row.Event.AcceptsSignups(timeProvider.GetUtcNow());
+            CanWithdraw = !row.Event.DraftLocked && row.Event.State is (EventState.SignupOpen or EventState.SignupClosed) && row.Participant.SignupStatus is (SignupStatus.Confirmed or SignupStatus.WaitingList);
             CanRejoin = !row.Event.DraftLocked && row.Event.AcceptsSignups(timeProvider.GetUtcNow()) && row.Participant.SignupStatus == SignupStatus.Withdrawn;
             IsReadOnly = !CanEdit && !CanWithdraw && !CanRejoin && (row.Participant.SignupStatus is SignupStatus.Confirmed or SignupStatus.WaitingList);
             if (row.Participant.SignupStatus == SignupStatus.WaitingList)
-                WaitingPosition = await db.EventParticipants.AsNoTracking().Where(x => x.EventId == row.Participant.EventId && x.SignupStatus == SignupStatus.WaitingList && (x.SignedUpAt < row.Participant.SignedUpAt || x.SignedUpAt == row.Participant.SignedUpAt && x.SignupSequence <= row.Participant.SignupSequence)).CountAsync(ct);
+            {
+                var waitingTimestamp = row.Participant.WaitingListedAt ?? row.Participant.SignedUpAt;
+                WaitingPosition = await db.EventParticipants.AsNoTracking()
+                    .Where(x => x.EventId == row.Participant.EventId && x.SignupStatus == SignupStatus.WaitingList &&
+                        ((x.WaitingListedAt ?? x.SignedUpAt) < waitingTimestamp ||
+                         (x.WaitingListedAt ?? x.SignedUpAt) == waitingTimestamp &&
+                         (x.SignupSequence < row.Participant.SignupSequence ||
+                          x.SignupSequence == row.Participant.SignupSequence && x.Id.CompareTo(row.Participant.Id) <= 0)))
+                    .CountAsync(ct);
+            }
             NextStep = row.Participant.SignupStatus switch
             {
                 SignupStatus.Withdrawn when CanRejoin => "You can rejoin using the button below. Your previous place is not reserved.",
@@ -124,7 +137,7 @@ public sealed class ConfirmationModel(ApplicationDbContext db, TimeProvider time
         var participant = await OwnedParticipantAsync(slug, accountId.Value, ct);
         if (participant is null) return Forbid();
         if (!ConfirmLifecycleAction) { SetStatus(text["Confirm that you want to rejoin before continuing."].Value, false); return RedirectToPage(new { slug, participantId = participant.ParticipantId }); }
-        var result = await signupService.RejoinAsync(participant.EventId, participant.ParticipantId, accountId.Value, User.Identity?.Name ?? "participant", ct);
+        var result = await signupService.RejoinAsync(participant.EventId, participant.ParticipantId, accountId.Value, User.Identity?.Name ?? "participant", SignupCode, null, ct);
         SetStatus(result.Succeeded ? text["Your signup has been restored."].Value : text[result.Error ?? "Your signup could not be restored."].Value, result.Succeeded);
         return RedirectToPage(new { slug, participantId = participant.ParticipantId });
     }

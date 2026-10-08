@@ -1,0 +1,117 @@
+[
+  {
+    "item": "1",
+    "sha": "0e62ae56eb82b8feb9a553a9ba7895bec0fa680f",
+    "files": [
+      "docs/references/admin-ui/reviews/2026-10-06/u2/remediation-3/item1-phase-lists.md",
+      "src/Bingo.Web/wwwroot/js/admin-events.js",
+      "tests/Bingo.BrowserTests/admin-design-events-views.browser.js"
+    ]
+  },
+  {
+    "item": "2",
+    "sha": "aa74562429b1e06bca82c7b8bd79bdb3956cd7fe",
+    "files": [
+      "docs/references/admin-ui/reviews/2026-10-06/u2/remediation-3/item2-skeleton-handover.md",
+      "src/Bingo.Web/wwwroot/js/admin-design-shell.js",
+      "src/Bingo.Web/wwwroot/js/admin-events.js",
+      "tests/Bingo.BrowserTests/admin-design-events-update.browser.js"
+    ]
+  },
+  {
+    "item": "3",
+    "sha": "b497bf707a636de12fc95dcaa87cb8ab430da770",
+    "files": [
+      "docs/references/admin-ui/reviews/2026-10-06/u2/remediation-3/item3-query-focus.md",
+      "src/Bingo.Web/Pages/Admin/Events/Index.cshtml",
+      "src/Bingo.Web/Pages/Admin/Events/Index.cshtml.cs",
+      "src/Bingo.Web/wwwroot/js/admin-design-shell.js",
+      "src/Bingo.Web/wwwroot/js/admin-events.js",
+      "tests/Bingo.BrowserTests/admin-design-events-update.browser.js"
+    ]
+  },
+  {
+    "item": "4",
+    "sha": "3e82e14cee44940f64770d9029b4ee76b79bb9e9",
+    "files": [
+      "DELIVERY_PLAN.md",
+      "docs/references/admin-ui/reviews/2026-10-06/u2/remediation-3/item4-attempted-controls.md",
+      "src/Bingo.Web/Pages/Admin/Events/Index.cshtml",
+      "src/Bingo.Web/wwwroot/js/admin-events.js",
+      "tests/Bingo.BrowserTests/admin-design-events-update.browser.js"
+    ]
+  },
+  {
+    "item": "5",
+    "sha": "2827204846a2d1131024c23a09d6f40fcffdb148",
+    "files": [
+      "docs/references/admin-ui/reviews/2026-10-06/u2/remediation-3/item5-destination-header.md",
+      "src/Bingo.Web/Pages/Admin/Events/Identity.cshtml",
+      "src/Bingo.Web/Pages/Shared/_AdminDesignTemplates.cshtml",
+      "src/Bingo.Web/Pages/Shared/_AdminIdentityLoadStates.cshtml",
+      "src/Bingo.Web/wwwroot/js/admin-design-shell.js",
+      "tests/Bingo.BrowserTests/admin-design-destination-header.browser.js"
+    ]
+  },
+  {
+    "item": "5a",
+    "sha": "0db74ff3af60c1040def025f263029da3f57d5d0",
+    "files": [
+      "DELIVERY_PLAN.md",
+      "docs/references/admin-ui/reviews/2026-10-06/u2/remediation-3/item5a-events-header.md",
+      "docs/references/admin-ui/reviews/2026-10-06/u2/remediation-3/item5a-positions-chromium.json",
+      "docs/references/admin-ui/reviews/2026-10-06/u2/remediation-3/item5a-positions-webkit.json",
+      "scripts/check-u2-events.cjs",
+      "src/Bingo.Web/wwwroot/css/admin-design-events.css",
+      "tests/Bingo.BrowserTests/admin-design-events-header.browser.js"
+    ]
+  },
+  {
+    "item": "5b",
+    "sha": "8d0b6e7514eab8fd4ad811fba1fa3e9c7fd21067",
+    "files": [
+      "CURRENT_STATUS.md",
+      "DELIVERY_PLAN.md",
+      "docs/references/admin-ui/reviews/2026-10-06/u2/remediation-3/item5b-active-styles.md",
+      "docs/references/admin-ui/reviews/2026-10-06/u2/remediation-3/item5b-selector-bindings.json",
+      "docs/references/admin-ui/reviews/2026-10-06/u2/remediation-3/item5b-stylesheet-blocker.md",
+      "src/Bingo.Web/Pages/Shared/_AdminDesignLayout.cshtml",
+      "src/Bingo.Web/Pages/Shared/_AdminIdentityLoadStates.cshtml",
+      "src/Bingo.Web/wwwroot/css/admin-design-dashboard.css",
+      "src/Bingo.Web/wwwroot/css/admin-design-events.css",
+      "src/Bingo.Web/wwwroot/css/admin-design-identity.css",
+      "src/Bingo.Web/wwwroot/js/admin-design-shell.js",
+      "tests/Bingo.BrowserTests/admin-design-css-scope.browser.js",
+      "tests/Bingo.BrowserTests/admin-design-styles.browser.js"
+    ]
+  },
+  {
+    "item": "6",
+    "sha": "2f164048f2c785236bffbfee44fd25b022743d12",
+    "files": [
+      "docs/references/admin-ui/reviews/2026-10-06/u2/remediation-3/item6-design-checks.json",
+      "docs/references/admin-ui/reviews/2026-10-06/u2/remediation-3/item6-header-positions-chromium.json",
+      "docs/references/admin-ui/reviews/2026-10-06/u2/remediation-3/item6-header-positions-webkit.json",
+      "docs/references/admin-ui/reviews/2026-10-06/u2/remediation-3/item6-identity-parity.json",
+      "docs/references/admin-ui/reviews/2026-10-06/u2/remediation-3/item6-small-items.md",
+      "scripts/measure-u2-header.cjs",
+      "src/Bingo.Web/TestData/UiReviewScenarioSeeder.cs",
+      "tests/Bingo.BrowserTests/admin-design-header-geometry.browser.js",
+      "tests/Bingo.IntegrationTests/PostgreSqlEndpointIsolationTests.cs",
+      "tests/Bingo.IntegrationTests/UiReviewScenarioIntegrationTests.cs"
+    ]
+  },
+  {
+    "item": "7",
+    "sha": "owning docs-only commit; resolve git log -1 -- docs/references/admin-ui/reviews/2026-10-06/u2/remediation-3/item7-gate-policy.md",
+    "files": [
+      "AGENTS.md",
+      "CURRENT_STATUS.md",
+      "DELIVERY_PLAN.md",
+      "docs/references/admin-ui/reviews/2026-10-06/u2/remediation-3/item7-gate-policy.md",
+      "docs/references/admin-ui/reviews/2026-10-06/u2/remediation-3/final-gates.md",
+      "docs/references/admin-ui/reviews/2026-10-06/u2/remediation-3/final-js-results.json",
+      "docs/references/admin-ui/reviews/2026-10-06/u2/remediation-3/changed-files.json"
+    ]
+  }
+]

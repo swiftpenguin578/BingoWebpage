@@ -1,0 +1,62 @@
+[
+  {
+    "path": "DELIVERY_PLAN.md",
+    "expected": "b702a5249209572da8407309e531bf73691ca7ab33fe05dc3274edc4433af213",
+    "actual": "b702a5249209572da8407309e531bf73691ca7ab33fe05dc3274edc4433af213",
+    "match": true
+  },
+  {
+    "path": "FUNCTIONAL_CONTRACTS.md",
+    "expected": "053ad4b0411cd1997b9982db7a9354217b3ad6ea03d1dbfae0ee221a3262a6a4",
+    "actual": "053ad4b0411cd1997b9982db7a9354217b3ad6ea03d1dbfae0ee221a3262a6a4",
+    "match": true
+  },
+  {
+    "path": "src/Bingo.Web/Pages/Admin/Events/Identity.cshtml.cs",
+    "expected": "2aa3796318e89e57d7c181008909c5680dbd056dfccc864a13d39d2e1539e921",
+    "actual": "2aa3796318e89e57d7c181008909c5680dbd056dfccc864a13d39d2e1539e921",
+    "match": true
+  },
+  {
+    "path": "src/Bingo.Web/Pages/Admin/Events/Identity.cshtml",
+    "expected": "e3344879fa3c565f664a94a431edcf2b4a9ff8a34de07e5fb3e5cbd0d2ddc304",
+    "actual": "e3344879fa3c565f664a94a431edcf2b4a9ff8a34de07e5fb3e5cbd0d2ddc304",
+    "match": true
+  },
+  {
+    "path": "src/Bingo.Web/wwwroot/js/event-identity.js",
+    "expected": "cd5fd1130b0efa019644d93b5f8f161262793846ee24400fd85f1d28bb46fb4e",
+    "actual": "cd5fd1130b0efa019644d93b5f8f161262793846ee24400fd85f1d28bb46fb4e",
+    "match": true
+  },
+  {
+    "path": "src/Bingo.Web/Resources/SharedResource.da.resx",
+    "expected": "654aa6544402cc26990d90a169cb4ef8765fff8a012355c9992fe23d85dd80dc",
+    "actual": "654aa6544402cc26990d90a169cb4ef8765fff8a012355c9992fe23d85dd80dc",
+    "match": true
+  },
+  {
+    "path": "tests/Bingo.IntegrationTests/IdentityFieldConflictIntegrationTests.cs",
+    "expected": "dec5ed8dac806698036582beaa5247119a84a3919e4bce47894ea9b6c2443dc0",
+    "actual": "dec5ed8dac806698036582beaa5247119a84a3919e4bce47894ea9b6c2443dc0",
+    "match": true
+  },
+  {
+    "path": "tests/Bingo.IntegrationTests/IdentityFieldConflictIntegrationTests.Readback.cs",
+    "expected": "a2b7ea30f6857151bc7667b88a03081daf7719f17e808b7c3c76906acd49f5c0",
+    "actual": "a2b7ea30f6857151bc7667b88a03081daf7719f17e808b7c3c76906acd49f5c0",
+    "match": true
+  },
+  {
+    "path": "tests/Bingo.BrowserTests/identity-readback.transport.js",
+    "expected": "41bf0ee48b60fde9051511b41a89160ca58a438c20facdb57f1efd1b11240345",
+    "actual": "41bf0ee48b60fde9051511b41a89160ca58a438c20facdb57f1efd1b11240345",
+    "match": true
+  },
+  {
+    "path": "tests/Bingo.BrowserTests/identity-timezone-confirmation.browser.js",
+    "expected": "1e62799c2a92cdb6ab056929f23ee5f50c45b7508ed4c7798c3073447c939f1f",
+    "actual": "1e62799c2a92cdb6ab056929f23ee5f50c45b7508ed4c7798c3073447c939f1f",
+    "match": true
+  }
+]

@@ -1,0 +1,25 @@
+ M scripts/check-admin-page-conformance.cjs
+ M scripts/lib/admin-page-conformance-checks.cjs
+ M src/Bingo.Web/Pages/Admin/Events/Schedule.cshtml
+ M src/Bingo.Web/Pages/Admin/Events/SignupSetup.cshtml
+?? docs/references/admin-ui/reviews/2026-10-07/u3/second-look/capacity-conformance-chromium.log
+?? docs/references/admin-ui/reviews/2026-10-07/u3/second-look/capacity-conformance-webkit.log
+?? docs/references/admin-ui/reviews/2026-10-07/u3/second-look/checkpoint.md
+?? docs/references/admin-ui/reviews/2026-10-07/u3/second-look/live-drawer-1280.png
+?? docs/references/admin-ui/reviews/2026-10-07/u3/second-look/live-drawer-390.png
+?? docs/references/admin-ui/reviews/2026-10-07/u3/second-look/live-form-1280.png
+?? docs/references/admin-ui/reviews/2026-10-07/u3/second-look/live-form-390.png
+?? docs/references/admin-ui/reviews/2026-10-07/u3/second-look/live-links.json
+?? docs/references/admin-ui/reviews/2026-10-07/u3/second-look/live-settings-1280.png
+?? docs/references/admin-ui/reviews/2026-10-07/u3/second-look/live-settings-390.png
+?? docs/references/admin-ui/reviews/2026-10-07/u3/second-look/navigation-decision-chromium.log
+?? docs/references/admin-ui/reviews/2026-10-07/u3/second-look/navigation-decision-webkit.log
+?? docs/references/admin-ui/reviews/2026-10-07/u3/second-look/schedule-signup-positions-chromium.json
+?? docs/references/admin-ui/reviews/2026-10-07/u3/second-look/schedule-signup-positions-webkit.json
+?? docs/references/admin-ui/reviews/2026-10-07/u3/second-look/second-schedule-chromium.log
+?? docs/references/admin-ui/reviews/2026-10-07/u3/second-look/second-schedule-webkit.log
+?? docs/references/admin-ui/reviews/2026-10-07/u3/second-look/t1-accounts-chromium.log
+?? docs/references/admin-ui/reviews/2026-10-07/u3/second-look/t1-accounts-webkit.log
+?? docs/references/admin-ui/reviews/2026-10-07/u3/second-look/t1-audit-chromium.log
+?? docs/references/admin-ui/reviews/2026-10-07/u3/second-look/t1-audit-webkit.log
+?? tests/Bingo.BrowserTests/admin-design-summary-navigation.browser.js

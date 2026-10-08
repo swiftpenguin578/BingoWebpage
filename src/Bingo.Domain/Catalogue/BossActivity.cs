@@ -13,6 +13,7 @@ public sealed class BossActivity
     public DateTimeOffset DataUpdatedAt { get; private set; }
     public bool Active { get; private set; }
     public long Version { get; private set; } = 1;
+    public int TeamSize { get; private set; } = 1;
     public string? Notes { get; private set; }
     public ApiMappingStatus MappingStatus { get; private set; }
     public DateTimeOffset? MappingCheckedAt { get; private set; }
@@ -28,6 +29,11 @@ public sealed class BossActivity
         MappingCheckedAt = checkedAt?.ToUniversalTime();
     }
     public void Update(string name, string category, decimal? rate, string? externalId, string? source, string? notes, DateTimeOffset now, string? imageUrl = null) { Name = name; Category = category; EfficientCompletionsPerHour = rate; ConfigureApi(externalId); DataSource = source; Notes = notes; ImageUrl = imageUrl; DataUpdatedAt = now.ToUniversalTime(); }
+    public void SetTeamSize(int teamSize)
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThan(teamSize, 1);
+        TeamSize = teamSize;
+    }
     public void SetActive(bool active) => Active = active;
     public void AdvanceVersion() => Version++;
 }

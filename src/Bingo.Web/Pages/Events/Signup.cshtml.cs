@@ -4,6 +4,7 @@ using Bingo.Application.Integrations.WiseOldMan;
 using Bingo.Application.Signups;
 using Bingo.Domain.Signups;
 using Bingo.Infrastructure.Persistence;
+using Bingo.Infrastructure.Teams;
 using Bingo.Web.Events;
 using Bingo.Web.Security;
 using Bingo.Web.UI;
@@ -68,7 +69,7 @@ public sealed class SignupModel(ApplicationDbContext dbContext, ISignupService s
         if (!result.Succeeded)
         {
             ModelState.AddModelError(result.AccountQuestionId is { } questionId ? $"Input.AccountAnswers[{questionId}].OsrsCharacterId" : string.Empty, IsResponseConflict(result.Error) ? (text?["Your signup changed while you were editing it. Please reload and try again."].Value ?? "Your signup changed while you were editing it. Please reload and try again.") : Localize(result.Error!));
-            if (result.Error == "The event code is incorrect.") ModelState.AddModelError(nameof(Input.SignupCode), Localize(result.Error!));
+            if (result.Error == "The event code is incorrect.") ModelState.AddModelError("Input.SignupCode", Localize(result.Error!));
             await PopulateInputAsync(existing?.Id, ct, preserveSubmitted: true);
             return Page();
         }
@@ -186,7 +187,7 @@ public sealed class SignupModel(ApplicationDbContext dbContext, ISignupService s
     {
         var item = await dbContext.Events.AsNoTracking().SingleOrDefaultAsync(e => e.Slug == slug && e.HiddenAt == null, ct); if (item is null || item.State == Bingo.Domain.Events.EventState.Discarded || item.State == Bingo.Domain.Events.EventState.Cancelled && item.FirstPublicAt is null || User.IsInRole("Admin") == false && item.FirstPublicAt is null) return false;
         var cancelled = item.State == Bingo.Domain.Events.EventState.Cancelled;
-        var rosterExists = await dbContext.DraftPublicationCycles.AsNoTracking().AnyAsync(x => x.SupersededAt == null && dbContext.DraftSessions.Any(d => d.Id == x.DraftSessionId && d.EventId == item.Id), ct);
+        var rosterExists = await dbContext.ActiveRosterPublications(item.Id).AnyAsync(ct);
         var signupCounts = await dbContext.EventParticipants.AsNoTracking().Where(participant => participant.EventId == item.Id).GroupBy(participant => participant.EventId).Select(group => new
         {
             Confirmed = group.Count(participant => participant.SignupStatus == SignupStatus.Confirmed),
@@ -196,7 +197,7 @@ public sealed class SignupModel(ApplicationDbContext dbContext, ISignupService s
         var accountId = User.GetAccountId();
         var links = accountId is null ? [] : await (from link in dbContext.AccountOsrsCharacters.AsNoTracking() join character in dbContext.OsrsCharacters.AsNoTracking() on link.OsrsCharacterId equals character.Id where link.AccountId == accountId && link.Active orderby link.Preferred descending, link.Position select new AccountOption(character.Id, character.DisplayName, link.SavedEhb, link.Preferred, false)).ToListAsync(ct);
         var questions = cancelled ? [] : await dbContext.SignupQuestions.AsNoTracking().Where(q => q.EventId == item.Id && q.Active).OrderBy(q => q.Position).ToListAsync(ct);
-        Questions = questions.Select(q => new QuestionView(q.Id, q.Label, q.Type, q.Required, q.Options == null ? [] : q.Options.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries), q.AccountAnswerRole, q.SystemField, links)).ToList(); return true;
+        Questions = questions.Select(q => new QuestionView(q.Id, q.Label, q.Type, IsRequiredQuestion(q), q.Options == null ? [] : q.Options.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries), q.AccountAnswerRole, q.SystemField, links)).ToList(); return true;
     }
     private string LookupFailure(WiseOldManPlayerLookupResult result) => result.Status switch
     {
@@ -211,7 +212,7 @@ public sealed class SignupModel(ApplicationDbContext dbContext, ISignupService s
         var item = await dbContext.Events.AsNoTracking().SingleOrDefaultAsync(x => x.Slug == slug && x.HiddenAt == null, ct);
         if (item is null) return NotFound();
         if (User.IsInRole("Admin") || item.FirstPublicAt is null) return null;
-        var rosterExists = await dbContext.DraftPublicationCycles.AsNoTracking().AnyAsync(x => x.SupersededAt == null && dbContext.DraftSessions.Any(d => d.Id == x.DraftSessionId && d.EventId == item.Id), ct);
+        var rosterExists = await dbContext.ActiveRosterPublications(item.Id).AnyAsync(ct);
         return EventDestinationPolicy.Decide(EventDestinationPolicy.From(item, rosterExists), false) switch
         {
             EventDestination.Roster => RedirectToPage("Teams", new { slug }),
@@ -252,6 +253,10 @@ public sealed class SignupModel(ApplicationDbContext dbContext, ISignupService s
     private string SignupReturnUrl(string slug, bool edit) => Url.Page("/Events/Signup", new { slug, edit = edit ? true : (bool?)null })!;
     private static bool IsResponseConflict(string? error) => error?.Contains("changed while you were editing", StringComparison.OrdinalIgnoreCase) == true;
     private string Localize(string message) => text?[message].Value ?? message;
+    private static bool IsRequiredQuestion(SignupQuestion question) =>
+        question.SystemField == SignupSystemField.CaptainVolunteer
+        || question.SystemField == SignupSystemField.PrimaryRegularAccount && question.AccountAnswerRole == EventCharacterRole.Playing
+        || question.Type != SignupQuestionType.Account && question.Required;
     public sealed record EventInfo(Guid Id, string Slug, string Name, string Description, DateTimeOffset? SignupClosesAt, DateTimeOffset? EventStartsAt, DateTimeOffset? EventEndsAt, bool RequireCode, bool Accepting, bool Cancelled, bool TableAvailable, int? ParticipantCap, int ConfirmedCount, int WaitingCount, string Timezone = DateTimePresentation.DefaultTimezoneId, DateTimeOffset? DraftAt = null);
     public sealed record AccountOption(Guid Id, string Name, decimal? SavedEhb, bool Preferred, bool Historical);
     public sealed record QuestionView(Guid Id, string Label, SignupQuestionType Type, bool Required, string[] OptionList, EventCharacterRole? AccountRole, SignupSystemField SystemField, IReadOnlyList<AccountOption> Accounts);

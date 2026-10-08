@@ -1,9 +1,7 @@
 using System.Security.Claims;
 using Bingo.Application.Access;
 using Bingo.Domain.Access;
-using Bingo.Domain.Auditing;
 using Bingo.Infrastructure.Persistence;
-using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -25,17 +23,9 @@ public sealed class AccountAuthenticationService(
             candidate => candidate.NormalizedLoginName == normalizedUsername,
             cancellationToken);
 
-        if (account is null || !account.Active || account.PasswordHash is null)
+        if (account is null || !account.Active || account.AccountType != AccountType.WebsiteAccount || account.PasswordHash is null)
         {
             return null;
-        }
-
-        AccountEventAccess? emergencyAccess = null;
-        if (account.AccountType == AccountType.EmergencyCaptain)
-        {
-            emergencyAccess = await dbContext.AccountEventAccesses.SingleOrDefaultAsync(access => access.AccountId == account.Id, cancellationToken);
-            if (emergencyAccess?.GetAccessMode(timeProvider.GetUtcNow()) == AccountAccessMode.Disabled ||
-                emergencyAccess is not null && !await dbContext.Events.AsNoTracking().AnyAsync(x => x.Id == emergencyAccess.EventId && x.HiddenAt == null, cancellationToken)) return null;
         }
 
         var result = passwordHasher.VerifyHashedPassword(account, account.PasswordHash, password);
@@ -50,8 +40,6 @@ public sealed class AccountAuthenticationService(
         }
 
         account.RecordLogin(timeProvider.GetUtcNow());
-        if (account.AccountType == AccountType.EmergencyCaptain)
-            dbContext.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), timeProvider.GetUtcNow(), account.Id, account.LoginName, "account.emergency_login", "account", account.Id.ToString(), "Emergency credential login succeeded.", emergencyAccess?.EventId));
         await dbContext.SaveChangesAsync(cancellationToken);
         return account;
     }
@@ -64,8 +52,10 @@ public sealed class AccountAuthenticationService(
         return true;
     }
 
-    public ClaimsPrincipal CreatePrincipal(Account account, string authenticationMethod = "password", AccountEventAccess? emergencyAccess = null)
+    public ClaimsPrincipal CreatePrincipal(Account account, string authenticationMethod = "password")
     {
+        if (account.AccountType != AccountType.WebsiteAccount)
+            throw new InvalidOperationException("This account is not available.");
         var claims = new List<Claim>
         {
             new(ClaimTypes.NameIdentifier, account.Id.ToString()),
@@ -77,23 +67,8 @@ public sealed class AccountAuthenticationService(
         };
         if (authenticationMethod == "password") claims.Add(new Claim(AccountClaims.PasswordVersion, account.PasswordVersion.ToString(System.Globalization.CultureInfo.InvariantCulture)));
         if (account.GlobalRole is GlobalRole role) claims.Add(new Claim(ClaimTypes.Role, role.ToString()));
-        if (account.AccountType == AccountType.EmergencyCaptain) claims.Add(new Claim(ClaimTypes.Role, AccountRole.Captain.ToString()));
-
-        if (emergencyAccess?.EventId is { } eventId)
-        {
-            claims.Add(new Claim(AccountClaims.EventId, eventId.ToString()));
-        }
-
-        if (emergencyAccess?.TeamId is { } teamId)
-        {
-            claims.Add(new Claim(AccountClaims.TeamId, teamId.ToString()));
-        }
-
         return new ClaimsPrincipal(new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme));
     }
-
-    public Task<AccountEventAccess?> GetEmergencyAccessAsync(Guid accountId, CancellationToken cancellationToken) =>
-        dbContext.AccountEventAccesses.SingleOrDefaultAsync(access => access.AccountId == accountId, cancellationToken);
 
     public static string NormalizeUsername(string username) => username.Trim().ToUpperInvariant();
 }

@@ -1,0 +1,1735 @@
+{
+  "mode": "diagnostic only; strict body gate not passed",
+  "records": [
+    {
+      "engine": "webkit",
+      "family": "dashboard",
+      "width": 390,
+      "loading": {
+        "head": {
+          "x": 16,
+          "y": 74,
+          "width": 358,
+          "height": 153.5
+        },
+        "blocks": {
+          "first": {
+            "x": 17,
+            "y": 248.5,
+            "width": 356,
+            "height": 201
+          },
+          "section": {
+            "x": 16,
+            "y": 466.5,
+            "width": 358,
+            "height": 276
+          },
+          "table": null
+        }
+      },
+      "loaded": {
+        "head": {
+          "x": 16,
+          "y": 74,
+          "width": 358,
+          "height": 173.0625
+        },
+        "blocks": {
+          "first": {
+            "x": 17,
+            "y": 268.0625,
+            "width": 356,
+            "height": 302
+          },
+          "section": {
+            "x": 16,
+            "y": 587.0625,
+            "width": 358,
+            "height": 441.25
+          },
+          "table": {
+            "x": 17,
+            "y": 1608.71875,
+            "width": 790,
+            "height": 214.84375
+          }
+        }
+      },
+      "delta": 19.5625,
+      "shifts": {
+        "first": {
+          "x": 0,
+          "yBeyondHeader": 0,
+          "width": 0
+        },
+        "section": {
+          "x": 0,
+          "yBeyondHeader": 101,
+          "width": 0
+        }
+      },
+      "referenceLoading": {
+        "head": {
+          "x": 16,
+          "y": 74,
+          "width": 358,
+          "height": 133.9375
+        },
+        "blocks": {
+          "first": {
+            "x": 17,
+            "y": 228.9375,
+            "width": 356,
+            "height": 201
+          },
+          "section": {
+            "x": 16,
+            "y": 446.9375,
+            "width": 358,
+            "height": 276
+          },
+          "table": null
+        }
+      },
+      "referenceLoaded": {
+        "head": {
+          "x": 16,
+          "y": 74,
+          "width": 358,
+          "height": 173.0625
+        },
+        "blocks": {
+          "first": {
+            "x": 17,
+            "y": 268.0625,
+            "width": 356,
+            "height": 320.125
+          },
+          "section": {
+            "x": 16,
+            "y": 605.1875,
+            "width": 358,
+            "height": 465.375
+          },
+          "table": {
+            "x": 17,
+            "y": 1762.453125,
+            "width": 790,
+            "height": 273.265625
+          }
+        }
+      }
+    },
+    {
+      "engine": "webkit",
+      "family": "dashboard",
+      "width": 494,
+      "loading": {
+        "head": {
+          "x": 16,
+          "y": 74,
+          "width": 462,
+          "height": 153.5
+        },
+        "blocks": {
+          "first": {
+            "x": 17,
+            "y": 248.5,
+            "width": 460,
+            "height": 201
+          },
+          "section": {
+            "x": 16,
+            "y": 466.5,
+            "width": 462,
+            "height": 276
+          },
+          "table": null
+        }
+      },
+      "loaded": {
+        "head": {
+          "x": 16,
+          "y": 74,
+          "width": 462,
+          "height": 153.5
+        },
+        "blocks": {
+          "first": {
+            "x": 17,
+            "y": 248.5,
+            "width": 460,
+            "height": 231.21875
+          },
+          "section": {
+            "x": 16,
+            "y": 496.71875,
+            "width": 462,
+            "height": 415.5625
+          },
+          "table": {
+            "x": 17,
+            "y": 1449.5625,
+            "width": 790,
+            "height": 214.84375
+          }
+        }
+      },
+      "delta": 0,
+      "shifts": {
+        "first": {
+          "x": 0,
+          "yBeyondHeader": 0,
+          "width": 0
+        },
+        "section": {
+          "x": 0,
+          "yBeyondHeader": 30.21875,
+          "width": 0
+        }
+      },
+      "referenceLoading": {
+        "head": {
+          "x": 16,
+          "y": 74,
+          "width": 462,
+          "height": 133.9375
+        },
+        "blocks": {
+          "first": {
+            "x": 17,
+            "y": 228.9375,
+            "width": 460,
+            "height": 201
+          },
+          "section": {
+            "x": 16,
+            "y": 446.9375,
+            "width": 462,
+            "height": 276
+          },
+          "table": null
+        }
+      },
+      "referenceLoaded": {
+        "head": {
+          "x": 16,
+          "y": 74,
+          "width": 462,
+          "height": 153.5
+        },
+        "blocks": {
+          "first": {
+            "x": 17,
+            "y": 248.5,
+            "width": 460,
+            "height": 267.21875
+          },
+          "section": {
+            "x": 16,
+            "y": 532.71875,
+            "width": 462,
+            "height": 441.25
+          },
+          "table": {
+            "x": 17,
+            "y": 1585.21875,
+            "width": 790,
+            "height": 273.265625
+          }
+        }
+      }
+    },
+    {
+      "engine": "webkit",
+      "family": "dashboard",
+      "width": 860,
+      "loading": {
+        "head": {
+          "x": 16,
+          "y": 74,
+          "width": 828,
+          "height": 153.5
+        },
+        "blocks": {
+          "first": {
+            "x": 17,
+            "y": 248.5,
+            "width": 826,
+            "height": 201
+          },
+          "section": {
+            "x": 16,
+            "y": 466.5,
+            "width": 828,
+            "height": 276
+          },
+          "table": null
+        }
+      },
+      "loaded": {
+        "head": {
+          "x": 16,
+          "y": 74,
+          "width": 828,
+          "height": 153.5
+        },
+        "blocks": {
+          "first": {
+            "x": 17,
+            "y": 248.5,
+            "width": 826,
+            "height": 231.21875
+          },
+          "section": {
+            "x": 16,
+            "y": 496.71875,
+            "width": 828,
+            "height": 441.59375
+          },
+          "table": {
+            "x": 17,
+            "y": 1475.59375,
+            "width": 826,
+            "height": 214.84375
+          }
+        }
+      },
+      "delta": 0,
+      "shifts": {
+        "first": {
+          "x": 0,
+          "yBeyondHeader": 0,
+          "width": 0
+        },
+        "section": {
+          "x": 0,
+          "yBeyondHeader": 30.21875,
+          "width": 0
+        }
+      },
+      "referenceLoading": {
+        "head": {
+          "x": 16,
+          "y": 74,
+          "width": 828,
+          "height": 133.9375
+        },
+        "blocks": {
+          "first": {
+            "x": 17,
+            "y": 228.9375,
+            "width": 826,
+            "height": 201
+          },
+          "section": {
+            "x": 16,
+            "y": 446.9375,
+            "width": 828,
+            "height": 276
+          },
+          "table": null
+        }
+      },
+      "referenceLoaded": {
+        "head": {
+          "x": 16,
+          "y": 74,
+          "width": 828,
+          "height": 153.5
+        },
+        "blocks": {
+          "first": {
+            "x": 17,
+            "y": 248.5,
+            "width": 826,
+            "height": 231.21875
+          },
+          "section": {
+            "x": 16,
+            "y": 496.71875,
+            "width": 828,
+            "height": 441.59375
+          },
+          "table": {
+            "x": 17,
+            "y": 1549.5625,
+            "width": 826,
+            "height": 273.265625
+          }
+        }
+      }
+    },
+    {
+      "engine": "webkit",
+      "family": "dashboard",
+      "width": 1280,
+      "loading": {
+        "head": {
+          "x": 284,
+          "y": 82,
+          "width": 964,
+          "height": 76.34375
+        },
+        "blocks": {
+          "first": {
+            "x": 285,
+            "y": 179.34375,
+            "width": 962,
+            "height": 100
+          },
+          "section": {
+            "x": 284,
+            "y": 296.34375,
+            "width": 603.265625,
+            "height": 276
+          },
+          "table": null
+        }
+      },
+      "loaded": {
+        "head": {
+          "x": 284,
+          "y": 82,
+          "width": 964,
+          "height": 76.34375
+        },
+        "blocks": {
+          "first": {
+            "x": 285,
+            "y": 179.34375,
+            "width": 962,
+            "height": 115.109375
+          },
+          "section": {
+            "x": 284,
+            "y": 311.453125,
+            "width": 603.265625,
+            "height": 452.71875
+          },
+          "table": {
+            "x": 285,
+            "y": 832.734375,
+            "width": 962,
+            "height": 214.84375
+          }
+        }
+      },
+      "delta": 0,
+      "shifts": {
+        "first": {
+          "x": 0,
+          "yBeyondHeader": 0,
+          "width": 0
+        },
+        "section": {
+          "x": 0,
+          "yBeyondHeader": 15.109375,
+          "width": 0
+        }
+      },
+      "referenceLoading": {
+        "head": {
+          "x": 284,
+          "y": 82,
+          "width": 964,
+          "height": 76.34375
+        },
+        "blocks": {
+          "first": {
+            "x": 285,
+            "y": 179.34375,
+            "width": 962,
+            "height": 100
+          },
+          "section": {
+            "x": 284,
+            "y": 296.34375,
+            "width": 603.265625,
+            "height": 276
+          },
+          "table": null
+        }
+      },
+      "referenceLoaded": {
+        "head": {
+          "x": 284,
+          "y": 82,
+          "width": 964,
+          "height": 76.34375
+        },
+        "blocks": {
+          "first": {
+            "x": 285,
+            "y": 179.34375,
+            "width": 962,
+            "height": 115.109375
+          },
+          "section": {
+            "x": 284,
+            "y": 311.453125,
+            "width": 603.265625,
+            "height": 600.609375
+          },
+          "table": {
+            "x": 285,
+            "y": 980.625,
+            "width": 962,
+            "height": 273.265625
+          }
+        }
+      }
+    },
+    {
+      "engine": "webkit",
+      "family": "dashboard",
+      "width": 1440,
+      "loading": {
+        "head": {
+          "x": 284,
+          "y": 82,
+          "width": 1124,
+          "height": 76.34375
+        },
+        "blocks": {
+          "first": {
+            "x": 285,
+            "y": 179.34375,
+            "width": 1122,
+            "height": 100
+          },
+          "section": {
+            "x": 284,
+            "y": 296.34375,
+            "width": 705.078125,
+            "height": 276
+          },
+          "table": null
+        }
+      },
+      "loaded": {
+        "head": {
+          "x": 284,
+          "y": 82,
+          "width": 1124,
+          "height": 76.34375
+        },
+        "blocks": {
+          "first": {
+            "x": 285,
+            "y": 179.34375,
+            "width": 1122,
+            "height": 115.109375
+          },
+          "section": {
+            "x": 284,
+            "y": 311.453125,
+            "width": 705.078125,
+            "height": 452.71875
+          },
+          "table": {
+            "x": 285,
+            "y": 832.734375,
+            "width": 1122,
+            "height": 214.84375
+          }
+        }
+      },
+      "delta": 0,
+      "shifts": {
+        "first": {
+          "x": 0,
+          "yBeyondHeader": 0,
+          "width": 0
+        },
+        "section": {
+          "x": 0,
+          "yBeyondHeader": 15.109375,
+          "width": 0
+        }
+      },
+      "referenceLoading": {
+        "head": {
+          "x": 284,
+          "y": 82,
+          "width": 1124,
+          "height": 76.34375
+        },
+        "blocks": {
+          "first": {
+            "x": 285,
+            "y": 179.34375,
+            "width": 1122,
+            "height": 100
+          },
+          "section": {
+            "x": 284,
+            "y": 296.34375,
+            "width": 705.078125,
+            "height": 276
+          },
+          "table": null
+        }
+      },
+      "referenceLoaded": {
+        "head": {
+          "x": 284,
+          "y": 82,
+          "width": 1124,
+          "height": 76.34375
+        },
+        "blocks": {
+          "first": {
+            "x": 285,
+            "y": 179.34375,
+            "width": 1122,
+            "height": 115.109375
+          },
+          "section": {
+            "x": 284,
+            "y": 311.453125,
+            "width": 705.078125,
+            "height": 545.53125
+          },
+          "table": {
+            "x": 285,
+            "y": 925.546875,
+            "width": 1122,
+            "height": 273.265625
+          }
+        }
+      }
+    },
+    {
+      "engine": "webkit",
+      "family": "events",
+      "width": 390,
+      "loading": {
+        "head": {
+          "x": 16,
+          "y": 74,
+          "width": 358,
+          "height": 111.15625
+        },
+        "blocks": {
+          "first": {
+            "x": 16,
+            "y": 205.15625,
+            "width": 358,
+            "height": 82
+          },
+          "section": {
+            "x": 16,
+            "y": 299.15625,
+            "width": 358,
+            "height": 448
+          },
+          "table": {
+            "x": 17,
+            "y": 300.15625,
+            "width": 900,
+            "height": 446
+          }
+        }
+      },
+      "loaded": {
+        "head": {
+          "x": 16,
+          "y": 74,
+          "width": 358,
+          "height": 134.71875
+        },
+        "blocks": {
+          "first": {
+            "x": 16,
+            "y": 228.71875,
+            "width": 358,
+            "height": 82
+          },
+          "section": {
+            "x": 16,
+            "y": 322.71875,
+            "width": 358,
+            "height": 1357.84375
+          },
+          "table": {
+            "x": 17,
+            "y": 323.71875,
+            "width": 900,
+            "height": 1316
+          }
+        }
+      },
+      "delta": 23.5625,
+      "shifts": {
+        "first": {
+          "x": 0,
+          "yBeyondHeader": 0,
+          "width": 0
+        },
+        "section": {
+          "x": 0,
+          "yBeyondHeader": 0,
+          "width": 0
+        },
+        "table": {
+          "x": 0,
+          "yBeyondHeader": 0,
+          "width": 0
+        }
+      },
+      "referenceLoading": {
+        "head": {
+          "x": 16,
+          "y": 74,
+          "width": 358,
+          "height": 111.15625
+        },
+        "blocks": {
+          "first": {
+            "x": 16,
+            "y": 205.15625,
+            "width": 358,
+            "height": 82
+          },
+          "section": {
+            "x": 16,
+            "y": 299.15625,
+            "width": 358,
+            "height": 448
+          },
+          "table": {
+            "x": 17,
+            "y": 300.15625,
+            "width": 900,
+            "height": 446
+          }
+        }
+      },
+      "referenceLoaded": {
+        "head": {
+          "x": 16,
+          "y": 74,
+          "width": 358,
+          "height": 111.15625
+        },
+        "blocks": {
+          "first": {
+            "x": 16,
+            "y": 205.15625,
+            "width": 358,
+            "height": 82
+          },
+          "section": {
+            "x": 16,
+            "y": 299.15625,
+            "width": 358,
+            "height": 726.46875
+          },
+          "table": {
+            "x": 17,
+            "y": 300.15625,
+            "width": 900,
+            "height": 684.625
+          }
+        }
+      }
+    },
+    {
+      "engine": "webkit",
+      "family": "events",
+      "width": 494,
+      "loading": {
+        "head": {
+          "x": 16,
+          "y": 74,
+          "width": 462,
+          "height": 111.15625
+        },
+        "blocks": {
+          "first": {
+            "x": 16,
+            "y": 205.15625,
+            "width": 462,
+            "height": 82
+          },
+          "section": {
+            "x": 16,
+            "y": 299.15625,
+            "width": 462,
+            "height": 448
+          },
+          "table": {
+            "x": 17,
+            "y": 300.15625,
+            "width": 900,
+            "height": 446
+          }
+        }
+      },
+      "loaded": {
+        "head": {
+          "x": 16,
+          "y": 74,
+          "width": 462,
+          "height": 111.15625
+        },
+        "blocks": {
+          "first": {
+            "x": 16,
+            "y": 205.15625,
+            "width": 462,
+            "height": 82
+          },
+          "section": {
+            "x": 16,
+            "y": 299.15625,
+            "width": 462,
+            "height": 1357.84375
+          },
+          "table": {
+            "x": 17,
+            "y": 300.15625,
+            "width": 900,
+            "height": 1316
+          }
+        }
+      },
+      "delta": 0,
+      "shifts": {
+        "first": {
+          "x": 0,
+          "yBeyondHeader": 0,
+          "width": 0
+        },
+        "section": {
+          "x": 0,
+          "yBeyondHeader": 0,
+          "width": 0
+        },
+        "table": {
+          "x": 0,
+          "yBeyondHeader": 0,
+          "width": 0
+        }
+      },
+      "referenceLoading": {
+        "head": {
+          "x": 16,
+          "y": 74,
+          "width": 462,
+          "height": 111.15625
+        },
+        "blocks": {
+          "first": {
+            "x": 16,
+            "y": 205.15625,
+            "width": 462,
+            "height": 82
+          },
+          "section": {
+            "x": 16,
+            "y": 299.15625,
+            "width": 462,
+            "height": 448
+          },
+          "table": {
+            "x": 17,
+            "y": 300.15625,
+            "width": 900,
+            "height": 446
+          }
+        }
+      },
+      "referenceLoaded": {
+        "head": {
+          "x": 16,
+          "y": 74,
+          "width": 462,
+          "height": 111.15625
+        },
+        "blocks": {
+          "first": {
+            "x": 16,
+            "y": 205.15625,
+            "width": 462,
+            "height": 82
+          },
+          "section": {
+            "x": 16,
+            "y": 299.15625,
+            "width": 462,
+            "height": 726.46875
+          },
+          "table": {
+            "x": 17,
+            "y": 300.15625,
+            "width": 900,
+            "height": 684.625
+          }
+        }
+      }
+    },
+    {
+      "engine": "webkit",
+      "family": "events",
+      "width": 860,
+      "loading": {
+        "head": {
+          "x": 16,
+          "y": 74,
+          "width": 828,
+          "height": 111.15625
+        },
+        "blocks": {
+          "first": {
+            "x": 16,
+            "y": 205.15625,
+            "width": 828,
+            "height": 36
+          },
+          "section": {
+            "x": 16,
+            "y": 253.15625,
+            "width": 828,
+            "height": 448
+          },
+          "table": {
+            "x": 17,
+            "y": 254.15625,
+            "width": 990,
+            "height": 446
+          }
+        }
+      },
+      "loaded": {
+        "head": {
+          "x": 16,
+          "y": 74,
+          "width": 828,
+          "height": 111.15625
+        },
+        "blocks": {
+          "first": {
+            "x": 16,
+            "y": 205.15625,
+            "width": 828,
+            "height": 36
+          },
+          "section": {
+            "x": 16,
+            "y": 253.15625,
+            "width": 828,
+            "height": 1357.84375
+          },
+          "table": {
+            "x": 17,
+            "y": 254.15625,
+            "width": 990,
+            "height": 1316
+          }
+        }
+      },
+      "delta": 0,
+      "shifts": {
+        "first": {
+          "x": 0,
+          "yBeyondHeader": 0,
+          "width": 0
+        },
+        "section": {
+          "x": 0,
+          "yBeyondHeader": 0,
+          "width": 0
+        },
+        "table": {
+          "x": 0,
+          "yBeyondHeader": 0,
+          "width": 0
+        }
+      },
+      "referenceLoading": {
+        "head": {
+          "x": 16,
+          "y": 74,
+          "width": 828,
+          "height": 111.15625
+        },
+        "blocks": {
+          "first": {
+            "x": 16,
+            "y": 205.15625,
+            "width": 828,
+            "height": 36
+          },
+          "section": {
+            "x": 16,
+            "y": 253.15625,
+            "width": 828,
+            "height": 448
+          },
+          "table": {
+            "x": 17,
+            "y": 254.15625,
+            "width": 990,
+            "height": 446
+          }
+        }
+      },
+      "referenceLoaded": {
+        "head": {
+          "x": 16,
+          "y": 74,
+          "width": 828,
+          "height": 111.15625
+        },
+        "blocks": {
+          "first": {
+            "x": 16,
+            "y": 205.15625,
+            "width": 828,
+            "height": 36
+          },
+          "section": {
+            "x": 16,
+            "y": 253.15625,
+            "width": 828,
+            "height": 726.46875
+          },
+          "table": {
+            "x": 17,
+            "y": 254.15625,
+            "width": 990,
+            "height": 684.625
+          }
+        }
+      }
+    },
+    {
+      "engine": "webkit",
+      "family": "events",
+      "width": 1280,
+      "loading": {
+        "head": {
+          "x": 284,
+          "y": 82,
+          "width": 964,
+          "height": 53.15625
+        },
+        "blocks": {
+          "first": {
+            "x": 284,
+            "y": 155.15625,
+            "width": 964,
+            "height": 36
+          },
+          "section": {
+            "x": 284,
+            "y": 203.15625,
+            "width": 964,
+            "height": 448
+          },
+          "table": {
+            "x": 285,
+            "y": 204.15625,
+            "width": 990,
+            "height": 446
+          }
+        }
+      },
+      "loaded": {
+        "head": {
+          "x": 284,
+          "y": 82,
+          "width": 964,
+          "height": 53.15625
+        },
+        "blocks": {
+          "first": {
+            "x": 284,
+            "y": 155.15625,
+            "width": 964,
+            "height": 36
+          },
+          "section": {
+            "x": 284,
+            "y": 203.15625,
+            "width": 964,
+            "height": 1357.84375
+          },
+          "table": {
+            "x": 285,
+            "y": 204.15625,
+            "width": 990,
+            "height": 1316
+          }
+        }
+      },
+      "delta": 0,
+      "shifts": {
+        "first": {
+          "x": 0,
+          "yBeyondHeader": 0,
+          "width": 0
+        },
+        "section": {
+          "x": 0,
+          "yBeyondHeader": 0,
+          "width": 0
+        },
+        "table": {
+          "x": 0,
+          "yBeyondHeader": 0,
+          "width": 0
+        }
+      },
+      "referenceLoading": {
+        "head": {
+          "x": 284,
+          "y": 82,
+          "width": 964,
+          "height": 53.15625
+        },
+        "blocks": {
+          "first": {
+            "x": 284,
+            "y": 155.15625,
+            "width": 964,
+            "height": 36
+          },
+          "section": {
+            "x": 284,
+            "y": 203.15625,
+            "width": 964,
+            "height": 448
+          },
+          "table": {
+            "x": 285,
+            "y": 204.15625,
+            "width": 990,
+            "height": 446
+          }
+        }
+      },
+      "referenceLoaded": {
+        "head": {
+          "x": 284,
+          "y": 82,
+          "width": 964,
+          "height": 53.15625
+        },
+        "blocks": {
+          "first": {
+            "x": 284,
+            "y": 155.15625,
+            "width": 964,
+            "height": 36
+          },
+          "section": {
+            "x": 284,
+            "y": 203.15625,
+            "width": 964,
+            "height": 726.46875
+          },
+          "table": {
+            "x": 285,
+            "y": 204.15625,
+            "width": 990,
+            "height": 684.625
+          }
+        }
+      }
+    },
+    {
+      "engine": "webkit",
+      "family": "events",
+      "width": 1440,
+      "loading": {
+        "head": {
+          "x": 284,
+          "y": 82,
+          "width": 1124,
+          "height": 53.15625
+        },
+        "blocks": {
+          "first": {
+            "x": 284,
+            "y": 155.15625,
+            "width": 1124,
+            "height": 36
+          },
+          "section": {
+            "x": 284,
+            "y": 203.15625,
+            "width": 1124,
+            "height": 448
+          },
+          "table": {
+            "x": 285,
+            "y": 204.15625,
+            "width": 1122,
+            "height": 446
+          }
+        }
+      },
+      "loaded": {
+        "head": {
+          "x": 284,
+          "y": 82,
+          "width": 1124,
+          "height": 53.15625
+        },
+        "blocks": {
+          "first": {
+            "x": 284,
+            "y": 155.15625,
+            "width": 1124,
+            "height": 36
+          },
+          "section": {
+            "x": 284,
+            "y": 203.15625,
+            "width": 1124,
+            "height": 1357.84375
+          },
+          "table": {
+            "x": 285,
+            "y": 204.15625,
+            "width": 1122,
+            "height": 1316
+          }
+        }
+      },
+      "delta": 0,
+      "shifts": {
+        "first": {
+          "x": 0,
+          "yBeyondHeader": 0,
+          "width": 0
+        },
+        "section": {
+          "x": 0,
+          "yBeyondHeader": 0,
+          "width": 0
+        },
+        "table": {
+          "x": 0,
+          "yBeyondHeader": 0,
+          "width": 0
+        }
+      },
+      "referenceLoading": {
+        "head": {
+          "x": 284,
+          "y": 82,
+          "width": 1124,
+          "height": 53.15625
+        },
+        "blocks": {
+          "first": {
+            "x": 284,
+            "y": 155.15625,
+            "width": 1124,
+            "height": 36
+          },
+          "section": {
+            "x": 284,
+            "y": 203.15625,
+            "width": 1124,
+            "height": 448
+          },
+          "table": {
+            "x": 285,
+            "y": 204.15625,
+            "width": 1122,
+            "height": 446
+          }
+        }
+      },
+      "referenceLoaded": {
+        "head": {
+          "x": 284,
+          "y": 82,
+          "width": 1124,
+          "height": 53.15625
+        },
+        "blocks": {
+          "first": {
+            "x": 284,
+            "y": 155.15625,
+            "width": 1124,
+            "height": 36
+          },
+          "section": {
+            "x": 284,
+            "y": 203.15625,
+            "width": 1124,
+            "height": 726.46875
+          },
+          "table": {
+            "x": 285,
+            "y": 204.15625,
+            "width": 1122,
+            "height": 684.625
+          }
+        }
+      }
+    },
+    {
+      "engine": "webkit",
+      "family": "identity",
+      "width": 390,
+      "loading": {
+        "head": {
+          "x": 16,
+          "y": 74,
+          "width": 358,
+          "height": 72.71875
+        },
+        "blocks": {
+          "first": {
+            "x": 16,
+            "y": 166.71875,
+            "width": 358,
+            "height": 436
+          },
+          "section": null
+        }
+      },
+      "loaded": {
+        "head": {
+          "x": 16,
+          "y": 74,
+          "width": 358,
+          "height": 72.71875
+        },
+        "blocks": {
+          "first": {
+            "x": 16,
+            "y": 166.71875,
+            "width": 358,
+            "height": 992.03125
+          },
+          "section": {
+            "x": 33,
+            "y": 187.71875,
+            "width": 324,
+            "height": 19.5625
+          }
+        }
+      },
+      "delta": 0,
+      "shifts": {
+        "first": {
+          "x": 0,
+          "yBeyondHeader": 0,
+          "width": 0
+        }
+      },
+      "referenceLoading": {
+        "head": {
+          "x": 16,
+          "y": 74,
+          "width": 358,
+          "height": 72.71875
+        },
+        "blocks": {
+          "first": {
+            "x": 16,
+            "y": 166.71875,
+            "width": 358,
+            "height": 436
+          },
+          "section": null
+        }
+      },
+      "referenceLoaded": {
+        "head": {
+          "x": 16,
+          "y": 74,
+          "width": 358,
+          "height": 72.71875
+        },
+        "blocks": {
+          "first": {
+            "x": 16,
+            "y": 166.71875,
+            "width": 358,
+            "height": 992.03125
+          },
+          "section": {
+            "x": 33,
+            "y": 187.71875,
+            "width": 324,
+            "height": 19.5625
+          }
+        }
+      }
+    },
+    {
+      "engine": "webkit",
+      "family": "identity",
+      "width": 494,
+      "loading": {
+        "head": {
+          "x": 16,
+          "y": 74,
+          "width": 462,
+          "height": 53.15625
+        },
+        "blocks": {
+          "first": {
+            "x": 16,
+            "y": 147.15625,
+            "width": 462,
+            "height": 436
+          },
+          "section": null
+        }
+      },
+      "loaded": {
+        "head": {
+          "x": 16,
+          "y": 74,
+          "width": 462,
+          "height": 53.15625
+        },
+        "blocks": {
+          "first": {
+            "x": 16,
+            "y": 147.15625,
+            "width": 462,
+            "height": 955.78125
+          },
+          "section": {
+            "x": 33,
+            "y": 168.15625,
+            "width": 428,
+            "height": 19.5625
+          }
+        }
+      },
+      "delta": 0,
+      "shifts": {
+        "first": {
+          "x": 0,
+          "yBeyondHeader": 0,
+          "width": 0
+        }
+      },
+      "referenceLoading": {
+        "head": {
+          "x": 16,
+          "y": 74,
+          "width": 462,
+          "height": 53.15625
+        },
+        "blocks": {
+          "first": {
+            "x": 16,
+            "y": 147.15625,
+            "width": 462,
+            "height": 436
+          },
+          "section": null
+        }
+      },
+      "referenceLoaded": {
+        "head": {
+          "x": 16,
+          "y": 74,
+          "width": 462,
+          "height": 53.15625
+        },
+        "blocks": {
+          "first": {
+            "x": 16,
+            "y": 147.15625,
+            "width": 462,
+            "height": 955.78125
+          },
+          "section": {
+            "x": 33,
+            "y": 168.15625,
+            "width": 428,
+            "height": 19.5625
+          }
+        }
+      }
+    },
+    {
+      "engine": "webkit",
+      "family": "identity",
+      "width": 860,
+      "loading": {
+        "head": {
+          "x": 16,
+          "y": 74,
+          "width": 828,
+          "height": 53.15625
+        },
+        "blocks": {
+          "first": {
+            "x": 16,
+            "y": 147.15625,
+            "width": 760,
+            "height": 436
+          },
+          "section": null
+        }
+      },
+      "loaded": {
+        "head": {
+          "x": 16,
+          "y": 74,
+          "width": 828,
+          "height": 53.15625
+        },
+        "blocks": {
+          "first": {
+            "x": 16,
+            "y": 147.15625,
+            "width": 760,
+            "height": 905.40625
+          },
+          "section": {
+            "x": 41,
+            "y": 168.15625,
+            "width": 710,
+            "height": 19.5625
+          }
+        }
+      },
+      "delta": 0,
+      "shifts": {
+        "first": {
+          "x": 0,
+          "yBeyondHeader": 0,
+          "width": 0
+        }
+      },
+      "referenceLoading": {
+        "head": {
+          "x": 16,
+          "y": 74,
+          "width": 828,
+          "height": 53.15625
+        },
+        "blocks": {
+          "first": {
+            "x": 16,
+            "y": 147.15625,
+            "width": 760,
+            "height": 436
+          },
+          "section": null
+        }
+      },
+      "referenceLoaded": {
+        "head": {
+          "x": 16,
+          "y": 74,
+          "width": 828,
+          "height": 53.15625
+        },
+        "blocks": {
+          "first": {
+            "x": 16,
+            "y": 147.15625,
+            "width": 760,
+            "height": 905.40625
+          },
+          "section": {
+            "x": 41,
+            "y": 168.15625,
+            "width": 710,
+            "height": 19.5625
+          }
+        }
+      }
+    },
+    {
+      "engine": "webkit",
+      "family": "identity",
+      "width": 1280,
+      "loading": {
+        "head": {
+          "x": 284,
+          "y": 82,
+          "width": 964,
+          "height": 53.15625
+        },
+        "blocks": {
+          "first": {
+            "x": 284,
+            "y": 155.15625,
+            "width": 760,
+            "height": 436
+          },
+          "section": null
+        }
+      },
+      "loaded": {
+        "head": {
+          "x": 284,
+          "y": 82,
+          "width": 964,
+          "height": 53.15625
+        },
+        "blocks": {
+          "first": {
+            "x": 284,
+            "y": 155.15625,
+            "width": 760,
+            "height": 905.40625
+          },
+          "section": {
+            "x": 309,
+            "y": 176.15625,
+            "width": 710,
+            "height": 19.5625
+          }
+        }
+      },
+      "delta": 0,
+      "shifts": {
+        "first": {
+          "x": 0,
+          "yBeyondHeader": 0,
+          "width": 0
+        }
+      },
+      "referenceLoading": {
+        "head": {
+          "x": 284,
+          "y": 82,
+          "width": 964,
+          "height": 53.15625
+        },
+        "blocks": {
+          "first": {
+            "x": 284,
+            "y": 155.15625,
+            "width": 760,
+            "height": 436
+          },
+          "section": null
+        }
+      },
+      "referenceLoaded": {
+        "head": {
+          "x": 284,
+          "y": 82,
+          "width": 964,
+          "height": 53.15625
+        },
+        "blocks": {
+          "first": {
+            "x": 284,
+            "y": 155.15625,
+            "width": 760,
+            "height": 905.40625
+          },
+          "section": {
+            "x": 309,
+            "y": 176.15625,
+            "width": 710,
+            "height": 19.5625
+          }
+        }
+      }
+    },
+    {
+      "engine": "webkit",
+      "family": "identity",
+      "width": 1440,
+      "loading": {
+        "head": {
+          "x": 284,
+          "y": 82,
+          "width": 1124,
+          "height": 53.15625
+        },
+        "blocks": {
+          "first": {
+            "x": 284,
+            "y": 155.15625,
+            "width": 760,
+            "height": 436
+          },
+          "section": null
+        }
+      },
+      "loaded": {
+        "head": {
+          "x": 284,
+          "y": 82,
+          "width": 1124,
+          "height": 53.15625
+        },
+        "blocks": {
+          "first": {
+            "x": 284,
+            "y": 155.15625,
+            "width": 760,
+            "height": 905.40625
+          },
+          "section": {
+            "x": 309,
+            "y": 176.15625,
+            "width": 710,
+            "height": 19.5625
+          }
+        }
+      },
+      "delta": 0,
+      "shifts": {
+        "first": {
+          "x": 0,
+          "yBeyondHeader": 0,
+          "width": 0
+        }
+      },
+      "referenceLoading": {
+        "head": {
+          "x": 284,
+          "y": 82,
+          "width": 1124,
+          "height": 53.15625
+        },
+        "blocks": {
+          "first": {
+            "x": 284,
+            "y": 155.15625,
+            "width": 760,
+            "height": 436
+          },
+          "section": null
+        }
+      },
+      "referenceLoaded": {
+        "head": {
+          "x": 284,
+          "y": 82,
+          "width": 1124,
+          "height": 53.15625
+        },
+        "blocks": {
+          "first": {
+            "x": 284,
+            "y": 155.15625,
+            "width": 760,
+            "height": 905.40625
+          },
+          "section": {
+            "x": 309,
+            "y": 176.15625,
+            "width": 710,
+            "height": 19.5625
+          }
+        }
+      }
+    }
+  ]
+}

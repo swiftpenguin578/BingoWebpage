@@ -11,7 +11,7 @@ public sealed class DropAnnouncementRulesTests
     [Fact]
     public void EventStartsTrackingAtCreationAndFinalizationMovesToASeparateGeneration()
     {
-        var item = new BingoEvent(Guid.NewGuid(), "Event", "event", "UTC", Guid.NewGuid(), Now);
+        var item = new BingoEvent(Guid.NewGuid(), "Event", "event", "UTC", Guid.NewGuid(), Now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
 
         Assert.Equal(Now, item.AnnouncementsTrackingStartedAt);
         Assert.Equal(1, item.AnnouncementGeneration);

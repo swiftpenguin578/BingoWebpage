@@ -10,6 +10,7 @@ using Bingo.Application.Events;
 using Bingo.Application.Evidence;
 using Bingo.Application.Integrations.WiseOldMan;
 using Bingo.Application.Signups;
+using Bingo.Application.Stats;
 using Bingo.Application.Teams;
 using Bingo.Domain.Access;
 using Bingo.Domain.Events;
@@ -54,6 +55,19 @@ if (args.Contains("--health-probe", StringComparer.Ordinal))
 
 var resetTestData = args.Contains("--reset-test-data", StringComparer.Ordinal);
 var builder = WebApplication.CreateBuilder(args);
+var uiReviewEnvironment = builder.Configuration.GetValue<bool>("UiReviewEnvironment:Enabled");
+if (uiReviewEnvironment)
+{
+    var connection = new Npgsql.NpgsqlConnectionStringBuilder(builder.Configuration.GetConnectionString("Database"));
+    if (!builder.Environment.IsDevelopment() || resetTestData || connection.Host != "127.0.0.1" ||
+        connection.Port != 54339 || connection.Database != "bingo_ui_review" || connection.Username != "bingo_ui_review")
+        throw new InvalidOperationException("UI review requires its isolated Development database and cannot use --reset-test-data.");
+    // A review app always uses the local handler, regardless of overridden fake settings.
+    builder.Configuration["WiseOldMan:DevelopmentFake:Enabled"] = "true";
+    builder.Configuration["WiseOldMan:DevelopmentFake:AutomaticSynchronizationEnabled"] = "false";
+    builder.Configuration["WiseOldMan:BaseUrl"] = "http://127.0.0.1:1/";
+    builder.Configuration["WiseOldMan:ApiKey"] = string.Empty;
+}
 
 if (builder.Environment.IsProduction())
 {
@@ -100,15 +114,11 @@ builder.Services.AddScoped<MyAccountsService>();
 builder.Services.AddSingleton<ISignupLookupTokenService, SignupLookupTokenService>();
 builder.Services.AddSingleton<DiscordOnboardingStateService>();
 builder.Services.AddScoped<AccountAdministrationService>();
-builder.Services.AddScoped<EmergencyCredentialService>();
-builder.Services.AddScoped<EmergencyCredentialLifecycleService>();
 builder.Services.AddSingleton<DiscordLinkStateService>();
 builder.Services.AddSingleton<LoginThrottleService>();
-builder.Services.AddScoped<CaptainAccountProvisioner>();
 builder.Services.AddScoped<AccountCookieEvents>();
 builder.Services.AddScoped<DevelopmentAdminBootstrapper>();
 builder.Services.AddScoped<OperatorRecoveryService>();
-builder.Services.AddScoped<Bingo.Web.Teams.PreformedRosterCsvImportService>();
 builder.Services.Configure<WiseOldManOptions>(builder.Configuration.GetSection(WiseOldManOptions.SectionName));
 var wiseOldManHttpClient = builder.Services.AddHttpClient("WiseOldMan", (serviceProvider, client) =>
 {
@@ -155,7 +165,9 @@ builder.Services.AddScoped<CatalogueSnapshotService>();
 builder.Services.AddScoped<CataloguePriceSyncService>();
 builder.Services.AddScoped<ProductionPreflight>();
 builder.Services.AddScoped<DevelopmentScenarioSeeder>();
+builder.Services.AddScoped<UiReviewScenarioSeeder>();
 builder.Services.AddScoped<HistoricalEventImporter>();
+builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<SharedShellService>();
 builder.Services.AddScoped<PublicTeamImageService>();
 builder.Services.AddScoped<PublicBoardImageService>();
@@ -324,10 +336,31 @@ if (args.Contains("--immutable-item-preflight", StringComparer.Ordinal))
     return;
 }
 
+if (args.Contains("--convert-luck-checkpoints", StringComparer.Ordinal))
+{
+    await using var conversionScope = app.Services.CreateAsyncScope();
+    var report = await conversionScope.ServiceProvider.GetRequiredService<ILuckCheckpointConversionService>().RunAsync(CancellationToken.None);
+    foreach (var item in report.Events)
+    {
+        var reason = string.IsNullOrWhiteSpace(item.Reason) ? string.Empty : $" Reason: {item.Reason}";
+        var outcome = item.Outcome switch
+        {
+            LuckCheckpointConversionOutcome.Converted => "Converted",
+            LuckCheckpointConversionOutcome.AlreadyConverted => "Already converted",
+            LuckCheckpointConversionOutcome.CouldNotConvert => "Could not convert",
+            _ => item.Outcome.ToString()
+        };
+        Console.WriteLine($"Luck checkpoint event {item.EventId}: {outcome}.{reason}");
+    }
+    Console.WriteLine($"Luck checkpoint conversion summary: Converted={report.ConvertedCount}; Already converted={report.AlreadyConvertedCount}; Could not convert={report.CouldNotConvertCount}.");
+    if (!report.Succeeded) Environment.ExitCode = 2;
+    return;
+}
+
 if (args.Contains("--production-preflight", StringComparer.Ordinal))
 {
     await using var preflightScope = app.Services.CreateAsyncScope();
-    await preflightScope.ServiceProvider.GetRequiredService<ProductionPreflight>().ValidateAsync(catalogueSnapshotPath, CancellationToken.None);
+    await preflightScope.ServiceProvider.GetRequiredService<ProductionPreflight>().ValidateAsync(CancellationToken.None);
     Console.WriteLine("Production preflight passed.");
     return;
 }
@@ -349,17 +382,6 @@ if (args.Contains("--catalogue-price-report", StringComparer.Ordinal) || args.Co
     var report = await priceScope.ServiceProvider.GetRequiredService<CataloguePriceSyncService>().RunAsync(apply, actorId, CancellationToken.None);
     Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(report, new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
     if (report.Error is not null) Environment.ExitCode = 1;
-    return;
-}
-
-if (args.Contains("--export-catalogue-snapshot", StringComparer.Ordinal))
-{
-    await using var snapshotScope = app.Services.CreateAsyncScope();
-    var snapshotDb = snapshotScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    await snapshotDb.Database.MigrateAsync();
-    var snapshots = snapshotScope.ServiceProvider.GetRequiredService<CatalogueSnapshotService>();
-    var result = await snapshots.ExportAsync(catalogueSnapshotPath);
-    Console.WriteLine($"Catalogue snapshot exported to {catalogueSnapshotPath}: {result.Bosses} bosses, {result.Items} items, {result.Drops} drops.");
     return;
 }
 
@@ -422,6 +444,8 @@ if (args.Contains("--slice1-bootstrap-owner", StringComparer.Ordinal))
 
 if (args.Contains("--apply-catalogue-snapshot", StringComparer.Ordinal))
 {
+    if (app.Environment.IsProduction())
+        throw new InvalidOperationException("Catalogue snapshot import is restricted to CI, Development, and manual-test data. Restore the reviewed production database backup instead.");
     await using var snapshotScope = app.Services.CreateAsyncScope();
     var snapshotDb = snapshotScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     if (!app.Environment.IsProduction()) await snapshotDb.Database.MigrateAsync();
@@ -434,7 +458,7 @@ if (args.Contains("--apply-catalogue-snapshot", StringComparer.Ordinal))
 if (app.Environment.IsProduction())
 {
     await using var preflightScope = app.Services.CreateAsyncScope();
-    await preflightScope.ServiceProvider.GetRequiredService<ProductionPreflight>().ValidateAsync(catalogueSnapshotPath, CancellationToken.None);
+    await preflightScope.ServiceProvider.GetRequiredService<ProductionPreflight>().ValidateAsync(CancellationToken.None);
 }
 
 if (args.Contains("--apply-wiki-catalogue", StringComparer.Ordinal))
@@ -502,6 +526,20 @@ if (args.Contains("--sync-catalogue-images", StringComparer.Ordinal))
         if (sourceIndex < sources.Count - 1) await Task.Delay(syncDelayMilliseconds);
     }
     Console.WriteLine($"Catalogue image synchronization complete. Cached: {cached}; failed: {failed}.");
+    return;
+}
+
+if (args.Contains("--seed-review-scenarios", StringComparer.Ordinal))
+{
+    if (!uiReviewEnvironment) throw new InvalidOperationException("Use the isolated scripts/ui-review.py command to seed review scenarios.");
+    var profileIndex = Array.IndexOf(args, "--review-profile");
+    var profile = profileIndex >= 0 && profileIndex + 1 < args.Length ? args[profileIndex + 1] : "live";
+    await using var scope = app.Services.CreateAsyncScope();
+    var result = await scope.ServiceProvider.GetRequiredService<UiReviewScenarioSeeder>().SeedAsync(profile);
+    var listPath = app.Configuration["UiReviewEnvironment:ScenarioList"]
+        ?? throw new InvalidOperationException("The owned review command must supply its scenario list path.");
+    await File.WriteAllTextAsync(listPath, UiReviewScenarioCatalogue.Markdown(result, new Uri("http://127.0.0.1:5310")));
+    Console.WriteLine($"UI review {result.Profile} scenarios rebuilt at {result.BuiltAt:O}: {result.Events.Count} events, {result.Accounts.Count} accounts.");
     return;
 }
 

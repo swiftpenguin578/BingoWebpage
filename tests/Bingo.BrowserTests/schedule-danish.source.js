@@ -1,0 +1,12 @@
+const assert=require('node:assert/strict'),fs=require('node:fs');
+const resources=fs.readFileSync('src/Bingo.Web/Resources/SharedResource.da.resx','utf8');
+const keys=new Set([...resources.matchAll(/<data name="([^"]+)"/g)].map(m=>m[1].replace(/&quot;/g,'"').replace(/&amp;/g,'&')));
+const service=fs.readFileSync('src/Bingo.Infrastructure/Events/EventSignupLifecycleService.cs','utf8');
+const section=service.slice(service.indexOf('    internal static async Task<string?> ValidateScheduleChangeAsync'),service.indexOf('    private Task<DraftState?>'));
+const expected=[...section.matchAll(/return "([^"]+)"/g)].map(m=>m[1]);
+for(const label of ['Signup opening','Signup closing','Draft time','Event start','Event end']) expected.push(label,`${label} is locked because that boundary has passed.`,`A changed ${label.toLowerCase()} must be in the future.`);
+expected.push('Only an active website administrator can perform this event action.','The schedule update could not be saved. Try again.','The schedule update could not be completed. Try again.','Event not found.','This event window overlaps {0}.','The participant cap cannot be lower than the {0} confirmed participant(s).');
+const domain=fs.readFileSync('src/Bingo.Domain/Events/BingoEvent.cs','utf8');const methods=domain.slice(domain.indexOf('    public void ConfigureSchedule('),domain.indexOf('    public void OpenSignups('));
+for(const m of methods.matchAll(/InvalidOperationException\("([^"]+)"/g))expected.push(m[1]);
+for(const key of new Set(expected))assert.ok(keys.has(key),'Missing Danish Schedule refusal/label: '+key);
+console.log('PASS '+new Set(expected).size+' Schedule refusal and label resource keys, including F4/AU20 and dynamic boundary errors');
