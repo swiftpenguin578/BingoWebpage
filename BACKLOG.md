@@ -20,6 +20,7 @@ Priority: **High** = most likely will be done · **Normal** · **Maybe** = decid
 | CI: make JavaScript tests block the release | Normal | `build-and-test` (and so the production image) ignores the JS job today. Once the JS tests are reliable, add `javascript-tests` to its `needs`; also shard the JS job (54 browser scripts × 2 engines on one runner, ~25–40 min). |
 | Review the test suite | Normal | An outside reviewer's quick look (8 October 2026) found tests that aren't needed. Audit first, change later — see "Test suite review" below. |
 | Maintenance page during deploys | Normal | Caddy shows a styled "being updated, back in a few minutes" page (with `Retry-After`) whenever the app is not answering — during a deploy and if a failed deploy leaves the site down. `handle_errors` for 502/503 + a static `maintenance.html` in `deploy/Caddyfile`; Caddy needs one manual reload on the server. Today visitors see Caddy's bare 502. |
+| Documentation cleanup | Normal | Remove stale information (old pass/slice history, superseded statuses and rules) and tidy the layout: many documents sit in the repo root. Move them into a clear `docs/` structure, keep the authority table in `AGENTS.md` accurate, and fix links. |
 
 ## Bug fixes
 
