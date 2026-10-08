@@ -790,7 +790,8 @@ public sealed partial class Slice1IdentityIntegrationTests(PostgreSqlTestFixture
 
         var duplicateTeam = Page();
         Assert.IsType<RedirectToPageResult>(await duplicateTeam.OnPostAddTeamAsync(ev.Id, team.Name, TeamFormationType.Preformed, null, CancellationToken.None));
-        Assert.Equal("A team with that name already exists for this event.", duplicateTeam.TempData["StatusMessage"]);
+        // B-Teams-5 (U6, A10): the duplicate-name refusal now reads "Another team already has this name." and ignores case.
+        Assert.Equal("Another team already has this name.", duplicateTeam.TempData["StatusMessage"]);
         Assert.Equal(1, await db.Teams.CountAsync());
         Assert.Equal(0, await db.AuditEntries.CountAsync());
 
@@ -1212,7 +1213,7 @@ public sealed partial class Slice1IdentityIntegrationTests(PostgreSqlTestFixture
             .FirstAsync();
         var submissionService = new Bingo.Infrastructure.Evidence.SubmissionService(db, new SeedEvidenceStorage(), clock);
         foreach (var submission in new[] { da07, linkedAraxxor, vorkath, hydra, partial })
-            await submissionService.ApproveAsync(submission.Id, admin.Id);
+            await submissionService.ApproveCurrentAsync(submission.Id, admin.Id);
 
         db.ChangeTracker.Clear();
         var approvedFixtures = await db.Submissions
@@ -1725,7 +1726,7 @@ public sealed partial class Slice1IdentityIntegrationTests(PostgreSqlTestFixture
             {
                 PageContext = new PageContext(new ActionContext(request, new RouteData(), new PageActionDescriptor())),
                 TempData = new TempDataDictionary(request, new DictionaryTempDataProvider()),
-                Input = new Bingo.Web.Pages.Account.OnboardingModel.InputModel { Username = "race-onboarding", OsrsCharacterName = discordId.EndsWith("-a", StringComparison.Ordinal) ? "Race Character A" : "Race Character B", Password = "long-race-password", ConfirmPassword = "long-race-password" }
+                Input = new Bingo.Web.Pages.Account.OnboardingModel.InputModel { Username = "race-onboarding", OsrsCharacterName = discordId.EndsWith("-a", StringComparison.Ordinal) ? "Race Char A" : "Race Char B", Password = "long-race-password", ConfirmPassword = "long-race-password" }
             };
             var result = await page.OnPostAsync(CancellationToken.None);
             await db.DisposeAsync();

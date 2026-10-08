@@ -15,7 +15,7 @@ export function init(region, ui = window.AdminUI) {
   const el = (tag, cls, text) => { const node = document.createElement(tag); if (cls) node.className = cls; if (text !== undefined) node.textContent = text; return node; };
   const url = handler => { const value = new URL(base); value.searchParams.set('handler', handler); return value.href; };
   const post = (handler, body, draft) => ui.busy(() => window.AdminFetch.request(url(handler), {method: 'POST', body, draft, signal: life.signal}));
-  const fmt = value => value ? new Intl.DateTimeFormat(document.documentElement.lang === 'da' ? 'da-DK' : 'en-GB', {timeZone: root.dataset.timezone || 'UTC', dateStyle: 'medium', timeStyle: 'short'}).format(new Date(value)) : t('None yet');
+  const fmt = value => value ? new Intl.DateTimeFormat(document.documentElement.lang === 'da' ? 'da-DK' : 'en-GB', {timeZone: root.dataset.timezone || 'UTC', dateStyle: 'medium', timeStyle: 'short'}).format(new Date(value)) : t('AdminDesign.None yet');
   const pendingCaption = () => { if ((saved().pending && saved().pending.key !== 'fetch') || (saved().lastUnknown && saved().lastUnknown !== 'fetch')) { const title = root.querySelector('#sync-state'); if (title) title.textContent = t(saved().pending?.knownQueued && saved().pending?.status !== 'Unknown' ? 'Update queued' : 'Update unconfirmed'); } };
   async function refresh() {
     await ui.update(location.href, {root: region.querySelector('.page'), results: root,

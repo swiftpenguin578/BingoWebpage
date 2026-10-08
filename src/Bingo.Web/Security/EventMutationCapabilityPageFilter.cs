@@ -99,7 +99,12 @@ public sealed class EventMutationCapabilityPageFilter(ApplicationDbContext db, I
             var retainedArtworkRead = policy.Kind == AdminEventPageKind.Board &&
                 string.Equals(context.HandlerMethod.Name, "TileImage", StringComparison.Ordinal) &&
                 context.HandlerArguments.TryGetValue("approvalId", out var approvalId) && approvalId is Guid;
-            if (IsTerminalReadOnlyRoute(policy, eventView.State) && !retainedArtworkRead)
+            // D17 (U7): the Board page, EditorData and Readback load read-only on terminal
+            // events, but working (non-retained) tile artwork keeps its terminal refusal.
+            var terminalWorkingArtwork = policy.Kind == AdminEventPageKind.Board && !retainedArtworkRead &&
+                string.Equals(context.HandlerMethod.Name, "TileImage", StringComparison.Ordinal) &&
+                eventView.State is EventState.Cancelled or EventState.Finalized or EventState.Archived;
+            if ((IsTerminalReadOnlyRoute(policy, eventView.State) && !retainedArtworkRead) || terminalWorkingArtwork)
             {
                 context.Result = new RedirectResult($"/Admin/Events/Manage/{eventId}");
                 return;

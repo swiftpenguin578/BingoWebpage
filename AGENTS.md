@@ -61,7 +61,7 @@ remain evidence of completed work, not competing defaults.
 | Implementer/remediator | Model/reasoning named in the brief (default `gpt-6-astra` / `high`) | Implementation, focused checks, per-item commits, evidence |
 | Orchestrator | `gpt-6.1-sol` / `high`, only when a brief assigns one | Worker dispatch, waits and handoffs for that brief |
 
-- Claude may implement lane T in its own worktree and branch when the user assigns it; review stays independent (separate reviewer agent, planner verification). (User decision, 7 October 2026; 08-decisions.md, “Lane T implemented by Claude”.)
+- Claude implements the lanes the user assigns to it (lane T, and the main lane from U4), each in its own worktree and branch, with an implementer sub-agent; review stays independent (separate reviewer agent, planner verification). Codex runs the lanes assigned to it (C8, U9) and is the fallback implementer at batch boundaries. The Claude planner holds the feature branch and merges reviewed lanes into it. (User decisions, 7 October 2026; 08-decisions.md, “Lane T implemented by Claude”, “Lane swap”, “Parallel lanes to finish by Friday 9 October”.)
 - **Route:** the user sends the brief to the dispatcher → one implementer per batch
   (or per named parallel lane) works the items in order, one local commit each →
   it stops at the brief's boundary and reports → the user relays the report to the

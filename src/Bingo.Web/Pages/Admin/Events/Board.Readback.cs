@@ -32,11 +32,12 @@ public sealed partial class BoardModel
             suppressPageStatus = true;
             ValidationIssues = [];
             await action();
-            return new JsonResult(new BoardActionState(ValidationIssues, await ReadBoardStateAsync(id, ct)));
+            return new JsonResult(new BoardActionState(ValidationIssues, await ReadBoardStateAsync(id, ct), [.. ValidationIssues.Select(LocalizeIssue)]));
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            return new JsonResult(new BoardActionState([new("state-unavailable", null, null, null, "The current board state could not be read.", [])], new(null)));
+            BoardValidationIssue[] unavailable = [new("state-unavailable", null, null, null, "The current board state could not be read.", [])];
+            return new JsonResult(new BoardActionState(unavailable, new(null), [.. unavailable.Select(LocalizeIssue)]));
         }
         finally { suppressPageStatus = false; }
     }
@@ -215,8 +216,10 @@ public sealed partial class BoardModel
         return requirements;
     }
 
-    public sealed record BoardValidationIssue(string Code, Guid? TileId, int? Position, string? TileName, string ResourceKey, IReadOnlyList<object> Arguments);
-    public sealed record BoardActionState(IReadOnlyList<BoardValidationIssue> Issues, BoardReadback Current);
+    // U7-Q1: DropNames lists the drops without a catalogue rate on a
+    // catalogue-rates-missing issue; null for every other issue.
+    public sealed record BoardValidationIssue(string Code, Guid? TileId, int? Position, string? TileName, string ResourceKey, IReadOnlyList<object> Arguments, IReadOnlyList<string>? DropNames = null);
+    public sealed record BoardActionState(IReadOnlyList<BoardValidationIssue> Issues, BoardReadback Current, IReadOnlyList<BoardIssueView>? Localized = null);
     public sealed record BoardReadback(BoardCurrentState? State) { public bool Known => State is not null; }
     public sealed record BoardCurrentState(Guid EventId, long EventVersion, EventState EventState, Guid BoardId, BoardState State, long Version,
         bool CorrectionInProgress, Guid? ActiveApprovalId, DateTimeOffset? PublishedAt, Guid? ControllerId, DateTimeOffset? ControlExpiresAt,

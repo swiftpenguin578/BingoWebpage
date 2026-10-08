@@ -263,13 +263,14 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests
     [InlineData("unranked", false, StatsLuckStatus.NoEligibleActivity)]
     [InlineData("unranked", true, StatsLuckStatus.WaitingForActivityData)]
     [InlineData("missing", true, StatsLuckStatus.WaitingForActivityData)]
+    [InlineData("unexpected-unranked", true, StatsLuckStatus.WaitingForActivityData)]
     [InlineData("estimated", true, StatsLuckStatus.Calculated)]
     [InlineData("mode", true, StatsLuckStatus.Calculated)]
     public async Task StatsPass4CompleteQueryPreservesUnavailableZeroAndEstimatedStates(string scenario, bool drop, StatsLuckStatus status)
     {
         var f = await FullStatsFixtureAsync(metric: scenario == "mode" ? "nightmare" : "vorkath");
         if (drop) await ApproveStatsAsync(f, await PendingStatsAsync(f, 0, 0, 10));
-        WiseOldManMetricDelta? delta = scenario switch { "unranked" => new(-1, -1, 0), "missing" => null, "estimated" => new(-1, 100, 100), "mode" => new(0, 100, 100), _ => new(0, 0, 0) };
+        WiseOldManMetricDelta? delta = scenario switch { "unranked" => new(-1, -1, 0), "missing" => null, "unexpected-unranked" => new(10, -1, 0), "estimated" => new(-1, 100, 100), "mode" => new(0, 100, 100), _ => new(0, 0, 0) };
         await SyncStatsAsync(f, delta);
         var result = await ReadStatsAsync(f);
         Assert.Equal(status, result.Luck.Result.Status);
@@ -281,7 +282,24 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests
             Assert.Equal(1m, result.Luck.Result.Expected);
             Assert.Equal(100m, Assert.Single(Assert.Single(Assert.Single(result.Luck.Teams).Players).Sources).Activity);
         }
-        if (scenario == "unranked") Assert.True(result.Luck.Result.ZeroRecordedApproximation);
+        Assert.Equal(scenario == "unranked", result.Luck.Result.ZeroRecordedApproximation);
+        Assert.Equal(scenario == "estimated", result.Luck.Result.Estimated);
+        Assert.All(result.Luck.Sources, source => Assert.Null(source.UnavailableReason));
+        await using var verify = new ApplicationDbContext(options);
+        var row = await verify.EventCompetitionCharacterMetricActivities.AsNoTracking()
+            .SingleAsync(x => x.OsrsCharacterId == f.Characters[0].Id);
+        if (scenario is "missing" or "unexpected-unranked")
+        {
+            Assert.Equal(scenario == "missing" ? Bingo.Domain.Integrations.WiseOldMan.MetricActivityCoverage.Missing
+                : Bingo.Domain.Integrations.WiseOldMan.MetricActivityCoverage.UnexpectedUnrankedEnd, row.LastIssue);
+            Assert.Null(Assert.Single(Assert.Single(Assert.Single(result.Luck.Teams).Players).Sources).Activity);
+        }
+        else Assert.Equal(scenario switch
+        {
+            "unranked" => Bingo.Domain.Integrations.WiseOldMan.MetricActivityCoverage.ZeroRecorded,
+            "estimated" => Bingo.Domain.Integrations.WiseOldMan.MetricActivityCoverage.EstimatedBaseline,
+            _ => Bingo.Domain.Integrations.WiseOldMan.MetricActivityCoverage.Ranked
+        }, row.Coverage);
     }
 
     [Fact]
@@ -880,7 +898,7 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests
     }
 
     private async Task<FullStatsFixture> FullStatsFixtureAsync(int rolls = 1, bool secondOutcome = false, int target = 10, int weight = 1,
-        int players = 1, bool extraRegular = false, string metric = "vorkath", int dimensions = 2, int actualStartedHoursAgo = 1, int eventDurationHours = 11, DateTimeOffset? clockNow = null)
+        int players = 1, bool extraRegular = false, string metric = "vorkath", int dimensions = 2, int actualStartedHoursAgo = 1, int eventDurationHours = 11, DateTimeOffset? clockNow = null, string? secondMetric = null)
     {
         var clock = new TestClock(clockNow ?? new DateTimeOffset(2026, 9, 15, 12, 0, 0, TimeSpan.Zero)); var now = clock.GetUtcNow();
         var admin = Account.CreateWebsite(Guid.NewGuid(), "StatsAdmin", "STATSADMIN", now); admin.SetGlobalRole(GlobalRole.SuperAdmin);
@@ -902,24 +920,30 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests
         var alt = new OsrsCharacter(Guid.NewGuid(), "Informational", "INFORMATIONAL", now);
         assignments.Add(new(Guid.NewGuid(), ev.Id, participants[0].Id, alt.Id, 2, actualStart.AddHours(-1), null, null, EventCharacterRole.Informational, null, null, null));
         var boss = new BossActivity(Guid.NewGuid(), "Vorkath fixture", "stats-source", "Boss", 10, now); boss.ConfigureApi(metric); boss.RecordMapping(ApiMappingStatus.Verified, now);
+        var secondBoss = secondMetric is null ? boss : new BossActivity(Guid.NewGuid(), "Second boss fixture", "stats-second-source", "Boss", 10, now);
+        if (secondMetric is not null) { secondBoss.ConfigureApi(secondMetric); secondBoss.RecordMapping(ApiMappingStatus.Verified, now); }
         var items = Enumerable.Range(0, secondOutcome ? 2 : 1).Select(i => { var item = new CatalogueItem(Guid.NewGuid(), "Exact variant " + i, "EXACT VARIANT " + i); item.SetPrice(100 + i * 100, CataloguePriceSource.Manual, now); item.Update(item.Name, item.NormalizedName, null, null, "https://oldschool.runescape.wiki/images/Dragon_warhammer.png"); return item; }).ToArray();
-        var sources = items.Select((item, i) => new SourceDrop(Guid.NewGuid(), boss.Id, item.Id, i == 0 ? "1/100" : "1/200", i == 0 ? .01m : .005m, 1, now)).ToArray();
+        var sources = items.Select((item, i) => new SourceDrop(Guid.NewGuid(), i == 0 ? boss.Id : secondBoss.Id, item.Id, i == 0 ? "1/100" : "1/200", i == 0 ? .01m : .005m, 1, now)).ToArray();
         var board = new Board(Guid.NewGuid(), ev.Id, "Stats board", dimensions, dimensions);
         var tiles = Enumerable.Range(0, dimensions * dimensions).Select(i => new BoardTile(Guid.NewGuid(), board.Id, Guid.NewGuid(), i / dimensions, i % dimensions, "Tile " + i, "", "", 10)).ToArray();
         var requirements = tiles.Select((tile, i) => new BoardRequirementSnapshot(Guid.NewGuid(), tile.Id, 1, target, true, true, "Objective " + i, i >= 2, weight)).ToArray();
-        var drops = requirements.Take(2).SelectMany(req => sources.Select((source, i) => new BoardRequirementDropSnapshot(Guid.NewGuid(), req.Id, source.Id, items[i].Id, boss.Name, items[i].Name, source.DisplayRate, i == 0 ? .01m : .005m, null, 1, weight,
+        var drops = requirements.Take(2).SelectMany(req => sources.Select((source, i) => new BoardRequirementDropSnapshot(Guid.NewGuid(), req.Id, source.Id, items[i].Id, i == 0 ? boss.Name : secondBoss.Name, items[i].Name, source.DisplayRate, i == 0 ? .01m : .005m, null, 1, weight,
             DropProbabilityScope.Participant, false, null, 1, rolls))).ToArray();
         await using var db = new ApplicationDbContext(options);
         db.AddRange(admin, ev, team, draft, publication, boss, board, regular, alt, form, primary); db.AddRange(participants); db.AddRange(chars); db.AddRange(assignments); db.AddRange(publishedRoster); db.AddRange(items); db.AddRange(sources); db.AddRange(tiles); db.AddRange(requirements); db.AddRange(drops);
+        if (secondMetric is not null) db.Add(secondBoss);
         db.AddRange(participants.Select(p => new TeamMembership(Guid.NewGuid(), team.Id, p.Id, TeamMembershipRole.Participant, now.AddHours(-2), null, "Fixture")));
         await BoardApprovalFixture.PublishAsync(db, board, now.AddHours(-2), tiles, requirements, drops);
         // The common fixture helper predates personal rolls. Set fixture mechanics before first basis capture.
         await db.Database.ExecuteSqlInterpolatedAsync($"UPDATE board_approval_requirement_drop_snapshots SET rolls_per_completion = {rolls}");
         foreach (var req in await db.BoardApprovalRequirementSnapshots.Where(x => !x.ManualObjective).ToListAsync())
+        {
             db.Add(new BoardApprovalRequirementBossSnapshot(Guid.NewGuid(), req.Id, boss.Id, boss.Name, 10, 1));
-        db.AddRange(items.Select(item => EventItemPrice.Introduce(ev.Id, item, now.AddHours(-2), now)));
+            if (secondMetric is not null) db.Add(new BoardApprovalRequirementBossSnapshot(Guid.NewGuid(), req.Id, secondBoss.Id, secondBoss.Name, 10, 1));
+        }
+        db.AddRange(items.Select(item => EventItemPrice.Introduce(ev.Id, item, new DateTimeOffset(now.Year, now.Month, now.Day, now.Hour, 0, 0, TimeSpan.Zero).AddHours(-2), now)));
         await db.SaveChangesAsync();
-        return new(ev, admin, team, participants, chars, assignments, alt, boss, items, tiles, requirements, drops, clock);
+        return new(ev, admin, team, participants, chars, assignments, alt, boss, items, tiles, requirements, drops, clock, secondMetric is null ? null : secondBoss);
     }
 
     private async Task<Guid> PendingStatsForDropAsync(FullStatsFixture f, int tile, int player, int minutes, Guid dropSnapshotId)
@@ -944,9 +968,9 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests
         db.Add(s); await db.SaveChangesAsync(); return s.Id;
     }
     private async Task ApproveStatsAsync(FullStatsFixture f, Guid submission)
-    { await using var db = new ApplicationDbContext(options); await new SubmissionService(db, null!, f.Clock).ApproveAsync(submission, f.Admin.Id); }
+    { await using var db = new ApplicationDbContext(options); await new SubmissionService(db, null!, f.Clock).ApproveCurrentAsync(submission, f.Admin.Id); }
     private async Task ReverseStatsAsync(FullStatsFixture f, Guid submission)
-    { await using var db = new ApplicationDbContext(options); await new SubmissionService(db, null!, f.Clock).ReverseAsync(submission, f.Admin.Id, "Synthetic reversal"); }
+    { await using var db = new ApplicationDbContext(options); await new SubmissionService(db, null!, f.Clock).ReverseCurrentAsync(submission, f.Admin.Id, "Synthetic reversal"); }
     private async Task PublishCurrentRosterAsync(FullStatsFixture f, bool retainPreviousEntries = false)
     {
         await using var db = new ApplicationDbContext(options);
@@ -989,7 +1013,7 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests
     }
     private sealed record FullStatsFixture(BingoEvent Event, Account Admin, Team Team, EventParticipant[] Players, OsrsCharacter[] Characters,
         IReadOnlyList<EventParticipantCharacter> Assignments, OsrsCharacter Alt, BossActivity Boss, CatalogueItem[] Items, BoardTile[] Tiles,
-        BoardRequirementSnapshot[] Requirements, BoardRequirementDropSnapshot[] Drops, TestClock Clock);
+        BoardRequirementSnapshot[] Requirements, BoardRequirementDropSnapshot[] Drops, TestClock Clock, BossActivity? SecondBoss);
     private sealed class StatsClient(WiseOldManCompetitionResult validation, WiseOldManCompetitionResult result, Func<Task>? before) : IWiseOldManCompetitionClient
     {
         public Task<WiseOldManCompetitionResult> GetCompetitionAsync(long competitionId, CancellationToken cancellationToken = default) => Task.FromResult(validation);

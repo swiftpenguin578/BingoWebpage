@@ -84,9 +84,12 @@ public sealed partial class DraftOperationsIntegrationTests(PostgreSqlTestFixtur
         var route = $"/Admin/Events/Draft/{setup.EventId}";
 
         var emptyHtml = await client.GetStringAsync(route);
-        Assert.Contains("data-draft-dialog-open=\"add-team\"", emptyHtml, StringComparison.Ordinal);
-        Assert.Contains("data-draft-add-team-dialog", emptyHtml, StringComparison.Ordinal);
-        Assert.DoesNotContain("name=\"formationType\"", emptyHtml, StringComparison.Ordinal);
+        // A10 (U6): the empty workspace (no teams, setup stage) is drawn from the page state and offers Add team.
+        var emptyState = DraftPageState(emptyHtml);
+        Assert.Equal("setup", emptyState.GetProperty("stage").GetString());
+        Assert.Equal(0, emptyState.GetProperty("teams").GetArrayLength());
+        AssertDraftPageOffers("AddTeam");
+        Assert.DoesNotContain("formationType", emptyHtml, StringComparison.Ordinal);
         await using (var afterGet = new ApplicationDbContext(options))
         {
             Assert.Empty(await afterGet.DraftSessions.Where(draft => draft.EventId == setup.EventId).ToListAsync());
@@ -102,8 +105,7 @@ public sealed partial class DraftOperationsIntegrationTests(PostgreSqlTestFixtur
         Assert.Equal(HttpStatusCode.Redirect, add.StatusCode);
 
         var savedHtml = await client.GetStringAsync(route);
-        Assert.Contains("data-team-name=\"First setup team\"", savedHtml, StringComparison.Ordinal);
-        Assert.Contains("First setup team", savedHtml, StringComparison.Ordinal);
+        Assert.Contains(DraftPageState(savedHtml).GetProperty("teams").EnumerateArray(), value => value.GetProperty("name").GetString() == "First setup team" && !value.GetProperty("included").GetBoolean());
         await using var verify = new ApplicationDbContext(options);
         Assert.Single(await verify.DraftSessions.Where(draft => draft.EventId == setup.EventId).ToListAsync());
         var team = await verify.Teams.SingleAsync(value => value.EventId == setup.EventId);
@@ -136,20 +138,39 @@ public sealed partial class DraftOperationsIntegrationTests(PostgreSqlTestFixtur
         async Task Post(string path, string handler, Dictionary<string, string> fields)
         {
             var html = await client.GetStringAsync(path);
-            Assert.Contains($"handler={handler}", html, StringComparison.OrdinalIgnoreCase);
+            // A10 (U6): the page renders client-side; it must still embed its state and post this handler.
+            DraftPageState(html);
+            AssertDraftPageOffers(handler);
             var response = await client.PostAsync($"{path}{(path.Contains('?') ? '&' : '?')}handler={handler}", Form(AntiforgeryToken(html), fields));
             Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
         }
-        var internalNames = new[] { "Internal Pre", "Internal Pick", "Internal Gone" };
+        // A10 (U5 item 1c, F04): the internal-participant form is retired; each owner is added from a
+        // saved Playing account with its stored EHB through the Participants Add (JSON outcome).
+        var internalNames = new[] { "Internal Pre", "Intern Pick", "Intern Gone" };
+        var savedIds = new Guid[internalNames.Length];
+        await using (var seed = new ApplicationDbContext(options))
+        {
+            for (var index = 0; index < internalNames.Length; index++)
+            {
+                var character = new OsrsCharacter(Guid.NewGuid(), internalNames[index], internalNames[index].ToUpperInvariant(), now);
+                savedIds[index] = character.Id;
+                seed.AddRange(character, new AccountOsrsCharacter(Guid.NewGuid(), ownerIds[index], character.Id, ownerIds[index], true, 0, null, 8m, now));
+            }
+            await seed.SaveChangesAsync();
+        }
         for (var index = 0; index < internalNames.Length; index++)
         {
-            var name = internalNames[index];
-            await Post(participantsPath + "?addParticipant=1", "CreateInternalParticipant", new()
+            var html = await client.GetStringAsync(participantsPath + "?add=1");
+            long version;
+            await using (var read = new ApplicationDbContext(options)) version = await read.Events.Where(x => x.Id == setup.EventId).Select(x => x.Version).SingleAsync();
+            using var request = new HttpRequestMessage(HttpMethod.Post, participantsPath + "?handler=Add")
             {
-                ["InternalParticipant.OwnerAccountId"] = ownerIds[index].ToString(),
-                [$"InternalParticipant.AccountAnswers[{questionId}].CharacterName"] = name,
-                [$"InternalParticipant.AccountAnswers[{questionId}].Ehb"] = "8"
-            });
+                Content = new FormUrlEncodedContent(new List<KeyValuePair<string, string>> { new("owner", ownerIds[index].ToString()), new("accounts", savedIds[index].ToString()), new("primary", savedIds[index].ToString()), new("paid", "false"), new("addPlace", "false"), new("eventVersion", version.ToString(System.Globalization.CultureInfo.InvariantCulture)) })
+            };
+            request.Headers.Add("Accept", "application/json"); request.Headers.Add("RequestVerificationToken", AntiforgeryToken(html));
+            using var response = await client.SendAsync(request);
+            using var json = System.Text.Json.JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+            Assert.Equal("done", json.RootElement.GetProperty("outcome").GetString());
         }
         await Post(draftPath, "AddTeam", new() { ["name"] = "Genuine external", ["formationType"] = "Preformed", ["includedInDraft"] = "false" });
         Guid externalTeamId;
@@ -168,19 +189,26 @@ public sealed partial class DraftOperationsIntegrationTests(PostgreSqlTestFixtur
         });
         // The retired external-member route is covered by the canonical fail-closed
         // proof below; this journey retains a current manual-roster member.
-        await Post(draftPath, "WithdrawParticipant", new() { ["participantId"] = internalIds[2].ToString() });
+        // U6 (A10): Teams no longer withdraws participants; Participants owns withdrawal (S5).
+        using (var withdraw = new HttpRequestMessage(HttpMethod.Post, participantsPath + "?handler=Withdraw"))
+        {
+            withdraw.Headers.Accept.ParseAdd("application/json");
+            withdraw.Content = Form(AntiforgeryToken(await client.GetStringAsync(participantsPath)), new() { ["participantId"] = internalIds[2].ToString(), ["confirmLifecycleAction"] = "true" });
+            using var withdrawn = await client.SendAsync(withdraw);
+            Assert.Contains("\"outcome\":\"done\"", await withdrawn.Content.ReadAsStringAsync(), StringComparison.Ordinal);
+        }
         await using (var db = new ApplicationDbContext(options))
         {
             Assert.Equal(SignupStatus.Withdrawn, await db.EventParticipants.Where(x => x.Id == internalIds[2]).Select(x => x.SignupStatus).SingleAsync());
             Assert.False(await db.EventParticipantCharacters.AnyAsync(x => x.EventParticipantId == internalIds[2] && x.ReleasedAt == null));
         }
-        var pool = await client.GetStringAsync(draftPath);
-        var poolSectionStart = pool.IndexOf("data-draft-participant-section", StringComparison.Ordinal);
-        var poolSection = pool[poolSectionStart..pool.IndexOf("</table>", poolSectionStart, StringComparison.Ordinal)];
-        Assert.Contains("Internal Pre", poolSection);
-        Assert.Contains("Internal Pick", poolSection);
-        Assert.DoesNotContain("Genuine external", poolSection);
-        Assert.DoesNotContain("Retained Manual", poolSection);
+        // A10 (U6): the draft pool is the page state's confirmed participants without a team.
+        var poolState = DraftPageState(await client.GetStringAsync(draftPath)).GetProperty("participants").EnumerateArray()
+            .Where(participant => participant.GetProperty("teamId").ValueKind == System.Text.Json.JsonValueKind.Null).Select(participant => participant.GetProperty("name").GetString()).ToList();
+        Assert.Contains("Internal Pre", poolState);
+        Assert.Contains("Intern Pick", poolState);
+        Assert.DoesNotContain("Genuine external", poolState);
+        Assert.DoesNotContain("Retained Manual", poolState);
         DraftModel? loaded = null;
         await ExecuteAsync(setup.EventId, setup.FirstAdminId, async page => { loaded = page; return await page.OnGetAsync(setup.EventId, null, CancellationToken.None); });
         Assert.NotNull(loaded);
@@ -257,7 +285,9 @@ public sealed partial class DraftOperationsIntegrationTests(PostgreSqlTestFixtur
         async Task Post(string path, string handler, Dictionary<string, string> fields)
         {
             var html = await client.GetStringAsync(path);
-            Assert.Contains($"handler={handler}", html, StringComparison.OrdinalIgnoreCase);
+            // A10 (U6): the page renders client-side; it must still embed its state and post this handler.
+            DraftPageState(html);
+            AssertDraftPageOffers(handler);
             using var response = await client.PostAsync($"{path}{(path.Contains('?') ? '&' : '?')}handler={handler}", Form(AntiforgeryToken(html), fields));
             Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
         }
@@ -283,13 +313,16 @@ public sealed partial class DraftOperationsIntegrationTests(PostgreSqlTestFixtur
             Assert.True(await db.DraftPublicationRosters.AnyAsync(x => x.EventParticipantId == setup.PlayerIds[2] && x.TeamId == preformedTeamId));
             Assert.True(await db.DraftPublicationRosters.AnyAsync(x => x.EventParticipantId == retained.ParticipantId && x.TeamId == preformedTeamId));
         }
-        var finalizedEditor = await client.GetStringAsync(editor);
-        Assert.Contains($"name=\"membershipId\" value=\"{websiteMembershipId}\"", finalizedEditor, StringComparison.Ordinal);
-        Assert.Contains("Retained Manual", finalizedEditor, StringComparison.Ordinal);
-        var removalForms = Regex.Matches(finalizedEditor, """<form\b[^>]*action="[^"]*handler=RemoveMember[^"]*"[^>]*>.*?</form>""", RegexOptions.Singleline | RegexOptions.IgnoreCase)
-            .Select(match => match.Value).ToArray();
-        Assert.Contains(removalForms, form => form.Contains(websiteMembershipId.ToString(), StringComparison.Ordinal) && form.Contains("name=\"confirmed\" value=\"true\"", StringComparison.Ordinal));
-        Assert.Contains(removalForms, form => form.Contains(retainedMembershipId.ToString(), StringComparison.Ordinal) && form.Contains("name=\"confirmed\" value=\"true\"", StringComparison.Ordinal));
+        // A10 (U6): the finalized editor is drawn from its embedded state. Both members (the
+        // website signup and the retained manual member) are on the team with the correction
+        // open, and the page posts the confirmed RemoveMember (Remove from team…, S5).
+        var finalizedState = DraftPageState(await client.GetStringAsync(editor));
+        Assert.True(finalizedState.GetProperty("canCorrect").GetBoolean());
+        var preformedMembers = finalizedState.GetProperty("teams").EnumerateArray()
+            .Single(team => team.GetProperty("id").GetGuid() == preformedTeamId).GetProperty("members").EnumerateArray().ToList();
+        Assert.Contains(preformedMembers, member => member.GetProperty("id").GetGuid() == websiteMembershipId);
+        Assert.Contains(preformedMembers, member => member.GetProperty("id").GetGuid() == retainedMembershipId && member.GetProperty("name").GetString() == "Retained Manual");
+        AssertDraftPageOffers("RemoveMember");
 
         long websiteMembershipVersion;
         await using (var db = new ApplicationDbContext(options))
@@ -1342,11 +1375,10 @@ public sealed partial class DraftOperationsIntegrationTests(PostgreSqlTestFixtur
             Assert.Null(await verify.EventParticipants.Where(value => value.Id == unowned.ParticipantId).Select(value => value.AccountId).SingleAsync());
             Assert.Equal(TeamMembershipRole.Captain, await verify.TeamMemberships.Where(value => value.Id == unowned.MembershipId).Select(value => value.Role).SingleAsync());
         }
-        var readiness = Regex.Matches(html, "<p class=\"team-readiness-status\">.*?</p>", RegexOptions.Singleline)
-            .Select(match => match.Value)
-            .First(block => block.Contains("A Captain is assigned, but website access is not ready."));
-        Assert.Contains("admin-status-pill is-danger\">Attention</span>", readiness);
-        Assert.DoesNotContain("admin-status-pill is-danger\">Enabled</span>", readiness);
+        // A10 (U6): the team card's attention ("Needs a captain before the draft can start.")
+        // is drawn from the state: a current Captain exists, but no usable website Captain.
+        var attention = DraftPageState(html).GetProperty("teams").EnumerateArray().Where(team => team.GetProperty("hasCaptain").GetBoolean() && !team.GetProperty("hasUsableCaptain").GetBoolean()).ToList();
+        Assert.Single(attention);
         Assert.DoesNotContain("emergency", html, StringComparison.OrdinalIgnoreCase);
     }
 
@@ -1500,10 +1532,13 @@ public sealed partial class DraftOperationsIntegrationTests(PostgreSqlTestFixtur
         await LoginAsync(client, await LoginNameAsync(setup.FirstAdminId));
         var draftPath = $"/Admin/Events/Draft/{setup.EventId}";
         var html = await client.GetStringAsync(draftPath);
-        Assert.Contains("Historical paused draft", html, StringComparison.Ordinal);
-        Assert.DoesNotContain("asp-page-handler=\"Pause\"", html, StringComparison.Ordinal);
-        Assert.DoesNotContain("asp-page-handler=\"Resume\"", html, StringComparison.Ordinal);
-        Assert.DoesNotContain("asp-page-handler=\"Reopen\"", html, StringComparison.Ordinal);
+        // A10 (U6): the page state marks the historical paused draft read-only ("paused" stage,
+        // banner "Historical paused draft."); the page script offers no Pause/Resume/Reopen.
+        var pausedState = DraftPageState(html);
+        Assert.Equal("Paused", pausedState.GetProperty("draftState").GetString());
+        Assert.Equal("paused", pausedState.GetProperty("stage").GetString());
+        foreach (var retired in new[] { "Pause", "Resume", "Reopen" })
+            Assert.Throws<Xunit.Sdk.ContainsException>(() => AssertDraftPageOffers(retired));
         foreach (var handler in new[] { "Pause", "Resume", "Reopen" })
         {
             var response = await client.PostAsync($"{draftPath}?handler={handler}", Form(AntiforgeryToken(html), new Dictionary<string, string>()));
@@ -1866,8 +1901,10 @@ public sealed partial class DraftOperationsIntegrationTests(PostgreSqlTestFixtur
         Assert.Equal(before, await RosterStateAsync());
         var recovery = await client.GetStringAsync(rejected.Headers.Location);
         Assert.Contains("Assign a current Captain to every drafted team before finalizing: First.", recovery);
-        Assert.Contains("handler=ChangeRole", recovery);
-        Assert.Contains($"value=\"{membershipId}\"", recovery);
+        // A10 (U6): the recovery page focuses the team (rosterTeamId) and offers the member's role menu from its state.
+        AssertDraftPageOffers("ChangeRole");
+        Assert.Contains(DraftPageState(recovery).GetProperty("teams").EnumerateArray().SelectMany(value => value.GetProperty("members").EnumerateArray()),
+            member => member.GetProperty("id").GetGuid() == membershipId && member.GetProperty("role").GetString() == "CC");
         await ChangeRoleAsync(TeamMembershipRole.Captain);
         var finalized = await client.PostAsync($"{draftPath}?handler=Finalize", Form(token, new Dictionary<string, string> { ["confirmed"] = "true" }));
         Assert.Equal(HttpStatusCode.Redirect, finalized.StatusCode);
@@ -2032,24 +2069,24 @@ public sealed partial class DraftOperationsIntegrationTests(PostgreSqlTestFixtur
         await ExecuteAsync(setup.EventId, setup.FirstAdminId, page => page.OnPostPickAsync(setup.EventId, setup.PlayerIds[3], CancellationToken.None));
         await ExecuteAsync(setup.EventId, setup.FirstAdminId, page => page.OnPostFinalizeAsync(setup.EventId, CancellationToken.None, true));
 
+        // B-Teams-4 (U6, A10): adding a team after finalization is retired. Concurrent and
+        // failing attempts are refused and leave no team or publication residue.
         await Task.WhenAll(
             ExecuteAsync(setup.EventId, setup.FirstAdminId, page => page.OnPostAddTeamAsync(setup.EventId, "Race external A", TeamFormationType.Preformed, null, CancellationToken.None, true, false)),
             ExecuteAsync(setup.EventId, setup.SecondAdminId, page => page.OnPostAddTeamAsync(setup.EventId, "Race external B", TeamFormationType.Preformed, null, CancellationToken.None, true, false)));
-        var raceTeamCount = 0;
         await using (var afterRace = new ApplicationDbContext(options))
         {
             var draft = await afterRace.DraftSessions.SingleAsync(x => x.EventId == setup.EventId);
             Assert.Single(await afterRace.DraftPublicationCycles.Where(x => x.DraftSessionId == draft.Id && x.SupersededAt == null).ToListAsync());
-            raceTeamCount = await afterRace.Teams.CountAsync(x => x.EventId == setup.EventId && (x.Name == "Race external A" || x.Name == "Race external B"));
-            Assert.InRange(raceTeamCount, 1, 2);
-            Assert.Equal(raceTeamCount + 1, await afterRace.DraftPublicationCycles.CountAsync(x => x.DraftSessionId == draft.Id));
+            Assert.Equal(0, await afterRace.Teams.CountAsync(x => x.EventId == setup.EventId && (x.Name == "Race external A" || x.Name == "Race external B")));
+            Assert.Equal(1, await afterRace.DraftPublicationCycles.CountAsync(x => x.DraftSessionId == draft.Id));
         }
 
         await ExecuteAsync(setup.EventId, setup.FirstAdminId, page => page.OnPostAddTeamAsync(setup.EventId, "Audit failure external", TeamFormationType.Preformed, null, CancellationToken.None, true, false), new ThrowingAuditWriter());
         await using var verify = new ApplicationDbContext(options);
         Assert.False(await verify.Teams.AnyAsync(x => x.EventId == setup.EventId && x.Name == "Audit failure external"));
         var finalDraft = await verify.DraftSessions.SingleAsync(x => x.EventId == setup.EventId);
-        Assert.Equal(raceTeamCount + 1, await verify.DraftPublicationCycles.CountAsync(x => x.DraftSessionId == finalDraft.Id));
+        Assert.Equal(1, await verify.DraftPublicationCycles.CountAsync(x => x.DraftSessionId == finalDraft.Id));
         Assert.Empty(await verify.AuditEntries.Where(x => x.Details != null && x.Details.Contains("Injected rollback")).ToListAsync());
     }
 
@@ -2409,7 +2446,7 @@ public sealed partial class DraftOperationsIntegrationTests(PostgreSqlTestFixtur
         return await action(page);
     }
 
-    private async Task<string?> ExecuteAndReadStatusAsync(Guid eventId, Guid accountId, Func<DraftModel, Task<IActionResult>> action, DbContextOptions<ApplicationDbContext>? contextOptions = null)
+    private async Task<string?> ExecuteAndReadStatusAsync(Guid eventId, Guid accountId, Func<DraftModel, Task<IActionResult>> action, DbContextOptions<ApplicationDbContext>? contextOptions = null, IAdminCollaborationNotifier? notifier = null)
     {
         await using var db = new ApplicationDbContext(contextOptions ?? options);
         var context = new DefaultHttpContext
@@ -2417,7 +2454,7 @@ public sealed partial class DraftOperationsIntegrationTests(PostgreSqlTestFixtur
             User = new ClaimsPrincipal(new ClaimsIdentity(
                 [new Claim(ClaimTypes.NameIdentifier, accountId.ToString()), new Claim(ClaimTypes.Name, $"admin-{accountId:N}")], "test"))
         };
-        var page = new DraftModel(db, new FixedTimeProvider(now), new AuditWriter(db, new FixedTimeProvider(now)), new NullAdminCollaborationNotifier(), null!, new Bingo.Infrastructure.Signups.EventParticipantCharacterService(db, new FixedTimeProvider(now)), captainAuthority: new TeamCaptainAuthorityService(db, new FixedTimeProvider(now)))
+        var page = new DraftModel(db, new FixedTimeProvider(now), new AuditWriter(db, new FixedTimeProvider(now)), notifier ?? new NullAdminCollaborationNotifier(), null!, new Bingo.Infrastructure.Signups.EventParticipantCharacterService(db, new FixedTimeProvider(now)), captainAuthority: new TeamCaptainAuthorityService(db, new FixedTimeProvider(now)))
         {
             PageContext = new PageContext(new ActionContext(context, new RouteData(), new PageActionDescriptor())),
             TempData = new TempDataDictionary(context, new EmptyTempDataProvider())

@@ -53,7 +53,9 @@ public sealed class UiReviewScenarioSeeder(
         var privateSetup = await AddEventAsync("Private setup", "ur-draft", EventState.Draft, now, -2, ct);
         events.Add(privateSetup);
 
-        events.Add(await AddEventAsync("Signups open", "ur-signups-open", EventState.SignupOpen, now, 15, ct));
+        var signupsOpen = await AddEventAsync("Signups open", "ur-signups-open", EventState.SignupOpen, now, 15, ct);
+        events.Add(signupsOpen);
+        var participants = AddParticipantsScenario(signupsOpen, now);
         events.Add(await AddEventAsync("Signups closed — finalized affiliated rosters", "ur-signups-closed", EventState.SignupClosed, now, 16, ct, roster: true));
         events.Add(await AddEventAsync("Unknown timezone", "ur-unknown-timezone", EventState.SignupClosed, now, 17, ct, timezone: "Review/Unknown"));
         for (var index = 1; index <= 22; index++)
@@ -113,6 +115,7 @@ public sealed class UiReviewScenarioSeeder(
             new { activeApprovalSnapshotId = board.ActiveApprovalSnapshotId },
             new { activeApprovalSnapshotId = board.ActiveApprovalSnapshotId, workingCopy = true, reason = correctionReason });
         var blocked = await AddBlockedReviewAsync(active, now, ct);
+        await AddReviewVarietyAsync(active, ct);
         var catalogue = await AddCatalogueImpactAsync(events, board, now, ct);
         AddEndOutcome(active, EventCompetitionEndUpdateStatus.Pending, now, 91001);
         AddEndOutcome(archived, EventCompetitionEndUpdateStatus.Rejected, now, 91002);
@@ -124,7 +127,55 @@ public sealed class UiReviewScenarioSeeder(
         return new UiReviewScenarios(profile, now, active.Id, discarded.Id, blocked,
             events.Select(value => new UiReviewEvent(value.Id, value.Name, value.Slug, value.State, value.IsHidden)).ToArray(),
             accounts.Values.Select(value => new UiReviewAccount(value.LoginName, value.GlobalRole!.Value, value.DisabledAt is not null, value.Id)).ToArray(),
-            catalogue.Activity, catalogue.Drop);
+            catalogue.Activity, catalogue.Drop, participants);
+    }
+
+    // U5 Participants: the open-signup event is full (capacity 4) with a waiting list and a withdrawn participant, so the
+    // list, the participant drawer, Add (ReviewWebsite is not in the event) and the full-event choices can be reviewed.
+    // The cancelled, archived and Live events already show the read-only states.
+    private UiReviewParticipants AddParticipantsScenario(BingoEvent item, DateTimeOffset now)
+    {
+        item.SetParticipantCap(4);
+        var question = db.SignupQuestions.Local.Single(value => value.EventId == item.Id && value.SystemField == SignupSystemField.PrimaryRegularAccount);
+        var captainQuestion = db.SignupQuestions.Local.Single(value => value.EventId == item.Id && value.SystemField == SignupSystemField.CoCaptainName);
+        var people = new (string Account, SignupStatus Status, bool Paid)[]
+        {
+            ("ReviewCaptain", SignupStatus.Confirmed, true), ("ReviewCoCaptain", SignupStatus.Confirmed, false),
+            ("ReviewParticipant", SignupStatus.Confirmed, true), ("ReviewSecondMember", SignupStatus.Confirmed, false),
+            ("ReviewSecondCaptain", SignupStatus.WaitingList, false), ("ReviewSecondCoCaptain", SignupStatus.WaitingList, true),
+            ("ReviewFormer", SignupStatus.Withdrawn, false)
+        };
+        Guid? waiting = null, withdrawn = null, confirmed = null;
+        for (var index = 0; index < people.Length; index++)
+        {
+            var (name, status, paid) = people[index];
+            var at = now.AddDays(-12 + index);
+            var account = accounts[name];
+            var character = characters[account.Id];
+            var participant = new EventParticipant(Guid.NewGuid(), item.Id, status == SignupStatus.Withdrawn ? SignupStatus.Confirmed : status, index + 1, at, SignupSource.Website);
+            participant.AssignOwner(account);
+            participant.SetPaymentStatus(paid ? PaymentStatus.Paid : PaymentStatus.Unpaid);
+            db.EventParticipants.Add(participant);
+            db.SignupAnswers.Add(new SignupAnswer(Guid.NewGuid(), participant.Id, question.Id, "Playing account", string.Empty, character.Id));
+            var assignment = new EventParticipantCharacter(Guid.NewGuid(), item.Id, participant.Id, character.Id, 0, at,
+                account.Id, question.Id, EventCharacterRole.Playing, 25, EhbSource.Manual, null);
+            db.EventParticipantCharacters.Add(assignment);
+            if (index == 0)
+            {
+                participant.SetCaptainVolunteer(true);
+                participant.SetAdminNotes("Synthetic private note: paid in game.");
+                db.SignupAnswers.Add(new SignupAnswer(Guid.NewGuid(), participant.Id, captainQuestion.Id, captainQuestion.Label, "Ur Participant"));
+                confirmed = participant.Id;
+            }
+            if (status == SignupStatus.WaitingList) waiting ??= participant.Id;
+            if (status == SignupStatus.Withdrawn)
+            {
+                participant.Withdraw(now.AddDays(-2), "Participant withdrawal");
+                assignment.Release(account.Id, now.AddDays(-2));
+                withdrawn = participant.Id;
+            }
+        }
+        return new UiReviewParticipants(item.Id, confirmed, waiting, withdrawn);
     }
 
     // T2 Catalogue (S10): one catalogue drop used by a visible draft board, by the current event's correction copy
@@ -470,6 +521,50 @@ public sealed class UiReviewScenarioSeeder(
             db.OfficialPlacements.Add(new OfficialPlacementSnapshot(Guid.NewGuid(), finalization.Id, item.Id, team.Id, team.Name, sharedFirst ? 1 : ++placement, false, null, 0, 0, 0));
     }
 
+    // U8 1d: the remaining Review queue states beside the blocked pair: rejected, reversed, no screenshot and
+    // the same image on two submissions. Synthetic local data only; the queue shows them with their warnings.
+    private async Task AddReviewVarietyAsync(BingoEvent item, CancellationToken ct)
+    {
+        var participant = db.EventParticipants.Local.Single(value => value.EventId == item.Id && value.AccountId == accounts["ReviewParticipant"].Id);
+        var membership = db.TeamMemberships.Local.Single(value => value.EventParticipantId == participant.Id);
+        var board = db.Boards.Local.Single(value => value.EventId == item.Id);
+        var tile = db.BoardTiles.Local.First(value => value.BoardId == board.Id);
+        var requirement = db.BoardRequirementSnapshots.Local.Single(value => value.BoardTileId == tile.Id);
+        var character = characters[accounts["ReviewParticipant"].Id];
+        var captain = accounts["ReviewCaptain"].Id;
+        var reviewer = accounts["ReviewAdmin"].Id;
+        async Task<Submission> Add(int hour, string note, bool image, byte shade)
+        {
+            var at = item.ActualStartedAt!.Value.AddHours(hour);
+            var submission = new Submission(Guid.NewGuid(), item.Id, membership.TeamId, tile.Id, requirement.Id, null, participant.Id, character.Id, character.DisplayName, captain, 1, at, note, null);
+            db.Submissions.Add(submission);
+            if (image)
+            {
+                using var picture = new Image<Rgba32>(640, 360, new Rgba32(shade, 120, 90));
+                await using var stream = new MemoryStream();
+                await picture.SaveAsPngAsync(stream, ct); stream.Position = 0;
+                var stored = await storage.StoreAsync(item.Id, submission.Id, $"synthetic-evidence-u8-{hour}.png", stream, ct);
+                db.EvidenceAssets.Add(new EvidenceAsset(Guid.NewGuid(), submission.Id, stored.StorageKey, stored.OriginalFilename, stored.MediaType, stored.ByteSize, stored.Width, stored.Height, stored.Checksum, at, captain, EvidenceAssetRole.OriginalEvidence));
+            }
+            db.ReviewActions.Add(new ReviewAction(Guid.NewGuid(), submission.Id, ReviewActionType.Submitted, captain, at, note, null, null));
+            return submission;
+        }
+        var rejected = await Add(4, "Synthetic rejected upload.", true, 200);
+        rejected.Reject("The drop message is not visible in the screenshot.", rejected.SubmittedAt.AddMinutes(30));
+        db.ReviewActions.Add(new ReviewAction(Guid.NewGuid(), rejected.Id, ReviewActionType.Reject, reviewer, rejected.ReviewedAt!.Value, rejected.CurrentReviewerNote, null, null));
+        var reversed = await Add(5, "Synthetic reversed approval.", true, 170);
+        reversed.Approve(1, reversed.SubmittedAt.AddMinutes(20));
+        var contribution = new SubmissionContribution(Guid.NewGuid(), reversed.Id, membership.TeamId, requirement.Id, null, participant.Id, 1, reversed.SubmittedAt.AddMinutes(20));
+        db.SubmissionContributions.Add(contribution);
+        db.ReviewActions.Add(new ReviewAction(Guid.NewGuid(), reversed.Id, ReviewActionType.Approve, reviewer, reversed.SubmittedAt.AddMinutes(20), null, null, null));
+        reversed.Reverse("The drop was on a different account than the one credited.", reversed.SubmittedAt.AddHours(1));
+        contribution.Reverse(reversed.SubmittedAt.AddHours(1));
+        db.ReviewActions.Add(new ReviewAction(Guid.NewGuid(), reversed.Id, ReviewActionType.ReverseApproval, reviewer, reversed.SubmittedAt.AddHours(1), reversed.CurrentReviewerNote, null, null));
+        await Add(6, "Synthetic upload without a screenshot.", false, 0);
+        await Add(7, "Synthetic same-image pair, first.", true, 230);
+        await Add(8, "Synthetic same-image pair, second.", true, 230);
+    }
+
     private async Task<Guid> AddBlockedReviewAsync(BingoEvent item, DateTimeOffset now, CancellationToken ct)
     {
         var participant = db.EventParticipants.Local.Single(value => value.EventId == item.Id && value.AccountId == accounts["ReviewParticipant"].Id);
@@ -528,4 +623,5 @@ public sealed class UiReviewScenarioSeeder(
 public sealed record UiReviewEvent(Guid Id, string Name, string Slug, EventState State, bool Hidden);
 public sealed record UiReviewAccount(string Username, GlobalRole Role, bool Disabled, Guid Id = default);
 public sealed record UiReviewScenarios(string Profile, DateTimeOffset BuiltAt, Guid CurrentEventId, Guid DiscardedEventId, Guid BlockedSubmissionId, IReadOnlyList<UiReviewEvent> Events, IReadOnlyList<UiReviewAccount> Accounts,
-    Guid? CatalogueActivityId = null, Guid? CatalogueDropId = null);
+    Guid? CatalogueActivityId = null, Guid? CatalogueDropId = null, UiReviewParticipants? Participants = null);
+public sealed record UiReviewParticipants(Guid EventId, Guid? ConfirmedId, Guid? WaitingId, Guid? WithdrawnId);

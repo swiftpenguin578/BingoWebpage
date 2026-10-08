@@ -91,6 +91,29 @@ public sealed class PreformedRosterCsvImportIntegrationTests(PostgreSqlTestFixtu
         var (actor, ev, team) = await SeedAsync(); await using var db = new ApplicationDbContext(options); using var cache = new MemoryCache(new MemoryCacheOptions()); var service = new PreformedRosterCsvImportService(db, new EventParticipantCharacterService(db, TimeProvider.System), cache, TimeProvider.System); await using var stream = new MemoryStream(Encoding.UTF8.GetBytes(csv));
         Assert.False((await service.PreviewAsync(actor.Id, ev.Id, team.Id, stream, CancellationToken.None)).IsValid); Assert.Equal(0, await db.EventParticipants.CountAsync()); Assert.Equal(0, await db.EventParticipantCharacters.CountAsync()); Assert.Equal(0, await db.TeamMemberships.CountAsync()); Assert.Equal(0, await db.AuditEntries.CountAsync());
     }
+    [Fact]
+    public async Task NewInvalidRsnIsRefusedPerRowAndNothingIsWrittenWhileStoredNamesStayUntouched()
+    {
+        var (actor, ev, team) = await SeedAsync();
+        await using var db = new ApplicationDbContext(options); using var cache = new MemoryCache(new MemoryCacheOptions());
+        var service = new PreformedRosterCsvImportService(db, new EventParticipantCharacterService(db, TimeProvider.System), cache, TimeProvider.System);
+        await using var bad = new MemoryStream(Encoding.UTF8.GetBytes("Account,EHB,Account\r\nGood Name,1,\r\nBad.Name!!,2,\r\nFine One,3,Way Too Long Name 1\r\n"));
+        var refused = await service.PreviewAsync(actor.Id, ev.Id, team.Id, bad, CancellationToken.None);
+        Assert.False(refused.IsValid); Assert.Null(refused.Nonce);
+        Assert.Equal([3, 4], refused.Errors.Select(error => error.Number).Order().ToArray());
+        Assert.All(refused.Errors, error => Assert.Equal(RsnRule.Message, error.Message));
+        Assert.False((await service.ApplyAsync(actor.Id, actor.LoginName, ev.Id, team.Id, refused.Nonce ?? "", CancellationToken.None)).Succeeded);
+        Assert.Equal(0, await db.EventParticipants.CountAsync()); Assert.Equal(0, await db.OsrsCharacters.CountAsync()); Assert.Equal(0, await db.EventParticipantCharacters.CountAsync()); Assert.Equal(0, await db.TeamMemberships.CountAsync()); Assert.Equal(0, await db.AuditEntries.CountAsync());
+
+        // A stored name that predates the rule is not re-validated: it imports and its stored display name is unchanged.
+        db.OsrsCharacters.Add(new OsrsCharacter(Guid.NewGuid(), "Legacy.Name!!", SignupService.NormalizeAccountName("Legacy.Name!!"), DateTimeOffset.UtcNow)); await db.SaveChangesAsync();
+        await using var legacy = new MemoryStream(Encoding.UTF8.GetBytes("Account,EHB\r\nLegacy.Name!!,1\r\n"));
+        var preview = await service.PreviewAsync(actor.Id, ev.Id, team.Id, legacy, CancellationToken.None);
+        Assert.True(preview.IsValid);
+        Assert.True((await service.ApplyAsync(actor.Id, actor.LoginName, ev.Id, team.Id, preview.Nonce!, CancellationToken.None)).Succeeded);
+        Assert.Equal("Legacy.Name!!", await db.OsrsCharacters.Select(x => x.DisplayName).SingleAsync());
+    }
+
     [Theory]
     [InlineData("actor")]
     [InlineData("team")]
@@ -113,7 +136,9 @@ public sealed class PreformedRosterCsvImportIntegrationTests(PostgreSqlTestFixtu
     [Fact]
     public async Task OperatorCsvTemplateRemainsAvailableWhileDraftRetiresTheCsvSurface()
     {
-        var markup = await File.ReadAllTextAsync(Path.Combine(FindRepositoryRoot(), "src", "Bingo.Web", "Pages", "Admin", "Events", "Draft.cshtml"));
+        // A10 (U6): the Teams page renders its team controls client-side, so the surface is the page markup plus its module.
+        var markup = await File.ReadAllTextAsync(Path.Combine(FindRepositoryRoot(), "src", "Bingo.Web", "Pages", "Admin", "Events", "Draft.cshtml"))
+            + await File.ReadAllTextAsync(Path.Combine(FindRepositoryRoot(), "src", "Bingo.Web", "wwwroot", "js", "admin-draft.js"));
         Assert.Equal("Account,EHB\r\n", Encoding.UTF8.GetString(PreformedRosterCsvImportService.Template()));
         Assert.Contains("includedInDraft", markup);
         Assert.DoesNotContain("Import external roster CSV", markup);

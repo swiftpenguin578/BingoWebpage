@@ -686,7 +686,8 @@ public sealed partial class SignupService(
             await dbContext.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
             return new(true, null, participant.Id, status,
-                status == SignupStatus.WaitingList ? await GetWaitingPositionAsync(participant.Id, request.EventId, cancellationToken) : null);
+                status == SignupStatus.WaitingList ? await GetWaitingPositionAsync(participant.Id, request.EventId, cancellationToken) : null,
+                EffectiveParticipantCap: bingoEvent.ParticipantCap, AddedPlace: full && request.ExpandCapacityWhenFull);
         }
         catch (Exception exception) when (IsExpectedConflict(exception) && !cancellationToken.IsCancellationRequested)
         {
@@ -1256,6 +1257,14 @@ public sealed partial class SignupService(
             .Select(answer => answer.CharacterName!.Trim())
             .DistinctBy(NormalizeAccountName, StringComparer.Ordinal)
             .ToList();
+        // U5-Q4: new or renamed names follow the shared RSN rule; current names are not re-validated.
+        var currentNames = creating ? [] : await (from assignment in dbContext.EventParticipantCharacters.AsNoTracking()
+                                                  join character in dbContext.OsrsCharacters.AsNoTracking() on assignment.OsrsCharacterId equals character.Id
+                                                  where assignment.EventParticipantId == request.ParticipantId && assignment.ReleasedAt == null
+                                                  select character.DisplayName).ToListAsync(ct);
+        var current = currentNames.Select(NormalizeAccountName).ToHashSet(StringComparer.Ordinal);
+        if (names.Any(name => !current.Contains(NormalizeAccountName(name)) && !RsnRule.IsValid(name)))
+            return new(false, RsnRule.Message, request.ParticipantId);
         var validation = await RequiredAccountValidation.ValidateAsync(new WiseOldManAccountValidationRequest(
             request.ActorAccountId,
             creating ? "participant.create" : "participant.edit",
@@ -1793,22 +1802,10 @@ public sealed partial class SignupService(
 
     public async Task<ParticipantLifecycleResult> WithdrawAsync(Guid eventId, Guid participantId, Guid? actorAccountId, string actorName, bool byAdmin, string? privateNote, long? expectedMembershipVersion, CancellationToken cancellationToken = default)
     {
-        if (byAdmin && actorAccountId is { } postDraftActor)
-        {
-            var phase = await dbContext.Events.AsNoTracking()
-                .Where(x => x.Id == eventId && x.HiddenAt == null)
-                .Select(x => new { x.State, x.DraftLocked }).SingleOrDefaultAsync(cancellationToken);
-            if (phase is { State: EventState.SignupClosed, DraftLocked: true })
-            {
-                var result = await RemoveFinalizedRosterParticipantAsync(new FinalizedRosterRemoveRequest(
-                    eventId, participantId, postDraftActor, actorName, Confirmed: true, ExpectedMembershipVersion: expectedMembershipVersion), cancellationToken);
-                return new(result.Succeeded, result.Error, null, null, result.Changed);
-            }
-            if (phase is { State: EventState.Live })
-            {
-                return new(false, "Roster membership is fixed after the event first goes Live.");
-            }
-        }
+        // S5: after the draft starts, Participants withdrawal is locked. There is no
+        // silent reroute to finalized-roster removal; that stays on Teams.
+        if (byAdmin && await dbContext.Events.AsNoTracking().AnyAsync(x => x.Id == eventId && x.HiddenAt == null && x.State == EventState.Live, cancellationToken))
+            return new(false, "Roster membership is fixed after the event first goes Live.");
         await using var tx = await dbContext.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken);
         var bingoEvent = await LockEventAsync(eventId, cancellationToken);
         var participant = await dbContext.EventParticipants.SingleOrDefaultAsync(x => x.EventId == eventId && x.Id == participantId, cancellationToken);
@@ -1854,13 +1851,14 @@ public sealed partial class SignupService(
         if (byAdmin && participant.AccountId is { } owner) AddNotification(owner, "participant.withdrawn", "Your signup was withdrawn by an administrator.", Route(bingoEvent, participant.Id), now, bingoEvent.Id);
         // The promotion count is a SQL query. Flush the withdrawal first while retaining the enclosing transaction,
         // otherwise PostgreSQL still counts this former confirmed participant as occupying the place.
+        var promotedIds = new List<Guid>();
         if (prior == SignupStatus.Confirmed)
         {
             await dbContext.SaveChangesAsync(cancellationToken);
-            await PromoteWithinLockedEventAsync(bingoEvent, actorAccountId, actorName, byAdmin ? "Admin withdrawal" : "participant withdrawal", cancellationToken);
+            await PromoteWithinLockedEventAsync(bingoEvent, actorAccountId, actorName, byAdmin ? "Admin withdrawal" : "participant withdrawal", cancellationToken, promotedIds);
         }
         await dbContext.SaveChangesAsync(cancellationToken); await tx.CommitAsync(cancellationToken);
-        return new(true, null, SignupStatus.Withdrawn, null, true);
+        return new(true, null, SignupStatus.Withdrawn, null, true, EffectiveParticipantCap: bingoEvent.ParticipantCap, PromotedParticipantIds: promotedIds);
     }
 
     public Task<LiveParticipantResult> WithdrawLiveAsync(LiveWithdrawalRequest request, CancellationToken cancellationToken = default) =>
@@ -1943,7 +1941,7 @@ public sealed partial class SignupService(
             foreach (var recipient in recipients)
             {
                 var route = adminRecipients.Contains(recipient)
-                    ? $"/Admin/Events/Participant/{request.EventId}/Participants/{participant.Id}"
+                    ? $"/Admin/Events/Participants/{request.EventId}?participant={participant.Id}"
                     : $"/Events/{Uri.EscapeDataString(bingoEvent.Slug)}/Teams";
                 await AddNotificationOnceAsync("live-withdrawal", membership.Id, recipient, preLive ? "participant.prelive_withdrawn" : "participant.live_withdrawn", detail, route, now, request.EventId, cancellationToken);
             }
@@ -2530,7 +2528,7 @@ public sealed partial class SignupService(
             await dbContext.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
             return new(true, ParticipantId: participant.Id, Status: SignupStatus.Confirmed,
-                EffectiveParticipantCap: bingoEvent.ParticipantCap, Changed: true);
+                EffectiveParticipantCap: bingoEvent.ParticipantCap, Changed: true, AddedPlace: full);
         }
         catch (Exception exception) when (IsExpectedConflict(exception) && !cancellationToken.IsCancellationRequested)
         {
@@ -2726,10 +2724,9 @@ public sealed partial class SignupService(
             return new(false, "The current event version is required. Reload before restoring the participant.");
         if (request.ExpectedResponseVersion is null)
             return new(false, "The current participant version is required. Reload before restoring the participant.");
-        var validation = await PrevalidateReacquireNamesAsync(
-            request.EventId, request.ParticipantId, request.ActorAccountId, true, request.ActorAccountId,
-            null, request.WomValidationConfirmationToken, cancellationToken);
-        if (validation.Failure is not null) return validation.Failure;
+        // D3 / P-7 (RL-1): admin Restore reacquires the participant's stored event
+        // accounts. It makes no Wise Old Man request; reservation, eligibility and
+        // capacity are decided under the locks below.
 
         await using var tx = await dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
         try
@@ -2749,15 +2746,13 @@ public sealed partial class SignupService(
                 return new(false, "The event changed while you were editing it. Reload before restoring the participant.");
             if (!await DirectSignupParticipants(request.EventId).AnyAsync(x => x.Id == participant.Id, cancellationToken))
                 return new(false, "That participant is managed by the finalized/direct roster workflow.");
-            if (validation.ExpectedVersion is { } expectedVersion && participant.ResponseVersion != expectedVersion)
-                return new(false, "This participant changed while you were editing it. Reload and try again.");
             if (participant.ResponseVersion != request.ExpectedResponseVersion.Value)
                 return new(false, "This participant changed while you were editing it. Reload and try again.");
             if (participant.SignupStatus != SignupStatus.Withdrawn)
                 return new(true, null, participant.SignupStatus,
                     participant.SignupStatus == SignupStatus.WaitingList
                         ? await GetWaitingPositionAsync(participant.Id, request.EventId, cancellationToken) : null,
-                    false);
+                    false, EffectiveParticipantCap: bingoEvent.ParticipantCap);
 
             var now = ParticipantAttributionLock.AtDatabasePrecision(timeProvider.GetUtcNow());
             var capacity = bingoEvent.ParticipantCap;
@@ -2775,8 +2770,6 @@ public sealed partial class SignupService(
             else if (!full && request.ExpandCapacityWhenFull)
                 return new(false, "The add-one-place option is available only when the event is full.");
 
-            if (validation.Names is not null && !SameNames(validation.Names, await LoadReacquireNamesAsync(participant, cancellationToken)))
-                return new(false, "The reacquired accounts changed while you were editing it. Please reload and try again.");
             if (!await ReacquireAssignmentsAsync(participant, authorizedActor.Id, now, cancellationToken))
                 return new(false, "One of this participant's accounts is now assigned to another participant.");
             // Do not mutate the tracked event until account reacquisition has
@@ -2800,7 +2793,7 @@ public sealed partial class SignupService(
             await tx.CommitAsync(cancellationToken);
             return new(true, null, status,
                 status == SignupStatus.WaitingList ? await GetWaitingPositionAsync(request.ParticipantId, request.EventId, cancellationToken) : null,
-                true, request.WomValidationConfirmationToken);
+                true, null, bingoEvent.ParticipantCap, full && request.ExpandCapacityWhenFull);
         }
         catch (Exception exception) when (IsExpectedConflict(exception) && !cancellationToken.IsCancellationRequested)
         {
@@ -2881,7 +2874,7 @@ public sealed partial class SignupService(
 
     private sealed record ReacquirePrevalidation(ParticipantLifecycleResult? Failure, IReadOnlyList<string>? Names, int? ExpectedVersion);
 
-    private async Task<int> PromoteWithinLockedEventAsync(Domain.Events.BingoEvent bingoEvent, Guid? actorAccountId, string actorName, string trigger, CancellationToken cancellationToken)
+    private async Task<int> PromoteWithinLockedEventAsync(Domain.Events.BingoEvent bingoEvent, Guid? actorAccountId, string actorName, string trigger, CancellationToken cancellationToken, List<Guid>? promotedIds = null)
     {
         if (bingoEvent.DraftLocked) return 0;
         var confirmed = await SignupParticipants(bingoEvent.Id).CountAsync(participant => participant.SignupStatus == SignupStatus.Confirmed, cancellationToken);
@@ -2901,6 +2894,7 @@ public sealed partial class SignupService(
             .ToListAsync(cancellationToken);
         foreach (var participant in waiting)
         {
+            promotedIds?.Add(participant.Id);
             participant.Promote(now);
             AddAudit(actorAccountId, actorName, "participant.promoted", participant, bingoEvent.Id, SignupStatus.WaitingList.ToString(), SignupStatus.Confirmed.ToString());
             if (participant.AccountId is { } owner) AddNotification(owner, "participant.promoted", $"Your signup for {bingoEvent.Name} is confirmed.", Route(bingoEvent, participant.Id), now, bingoEvent.Id);

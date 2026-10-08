@@ -10,10 +10,16 @@ async function until(page,fn){for(let i=0;i<200;i++)if(await page.evaluate(fn))r
  const name=process.env.PLAYWRIGHT_BROWSER||'chromium',engine=name==='webkit'?webkit:chromium,output=path.join(process.cwd(),'artifacts/page-conformance-'+name);
  const pages=registrations.filter(p=>!process.env.BINGO_CONFORMANCE_PAGES||process.env.BINGO_CONFORMANCE_PAGES.split(',').includes(p.family));
  assert.ok(pages.length,'at least one registered family selected');
- const fixture=await startFixture(process.cwd(),output),records=[];let browser;
+ // A page may need opt-in fixture data (registration.fixtureEnv); each distinct environment
+ // gets its own fixture, so other pages keep the accepted fixture.
+ const groups=[...new Set(pages.map(p=>JSON.stringify(p.fixtureEnv||{})))];
+ const records=[];let browser,fixture;
  try{
   browser=await engine.launch({headless:true,...(name==='chromium'?{channel:process.env.PLAYWRIGHT_CHANNEL||'chromium'}:{})});
+  fs.mkdirSync(output,{recursive:true});
   fs.writeFileSync(path.join(output,'design-checks.json'),JSON.stringify(await checkSources(browser,pages),null,2)+'\n');
+  for(const group of groups){
+  fixture=await startFixture(process.cwd(),output,JSON.parse(group));
   const context=await browser.newContext({reducedMotion:'no-preference'}),refs=await browser.newContext({reducedMotion:'reduce'});
   const signed=await login(context,fixture);await signed.close();const storageState=await context.storageState();
   const paths=Object.fromEntries(registrations.map(p=>[p.family,p.url(fixture)]));
@@ -41,9 +47,11 @@ async function until(page,fn){for(let i=0;i<200;i++)if(await page.evaluate(fn))r
    const lineRows=[...root.querySelectorAll(Object.keys(typography).map(c=>'.'+c).join(','))].map(e=>{const [font,line,min=0]=typography[e.className];return{className:e.className,row:rect(e),bar:rect(e.querySelector('.sk')),expectedLine:Math.max(min,parseFloat(getComputedStyle(e).getPropertyValue('--dk-fs-'+font))*line)};});
    return{title:rect(root.querySelector('.h1')),summary:rect(root.querySelector('.summary')),summaryLine:parseFloat(getComputedStyle(root.querySelector('.summary')).lineHeight),head:rect(root.querySelector('.page-head')),blocks:Object.fromEntries(Object.entries(selectors).map(([k,s])=>[k,rect(root.querySelector(s))])),bars,oneLine,wrapGrowth,lineRows};
   },{family,selectors:selectors[family],typography:registrations.find(p=>p.family===family).textRows});
-  for(const registration of pages){
+  for(const registration of pages.filter(p=>JSON.stringify(p.fixtureEnv||{})===group)){
    const {family}=registration;
    const ref=await referencePage(refs,fixture,process.cwd(),registration.reference);
+   // A reference that opens on another event shows that event's state (registration.referenceEvent).
+   if(registration.referenceEvent)await ref.evaluate(slug=>new Promise(resolve=>__parityReference.setState({slug,snap:JSON.parse(JSON.stringify(__parityReference.world[slug]))},resolve)),registration.referenceEvent);
    const html=await(await context.request.get(fixture.origin+paths[family])).text();
    for(const width of[390,494,860,1280,1440])for(const presentation of family==='dashboard'?['normal','one-line','wrapped']:['normal']){
     const caseContext=await browser.newContext({storageState,reducedMotion:'no-preference'});const page=await caseContext.newPage(),pageErrors=[];page.on('pageerror',error=>pageErrors.push(error.message));await page.setViewportSize({width,height:1000});await ref.setViewportSize({width,height:1000});
@@ -70,7 +78,7 @@ async function until(page,fn){for(let i=0;i<200;i++)if(await page.evaluate(fn))r
     close(loading.summary.height,loading.summaryLine*(width<=640?2:1),'U3-Q6 phone/wide summary reservation');
     close(loading.head.x,loaded.head.x,'header x');close(loading.head.y,loaded.head.y,'header y');close(loading.head.width,loaded.head.width,'header width');
     close(loading.title.x,loaded.title.x,'title x');close(loading.title.height,loaded.title.height,'title line height');
-    if(family!=='dashboard'){close(delta,loaded.summary.height-loading.summary.height,'only summary growth changes header');close(loading.title.y,loaded.title.y,'title y');}
+    if(family!=='dashboard'){close(delta,loaded.summary.height-loading.summary.height+(registration.headerGrowth?.[width]??0),'only summary growth'+(registration.headerGrowth?.[width]?' plus the registered '+registration.headerGrowth[width]+' px header growth':'')+' changes header');close(loading.title.y,loaded.title.y,'title y');}
     for(const k of Object.keys(shifts))for(const axis of['x','yBeyondHeader','width'])close(shifts[k][axis],family==='dashboard'&&k==='section'&&axis==='yBeyondHeader'?loaded.wrapGrowth:0,family+' '+width+' '+presentation+' '+k+' '+axis);
     if(family==='dashboard'){
      close(loading.blocks.stats.height,loaded.oneLine.height,'one-line statistic reservation');
@@ -88,11 +96,20 @@ async function until(page,fn){for(let i=0;i<200;i++)if(await page.evaluate(fn))r
     await page.evaluate(()=>window.fetch=geometryFetch);
     if(width===1280&&presentation==='normal')await checkFast(page,registration,paths,html);
     await page.clock.resume();await checkDocument(page,registration,width);
-    if(width===1280&&presentation==='normal'){await checkUpdate(page,registration);await checkDanish(page,registration,fixture,paths);}
+    if(width===1280&&presentation==='normal'){
+     // The in-place update probe may live on another state of the same page (update.url).
+     if(registration.update.url){await page.goto(fixture.origin+registration.update.url(fixture));await page.locator(registration.update.control).waitFor({state:'attached'});}
+     const {url:updateUrl,...update}=registration.update;void updateUrl;
+     await checkUpdate(page,{...registration,update});
+     if(updateUrl){await page.goto(fixture.origin+paths[family]);await page.locator(registration.style[0]).first().waitFor();}
+     await checkDanish(page,registration,fixture,paths);
+    }
     assert.deepEqual(pageErrors,[],family+': no page errors');await caseContext.close();
    }
    await ref.close();
   }
+  await context.close();await refs.close();await fixture.close();fixture=null;
+  }
   console.log('PASS '+records.length+' registered page geometry cases plus frame/style, no-fade, document, update and Danish checks');
- }finally{await browser?.close();await fixture.close();fs.writeFileSync(path.join(output,'positions.json'),JSON.stringify(records,null,2));}
+ }finally{await browser?.close();await fixture?.close();fs.writeFileSync(path.join(output,'positions.json'),JSON.stringify(records,null,2));}
 })().catch(error=>{console.error(error);process.exitCode=1;});

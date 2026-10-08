@@ -134,7 +134,7 @@ async function checkSources(browser, registrations) {
   const page=await browser.newPage(),designChecks=[];
   const shared=fs.readFileSync('src/Bingo.Web/Resources/SharedResource.da.resx','utf8'),community=fs.readFileSync('src/Bingo.Web/Resources/AdminCommunityResource.da.resx','utf8');
   const resources=await page.evaluate(({shared,community})=>Object.fromEntries(Object.entries({T:shared,D:community}).map(([alias,xml])=>[alias,[...new DOMParser().parseFromString(xml,'text/xml').querySelectorAll('data')].filter(e=>e.querySelector('value')?.textContent.trim()).map(e=>e.getAttribute('name'))])),{shared,community});
-  try { for(const {family,source:pageSource,module,postSaveCount} of registrations) {
+  try { for(const {family,source:pageSource,module,postSaveCount,backgroundPostCount} of registrations) {
     const source=fs.readFileSync('src/Bingo.Web/wwwroot/css/admin-design-'+family+'.css','utf8');
     const bad=await page.evaluate(({source,family})=>{
       const style=document.createElement('style');style.textContent=source;document.head.append(style);const bad=[];
@@ -149,7 +149,7 @@ async function checkSources(browser, registrations) {
     assert.deepEqual(keys.filter(([,alias,key])=>!resources[alias].includes(key)).map(([,alias,key])=>alias+':'+key),[],family+': literal Danish resources');
     assert.match(markup,/class=\"(?:card|.*\bcard\b)|<partial /,family+': shared components');
     assert.ok(/export (?:async )?function init\(/.test(moduleSource),family+': exported init');assert.ok(/export (?:async )?function dispose\(/.test(moduleSource),family+': exported dispose');
-    checkSaveTiming(moduleSource,{family,postSaveCount});
+    checkSaveTiming(moduleSource,{family,postSaveCount,backgroundPostCount});
     designChecks.push({family,frozen:true,scopedRules:true,sharedTokens:true,inlineGeometryOccurrences:(markup.match(/style=/g)||[]).length,literalDanishKeys:keys.length,sharedComponents:true,sharedBusy: /ui\.busy\(/.test(moduleSource)?'used':'no save in this module',sharedLifecycle:true});
   }} finally {await page.close();}
   return designChecks;
@@ -212,8 +212,10 @@ async function checkLoadingSummary(page, registration) {
   const bars=summary.locator('.tab-count[data-pending-count] > .sk');
   const numberItems=registration.countSummary.numberItems||words.map((_,i)=>i);
   assert.ok(numberItems.every(i=>Number.isInteger(i)&&i>=0&&i<words.length)&&new Set(numberItems).size===numberItems.length,registration.family+': declared numeric summary items');
-  assert.equal(await bars.count(),numberItems.length,registration.family+': same numeric placeholders as tabs');
-  for(let i=0;i<words.length;i++)assert.equal(await summary.locator(':scope > span').nth(i).locator('.tab-count[data-pending-count] > .sk').count(),numberItems.includes(i)?1:0,registration.family+': placeholder in declared numeric item '+i);
+  // U5: an item may hold more than one number ("58 of 60 confirmed"); numberCounts declares how many.
+  const expected=i=>registration.countSummary.numberCounts?.[i]??(numberItems.includes(i)?1:0);
+  assert.equal(await bars.count(),words.reduce((sum,_,i)=>sum+expected(i),0),registration.family+': same numeric placeholders as tabs');
+  for(let i=0;i<words.length;i++)assert.equal(await summary.locator(':scope > span').nth(i).locator('.tab-count[data-pending-count] > .sk').count(),expected(i),registration.family+': placeholder in declared numeric item '+i);
   assert.equal(await summary.locator('button,.summary-btn,b').count(),0,registration.family+': no data-dependent attention or numbers before response');
   const boxes=await summary.locator('.tab-count[data-pending-count]').evaluateAll(nodes=>nodes.map(e=>{const c=getComputedStyle(e),b=e.querySelector('.sk').getBoundingClientRect();return {display:c.display,width:e.getBoundingClientRect().width,barWidth:b.width,barHeight:b.height,text:e.textContent.trim()};}));
   assert.ok(boxes.every(b=>b.display==='inline-flex'&&b.width>0&&Math.abs(b.barWidth-b.width)<0.1&&b.barHeight===10&&b.text===''),registration.family+': number-sized bars');
@@ -237,10 +239,17 @@ module.exports.checkRegisteredLinks=checkRegisteredLinks;
 // Count every POST transport, then verify its busy boundary. Concise shared
 // helpers return the busy promise; conditional GET/POST helpers are checked at
 // every write call. Search/query timers are outside these save paths.
-function checkSaveTiming(source, {family,postSaveCount}) {
+// A declared background POST (marked `/* background POST */` on its line, e.g. the
+// Board's edit-lease renewal) is not a user save: it is counted separately and must
+// not show the shared busy state. Pages declare none by default.
+function checkSaveTiming(source, {family,postSaveCount,backgroundPostCount=0}) {
   assert.ok(Number.isInteger(postSaveCount)&&postSaveCount>=0,family+': POST save count declared');
   const lines=source.split('\n');
-  const writes=lines.filter(line=>/AdminFetch\.request\(/.test(line)&&/method:\s*(?:['"]POST['"]|\w+\s*\?\s*['"]POST['"])/.test(line));
+  const posts=lines.filter(line=>/AdminFetch\.request\(/.test(line)&&/method:\s*(?:['"]POST['"]|\w+\s*\?\s*['"]POST['"])/.test(line));
+  const background=posts.filter(line=>line.includes('/* background POST */'));
+  assert.equal(background.length,backgroundPostCount,family+': declared background POST paths');
+  for(const line of background)assert.doesNotMatch(line,/ui\.busy\(|setTimeout\(/,family+': background POST shows no busy state');
+  const writes=posts.filter(line=>!background.includes(line));
   assert.equal(writes.length,postSaveCount,family+': declared POST save paths');
   for(const write of writes){
     assert.doesNotMatch(write,/setTimeout\(/,family+' save has no local busy timer');

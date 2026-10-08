@@ -334,10 +334,10 @@ public sealed class Slice7Pass71IntegrationTests : IAsyncLifetime
         Assert.Equal(now, await db.Submissions.AsNoTracking().Where(x => x.Id == second.Id).Select(x => x.SubmittedAt).SingleAsync());
         var submissions = new Bingo.Infrastructure.Evidence.SubmissionService(db, new NoopEvidenceStorage(), new FixedTimeProvider(now), focus: focus, focusNotifier: notifier);
 
-        Assert.Equal(2, (await submissions.ApproveAsync(first.Id, fixture.OwnerId)).ApprovedContribution);
+        Assert.Equal(2, (await submissions.ApproveCurrentAsync(first.Id, fixture.OwnerId)).ApprovedContribution);
         var afterFirst = await db.TeamFocusMarkers.SingleAsync(x => x.BoardTileId == fixture.TileId);
         Assert.True(afterFirst.Focused);
-        Assert.Equal(1, (await submissions.ApproveAsync(second.Id, fixture.OwnerId)).ApprovedContribution);
+        Assert.Equal(1, (await submissions.ApproveCurrentAsync(second.Id, fixture.OwnerId)).ApprovedContribution);
         var completed = await db.TeamFocusMarkers.SingleAsync(x => x.BoardTileId == fixture.TileId);
         Assert.False(completed.Focused);
         Assert.Equal(2, completed.Version);
@@ -359,7 +359,7 @@ public sealed class Slice7Pass71IntegrationTests : IAsyncLifetime
         Assert.DoesNotContain(projected!.Markers, marker => marker.TargetKind == TeamFocusTargetKind.Tile);
         Assert.Contains(projected.Markers, marker => marker.TargetKind == TeamFocusTargetKind.Row && marker.Focused);
         Assert.Contains(projected.Markers, marker => marker.TargetKind == TeamFocusTargetKind.Column && marker.Focused);
-        await submissions.ReverseAsync(first.Id, fixture.OwnerId, "Reverse first approval");
+        await submissions.ReverseCurrentAsync(first.Id, fixture.OwnerId, "Reverse first approval");
         var afterReverse = await db.TeamFocusMarkers.SingleAsync(x => x.BoardTileId == fixture.TileId);
         Assert.False(afterReverse.Focused);
         Assert.Equal(4, afterReverse.Version);
@@ -444,7 +444,8 @@ public sealed class Slice7Pass71IntegrationTests : IAsyncLifetime
 
         Assert.False(result.Succeeded);
         Assert.Contains("Playing assignment", result.Error, StringComparison.Ordinal);
-        Assert.Equal($"/Admin/Events/Participant/{fixture.EventId}/Participants/{fixture.ParticipantId}", Assert.Single(readiness!.Blockers, x => x.Code == "PARTICIPANT_PLAYING_ASSIGNMENT_INVALID").Route);
+        // A10 (U5 item 1c, A2): the readiness blocker links to the Participants drawer URL.
+        Assert.Equal($"/Admin/Events/Participants/{fixture.EventId}?participant={fixture.ParticipantId}", Assert.Single(readiness!.Blockers, x => x.Code == "PARTICIPANT_PLAYING_ASSIGNMENT_INVALID").Route);
         Assert.Equal(EventState.SignupClosed, (await db.Events.SingleAsync(x => x.Id == fixture.EventId)).State);
         Assert.Empty(await db.EventParticipantCharacterSwaps.Where(x => x.EventParticipantId == fixture.ParticipantId).ToListAsync());
     }

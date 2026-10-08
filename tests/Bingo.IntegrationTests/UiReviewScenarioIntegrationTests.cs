@@ -86,7 +86,7 @@ public sealed class UiReviewScenarioIntegrationTests(ITestOutputHelper output, P
         var readiness = await scope.ServiceProvider.GetRequiredService<IEventLifecycleService>().GetStartReadinessAsync(closed.Id);
         Assert.Contains(readiness!.Blockers, value => value.Code == "CURRENT_EVENT_EXISTS");
         var owner = await db.Accounts.SingleAsync(value => value.LoginName == "ReviewOwner");
-        var refusal = await scope.ServiceProvider.GetRequiredService<ISubmissionService>().ApproveAsync(result.BlockedSubmissionId, owner.Id);
+        var refusal = await scope.ServiceProvider.GetRequiredService<ISubmissionService>().ApproveCurrentAsync(result.BlockedSubmissionId, owner.Id);
         Assert.NotNull(refusal.BlockingSubmission);
         Assert.Equal(0, refusal.ApprovedContribution);
         var lifecycle = new EventLifecycleService(db, scope.ServiceProvider.GetRequiredService<IEventSignupLifecycleService>(), new ReviewClock());
@@ -94,7 +94,8 @@ public sealed class UiReviewScenarioIntegrationTests(ITestOutputHelper output, P
         Assert.False(deniedStart.Succeeded);
         Assert.Contains(deniedStart.Blockers!, value => value.Code == "CURRENT_EVENT_EXISTS");
         var frozenImportId = events.Single(value => value.Slug == "ur-imported").Id;
-        Assert.False(await db.SubmissionContributions.AnyAsync(value => !db.Teams.Any(team => team.Id == value.TeamId && team.EventId == frozenImportId)));
+        // U8 1d (A10, same invariant): no active contribution outside the frozen import; the seeded Reversed review record keeps only a reversed one.
+        Assert.False(await db.SubmissionContributions.AnyAsync(value => value.ReversedAt == null && !db.Teams.Any(team => team.Id == value.TeamId && team.EventId == frozenImportId)));
         Assert.True((await db.Boards.SingleAsync(value => value.EventId == current.Id)).PublishedCorrectionInProgress);
         Assert.Equal(2, await db.DraftPublicationRosters.Where(value => db.Teams.Any(team => team.Id == value.TeamId && team.EventId == current.Id && team.AffiliationName != null)).Select(value => value.TeamId).Distinct().CountAsync());
         Assert.True(await db.TeamMemberships.AnyAsync(value => value.LeftAt != null));
@@ -586,7 +587,15 @@ public sealed class UiReviewScenarioIntegrationTests(ITestOutputHelper output, P
             foreach (var link in links)
             {
                 using var response = await clients[link.Username].GetAsync(new Uri(link.Url).PathAndQuery);
-                Assert.True(response.StatusCode == HttpStatusCode.OK, $"{scenarios.Profile}: {link.Username} GET {link.Url} returned {(int)response.StatusCode}");
+                if (link.ExpectedRedirectTo is { } expected)
+                {
+                    Assert.True(response.StatusCode == HttpStatusCode.Redirect, $"{scenarios.Profile}: {link.Username} GET {link.Url} returned {(int)response.StatusCode}, expected 302");
+                    var location = response.Headers.Location!;
+                    var actual = location.IsAbsoluteUri ? location.PathAndQuery : location.OriginalString;
+                    Assert.Equal(expected, actual);
+                }
+                else
+                    Assert.True(response.StatusCode == HttpStatusCode.OK, $"{scenarios.Profile}: {link.Username} GET {link.Url} returned {(int)response.StatusCode}");
                 if (link.Hidden)
                 {
                     using var refused = await clients["ReviewAdmin"].GetAsync(new Uri(link.Url).PathAndQuery);

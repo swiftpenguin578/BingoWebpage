@@ -29,6 +29,7 @@ public static class SafeUserFailure
         "Your username change conflicted with another update. Please reload and try again.",
         "An OSRS character name is required.",
         "An OSRS character name must be 100 characters or fewer.",
+        Bingo.Domain.Access.RsnRule.Message, // U5-Q4
         "That character is already in your My Accounts list.",
         "That character is no longer available in your My Accounts list.",
         "That move is not available.",

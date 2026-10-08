@@ -41,7 +41,7 @@ public sealed partial class SubmissionWorkflowTests
         await using var db = new ApplicationDbContext(options);
         var service = Service(db);
         var first = await service.CreateAsync(Command(setup));
-        await service.ApproveAsync(first.SubmissionId, setup.AdminId);
+        await service.ApproveCurrentAsync(first.SubmissionId, setup.AdminId);
         var original = await db.Submissions.AsNoTracking().SingleAsync(x => x.Id == first.SubmissionId);
         var teamB = new Team(Guid.NewGuid(), setup.EventId, "Team Two", "team-two", TeamFormationType.Drafted, null, true);
         teamB.Finalize(now.AddDays(-1));
@@ -58,7 +58,7 @@ public sealed partial class SubmissionWorkflowTests
             setup.ParticipantId, original.CreditedOsrsCharacterId, original.CreditedCharacterName, setup.AdminId, 2, now.AddSeconds(2), null, null);
         db.Submissions.Add(second);
         await db.SaveChangesAsync();
-        await Service(db, new FixedTimeProvider(now.AddSeconds(3))).ApproveAsync(second.Id, setup.AdminId);
+        await Service(db, new FixedTimeProvider(now.AddSeconds(3))).ApproveCurrentAsync(second.Id, setup.AdminId);
         var clock = new FixedTimeProvider(now.AddHours(5));
         var ev = await db.Events.SingleAsync(x => x.Id == setup.EventId);
         ev.SetBoardPublication(true, now.AddDays(-1));
@@ -204,19 +204,19 @@ public sealed partial class SubmissionWorkflowTests
         await using var db = new ApplicationDbContext(options);
         var first = await Service(db).CreateAsync(Command(setup));
         var second = await Service(db, new FixedTimeProvider(now.AddSeconds(1))).CreateAsync(Command(setup));
-        Assert.Equal(2, (await Service(db).ApproveAsync(first.SubmissionId, setup.AdminId)).ApprovedContribution);
+        Assert.Equal(2, (await Service(db).ApproveCurrentAsync(first.SubmissionId, setup.AdminId)).ApprovedContribution);
         var read = (await Service(db).GetReviewReadbackAsync(second.SubmissionId, setup.AdminId)).State!;
         Assert.Null(read.Contribution.BlockingSubmission);
         Assert.Equal(new SubmissionContributionNumbers(expectedAdd, 2, 6, 2, 8, false), read.Contribution.Values);
         if (expectedAdd == 0)
         {
             var baseline = await B5EvidenceStateAsync();
-            await Assert.ThrowsAsync<InvalidOperationException>(() => Service(db).ApproveAsync(second.SubmissionId, setup.AdminId));
+            await Assert.ThrowsAsync<InvalidOperationException>(() => Service(db).ApproveCurrentAsync(second.SubmissionId, setup.AdminId));
             Assert.Equal(baseline, await B5EvidenceStateAsync());
         }
         else
         {
-            Assert.Equal(expectedAdd, (await Service(db).ApproveAsync(second.SubmissionId, setup.AdminId)).ApprovedContribution);
+            Assert.Equal(expectedAdd, (await Service(db).ApproveCurrentAsync(second.SubmissionId, setup.AdminId)).ApprovedContribution);
             var approved = (await Service(db).GetReviewReadbackAsync(second.SubmissionId, setup.AdminId)).State!;
             Assert.Equal(SubmissionStatus.Approved, approved.Status);
             Assert.Equal(read.Contribution.Values, approved.Contribution.Values);
