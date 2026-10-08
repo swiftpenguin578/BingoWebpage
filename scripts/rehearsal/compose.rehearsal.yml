@@ -1,0 +1,151 @@
+# Disposable, isolated rehearsal project for scripts/rehearsal/local-rehearsal.sh.
+# Never use with production configuration: every value comes from the per-run
+# fixture env file the harness generates in its work directory.
+# The only network is internal (no egress) and no service publishes a port.
+services:
+  postgres:
+    image: ${REHEARSAL_POSTGRES_IMAGE:?harness sets the pinned PostgreSQL image}
+    environment:
+      POSTGRES_DB: bingo_rehearsal
+      POSTGRES_USER: bingo_rehearsal
+      POSTGRES_PASSWORD: ${REHEARSAL_POSTGRES_PASSWORD:?harness generates a fixture password}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - rehearsal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bingo_rehearsal -d bingo_rehearsal"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 5s
+
+  # Local HTTPS S3-compatible fixture (path-style, region "auto") with dummy keys.
+  # Its certificate is issued by the per-run fixture CA; the web container trusts
+  # that CA through SSL_CERT_FILE, so TLS validation stays enabled.
+  s3-fixture:
+    image: ${REHEARSAL_S3_IMAGE:?harness sets the pinned S3 fixture image}
+    command:
+      - --access
+      - ${REHEARSAL_S3_ACCESS_KEY:?harness generates fixture keys}
+      - --secret
+      - ${REHEARSAL_S3_SECRET_KEY:?harness generates fixture keys}
+      - --region
+      - auto
+      - --port
+      - ":7070"
+      - --cert
+      - /fixture/s3-fixture.crt
+      - --key
+      - /fixture/s3-fixture.key
+      - posix
+      - /data
+    volumes:
+      - s3-data:/data
+      - ${REHEARSAL_FIXTURE_DIR:?harness sets the fixture directory}/s3:/fixture:ro
+    networks:
+      rehearsal:
+        aliases:
+          - s3-fixture
+
+  # Wise Old Man refusal fixture: every request gets a deterministic 503 and the
+  # request is read only up to the end of its headers, then discarded.
+  wom-refusal:
+    image: ${REHEARSAL_POSTGRES_IMAGE:?harness sets the pinned PostgreSQL image}
+    entrypoint: ["nc", "-lk", "-p", "8080", "-e", "sh", "/fixture/wom-refusal.sh"]
+    volumes:
+      - ./fixtures/wom-refusal.sh:/fixture/wom-refusal.sh:ro
+    networks:
+      - rehearsal
+
+  web-init:
+    image: ${REHEARSAL_WEB_IMAGE:?harness sets the candidate image}
+    user: "0:0"
+    entrypoint: ["sh", "-c"]
+    command: ["mkdir -p /var/lib/bingo/data-protection-keys /var/lib/bingo/catalogue-images && chown -R 1654:1654 /var/lib/bingo/data-protection-keys /var/lib/bingo/catalogue-images"]
+    volumes:
+      - data-protection:/var/lib/bingo/data-protection-keys
+      - catalogue-images:/var/lib/bingo/catalogue-images
+    networks:
+      - rehearsal
+
+  web:
+    image: ${REHEARSAL_WEB_IMAGE:?harness sets the candidate image}
+    expose:
+      - "8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:8080
+      ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
+      AllowedHosts: web;127.0.0.1;localhost
+      ConnectionStrings__Database: Host=postgres;Port=5432;Database=bingo_rehearsal;Username=bingo_rehearsal;Password=${REHEARSAL_POSTGRES_PASSWORD}
+      EvidenceStorage__Provider: R2
+      EvidenceStorage__R2__AccountId: rehearsal-fixture
+      EvidenceStorage__R2__AccessKeyId: ${REHEARSAL_S3_ACCESS_KEY}
+      EvidenceStorage__R2__SecretAccessKey: ${REHEARSAL_S3_SECRET_KEY}
+      EvidenceStorage__R2__Bucket: bingo-rehearsal-evidence
+      EvidenceStorage__R2__ServiceUrl: https://s3-fixture:7070
+      SSL_CERT_FILE: /fixture-ca/ca.crt
+      WiseOldMan__BaseUrl: http://wom-refusal:8080/v2/
+      WiseOldMan__UserAgent: bingo-rehearsal-fixture
+      WiseOldMan__ApiKey: ""
+      WiseOldMan__TimeoutSeconds: "5"
+      DiscordAuthentication__ClientId: rehearsal-fixture-client
+      DiscordAuthentication__ClientSecret: rehearsal-fixture-secret
+      DataProtection__KeyRingPath: /var/lib/bingo/data-protection-keys
+      CatalogueImageCache__LocalPath: /var/lib/bingo/catalogue-images
+      CatalogueImageCache__SyncDelayMilliseconds: "500"
+    volumes:
+      - data-protection:/var/lib/bingo/data-protection-keys
+      - catalogue-images:/var/lib/bingo/catalogue-images
+      - ${REHEARSAL_FIXTURE_DIR}/ca:/fixture-ca:ro
+    networks:
+      - rehearsal
+    depends_on:
+      postgres:
+        condition: service_healthy
+      s3-fixture:
+        condition: service_started
+      wom-refusal:
+        condition: service_started
+      web-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "dotnet", "Bingo.Web.dll", "--health-probe"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+
+  # One-shot tools on the same internal network (never started by "up").
+  probe:
+    image: ${REHEARSAL_POSTGRES_IMAGE:?harness sets the pinned PostgreSQL image}
+    profiles: ["tools"]
+    entrypoint: ["sh", "-c"]
+    networks:
+      - rehearsal
+
+  s3-tool:
+    image: ${REHEARSAL_AWSCLI_IMAGE:?harness sets the pinned AWS CLI image}
+    profiles: ["tools"]
+    environment:
+      AWS_ACCESS_KEY_ID: ${REHEARSAL_S3_ACCESS_KEY}
+      AWS_SECRET_ACCESS_KEY: ${REHEARSAL_S3_SECRET_KEY}
+      AWS_DEFAULT_REGION: auto
+      AWS_CA_BUNDLE: /fixture-ca/ca.crt
+      AWS_CONFIG_FILE: /fixture-ca/aws-config
+      AWS_EC2_METADATA_DISABLED: "true"
+    volumes:
+      - ${REHEARSAL_FIXTURE_DIR}/ca:/fixture-ca:ro
+    networks:
+      - rehearsal
+
+networks:
+  rehearsal:
+    internal: true
+
+volumes:
+  postgres-data:
+  s3-data:
+  data-protection:
+  catalogue-images:
