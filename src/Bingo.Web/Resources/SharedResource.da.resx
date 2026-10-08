@@ -4222,4 +4222,35 @@
   <data name="This decision wasn&#x27;t saved because the page didn&#x27;t say which version you reviewed. Reload the submission and try again." xml:space="preserve"><value>Beslutningen blev ikke gemt, fordi siden ikke angav, hvilken version du gennemgik. Genindlæs indsendelsen, og prøv igen.</value></data>
   <data name="Confirm this decision before it is saved. Nothing was changed." xml:space="preserve"><value>Bekræft beslutningen, før den gemmes. Intet blev ændret.</value></data>
   <data name="This evidence changed in another request. Reload it and review the latest version before saving." xml:space="preserve"><value>Dokumentationen blev ændret i en anden anmodning. Genindlæs den, og gennemgå den nyeste version, før du gemmer.</value></data>
+  <data name="Account not found." xml:space="preserve"><value>Kontoen blev ikke fundet.</value></data>
+  <data name="Administrators cannot create evidence submissions." xml:space="preserve"><value>Administratorer kan ikke oprette indsendelser.</value></data>
+  <data name="New submissions are not currently open." xml:space="preserve"><value>Der kan ikke indsendes nyt lige nu.</value></data>
+  <data name="Evidence codes are enabled, but no code is active at the current time. Ask an administrator to activate one before submitting." xml:space="preserve"><value>Dokumentationskoder er slået til, men ingen kode er aktiv lige nu. Bed en administrator om at aktivere en, før du indsender.</value></data>
+  <data name="Submission not found." xml:space="preserve"><value>Indsendelsen blev ikke fundet.</value></data>
+  <data name="Administrators use the review correction path for this submission." xml:space="preserve"><value>Administratorer retter denne indsendelse via gennemgangen.</value></data>
+  <data name="Submissions are not currently open." xml:space="preserve"><value>Indsendelser er ikke åbne lige nu.</value></data>
+  <data name="Only a pending submission can be corrected." xml:space="preserve"><value>Kun en afventende indsendelse kan rettes.</value></data>
+  <data name="Submission metadata corrected." xml:space="preserve"><value>Indsendelsens oplysninger er rettet.</value></data>
+  <data name="Submission evidence replaced." xml:space="preserve"><value>Indsendelsens dokumentation er erstattet.</value></data>
+  <data name="Administrators cannot withdraw submissions through the captain path." xml:space="preserve"><value>Administratorer kan ikke trække indsendelser tilbage via kaptajnens side.</value></data>
+  <data name="Only a pending submission can be withdrawn." xml:space="preserve"><value>Kun en afventende indsendelse kan trækkes tilbage.</value></data>
+  <data name="Only a pending submission can be approved." xml:space="preserve"><value>Kun en afventende indsendelse kan godkendes.</value></data>
+  <data name="The published objective is unavailable." xml:space="preserve"><value>Det offentliggjorte mål er ikke tilgængeligt.</value></data>
+  <data name="This objective has no remaining eligible contribution for this submission. It cannot be approved under the published objective rules." xml:space="preserve"><value>Målet har intet tilbage, som denne indsendelse kan bidrage med. Den kan ikke godkendes efter målets offentliggjorte regler.</value></data>
+  <data name="Only an approved submission can be reversed." xml:space="preserve"><value>Kun en godkendt indsendelse kan tilbageføres.</value></data>
+  <data name="Choose an unambiguous Playing character assigned in this event to a current or former member of this submission&#x27;s team." xml:space="preserve"><value>Vælg en entydig spillende konto, der i dette event er tildelt et nuværende eller tidligere medlem af indsendelsens hold.</value></data>
+  <data name="Evidence can only be reviewed while the event is Live or awaiting final review." xml:space="preserve"><value>Dokumentation kan kun gennemgås, mens eventet er live eller afventer endelig gennemgang.</value></data>
+  <data name="Team not found." xml:space="preserve"><value>Holdet blev ikke fundet.</value></data>
+  <data name="The credited player is not eligible for this team at the evidence time." xml:space="preserve"><value>Den krediterede spiller kunne ikke bidrage til dette hold på dokumentationstidspunktet.</value></data>
+  <data name="Choose a tile from the published event board." xml:space="preserve"><value>Vælg en tile fra eventets offentliggjorte plade.</value></data>
+  <data name="Choose a requirement from that tile." xml:space="preserve"><value>Vælg et mål fra den tile.</value></data>
+  <data name="Manual objectives do not use a drop." xml:space="preserve"><value>Manuelle mål bruger ikke et drop.</value></data>
+  <data name="Choose an eligible drop." xml:space="preserve"><value>Vælg et gyldigt drop.</value></data>
+  <data name="This drop has already reached its approved contribution limit." xml:space="preserve"><value>Dette drop har allerede nået sin grænse for godkendte bidrag.</value></data>
+  <data name="This objective has already been completed." xml:space="preserve"><value>Målet er allerede fuldført.</value></data>
+  <data name="Eligible aliases have inconsistent contribution caps; board approval is required before review can continue." xml:space="preserve"><value>Gyldige aliasser har forskellige bidragsgrænser; pladen skal godkendes, før gennemgangen kan fortsætte.</value></data>
+  <data name="Administrator access is required." xml:space="preserve"><value>Administratoradgang er påkrævet.</value></data>
+  <data name="Reason must be 4000 characters or fewer." xml:space="preserve"><value>Begrundelsen må højst være 4000 tegn.</value></data>
+  <data name="A written correction reason is required." xml:space="preserve"><value>En skriftlig begrundelse er påkrævet.</value></data>
+  <data name="This review was not saved because the event or evidence changed in another request. Reload the submission, review the latest state, and try again." xml:space="preserve"><value>Gennemgangen blev ikke gemt, fordi eventet eller dokumentationen blev ændret i en anden anmodning. Genindlæs indsendelsen, gennemgå den nyeste tilstand, og prøv igen.</value></data>
 </root>

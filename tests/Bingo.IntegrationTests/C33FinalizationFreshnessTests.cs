@@ -583,20 +583,16 @@ public sealed class C33FinalizationFreshnessTests : IAsyncLifetime
         Task<HttpResponseMessage> loser;
         try
         {
-            loser = client.PostAsync(form.Action, new FormUrlEncodedContent(fields));
+            loser = XhrAsync(client, form.Action, fields);
             await waiting.Reached.Task.WaitAsync(TimeSpan.FromSeconds(20));
         }
         finally { boundary.Release.TrySetResult(); }
         await winner;
+        // U8 in-place decisions (A10): the loser answers a definite "stale" outcome as JSON instead of a
+        // redirect with a TempData toast; nothing is written and the page re-reads the current record.
         using var result = await loser;
-        Assert.Equal(HttpStatusCode.Redirect, result.StatusCode);
-        var location = result.Headers.Location!.OriginalString;
-        Assert.StartsWith($"/Admin/Review/Details/{fixture.Replacement}?", location, StringComparison.Ordinal);
-        Assert.Contains($"eventId={fixture.EventId}", location);
-        Assert.Contains("search=C33", location);
-        Assert.Contains("status=Pending", location);
-        var html = WebUtility.HtmlDecode(await client.GetStringAsync(location));
-        AssertReviewConflictFeedback(html);
+        AssertReviewConflictFeedback(await OutcomeAsync(result));
+        var location = detailUrl;
         Assert.Equal(before, await SubmissionStateAsync(fixture.Replacement));
         Assert.Equal(version + 1, (await ReadinessAsync()).EventVersion);
         await using (var verify = new ApplicationDbContext(options))
@@ -605,18 +601,11 @@ public sealed class C33FinalizationFreshnessTests : IAsyncLifetime
         // Explicitly reload and submit the rendered current form, with no automatic retry.
         var fresh = Form(await client.GetStringAsync(location), handler);
         Assert.Equal(form.Fields["Input.ExpectedVersion"], fresh.Fields["Input.ExpectedVersion"]);
-        using var retry = await client.PostAsync(fresh.Action, new FormUrlEncodedContent(ReviewFields(fresh)));
-        Assert.Equal(HttpStatusCode.Redirect, retry.StatusCode);
-        var successHtml = WebUtility.HtmlDecode(await client.GetStringAsync(retry.Headers.Location!));
-        Assert.DoesNotContain("This review was not saved", successHtml);
-        Assert.DoesNotContain("app-toast-error", successHtml);
-        Assert.Contains(handler switch
-        {
-            "Approve" => "Approved with 1 contribution.",
-            "Reject" => "Submission rejected.",
-            "Reverse" => "Approval reversed and later contributions recalculated.",
-            _ => "Metadata corrected."
-        }, successHtml);
+        using var retry = await XhrAsync(client, fresh.Action, ReviewFields(fresh));
+        using var success = await OutcomeAsync(retry);
+        Assert.Equal("saved", success.RootElement.GetProperty("outcome").GetString());
+        Assert.Equal(handler switch { "Approve" => "approve", "Reject" => "reject", "Reverse" => "reverse", _ => "correct" }, success.RootElement.GetProperty("kind").GetString());
+        if (handler == "Approve") Assert.Equal(1, success.RootElement.GetProperty("amount").GetInt32());
         Assert.NotEqual(before, await SubmissionStateAsync(fixture.Replacement));
         Assert.Equal(version + 2, (await ReadinessAsync()).EventVersion);
         await using var after = new ApplicationDbContext(options);
@@ -642,9 +631,8 @@ public sealed class C33FinalizationFreshnessTests : IAsyncLifetime
         await LoginAsync(client, "c33-admin");
         var form = Form(await client.GetStringAsync($"/Admin/Review/Details/{fixture.Replacement}"), "Reject");
         var before = await DatabaseStateAsync();
-        using var result = await client.PostAsync(form.Action, new FormUrlEncodedContent(ReviewFields(form)));
-        Assert.Equal(HttpStatusCode.Redirect, result.StatusCode);
-        AssertReviewConflictFeedback(WebUtility.HtmlDecode(await client.GetStringAsync(result.Headers.Location!)));
+        using var result = await XhrAsync(client, form.Action, ReviewFields(form));
+        AssertReviewConflictFeedback(await OutcomeAsync(result));
         Assert.Equal(1, fault.Attempts);
         Assert.Equal(before, await DatabaseStateAsync());
     }
@@ -663,13 +651,18 @@ public sealed class C33FinalizationFreshnessTests : IAsyncLifetime
         await LoginAsync(client, "c33-admin");
         var before = await SubmissionStateAsync(fixture.Replacement);
         var form = Form(await client.GetStringAsync($"/Admin/Review/Details/{fixture.Replacement}?eventId={fixture.EventId}&search=C33&status=Pending"), "Approve");
-        using var response = await client.PostAsync(form.Action, new FormUrlEncodedContent(form.Fields));
-        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
-        var html = WebUtility.HtmlDecode(await client.GetStringAsync(response.Headers.Location!));
-
-        Assert.Contains("Earlier upload must be resolved first", html, StringComparison.Ordinal);
-        Assert.Contains("Approve or reject the earlier upload before approving this one.", html, StringComparison.Ordinal);
-        Assert.Contains($"/Admin/Review/Details/{fixture.First}", html, StringComparison.Ordinal);
+        // U8 G1/BR-1 (A10): the refusal answers "blocked" with a direct link that keeps the queue filters,
+        // and the workspace shows the block state from the readback contribution (no TempData path).
+        using var response = await XhrAsync(client, form.Action, form.Fields);
+        using var outcome = await OutcomeAsync(response);
+        Assert.Equal("blocked", outcome.RootElement.GetProperty("outcome").GetString());
+        Assert.Equal("Approve or reject the earlier upload first.", outcome.RootElement.GetProperty("message").GetString());
+        var link = outcome.RootElement.GetProperty("blockingUrl").GetString()!;
+        Assert.StartsWith($"/Admin/Review/Details/{fixture.First}?", link, StringComparison.Ordinal);
+        Assert.Contains("search=C33", link, StringComparison.Ordinal);
+        Assert.Contains("status=Pending", link, StringComparison.Ordinal);
+        var html = WebUtility.HtmlDecode(await client.GetStringAsync($"/Admin/Review/Details/{fixture.Replacement}?eventId={fixture.EventId}&search=C33&status=Pending"));
+        Assert.Contains($"/Admin/Review/Details/{fixture.First}?eventId={fixture.EventId}&search=C33&status=Pending", html, StringComparison.Ordinal);
         Assert.Equal(before, await SubmissionStateAsync(fixture.Replacement));
         await using var verify = new ApplicationDbContext(options);
         Assert.Equal(SubmissionStatus.Pending, await verify.Submissions.Where(x => x.Id == fixture.Replacement).Select(x => x.Status).SingleAsync());
@@ -705,15 +698,30 @@ public sealed class C33FinalizationFreshnessTests : IAsyncLifetime
         Assert.DoesNotContain("Treat it as outside the authoritative live eligibility intervals.", html, StringComparison.Ordinal);
     }
 
-    private static void AssertReviewConflictFeedback(string html)
+    private static void AssertReviewConflictFeedback(System.Text.Json.JsonDocument outcome)
     {
-        Assert.Contains("This review was not saved", html);
-        Assert.Contains("Reload the submission, review the latest state, and try again.", html);
-        Assert.Contains("app-toast-error", html);
-        Assert.DoesNotContain("app-toast-information", html);
-        Assert.DoesNotContain("app-toast-success", html);
-        Assert.DoesNotContain("likely due to a transient failure", html);
-        Assert.DoesNotContain("40001", html);
+        using (outcome)
+        {
+            Assert.Equal("stale", outcome.RootElement.GetProperty("outcome").GetString());
+            var message = outcome.RootElement.GetProperty("message").GetString()!;
+            Assert.True(message.Contains("This review was not saved", StringComparison.Ordinal) || message.Contains("This evidence changed in another request", StringComparison.Ordinal), message);
+            Assert.DoesNotContain("likely due to a transient failure", message, StringComparison.Ordinal);
+            Assert.DoesNotContain("40001", message, StringComparison.Ordinal);
+        }
+    }
+
+    private static Task<HttpResponseMessage> XhrAsync(HttpClient client, string action, IDictionary<string, string> fields)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Post, action) { Content = new FormUrlEncodedContent(fields) };
+        request.Headers.Add("X-Requested-With", "XMLHttpRequest");
+        return client.SendAsync(request);
+    }
+
+    private static async Task<System.Text.Json.JsonDocument> OutcomeAsync(HttpResponseMessage response)
+    {
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains("application/json", response.Content.Headers.ContentType!.ToString(), StringComparison.Ordinal);
+        return System.Text.Json.JsonDocument.Parse(await response.Content.ReadAsStringAsync());
     }
 
     private Dictionary<string, string> ReviewFields(RenderedForm form) => new(form.Fields)
@@ -911,11 +919,11 @@ public sealed class C33FinalizationFreshnessTests : IAsyncLifetime
         var fields = ReviewFields(form);
         fields["Input.Reason"] = new string('x', 4001);
 
-        using var response = await client.PostAsync(form.Action, new FormUrlEncodedContent(fields));
-        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
-        var html = WebUtility.HtmlDecode(await client.GetStringAsync(response.Headers.Location!));
-        Assert.Contains("Reason must be 4000 characters or fewer.", html, StringComparison.Ordinal);
-        Assert.Contains("app-toast-error", html, StringComparison.Ordinal);
+        // U8 in-place decisions (A10): a definite refusal answers JSON with the server's reason.
+        using var response = await XhrAsync(client, form.Action, fields);
+        using var outcome = await OutcomeAsync(response);
+        Assert.Equal("refused", outcome.RootElement.GetProperty("outcome").GetString());
+        Assert.Equal("Reason must be 4000 characters or fewer.", outcome.RootElement.GetProperty("message").GetString());
         Assert.Equal(before, await SubmissionStateAsync(fixture.Replacement));
         Assert.Equal(notificationCount, await NotificationCountAsync());
     }

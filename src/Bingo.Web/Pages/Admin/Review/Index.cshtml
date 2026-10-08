@@ -79,21 +79,21 @@
                                 SubmissionStatus.Rejected or SubmissionStatus.Reversed => "is-danger",
                                 _ => "is-muted"
                             };
-                            <tr data-admin-review-row data-review-team="@row.Team" data-review-tile="@row.Tile" data-review-player="@row.Player" data-review-status="@row.Status">
+                            <tr data-admin-review-row data-review-team="@row.Team" data-review-tile="@row.Tile" data-review-player="@row.Account" data-review-status="@row.Status">
                                 <td data-label='@T["Submitted"]'>
                                     <a class="admin-review-cell-value admin-review-submission-link" asp-page="Details" asp-route-id="@row.Id" asp-route-eventId="@Model.EventId" asp-route-search="@Model.Search" asp-route-status="@Model.Status">@DateTimePresentation.Format(row.SubmittedAt, "dd MMM yyyy, HH:mm", Model.EventTimezone, CultureInfo.CurrentCulture)</a>
                                     <small>@row.SubmittedAt.UtcDateTime.ToString("yyyy-MM-dd HH:mm 'UTC'")</small>
-                                    @if (row.DuringGrace)
+                                    @if (row.AfterEnd)
                                     {
                                         <small class="admin-review-warning-text">@T["After event end — verify screenshot time"]</small>
                                     }
                                 </td>
                                 <td data-label='@T["Team"]'><span class="admin-review-cell-value">@row.Team</span></td>
                                 <td data-label='@T["Tile"]'><span class="admin-review-cell-value">@row.Tile</span></td>
-                                <td data-label='@T["Credited player"]'><span class="admin-review-cell-value">@row.Player</span></td>
+                                <td data-label='@T["Credited player"]'><span class="admin-review-cell-value">@row.Account</span></td>
                                 <td data-label='@T["Status"]'><span class="admin-status-pill @statusModifier">@T[row.Status.ToString()]</span></td>
-                                <td data-label='@T["Contribution"]'><span class="admin-review-cell-value">@row.Claimed → @row.Approved</span></td>
-                                <td data-label='@T["Expected code"]'><span class="admin-review-cell-value">@(row.ExpectedCode ?? T["Disabled"])</span></td>
+                                <td data-label='@T["Contribution"]'><span class="admin-review-cell-value">—</span></td>
+                                <td data-label='@T["Expected code"]'><span class="admin-review-cell-value">—</span></td>
                                 <td class="admin-review-row-action" data-label='@T["Actions"]'><a class="event-overview-row-action" asp-page="Details" asp-route-id="@row.Id" asp-route-eventId="@Model.EventId" asp-route-search="@Model.Search" asp-route-status="@Model.Status">@T["Details"]</a></td>
                             </tr>
                         }

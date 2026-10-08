@@ -535,7 +535,7 @@ public sealed partial class SubmissionService(
     { if (expectedVersion is not > 0) throw new InvalidOperationException(MissingReviewVersionMessage); }
     private static void EnsureReviewVersion(Submission submission, int? expectedVersion)
     { RequireReviewVersion(expectedVersion); if (submission.Version != expectedVersion) throw new InvalidOperationException(StaleEvidenceMessage); }
-    private const string StaleEvidenceMessage = "This evidence changed in another request. Reload it and review the latest version before saving.";
+    public const string StaleEvidenceMessage = "This evidence changed in another request. Reload it and review the latest version before saving.";
     private static void EnsureExpectedVersion(Submission submission, int? expectedVersion)
     { if (expectedVersion is not null && submission.Version != expectedVersion.Value) throw new InvalidOperationException(StaleEvidenceMessage); }
     private static void EnsureMutationWindow(BingoEvent ev, EvidenceActorKind kind, DateTimeOffset now, string message)

@@ -140,7 +140,7 @@
                     </div>
                     <form id="admin-review-reject-form" method="post" asp-page-handler="Reject" asp-route-eventId="@Model.Details.EventId" asp-route-search="@Model.Search" asp-route-status="@queueStatus" class="admin-review-reject-form">
                         <input asp-for="Input.ExpectedVersion" type="hidden" />
-                        <input asp-for="Input.Reason" type="hidden" data-admin-review-reason />
+                        <input name="Input.Reason" type="hidden" value="" data-admin-review-reason />
                         <input type="hidden" name="confirmed" value="true" />
                         <input asp-for="Search" type="hidden" />
                         <input asp-for="Status" type="hidden" />
@@ -150,7 +150,7 @@
                 {
                     <form id="admin-review-reverse-form" method="post" asp-page-handler="Reverse" asp-route-eventId="@Model.Details.EventId" asp-route-search="@Model.Search" asp-route-status="@queueStatus" class="admin-review-action-form">
                         <input asp-for="Input.ExpectedVersion" type="hidden" />
-                        <input asp-for="Input.Reason" type="hidden" data-admin-review-reason />
+                        <input name="Input.Reason" type="hidden" value="" data-admin-review-reason />
                         <input type="hidden" name="confirmed" value="true" />
                         <input asp-for="Search" type="hidden" />
                         <input asp-for="Status" type="hidden" />
@@ -199,7 +199,7 @@
                                 <optgroup label="@group.Key">
                                     @foreach (var drop in group)
                                     {
-                                        <option value="@drop.Id" data-requirement-id="@drop.RequirementId">@drop.Item (@drop.Rate)</option>
+                                        <option value="@drop.Id" data-requirement-id="@drop.RequirementId">@drop.Item (@drop.Weight)</option>
                                     }
                                 </optgroup>
                             }
@@ -211,7 +211,7 @@
                                 <optgroup label="@group.Key">
                                     @foreach (var drop in group)
                                     {
-                                        <option value="@drop.Id" data-requirement-id="@drop.RequirementId">@drop.Item (@drop.Rate)</option>
+                                        <option value="@drop.Id" data-requirement-id="@drop.RequirementId">@drop.Item (@drop.Weight)</option>
                                     }
                                 </optgroup>
                             }
@@ -275,7 +275,7 @@
         </details>
         <details class="admin-review-surface admin-review-operational-section">
             <summary><strong>@T["Immutable review history"]</strong><small>@T["Every review decision and reason remains recorded."]</small></summary>
-            @if (Model.AuditHistory.Count == 0)
+            @if (!Model.AuditHistory.Any())
             {
                 <p class="admin-review-empty-note">@T["No review actions have been recorded."]</p>
             }
