@@ -177,6 +177,12 @@ public sealed partial class AdminDesignShellIntegrationTests(PostgreSqlTestFixtu
         var html = await client.GetStringAsync($"/Admin/Events/Identity/{item.Id}");
         Assert.Contains("<title>Identity · DK Legacy Admin</title>", System.Net.WebUtility.HtmlDecode(html));
         Assert.Contains("<span class=\"brand-name\">shell-admin", html);
+        // U10 part 2 item 4 (user, U10-E1): the logo links to the public front page outside the account button (no shell
+        // navigation), and a collapsed-only logo button with the account's accessible name opens the account popout.
+        Assert.Contains("<a class=\"logo design-logo-link\" href=\"/\" aria-label=\"Go to the public site\">", html);
+        Assert.DoesNotMatch("<a class=\"logo design-logo-link\"[^>]*data-shell-link", html);
+        Assert.Matches("<button type=\"button\" class=\"logo design-logo-account\" data-menu-target=\"admin-account-menu\" aria-haspopup=\"menu\" aria-expanded=\"false\" aria-label=\"@?shell-admin[^\"]*\"", html);
+        Assert.DoesNotMatch("<button class=\"account-btn\"[^>]*>\\s*<span class=\"logo", html);
         Assert.Contains("@shell-admin · Administrator", System.Net.WebUtility.HtmlDecode(html));
         Assert.Contains("class=\"crumb-btn\"", html); Assert.Contains("class=\"crumb-sep\"", html); Assert.Contains("class=\"crumb-cur\"", html);
         Assert.Contains("role=\"menuitemradio\" aria-checked=\"true\"", html);
