@@ -10,6 +10,7 @@ Priority: **High** = most likely will be done · **Normal** · **Maybe** = decid
 
 | Item | Priority | Notes |
 | --- | --- | --- |
+| **Credited EHB counts only completed tiles** | **Highest** | Admins' rule (8 October 2026): only EHB from **completed** tiles counts. Today `PublicProgressCalculator` sums every approved contribution, so incomplete tiles add partial EHB (`allocatedContributions.Sum`). Change the ranking EHB to completed tiles only. Decide: for the new placement rule only (`CreditedEhbThenScoreTime`; October was switched to it) — never re-rank past events or official snapshots; whether player/team EHB displays follow the same rule; tests at the PostgreSQL boundary. Must be live before October's results (event 15–22 October), ideally before it goes Live. |
 | Draft page uses large screens better | High | Readable at 1080p (user check, 8 October 2026) but much of the screen is empty. Draft only: larger player chips and team cards, or a scale-up between today's size and a max width. |
 | Admin pages scale up on large screens (clamp) | Not needed for now | User check on a 1080p monitor (8 October 2026): all pages look fine; Schedule and Identity a bit small but acceptable. Revisit only if that changes. |
 | Public pages: fixes from the last bingo's feedback | Normal | Mainly text that is too small. |
