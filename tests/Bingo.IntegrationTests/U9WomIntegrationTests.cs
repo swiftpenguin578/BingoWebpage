@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using System.Text.Json;
 using Bingo.Domain.Access;
 using Bingo.Domain.Events;
+using Bingo.Domain.Integrations.WiseOldMan;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 
@@ -61,6 +62,32 @@ public sealed partial class EventCompetitionManagementIntegrationTests
         }
         Assert.Equal(1, provider.CreateCalls);
         Assert.Equal(1, provider.DeleteCalls);
+    }
+
+    [Fact]
+    public async Task U9ReviewM1ClaimedCreateIsQueuedNotApplied()
+    {
+        var clock = new TestClock(new DateTimeOffset(2026, 10, 4, 12, 0, 0, TimeSpan.Zero));
+        var fixture = await SeedEventAsync(clock, live: false);
+        await SetAdminPasswordAsync(fixture.Actor.Id, clock.GetUtcNow());
+        await AddOperationAsync(fixture, EventCompetitionManagementOperationType.Create, EventCompetitionManagementOperationPhase.Claimed, clock);
+        await using var factory = CreateAdminFactory(clock);
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false, BaseAddress = new Uri("https://localhost") });
+        await LoginAsync(client, fixture.Actor.Username);
+        var route = $"/Admin/Events/WiseOldMan/{fixture.EventId}";
+        var page = await client.GetStringAsync(route);
+        client.DefaultRequestHeaders.Accept.ParseAdd("application/json");
+        using var response = await client.PostAsync(route + "?handler=CreateManagedCompetition", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["EventVersion"] = InputValue(page, "EventVersion"),
+            ["__RequestVerificationToken"] = InputValue(page, "__RequestVerificationToken")
+        }));
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using var result = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.True(result.RootElement.GetProperty("succeeded").GetBoolean());
+        Assert.Equal("queued", result.RootElement.GetProperty("outcome").GetString());
+        Assert.Equal("Claimed", result.RootElement.GetProperty("status").GetString());
+        Assert.Equal("Managed WOM competition creation was accepted and queued.", result.RootElement.GetProperty("message").GetString());
     }
 
     [Fact]
