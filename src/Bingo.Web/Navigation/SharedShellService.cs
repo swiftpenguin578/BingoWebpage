@@ -207,7 +207,7 @@ public sealed class SharedShellService(ApplicationDbContext db, IStringLocalizer
         {
             var unread = db.PersonalNotifications.AsNoTracking().Where(item => item.RecipientAccountId == accountId && item.ReadAt == null && (item.EventId == null || db.Events.Any(eventItem => eventItem.Id == item.EventId && eventItem.HiddenAt == null)));
             var personal = await unread.OrderByDescending(item => item.CreatedAt).Take(6).ToListAsync(cancellationToken);
-            personalItems = personal.Select(item => new ShellNotification(item.Id, NotificationPresentation.Title(text, item.Title), NotificationPresentation.Detail(text, item.Title, item.Detail), $"/notifications?read={item.Id}")).ToList();
+            personalItems = personal.Select(item => new ShellNotification(item.Id, NotificationPresentation.Title(text, item.Title), NotificationPresentation.Detail(text, item.Title, item.Detail), $"/notifications?read={item.Id}", At: item.CreatedAt)).ToList();
             var personalCount = await unread.CountAsync(cancellationToken);
             var adminActions = user.IsInRole("Admin") || user.IsInRole("SuperAdmin")
                 ? await GetAdminActionsSafelyAsync(cancellationToken)
@@ -291,21 +291,22 @@ public sealed class SharedShellService(ApplicationDbContext db, IStringLocalizer
             if (!eventMap.TryGetValue(pending.EventId, out var eventItem)) continue;
             actionRows.Add((pending.LatestSubmittedAt, new ShellNotification(
                 eventItem.Id,
-                "Evidence review",
-                $"{eventItem.Name} · {pending.Count} pending submission(s) · oldest {FormatDate(pending.OldestSubmittedAt, eventItem.Timezone)}",
+                text["Evidence review"],
+                text["{0} · {1} pending submission(s) · oldest {2}", eventItem.Name, pending.Count, FormatDate(pending.OldestSubmittedAt, eventItem.Timezone)],
                 $"/Admin/Review/Index?eventId={eventItem.Id}",
-                "Evidence review",
-                $"{pending.Count} pending")));
+                text["Evidence review"],
+                text["{0} pending", pending.Count],
+                pending.LatestSubmittedAt)));
         }
         foreach (var opening in failedOpenings)
         {
             if (!eventMap.TryGetValue(opening.EventId, out var eventItem)) continue;
-            actionRows.Add((opening.AttemptedAt, new ShellNotification(opening.Id, "Scheduled signup opening failed", $"{eventItem.Name} · Resolve the scheduled signup opening blockers.", $"/Admin/Events/Manage/{opening.EventId}")));
+            actionRows.Add((opening.AttemptedAt, new ShellNotification(opening.Id, text["Scheduled signup opening failed"], text["{0} · Resolve the scheduled signup opening blockers.", eventItem.Name], $"/Admin/Events/Manage/{opening.EventId}", At: opening.AttemptedAt)));
         }
         foreach (var start in postponedStarts)
         {
             if (!eventMap.TryGetValue(start.EventId, out var eventItem)) continue;
-            actionRows.Add((start.AttemptedAt, new ShellNotification(start.Id, "Postponed start", $"{eventItem.Name} · Resolve the scheduled start blockers.", $"/Admin/Events/Manage/{start.EventId}")));
+            actionRows.Add((start.AttemptedAt, new ShellNotification(start.Id, text["Postponed start"], text["{0} · Resolve the scheduled start blockers.", eventItem.Name], $"/Admin/Events/Manage/{start.EventId}", At: start.AttemptedAt)));
         }
 
         var items = actionRows.OrderByDescending(item => item.At).ThenBy(item => item.Item.Title, StringComparer.Ordinal).Take(8).Select(item => item.Item).ToList();
@@ -457,7 +458,8 @@ public sealed record SubmissionNavigation(Guid EventId, Guid TeamId)
     public string Url => $"/Submissions?eventId={EventId}&teamId={TeamId}";
 }
 public sealed record BreadcrumbItem(string Label, string? Url, string? Status = null, string? StatusClass = null);
-public sealed record ShellNotification(Guid Id, string Title, string Detail, string Url, string? TitleLabel = null, string? TitleMetadata = null);
+// At (U10 part 2 item 6): when the notification or Admin action happened, for the Admin notification panel's relative time.
+public sealed record ShellNotification(Guid Id, string Title, string Detail, string Url, string? TitleLabel = null, string? TitleMetadata = null, DateTimeOffset? At = null);
 public sealed record AdminEventContext(Guid Id, string Name, EventState State, string StatusLabel);
 public sealed record AdminEventOption(Guid Id, string Name, EventState State, string StatusLabel, string StatusModifier);
 public sealed record NotificationInbox(IReadOnlyList<Guid> EventIds, int Count, string Heading, string EmptyText, string OverviewLabel, string OverviewUrl, IReadOnlyList<ShellNotification> Items, int PersonalCount, int AdminActionCount, string AdminHeading, string AdminEmptyText, string AdminOverviewLabel, string AdminOverviewUrl, IReadOnlyList<ShellNotification> AdminItems, bool AdminActionsUnavailable = false)
@@ -485,7 +487,7 @@ public sealed record AdminActionProjection(
         : new AdminActionSummary(eventId, 0, false, false);
 }
 
-internal static class NotificationPresentation
+public static class NotificationPresentation
 {
     public static string Title(IStringLocalizer<SharedResource> text, string type) => type switch
     {
@@ -503,8 +505,18 @@ internal static class NotificationPresentation
         "participant.prelive_replaced" => text["Replacement confirmed before event start"],
         "participant.live_withdrawn" => text["Live participant withdrawn"],
         "participant.live_replaced" => text["Live replacement confirmed"],
-        _ => type
+        _ => text[type]
     };
+
+    // U10 part 2 item 6: relative time for the Admin notification panel, using the existing translated phrases.
+    public static string RelativeAge(IStringLocalizer<SharedResource> text, DateTimeOffset now, DateTimeOffset at)
+    {
+        var age = now - at;
+        if (age < TimeSpan.FromMinutes(1)) return text["Just now"];
+        if (age < TimeSpan.FromHours(1)) return text[age.TotalMinutes >= 2 ? "{0} minutes ago" : "1 minute ago", (int)age.TotalMinutes];
+        if (age < TimeSpan.FromDays(1)) return text[age.TotalHours >= 2 ? "{0} hours ago" : "1 hour ago", (int)age.TotalHours];
+        return text[age.TotalDays >= 2 ? "{0} days ago" : "1 day ago", (int)age.TotalDays];
+    }
 
     public static string Detail(IStringLocalizer<SharedResource> text, string type, string detail) => type switch
     {

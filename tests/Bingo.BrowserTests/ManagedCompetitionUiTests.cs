@@ -52,12 +52,16 @@ public sealed class ManagedCompetitionUiTests
     public void NewAndChangedNamesKeepTheProviderLimitsWhileHistoryCanRemainLonger()
     {
         var root = FindRepositoryRoot();
-        var create = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "Pages", "Admin", "Events", "Create.cshtml"));
+        // A10 (U10 part 2): Create.cshtml is retired; the Events directory dialog owns the 50-codepoint new-name limit.
+        var createTemplate = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "Pages", "Shared", "_AdminEventCreateTemplate.cshtml"));
+        var createScript = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "wwwroot", "js", "admin-event-create.js"));
         var identity = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "Pages", "Admin", "Events", "Identity.cshtml"));
         var draft = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "Pages", "Admin", "Events", "Draft.cshtml"));
         var handlers = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "Pages", "Admin", "Events", "Draft.cshtml.cs"));
 
-        Assert.Contains("maxlength=\"50\"", create);
+        Assert.Contains("Event names must be 50 characters or fewer.", createTemplate);
+        Assert.Contains("data-create-count", createTemplate);
+        Assert.Contains("Array.from(name.value.trim()).length>50?t('Event names must be 50 characters or fewer.')", createScript);
         Assert.Contains("data-codepoint-limit=\"50\"", identity);
         // A10 (U6): the Teams page renders client-side; its team form enforces the 30-character provider limit.
         var draftScript = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "wwwroot", "js", "admin-draft.js"));

@@ -1,4 +1,6 @@
 @model Bingo.Web.Navigation.AdminDesignShell
+@using Bingo.Web.Navigation
+@inject TimeProvider Time
 @{ var language = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName; }
 <header class="topbar" data-shell-topbar>
     <button class="icon-btn menu-toggle" data-side-toggle aria-label="@T["Open navigation"]" aria-expanded="false"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("menu", "ic")' /></button>
@@ -14,13 +16,39 @@
         <button class="icon-btn" data-menu-target="admin-notifications-menu" data-menu-align="end" aria-haspopup="menu" aria-expanded="false" aria-label="@T["Notifications, {0} unread", Model.Notifications.Count]"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("bell", "ic")' />@if (Model.Notifications.Count > 0) { <span class="design-notification-count" aria-hidden="true">@Model.Notifications.Count</span> }</button>
     </div>
 </header>
-<div class="menu design-notifications-menu" id="admin-notifications-menu" role="menu" hidden data-shell-menu>
-    <partial name="_AdminDesignMenuHeader" model='new AdminDesignMenuHeader(T["Notifications"].Value)' />
-    @foreach (var item in Model.Notifications.Items) { <a class="menu-item" role="menuitem" href="@item.Url" title="@item.Detail">@item.Title</a> }
-    @if (Model.Notifications.Items.Count == 0) { <p>@Model.Notifications.EmptyText</p> }
-    <a class="menu-item" role="menuitem" href="/notifications">@T["All notifications"]</a>
-    <div class="menu-sep" role="separator"></div><partial name="_AdminDesignMenuHeader" model='new AdminDesignMenuHeader(T["Admin actions"].Value)' />
-    @foreach (var item in Model.Notifications.AdminItems) { <a class="menu-item" role="menuitem" href="@item.Url" title="@item.Detail">@item.Title</a> }
-    @if (Model.Notifications.AdminItems.Count == 0) { <p>@(Model.Notifications.AdminActionsUnavailable ? T["Admin actions could not be loaded."].Value : Model.Notifications.AdminEmptyText)</p> }
-    <a class="menu-item" role="menuitem" href="/notifications#admin-actions-heading">@T["Admin actions overview"]</a>
+@* U10 part 2 item 6 (user, U10-Q3 b): a real notification panel in the admin menu style, from the same inbox projection the bell counts.
+   Personal notifications in the inbox are unread by definition (the projection lists unread ones) and carry the unread dot; unresolved Admin actions
+   are listed with them, newest first, without a dot and without counting in the header (U10 L3 b: the header counts unread personal ones only, so Mark all as read empties it). "Mark all as read" posts to the existing Notifications handler (personal notifications only). *@
+@{
+    var inbox = Model.Notifications;
+    var now = Time.GetUtcNow();
+    var rows = inbox.Items.Select(item => (Item: item, Unread: true)).Concat(inbox.AdminItems.Select(item => (Item: item, Unread: false)))
+        .OrderByDescending(row => row.Item.At ?? DateTimeOffset.MinValue).Take(8).ToList();
+}
+<div class="menu design-notifications-menu" id="admin-notifications-menu" role="menu" aria-label="@T["Notifications"]" hidden data-shell-menu>
+    <div class="design-notif-head" role="presentation"><b>@T["Notifications"]</b>@if (inbox.PersonalCount > 0) { <span class="badge badge-accent design-notif-unread" data-notification-unread>@T["{0} unread", inbox.PersonalCount]</span> }</div>
+    @foreach (var (item, unread) in rows)
+    {
+        <a class="menu-item design-notif-row" role="menuitem" href="@item.Url" data-notification-row data-unread="@(unread ? "true" : "false")">
+            @if (unread) { <span class="dot design-notif-dot" aria-hidden="true"></span><span class="design-notif-hidden">@T["Unread"]: </span> } else { <span class="design-notif-dot" aria-hidden="true"></span> }
+            <span class="design-notif-text"><span class="design-notif-title">@(item.TitleLabel ?? item.Title)</span><span class="design-notif-detail">@item.Detail</span></span>
+            @if (item.At is { } at) { <time class="design-notif-time" datetime="@at.UtcDateTime.ToString("O", CultureInfo.InvariantCulture)">@NotificationPresentation.RelativeAge(T, now, at)</time> }
+        </a>
+    }
+    @if (rows.Count == 0)
+    {
+        <div class="design-notif-empty" role="presentation" data-notification-empty><b>@T["No notifications"]</b>@(inbox.AdminActionsUnavailable ? T["Admin actions could not be loaded."].Value : T["You're all caught up."].Value)</div>
+    }
+    else if (inbox.AdminActionsUnavailable)
+    {
+        <div class="design-notif-note" role="presentation">@T["Admin actions could not be loaded."]</div>
+    }
+    <div class="menu-sep" role="separator"></div>
+    <div class="design-notif-foot" role="presentation">
+        <a class="menu-item" role="menuitem" href="/notifications">@T["All notifications"]</a>
+        @if (inbox.PersonalCount > 0)
+        {
+            <form method="post" asp-page="/Notifications" asp-page-handler="MarkAllAsRead" role="presentation"><button type="submit" class="menu-item" role="menuitem">@T["Mark all as read"]</button></form>
+        }
+    </div>
 </div>

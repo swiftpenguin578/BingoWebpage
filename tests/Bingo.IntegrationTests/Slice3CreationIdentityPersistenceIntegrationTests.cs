@@ -96,9 +96,11 @@ public sealed class Slice3CreationIdentityPersistenceIntegrationTests(PostgreSql
             ["Input.Description"] = "This must not be accepted."
         }))
         {
-            Assert.Equal(HttpStatusCode.OK, retired.StatusCode);
-            var html = WebUtility.HtmlDecode(await retired.Content.ReadAsStringAsync());
-            Assert.Contains("only a name and timezone", html);
+            // A10 (U10 part 2): the old page is retired; the refusal returns to the Create dialog and shows its reason as an error toast.
+            Assert.Equal(HttpStatusCode.Redirect, retired.StatusCode);
+            Assert.Equal("/Admin/Events?create=1", retired.Headers.Location!.OriginalString);
+            var html = WebUtility.HtmlDecode(await client.GetStringAsync(retired.Headers.Location));
+            Assert.Matches("class=\"toast is-error\" data-toast role=\"alert\">[\\s\\S]{0,800}?only a name and timezone", html);
         }
 
         await using (var empty = new ApplicationDbContext(options))
@@ -246,7 +248,7 @@ public sealed class Slice3CreationIdentityPersistenceIntegrationTests(PostgreSql
         Assert.Contains(before, item => item.Slug == "duplicate-display-name-2");
         Assert.All(before, item => Assert.InRange(item.Slug.Length, 1, 120));
         var retiredExplicitLink = Creation(db, actor, new() { Name = "Another display name", Slug = "duplicate-display-name", Timezone = "UTC" });
-        Assert.IsType<PageResult>(await retiredExplicitLink.OnPostAsync(CancellationToken.None));
+        AssertReturnedToCreateDialog(await retiredExplicitLink.OnPostAsync(CancellationToken.None));
         Assert.Contains(retiredExplicitLink.ModelState[string.Empty]!.Errors, error => error.ErrorMessage.Contains("only a name and timezone", StringComparison.OrdinalIgnoreCase));
         Assert.Equal(before, await db.Events.AsNoTracking().OrderBy(item => item.Slug).Select(item => new { item.Id, item.Slug }).ToListAsync());
         Assert.Equal(4, await db.SignupForms.CountAsync());
@@ -303,7 +305,7 @@ public sealed class Slice3CreationIdentityPersistenceIntegrationTests(PostgreSql
             ExpectedBoardRows = 4,
             WaitingListEnabled = false
         });
-        Assert.IsType<PageResult>(await invalid.OnPostAsync(CancellationToken.None));
+        AssertReturnedToCreateDialog(await invalid.OnPostAsync(CancellationToken.None));
         Assert.Contains(invalid.ModelState[string.Empty]!.Errors, error => error.ErrorMessage.Contains("only a name and timezone", StringComparison.OrdinalIgnoreCase));
         Assert.Equal("Description is no longer accepted during creation.", invalid.Input.Description);
         Assert.Equal("2026-08-01", invalid.Input.SignupOpensLocal);
@@ -326,7 +328,7 @@ public sealed class Slice3CreationIdentityPersistenceIntegrationTests(PostgreSql
         try
         {
             var failed = Creation(db, actor, new CreateModel.CreateInput { Name = "Rollback draft", Timezone = "UTC" });
-            Assert.IsType<PageResult>(await failed.OnPostAsync(CancellationToken.None));
+            AssertReturnedToCreateDialog(await failed.OnPostAsync(CancellationToken.None));
             Assert.Contains(failed.ModelState[string.Empty]!.Errors, error => error.ErrorMessage.Contains("creation outcome could not be confirmed", StringComparison.OrdinalIgnoreCase));
             Assert.Empty(await db.Events.ToListAsync());
             Assert.Empty(await db.EventCreationOperations.ToListAsync());
@@ -364,7 +366,7 @@ public sealed class Slice3CreationIdentityPersistenceIntegrationTests(PostgreSql
             Timezone = "Europe/London"
         });
 
-        Assert.IsType<PageResult>(await invalid.OnPostAsync(CancellationToken.None));
+        AssertReturnedToCreateDialog(await invalid.OnPostAsync(CancellationToken.None));
         Assert.True(invalid.ModelState.ContainsKey("Input.Timezone"));
         Assert.Equal(2, await db.Events.CountAsync());
     }
@@ -965,6 +967,14 @@ public sealed class Slice3CreationIdentityPersistenceIntegrationTests(PostgreSql
         var model = new ScheduleModel(db, new EventSignupLifecycleService(db, evaluator, new FixedTimeProvider(now)), evaluator, new FixedTimeProvider(now));
         SetAdmin(model, actor);
         return model;
+    }
+
+    // A10 (U10 part 2, Events/Create retired): a refused non-dialog POST returns to the Events directory with the Create dialog open instead of re-rendering the old page; the refusal reason stays in ModelState and becomes the error toast.
+    private static void AssertReturnedToCreateDialog(IActionResult result)
+    {
+        var redirect = Assert.IsType<RedirectToPageResult>(result);
+        Assert.Equal("Index", redirect.PageName);
+        Assert.Equal(1, redirect.RouteValues?["create"]);
     }
 
     private static void SetAdmin(PageModel model, Guid actor)

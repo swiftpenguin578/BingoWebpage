@@ -112,7 +112,7 @@ function initializePublicHeaderPopovers() {
         setOpen(menu, open);
       });
     }
-    if (isPublicMenu(menu) || menu.closest("[data-admin-event-selector]")) {
+    if (isPublicMenu(menu)) {
       menu.addEventListener("keydown", event => {
         if (event.key !== "Escape") return;
         event.preventDefault();
@@ -162,8 +162,6 @@ document.addEventListener("DOMContentLoaded", () => {
   initializePostNavigation();
   initializeCorrectionDropSelectors();
   initializeAutoHideScrollbars();
-  initializeAdminMenu();
-  initializeAdminEventSection();
   initializeTransientToastLayer();
   const feedback = document.querySelector(".validation-summary-errors");
   if (feedback) {
@@ -305,110 +303,6 @@ document.addEventListener("bingo:content-updated", initializeTransientToastLayer
 document.addEventListener("bingo:content-updated", initializePublicHeaderPopovers);
 
 if (document.readyState !== "loading") initializePublicHeaderPopovers();
-
-function initializeAdminMenu() {
-  const toggle = document.querySelector("[data-admin-menu-toggle]");
-  const sidebar = toggle instanceof HTMLButtonElement ? document.getElementById(toggle.getAttribute("aria-controls")) : null;
-  const scrim = document.querySelector("[data-admin-menu-scrim]");
-  if (!(toggle instanceof HTMLButtonElement) || !(sidebar instanceof HTMLElement) || !(scrim instanceof HTMLButtonElement)) return;
-
-  document.documentElement.classList.add("admin-menu-enhanced");
-  let open = false;
-  let previouslyFocused = null;
-
-  const focusableSelector = [
-    "a[href]",
-    "button:not([disabled])",
-    "input:not([disabled])",
-    "select:not([disabled])",
-    "textarea:not([disabled])",
-    "[tabindex]:not([tabindex=\"-1\"])"
-  ].join(",");
-
-  const focusableItems = () => [...sidebar.querySelectorAll(focusableSelector)]
-    .filter(element => element instanceof HTMLElement && element.offsetParent !== null);
-
-  const setOpen = (next, restoreFocus = false) => {
-    open = next;
-    sidebar.classList.toggle("is-open", open);
-    sidebar.setAttribute("aria-hidden", String(!open && window.innerWidth <= 900));
-    toggle.setAttribute("aria-expanded", String(open));
-    scrim.hidden = !open;
-    document.body.classList.toggle("admin-menu-open", open);
-    if (open) {
-      previouslyFocused = document.activeElement;
-      focusableItems()[0]?.focus({ preventScroll: true });
-    } else if (restoreFocus) {
-      (previouslyFocused instanceof HTMLElement ? previouslyFocused : toggle).focus({ preventScroll: true });
-    }
-    if (!open) previouslyFocused = null;
-  };
-
-  const syncDesktopState = () => {
-    if (window.innerWidth > 900) {
-      open = false;
-      sidebar.classList.remove("is-open");
-      sidebar.setAttribute("aria-hidden", "false");
-      toggle.setAttribute("aria-expanded", "false");
-      scrim.hidden = true;
-      document.body.classList.remove("admin-menu-open");
-    } else {
-      sidebar.setAttribute("aria-hidden", String(!open));
-    }
-  };
-
-  toggle.addEventListener("click", () => setOpen(!open));
-  scrim.addEventListener("click", () => setOpen(false, true));
-  sidebar.addEventListener("click", event => {
-    if (event.target.closest("a") && window.innerWidth <= 900) setOpen(false);
-  });
-  document.addEventListener("keydown", event => {
-    if (!open) return;
-    if (event.key === "Tab") {
-      const items = focusableItems();
-      if (!items.length) return;
-      const first = items[0];
-      const last = items[items.length - 1];
-      if (event.shiftKey && (!sidebar.contains(document.activeElement) || document.activeElement === first)) {
-        event.preventDefault();
-        last.focus({ preventScroll: true });
-      } else if (!event.shiftKey && (!sidebar.contains(document.activeElement) || document.activeElement === last)) {
-        event.preventDefault();
-        first.focus({ preventScroll: true });
-      }
-      return;
-    }
-    if (event.key === "Escape") {
-      event.preventDefault();
-      setOpen(false, true);
-    }
-  });
-  window.addEventListener("resize", syncDesktopState);
-  syncDesktopState();
-}
-
-function initializeAdminEventSection() {
-  const navigation = document.querySelector("[data-admin-event-navigation]");
-  if (!(navigation instanceof HTMLElement)) return;
-  const serverActive = navigation.querySelector(".admin-nav-link.is-active");
-
-  const sync = () => {
-    navigation.querySelectorAll("[data-admin-event-section]").forEach(link => {
-      link.classList.remove("is-active");
-      link.removeAttribute("aria-current");
-    });
-
-    const active = window.location.hash === "#players"
-      ? navigation.querySelector('[data-admin-event-section="participants"]')
-      : serverActive;
-    if (!(active instanceof HTMLElement)) return;
-    active.classList.add("is-active");
-    active.setAttribute("aria-current", "page");
-  };
-
-  window.addEventListener("hashchange", sync);
-  sync();
-}
 
 document.addEventListener("bingo:content-updated", initializeCorrectionDropSelectors);
 

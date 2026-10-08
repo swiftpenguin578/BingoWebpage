@@ -6,8 +6,12 @@
 }
 <aside class="side" id="admin-design-sidebar" aria-label="@T["Administration"]" data-shell-sidebar>
     <div class="side-top">
-        <button class="account-btn" data-menu-target="admin-account-menu" aria-haspopup="menu" aria-expanded="false" data-collapsed-title="@Model.AccountName · @Model.AccountRole">
-            <span class="logo" aria-hidden="true"><img src="~/images/branding/dk-legacy-admin-mark.png" asp-append-version="true" alt="" /></span><span class="brand-text"><span class="brand-name">@Model.AccountName<partial name="_AdminDesignIcon" model='new AdminDesignIcon("chevron", "ic")' /></span><span class="brand-sub">@Model.AccountRole</span></span>
+        @* U10 part 2 (user): expanded, the logo is its own link to the public front page (it leaves Admin, so no data-shell-link) and hover highlights only the account button.
+           U10-E1 (user): collapsed, the logo stays visible and opens the account popout instead (as the reference's collapsed account button does); CSS swaps the two logo controls. *@
+        <a class="logo design-logo-link" href="/" aria-label="@T["Go to the public site"]"><img src="~/images/branding/login-artwork.svg" asp-append-version="true" alt="" /></a>
+        <button type="button" class="logo design-logo-account" data-menu-target="admin-account-menu" aria-haspopup="menu" aria-expanded="false" aria-label="@Model.AccountName · @Model.AccountRole" data-collapsed-title="@Model.AccountName · @Model.AccountRole"><img src="~/images/branding/login-artwork.svg" asp-append-version="true" alt="" /></button>
+        <button class="account-btn" data-menu-target="admin-account-menu" aria-haspopup="menu" aria-expanded="false">
+            <span class="brand-text"><span class="brand-name">@Model.AccountName<partial name="_AdminDesignIcon" model='new AdminDesignIcon("chevron", "ic")' /></span><span class="brand-sub">@Model.AccountRole</span></span>
         </button>
         <button class="icon-btn collapse-btn" data-side-toggle aria-label="@T["Collapse sidebar"]" title="@T["Collapse sidebar"]" aria-expanded="true"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("collapse", "ic")' /></button>
     </div>

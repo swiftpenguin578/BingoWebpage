@@ -26,7 +26,7 @@ public sealed partial class AdminDesignShellIntegrationTests
         var past = Event(admin, EventState.Archived, "Past selection", -12);
         await using (var db = new ApplicationDbContext(options)) { db.AddRange(admin, first, past); await db.SaveChangesAsync(); }
         await using var factory = RememberedEventFactory(); using var client = await IdentityClientAsync(factory);
-        // A10: Final review and WiseOldMan are bound by U9, so no event-scoped Admin page is left on the old layout; the old-layout assertion moves to the Shell test (UiReferences).
+        // A10: Final review and WiseOldMan are bound by U9, so no event-scoped Admin page is left on the old layout; the old-layout assertion moved to the Shell test and is retired with UiReferences in U10 part 2.
         using var opened = await client.GetAsync($"/Admin/Events/Schedule/{first.Id}");
         Assert.Equal(HttpStatusCode.OK, opened.StatusCode);
         var cookie = Assert.Single(opened.Headers.GetValues("Set-Cookie"), value => value.StartsWith(AdminEventSession.CookieName + "=", StringComparison.Ordinal));

@@ -177,6 +177,12 @@ public sealed partial class AdminDesignShellIntegrationTests(PostgreSqlTestFixtu
         var html = await client.GetStringAsync($"/Admin/Events/Identity/{item.Id}");
         Assert.Contains("<title>Identity · DK Legacy Admin</title>", System.Net.WebUtility.HtmlDecode(html));
         Assert.Contains("<span class=\"brand-name\">shell-admin", html);
+        // U10 part 2 item 4 (user, U10-E1): the logo links to the public front page outside the account button (no shell
+        // navigation), and a collapsed-only logo button with the account's accessible name opens the account popout.
+        Assert.Contains("<a class=\"logo design-logo-link\" href=\"/\" aria-label=\"Go to the public site\">", html);
+        Assert.DoesNotMatch("<a class=\"logo design-logo-link\"[^>]*data-shell-link", html);
+        Assert.Matches("<button type=\"button\" class=\"logo design-logo-account\" data-menu-target=\"admin-account-menu\" aria-haspopup=\"menu\" aria-expanded=\"false\" aria-label=\"@?shell-admin[^\"]*\"", html);
+        Assert.DoesNotMatch("<button class=\"account-btn\"[^>]*>\\s*<span class=\"logo", html);
         Assert.Contains("@shell-admin · Administrator", System.Net.WebUtility.HtmlDecode(html));
         Assert.Contains("class=\"crumb-btn\"", html); Assert.Contains("class=\"crumb-sep\"", html); Assert.Contains("class=\"crumb-cur\"", html);
         Assert.Contains("role=\"menuitemradio\" aria-checked=\"true\"", html);
@@ -185,12 +191,23 @@ public sealed partial class AdminDesignShellIntegrationTests(PostgreSqlTestFixtu
         Assert.Contains("data-shell-antiforgery", html);
         Assert.Contains("This event is read-only in its current lifecycle state.", html);
         Assert.Matches("class=\"toast(?: [^\"]*)?\"[^>]*data-toast", html);
-        Assert.Contains("/notifications#admin-actions-heading", html);
+        // A10 (U10 part 2 item 6, U10-Q3 b): the notification panel replaced the two-section menu (and its Admin actions overview
+        // link); the same inbox now renders as unread-count header, rows, "All notifications" and the existing Mark all as read handler.
+        // U10 L3 (b): the header counts unread personal notifications only (PersonalCount), not Admin to-dos.
+        Assert.Contains("<span class=\"badge badge-accent design-notif-unread\" data-notification-unread>1 unread</span>", html);
+        Assert.Matches("<a class=\"menu-item design-notif-row\" role=\"menuitem\" href=\"/notifications\\?read=[0-9a-f-]+\" data-notification-row data-unread=\"true\">", html);
+        Assert.Contains("<span class=\"design-notif-title\">Admin access granted</span>", html);
+        Assert.Contains("<a class=\"menu-item\" role=\"menuitem\" href=\"/notifications\">All notifications</a>", html);
+        Assert.Matches("<form method=\"post\" role=\"presentation\" action=\"/notifications\\?handler=MarkAllAsRead\">", html);
         Assert.Contains("aria-label=\"Notifications, 1 unread\"", html);
         Assert.Contains("class=\"design-notification-count\" aria-hidden=\"true\">1</span>", html);
         Assert.Contains("<span class=\"crumb-mid\">Shell fixture</span>", html);
         Assert.DoesNotContain("<a class=\"crumb-mid\"", html);
-        Assert.Contains("Teams / Draft", html); Assert.Matches("src=\"/images/branding/dk-legacy-admin-mark(?:\\.[A-Za-z0-9_-]+)?\\.png(?:\\?v=[A-Za-z0-9_-]+)?\"", html);
+        Assert.Contains("Teams / Draft", html);
+        // A10 (U10 part 2 item 5, U10-Q1): the shell still renders the brand, now the masthead SVG inside the reference brand box
+        // (link and collapsed button) instead of the retired dk-legacy-admin-mark.png.
+        Assert.Equal(2, Regex.Count(html, "class=\"logo design-logo-(?:link|account)\"[^>]*><img src=\"/images/branding/login-artwork(?:\\.[A-Za-z0-9_-]+)?\\.svg(?:\\?v=[^\"]+)?\""));
+        Assert.DoesNotContain("dk-legacy-admin-mark", html);
         Assert.Contains("data-page-loading-template=\"identity\"", html); Assert.Contains("aria-label=\"Loading identity\"", html);
         Assert.Contains($"/Admin/Events/Identity/{item.Id}", html);
         foreach (Match link in Regex.Matches(html, "<link[^>]+href=\"([^\"]+)\"")) Assert.StartsWith("/", link.Groups[1].Value);
@@ -204,13 +221,13 @@ public sealed partial class AdminDesignShellIntegrationTests(PostgreSqlTestFixtu
         var dashboard = await client.GetStringAsync("/Admin");
         Assert.Contains("data-admin-design", dashboard);
         Assert.DoesNotContain("admin-shell-body", dashboard);
-        // A10: Final review and WiseOldMan are bound by U9; no event-scoped Admin page is left on the old layout, so UiReferences (not event-scoped) carries the unchanged legacy-shell contract.
-        var old = await client.GetStringAsync($"/Admin/UiReferences");
-        Assert.DoesNotContain("data-admin-design", old);
-        Assert.Contains("admin-shell-body", old);
+        // A10 (U10 part 2): UiReferences, the last old-layout page, is retired; its route (any handler) redirects to the dashboard.
+        using (var retired = await client.GetAsync("/Admin/UiReferences"))
+        { Assert.Equal(HttpStatusCode.Redirect, retired.StatusCode); Assert.Equal("/Admin", retired.Headers.Location!.OriginalString); }
+        using (var retiredImage = await client.GetAsync("/Admin/UiReferences?handler=Image&key=pub-ref-01"))
+        { Assert.Equal(HttpStatusCode.Redirect, retiredImage.StatusCode); Assert.Equal("/Admin", retiredImage.Headers.Location!.OriginalString); }
         Assert.True(AdminDesignAttribute.AppliesTo(new CompiledPageActionDescriptor { ModelTypeInfo = typeof(Bingo.Web.Pages.Admin.Events.IdentityModel).GetTypeInfo() }));
         Assert.True(AdminDesignAttribute.AppliesTo(new CompiledPageActionDescriptor { ModelTypeInfo = typeof(Bingo.Web.Pages.Admin.Events.DraftModel).GetTypeInfo() }));
-        Assert.False(AdminDesignAttribute.AppliesTo(new CompiledPageActionDescriptor { ModelTypeInfo = typeof(Bingo.Web.Pages.Admin.UiReferencesModel).GetTypeInfo() }));
     }
 
     [Fact]
