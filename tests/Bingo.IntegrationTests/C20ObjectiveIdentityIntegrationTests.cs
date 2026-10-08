@@ -232,8 +232,16 @@ public sealed partial class C20ObjectiveIdentityIntegrationTests(PostgreSqlTestF
         {
             Assert.Equal(HttpStatusCode.OK, view.StatusCode);
             var html = await view.Content.ReadAsStringAsync();
-            Assert.Contains("handler=AcquireEditing", html, StringComparison.Ordinal);
-            Assert.Contains("Acquire editing control", html, StringComparison.Ordinal);
+            // A10: was Contains("handler=AcquireEditing") and the "Acquire editing control" markup.
+            // The page now ships the lease in its data-view JSON and admin-board.js offers the
+            // explicit "Start editing" button (posting AcquireEditing) for control.who == "none".
+            // An expired lease is held by nobody, so the owner must not be shown as the editor.
+            var data = BoardPageData.View(html);
+            Assert.Equal("correction", data.GetProperty("mode").GetString());
+            var control = data.GetProperty("control");
+            Assert.Equal("none", control.GetProperty("who").GetString());
+            Assert.Equal(JsonValueKind.Null, control.GetProperty("name").ValueKind);
+            Assert.Equal("Start editing", BoardPageData.Labels(html).GetProperty("Start editing").GetString());
         }
         Assert.Equal(beforeView, await LeaseStateAsync(f));
 
