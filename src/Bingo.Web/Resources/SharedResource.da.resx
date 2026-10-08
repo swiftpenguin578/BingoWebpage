@@ -1503,8 +1503,6 @@
   <data name="Configure teams, participants, and run the event draft." xml:space="preserve"><value>Konfigurer hold og deltagere, og kør eventets draft.</value></data>
   <data name="Review and publish official event results." xml:space="preserve"><value>Gennemgå og offentliggør eventets officielle resultater.</value></data>
   <data name="Public UI Catalogue" xml:space="preserve"><value>Public UI-katalog</value></data>
-  <data name="UI references" xml:space="preserve"><value>UI-referencer</value></data>
-  <data name="Temporary reference gallery" xml:space="preserve"><value>Midlertidigt referencegalleri</value></data>
   <data name="Could not complete the account action. Please try again." xml:space="preserve"><value>Konto-handlingen kunne ikke gennemføres. Prøv igen.</value></data>
   <data name="Created disabled emergency credential {0}. Create a setup link before enabling it." xml:space="preserve"><value>Deaktiveret nødkonto {0} oprettet. Opret et opsætningslink, før den aktiveres.</value></data>
   <data name="Disable account" xml:space="preserve"><value>Deaktivér konto</value></data>
@@ -1664,9 +1662,6 @@
   <data name="Confirm ownership transfer" xml:space="preserve"><value>Bekræft ejerskabsoverførsel</value></data>
   <data name="The selected account becomes Super Admin; your account remains an Admin. The service validates the transaction and destination again on submit." xml:space="preserve"><value>Den valgte konto bliver Super Admin, og din konto forbliver Admin. Tjenesten validerer transaktionen og destinationen igen ved afsendelse.</value></data>
   <data name="Choose an eligible active website account" xml:space="preserve"><value>Vælg en kvalificeret aktiv webkonto</value></data>
-  <data name="Temporary Admin utility" xml:space="preserve"><value>Midlertidigt Admin-værktøj</value></data>
-  <data name="Public UI references" xml:space="preserve"><value>Referencer til offentlig UI</value></data>
-  <data name="Every active PUB-REF reference in matrix order. Select an image to inspect it at viewport size; press Escape to close." xml:space="preserve"><value>Alle aktive PUB-REF-referencer i matrixrækkefølge. Vælg et billede for at se det i viewportstørrelse; tryk Escape for at lukke.</value></data>
   <data name="View {0} {1}" xml:space="preserve"><value>Se {0} {1}</value></data>
   <data name="Round {0}" xml:space="preserve"><value>Runde {0}</value></data>
   <data name="Choose an available event." xml:space="preserve"><value>Vælg en tilgængelig event.</value></data>
