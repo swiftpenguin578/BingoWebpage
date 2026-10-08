@@ -78,3 +78,5 @@
 :where([data-page-family="final-review"]) .fr-dr-reason{margin-top:12px;white-space:pre-wrap;overflow-wrap:anywhere}
 :where([data-page-family="final-review"]) .fr-dr-wrap{border:1px solid var(--dk-border-subtle);border-radius:var(--dk-radius-lg)}
 :where([data-page-family="final-review"]) .fr-dr-note{margin:10px 0 0;font-size:var(--dk-fs-small);color:var(--dk-text-3)}
+/* The loaded summary starts with a 24px badge; the loading header reserves that line so nothing moves on load (U11 R1). */
+@media (min-width:641px){ :where([data-page-family="final-review"])[data-page-skeleton="final-review"][aria-busy="true"] > .page-head .summary{min-height:24px} }
