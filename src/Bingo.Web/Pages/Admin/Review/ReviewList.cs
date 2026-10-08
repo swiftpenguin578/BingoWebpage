@@ -106,7 +106,7 @@ public static class ReviewList
 }
 
 // U8-Q1: Review shows UTC first (the OSRS event plugin stamps UTC); the secondary time uses the event's
-// own timezone, named by its city, never a hard-coded Copenhagen.
+// own timezone, named by its city, never a fixed city.
 public static class ReviewTime
 {
     private static System.Globalization.CultureInfo Culture => System.Globalization.CultureInfo.CurrentCulture;

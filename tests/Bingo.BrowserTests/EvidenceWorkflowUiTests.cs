@@ -29,6 +29,7 @@ public sealed class EvidenceWorkflowUiTests
         Assert.DoesNotContain("Reverse approval", queue);
         Assert.Contains("admin-review.js", queue);
         Assert.DoesNotContain("admin-review-queue.js", queue);
+        Assert.DoesNotContain(".admin-shell-body .admin-review", styles); // U8 1d: transitional Review CSS retired
         Assert.DoesNotContain("Apply filters", queue);
         Assert.DoesNotContain("name=\"teamId\"", queue);
         Assert.DoesNotContain("name=\"tileId\"", queue);
