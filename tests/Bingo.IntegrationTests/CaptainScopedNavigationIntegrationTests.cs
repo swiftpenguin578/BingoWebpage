@@ -713,7 +713,7 @@ public sealed partial class CaptainScopedNavigationIntegrationTests(PostgreSqlTe
         var search = "Admin review player";
         var queueUrl = $"/Admin/Review?eventId={live.Id}&search={Uri.EscapeDataString(search)}&status=Pending";
         var queueHtml = await client.GetStringAsync(queueUrl);
-        var detailsUrl = WebUtility.HtmlDecode(Regex.Match(queueHtml, $"<a class=\"admin-review-cell-value admin-review-submission-link\"[^>]*href=\"([^\"]*/Admin/Review/Details/{child.Id}[^\"]*)\"").Groups[1].Value);
+        var detailsUrl = WebUtility.HtmlDecode(Regex.Match(queueHtml, $"<a class=\"name-btn rv-when\"[^>]*href=\"([^\"]*/Admin/Review/Details/{child.Id}[^\"]*)\"").Groups[1].Value);
         Assert.NotEmpty(detailsUrl);
         var detailsHtml = await client.GetStringAsync(detailsUrl);
         AssertContext(detailsHtml);
@@ -839,7 +839,7 @@ public sealed partial class CaptainScopedNavigationIntegrationTests(PostgreSqlTe
         var emptyHtml = await emptyResponse.Content.ReadAsStringAsync();
         Assert.Equal(HttpStatusCode.OK, emptyResponse.StatusCode);
         Assert.Contains($"data-event-id=\"{emptyDraft.Id}\"", emptyHtml, StringComparison.Ordinal);
-        Assert.Contains("No submissions match these filters", emptyHtml, StringComparison.Ordinal);
+        Assert.Contains("No submissions yet", emptyHtml, StringComparison.Ordinal); // U8 (A10): Review.dc.html empty state
 
         var selectedResponse = await client.GetAsync($"/Admin/Review?eventId={selected.Id}");
         var selectedHtml = await selectedResponse.Content.ReadAsStringAsync();
@@ -848,19 +848,14 @@ public sealed partial class CaptainScopedNavigationIntegrationTests(PostgreSqlTe
         Assert.Contains("Selected review team", selectedHtml, StringComparison.Ordinal);
         Assert.Contains("Selected review player", selectedHtml, StringComparison.Ordinal);
         Assert.Contains("Selected review tile", selectedHtml, StringComparison.Ordinal);
-        Assert.DoesNotContain("data-review-team=\"Other review team\"", selectedHtml, StringComparison.Ordinal);
-        Assert.DoesNotContain("data-review-player=\"Other review player\"", selectedHtml, StringComparison.Ordinal);
+        // U8 (A10): new-layout queue rows (Review.dc.html); decisions are only in the workspace.
+        Assert.DoesNotContain("Other review team", selectedHtml, StringComparison.Ordinal);
+        Assert.DoesNotContain("Other review player", selectedHtml, StringComparison.Ordinal);
         Assert.Contains($"/Admin/Review/Details/{selectedSubmission.Id}", selectedHtml, StringComparison.Ordinal);
-        var approvedRow = Regex.Match(selectedHtml, $"<tr data-admin-review-row[^>]*data-review-status=\"Approved\"[\\s\\S]*?</tr>").Value;
-        Assert.Contains("Details", approvedRow, StringComparison.Ordinal);
-        Assert.DoesNotContain("Reverse approval", approvedRow, StringComparison.Ordinal);
-        Assert.DoesNotContain("data-review-action=\"reverse\"", approvedRow, StringComparison.Ordinal);
-        var rejectedRow = Regex.Match(selectedHtml, $"<tr data-admin-review-row[^>]*data-review-status=\"Rejected\"[\\s\\S]*?</tr>").Value;
-        Assert.Contains("Details", rejectedRow, StringComparison.Ordinal);
-        Assert.DoesNotContain("Reverse approval", rejectedRow, StringComparison.Ordinal);
-        Assert.DoesNotContain("data-review-action=\"reverse\"", rejectedRow, StringComparison.Ordinal);
+        Assert.DoesNotContain("Reverse approval", selectedHtml, StringComparison.Ordinal);
+        Assert.DoesNotContain("data-review-action=\"reverse\"", selectedHtml, StringComparison.Ordinal);
 
-        var renderedSubmissionIds = Regex.Matches(selectedHtml, @"<tr data-admin-review-row[^>]*>[\s\S]*?/Admin/Review/Details/([0-9a-f-]+)")
+        var renderedSubmissionIds = Regex.Matches(selectedHtml, "data-review-row=\"([0-9a-f-]+)\"")
             .Select(match => Guid.Parse(match.Groups[1].Value)).ToArray();
         Assert.Equal(new[] { newerPending.Id, selectedSubmission.Id, rejected.Id, approved.Id }, renderedSubmissionIds);
 
@@ -883,10 +878,9 @@ public sealed partial class CaptainScopedNavigationIntegrationTests(PostgreSqlTe
             await db.SaveChangesAsync();
         }
         var closedReviewHtml = await client.GetStringAsync($"/Admin/Review?eventId={selected.Id}");
-        var closedApprovedRow = Regex.Match(closedReviewHtml, $"<tr data-admin-review-row[^>]*data-review-status=\"Approved\"[\\s\\S]*?</tr>").Value;
-        Assert.Contains("Details", closedApprovedRow, StringComparison.Ordinal);
-        Assert.DoesNotContain("Reverse approval", closedApprovedRow, StringComparison.Ordinal);
-        Assert.DoesNotContain("data-review-action=\"reverse\"", closedApprovedRow, StringComparison.Ordinal);
+        Assert.Contains($"data-review-row=\"{approved.Id}\"", closedReviewHtml, StringComparison.Ordinal);
+        Assert.Contains("Finished · review is read-only", WebUtility.HtmlDecode(closedReviewHtml), StringComparison.Ordinal);
+        Assert.DoesNotContain("Reverse approval", closedReviewHtml, StringComparison.Ordinal);
 
         await using (var db = new ApplicationDbContext(options))
         {
@@ -906,12 +900,11 @@ public sealed partial class CaptainScopedNavigationIntegrationTests(PostgreSqlTe
         Assert.Contains("<option value=\"Pending\" selected=\"selected\">", pendingHtml, StringComparison.Ordinal);
         Assert.Contains($"/Admin/Review/Details/{selectedSubmission.Id}", pendingHtml, StringComparison.Ordinal);
         Assert.Contains($"/Admin/Review/Details/{newerPending.Id}", pendingHtml, StringComparison.Ordinal);
-        var pendingQueueRows = string.Join("", Regex.Matches(pendingHtml, @"<tr data-admin-review-row\b[\s\S]*?</tr>").Select(match => match.Value));
-        Assert.DoesNotContain($"/Admin/Review/Details/{otherSubmission.Id}", pendingQueueRows, StringComparison.Ordinal);
-        Assert.DoesNotContain("data-review-team=\"Other review team\"", pendingHtml, StringComparison.Ordinal);
+        Assert.DoesNotContain($"/Admin/Review/Details/{otherSubmission.Id}", pendingHtml, StringComparison.Ordinal);
+        Assert.DoesNotContain("Other review team", pendingHtml, StringComparison.Ordinal);
         var unscopedHtml = await client.GetStringAsync("/Admin/Review?status=Pending");
-        Assert.Contains("data-event-id=\"\"", unscopedHtml, StringComparison.Ordinal);
-        Assert.DoesNotContain("data-admin-review-row", unscopedHtml, StringComparison.Ordinal);
+        Assert.Contains("Choose an event", unscopedHtml, StringComparison.Ordinal);
+        Assert.DoesNotContain("data-review-row", unscopedHtml, StringComparison.Ordinal);
         using var anonymous = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         using var denied = await anonymous.GetAsync(pendingLink);
         Assert.Equal(HttpStatusCode.Redirect, denied.StatusCode);

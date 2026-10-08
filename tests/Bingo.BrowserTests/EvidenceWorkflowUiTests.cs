@@ -12,36 +12,26 @@ public sealed class EvidenceWorkflowUiTests
         var confirmation = File.ReadAllText(Path.Combine(repositoryRoot, "src", "Bingo.Web", "Pages", "Shared", "_AdminConfirmation.cshtml"));
         var styles = File.ReadAllText(Path.Combine(repositoryRoot, "src", "Bingo.Web", "wwwroot", "css", "site.transitional.application.css"));
 
-        Assert.Contains("admin-review-queue-page", queue);
-        Assert.Contains("admin-review-table", queue);
-        Assert.Contains("data-admin-review-filter-form", queue);
-        Assert.Contains("data-admin-review-search", queue);
-        Assert.Contains("data-admin-review-status", queue);
-        Assert.Contains("data-review-team", queue);
-        Assert.Contains("data-review-tile", queue);
-        Assert.Contains("data-review-player", queue);
-        Assert.Contains("name=\"status\"", queue);
+        // U8 (A10): the queue is a new-layout page (Review.dc.html); the same bindings are checked on its markup.
+        Assert.Contains("ViewData[\"PageFamily\"] = \"review\";", queue);
+        Assert.Contains("[AdminDesign]", queueModel);
+        Assert.Contains("data-review-search", queue);
+        Assert.Contains("data-review-status", queue);
         Assert.Contains("Model.Status", queue);
         Assert.Contains("public string Search", queueModel);
+        Assert.Contains("ReviewList.Filter(AllRows, Search, Status)", queueModel);
         Assert.DoesNotContain("EventOption", queueModel);
         Assert.DoesNotContain("TeamOption", queueModel);
         Assert.DoesNotContain("TileOption", queueModel);
-        Assert.Contains("No submissions match these filters", queue);
-        Assert.Contains("After event end", queue);
-        Assert.Contains("Details", queue);
+        Assert.Contains("No submissions match", queue);
+        Assert.Contains("After end", queue);
+        Assert.Contains("Model.DetailsUrl(row.Id)", queue);
         Assert.DoesNotContain("Reverse approval", queue);
-        Assert.DoesNotContain("data-review-action=\"reverse\"", queue);
-        Assert.Contains("asp-route-eventId", queue);
-        Assert.Contains("asp-route-search", queue);
-        Assert.Contains("asp-route-status", queue);
-        Assert.Contains("admin-review-queue.js", queue);
-        Assert.DoesNotContain("Administration", queue);
+        Assert.Contains("admin-review.js", queue);
+        Assert.DoesNotContain("admin-review-queue.js", queue);
         Assert.DoesNotContain("Apply filters", queue);
         Assert.DoesNotContain("name=\"teamId\"", queue);
         Assert.DoesNotContain("name=\"tileId\"", queue);
-        Assert.DoesNotContain("table-page", queue);
-        Assert.DoesNotContain("class=\"panel", queue);
-        Assert.DoesNotContain("class=\"form-select", queue);
 
         Assert.Contains("admin-review-detail-page", detail);
         Assert.Contains("admin-review-detail-workspace", detail);
@@ -76,9 +66,6 @@ public sealed class EvidenceWorkflowUiTests
         Assert.DoesNotContain("class=\"panel", detail);
         Assert.DoesNotContain("class=\"btn", detail);
 
-        Assert.Contains(".admin-shell-body .admin-review-table", styles);
-        Assert.Contains("@media (max-width: 1100px)", styles);
-        Assert.Contains(".admin-shell-body .admin-review-table td::before", styles);
         Assert.Contains(".admin-shell-body .admin-review-detail-grid", styles);
         Assert.Contains(".admin-shell-body .admin-review-lightbox", styles);
     }

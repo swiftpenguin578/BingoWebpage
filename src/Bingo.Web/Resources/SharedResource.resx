@@ -90,4 +90,5 @@
   <data name="AdminDesign.no estimate" xml:space="preserve"><value>no estimate</value></data>
   <data name="AdminDesign.manual" xml:space="preserve"><value>manual</value></data>
   <data name="AdminDesign.Evidence submitted" xml:space="preserve"><value>Evidence submitted</value></data>
+  <data name="AdminDesign.Approved" xml:space="preserve"><value>Approved</value></data>
 </root>
