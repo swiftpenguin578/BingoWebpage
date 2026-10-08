@@ -406,6 +406,43 @@ public sealed partial class SubmissionWorkflowTests
         Assert.Equal(before, await U8StateAsync(id));
     }
 
+    // L1 (report 97): a decision on a submission of a hidden event answers exactly like an unknown id, with no write.
+    [Theory]
+    [InlineData("Approve")]
+    [InlineData("Reject")]
+    [InlineData("Reverse")]
+    [InlineData("Edit")]
+    public async Task U8DecisionOnAHiddenEventsSubmissionAnswersLikeAnUnknownId(string handler)
+    {
+        var setup = await SeedAsync(3, true);
+        Guid id;
+        await using (var db = new ApplicationDbContext(options))
+            id = (await Service(db).CreateAsync(Command(setup))).SubmissionId;
+        await using var factory = U8Factory();
+        using var client = await U8AdminClientAsync(factory, setup);
+        var token = await U8TokenAsync(client, id);
+        await using (var db = new ApplicationDbContext(options))
+            await db.Database.ExecuteSqlInterpolatedAsync($"UPDATE events SET hidden_at = {now}, hidden_by_account_id = {setup.AdminId}, hidden_reason = {"U8 fixture"} WHERE id = {setup.EventId}");
+        var before = await U8StateAsync(id);
+        async Task<string> PostAsync(Guid target, bool confirmed)
+        {
+            var fields = new Dictionary<string, string> { ["__RequestVerificationToken"] = token, ["Input.ExpectedVersion"] = before.Version.ToString(System.Globalization.CultureInfo.InvariantCulture), ["Input.Reason"] = "Hidden events cannot be reviewed." };
+            if (confirmed) fields["confirmed"] = "true";
+            using var request = new HttpRequestMessage(HttpMethod.Post, $"/Admin/Review/Details/{target}?handler={handler}") { Content = new FormUrlEncodedContent(fields) };
+            request.Headers.Add("X-Requested-With", "XMLHttpRequest");
+            using var response = await client.SendAsync(request);
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            return await response.Content.ReadAsStringAsync();
+        }
+        foreach (var confirmed in new[] { true, false })
+        {
+            var hidden = await PostAsync(id, confirmed);
+            Assert.Contains("Submission not found.", hidden, StringComparison.Ordinal);
+            Assert.Equal(await PostAsync(Guid.NewGuid(), confirmed), hidden);
+        }
+        Assert.Equal(before, await U8StateAsync(id));
+    }
+
     private static async Task<string> U8TokenAsync(HttpClient client, Guid submissionId) =>
         Regex.Match(await client.GetStringAsync($"/Admin/Review/Details/{submissionId}"), "name=\"__RequestVerificationToken\" type=\"hidden\" value=\"([^\"]+)\"").Groups[1].Value;
 }
