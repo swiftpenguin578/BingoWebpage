@@ -154,7 +154,34 @@ async function checkSources(browser, registrations) {
   }} finally {await page.close();}
   return designChecks;
 }
-module.exports={observe,checkFrames,checkLoaded,checkUpdate,checkDanish,checkSources};
+// U11: with table rows present, neither the page scroller nor the document may scroll sideways and
+// every card must end inside the viewport (a grid track grown to the table's minimum width did not).
+async function checkNoSidewaysScroll(browser, storageState, fixture, registration, url) {
+  const {family, rowProbe} = registration, failures = [];
+  for (const width of [390, 1024]) {
+    const context = await browser.newContext({storageState, reducedMotion: 'reduce'}), page = await context.newPage();
+    try {
+      await page.setViewportSize({width, height: 900});
+      await page.goto(fixture.origin + url);
+      await page.locator(rowProbe.host).first().waitFor();
+      await page.evaluate(({rowProbe}) => {
+        const host = document.querySelector(rowProbe.host), old = rowProbe.replace && host.querySelector(rowProbe.replace);
+        if (old) { old.insertAdjacentHTML('beforebegin', rowProbe.html); old.remove(); } else host.insertAdjacentHTML('beforeend', rowProbe.html);
+      }, {rowProbe});
+      const result = await page.evaluate(() => {
+        const scroller = document.querySelector('main.scroller'), root = document.scrollingElement;
+        return {scroller: [scroller.scrollWidth, scroller.clientWidth], document: [root.scrollWidth, root.clientWidth],
+          cards: [...document.querySelectorAll('.card')].filter(e => e.getBoundingClientRect().right > innerWidth + .5).length,
+          table: !!document.querySelector('.tbl-wrap .tbl .row')};
+      });
+      if (!result.table) failures.push(family + ' ' + width + ': probe rows missing');
+      if (result.scroller[0] > result.scroller[1] || result.document[0] > result.document[1] || result.cards) failures.push(family + ' ' + width + ': page scrolls sideways ' + JSON.stringify(result));
+    } finally { await context.close(); }
+  }
+  assert.deepEqual(failures, [], family + ': no horizontal page scroll with table rows');
+  console.log('PASS ' + family + ' no horizontal page scroll with table rows at 390 and 1024');
+}
+module.exports={observe,checkFrames,checkLoaded,checkUpdate,checkDanish,checkSources,checkNoSidewaysScroll};
 
 async function checkDocument(page, registration, width) {
   await page.setViewportSize({width,height:342});
