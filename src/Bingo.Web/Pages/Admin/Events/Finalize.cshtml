@@ -1,235 +1,106 @@
 @page "{id:guid}"
 @model Bingo.Web.Pages.Admin.Events.FinalizeModel
+@using Bingo.Application.Events
 @using Bingo.Domain.Events
+@using Bingo.Domain.Integrations.WiseOldMan
 @using Bingo.Web.UI
 @{
-    ViewData["Title"] = T["Finalize {0}", Model.Readiness.EventName];
-    ViewData["CompactNavigation"] = true;
-    ViewData["AdminPageDescription"] = T["Review and publish official event results."];
-
-    var outstandingBlockers = Model.Readiness.Blockers.Count(x => !x.Resolved);
-    var statePill = AdminEventStatePresentation.For(Model.Readiness.State, T);
-    var stateClass = Model.Readiness.State switch
-    {
-        EventState.AwaitingFinalReview => "is-review",
-        EventState.Finalized => "is-finalized",
-        EventState.Archived => "is-archived",
-        _ => "is-muted"
-    };
+    ViewData["Title"] = "Final review";
+    ViewData["PageFamily"] = "final-review";
+    var r = Model.Readiness;
+    var active = Model.ActiveResult;
+    var rows = Model.Rows;
+    var phase = AdminDesignPhasePresentation.For(r.State);
+    var nextVersion = r.History.Count == 0 ? 1 : r.History.Max(x => x.Version) + 1;
 }
-
-<section class="finalize-page @stateClass" aria-labelledby="finalize-page-heading">
-    <header class="finalize-page-header">
-        <div class="finalize-page-context">
-            <p class="finalize-kicker">@T["Event closeout"]</p>
-            <div class="finalize-title-row">
-                <h1 id="finalize-page-heading">@Model.Readiness.EventName</h1>
-                <span class="admin-status-pill @statePill.Modifier">@statePill.Label</span>
-            </div>
-            <p class="finalize-page-meta">@Model.Readiness.State · @T["Event ended"] @(Model.Readiness.EventEndsAt is { } eventEnd ? DateTimePresentation.Format(eventEnd, "dd MMM yyyy, HH:mm", Model.EventTimezone, CultureInfo.CurrentCulture) : T["Not set"])</p>
-        </div>
-        <a class="admin-button-secondary finalize-back-link" asp-page="Manage" asp-route-id="@Model.Readiness.EventId">@T["Back to event workspace"]</a>
-    </header>
-
-    @if (Model.Readiness.State == EventState.AwaitingFinalReview)
+@section HeaderTitle { <div class="fr-title"><h1 class="h1" id="page-h1" tabindex="-1">@T["Final review"]</h1><span class="badge @phase.BadgeClass">@Model.Badge</span></div> }
+@section HeaderSummary {
+    @if (Model.Official && active is not null) { <span>@T["Published {0}", Model.Fmt(active.FinalizedAt)] · </span> }
+    else if (r.State == EventState.AwaitingFinalReview) { <span>@T["Ended {0}", Model.Fmt(r.EventEndsAt)] · @(r.SubmissionWindowOpen ? T["Uploads close {0}", Model.Fmt(r.SubmissionCutoff)] : T["Closed {0}", Model.Fmt(r.SubmissionCutoff)]) · </span> }
+    else if (r.State == EventState.Live) { <span>@T["Ends {0}", Model.Fmt(r.EventEndsAt)] · </span> }
+    <span>@T["Times in {0}", Model.EventTimezone]</span>
+}
+<div class="fr-content" data-final-review data-current="@Model.CurrentJson" data-labels="@Model.LabelsJson" data-event-id="@r.EventId" data-timezone="@Model.EventTimezone">
+    <div class="banner is-warning" data-final-notice role="status" tabindex="-1" hidden></div>
+    @if (r.State == EventState.Cancelled) { <div class="banner is-info"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("lock")' /><span>@T["This event was cancelled. Results are read-only."]</span></div> }
+    @if (Model.Official)
     {
-        <section class="finalize-surface finalize-readiness" aria-labelledby="finalize-readiness-heading">
-            <header class="finalize-section-heading">
-                <div>
-                    <p class="finalize-kicker">@T["Readiness"]</p>
-                    <h2 id="finalize-readiness-heading">@T["Final-review checklist"]</h2>
-                    <p>@T["Resolve the submission and board records shown here before publishing official results. Calculated ranking facts are authoritative."]</p>
-                </div>
-                <div class="finalize-readiness-count" aria-label="@T["{0} remaining blockers", outstandingBlockers]">
-                    <strong>@outstandingBlockers</strong>
-                    <span>@T["remaining"]</span>
-                </div>
-            </header>
-
-            @if (Model.Readiness.Blockers.Count == 0)
+        <section class="card panel fr-official" aria-labelledby="official-title">
+            <div class="fr-official-main"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("trophy")' /><div><h2 class="panel-title" id="official-title" tabindex="-1">@(active is null ? T["Official results"] : T["Official results · version {0}", active.Version])</h2>
+                @if (active is not null) { <p class="choice-sub">@T["Published {0} by {1}", Model.Fmt(active.FinalizedAt), active.FinalizedByUsername ?? "—"]</p> }
+                <p class="choice-sub">@T[r.State == EventState.Finalized ? "Official results are read-only. Complete the legacy publication to archive the event, or reopen for corrections." : "Official results are read-only. Reopen only when a correction is needed."]</p>
+            </div></div>
+            @if (active?.FinalWomRefresh is { Status: not FinalWomRefreshStatus.Succeeded } refresh) { <p class="banner is-warning fr-wom-note">@T[FinalizeModel.FinalWomRefreshDescription(refresh)]</p> }
+            @if (r.State == EventState.Finalized)
             {
-                <p class="finalize-inline-status is-success" role="status">@T["Everything is ready for finalization."]</p>
-            }
-            else
-            {
-                <div class="finalize-checklist">
-                    @foreach (var blocker in Model.Readiness.Blockers)
-                    {
-                        <article class="finalize-checklist-item @(blocker.Resolved ? "is-resolved" : "is-blocked")">
-                            <div class="finalize-checklist-copy">
-                            <div class="finalize-checklist-title">
-                                    <span class="finalize-checklist-mark" aria-hidden="true"></span>
-                                    <h3>@blocker.Title</h3>
-                                </div>
-                                <p>@blocker.Description</p>
-                                @if (blocker.Link is not null)
-                                {
-                                    <a class="admin-button-secondary finalize-inline-action" href="@blocker.Link">@T["Open records"]</a>
-                                }
-                            </div>
-                        </article>
-                    }
-                </div>
+                <form method="post" asp-page-handler="Finalize" data-final-action="publish" data-cancel-label="@T["Cancel"]" data-reason-label="@T["Reason"]" data-confirm-title="@T["Complete legacy publication"]" data-confirm-description="@T["Archive this event while retaining its existing official results."]" data-confirm-action="@T["Complete publication"]" data-confirm-field="ConfirmLifecycleAction">
+                    <input type="hidden" name="ExpectedVersion" value="@r.EventVersion" /><input type="hidden" name="ConfirmLifecycleAction" value="false" data-confirm-field-value /><button class="btn btn-primary" type="submit">@T["Complete publication"]</button>
+                </form>
             }
         </section>
     }
-
-    <section class="finalize-surface finalize-placements" aria-labelledby="finalize-placements-heading">
-        <header class="finalize-section-heading">
-            <div>
-                <p class="finalize-kicker">@T["Results ledger"]</p>
-                <h2 id="finalize-placements-heading">@(Model.Readiness.State is EventState.Finalized or EventState.Archived ? T["Official placements"] : T["Provisional placements"])</h2>
-                <p>@T[Model.Readiness.PlacementRule == PlacementRule.CreditedEhbThenScoreTime ? "Rank order: completed boards by effective finish time, then completed rows and columns, completed tiles, EHB, and current score time." : "Rank order: completed boards by effective finish time, then completed rows and columns, completed tiles, current score time, and EHB."]</p>
-            </div>
-            <span class="finalize-section-note">@Model.Readiness.Placements.Count teams</span>
-        </header>
-        <div class="finalize-table-wrap">
-            <table class="finalize-placements-table">
-                <thead>
-                    <tr>
-                        <th scope="col">@T["Place"]</th>
-                        <th scope="col">@T["Team"]</th>
-                        <th scope="col">@T["board"]</th>
-                        <th scope="col">@T["Completion"]</th>
-                        <th scope="col">@T["Lines"]</th>
-                        <th scope="col">@T["Tiles"]</th>
-                        <th scope="col">@T["Score time"]</th>
-                        <th scope="col">@T["EHB"]</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var row in Model.Readiness.Placements)
-                    {
-                        <tr>
-                            <td data-label="@T["Place"]"><strong>#@row.Placement</strong></td>
-                            <td data-label="@T["Team"]"><strong>@row.TeamName</strong></td>
-                            <td data-label="@T["board"]"><span class="finalize-value-tone @(row.BoardComplete ? "is-success" : "is-warning")">@(row.BoardComplete ? T["Complete"] : T["Incomplete"])</span></td>
-                            <td data-label="@T["Completion"]">
-                                <span>@(row.CalculatedCompletedAt is { } calculated ? DateTimePresentation.Format(calculated, "dd MMM yyyy, HH:mm", Model.EventTimezone, CultureInfo.CurrentCulture) : "—")</span>
-                            </td>
-                            <td data-label="@T["Lines"]"><span>@row.CompletedLines</span></td>
-                            <td data-label="@T["Tiles"]"><span>@row.CompletedTiles</span></td>
-                            <td data-label="@T["Score time"]"><span>@(row.CurrentScoreReachedAt is { } scoreTime ? DateTimePresentation.Format(scoreTime, "dd MMM yyyy, HH:mm", Model.EventTimezone, CultureInfo.CurrentCulture) : "—")</span></td>
-                            <td data-label="EHB"><span>@row.EhbTiebreak.ToString("0.##")</span></td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
-        </div>
-    </section>
-
-    @if (Model.Readiness.State == EventState.AwaitingFinalReview)
+    else if (r.State != EventState.Cancelled)
     {
-        <form method="post" asp-page-handler="Finalize" class="finalize-surface finalize-publish-form" data-lifecycle-confirm data-confirm-title="@T["Publish official results"]" data-confirm-description="@T["Publish the calculated placements as immutable official history and archive this event?"]" data-confirm-action="@T["Publish and archive results"]" data-confirm-field="ConfirmLifecycleAction">
-            <input type="hidden" asp-for="ExpectedVersion" value="@Model.Readiness.EventVersion" />
-            <input type="hidden" name="ConfirmLifecycleAction" value="false" data-confirm-field-value />
-            <div class="finalize-form-copy">
-                <p class="finalize-kicker">@T["Publication"]</p>
-                <h2>@T["Publish official results"]</h2>
-                <p>@T["This snapshots every placement as immutable history and archives the event in the same transaction."]</p>
-            </div>
-            <div class="finalize-form-actions">
-                <button class="admin-button-primary" type="submit" disabled="@(!Model.Readiness.CanFinalize ? "disabled" : null)">@T["Publish and archive results"]</button>
-            </div>
-        </form>
-    }
-
-    @if (Model.Readiness.State == EventState.Finalized)
-    {
-        <section class="finalize-surface finalize-lifecycle-form" aria-label="@T["Legacy lifecycle record"]">
-            <div class="finalize-form-copy">
-                <p class="finalize-kicker">@T["Legacy record"]</p>
-                <h2>@T["Finalized event awaiting controlled transition"]</h2>
-                <p>@T["This retained Finalized state is readable for compatibility. No ordinary Archive action is available."]</p>
-            </div>
-        </section>
-        <section class="finalize-surface finalize-lifecycle-form">
-            <form method="post" asp-page-handler="Unfinalize" data-lifecycle-confirm data-confirm-title="@T["Reopen official results"]" data-confirm-description="@T["Reopen this event for a new review cycle while retaining the current immutable snapshot?"]" data-confirm-action="@T["Reopen for corrections"]" data-confirm-field="ConfirmLifecycleAction" data-confirm-reason-field="Reason" data-confirm-require-reason="true">
-                <input type="hidden" asp-for="ExpectedVersion" value="@Model.Readiness.EventVersion" />
-                <div class="finalize-form-copy">
-                    <p class="finalize-kicker">@T["Exceptional correction"]</p>
-                    <h2>@T["Reopen for corrections"]</h2>
-                    <p>@T["The current official snapshot remains retained in history."]</p>
-                </div>
-                <input type="hidden" name="Reason" />
-                <input type="hidden" name="ConfirmLifecycleAction" value="false" data-confirm-field-value />
-                <button class="finalize-danger-action" type="submit">@T["Unfinalize"]</button>
-            </form>
-        </section>
-    }
-
-    @if (Model.Readiness.State == EventState.Archived)
-    {
-        <form method="post" asp-page-handler="Unfinalize" class="finalize-surface finalize-lifecycle-form finalize-archived-reopen" data-lifecycle-confirm data-confirm-title="@T["Reopen archived event"]" data-confirm-description="@T["Reopen this event for a new review cycle while retaining the current immutable snapshot?"]" data-confirm-action="@T["Reopen for corrections"]" data-confirm-field="ConfirmLifecycleAction" data-confirm-reason-field="Reason" data-confirm-require-reason="true">
-            <input type="hidden" asp-for="ExpectedVersion" value="@Model.Readiness.EventVersion" />
-            <input type="hidden" name="ConfirmLifecycleAction" value="false" data-confirm-field-value />
-            <div class="finalize-form-copy">
-                <p class="finalize-kicker">@T["Exceptional correction"]</p>
-                <h2>@T["Reopen archived event"]</h2>
-                <p>@T["This returns the event to final review while preserving the public history and prior official snapshot."]</p>
-            </div>
-            <input type="hidden" name="Reason" />
-            <button class="finalize-danger-action" type="submit">@T["Reopen for corrections"]</button>
-        </form>
-    }
-
-    @if (Model.Readiness.History.Count > 0)
-    {
-        <section class="finalize-surface finalize-history" aria-labelledby="finalize-history-heading">
-            <header class="finalize-section-heading">
-                <div>
-                    <p class="finalize-kicker">@T["Retained record"]</p>
-                    <h2 id="finalize-history-heading">@T["Official result history"]</h2>
-                    <p>@T["Each publication cycle remains available after reopening or replacement."]</p>
-                </div>
-                <span class="finalize-section-note">@Model.Readiness.History.Count cycle@(Model.Readiness.History.Count == 1 ? "" : "s")</span>
-            </header>
-            <div class="finalize-history-ledger">
-                @foreach (var version in Model.Readiness.History)
+        <section class="card" aria-labelledby="pub-title">
+            <div class="fr-pub-head"><partial name="_AdminDesignIcon" model='new AdminDesignIcon(r.CanFinalize ? "check" : "schedule")' /><div class="grow"><h2 class="panel-title" id="pub-title" tabindex="-1">@Model.PublicationTitle</h2><p class="choice-sub">@T["Publishing makes these standings official as version {0} and archives the event.", nextVersion]</p></div>
+                @if (r.State == EventState.AwaitingFinalReview)
                 {
-                    <details class="finalize-history-entry" open="@version.Active">
-                        <summary>
-                            <span class="finalize-history-summary-main"><strong>@T["Version {0}", version.Version]</strong><span>@DateTimePresentation.Format(version.FinalizedAt, "dd MMM yyyy, HH:mm", Model.EventTimezone, CultureInfo.CurrentCulture)</span></span>
-                            <span class="admin-status-pill @(version.Active ? "is-green" : "is-muted")">@(version.Active ? T["Active"] : T["Historical"])</span>
-                        </summary>
-                        <div class="finalize-history-body">
-                            <p>@T["Published by {0}", version.FinalizedByUsername ?? version.FinalizedByAccountId?.ToString() ?? "—"]</p>
-                            <p><strong>@T["Final WOM refresh"]:</strong> @T[FinalizeModel.FinalWomRefreshDescription(version.FinalWomRefresh)]
-                                @if (version.FinalWomRefresh?.NextEligibleAt is { } eligibleAt)
-                                {
-                                    <span> · @T["Recorded next eligible time: {0}", DateTimePresentation.Format(eligibleAt, "dd MMM yyyy, HH:mm", Model.EventTimezone, CultureInfo.CurrentCulture)]</span>
-                                }
-                            </p>
-                            @if (version.UnfinalizedAt is not null)
-                            {
-                                <p class="finalize-history-reopened">@T["Reopened by {0}", version.UnfinalizedByUsername ?? version.UnfinalizedByAccountId?.ToString() ?? "—"] · @DateTimePresentation.Format(version.UnfinalizedAt.Value, "dd MMM yyyy, HH:mm", Model.EventTimezone, CultureInfo.CurrentCulture): @version.UnfinalizeReason</p>
-                            }
-                            <div class="finalize-history-table-wrap">
-                                <table class="finalize-history-table">
-                                    <thead>
-                                        <tr><th scope="col">@T["Place"]</th><th scope="col">@T["Team"]</th><th scope="col">@T["board"]</th><th scope="col">@T["Completion"]</th><th scope="col">@T["Lines"]</th><th scope="col">@T["Tiles"]</th><th scope="col">@T["Score time"]</th><th scope="col">@T["EHB"]</th></tr>
-                                    </thead>
-                                    <tbody>
-                                        @foreach (var row in version.Placements)
-                                        {
-                                            <tr>
-                                                <td data-label="@T["Place"]"><span>#@row.Placement</span></td>
-                                                <td data-label="@T["Team"]"><strong>@row.TeamName</strong></td>
-                                                <td data-label="@T["board"]"><span>@(row.BoardComplete ? T["Complete"] : T["Incomplete"])</span></td>
-                                                <td data-label="@T["Completion"]"><span>@(row.BoardCompletedAt is { } completedAt ? DateTimePresentation.Format(completedAt, "dd MMM yyyy, HH:mm", Model.EventTimezone, CultureInfo.CurrentCulture) : "—")</span></td>
-                                                <td data-label="@T["Lines"]"><span>@row.CompletedLines</span></td>
-                                                <td data-label="@T["Tiles"]"><span>@row.CompletedTiles</span></td>
-                                                <td data-label="@T["Score time"]"><span>@(row.CurrentScoreReachedAt is { } scoreTime ? DateTimePresentation.Format(scoreTime, "dd MMM yyyy, HH:mm", Model.EventTimezone, CultureInfo.CurrentCulture) : "—")</span></td>
-                                                <td data-label="EHB"><span>@row.EhbTiebreak.ToString("0.##")</span></td>
-                                            </tr>
-                                        }
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </details>
+                    <form method="post" asp-page-handler="Finalize" class="fr-pub-act" data-final-action="publish" data-cancel-label="@T["Cancel"]" data-reason-label="@T["Reason"]" data-confirm-title="@T["Publish official results"]" data-confirm-description="@T["Publish these placements as the official results and archive the event in one step?"]" data-confirm-action="@T["Publish official results"]" data-confirm-field="ConfirmLifecycleAction">
+                        <input type="hidden" name="ExpectedVersion" value="@r.EventVersion" /><input type="hidden" name="ConfirmLifecycleAction" value="false" data-confirm-field-value />
+                        <button class="btn btn-primary" id="publish-btn" type="submit" disabled="@(!r.CanFinalize)" aria-describedby="pub-why">@T["Publish official results…"]</button><span class="choice-sub" id="pub-why">@T[r.CanFinalize ? "One confirmation. No reason needed." : "Resolve the items below first."]</span>
+                    </form>
                 }
             </div>
+            <ul class="checklist fr-checks" aria-label="@T["Publication requirements"]">
+                @foreach (var check in Model.Checks)
+                {
+                    <li class="check-item @check.Class"><span class="check-mark" aria-hidden="true"><partial name="_AdminDesignIcon" model='new AdminDesignIcon(check.Class == "is-done" ? "check" : check.Class == "is-wait" ? "schedule" : "error")' /></span><span class="grow"><span class="check-label">@check.Title</span><span class="check-sub">@check.Description</span></span>
+                        @if (check.Link is not null) { <a class="btn btn-sm" href="@check.Link" data-shell-link>@T[check.Link.Contains("/Review", StringComparison.Ordinal) ? "Open Review" : check.Link.Contains("/Board", StringComparison.Ordinal) ? "Open Board" : "Open records"]<partial name="_AdminDesignIcon" model='new AdminDesignIcon("chevron-right")' /></a> }
+                    </li>
+                }
+            </ul>
         </section>
     }
-</section>
+    <section class="card fr-standings" aria-labelledby="st-title">
+        <div class="fr-card-head"><div><h2 class="sec-title" id="st-title">@T[Model.Official ? "Official results" : r.State == EventState.Live ? "Live standings" : "Provisional standings"]</h2><p class="choice-sub">@T[Model.Official ? "Stored exactly as published." : "Calculated from approved evidence. They change if a review decision changes."]</p></div><button type="button" class="text-btn" id="how-btn" aria-expanded="false" aria-controls="how-body">@T["How placements are decided"]<partial name="_AdminDesignIcon" model='new AdminDesignIcon("chevron-down")' /></button></div>
+        <div class="fr-how" id="how-body" hidden><ol><li>@T["Completed boards first, then earlier completion."]</li><li>@T["More completed lines, then more completed tiles."]</li><li>@T[r.PlacementRule == PlacementRule.CreditedEhbThenScoreTime ? "More credited EHB, then earlier current-score time." : "Earlier current-score time, then more credited EHB."]</li></ol><p class="choice-sub">@T["Exact equality on every competitive input shares the place. Team names only order tied rows."]</p></div>
+        @if (rows.Count > 0)
+        {
+            <div class="tbl-wrap is-scroll"><div class="tbl fr-tbl sticky-first" role="table" aria-label="@T["Standings"]">
+                <div class="tr th-row" role="row"><div class="th c-name" role="columnheader">@T["Place and team"]</div><div class="th" role="columnheader">@T["Full board"]</div><div class="th fr-num" role="columnheader">@T["Lines"]</div><div class="th fr-num" role="columnheader">@T["Tiles"]</div><div class="th fr-num" role="columnheader">@T["Credited EHB"]</div><div class="th" role="columnheader">@T["Score reached"]</div></div>
+                <div class="rows" role="rowgroup">@foreach (var row in rows) { var value = row.Value;
+                    <div class="tr row" role="row"><div class="td c-name" role="cell"><div class="fr-team"><span class="place @(value.Placement <= 3 ? "is-top is-" + value.Placement : "")">@row.Place</span><div><span class="cell-main">@value.TeamName</span><div class="cell-sub fr-why">@row.Explanation</div></div></div></div><div class="td" role="cell"><span class="tval @(row.Decider == "board" ? "is-decider" : "")">@(value.BoardComplete ? Model.Fmt(value.CalculatedCompletedAt) : T["Not completed"])</span></div><div class="td fr-num" role="cell"><span class="tval @(row.Decider == "lines" ? "is-decider" : "")">@value.CompletedLines</span></div><div class="td fr-num" role="cell"><span class="tval @(row.Decider == "tiles" ? "is-decider" : "")">@value.CompletedTiles</span></div><div class="td fr-num" role="cell"><span class="tval @(row.Decider == "ehb" ? "is-decider" : "")">@value.EhbTiebreak.ToString("0.####")</span></div><div class="td" role="cell"><span class="tval @(row.Decider == "score" ? "is-decider" : "")">@(value.BoardComplete ? T["At completion"] : value.CurrentScoreReachedAt is null ? "—" : Model.Fmt(value.CurrentScoreReachedAt))</span></div></div>
+                }</div>
+            </div></div><div class="tfoot"><span>@T["{0} teams", rows.Count]@if (rows.Any(x => x.Place.StartsWith('='))) { <span> · @T["{0} shared", string.Join(", ", rows.Where(x => x.Place.StartsWith('=')).Select(x => x.Place).Distinct())]</span> }</span></div>
+        }
+        else { <div class="empty"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("final")' /><div class="empty-title">@T["No standings yet"]</div><div class="empty-text">@T["Standings are calculated from the published board once the event is live."]</div><a class="btn" asp-page="Board" asp-route-id="@r.EventId" data-shell-link>@T["Open Board"]</a></div> }
+    </section>
+    @if (r.History.Count > 0)
+    {
+        <section class="card fr-hist" aria-labelledby="hist-title"><div class="fr-card-head"><h2 class="sec-title" id="hist-title">@T["Publication history"]</h2><span class="sec-aside">@T["{0} versions", r.History.Count]</span></div><ol class="tl">
+            @foreach (var version in r.History)
+            {
+                @if (version.UnfinalizedAt is { } reopened) { <li class="tl-item"><div class="tl-what">@T["Version {0} reopened", version.Version]</div><div class="tl-when">@Model.Fmt(reopened) · @T["Reopened by {0}", version.UnfinalizedByUsername ?? "—"]</div><div class="tl-reason">@version.UnfinalizeReason</div></li> }
+                <li class="tl-item"><div class="fr-tl-row"><div><div class="tl-what">@T["Version {0} published", version.Version] <span class="pill">@T[version.Active ? "Official" : "Retained"]</span></div><div class="tl-when">@Model.Fmt(version.FinalizedAt) · @T["Published by {0}", version.FinalizedByUsername ?? "—"]</div>@if (version.FinalWomRefresh is { Status: not FinalWomRefreshStatus.Succeeded } outcome) { <p class="choice-sub">@T[FinalizeModel.FinalWomRefreshDescription(outcome)]</p> }</div><a class="btn btn-sm btn-quiet" href="?version=@version.Version" data-final-version="@version.Version">@T["View results"]</a></div></li>
+            }
+        </ol></section>
+    }
+    @if (Model.Official && active is not null)
+    {
+        <section class="card panel fr-reopen" aria-labelledby="reopen-title"><div class="act-row"><div class="act-text"><h2 class="act-title" id="reopen-title">@T["Reopen for corrections"]</h2><p class="act-sub">@T["Exceptional. Returns the event to provisional final review and keeps version {0} in history. It doesn’t restart the event or reopen uploads.", active.Version]</p>
+            @if (r.BlockingCurrentEvent is { } blocking) { <p id="reopen-why" class="fr-reopen-block"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("lock")' /><span>@Model.BlockingReason <a asp-page="Manage" asp-route-id="@blocking.Id" data-shell-link>@T["Open event"]</a></span></p> }
+        </div><form method="post" asp-page-handler="Unfinalize" data-final-action="reopen" data-cancel-label="@T["Cancel"]" data-reason-label="@T["Reason"]" data-confirm-title="@T["Reopen for corrections"]" data-confirm-description="@T["The current official snapshot remains retained in history."]" data-confirm-action="@T["Reopen for corrections"]" data-confirm-field="ConfirmLifecycleAction" data-confirm-reason-field="Reason" data-confirm-require-reason="true"><input type="hidden" name="ExpectedVersion" value="@r.EventVersion" /><input type="hidden" name="ConfirmLifecycleAction" value="false" data-confirm-field-value /><input type="hidden" name="Reason" /><button class="btn btn-outline-danger" id="reopen-btn" type="submit" disabled="@(r.BlockingCurrentEvent is not null)" aria-describedby="@(r.BlockingCurrentEvent is null ? null : "reopen-why")">@T["Reopen for corrections…"]</button></form></div></section>
+    }
+    @foreach (var version in r.History)
+    {
+        var sharedPlaces = version.Placements.GroupBy(x => x.Placement).Where(x => x.Count() > 1).Select(x => x.Key).ToHashSet();
+        <template data-final-history="@version.Version">
+            <p class="choice-sub">@T[version.Active ? "Official" : "Retained"] · @T["Published {0} by {1}", Model.Fmt(version.FinalizedAt), version.FinalizedByUsername ?? "—"]</p>
+            @if (version.UnfinalizedAt is { } reopened) { <p>@T["Version {0} reopened", version.Version] · @Model.Fmt(reopened) · @T["Reopened by {0}", version.UnfinalizedByUsername ?? "—"]</p><p class="tl-reason">@version.UnfinalizeReason</p> }
+            @if (version.FinalWomRefresh is { Status: not FinalWomRefreshStatus.Succeeded } outcome) { <p class="banner is-warning">@T[FinalizeModel.FinalWomRefreshDescription(outcome)]</p> }
+            <div class="ro-list">@foreach (var row in version.Placements) { <div class="ro-row"><div><span class="place">@(sharedPlaces.Contains(row.Placement) ? "=" : "")@row.Placement</span> <strong>@row.TeamName</strong></div><span>@T["Lines"]: @row.CompletedLines · @T["Tiles"]: @row.CompletedTiles · @T["Credited EHB"]: @row.EhbTiebreak.ToString("0.####")<br />@T["Full board"]: @(row.BoardComplete ? Model.Fmt(row.BoardCompletedAt) : T["Not completed"]) · @T["Score reached"]: @(row.CurrentScoreReachedAt is null ? "—" : Model.Fmt(row.CurrentScoreReachedAt))</span></div> }</div>
+        </template>
+    }
+</div>
+@section Styles { <link rel="stylesheet" href="~/css/admin-design-final-review.css" asp-append-version="true" data-admin-page-style /> }
+@section Scripts { <script type="module" src="~/js/admin-final-review.js" asp-append-version="true" data-admin-page-script></script> }

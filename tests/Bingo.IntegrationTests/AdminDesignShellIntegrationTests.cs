@@ -204,13 +204,13 @@ public sealed partial class AdminDesignShellIntegrationTests(PostgreSqlTestFixtu
         var dashboard = await client.GetStringAsync("/Admin");
         Assert.Contains("data-admin-design", dashboard);
         Assert.DoesNotContain("admin-shell-body", dashboard);
-        // A10: Schedule, Participants (U5) and Teams/Draft (U6) are bound; WiseOldMan still exercises the unchanged legacy-shell contract.
-        var old = await client.GetStringAsync($"/Admin/Events/WiseOldMan/{item.Id}");
+        // A10: Final review and WiseOldMan are bound by U9; no event-scoped Admin page is left on the old layout, so UiReferences (not event-scoped) carries the unchanged legacy-shell contract.
+        var old = await client.GetStringAsync($"/Admin/UiReferences");
         Assert.DoesNotContain("data-admin-design", old);
         Assert.Contains("admin-shell-body", old);
         Assert.True(AdminDesignAttribute.AppliesTo(new CompiledPageActionDescriptor { ModelTypeInfo = typeof(Bingo.Web.Pages.Admin.Events.IdentityModel).GetTypeInfo() }));
         Assert.True(AdminDesignAttribute.AppliesTo(new CompiledPageActionDescriptor { ModelTypeInfo = typeof(Bingo.Web.Pages.Admin.Events.DraftModel).GetTypeInfo() }));
-        Assert.False(AdminDesignAttribute.AppliesTo(new CompiledPageActionDescriptor { ModelTypeInfo = typeof(Bingo.Web.Pages.Admin.Events.WiseOldManModel).GetTypeInfo() }));
+        Assert.False(AdminDesignAttribute.AppliesTo(new CompiledPageActionDescriptor { ModelTypeInfo = typeof(Bingo.Web.Pages.Admin.UiReferencesModel).GetTypeInfo() }));
     }
 
     [Fact]

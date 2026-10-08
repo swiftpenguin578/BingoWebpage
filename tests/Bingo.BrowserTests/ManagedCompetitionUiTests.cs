@@ -18,7 +18,8 @@ public sealed class ManagedCompetitionUiTests
         Assert.Contains("asp-page-handler=\"AdoptCompetitionCredential\"", workspace);
         Assert.Contains("asp-for=\"CompetitionVerificationCode\"", workspace);
         Assert.Contains("type=\"password\"", workspace);
-        Assert.Contains("<form method=\"post\" asp-page-handler=\"FetchCompetition\" id=\"wom-fetch-form\">", workspace);
+        // A10 / AU15: shared workspace keeps Fetch a direct action with no confirmation.
+        Assert.Contains("asp-page-handler=\"FetchCompetition\" id=\"wom-fetch-form\" data-wom-action=\"fetch\"", workspace);
         Assert.DoesNotContain("id=\"wom-fetch-form\" data-lifecycle-confirm", workspace, StringComparison.Ordinal);
         Assert.DoesNotContain("data-confirm-wom-value", workspace, StringComparison.Ordinal);
         Assert.DoesNotContain("FetchConfirmation", workspace, StringComparison.Ordinal);

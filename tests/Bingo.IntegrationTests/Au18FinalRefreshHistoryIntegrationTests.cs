@@ -58,6 +58,11 @@ public sealed partial class Au12PlacementRuleIntegrationTests
         var readiness = await finalization.GetReadinessAsync(fixture.EventId);
         var published = await finalization.FinalizeAsync(fixture.EventId, new(fixture.AdminId, "admin"), readiness!.EventVersion);
         Assert.True(published.Published);
+        // AU18 / U9 structured outcomes preserve the exact persisted refresh status.
+        Assert.Equal(EventState.Archived, published.State);
+        Assert.Equal(readiness.EventVersion + 1, published.Version);
+        Assert.Equal(expected, published.FinalRefresh!.Status);
+        Assert.Equal(reason, published.FinalRefresh.SkipReason);
         Assert.Equal(expected == FinalWomRefreshStatus.Skipped ? 0 : 1, provider.Calls - callsBefore);
         db.ChangeTracker.Clear();
         var history = Assert.Single((await finalization.GetReadinessAsync(fixture.EventId))!.History);
@@ -163,11 +168,11 @@ public sealed partial class Au12PlacementRuleIntegrationTests
                 { ["Input.Username"] = "au12-admin", ["Input.Password"] = "password", ["__RequestVerificationToken"] = token }));
             Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
             var html = WebUtility.HtmlDecode(await client.GetStringAsync($"/Admin/Events/Finalize/{fixture.EventId}"));
-            Assert.Contains(culture == "en" ? "Final WOM refresh" : "Afsluttende WOM-opdatering", html);
-            Assert.Contains(culture == "en" ? "Not recorded" : "Ikke registreret", html);
+            // AU18 / A10: only non-success refresh notes appear; legacy unknown has no fabricated note.
+            Assert.DoesNotContain(culture == "en" ? "Not recorded" : "Ikke registreret", html);
             Assert.Contains(culture == "en" ? "Reopened by Reopener" : "Genåbnet af Reopener", html);
             Assert.Contains(culture == "en" ? "Skipped: the refresh window has not elapsed." : "Sprunget over: opdateringsvinduet er ikke udløbet.", html);
-            Assert.Contains(culture == "en" ? "EHB, and current score time." : "EHB og tidspunktet for den aktuelle score.", html);
+            Assert.Contains(culture == "en" ? "More credited EHB, then earlier current-score time." : "Mere tildelt EHB, derefter tidligst opnåede aktuelle score.", html);
         }
     }
 
