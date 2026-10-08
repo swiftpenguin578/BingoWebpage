@@ -21,7 +21,7 @@ export function init(region, ui = window.AdminUI) {
   const head = region.querySelector('.page-head'), pageEl = region.querySelector('.page');
   const lang = document.documentElement.lang || 'en';
   let S = JSON.parse(root.querySelector('[data-draft-state]').textContent);
-  const L = { pending: null, unsure: null, checking: false, notice: null, fresh: null, q: '', sort: 'ehb', poolFocus: null, live: '', swap: 'a', settling: false, loadError: false };
+  const L = { pending: null, unsure: null, checking: false, notice: null, fresh: null, q: '', sort: 'ehb', poolFocus: null, live: '', swap: 'a', settling: false, loadError: false, own: null, offline: false };
   let menuSpec = null;
 
   /* ---------------- helpers ---------------- */
@@ -69,14 +69,27 @@ export function init(region, ui = window.AdminUI) {
     const outcome = await window.AdminFetch.request(url('Readback'), { expect: 'json', signal, readback: true });
     return outcome.kind === 'handler' && outcome.data?.known === true ? outcome.data.state : null;
   }
-  async function refresh() { if (await readState()) { L.loadError = false; render(); return true; } return false; }
+  async function refresh() {
+    const before = { stage: S.stage, who: S.control?.who };
+    if (!await readState()) return false;
+    L.loadError = false;
+    // Control left this admin without their own release/cancel/finalize: say what happened.
+    if (before.stage === 'running' && S.stage === 'running' && before.who === 'me' && S.control.who !== 'me' && !['release', 'cancel', 'finalize'].includes(L.own))
+      L.notice = S.control.who === 'other' ? lostNotice() : lapsedNotice();
+    if (S.stage !== 'running' && L.notice?.kind && ['lost', 'lapsed', 'offline'].includes(L.notice.kind)) L.notice = null;
+    render(); return true;
+  }
+  const LEASE_MIN = 5; // DraftControlLease.Duration
+  function lostNotice() { return { kind: 'lost', cls: 'is-warning', title: t('Another admin took control of the draft.'), text: t('Your picks won’t go through until you take control back.'), action: t('Take over…'), run: () => openCx('takeover') }; }
+  function lapsedNotice() { return { kind: 'lapsed', cls: 'is-warning', title: t('Your control lapsed.'), text: t('Control is released when this page can’t renew it for {0} minutes, for example after a lost connection. Take control to keep picking.', num(LEASE_MIN)), action: t('Take control'), run: () => takeControl() }; }
+  function offlineNotice() { return { kind: 'offline', cls: 'is-warning', title: t('Live updates stopped.'), text: t('While this page is disconnected it can’t renew your draft control or show other admins’ changes. Control lapses {0} minutes after its last renewal.', num(LEASE_MIN)), action: t('Reload'), run: () => void ui.navigate(location.pathname + location.search, { mode: 'replace' }) }; }
 
   // One runner for every command (reference run/settleRun). o: { handler, values, what,
   // kind, layer, quick, pending, verify(readbackState), okText, notText, onOk(data) }.
   async function run(o) {
     if (blocked()) return;
     L.pending = Object.assign({ kind: o.kind, draft: o.draft }, o.pending || {});
-    L.notice = null;
+    L.notice = null; L.own = o.kind;
     o.layer?.setBusy(true);
     render();
     const result = await post(o.handler, o.values, !!o.quick);
@@ -87,12 +100,12 @@ export function init(region, ui = window.AdminUI) {
       const data = result.data;
       if (data.outcome === 'done') {
         await o.layer?.close();
-        await refresh();
+        await refresh(); L.own = null;
         o.onOk?.(data);
         return;
       }
       if (data.outcome === 'refused' || data.outcome === 'stale') {
-        await refresh();
+        await refresh(); L.own = null;
         const text = data.message || t('That didn’t go through.');
         if (o.layer?.open()) o.layer.error(t('Couldn’t {0}.', o.what), text);
         else ui.toast(t('Couldn’t {0}.', o.what) + ' ' + text, { error: true });
@@ -100,16 +113,17 @@ export function init(region, ui = window.AdminUI) {
         return;
       }
     }
-    if (result.kind === 'session-lost') { render(); return; } // AdminFetch shows what wasn't saved; the layer and its draft stay.
+    if (result.kind === 'session-lost') { L.own = null; render(); return; } // AdminFetch shows what wasn't saved; the layer and its draft stay.
     if (result.kind === 'refused') {
-      await refresh();
+      await refresh(); L.own = null;
       const text = result.reason || t('This event is read-only in its current lifecycle state.');
       if (o.layer?.open()) o.layer.error(t('Couldn’t {0}.', o.what), text); else ui.toast(t('Couldn’t {0}.', o.what) + ' ' + text, { error: true });
       return;
     }
     // Uncertain: a lost response, a non-JSON answer or a JSON answer without an outcome.
+    L.own = null;
     await o.layer?.close();
-    L.unsure = { what: o.what, verify: o.verify, okText: o.okText, notText: o.notText, onOk: o.onOk };
+    L.unsure = { kind: o.kind, what: o.what, verify: o.verify, okText: o.okText, notText: o.notText, onOk: o.onOk };
     render(); focusSoon('td-banner');
     await check();
   }
@@ -120,8 +134,8 @@ export function init(region, ui = window.AdminUI) {
     L.checking = false;
     if (!state) { render(); focusSoon('td-banner'); return; } // still unknown: no blind retry
     const happened = !!u.verify?.(state);
-    L.unsure = null;
-    await refresh();
+    L.unsure = null; L.own = u.kind;
+    await refresh(); L.own = null;
     L.notice = { cls: happened ? 'is-info' : 'is-warning', title: t('We couldn’t confirm the response.'), text: (happened ? u.okText : u.notText) + ' ' + t('The current teams are shown; check them before trying again.') };
     render(); focusSoon('td-banner');
   }
@@ -174,6 +188,15 @@ export function init(region, ui = window.AdminUI) {
     const next = document.getElementById(id);
     if (next && next !== document.activeElement) { next.focus({ preventScroll: true }); if (selection && 'setSelectionRange' in next) try { next.setSelectionRange(...selection); } catch { /* not a text input */ } }
   }
+  // Places nodes without detaching the ones already in position, so the running view's
+  // persistent controls (pool search, sort) keep their identity, focus and scroll (rule 9).
+  function place(parent, nodes) {
+    const keep = new Set(nodes);
+    for (const child of [...parent.childNodes]) if (!keep.has(child)) child.remove();
+    let ref = parent.firstChild;
+    for (const node of nodes) { if (node === ref) { ref = node.nextSibling; continue; } parent.insertBefore(node, ref); }
+  }
+  const liveEl = h('p', { class: 'sr', 'aria-live': 'polite' });
   function render() {
     keepFocus(() => {
       const st = stage();
@@ -182,15 +205,17 @@ export function init(region, ui = window.AdminUI) {
       const banner = vmBanner(st);
       if (banner) parts.push(bannerEl(banner));
       if (L.loadError) parts.push(loadFailed());
-      else if (st === 'running') parts.push(...renderRunning());
+      else if (st === 'running') parts.push(renderRunning());
       else {
         if (st === 'setup') parts.push(...renderSetupTop());
         parts.push(renderCards(st));
       }
-      parts.push(h('p', { class: 'sr', 'aria-live': 'polite', text: L.live }));
-      body.replaceChildren(...parts);
+      if (liveEl.textContent !== L.live) liveEl.textContent = L.live;
+      parts.push(liveEl);
+      place(body, parts);
       pageEl?.classList.toggle('is-live', st === 'running');
       head?.classList.toggle('sr', st === 'running');
+      side(st === 'running' && !L.loadError);
     });
   }
   function renderHead(st) {
@@ -303,7 +328,293 @@ export function init(region, ui = window.AdminUI) {
           canAddHere ? h('button', { class: 'btn btn-sm btn-quiet', type: 'button', id: 't-' + x.id + '-add', disabled: ro, onclick: () => openPs(corr ? 'correction' : 'member', x.id) }, icon('plus'), st === 'setup' && x.included && !manual() ? t('Preassign player') : t('Add member')) : null) : null);
     }));
   }
-  function renderRunning() { return []; } // Item 1b.
+  /* ---------------- running draft (TeamsDraft.dc.html vmTurn/vmBoard/vmPool/vmCtl) ---------------- */
+  const available = () => S.participants.filter(p => !p.teamId);
+  const complete = () => S.orderReady && !S.turn && !S.blockers.length;
+  const drawing = () => L.pending?.kind === 'draw' || L.settling;
+  const tokenMs = name => { const v = getComputedStyle(root).getPropertyValue(name).trim(); return v.endsWith('ms') ? parseFloat(v) : (parseFloat(v) || 0) * 1000; };
+  function poolList() {
+    const q = L.q.trim().toLowerCase();
+    const list = available().filter(p => !q || p.name.toLowerCase().includes(q) || (p.account || '').toLowerCase().includes(q));
+    return list.sort(L.sort === 'name' ? (a, b) => a.name.localeCompare(b.name, lang) : (a, b) => (b.ehb - a.ehb) || a.name.localeCompare(b.name, lang));
+  }
+  let R = null;
+  function runningNodes() {
+    if (R) return R;
+    const search = h('input', { class: 'input', id: 'pool-search', autocomplete: 'off', placeholder: t('Find a player'), 'aria-label': t('Find a player'), 'data-1p-ignore': true, 'data-lpignore': 'true', 'data-bwignore': true, 'data-form-type': 'other',
+      oninput: () => { L.q = search.value; render(); }, onkeydown: searchKey });
+    const sortOpt = (key, label) => h('label', { class: 'seg-opt', id: 'pool-sort-' + key + '-opt' },
+      h('input', { class: 'sr', type: 'radio', name: 'pool-sort', id: 'pool-sort-' + key, value: key, onchange: () => { L.sort = key; render(); } }), label);
+    const grid = h('div', { class: 'pool-grid', id: 'pool-grid', role: 'group', 'aria-describedby': 'pool-help', onkeydown: gridKey });
+    R = {
+      turn: h('div', { class: 'turn', role: 'region', 'aria-label': t('Draft status') }),
+      board: h('div', { class: 'dboard', 'aria-label': t('Teams') }),
+      count: h('span', { class: 'pool-count' }), search, sorts: { ehb: sortOpt('ehb', t('EHB')), name: sortOpt('name', t('Name')) },
+      empty: h('div', { class: 'pool-empty' }), grid, help: h('p', { class: 'sr', id: 'pool-help' }), note: h('p', { class: 'td-manual-note' }), teams: new Map()
+    };
+    R.pool = h('section', { class: 'pool', 'aria-labelledby': 'pool-title' },
+      h('div', { class: 'pool-head' }, h('h2', { class: 'pool-title', id: 'pool-title', text: t('Available players') }), R.count, h('span', { class: 'spacer' }),
+        h('div', { class: 'search td-search' }, icon('search'), search), h('div', { class: 'seg', role: 'radiogroup', 'aria-label': t('Sort players') }, R.sorts.ehb, R.sorts.name)),
+      R.empty, grid, R.help);
+    R.wrap = h('div', { class: 'td-live' }, R.turn, R.board, R.pool);
+    return R;
+  }
+  function renderRunning() {
+    const r = runningNodes();
+    renderTurn(r); renderBoard(r); renderPool(r);
+    const manualTeams = S.teams.filter(x => !x.included);
+    r.note.textContent = manualTeams.length ? t('Not in the draft: {0}, assembled by hand.', manualTeams.map(x => `${x.name} (${num(x.members.length)})`).join(', ')) : '';
+    place(r.wrap, [r.turn, r.board, r.pool].concat(manualTeams.length ? [r.note] : []));
+    return r.wrap;
+  }
+  function renderTurn(r) {
+    const me = inControl(), last = S.latestPick, n = S.latestPick ? S.latestPick.number : 0, b = blocked(), pend = L.pending;
+    let pick, sub, now = null, msg = '', primary = null;
+    if (drawing()) {
+      pick = t('Drawing order'); sub = plural(drafted().length, '{0} team', '{0} teams'); msg = L.settling ? t('Moving the teams into the drawn order…') : t('Shuffling the teams…');
+      if (me && !S.everPicked) primary = { label: t('Drawing…'), busy: true, disabled: true };
+    } else if (!S.orderReady) {
+      pick = t('Order not drawn'); sub = plural(drafted().length, '{0} team', '{0} teams') + ' · ' + plural(available().length, '{0} player', '{0} players');
+      msg = me ? t('Draw the team order when captains are ready. You can redraw it until the first pick.') : t('Waiting for the admin with control to draw the team order.');
+      if (me) primary = { label: t('Draw order'), disabled: b, run: draw };
+    } else if (complete()) {
+      pick = plural(n, '{0} pick', '{0} picks'); sub = t('Draft complete'); msg = t('Every player is on a team. Check the rosters, then finalize to publish them.');
+      if (me) primary = { label: t('Finalize…'), disabled: b, run: () => openCx('finalize') };
+    } else if (!S.turn) {
+      pick = t('AdminDesign.Pick {0}', num(n + 1)); sub = t('Can’t continue');
+      msg = S.blockers.length ? S.blockers[0] + ' ' + t('Undo picks back to zero, cancel the draft and fix the team in setup.') : t('No team can take the next pick.');
+    } else {
+      pick = S.turn.total ? t('Pick {0} of {1}', num(S.turn.pickNumber), num(S.turn.total)) : t('AdminDesign.Pick {0}', num(S.turn.pickNumber)); sub = t('Round {0}', num(S.turn.round));
+      now = { team: S.turn.teamName, next: S.turn.next ? (S.turn.next.teamId === S.turn.teamId ? t('{0} again', S.turn.next.teamName) : S.turn.next.teamName) : '' };
+    }
+    const undoing = pend?.kind === 'undo';
+    const ctl = S.control.who === 'me' ? { cls: '', text: t('You have control'), action: t('Release'), run: releaseControl }
+      : S.control.who === 'other' ? { cls: 'is-other', text: t('Another admin has control'), action: t('Take over…'), run: () => openCx('takeover') }
+        : { cls: 'is-none', text: t('No one has control'), action: t('Take control'), run: () => takeControl() };
+    r.turn.className = 'turn is-swap-' + L.swap;
+    r.turn.replaceChildren(...[
+      h('div', { class: 'turn-pick' }, h('b', { text: pick }), h('span', { text: sub })),
+      ...(now ? [h('div', { class: 'turn-now', 'aria-live': 'polite' }, h('span', { class: 'dot', 'aria-hidden': 'true' }), h('span', { class: 'sr', text: t('Picking now:') + ' ' }), h('span', { class: 'turn-team', text: now.team })),
+        h('div', { class: 'turn-next grow' }, now.next ? [t('then') + ' ', h('b', { text: now.next })] : null)] : []),
+      msg ? h('div', { class: 'turn-msg grow', 'aria-live': 'polite', text: msg }) : null,
+      h('div', { class: 'turn-acts' },
+        S.orderReady ? h('button', { class: `btn btn-sm ${undoing ? 'is-busy' : ''}`, type: 'button', id: 'undo-btn', disabled: !last || !me || b, title: last ? t('Undo pick {0}: {1} to {2}', num(last.number), last.name, team(last.teamId)?.name || '') : t('No picks to undo'), onclick: undo },
+          undoing ? h('span', { class: 'spin' }) : icon('undo'), undoing ? t('Undoing…') : last ? t('Undo #{0}', num(last.number)) : t('Undo')) : null,
+        primary ? h('button', { class: `btn btn-sm btn-primary ${primary.busy ? 'is-busy' : ''}`, type: 'button', id: 'turn-primary', disabled: primary.disabled, onclick: primary.run }, primary.busy ? h('span', { class: 'spin' }) : null, primary.label) : null,
+        h('span', { class: `ctl ${ctl.cls}`, role: 'status' }, h('span', { class: 'dot', 'aria-hidden': 'true' }), ctl.text, h('button', { class: 'text-btn', type: 'button', id: 'ctl-btn', disabled: b, text: ctl.action, onclick: ctl.run })),
+        h('button', { class: 'icon-btn', type: 'button', id: 'draft-more', 'aria-label': t('More draft actions'), 'aria-haspopup': 'menu', 'aria-expanded': 'false', 'data-menu-target': 'draft-menu', 'data-menu-align': 'end', dataset: { draftMenu: 'more' } }, icon('more')))].filter(Boolean));
+  }
+  function renderBoard(r) {
+    const order = drafted().slice().sort((a, b) => (a.position ?? 1e9) - (b.position ?? 1e9));
+    const pend = L.pending?.kind === 'pick' ? L.pending : null, shuffling = L.pending?.kind === 'draw';
+    const oldIds = [...r.board.children].map(e => e.dataset.teamId), newIds = order.map(x => x.id);
+    const moved = r.board.isConnected && oldIds.length === newIds.length && oldIds.join() !== newIds.join() && !ui.reducedMotion?.();
+    const before = moved ? new Map([...r.board.children].map(e => [e.dataset.teamId, e.getBoundingClientRect()])) : null;
+    const sections = order.map((x, i) => {
+      let el = r.teams.get(x.id);
+      if (!el) { el = h('section', { class: 'dteam', id: 'bt-' + x.id, 'aria-labelledby': 'bt-' + x.id + '-name', dataset: { teamId: x.id } }); r.teams.set(x.id, el); }
+      const pre = x.members.filter(m => m.tag !== 'pick').sort((a, b) => rank[a.role] - rank[b.role]), picks = x.members.filter(m => m.tag === 'pick').sort((a, b) => a.pick - b.pick);
+      const rows = pre.concat(picks).map(m => h('li', { class: `dmem ${m.participantId === L.fresh ? 'is-new' : ''}` },
+        h('span', { class: 'dmem-tag', title: m.tag === 'pick' ? t('AdminDesign.Pick {0}', num(m.pick)) : t('Preassigned before the draft'), text: m.tag === 'pick' ? '#' + m.pick : t('Pre') }),
+        m.role !== 'P' ? h('span', { class: `role-badge ${m.role === 'CC' ? 'is-co' : ''}`, title: ROLE[m.role]() }, h('span', { 'aria-hidden': 'true', text: m.role === 'C' ? 'C' : 'CC' }), h('span', { class: 'sr', text: ROLE[m.role]() })) : null,
+        h('span', { class: 'dmem-name', text: m.name }), h('span', { class: 'dmem-ehb', text: num(m.ehb) })));
+      const pending = pend && pend.teamId === x.id ? S.participants.find(p => p.id === pend.pid) : null;
+      if (pending) rows.push(h('li', { class: 'dmem is-pending' }, h('span', { class: 'dmem-tag', title: t('Pick {0}, saving', num(pend.pickNo)), text: '#' + pend.pickNo }), h('span', { class: 'dmem-name', text: pending.name }), h('span', { class: 'spin', 'aria-hidden': 'true' }), h('span', { class: 'dmem-ehb', text: num(pending.ehb) })));
+      const ehb = x.members.reduce((a, m) => a + Number(m.ehb || 0), 0);
+      el.className = `dteam ${S.turn?.teamId === x.id && !drawing() ? 'is-turn' : ''}`;
+      el.style.setProperty('--i', String(i));
+      el.replaceChildren(h('div', { class: 'dteam-head' }, h('span', { class: 'dteam-ord', title: t('Draft order'), text: S.orderReady && !shuffling && x.position != null ? num(x.position) : '–' }),
+        h('h2', { class: 'dteam-name', id: 'bt-' + x.id + '-name', text: x.name }), h('div', { class: 'dteam-meta' }, h('b', { text: `${num(x.members.length + (pending ? 1 : 0))} / ${num(x.finalSize || x.members.length)}` }), h('span', { text: t('{0} EHB', num(ehb)) }))),
+        h('ol', { class: 'dteam-list', 'aria-label': t('{0} roster', x.name) }, rows));
+      return el;
+    });
+    for (const [id, el] of r.teams) if (!newIds.includes(id)) { el.remove(); r.teams.delete(id); }
+    place(r.board, sections);
+    r.board.className = 'dboard' + (shuffling ? ' is-shuffling' : L.settling ? ' is-reordering' : '');
+    r.board.style.setProperty('--team-count', String(Math.max(order.length, 1)));
+    r.board.setAttribute('aria-busy', String(drawing()));
+    if (before) void reorder(r, before);
+  }
+  // The columns travel to the confirmed order (FLIP, --dk-dur-reorder); picks wait until settled.
+  async function reorder(r, before) {
+    L.settling = true; render();
+    const duration = tokenMs('--dk-dur-reorder'), stagger = tokenMs('--dk-dur-reorder-stagger');
+    const runs = [...r.board.children].map((el, i) => {
+      const from = before.get(el.dataset.teamId), to = el.getBoundingClientRect(); if (!from) return null;
+      const dx = from.left - to.left, dy = from.top - to.top; if (!dx && !dy) return null;
+      return el.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'none' }], { duration, delay: i * stagger, easing: 'cubic-bezier(.2,.7,.2,1)', fill: 'backwards' }).finished.catch(() => {});
+    });
+    await Promise.all(runs);
+    if (signal.aborted) return;
+    L.settling = false; render();
+  }
+  function renderPool(r) {
+    const list = poolList(), all = available().length, me = inControl(), can = !!S.turn && me && !blocked();
+    const pend = L.pending?.kind === 'pick' ? L.pending : null;
+    let reason = '';
+    if (drawing()) reason = t('Picking opens once the drawn order has settled.');
+    else if (!S.orderReady) reason = t('Draw the team order to start picking.');
+    else if (!me) reason = S.control.who === 'other' ? t('Another admin is picking. Take over to pick from here.') : t('Take control to pick.');
+    else if (L.unsure) reason = t('Check the last change before picking again.');
+    const focusId = list.some(p => p.id === L.poolFocus) ? L.poolFocus : list[0]?.id;
+    const teamName = S.turn ? S.turn.teamName : '';
+    r.pool.className = 'pool' + (can ? '' : ' is-inert');
+    r.count.textContent = all === list.length ? t('{0} left', num(all)) : t('{0} of {1}', num(list.length), num(all));
+    if (r.search.value !== L.q) r.search.value = L.q;
+    for (const [key, opt] of Object.entries(r.sorts)) { const on = L.sort === key; opt.classList.toggle('is-on', on); opt.querySelector('input').checked = on; }
+    r.empty.hidden = !!list.length; r.empty.textContent = all ? t('No available player matches “{0}”.', L.q.trim()) : t('Everyone has been drafted.');
+    r.grid.setAttribute('aria-label', can ? t('Available players. Choosing one drafts them to {0} straight away.', teamName) : t('Available players.') + ' ' + (reason || t('Picking is paused.')));
+    r.help.textContent = (reason ? reason + ' ' : '') + t('Arrow keys move between players; Enter drafts the focused player. Press / to search; Enter in the search drafts a single match.');
+    r.grid.replaceChildren(...list.map(p => h('button', { class: `pchip ${pend && pend.pid === p.id ? 'is-pending' : ''}`, id: 'pc-' + p.id, type: 'button', tabindex: p.id === focusId ? '0' : '-1', 'aria-disabled': can ? 'false' : 'true',
+      'aria-label': t('{0}, {1} EHB', p.name, num(p.ehb)) + (can ? '. ' + t('Draft to {0}', teamName) : ''), onclick: () => { if (can) pick(p.id); } },
+      h('span', { class: 'pchip-name', text: p.name }), pend && pend.pid === p.id ? h('span', { class: 'spin', 'aria-hidden': 'true' }) : null, h('span', { class: 'pchip-ehb', text: num(p.ehb) }))));
+  }
+  function gridKey(e) {
+    const keys = ['ArrowRight', 'ArrowLeft', 'ArrowDown', 'ArrowUp', 'Home', 'End'];
+    if (!keys.includes(e.key)) return;
+    const grid = R.grid, chips = [...grid.querySelectorAll('.pchip')], i = chips.indexOf(document.activeElement); if (i < 0) return;
+    const cols = Math.max(1, getComputedStyle(grid).gridTemplateColumns.split(' ').filter(Boolean).length);
+    let j = i;
+    if (e.key === 'ArrowRight') j = i + 1; else if (e.key === 'ArrowLeft') j = i - 1; else if (e.key === 'ArrowDown') j = i + cols; else if (e.key === 'ArrowUp') j = i - cols;
+    else if (e.key === 'Home') j = 0; else j = chips.length - 1;
+    if (j < 0 || j >= chips.length) { if (e.key === 'ArrowUp' && j < 0) { e.preventDefault(); R.search.focus(); } return; }
+    e.preventDefault();
+    for (const chip of chips) chip.tabIndex = -1;
+    chips[j].tabIndex = 0; L.poolFocus = chips[j].id.slice(3);
+    chips[j].focus({ preventScroll: true }); chips[j].scrollIntoView({ block: 'nearest' });
+  }
+  function searchKey(e) {
+    if (e.key === 'Escape' && L.q) { e.preventDefault(); e.stopPropagation(); L.q = ''; render(); return; }
+    if (e.key === 'Enter') { const list = poolList(); if (list.length === 1) { e.preventDefault(); const id = list[0].id; L.q = ''; pick(id); } return; }
+    if (e.key === 'ArrowDown') { const first = R.grid.querySelector('.pchip[tabindex="0"]') || R.grid.querySelector('.pchip'); if (first) { e.preventDefault(); first.focus(); } }
+  }
+  document.addEventListener('keydown', e => {
+    if (e.key !== '/' || e.ctrlKey || e.metaKey || e.altKey || stage() !== 'running' || !R?.search.isConnected) return;
+    const target = e.target; if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable)) return;
+    if (document.querySelector('[aria-modal="true"]') || !menu.hidden) return;
+    e.preventDefault(); R.search.focus();
+  }, { signal });
+
+  /* ---------------- draft actions ---------------- */
+  function pick(pid) {
+    const turn = S.turn;
+    if (blocked() || !turn || !inControl() || !available().some(p => p.id === pid)) return;
+    const p = S.participants.find(x => x.id === pid), name = p.name, teamName = turn.teamName, pickNo = turn.pickNumber;
+    // Roving focus moves to the neighbour when the picked chip leaves the pool.
+    const list = poolList(), i = list.findIndex(x => x.id === pid), next = list[i + 1] || list[i - 1];
+    const inGrid = document.activeElement?.classList?.contains('pchip');
+    L.poolFocus = next ? next.id : null;
+    void run({ handler: 'Pick', values: { participantId: pid }, kind: 'pick', quick: true, what: t('draft {0}', name), pending: { pid, teamId: turn.teamId, pickNo },
+      verify: rb => rb.picks.some(x => x.participantId === pid && x.undoneAt == null),
+      okText: t('{0} is on {1}.', name, teamName), notText: t('{0} wasn’t drafted.', name),
+      onOk: () => { L.fresh = pid; L.swap = L.swap === 'a' ? 'b' : 'a'; L.live = t('Pick {0}: {1} to {2}.', num(pickNo), name, teamName); render(); if (inGrid && next) focusSoon('pc-' + next.id, { preventScroll: true }); else if (!inGrid) focusSoon('pool-search'); } });
+  }
+  function undo() {
+    const last = S.latestPick;
+    if (blocked() || !last || !inControl()) return;
+    const teamName = team(last.teamId)?.name || '';
+    // AU14: the pick shown as latest, by its id; the server refuses when it is no longer the latest.
+    void run({ handler: 'Undo', values: { pickId: last.pickId }, kind: 'undo', quick: true, what: t('undo pick {0}', num(last.number)),
+      verify: rb => rb.picks.some(x => x.pickId === last.pickId && x.undoneAt != null),
+      okText: t('Pick {0} is undone. {1} is back in the pool.', num(last.number), last.name), notText: t('Pick {0} wasn’t undone.', num(last.number)),
+      onOk: () => { L.fresh = null; L.swap = L.swap === 'a' ? 'b' : 'a'; L.live = t('Pick {0} undone: {1} left {2}.', num(last.number), last.name, teamName); render(); focusSoon('undo-btn'); } });
+  }
+  function draw() {
+    if (blocked() || !inControl() || S.everPicked) return;
+    const redraw = S.orderReady, previous = drafted().map(x => x.id + ':' + x.position).join();
+    void run({ handler: 'Scramble', values: {}, kind: 'draw', what: redraw ? t('redraw the order') : t('draw the order'),
+      verify: rb => { const inc = rb.teams.filter(x => x.active && x.includedInDraft); return inc.length > 1 && inc.every(x => x.draftPosition != null) && (!redraw || inc.map(x => x.teamId + ':' + x.draftPosition).join() !== previous); },
+      okText: t('A team order is drawn.'), notText: t('The order wasn’t drawn.'),
+      onOk: () => {
+        L.swap = L.swap === 'a' ? 'b' : 'a';
+        const first = S.turn ? S.turn.teamName : drafted().find(x => x.position === 1)?.name || '';
+        L.live = t('Order drawn: {0}.', drafted().slice().sort((a, b) => a.position - b.position).map(x => x.name).join(', '));
+        ui.toast(redraw ? t('Order redrawn. {0} picks first.', first) : t('Order drawn. {0} picks first.', first)); render(); focusSoon('pool-search');
+      } });
+  }
+  function takeControl(layerHandle) {
+    if (blocked() && !layerHandle) return;
+    const force = !!layerHandle;
+    void run({ handler: force ? 'TakeControl' : 'AcquireControl', values: force ? { confirmed: 'true' } : {}, kind: force ? 'takeover' : 'control', quick: !force, layer: layerHandle, what: force ? t('take over the draft') : t('take control of the draft'),
+      verify: rb => (rb.controllerId || '').toLowerCase() === me, okText: t('You have control of the draft.'), notText: t('You don’t have control.'),
+      onOk: () => { ui.toast(t('You have control of the draft.')); focusSoon('pool-search'); } });
+  }
+  function releaseControl() {
+    if (blocked() || !inControl()) return;
+    void run({ handler: 'ReleaseControl', values: {}, kind: 'release', quick: true, what: t('release draft control'),
+      verify: rb => (rb.controllerId || '').toLowerCase() !== me, okText: t('Control is released.'), notText: t('You still have control.'),
+      onOk: () => { ui.toast(t('Control released. Any admin can take it.')); focusSoon('ctl-btn'); } });
+  }
+  function moreItemsRunning() {
+    const n = S.latestPick ? S.latestPick.number : 0, done = complete(), mine = inControl(), left = available().length;
+    return [
+      { label: S.orderReady ? t('Redraw order') : t('Draw order'), disabled: !mine || S.everPicked, hint: S.everPicked ? t('Fixed after the first pick') : !mine ? t('Needs control') : '', run: draw },
+      // AddMember to a drafted team: only before the first pick ever recorded.
+      { label: t('Preassign a player…'), disabled: S.everPicked, hint: S.everPicked ? t('Closed after the first pick') : '', run: () => openPs('member', S.turn ? S.turn.teamId : drafted()[0]?.id, { pickTeam: true }) },
+      'sep',
+      { label: t('Finalize draft…'), disabled: !done || !mine, hint: !done ? plural(left, '{0} player left', '{0} players left') : !mine ? t('Needs control') : '', run: () => openCx('finalize') },
+      { label: t('Cancel draft…'), danger: true, hint: n ? plural(n, '{0} active pick', '{0} active picks') : '', run: () => openCx('cancel') }
+    ];
+  }
+  function moreConfirmRunning(kind) {
+    if (kind === 'takeover') return { title: S.control.name ? t('Take over from {0}?', S.control.name) : t('Take over the draft?'), body: S.control.name ? t('{0} has control of this draft. Taking over stops their picks from going through.', S.control.name) : t('Another admin has control of this draft. Taking over stops their picks from going through.'),
+      points: [t('Only take over if they’ve stopped or asked you to.'), t('Their control lapses on its own {0} minutes after their page stops renewing it.', num(LEASE_MIN))], confirm: t('Take over'), busyLabel: t('Working…'), custom: layerHandle => takeControl(layerHandle) };
+    if (kind !== 'cancel') return null;
+    const n = S.latestPick ? S.latestPick.number : 0;
+    if (n) return { title: t('Undo picks before cancelling'), body: plural(n, 'The draft still has {0} active pick. Cancelling never removes picks for you.', 'The draft still has {0} active picks. Cancelling never removes picks for you.'),
+      block: t('Use Undo to remove picks one at a time, latest first. When none are left, you can cancel and return to setup.'), cancel: t('Close') };
+    return { title: t('Cancel the draft?'), body: t('The draft returns to setup. Teams, captains and preassigned members stay as they are.'),
+      points: [S.everPicked ? t('The drawn order is kept, because a first pick was made.') : t('The drawn order is cleared; you’ll draw again after restarting.'), t('Control is released.')],
+      confirm: t('Cancel draft'), busyLabel: t('Working…'), cls: 'btn-danger', cancel: t('Keep drafting'), handler: 'Cancel', values: {}, what: t('cancel the draft'),
+      verify: rb => rb.state === 1, okText: t('The draft was cancelled.'), notText: t('The draft is still running.'),
+      onOk: () => { ui.toast(t('Draft cancelled. Teams are back in setup.')); focusSoon('page-h1'); } };
+  }
+
+  /* ---------------- sidebar: collapsed while the draft runs ---------------- */
+  // The admin's own toggles while running are kept until the draft ends; the earlier
+  // state comes back when the draft ends or the page is left.
+  const narrow = matchMedia('(max-width: 860px)');
+  let sideBase = null;
+  function side(runningNow) {
+    const bar = document.querySelector('[data-shell-sidebar]'), toggle = bar?.querySelector('.collapse-btn');
+    if (!bar || !toggle) return;
+    if (runningNow && sideBase === null) { sideBase = bar.classList.contains('is-collapsed'); if (!sideBase && !narrow.matches) toggle.click(); }
+    else if (!runningNow && sideBase !== null) restoreSide();
+  }
+  function restoreSide() {
+    const bar = document.querySelector('[data-shell-sidebar]'), toggle = bar?.querySelector('.collapse-btn');
+    if (bar && toggle && sideBase !== null && !narrow.matches && bar.classList.contains('is-collapsed') !== sideBase) toggle.click();
+    sideBase = null;
+  }
+
+  /* ---------------- live updates (AdminCollaborationHub) ---------------- */
+  // Messages are invalidations only: the page re-reads its state. Control is renewed every
+  // 120 s while this admin holds it; a lost connection while in control is said plainly.
+  function connectHub() {
+    if (S.stage === 'terminal') return;
+    const start = () => {
+      if (signal.aborted || !window.signalR) return;
+      const connection = new window.signalR.HubConnectionBuilder().withUrl('/hubs/admin-collaboration').withAutomaticReconnect().build();
+      let timer = 0;
+      connection.on('draftChanged', () => { clearTimeout(timer); timer = setTimeout(() => { if (!signal.aborted && !busy() && !L.unsure && !L.settling) void refresh(); }, 150); });
+      const subscribe = async () => { await connection.invoke('WatchDraft', eventId); if (inControl()) await connection.invoke('RenewDraftControl', eventId); };
+      const lost = () => { if (signal.aborted) return; L.offline = true; if (S.stage === 'running' && inControl()) { L.notice = offlineNotice(); render(); } };
+      connection.onreconnecting(lost); connection.onclose(lost);
+      connection.onreconnected(() => { L.offline = false; if (L.notice?.kind === 'offline') L.notice = null; subscribe().catch(() => {}); void refresh(); });
+      connection.start().then(subscribe).catch(() => {});
+      const renew = setInterval(() => { if (inControl() && connection.state === 'Connected') connection.invoke('RenewDraftControl', eventId).catch(() => {}); }, 120000);
+      extensions.push(() => { clearInterval(renew); clearTimeout(timer); connection.stop().catch(() => {}); });
+    };
+    if (window.signalR) { start(); return; }
+    let script = document.querySelector('script[data-signalr]');
+    if (!script) {
+      script = document.createElement('script');
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.7/signalr.min.js';
+      script.crossOrigin = 'anonymous'; script.referrerPolicy = 'no-referrer'; script.dataset.signalr = '';
+      document.head.append(script);
+    }
+    script.addEventListener('load', start, { once: true, signal });
+  }
 
   /* ---------------- menus (one shared menu, filled per opener) ---------------- */
   function menuItems(spec) {
@@ -339,7 +650,7 @@ export function init(region, ui = window.AdminUI) {
     }));
     menuSpec.list = items;
   }
-  let moreItems = () => [];
+  const moreItems = moreItemsRunning;
   root.addEventListener('click', event => {
     const opener = event.target.closest('[data-draft-menu]');
     if (opener) { if (blocked()) { event.stopPropagation(); return; } fillMenu(opener); return; } // the shell opens it next
@@ -404,7 +715,7 @@ export function init(region, ui = window.AdminUI) {
     let shown = false;
     name.addEventListener('input', () => { paint(); if (shown) showErr(); }, { signal });
     incl.addEventListener('change', paint, { signal });
-    const save = saveButton(teamId ? t('Save') : t('Add team'), t('Saving…'), 'btn-primary', 'tf-save');
+    const save = saveButton(teamId ? t('Save') : t('Add team'), t('Saving…'), 'btn-primary', 'tf-save'), before = republishBase();
     const titleText = teamId ? (setup ? t('Edit team') : t('Rename team')) : t('Add team');
     const content = h('div', {}, h('div', { class: 'mf-head' }, h('h2', { class: 'm-title', id: 'tf-title', 'data-confirm-title': true, text: titleText })),
       h('div', { class: 'mf-body' }, h('div', { 'data-layer-banner': true, hidden: true }),
@@ -424,7 +735,7 @@ export function init(region, ui = window.AdminUI) {
         verify: rb => id ? rb.teams.some(y => y.teamId === id && y.active && y.name === n && y.includedInDraft === included) : rb.teams.some(y => y.active && y.name === n),
         // New-team creation identity stays uncertain (DP:1151): never "created by you".
         okText: id ? t('{0} is saved.', n) : t('A team named {0} now exists. It isn’t known whether this request created it.', n), notText: id ? t('{0} wasn’t saved.', n) : t('No team named {0} exists.', n),
-        onOk: () => { ui.toast(id ? t('{0} saved.', n) : t('{0} added.', n)); const created = S.teams.find(y => y.name === n); focusSoon(created ? 't-' + created.id + '-menu' : 'add-team'); } });
+        onOk: () => { void announce(id ? t('{0} saved.', n) : t('{0} added.', n), before); const created = S.teams.find(y => y.name === n); focusSoon(created ? 't-' + created.id + '-menu' : 'add-team'); } });
     };
     save.addEventListener('click', submit, { signal });
     name.addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); submit(); } }, { signal });
@@ -533,25 +844,55 @@ export function init(region, ui = window.AdminUI) {
       if (corr) values.confirmed = 'true';
       if (pk.acc) Object.assign(values, { accountId: pk.acc.accountId, playingCharacterId: pk.acc.characterId, playingEhb: String(pk.acc.ehb) });
       else values.participantId = pk.part.id;
-      const name = pk.name, pid = pk.part?.id;
+      const name = pk.name, pid = pk.part?.id, before = republishBase();
       void run({ handler: 'AddMember', values, what: t('add {0}', name), kind: 'member', layer: L_ps, draft: { [t('Player')]: name, [t('Team')]: x.name },
         verify: rb => rb.memberships.some(m => m.teamId === x.id && m.leftAt == null && m.role === ROLE_NUM[role] && (pid ? m.participantId === pid : true)) && (pid ? true : rb.participants.some(q => q.accountId === pk.acc.accountId)),
         okText: t('{0} is on {1}.', name, x.name), notText: t('{0} isn’t on {1}.', name, x.name),
-        onOk: data => { L.fresh = data?.data?.participantId || pid || null; ui.toast(corr ? correctionToast(t('{0} added to {1}.', name, x.name), data) : role !== 'P' ? t('{0} added to {1} as {2}.', name, x.name, ROLE[role]().toLowerCase()) : t('{0} added to {1}.', name, x.name)); render(); focusSoon('t-' + x.id + '-add'); } });
+        onOk: data => { L.fresh = data?.data?.participantId || pid || null; void announce(role !== 'P' ? t('{0} added to {1} as {2}.', name, x.name, ROLE[role]().toLowerCase()) : t('{0} added to {1}.', name, x.name), before); render(); focusSoon('t-' + x.id + '-add'); } });
     }, { signal });
     requestAnimationFrame(() => search.focus());
   }
-  function correctionToast(local) { return local; } // Item 1c: local republish and WOM outcome lines.
+  /* ---------------- republish and Wise Old Man outcome lines (AU14, RC04/T-12/T-13/T-15) ---------------- */
+  // A finalized roster change republishes the rosters and queues a separate Wise Old Man
+  // group update. The toast says each part separately from the authoritative readback:
+  // the local republish (a newer publication cycle than before the change) and the WOM outcome
+  // of an operation created at or after that publication. Unknown or failed is said
+  // plainly, without provider text; it never says the group is updated unless it is.
+  function republishBase() { return ['final', 'locked'].includes(S.stage) ? { cycle: S.publicationCycle ?? 0 } : null; }
+  function womLine(rb) {
+    const sync = rb.synchronization, published = rb.rosterPublishedAt ? Date.parse(rb.rosterPublishedAt) : NaN;
+    if (!sync || sync.managementStatus === 'NotManaged') return '';
+    if (sync.managementStatus === 'ReadOnly') return t('This event’s Wise Old Man competition isn’t managed from here, so its group isn’t changed.');
+    const op = sync.lastOperation;
+    if (op && Date.parse(op.createdAt) >= published) {
+      if (op.phase === 4) return t('Wise Old Man: the group update went through.');
+      if ([1, 2, 3, 5].includes(op.phase)) return t('Wise Old Man: the group update is waiting to be sent.');
+      if (op.phase === 7) return t('Wise Old Man: the group update failed. Check the Wise Old Man page.');
+      return t('Wise Old Man: whether the group was updated isn’t known. Check the Wise Old Man page.');
+    }
+    if (sync.lastLocalQueueStatus === 'Failed' && sync.lastLocalQueueAt && Date.parse(sync.lastLocalQueueAt) >= published) return t('Wise Old Man: the group update couldn’t be queued. Check the Wise Old Man page.');
+    return t('Wise Old Man: whether the group was updated isn’t known. Check the Wise Old Man page.');
+  }
+  async function outcomeLines(before) {
+    const rb = await readback();
+    if (!rb) return t('Whether the rosters were republished couldn’t be checked; the Wise Old Man outcome isn’t known.');
+    // A newer roster publication cycle than the page showed before the change.
+    if (!(rb.rosterPublicationCycle > before.cycle)) return '';
+    return [t('Rosters republished.'), womLine(rb)].filter(Boolean).join(' ');
+  }
+  async function announce(text, before, options) {
+    const lines = before ? await outcomeLines(before) : '';
+    if (!signal.aborted) ui.toast(lines ? text + ' ' + lines : text, options);
+  }
 
   /* ---------------- member actions ---------------- */
   function changeRole(x, m, role, viaLayer) {
-    const name = m.name;
+    const name = m.name, before = republishBase();
     void run({ handler: 'ChangeRole', values: { membershipId: m.id, role: ROLE_ENUM[role], membershipVersion: String(m.version), rosterTeamId: x.id }, what: t('change {0}’s role', name), kind: 'role', layer: viaLayer,
       verify: rb => rb.memberships.some(y => y.membershipId === m.id && y.leftAt == null && y.role === ROLE_NUM[role]),
       okText: t('{0} is now {1}.', name, ROLE[role]().toLowerCase()), notText: t('{0}’s role didn’t change.', name),
-      onOk: data => { ui.toast(corrected(t('{0} is now {1} of {2}.', name, ROLE[role]().toLowerCase(), x.name), data)); focusSoon('m-' + m.id + '-menu'); } });
+      onOk: () => { void announce(t('{0} is now {1} of {2}.', name, ROLE[role]().toLowerCase(), x.name), before); focusSoon('m-' + m.id + '-menu'); } });
   }
-  function corrected(text) { return text; } // Item 1c.
   function removeMember(x, m) {
     if (canCorrect()) { openCx('removeMember', { teamId: x.id, teamName: x.name, member: m, size: x.members.length }); return; }
     void run({ handler: 'RemoveMember', values: { membershipId: m.id, rosterTeamId: x.id }, what: t('AdminDesign.remove {0}', m.name), kind: 'remove',
@@ -567,7 +908,7 @@ export function init(region, ui = window.AdminUI) {
   /* ---------------- confirmations ---------------- */
   function openCx(kind, c = {}) {
     if (blocked()) return;
-    const n = S.latestPick ? S.latestPick.number : 0, d = S.distribution;
+    const n = S.latestPick ? S.latestPick.number : 0, d = S.distribution, before = republishBase(), wasManual = manual();
     let o;
     if (kind === 'start') o = { title: t('Start the draft?'), body: t('{0} teams and {1} players are in the draft. You’ll take control, then draw the team order as a separate step.', num(drafted().length), num(d ? d.included : 0)),
       points: [t('Team sizes: {0}.', d ? (d.largerCount ? t('{0} of {1} and {2} of {3}', num(d.largerCount), num(d.larger), num(d.teams - d.largerCount), num(d.smaller)) : t('{0} teams of {1}', num(d.teams), num(d.smaller))) : ''), t('Drafted teams can’t be added, removed or switched out of the draft while it runs.'), t('You can cancel and return to setup whenever no picks are active.')],
@@ -581,7 +922,7 @@ export function init(region, ui = window.AdminUI) {
         points: [t('Team sizes: {0}.', drafted().map(x => `${x.name} ${num(x.members.length)}`).join(', ')), t('The board isn’t published and the event doesn’t start.'), t('Until the event first goes Live, you can add or remove individual members; each change republishes the rosters and the original picks stay in the history.'), t('The draft can’t be reopened.')] };
     if (kind === 'finalize') Object.assign(o, { confirm: t('Finalize and publish'), busyLabel: t('Publishing…'), handler: 'Finalize', values: { confirmed: 'true' }, what: manual() ? t('finalize the rosters') : t('finalize the draft'),
       verify: rb => rb.state === 4, okText: t('The rosters are published.'), notText: t('Nothing was published.'),
-      onOk: data => { finalized(data); }, onRefused: data => { const focus = data?.data?.rosterTeamId; if (focus) focusTeam(focus); } });
+      onOk: () => finalized(wasManual), onRefused: data => { const focus = data?.data?.rosterTeamId; if (focus) focusTeam(focus); } });
     else if (kind === 'removeTeam') o = { title: t('Remove {0}?', c.teamName), body: c.size ? plural(c.size, 'Its {0} member goes back to having no team. Nothing about the player changes; they stay signed up.', 'Its {0} members go back to having no team. Nothing about the players changes; they stay signed up.') : t('It has no members.'),
       confirm: t('Remove team'), busyLabel: t('Removing…'), cls: 'btn-danger', handler: 'RemoveDraftTeam', values: c.size ? { teamId: c.teamId, confirmRemoveMembers: 'true' } : { teamId: c.teamId }, what: t('AdminDesign.remove {0}', c.teamName),
       verify: rb => rb.teams.some(y => y.teamId === c.teamId && !y.active), okText: t('{0} was removed.', c.teamName), notText: t('{0} wasn’t removed.', c.teamName),
@@ -592,7 +933,7 @@ export function init(region, ui = window.AdminUI) {
         points: [m.tag === 'pick' ? t('Their original pick stays in the draft history.') : t('The publication history keeps a record of this change.'), t('To put them on another team, add them there afterwards.')].concat(m.role === 'C' ? [t('{0} will have no captain until you assign one.', c.teamName)] : []),
         confirm: t('Remove and republish'), busyLabel: t('Removing…'), cls: 'btn-danger', handler: 'RemoveMember', values: { membershipId: m.id, confirmed: 'true', expectedMembershipVersion: String(m.version), rosterTeamId: c.teamId }, what: t('AdminDesign.remove {0}', m.name),
         verify: rb => rb.memberships.some(y => y.membershipId === m.id && y.leftAt != null), okText: t('{0} was removed.', m.name), notText: t('{0} is still on the team.', m.name),
-        onOk: data => { ui.toast(corrected(t('{0} removed from {1}.', m.name, c.teamName), data)); focusSoon('t-' + c.teamId + '-add'); } };
+        onOk: () => { void announce(t('{0} removed from {1}.', m.name, c.teamName), before); focusSoon('t-' + c.teamId + '-add'); } };
     }
     else if (moreConfirm(kind, c)) o = moreConfirm(kind, c);
     if (!o) return;
@@ -602,11 +943,19 @@ export function init(region, ui = window.AdminUI) {
         o.block ? h('div', { class: 'banner is-warning m-banner' }, icon('warning'), h('span', { class: 'grow', text: o.block })) : null, h('div', { 'data-layer-banner': true, hidden: true })),
       h('div', { class: 'm-actions' }, h('button', { class: 'btn', type: 'button', id: 'cx-cancel', autofocus: !save, text: o.cancel || t('Cancel'), onclick: () => void L_cx.close() }), save));
     const L_cx = layer({ title: o.title, content, confirmation: true, cls: o.wide ? 'is-wide' : '' });
-    save?.addEventListener('click', () => void run({ handler: o.handler, values: o.values, what: o.what, kind, layer: L_cx, verify: o.verify, okText: o.okText, notText: o.notText, onOk: o.onOk, onRefused: o.onRefused }), { signal });
+    save?.addEventListener('click', () => o.custom ? o.custom(L_cx) : void run({ handler: o.handler, values: o.values, what: o.what, kind, layer: L_cx, verify: o.verify, okText: o.okText, notText: o.notText, onOk: o.onOk, onRefused: o.onRefused }), { signal });
     requestAnimationFrame(() => (save || content.querySelector('#cx-cancel')).focus());
   }
-  let moreConfirm = () => null; // Item 1b: take over, cancel.
-  function finalized(data) { ui.toast(manual() ? t('Rosters published.') : t('Rosters and draft results published.')); focusSoon('page-h1'); } // Item 1c: F1 toast with Open Board.
+  const moreConfirm = moreConfirmRunning;
+  // F1: finalizing stays on Teams. The toast offers Open Board only when a board exists
+  // (planner ruling 2); the WOM line follows the same honesty rule as corrections.
+  async function finalized(wasManual) {
+    focusSoon('page-h1');
+    const rb = await readback(), wom = rb ? womLine(rb) : t('Wise Old Man: whether the group was updated isn’t known. Check the Wise Old Man page.');
+    if (signal.aborted) return;
+    const text = (wasManual ? t('Rosters published.') : t('Rosters and draft results published.')) + (wom ? ' ' + wom : '');
+    ui.toast(text, S.boardExists ? { actionLabel: t('Open Board'), action: () => void ui.navigate(`/Admin/Events/Board/${eventId}`) } : undefined);
+  }
   function focusTeam(teamId) {
     const card = document.getElementById('card-' + teamId); if (!card) return;
     card.scrollIntoView({ block: 'start', behavior: ui.reducedMotion?.() ? 'auto' : 'smooth' });
@@ -619,5 +968,6 @@ export function init(region, ui = window.AdminUI) {
   const requested = new URL(location.href).searchParams.get('rosterTeamId');
   if (requested && team(requested.toLowerCase())) requestAnimationFrame(() => focusTeam(requested.toLowerCase()));
   const extensions = [];
-  release = () => { life.abort(); for (const stop of extensions) stop(); pageEl?.classList.remove('is-live'); head?.classList.remove('sr'); };
+  connectHub();
+  release = () => { life.abort(); for (const stop of extensions) stop(); restoreSide(); pageEl?.classList.remove('is-live'); head?.classList.remove('sr'); };
 }

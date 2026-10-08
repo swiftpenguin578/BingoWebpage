@@ -135,6 +135,13 @@ internal static class FixtureHost
             }
             // U5: opt-in Participants roster for browser checks (other pages keep the accepted fixture).
             if (Environment.GetEnvironmentVariable("BINGO_PARITY_PARTICIPANTS") == "1") SeedParticipants(db, account);
+            // U6: opt-in running draft (Teams / Draft browser checks and its conformance probe)
+            // plus a Final review event; the shared runner sets it for the Teams page only.
+            if (Environment.GetEnvironmentVariable("BINGO_PARITY_DRAFT") == "1")
+            {
+                Add("draft-review", "Harvest Bingo 2027", EventState.AwaitingFinalReview, "Europe/Copenhagen", null, null, "2027-04-01T16:00:00Z", "2027-04-20T18:00:00Z", null, "2027-05-20T16:00:00Z", "2027-06-02T10:00:00Z");
+                SeedRunningDraft(db);
+            }
             foreach (var item in db.ChangeTracker.Entries<BingoEvent>().Select(entry => entry.Entity)
                          .Where(item => item.ActualStartedAt is not null).ToArray())
             {
@@ -275,6 +282,49 @@ internal static class FixtureHost
             new AccountOsrsCharacter(Guid.NewGuid(), candidate.Id, skim.Id, candidate.Id, true, 0, null, 455.5m, Now),
             new AccountOsrsCharacter(Guid.NewGuid(), candidate.Id, skimIron.Id, candidate.Id, false, 1, null, null, Now));
         _ = admin;
+    }
+
+    // A running website draft on "clan-cup-pvm-week" (Signup closed): three drafted teams with
+    // captains, a manual-roster team, seven players in the pool, order drawn, no picks yet,
+    // nobody in control. The fixed fixture clock keeps any lease that a check acquires.
+    private static void SeedRunningDraft(ApplicationDbContext db)
+    {
+        var item = db.ChangeTracker.Entries<BingoEvent>().Select(entry => entry.Entity).Single(value => value.Slug == "clan-cup-pvm-week");
+        var primary = db.ChangeTracker.Entries<SignupQuestion>().Select(entry => entry.Entity).Single(value => value.EventId == item.Id && value.SystemField == SignupSystemField.PrimaryRegularAccount);
+        var index = 0;
+        EventParticipant Person(string username, string rsn, decimal ehb, bool volunteer = false)
+        {
+            var at = Now.AddDays(-30 + index);
+            var owner = Account.CreateWebsite(Guid.NewGuid(), username, username.ToUpperInvariant(), Now.AddYears(-1));
+            owner.SetDiscordIdentity("discord-draft-" + index, username);
+            var participant = new EventParticipant(Guid.NewGuid(), item.Id, SignupStatus.Confirmed, ++index, at, SignupSource.Website);
+            participant.AssignOwner(owner);
+            if (volunteer) participant.SetCaptainVolunteer(true);
+            var character = new OsrsCharacter(Guid.NewGuid(), rsn, rsn.ToUpperInvariant(), at);
+            db.AddRange(owner, participant, character,
+                new EventParticipantCharacter(Guid.NewGuid(), item.Id, participant.Id, character.Id, 0, at, owner.Id, primary.Id, EventCharacterRole.Playing, ehb, EhbSource.Manual, null),
+                new AccountOsrsCharacter(Guid.NewGuid(), owner.Id, character.Id, owner.Id, true, 0, null, ehb, at),
+                new SignupAnswer(Guid.NewGuid(), participant.Id, primary.Id, primary.Label, string.Empty, character.Id));
+            return participant;
+        }
+        var drafted = new[] { ("Ash Wardens", "ash-wardens", "ash.warden", "Ash Warden", 1320m), ("Bronze Line", "bronze-line", "bronze.line", "Bronze Liner", 980m), ("Crystal Seeds", "crystal-seeds", "crystal.seed", "Crystal Seed", 1105m) };
+        for (var i = 0; i < drafted.Length; i++)
+        {
+            var (name, slug, username, rsn, ehb) = drafted[i];
+            var team = new Team(Guid.NewGuid(), item.Id, name, slug, null, true, Now.AddDays(-5));
+            team.SetDraftPosition(i + 1);
+            var captain = Person(username, rsn, ehb, true);
+            db.AddRange(team, new TeamMembership(Guid.NewGuid(), team.Id, captain.Id, TeamMembershipRole.Captain, Now.AddDays(-5), null, "Controlled parity captain"));
+        }
+        var manual = new Team(Guid.NewGuid(), item.Id, "Bank Standers", "bank-standers", null, false, Now.AddDays(-5));
+        var standing = Person("bank.stand", "Bank Stander", 75m);
+        db.AddRange(manual, new TeamMembership(Guid.NewGuid(), manual.Id, standing.Id, TeamMembershipRole.Captain, Now.AddDays(-5), null, "Controlled parity membership"));
+        foreach (var (username, rsn, ehb) in new[] { ("zulrah.fan", "Zulrah Fan", 1510.5m), ("vorki.main", "Vorki Main", 1204m), ("mole.hunter", "Mole Hunter", 812.25m), ("kq.enjoyer", "KQ Enjoyer", 640m), ("barrows.bro", "Barrows Bro", 455m), ("chin.chomp", "Chin Chomp", 233.5m), ("tree.runner", "Tree Runner", 98m) })
+            Person(username, rsn, ehb);
+        var draft = new DraftSession(Guid.NewGuid(), item.Id, 3);
+        draft.Start(Now.AddHours(-1));
+        item.SetDraftLocked(true, Now.AddHours(-1));
+        db.Add(draft);
     }
 
     private sealed class FixtureClock : TimeProvider { public override DateTimeOffset GetUtcNow() => Now; }

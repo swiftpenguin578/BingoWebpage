@@ -56,7 +56,7 @@ public sealed partial class DraftModel
             EventState.Live => "locked",
             _ => draftState == DraftState.Running ? "running" : finalized ? "final" : draftState == DraftState.Paused ? "paused" : "setup"
         };
-        var activeCycle = await db.ActiveRosterPublications(id).OrderByDescending(x => x.CycleNumber).Select(x => (DateTimeOffset?)x.PublishedAt).FirstOrDefaultAsync(ct);
+        var activeCycle = await db.ActiveRosterPublications(id).OrderByDescending(x => x.CycleNumber).Select(x => new { x.PublishedAt, x.CycleNumber }).FirstOrDefaultAsync(ct);
         var boardExists = await db.Boards.AsNoTracking().AnyAsync(x => x.EventId == id, ct);
         var accounts = await (from participant in db.EventParticipants.AsNoTracking()
                               join account in db.Accounts.AsNoTracking() on participant.AccountId equals account.Id
@@ -86,7 +86,7 @@ public sealed partial class DraftModel
         return new TeamsPageState(
             id, EventName, ev.State.ToString(), stage, draftState.ToString(),
             ev.State == EventState.SignupClosed, CanDirectPreEventRosterMutation(ev), endsAt, endsAt is null || endsAt <= now,
-            ev.ActualStartedAt, activeCycle ?? FirstPublishedAt, boardExists,
+            ev.ActualStartedAt, activeCycle?.PublishedAt ?? FirstPublishedAt, activeCycle?.CycleNumber, boardExists,
             Draft.FirstPickRecorded, ActivePickIds.Count > 0 || Draft.FirstPickRecorded, DraftOrderReady, CanDirectFinalize, CanCorrectPreLiveRoster,
             stage == "review" ? reviewRoles : stage != "terminal" && CanChangeCaptainRoles,
             new ControlState(DraftControllerAccountId, DraftControllerName, DraftControllerAccountId is null ? "none" : CanControlDraft ? "me" : "other", DraftControllerLeaseExpiresAt),
@@ -103,7 +103,7 @@ public sealed partial class DraftModel
     private static string RoleKey(TeamMembershipRole role) => role switch { TeamMembershipRole.Captain => "C", TeamMembershipRole.CoCaptain => "CC", _ => "P" };
 
     public sealed record TeamsPageState(Guid EventId, string EventName, string EventState, string Stage, string DraftState,
-        bool SignupClosed, bool RosterOpen, DateTimeOffset? EndsAt, bool EndMissingOrPast, DateTimeOffset? LiveSince, DateTimeOffset? PublishedAt, bool BoardExists,
+        bool SignupClosed, bool RosterOpen, DateTimeOffset? EndsAt, bool EndMissingOrPast, DateTimeOffset? LiveSince, DateTimeOffset? PublishedAt, int? PublicationCycle, bool BoardExists,
         bool FirstPickRecorded, bool EverPicked, bool OrderReady, bool CanDirectFinalize, bool CanCorrect, bool CanChangeRoles,
         ControlState Control, IReadOnlyList<TeamState> Teams, IReadOnlyList<ParticipantState> Participants, IReadOnlyList<AccountChoice> Accounts,
         CurrentTurnState? Turn, LatestPickState? LatestPick, DistributionState? Distribution, IReadOnlyList<string> Blockers, int Unplaced, int Included, int Available);

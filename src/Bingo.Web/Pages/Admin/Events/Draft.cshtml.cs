@@ -601,11 +601,15 @@ public sealed partial class DraftModel(ApplicationDbContext db, TimeProvider tim
         }
         catch (Exception ex) when (IsDraftConflict(ex)) { return DraftConflict(id, ex); }
 
+        SetOutcomeData(new { pickId = pick.Id, teamId = turn.TeamId, pickNumber = turn.PickNumber, participantId });
         SetStatus(Localize("{0} picked for {1}.", participantName, teams.Single(x => x.Id == turn.TeamId).Name), UiMessageType.Success);
         await NotifyDraft(id, ct);
         return Finish(new { id });
     }
-    public async Task<IActionResult> OnPostUndoAsync(Guid id, CancellationToken ct)
+    // AU14: the page sends the id of the pick it shows as latest; when another pick became
+    // the latest one meanwhile, nothing is undone (stale). Without an id the latest active
+    // pick is undone, as before.
+    public async Task<IActionResult> OnPostUndoAsync(Guid id, CancellationToken ct, Guid? pickId = null)
     {
         await using var tx = await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, ct);
         var draft = await db.DraftSessions.SingleOrDefaultAsync(x => x.EventId == id, ct);
@@ -621,6 +625,12 @@ public sealed partial class DraftModel(ApplicationDbContext db, TimeProvider tim
         if (pick is null)
         {
             SetStatus(Localize("There is no active pick to undo."), UiMessageType.Error);
+            return Finish(new { id });
+        }
+        if (pickId is { } expected && pick.Id != expected)
+        {
+            MarkStale();
+            SetStatus(Localize("The latest pick changed. Nothing was undone; the current board is shown."), UiMessageType.Error);
             return Finish(new { id });
         }
 
