@@ -1,3 +1,4 @@
+using Bingo.Domain.Events;
 using Bingo.Domain.Evidence;
 using Bingo.Infrastructure.Persistence;
 using Bingo.Web.UI;
@@ -9,27 +10,31 @@ namespace Bingo.Web.Pages.Admin.Review;
 
 public sealed class IndexModel(ApplicationDbContext db) : PageModel
 {
-    public string EventName { get; private set; } = string.Empty; public string EventTimezone { get; private set; } = DateTimePresentation.DefaultTimezoneId; public Guid? EventId { get; private set; }
+    public BingoEvent? Event { get; private set; }
+    public Guid? EventId => Event?.Id;
+    public string EventName => Event?.Name ?? string.Empty;
+    public string EventTimezone => Event?.Timezone is { Length: > 0 } zone ? zone : DateTimePresentation.DefaultTimezoneId;
+    public bool ReviewOpen => Event is { } item && EventStatePolicy.Allows(item.State, EventCapability.ReviewEvidence);
     public string Search { get; private set; } = string.Empty;
     public SubmissionStatus? Status { get; private set; }
-    public IReadOnlyList<Row> Rows { get; private set; } = [];
-    public async Task<IActionResult> OnGetAsync(Guid? eventId, string? search, SubmissionStatus? status, CancellationToken ct)
+    public IReadOnlyList<ReviewList.Row> AllRows { get; private set; } = [];
+    public IReadOnlyList<ReviewList.Row> Rows { get; private set; } = [];
+    public int Count(SubmissionStatus? status) => status is null ? AllRows.Count : AllRows.Count(x => x.Status == status);
+    public bool Filtered => Search.Length > 0 || Status is not null;
+
+    public async Task<IActionResult> OnGetAsync([FromQuery] Guid? eventId, [FromQuery] string? search, [FromQuery] SubmissionStatus? status, CancellationToken ct)
     {
         Search = search?.Trim() ?? string.Empty; Status = status;
         if (eventId is null) return Page();
 
-        // C-CMP-1: a hidden or unknown event is Not Found, never an empty queue.
-        var ev = await db.Events.AsNoTracking().SingleOrDefaultAsync(x => x.Id == eventId && x.HiddenAt == null, ct);
-        if (ev is null) return NotFound();
-
-        EventId = ev.Id; EventName = ev.Name; EventTimezone = ev.Timezone;
-        Rows = await (from s in db.Submissions.AsNoTracking()
-                      join team in db.Teams.AsNoTracking() on s.TeamId equals team.Id
-                      join tile in db.BoardTiles.AsNoTracking() on s.BoardTileId equals tile.Id
-                      where s.EventId == ev.Id
-                      orderby s.Status == SubmissionStatus.Pending descending, s.SubmittedAt descending
-                      select new Row(s.Id, s.SubmittedAt, s.SubmittedAt > ev.EventEndsAt, team.Name, tile.NameSnapshot, s.CreditedCharacterName, s.Status, s.ClaimedWeight, s.ApprovedContribution, s.ExpectedEvidenceCode, s.CurrentReviewerNote)).ToListAsync(ct);
+        // C-CMP-1: a hidden or unknown event is Not Found, never an empty queue or another event.
+        Event = await db.Events.AsNoTracking().SingleOrDefaultAsync(x => x.Id == eventId && x.HiddenAt == null, ct);
+        if (Event is null) return NotFound();
+        AllRows = await ReviewList.RowsAsync(db, Event, ct);
+        Rows = ReviewList.Filter(AllRows, Search, Status);
         return Page();
     }
-    public sealed record Row(Guid Id, DateTimeOffset SubmittedAt, bool DuringGrace, string Team, string Tile, string Player, SubmissionStatus Status, int Claimed, int Approved, string? ExpectedCode, string? Note);
+
+    public string QueueUrl(string? search, SubmissionStatus? status) => ReviewList.QueueUrl(Event!.Id, search, status);
+    public string DetailsUrl(Guid id) => ReviewList.DetailsUrl(id, Event!.Id, Search, Status);
 }

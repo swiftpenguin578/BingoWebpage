@@ -181,6 +181,168 @@ public sealed partial class SubmissionWorkflowTests
             Assert.Equal(HttpStatusCode.NotFound, unknownQueue.StatusCode);
     }
 
+    // Item 0b: the queue's per-row checks are projections of existing data, with one after-end boundary
+    // (ActualEndedAt ?? EventEndsAt) shared with the workspace.
+    [Fact]
+    public async Task U8QueueRowsProjectEveryCheckWithOneAfterEndBoundary()
+    {
+        var setup = await SeedAsync(10, true);
+        var ids = new List<Guid>();
+        await using (var db = new ApplicationDbContext(options))
+            for (var i = 0; i < 4; i++) ids.Add((await Service(db).CreateAsync(Command(setup))).SubmissionId);
+        DateTimeOffset earlyEnd;
+        await using (var db = new ApplicationDbContext(options))
+        {
+            var item = await db.Events.SingleAsync(x => x.Id == setup.EventId);
+            earlyEnd = now.AddHours(1);
+            var pausedAt = now.AddMinutes(10); var resumedAt = now.AddMinutes(20);
+            db.EventStateTransitions.AddRange(
+                new Bingo.Domain.Events.EventStateTransition(Guid.NewGuid(), setup.EventId, Bingo.Domain.Events.EventState.Live, Bingo.Domain.Events.EventState.AwaitingFinalReview, setup.AdminId, pausedAt, "U8 paused", effectiveAt: pausedAt),
+                new Bingo.Domain.Events.EventStateTransition(Guid.NewGuid(), setup.EventId, Bingo.Domain.Events.EventState.AwaitingFinalReview, Bingo.Domain.Events.EventState.Live, setup.AdminId, resumedAt, "U8 resumed", effectiveAt: resumedAt));
+            item.EndEvent(earlyEnd);
+            await db.SaveChangesAsync();
+            await db.Database.ExecuteSqlInterpolatedAsync($"UPDATE evidence_assets SET active = false WHERE submission_id = {ids[0]}");
+            await db.Database.ExecuteSqlInterpolatedAsync($"UPDATE submissions SET submitted_at = {now.AddMinutes(1)} WHERE id = {ids[0]}");
+            await db.Database.ExecuteSqlInterpolatedAsync($"UPDATE submissions SET submitted_at = {earlyEnd.AddMinutes(10)} WHERE id = {ids[1]}");
+            await db.Database.ExecuteSqlInterpolatedAsync($"UPDATE submissions SET submitted_at = {now.AddMinutes(15)} WHERE id = {ids[2]}");
+            await db.Database.ExecuteSqlInterpolatedAsync($"UPDATE submissions SET submitted_at = {now.AddMinutes(30)} WHERE id = {ids[3]}");
+        }
+        Bingo.Web.Pages.Admin.Review.ReviewList.Row RowOf(IReadOnlyList<Bingo.Web.Pages.Admin.Review.ReviewList.Row> rows, int index) => rows.Single(x => x.Id == ids[index]);
+        await using (var db = new ApplicationDbContext(options))
+        {
+            var item = await db.Events.AsNoTracking().SingleAsync(x => x.Id == setup.EventId);
+            Assert.True(item.EventEndsAt > earlyEnd.AddMinutes(10)); // the scheduled end alone would not flag it
+            var rows = await Bingo.Web.Pages.Admin.Review.ReviewList.RowsAsync(db, item, CancellationToken.None);
+            Assert.Equal([ids[1], ids[3], ids[2], ids[0]], rows.Select(x => x.Id));
+            Assert.True(RowOf(rows, 0).NoScreenshot); Assert.False(RowOf(rows, 0).SameImage); Assert.False(RowOf(rows, 0).AfterEnd); Assert.False(RowOf(rows, 0).Paused);
+            Assert.True(RowOf(rows, 1).AfterEnd); Assert.True(RowOf(rows, 1).SameImage); Assert.False(RowOf(rows, 1).NoScreenshot);
+            Assert.True(RowOf(rows, 2).Paused); Assert.False(RowOf(rows, 2).AfterEnd);
+            Assert.False(RowOf(rows, 3).HasChecks && !RowOf(rows, 3).SameImage);
+            Assert.All(rows, row => Assert.False(row.LeftTeam));
+            var page = new Bingo.Web.Pages.Admin.Review.DetailsModel(db, Service(db));
+            Assert.IsType<Microsoft.AspNetCore.Mvc.RazorPages.PageResult>(await page.OnGetAsync(ids[1], CancellationToken.None));
+            Assert.Equal(10, page.Details.MinutesAfterEventEnd);
+        }
+        await using (var db = new ApplicationDbContext(options))
+        {
+            (await db.TeamMemberships.SingleAsync(x => x.TeamId == setup.TeamId && x.EventParticipantId == setup.ParticipantId)).Leave(now.AddMinutes(40), "U8 left");
+            await db.SaveChangesAsync();
+            var rows = await Bingo.Web.Pages.Admin.Review.ReviewList.RowsAsync(db, await db.Events.AsNoTracking().SingleAsync(x => x.Id == setup.EventId), CancellationToken.None);
+            Assert.All(rows, row => Assert.True(row.LeftTeam));
+        }
+    }
+
+    [Fact]
+    public async Task U8NeighboursFollowTheQueueListOfTheLink()
+    {
+        var setup = await SeedAsync(10, true);
+        var ids = new List<Guid>();
+        await using (var db = new ApplicationDbContext(options))
+        {
+            for (var i = 0; i < 3; i++) ids.Add((await Service(db).CreateAsync(Command(setup))).SubmissionId);
+            for (var i = 0; i < 3; i++) await db.Database.ExecuteSqlInterpolatedAsync($"UPDATE submissions SET submitted_at = {now.AddMinutes(i)} WHERE id = {ids[i]}");
+            await Service(db).RejectCurrentAsync(ids[0], setup.AdminId, "U8 rejected");
+        }
+        async Task<Bingo.Web.Pages.Admin.Review.DetailsModel> Page(Guid id, string search, SubmissionStatus? status)
+        {
+            var db = new ApplicationDbContext(options);
+            var page = new Bingo.Web.Pages.Admin.Review.DetailsModel(db, Service(db)) { Search = search, Status = status };
+            Assert.IsType<Microsoft.AspNetCore.Mvc.RazorPages.PageResult>(await page.OnGetAsync(id, CancellationToken.None));
+            return page;
+        }
+        // Pending first, newest first: ids[2], ids[1], then the rejected ids[0].
+        var middle = await Page(ids[1], string.Empty, null);
+        Assert.Equal(new Bingo.Web.Pages.Admin.Review.DetailsModel.NeighbourView(2, 3, ids[2], ids[0]), middle.Neighbours);
+        var first = await Page(ids[2], string.Empty, SubmissionStatus.Pending);
+        Assert.Equal(new Bingo.Web.Pages.Admin.Review.DetailsModel.NeighbourView(1, 2, null, ids[1]), first.Neighbours);
+        Assert.Null((await Page(ids[0], string.Empty, SubmissionStatus.Pending)).Neighbours); // not in the list it came from
+        Assert.Null((await Page(ids[1], "no such team", null)).Neighbours);
+    }
+
+    [Fact]
+    public async Task U8DecisionsAnswerDefiniteJsonOutcomes()
+    {
+        var setup = await SeedAsync(3, true);
+        Guid id; Guid character;
+        await using (var db = new ApplicationDbContext(options))
+        {
+            id = (await Service(db).CreateAsync(Command(setup))).SubmissionId;
+            character = await db.Submissions.Where(x => x.Id == id).Select(x => x.CreditedOsrsCharacterId).SingleAsync();
+        }
+        await using var factory = U8Factory();
+        using var client = await U8AdminClientAsync(factory, setup);
+        var token = await U8TokenAsync(client, id);
+        async Task<System.Text.Json.JsonElement> Post(string handler, Dictionary<string, string> fields)
+        {
+            fields["__RequestVerificationToken"] = token;
+            using var request = new HttpRequestMessage(HttpMethod.Post, $"/Admin/Review/Details/{id}?handler={handler}&eventId={setup.EventId}") { Content = new FormUrlEncodedContent(fields) };
+            request.Headers.Add("X-Requested-With", "XMLHttpRequest");
+            using var response = await client.SendAsync(request);
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            Assert.Equal("no-store", response.Headers.CacheControl?.ToString());
+            return System.Text.Json.JsonDocument.Parse(await response.Content.ReadAsStringAsync()).RootElement.Clone();
+        }
+        var before = await U8StateAsync(id);
+        var version = before.Version.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        var unconfirmed = await Post("Reject", new() { ["Input.ExpectedVersion"] = version, ["Input.Reason"] = "Reason" });
+        Assert.Equal("refused", unconfirmed.GetProperty("outcome").GetString());
+        Assert.Equal("Confirm this decision before it is saved. Nothing was changed.", unconfirmed.GetProperty("message").GetString());
+        var noop = await Post("Edit", new() { ["Input.ExpectedVersion"] = version, ["Input.Reason"] = "Reason", ["Input.BoardTileId"] = setup.TileId.ToString(), ["Input.RequirementId"] = setup.RequirementId.ToString(), ["Input.DropSnapshotId"] = setup.DropId.ToString()!, ["Input.CreditedOsrsCharacterId"] = character.ToString() });
+        Assert.Equal("refused", noop.GetProperty("outcome").GetString());
+        Assert.Equal("Change at least one detail, or cancel.", noop.GetProperty("message").GetString());
+        var missing = await Post("Approve", new());
+        Assert.Equal("refused", missing.GetProperty("outcome").GetString());
+        Assert.Equal(SubmissionService.MissingReviewVersionMessage, missing.GetProperty("message").GetString());
+        var stale = await Post("Approve", new() { ["Input.ExpectedVersion"] = (before.Version + 5).ToString(System.Globalization.CultureInfo.InvariantCulture) });
+        Assert.Equal("stale", stale.GetProperty("outcome").GetString());
+        Assert.Equal("Pending", stale.GetProperty("status").GetString());
+        Assert.Equal(before, await U8StateAsync(id));
+        var saved = await Post("Approve", new() { ["Input.ExpectedVersion"] = version });
+        Assert.Equal("saved", saved.GetProperty("outcome").GetString());
+        Assert.Equal("approve", saved.GetProperty("kind").GetString());
+        Assert.Equal((await U8StateAsync(id)).ApprovedContribution, saved.GetProperty("amount").GetInt32());
+        var late = await Post("Approve", new() { ["Input.ExpectedVersion"] = version });
+        Assert.Equal("stale", late.GetProperty("outcome").GetString());
+        Assert.Equal("Approved", late.GetProperty("status").GetString());
+        Assert.False(string.IsNullOrEmpty(late.GetProperty("changedBy").GetString()));
+    }
+
+    [Theory]
+    [InlineData("Approve")]
+    [InlineData("Reject")]
+    [InlineData("Reverse")]
+    [InlineData("Edit")]
+    public async Task U8LostSessionOnEveryDecisionRedirectsToLoginWithoutWrites(string handler)
+    {
+        var setup = await SeedAsync(3, true);
+        Guid id;
+        await using (var db = new ApplicationDbContext(options))
+        {
+            id = (await Service(db).CreateAsync(Command(setup))).SubmissionId;
+            if (handler == "Reverse") await Service(db).ApproveCurrentAsync(id, setup.AdminId);
+        }
+        await using var factory = U8Factory();
+        using var client = await U8AdminClientAsync(factory, setup);
+        var token = await U8TokenAsync(client, id);
+        var before = await U8StateAsync(id);
+        await using (var db = new ApplicationDbContext(options))
+        {
+            (await db.Accounts.SingleAsync(x => x.Id == setup.AdminId)).Disable(now);
+            await db.SaveChangesAsync();
+        }
+        using var request = new HttpRequestMessage(HttpMethod.Post, $"/Admin/Review/Details/{id}?handler={handler}")
+        {
+            Content = new FormUrlEncodedContent(new Dictionary<string, string> { ["__RequestVerificationToken"] = token, ["Input.ExpectedVersion"] = before.Version.ToString(System.Globalization.CultureInfo.InvariantCulture), ["Input.Reason"] = "Reason", ["confirmed"] = "true" })
+        };
+        request.Headers.Add("X-Requested-With", "XMLHttpRequest");
+        using var response = await client.SendAsync(request);
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        var location = new Uri(client.BaseAddress!, response.Headers.Location!);
+        Assert.Equal("/Account/Login", location.AbsolutePath);
+        Assert.Contains("accessChanged=true", location.Query, StringComparison.Ordinal);
+        Assert.Equal(before, await U8StateAsync(id));
+    }
+
     private WebApplicationFactory<Program> U8Factory() => new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseEnvironment("Testing").UseSetting("ConnectionStrings:Database", database.GetConnectionString())
         .ConfigureServices(services => { services.RemoveAll<IHostedService>(); services.RemoveAll<TimeProvider>(); services.AddSingleton<TimeProvider>(new FixedTimeProvider(now)); }));
 
