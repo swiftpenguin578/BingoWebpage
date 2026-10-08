@@ -196,7 +196,11 @@ public sealed partial class AdminDesignShellIntegrationTests(PostgreSqlTestFixtu
         Assert.Contains("class=\"design-notification-count\" aria-hidden=\"true\">1</span>", html);
         Assert.Contains("<span class=\"crumb-mid\">Shell fixture</span>", html);
         Assert.DoesNotContain("<a class=\"crumb-mid\"", html);
-        Assert.Contains("Teams / Draft", html); Assert.Matches("src=\"/images/branding/dk-legacy-admin-mark(?:\\.[A-Za-z0-9_-]+)?\\.png(?:\\?v=[A-Za-z0-9_-]+)?\"", html);
+        Assert.Contains("Teams / Draft", html);
+        // A10 (U10 part 2 item 5, U10-Q1): the shell still renders the brand, now the masthead SVG inside the reference brand box
+        // (link and collapsed button) instead of the retired dk-legacy-admin-mark.png.
+        Assert.Equal(2, Regex.Count(html, "class=\"logo design-logo-(?:link|account)\"[^>]*><img src=\"/images/branding/login-artwork(?:\\.[A-Za-z0-9_-]+)?\\.svg(?:\\?v=[^\"]+)?\""));
+        Assert.DoesNotContain("dk-legacy-admin-mark", html);
         Assert.Contains("data-page-loading-template=\"identity\"", html); Assert.Contains("aria-label=\"Loading identity\"", html);
         Assert.Contains($"/Admin/Events/Identity/{item.Id}", html);
         foreach (Match link in Regex.Matches(html, "<link[^>]+href=\"([^\"]+)\"")) Assert.StartsWith("/", link.Groups[1].Value);

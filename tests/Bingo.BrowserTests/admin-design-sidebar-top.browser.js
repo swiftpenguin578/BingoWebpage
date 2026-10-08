@@ -44,7 +44,7 @@ const {startFixture,login}=require('../../scripts/lib/admin-parity-fixture.cjs')
    // Expanded again: the logo navigates to the public front page.
    await page.locator('[data-side-toggle].collapse-btn').click();
    await page.waitForFunction(()=>!document.querySelector('[data-shell-sidebar]').classList.contains('is-collapsed'));
-   await Promise.all([page.waitForURL(url=>url.pathname==='/'),link.click()]);
+   await Promise.all([page.waitForURL(url=>url.pathname==='/',{waitUntil:'commit'}),link.click()]);
    assert.deepEqual(errors,[]);
    await context.close();
   }
