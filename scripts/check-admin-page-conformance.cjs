@@ -4,7 +4,7 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
 const {chromium,webkit}=require('playwright');
 const {startFixture,login,referencePage}=require('./lib/admin-parity-fixture.cjs');
 const registrations=require('./lib/admin-page-conformance-pages.cjs');
-const {observe,checkFrames,checkLoaded,checkUpdate,checkDanish,checkSources,checkDocument,checkFast,checkLoadingSummary,checkRegisteredLinks,registeredBlockShifts}=require('./lib/admin-page-conformance-checks.cjs');
+const {observe,checkFrames,checkLoaded,checkUpdate,checkDanish,checkSources,checkNoSidewaysScroll,checkDocument,checkFast,checkLoadingSummary,checkRegisteredLinks,registeredBlockShifts}=require('./lib/admin-page-conformance-checks.cjs');
 async function until(page,fn){for(let i=0;i<200;i++)if(await page.evaluate(fn))return;throw Error('Microtask checkpoint not reached');}
 (async()=>{
  const name=process.env.PLAYWRIGHT_BROWSER||'chromium',engine=name==='webkit'?webkit:chromium,output=path.join(process.cwd(),'artifacts/page-conformance-'+name);
@@ -75,7 +75,7 @@ async function until(page,fn){for(let i=0;i<200;i++)if(await page.evaluate(fn))r
     const shifts=registeredBlockShifts(registration,loading,loaded,delta);
     records.push({engine:name,family,width,presentation,loading,loaded,delta,shifts,referenceLoading,referenceLoaded});
     const close=(actual,expected,message)=>assert.ok(Math.abs(actual-expected)<=.1,message+': '+actual+' vs '+expected);
-    close(loading.summary.height,loading.summaryLine*(width<=640?2:1),'U3-Q6 phone/wide summary reservation');
+    close(loading.summary.height,Math.max(loading.summaryLine*(width<=640?2:1),width>640?(registration.summaryReserve||0):0),'U3-Q6 phone/wide summary reservation');
     close(loading.head.x,loaded.head.x,'header x');close(loading.head.y,loaded.head.y,'header y');close(loading.head.width,loaded.head.width,'header width');
     close(loading.title.x,loaded.title.x,'title x');close(loading.title.height,loaded.title.height,'title line height');
     if(family!=='dashboard'){close(delta,loaded.summary.height-loading.summary.height+(registration.headerGrowth?.[width]??0),'only summary growth'+(registration.headerGrowth?.[width]?' plus the registered '+registration.headerGrowth[width]+' px header growth':'')+' changes header');close(loading.title.y,loaded.title.y,'title y');}
@@ -107,6 +107,7 @@ async function until(page,fn){for(let i=0;i<200;i++)if(await page.evaluate(fn))r
     assert.deepEqual(pageErrors,[],family+': no page errors');await caseContext.close();
    }
    await ref.close();
+   if(registration.rowProbe)await checkNoSidewaysScroll(browser,storageState,fixture,registration,paths[family]);
   }
   await context.close();await refs.close();await fixture.close();fixture=null;
   }
