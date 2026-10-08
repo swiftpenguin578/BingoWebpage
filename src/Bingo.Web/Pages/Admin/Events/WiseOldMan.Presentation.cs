@@ -78,6 +78,18 @@ public sealed partial class WiseOldManModel
         : CompetitionManagement?.Status is "Conflict" or "Failed" ? Localize("See the message above. Changes on Wise Old Man are not overwritten here.")
         : CompetitionManagement?.CanWrite != true ? Localize("This connection cannot send website changes to Wise Old Man. A valid management code is required.")
         : Localize(BeforeLive ? "Name, dates and finalized teams update automatically when they change here." : "Teams are fixed since the event went live. Name and dates still update.");
+    // Reference tones: the update tile is grey whenever updates are ended, paused, stopped or not sent.
+    public string UpdateToneClass => !EndNeedsAttention && OperationPending ? ""
+        : EndNeedsAttention || ReadOnly || EventView!.State == EventState.AwaitingFinalReview
+          || CompetitionManagement?.Status is "Conflict" or "Failed"
+          || CompetitionManagement?.CredentialStatus is EventCompetitionCredentialStatus.Invalid or EventCompetitionCredentialStatus.Revoked
+          || CompetitionManagement?.CanWrite != true ? "is-none" : "";
+    public string CredentialToneClass => CompetitionManagement?.CredentialStatus switch
+    {
+        EventCompetitionCredentialStatus.Valid => "is-good",
+        EventCompetitionCredentialStatus.Invalid or EventCompetitionCredentialStatus.Revoked => "is-bad",
+        _ => ""
+    };
     public string NextFetchNote => ReadOnly ? Localize("No more fetches") : EndNeedsAttention ? Localize("Fetches paused by the unmatched end")
         : BeforeLive ? Localize("Starts when the event goes live") : CompetitionIntegration?.RetryDueAt is not null ? Localize("Automatic retry")
         : Localize(EventView!.State == EventState.AwaitingFinalReview ? "Hourly until results are published" : "Hourly while the event runs");
