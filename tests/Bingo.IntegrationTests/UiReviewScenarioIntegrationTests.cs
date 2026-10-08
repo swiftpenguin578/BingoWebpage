@@ -586,7 +586,15 @@ public sealed class UiReviewScenarioIntegrationTests(ITestOutputHelper output, P
             foreach (var link in links)
             {
                 using var response = await clients[link.Username].GetAsync(new Uri(link.Url).PathAndQuery);
-                Assert.True(response.StatusCode == HttpStatusCode.OK, $"{scenarios.Profile}: {link.Username} GET {link.Url} returned {(int)response.StatusCode}");
+                if (link.ExpectedRedirectTo is { } expected)
+                {
+                    Assert.True(response.StatusCode == HttpStatusCode.Redirect, $"{scenarios.Profile}: {link.Username} GET {link.Url} returned {(int)response.StatusCode}, expected 302");
+                    var location = response.Headers.Location!;
+                    var actual = location.IsAbsoluteUri ? location.PathAndQuery : location.OriginalString;
+                    Assert.Equal(expected, actual);
+                }
+                else
+                    Assert.True(response.StatusCode == HttpStatusCode.OK, $"{scenarios.Profile}: {link.Username} GET {link.Url} returned {(int)response.StatusCode}");
                 if (link.Hidden)
                 {
                     using var refused = await clients["ReviewAdmin"].GetAsync(new Uri(link.Url).PathAndQuery);
