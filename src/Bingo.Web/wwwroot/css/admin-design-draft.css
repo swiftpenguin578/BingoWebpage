@@ -2,7 +2,10 @@
    components come from admin-design-tokens.css / admin-design-components.css. Layer contents
    carry the family on a display:contents wrapper so these rules reach the shared hosts. */
 :where([data-page-family="draft"]).td-layer{display:contents}
+/* rule 3: loaded content swaps in one step (no load fades) */
+:where([data-page-family="draft"]) .fade-in,:where([data-page-family="draft"]) .results,:where([data-page-family="draft"]) .empty,:where([data-page-family="draft"]) .page-banner{animation:none}
 :where([data-page-family="draft"]) .td-head-acts{display:flex;gap:8px;flex:none}
+:where([data-page-family="draft"]) .td-head-acts:empty{display:none}
 :where([data-page-family="draft"]) .td-ready{margin-bottom:var(--dk-space-5)}
 :where([data-page-family="draft"]) .td-ready-main{display:flex;align-items:flex-start;gap:14px 32px;flex-wrap:wrap;padding:14px 18px}
 :where([data-page-family="draft"]) .td-ready-text{flex:1 1 320px;min-width:0}

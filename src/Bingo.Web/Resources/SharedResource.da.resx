@@ -5190,4 +5190,28 @@
   <data name="The latest pick changed. Nothing was undone; the current board is shown." xml:space="preserve">
     <value>Det seneste valg er ændret. Intet blev fortrudt; den aktuelle status vises.</value>
   </data>
+  <data name="At least two active drafted teams are required." xml:space="preserve">
+    <value>Der kræves mindst to aktive hold i draftet.</value>
+  </data>
+  <data name="Every active drafted team must have a current roster projection." xml:space="preserve">
+    <value>Alle aktive hold i draftet skal have en aktuel holdlisteprojektion.</value>
+  </data>
+  <data name="Existing drafted-team assignments cannot fit the balanced final roster sizes." xml:space="preserve">
+    <value>De eksisterende tildelinger til hold i draftet passer ikke til de afbalancerede endelige holdstørrelser.</value>
+  </data>
+  <data name="Existing drafted-team assignments exceed the included participant total." xml:space="preserve">
+    <value>De eksisterende tildelinger til hold i draftet overstiger det samlede antal deltagere i draftet.</value>
+  </data>
+  <data name="Existing drafted-team assignments make a final maximum size difference of one impossible." xml:space="preserve">
+    <value>De eksisterende tildelinger til hold i draftet gør en endelig størrelsesforskel på højst én umulig.</value>
+  </data>
+  <data name="A website account cannot own more than one included participant." xml:space="preserve">
+    <value>En websitekonto kan ikke eje mere end én deltager i draftet.</value>
+  </data>
+  <data name="Every included confirmed participant must retain one valid primary-account reservation." xml:space="preserve">
+    <value>Hver bekræftet deltager i draftet skal beholde én gyldig reservation af hovedkontoen.</value>
+  </data>
+  <data name="A Playing character cannot be assigned to more than one included participant." xml:space="preserve">
+    <value>En spillende karakter kan ikke tildeles mere end én deltager i draftet.</value>
+  </data>
 </root>

@@ -400,7 +400,8 @@
 @section HeaderSummary {<span data-draft-summary>@Model.Summary</span>}
 @section HeaderActions {<div class="td-head-acts" data-draft-head></div>}
 <div data-draft data-event-id="@state.EventId" data-account-id="@Model.CurrentAccountId" data-labels="@labelJson">
-    <script type="application/json" data-draft-state>@Html.Raw(stateJson)</script>
+    @* A template, not a script: shell navigation accepts only page/shell scripts (validatePage). *@
+    <template data-draft-state>@Html.Raw(stateJson)</template>
     <div class="td-body" data-draft-body>
         <partial name="_AdminDraftSkeleton" />
     </div>

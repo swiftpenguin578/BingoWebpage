@@ -1,6 +1,14 @@
 // Add a page here once. The conformance gate uses the real Razor fixture,
 // loading template, family stylesheet, and these page-specific interaction probes.
 module.exports = [
+  // U6: Teams / Draft. Geometry on the setup workspace; the in-place update probe is the running
+  // draft's pool sort (update.url), seeded only for this page by BINGO_PARITY_DRAFT (planner ruling, 8 Oct).
+  { family: 'draft', postSaveCount: 1, fixtureEnv: { BINGO_PARITY_DRAFT: '1' },
+    url: f => '/Admin/Events/Draft/' + f.events['autumn-bingo-2027'], fixture: 'autumn-bingo-2027',
+    source: 'Pages/Admin/Events/Draft.cshtml', module: 'admin-draft.js',
+    textRows: { 'td-sk-line': ['control',1.45] }, reference: 'TeamsDraft.dc.html', referenceEvent: 'community-mini-bingo', first: '.td-ready', blocks: { first: '.td-ready' },
+    style: ['.td-ready-main','display','flex'], titleDa: 'Hold / draft',
+    update: { url: f => '/Admin/Events/Draft/' + f.events['clan-cup-pvm-week'], control: '#pool-sort-name', action: 'click', selected: '#pool-sort-name-opt.is-on' } },
   // U5: Participants. The first summary item carries two numbers ("{0} of {1} confirmed").
   { family: 'participants', postSaveCount: 1, countSummary: { words: ['of  confirmed', 'waiting', 'unpaid'], wordsDa: ['af  bekræftet', 'på venteliste', 'ubetalt'], numberCounts: { 0: 2 } },
     url: f => '/Admin/Events/Participants/' + f.events['autumn-bingo-2027'], fixture: 'autumn-bingo-2027',

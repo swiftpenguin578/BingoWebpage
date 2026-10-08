@@ -20,7 +20,7 @@ export function init(region, ui = window.AdminUI) {
   const body = root.querySelector('[data-draft-body]'), menu = root.querySelector('[data-draft-menu-panel]');
   const head = region.querySelector('.page-head'), pageEl = region.querySelector('.page');
   const lang = document.documentElement.lang || 'en';
-  let S = JSON.parse(root.querySelector('[data-draft-state]').textContent);
+  let S = JSON.parse(root.querySelector('template[data-draft-state]').content.textContent);
   const L = { pending: null, unsure: null, checking: false, notice: null, fresh: null, q: '', sort: 'ehb', poolFocus: null, live: '', swap: 'a', settling: false, loadError: false, own: null, offline: false };
   let menuSpec = null;
 
@@ -956,7 +956,10 @@ export function init(region, ui = window.AdminUI) {
     const text = (wasManual ? t('Rosters published.') : t('Rosters and draft results published.')) + (wom ? ' ' + wom : '');
     ui.toast(text, S.boardExists ? { actionLabel: t('Open Board'), action: () => void ui.navigate(`/Admin/Events/Board/${eventId}`) } : undefined);
   }
+  // rosterTeamId and the missing-captain refusal: that team's card (its menu), or its running column.
   function focusTeam(teamId) {
+    const column = document.getElementById('bt-' + teamId);
+    if (column) { column.scrollIntoView({ block: 'nearest', behavior: ui.reducedMotion?.() ? 'auto' : 'smooth' }); return; }
     const card = document.getElementById('card-' + teamId); if (!card) return;
     card.scrollIntoView({ block: 'start', behavior: ui.reducedMotion?.() ? 'auto' : 'smooth' });
     (card.querySelector('.tcard-head .icon-btn') || card.querySelector('h3'))?.focus({ preventScroll: true });

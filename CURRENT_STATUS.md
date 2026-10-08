@@ -14,7 +14,7 @@
 
 | Lane | Implementer | Batch | Worktree / branch | State |
 | --- | --- | --- | --- | --- |
-| A | Claude (Opus) | U5 Participants, then U6 Teams/Draft | `BingoWebpage-u5` / `claude/u5-participants` | items up to the early look |
+| A | Claude (Opus) | U5 Participants, then U6 Teams/Draft | U6: `BingoWebpage-u6` / `claude/u6-teams` | U6 items 0a–1c committed; at the early-look stop (handoff `review-notes/93h-u6-handoff.md`) |
 | B | Claude (Opus) | U7 Board, then U8 Review | `BingoWebpage-u7` / `claude/u7-board` | items up to the early look |
 | C | Codex (`gpt-6-astra` / high) | U9 Final review + WOM | `~/.codex/worktrees/u9-final-wom` / `codex/u9-final-wom` | started from `a91b29ad` |
 
@@ -22,6 +22,6 @@ Then U10 retirement sweep (Claude) after all pages merge.
 
 **Rules for every lane:** shared UI rules `review-notes/86-ui-rules.md`; briefs 87 (U5), 88 (U7), 90 (U9), 93 (U6), 94 (U8). Implementers run focused checks and a batch gate of the full JS runner plus a Release build; the planner runs the whole .NET suite per merge. One shared review environment (ports 5310/5320/54339), managed by the planner.
 
-**Known follow-ups for U10:** sticky first-column hover flicker; dead `admin-account*`/`admin-audit*`/`.admin-header-blockers` CSS; `/Admin/Accounts/Create` stub; "Rolls per {0}" key; English field label inside the Danish DST message on Overview; English-formatted overlap window in the Overview refusal; Catalogue's own dirty model vs shell `markClean`.
+**Known follow-ups for U10:** sticky first-column hover flicker; dead `admin-account*`/`admin-audit*`/`.admin-header-blockers` CSS; `/Admin/Accounts/Create` stub; "Rolls per {0}" key; English field label inside the Danish DST message on Overview; English-formatted overlap window in the Overview refusal; Catalogue's own dirty model vs shell `markClean`. Dead `wwwroot/js/draft-scramble.js` and the `data-admin-draft-creating/drawing` layout attributes (Teams draws in `admin-draft.js` since U6).
 
 **No push, merge to `main` or deployment is authorized.** Older handoffs are in Git history.
