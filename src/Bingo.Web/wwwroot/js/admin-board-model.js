@@ -34,3 +34,22 @@ export function leaseRenewer(send, { interval = 60000, now = () => Date.now() } 
     return true;
   };
 }
+
+// M1: map a handler answer to a command outcome. Board commands answer {outcome,message,issues,current};
+// Move still answers {success,message}, and success:false is a refusal with the server's reason.
+export function outcomeOf(data) {
+  data = data || {};
+  if ('outcome' in data) return { kind: data.outcome === 'saved' ? 'saved' : 'refused', message: data.message, issues: data.issues || [], current: data.current };
+  if (data.success === false) return { kind: 'refused', message: data.message, issues: [], current: data.current };
+  return { kind: 'state', issues: data.localized || [], current: data.current };
+}
+// M2: an unconfirmed save that asked for new artwork is confirmed only if the Readback
+// reference differs from the one remembered when the drawer opened (undefined = unknown).
+export function artworkConfirmed(want, tile, openingReference) {
+  if (want.removeArt && tile.artworkReference) return false;
+  if (want.newArt) {
+    if (!tile.artworkReference) return false;
+    if (openingReference === undefined || tile.artworkReference === openingReference) return false;
+  }
+  return true;
+}

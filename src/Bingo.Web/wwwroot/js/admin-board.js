@@ -5,7 +5,7 @@
 // unknown outcome is settled by the no-store Readback, never assumed.
 // Extensions (tile editor, publication flows) install onto the shared context.
 
-import { ROWS, posName, parseWhole, leaseRenewer } from './admin-board-model.js';
+import { ROWS, posName, parseWhole, leaseRenewer, outcomeOf } from './admin-board-model.js';
 import { install as installEditor } from './admin-board-editor.js';
 import { install as installPublication } from './admin-board-publication.js';
 
@@ -64,9 +64,7 @@ export async function init(region, ui = window.AdminUI) {
     } finally { ctx.pending = null; }
     if (life.signal.aborted) return { kind: 'aborted' };
     if (result.kind === 'handler') {
-      const data = result.data || {};
-      if ('outcome' in data) return { kind: data.outcome === 'saved' ? 'saved' : 'refused', message: data.message, issues: data.issues || [], current: data.current };
-      return { kind: 'state', issues: data.localized || [], current: data.current };
+      return outcomeOf(result.data);
     }
     if (result.kind === 'refused') return { kind: 'route-refused', message: result.reason || t('This event is read-only in its current lifecycle state.') };
     if (result.kind === 'session-lost') return { kind: 'session-lost' };
@@ -213,7 +211,14 @@ export async function init(region, ui = window.AdminUI) {
     const result = await window.AdminFetch.request(ctx.url('RenewEditing'), { method: 'POST', body: body({}), notice: false, signal: life.signal }); /* background POST */
     if (result.kind === 'handler' && result.data?.renewed === false && ctx.view.control?.who === 'me' && !ctx.blocked()) await ctx.refresh();
   });
-  for (const type of ['pointerdown', 'keydown', 'input']) on(document, type, () => { if (ctx.canEdit() && !life.signal.aborted) renew(); }, { passive: true, capture: true });
+  // L2: never renew while a command is pending, nor on the pointerdown that starts one
+  // (a button press); the command itself is the activity, and a renewal UPDATE of the
+  // boards row in the same window could collide with it.
+  for (const type of ['pointerdown', 'keydown', 'input']) on(document, type, event => {
+    if (!ctx.canEdit() || life.signal.aborted || ctx.pending) return;
+    if (type === 'pointerdown' && event.target?.closest?.('button, [role="button"], a, label')) return;
+    renew();
+  }, { passive: true, capture: true });
 
   /* ---------------- banner ---------------- */
   const bannerHost = root.querySelector('[data-board-banner]');
