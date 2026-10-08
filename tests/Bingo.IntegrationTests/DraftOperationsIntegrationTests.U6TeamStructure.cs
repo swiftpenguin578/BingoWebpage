@@ -337,4 +337,33 @@ public sealed partial class DraftOperationsIntegrationTests
         }
     }
 
+    // U6 review L6: every committed roster command tells other admins' open Teams pages to re-read.
+    [Fact]
+    public async Task U6RosterCommandsPublishTheDraftChangedNotification()
+    {
+        var setup = await SeedAsync();
+        await ExecuteAsync(setup.EventId, setup.FirstAdminId, page => page.OnPostAddTeamAsync(setup.EventId, "Manual A", null, null, CancellationToken.None, false, false));
+        await ExecuteAsync(setup.EventId, setup.FirstAdminId, page => page.OnPostAddTeamAsync(setup.EventId, "Manual B", null, null, CancellationToken.None, false, false));
+        var manualA = await TeamIdAsync(setup.EventId, "Manual A");
+        var manualB = await TeamIdAsync(setup.EventId, "Manual B");
+        var notifier = new RecordingCollaborationNotifier();
+        async Task<int> RunAsync(Func<DraftModel, Task<Microsoft.AspNetCore.Mvc.IActionResult>> command)
+        {
+            var before = notifier.DraftEvents.Count;
+            await ExecuteAndReadStatusAsync(setup.EventId, setup.FirstAdminId, command, null, notifier);
+            return notifier.DraftEvents.Count - before;
+        }
+        async Task<(Guid Id, long Version)> MembershipAsync(Guid teamId)
+        {
+            await using var read = new ApplicationDbContext(options);
+            var membership = await read.TeamMemberships.SingleAsync(value => value.TeamId == teamId && value.LeftAt == null);
+            return (membership.Id, membership.Version);
+        }
+        Assert.Equal(1, await RunAsync(page => page.OnPostAddMemberAsync(setup.EventId, manualA, setup.PlayerIds[2], "Seed", CancellationToken.None)));
+        var added = await MembershipAsync(manualA);
+        Assert.Equal(1, await RunAsync(page => page.OnPostChangeRoleAsync(setup.EventId, added.Id, TeamMembershipRole.Captain, CancellationToken.None, added.Version)));
+        Assert.Equal(1, await RunAsync(page => page.OnPostMoveMemberAsync(setup.EventId, added.Id, manualB, CancellationToken.None)));
+        var moved = await MembershipAsync(manualB);
+        Assert.Equal(1, await RunAsync(page => page.OnPostRemoveMemberAsync(setup.EventId, moved.Id, "Done", CancellationToken.None)));
+    }
 }

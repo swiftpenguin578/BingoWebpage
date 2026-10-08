@@ -2446,7 +2446,7 @@ public sealed partial class DraftOperationsIntegrationTests(PostgreSqlTestFixtur
         return await action(page);
     }
 
-    private async Task<string?> ExecuteAndReadStatusAsync(Guid eventId, Guid accountId, Func<DraftModel, Task<IActionResult>> action, DbContextOptions<ApplicationDbContext>? contextOptions = null)
+    private async Task<string?> ExecuteAndReadStatusAsync(Guid eventId, Guid accountId, Func<DraftModel, Task<IActionResult>> action, DbContextOptions<ApplicationDbContext>? contextOptions = null, IAdminCollaborationNotifier? notifier = null)
     {
         await using var db = new ApplicationDbContext(contextOptions ?? options);
         var context = new DefaultHttpContext
@@ -2454,7 +2454,7 @@ public sealed partial class DraftOperationsIntegrationTests(PostgreSqlTestFixtur
             User = new ClaimsPrincipal(new ClaimsIdentity(
                 [new Claim(ClaimTypes.NameIdentifier, accountId.ToString()), new Claim(ClaimTypes.Name, $"admin-{accountId:N}")], "test"))
         };
-        var page = new DraftModel(db, new FixedTimeProvider(now), new AuditWriter(db, new FixedTimeProvider(now)), new NullAdminCollaborationNotifier(), null!, new Bingo.Infrastructure.Signups.EventParticipantCharacterService(db, new FixedTimeProvider(now)), captainAuthority: new TeamCaptainAuthorityService(db, new FixedTimeProvider(now)))
+        var page = new DraftModel(db, new FixedTimeProvider(now), new AuditWriter(db, new FixedTimeProvider(now)), notifier ?? new NullAdminCollaborationNotifier(), null!, new Bingo.Infrastructure.Signups.EventParticipantCharacterService(db, new FixedTimeProvider(now)), captainAuthority: new TeamCaptainAuthorityService(db, new FixedTimeProvider(now)))
         {
             PageContext = new PageContext(new ActionContext(context, new RouteData(), new PageActionDescriptor())),
             TempData = new TempDataDictionary(context, new EmptyTempDataProvider())
