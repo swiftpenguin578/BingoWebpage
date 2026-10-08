@@ -17,6 +17,7 @@ jobs:
     env:
       BINGO_ADMIN_STALE_EVIDENCE_DIRECTORY: ${{ github.workspace }}/artifacts/js-fixtures
       PLAYWRIGHT_CHANNEL: chromium
+      SIXLABORS_LICENSE_KEY: ${{ secrets.SIXLABORS_LICENSE_KEY }}
     steps:
       - name: Check out repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -60,6 +61,8 @@ jobs:
     timeout-minutes: 60
     permissions:
       contents: read
+    env:
+      SIXLABORS_LICENSE_KEY: ${{ secrets.SIXLABORS_LICENSE_KEY }}
 
     services:
       postgres:
@@ -188,6 +191,8 @@ jobs:
     timeout-minutes: 60
     permissions:
       contents: read
+    env:
+      SIXLABORS_LICENSE_KEY: ${{ secrets.SIXLABORS_LICENSE_KEY }}
 
     services:
       postgres:
@@ -299,6 +304,8 @@ jobs:
           platforms: linux/amd64
           push: true
           provenance: false
+          secrets: |
+            sixlabors_license_key=${{ secrets.SIXLABORS_LICENSE_KEY }}
           tags: ${{ steps.image.outputs.name }}:sha-${{ github.sha }}
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
