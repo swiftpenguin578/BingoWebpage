@@ -12,9 +12,7 @@ using Bingo.Web.UI;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Localization;
 
 namespace Bingo.Web.Pages.Admin.Events;
@@ -38,11 +36,7 @@ public sealed class ParticipantsModel(
     public Guid? DrawerParticipant { get; private set; }
     public bool DrawerAdd { get; private set; }
     public ParticipantDrawerView? DrawerView { get; private set; }
-
-    // Retained only for the retired internal-participant handlers (removed in item 1c).
-    [BindProperty] public InternalParticipantInput InternalParticipant { get; set; } = new();
-    public bool WomValidationConfirmationRequired { get; private set; }
-    public bool WomValidationConfirmationCancelled { get; private set; }
+    public int PlayingSlots { get; private set; }
 
     // Compatibility for older direct PageModel tests: the current page rows.
     public IReadOnlyList<ParticipantsListRow> Participants => List.Rows;
@@ -60,6 +54,13 @@ public sealed class ParticipantsModel(
         DrawerAdd = participant is null && add == "1" && Policy.Editable;
         if (participant is { } selected) DrawerView = await new ParticipantDrawerReader(db, Localize).ReadAsync(Event!, selected, ct);
         return Page();
+    }
+
+    // A10 (brief 87 1c): a retired handler name (CreateInternalParticipant, CancelWomValidation)
+    // or any other unknown handler is refused before the page could render without its data.
+    public override void OnPageHandlerExecuting(Microsoft.AspNetCore.Mvc.Filters.PageHandlerExecutingContext context)
+    {
+        if (context.HandlerMethod is null) context.Result = NotFound();
     }
 
     // U5-Q3: no-store current state of one participant (drawer open and lost-response re-read).
@@ -179,40 +180,28 @@ public sealed class ParticipantsModel(
         return SaveOutcome(result);
     }
 
-    public async Task<IActionResult> OnPostCancelWomValidationAsync(Guid id, CancellationToken ct)
-    {
-        TryGetTempData()?.Remove("WomValidationConfirmationToken");
-        if (!await LoadAsync(id, ct)) return NotFound();
-        WomValidationConfirmationCancelled = true;
-        return Page();
-    }
-
     // Retired signup-settings owner. Keep handler selection and the existing
     // Setup gate so historical posts receive the pinned Manage redirect.
     public IActionResult OnPostSignupAdministration(Guid id)
         => RedirectToPage("Manage", new { id });
 
-    public async Task<IActionResult> OnPostCreateInternalParticipantAsync(Guid id, CancellationToken ct)
+    // F04 / brief 87 1c: Add from a website account's saved Playing accounts (no questions,
+    // no WOM). Full events go to the waiting list unless "Confirm and add a place" (exactly +1).
+    // Replaces the retired CreateInternalParticipant/CancelWomValidation handlers (A10).
+    public async Task<IActionResult> OnPostAddAsync(Guid id, [FromForm] ParticipantAddInput input, CancellationToken ct)
     {
         var actorId = User.GetAccountId();
         if (actorId is null) return Forbid();
-        if (InternalParticipant.OwnerAccountId is null)
+        if (input.Owner is not { } owner) return Outcome(false, "Choose a website account.");
+        if (input.Primary is not { } primary || input.Accounts.Count == 0) return Outcome(false, "Select at least one saved Playing account.");
+        var result = await signupService.AddSavedParticipantAsync(new AddSavedParticipantRequest(id, owner, actorId.Value, User.Identity?.Name ?? "Admin",
+            input.Accounts, primary, input.Paid ? PaymentStatus.Paid : PaymentStatus.Unpaid, input.AddPlace, input.EventVersion), ct);
+        var name = result.ParticipantId is { } added ? (await NamesAsync(id, [added], ct)).FirstOrDefault() : null;
+        return Outcome(result.Succeeded, result.Error, new
         {
-            SetStatus(Localize("Select an active website account for this participant."), UiMessageType.Error);
-            return RedirectToPage(null, null, new { id }, null);
-        }
-        var result = await signupService.CreateAdminParticipantAsync(new AdminParticipantChangeRequest(id, null, actorId.Value, User.Identity?.Name ?? "Admin", InternalParticipant.OwnerAccountId,
-            InternalParticipant.AccountAnswers.ToDictionary(item => item.Key, item => new AdminAccountAnswer(item.Value.CharacterName, item.Value.Ehb)), InternalParticipant.Answers, null, InternalParticipant.WomValidationConfirmationToken), ct);
-        if (result.WomValidationConfirmationToken is not null)
-        {
-            if (!await LoadAsync(id, ct)) return NotFound();
-            WomValidationConfirmationRequired = true;
-            return Page();
-        }
-        SetStatus(result.Succeeded
-            ? result.Status == SignupStatus.WaitingList ? Localize("Internal participant created at waiting-list position {0}.", result.WaitingPosition?.ToString(CultureInfo.CurrentCulture) ?? string.Empty) : Localize("Internal participant created.")
-            : Localize(result.Error ?? "Internal participant could not be created."), result.Succeeded ? UiMessageType.Success : UiMessageType.Error);
-        return RedirectToPage(null, null, new { id }, null);
+            participantId = result.ParticipantId, name, status = result.Status is SignupStatus.WaitingList ? "waiting" : "confirmed",
+            waitingPosition = result.WaitingPosition, capacity = result.EffectiveParticipantCap, addedPlace = result.AddedPlace
+        });
     }
 
     private async Task<bool> LoadAsync(Guid id, CancellationToken ct)
@@ -222,6 +211,7 @@ public sealed class ParticipantsModel(
         EventTimezone = Event.Timezone;
         Policy = ParticipantRosterPolicy.For(Event, Localize);
         List = await new ParticipantsListReader(db).ReadAsync(Event, Query, ct);
+        PlayingSlots = await db.SignupQuestions.AsNoTracking().CountAsync(x => x.EventId == id && x.Active && x.Type == SignupQuestionType.Account && x.AccountAnswerRole == EventCharacterRole.Playing, ct);
         return true;
     }
 
@@ -278,13 +268,6 @@ public sealed class ParticipantsModel(
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
-    private ITempDataDictionary? TryGetTempData()
-    {
-        var httpContext = PageContext?.HttpContext;
-        if (httpContext?.RequestServices is not { } services) return null;
-        return services.GetService<ITempDataDictionaryFactory>()?.GetTempData(httpContext);
-    }
-
     private string Localize(string key, params object[] arguments) => text?[key, arguments].Value ?? string.Format(CultureInfo.CurrentCulture, key, arguments);
     private void SetStatus(string message, UiMessageType type)
     {
@@ -311,12 +294,13 @@ public sealed class ParticipantsModel(
         public string? Answers { get; set; }
     }
     public sealed record ParticipantSaveAccount(Guid? AssignmentId, string? Name, decimal? Ehb, string? Role, bool Primary);
-    public sealed class InternalParticipantInput
+    public sealed class ParticipantAddInput
     {
-        public Guid? OwnerAccountId { get; set; }
-        public Dictionary<Guid, AccountInput> AccountAnswers { get; set; } = [];
-        public Dictionary<Guid, string> Answers { get; set; } = [];
-        public string? WomValidationConfirmationToken { get; set; }
+        public Guid? Owner { get; set; }
+        public List<Guid> Accounts { get; set; } = [];
+        public Guid? Primary { get; set; }
+        public bool Paid { get; set; }
+        public bool AddPlace { get; set; }
+        public long? EventVersion { get; set; }
     }
-    public sealed class AccountInput { [StringLength(100)] public string? CharacterName { get; set; } [Range(0, 100000)] public decimal? Ehb { get; set; } }
 }

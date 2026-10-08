@@ -4030,4 +4030,39 @@
   <data name="· optional, no EHB" xml:space="preserve"><value>· valgfrit, ingen EHB</value></data>
   <data name="AdminDesign.Add playing account" xml:space="preserve"><value>Tilføj spillekonto</value></data>
   <data name="· retired question" xml:space="preserve"><value>· tidligere spørgsmål</value></data>
+  <data name="Add to" xml:space="preserve"><value>Tilføj til</value></data>
+  <data name="All {0} account slots are used" xml:space="preserve"><value>Alle {0} kontopladser er brugt</value></data>
+  <data name="Already in event" xml:space="preserve"><value>Allerede med i begivenheden</value></data>
+  <data name="Already in this event" xml:space="preserve"><value>Allerede med i denne begivenhed</value></data>
+  <data name="Capacity will increase from {0} to {1} when you add this participant." xml:space="preserve"><value>Kapaciteten øges fra {0} til {1}, når du tilføjer denne deltager.</value></data>
+  <data name="Change" xml:space="preserve"><value>Skift</value></data>
+  <data name="Choose a website account to see its saved playing accounts." xml:space="preserve"><value>Vælg en hjemmesidekonto for at se dens gemte spillekonti.</value></data>
+  <data name="Choose a website account." xml:space="preserve"><value>Vælg en hjemmesidekonto.</value></data>
+  <data name="Couldn’t add the participant. Nothing was saved." xml:space="preserve"><value>Deltageren kunne ikke tilføjes. Intet blev gemt.</value></data>
+  <data name="Discord not linked" xml:space="preserve"><value>Discord er ikke tilknyttet</value></data>
+  <data name="EHB comes from the saved account and can be changed for this event after adding. Up to {0} playing accounts per participant." xml:space="preserve"><value>EHB kommer fra den gemte konto og kan ændres for denne begivenhed efter tilføjelsen. Op til {0} spillekonti pr. deltager.</value></data>
+  <data name="Full · capacity {0} → {1}" xml:space="preserve"><value>Fuld · kapacitet {0} → {1}</value></data>
+  <data name="No EHB" xml:space="preserve"><value>Ingen EHB</value></data>
+  <data name="No saved EHB — update the account first" xml:space="preserve"><value>Ingen gemt EHB — opdater kontoen først</value></data>
+  <data name="No website accounts match “{0}”." xml:space="preserve"><value>Ingen hjemmesidekonti matcher “{0}”.</value></data>
+  <data name="Owns {0}" xml:space="preserve"><value>Ejer {0}</value></data>
+  <data name="Search by username, Discord or RSN" xml:space="preserve"><value>Søg efter brugernavn, Discord eller RSN</value></data>
+  <data name="Search website accounts" xml:space="preserve"><value>Søg i hjemmesidekonti</value></data>
+  <data name="Select at least one playing account." xml:space="preserve"><value>Vælg mindst én spillekonto.</value></data>
+  <data name="Select at least one saved Playing account." xml:space="preserve"><value>Vælg mindst én gemt spillekonto.</value></data>
+  <data name="Show" xml:space="preserve"><value>Vis</value></data>
+  <data name="That account’s saved playing accounts didn’t load. Try again." xml:space="preserve"><value>Kontoens gemte spillekonti blev ikke indlæst. Prøv igen.</value></data>
+  <data name="The event changed while you were adding. The current numbers are shown; nothing was added." xml:space="preserve"><value>Begivenheden blev ændret, mens du tilføjede. De aktuelle tal vises; intet blev tilføjet.</value></data>
+  <data name="This account has no playing accounts that can be added." xml:space="preserve"><value>Denne konto har ingen spillekonti, der kan tilføjes.</value></data>
+  <data name="We couldn’t confirm whether {0} was added. The current list is shown; check it before trying again." xml:space="preserve"><value>Vi kunne ikke bekræfte, om {0} blev tilføjet. Den aktuelle liste vises; tjek den, før du prøver igen.</value></data>
+  <data name="Website accounts couldn’t be searched. Try again." xml:space="preserve"><value>Der kunne ikke søges i hjemmesidekonti. Prøv igen.</value></data>
+  <data name="Withdrawn · restore instead" xml:space="preserve"><value>Trukket tilbage · gendan i stedet</value></data>
+  <data name="{0} EHB" xml:space="preserve"><value>{0} EHB</value></data>
+  <data name="{0} added to confirmed" xml:space="preserve"><value>{0} tilføjet som bekræftet</value></data>
+  <data name="{0} added to the waiting list (#{1})" xml:space="preserve"><value>{0} tilføjet til ventelisten (#{1})</value></data>
+  <data name="{0} of {1} spots left" xml:space="preserve"><value>{0} af {1} pladser tilbage</value></data>
+  <data name="{0} match" xml:space="preserve"><value>{0} match</value></data>
+  <data name="{0} matches" xml:space="preserve"><value>{0} match</value></data>
+  <data name="{0} saved account" xml:space="preserve"><value>{0} gemt konto</value></data>
+  <data name="{0} saved accounts" xml:space="preserve"><value>{0} gemte konti</value></data>
 </root>
