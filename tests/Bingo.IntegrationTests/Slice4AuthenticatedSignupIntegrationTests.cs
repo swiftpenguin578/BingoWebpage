@@ -2925,6 +2925,20 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
             using var json = System.Text.Json.JsonDocument.Parse(await created.Content.ReadAsStringAsync());
             Assert.Equal("done", json.RootElement.GetProperty("outcome").GetString());
         }
+        // U5 L2: a row action for a participant outside this event is a definite JSON refusal; a plain post keeps its 404.
+        foreach (var json in new[] { true, false })
+        {
+            using var withdraw = new HttpRequestMessage(HttpMethod.Post, $"{participantsRoute}?handler=Withdraw")
+            { Content = new FormUrlEncodedContent(new Dictionary<string, string> { ["participantId"] = Guid.NewGuid().ToString(), ["confirmLifecycleAction"] = "true" }) };
+            if (json) withdraw.Headers.Add("Accept", "application/json");
+            withdraw.Headers.Add("RequestVerificationToken", AntiforgeryToken(participants));
+            using var missing = await client.SendAsync(withdraw);
+            if (!json) { Assert.Equal(HttpStatusCode.NotFound, missing.StatusCode); continue; }
+            Assert.Equal(HttpStatusCode.OK, missing.StatusCode);
+            using var refusal = System.Text.Json.JsonDocument.Parse(await missing.Content.ReadAsStringAsync());
+            Assert.Equal("refused", refusal.RootElement.GetProperty("outcome").GetString());
+            Assert.Equal("This participant isn't part of this event.", refusal.RootElement.GetProperty("message").GetString());
+        }
         await using (var verify = new ApplicationDbContext(options)) { var created = await verify.EventParticipants.SingleAsync(x => x.Source == SignupSource.AdminCreated); Assert.Equal(admin.Id, created.AccountId); Assert.Equal(SignupStatus.Confirmed, created.SignupStatus); Assert.NotNull(await verify.SignupForms.Where(x => x.Id == form.Id).Select(x => x.FirstResponseAt).SingleAsync()); }
 
         async Task LoginAsync(HttpClient http, string username, string password)

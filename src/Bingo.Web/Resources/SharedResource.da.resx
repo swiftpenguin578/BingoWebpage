@@ -2400,6 +2400,7 @@
   <data name="Confirm the exceptional board correction and provide an Admin reason." xml:space="preserve"><value>Bekræft den ekstraordinære Board-rettelse, og angiv en Admin-begrundelse.</value></data>
   <data name="Confirm the restoration before continuing." xml:space="preserve"><value>Bekræft gendannelsen, før du fortsætter.</value></data>
   <data name="Confirm the withdrawal before continuing." xml:space="preserve"><value>Bekræft tilbagetrækningen, før du fortsætter.</value></data>
+  <data name="This participant isn't part of this event." xml:space="preserve"><value>Deltageren er ikke en del af dette event.</value></data>
   <data name="Confirm this published pre-formed correction." xml:space="preserve"><value>Bekræft denne publicerede rettelse af det forhåndsdannede roster.</value></data>
   <data name="Corrected board published as a replacement snapshot. The prior public snapshot remains in history." xml:space="preserve"><value>Det rettede Board blev publiceret som et erstatningssnapshot. Det tidligere offentlige snapshot findes stadig i historikken.</value></data>
   <data name="Development TEST 15 competition refresh is due." xml:space="preserve"><value>Opdateringen af Development TEST 15-konkurrencen er klar.</value></data>
