@@ -193,6 +193,7 @@ public sealed partial class AdminDesignShellIntegrationTests(PostgreSqlTestFixtu
         Assert.Matches("class=\"toast(?: [^\"]*)?\"[^>]*data-toast", html);
         // A10 (U10 part 2 item 6, U10-Q3 b): the notification panel replaced the two-section menu (and its Admin actions overview
         // link); the same inbox now renders as unread-count header, rows, "All notifications" and the existing Mark all as read handler.
+        // U10 L3 (b): the header counts unread personal notifications only (PersonalCount), not Admin to-dos.
         Assert.Contains("<span class=\"badge badge-accent design-notif-unread\" data-notification-unread>1 unread</span>", html);
         Assert.Matches("<a class=\"menu-item design-notif-row\" role=\"menuitem\" href=\"/notifications\\?read=[0-9a-f-]+\" data-notification-row data-unread=\"true\">", html);
         Assert.Contains("<span class=\"design-notif-title\">Admin access granted</span>", html);

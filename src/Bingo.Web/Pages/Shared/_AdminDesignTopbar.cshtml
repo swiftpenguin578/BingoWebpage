@@ -18,7 +18,7 @@
 </header>
 @* U10 part 2 item 6 (user, U10-Q3 b): a real notification panel in the admin menu style, from the same inbox projection the bell counts.
    Personal notifications in the inbox are unread by definition (the projection lists unread ones) and carry the unread dot; unresolved Admin actions
-   are listed with them, newest first, without a dot. "Mark all as read" posts to the existing Notifications handler (personal notifications only). *@
+   are listed with them, newest first, without a dot and without counting in the header (U10 L3 b: the header counts unread personal ones only, so Mark all as read empties it). "Mark all as read" posts to the existing Notifications handler (personal notifications only). *@
 @{
     var inbox = Model.Notifications;
     var now = Time.GetUtcNow();
@@ -26,7 +26,7 @@
         .OrderByDescending(row => row.Item.At ?? DateTimeOffset.MinValue).Take(8).ToList();
 }
 <div class="menu design-notifications-menu" id="admin-notifications-menu" role="menu" aria-label="@T["Notifications"]" hidden data-shell-menu>
-    <div class="design-notif-head" role="presentation"><b>@T["Notifications"]</b>@if (inbox.Count > 0) { <span class="badge badge-accent design-notif-unread" data-notification-unread>@T["{0} unread", inbox.Count]</span> }</div>
+    <div class="design-notif-head" role="presentation"><b>@T["Notifications"]</b>@if (inbox.PersonalCount > 0) { <span class="badge badge-accent design-notif-unread" data-notification-unread>@T["{0} unread", inbox.PersonalCount]</span> }</div>
     @foreach (var (item, unread) in rows)
     {
         <a class="menu-item design-notif-row" role="menuitem" href="@item.Url" data-notification-row data-unread="@(unread ? "true" : "false")">

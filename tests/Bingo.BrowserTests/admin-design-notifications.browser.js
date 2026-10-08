@@ -60,6 +60,8 @@ const words={
    assert.equal(await bell.getAttribute('aria-label'),w.bell);
    await open();
    assert.equal(await panel.locator('[data-notification-row][data-unread=true]').count(),0);
+   // U10 L3 (b): the header counts unread personal notifications only, so it is gone once they are read; Admin to-dos stay listed uncounted.
+   assert.equal(await panel.locator('[data-notification-unread]').count(),0,'no unread count after Mark all as read');
    assert.equal(await panel.locator('.design-notif-foot button').count(),0,'no Mark all as read without unread notifications');
    if(await panel.locator('[data-notification-row]').count()===0)assert.equal((await panel.locator('[data-notification-empty] b').textContent()).trim(),w.empty);
    await close();
