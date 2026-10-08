@@ -1,0 +1,63 @@
+/* U5 Participants: page rules from the frozen Participants.dc.html style block; shared
+   primitives stay frozen. The drawer and dialogs carry data-page-family="participants". */
+/* User "No load fades": only load markers; interaction animations stay frozen. */
+:where([data-page-family="participants"]) .fade-in,:where([data-page-family="participants"]) .results,:where([data-page-family="participants"]) .empty,:where([data-page-family="participants"]) .page-banner{animation:none}
+:where([data-page-family="participants"]) .pa-tbl{--table-cols:minmax(230px,2.3fr) 150px 108px 124px minmax(120px,1fr) minmax(120px,1fr) 116px 52px;--table-min:1020px}
+:where([data-page-family="participants"]) .row.is-withdrawn .name-btn{color:var(--dk-text-2)}
+:where([data-page-family="participants"]) .row.is-withdrawn .td.num{color:var(--dk-text-3)}
+:where([data-page-family="participants"]) .pa-tbl .row{cursor:pointer}
+:where([data-page-family="participants"]) .pa-tbl .name-btn{text-decoration:none}
+/* Reference inline styles: display:contents cell wrapper and the range text's 8px gap. */
+:where([data-page-family="participants"]) .pa-cell-contents{display:contents}
+:where([data-page-family="participants"]) .pa-range{margin-left:8px}
+:where([data-page-family="participants"]) .pa-menu{width:236px}
+/* Skeleton rows (reference inline widths). */
+:where([data-page-family="participants"]) .pa-sk-line,:where([data-page-family="participants"]) .pa-sk-cell{display:flex;align-items:center;min-height:calc(var(--dk-fs-control) * 1.45)}
+:where([data-page-family="participants"]) .pa-sk-sub{display:flex;align-items:center;min-height:calc(var(--dk-fs-small) * 1.45)}
+:where([data-page-family="participants"]) .pa-sk-sub .sk{height:8px}
+:where([data-page-family="participants"]) .pa-sk-end{margin-left:auto}
+:where([data-page-family="participants"]) .pa-sk-w46{width:46%}
+:where([data-page-family="participants"]) .pa-sk-w50{width:50%}
+:where([data-page-family="participants"]) .pa-sk-w55{width:55%}
+:where([data-page-family="participants"]) .pa-sk-w60{width:60%}
+:where([data-page-family="participants"]) .pa-sk-w64{width:64%}
+:where([data-page-family="participants"]) .pa-sk-w70{width:70%}
+/* Drawer: account rows, picks and the Add choices (reference style block). */
+:where([data-page-family="participants"]) .acct-head{display:grid;grid-template-columns:54px 1fr 118px 34px;gap:8px;font-size:var(--dk-fs-meta);color:var(--dk-text-3);padding:0 0 6px}
+:where([data-page-family="participants"]) .acct-head .is-center{text-align:center}
+:where([data-page-family="participants"]) .acct-head .is-end{text-align:right;padding-right:10px}
+:where([data-page-family="participants"]) .acct-row{display:grid;grid-template-columns:54px 1fr 118px 34px;gap:8px;align-items:start;padding:4px 0;animation:rowIn var(--dk-dur-content-in) ease-out}
+:where([data-page-family="participants"]) .acct-row.is-removing{animation:rowOut var(--dk-dur-item-out) ease-in forwards}
+:where([data-page-family="participants"]) .acct-radio{height:var(--dk-control-h);display:flex;align-items:center;justify-content:center}
+:where([data-page-family="participants"]) .acct-row .icon-btn{margin-top:1px}
+:where([data-page-family="participants"]) .ehb-in{text-align:right;font-variant-numeric:tabular-nums}
+:where([data-page-family="participants"]) .picks{display:flex;flex-direction:column;gap:6px}
+:where([data-page-family="participants"]) .pick{display:grid;grid-template-columns:18px 1fr auto auto;gap:12px;align-items:center;padding:9px 12px;border:1px solid var(--dk-border);border-radius:var(--dk-radius-lg);transition:background-color var(--dk-dur-select),border-color var(--dk-dur-select);animation:rowIn var(--dk-dur-content-in) ease-out}
+:where([data-page-family="participants"]) .pick.is-checked{border-color:var(--dk-accent-border);background:var(--dk-accent-soft)}
+:where([data-page-family="participants"]) .pick.is-disabled{background:var(--dk-track);border-color:transparent}
+:where([data-page-family="participants"]) .pick.is-disabled .pick-name{color:var(--dk-text-2)}
+:where([data-page-family="participants"]) .pick-label{min-width:0;cursor:pointer}
+:where([data-page-family="participants"]) .pick-name{font-weight:550;font-size:var(--dk-fs-control)}
+:where([data-page-family="participants"]) .pick-sub{font-size:var(--dk-fs-small);color:var(--dk-text-3)}
+:where([data-page-family="participants"]) .pick-ehb{font-size:var(--dk-fs-control-sm);font-variant-numeric:tabular-nums;color:var(--dk-text-2);text-align:right}
+:where([data-page-family="participants"]) .pick-ehb.is-missing{color:var(--dk-warning-fg);font-size:var(--dk-fs-small)}
+:where([data-page-family="participants"]) .pick-prim{display:flex;align-items:center;gap:6px;font-size:var(--dk-fs-small);color:var(--dk-text-2);cursor:pointer;min-width:74px;justify-content:flex-end}
+:where([data-page-family="participants"]) .pick-prim.is-hidden{visibility:hidden}
+:where([data-page-family="participants"]) .pa-block{display:block}
+:where([data-page-family="participants"]) .pa-strong{display:block;font-weight:550}
+:where([data-page-family="participants"]) .pa-gap{margin-top:14px}
+:where([data-page-family="participants"]) .pa-gap-lg{margin-top:16px}
+:where([data-page-family="participants"]) .pa-full{width:100%}
+:where([data-page-family="participants"]) .pa-ro-ehb{min-width:70px;text-align:right}
+:where([data-page-family="participants"]) .pa-save{min-width:118px}
+:where([data-page-family="participants"]) .pa-add-save{min-width:138px}
+:where([data-page-family="participants"]) .pa-error{margin-top:14px}
+@media (max-width:1260px){:where([data-page-family="participants"]) .pa-tbl{--table-cols:minmax(210px,2.2fr) 140px 100px 120px minmax(110px,1fr) minmax(110px,1fr) 52px;--table-min:842px}:where([data-page-family="participants"]) .c-signed{display:none}}
+@media (max-width:1080px){:where([data-page-family="participants"]) .pa-tbl{--table-cols:minmax(200px,2fr) 136px 96px 118px minmax(110px,1fr) 52px;--table-min:712px}:where([data-page-family="participants"]) .c-team{display:none}}
+@media (max-width:860px){:where([data-page-family="participants"]) .pa-tbl{--table-cols:minmax(180px,2fr) 130px 92px 116px 52px;--table-min:570px}:where([data-page-family="participants"]) .c-cap{display:none}}
+/* Loading counts use the Events tab-count placeholder markup (number-sized bar); the words stay. */
+:where([data-page-family="participants"]) .summary .tab-count,:where([data-page-family="participants"]) .tabs .tab-count[data-pending-count]{display:inline-flex;align-items:center;justify-content:center;min-width:2ch;width:2ch;height:calc(var(--dk-fs-control)*var(--dk-lh-body));vertical-align:bottom}
+:where([data-page-family="participants"]) [data-pending-count]>.sk{display:block;width:100%;height:10px}
+/* Drawer loading state (layout only; the shared .sk owns colour and radius). */
+:where([data-page-family="participants"]) .pa-dr-state{display:flex;flex-direction:column;gap:14px;padding:4px 0}
+:where([data-page-family="participants"]) .pa-sk-block{height:var(--dk-control-h)}

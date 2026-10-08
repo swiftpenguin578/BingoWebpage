@@ -59,6 +59,7 @@ public sealed class AccountIdentityService(ApplicationDbContext db, IPasswordHas
         if (string.IsNullOrWhiteSpace(discordUserId)) throw new InvalidOperationException("Discord authentication is required.");
         if (string.IsNullOrWhiteSpace(name)) throw new InvalidOperationException("A public username is required.");
         if (string.IsNullOrWhiteSpace(characterName)) throw new InvalidOperationException("An OSRS character name is required.");
+        if (!RsnRule.IsValid(characterName)) throw new InvalidOperationException(RsnRule.Message); // U5-Q4
         var validator = accountValidation ?? throw new InvalidOperationException("Wise Old Man account validation is required to complete onboarding.");
         var validation = await validator.ValidateAsync(new WiseOldManAccountValidationRequest(
             Guid.Empty, "onboarding.create", null, null, null, [characterName], false), ct);

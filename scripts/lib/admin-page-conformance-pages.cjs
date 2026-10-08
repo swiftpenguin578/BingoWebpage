@@ -13,6 +13,13 @@ module.exports = [
     // Only this width; every other width keeps the generic "only summary growth" check.
     headerGrowth: { 390: 42 },
     update: { control: '#plan-more', action: 'click', selected: '#plan-more[aria-expanded="true"]' } },
+  // U5: Participants. The first summary item carries two numbers ("{0} of {1} confirmed").
+  { family: 'participants', postSaveCount: 1, countSummary: { words: ['of  confirmed', 'waiting', 'unpaid'], wordsDa: ['af  bekræftet', 'på venteliste', 'ubetalt'], numberCounts: { 0: 2 } },
+    url: f => '/Admin/Events/Participants/' + f.events['autumn-bingo-2027'], fixture: 'autumn-bingo-2027',
+    source: 'Pages/Admin/Events/Participants.cshtml', module: 'admin-participants.js',
+    textRows: { 'pa-sk-line': ['control',1.45] }, reference: 'Participants.dc.html', first: '.card', blocks: { first: '.card', toolbar: '.toolbar', table: '.pa-tbl' },
+    style: ['.pa-tbl','--table-min',{ narrow: '570px', wide: '1020px', breakpoint: 860 }], titleDa: 'Deltagere',
+    update: { control: '[data-participants-pay][value="paid"]', action: 'click', request: true, selected: '[data-participants-pay][value="paid"]:checked' } },
   // U4: Overview (Manage route). The h1 is the event's name, so the Danish title is the name too.
   { family: 'overview', postSaveCount: 1, url: f => '/Admin/Events/Manage/' + f.events['autumn-bingo-2027'], fixture: 'autumn-bingo-2027',
     source: 'Pages/Admin/Events/Manage.cshtml', module: 'admin-overview.js',

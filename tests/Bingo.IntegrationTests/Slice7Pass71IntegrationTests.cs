@@ -444,7 +444,8 @@ public sealed class Slice7Pass71IntegrationTests : IAsyncLifetime
 
         Assert.False(result.Succeeded);
         Assert.Contains("Playing assignment", result.Error, StringComparison.Ordinal);
-        Assert.Equal($"/Admin/Events/Participant/{fixture.EventId}/Participants/{fixture.ParticipantId}", Assert.Single(readiness!.Blockers, x => x.Code == "PARTICIPANT_PLAYING_ASSIGNMENT_INVALID").Route);
+        // A10 (U5 item 1c, A2): the readiness blocker links to the Participants drawer URL.
+        Assert.Equal($"/Admin/Events/Participants/{fixture.EventId}?participant={fixture.ParticipantId}", Assert.Single(readiness!.Blockers, x => x.Code == "PARTICIPANT_PLAYING_ASSIGNMENT_INVALID").Route);
         Assert.Equal(EventState.SignupClosed, (await db.Events.SingleAsync(x => x.Id == fixture.EventId)).State);
         Assert.Empty(await db.EventParticipantCharacterSwaps.Where(x => x.EventParticipantId == fixture.ParticipantId).ToListAsync());
     }

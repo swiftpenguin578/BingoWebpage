@@ -291,39 +291,42 @@ public sealed class Slice9Pass92LiveWithdrawalIntegrationTests(PostgreSqlTestFix
 
         var participants = await client.GetStringAsync($"/Admin/Events/Participants/{seed.EventId}");
         Assert.DoesNotContain("Locked for draft", participants, StringComparison.Ordinal);
-        Assert.Contains($"/Admin/Events/Participant/{seed.EventId}/Participants/{externalParticipantId}", participants, StringComparison.Ordinal);
+        // A2 / U5 (A10): rows open the query-backed drawer by participant ID.
+        Assert.Contains($"participant={externalParticipantId}", participants, StringComparison.Ordinal);
         Assert.Contains("External roster member", participants, StringComparison.Ordinal);
         Assert.DoesNotContain("Manage live participant", participants, StringComparison.Ordinal);
 
+        // A10 (U5 items 0a/1b, S5): the old detail route only redirects to the drawer. Withdraw lives
+        // on the Participants page and is refused from Live on (route gate, before any write); the
+        // drawer read is read-only and offers no vacancy fill (retired workflow).
         var liveBefore = await StateHashAsync();
-        var liveParticipant = await client.GetStringAsync($"/Admin/Events/Participant/{seed.EventId}/Participants/{externalParticipantId}");
-        Assert.Equal(string.Empty, InputValue(liveParticipant, "ExpectedMembershipVersion"));
-        Assert.DoesNotContain("Remove participant", liveParticipant, StringComparison.Ordinal);
-        using var liveWithdrawal = await client.PostAsync($"/Admin/Events/Participant/{seed.EventId}/Participants/{externalParticipantId}?handler=Withdraw", new FormUrlEncodedContent(new Dictionary<string, string>
+        using (var redirect = await client.GetAsync($"/Admin/Events/Participant/{seed.EventId}/Participants/{externalParticipantId}?overlay=1"))
+        { Assert.Equal(HttpStatusCode.Redirect, redirect.StatusCode); Assert.Equal($"/Admin/Events/Participants/{seed.EventId}?participant={externalParticipantId}", redirect.Headers.Location?.OriginalString); }
+        using (var drawer = System.Text.Json.JsonDocument.Parse(await client.GetStringAsync($"/Admin/Events/Participants/{seed.EventId}?handler=Current&participant={externalParticipantId}")))
+            Assert.False(drawer.RootElement.GetProperty("editable").GetBoolean());
+        using var liveWithdrawal = await client.PostAsync($"/Admin/Events/Participants/{seed.EventId}?handler=Withdraw", new FormUrlEncodedContent(new Dictionary<string, string>
         {
-            ["ExpectedMembershipVersion"] = externalMembershipVersion.ToString(CultureInfo.InvariantCulture),
-            ["ConfirmLifecycleAction"] = "true",
-            ["__RequestVerificationToken"] = AntiforgeryToken(liveParticipant)
+            ["participantId"] = externalParticipantId.ToString(),
+            ["confirmLifecycleAction"] = "true",
+            ["__RequestVerificationToken"] = AntiforgeryToken(participants)
         }));
         Assert.Equal(HttpStatusCode.Redirect, liveWithdrawal.StatusCode);
-        var liveDestination = await client.GetStringAsync(liveWithdrawal.Headers.Location!.OriginalString);
-        Assert.Contains("Roster membership is fixed after the event first goes Live.", liveDestination, StringComparison.Ordinal);
+        Assert.Equal($"/Admin/Events/Manage/{seed.EventId}", liveWithdrawal.Headers.Location!.OriginalString);
         Assert.Equal(liveBefore, await StateHashAsync());
 
-        var vacancyParticipant = await client.GetStringAsync($"/Admin/Events/Participant/{seed.EventId}/Participants/{seed.DepartedParticipantId}");
+        var vacancyParticipant = await client.GetStringAsync($"/Admin/Events/Participants/{seed.EventId}?handler=Current&participant={seed.DepartedParticipantId}");
         Assert.DoesNotContain("Fill open vacancy", vacancyParticipant, StringComparison.Ordinal);
 
         var awaitingBefore = await StateHashAsync();
-        var unsupportedParticipant = await client.GetStringAsync($"/Admin/Events/Participant/{unsupportedEventId}/Participants/{unsupportedParticipantId}");
-        using var unsupportedWithdrawal = await client.PostAsync($"/Admin/Events/Participant/{unsupportedEventId}/Participants/{unsupportedParticipantId}?handler=Withdraw", new FormUrlEncodedContent(new Dictionary<string, string>
+        var unsupportedParticipants = await client.GetStringAsync($"/Admin/Events/Participants/{unsupportedEventId}");
+        using var unsupportedWithdrawal = await client.PostAsync($"/Admin/Events/Participants/{unsupportedEventId}?handler=Withdraw", new FormUrlEncodedContent(new Dictionary<string, string>
         {
-            ["ExpectedMembershipVersion"] = unsupportedMembershipVersion.ToString(CultureInfo.InvariantCulture),
-            ["ConfirmLifecycleAction"] = "true",
-            ["__RequestVerificationToken"] = AntiforgeryToken(unsupportedParticipant)
+            ["participantId"] = unsupportedParticipantId.ToString(),
+            ["confirmLifecycleAction"] = "true",
+            ["__RequestVerificationToken"] = AntiforgeryToken(unsupportedParticipants)
         }));
         Assert.Equal(HttpStatusCode.Redirect, unsupportedWithdrawal.StatusCode);
-        var unsupportedResult = await client.GetStringAsync(unsupportedWithdrawal.Headers.Location!.OriginalString);
-        Assert.Contains("Participant lifecycle changes are locked because the draft has started or the event has moved on.", unsupportedResult, StringComparison.Ordinal);
+        Assert.Equal($"/Admin/Events/Manage/{unsupportedEventId}", unsupportedWithdrawal.Headers.Location!.OriginalString);
         Assert.Equal(awaitingBefore, await StateHashAsync());
 
         await using var verify = new ApplicationDbContext(options);

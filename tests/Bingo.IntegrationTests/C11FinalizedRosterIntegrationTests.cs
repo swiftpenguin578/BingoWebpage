@@ -62,29 +62,34 @@ public sealed class C11FinalizedRosterIntegrationTests(PostgreSqlTestFixture dat
         var picksBefore = await RowsAsync("draft_picks");
         var assignmentsBefore = await RowsAsync("event_participant_characters");
         var answersBefore = await RowsAsync("signup_answers", $"event_participant_id = '{seed.DepartedId}'");
+        // A10 (U5 items 0a/1b, S5, B-Participants-7): the Participants page no longer reroutes a
+        // finalized-roster withdrawal; roster removal is the Teams action (Draft RemoveMember) and the
+        // separate withdrawal note is retired. The old detail URL redirects to the drawer URL.
         var route = ParticipantPath(seed, seed.DepartedId);
-        Assert.Contains(route, await admin.GetStringAsync($"/Admin/Events/Participants/{seed.EventId}"));
-        Assert.Contains(route, await admin.GetStringAsync($"/Admin/Events/Draft/{seed.EventId}"));
-        var page = await admin.GetStringAsync(route);
-        Assert.Contains("A note is appended", page);
-        using (var response = await PostAsync(admin, route, "Withdraw", page, new()
+        var drawerRoute = $"/Admin/Events/Participants/{seed.EventId}?participant={seed.DepartedId}";
+        Assert.Contains($"participant={seed.DepartedId}", await admin.GetStringAsync($"/Admin/Events/Participants/{seed.EventId}"));
+        using (var redirect = await admin.GetAsync(route)) { Assert.Equal(HttpStatusCode.Redirect, redirect.StatusCode); Assert.Equal(drawerRoute, redirect.Headers.Location?.OriginalString); }
+        var removalPath = $"/Admin/Events/Draft/{seed.EventId}";
+        var removalPage = await admin.GetStringAsync(removalPath);
+        long membershipVersion;
+        await using (var db = Db()) membershipVersion = await db.TeamMemberships.Where(x => x.Id == seed.DepartedMembershipId).Select(x => x.Version).SingleAsync();
+        using (var response = await PostAsync(admin, removalPath, "RemoveMember", removalPage, new()
         {
-            ["ConfirmLifecycleAction"] = "true",
-            ["ExpectedMembershipVersion"] = Input(page, "ExpectedMembershipVersion"),
-            ["PrivateWithdrawalNote"] = "  C11 private departure detail  "
+            ["membershipId"] = seed.DepartedMembershipId.ToString(),
+            ["confirmed"] = "true",
+            ["expectedMembershipVersion"] = membershipVersion.ToString(CultureInfo.InvariantCulture),
+            ["rosterTeamId"] = seed.TeamId.ToString()
         })) Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
-        var vacancy = await admin.GetStringAsync(route);
+        var vacancy = await admin.GetStringAsync($"/Admin/Events/Participants/{seed.EventId}?handler=Current&participant={seed.DepartedId}");
         Assert.Contains("Departed C", vacancy);
-        Assert.DoesNotContain("Fill open vacancy", vacancy);
         Assert.Contains("Existing private note", vacancy);
         Assert.DoesNotContain("C11 private departure detail", vacancy);
-        var search = await admin.GetStringAsync($"/Admin/Events/Participants/{seed.EventId}?ParticipantStatus=Confirmed&ParticipantSearch=Departed%20C");
-        Assert.Contains($"participant-row-{seed.DepartedId}", search);
-        Assert.Contains(route, search);
+        var search = await admin.GetStringAsync($"/Admin/Events/Participants/{seed.EventId}?q=Departed%20C");
+        Assert.Contains($"data-participant-row=\"{seed.DepartedId}\"", search);
+        Assert.Contains($"participant={seed.DepartedId}", search);
         Assert.Contains("Departed C", search);
-        var nonmatching = await admin.GetStringAsync($"/Admin/Events/Participants/{seed.EventId}?ParticipantStatus=Confirmed&ParticipantSearch=No%20such%20participant");
-        Assert.DoesNotContain($"participant-row-{seed.DepartedId}", nonmatching);
-        Assert.Contains("Departed C", search);
+        var nonmatching = await admin.GetStringAsync($"/Admin/Events/Participants/{seed.EventId}?q=No%20such%20participant");
+        Assert.DoesNotContain($"data-participant-row=\"{seed.DepartedId}\"", nonmatching);
         Assert.Contains("Departed C", await admin.GetStringAsync($"/Admin/Events/Draft/{seed.EventId}"));
         Assert.Equal(assignmentsBefore, await RowsAsync("event_participant_characters"));
         Assert.Equal(picksBefore, await RowsAsync("draft_picks"));
@@ -365,8 +370,7 @@ public sealed class C11FinalizedRosterIntegrationTests(PostgreSqlTestFixture dat
         await WithdrawAsync(seed);
         await using var factory = Factory();
         using var admin = await LoginAsync(factory, "c11-admin");
-        var path = ParticipantPath(seed, seed.DepartedId);
-        Assert.DoesNotContain("Fill open vacancy", await admin.GetStringAsync(path));
+        Assert.DoesNotContain("Fill open vacancy", await admin.GetStringAsync(DrawerRead(seed, seed.DepartedId)));
         var before = await StateHashAsync();
         await using (var missingVersion = Db())
         {
@@ -413,10 +417,12 @@ public sealed class C11FinalizedRosterIntegrationTests(PostgreSqlTestFixture dat
         await WithdrawAsync(seed);
         await using var factory = Factory(unavailablePlayerLookup: true);
         using var admin = await LoginAsync(factory, "c11-admin");
+        // A10 (U5 item 1b): the retired FillVacancy handler is gone with the old detail page;
+        // a post to the old route is refused before any work and the drawer offers no fill.
         var path = ParticipantPath(seed, seed.DepartedId);
-        var page = await admin.GetStringAsync(path);
+        var page = await admin.GetStringAsync(ParticipantsPath(seed));
         var unchanged = await StateHashAsync();
-        Assert.DoesNotContain("Fill open vacancy", page);
+        Assert.DoesNotContain("Fill open vacancy", await admin.GetStringAsync(DrawerRead(seed, seed.DepartedId)));
         using (var response = await PostAsync(admin, path, "FillVacancy", page, new()
         {
             ["VacancyMembershipId"] = seed.DepartedMembershipId.ToString(),
@@ -424,8 +430,7 @@ public sealed class C11FinalizedRosterIntegrationTests(PostgreSqlTestFixture dat
             ["ReplacementWaitingParticipantId"] = seed.WaitingId.ToString()
         }))
         {
-            Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
-            Assert.NotNull(response.Headers.Location);
+            Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         }
         await using (var db = Db())
         {
@@ -523,32 +528,14 @@ public sealed class C11FinalizedRosterIntegrationTests(PostgreSqlTestFixture dat
         var seed = await SeedAsync();
         await using var factory = Factory();
         using var admin = await LoginAsync(factory, "c11-admin");
-        var path = ParticipantPath(seed, seed.DepartedId);
-        var page = await admin.GetStringAsync(path);
+        // A10 (U5 item 1b, U5-Q2): the private note is saved through the drawer's single save.
         var attempt = new string('x', 2001);
         var before = await StateHashAsync();
-        using (var rejected = await PostAsync(admin, path, "AdminNote", page, new()
-        {
-            ["AdminNote"] = attempt,
-            ["ExpectedAdminNote"] = Input(page, "ExpectedAdminNote")
-        }))
-        {
-            Assert.Equal(HttpStatusCode.Redirect, rejected.StatusCode);
-        }
+        Assert.Equal((HttpStatusCode.OK, "invalid"), await SaveNoteAsync(admin, seed, seed.DepartedId, attempt));
         Assert.Equal(before, await StateHashAsync());
-        page = await admin.GetStringAsync(path);
-        using (var saved = await PostAsync(admin, path, "AdminNote", page, new()
-        {
-            ["AdminNote"] = "Stored replacement note",
-            ["ExpectedAdminNote"] = Input(page, "ExpectedAdminNote")
-        })) Assert.Equal(HttpStatusCode.Redirect, saved.StatusCode);
+        Assert.Equal((HttpStatusCode.OK, "saved"), await SaveNoteAsync(admin, seed, seed.DepartedId, "Stored replacement note"));
         await using (var db = Db()) Assert.Equal("Stored replacement note", (await db.EventParticipants.SingleAsync(x => x.Id == seed.DepartedId)).AdminNotes);
-        page = await admin.GetStringAsync(path);
-        using (var blank = await PostAsync(admin, path, "AdminNote", page, new()
-        {
-            ["AdminNote"] = " \n ",
-            ["ExpectedAdminNote"] = Input(page, "ExpectedAdminNote")
-        })) Assert.Equal(HttpStatusCode.Redirect, blank.StatusCode);
+        Assert.Equal((HttpStatusCode.OK, "saved"), await SaveNoteAsync(admin, seed, seed.DepartedId, " \n "));
         var after = await StateHashAsync();
         await using (var db = Db())
         {
@@ -628,15 +615,14 @@ public sealed class C11FinalizedRosterIntegrationTests(PostgreSqlTestFixture dat
             Assert.False((await Service(db).WithdrawAsync(seed.EventId, seed.DepartedId, seed.AdminId, "admin", true, null, 1)).Succeeded);
         await using var factory = Factory();
         using var admin = await LoginAsync(factory, "c11-admin");
-        var path = ParticipantPath(seed, seed.DepartedId);
-        using var page = await admin.GetAsync(path);
+        // A10 (U5 items 0a/1b, S5): the drawer read and the Participants Withdraw replace the old detail route.
+        using var page = await admin.GetAsync(DrawerRead(seed, seed.DepartedId));
         if (state is "Hidden" or "Discarded") Assert.Equal(HttpStatusCode.NotFound, page.StatusCode);
         else
         {
-            var html = await page.Content.ReadAsStringAsync();
-            Assert.DoesNotContain("?handler=Withdraw", html);
-            Assert.DoesNotContain("Fill open vacancy", html);
-            using var response = await PostAsync(admin, path, "Withdraw", html, new() { ["ConfirmLifecycleAction"] = "true", ["ExpectedMembershipVersion"] = "1" });
+            Assert.DoesNotContain("Fill open vacancy", await page.Content.ReadAsStringAsync());
+            var html = await admin.GetStringAsync(ParticipantsPath(seed));
+            using var response = await PostAsync(admin, ParticipantsPath(seed), "Withdraw", html, new() { ["participantId"] = seed.DepartedId.ToString(), ["confirmLifecycleAction"] = "true" });
             Assert.NotEqual(HttpStatusCode.InternalServerError, response.StatusCode);
         }
         Assert.Equal(before, await StateHashAsync());
@@ -725,18 +711,26 @@ public sealed class C11FinalizedRosterIntegrationTests(PostgreSqlTestFixture dat
         using var admin = await LoginAsync(factory, "c11-admin");
         using var outsider = await LoginAsync(factory, "c11-outsider");
         using var anonymous = factory.CreateClient(new() { AllowAutoRedirect = false });
-        var path = ParticipantPath(seed, seed.DepartedId);
+        // A10 (U5 items 0a/1b, S5): finalized-roster removal is the Teams action (Draft RemoveMember);
+        // the old detail route only redirects. Auth, antiforgery, confirmation and stale checks are unchanged.
+        var path = $"/Admin/Events/Draft/{seed.EventId}";
         var page = await admin.GetStringAsync(path);
         var before = await StateHashAsync();
-        using (var denied = await anonymous.GetAsync(path)) Assert.NotEqual(HttpStatusCode.OK, denied.StatusCode);
-        using (var denied = await outsider.GetAsync(path)) Assert.NotEqual(HttpStatusCode.OK, denied.StatusCode);
-        using (var missing = await admin.PostAsync(path + "?handler=Withdraw", new FormUrlEncodedContent(new Dictionary<string, string> { ["ConfirmLifecycleAction"] = "true" })))
+        foreach (var route in new[] { path, ParticipantPath(seed, seed.DepartedId), DrawerRead(seed, seed.DepartedId) })
+        {
+            using (var denied = await anonymous.GetAsync(route)) Assert.NotEqual(HttpStatusCode.OK, denied.StatusCode);
+            using (var denied = await outsider.GetAsync(route)) Assert.NotEqual(HttpStatusCode.OK, denied.StatusCode);
+        }
+        var removal = new Dictionary<string, string> { ["membershipId"] = seed.DepartedMembershipId.ToString(), ["confirmed"] = "true", ["rosterTeamId"] = seed.TeamId.ToString() };
+        using (var missing = await admin.PostAsync(path + "?handler=RemoveMember", new FormUrlEncodedContent(new Dictionary<string, string>(removal))))
             Assert.Equal(HttpStatusCode.BadRequest, missing.StatusCode);
-        using (var invalid = await admin.PostAsync(path + "?handler=Withdraw", new FormUrlEncodedContent(new Dictionary<string, string>
-        { ["ConfirmLifecycleAction"] = "true", ["__RequestVerificationToken"] = "not-an-antiforgery-token" }))) Assert.Equal(HttpStatusCode.BadRequest, invalid.StatusCode);
-        using (var unconfirmed = await PostAsync(admin, path, "Withdraw", page, new())) Assert.Equal(HttpStatusCode.Redirect, unconfirmed.StatusCode);
-        using (var stale = await PostAsync(admin, path, "Withdraw", page, new() { ["ConfirmLifecycleAction"] = "true", ["ExpectedMembershipVersion"] = "999" }))
-            Assert.Contains("changed elsewhere", await stale.Content.ReadAsStringAsync());
+        using (var invalid = await admin.PostAsync(path + "?handler=RemoveMember", new FormUrlEncodedContent(new Dictionary<string, string>(removal) { ["__RequestVerificationToken"] = "not-an-antiforgery-token" }))) Assert.Equal(HttpStatusCode.BadRequest, invalid.StatusCode);
+        using (var unconfirmed = await PostAsync(admin, path, "RemoveMember", page, new() { ["membershipId"] = seed.DepartedMembershipId.ToString(), ["expectedMembershipVersion"] = "1", ["rosterTeamId"] = seed.TeamId.ToString() })) Assert.Equal(HttpStatusCode.Redirect, unconfirmed.StatusCode);
+        using (var stale = await PostAsync(admin, path, "RemoveMember", page, new(removal) { ["expectedMembershipVersion"] = "999" }))
+        {
+            Assert.Equal(HttpStatusCode.Redirect, stale.StatusCode);
+            Assert.Contains("changed elsewhere", await admin.GetStringAsync(stale.Headers.Location!.OriginalString));
+        }
         await using (var db = Db())
         {
             Assert.False((await Service(db).WithdrawAsync(seed.EventId, seed.DepartedId, seed.OutsiderId, "outsider", true, null, 1)).Succeeded);
@@ -865,14 +859,15 @@ public sealed class C11FinalizedRosterIntegrationTests(PostgreSqlTestFixture dat
             await db.SaveChangesAsync();
         }
         await using var factory = Factory(); using var admin = await LoginAsync(factory, "c11-admin");
-        var search = await admin.GetStringAsync($"/Admin/Events/Participants/{seed.EventId}?ParticipantStatus=Confirmed&ParticipantSearch=Current%20renamed%20player");
-        Assert.Contains($"participant-row-{seed.DepartedId}", search); Assert.Contains(ParticipantPath(seed, seed.DepartedId), search); Assert.Contains("Current renamed player", search);
-        var nonmatching = await admin.GetStringAsync($"/Admin/Events/Participants/{seed.EventId}?ParticipantStatus=Confirmed&ParticipantSearch=Departed%20C");
-        Assert.DoesNotContain($"participant-row-{seed.DepartedId}", nonmatching);
-        Assert.Contains("Current renamed player", await admin.GetStringAsync(ParticipantPath(seed, seed.DepartedId)));
-        var withdrawnSearch = await admin.GetStringAsync($"/Admin/Events/Participants/{seed.EventId}?ParticipantStatus=Withdrawn&ParticipantSearch=First%20waiting");
-        Assert.Contains(ParticipantPath(seed, seed.OtherWaitingId), withdrawnSearch);
-        Assert.Contains("First waiting", await admin.GetStringAsync(ParticipantPath(seed, seed.OtherWaitingId)));
+        // U5 (A10): tab/q query names and the query-backed drawer link replace the retired filters and detail link.
+        var search = await admin.GetStringAsync($"/Admin/Events/Participants/{seed.EventId}?tab=confirmed&q=Current%20renamed%20player");
+        Assert.Contains($"data-participant-row=\"{seed.DepartedId}\"", search); Assert.Contains($"participant={seed.DepartedId}", search); Assert.Contains("Current renamed player", search);
+        var nonmatching = await admin.GetStringAsync($"/Admin/Events/Participants/{seed.EventId}?tab=confirmed&q=Departed%20C");
+        Assert.DoesNotContain($"data-participant-row=\"{seed.DepartedId}\"", nonmatching);
+        Assert.Contains("Current renamed player", await admin.GetStringAsync(DrawerRead(seed, seed.DepartedId)));
+        var withdrawnSearch = await admin.GetStringAsync($"/Admin/Events/Participants/{seed.EventId}?tab=withdrawn&q=First%20waiting");
+        Assert.Contains($"participant={seed.OtherWaitingId}", withdrawnSearch);
+        Assert.Contains("First waiting", await admin.GetStringAsync(DrawerRead(seed, seed.OtherWaitingId)));
         var draft = await admin.GetStringAsync($"/Admin/Events/Draft/{seed.EventId}");
         var finalizedRoster = Regex.Match(draft, "<ol class=\"finalized-roster-list\">(?<roster>[\\s\\S]*?)</ol>").Groups["roster"].Value;
         Assert.Contains("Leader", finalizedRoster);
@@ -897,12 +892,13 @@ public sealed class C11FinalizedRosterIntegrationTests(PostgreSqlTestFixture dat
             db.AddRange(item, team, participant, member); await db.SaveChangesAsync();
         }
         await using var factory = Factory(); using var admin = await LoginAsync(factory, "c11-admin");
-        var path = ParticipantPath(seed, seed.DepartedId); var page = await admin.GetStringAsync(path);
+        // A10 (U5 item 1b): FillVacancy is retired with the old detail page; its posts are refused before any work.
+        var path = ParticipantPath(seed, seed.DepartedId); var page = await admin.GetStringAsync(ParticipantsPath(seed));
         var before = await StateHashAsync();
         foreach (var (vacancy, candidate) in new[] { (foreignVacancy, seed.WaitingId), (seed.DepartedMembershipId, foreignParticipant) })
         {
             using var result = await PostAsync(admin, path, "FillVacancy", page, new() { ["VacancyMembershipId"] = vacancy.ToString(), ["ReplacementWaitingParticipantId"] = candidate.ToString() });
-            Assert.Equal(HttpStatusCode.Redirect, result.StatusCode); Assert.Equal(before, await StateHashAsync());
+            Assert.Equal(HttpStatusCode.NotFound, result.StatusCode); Assert.Equal(before, await StateHashAsync());
         }
         await using (var db = Db()) { (await db.Accounts.SingleAsync(x => x.Id == seed.AdminId)).Disable(clock.Now); await db.SaveChangesAsync(); }
         using (var denied = await PostAsync(admin, path, "FillVacancy", page, new() { ["VacancyMembershipId"] = seed.DepartedMembershipId.ToString(), ["ReplacementWaitingParticipantId"] = seed.WaitingId.ToString() }))
@@ -1064,7 +1060,7 @@ public sealed class C11FinalizedRosterIntegrationTests(PostgreSqlTestFixture dat
                 Assert.Contains("replacements and vacancies are retired", retiredReplacement.Error, StringComparison.OrdinalIgnoreCase);
             }
             Assert.Equal(before, await StateHashAsync());
-            var participantPage = await admin.GetStringAsync(ParticipantPath(seed, seed.DepartedId));
+            var participantPage = await admin.GetStringAsync(DrawerRead(seed, seed.DepartedId));
             Assert.DoesNotContain("Fill open vacancy", participantPage, StringComparison.Ordinal);
             var notifications = await admin.GetStringAsync("/Notifications");
             Assert.DoesNotContain("Live participant withdrawn", notifications, StringComparison.Ordinal);
@@ -1773,7 +1769,10 @@ public sealed class C11FinalizedRosterIntegrationTests(PostgreSqlTestFixture dat
     {
         await using var db = Db();
         var version = await db.TeamMemberships.Where(x => x.Id == seed.DepartedMembershipId).Select(x => x.Version).SingleAsync();
-        var result = await Service(db).WithdrawAsync(seed.EventId, seed.DepartedId, seed.AdminId, "admin", true, note, version);
+        // S5 (A10): Participants withdrawal no longer reroutes to finalized-roster removal;
+        // the fixture now calls the Teams removal it used to reach through that reroute.
+        _ = note;
+        var result = await Service(db).RemoveFinalizedRosterParticipantAsync(new(seed.EventId, seed.DepartedId, seed.AdminId, "admin", true, version));
         Assert.True(result.Succeeded, result.Error);
     }
     private async Task<LiveParticipantResult> FillAsync(Seed seed, Guid candidate)
@@ -1909,6 +1908,29 @@ public sealed class C11FinalizedRosterIntegrationTests(PostgreSqlTestFixture dat
     private static string Input(string html, string name) => WebUtility.HtmlDecode(Regex.Match(html, $"<input[^>]*name=\"{Regex.Escape(name)}\"[^>]*value=\"([^\"]*)\"").Groups[1].Value);
     private static string Token(string page) { var token = Input(page, "__RequestVerificationToken"); Assert.NotEmpty(token); return token; }
     private static string ParticipantPath(Seed seed, Guid participant) => $"/Admin/Events/Participant/{seed.EventId}/Participants/{participant}";
+    // U5 item 1b (A10): the drawer's no-store current-state read and the Participants page.
+    private static string DrawerRead(Seed seed, Guid participant) => $"/Admin/Events/Participants/{seed.EventId}?handler=Current&participant={participant}";
+    private static string ParticipantsPath(Seed seed) => $"/Admin/Events/Participants/{seed.EventId}";
+    private static async Task<(HttpStatusCode Status, string? Outcome)> SaveNoteAsync(HttpClient client, Seed seed, Guid participant, string note)
+    {
+        using var current = System.Text.Json.JsonDocument.Parse(await client.GetStringAsync(DrawerRead(seed, participant)));
+        var view = current.RootElement;
+        var page = await client.GetStringAsync(ParticipantsPath(seed));
+        using var request = new HttpRequestMessage(HttpMethod.Post, ParticipantsPath(seed) + "?handler=SaveParticipant")
+        {
+            Content = new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["participantId"] = participant.ToString(), ["expectedResponseVersion"] = view.GetProperty("responseVersion").GetInt32().ToString(CultureInfo.InvariantCulture),
+                ["expectedPaid"] = view.GetProperty("paid").GetBoolean() ? "true" : "false", ["expectedNote"] = view.GetProperty("adminNote").GetString() ?? string.Empty,
+                ["paid"] = view.GetProperty("paid").GetBoolean() ? "true" : "false", ["note"] = note
+            })
+        };
+        request.Headers.Add("Accept", "application/json"); request.Headers.Add("RequestVerificationToken", Token(page));
+        using var response = await client.SendAsync(request);
+        if (response.StatusCode != HttpStatusCode.OK) return (response.StatusCode, null);
+        using var json = System.Text.Json.JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        return (response.StatusCode, json.RootElement.GetProperty("outcome").GetString());
+    }
     private static string TeamsPath(Seed seed) => $"/Events/{seed.Slug}/Teams";
     private static string RosterSection(string page) => page.Split("data-public-ui-team-roster")[1].Split("data-public-ui-draft-results")[0];
     private static string PickSection(string page) => page.Split("data-public-ui-draft-results")[1];

@@ -368,7 +368,7 @@ public sealed class EventLifecycleService(
             .Select(x => x.ParticipantId)
             .ToListAsync(ct);
         foreach (var participantId in confirmedParticipantIds.Except(primaryParticipantIds))
-            blockers.Add(new("PARTICIPANT_PLAYING_ASSIGNMENT_INVALID", "Every confirmed participant needs an unambiguous current Playing assignment before the event can start.", $"/Admin/Events/Participant/{item.Id}/Participants/{participantId}"));
+            blockers.Add(new("PARTICIPANT_PLAYING_ASSIGNMENT_INVALID", "Every confirmed participant needs an unambiguous current Playing assignment before the event can start.", $"/Admin/Events/Participants/{item.Id}?participant={participantId}"));
 
         var current = await OtherCurrentEventAsync(item.Id, ct);
         if (current is not null)

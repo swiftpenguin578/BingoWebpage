@@ -1725,7 +1725,7 @@ public sealed partial class Slice1IdentityIntegrationTests(PostgreSqlTestFixture
             {
                 PageContext = new PageContext(new ActionContext(request, new RouteData(), new PageActionDescriptor())),
                 TempData = new TempDataDictionary(request, new DictionaryTempDataProvider()),
-                Input = new Bingo.Web.Pages.Account.OnboardingModel.InputModel { Username = "race-onboarding", OsrsCharacterName = discordId.EndsWith("-a", StringComparison.Ordinal) ? "Race Character A" : "Race Character B", Password = "long-race-password", ConfirmPassword = "long-race-password" }
+                Input = new Bingo.Web.Pages.Account.OnboardingModel.InputModel { Username = "race-onboarding", OsrsCharacterName = discordId.EndsWith("-a", StringComparison.Ordinal) ? "Race Char A" : "Race Char B", Password = "long-race-password", ConfirmPassword = "long-race-password" }
             };
             var result = await page.OnPostAsync(CancellationToken.None);
             await db.DisposeAsync();
