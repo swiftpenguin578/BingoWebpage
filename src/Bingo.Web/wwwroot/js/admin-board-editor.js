@@ -6,7 +6,7 @@
 // it keeps the board version it was opened on and saving after the board changed needs
 // an explicit choice. EHB figures are the server's (B7): the calculated baseline shown is
 // EditorData's CalculatedEhb for the stored objectives.
-import { posName, parseTileRef, parseDecimal, parseWhole } from './admin-board-model.js';
+import { posName, parseTileRef, parseDecimal, parseWhole, artworkConfirmed } from './admin-board-model.js';
 
 const TILE_SCHEMA = { tile: { default: '', valid: value => /^[A-Ha-h][1-8]$/.test(value) } };
 
@@ -123,8 +123,7 @@ export function install(ctx) {
     if (!tile) return false;
     if (want.name && tile.name !== want.name) return false;
     if (want.description !== null ? tile.descriptionIsAutomatic || tile.description !== want.description : !tile.descriptionIsAutomatic) return false;
-    if (want.removeArt && tile.artworkReference) return false;
-    if (want.newArt && !tile.artworkReference) return false;
+    if (!artworkConfirmed(want, tile, ed.openingArt)) return false;
     if (want.ehb !== null && Number(tile.ehb) !== want.ehb) return false;
     if (want.ehb === null && (tile.manualEhbOverride == null ? null : Number(tile.manualEhbOverride)) !== want.manualEhb) return false;
     const objectives = [...tile.objectives].sort((a, b) => a.position - b.position);
@@ -159,8 +158,16 @@ export function install(ctx) {
     if (result.failed) { ed.error = result.gone ? 'gone' : 'failed'; paint(); return; }
     ed.tile = result.tile; ed.calc = result.tile?.calculatedEhb ?? null;
     ed.f = formFrom(result.tile); ed.base = snapshot(ed.f);
+    ed.openingArt = ed.tileId && result.tile?.imageUrl ? undefined : null; // M2: unknown until the Readback answers
     paint(); ed.layer.markClean();
     requestAnimationFrame(() => (ed?.layer.element.querySelector('#ed-name') || ed?.layer.element.querySelector('#ed-close'))?.focus());
+    // M2: remember the artwork reference as the drawer opens (undefined = could not be read).
+    if (ed.tileId && result.tile?.imageUrl) {
+      const mine = ed, opened = await ctx.readback();
+      if (ed !== mine) return;
+      const found = opened?.working?.tiles?.find(x => x.tileId === mine.tileId);
+      mine.openingArt = found ? (found.artworkReference ?? null) : undefined;
+    }
   }
   function onClosed() {
     const wasPushed = pushed; ed = null; pushed = false;

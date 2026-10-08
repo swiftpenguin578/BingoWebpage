@@ -43,7 +43,26 @@ const js = name => path.join(root, "src/Bingo.Web/wwwroot/js", name);
   clock = 191000; assert.equal(failing(), true, "a failed renewal does not block the next window");
   const board = fs.readFileSync(js("admin-board.js"), "utf8");
   assert.match(board, /ctx\.url\('RenewEditing'\)/);
-  assert.match(board, /if \(ctx\.canEdit\(\) && !life\.signal\.aborted\) renew\(\)/);
+  assert.match(board, /if \(!ctx\.canEdit\(\) \|\| life\.signal\.aborted \|\| ctx\.pending\) return;/);
+
+  // M1: a refused Move ({success:false}) is a refusal carrying the server's reason, never a success.
+  assert.deepEqual(model.outcomeOf({ success: false, message: "This board changed before the move could be saved." }), { kind: "refused", message: "This board changed before the move could be saved.", issues: [], current: undefined });
+  assert.equal(model.outcomeOf({ success: true, boardVersion: 4 }).kind, "state");
+  assert.equal(model.outcomeOf({ outcome: "saved" }).kind, "saved");
+  assert.equal(model.outcomeOf({ outcome: "stale", message: "x" }).kind, "refused");
+  assert.match(board, /outcome\.kind === 'refused'[^\n]*ui\.toast\(outcome\.message/);
+  // M2: replaced artwork is confirmed only when the Readback reference differs from the one at open.
+  assert.equal(model.artworkConfirmed({ newArt: true, removeArt: false }, { artworkReference: "old" }, "old"), false, "unchanged reference: not saved");
+  assert.equal(model.artworkConfirmed({ newArt: true, removeArt: false }, { artworkReference: "new" }, "old"), true);
+  assert.equal(model.artworkConfirmed({ newArt: true, removeArt: false }, { artworkReference: "new" }, null), true, "first artwork");
+  assert.equal(model.artworkConfirmed({ newArt: true, removeArt: false }, { artworkReference: null }, null), false);
+  assert.equal(model.artworkConfirmed({ newArt: true, removeArt: false }, { artworkReference: "new" }, undefined), false, "unknown opening reference cannot confirm");
+  assert.equal(model.artworkConfirmed({ newArt: false, removeArt: true }, { artworkReference: "old" }, "old"), false);
+  assert.equal(model.artworkConfirmed({ newArt: false, removeArt: true }, { artworkReference: null }, "old"), true);
+  assert.equal(model.artworkConfirmed({ newArt: false, removeArt: false }, { artworkReference: "old" }, "old"), true);
+  // L2: no renewal while a command is pending or on the pointerdown of a button.
+  assert.match(board, /ctx\.pending\) return;/);
+  assert.match(board, /type === 'pointerdown' && event\.target\?\.closest\?\.\('button/);
 
   const labels = fs.readFileSync(path.join(root, "src/Bingo.Web/Pages/Admin/Events/Board.Labels.cs"), "utf8");
   const served = new Set([...labels.matchAll(/^\s+"((?:[^"\\]|\\.)*)",$/gm)].map(m => m[1].replace(/\\"/g, '"').replace(/\\\\/g, "\\")));
