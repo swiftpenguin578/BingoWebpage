@@ -60,6 +60,10 @@ public sealed partial class FinalizeModel
     public FinalizationHistoryRow? ActiveResult => Readiness.History.FirstOrDefault(x => x.Active);
     public bool Official => Readiness.State is EventState.Finalized or EventState.Archived;
     public string Fmt(DateTimeOffset? value) => value is { } instant ? DateTimePresentation.Format(instant, "dd MMM yyyy, HH:mm", EventTimezone, CultureInfo.CurrentCulture) : Localize("Not set");
+    // Reference result-status tones: Provisional warning, Official success, Live accent; other states keep the lifecycle tone.
+    public string BadgeClass(string phaseClass) => Official && ActiveResult is not null ? "badge-success"
+        : Readiness.State == EventState.AwaitingFinalReview ? "badge-warning" : Readiness.State == EventState.Live ? "badge-accent" : phaseClass;
+    public string Ehb(decimal value) => value.ToString("N1", CultureInfo.CurrentCulture);
     public string Badge => Official && ActiveResult is { } active ? Localize("Official · version {0}", active.Version)
         : Readiness.State == EventState.AwaitingFinalReview ? Localize(Readiness.History.Count > 0 ? "Provisional · correction" : "Provisional")
         : Localize(Readiness.State switch { EventState.Draft => "Setup", EventState.SignupOpen => "Signups open", EventState.SignupClosed => "Signups closed", EventState.Live => "Live", EventState.Cancelled => "Cancelled", _ => "Final review" });

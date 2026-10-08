@@ -12,12 +12,13 @@
     var rows = Model.Rows;
     var phase = AdminDesignPhasePresentation.For(r.State);
     var nextVersion = r.History.Count == 0 ? 1 : r.History.Max(x => x.Version) + 1;
-    var pubBlocked = !r.CanFinalize && Model.Checks.Any(x => x.Class == "is-blocked");
+    var live = r.State == EventState.Live;
+    var pubBlocked = !r.CanFinalize && !live && Model.Checks.Any(x => x.Class == "is-blocked");
     var pubIconClass = r.CanFinalize ? "is-ready" : pubBlocked ? "is-blocked" : "is-wait";
 }
 @section HeaderTitle { <h1 class="h1" id="page-h1" tabindex="-1">@T["Final review"]</h1> }
 @section HeaderSummary {
-    <span class="badge @phase.BadgeClass">@Model.Badge</span>
+    <span class="badge @Model.BadgeClass(phase.BadgeClass)">@Model.Badge</span>
     @if (Model.Official && active is not null) { <span>@T["Published {0}", Model.Fmt(active.FinalizedAt)]</span> }
     else if (r.State == EventState.AwaitingFinalReview) { <span>@T["Ended {0}", Model.Fmt(r.EventEndsAt)]</span><span>@(r.SubmissionWindowOpen ? T["Uploads close {0}", Model.Fmt(r.SubmissionCutoff)] : T["Closed {0}", Model.Fmt(r.SubmissionCutoff)])</span> }
     else if (r.State == EventState.Live) { <span>@T["Ends {0}", Model.Fmt(r.EventEndsAt)]</span> }
@@ -46,7 +47,7 @@
     else if (r.State != EventState.Cancelled)
     {
         <section class="card" aria-labelledby="pub-title">
-            <div class="fr-pub-head"><div class="fr-pub-ic @pubIconClass" aria-hidden="true"><partial name="_AdminDesignIcon" model='new AdminDesignIcon(r.CanFinalize ? "check" : pubBlocked ? "warning" : "schedule")' /></div><div class="fr-pub-text"><h2 class="fr-pub-title" id="pub-title" tabindex="-1">@Model.PublicationTitle</h2><p class="fr-pub-sub">@T["Publishing makes these standings official as version {0} and archives the event.", nextVersion]</p></div>
+            <div class="fr-pub-head"><div class="fr-pub-ic @pubIconClass" aria-hidden="true"><partial name="_AdminDesignIcon" model='new AdminDesignIcon(r.CanFinalize ? "check" : pubBlocked ? "warning" : "schedule")' /></div><div class="fr-pub-text"><h2 class="fr-pub-title" id="pub-title" tabindex="-1">@Model.PublicationTitle</h2><p class="fr-pub-sub">@(live ? T["The event ends {0}. These standings are live and change as evidence is approved.", Model.Fmt(r.EventEndsAt)] : T["Publishing makes these standings official as version {0} and archives the event.", nextVersion])</p></div>
                 @if (r.State == EventState.AwaitingFinalReview)
                 {
                     <form method="post" asp-page-handler="Finalize" class="fr-pub-act" data-final-action="publish" data-cancel-label="@T["Cancel"]" data-reason-label="@T["Reason"]" data-confirm-title="@T["Publish official results"]" data-confirm-description="@T["Publish these placements as the official results and archive the event in one step?"]" data-confirm-action="@T["Publish official results"]" data-confirm-field="ConfirmLifecycleAction">
@@ -55,6 +56,8 @@
                     </form>
                 }
             </div>
+            @if (!live)
+            {
             <ul class="checklist fr-checks" aria-label="@T["Publication requirements"]">
                 @foreach (var check in Model.Checks)
                 {
@@ -63,17 +66,18 @@
                     </li>
                 }
             </ul>
+            }
         </section>
     }
     <section class="card fr-standings" aria-labelledby="st-title">
-        <div class="fr-card-head"><div><h2 class="sec-title" id="st-title">@T[Model.Official ? "Official results" : r.State == EventState.Live ? "Live standings" : "Provisional standings"]</h2><p class="fr-st-sub">@T[Model.Official ? "Stored exactly as published." : "Calculated from approved evidence. They change if a review decision changes."]</p></div><button type="button" class="text-btn fr-how-btn" id="how-btn" aria-expanded="false" aria-controls="how-body">@T["How placements are decided"]<partial name="_AdminDesignIcon" model='new AdminDesignIcon("chevron-down")' /></button></div>
+        <div class="fr-card-head"><div><h2 class="sec-title" id="st-title">@T[Model.Official ? "Official results" : r.State == EventState.Live ? "Live standings" : "Provisional standings"]</h2><p class="fr-st-sub">@T[Model.Official ? "Stored exactly as published." : live ? "Calculated now from approved evidence." : "Calculated from approved evidence. They change if a review decision changes."]</p></div><button type="button" class="text-btn fr-how-btn" id="how-btn" aria-expanded="false" aria-controls="how-body">@T["How placements are decided"]<partial name="_AdminDesignIcon" model='new AdminDesignIcon("chevron-down")' /></button></div>
         <div class="fr-how" id="how-body" hidden><ol class="fr-how-list"><li>@T["Completed boards first, then earlier completion."]</li><li>@T["More completed lines, then more completed tiles."]</li><li>@T[r.PlacementRule == PlacementRule.CreditedEhbThenScoreTime ? "More credited EHB, then earlier current-score time." : "Earlier current-score time, then more credited EHB."]</li></ol><p class="fr-how-note">@T["Exact equality on every competitive input shares the place. Team names only order tied rows."]</p></div>
         @if (rows.Count > 0)
         {
             <div class="tbl-wrap is-scroll"><div class="tbl fr-tbl sticky-first" role="table" aria-label="@T["Standings"]">
                 <div class="tr th-row" role="row"><div class="th c-name" role="columnheader">@T["Place and team"]</div><div class="th" role="columnheader">@T["Full board"]</div><div class="th fr-num" role="columnheader">@T["Lines"]</div><div class="th fr-num" role="columnheader">@T["Tiles"]</div><div class="th fr-num" role="columnheader">@T["Credited EHB"]</div><div class="th" role="columnheader">@T["Score reached"]</div></div>
                 <div class="rows" role="rowgroup">@foreach (var row in rows) { var value = row.Value;
-                    <div class="tr row" role="row"><div class="td c-name" role="cell"><div class="fr-team"><span class="place @(value.Placement <= 3 ? "is-top is-" + value.Placement : "") @(row.Place.StartsWith('=') ? "is-shared" : "")">@row.Place</span><div><span class="cell-main fr-team-name">@value.TeamName</span><div class="cell-sub fr-why">@row.Explanation</div></div></div></div><div class="td" role="cell"><span class="tval @(value.BoardComplete ? "" : "is-muted") @(row.Decider == "board" ? "is-decider" : "")">@(value.BoardComplete ? Model.Fmt(value.CalculatedCompletedAt) : T["Not completed"])</span></div><div class="td fr-num" role="cell"><span class="tval @(row.Decider == "lines" ? "is-decider" : "")">@value.CompletedLines</span></div><div class="td fr-num" role="cell"><span class="tval @(row.Decider == "tiles" ? "is-decider" : "")">@value.CompletedTiles</span></div><div class="td fr-num" role="cell"><span class="tval @(row.Decider == "ehb" ? "is-decider" : "")">@value.EhbTiebreak.ToString("0.####")</span></div><div class="td" role="cell"><span class="tval @(value.BoardComplete ? "is-muted" : "") @(row.Decider == "score" ? "is-decider" : "")">@(value.BoardComplete ? T["At completion"] : value.CurrentScoreReachedAt is null ? "—" : Model.Fmt(value.CurrentScoreReachedAt))</span></div></div>
+                    <div class="tr row" role="row"><div class="td c-name" role="cell"><div class="fr-team"><span class="place @(value.Placement <= 3 ? "is-top is-" + value.Placement : "") @(row.Place.StartsWith('=') ? "is-shared" : "")">@row.Place</span><div><span class="cell-main fr-team-name">@value.TeamName</span><div class="cell-sub fr-why">@row.Explanation</div></div></div></div><div class="td" role="cell"><span class="tval @(value.BoardComplete ? "" : "is-muted") @(row.Decider == "board" ? "is-decider" : "")">@(value.BoardComplete ? Model.Fmt(value.CalculatedCompletedAt) : T["Not completed"])</span></div><div class="td fr-num" role="cell"><span class="tval @(row.Decider == "lines" ? "is-decider" : "")">@value.CompletedLines</span></div><div class="td fr-num" role="cell"><span class="tval @(row.Decider == "tiles" ? "is-decider" : "")">@value.CompletedTiles</span></div><div class="td fr-num" role="cell"><span class="tval @(row.Decider == "ehb" ? "is-decider" : "")">@Model.Ehb(value.EhbTiebreak)</span></div><div class="td" role="cell"><span class="tval @(value.BoardComplete ? "is-muted" : "") @(row.Decider == "score" ? "is-decider" : "")">@(value.BoardComplete ? T["At completion"] : value.CurrentScoreReachedAt is null ? "—" : Model.Fmt(value.CurrentScoreReachedAt))</span></div></div>
                 }</div>
             </div></div><div class="tfoot"><span>@T["{0} teams", rows.Count]@if (rows.Any(x => x.Place.StartsWith('='))) { <span> · @T["{0} shared", string.Join(", ", rows.Where(x => x.Place.StartsWith('=')).Select(x => x.Place).Distinct())]</span> }</span></div>
         }
@@ -91,9 +95,9 @@
     }
     @if (Model.Official && active is not null)
     {
-        <section class="card fr-reopen" aria-labelledby="reopen-title"><div class="act-row"><div class="act-text"><h2 class="sec-title" id="reopen-title">@T["Reopen for corrections"]</h2><p class="fr-reopen-text">@T["Exceptional. Returns the event to provisional final review and keeps version {0} in history. It doesn’t restart the event or reopen uploads.", active.Version]</p>
+        <section class="card fr-reopen" aria-labelledby="reopen-title"><div class="act-row"><div class="act-text"><h2 class="sec-title" id="reopen-title">@T["Correct official results"]</h2><p class="fr-reopen-text">@T["Exceptional. Returns the event to provisional final review and keeps version {0} in history. It doesn’t restart the event or reopen uploads.", active.Version]</p>
             @if (r.BlockingCurrentEvent is { } blocking) { <p id="reopen-why" class="fr-reopen-block"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("lock")' /><span>@Model.BlockingReason <a asp-page="Manage" asp-route-id="@blocking.Id" data-shell-link>@T["Open event"]</a></span></p> }
-        </div><form method="post" asp-page-handler="Unfinalize" data-final-action="reopen" data-cancel-label="@T["Cancel"]" data-reason-label="@T["Reason"]" data-confirm-title="@T["Reopen for corrections"]" data-confirm-description="@T["The current official snapshot remains retained in history."]" data-confirm-action="@T["Reopen for corrections"]" data-confirm-field="ConfirmLifecycleAction" data-confirm-reason-field="Reason" data-confirm-require-reason="true"><input type="hidden" name="ExpectedVersion" value="@r.EventVersion" /><input type="hidden" name="ConfirmLifecycleAction" value="false" data-confirm-field-value /><input type="hidden" name="Reason" /><button class="btn btn-outline-danger" id="reopen-btn" type="submit" disabled="@(r.BlockingCurrentEvent is not null)" aria-describedby="@(r.BlockingCurrentEvent is null ? null : "reopen-why")">@T["Reopen for corrections…"]</button></form></div></section>
+        </div><form method="post" asp-page-handler="Unfinalize" data-final-action="reopen" data-cancel-label="@T["Cancel"]" data-reason-label="@T["Reason"]" data-confirm-title="@T["Reopen for corrections"]" data-confirm-description="@T["The current official snapshot remains retained in history."]" data-confirm-action="@T["Reopen for corrections"]" data-confirm-field="ConfirmLifecycleAction" data-confirm-reason-field="Reason" data-confirm-require-reason="true"><input type="hidden" name="ExpectedVersion" value="@r.EventVersion" /><input type="hidden" name="ConfirmLifecycleAction" value="false" data-confirm-field-value /><input type="hidden" name="Reason" /><button class="btn" id="reopen-btn" type="submit" disabled="@(r.BlockingCurrentEvent is not null)" aria-describedby="@(r.BlockingCurrentEvent is null ? null : "reopen-why")">@T["Reopen results…"]</button></form></div></section>
     }
     @foreach (var version in r.History)
     {
@@ -111,7 +115,7 @@
                     <div class="tbl-wrap is-scroll fr-dr-wrap"><div class="tbl fr-tbl is-compact" role="table" aria-label="@T["Results of this version"]">
                         <div class="tr th-row" role="row"><div class="th c-name" role="columnheader">@T["Place and team"]</div><div class="th" role="columnheader">@T["Full board"]</div><div class="th fr-num" role="columnheader">@T["Lines"]</div><div class="th fr-num" role="columnheader">@T["Tiles"]</div><div class="th fr-num" role="columnheader">@T["Credited EHB"]</div><div class="th" role="columnheader">@T["Score reached"]</div></div>
                         <div class="rows" role="rowgroup">@foreach (var row in version.Placements) { var shared = sharedPlaces.Contains(row.Placement);
-                            <div class="tr row" role="row"><div class="td c-name" role="cell"><div class="fr-team"><span class="place @(row.Placement <= 3 ? "is-top is-" + row.Placement : "") @(shared ? "is-shared" : "")">@(shared ? "=" : "")@row.Placement</span><span class="cell-main fr-team-name">@row.TeamName</span></div></div><div class="td" role="cell"><span class="tval @(row.BoardComplete ? "" : "is-muted")">@(row.BoardComplete ? Model.Fmt(row.BoardCompletedAt) : T["Not completed"])</span></div><div class="td fr-num" role="cell">@row.CompletedLines</div><div class="td fr-num" role="cell">@row.CompletedTiles</div><div class="td fr-num" role="cell">@row.EhbTiebreak.ToString("0.####")</div><div class="td" role="cell"><span class="tval">@(row.CurrentScoreReachedAt is null ? "—" : Model.Fmt(row.CurrentScoreReachedAt))</span></div></div>
+                            <div class="tr row" role="row"><div class="td c-name" role="cell"><div class="fr-team"><span class="place @(row.Placement <= 3 ? "is-top is-" + row.Placement : "") @(shared ? "is-shared" : "")">@(shared ? "=" : "")@row.Placement</span><span class="cell-main fr-team-name">@row.TeamName</span></div></div><div class="td" role="cell"><span class="tval @(row.BoardComplete ? "" : "is-muted")">@(row.BoardComplete ? Model.Fmt(row.BoardCompletedAt) : T["Not completed"])</span></div><div class="td fr-num" role="cell">@row.CompletedLines</div><div class="td fr-num" role="cell">@row.CompletedTiles</div><div class="td fr-num" role="cell">@Model.Ehb(row.EhbTiebreak)</div><div class="td" role="cell"><span class="tval">@(row.CurrentScoreReachedAt is null ? "—" : Model.Fmt(row.CurrentScoreReachedAt))</span></div></div>
                         }</div>
                     </div></div>
                     <p class="fr-dr-note">@T["Stored snapshot: placements and order exactly as published. Later rule or data changes don’t alter it."]</p>
