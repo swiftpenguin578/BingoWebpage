@@ -198,9 +198,13 @@ function initWorkspace(region, root, ui) {
   }
 
   /* correction picker (AU17a): accounts with Released / Left team / Current markers */
-  let characters = null;
-  async function loadCharacters() {
-    if (characters || !correction) return;
+  let characters = null, loading = null;
+  // One fetch at a time: a restore after a stale answer waits for the same load that setMode started.
+  function loadCharacters() {
+    if (characters || !correction) return Promise.resolve();
+    return loading ??= loadCharactersOnce().finally(() => { loading = null; });
+  }
+  async function loadCharactersOnce() {
     const select = correction.querySelector('[data-cf-acct]'), hint = correction.querySelector('[data-cf-acct-hint]');
     const outcome = await window.AdminFetch.request(data.charactersUrl, { cache: 'no-store', draft: draftValues(), readback: true });
     if (outcome.kind !== 'handler' || !Array.isArray(outcome.data)) { hint.textContent = data.textAccountsFailed; return; }
@@ -330,7 +334,9 @@ function initWorkspace(region, root, ui) {
     if (result.outcome === 'saved') { await closeDialog(); refresh({ saved: kind, amount: result.amount }); return; }
     if (result.outcome === 'stale') {
       await closeDialog();
-      const keep = result.status === 'Pending' && (mode === 'reject' || mode === 'correct') ? { mode, reason: reasonOf(mode)?.value || '' } : null;
+      // Still Pending: the admin's reason and, for a correction, the Objective / Drop / Credited account picks stay.
+      const picks = mode === 'correct' ? { req: correction.querySelector('[data-cf-req]').value, drop: correction.querySelector('[data-cf-drop]').value, acct: correction.querySelector('[data-cf-acct]').value } : null;
+      const keep = result.status === 'Pending' && (mode === 'reject' || mode === 'correct') ? { mode, reason: reasonOf(mode)?.value || '', picks } : null;
       refresh({ stale: { by: result.changedBy, message: result.message }, keep });
       return;
     }
@@ -385,6 +391,15 @@ function initWorkspace(region, root, ui) {
   }
   // The shell focuses the page title after an in-place refresh; the outcome takes focus right after.
   const focusLater = element => { if (element) setTimeout(() => { if (element.isConnected) element.focus(); }, 0); };
+  function restorePicks(picks) {
+    if (!root.isConnected || mode !== 'correct') return;
+    const set = (select, value) => { if (value && [...select.options].some(option => option.value === value && !option.disabled)) select.value = value; };
+    const req = correction.querySelector('[data-cf-req]'), drop = correction.querySelector('[data-cf-drop]'), acct = correction.querySelector('[data-cf-acct]');
+    set(req, picks.req); syncCorrection();
+    set(drop, picks.drop);
+    set(acct, picks.acct); syncCorrection();
+    ui.refreshDirty?.();
+  }
   function applyCarry() {
     if (!carry || carry.id !== id) { carry = null; return; }
     const state = carry; carry = null;
@@ -412,6 +427,8 @@ function initWorkspace(region, root, ui) {
       if (state.keep && panel.querySelector(`[data-review-mode="${state.keep.mode}"]`)) {
         setMode(state.keep.mode, { focus: false });
         const field = reasonOf(state.keep.mode); if (field) { field.value = state.keep.reason; paintReason(field); }
+        // The picks go back after the account list has loaded, so the baseline stays the saved record's values.
+        if (state.keep.picks) void loadCharacters().then(() => restorePicks(state.keep.picks));
       }
       return;
     }
