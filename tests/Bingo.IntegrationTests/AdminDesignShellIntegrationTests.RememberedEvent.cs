@@ -26,8 +26,8 @@ public sealed partial class AdminDesignShellIntegrationTests
         var past = Event(admin, EventState.Archived, "Past selection", -12);
         await using (var db = new ApplicationDbContext(options)) { db.AddRange(admin, first, past); await db.SaveChangesAsync(); }
         await using var factory = RememberedEventFactory(); using var client = await IdentityClientAsync(factory);
-        // A10: Schedule and Participants (U5) are bound; Teams/Draft still exercises the unchanged legacy-shell contract.
-        using var opened = await client.GetAsync($"/Admin/Events/Draft/{first.Id}");
+        // A10: Schedule, Participants (U5) and Teams/Draft (U6) are bound; WiseOldMan still exercises the unchanged legacy-shell contract.
+        using var opened = await client.GetAsync($"/Admin/Events/WiseOldMan/{first.Id}");
         Assert.Equal(HttpStatusCode.OK, opened.StatusCode);
         var cookie = Assert.Single(opened.Headers.GetValues("Set-Cookie"), value => value.StartsWith(AdminEventSession.CookieName + "=", StringComparison.Ordinal));
         Assert.StartsWith($"{AdminEventSession.CookieName}={first.Id:D};", cookie);

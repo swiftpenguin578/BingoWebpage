@@ -1,0 +1,51 @@
+/* U6 Teams / Draft family (TeamsDraft.dc.html page styles). Layout only; shared tokens and
+   components come from admin-design-tokens.css / admin-design-components.css. Layer contents
+   carry the family on a display:contents wrapper so these rules reach the shared hosts. */
+:where([data-page-family="draft"]).td-layer{display:contents}
+:where([data-page-family="draft"]) .td-head-acts{display:flex;gap:8px;flex:none}
+:where([data-page-family="draft"]) .td-ready{margin-bottom:var(--dk-space-5)}
+:where([data-page-family="draft"]) .td-ready-main{display:flex;align-items:flex-start;gap:14px 32px;flex-wrap:wrap;padding:14px 18px}
+:where([data-page-family="draft"]) .td-ready-text{flex:1 1 320px;min-width:0}
+:where([data-page-family="draft"]) .td-ready-title{margin:0;font-size:var(--dk-fs-control);font-weight:600}
+:where([data-page-family="draft"]) .td-ready-title:focus{outline:none}
+:where([data-page-family="draft"]) .td-ready-sizes{margin:4px 0 0;font-size:var(--dk-fs-control-sm);color:var(--dk-text-2);line-height:1.5}
+:where([data-page-family="draft"]) .td-checks{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:7px;flex:1 1 300px;min-width:0}
+:where([data-page-family="draft"]) .td-check{display:flex;align-items:center;gap:9px;min-height:20px;font-size:var(--dk-fs-control-sm);color:var(--dk-text)}
+:where([data-page-family="draft"]) .td-check .check-mark{margin-top:0;flex:none}
+:where([data-page-family="draft"]) .td-check.is-done{color:var(--dk-text-2)}
+:where([data-page-family="draft"]) .td-check.is-done .check-mark{background:var(--dk-accent);border-color:var(--dk-accent)}
+:where([data-page-family="draft"]) .td-check .grow{flex:1;min-width:0}
+:where([data-page-family="draft"]) .td-check.is-info{color:var(--dk-text-2)}
+:where([data-page-family="draft"]) .td-check.is-info .check-mark{border-style:dashed}
+:where([data-page-family="draft"]) .td-bar{display:flex;align-items:center;gap:10px;margin:0 0 10px}
+:where([data-page-family="draft"]) .td-section-title{margin:0;font-size:var(--dk-fs-control);font-weight:600;display:flex;align-items:center;gap:8px}
+:where([data-page-family="draft"]) .td-count{font-size:var(--dk-fs-small);color:var(--dk-text-3);font-weight:500;font-variant-numeric:tabular-nums}
+/* active draft: compact and full height; the pool scrolls inside when a large event doesn't fit */
+:where([data-page-family="draft"]).page.is-live{max-width:none;height:100%;box-sizing:border-box;display:flex;flex-direction:column;padding:12px 16px}
+:where([data-page-family="draft"]).page.is-live .page-banner{margin-bottom:10px}
+:where([data-page-family="draft"]).page.is-live [data-draft],:where([data-page-family="draft"]).page.is-live .td-body{flex:1;min-height:0;display:flex;flex-direction:column}
+:where([data-page-family="draft"]) .td-live{flex:1;min-height:0;display:flex;flex-direction:column;gap:10px}
+:where([data-page-family="draft"]) .td-live .pool{flex:1 1 auto;min-height:180px}
+:where([data-page-family="draft"]) .td-live .pool-grid{flex:1;min-height:0}
+:where([data-page-family="draft"]) .td-search{width:220px}
+:where([data-page-family="draft"]) .td-manual-note{margin:0;font-size:var(--dk-fs-small);color:var(--dk-text-3)}
+:where([data-page-family="draft"]) .sk-block{padding:16px 18px}
+:where([data-page-family="draft"]) .td-roles{display:flex;flex-direction:column;gap:8px}
+:where([data-page-family="draft"]) .td-note{margin:0;font-size:var(--dk-fs-small);color:var(--dk-text-2);line-height:1.5}
+:where([data-page-family="draft"]) .td-src{margin-bottom:10px;display:flex}
+:where([data-page-family="draft"]) .td-src .seg-opt{flex:1;justify-content:center}
+:where([data-page-family="draft"]) .td-full{width:100%}
+:where([data-page-family="draft"]) .res-name,:where([data-page-family="draft"]) .res-sub,:where([data-page-family="draft"]) .choice-title,:where([data-page-family="draft"]) .choice-sub{display:block}
+/* loading rows keep real text line heights (rule 7) */
+:where([data-page-family="draft"]) .td-sk-line{display:flex;align-items:center;height:calc(var(--dk-fs-control) * 1.45)}
+:where([data-page-family="draft"]) .td-sk-sub{display:flex;align-items:center;height:calc(var(--dk-fs-control-sm) * 1.5)}
+:where([data-page-family="draft"]) .td-sk-gap{margin-top:12px}
+:where([data-page-family="draft"]) .td-sk-sub+.td-sk-sub{margin-top:7px}
+:where([data-page-family="draft"]) .td-sk-w12{width:12%}
+:where([data-page-family="draft"]) .td-sk-w30{width:30%}
+:where([data-page-family="draft"]) .td-sk-w40{width:40%}
+:where([data-page-family="draft"]) .td-sk-w60{width:60%}
+:where([data-page-family="draft"]) .td-sk-w66{width:66%}
+:where([data-page-family="draft"]) .td-sk-w70{width:70%}
+@media (max-width:860px){:where([data-page-family="draft"]).page.is-live{height:auto;min-height:100%}:where([data-page-family="draft"]) .td-live .pool{min-height:0}}
+@media (max-width:640px){:where([data-page-family="draft"]) .td-search{width:100%;order:5}:where([data-page-family="draft"]) .td-head-acts .btn{flex:1}:where([data-page-family="draft"]).page-head:has(.td-head-acts){flex-wrap:wrap}}

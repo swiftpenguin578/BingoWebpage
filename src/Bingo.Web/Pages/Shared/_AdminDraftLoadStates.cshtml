@@ -1,0 +1,12 @@
+@* U6: Teams / Draft page-family load states (family key "draft", from the route). Fresh on every visit. *@
+<template data-page-header-template="draft">
+    <header class="page-head" data-page-family="draft"><div style="min-width:0"><h1 class="h1" tabindex="-1">@T["Teams / Draft"]</h1><p class="summary" aria-hidden="true"></p></div></header>
+</template>
+<template data-page-loading-template="draft" data-page-title="@T["Teams / Draft"]">
+    <link rel="stylesheet" href="~/css/admin-design-draft.css" asp-append-version="true" />
+    <partial name="_AdminDraftSkeleton" />
+</template>
+<template data-page-failure-template="draft">
+    <link rel="stylesheet" href="~/css/admin-design-draft.css" asp-append-version="true" />
+    <div class="card"><div class="empty is-error" role="alert"><div class="empty-ic"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("error")' /></div><div class="empty-title">@T["Couldn’t load the teams"]</div><div class="empty-text">@T["Check your connection and try again. Nothing was changed."]</div><button class="btn" type="button" data-load-retry>@T["Try again"]</button></div></div>
+</template>

@@ -84,9 +84,12 @@ public sealed partial class DraftOperationsIntegrationTests(PostgreSqlTestFixtur
         var route = $"/Admin/Events/Draft/{setup.EventId}";
 
         var emptyHtml = await client.GetStringAsync(route);
-        Assert.Contains("data-draft-dialog-open=\"add-team\"", emptyHtml, StringComparison.Ordinal);
-        Assert.Contains("data-draft-add-team-dialog", emptyHtml, StringComparison.Ordinal);
-        Assert.DoesNotContain("name=\"formationType\"", emptyHtml, StringComparison.Ordinal);
+        // A10 (U6): the empty workspace (no teams, setup stage) is drawn from the page state and offers Add team.
+        var emptyState = DraftPageState(emptyHtml);
+        Assert.Equal("setup", emptyState.GetProperty("stage").GetString());
+        Assert.Equal(0, emptyState.GetProperty("teams").GetArrayLength());
+        AssertDraftPageOffers("AddTeam");
+        Assert.DoesNotContain("formationType", emptyHtml, StringComparison.Ordinal);
         await using (var afterGet = new ApplicationDbContext(options))
         {
             Assert.Empty(await afterGet.DraftSessions.Where(draft => draft.EventId == setup.EventId).ToListAsync());
@@ -102,8 +105,7 @@ public sealed partial class DraftOperationsIntegrationTests(PostgreSqlTestFixtur
         Assert.Equal(HttpStatusCode.Redirect, add.StatusCode);
 
         var savedHtml = await client.GetStringAsync(route);
-        Assert.Contains("data-team-name=\"First setup team\"", savedHtml, StringComparison.Ordinal);
-        Assert.Contains("First setup team", savedHtml, StringComparison.Ordinal);
+        Assert.Contains(DraftPageState(savedHtml).GetProperty("teams").EnumerateArray(), value => value.GetProperty("name").GetString() == "First setup team" && !value.GetProperty("included").GetBoolean());
         await using var verify = new ApplicationDbContext(options);
         Assert.Single(await verify.DraftSessions.Where(draft => draft.EventId == setup.EventId).ToListAsync());
         var team = await verify.Teams.SingleAsync(value => value.EventId == setup.EventId);
@@ -136,7 +138,9 @@ public sealed partial class DraftOperationsIntegrationTests(PostgreSqlTestFixtur
         async Task Post(string path, string handler, Dictionary<string, string> fields)
         {
             var html = await client.GetStringAsync(path);
-            Assert.Contains($"handler={handler}", html, StringComparison.OrdinalIgnoreCase);
+            // A10 (U6): the page renders client-side; it must still embed its state and post this handler.
+            DraftPageState(html);
+            AssertDraftPageOffers(handler);
             var response = await client.PostAsync($"{path}{(path.Contains('?') ? '&' : '?')}handler={handler}", Form(AntiforgeryToken(html), fields));
             Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
         }
@@ -198,13 +202,13 @@ public sealed partial class DraftOperationsIntegrationTests(PostgreSqlTestFixtur
             Assert.Equal(SignupStatus.Withdrawn, await db.EventParticipants.Where(x => x.Id == internalIds[2]).Select(x => x.SignupStatus).SingleAsync());
             Assert.False(await db.EventParticipantCharacters.AnyAsync(x => x.EventParticipantId == internalIds[2] && x.ReleasedAt == null));
         }
-        var pool = await client.GetStringAsync(draftPath);
-        var poolSectionStart = pool.IndexOf("data-draft-participant-section", StringComparison.Ordinal);
-        var poolSection = pool[poolSectionStart..pool.IndexOf("</table>", poolSectionStart, StringComparison.Ordinal)];
-        Assert.Contains("Internal Pre", poolSection);
-        Assert.Contains("Intern Pick", poolSection);
-        Assert.DoesNotContain("Genuine external", poolSection);
-        Assert.DoesNotContain("Retained Manual", poolSection);
+        // A10 (U6): the draft pool is the page state's confirmed participants without a team.
+        var poolState = DraftPageState(await client.GetStringAsync(draftPath)).GetProperty("participants").EnumerateArray()
+            .Where(participant => participant.GetProperty("teamId").ValueKind == System.Text.Json.JsonValueKind.Null).Select(participant => participant.GetProperty("name").GetString()).ToList();
+        Assert.Contains("Internal Pre", poolState);
+        Assert.Contains("Intern Pick", poolState);
+        Assert.DoesNotContain("Genuine external", poolState);
+        Assert.DoesNotContain("Retained Manual", poolState);
         DraftModel? loaded = null;
         await ExecuteAsync(setup.EventId, setup.FirstAdminId, async page => { loaded = page; return await page.OnGetAsync(setup.EventId, null, CancellationToken.None); });
         Assert.NotNull(loaded);
@@ -281,7 +285,9 @@ public sealed partial class DraftOperationsIntegrationTests(PostgreSqlTestFixtur
         async Task Post(string path, string handler, Dictionary<string, string> fields)
         {
             var html = await client.GetStringAsync(path);
-            Assert.Contains($"handler={handler}", html, StringComparison.OrdinalIgnoreCase);
+            // A10 (U6): the page renders client-side; it must still embed its state and post this handler.
+            DraftPageState(html);
+            AssertDraftPageOffers(handler);
             using var response = await client.PostAsync($"{path}{(path.Contains('?') ? '&' : '?')}handler={handler}", Form(AntiforgeryToken(html), fields));
             Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
         }
@@ -1366,11 +1372,10 @@ public sealed partial class DraftOperationsIntegrationTests(PostgreSqlTestFixtur
             Assert.Null(await verify.EventParticipants.Where(value => value.Id == unowned.ParticipantId).Select(value => value.AccountId).SingleAsync());
             Assert.Equal(TeamMembershipRole.Captain, await verify.TeamMemberships.Where(value => value.Id == unowned.MembershipId).Select(value => value.Role).SingleAsync());
         }
-        var readiness = Regex.Matches(html, "<p class=\"team-readiness-status\">.*?</p>", RegexOptions.Singleline)
-            .Select(match => match.Value)
-            .First(block => block.Contains("A Captain is assigned, but website access is not ready."));
-        Assert.Contains("admin-status-pill is-danger\">Attention</span>", readiness);
-        Assert.DoesNotContain("admin-status-pill is-danger\">Enabled</span>", readiness);
+        // A10 (U6): the team card's attention ("Needs a captain before the draft can start.")
+        // is drawn from the state: a current Captain exists, but no usable website Captain.
+        var attention = DraftPageState(html).GetProperty("teams").EnumerateArray().Where(team => team.GetProperty("hasCaptain").GetBoolean() && !team.GetProperty("hasUsableCaptain").GetBoolean()).ToList();
+        Assert.Single(attention);
         Assert.DoesNotContain("emergency", html, StringComparison.OrdinalIgnoreCase);
     }
 
@@ -1524,10 +1529,13 @@ public sealed partial class DraftOperationsIntegrationTests(PostgreSqlTestFixtur
         await LoginAsync(client, await LoginNameAsync(setup.FirstAdminId));
         var draftPath = $"/Admin/Events/Draft/{setup.EventId}";
         var html = await client.GetStringAsync(draftPath);
-        Assert.Contains("Historical paused draft", html, StringComparison.Ordinal);
-        Assert.DoesNotContain("asp-page-handler=\"Pause\"", html, StringComparison.Ordinal);
-        Assert.DoesNotContain("asp-page-handler=\"Resume\"", html, StringComparison.Ordinal);
-        Assert.DoesNotContain("asp-page-handler=\"Reopen\"", html, StringComparison.Ordinal);
+        // A10 (U6): the page state marks the historical paused draft read-only ("paused" stage,
+        // banner "Historical paused draft."); the page script offers no Pause/Resume/Reopen.
+        var pausedState = DraftPageState(html);
+        Assert.Equal("Paused", pausedState.GetProperty("draftState").GetString());
+        Assert.Equal("paused", pausedState.GetProperty("stage").GetString());
+        foreach (var retired in new[] { "Pause", "Resume", "Reopen" })
+            Assert.Throws<Xunit.Sdk.ContainsException>(() => AssertDraftPageOffers(retired));
         foreach (var handler in new[] { "Pause", "Resume", "Reopen" })
         {
             var response = await client.PostAsync($"{draftPath}?handler={handler}", Form(AntiforgeryToken(html), new Dictionary<string, string>()));
@@ -1890,8 +1898,10 @@ public sealed partial class DraftOperationsIntegrationTests(PostgreSqlTestFixtur
         Assert.Equal(before, await RosterStateAsync());
         var recovery = await client.GetStringAsync(rejected.Headers.Location);
         Assert.Contains("Assign a current Captain to every drafted team before finalizing: First.", recovery);
-        Assert.Contains("handler=ChangeRole", recovery);
-        Assert.Contains($"value=\"{membershipId}\"", recovery);
+        // A10 (U6): the recovery page focuses the team (rosterTeamId) and offers the member's role menu from its state.
+        AssertDraftPageOffers("ChangeRole");
+        Assert.Contains(DraftPageState(recovery).GetProperty("teams").EnumerateArray().SelectMany(value => value.GetProperty("members").EnumerateArray()),
+            member => member.GetProperty("id").GetGuid() == membershipId && member.GetProperty("role").GetString() == "CC");
         await ChangeRoleAsync(TeamMembershipRole.Captain);
         var finalized = await client.PostAsync($"{draftPath}?handler=Finalize", Form(token, new Dictionary<string, string> { ["confirmed"] = "true" }));
         Assert.Equal(HttpStatusCode.Redirect, finalized.StatusCode);
