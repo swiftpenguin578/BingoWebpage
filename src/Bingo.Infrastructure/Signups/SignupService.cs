@@ -1659,10 +1659,10 @@ public sealed partial class SignupService(
             var membership = new TeamMembership(Guid.NewGuid(), team.Id, participant.Id, request.Role, now, null, "Finalized roster addition");
             membership.SetSource(TeamMembershipSource.RetainedConversion);
             dbContext.TeamMemberships.Add(membership);
-            var before = await CurrentFinalizedRosterSnapshotAsync(draft, cancellationToken);
+            var before = await PublishedRosterStateAsync(draft, team.Id, participant.Id, cancellationToken);
             await dbContext.SaveChangesAsync(cancellationToken);
             await RepublishFinalizedRosterAsync(bingoEvent, draft, request.ActorAccountId, now, "Finalized roster addition", cancellationToken);
-            var after = await CurrentFinalizedRosterSnapshotAsync(draft, cancellationToken);
+            var after = await PublishedRosterStateAsync(draft, team.Id, participant.Id, cancellationToken);
             var participantAfter = await FinalizedParticipantAuditSnapshotAsync(participant.Id, request.EventId, cancellationToken);
             dbContext.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), now, request.ActorAccountId, request.ActorName,
                 "roster.finalized_added", "membership", membership.Id.ToString(),
@@ -1672,7 +1672,8 @@ public sealed partial class SignupService(
                     ownerAccountId = owner.Id,
                     participantBefore,
                     participantAfter
-                }), request.EventId, before, after));
+                }), request.EventId,
+                FinalizedRosterChangeJson(before, participant.Id, team, after.PublicName), FinalizedRosterChangeJson(after, participant.Id, team, after.PublicName)));
             await dbContext.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(CancellationToken.None);
 
@@ -1745,7 +1746,7 @@ public sealed partial class SignupService(
                 .SingleOrDefaultAsync(cancellationToken);
             if (team is null) return new(false, "The participant's current roster team is no longer available.");
 
-            var before = await CurrentFinalizedRosterSnapshotAsync(draft, cancellationToken);
+            var before = await PublishedRosterStateAsync(draft, team.Id, participant.Id, cancellationToken);
             var participantBefore = await FinalizedParticipantAuditSnapshotAsync(participant.Id, request.EventId, cancellationToken);
             var previousRole = membership.Role;
             membership.Leave(now, "Finalized roster removal");
@@ -1761,7 +1762,7 @@ public sealed partial class SignupService(
             }
             await dbContext.SaveChangesAsync(cancellationToken);
             await RepublishFinalizedRosterAsync(bingoEvent, draft, request.ActorAccountId, now, "Finalized roster removal", cancellationToken);
-            var after = await CurrentFinalizedRosterSnapshotAsync(draft, cancellationToken);
+            var after = await PublishedRosterStateAsync(draft, team.Id, participant.Id, cancellationToken);
             var participantAfter = await FinalizedParticipantAuditSnapshotAsync(participant.Id, request.EventId, cancellationToken);
             dbContext.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), now, request.ActorAccountId, request.ActorName,
                 "roster.finalized_removed", "membership", membership.Id.ToString(),
@@ -1771,7 +1772,8 @@ public sealed partial class SignupService(
                     ownerAccountId = participant.AccountId,
                     participantBefore,
                     participantAfter
-                }), request.EventId, before, after));
+                }), request.EventId,
+                FinalizedRosterChangeJson(before, participant.Id, team, before.PublicName), FinalizedRosterChangeJson(after, participant.Id, team, before.PublicName)));
             await dbContext.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(CancellationToken.None);
 
@@ -2181,18 +2183,42 @@ public sealed partial class SignupService(
                 ? draft : null;
     }
 
-    private async Task<string> CurrentFinalizedRosterSnapshotAsync(DraftSession draft, CancellationToken ct)
+    // Audit before/after for a finalized roster Add/Remove records what changed (the member,
+    // the team, the publication cycle and counts), never the whole published roster: a full
+    // roster exceeds the 4,000-character audit columns for a normal 44-player event.
+    private sealed record PublishedRosterState(
+        Guid? CycleId, int? CycleNumber, string? PublicationMethod, int RosterCount, int TeamMemberCount,
+        string? Role, int? EffectivePickNumber, string? PublicName);
+
+    private async Task<PublishedRosterState> PublishedRosterStateAsync(DraftSession draft, Guid teamId, Guid participantId, CancellationToken ct)
     {
         var cycle = await dbContext.DraftPublicationCycles.AsNoTracking()
             .SingleOrDefaultAsync(x => x.DraftSessionId == draft.Id && x.SupersededAt == null, ct);
-        if (cycle is null) return Json(new { cycleId = (Guid?)null, rows = Array.Empty<object>() });
-        var rows = await dbContext.DraftPublicationRosters.AsNoTracking()
-            .Where(x => x.DraftPublicationCycleId == cycle.Id)
-            .OrderBy(x => x.TeamId).ThenBy(x => x.EffectivePickNumber).ThenBy(x => x.PublicCharacterName)
-            .Select(x => new { x.TeamId, x.EventParticipantId, x.Role, x.EffectivePickNumber, x.PublicCharacterName })
-            .ToListAsync(ct);
-        return Json(new { cycleId = cycle.Id, cycle.CycleNumber, cycle.PublicationMethod, rows });
+        if (cycle is null) return new(null, null, null, 0, 0, null, null, null);
+        var rows = dbContext.DraftPublicationRosters.AsNoTracking().Where(x => x.DraftPublicationCycleId == cycle.Id);
+        var rosterCount = await rows.CountAsync(ct);
+        var teamMemberCount = await rows.CountAsync(x => x.TeamId == teamId, ct);
+        var row = await rows.Where(x => x.EventParticipantId == participantId)
+            .Select(x => new { x.Role, x.EffectivePickNumber, x.PublicCharacterName })
+            .SingleOrDefaultAsync(ct);
+        return new(cycle.Id, cycle.CycleNumber, cycle.PublicationMethod.ToString(), rosterCount, teamMemberCount,
+            row?.Role.ToString(), row?.EffectivePickNumber, row?.PublicCharacterName);
     }
+
+    private static string FinalizedRosterChangeJson(PublishedRosterState state, Guid participantId, Team team, string? participantName) => Json(new
+    {
+        participant = new { id = participantId, name = participantName },
+        teamId = team.Id,
+        teamName = team.Name,
+        onPublishedRoster = state.Role is not null,
+        role = state.Role,
+        effectivePickNumber = state.EffectivePickNumber,
+        publicationCycleId = state.CycleId,
+        publicationCycleNumber = state.CycleNumber,
+        publicationMethod = state.PublicationMethod,
+        publishedRosterCount = state.RosterCount,
+        publishedTeamMemberCount = state.TeamMemberCount
+    });
 
     private async Task<object?> FinalizedParticipantAuditSnapshotAsync(Guid participantId, Guid eventId, CancellationToken ct)
     {
