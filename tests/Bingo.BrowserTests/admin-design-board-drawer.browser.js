@@ -125,10 +125,43 @@ const { startFixture, login } = require('../../scripts/lib/admin-parity-fixture.
     assert.deepEqual(reads, [], 'still no re-read');
 
     // Save still works: one command, then the board re-reads and shows the tile.
+    // U7-L2: while the save is in flight the footer has exactly one Cancel and one Save (busy,
+    // same size and place as before), and nothing else sits on top of or behind them.
+    const footState = () => page.evaluate(() => {
+      const foot = document.querySelector('.dr-foot'), box = id => { const r = document.getElementById(id).getBoundingClientRect(); return [Math.round(r.left), Math.round(r.width)]; };
+      const covered = ['ed-cancel', 'ed-save'].map(id => { const r = document.getElementById(id).getBoundingClientRect(); return [[r.left + 3, r.top + 3], [r.left + r.width / 2, r.top + r.height / 2], [r.right - 3, r.bottom - 3]].map(([x, y]) => document.elementsFromPoint(x, y)[0].closest('button')?.id || document.elementsFromPoint(x, y)[0].className); });
+      return { foots: document.querySelectorAll('.dr-foot').length, children: [...foot.children].map(c => c.id || c.className), cancels: [...document.querySelectorAll('button')].filter(b => /^Cancel$/.test(b.textContent.trim())).length, cancel: box('ed-cancel'), save: box('ed-save'), covered, cancelDisabled: document.getElementById('ed-cancel').disabled, saveBusy: document.getElementById('ed-save').classList.contains('is-busy'), spins: foot.querySelectorAll('.spin').length, saveText: document.getElementById('ed-save').textContent };
+    });
+    const idle = await footState();
+    await page.route(url => new URL(url).pathname === boardPath, async route => {
+      if (route.request().method() === 'POST' && new URL(route.request().url()).searchParams.get('handler') === 'CreateTile') await new Promise(resolve => setTimeout(resolve, 1500));
+      return route.fallback();
+    });
     await page.locator('#ed-save').click();
+    await page.locator('#ed-save.is-busy').waitFor();
+    const busy = await footState();
+    assert.equal(busy.foots, 1, 'one drawer footer while saving');
+    assert.deepEqual(busy.children, ['spacer', 'dirty', 'ed-cancel', 'ed-save'], 'the footer holds only its spacer, marker, one Cancel and one Save');
+    assert.equal(busy.cancels, 1, 'exactly one Cancel button while saving');
+    assert.equal(busy.cancelDisabled, true); assert.equal(busy.saveBusy, true);
+    assert.equal(busy.spins, 1, 'one spinner'); assert.match(busy.saveText, /Saving/);
+    assert.deepEqual(busy.cancel, idle.cancel, 'Cancel does not move when saving starts');
+    assert.deepEqual(busy.save, idle.save, 'Save keeps its size and place when saving starts');
+    assert.deepEqual(busy.covered, [['ed-cancel', 'ed-cancel', 'ed-cancel'], ['ed-save', 'ed-save', 'ed-save']], 'nothing overlaps the footer buttons');
     await page.locator('.bd-ed').waitFor({ state: 'detached', timeout: 10000 }).catch(async error => { throw new Error(error.message + '\nDrawer: ' + await page.locator('.bd-ed').innerText().catch(() => '') + '\nRequests: ' + reads.join(', ')); });
     await page.locator('[id^="bt-"]', { hasText: 'Drop hunt' }).waitFor();
     assert.ok(reads.includes('POST CreateTile'), 'Save sends the create command: ' + reads.join(', '));
+    await page.unroute(() => true).catch(() => {});
+    // After the save the reopened drawer has the normal footer again.
+    await page.locator('[data-drawer-host] .scrim').waitFor({ state: 'detached' });
+    await page.locator('[id^="bt-"]', { hasText: 'Drop hunt' }).click();
+    await page.locator('#ed-save').waitFor();
+    const normal = await footState();
+    assert.deepEqual(normal.children, ['ed-remove', 'spacer', 'ed-cancel', 'ed-save'], 'normal footer: Remove, Cancel, Save');
+    assert.equal(normal.cancels, 1); assert.equal(normal.cancelDisabled, false); assert.equal(normal.saveBusy, false); assert.equal(normal.spins, 0);
+    await page.locator('#ed-cancel').click();
+    await page.locator('.bd-ed').waitFor({ state: 'detached' });
+    await page.locator('[data-drawer-host] .scrim').waitFor({ state: 'detached' });
 
     // A genuinely lost lease (renewal answers renewed:false; the re-read view shows another
     // admin editing): the open drawer keeps its inputs and the typed draft, disabled in
