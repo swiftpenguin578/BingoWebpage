@@ -118,6 +118,12 @@ const {startFixture,login}=require('../../scripts/lib/admin-parity-fixture.cjs')
   await page.keyboard.press('Escape');await page.locator('.modal').waitFor({state:'detached'});
   await page.locator('[data-overview-codes]').click();await page.locator('#codes-enabled').waitFor();
   await page.waitForFunction(()=>document.querySelector('#code-value')&&!document.querySelector('#code-value').disabled);
+  // Root-cause guard: the calendar in the Evidence codes dialog opens and a picked day lands in the date field.
+  await page.locator('#codes-save').evaluate(()=>{});await page.locator('.modal .dtp-btn').click();await page.locator('.dtp-pop').waitFor();
+  const pickedDay=await page.locator('.dtp-pop .dtp-day:not([aria-disabled="true"])').last().evaluate(button=>{button.click();return button.textContent;});
+  await page.waitForFunction(day=>Number.parseInt(document.querySelector('#code-from-date').value,10)===Number(day),pickedDay);
+  await page.keyboard.press('Escape');await page.waitForFunction(()=>!document.querySelector('.dtp-pop'));
+  if(await page.locator('.modal').count()===0)await page.locator('[data-overview-codes]').click();await page.locator('#codes-enabled').waitFor();
   await page.locator('#codes-save').click();assert.match(await page.locator('#code-err').textContent(),/Enter or generate a code\./);
   // M1: Close with a typed code asks to discard.
   await page.locator('#code-value').fill('ab12cd');await page.locator('#codes-close').click();
