@@ -19,8 +19,9 @@ body:not(.using-keyboard) :focus-visible{outline:none}.design-drawer-layer{posit
 .design-logo-link{flex:none}
 .logo.design-logo-account{display:none;flex:none;border:0;padding:0;cursor:pointer}
 .design-logo-link:focus-visible,.design-logo-account:focus-visible{outline:2px solid var(--dk-focus);outline-offset:2px}
-.side.is-collapsed .logo.design-logo-link,.side.is-collapsed .account-btn{display:none}
-.side.is-collapsed .logo.design-logo-account{display:grid}
+/* Desktop only (shell mobile breakpoint is 860px): the mobile drawer always uses the expanded layout. */
+@media (min-width: 861px){.side.is-collapsed .logo.design-logo-link,.side.is-collapsed .account-btn{display:none}
+.side.is-collapsed .logo.design-logo-account{display:grid}}
 [data-menu-target="admin-notifications-menu"]{position:relative}
 .design-notification-count{position:absolute;right:-4px;top:-4px;min-width:16px;height:16px;padding:0 4px;border-radius:var(--dk-radius-pill);background:var(--dk-primary);color:var(--dk-on-primary);font-size:10px;line-height:16px;text-align:center}
 /* U10 part 2 item 6 (user, U10-Q3 b): the notification panel. Rows are two-line menu items: unread dot, title, one detail line, relative time. */
