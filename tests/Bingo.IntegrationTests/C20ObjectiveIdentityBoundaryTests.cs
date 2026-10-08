@@ -147,7 +147,12 @@ public sealed partial class C20ObjectiveIdentityIntegrationTests
         var second = await db.BoardRequirementSnapshots.AsNoTracking().SingleAsync(x => x.BoardTileId == f.Tile.Id && x.Id != f.Requirement.Id);
         var secondDrop = await db.BoardRequirementDropSnapshots.AsNoTracking().SingleAsync(x => x.RequirementId == second.Id);
         var html = await admin.GetStringAsync($"/Admin/Events/Board/{f.Event.Id}");
-        Assert.Contains(second.Id.ToString(), html); Assert.Contains(f.Requirement.Id.ToString(), html);
+        // A10: was Contains(id) on the page HTML. Objective identities now travel in the
+        // EditorData JSON the drawer loads (tile.requirements[].requirementId).
+        var editorData = await BoardPageData.EditorDataAsync(admin, $"/Admin/Events/Board/{f.Event.Id}", f.Tile.Id);
+        var editorIds = editorData.GetProperty("tile").GetProperty("requirements").EnumerateArray()
+            .Select(x => x.GetProperty("requirementId").GetGuid()).ToList();
+        Assert.Equal(new[] { f.Requirement.Id, second.Id }.OrderBy(x => x), editorIds.OrderBy(x => x));
         if (Environment.GetEnvironmentVariable("C20_BROWSER_EXPORT") is { } export)
         {
             Directory.CreateDirectory(export);
