@@ -201,6 +201,8 @@ internal static class FixtureHost
             item.CloseSubmissionsIfDue(Now);
             await fixtureDb.SaveChangesAsync();
         }
+        if (Environment.GetEnvironmentVariable("BINGO_PARITY_U9_WOM") is { } womVariant)
+            await U9ScenarioFixtures.SeedAsync(dashboardScope.ServiceProvider, ids, Now, womVariant);
         var dashboard = await dashboardScope.ServiceProvider.GetRequiredService<IAdminDashboardService>().GetAsync(account.Id);
         var directory = ActivatorUtilities.CreateInstance<Bingo.Web.Pages.Admin.Events.IndexModel>(dashboardScope.ServiceProvider);
         directory.PageContext = new Microsoft.AspNetCore.Mvc.RazorPages.PageContext(new Microsoft.AspNetCore.Mvc.ActionContext(new DefaultHttpContext
@@ -224,6 +226,17 @@ internal static class FixtureHost
     }
     private sealed class NoProviderCalls : HttpMessageHandler
     {
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) => throw new InvalidOperationException("No live provider requests are allowed in the parity fixture.");
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            // U9: a controlled management refusal exercises real persisted Retry outcomes.
+            // Reads and all ordinary fixture runs still fail closed; no request leaves this handler.
+            if (Environment.GetEnvironmentVariable("BINGO_PARITY_U9_WOM") is not null && request.Method != HttpMethod.Get)
+            {
+                var response = new HttpResponseMessage(HttpStatusCode.TooManyRequests) { Content = new StringContent("{}") };
+                response.Headers.RetryAfter = new System.Net.Http.Headers.RetryConditionHeaderValue(TimeSpan.FromMinutes(1));
+                return Task.FromResult(response);
+            }
+            throw new InvalidOperationException("No live provider requests are allowed in the parity fixture.");
+        }
     }
 }
