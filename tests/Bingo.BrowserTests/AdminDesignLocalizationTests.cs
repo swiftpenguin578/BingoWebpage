@@ -206,4 +206,22 @@ public sealed class AdminDesignLocalizationTests
         Assert.DoesNotContain("Reopen cutoff", manage);
         Assert.DoesNotContain("Activation time", manage);
     }
+
+    [Theory]
+    [InlineData("da-DK", "08 okt. 2026, 14.30 – 09 okt. 2026, 10.00 Europe/Copenhagen", "8 okt. 2026, 14:30 – 9 okt. 2026, 10:00 Europe/Copenhagen")]
+    [InlineData("en-GB", "08 Oct 2026, 14:30 – 09 Oct 2026, 10:00 Europe/Copenhagen", "8 Oct 2026, 14:30 – 9 Oct 2026, 10:00 Europe/Copenhagen")]
+    public void OverlapWindowIsReformattedForTheRequestCulture(string culture, string window, string expected)
+    {
+        var method = typeof(Bingo.Web.Pages.Admin.Events.ManageModel).GetMethod("LocalizeWindow", BindingFlags.NonPublic | BindingFlags.Static)!;
+        var previous = System.Globalization.CultureInfo.CurrentCulture;
+        try
+        {
+            System.Globalization.CultureInfo.CurrentCulture = new System.Globalization.CultureInfo(culture);
+            // Produce the input exactly as the service does, under the same culture, then check the page's rendering.
+            var produced = $"{new DateTime(2026, 10, 8, 14, 30, 0):dd MMM yyyy, HH:mm} – {new DateTime(2026, 10, 9, 10, 0, 0):dd MMM yyyy, HH:mm} Europe/Copenhagen";
+            Assert.Equal(window, produced);
+            Assert.Equal(expected, (string)method.Invoke(null, [produced])!);
+        }
+        finally { System.Globalization.CultureInfo.CurrentCulture = previous; }
+    }
 }
