@@ -22,16 +22,10 @@ public sealed class CreateModel(
 {
     private static readonly Action<ILogger, string, Exception?> LogCreationFailure =
         LoggerMessage.Define<string>(LogLevel.Error, new EventId(630101), "Event creation failed. Diagnostic reference {DiagnosticReference}.");
-    private static readonly IReadOnlyList<TimezoneOption> DefaultTimezones =
-    [
-        new("Europe/Copenhagen", "Copenhagen (Europe/Copenhagen)"),
-        new("UTC", "UTC")
-    ];
-
     // Retained only to explicitly reject stale wizard input.
     [BindProperty] public CreateInput Input { get; set; } = new();
-    public IReadOnlyList<TimezoneOption> Timezones => Options();
 
+    // U10 part 2: the old page is retired; the Events directory's Create dialog is the only form.
     public IActionResult OnGet() => RedirectToPage("Index", new { create = 1 });
 
     private bool ModalRequest => Request.Headers.Accept.ToString().Contains("application/json", StringComparison.OrdinalIgnoreCase)
@@ -40,7 +34,19 @@ public sealed class CreateModel(
     private IActionResult InvalidInput() => ModalRequest
         ? new JsonResult(new { outcome = "invalid", errors = ModelState.Where(entry => entry.Value?.Errors.Count > 0)
             .ToDictionary(entry => entry.Key, entry => entry.Value!.Errors.Select(error => error.ErrorMessage).ToArray()) })
-        : Page();
+        : ReturnToDialog();
+
+    // A non-dialog POST (no script) is refused without side effects and returns to the dialog with the first reason as an error toast.
+    private RedirectToPageResult ReturnToDialog()
+    {
+        var reason = ModelState.Values.SelectMany(entry => entry.Errors).Select(error => error.ErrorMessage).FirstOrDefault(message => !string.IsNullOrWhiteSpace(message));
+        if (reason is not null)
+        {
+            TempData["StatusMessage"] = reason;
+            TempData[UiMessage.TypeKey] = UiMessageType.Error.ToString();
+        }
+        return RedirectToPage("Index", new { create = 1 });
+    }
 
     public async Task<IActionResult> OnGetCheckAgainAsync(Guid requestId, CancellationToken ct)
     {
@@ -83,7 +89,6 @@ public sealed class CreateModel(
             if (result.Outcome == EventCreationOutcome.NotFound) return NotFound();
             if (result.Outcome != EventCreationOutcome.Completed)
             {
-                if (!ModalRequest && result.Outcome == EventCreationOutcome.Conflict) Response.StatusCode = StatusCodes.Status409Conflict;
                 ModelState.AddModelError(result.Field is null ? string.Empty : $"Input.{result.Field}", Localize(result.Error!));
                 return InvalidInput();
             }
@@ -97,7 +102,7 @@ public sealed class CreateModel(
             var reference = Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture);
             if (logger is not null) LogCreationFailure(logger, reference, exception);
             ModelState.AddModelError(string.Empty, Localize("The event creation outcome could not be confirmed. Retry this request with the same values. Diagnostic reference: {0}.", reference));
-            return ModalRequest ? new JsonResult(new { outcome = "uncertain" }) : Page();
+            return ModalRequest ? new JsonResult(new { outcome = "uncertain" }) : ReturnToDialog();
         }
     }
 
@@ -154,38 +159,6 @@ public sealed class CreateModel(
 
     private string Localize(string key, params object[] arguments) =>
         text?[key, arguments].Value ?? string.Format(CultureInfo.CurrentCulture, key, arguments);
-
-    private static bool TryFind(string timezoneId, out TimeZoneInfo timezone)
-    {
-        try
-        {
-            timezone = TimeZoneInfo.FindSystemTimeZoneById(timezoneId);
-            return true;
-        }
-        catch (TimeZoneNotFoundException)
-        {
-            timezone = null!;
-            return false;
-        }
-        catch (InvalidTimeZoneException)
-        {
-            timezone = null!;
-            return false;
-        }
-    }
-
-    private static List<TimezoneOption> Options() =>
-        DefaultTimezones.Select(option => new TimezoneOption(option.Id, Label(option.Id, option.Label))).ToList();
-
-    private static string Label(string timezoneId, string place)
-    {
-        if (!TryFind(timezoneId, out var timezone))
-            return place;
-        var offset = timezone.GetUtcOffset(DateTimeOffset.UtcNow);
-        return $"{place} (UTC{(offset < TimeSpan.Zero ? "-" : "+")}{offset.Duration():hh\\:mm})";
-    }
-
-    public sealed record TimezoneOption(string Id, string Label);
 
     public sealed class CreateInput
     {
