@@ -191,7 +191,13 @@ public sealed partial class AdminDesignShellIntegrationTests(PostgreSqlTestFixtu
         Assert.Contains("data-shell-antiforgery", html);
         Assert.Contains("This event is read-only in its current lifecycle state.", html);
         Assert.Matches("class=\"toast(?: [^\"]*)?\"[^>]*data-toast", html);
-        Assert.Contains("/notifications#admin-actions-heading", html);
+        // A10 (U10 part 2 item 6, U10-Q3 b): the notification panel replaced the two-section menu (and its Admin actions overview
+        // link); the same inbox now renders as unread-count header, rows, "All notifications" and the existing Mark all as read handler.
+        Assert.Contains("<span class=\"badge badge-accent design-notif-unread\" data-notification-unread>1 unread</span>", html);
+        Assert.Matches("<a class=\"menu-item design-notif-row\" role=\"menuitem\" href=\"/notifications\\?read=[0-9a-f-]+\" data-notification-row data-unread=\"true\">", html);
+        Assert.Contains("<span class=\"design-notif-title\">Admin access granted</span>", html);
+        Assert.Contains("<a class=\"menu-item\" role=\"menuitem\" href=\"/notifications\">All notifications</a>", html);
+        Assert.Matches("<form method=\"post\" role=\"presentation\" action=\"/notifications\\?handler=MarkAllAsRead\">", html);
         Assert.Contains("aria-label=\"Notifications, 1 unread\"", html);
         Assert.Contains("class=\"design-notification-count\" aria-hidden=\"true\">1</span>", html);
         Assert.Contains("<span class=\"crumb-mid\">Shell fixture</span>", html);

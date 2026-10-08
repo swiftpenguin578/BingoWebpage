@@ -135,6 +135,11 @@ internal static class FixtureHost
             }
             // U5: opt-in Participants roster for browser checks (other pages keep the accepted fixture).
             if (Environment.GetEnvironmentVariable("BINGO_PARITY_PARTICIPANTS") == "1") SeedParticipants(db, account);
+            // U10 part 2 item 6: opt-in unread personal notifications for the Admin notification panel checks
+            // (nine: the inbox projection lists the newest six unread; ages span minutes, hours and a day for the relative time).
+            if (Environment.GetEnvironmentVariable("BINGO_PARITY_NOTIFICATIONS") == "1")
+                for (var i = 0; i < 9; i++)
+                    db.Add(new PersonalNotification(Guid.NewGuid(), account.Id, i % 2 == 0 ? "account.admin_granted" : "event.cancelled", "", "/Admin", Now.AddMinutes(-(i * i * 30 + 1))));
             // U6: opt-in running draft (Teams / Draft browser checks and its conformance probe)
             // plus a Final review event; the shared runner sets it for the Teams page only.
             if (Environment.GetEnvironmentVariable("BINGO_PARITY_DRAFT") == "1")

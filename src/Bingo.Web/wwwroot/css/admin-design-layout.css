@@ -23,6 +23,24 @@ body:not(.using-keyboard) :focus-visible{outline:none}.design-drawer-layer{posit
 .side.is-collapsed .logo.design-logo-account{display:grid}
 [data-menu-target="admin-notifications-menu"]{position:relative}
 .design-notification-count{position:absolute;right:-4px;top:-4px;min-width:16px;height:16px;padding:0 4px;border-radius:var(--dk-radius-pill);background:var(--dk-primary);color:var(--dk-on-primary);font-size:10px;line-height:16px;text-align:center}
+/* U10 part 2 item 6 (user, U10-Q3 b): the notification panel. Rows are two-line menu items: unread dot, title, one detail line, relative time. */
+.design-notif-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px 6px}
+.design-notif-head b{color:var(--dk-text);font-size:var(--dk-fs-control-sm);font-weight:600}
+.design-notif-unread{height:20px;padding:0 8px}
+.menu-item.design-notif-row{height:auto;min-height:48px;align-items:flex-start;gap:10px;padding:8px 10px}
+.design-notif-dot{width:6px;height:6px;margin-top:6px;flex:none}
+.design-notif-dot.dot{background:var(--dk-accent)}
+.design-notif-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+.design-notif-text{flex:1;min-width:0;display:grid;gap:2px}
+.design-notif-title{font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.design-notif-detail{font-size:var(--dk-fs-meta);color:var(--dk-text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.design-notif-time{flex:none;font-size:var(--dk-fs-meta);color:var(--dk-text-3);white-space:nowrap;line-height:20px}
+.design-notif-empty{display:grid;gap:2px;padding:14px 10px;font-size:var(--dk-fs-meta);color:var(--dk-text-3)}
+.design-notif-empty b{color:var(--dk-text);font-size:var(--dk-fs-control-sm);font-weight:600}
+.design-notif-note{padding:6px 10px;font-size:var(--dk-fs-meta);color:var(--dk-text-3)}
+.design-notif-foot{display:flex;gap:4px}
+.design-notif-foot>*{flex:1;min-width:0}
+.design-notif-foot form{display:flex}
 
 .toast-x .ic{width:14px;height:14px}
 .sk-block{padding:var(--dk-space-5) var(--dk-space-6);border-bottom:1px solid var(--dk-border-subtle)}

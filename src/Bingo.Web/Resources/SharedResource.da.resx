@@ -3026,6 +3026,14 @@
   <data name="The page could not be loaded." xml:space="preserve"><value>Siden kunne ikke indlæses.</value></data>
   <data name="View public site" xml:space="preserve"><value>Vis det offentlige site</value></data>
   <data name="Go to the public site" xml:space="preserve"><value>Gå til det offentlige site</value></data>
+  <data name="{0} unread" xml:space="preserve"><value>{0} ulæste</value></data>
+  <data name="Unread" xml:space="preserve"><value>Ulæst</value></data>
+  <data name="You're all caught up." xml:space="preserve"><value>Der er ikke noget nyt.</value></data>
+  <data name="Scheduled signup opening failed" xml:space="preserve"><value>Planlagt åbning af tilmelding mislykkedes</value></data>
+  <data name="Postponed start" xml:space="preserve"><value>Udskudt start</value></data>
+  <data name="{0} · {1} pending submission(s) · oldest {2}" xml:space="preserve"><value>{0} · {1} afventende indsendelse(r) · ældste {2}</value></data>
+  <data name="{0} · Resolve the scheduled signup opening blockers." xml:space="preserve"><value>{0} · Løs det, der blokerer den planlagte åbning af tilmeldingen.</value></data>
+  <data name="{0} · Resolve the scheduled start blockers." xml:space="preserve"><value>{0} · Løs det, der blokerer den planlagte start.</value></data>
   <data name="Your changes were not saved" xml:space="preserve"><value>Dine ændringer blev ikke gemt</value></data>
   <data name="Your session is no longer available. What you entered is still here. Sign in before trying again." xml:space="preserve"><value>Din session er ikke længere tilgængelig. Det, du indtastede, er stadig her. Log ind, før du prøver igen.</value></data>
   <data name="DK" xml:space="preserve"><value>DK</value></data>
