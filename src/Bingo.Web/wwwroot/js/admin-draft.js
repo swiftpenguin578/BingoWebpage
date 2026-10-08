@@ -929,7 +929,11 @@ export function init(region, ui = window.AdminUI) {
       onOk: () => { ui.toast(t('{0} removed.', c.teamName)); focusSoon('add-team'); } };
     else if (kind === 'removeMember') {
       const m = c.member, left = c.size - 1;
-      o = { title: t('Remove {0} from {1}?', m.name, c.teamName), body: t('The rosters are republished without them. {0}', t(left === 1 ? '{1} will have {0} member.' : '{1} will have {0} members.', num(left), c.teamName)),
+      // U6-E2 (a): a drafted team that drops under its drafted (projected) size says by how much.
+      const target = team(c.teamId)?.included ? team(c.teamId).finalSize || 0 : 0;
+      const size = left < target ? t(left === 1 ? '{0} will have {1} member, {2} below the drafted size of {3}.' : '{0} will have {1} members, {2} below the drafted size of {3}.', c.teamName, num(left), num(target - left), num(target))
+        : t(left === 1 ? '{1} will have {0} member.' : '{1} will have {0} members.', num(left), c.teamName);
+      o = { title: t('Remove {0} from {1}?', m.name, c.teamName), body: t('The rosters are republished without them. {0}', size),
         points: [m.tag === 'pick' ? t('Their original pick stays in the draft history.') : t('The publication history keeps a record of this change.'), t('To put them on another team, add them there afterwards.')].concat(m.role === 'C' ? [t('{0} will have no captain until you assign one.', c.teamName)] : []),
         confirm: t('Remove and republish'), busyLabel: t('Removing…'), cls: 'btn-danger', handler: 'RemoveMember', values: { membershipId: m.id, confirmed: 'true', expectedMembershipVersion: String(m.version), rosterTeamId: c.teamId }, what: t('AdminDesign.remove {0}', m.name),
         verify: rb => rb.memberships.some(y => y.membershipId === m.id && y.leftAt != null), okText: t('{0} was removed.', m.name), notText: t('{0} is still on the team.', m.name),
