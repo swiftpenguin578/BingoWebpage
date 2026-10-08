@@ -77,6 +77,16 @@ public partial class AddTileCompletionFactsAndCurrentScoreReachedAt : Migration
             columns: new[] { "event_id", "team_id", "board_tile_id", "approval_snapshot_id" },
             unique: true);
 
+        // A freshly restored database has no planner statistics. Without them, and with the
+        // single-use aggregate CTEs below inlined, the backfill re-ran those aggregates once per
+        // outer row (about 2 minutes on a ~500-contribution restore). Refreshing statistics and
+        // materializing those CTEs keeps the plan linear; the inserted rows are unchanged.
+        migrationBuilder.Sql("""
+                ANALYZE boards, teams, board_approval_tile_snapshots, board_approval_requirement_snapshots,
+                        board_requirement_drop_snapshots, board_approval_requirement_drop_snapshots,
+                        submissions, submission_contributions;
+                """);
+
         migrationBuilder.Sql("""
                 WITH active_generation AS (
                     SELECT b.event_id, b.active_approval_snapshot_id AS approval_snapshot_id
@@ -127,7 +137,7 @@ public partial class AddTileCompletionFactsAndCurrentScoreReachedAt : Migration
                      AND approved_drop.item_id_snapshot = working_drop.item_id_snapshot
                     WHERE contribution.reversed_at IS NULL
                 ),
-                requirement_totals AS (
+                requirement_totals AS MATERIALIZED (
                     SELECT tr.event_id, tr.team_id, tr.board_tile_id, tr.approval_snapshot_id, tr.requirement_id,
                            COALESCE(SUM(c.amount), 0) AS effective_total,
                            COUNT(c.contribution_id) FILTER (WHERE
@@ -146,7 +156,7 @@ public partial class AddTileCompletionFactsAndCurrentScoreReachedAt : Migration
                     WHERE cap_key IS NOT NULL
                     GROUP BY event_id, team_id, requirement_id, cap_key
                 ),
-                cap_violations AS (
+                cap_violations AS MATERIALIZED (
                     SELECT event_id, team_id, requirement_id,
                            COUNT(*) FILTER (WHERE cap_variants <> 1 OR used > cap_limit) AS violations
                     FROM cap_usage
@@ -158,7 +168,7 @@ public partial class AddTileCompletionFactsAndCurrentScoreReachedAt : Migration
                                                ORDER BY c.submitted_at, c.contribution_id ROWS UNBOUNDED PRECEDING) AS running_amount
                     FROM contributions c
                 ),
-                threshold_crossings AS (
+                threshold_crossings AS MATERIALIZED (
                     SELECT event_id, team_id, board_tile_id, approval_snapshot_id, requirement_id,
                            MIN(submitted_at) FILTER (WHERE running_amount >= target) AS completed_at,
                            jsonb_agg(jsonb_build_object(
@@ -172,7 +182,7 @@ public partial class AddTileCompletionFactsAndCurrentScoreReachedAt : Migration
                     FROM ordered_contributions
                     GROUP BY event_id, team_id, board_tile_id, approval_snapshot_id, requirement_id
                 ),
-                requirement_state AS (
+                requirement_state AS MATERIALIZED (
                     SELECT tr.*,
                            (totals.mapping_errors = 0 AND totals.effective_total <= tr.target AND COALESCE(caps.violations, 0) = 0) AS derivable,
                            crossings.completed_at,
