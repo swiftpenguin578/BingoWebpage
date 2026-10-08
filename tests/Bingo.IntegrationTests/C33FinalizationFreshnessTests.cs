@@ -116,7 +116,7 @@ public sealed class C33FinalizationFreshnessTests : IAsyncLifetime
         await AssertNotFinalizedAsync();
         var staleHtml = WebUtility.HtmlDecode(await client.GetStringAsync(FinalizeUrl));
         Assert.Contains("This event changed in another session", staleHtml, StringComparison.Ordinal);
-        Assert.Contains("is-error", staleHtml, StringComparison.Ordinal); // A10: shared Admin toast.
+        AssertStalePublishShownAsErrorToast(staleHtml); // A10: shared Admin toast.
         var finalReadiness = await ReadinessAsync();
         var finalForm = Form(await client.GetStringAsync(FinalizeUrl), "Finalize");
         await PostAsync(client, finalForm, ("FinalizeConfirmation", "PUBLISH_OFFICIAL_RESULTS"));
@@ -324,8 +324,16 @@ public sealed class C33FinalizationFreshnessTests : IAsyncLifetime
         await AssertNotFinalizedAsync();
         var html = WebUtility.HtmlDecode(await client.GetStringAsync(FinalizeUrl));
         Assert.Contains("This event changed in another session", html);
-        Assert.Contains("is-error", html); // A10: shared Admin toast.
-        Assert.DoesNotContain("toast is-success", html);
+        AssertStalePublishShownAsErrorToast(html); // A10: shared Admin toast.
+    }
+
+    // The rendered error toast itself must carry the stale-publish message, and
+    // no polite status toast may carry it (the layout always contains unrelated
+    // is-error banner templates, so a page-wide match would prove nothing).
+    private static void AssertStalePublishShownAsErrorToast(string html)
+    {
+        Assert.Matches(new Regex(@"<div class=""toast is-error"" data-toast role=""alert"">(?:(?!</div>).)*?data-component-text>[^<]*This event changed in another session", RegexOptions.Singleline), html);
+        Assert.DoesNotMatch(new Regex(@"<div class=""toast\s*"" data-toast role=""status""[^>]*>(?:(?!</div>).)*?This event changed in another session", RegexOptions.Singleline), html);
     }
 
     [Fact]
