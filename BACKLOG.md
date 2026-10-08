@@ -17,6 +17,7 @@ Priority: **High** = most likely will be done · **Normal** · **Maybe** = decid
 | Public page CSS cleanup | Normal | Leftover transitional CSS on the public pages (U10-E2, 8 October 2026). |
 | Board reference preview | Maybe | Keep the reference modal but show the tile area as plain background with "Not supported yet" (U7-Q3, low priority). |
 | Full R-3 rehearsal harness | Maybe | The VM-based rehearsal in `docs/PRODUCTION_RUNBOOK.md`; this release used the lighter local rehearsal instead. |
+| CI: make JavaScript tests block the release | Normal | `build-and-test` (and so the production image) ignores the JS job today. Once the JS tests are reliable, add `javascript-tests` to its `needs`; also shard the JS job (54 browser scripts × 2 engines on one runner, ~25–40 min). |
 
 ## Bug fixes
 
