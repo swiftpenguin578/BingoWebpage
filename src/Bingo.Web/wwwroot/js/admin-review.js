@@ -139,6 +139,12 @@ function initWorkspace(region, root, ui) {
     const strong = document.createElement('b'); strong.textContent = title;
     copy.append(strong, text ? ' ' + text : '');
     if (extra?.tagName === 'BUTTON') (copy.closest('.banner') || node).append(extra); else if (extra) copy.append(extra);
+    if (host === notice && kind !== 'uncertain') {
+      // Review.dc.html: every notice except the uncertain one can be dismissed.
+      const dismiss = document.createElement('button'); dismiss.type = 'button'; dismiss.className = 'banner-btn'; dismiss.textContent = data.textDismiss;
+      dismiss.addEventListener('click', () => node.remove());
+      (copy.closest('.banner') || node).append(dismiss);
+    }
     node.tabIndex = -1; node.setAttribute('role', 'alert');
     host.replaceChildren(node);
     return node;
