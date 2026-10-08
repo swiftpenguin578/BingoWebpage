@@ -216,8 +216,8 @@ Ownership is recorded at three levels:
   component. It must be named as such until a real owner exists.
 
 The Admin shell is physically owned by
-`src/Bingo.Web/Pages/Shared/_AdminLayout.cshtml` and its Admin CSS in
-the transitional stylesheet set. Questions uses the static dialog host in `_AdminLayout.cshtml`
+`src/Bingo.Web/Pages/Shared/_AdminDesignLayout.cshtml` and its `admin-design-*` CSS and
+`admin-design-shell.js`. Questions uses the static dialog host in `_AdminDesignLayout.cshtml`
 with `admin-signup-setup.js`. The Accounts route dialog is owned by `admin-accounts.js`. The bound
 Catalogue page uses `admin-catalogue.js` with `AdminUI.openLayer` in
 `admin-design-shell.js` and the shared hosts in `_AdminDesignHosts.cshtml`.
@@ -715,7 +715,7 @@ current uses, permitted variants, and forbidden legacy residue.
 | Headings/support | Shared Admin typography tokens; markup owners are each page heading/component heading; Manage is the hierarchy reference | Page, component, row label, and support roles | Promoting a page selector to global or duplicating headings inside nested surfaces |
 | Rows/panels/callouts | `.event-overview-section`, `.event-overview-row`, and `.information-callout` CSS; Manage/Board references | Operational row, tonal panel, compact confirmation, and informational note | Unnamed nested boxes, legacy card wrappers, or decorative dividers without owner |
 | Information rail | No shared markup owner; Manage `.event-overview-dates-panel` and Schedule `.schedule-event-information-rail` are canonical patterns | Detail/form only on wide desktop; page-local content may differ | Adding it to full-width/table pages or relocating it below constrained forms |
-| Route dialogs | Questions uses `_AdminLayout.cshtml` + `admin-signup-setup.js`; Participant is now the Participants drawer in `admin-participants.js` (`event-manage.js` is deleted, U10); both use `admin-editor-guard.js` for dirty/pending/failure safeguards. Accounts/Catalogue retain their existing owners | Questions/Participant share the accepted modal policy at every width with fullscreen at <=900; explicit routes/reload/recovery remain. Other owners retain their current behavior until authorized rollout | A second page shell, opaque host surface, generalized overlay framework, or new route-dialog variant |
+| Route dialogs | Questions uses `_AdminDesignLayout.cshtml` + `admin-signup-setup.js`; Participant is now the Participants drawer in `admin-participants.js` (`event-manage.js` is deleted, U10); both use the shared admin-design shell script (`admin-design-shell.js`) for dirty/pending/failure safeguards. Accounts/Catalogue retain their existing owners | Questions/Participant share the accepted modal policy at every width with fullscreen at <=900; explicit routes/reload/recovery remain. Other owners retain their current behavior until authorized rollout | A second page shell, opaque host surface, generalized overlay framework, or new route-dialog variant |
 | Admin confirmations | ADM-02 establishes the shared confirmation owner using existing dialog/guard/toast components; remaining inline owners are migration sources | One centered consequence-specific confirmation, dimmed backdrop, Cancel before semantic action; editor hands off and resumes preserved state | Product-action native confirms, inline/`details` confirmations, stacked dialogs, duplicate prompts, unsupported reason fields |
 | Backdrop/focus/scroll/history | Admin route CSS plus `site.js`, `admin-signup-setup.js`, `admin-accounts.js`; bound Catalogue uses `admin-design-shell.js` shared layers with `admin-catalogue.js`; public Board retains its evidence viewer and submission drawer but no team-board popup | Modal/drawer backdrop, body-scroll lock, trigger focus restore where applicable, route history, bounded overlay content scroll | A page-local duplicate modal policy, lost focus, background scrolling, or realtime interrupting an active submission/result |
 | Toasts | `_TransientToast.cshtml`, `.app-toast` CSS, and `site.js` transient-toast layer | Success, warning, error, information; live region, dismiss button, timeout pause, reduced motion | Inline duplicate toast systems, non-announced mutation feedback, or toast-only authorization/validation |
@@ -744,8 +744,8 @@ the primitive includes removing conflicting local rules and wrappers.
 - `max-width: 1100px`: full-width data tables use label/value cards; detail
   information rails are removed; no drawer activation is established here.
 - `max-width: 900px`: the Admin sidebar becomes the route-backed drawer with
-  scrim and focus handling in `_AdminLayout.cshtml`, `site.js`, and the
-  transitional stylesheet set.
+  scrim and focus handling in `_AdminDesignLayout.cshtml`, `admin-design-shell.js`, and
+  `admin-design-layout.css`.
   Desktop Admin route dialogs become ordinary pages. Public team cards navigate
   to the ordinary TeamBoard page at every viewport; direct loads,
   reload/history, browser Back, and modified clicks use that same route. Public
