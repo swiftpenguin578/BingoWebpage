@@ -61,7 +61,7 @@
             <ul class="checklist fr-checks" aria-label="@T["Publication requirements"]">
                 @foreach (var check in Model.Checks)
                 {
-                    <li class="check-item @check.Class"><span class="check-mark" aria-hidden="true"><partial name="_AdminDesignIcon" model='new AdminDesignIcon(check.Class == "is-done" ? "check" : check.Class == "is-wait" ? "schedule" : "error")' /></span><span class="grow"><span class="check-label">@check.Title</span><span class="check-sub">@check.Description</span></span>
+                    <li class="check-item @check.Class"><span class="check-mark" aria-hidden="true"><partial name="_AdminDesignIcon" model='new AdminDesignIcon(check.Class == "is-done" ? "check" : check.Class == "is-wait" ? "mark-wait" : "mark-alert")' /></span><span class="grow"><span class="check-label">@check.Title</span><span class="check-sub">@check.Description</span></span>
                         @if (check.Link is not null) { <a class="btn btn-sm" href="@check.Link" data-shell-link>@T[check.Link.Contains("/Review", StringComparison.Ordinal) ? "Open Review" : check.Link.Contains("/Board", StringComparison.Ordinal) ? "Open Board" : "Open records"]<partial name="_AdminDesignIcon" model='new AdminDesignIcon("chevron-right")' /></a> }
                     </li>
                 }
