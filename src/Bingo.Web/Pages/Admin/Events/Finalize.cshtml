@@ -15,12 +15,14 @@
     var pubBlocked = !r.CanFinalize && Model.Checks.Any(x => x.Class == "is-blocked");
     var pubIconClass = r.CanFinalize ? "is-ready" : pubBlocked ? "is-blocked" : "is-wait";
 }
-@section HeaderTitle { <div class="fr-title"><h1 class="h1" id="page-h1" tabindex="-1">@T["Final review"]</h1><span class="badge @phase.BadgeClass">@Model.Badge</span></div> }
+@section HeaderTitle { <h1 class="h1" id="page-h1" tabindex="-1">@T["Final review"]</h1> }
 @section HeaderSummary {
-    @if (Model.Official && active is not null) { <span>@T["Published {0}", Model.Fmt(active.FinalizedAt)] · </span> }
-    else if (r.State == EventState.AwaitingFinalReview) { <span>@T["Ended {0}", Model.Fmt(r.EventEndsAt)] · @(r.SubmissionWindowOpen ? T["Uploads close {0}", Model.Fmt(r.SubmissionCutoff)] : T["Closed {0}", Model.Fmt(r.SubmissionCutoff)]) · </span> }
-    else if (r.State == EventState.Live) { <span>@T["Ends {0}", Model.Fmt(r.EventEndsAt)] · </span> }
-    <span>@T["Times in {0}", Model.EventTimezone]</span>
+    <span class="badge @phase.BadgeClass">@Model.Badge</span>
+    @if (Model.Official && active is not null) { <span>@T["Published {0}", Model.Fmt(active.FinalizedAt)]</span> }
+    else if (r.State == EventState.AwaitingFinalReview) { <span>@T["Ended {0}", Model.Fmt(r.EventEndsAt)]</span><span>@(r.SubmissionWindowOpen ? T["Uploads close {0}", Model.Fmt(r.SubmissionCutoff)] : T["Closed {0}", Model.Fmt(r.SubmissionCutoff)])</span> }
+    else if (r.State == EventState.Live) { <span>@T["Ends {0}", Model.Fmt(r.EventEndsAt)]</span> }
+    @if (r.State == EventState.Archived) { <span>@T["Archived"]</span> }
+    <span class="fr-tz">@T["Times in {0}", Model.EventTimezone]</span>
 }
 <div class="fr-content" data-final-review data-current="@Model.CurrentJson" data-labels="@Model.LabelsJson" data-event-id="@r.EventId" data-timezone="@Model.EventTimezone">
     <div class="banner is-warning" data-final-notice role="status" tabindex="-1" hidden></div>
