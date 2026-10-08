@@ -342,7 +342,9 @@ public sealed partial class EventCompetitionManagementIntegrationTests(PostgreSq
             });
             await LoginAsync(client, fixture.Actor.Username);
             var page = WebUtility.HtmlDecode(await client.GetStringAsync($"/Admin/Events/WiseOldMan/{fixture.EventId}"));
-            var showsCreate = page.Contains("Create managed WOM competition", StringComparison.Ordinal);
+            // A10 / U9 2a: the shared WOM page always renders the Create control; it is offered only while it is enabled.
+            var createButton = Regex.Match(page, "<button[^>]*id=\"create-btn\"[^>]*>");
+            var showsCreate = createButton.Success && !createButton.Value.Contains("disabled", StringComparison.Ordinal);
             Assert.True(scenario.Expected == showsCreate,
                 $"Scenario '{scenario.Name}' expected Create visible={scenario.Expected}, actual={showsCreate}.");
             scenarioIndex++;
@@ -373,8 +375,8 @@ public sealed partial class EventCompetitionManagementIntegrationTests(PostgreSq
         using var response = await client.GetAsync($"/Admin/Events/WiseOldMan/{fixture.EventId}");
         var page = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Contains("Wise Old Man inspection only", page, StringComparison.Ordinal);
-        Assert.Contains("This event is terminal", page, StringComparison.Ordinal);
+        // A10 / U9 2a: the shared WOM page states the read-only terminal wording.
+        Assert.Contains("This event was cancelled. Its Wise Old Man connection is read-only.", page, StringComparison.Ordinal);
     }
 
     [Fact]
