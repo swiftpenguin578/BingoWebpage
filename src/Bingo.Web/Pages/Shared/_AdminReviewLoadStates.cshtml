@@ -1,0 +1,51 @@
+@{
+    var statuses = new[] { "All", "Pending", "AdminDesign.Approved", "Rejected", "Withdrawn", "Reversed" };
+    var pendingParts = T["{0} pending"].Value.Split("{0}");
+}
+@* U8: Review page-family load states (Review.dc.html queue and workspace loading/loadError). Fresh on every
+   visit: no remembered counts or rows. The count summary loads like the tab counts. *@
+<template data-page-header-template="review">
+    <header class="page-head" data-page-family="review"><div style="min-width:0"><h1 class="h1" tabindex="-1">@T["Review"]</h1><p class="summary" aria-hidden="true"><span>@pendingParts[0]<span class="tab-count" data-pending-count><span class="sk" aria-hidden="true"></span></span>@pendingParts[^1]</span></p></div></header>
+</template>
+<template data-page-header-template="review-details">
+    <header class="page-head" data-page-family="review"><div style="min-width:0"><div class="subhead rv-subhead"><button class="btn btn-sm btn-quiet subhead-back" type="button" disabled><partial name="_AdminDesignIcon" model='new AdminDesignIcon("chevron-left")' />@T["Review"]</button><div class="subhead-title"><h1 class="h1" tabindex="-1">@T["Loading…"]</h1></div></div></div></header>
+</template>
+@foreach (var failed in new[] { false, true })
+{
+    <template data-page-@(failed ? "failure" : "loading")-template="review" data-page-title="@(failed ? null : T["Review"].Value)">
+        <link rel="stylesheet" href="~/css/admin-design-review.css" asp-append-version="true" />
+        <div class="toolbar rv-toolbar">
+            <div class="search"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("search")' /><input class="input" type="search" placeholder="@T["Search team, account or tile"]" aria-label="@T["Search team, account or tile"]" disabled></div>
+            <div class="seg rv-status" role="radiogroup" aria-label="@T["Status"]">@foreach (var status in statuses) { <label class="seg-opt @(status == "All" ? "is-on" : null)"><input class="sr" type="radio" disabled>@T[status]<span class="seg-count"></span></label> }</div>
+            <div class="select-wrap rv-status-select"><select class="select select-field" aria-label="@T["Status"]" disabled><option>@T["All statuses"]</option></select><partial name="_AdminDesignIcon" model='new AdminDesignIcon("chevron-down")' /></div>
+        </div>
+        <div class="card">
+            @if (failed)
+            {
+                <div class="empty is-error"><div class="empty-ic"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("error")' /></div><div class="empty-title">@T["Couldn’t load the submissions"]</div><div class="empty-text">@T["Your search and status are kept. Check your connection and try again."]</div><button class="btn" type="button" data-load-retry>@T["Try again"]</button></div>
+            }
+            else
+            {
+                <div class="tbl-wrap"><div class="tbl rv-tbl" aria-busy="true" aria-label="@T["Loading submissions"]">
+                    <div class="tr th-row"><div class="th c-name">@T["Uploaded"]</div><div class="th">@T["Team"]</div><div class="th">@T["Account"]</div><div class="th">@T["Tile"]</div><div class="th">@T["Status"]</div><div class="th">@T["Check"]</div></div>
+                    @foreach (var width in new[] { 72, 58, 80, 64, 70, 52, 76 })
+                    {
+                        <div class="tr sk-row" aria-hidden="true"><div class="td c-name"><div class="rv-sk-main"><div class="sk rv-sk-w70"></div></div><div class="rv-sk-sub"><div class="sk rv-sk-thin rv-sk-w40"></div></div></div><div class="td"><div class="rv-sk-main"><div class="sk rv-sk-w60"></div></div></div><div class="td"><div class="rv-sk-main"><div class="sk rv-sk-w55"></div></div></div><div class="td"><div class="rv-sk-main"><div class="sk" style="width:@(width)%"></div></div><div class="rv-sk-sub"><div class="sk rv-sk-thin rv-sk-w45"></div></div></div><div class="td"><div class="rv-sk-main"><div class="sk rv-sk-badge"></div></div></div><div class="td"><div class="rv-sk-main"><div class="sk rv-sk-w40"></div></div></div></div>
+                    }
+                </div></div>
+            }
+        </div>
+    </template>
+    <template data-page-@(failed ? "failure" : "loading")-template="review-details" data-page-title="@(failed ? null : T["Review"].Value)">
+        <link rel="stylesheet" href="~/css/admin-design-review.css" asp-append-version="true" />
+        @if (failed)
+        {
+            <div class="card"><div class="empty is-error"><div class="empty-ic"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("error")' /></div><div class="empty-title">@T["Couldn’t load this submission"]</div><div class="empty-text">@T["Check your connection and try again. Nothing was changed."]</div><button class="btn" type="button" data-load-retry>@T["Try again"]</button></div></div>
+        }
+        else
+        {
+            <div class="rv-ws-page"><div class="rv-ws" aria-busy="true" aria-label="@T["Loading the submission"]"><div class="iv rv-viewer"><div class="iv-stage"><div class="iv-state"><div class="sk iv-sk"></div></div></div></div>
+            <div class="rv-side"><div class="card facts">@for (var i = 0; i < 5; i++) { <div class="fact"><div class="rv-sk-sub"><div class="sk rv-sk-thin rv-sk-w30"></div></div><div class="rv-sk-main"><div class="sk rv-sk-w70"></div></div></div> }</div></div></div></div>
+        }
+    </template>
+}

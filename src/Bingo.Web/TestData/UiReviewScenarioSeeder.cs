@@ -115,6 +115,7 @@ public sealed class UiReviewScenarioSeeder(
             new { activeApprovalSnapshotId = board.ActiveApprovalSnapshotId },
             new { activeApprovalSnapshotId = board.ActiveApprovalSnapshotId, workingCopy = true, reason = correctionReason });
         var blocked = await AddBlockedReviewAsync(active, now, ct);
+        await AddReviewVarietyAsync(active, ct);
         var catalogue = await AddCatalogueImpactAsync(events, board, now, ct);
         AddEndOutcome(active, EventCompetitionEndUpdateStatus.Pending, now, 91001);
         AddEndOutcome(archived, EventCompetitionEndUpdateStatus.Rejected, now, 91002);
@@ -518,6 +519,50 @@ public sealed class UiReviewScenarioSeeder(
         var placement = 0;
         foreach (var team in db.Teams.Local.Where(value => value.EventId == item.Id).OrderBy(value => value.Name, StringComparer.Ordinal))
             db.OfficialPlacements.Add(new OfficialPlacementSnapshot(Guid.NewGuid(), finalization.Id, item.Id, team.Id, team.Name, sharedFirst ? 1 : ++placement, false, null, 0, 0, 0));
+    }
+
+    // U8 1d: the remaining Review queue states beside the blocked pair: rejected, reversed, no screenshot and
+    // the same image on two submissions. Synthetic local data only; the queue shows them with their warnings.
+    private async Task AddReviewVarietyAsync(BingoEvent item, CancellationToken ct)
+    {
+        var participant = db.EventParticipants.Local.Single(value => value.EventId == item.Id && value.AccountId == accounts["ReviewParticipant"].Id);
+        var membership = db.TeamMemberships.Local.Single(value => value.EventParticipantId == participant.Id);
+        var board = db.Boards.Local.Single(value => value.EventId == item.Id);
+        var tile = db.BoardTiles.Local.First(value => value.BoardId == board.Id);
+        var requirement = db.BoardRequirementSnapshots.Local.Single(value => value.BoardTileId == tile.Id);
+        var character = characters[accounts["ReviewParticipant"].Id];
+        var captain = accounts["ReviewCaptain"].Id;
+        var reviewer = accounts["ReviewAdmin"].Id;
+        async Task<Submission> Add(int hour, string note, bool image, byte shade)
+        {
+            var at = item.ActualStartedAt!.Value.AddHours(hour);
+            var submission = new Submission(Guid.NewGuid(), item.Id, membership.TeamId, tile.Id, requirement.Id, null, participant.Id, character.Id, character.DisplayName, captain, 1, at, note, null);
+            db.Submissions.Add(submission);
+            if (image)
+            {
+                using var picture = new Image<Rgba32>(640, 360, new Rgba32(shade, 120, 90));
+                await using var stream = new MemoryStream();
+                await picture.SaveAsPngAsync(stream, ct); stream.Position = 0;
+                var stored = await storage.StoreAsync(item.Id, submission.Id, $"synthetic-evidence-u8-{hour}.png", stream, ct);
+                db.EvidenceAssets.Add(new EvidenceAsset(Guid.NewGuid(), submission.Id, stored.StorageKey, stored.OriginalFilename, stored.MediaType, stored.ByteSize, stored.Width, stored.Height, stored.Checksum, at, captain, EvidenceAssetRole.OriginalEvidence));
+            }
+            db.ReviewActions.Add(new ReviewAction(Guid.NewGuid(), submission.Id, ReviewActionType.Submitted, captain, at, note, null, null));
+            return submission;
+        }
+        var rejected = await Add(4, "Synthetic rejected upload.", true, 200);
+        rejected.Reject("The drop message is not visible in the screenshot.", rejected.SubmittedAt.AddMinutes(30));
+        db.ReviewActions.Add(new ReviewAction(Guid.NewGuid(), rejected.Id, ReviewActionType.Reject, reviewer, rejected.ReviewedAt!.Value, rejected.CurrentReviewerNote, null, null));
+        var reversed = await Add(5, "Synthetic reversed approval.", true, 170);
+        reversed.Approve(1, reversed.SubmittedAt.AddMinutes(20));
+        var contribution = new SubmissionContribution(Guid.NewGuid(), reversed.Id, membership.TeamId, requirement.Id, null, participant.Id, 1, reversed.SubmittedAt.AddMinutes(20));
+        db.SubmissionContributions.Add(contribution);
+        db.ReviewActions.Add(new ReviewAction(Guid.NewGuid(), reversed.Id, ReviewActionType.Approve, reviewer, reversed.SubmittedAt.AddMinutes(20), null, null, null));
+        reversed.Reverse("The drop was on a different account than the one credited.", reversed.SubmittedAt.AddHours(1));
+        contribution.Reverse(reversed.SubmittedAt.AddHours(1));
+        db.ReviewActions.Add(new ReviewAction(Guid.NewGuid(), reversed.Id, ReviewActionType.ReverseApproval, reviewer, reversed.SubmittedAt.AddHours(1), reversed.CurrentReviewerNote, null, null));
+        await Add(6, "Synthetic upload without a screenshot.", false, 0);
+        await Add(7, "Synthetic same-image pair, first.", true, 230);
+        await Add(8, "Synthetic same-image pair, second.", true, 230);
     }
 
     private async Task<Guid> AddBlockedReviewAsync(BingoEvent item, DateTimeOffset now, CancellationToken ct)
