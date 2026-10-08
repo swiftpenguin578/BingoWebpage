@@ -544,10 +544,9 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests : IAsy
         var page = await LoadBoardAsync(bingoEvent.Id, admin.Id);
 
         Assert.True(page.DraftFinalized);
+        // U7 (brief 88, Retired; A10): the per-team workload panel is retired. AU13 is
+        // unchanged: the planning size, never a roster size, drives the board figures.
         Assert.Equal(4, page.Statistics!.TeamSize);
-        var workload = Assert.Single(page.TeamWorkloads);
-        Assert.Equal(2, workload.ActualRosterSize);
-        Assert.Equal(4, workload.SizeUsed);
     }
 
     [Fact]
@@ -590,20 +589,7 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests : IAsy
             Assert.True(page.DraftFinalized);
             Assert.Equal(4, page.Statistics!.TeamSize);
             Assert.Equal(0m, page.Statistics.EhbPerPlayer);
-            Assert.Collection(page.TeamWorkloads.OrderBy(workload => workload.TeamName),
-                workload =>
-                {
-                    Assert.Equal(2, workload.ActualRosterSize);
-                    Assert.Equal(4, workload.SizeUsed);
-                    Assert.Equal(0m, workload.EhbPerPlayer);
-                },
-                workload =>
-                {
-                    Assert.Equal(3, workload.ActualRosterSize);
-                    Assert.Equal(4, workload.SizeUsed);
-                    Assert.Equal(0m, workload.EhbPerPlayer);
-                });
-
+            // U7 (Retired; A10): no per-team workload panel; AU13 planning size only.
             Assert.IsType<RedirectToPageResult>(await page.OnPostTeamSizeAsync(bingoEvent.Id, 6, CancellationToken.None));
         }
 
@@ -613,17 +599,7 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests : IAsy
         Assert.IsType<PageResult>(await reloaded.OnGetAsync(bingoEvent.Id, CancellationToken.None));
         Assert.Equal(6, reloaded.Statistics!.TeamSize);
         Assert.Equal(0m, reloaded.Statistics.EhbPerPlayer);
-        Assert.Collection(reloaded.TeamWorkloads.OrderBy(workload => workload.TeamName),
-            workload =>
-            {
-                Assert.Equal(2, workload.ActualRosterSize);
-                Assert.Equal(6, workload.SizeUsed);
-            },
-            workload =>
-            {
-                Assert.Equal(3, workload.ActualRosterSize);
-                Assert.Equal(6, workload.SizeUsed);
-            });
+        // U7 (Retired; A10): the per-team breakdown is gone; the planning size drives the figures.
     }
 
     [Fact]
@@ -1068,7 +1044,7 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests : IAsy
     }
 
     [Fact]
-    public async Task PrivatePreviewUsesDeterministicDemoProgressWithoutAnyCompetitiveWrite()
+    public async Task RetiredPrivatePreviewRedirectsToTheBoardWithoutAnyWrite()
     {
         var now = DateTimeOffset.UtcNow;
         var admin = Website($"slice6-preview-admin-{Guid.NewGuid():N}", now);
@@ -1093,21 +1069,12 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests : IAsy
             Requirements = await previewContext.BoardRequirementSnapshots.CountAsync(),
             Audits = await previewContext.AuditEntries.CountAsync()
         };
-        var preview = new BoardPreviewModel(previewContext);
-        Assert.IsType<PageResult>(await preview.OnGetAsync(bingoEvent.Id, null, null, CancellationToken.None));
-        Assert.Collection(preview.Tiles,
-            first => Assert.Equal(4, first.Approved),
-            second => Assert.Equal(2, second.Approved),
-            third => Assert.Equal(0, third.Approved));
-        Assert.Collection(preview.Teams,
-            first => Assert.Equal("Preview team Alpha", first.Name),
-            second => Assert.Equal("Preview team Bravo", second.Name));
-        var team = preview.Teams[0];
-        Assert.IsType<PageResult>(await preview.OnGetAsync(bingoEvent.Id, team.Slug, null, CancellationToken.None));
-        Assert.Equal(team, preview.SelectedTeam);
-        var tile = preview.Tiles[0];
-        Assert.IsType<PageResult>(await preview.OnGetAsync(bingoEvent.Id, team.Slug, tile.Id, CancellationToken.None));
-        Assert.Equal(tile, preview.SelectedTile);
+        // U7-Q3 (A10): the retired preview route redirects to the Board, with or without
+        // team/tile segments; it still writes nothing and stays Admin-only.
+        var preview = new BoardPreviewModel();
+        var redirect = Assert.IsType<RedirectToPageResult>(preview.OnGet(bingoEvent.Id));
+        Assert.Equal("Board", redirect.PageName);
+        Assert.Equal(bingoEvent.Id, redirect.RouteValues!["id"]);
         Assert.Contains(typeof(BoardPreviewModel).GetCustomAttributes(typeof(AuthorizeAttribute), inherit: true).Cast<AuthorizeAttribute>(), x => x.Policy == AuthorizationPolicies.Admin);
         var after = new
         {

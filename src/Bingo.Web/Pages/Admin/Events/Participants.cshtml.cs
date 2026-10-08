@@ -105,7 +105,8 @@ public sealed class ParticipantsModel(
             SetStatus(Localize("Confirm the withdrawal before continuing."), UiMessageType.Error);
             return RedirectToPage(null, null, new { id }, null);
         }
-        if (!await db.EventParticipants.AnyAsync(item => item.Id == participantId && item.EventId == id, ct)) return NotFound();
+        if (!await db.EventParticipants.AnyAsync(item => item.Id == participantId && item.EventId == id, ct))
+            return WantsJson ? Outcome(false, "This participant isn't part of this event.") : NotFound();
         var result = await signupService.WithdrawAsync(id, participantId, User.GetAccountId(), User.Identity?.Name ?? "Admin", true, cancellationToken: ct);
         if (WantsJson)
         {

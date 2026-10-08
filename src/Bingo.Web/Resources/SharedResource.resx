@@ -77,8 +77,20 @@
   <data name="AdminDesign.Hour" xml:space="preserve"><value>Hour</value></data>
   <data name="AdminDesign.Minute" xml:space="preserve"><value>Minute</value></data>
   <data name="AdminDesign.Today" xml:space="preserve"><value>Today</value></data>
-  <data name="AdminDesign.Confirmed" xml:space="preserve"><value>Confirmed</value></data>
+  <data name="AdminDesign.time" xml:space="preserve"><value>time</value></data>
+  <data name="AdminDesign.Board" xml:space="preserve"><value>Board</value></data>
+  <data name="AdminDesign.Rows" xml:space="preserve"><value>Rows</value></data>
+  <data name="AdminDesign.drops" xml:space="preserve"><value>drops</value></data>
+  <data name="AdminDesign.drop" xml:space="preserve"><value>drop</value></data>
+  <data name="AdminDesign.required" xml:space="preserve"><value>required</value></data>
+  <data name="AdminDesign.take over editing" xml:space="preserve"><value>take over editing</value></data>
   <data name="AdminDesign.remove {0}" xml:space="preserve"><value>remove {0}</value></data>
+  <data name="AdminDesign.counts as" xml:space="preserve"><value>counts as</value></data>
+  <data name="AdminDesign.start editing" xml:space="preserve"><value>start editing</value></data>
+  <data name="AdminDesign.no estimate" xml:space="preserve"><value>no estimate</value></data>
+  <data name="AdminDesign.manual" xml:space="preserve"><value>manual</value></data>
+  <data name="AdminDesign.Evidence submitted" xml:space="preserve"><value>Evidence submitted</value></data>
+  <data name="AdminDesign.Confirmed" xml:space="preserve"><value>Confirmed</value></data>
   <data name="AdminDesign.{0} confirmed" xml:space="preserve"><value>{0} confirmed</value></data>
   <data name="AdminDesign.Add playing account" xml:space="preserve"><value>Add playing account</value></data>
   <data name="AdminDesign.Pick {0}" xml:space="preserve">
