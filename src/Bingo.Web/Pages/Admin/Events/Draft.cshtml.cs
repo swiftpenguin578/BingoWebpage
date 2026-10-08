@@ -58,7 +58,9 @@ public sealed partial class DraftModel(ApplicationDbContext db, TimeProvider tim
     private static readonly HashSet<string> RetiredLegacyHandlers = new(StringComparer.OrdinalIgnoreCase)
     {
         "RemoveExternalTeam", "AddExternalMember", "RosterCsvTemplate", "PreviewRosterCsv", "ApplyRosterCsv",
-        "Pause", "Resume", "Reopen"
+        "Pause", "Resume", "Reopen",
+        // U6: Participants owns withdrawal (S5); the Teams withdrawal handler is retired.
+        "WithdrawParticipant"
     };
 
     public override void OnPageHandlerExecuting(Microsoft.AspNetCore.Mvc.Filters.PageHandlerExecutingContext context)
@@ -170,8 +172,6 @@ public sealed partial class DraftModel(ApplicationDbContext db, TimeProvider tim
         await NotifyDraft(id, ct);
         return Finish(new { id });
     }
-    public async Task<IActionResult> OnPostWithdrawParticipantAsync(Guid id, Guid participantId, CancellationToken ct)
-    { var draft = await db.DraftSessions.AsNoTracking().SingleOrDefaultAsync(x => x.EventId == id, ct); if (draft?.State != DraftState.Setup) { SetStatus(Localize("Participants cannot be withdrawn after the draft starts."), UiMessageType.Error); return Finish(new { id }); } var participant = await db.EventParticipants.SingleOrDefaultAsync(x => x.Id == participantId && x.EventId == id, ct); if (participant is null) return NotFound(); if (await db.TeamMemberships.AnyAsync(x => x.EventParticipantId == participantId && x.LeftAt == null, ct)) { SetStatus(Localize("Remove this player from their roster before withdrawing them from the event."), UiMessageType.Error); return Finish(new { id }); } var result = await signupService.WithdrawAsync(id, participantId, AdminId, User.Identity?.Name ?? "Admin", true, cancellationToken: ct); SetStatus(result.Succeeded ? Localize("Participant withdrawn. The waiting list was promoted where a place became available.") : result.Error ?? Localize("The participant could not be withdrawn."), result.Succeeded ? UiMessageType.Success : UiMessageType.Error); return Finish(new { id }); }
     public async Task<IActionResult> OnPostUpdateTeamAsync(Guid id, Guid teamId, string name, string? affiliation, IFormFile? image, bool removeImage, long version, CancellationToken ct, Guid? rosterTeamId = null, bool? includedInDraft = null)
     {
         await using var tx = await db.Database.BeginTransactionAsync(ct);
@@ -767,6 +767,7 @@ public sealed partial class DraftModel(ApplicationDbContext db, TimeProvider tim
                 if (missingCaptains.Count > 0)
                 {
                     SetStatus(Localize("Assign a current Captain to every drafted team before finalizing: {0}.", string.Join(", ", missingCaptains.Select(team => team.Name))), UiMessageType.Error);
+                    SetOutcomeData(new { rosterTeamId = missingCaptains[0].Id });
                     return Finish(new { id, rosterTeamId = missingCaptains[0].Id });
                 }
                 if (draftedTeams.Any(x => x.DraftPosition is null))
@@ -822,11 +823,9 @@ public sealed partial class DraftModel(ApplicationDbContext db, TimeProvider tim
             catch (InvalidOperationException ex) { SetStatus(ex.Message, UiMessageType.Error); }
             catch (Exception) { SetStatus(Localize("The draft could not be finalized. No roster was published."), UiMessageType.Error); }
             if (published) await NotifyDraft(id, ct);
-            if (published && offerBoardPublication)
-            {
-                SetStatus(Localize("Publish board? The approved board is ready. Publishing it is a separate action."), UiMessageType.Information);
-                return RedirectToPage("Board", new { id });
-            }
+            // F1: finalizing stays on Teams; the page shows the toast and offers "Open
+            // Board" when the approved board is ready to publish (no Board redirect).
+            if (published) SetOutcomeData(new { finalized = true, boardReady = offerBoardPublication });
             return Finish(new { id });
         }
         return Finish(new { id });
@@ -1136,12 +1135,20 @@ public sealed partial class DraftModel(ApplicationDbContext db, TimeProvider tim
         }).ToList();
 
         var activePicks = await db.DraftPicks.AsNoTracking().Where(x => x.DraftSessionId == draft.Id && x.UndoneAt == null).OrderBy(x => x.PickNumber).ToListAsync(ct);
+        // U6: a member who joined after the first roster publication is a correction ("Added").
+        var firstPublishedAt = await db.DraftPublicationCycles.AsNoTracking().Where(x => x.DraftSessionId == draft.Id).OrderBy(x => x.CycleNumber).Select(x => (DateTimeOffset?)x.PublishedAt).FirstOrDefaultAsync(ct);
+        FirstPublishedAt = firstPublishedAt;
+        LoadedEvent = ev;
+        LoadedBlockers = [];
+        ActivePickIds = activePicks.Select(x => (x.Id, x.PickNumber, x.EventParticipantId, x.TeamId)).ToList();
         var pickNumberByParticipant = activePicks.ToDictionary(x => x.EventParticipantId, x => x.PickNumber);
         var teamPickNumberByParticipant = activePicks.GroupBy(x => x.TeamId).SelectMany(group => group.OrderBy(x => x.PickNumber).Select((pick, index) => new { pick.EventParticipantId, TeamPickNumber = index + 1 })).ToDictionary(x => x.EventParticipantId, x => x.TeamPickNumber);
         var draftedOrder = teams.Where(x => x.IncludedInDraft).ToList();
         CanDirectFinalize = persistedDraft && draft.State == DraftState.Setup && draftedOrder.Count <= 1;
         DraftOrderReady = draftedOrder.Count >= 2 && draftedOrder.All(x => x.DraftPosition is not null);
         var derived = await DeriveDraftState(id, draftedOrder, activePicks.Select(pick => pick.TeamId).ToList(), ct);
+        LoadedBlockers = derived.Blockers;
+        LoadedDerived = derived;
         if (draft.State == DraftState.Running && DraftOrderReady && derived.Blockers.Count == 0)
         {
             var orderedTeams = draftedOrder.OrderBy(x => x.DraftPosition).ToList();
@@ -1171,7 +1178,9 @@ public sealed partial class DraftModel(ApplicationDbContext db, TimeProvider tim
                     var participant = participants.Single(p => p.Id == m.EventParticipantId);
                     var authority = DisplayAuthority(m.EventParticipantId);
                     teamPickNumberByParticipant.TryGetValue(m.EventParticipantId, out var pickNumber);
-                    return new MemberView(m.Id, DisplayName(m.EventParticipantId), authority.Ehb, m.Role, m.Version, participant.AccountId is null, pickNumber == 0 ? null : pickNumber, m.EventParticipantId);
+                    var overall = pickNumberByParticipant.TryGetValue(m.EventParticipantId, out var overallPick) && m.AssignedByDraftPickId is not null ? overallPick : (int?)null;
+                    var tag = overall is not null ? "pick" : firstPublishedAt is { } published && m.JoinedAt > published ? "correction" : "pre";
+                    return new MemberView(m.Id, DisplayName(m.EventParticipantId), authority.Ehb, m.Role, m.Version, participant.AccountId is null, pickNumber == 0 ? null : pickNumber, m.EventParticipantId, overall, tag);
                 }).ToList(), captainTeamIds.Contains(team.Id), usableCaptainTeamIds.Contains(team.Id),
             team.IncludedInDraft
                 ? memberships.Where(m => m.TeamId == team.Id).Sum(m => DisplayAuthority(m.EventParticipantId).Ehb)
@@ -1290,5 +1299,5 @@ public sealed partial class DraftModel(ApplicationDbContext db, TimeProvider tim
     private void SetStatus(string message, UiMessageType type) { statusMessage = message; statusType = type; TempData["StatusMessage"] = message; TempData[UiMessage.TypeKey] = type.ToString(); }
     private void StoreCredentials(IReadOnlyList<GeneratedCaptainCredential> credentials) { if (credentials.Count > 0) TempData["GeneratedCaptainCredentials"] = JsonSerializer.Serialize(credentials); }
     private sealed record DerivedDraftState(IReadOnlyList<Guid> IncludedParticipantIds, DraftRosterDistribution Distribution, IReadOnlyDictionary<Guid, int> RosterSizes, IReadOnlyDictionary<Guid, int> ProjectedFinalSizes, IReadOnlyList<string> Blockers);
-    public sealed record DraftView(Guid Id, DraftState State, bool FirstPickRecorded); public sealed record ParticipantView(Guid Id, string Name, decimal Ehb, DateTimeOffset SignedUpAt, bool CaptainVolunteer, Guid? TeamId, string? TeamName, SignupStatus SignupStatus); public sealed record RosterAccountOption(Guid Id, string LoginName, IReadOnlyList<RosterCharacterOption> Characters); public sealed record RosterCharacterOption(Guid Id, string DisplayName, decimal? SavedEhb); public sealed record TeamView(Guid Id, string Name, bool IncludedInDraft, string? Affiliation, string? ImageUrl, int? DraftPosition, long Version, bool IsCurrent, int ProjectedFinalSize, IReadOnlyList<MemberView> Members, bool HasCurrentCaptain, bool HasUsableCaptain, decimal TotalEhb); public sealed record MemberView(Guid MembershipId, string Name, decimal Ehb, TeamMembershipRole Role, long Version, bool External, int? PickNumber, Guid ParticipantId = default); public sealed record TurnView(int PickNumber, int RoundNumber, Guid TeamId, string TeamName); public sealed record PickView(int PickNumber, string PlayerName, string TeamName);
+    public sealed record DraftView(Guid Id, DraftState State, bool FirstPickRecorded); public sealed record ParticipantView(Guid Id, string Name, decimal Ehb, DateTimeOffset SignedUpAt, bool CaptainVolunteer, Guid? TeamId, string? TeamName, SignupStatus SignupStatus); public sealed record RosterAccountOption(Guid Id, string LoginName, IReadOnlyList<RosterCharacterOption> Characters); public sealed record RosterCharacterOption(Guid Id, string DisplayName, decimal? SavedEhb); public sealed record TeamView(Guid Id, string Name, bool IncludedInDraft, string? Affiliation, string? ImageUrl, int? DraftPosition, long Version, bool IsCurrent, int ProjectedFinalSize, IReadOnlyList<MemberView> Members, bool HasCurrentCaptain, bool HasUsableCaptain, decimal TotalEhb); public sealed record MemberView(Guid MembershipId, string Name, decimal Ehb, TeamMembershipRole Role, long Version, bool External, int? PickNumber, Guid ParticipantId = default, int? OverallPick = null, string Tag = "pre"); public sealed record TurnView(int PickNumber, int RoundNumber, Guid TeamId, string TeamName); public sealed record PickView(int PickNumber, string PlayerName, string TeamName);
 }
