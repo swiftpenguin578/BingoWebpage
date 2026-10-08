@@ -94,7 +94,8 @@ public sealed class UiReviewScenarioIntegrationTests(ITestOutputHelper output, P
         Assert.False(deniedStart.Succeeded);
         Assert.Contains(deniedStart.Blockers!, value => value.Code == "CURRENT_EVENT_EXISTS");
         var frozenImportId = events.Single(value => value.Slug == "ur-imported").Id;
-        Assert.False(await db.SubmissionContributions.AnyAsync(value => !db.Teams.Any(team => team.Id == value.TeamId && team.EventId == frozenImportId)));
+        // U8 1d (A10, same invariant): no active contribution outside the frozen import; the seeded Reversed review record keeps only a reversed one.
+        Assert.False(await db.SubmissionContributions.AnyAsync(value => value.ReversedAt == null && !db.Teams.Any(team => team.Id == value.TeamId && team.EventId == frozenImportId)));
         Assert.True((await db.Boards.SingleAsync(value => value.EventId == current.Id)).PublishedCorrectionInProgress);
         Assert.Equal(2, await db.DraftPublicationRosters.Where(value => db.Teams.Any(team => team.Id == value.TeamId && team.EventId == current.Id && team.AffiliationName != null)).Select(value => value.TeamId).Distinct().CountAsync());
         Assert.True(await db.TeamMemberships.AnyAsync(value => value.LeftAt != null));
