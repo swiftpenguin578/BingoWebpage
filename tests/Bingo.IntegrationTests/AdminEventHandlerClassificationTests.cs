@@ -22,6 +22,8 @@ public sealed class AdminEventHandlerClassificationTests
     // Razor Pages excludes [NonHandler], not MVC's [NonAction]. Existing HTTP
     // PrepareDestructiveConfirmation proof exercises this distinction.
     // U3 D17 enables Schedule/SignupSetup terminal reads; C4 moves existing operations.
+    // U7 D17 (brief 88) enables Board terminal reads (page, EditorData, Readback); POST gates unchanged.
+    // U7-Q3: the retired BoardPreview route redirects to the Board, also on terminal events.
     // D16 mutation gates and test14 remain unchanged.
     // U4 (brief 85 planner default "Transport", 42c §1.5 item 14): Manage adds the
     // authorized no-store GET:Current read; no mutation gate changes.
@@ -35,8 +37,8 @@ Questions|true|true|Read=GET:;Signup=POST:
 SignupSetup|true|true|Read=GET:,GET:Current;QuestionAdd=POST:,POST:AddAccount;Signup=POST:EditAccount,POST:Deactivate,POST:CoCaptain,POST:Move,POST:Edit,POST:Replace;Setup=POST:SignupAdministration,POST:SignupCode
 Participants|true|true|Read=GET:,GET:SearchOwnerAccounts;Setup=POST:Withdraw,POST:CancelWomValidation,POST:SignupAdministration,POST:CreateInternalParticipant;Service=POST:Payment
 Participant|true|true|Read=GET:;Signup=POST:,POST:CancelWomValidation,POST:Restore;Service=POST:AdminNote,POST:Payment,POST:Withdraw,POST:FillVacancy,POST:CompletePromotionFollowUp
-Board|true|false|Read=GET:,GET:EditorData,GET:Readback;RetainedArtwork=GET:TileImage;Board=POST:Create,POST:TakeEditing,POST:AcquireEditing,POST:ReleaseEditing,POST:CreateTile,POST:EditTile,POST:Move,POST:Resize,POST:TeamSize,POST:Publish,POST:DiscardCorrection,POST:Approve,POST:Unapprove,POST:Remove,POST:ApproveState,POST:PublishState;BoardCorrection=POST:CorrectPublished
-BoardPreview|true|false|Read=GET:
+Board|true|true|Read=GET:,GET:EditorData,GET:Readback;RetainedArtwork=GET:TileImage;Board=POST:Create,POST:TakeEditing,POST:AcquireEditing,POST:ReleaseEditing,POST:RenewEditing,POST:CreateTile,POST:EditTile,POST:Move,POST:Resize,POST:TeamSize,POST:Publish,POST:DiscardCorrection,POST:Approve,POST:Unapprove,POST:Remove,POST:ApproveState,POST:PublishState;BoardCorrection=POST:CorrectPublished
+BoardPreview|true|true|Read=GET:
 Draft|true|false|Read=GET:,GET:Readback,GET:TeamImage;Setup=POST:AddTeam,POST:RemoveDraftTeam,POST:WithdrawParticipant,POST:UpdateTeam,POST:AddMember,POST:RemoveMember,POST:MoveMember,POST:Scramble,POST:Start,POST:Configure,POST:Pick,POST:Undo,POST:Cancel,POST:Finalize,POST:AcquireControl,POST:TakeControl,POST:ReleaseControl;Service=POST:ChangeRole
 Finalize|true|true|Read=GET:;Service=POST:Resolve,POST:AcknowledgeCompletion,POST:CorrectCompletion,POST:Finalize,POST:Unfinalize,POST:Archive
 WiseOldMan|true|true|Read=GET:;WomSetup=POST:Competition,POST:DisconnectCompetition,POST:CreateManagedCompetition,POST:AdoptCompetitionCredential,POST:DeleteManagedCompetition;WomFetch=POST:FetchCompetition;WomDevelopment=POST:MakeDevelopmentCompetitionDue

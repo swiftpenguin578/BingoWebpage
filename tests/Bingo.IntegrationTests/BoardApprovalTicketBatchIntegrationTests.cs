@@ -505,8 +505,8 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests
     }
 
     [Theory]
-    [InlineData("en", "Auto-generated from tile requirements")]
-    [InlineData("da", "Genereres automatisk ud fra tile-krav")]
+    [InlineData("en", "Written automatically from the objectives when you save.")]
+    [InlineData("da", "Skrives automatisk ud fra målene, når du gemmer.")]
     public async Task BoardDescriptionPlaceholderUsesRequestedCulture(string culture, string expected)
     {
         var fixture = await SeedApprovalBatchAsync();
@@ -514,9 +514,12 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests
         using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         client.DefaultRequestHeaders.AcceptLanguage.ParseAdd(culture);
         await LoginAsync(client, fixture.Admin.LoginName);
-        var html = WebUtility.HtmlDecode(await client.GetStringAsync(fixture.Path));
+        var html = await client.GetStringAsync(fixture.Path);
 
-        Assert.Contains($"placeholder=\"{expected}\"", html, StringComparison.Ordinal);
+        // A10: was Contains(placeholder="Auto-generated from tile requirements" / da). The drawer
+        // is painted client-side and its automatic-description placeholder text comes from the
+        // served label set, so assert that set carries the text in the requested culture.
+        Assert.Equal(expected, BoardPageData.Labels(html).GetProperty("Written automatically from the objectives when you save.").GetString());
     }
 
     [Theory]

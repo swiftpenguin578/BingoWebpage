@@ -2948,7 +2948,6 @@
   <data name="Counts as" xml:space="preserve"><value>Tæller som</value></data>
   <data name="Counts as {0}" xml:space="preserve"><value>Tæller som {0}</value></data>
   <data name="How many times {0} counts" xml:space="preserve"><value>Hvor mange gange {0} tæller</value></data>
-  <data name="Every selected drop count must be at least 1." xml:space="preserve"><value>Hvert valgt drop-tal skal være mindst 1.</value></data>
   <data name="This tile cannot be removed because submitted evidence depends on it." xml:space="preserve"><value>Denne tile kan ikke fjernes, fordi indsendt dokumentation afhænger af den.</value></data>
   <data name="Board editor unavailable" xml:space="preserve"><value>Board-editoren er ikke tilgængelig</value></data>
   <data name="This event does not have an editable board in its current lifecycle state." xml:space="preserve"><value>Denne event har ikke et redigerbart Board i sin nuværende livscyklus.</value></data>
@@ -3844,6 +3843,306 @@
   <data name="That account field cannot be edited." xml:space="preserve"><value>Det kontofelt kan ikke redigeres.</value></data>
   <data name="That question cannot be edited." xml:space="preserve"><value>Det spørgsmål kan ikke redigeres.</value></data>
   <data name="This signup form changed while you were editing it. Review the latest values and try again." xml:space="preserve"><value>Denne tilmeldingsformular blev ændret, mens du redigerede den. Gennemgå de seneste værdier, og prøv igen.</value></data>
+  <!-- U7 Board (brief 88) -->
+  <data name="Players per team can only be changed before the event goes Live." xml:space="preserve"><value>Spillere pr. hold kan kun ændres, før eventet går Live.</value></data>
+  <data name="Tile names must be 80 characters or fewer." xml:space="preserve"><value>Tilenavne må højst være på 80 tegn.</value></data>
+  <data name="The correction reason must be 2,000 characters or fewer." xml:space="preserve"><value>Begrundelsen for rettelsen må højst være på 2.000 tegn.</value></data>
+  <data name="Every drop weight must be between 1 and 10,000." xml:space="preserve"><value>Hver drop-vægt skal være mellem 1 og 10.000.</value></data>
+  <data name="A board can only be created for an unfinished pre-live event." xml:space="preserve"><value>Et Board kan kun oprettes for et ufærdigt event, der endnu ikke er gået Live.</value></data>
+  <data name="Board not found." xml:space="preserve"><value>Boardet blev ikke fundet.</value></data>
+  <data name="Board resized to {0}x{1}; tile positions were preserved." xml:space="preserve"><value>Boardet har nu størrelsen {0}x{1}; tilenes placeringer er bevaret.</value></data>
+  <data name="Choose a board size between 1x1 and 8x8." xml:space="preserve"><value>Vælg en Boardstørrelse mellem 1x1 og 8x8.</value></data>
+  <data name="Move or remove {0} tile(s) from the positions outside the new board before shrinking it." xml:space="preserve"><value>Flyt eller fjern {0} tile(s) fra placeringerne uden for det nye Board, før du gør det mindre.</value></data>
+  <data name="Finalize the team draft before publishing the board." xml:space="preserve"><value>Færdiggør holddraften, før Boardet offentliggøres.</value></data>
+  <data name="The approved board is unavailable." xml:space="preserve"><value>Det godkendte Board er ikke tilgængeligt.</value></data>
+  <data name="The board must be published before the event has started and while its configured end remains in the future." xml:space="preserve"><value>Boardet skal offentliggøres, før eventet starter, og mens den konfigurerede slutning stadig ligger i fremtiden.</value></data>
+  <data name="The current board state could not be read." xml:space="preserve"><value>Boardets aktuelle tilstand kunne ikke læses.</value></data>
+  <data name="{0} needs catalogue verification. Review the affected choices or restore the missing catalogue mapping before approval." xml:space="preserve"><value>{0} skal kontrolleres mod kataloget. Gennemgå de berørte valg, eller gendan den manglende katalogkobling før godkendelse.</value></data>
+  <data name="AdminDesign.Board" xml:space="preserve"><value>Board</value></data>
+  <data name="Board layout" xml:space="preserve"><value>Board-layout</value></data>
+  <data name="EHB on the board" xml:space="preserve"><value>EHB på Boardet</value></data>
+  <data name="Per player each day" xml:space="preserve"><value>Pr. spiller pr. dag</value></data>
+  <data name="Line spread" xml:space="preserve"><value>Spredning mellem linjer</value></data>
+  <data name="More figures" xml:space="preserve"><value>Flere tal</value></data>
+  <data name="Couldn’t load the board" xml:space="preserve"><value>Boardet kunne ikke indlæses</value></data>
+  <data name="Loading the board" xml:space="preserve"><value>Indlæser Boardet</value></data>
+  <data name="We couldn’t confirm that this happened." xml:space="preserve"><value>Vi kunne ikke bekræfte, at det skete.</value></data>
+  <data name="The board below is the current state; it didn’t change as asked. Check it before trying again." xml:space="preserve"><value>Boardet nedenfor er den aktuelle tilstand; det blev ikke ændret som ønsket. Tjek det, før du prøver igen.</value></data>
+  <data name="That change wasn’t saved." xml:space="preserve"><value>Ændringen blev ikke gemt.</value></data>
+  <data name="Approved {0}. Any tile, position or size change returns it to draft." xml:space="preserve"><value>Godkendt {0}. Enhver ændring af tiles, placeringer eller størrelse sender det tilbage til kladde.</value></data>
+  <data name="Published {0}. Players see this board." xml:space="preserve"><value>Offentliggjort {0}. Spillerne ser dette Board.</value></data>
+  <data name="Players see the version published {0} until you publish this correction." xml:space="preserve"><value>Spillerne ser versionen offentliggjort {0}, indtil du offentliggør denne rettelse.</value></data>
+  <data name="Resize" xml:space="preserve"><value>Skift størrelse</value></data>
+  <data name="More board actions" xml:space="preserve"><value>Flere handlinger for Boardet</value></data>
+  <data name="You’re editing" xml:space="preserve"><value>Du redigerer</value></data>
+  <data name="Stop" xml:space="preserve"><value>Stop</value></data>
+  <data name="Editing control renews while you work and lapses after five minutes without board activity." xml:space="preserve"><value>Redigeringskontrollen fornyes, mens du arbejder, og udløber efter fem minutter uden aktivitet på Boardet.</value></data>
+  <data name="{0} is editing" xml:space="preserve"><value>{0} redigerer</value></data>
+  <data name="Take over…" xml:space="preserve"><value>Overtag…</value></data>
+  <data name="You can view everything. Their control lapses after five minutes without board activity." xml:space="preserve"><value>Du kan se alt. Deres kontrol udløber efter fem minutter uden aktivitet på Boardet.</value></data>
+  <data name="Viewing" xml:space="preserve"><value>Ser</value></data>
+  <data name="Start editing" xml:space="preserve"><value>Begynd at redigere</value></data>
+  <data name="Start editing to change the board." xml:space="preserve"><value>Begynd at redigere for at ændre Boardet.</value></data>
+  <data name="Start editing first" xml:space="preserve"><value>Begynd at redigere først</value></data>
+  <data name="Board size…" xml:space="preserve"><value>Boardstørrelse…</value></data>
+  <data name="AdminDesign.start editing" xml:space="preserve"><value>begynde at redigere</value></data>
+  <data name="stop editing" xml:space="preserve"><value>stoppe med at redigere</value></data>
+  <data name="Take over editing?" xml:space="preserve"><value>Overtag redigeringen?</value></data>
+  <data name="{0} returns to viewing. Anything they haven’t saved stays in their browser; nothing on the board changes." xml:space="preserve"><value>{0} går tilbage til at se. Det, de ikke har gemt, bliver i deres browser; intet på Boardet ændres.</value></data>
+  <data name="AdminDesign.take over editing" xml:space="preserve"><value>overtage redigeringen</value></data>
+  <data name="We couldn’t confirm whether this went through: {0}." xml:space="preserve"><value>Vi kunne ikke bekræfte, om dette gik igennem: {0}.</value></data>
+  <data name="Check before trying again, so nothing happens twice." xml:space="preserve"><value>Tjek, før du prøver igen, så intet sker to gange.</value></data>
+  <data name="No board recorded." xml:space="preserve"><value>Intet Board registreret.</value></data>
+  <data name="This event ended without a board, so there is nothing to show or change here." xml:space="preserve"><value>Dette event sluttede uden et Board, så der er intet at vise eller ændre her.</value></data>
+  <data name="Read-only." xml:space="preserve"><value>Skrivebeskyttet.</value></data>
+  <data name="This event is {0}, so its board can be viewed but not changed." xml:space="preserve"><value>Dette event er {0}, så dets Board kan ses, men ikke ændres.</value></data>
+  <data name="Private correction." xml:space="preserve"><value>Privat rettelse.</value></data>
+  <data name="Reason: {0}" xml:space="preserve"><value>Begrundelse: {0}</value></data>
+  <data name="Objectives with submitted evidence keep their requirements and scoring; wording can change. Changed tiles are marked with a dot." xml:space="preserve"><value>Mål med indsendt bevis beholder deres krav og point; formuleringen kan ændres. Ændrede tiles er markeret med en prik.</value></data>
+  <data name="Row {0}" xml:space="preserve"><value>Række {0}</value></data>
+  <data name="Column {0}" xml:space="preserve"><value>Kolonne {0}</value></data>
+  <data name="{0} EHB so far, incomplete" xml:space="preserve"><value>{0} EHB indtil videre, ufuldstændig</value></data>
+  <data name="no tiles yet" xml:space="preserve"><value>ingen tiles endnu</value></data>
+  <data name="Incomplete line" xml:space="preserve"><value>Ufuldstændig linje</value></data>
+  <data name="{0}% above the average line" xml:space="preserve"><value>{0}% over den gennemsnitlige linje</value></data>
+  <data name="{0}% below the average line" xml:space="preserve"><value>{0}% under den gennemsnitlige linje</value></data>
+  <data name="{0}% above the average line ({1} EHB)" xml:space="preserve"><value>{0}% over den gennemsnitlige linje ({1} EHB)</value></data>
+  <data name="{0}% below the average line ({1} EHB)" xml:space="preserve"><value>{0}% under den gennemsnitlige linje ({1} EHB)</value></data>
+  <data name="Average line {0} EHB" xml:space="preserve"><value>Gennemsnitlig linje {0} EHB</value></data>
+  <data name="Board {0} rows by {1} columns" xml:space="preserve"><value>Board med {0} rækker og {1} kolonner</value></data>
+  <data name="No estimate" xml:space="preserve"><value>Intet estimat</value></data>
+  <data name="Manual" xml:space="preserve"><value>Manuel</value></data>
+  <data name="Manual EHB replaces the calculated estimate" xml:space="preserve"><value>Manuel EHB erstatter det beregnede estimat</value></data>
+  <data name="Manual challenge" xml:space="preserve"><value>Manuel udfordring</value></data>
+  <data name="{0} parts" xml:space="preserve"><value>{0} dele</value></data>
+  <data name="{0} objectives, all required" xml:space="preserve"><value>{0} mål, alle påkrævet</value></data>
+  <data name="AdminDesign.no estimate" xml:space="preserve"><value>intet estimat</value></data>
+  <data name="AdminDesign.manual" xml:space="preserve"><value>manuel</value></data>
+  <data name="{0} objectives" xml:space="preserve"><value>{0} mål</value></data>
+  <data name="evidence submitted" xml:space="preserve"><value>bevis indsendt</value></data>
+  <data name="changed in this correction" xml:space="preserve"><value>ændret i denne rettelse</value></data>
+  <data name="moving" xml:space="preserve"><value>flyttes</value></data>
+  <data name="press Enter to swap here" xml:space="preserve"><value>tryk Enter for at bytte her</value></data>
+  <data name="Enter to edit, M to move" xml:space="preserve"><value>Enter for at redigere, M for at flytte</value></data>
+  <data name="Enter to view" xml:space="preserve"><value>Enter for at se</value></data>
+  <data name="Add tile" xml:space="preserve"><value>Tilføj tile</value></data>
+  <data name="press Enter to move here" xml:space="preserve"><value>tryk Enter for at flytte hertil</value></data>
+  <data name="Enter to add a tile" xml:space="preserve"><value>Enter for at tilføje en tile</value></data>
+  <data name="Line totals in EHB" xml:space="preserve"><value>Linjetotaler i EHB</value></data>
+  <data name="Arrow keys move between positions. Enter edits a tile or adds one; M picks a tile up to move or swap it (or drag it), Delete removes it. Row and column totals are in EHB; ↑ and ↓ mark lines 25% or more from the average." xml:space="preserve"><value>Piletasterne flytter mellem placeringer. Enter redigerer en tile eller tilføjer en; M samler en tile op for at flytte eller bytte den (eller træk den), Delete fjerner den. Række- og kolonnetotaler er i EHB; ↑ og ↓ markerer linjer, der ligger 25 % eller mere fra gennemsnittet.</value></data>
+  <data name="Arrow keys move between positions; Enter opens a tile. Row and column totals are in EHB." xml:space="preserve"><value>Piletasterne flytter mellem placeringer; Enter åbner en tile. Række- og kolonnetotaler er i EHB.</value></data>
+  <data name="Moving {0} from {1}. Choose a position with the arrow keys and press Enter; Escape cancels." xml:space="preserve"><value>Flytter {0} fra {1}. Vælg en placering med piletasterne, og tryk Enter; Escape annullerer.</value></data>
+  <data name="swap {0} and {1}" xml:space="preserve"><value>bytte {0} og {1}</value></data>
+  <data name="move {0} to {1}" xml:space="preserve"><value>flytte {0} til {1}</value></data>
+  <data name="Swapped {0} and {1}." xml:space="preserve"><value>{0} og {1} er byttet.</value></data>
+  <data name="Moved to {0}." xml:space="preserve"><value>Flyttet til {0}.</value></data>
+  <data name="over {0} days" xml:space="preserve"><value>over {0} dage</value></data>
+  <data name="An estimate for the planning figures. It doesn’t change rosters or scoring." xml:space="preserve"><value>Et estimat til planlægningstallene. Det ændrer ikke hold eller point.</value></data>
+  <data name="Lowest line" xml:space="preserve"><value>Laveste linje</value></data>
+  <data name="Highest line" xml:space="preserve"><value>Højeste linje</value></data>
+  <data name="Without an estimate" xml:space="preserve"><value>Uden estimat</value></data>
+  <data name="Event length" xml:space="preserve"><value>Eventets længde</value></data>
+  <data name="{0} days" xml:space="preserve"><value>{0} dage</value></data>
+  <data name="Enter a whole number from 1 to 100." xml:space="preserve"><value>Angiv et helt tal fra 1 til 100.</value></data>
+  <data name="change players per team" xml:space="preserve"><value>ændre spillere pr. hold</value></data>
+  <data name="Rows and columns from 1 to 8. Tiles keep their positions." xml:space="preserve"><value>Rækker og kolonner fra 1 til 8. Tiles beholder deres placeringer.</value></data>
+  <data name="This is the current size." xml:space="preserve"><value>Dette er den nuværende størrelse.</value></data>
+  <data name="Move or remove these tiles first; they’re outside {0} × {1}:" xml:space="preserve"><value>Flyt eller fjern først disse tiles; de ligger uden for {0} × {1}:</value></data>
+  <data name="{0} × {1} has {2} positions; {3} tiles keep their positions." xml:space="preserve"><value>{0} × {1} har {2} placeringer; {3} tiles beholder deres placeringer.</value></data>
+  <data name="The board returns to draft." xml:space="preserve"><value>Boardet går tilbage til kladde.</value></data>
+  <data name="Applying…" xml:space="preserve"><value>Anvender…</value></data>
+  <data name="Board resized to {0} × {1}." xml:space="preserve"><value>Boardet har nu størrelsen {0} × {1}.</value></data>
+  <data name="resize the board to {0} × {1}" xml:space="preserve"><value>ændre Boardets størrelse til {0} × {1}</value></data>
+  <data name="Not supported yet" xml:space="preserve"><value>Ikke understøttet endnu</value></data>
+  <data name="Draft · private" xml:space="preserve"><value>Kladde · privat</value></data>
+  <data name="Approved · private" xml:space="preserve"><value>Godkendt · privat</value></data>
+  <data name="Correction · private" xml:space="preserve"><value>Rettelse · privat</value></data>
+  <data name="AdminDesign.Rows" xml:space="preserve"><value>Rækker</value></data>
+  <data name="Fewer rows" xml:space="preserve"><value>Færre rækker</value></data>
+  <data name="More rows" xml:space="preserve"><value>Flere rækker</value></data>
+  <data name="Columns" xml:space="preserve"><value>Kolonner</value></data>
+  <data name="Fewer columns" xml:space="preserve"><value>Færre kolonner</value></data>
+  <data name="More columns" xml:space="preserve"><value>Flere kolonner</value></data>
+  <data name="Preview · current draft values · nothing is approved or published" xml:space="preserve"><value>Forhåndsvisning · nuværende kladdeværdier · intet er godkendt eller offentliggjort</value></data>
+  <data name="Preview · the approved version · not published" xml:space="preserve"><value>Forhåndsvisning · den godkendte version · ikke offentliggjort</value></data>
+  <data name="Preview · what players see now" xml:space="preserve"><value>Forhåndsvisning · det, spillerne ser nu</value></data>
+  <data name="Preview · your private correction · players still see the published version" xml:space="preserve"><value>Forhåndsvisning · din private rettelse · spillerne ser stadig den offentliggjorte version</value></data>
+  <data name="Use 80 characters or fewer." xml:space="preserve"><value>Brug højst 80 tegn.</value></data>
+  <data name="Write a description, or use the automatic one." xml:space="preserve"><value>Skriv en beskrivelse, eller brug den automatiske.</value></data>
+  <data name="Use 4,000 characters or fewer." xml:space="preserve"><value>Brug højst 4.000 tegn.</value></data>
+  <data name="Enter a whole number from 1 to 10,000." xml:space="preserve"><value>Angiv et helt tal fra 1 til 10.000.</value></data>
+  <data name="Choose at least one boss or activity." xml:space="preserve"><value>Vælg mindst én boss eller aktivitet.</value></data>
+  <data name="Choose at least one eligible drop." xml:space="preserve"><value>Vælg mindst ét gyldigt drop.</value></data>
+  <data name="Each drop counts as a whole number from 1 to 10,000." xml:space="preserve"><value>Hvert drop tæller som et helt tal fra 1 til 10.000.</value></data>
+  <data name="Describe what must be completed." xml:space="preserve"><value>Beskriv, hvad der skal gennemføres.</value></data>
+  <data name="Enter an EHB estimate above 0 (up to 100,000)." xml:space="preserve"><value>Angiv et EHB-estimat over 0 (op til 100.000).</value></data>
+  <data name="Enter an EHB above 0 (up to 100,000), or use the calculated estimate." xml:space="preserve"><value>Angiv en EHB over 0 (op til 100.000), eller brug det beregnede estimat.</value></data>
+  <data name="That tile isn’t on this board." xml:space="preserve"><value>Den tile findes ikke på dette Board.</value></data>
+  <data name="The link may be from another board size or an older version." xml:space="preserve"><value>Linket kan stamme fra en anden Boardstørrelse eller en ældre version.</value></data>
+  <data name="Tile saved." xml:space="preserve"><value>Tile gemt.</value></data>
+  <data name="The board changed while this was open." xml:space="preserve"><value>Boardet blev ændret, mens dette var åbent.</value></data>
+  <data name="Your changes are still here. Check the board, then save your version on the latest board." xml:space="preserve"><value>Dine ændringer er her stadig. Tjek Boardet, og gem derefter din version på det seneste Board.</value></data>
+  <data name="Use the latest board" xml:space="preserve"><value>Brug det seneste Board</value></data>
+  <data name="The tile wasn’t saved." xml:space="preserve"><value>Tilen blev ikke gemt.</value></data>
+  <data name="Your changes are still here." xml:space="preserve"><value>Dine ændringer er her stadig.</value></data>
+  <data name="Tile saved. The board confirms your changes." xml:space="preserve"><value>Tile gemt. Boardet bekræfter dine ændringer.</value></data>
+  <data name="We couldn’t confirm the save." xml:space="preserve"><value>Vi kunne ikke bekræfte, at det blev gemt.</value></data>
+  <data name="The board doesn’t show these changes. They’re still here; check the board before saving again." xml:space="preserve"><value>Boardet viser ikke disse ændringer. De er her stadig; tjek Boardet, før du gemmer igen.</value></data>
+  <data name="We couldn’t confirm whether the tile was saved." xml:space="preserve"><value>Vi kunne ikke bekræfte, om tilen blev gemt.</value></data>
+  <data name="Your changes are still here. Check before saving again, so nothing is saved twice." xml:space="preserve"><value>Dine ændringer er her stadig. Tjek, før du gemmer igen, så intet gemmes to gange.</value></data>
+  <data name="{0} becomes empty. The tile and its objectives are deleted from this board." xml:space="preserve"><value>{0} bliver tom. Tilen og dens mål slettes fra dette Board.</value></data>
+  <data name="The approved board returns to draft." xml:space="preserve"><value>Det godkendte Board går tilbage til kladde.</value></data>
+  <data name="AdminDesign.remove {0}" xml:space="preserve"><value>fjerne {0}</value></data>
+  <data name="Working copy" xml:space="preserve"><value>Arbejdskopi</value></data>
+  <data name="New tile" xml:space="preserve"><value>Ny tile</value></data>
+  <data name="View only" xml:space="preserve"><value>Kun visning</value></data>
+  <data name="Read-only" xml:space="preserve"><value>Skrivebeskyttet</value></data>
+  <data name="AdminDesign.Evidence submitted" xml:space="preserve"><value>Bevis indsendt</value></data>
+  <data name="This tile isn’t on the board any more." xml:space="preserve"><value>Denne tile er ikke længere på Boardet.</value></data>
+  <data name="Couldn’t load the tile editor" xml:space="preserve"><value>Tile-editoren kunne ikke indlæses</value></data>
+  <data name="Another administrator may have removed or moved it. Nothing was changed." xml:space="preserve"><value>En anden administrator kan have fjernet eller flyttet den. Intet blev ændret.</value></data>
+  <data name="The catalogue choices didn’t load. Nothing was changed." xml:space="preserve"><value>Katalogvalgene blev ikke indlæst. Intet blev ændret.</value></data>
+  <data name="Reading the current board." xml:space="preserve"><value>Læser det aktuelle Board.</value></data>
+  <data name="{0} is editing now." xml:space="preserve"><value>{0} redigerer nu.</value></data>
+  <data name="Your changes are still here; take over editing to save them." xml:space="preserve"><value>Dine ændringer er her stadig; overtag redigeringen for at gemme dem.</value></data>
+  <data name="Remove tile…" xml:space="preserve"><value>Fjern tile…</value></data>
+  <data name="Can’t be removed: evidence was submitted" xml:space="preserve"><value>Kan ikke fjernes: der er indsendt bevis</value></data>
+  <data name="Save tile" xml:space="preserve"><value>Gem tile</value></data>
+  <data name="Name this tile" xml:space="preserve"><value>Navngiv denne tile</value></data>
+  <data name="Shown on the board and to players. Leave blank to name it after the chosen bosses." xml:space="preserve"><value>Vises på Boardet og for spillerne. Lad feltet stå tomt for at navngive den efter de valgte bosser.</value></data>
+  <data name="Written automatically from the objectives when you save." xml:space="preserve"><value>Skrives automatisk ud fra målene, når du gemmer.</value></data>
+  <data name="Written automatically from the objectives." xml:space="preserve"><value>Skrives automatisk ud fra målene.</value></data>
+  <data name="Write your own" xml:space="preserve"><value>Skriv din egen</value></data>
+  <data name="Your own wording. Players see it instead of the automatic description." xml:space="preserve"><value>Din egen formulering. Spillerne ser den i stedet for den automatiske beskrivelse.</value></data>
+  <data name="Use automatic description" xml:space="preserve"><value>Brug automatisk beskrivelse</value></data>
+  <data name="Artwork" xml:space="preserve"><value>Grafik</value></data>
+  <data name="Current tile artwork" xml:space="preserve"><value>Tilens nuværende grafik</value></data>
+  <data name="Replace" xml:space="preserve"><value>Erstat</value></data>
+  <data name="Upload" xml:space="preserve"><value>Upload</value></data>
+  <data name="Choose a PNG, JPEG or WebP image up to 10 MB." xml:space="preserve"><value>Vælg et PNG-, JPEG- eller WebP-billede på højst 10 MB.</value></data>
+  <data name="PNG, JPEG or WebP. Shown on the tile instead of the default artwork." xml:space="preserve"><value>PNG, JPEG eller WebP. Vises på tilen i stedet for standardgrafikken.</value></data>
+  <data name="Challenges" xml:space="preserve"><value>Udfordringer</value></data>
+  <data name="Challenge" xml:space="preserve"><value>Udfordring</value></data>
+  <data name="Objectives" xml:space="preserve"><value>Mål</value></data>
+  <data name="All {0} must be completed" xml:space="preserve"><value>Alle {0} skal gennemføres</value></data>
+  <data name="Objective kind" xml:space="preserve"><value>Måltype</value></data>
+  <data name="One kind per tile; switching keeps what you entered for the other kind until you save." xml:space="preserve"><value>Én type pr. tile; når du skifter, beholdes det, du har indtastet for den anden type, indtil du gemmer.</value></data>
+  <data name="Add another challenge" xml:space="preserve"><value>Tilføj endnu en udfordring</value></data>
+  <data name="New manual objective" xml:space="preserve"><value>Nyt manuelt mål</value></data>
+  <data name="New objective" xml:space="preserve"><value>Nyt mål</value></data>
+  <data name="Collect {0}: {1}" xml:space="preserve"><value>Saml {0}: {1}</value></data>
+  <data name="Objective {0}: " xml:space="preserve"><value>Mål {0}: </value></data>
+  <data name="Evidence submitted: requirements locked" xml:space="preserve"><value>Bevis indsendt: krav låst</value></data>
+  <data name="Locked by submitted evidence" xml:space="preserve"><value>Låst af indsendt bevis</value></data>
+  <data name="Remove objective {0}" xml:space="preserve"><value>Fjern mål {0}</value></data>
+  <data name="Evidence has been submitted for this objective, so what it requires and how it counts can’t change." xml:space="preserve"><value>Der er indsendt bevis for dette mål, så det, det kræver, og hvordan det tæller, kan ikke ændres.</value></data>
+  <data name="Collect" xml:space="preserve"><value>Saml</value></data>
+  <data name="AdminDesign.drop" xml:space="preserve"><value>drop</value></data>
+  <data name="AdminDesign.drops" xml:space="preserve"><value>drops</value></data>
+  <data name="of the chosen drops" xml:space="preserve"><value>af de valgte drops</value></data>
+  <data name="The same drop can count again" xml:space="preserve"><value>Det samme drop kan tælle igen</value></data>
+  <data name="Each chosen drop counts once" xml:space="preserve"><value>Hvert valgt drop tæller én gang</value></data>
+  <data name="{0} drop counts extra" xml:space="preserve"><value>{0} drop tæller ekstra</value></data>
+  <data name="{0} drops count extra" xml:space="preserve"><value>{0} drops tæller ekstra</value></data>
+  <data name="every drop counts as 1" xml:space="preserve"><value>hvert drop tæller som 1</value></data>
+  <data name="Change" xml:space="preserve"><value>Skift</value></data>
+  <data name="Off: each chosen drop counts once, so the target needs that many different drops." xml:space="preserve"><value>Fra: hvert valgt drop tæller én gang, så målet kræver lige så mange forskellige drops.</value></data>
+  <data name="Set how much each chosen drop counts toward the target, for example a rare drop counting as 2." xml:space="preserve"><value>Angiv, hvor meget hvert valgt drop tæller mod målet, for eksempel et sjældent drop, der tæller som 2.</value></data>
+  <data name="e.g. Complete a four-player Theatre of Blood in under 22:00" xml:space="preserve"><value>f.eks. Gennemfør et Theatre of Blood for fire spillere på under 22:00</value></data>
+  <data name="AdminDesign.time" xml:space="preserve"><value>gang</value></data>
+  <data name="times" xml:space="preserve"><value>gange</value></data>
+  <data name="Each approved completion counts once. Evidence and approval are still required." xml:space="preserve"><value>Hver godkendt gennemførelse tæller én gang. Bevis og godkendelse kræves stadig.</value></data>
+  <data name="Chosen bosses or activities" xml:space="preserve"><value>Valgte bosser eller aktiviteter</value></data>
+  <data name="Unavailable boss" xml:space="preserve"><value>Utilgængelig boss</value></data>
+  <data name="Search the catalogue" xml:space="preserve"><value>Søg i kataloget</value></data>
+  <data name="No boss or activity matches “{0}”." xml:space="preserve"><value>Ingen boss eller aktivitet matcher “{0}”.</value></data>
+  <data name="Choose a boss or activity to see its drops." xml:space="preserve"><value>Vælg en boss eller aktivitet for at se dens drops.</value></data>
+  <data name="Choose all" xml:space="preserve"><value>Vælg alle</value></data>
+  <data name="No rate" xml:space="preserve"><value>Ingen rate</value></data>
+  <data name="No drop rate in the catalogue" xml:space="preserve"><value>Ingen droprate i kataloget</value></data>
+  <data name="AdminDesign.counts as" xml:space="preserve"><value>tæller som</value></data>
+  <data name="Unavailable item" xml:space="preserve"><value>Utilgængeligt item</value></data>
+  <data name="Missing a drop or rate?" xml:space="preserve"><value>Mangler der et drop eller en rate?</value></data>
+  <data name="Open Catalogue" xml:space="preserve"><value>Åbn Katalog</value></data>
+  <data name="in a new tab; your entries stay here." xml:space="preserve"><value>i en ny fane; dine indtastninger bliver her.</value></data>
+  <data name="{0} has no drop rate in the catalogue." xml:space="preserve"><value>{0} har ingen droprate i kataloget.</value></data>
+  <data name="{0} has no kill rate in the catalogue, so {1} can’t be estimated." xml:space="preserve"><value>{0} har ingen kill-rate i kataloget, så {1} kan ikke estimeres.</value></data>
+  <data name="Estimate" xml:space="preserve"><value>Estimat</value></data>
+  <data name="Effective" xml:space="preserve"><value>Gældende</value></data>
+  <data name="none yet" xml:space="preserve"><value>intet endnu</value></data>
+  <data name="Calculated from catalogue rates" xml:space="preserve"><value>Beregnet ud fra katalograter</value></data>
+  <data name="Can’t calculate" xml:space="preserve"><value>Kan ikke beregnes</value></data>
+  <data name="Calculated when you save" xml:space="preserve"><value>Beregnes, når du gemmer</value></data>
+  <data name="Correct the rate in Catalogue" xml:space="preserve"><value>Ret raten i Katalog</value></data>
+  <data name="A manual EHB can’t replace a missing rate; approval still needs it." xml:space="preserve"><value>En manuel EHB kan ikke erstatte en manglende rate; godkendelse kræver den stadig.</value></data>
+  <data name="Manual EHB for this tile" xml:space="preserve"><value>Manuel EHB for denne tile</value></data>
+  <data name="Replaces the calculated estimate for this event’s tile only. Catalogue rates aren’t changed." xml:space="preserve"><value>Erstatter det beregnede estimat kun for denne tile i dette event. Katalograterne ændres ikke.</value></data>
+  <data name="Use calculated" xml:space="preserve"><value>Brug beregnet</value></data>
+  <data name="Uses the calculated estimate." xml:space="preserve"><value>Bruger det beregnede estimat.</value></data>
+  <data name="Set EHB manually" xml:space="preserve"><value>Angiv EHB manuelt</value></data>
+  <data name="Estimated EHB" xml:space="preserve"><value>Estimeret EHB</value></data>
+  <data name="AdminDesign.required" xml:space="preserve"><value>påkrævet</value></data>
+  <data name="Manual challenges have no drop rates to calculate from, so enter the expected hours for one player." xml:space="preserve"><value>Manuelle udfordringer har ingen droprater at beregne ud fra, så angiv de forventede timer for én spiller.</value></data>
+  <data name="Evidence has been submitted for this tile, so its EHB is part of its scoring and can’t change." xml:space="preserve"><value>Der er indsendt bevis for denne tile, så dens EHB er en del af pointgivningen og kan ikke ændres.</value></data>
+  <data name="Saving any change returns the approved board to draft." xml:space="preserve"><value>Når du gemmer en ændring, går det godkendte Board tilbage til kladde.</value></data>
+  <data name="Changes stay private until you publish the correction." xml:space="preserve"><value>Ændringerne forbliver private, indtil du offentliggør rettelsen.</value></data>
+  <data name="Fill every board position" xml:space="preserve"><value>Udfyld alle placeringer på Boardet</value></data>
+  <data name="({0} empty)." xml:space="preserve"><value>({0} tomme).</value></data>
+  <data name="needs automatic EHB: no drop rate in the catalogue for {0}. Correct the rate in Catalogue; a manual EHB can’t replace it." xml:space="preserve"><value>kræver automatisk EHB: ingen droprate i kataloget for {0}. Ret raten i Katalog; en manuel EHB kan ikke erstatte den.</value></data>
+  <data name="uses drops with no catalogue GP value. {0}" xml:space="preserve"><value>bruger drops uden GP-værdi i kataloget. {0}</value></data>
+  <data name="Dismiss" xml:space="preserve"><value>Luk</value></data>
+  <data name="Ready to publish once:" xml:space="preserve"><value>Klar til offentliggørelse, når:</value></data>
+  <data name="Finalize the team rosters first." xml:space="preserve"><value>Holdene er færdiggjort.</value></data>
+  <data name="The event has already started." xml:space="preserve"><value>Eventet er allerede startet.</value></data>
+  <data name="The event’s end has passed." xml:space="preserve"><value>Eventets slutning er passeret.</value></data>
+  <data name="e.g. Tile C4 named the wrong boss." xml:space="preserve"><value>f.eks. Tile C4 nævnte den forkerte boss.</value></data>
+  <data name="Required. Kept in the board history." xml:space="preserve"><value>Påkrævet. Gemmes i Boardets historik.</value></data>
+  <data name="One thing needs fixing first." xml:space="preserve"><value>Én ting skal rettes først.</value></data>
+  <data name="{0} things need fixing first." xml:space="preserve"><value>{0} ting skal rettes først.</value></data>
+  <data name="approve the board" xml:space="preserve"><value>godkende Boardet</value></data>
+  <data name="Board approved privately. Publishing is a separate step." xml:space="preserve"><value>Boardet er godkendt privat. Offentliggørelse er et separat trin.</value></data>
+  <data name="return the board to draft" xml:space="preserve"><value>sende Boardet tilbage til kladde</value></data>
+  <data name="Board returned to draft. The approval stays in its history." xml:space="preserve"><value>Boardet er sendt tilbage til kladde. Godkendelsen bevares i historikken.</value></data>
+  <data name="Publish the board?" xml:space="preserve"><value>Offentliggør Boardet?</value></data>
+  <data name="Players will see the approved {0} × {1} board for {2}." xml:space="preserve"><value>Spillerne vil se det godkendte {0} × {1}-Board for {2}.</value></data>
+  <data name="Publishing doesn’t start the event; it starts at its scheduled time or from Overview." xml:space="preserve"><value>Offentliggørelse starter ikke eventet; det starter på det planlagte tidspunkt eller fra Overblik.</value></data>
+  <data name="After publishing, changes need a correction with a reason." xml:space="preserve"><value>Efter offentliggørelse kræver ændringer en rettelse med en begrundelse.</value></data>
+  <data name="publish the board" xml:space="preserve"><value>offentliggøre Boardet</value></data>
+  <data name="Board published. Players can see it; the event starts separately." xml:space="preserve"><value>Boardet er offentliggjort. Spillerne kan se det; eventet starter separat.</value></data>
+  <data name="The board can’t be published yet." xml:space="preserve"><value>Boardet kan ikke offentliggøres endnu.</value></data>
+  <data name="Correct the published board?" xml:space="preserve"><value>Ret det offentliggjorte Board?</value></data>
+  <data name="This is for exceptional fixes. You edit a private copy; players keep the current board until you publish the correction." xml:space="preserve"><value>Dette er til ekstraordinære rettelser. Du redigerer en privat kopi; spillerne beholder det nuværende Board, indtil du offentliggør rettelsen.</value></data>
+  <data name="Objectives with submitted evidence keep their requirements and scoring; wording can change." xml:space="preserve"><value>Mål med indsendt bevis beholder deres krav og point; formuleringen kan ændres.</value></data>
+  <data name="Results, evidence and the published history stay as they are." xml:space="preserve"><value>Resultater, beviser og den offentliggjorte historik forbliver uændrede.</value></data>
+  <data name="Start correction" xml:space="preserve"><value>Start rettelse</value></data>
+  <data name="start a correction" xml:space="preserve"><value>starte en rettelse</value></data>
+  <data name="Private correction started. Players still see the published board." xml:space="preserve"><value>Privat rettelse startet. Spillerne ser stadig det offentliggjorte Board.</value></data>
+  <data name="No tiles differ from the published board." xml:space="preserve"><value>Ingen tiles adskiller sig fra det offentliggjorte Board.</value></data>
+  <data name="1 tile differs from the published board" xml:space="preserve"><value>1 tile adskiller sig fra det offentliggjorte Board</value></data>
+  <data name="{0} tiles differ from the published board" xml:space="preserve"><value>{0} tiles adskiller sig fra det offentliggjorte Board</value></data>
+  <data name="1 of them removed." xml:space="preserve"><value>1 af dem er fjernet.</value></data>
+  <data name="{0} of them removed." xml:space="preserve"><value>{0} af dem er fjernet.</value></data>
+  <data name="Publish the correction?" xml:space="preserve"><value>Offentliggør rettelsen?</value></data>
+  <data name="The corrected board is validated and replaces it for players." xml:space="preserve"><value>Det rettede Board valideres og erstatter det for spillerne.</value></data>
+  <data name="The earlier version stays in history; evidence and results aren’t rescored." xml:space="preserve"><value>Den tidligere version bevares i historikken; beviser og resultater pointberegnes ikke igen.</value></data>
+  <data name="Publish correction" xml:space="preserve"><value>Offentliggør rettelse</value></data>
+  <data name="publish the correction" xml:space="preserve"><value>offentliggøre rettelsen</value></data>
+  <data name="Corrected board published. The earlier version stays in history." xml:space="preserve"><value>Det rettede Board er offentliggjort. Den tidligere version bevares i historikken.</value></data>
+  <data name="Discard the correction?" xml:space="preserve"><value>Kassér rettelsen?</value></data>
+  <data name="All unpublished edits in this correction will be lost, and the working board returns to the published version." xml:space="preserve"><value>Alle ikke-offentliggjorte ændringer i denne rettelse går tabt, og arbejds-Boardet vender tilbage til den offentliggjorte version.</value></data>
+  <data name="Published results and submitted evidence stay as they are." xml:space="preserve"><value>Offentliggjorte resultater og indsendte beviser forbliver uændrede.</value></data>
+  <data name="Discard correction" xml:space="preserve"><value>Kassér rettelse</value></data>
+  <data name="discard the correction" xml:space="preserve"><value>kassere rettelsen</value></data>
+  <data name="Correction discarded. The working board matches the published one again." xml:space="preserve"><value>Rettelsen er kasseret. Arbejds-Boardet svarer igen til det offentliggjorte.</value></data>
+  <data name="Approving…" xml:space="preserve"><value>Godkender…</value></data>
+  <data name="Start editing to approve" xml:space="preserve"><value>Begynd at redigere for at godkende</value></data>
+  <data name="Publish board…" xml:space="preserve"><value>Offentliggør Board…</value></data>
+  <data name="Publish correction…" xml:space="preserve"><value>Offentliggør rettelse…</value></data>
+  <data name="Start editing to publish" xml:space="preserve"><value>Begynd at redigere for at offentliggøre</value></data>
+  <data name="Return to draft" xml:space="preserve"><value>Tilbage til kladde</value></data>
+  <data name="Correct published board…" xml:space="preserve"><value>Ret offentliggjort Board…</value></data>
+  <data name="Not available in this event state" xml:space="preserve"><value>Ikke tilgængelig i eventets nuværende tilstand</value></data>
+  <data name="Discard correction…" xml:space="preserve"><value>Kassér rettelse…</value></data>
   <data name="Confirm that you want to permanently discard this empty event setup." xml:space="preserve"><value>Bekræft, at du vil slette denne tomme eventopsætning permanent.</value></data>
   <data name="This event changed while it was being discarded. Review it and try again." xml:space="preserve"><value>Eventet blev ændret, mens det blev slettet. Gennemgå det, og prøv igen.</value></data>
   <data name="The event changed while discard was being checked. Nothing was discarded; review its history and try again." xml:space="preserve"><value>Eventet blev ændret, mens sletningen blev kontrolleret. Intet blev slettet; gennemgå eventets historik, og prøv igen.</value></data>

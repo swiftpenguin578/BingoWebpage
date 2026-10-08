@@ -1,6 +1,18 @@
 // Add a page here once. The conformance gate uses the real Razor fixture,
 // loading template, family stylesheet, and these page-specific interaction probes.
 module.exports = [
+  // U7: Board (Board.dc.html). One shared POST path (ctx.command) serves every Board command.
+  // U7-E1 (c): plus one background POST, the edit-lease renewal (no busy state).
+  { family: 'board', postSaveCount: 1, backgroundPostCount: 1, url: f => '/Admin/Events/Board/' + f.events['autumn-bingo-2027'], fixture: 'autumn-bingo-2027',
+    source: 'Pages/Admin/Events/Board.cshtml', module: 'admin-board.js',
+    textRows: { 'bd-sk-line': ['control',1.45] }, reference: 'Board.dc.html', first: '.card', blocks: { first: '.card' },
+    style: ['.bd-work','display','grid'], titleDa: 'Board',
+    // U7-E2 (a), page-specific exemption: at 390 px the loaded header actions (editing
+    // chip, Preview, Approve, More) wrap to a second row, so the header grows 42 px
+    // beyond the summary change. The reference hides its actions while loading too.
+    // Only this width; every other width keeps the generic "only summary growth" check.
+    headerGrowth: { 390: 42 },
+    update: { control: '#plan-more', action: 'click', selected: '#plan-more[aria-expanded="true"]' } },
   // U4: Overview (Manage route). The h1 is the event's name, so the Danish title is the name too.
   { family: 'overview', postSaveCount: 1, url: f => '/Admin/Events/Manage/' + f.events['autumn-bingo-2027'], fixture: 'autumn-bingo-2027',
     source: 'Pages/Admin/Events/Manage.cshtml', module: 'admin-overview.js',
