@@ -690,10 +690,11 @@ public sealed class C33FinalizationFreshnessTests : IAsyncLifetime
         await LoginAsync(client, "c33-admin");
         var html = WebUtility.HtmlDecode(await client.GetStringAsync($"/Admin/Review/Details/{fixture.Replacement}"));
 
-        Assert.Contains("Paused final-review interval", html, StringComparison.Ordinal);
-        Assert.Contains("Verify the screenshot's in-game time against them before deciding.", html, StringComparison.Ordinal);
-        Assert.Contains("2026-09-14 09:30 UTC", html, StringComparison.Ordinal);
-        Assert.Contains("2026-09-14 10:30 UTC", html, StringComparison.Ordinal);
+        // U8 (A10; BR-3/RC07 wording, U8-Q1 UTC first): the paused-period check judges the screenshot's game time.
+        Assert.Contains("Check the in-game time: the event was paused.", html, StringComparison.Ordinal);
+        Assert.Contains("A drop inside that period doesn’t count; an earlier drop uploaded then still can.", html, StringComparison.Ordinal);
+        Assert.Contains("14 Sep 2026, 09:30 UTC", html, StringComparison.Ordinal);
+        Assert.Contains("14 Sep 2026, 10:30 UTC", html, StringComparison.Ordinal);
         Assert.DoesNotContain("Ineligible final-review interval", html, StringComparison.Ordinal);
         Assert.DoesNotContain("Treat it as outside the authoritative live eligibility intervals.", html, StringComparison.Ordinal);
     }

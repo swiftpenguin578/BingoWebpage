@@ -1,323 +1,52 @@
 @page "{id:guid}"
 @model Bingo.Web.Pages.Admin.Review.DetailsModel
 @using Bingo.Domain.Evidence
-@using Bingo.Web.UI
+@using Bingo.Web.Pages.Admin.Review
+@inject Bingo.Web.Navigation.SharedShellService Shell
 @{
-    ViewData["Title"] = T["Review {0}", Model.Details.Tile];
-    ViewData["CompactNavigation"] = true;
-    var reviewable = Model.ReviewOpen && Model.Details.Status == SubmissionStatus.Pending;
-    var reversible = Model.ReviewOpen && Model.Details.Status == SubmissionStatus.Approved;
-    var statusModifier = Model.Details.Status switch
-    {
-        SubmissionStatus.Pending => "is-yellow",
-        SubmissionStatus.Approved => "is-green",
-        SubmissionStatus.Rejected or SubmissionStatus.Reversed => "is-danger",
-        _ => "is-muted"
-    };
-    var currentAsset = Model.Assets.FirstOrDefault(x => x.Active);
-    var queueStatus = Model.Status?.ToString();
+    ViewData["Title"] = "Review";
+    ViewData["PageFamily"] = "review";
+    ViewData["LocalizedTitle"] = Model.Missing ? T["Submission not found"].Value : Model.Details.Tile;
+    // A2: the event comes from the submission; a wrong eventId in the link is corrected in the shell.
+    if (!Model.Missing) ViewData["AdminDesignShell"] = await Shell.GetAdminDesignAsync(User, ViewContext.RouteData.Values, HttpContext.RequestAborted, Model.Details.EventId.ToString());
 }
-
-<section class="admin-review-page admin-review-detail-page" data-admin-review-detail>
-    <div class="admin-review-detail-context">
-        <a class="admin-button-secondary admin-review-back-link" asp-page="Index" asp-route-eventId="@Model.Details.EventId" asp-route-search="@Model.Search" asp-route-status="@queueStatus">← @T["Back to"] @T["Review"]</a>
-    </div>
-
-    <div class="admin-review-detail-workspace">
-        <section class="admin-review-surface admin-review-evidence-surface" aria-labelledby="evidence-title">
-            <h2 id="evidence-title" class="visually-hidden">@T["Submitted evidence"]</h2>
-            @if (currentAsset is not null)
-            {
-                <div class="admin-review-evidence-header"><span class="admin-review-asset-state">@T["Active asset"]</span><span>@currentAsset.Filename</span></div>
-                <button type="button" class="admin-review-evidence-trigger" data-evidence-image="/Evidence/@currentAsset.Id" data-evidence-alt='@T["Evidence screenshot enlarged"]' aria-haspopup="dialog" aria-controls="evidence-lightbox">
-                    <img src="/Evidence/@currentAsset.Id" alt='@T["Evidence screenshot"]' />
-                    <span>@T["Open evidence viewer"]</span>
-                </button>
-                <div class="admin-review-asset-meta">
-                    <span>@currentAsset.Width×@currentAsset.Height · @(currentAsset.Bytes / 1024) KB</span>
-                    <a href="/Evidence/@currentAsset.Id" target="_blank" rel="noopener">@T["Open original asset"]</a>
-                </div>
-                <dialog id="evidence-lightbox" class="admin-review-lightbox" data-evidence-dialog data-evidence-empty="@T["Evidence"]" data-enlarged-evidence='@T["Evidence screenshot enlarged"]' aria-labelledby="evidence-lightbox-title">
-                    <div class="admin-review-lightbox-heading">
-                        <strong id="evidence-lightbox-title">@T["Evidence screenshot"]</strong>
-                        <button type="button" class="admin-review-lightbox-close" data-evidence-close aria-label='@T["Close evidence viewer"]'>×</button>
-                    </div>
-                    <div class="admin-review-lightbox__viewport" data-evidence-viewport><img data-evidence-dialog-image alt="" tabindex="0" /></div>
-                </dialog>
-            }
-            else
-            {
-                <div class="admin-review-no-asset" role="status">
-                    <strong>@T["No active evidence asset"]</strong>
-                    <p>@T["The submission has no asset available for inspection."]</p>
-                </div>
-            }
-        </section>
-
-        <div class="admin-review-detail-side">
-            <section class="admin-review-surface admin-review-facts" aria-labelledby="review-detail-title">
-                <div class="admin-review-detail-title">
-                    <h1 id="review-detail-title">@Model.Details.Tile</h1>
-                    <span class="admin-status-pill @statusModifier">@T[Model.Details.Status.ToString()]</span>
-                </div>
-                <dl class="admin-review-metadata-grid">
-                    <div><dt>@T["Credited player"]</dt><dd>@Model.Details.Player</dd></div>
-                    <div class="admin-review-fact-secondary"><dt>@T["Team"]</dt><dd>@Model.Details.Team</dd></div>
-                    <div><dt>@T["Tile"]</dt><dd>@Model.Details.Tile</dd></div>
-                    <div><dt>@T["Requirement"]</dt><dd>@Model.Details.Requirement</dd></div>
-                    <div><dt>@T["Drop"]</dt><dd>@(Model.Details.Drop is null ? T["Manual objective"] : $"{Model.Details.Boss} — {Model.Details.Drop}")</dd></div>
-                    <div><dt>@T["Submitted"]</dt><dd>@DateTimePresentation.Format(Model.Details.SubmittedAt, "dd MMM yyyy, HH:mm", Model.EventTimezone, CultureInfo.CurrentCulture)<small>@Model.Details.SubmittedAt.UtcDateTime.ToString("yyyy-MM-dd HH:mm 'UTC'")</small></dd></div>
-                    <div><dt>@T["Expected code"]</dt><dd>@(Model.Details.ExpectedCode ?? T["Verification disabled"])</dd></div>
-                    <div><dt>@T["Captain note"]</dt><dd>@(Model.Details.CaptainNote ?? T["No Captain note"])</dd></div>
-                    @if (Model.Details.Note is not null)
-                    {
-                        <div><dt>@T["Reviewer note"]</dt><dd>@Model.Details.Note</dd></div>
-                    }
-                </dl>
-
-                @if (Model.ChecksumMatches.Count > 0)
-                {
-                    <aside class="admin-review-callout admin-review-warning" role="alert">
-                        <strong>@T["Possible duplicate screenshot"]</strong>
-                        <p>@T["This exact image checksum also appears on the following submissions:"]</p>
-                        <ul>
-                            @foreach (var match in Model.ChecksumMatches)
-                            {
-                                <li><a asp-page="Details" asp-route-id="@match.Id">@DateTimePresentation.Format(match.SubmittedAt, "dd MMM yyyy, HH:mm", Model.EventTimezone, CultureInfo.CurrentCulture) · @match.Tile · @T[match.Status.ToString()]</a></li>
-                            }
-                        </ul>
-                        <small>@T["This is a warning only; the review decision remains Approve or reasoned Reject."]</small>
-                    </aside>
-                }
-                @if (Model.ApprovalBlock is { } approvalBlock)
-                {
-                    <aside class="admin-review-callout admin-review-warning" role="alert">
-                        <strong>@T["Earlier upload must be resolved first"]</strong>
-                        <p>@T["Approve or reject the earlier upload before approving this one."] <span>@T["Uploaded"]: @DateTimePresentation.Format(approvalBlock.SubmittedAt, "dd MMM yyyy, HH:mm", Model.EventTimezone, CultureInfo.CurrentCulture)</span></p>
-                        <a asp-page="Details" asp-route-id="@approvalBlock.SubmissionId" asp-route-eventId="@Model.Details.EventId" asp-route-search="@Model.Search" asp-route-status="@queueStatus">@T["Open earlier review"]</a>
-                    </aside>
-                }
-                @if (Model.Details.MinutesAfterEventEnd is int minutes && Model.Details.EventEndsAt is DateTimeOffset eventEnd)
-                {
-                    <aside class="admin-review-callout admin-review-warning" role="note">
-                        <strong>@T["After event end"]</strong>
-                        <p>@T["Uploaded {0} minute(s) after event end. Latest event end: {1}.", minutes, eventEnd.UtcDateTime.ToString("yyyy-MM-dd HH:mm 'UTC'")] @T["Verify the screenshot time before deciding."]</p>
-                    </aside>
-                }
-                @if (Model.Details.EligibilityGaps is { Count: > 0 } gaps)
-                {
-                    <aside class="admin-review-callout admin-review-warning" role="note">
-                        <strong>@T["Paused final-review interval"]</strong>
-                        <p>@T["The event was paused during the following interval(s). Verify the screenshot's in-game time against them before deciding."]</p>
-                        <ul>
-                            @foreach (var gap in gaps)
-                            {
-                                <li>@gap.StartedAt.UtcDateTime.ToString("yyyy-MM-dd HH:mm 'UTC'") – @gap.ResumedAt.UtcDateTime.ToString("yyyy-MM-dd HH:mm 'UTC'")</li>
-                            }
-                        </ul>
-                    </aside>
-                }
-            </section>
-
-            <aside class="admin-review-surface admin-review-actions-surface" aria-labelledby="review-actions-title">
-                <div class="admin-review-actions-heading">
-                    <p class="admin-module-eyebrow">@T["Reviewer actions"]</p>
-                    <h2 id="review-actions-title">@T["Resolve submission"]</h2>
-                </div>
-                @if (reviewable)
-                {
-                    <div class="admin-review-actions-copy">
-                        <p>@T["Approve the evidence and apply its eligible remaining contribution."]</p>
-                    </div>
-                    <div class="admin-review-decision-actions">
-                        <form method="post" asp-page-handler="Approve" asp-route-eventId="@Model.Details.EventId" asp-route-search="@Model.Search" asp-route-status="@queueStatus" class="admin-review-action-form">
-                            <input asp-for="Input.ExpectedVersion" type="hidden" />
-                            <input asp-for="Search" type="hidden" />
-                            <input asp-for="Status" type="hidden" />
-                            <button class="admin-button-primary action-success-outline" type="submit">@T["Approve evidence"]</button>
-                        </form>
-                        <button class="admin-button-secondary action-danger-outline" type="button" data-admin-review-confirm data-admin-review-form="#admin-review-reject-form" data-admin-review-title="@T["Reject evidence"]" data-admin-review-description="@T["Reject this evidence and notify the submission owners. The decision and reason will be recorded in the audit history."]" data-admin-review-action="@T["Reject evidence"]">@T["Reject evidence"]</button>
-                    </div>
-                    <form id="admin-review-reject-form" method="post" asp-page-handler="Reject" asp-route-eventId="@Model.Details.EventId" asp-route-search="@Model.Search" asp-route-status="@queueStatus" class="admin-review-reject-form">
-                        <input asp-for="Input.ExpectedVersion" type="hidden" />
-                        <input name="Input.Reason" type="hidden" value="" data-admin-review-reason />
-                        <input type="hidden" name="confirmed" value="true" />
-                        <input asp-for="Search" type="hidden" />
-                        <input asp-for="Status" type="hidden" />
-                    </form>
-                }
-                @if (reversible)
-                {
-                    <form id="admin-review-reverse-form" method="post" asp-page-handler="Reverse" asp-route-eventId="@Model.Details.EventId" asp-route-search="@Model.Search" asp-route-status="@queueStatus" class="admin-review-action-form">
-                        <input asp-for="Input.ExpectedVersion" type="hidden" />
-                        <input name="Input.Reason" type="hidden" value="" data-admin-review-reason />
-                        <input type="hidden" name="confirmed" value="true" />
-                        <input asp-for="Search" type="hidden" />
-                        <input asp-for="Status" type="hidden" />
-                        <button class="admin-button-secondary action-danger-outline" type="button" data-admin-review-confirm data-admin-review-form="#admin-review-reverse-form" data-admin-review-title="@T["Reverse approval"]" data-admin-review-description="@T["Reverse this approval, remove its contribution, and recalculate later progress and rankings. The decision and reason will be recorded in the audit history."]" data-admin-review-action="@T["Reverse approval"]">@T["Reverse approval"]</button>
-                    </form>
-                }
-                @if (!reviewable && !reversible)
-                {
-                    <p class="admin-review-empty-note">@T["No review action is available for this submission state."]</p>
-                }
-            </aside>
+@section HeaderTitle {
+@if (!Model.Missing)
+{
+    var d = Model.Details;
+    var badge = d.Status switch { SubmissionStatus.Pending => "badge-warning", SubmissionStatus.Approved => "badge-success", SubmissionStatus.Withdrawn => "badge-neutral", _ => "badge-danger" };
+    <div class="subhead rv-subhead">
+        <a class="btn btn-sm btn-quiet subhead-back" id="back-btn" href="@Model.QueueUrl" data-shell-link data-review-back><partial name="_AdminDesignIcon" model='new AdminDesignIcon("chevron-left")' />@T["Review"]</a>
+        <div class="subhead-title">
+            <h1 class="h1" id="page-h1" tabindex="-1">@d.Tile</h1>
+            <span class="badge @badge" id="ws-status">@T[ReviewStatusText.Key(d.Status)]</span>
         </div>
     </div>
-
-    @if (reviewable)
-    {
-        <details class="admin-review-surface admin-review-correction">
-            <summary><span><strong>@T["Correct metadata before approval"]</strong><small>@T["Change only the authoritative selectors and record a written reason."]</small></span><span aria-hidden="true">⌄</span></summary>
-            <form method="post" asp-page-handler="Edit" asp-route-eventId="@Model.Details.EventId" asp-route-search="@Model.Search" asp-route-status="@queueStatus" class="admin-review-correction-form">
-                <input asp-for="Input.ExpectedVersion" type="hidden" />
-                <input asp-for="Search" type="hidden" />
-                <input asp-for="Status" type="hidden" />
-                <div asp-validation-summary="ModelOnly" class="validation-summary" role="alert"></div>
-                <div class="admin-review-form-grid">
-                    <div class="admin-review-form-field">
-                        <label asp-for="Input.RequirementId">@T["Tile and requirement"]</label>
-                        <select asp-for="Input.RequirementId" data-correction-requirement onchange="syncCorrectionDropSelector(this)">
-                            @foreach (var group in Model.Requirements.GroupBy(x => x.Tile))
-                            {
-                                <optgroup label="@group.Key">
-                                    @foreach (var requirement in group)
-                                    {
-                                        <option value="@requirement.Id" data-tile="@requirement.TileId">@requirement.Description</option>
-                                    }
-                                </optgroup>
-                            }
-                        </select>
-                    </div>
-                    <input asp-for="Input.BoardTileId" data-correction-tile type="hidden" />
-                    <div class="admin-review-form-field">
-                        <label asp-for="Input.DropSnapshotId">@T["Drop"]</label>
-                        <select asp-for="Input.DropSnapshotId" data-correction-drop>
-                            <option value="">@T["Manual / none"]</option>
-                            @foreach (var group in Model.Drops.Where(x => x.RequirementId == Model.Input.RequirementId).GroupBy(x => x.Boss))
-                            {
-                                <optgroup label="@group.Key">
-                                    @foreach (var drop in group)
-                                    {
-                                        <option value="@drop.Id" data-requirement-id="@drop.RequirementId">@drop.Item (@drop.Weight)</option>
-                                    }
-                                </optgroup>
-                            }
-                        </select>
-                        <select data-correction-drop-catalogue hidden aria-hidden="true" tabindex="-1">
-                            <option value="">@T["Manual / none"]</option>
-                            @foreach (var group in Model.Drops.GroupBy(x => x.Boss))
-                            {
-                                <optgroup label="@group.Key">
-                                    @foreach (var drop in group)
-                                    {
-                                        <option value="@drop.Id" data-requirement-id="@drop.RequirementId">@drop.Item (@drop.Weight)</option>
-                                    }
-                                </optgroup>
-                            }
-                        </select>
-                    </div>
-                    <div class="admin-review-form-field">
-                        <label asp-for="Input.CreditedOsrsCharacterId">@T["Credited playing character"]</label>
-                        <select asp-for="Input.CreditedOsrsCharacterId" required>
-                            @foreach (var character in Model.Characters)
-                            {
-                                <option value="@character.Id">@character.Label</option>
-                            }
-                        </select>
-                    </div>
-                </div>
-                <p class="admin-review-form-note">@T["Submission time, weight, contribution, and active evidence asset remain unchanged. The participant is derived from the selected event character."]</p>
-                <div class="admin-review-form-field">
-                    <label asp-for="Input.Reason">@T["Written correction reason"]</label>
-                    <textarea asp-for="Input.Reason" required aria-describedby="metadata-correction-reason-hint"></textarea>
-                    <span id="metadata-correction-reason-hint" class="admin-review-form-hint">@T["Required for the audit record."]</span>
-                    <span asp-validation-for="Input.Reason" class="field-error"></span>
-                </div>
-                <button class="admin-button-secondary" type="submit">@T["Save metadata correction"]</button>
-            </form>
-        </details>
-    }
-
-    <div class="admin-review-secondary-grid">
-        <details class="admin-review-surface admin-review-operational-section">
-            <summary><strong>@T["Prior approved evidence"]</strong><small>@T["Approved records for this team and requirement."]</small></summary>
-            @if (Model.PriorApproved.Count == 0)
-            {
-                <p class="admin-review-empty-note">@T["No prior approved evidence for this requirement."]</p>
-            }
-            else
-            {
-                <ul class="admin-review-operational-list">
-                    @foreach (var item in Model.PriorApproved)
-                    {
-                        <li><a asp-page="Details" asp-route-id="@item.Id">@DateTimePresentation.Format(item.SubmittedAt, "dd MMM yyyy, HH:mm", Model.EventTimezone, CultureInfo.CurrentCulture) · @item.Player</a><span>@item.Amount @T["Contribution"]</span></li>
-                    }
-                </ul>
-            }
-        </details>
-        <details class="admin-review-surface admin-review-operational-section">
-            <summary><strong>@T["Evidence versions"]</strong><small>@T["Immutable asset history and checksums."]</small></summary>
-            @if (Model.Assets.Count == 0)
-            {
-                <p class="admin-review-empty-note">@T["No evidence assets are attached."]</p>
-            }
-            else
-            {
-                <ul class="admin-review-operational-list">
-                    @foreach (var item in Model.Assets)
-                    {
-                        var checksum = item.Checksum[..Math.Min(12, item.Checksum.Length)];
-                        <li><a href="/Evidence/@item.Id" target="_blank" rel="noopener">@DateTimePresentation.Format(item.UploadedAt, "dd MMM yyyy, HH:mm", Model.EventTimezone, CultureInfo.CurrentCulture) · @item.Role</a><span>@(item.Active ? T["current"] : T["Historical"]) · @checksum</span></li>
-                    }
-                </ul>
-            }
-        </details>
-        <details class="admin-review-surface admin-review-operational-section">
-            <summary><strong>@T["Immutable review history"]</strong><small>@T["Every review decision and reason remains recorded."]</small></summary>
-            @if (!Model.AuditHistory.Any())
-            {
-                <p class="admin-review-empty-note">@T["No review actions have been recorded."]</p>
-            }
-            else
-            {
-                <ul class="admin-review-operational-list admin-review-history-list">
-                    @foreach (var item in Model.AuditHistory)
-                    {
-                        <li><span>@DateTimePresentation.Format(item.OccurredAt, "dd MMM yyyy, HH:mm", Model.EventTimezone, CultureInfo.CurrentCulture)</span><partial name="/Pages/Shared/_AuditEntry.cshtml" model="item" /></li>
-                    }
-                </ul>
-            }
-        </details>
-    </div>
-</section>
-
-@section Scripts {
-    <script src="~/js/public-evidence.js" asp-append-version="true"></script>
-    <script>
-        (() => {
-            const root = document.querySelector("[data-admin-review-detail]");
-            if (!root || !window.adminConfirmation) return;
-            root.querySelectorAll("[data-admin-review-confirm]").forEach(button => {
-                button.addEventListener("click", async () => {
-                    const form = document.querySelector(button.dataset.adminReviewForm || "");
-                    const reason = form?.querySelector("[data-admin-review-reason]");
-                    if (!form || !reason) return;
-                    await window.adminConfirmation.open({
-                        title: button.dataset.adminReviewTitle,
-                        description: button.dataset.adminReviewDescription,
-                        actionLabel: button.dataset.adminReviewAction,
-                        danger: true,
-                        requireReason: true,
-                        opener: button,
-                        onConfirm: ({ reason: value }) => {
-                            reason.value = value;
-                            form.requestSubmit();
-                            return true;
-                        }
-                    });
-                });
-            });
-        })();
-    </script>
 }
+else
+{
+    <h1 class="h1" id="page-h1" tabindex="-1">@T["Submission not found"]</h1>
+}
+}
+@section HeaderActions {
+    @if (Model.Neighbours is { Count: > 1 } pager)
+    {
+        <nav class="subhead-pager" aria-label="@T["Submission {0} of {1} in the queue list", pager.Position, pager.Count]">
+            @if (pager.PreviousId is { } previous) { <a class="btn btn-sm" id="prev-sub" href="@Model.DetailsUrl(previous)" data-shell-link aria-label="@T["Previous submission"]"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("chevron-left")' /><span class="rv-hide-sm">@T["Previous"]</span></a> }
+            else { <button class="btn btn-sm" id="prev-sub" type="button" disabled aria-label="@T["Previous submission"]"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("chevron-left")' /><span class="rv-hide-sm">@T["Previous"]</span></button> }
+            <span class="pager-pos">@T["{0} of {1}", pager.Position, pager.Count]</span>
+            @if (pager.NextId is { } next) { <a class="btn btn-sm" id="next-sub" href="@Model.DetailsUrl(next)" data-shell-link aria-label="@T["Next submission"]"><span class="rv-hide-sm">@T["Next"]</span><partial name="_AdminDesignIcon" model='new AdminDesignIcon("chevron-right")' /></a> }
+            else { <button class="btn btn-sm" id="next-sub" type="button" disabled aria-label="@T["Next submission"]"><span class="rv-hide-sm">@T["Next"]</span><partial name="_AdminDesignIcon" model='new AdminDesignIcon("chevron-right")' /></button> }
+        </nav>
+    }
+}
+@if (Model.Missing)
+{
+    <div class="card"><div class="empty"><div class="empty-ic"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("error")' /></div><div class="empty-title">@T["This submission isn’t available"]</div><div class="empty-text">@T["The link may be incomplete, or the event is hidden."]</div>@if (Guid.TryParse(HttpContext.Request.Query["eventId"], out var queueEvent)) { <a class="btn" href="@ReviewList.QueueUrl(queueEvent, Model.Search, Model.Status)" data-shell-link>@T["Go to the queue"]</a> } else { <a class="btn" href="/Admin/Events" data-shell-link>@T["AdminDesign.Events"]</a> }</div></div>
+}
+else
+{
+    <partial name="_ReviewWorkspace" model="Model" />
+}
+@section Styles { <link rel="stylesheet" href="~/css/admin-design-review.css" asp-append-version="true" data-admin-page-style /> }
+@section Scripts { <script type="module" src="~/js/admin-review.js" asp-append-version="true" data-admin-page-script></script> }

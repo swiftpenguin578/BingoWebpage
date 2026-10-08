@@ -116,7 +116,7 @@ function initWorkspace(region, root, ui) {
   const correction = root.querySelector('[data-review-form="correct"]');
   const format = (template, ...values) => values.reduce((text, value, index) => text.replaceAll(`{${index}}`, value), template || '');
   let mode = 'idle', pending = false, unsure = null, layer = null;
-  const reasonOf = name => (name === 'reverse' ? layer?.element : root).querySelector(`[data-review-form="${name}"] [data-review-reason]`);
+  const reasonOf = name => (name === 'reverse' ? layer?.element : root)?.querySelector(`[data-review-form="${name}"] [data-review-reason]`);
 
   const viewerRelease = initViewer(root.querySelector('[data-review-viewer]'), signal);
 
@@ -138,7 +138,7 @@ function initWorkspace(region, root, ui) {
     copy.replaceChildren();
     const strong = document.createElement('b'); strong.textContent = title;
     copy.append(strong, text ? ' ' + text : '');
-    if (extra) copy.append(extra);
+    if (extra?.tagName === 'BUTTON') (copy.closest('.banner') || node).append(extra); else if (extra) copy.append(extra);
     node.tabIndex = -1; node.setAttribute('role', 'alert');
     host.replaceChildren(node);
     return node;
@@ -312,7 +312,7 @@ function initWorkspace(region, root, ui) {
     const kind = kindOf(form);
     const body = new FormData(form);
     if (!body.get('__RequestVerificationToken')) { const token = document.querySelector('[data-shell-antiforgery] input[name="__RequestVerificationToken"]')?.value; if (token) body.set('__RequestVerificationToken', token); }
-    const before = { version: data.version, status: data.status };
+    const before = { version: Number(data.version), status: Number(data.statusCode) };
     pending = true; ui.refreshDirty?.(); clearBanners(); setBusy(form, true);
     let outcome;
     try { outcome = await ui.busy(() => window.AdminFetch.request(form.action, { method: 'POST', body, draft: draftValues() })); }
@@ -359,27 +359,30 @@ function initWorkspace(region, root, ui) {
     const state = outcome.kind === 'handler' ? outcome.data?.state : null;
     if (!state) {
       if (button) { button.disabled = false; button.textContent = data.textCheck; }
-      const text = notice.querySelector('.grow'); if (text && outcome.kind !== 'session-lost') { const strong = text.querySelector('b'); text.replaceChildren(strong, ' ' + data.textStillUnsure, button); }
+      const text = notice.querySelector('.grow'); if (text && outcome.kind !== 'session-lost') { const strong = text.querySelector('b'); text.replaceChildren(strong, ' ' + data.textStillUnsure); }
       return;
     }
     const { before } = unsure;
     unsure = null; ui.refreshDirty?.();
-    if (String(state.version) === String(before.version) && state.status === before.status) {
+    // Readback is the current state only: an unchanged version proves nothing was written since the page loaded.
+    if (Number(state.version) === before.version && Number(state.status) === before.status) {
       banner(notice, 'info', data.textNotSaved, data.textNotSavedSub).focus();
       return;
     }
-    refresh({ now: state.status });
+    refresh({ now: JSON.parse(data.statusLabels || '{}')[state.status] || '' });
   }
 
   /* in-place refresh: the current record replaces the page; the outcome is shown on the fresh page */
   function refresh(next) {
-    carry = { id, ...next };
+    carry = { id, nextUrl: data.nextUrl || '', ...next };
     void ui.navigate(location.href, { mode: 'replace', check: false });
   }
+  // The shell focuses the page title after an in-place refresh; the outcome takes focus right after.
+  const focusLater = element => { if (element) setTimeout(() => { if (element.isConnected) element.focus(); }, 0); };
   function applyCarry() {
     if (!carry || carry.id !== id) { carry = null; return; }
     const state = carry; carry = null;
-    if (state.saved === 'correct') { ui.toast(data.textCorrected); panel.querySelector('#dec-correct')?.focus(); return; }
+    if (state.saved === 'correct') { ui.toast(data.textCorrected); focusLater(panel.querySelector('#dec-correct')); return; }
     if (state.saved) {
       const result = decide.querySelector('[data-review-result]');
       const title = { approve: data.textApproved, reject: data.textRejected, reverse: data.textReversed }[state.saved];
@@ -387,19 +390,26 @@ function initWorkspace(region, root, ui) {
       result.querySelector('[data-review-result-title]').textContent = title;
       result.querySelector('[data-review-result-sub]').textContent = sub;
       result.querySelector('[data-review-result-box]').classList.toggle('is-success', state.saved === 'approve');
+      // Next follows the list as it was when the submission was opened (R-R16), even if this one left it.
+      if (!result.querySelector('#dec-next') && state.nextUrl) {
+        const next = document.createElement('a');
+        next.className = 'btn btn-primary'; next.id = 'dec-next'; next.href = state.nextUrl; next.dataset.shellLink = '';
+        next.textContent = data.textNextSubmission;
+        result.querySelector('.decide-acts').prepend(next);
+      }
       result.hidden = false; panel.hidden = true;
-      result.querySelector('#dec-result').focus();
+      focusLater(result.querySelector('#dec-result'));
       return;
     }
     if (state.stale) {
-      banner(notice, 'warning', state.stale.by ? format(data.textStaleBy, '@' + state.stale.by) : data.textStale, data.textStaleSub).focus();
+      focusLater(banner(notice, 'warning', state.stale.by ? format(data.textStaleBy, '@' + state.stale.by) : data.textStale, data.textStaleSub));
       if (state.keep && panel.querySelector(`[data-review-mode="${state.keep.mode}"]`)) {
         setMode(state.keep.mode, { focus: false });
         const field = reasonOf(state.keep.mode); if (field) { field.value = state.keep.reason; paintReason(field); }
       }
       return;
     }
-    if (state.now) banner(notice, 'info', format(data.textNow, state.now), data.textNowSub).focus();
+    if (state.now) focusLater(banner(notice, 'info', format(data.textNow, state.now), data.textNowSub));
   }
 
   setMode('idle', { focus: false });

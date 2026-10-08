@@ -33,4 +33,26 @@ public sealed class ReviewLocalizationTests
                 }
         Assert.True(missing.Count == 0, "Missing Danish entries:\n" + string.Join('\n', missing.Distinct().Order()));
     }
+
+    // The workspace partial and the Review load states are outside the page scan of AdminDesignLocalizationTests.
+    [Fact]
+    public void EveryReviewViewLiteralHasADanishEntry()
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "Bingo.slnx"))) directory = directory.Parent;
+        var web = Path.Combine(Assert.IsType<DirectoryInfo>(directory).FullName, "src", "Bingo.Web");
+        var entries = XDocument.Load(Path.Combine(web, "Resources", "SharedResource.da.resx"))
+            .Descendants("data").ToDictionary(item => item.Attribute("name")!.Value, item => item.Element("value")?.Value);
+        var files = Directory.GetFiles(Path.Combine(web, "Pages", "Admin", "Review"), "*.cshtml").Append(Path.Combine(web, "Pages", "Shared", "_AdminReviewLoadStates.cshtml"));
+        var missing = new List<string>();
+        foreach (var file in files)
+        {
+            var source = File.ReadAllText(file);
+            var keys = Regex.Matches(source, "\\bT\\[\\s*\"(?<key>(?:\\\\.|[^\"\\\\])*)\"").Select(match => match.Groups["key"].Value)
+                .Concat(Regex.Matches(source, "\\bT\\[[^\\]\\[]*?\\?\\s*\"(?<a>[^\"]+)\"\\s*:\\s*\"(?<b>[^\"]+)\"").SelectMany(match => new[] { match.Groups["a"].Value, match.Groups["b"].Value }));
+            foreach (var key in keys)
+                if (!entries.TryGetValue(key, out var value) || string.IsNullOrWhiteSpace(value)) missing.Add($"{Path.GetFileName(file)}: {key}");
+        }
+        Assert.True(missing.Count == 0, "Missing Danish entries:\n" + string.Join('\n', missing.Distinct().Order()));
+    }
 }

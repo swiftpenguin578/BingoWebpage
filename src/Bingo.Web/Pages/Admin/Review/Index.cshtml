@@ -66,7 +66,7 @@ else
     <div class="card" data-review-results>
         @if (Model.AllRows.Count == 0)
         {
-            <div class="empty"><div class="empty-ic"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("image")' /></div><div class="empty-title">@T["No submissions yet"]</div><div class="empty-text">@(Model.ReviewOpen ? T["Evidence appears here as teams submit it."] : T["Teams can submit evidence once {0} is Live.", ev.Name])</div></div>
+            <div class="empty"><div class="empty-ic"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("image")' /></div><div class="empty-title">@T["No submissions yet"]</div><div class="empty-text">@(Model.ReviewOpen ? T["Evidence appears here as teams submit it."] : ev.State is EventState.Finalized or EventState.Archived or EventState.Cancelled ? T["No evidence was submitted in {0}.", ev.Name] : T["Teams can submit evidence once {0} is Live.", ev.Name])</div></div>
         }
         else if (Model.Rows.Count == 0)
         {
