@@ -95,20 +95,14 @@ public sealed class EventCreationUiTests
         foreach (var handler in new[] { createHandler, identityHandler, manageHandler })
             Assert.Contains("[Authorize(Policy = AuthorizationPolicies.Admin)]", handler);
 
+        // A10 (U10 part 2, user ruling 8 October 2026): the old Create page is retired. The file is a route stub;
+        // GET and a refused non-dialog POST return to the Events directory with the Create dialog open.
         Assert.Contains("@page", creation);
-        Assert.Contains("<form method=\"post\" class=\"event-create-form\">", creation);
-        Assert.Contains("asp-validation-summary=\"ModelOnly\"", creation);
-        Assert.DoesNotContain("event-create-steps", creation);
-        Assert.DoesNotContain("data-create-panel", creation);
-        Assert.DoesNotContain("enctype=\"multipart/form-data\"", creation);
-        Assert.Contains("asp-validation-for=\"Input.Name\"", creation);
-        Assert.Contains("asp-for=\"Input.Timezone\"", creation);
-        Assert.Contains("Europe/Copenhagen", creation);
-        Assert.Contains("empty 5 × 5 board", creation);
-        Assert.DoesNotContain("Input.Slug", creation);
-        Assert.DoesNotContain("Input.Description", creation);
-        Assert.DoesNotContain("Input.Banner", creation);
-        Assert.DoesNotContain("SignupOpensLocal", creation);
+        Assert.DoesNotContain("<form", creation);
+        Assert.DoesNotContain("_ValidationScriptsPartial", creation);
+        Assert.Contains("public IActionResult OnGet() => RedirectToPage(\"Index\", new { create = 1 });", createHandler);
+        Assert.Contains("return RedirectToPage(\"Index\", new { create = 1 });", createHandler);
+        Assert.DoesNotContain("Page()", createHandler);
 
         Assert.Contains("public async Task<IActionResult> OnPostAsync(CancellationToken ct)", createHandler);
         Assert.Contains("ContainsRetiredWizardInputAsync", createHandler);

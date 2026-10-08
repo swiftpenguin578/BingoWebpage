@@ -229,7 +229,6 @@
   <data name="Submission cutoff is automatically 30 minutes after the event ends." xml:space="preserve"><value>Fristen for indsendelser er automatisk 30 minutter efter bingoet slutter.</value></data>
   <data name="The event stays private" xml:space="preserve"><value>Bingoet forbliver privat</value></data>
   <data name="Creating it does not open signups, publish the board, publish teams or start the draft." xml:space="preserve"><value>Oprettelsen åbner ikke tilmeldingen, offentliggør ikke Boardet eller holdene og starter ikke draften.</value></data>
-  <data name="Create private event" xml:space="preserve"><value>Opret privat bingo</value></data>
   <data name="Previous" xml:space="preserve"><value>Forrige</value></data>
   <data name="Next" xml:space="preserve"><value>Næste</value></data>
   <data name="Dismiss message" xml:space="preserve"><value>Luk besked</value></data>
@@ -1405,7 +1404,6 @@
   <data name="Signups close" xml:space="preserve"><value>Tilmeldinger lukker</value></data>
   <data name="Some current Playing accounts are missing." xml:space="preserve"><value>Nogle aktuelle Playing-konti mangler.</value></data>
   <data name="Sort by {0} {1}." xml:space="preserve"><value>Sortér efter {0} {1}.</value></data>
-  <data name="Start a private event draft and complete setup when ready." xml:space="preserve"><value>Start en privat eventdraft, og færdiggør opsætningen, når du er klar.</value></data>
   <data name="Start event now" xml:space="preserve"><value>Start event nu</value></data>
   <data name="Start not ready" xml:space="preserve"><value>Start ikke klar</value></data>
   <data name="Starting now changes the event to Live and preserves the configured schedule." xml:space="preserve"><value>Start nu ændrer eventets status til Live og bevarer den konfigurerede tidsplan.</value></data>
