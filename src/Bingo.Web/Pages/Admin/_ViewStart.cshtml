@@ -1,7 +1,4 @@
 @{
-    Layout = "_AdminLayout";
-    if (Bingo.Web.UI.AdminDesignAttribute.AppliesTo(ViewContext.ActionDescriptor))
-    {
-        Layout = "_AdminDesignLayout";
-    }
+    // U10 part 2: the old Admin layout is retired; every Admin page renders in the redesigned shell.
+    Layout = "_AdminDesignLayout";
 }

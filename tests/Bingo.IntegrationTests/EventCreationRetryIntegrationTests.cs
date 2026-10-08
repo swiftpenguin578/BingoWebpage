@@ -182,16 +182,18 @@ public sealed class EventCreationRetryIntegrationTests(PostgreSqlTestFixture dat
             ("Valid", "Europe/London", key.ToString()), ("Valid", "UTC", ""), ("Valid", "UTC", "not-a-guid")
         })
         {
+            // A10 (U10 part 2, Events/Create retired): a refused non-dialog POST returns to the Create dialog with an error toast instead of re-rendering the old page.
             using var rejected = await client.PostAsync("/Admin/Events/Create", Form(token, requestKey, name, timezone));
-            Assert.Equal(HttpStatusCode.OK, rejected.StatusCode);
-            var html = await rejected.Content.ReadAsStringAsync();
-            Assert.True(html.Contains("field-validation-error", StringComparison.Ordinal) || html.Contains("validation-summary-errors", StringComparison.Ordinal));
+            Assert.Equal(HttpStatusCode.Redirect, rejected.StatusCode);
+            Assert.Equal("/Admin/Events?create=1", rejected.Headers.Location!.OriginalString);
+            Assert.Contains("class=\"toast is-error\" data-toast role=\"alert\"", await client.GetStringAsync(rejected.Headers.Location));
             Assert.Equal(before, await SnapshotAsync());
         }
         using (var retired = await client.PostAsync("/Admin/Events/Create", Form(token, key.ToString(), "Valid", "UTC", retired: true)))
         {
-            Assert.Equal(HttpStatusCode.OK, retired.StatusCode);
-            Assert.Contains("only a name and timezone", await retired.Content.ReadAsStringAsync());
+            Assert.Equal(HttpStatusCode.Redirect, retired.StatusCode);
+            Assert.Equal("/Admin/Events?create=1", retired.Headers.Location!.OriginalString);
+            Assert.Contains("only a name and timezone", WebUtility.HtmlDecode(await client.GetStringAsync(retired.Headers.Location)));
         }
         Assert.Equal(before, await SnapshotAsync());
         using (var absent = await client.GetAsync($"/Admin/Events/Create?handler=CheckAgain&requestId={key}"))
@@ -209,7 +211,13 @@ public sealed class EventCreationRetryIntegrationTests(PostgreSqlTestFixture dat
             Assert.Equal(location, repeated.Headers.Location);
         }
         using (var conflict = await client.PostAsync("/Admin/Events/Create", Form(token, key.ToString(), "Different", "UTC")))
-            Assert.Equal(HttpStatusCode.Conflict, conflict.StatusCode);
+        {
+            // A10 (U10 part 2): the same-key conflict is still refused without side effects; without a page it returns to the dialog (the dialog's JSON path keeps the conflict outcome).
+            Assert.Equal(HttpStatusCode.Redirect, conflict.StatusCode);
+            Assert.Equal("/Admin/Events?create=1", conflict.Headers.Location!.OriginalString);
+            Assert.Contains("class=\"toast is-error\" data-toast role=\"alert\"", await client.GetStringAsync(conflict.Headers.Location));
+        }
+        Assert.Equal(before, await SnapshotAsync());
         using (var check = await client.GetAsync($"/Admin/Events/Create?handler=CheckAgain&requestId={key}"))
         {
             Assert.Equal(HttpStatusCode.OK, check.StatusCode);

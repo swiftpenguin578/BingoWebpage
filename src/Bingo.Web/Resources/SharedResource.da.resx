@@ -229,7 +229,6 @@
   <data name="Submission cutoff is automatically 30 minutes after the event ends." xml:space="preserve"><value>Fristen for indsendelser er automatisk 30 minutter efter bingoet slutter.</value></data>
   <data name="The event stays private" xml:space="preserve"><value>Bingoet forbliver privat</value></data>
   <data name="Creating it does not open signups, publish the board, publish teams or start the draft." xml:space="preserve"><value>Oprettelsen åbner ikke tilmeldingen, offentliggør ikke Boardet eller holdene og starter ikke draften.</value></data>
-  <data name="Create private event" xml:space="preserve"><value>Opret privat bingo</value></data>
   <data name="Previous" xml:space="preserve"><value>Forrige</value></data>
   <data name="Next" xml:space="preserve"><value>Næste</value></data>
   <data name="Dismiss message" xml:space="preserve"><value>Luk besked</value></data>
@@ -1405,7 +1404,6 @@
   <data name="Signups close" xml:space="preserve"><value>Tilmeldinger lukker</value></data>
   <data name="Some current Playing accounts are missing." xml:space="preserve"><value>Nogle aktuelle Playing-konti mangler.</value></data>
   <data name="Sort by {0} {1}." xml:space="preserve"><value>Sortér efter {0} {1}.</value></data>
-  <data name="Start a private event draft and complete setup when ready." xml:space="preserve"><value>Start en privat eventdraft, og færdiggør opsætningen, når du er klar.</value></data>
   <data name="Start event now" xml:space="preserve"><value>Start event nu</value></data>
   <data name="Start not ready" xml:space="preserve"><value>Start ikke klar</value></data>
   <data name="Starting now changes the event to Live and preserves the configured schedule." xml:space="preserve"><value>Start nu ændrer eventets status til Live og bevarer den konfigurerede tidsplan.</value></data>
@@ -1505,8 +1503,6 @@
   <data name="Configure teams, participants, and run the event draft." xml:space="preserve"><value>Konfigurer hold og deltagere, og kør eventets draft.</value></data>
   <data name="Review and publish official event results." xml:space="preserve"><value>Gennemgå og offentliggør eventets officielle resultater.</value></data>
   <data name="Public UI Catalogue" xml:space="preserve"><value>Public UI-katalog</value></data>
-  <data name="UI references" xml:space="preserve"><value>UI-referencer</value></data>
-  <data name="Temporary reference gallery" xml:space="preserve"><value>Midlertidigt referencegalleri</value></data>
   <data name="Could not complete the account action. Please try again." xml:space="preserve"><value>Konto-handlingen kunne ikke gennemføres. Prøv igen.</value></data>
   <data name="Created disabled emergency credential {0}. Create a setup link before enabling it." xml:space="preserve"><value>Deaktiveret nødkonto {0} oprettet. Opret et opsætningslink, før den aktiveres.</value></data>
   <data name="Disable account" xml:space="preserve"><value>Deaktivér konto</value></data>
@@ -1666,9 +1662,6 @@
   <data name="Confirm ownership transfer" xml:space="preserve"><value>Bekræft ejerskabsoverførsel</value></data>
   <data name="The selected account becomes Super Admin; your account remains an Admin. The service validates the transaction and destination again on submit." xml:space="preserve"><value>Den valgte konto bliver Super Admin, og din konto forbliver Admin. Tjenesten validerer transaktionen og destinationen igen ved afsendelse.</value></data>
   <data name="Choose an eligible active website account" xml:space="preserve"><value>Vælg en kvalificeret aktiv webkonto</value></data>
-  <data name="Temporary Admin utility" xml:space="preserve"><value>Midlertidigt Admin-værktøj</value></data>
-  <data name="Public UI references" xml:space="preserve"><value>Referencer til offentlig UI</value></data>
-  <data name="Every active PUB-REF reference in matrix order. Select an image to inspect it at viewport size; press Escape to close." xml:space="preserve"><value>Alle aktive PUB-REF-referencer i matrixrækkefølge. Vælg et billede for at se det i viewportstørrelse; tryk Escape for at lukke.</value></data>
   <data name="View {0} {1}" xml:space="preserve"><value>Se {0} {1}</value></data>
   <data name="Round {0}" xml:space="preserve"><value>Runde {0}</value></data>
   <data name="Choose an available event." xml:space="preserve"><value>Vælg en tilgængelig event.</value></data>
@@ -3032,6 +3025,15 @@
   <data name="Switch event" xml:space="preserve"><value>Skift event</value></data>
   <data name="The page could not be loaded." xml:space="preserve"><value>Siden kunne ikke indlæses.</value></data>
   <data name="View public site" xml:space="preserve"><value>Vis det offentlige site</value></data>
+  <data name="Go to the public site" xml:space="preserve"><value>Gå til det offentlige site</value></data>
+  <data name="{0} unread" xml:space="preserve"><value>{0} ulæste</value></data>
+  <data name="Unread" xml:space="preserve"><value>Ulæst</value></data>
+  <data name="You're all caught up." xml:space="preserve"><value>Der er ikke noget nyt.</value></data>
+  <data name="Scheduled signup opening failed" xml:space="preserve"><value>Planlagt åbning af tilmelding mislykkedes</value></data>
+  <data name="Postponed start" xml:space="preserve"><value>Udskudt start</value></data>
+  <data name="{0} · {1} pending submission(s) · oldest {2}" xml:space="preserve"><value>{0} · {1} afventende indsendelse(r) · ældste {2}</value></data>
+  <data name="{0} · Resolve the scheduled signup opening blockers." xml:space="preserve"><value>{0} · Løs det, der blokerer den planlagte åbning af tilmeldingen.</value></data>
+  <data name="{0} · Resolve the scheduled start blockers." xml:space="preserve"><value>{0} · Løs det, der blokerer den planlagte start.</value></data>
   <data name="Your changes were not saved" xml:space="preserve"><value>Dine ændringer blev ikke gemt</value></data>
   <data name="Your session is no longer available. What you entered is still here. Sign in before trying again." xml:space="preserve"><value>Din session er ikke længere tilgængelig. Det, du indtastede, er stadig her. Log ind, før du prøver igen.</value></data>
   <data name="DK" xml:space="preserve"><value>DK</value></data>

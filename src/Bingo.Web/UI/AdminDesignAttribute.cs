@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace Bingo.Web.UI;
 
-// Opt-in metadata only. Unbound pages retain the existing Admin layout.
+// Marks a page bound to the redesigned Admin shell. Since U10 part 2 every Admin page renders in that shell (_ViewStart).
 [AttributeUsage(AttributeTargets.Class, Inherited = true)]
 public sealed class AdminDesignAttribute : Attribute
 {

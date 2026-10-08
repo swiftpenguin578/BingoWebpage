@@ -52,4 +52,6 @@
 :where([data-page-family="board"]) .bd-sk-line+.bd-sk-line{margin-top:12px}
 :where([data-page-family="board"]) .bd-lock-inline{margin:0}
 :where([data-page-family="board"]) .bd-layer{display:contents}
+/* U7-L2 (moved from inline JS in U10 part 2, rule 20): the reference's Save width, so "Saving…" does not shift Cancel. */
+:where([data-page-family="board"]) .bd-save{min-width:112px}
 :where([data-page-family="board"]) [hidden]{display:none}
