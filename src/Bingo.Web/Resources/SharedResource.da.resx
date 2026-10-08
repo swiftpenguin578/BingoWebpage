@@ -1488,9 +1488,6 @@
   <data name="The catalogue editor could not be loaded." xml:space="preserve"><value>Katalogeditoren kunne ikke indlæses.</value></data>
   <data name="Kills per hour" xml:space="preserve"><value>Drab pr. time</value></data>
   <data name="Runs per hour" xml:space="preserve"><value>Gennemførelser pr. time</value></data>
-  <data name="Creating a random order…" xml:space="preserve"><value>Opretter en tilfældig rækkefølge…</value></data>
-  <data name="Drawing the team order…" xml:space="preserve"><value>Trækker holdrækkefølgen…</value></data>
-  <data name="Order ready." xml:space="preserve"><value>Rækkefølgen er klar.</value></data>
   <data name="Saving" xml:space="preserve"><value>Gemmer</value></data>
   <data name="The participant details could not be loaded." xml:space="preserve"><value>Deltagerdetaljerne kunne ikke indlæses.</value></data>
   <data name="The participant form could not be loaded." xml:space="preserve"><value>Deltagerformularen kunne ikke indlæses.</value></data>
@@ -1950,7 +1947,6 @@
   <data name="Review and manage the configured drops and their EHB values." xml:space="preserve"><value>Gennemgå og administrér de konfigurerede drops og deres EHB-værdier.</value></data>
   <data name="Review external player correction" xml:space="preserve"><value>Gennemgå rettelse af ekstern spiller</value></data>
   <data name="Roll group" xml:space="preserve"><value>Kastegruppe</value></data>
-  <data name="Rolls per {0}" xml:space="preserve"><value>Kast pr. {0}</value></data>
   <data name="Roster" xml:space="preserve"><value>Holdliste</value></data>
   <data name="Roster CSV" xml:space="preserve"><value>Holdliste-CSV</value></data>
   <data name="Row {0}: {1}" xml:space="preserve"><value>Række {0}: {1}</value></data>
@@ -1965,7 +1961,6 @@
   <data name="Search the pool or sort a column before starting the draft." xml:space="preserve"><value>Søg i puljen, eller sortér en kolonne, før draft starter.</value></data>
   <data name="Select one or more bosses or activities when their drops share the same total. Add another objective only when this tile needs separate totals." xml:space="preserve"><value>Vælg en eller flere bosser eller aktiviteter, når deres drops deler samme total. Tilføj kun endnu et mål, når denne tile har brug for separate totaler.</value></data>
   <data name="Short description" xml:space="preserve"><value>Kort beskrivelse</value></data>
-  <data name="Auto-generated from tile requirements" xml:space="preserve"><value>Genereres automatisk ud fra tile-krav</value></data>
   <data name="Tile description cannot be longer than 4000 characters." xml:space="preserve"><value>Tilebeskrivelsen må højst være 4000 tegn lang.</value></data>
   <data name="Signup status: {0}" xml:space="preserve"><value>Tilmeldingsstatus: {0}</value></data>
   <data name="Start private correction" xml:space="preserve"><value>Start privat rettelse</value></data>

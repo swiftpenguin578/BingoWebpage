@@ -143,7 +143,6 @@ public static class AdminEventPagePolicies
                 ("GET:", AdminEventHandlerGate.Read),
                 ("GET:Readback", AdminEventHandlerGate.Read),
                 ("GET:State", AdminEventHandlerGate.Read),
-                ("GET:TeamImage", AdminEventHandlerGate.Read),
                 ("POST:AddTeam", AdminEventHandlerGate.Setup),
                 ("POST:RemoveDraftTeam", AdminEventHandlerGate.Setup),
                 ("POST:UpdateTeam", AdminEventHandlerGate.Setup),

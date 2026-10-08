@@ -340,7 +340,7 @@ pnpm test:parity
 
 Docker is required for the controlled PostgreSQL fixture-generation step. No
 running application or user database is used. The runner defaults to Playwright
-Chromium; `PLAYWRIGHT_CHANNEL=chrome` can select an installed Chrome locally.
+Chromium; `PLAYWRIGHT_CHANNEL=chrome` can select an installed Chrome locally. `BROWSER_TEST_TIMEOUT_MS` raises the per-file timeout (default 120000) when a loaded machine times out.
 The shell and Identity browser files also run in WebKit. One legacy test selects
 Chrome explicitly. Each execution is recorded by file and engine in
 `artifacts/js-tests/`; any failure fails the gate. `test:parity` compares the frozen

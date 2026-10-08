@@ -11,7 +11,6 @@ public sealed class AdminShellUiTests
         var layout = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "Pages", "Shared", "_AdminLayout.cshtml"));
         var shellService = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "Navigation", "SharedShellService.cs"));
         var questions = File.ReadAllText(Path.Combine(adminRoot, "Events", "Questions.cshtml"));
-        var overlayLayout = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "Pages", "Shared", "_AdminOverlayLayout.cshtml"));
         var styles = BrowserTestFiles.ReadActiveStyles(root);
 
         Assert.Contains("Layout = \"_AdminLayout\"", viewStart);
@@ -63,7 +62,7 @@ public sealed class AdminShellUiTests
         Assert.DoesNotContain("admin-state admin-state-@eventContext.State", layout);
         Assert.Contains("flex: 0 0 25px", styles);
         Assert.Contains("width: 25px; height: 25px", styles);
-        Assert.Contains("padding: 0.125rem 0.5rem", styles);
+        Assert.DoesNotContain(".admin-badge {", styles); // U10 item 1b: the string was only satisfied by the unused .admin-badge rule
         Assert.Contains("margin-left: auto; flex: 0 0 auto", styles);
         Assert.Contains("min-height: 2.25rem", styles);
         Assert.Contains("border-radius: 999px", styles);
@@ -99,9 +98,18 @@ public sealed class AdminShellUiTests
         Assert.DoesNotContain("_AdminOverlayLayout", questions);
         Assert.DoesNotContain("signup-questions-dialog", layout);
         Assert.DoesNotContain("ViewData[\"Layout\"]", questions);
-        Assert.DoesNotContain("admin-header", overlayLayout);
-        Assert.DoesNotContain("admin-sidebar", overlayLayout);
-        Assert.Contains("@RenderBody()", overlayLayout);
+        // U10 item 1: the overlay layout is retired; its absence is pinned.
+        Assert.False(File.Exists(Path.Combine(root, "src", "Bingo.Web", "Pages", "Shared", "_AdminOverlayLayout.cshtml")));
+    }
+
+    [Fact]
+    public void RetiredAdminScriptsAreGone()
+    {
+        // U10 item 2: no page loads these any more (rg proof in review-notes/98e-u10-evidence.md).
+        var js = Path.Combine(FindRepositoryRoot(), "src", "Bingo.Web", "wwwroot", "js");
+        foreach (var name in new[] { "draft-scramble.js", "event-manage.js", "admin-collaboration.js", "event-create-datetime.js", "event-create-validation.js" })
+            Assert.False(File.Exists(Path.Combine(js, name)), name);
+        Assert.DoesNotContain("initializeAdminAccountSearch", File.ReadAllText(Path.Combine(js, "site.js")));
     }
 
     [Fact]

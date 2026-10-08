@@ -295,17 +295,6 @@ public sealed partial class DraftModel(ApplicationDbContext db, TimeProvider tim
         await NotifyDraft(id, ct);
         return Finish(new { id, rosterTeamId });
     }
-    public async Task<IActionResult> OnGetTeamImageAsync(Guid id, Guid teamId, CancellationToken ct)
-    {
-        if (storage is null) return NotFound();
-        var asset = await (from team in db.Teams.AsNoTracking()
-                           join image in db.TeamImageAssets.AsNoTracking() on team.ActiveImageAssetId equals image.Id
-                           where team.Id == teamId && team.EventId == id && team.Active && image.ReplacedAt == null
-                           select image).SingleOrDefaultAsync(ct);
-        if (asset is null) return NotFound();
-        try { return new FileStreamResult(await storage.OpenReadAsync(asset.StorageKey, ct), asset.MediaType) { EnableRangeProcessing = true }; }
-        catch (FileNotFoundException) { return NotFound(); }
-    }
     public async Task<IActionResult> OnPostRemoveMemberAsync(Guid id, Guid membershipId, string? reason, CancellationToken ct, bool confirmed = false, Guid? rosterTeamId = null, long? expectedMembershipVersion = null)
     {
         var finalizedEvent = await db.Events.AsNoTracking().SingleOrDefaultAsync(x => x.Id == id, ct);
@@ -1173,7 +1162,7 @@ public sealed partial class DraftModel(ApplicationDbContext db, TimeProvider tim
             LatestPick = new(latest.PickNumber, wasPublished ? publishedName ?? Localize("Historical player unavailable") : DisplayAuthority(latest.EventParticipantId).Name, teamMap[latest.TeamId].Name);
         }
         Teams = teams.Select(team => new TeamView(
-            team.Id, team.Name, team.IncludedInDraft, team.AffiliationName, team.ActiveImageAssetId is null ? null : $"/Admin/Events/Draft/{id}?handler=TeamImage&teamId={team.Id}", team.DraftPosition, team.Version,
+            team.Id, team.Name, team.IncludedInDraft, team.AffiliationName, team.DraftPosition, team.Version,
             CurrentTurn?.TeamId == team.Id, derived.ProjectedFinalSizes.GetValueOrDefault(team.Id, memberships.Count(membership => membership.TeamId == team.Id)),
             memberships.Where(m => m.TeamId == team.Id)
                 .OrderBy(m => m.Role == TeamMembershipRole.Captain ? 0 : m.Role == TeamMembershipRole.CoCaptain ? 1 : 2)
@@ -1312,5 +1301,5 @@ public sealed partial class DraftModel(ApplicationDbContext db, TimeProvider tim
     private void SetStatus(string message, UiMessageType type) { statusMessage = message; statusType = type; TempData["StatusMessage"] = message; TempData[UiMessage.TypeKey] = type.ToString(); }
     private void StoreCredentials(IReadOnlyList<GeneratedCaptainCredential> credentials) { if (credentials.Count > 0) TempData["GeneratedCaptainCredentials"] = JsonSerializer.Serialize(credentials); }
     private sealed record DerivedDraftState(IReadOnlyList<Guid> IncludedParticipantIds, DraftRosterDistribution Distribution, IReadOnlyDictionary<Guid, int> RosterSizes, IReadOnlyDictionary<Guid, int> ProjectedFinalSizes, IReadOnlyList<string> Blockers);
-    public sealed record DraftView(Guid Id, DraftState State, bool FirstPickRecorded); public sealed record ParticipantView(Guid Id, string Name, decimal Ehb, DateTimeOffset SignedUpAt, bool CaptainVolunteer, Guid? TeamId, string? TeamName, SignupStatus SignupStatus); public sealed record RosterAccountOption(Guid Id, string LoginName, IReadOnlyList<RosterCharacterOption> Characters); public sealed record RosterCharacterOption(Guid Id, string DisplayName, decimal? SavedEhb); public sealed record TeamView(Guid Id, string Name, bool IncludedInDraft, string? Affiliation, string? ImageUrl, int? DraftPosition, long Version, bool IsCurrent, int ProjectedFinalSize, IReadOnlyList<MemberView> Members, bool HasCurrentCaptain, bool HasUsableCaptain, decimal TotalEhb); public sealed record MemberView(Guid MembershipId, string Name, decimal Ehb, TeamMembershipRole Role, long Version, bool External, int? PickNumber, Guid ParticipantId = default, int? OverallPick = null, string Tag = "pre"); public sealed record TurnView(int PickNumber, int RoundNumber, Guid TeamId, string TeamName); public sealed record PickView(int PickNumber, string PlayerName, string TeamName);
+    public sealed record DraftView(Guid Id, DraftState State, bool FirstPickRecorded); public sealed record ParticipantView(Guid Id, string Name, decimal Ehb, DateTimeOffset SignedUpAt, bool CaptainVolunteer, Guid? TeamId, string? TeamName, SignupStatus SignupStatus); public sealed record RosterAccountOption(Guid Id, string LoginName, IReadOnlyList<RosterCharacterOption> Characters); public sealed record RosterCharacterOption(Guid Id, string DisplayName, decimal? SavedEhb); public sealed record TeamView(Guid Id, string Name, bool IncludedInDraft, string? Affiliation, int? DraftPosition, long Version, bool IsCurrent, int ProjectedFinalSize, IReadOnlyList<MemberView> Members, bool HasCurrentCaptain, bool HasUsableCaptain, decimal TotalEhb); public sealed record MemberView(Guid MembershipId, string Name, decimal Ehb, TeamMembershipRole Role, long Version, bool External, int? PickNumber, Guid ParticipantId = default, int? OverallPick = null, string Tag = "pre"); public sealed record TurnView(int PickNumber, int RoundNumber, Guid TeamId, string TeamName); public sealed record PickView(int PickNumber, string PlayerName, string TeamName);
 }

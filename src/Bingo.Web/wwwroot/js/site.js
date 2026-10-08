@@ -164,7 +164,6 @@ document.addEventListener("DOMContentLoaded", () => {
   initializeAutoHideScrollbars();
   initializeAdminMenu();
   initializeAdminEventSection();
-  initializeAdminAccountSearch();
   initializeTransientToastLayer();
   const feedback = document.querySelector(".validation-summary-errors");
   if (feedback) {
@@ -409,115 +408,6 @@ function initializeAdminEventSection() {
 
   window.addEventListener("hashchange", sync);
   sync();
-}
-
-
-function initializeAdminAccountSearch() {
-  const page = document.querySelector(".admin-accounts-page");
-  if (!(page instanceof HTMLElement)) return;
-
-  const setupSection = (section) => {
-    if (!(section instanceof HTMLElement) || section.dataset.adminAccountInitialized === "true") return;
-    const form = section.querySelector("[data-admin-account-filter]");
-    const input = form?.querySelector(".admin-search-field-input");
-    const clear = form?.querySelector("[data-admin-search-clear]");
-    const role = form?.querySelector("[data-admin-account-role]");
-    if (!(form instanceof HTMLFormElement) || !(input instanceof HTMLInputElement) || !(clear instanceof HTMLButtonElement)) return;
-
-    section.dataset.adminAccountInitialized = "true";
-    const sectionKey = section.dataset.adminAccountSection;
-    const pageParameter = sectionKey === "website" ? "WebsitePage" : "EmergencyPage";
-    let debounceId;
-    let activeController;
-
-    const syncClear = () => { clear.hidden = input.value.length === 0; };
-    const targetUrl = () => {
-      const target = new URL(form.action || window.location.href, window.location.href);
-      target.searchParams.delete(pageParameter);
-      for (const [name, value] of new FormData(form)) {
-        target.searchParams.delete(name);
-        if (typeof value === "string" && value.length > 0) target.searchParams.set(name, value);
-      }
-      target.hash = "";
-      return target;
-    };
-
-    const apply = async (focusId = input.id, selection = null) => {
-      const target = targetUrl();
-      const inputValue = input.value;
-      activeController?.abort();
-      const controller = new AbortController();
-      activeController = controller;
-      form.setAttribute("aria-busy", "true");
-      try {
-        const response = await window.fetch(target, {
-          credentials: "same-origin",
-          headers: { "X-Requested-With": "XMLHttpRequest" },
-          signal: controller.signal
-        });
-        if (!response.ok) throw new Error("Account directory request failed.");
-        const html = await response.text();
-        const parsed = new DOMParser().parseFromString(html, "text/html");
-        const nextSection = parsed.querySelector(`[data-admin-account-section="${sectionKey}"]`);
-        if (!(nextSection instanceof HTMLElement)) throw new Error("Account directory section was not returned.");
-
-        const replacement = document.importNode(nextSection, true);
-        section.replaceWith(replacement);
-        window.history.replaceState(window.history.state, "", `${target.pathname}${target.search}`);
-        document.dispatchEvent(new CustomEvent("bingo:account-directory-updated", { detail: { section: replacement } }));
-        setupSection(replacement);
-
-        const nextInput = replacement.querySelector(".admin-search-field-input");
-        const nextClear = replacement.querySelector("[data-admin-search-clear]");
-        if (nextInput instanceof HTMLInputElement) {
-          if (focusId === input.id) nextInput.value = inputValue;
-          if (nextClear instanceof HTMLButtonElement) nextClear.hidden = nextInput.value.length === 0;
-          if (focusId === input.id) {
-            nextInput.focus({ preventScroll: true });
-            if (selection && selection.every(value => value !== null)) nextInput.setSelectionRange(selection[0], selection[1]);
-          } else {
-            const nextFocus = [...replacement.querySelectorAll("[id]")].find(element => element.id === focusId);
-            if (nextFocus instanceof HTMLElement) nextFocus.focus({ preventScroll: true });
-          }
-        }
-      } catch (error) {
-        if (error?.name !== "AbortError") window.location.assign(target.toString());
-      } finally {
-        if (activeController === controller) {
-          activeController = null;
-          form.removeAttribute("aria-busy");
-        }
-      }
-    };
-
-    input.addEventListener("input", () => {
-      activeController?.abort();
-      syncClear();
-      window.clearTimeout(debounceId);
-      debounceId = window.setTimeout(() => apply(input.id, [input.selectionStart, input.selectionEnd]), 220);
-    });
-    clear.addEventListener("click", event => {
-      event.preventDefault();
-      input.value = "";
-      syncClear();
-      apply(input.id, [0, 0]);
-    });
-    role?.addEventListener("change", () => apply(role.id));
-    form.addEventListener("submit", event => {
-      event.preventDefault();
-      window.clearTimeout(debounceId);
-      apply(document.activeElement instanceof HTMLElement && section.contains(document.activeElement) ? document.activeElement.id : input.id, [input.selectionStart, input.selectionEnd]);
-    });
-    if (window.location.hash === `#${input.id}`) {
-      input.focus({ preventScroll: true });
-      const url = new URL(window.location.href);
-      url.hash = "";
-      window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}`);
-    }
-    syncClear();
-  };
-
-  page.querySelectorAll("[data-admin-account-section]").forEach(setupSection);
 }
 
 document.addEventListener("bingo:content-updated", initializeCorrectionDropSelectors);
