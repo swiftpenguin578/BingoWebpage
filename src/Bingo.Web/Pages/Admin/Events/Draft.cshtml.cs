@@ -238,7 +238,7 @@ public sealed partial class DraftModel(ApplicationDbContext db, TimeProvider tim
             var result = await signupService.AddFinalizedRosterParticipantAsync(new FinalizedRosterAddRequest(
                 id, teamId, AdminId, User.Identity?.Name ?? "Admin", accountId, participantId, role, expectedTeamVersion, playingCharacterId, playingEhb), ct);
             SetStatus(FinalizedRosterMutationMessage(result, "added"), result.Succeeded
-                ? FinalizedRosterWomMessageType(result.WomSyncStatus)
+                ? UiMessageType.Success
                 : UiMessageType.Error);
             return Finish(new { id, rosterTeamId });
         }
@@ -315,7 +315,7 @@ public sealed partial class DraftModel(ApplicationDbContext db, TimeProvider tim
                 : await signupService.RemoveFinalizedRosterParticipantAsync(new FinalizedRosterRemoveRequest(
                     id, finalizedParticipantId.Value, AdminId, User.Identity?.Name ?? "Admin", confirmed, expectedMembershipVersion), ct);
             SetStatus(FinalizedRosterMutationMessage(result, "removed"), result.Succeeded
-                ? FinalizedRosterWomMessageType(result.WomSyncStatus)
+                ? UiMessageType.Success
                 : UiMessageType.Error);
             return Finish(new { id, rosterTeamId });
         }
@@ -950,25 +950,16 @@ public sealed partial class DraftModel(ApplicationDbContext db, TimeProvider tim
     private string FinalizedRosterMutationMessage(FinalizedRosterMutationResult result, string action)
     {
         if (!result.Succeeded) return Localize(result.Error ?? "The finalized roster could not be changed.");
-        var team = string.IsNullOrWhiteSpace(result.TeamName) ? "the selected team" : result.TeamName;
-        var count = result.CurrentTeamMemberCount is { } memberCount ? $" ({memberCount} current member{(memberCount == 1 ? "" : "s")})" : string.Empty;
-        var shortage = result.TeamIsShort && result.TargetTeamSize is { } target
-            ? $" The team remains short ({result.CurrentTeamMemberCount}/{target})."
-            : string.Empty;
-        var provider = result.WomSyncStatus switch
-        {
-            "NotManaged" or "Unchanged" => " WOM does not require an update.",
-            "Failed" or "Conflict" or "Unknown" => $" WOM synchronization failed ({result.WomSyncStatus}): {result.WomSyncError ?? "the provider is unavailable"}. Retry the synchronization after resolving the reported issue.",
-            "Pending" or "Sending" or "Retry" => $" WOM synchronization is {result.WomSyncStatus.ToLowerInvariant()}; the local roster is saved and the worker will retry.{(string.IsNullOrWhiteSpace(result.WomSyncError) ? string.Empty : $" Reason: {result.WomSyncError}")}",
-            null => string.Empty,
-            "Queued" or "Succeeded" or "Success" => " WOM synchronization is queued.",
-            _ => $" WOM synchronization is {result.WomSyncStatus.ToLowerInvariant()} and still needs attention.{(string.IsNullOrWhiteSpace(result.WomSyncError) ? string.Empty : $" Reason: {result.WomSyncError}")}"
-        };
-        return Localize($"Participant {action} locally in {team}{count}.{shortage}{provider}");
+        // AU14: the local change is committed; the page's WOM line (from the readback) reports
+        // the provider sync honestly, so no provider or exception text is repeated here.
+        var team = string.IsNullOrWhiteSpace(result.TeamName) ? Localize("the selected team") : result.TeamName;
+        var teamShort = result.TeamIsShort && result.TargetTeamSize is { } target && result.CurrentTeamMemberCount is not null;
+        if (action == "added")
+            return teamShort ? Localize("Participant added to {0}. The team remains short ({1}/{2}).", team, result.CurrentTeamMemberCount!, result.TargetTeamSize!)
+                : Localize("Participant added to {0}.", team);
+        return teamShort ? Localize("Participant removed from {0}. The team remains short ({1}/{2}).", team, result.CurrentTeamMemberCount!, result.TargetTeamSize!)
+            : Localize("Participant removed from {0}.", team);
     }
-    private static UiMessageType FinalizedRosterWomMessageType(string? status) => status is null or "NotManaged" or "Unchanged" or "Queued" or "Succeeded" or "Success"
-        ? UiMessageType.Success
-        : status is "Pending" or "Sending" or "Retry" ? UiMessageType.Warning : UiMessageType.Error;
     private bool CanDirectDraftedSetupAssignment(Bingo.Domain.Events.BingoEvent bingoEvent, DraftSession? draft) =>
         CanDirectPreEventRosterMutation(bingoEvent)
         && draft is { State: DraftState.Setup }
