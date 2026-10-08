@@ -1,6 +1,7 @@
 using Bingo.Domain.Evidence;
 using Bingo.Infrastructure.Persistence;
 using Bingo.Web.UI;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 
@@ -12,13 +13,14 @@ public sealed class IndexModel(ApplicationDbContext db) : PageModel
     public string Search { get; private set; } = string.Empty;
     public SubmissionStatus? Status { get; private set; }
     public IReadOnlyList<Row> Rows { get; private set; } = [];
-    public async Task OnGetAsync(Guid? eventId, string? search, SubmissionStatus? status, CancellationToken ct)
+    public async Task<IActionResult> OnGetAsync(Guid? eventId, string? search, SubmissionStatus? status, CancellationToken ct)
     {
         Search = search?.Trim() ?? string.Empty; Status = status;
-        if (eventId is null) return;
+        if (eventId is null) return Page();
 
+        // C-CMP-1: a hidden or unknown event is Not Found, never an empty queue.
         var ev = await db.Events.AsNoTracking().SingleOrDefaultAsync(x => x.Id == eventId && x.HiddenAt == null, ct);
-        if (ev is null) return;
+        if (ev is null) return NotFound();
 
         EventId = ev.Id; EventName = ev.Name; EventTimezone = ev.Timezone;
         Rows = await (from s in db.Submissions.AsNoTracking()
@@ -27,6 +29,7 @@ public sealed class IndexModel(ApplicationDbContext db) : PageModel
                       where s.EventId == ev.Id
                       orderby s.Status == SubmissionStatus.Pending descending, s.SubmittedAt descending
                       select new Row(s.Id, s.SubmittedAt, s.SubmittedAt > ev.EventEndsAt, team.Name, tile.NameSnapshot, s.CreditedCharacterName, s.Status, s.ClaimedWeight, s.ApprovedContribution, s.ExpectedEvidenceCode, s.CurrentReviewerNote)).ToListAsync(ct);
+        return Page();
     }
     public sealed record Row(Guid Id, DateTimeOffset SubmittedAt, bool DuringGrace, string Team, string Tile, string Player, SubmissionStatus Status, int Claimed, int Approved, string? ExpectedCode, string? Note);
 }

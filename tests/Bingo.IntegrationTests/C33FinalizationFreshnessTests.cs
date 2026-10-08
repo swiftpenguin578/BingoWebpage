@@ -151,7 +151,7 @@ public sealed class C33FinalizationFreshnessTests : IAsyncLifetime
         async Task ReverseAsync(Guid submissionId)
         {
             await using var db = new ApplicationDbContext(options);
-            await Submissions(db).ReverseAsync(submissionId, fixture.Admin, "Changed tie evidence");
+            await Submissions(db).ReverseCurrentAsync(submissionId, fixture.Admin, "Changed tie evidence");
         }
 
         await ReverseAsync(originalB);
@@ -483,8 +483,8 @@ public sealed class C33FinalizationFreshnessTests : IAsyncLifetime
             {
                 switch (action)
                 {
-                    case "submission.approved": await Submissions(db).ApproveAsync(fixture.First, fixture.Admin); break;
-                    case "submission.reversed": await Submissions(db).ReverseAsync(fixture.First, fixture.Admin, "fault reversal"); break;
+                    case "submission.approved": await Submissions(db).ApproveCurrentAsync(fixture.First, fixture.Admin); break;
+                    case "submission.reversed": await Submissions(db).ReverseCurrentAsync(fixture.First, fixture.Admin, "fault reversal"); break;
                     default: await Finalization(db).FinalizeAsync(fixture.EventId, Actor, readiness.EventVersion); break;
                 }
             });
@@ -511,7 +511,7 @@ public sealed class C33FinalizationFreshnessTests : IAsyncLifetime
             await using var db = new ApplicationDbContext(builder.Options);
             try
             {
-                if (review) await Submissions(db).ReverseAsync(fixture.First, fixture.Admin, "concurrent reversal");
+                if (review) await Submissions(db).ReverseCurrentAsync(fixture.First, fixture.Admin, "concurrent reversal");
                 else await Finalization(db).FinalizeAsync(fixture.EventId, Actor, ready.EventVersion);
                 return null;
             }
@@ -576,7 +576,7 @@ public sealed class C33FinalizationFreshnessTests : IAsyncLifetime
         async Task RejectWinnerAsync()
         {
             await using var db = new ApplicationDbContext(new DbContextOptionsBuilder<ApplicationDbContext>(options).AddInterceptors(boundary).Options);
-            await Submissions(db).RejectAsync(concurrentWinner, fixture.Admin, "C33 concurrent winning decision");
+            await Submissions(db).RejectCurrentAsync(concurrentWinner, fixture.Admin, "C33 concurrent winning decision");
         }
         var winner = RejectWinnerAsync();
         await boundary.Reached.Task.WaitAsync(TimeSpan.FromSeconds(20));
@@ -721,7 +721,7 @@ public sealed class C33FinalizationFreshnessTests : IAsyncLifetime
         ["Input.Reason"] = "C33 explicit review decision",
         ["Input.BoardTileId"] = fixture.Tile.ToString(),
         ["Input.RequirementId"] = fixture.Requirement.ToString(),
-        ["Input.CreditedOsrsCharacterId"] = fixture.CharacterA.ToString()
+        ["Input.CreditedOsrsCharacterId"] = fixture.CorrectionCharacter.ToString()
     };
 
     private async Task<string> SubmissionStateAsync(Guid submissionId)
@@ -752,11 +752,11 @@ public sealed class C33FinalizationFreshnessTests : IAsyncLifetime
     private async Task ApproveAsync(Guid id)
     {
         await using var db = new ApplicationDbContext(options);
-        var result = await Submissions(db).ApproveAsync(id, fixture.Admin);
+        var result = await Submissions(db).ApproveCurrentAsync(id, fixture.Admin);
         Assert.True(result.ApprovedContribution > 0, "The deterministic C33 fixture approval must succeed.");
         Assert.Null(result.BlockingSubmission);
     }
-    private async Task RejectAsync(Guid id) { await using var db = new ApplicationDbContext(options); await Submissions(db).RejectAsync(id, fixture.Admin, "C33 fixture rejection"); }
+    private async Task RejectAsync(Guid id) { await using var db = new ApplicationDbContext(options); await Submissions(db).RejectCurrentAsync(id, fixture.Admin, "C33 fixture rejection"); }
     private async Task FinalizeAsync()
     {
         var r = await ReadinessAsync();
@@ -842,7 +842,7 @@ public sealed class C33FinalizationFreshnessTests : IAsyncLifetime
     private async Task ReviewHttpAsync(HttpClient client, Guid submission, string handler)
     {
         var form = Form(await client.GetStringAsync($"/Admin/Review/Details/{submission}"), handler);
-        await PostAsync(client, form, ("Input.Reason", "C33 review reason"), ("Input.BoardTileId", fixture.Tile.ToString()), ("Input.RequirementId", fixture.Requirement.ToString()), ("Input.CreditedOsrsCharacterId", fixture.CharacterA.ToString()));
+        await PostAsync(client, form, ("Input.Reason", "C33 review reason"), ("Input.BoardTileId", fixture.Tile.ToString()), ("Input.RequirementId", fixture.Requirement.ToString()), ("Input.CreditedOsrsCharacterId", fixture.CorrectionCharacter.ToString()));
         await using var db = new ApplicationDbContext(options);
         Assert.Contains(await db.ReviewActions.Where(x => x.SubmissionId == submission).ToListAsync(), x => x.Action == handler switch
         { "Approve" => ReviewActionType.Approve, "Reverse" => ReviewActionType.ReverseApproval, "Reject" => ReviewActionType.Reject, _ => ReviewActionType.EditMetadata });
@@ -945,6 +945,7 @@ public sealed class C33FinalizationFreshnessTests : IAsyncLifetime
         var teams = new List<Team>();
         var characters = new List<OsrsCharacter>();
         var submissions = new List<Submission>();
+        var alternateCharacter = Guid.Empty;
         for (var index = 0; index < 2; index++)
         {
             var team = new Team(Guid.NewGuid(), ev.Id, index == 0 ? "Team A" : "Team B", index == 0 ? "team-a" : "team-b", TeamFormationType.Drafted, null, true);
@@ -953,6 +954,13 @@ public sealed class C33FinalizationFreshnessTests : IAsyncLifetime
             var character = new OsrsCharacter(Guid.NewGuid(), $"C33 Player {index}", $"C33 PLAYER {index}", now.AddDays(-6));
             var assignment = new EventParticipantCharacter(Guid.NewGuid(), ev.Id, participant.Id, character.Id, 0, now.AddDays(-6), admin.Id, null, EventCharacterRole.Playing, 10m, EhbSource.Manual, null);
             db.AddRange(team, participant, character, assignment, new TeamMembership(Guid.NewGuid(), team.Id, participant.Id, TeamMembershipRole.Participant, now.AddDays(-4), null, "C33 fixture"));
+            if (index == 0)
+            {
+                // B-Review-2 (U8, A10): a review correction must change a detail, so Team A's participant has a second Playing account to credit.
+                var alternate = new OsrsCharacter(Guid.NewGuid(), "C33 Player 0 Alt", "C33 PLAYER 0 ALT", now.AddDays(-6));
+                db.AddRange(alternate, new EventParticipantCharacter(Guid.NewGuid(), ev.Id, participant.Id, alternate.Id, 1, now.AddDays(-6), admin.Id, null, EventCharacterRole.Playing, 10m, EhbSource.Manual, null));
+                alternateCharacter = alternate.Id;
+            }
             for (var count = 0; count < (index == 0 ? 2 : 1); count++)
             {
                 var submittedAt = index == 0 ? now.AddHours(-3).AddMinutes(count) : now.AddHours(-2);
@@ -966,13 +974,13 @@ public sealed class C33FinalizationFreshnessTests : IAsyncLifetime
         }
         db.AddRange(draft, publication);
         await BoardApprovalFixture.PublishAsync(db, board, now.AddDays(-2), [tile], [requirement]);
-        await Submissions(db).ApproveAsync(submissions[2].Id, admin.Id);
+        await Submissions(db).ApproveCurrentAsync(submissions[2].Id, admin.Id);
         ev.EndEvent(now.AddHours(-1));
         db.EventStateTransitions.Add(new EventStateTransition(Guid.NewGuid(), ev.Id, EventState.Live, EventState.AwaitingFinalReview, admin.Id, now.AddHours(-1), "C33 fixture ended", effectiveAt: now.AddHours(-1)));
         await db.SaveChangesAsync();
-        return new(ev.Id, ev.Slug, admin.Id, teams[0].Id, teams[1].Id, submissions[0].Id, submissions[1].Id, tile.Id, requirement.Id, characters[0].Id);
+        return new(ev.Id, ev.Slug, admin.Id, teams[0].Id, teams[1].Id, submissions[0].Id, submissions[1].Id, tile.Id, requirement.Id, alternateCharacter);
     }
-    private sealed record Setup(Guid EventId, string Slug, Guid Admin, Guid TeamA, Guid TeamB, Guid First, Guid Replacement, Guid Tile, Guid Requirement, Guid CharacterA);
+    private sealed record Setup(Guid EventId, string Slug, Guid Admin, Guid TeamA, Guid TeamB, Guid First, Guid Replacement, Guid Tile, Guid Requirement, Guid CorrectionCharacter);
     private sealed class FixedClock(DateTimeOffset value) : TimeProvider { public override DateTimeOffset GetUtcNow() => value; }
     private sealed class UnusedStorage : IEvidenceStorage
     {

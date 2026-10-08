@@ -193,7 +193,7 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests
         var f = await FullStatsFixtureAsync(players: 2); await SyncStatsAsync(f, 100);
         var pending = await PendingStatsAsync(f, 0, 0, 10);
         await using (var correction = new ApplicationDbContext(options))
-            await new SubmissionService(correction, null!, f.Clock).EditMetadataAsync(new(pending, f.Admin.Id,
+            await new SubmissionService(correction, null!, f.Clock).EditMetadataCurrentAsync(new(pending, f.Admin.Id,
                 f.Tiles[1].Id, f.Requirements[1].Id, f.Drops.Single(x => x.RequirementId == f.Requirements[1].Id).Id,
                 f.Characters[1].Id, "Controlled tile and character correction"));
         await ApproveStatsAsync(f, pending);

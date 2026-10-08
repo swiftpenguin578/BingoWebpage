@@ -864,16 +864,15 @@ public sealed partial class CaptainScopedNavigationIntegrationTests(PostgreSqlTe
             .Select(match => Guid.Parse(match.Groups[1].Value)).ToArray();
         Assert.Equal(new[] { newerPending.Id, selectedSubmission.Id, rejected.Id, approved.Id }, renderedSubmissionIds);
 
+        // C-CMP-1 (U8, A10): a hidden or unknown event is Not Found (before: 200 with an empty queue); never another event's rows.
         var hiddenResponse = await client.GetAsync($"/Admin/Review?eventId={hidden.Id}");
         var hiddenHtml = await hiddenResponse.Content.ReadAsStringAsync();
-        Assert.Equal(HttpStatusCode.OK, hiddenResponse.StatusCode);
-        Assert.Contains("data-event-id=\"\"", hiddenHtml, StringComparison.Ordinal);
+        Assert.Equal(HttpStatusCode.NotFound, hiddenResponse.StatusCode);
         Assert.DoesNotContain("Selected review team", hiddenHtml, StringComparison.Ordinal);
 
         var invalidResponse = await client.GetAsync($"/Admin/Review?eventId={Guid.NewGuid()}");
         var invalidHtml = await invalidResponse.Content.ReadAsStringAsync();
-        Assert.Equal(HttpStatusCode.OK, invalidResponse.StatusCode);
-        Assert.Contains("data-event-id=\"\"", invalidHtml, StringComparison.Ordinal);
+        Assert.Equal(HttpStatusCode.NotFound, invalidResponse.StatusCode);
         Assert.DoesNotContain("Selected review team", invalidHtml, StringComparison.Ordinal);
 
         await using (var db = new ApplicationDbContext(options))

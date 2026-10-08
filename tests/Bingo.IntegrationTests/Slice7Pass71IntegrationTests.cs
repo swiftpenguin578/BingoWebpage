@@ -334,10 +334,10 @@ public sealed class Slice7Pass71IntegrationTests : IAsyncLifetime
         Assert.Equal(now, await db.Submissions.AsNoTracking().Where(x => x.Id == second.Id).Select(x => x.SubmittedAt).SingleAsync());
         var submissions = new Bingo.Infrastructure.Evidence.SubmissionService(db, new NoopEvidenceStorage(), new FixedTimeProvider(now), focus: focus, focusNotifier: notifier);
 
-        Assert.Equal(2, (await submissions.ApproveAsync(first.Id, fixture.OwnerId)).ApprovedContribution);
+        Assert.Equal(2, (await submissions.ApproveCurrentAsync(first.Id, fixture.OwnerId)).ApprovedContribution);
         var afterFirst = await db.TeamFocusMarkers.SingleAsync(x => x.BoardTileId == fixture.TileId);
         Assert.True(afterFirst.Focused);
-        Assert.Equal(1, (await submissions.ApproveAsync(second.Id, fixture.OwnerId)).ApprovedContribution);
+        Assert.Equal(1, (await submissions.ApproveCurrentAsync(second.Id, fixture.OwnerId)).ApprovedContribution);
         var completed = await db.TeamFocusMarkers.SingleAsync(x => x.BoardTileId == fixture.TileId);
         Assert.False(completed.Focused);
         Assert.Equal(2, completed.Version);
@@ -359,7 +359,7 @@ public sealed class Slice7Pass71IntegrationTests : IAsyncLifetime
         Assert.DoesNotContain(projected!.Markers, marker => marker.TargetKind == TeamFocusTargetKind.Tile);
         Assert.Contains(projected.Markers, marker => marker.TargetKind == TeamFocusTargetKind.Row && marker.Focused);
         Assert.Contains(projected.Markers, marker => marker.TargetKind == TeamFocusTargetKind.Column && marker.Focused);
-        await submissions.ReverseAsync(first.Id, fixture.OwnerId, "Reverse first approval");
+        await submissions.ReverseCurrentAsync(first.Id, fixture.OwnerId, "Reverse first approval");
         var afterReverse = await db.TeamFocusMarkers.SingleAsync(x => x.BoardTileId == fixture.TileId);
         Assert.False(afterReverse.Focused);
         Assert.Equal(4, afterReverse.Version);

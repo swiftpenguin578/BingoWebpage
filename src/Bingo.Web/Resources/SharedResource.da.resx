@@ -4217,4 +4217,9 @@
   <data name="The event could not be changed." xml:space="preserve"><value>Eventet kunne ikke ændres.</value></data>
   <data name="This event window overlaps {0} ({1})." xml:space="preserve"><value>Eventets tidsrum overlapper {0} ({1}).</value></data>
   <data name="The replacement lifecycle window overlaps {0}." xml:space="preserve"><value>Det nye livscyklusvindue overlapper {0}.</value></data>
+  <!-- U8 Review (brief 94) -->
+  <data name="Change at least one detail, or cancel." xml:space="preserve"><value>Ret mindst én oplysning, eller annullér.</value></data>
+  <data name="This decision wasn&#x27;t saved because the page didn&#x27;t say which version you reviewed. Reload the submission and try again." xml:space="preserve"><value>Beslutningen blev ikke gemt, fordi siden ikke angav, hvilken version du gennemgik. Genindlæs indsendelsen, og prøv igen.</value></data>
+  <data name="Confirm this decision before it is saved. Nothing was changed." xml:space="preserve"><value>Bekræft beslutningen, før den gemmes. Intet blev ændret.</value></data>
+  <data name="This evidence changed in another request. Reload it and review the latest version before saving." xml:space="preserve"><value>Dokumentationen blev ændret i en anden anmodning. Genindlæs den, og gennemgå den nyeste version, før du gemmer.</value></data>
 </root>

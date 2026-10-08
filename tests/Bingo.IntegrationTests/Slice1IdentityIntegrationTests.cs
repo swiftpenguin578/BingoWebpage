@@ -1212,7 +1212,7 @@ public sealed partial class Slice1IdentityIntegrationTests(PostgreSqlTestFixture
             .FirstAsync();
         var submissionService = new Bingo.Infrastructure.Evidence.SubmissionService(db, new SeedEvidenceStorage(), clock);
         foreach (var submission in new[] { da07, linkedAraxxor, vorkath, hydra, partial })
-            await submissionService.ApproveAsync(submission.Id, admin.Id);
+            await submissionService.ApproveCurrentAsync(submission.Id, admin.Id);
 
         db.ChangeTracker.Clear();
         var approvedFixtures = await db.Submissions

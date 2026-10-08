@@ -108,9 +108,9 @@ public sealed partial class SubmissionWorkflowTests : IAsyncLifetime
         clock.Set(submittedAt[1]);
         var second = await service.CreateAsync(Command(setup) with { DropSnapshotId = setup.AlternateDropId });
         clock.Set(now.AddHours(1));
-        await service.ApproveAsync(first.SubmissionId, setup.AdminId);
+        await service.ApproveCurrentAsync(first.SubmissionId, setup.AdminId);
         clock.Set(now.AddHours(2));
-        await service.ApproveAsync(second.SubmissionId, setup.AdminId);
+        await service.ApproveCurrentAsync(second.SubmissionId, setup.AdminId);
 
         var firstSubmissionTime = await db.Submissions.Where(value => value.Id == first.SubmissionId).Select(value => value.SubmittedAt).SingleAsync();
         var secondSubmissionTime = await db.Submissions.Where(value => value.Id == second.SubmissionId).Select(value => value.SubmittedAt).SingleAsync();
@@ -126,7 +126,7 @@ public sealed partial class SubmissionWorkflowTests : IAsyncLifetime
         Assert.Contains(second.SubmissionId.ToString("D"), fact.QualifyingContributionsJson, StringComparison.OrdinalIgnoreCase);
 
         clock.Set(now.AddHours(3));
-        await service.ReverseAsync(first.SubmissionId, setup.AdminId, "Reverse the earlier contribution; later evidence can carry the objective.");
+        await service.ReverseCurrentAsync(first.SubmissionId, setup.AdminId, "Reverse the earlier contribution; later evidence can carry the objective.");
 
         var survivingContribution = await db.SubmissionContributions.SingleAsync(value => value.SubmissionId == second.SubmissionId);
         Assert.Equal(2, survivingContribution.Amount);
@@ -170,7 +170,7 @@ public sealed partial class SubmissionWorkflowTests : IAsyncLifetime
         {
             clock.Set(now.AddMinutes(1));
             await using var writer = new ApplicationDbContext(options);
-            await Service(writer, clock).ApproveAsync(pending.SubmissionId, setup.AdminId);
+            await Service(writer, clock).ApproveCurrentAsync(pending.SubmissionId, setup.AdminId);
         }
         finally { boundary.Release.TrySetResult(); }
 
@@ -210,10 +210,10 @@ public sealed partial class SubmissionWorkflowTests : IAsyncLifetime
             laterSubmission = await Service(create, clock).CreateAsync(Command(setup) with { ClaimedWeight = 1 });
         clock.Set(now);
         await using (var reviewLater = new ApplicationDbContext(options))
-            await Service(reviewLater, clock).ApproveAsync(laterSubmission.SubmissionId, setup.AdminId);
+            await Service(reviewLater, clock).ApproveCurrentAsync(laterSubmission.SubmissionId, setup.AdminId);
         clock.Set(now.AddMinutes(1));
         await using (var reviewOlder = new ApplicationDbContext(options))
-            await Service(reviewOlder, clock).ApproveAsync(olderSubmission.SubmissionId, setup.AdminId);
+            await Service(reviewOlder, clock).ApproveCurrentAsync(olderSubmission.SubmissionId, setup.AdminId);
 
         var boundary = new PauseAfterTileCompletionFacts();
         var readOptions = new DbContextOptionsBuilder<ApplicationDbContext>(options).AddInterceptors(boundary).Options;
@@ -224,7 +224,7 @@ public sealed partial class SubmissionWorkflowTests : IAsyncLifetime
         {
             clock.Set(now.AddMinutes(2));
             await using var writer = new ApplicationDbContext(options);
-            await Service(writer, clock).ReverseAsync(laterSubmission.SubmissionId, setup.AdminId, "Use the surviving earlier submission");
+            await Service(writer, clock).ReverseCurrentAsync(laterSubmission.SubmissionId, setup.AdminId, "Use the surviving earlier submission");
         }
         finally { boundary.Release.TrySetResult(); }
 
@@ -274,12 +274,12 @@ public sealed partial class SubmissionWorkflowTests : IAsyncLifetime
         }
 
         clock.Set(now.AddHours(1));
-        foreach (var submissionId in submissions) await service.ApproveAsync(submissionId, setup.AdminId);
+        foreach (var submissionId in submissions) await service.ApproveCurrentAsync(submissionId, setup.AdminId);
         var board = await db.Boards.SingleAsync(value => value.EventId == setup.EventId);
         Assert.Equal(9, await db.TileCompletionFacts.CountAsync(value => value.TeamId == setup.TeamId && value.ApprovalSnapshotId == board.ActiveApprovalSnapshotId && value.IsComplete));
 
         clock.Set(now.AddHours(3));
-        await service.ReverseAsync(submissions[^1], setup.AdminId, "Reverse the ninth tile.");
+        await service.ReverseCurrentAsync(submissions[^1], setup.AdminId, "Reverse the ninth tile.");
 
         var activeFacts = await db.TileCompletionFacts.Where(value => value.TeamId == setup.TeamId && value.ApprovalSnapshotId == board.ActiveApprovalSnapshotId).ToListAsync();
         Assert.Equal(8, activeFacts.Count(value => value.IsComplete));
@@ -310,9 +310,9 @@ public sealed partial class SubmissionWorkflowTests : IAsyncLifetime
         clock.Set(secondTime);
         var second = await service.CreateAsync(Command(setup) with { RequirementId = requirementIds[1], DropSnapshotId = dropIds[1] });
         clock.Set(now.AddHours(1));
-        await service.ApproveAsync(first.SubmissionId, setup.AdminId);
+        await service.ApproveCurrentAsync(first.SubmissionId, setup.AdminId);
         clock.Set(now.AddHours(2));
-        await service.ApproveAsync(second.SubmissionId, setup.AdminId);
+        await service.ApproveCurrentAsync(second.SubmissionId, setup.AdminId);
 
         var board = await db.Boards.SingleAsync(value => value.EventId == setup.EventId);
         var fact = await db.TileCompletionFacts.SingleAsync(value => value.TeamId == setup.TeamId && value.BoardTileId == setup.TileId && value.ApprovalSnapshotId == board.ActiveApprovalSnapshotId);
@@ -378,13 +378,13 @@ public sealed partial class SubmissionWorkflowTests : IAsyncLifetime
         await service.WithdrawAsync(edited.SubmissionId, setup.CaptainId);
 
         var rejected = await service.CreateAsync(Command(setup));
-        await service.RejectAsync(rejected.SubmissionId, setup.AdminId, "Please include the full game message.");
+        await service.RejectCurrentAsync(rejected.SubmissionId, setup.AdminId, "Please include the full game message.");
         Assert.Empty(notifier.EventIds);
 
         var approved = await service.CreateAsync(Command(setup));
-        await service.ApproveAsync(approved.SubmissionId, setup.AdminId);
+        await service.ApproveCurrentAsync(approved.SubmissionId, setup.AdminId);
         Assert.Single(notifier.EventIds);
-        await service.ReverseAsync(approved.SubmissionId, setup.AdminId, "Correction required.");
+        await service.ReverseCurrentAsync(approved.SubmissionId, setup.AdminId, "Correction required.");
         Assert.Equal(2, notifier.EventIds.Count);
         var audits = await db.AuditEntries.Where(x => x.EventId == setup.EventId && x.TargetType == "submission").ToListAsync();
         Assert.Equal(8, audits.Count);
@@ -451,11 +451,14 @@ public sealed partial class SubmissionWorkflowTests : IAsyncLifetime
         db.EventParticipantCharacters.Add(new EventParticipantCharacter(Guid.NewGuid(), setup.EventId, setup.ParticipantId, replacementCharacter.Id, 1, now, setup.AdminId, null, EventCharacterRole.Playing, 500, EhbSource.Manual, null));
         await db.SaveChangesAsync();
 
-        await service.EditMetadataAsync(new(submission.SubmissionId, setup.AdminId, setup.TileId, setup.RequirementId, setup.DropId, oldCharacterId, "historical character", (await db.Submissions.AsNoTracking().SingleAsync(x => x.Id == submission.SubmissionId)).Version));
-        var unchanged = await db.Submissions.AsNoTracking().SingleAsync(x => x.Id == submission.SubmissionId);
-        Assert.Equal(oldCharacterId, unchanged.CreditedOsrsCharacterId);
-        await service.EditMetadataAsync(new(submission.SubmissionId, setup.AdminId, setup.TileId, setup.RequirementId, setup.DropId, replacementCharacter.Id, "current character", unchanged.Version));
+        // B-Review-2 (U8, A10): an identical correction is now refused, so the released account is proven
+        // selectable by correcting to the current account first and then back to the released one.
+        var initial = await db.Submissions.AsNoTracking().SingleAsync(x => x.Id == submission.SubmissionId);
+        await service.EditMetadataAsync(new(submission.SubmissionId, setup.AdminId, setup.TileId, setup.RequirementId, setup.DropId, replacementCharacter.Id, "current character", initial.Version));
         Assert.Equal(replacementCharacter.Id, await db.Submissions.Where(x => x.Id == submission.SubmissionId).Select(x => x.CreditedOsrsCharacterId).SingleAsync());
+        var current = await db.Submissions.AsNoTracking().SingleAsync(x => x.Id == submission.SubmissionId);
+        await service.EditMetadataAsync(new(submission.SubmissionId, setup.AdminId, setup.TileId, setup.RequirementId, setup.DropId, oldCharacterId, "historical character", current.Version));
+        Assert.Equal(oldCharacterId, await db.Submissions.Where(x => x.Id == submission.SubmissionId).Select(x => x.CreditedOsrsCharacterId).SingleAsync());
     }
 
     [Fact]
@@ -504,7 +507,7 @@ public sealed partial class SubmissionWorkflowTests : IAsyncLifetime
         db.AddRange(participantAccount, teammateAccount, unrelatedAccount, teammate, teammateMembership);
         await db.SaveChangesAsync();
         var result = await Service(db).CreateAsync(Command(setup));
-        await Service(db).RejectAsync(result.SubmissionId, setup.AdminId, "Archived test rejection");
+        await Service(db).RejectCurrentAsync(result.SubmissionId, setup.AdminId, "Archived test rejection");
         var assetId = await db.EvidenceAssets.Where(x => x.SubmissionId == result.SubmissionId && x.Active).Select(x => x.Id).SingleAsync();
         var ev = await db.Events.SingleAsync(x => x.Id == setup.EventId);
         ev.EndEvent(now.AddHours(1)); ev.FinalizeResults(now.AddHours(1)); ev.Archive(now.AddHours(2));
@@ -576,11 +579,11 @@ public sealed partial class SubmissionWorkflowTests : IAsyncLifetime
         var service = Service(db, clock);
         var pending = await service.CreateAsync(Command(setup));
         var rejected = await service.CreateAsync(Command(setup));
-        await service.RejectAsync(rejected.SubmissionId, setup.AdminId, "Replace the incomplete screenshot.");
+        await service.RejectCurrentAsync(rejected.SubmissionId, setup.AdminId, "Replace the incomplete screenshot.");
         // The current publication boundary does not support a generic pending-review
         // override. Decide the initial submission before publishing; a new pending
         // submission is created and corrected only after the explicit reopen below.
-        await service.ApproveAsync(pending.SubmissionId, setup.AdminId);
+        await service.ApproveCurrentAsync(pending.SubmissionId, setup.AdminId);
         var ev = await db.Events.SingleAsync(value => value.Id == setup.EventId);
         var originalCutoff = ev.SubmissionCutoffAt;
         Assert.True(originalCutoff > now);
@@ -671,8 +674,8 @@ public sealed partial class SubmissionWorkflowTests : IAsyncLifetime
         var second = await service.CreateAsync(Command(setup) with { ClaimedWeight = 2 });
         clock.Set(now);
 
-        Assert.Equal(2, (await service.ApproveAsync(first.SubmissionId, setup.AdminId)).ApprovedContribution);
-        Assert.Equal(1, (await service.ApproveAsync(second.SubmissionId, setup.AdminId)).ApprovedContribution);
+        Assert.Equal(2, (await service.ApproveCurrentAsync(first.SubmissionId, setup.AdminId)).ApprovedContribution);
+        Assert.Equal(1, (await service.ApproveCurrentAsync(second.SubmissionId, setup.AdminId)).ApprovedContribution);
         Assert.Equal(3, await db.SubmissionContributions.Where(x => x.ReversedAt == null).SumAsync(x => x.Amount));
 
         var childContribution = await db.SubmissionContributions.SingleAsync(value => value.SubmissionId == second.SubmissionId);
@@ -696,7 +699,7 @@ public sealed partial class SubmissionWorkflowTests : IAsyncLifetime
                     CREATE TRIGGER rebalance_fail_child_audit BEFORE INSERT ON audit_entries
                         FOR EACH ROW EXECUTE FUNCTION rebalance_fail_child_audit();
                     """);
-                var failure = await Record.ExceptionAsync(() => service.ReverseAsync(first.SubmissionId, setup.AdminId, "Approved the wrong screenshot"));
+                var failure = await Record.ExceptionAsync(() => service.ReverseCurrentAsync(first.SubmissionId, setup.AdminId, "Approved the wrong screenshot"));
                 Assert.NotNull(failure);
                 Assert.Contains("rebalance child audit failure injection", failure.ToString(), StringComparison.Ordinal);
                 await using var verify = new ApplicationDbContext(options);
@@ -722,7 +725,7 @@ public sealed partial class SubmissionWorkflowTests : IAsyncLifetime
             return;
         }
 
-        await service.ReverseAsync(first.SubmissionId, setup.AdminId, "Approved the wrong screenshot");
+        await service.ReverseCurrentAsync(first.SubmissionId, setup.AdminId, "Approved the wrong screenshot");
 
         Assert.Equal(2, await db.SubmissionContributions.Where(x => x.ReversedAt == null).SumAsync(x => x.Amount));
         Assert.Equal(SubmissionStatus.Reversed, await db.Submissions.Where(x => x.Id == first.SubmissionId).Select(x => x.Status).SingleAsync());
@@ -782,7 +785,7 @@ public sealed partial class SubmissionWorkflowTests : IAsyncLifetime
         var actionCount = await db.ReviewActions.CountAsync();
 
         clock.Set(now);
-        var refused = await service.ApproveAsync(later.SubmissionId, setup.AdminId);
+        var refused = await service.ApproveCurrentAsync(later.SubmissionId, setup.AdminId);
 
         Assert.Equal(0, refused.ApprovedContribution);
         var block = refused.BlockingSubmission;
@@ -799,8 +802,8 @@ public sealed partial class SubmissionWorkflowTests : IAsyncLifetime
             Assert.Empty(await verify.SubmissionContributions.ToListAsync());
         }
 
-        await service.RejectAsync(earlier.SubmissionId, setup.AdminId, "Resolve the earlier pending upload.");
-        var approved = await service.ApproveAsync(later.SubmissionId, setup.AdminId);
+        await service.RejectCurrentAsync(earlier.SubmissionId, setup.AdminId, "Resolve the earlier pending upload.");
+        var approved = await service.ApproveCurrentAsync(later.SubmissionId, setup.AdminId);
         Assert.Equal(1, approved.ApprovedContribution);
         Assert.Null(approved.BlockingSubmission);
         Assert.Equal(SubmissionStatus.Rejected, await db.Submissions.Where(x => x.Id == earlier.SubmissionId).Select(x => x.Status).SingleAsync());
@@ -821,8 +824,8 @@ public sealed partial class SubmissionWorkflowTests : IAsyncLifetime
         var later = await service.CreateAsync(Command(setup));
 
         clock.Set(now);
-        var laterApproval = await service.ApproveAsync(later.SubmissionId, setup.AdminId);
-        var earlierApproval = await service.ApproveAsync(earlier.SubmissionId, setup.AdminId);
+        var laterApproval = await service.ApproveCurrentAsync(later.SubmissionId, setup.AdminId);
+        var earlierApproval = await service.ApproveCurrentAsync(earlier.SubmissionId, setup.AdminId);
 
         Assert.Equal(2, laterApproval.ApprovedContribution);
         Assert.Null(laterApproval.BlockingSubmission);
@@ -847,7 +850,7 @@ public sealed partial class SubmissionWorkflowTests : IAsyncLifetime
         clock.Set(now.AddMinutes(-10));
         var later = await service.CreateAsync(Command(setup));
 
-        var refused = await service.ApproveAsync(later.SubmissionId, setup.AdminId);
+        var refused = await service.ApproveCurrentAsync(later.SubmissionId, setup.AdminId);
 
         Assert.Equal(0, refused.ApprovedContribution);
         Assert.NotNull(refused.BlockingSubmission);
@@ -870,7 +873,7 @@ public sealed partial class SubmissionWorkflowTests : IAsyncLifetime
         clock.Set(now.AddMinutes(-10));
         var later = await service.CreateAsync(Command(setup));
 
-        var refused = await service.ApproveAsync(later.SubmissionId, setup.AdminId);
+        var refused = await service.ApproveCurrentAsync(later.SubmissionId, setup.AdminId);
 
         Assert.Equal(0, refused.ApprovedContribution);
         Assert.NotNull(refused.BlockingSubmission);
@@ -896,7 +899,7 @@ public sealed partial class SubmissionWorkflowTests : IAsyncLifetime
         clock.Set(now.AddMinutes(-10));
         var later = await service.CreateAsync(Command(setup));
 
-        var refused = await service.ApproveAsync(later.SubmissionId, setup.AdminId);
+        var refused = await service.ApproveCurrentAsync(later.SubmissionId, setup.AdminId);
 
         Assert.Equal(0, refused.ApprovedContribution);
         Assert.NotNull(refused.BlockingSubmission);
@@ -917,14 +920,14 @@ public sealed partial class SubmissionWorkflowTests : IAsyncLifetime
         clock.Set(now.AddMinutes(-40));
         var approvedSecond = await service.CreateAsync(Command(setup));
         clock.Set(now);
-        Assert.Equal(1, (await service.ApproveAsync(approvedFirst.SubmissionId, setup.AdminId)).ApprovedContribution);
-        Assert.Equal(1, (await service.ApproveAsync(approvedSecond.SubmissionId, setup.AdminId)).ApprovedContribution);
+        Assert.Equal(1, (await service.ApproveCurrentAsync(approvedFirst.SubmissionId, setup.AdminId)).ApprovedContribution);
+        Assert.Equal(1, (await service.ApproveCurrentAsync(approvedSecond.SubmissionId, setup.AdminId)).ApprovedContribution);
 
         clock.Set(now.AddMinutes(-20));
         var earlier = await service.CreateAsync(Command(setup));
         clock.Set(now.AddMinutes(-10));
         var later = await service.CreateAsync(Command(setup));
-        var refused = await service.ApproveAsync(later.SubmissionId, setup.AdminId);
+        var refused = await service.ApproveCurrentAsync(later.SubmissionId, setup.AdminId);
 
         Assert.Equal(0, refused.ApprovedContribution);
         Assert.NotNull(refused.BlockingSubmission);
@@ -951,7 +954,7 @@ public sealed partial class SubmissionWorkflowTests : IAsyncLifetime
             DropSnapshotId = setup.DropIds![1]
         });
 
-        var approved = await service.ApproveAsync(otherObjective.SubmissionId, setup.AdminId);
+        var approved = await service.ApproveCurrentAsync(otherObjective.SubmissionId, setup.AdminId);
 
         Assert.Equal(1, approved.ApprovedContribution);
         Assert.Null(approved.BlockingSubmission);
@@ -993,7 +996,7 @@ public sealed partial class SubmissionWorkflowTests : IAsyncLifetime
         db.Submissions.Add(otherTeamLater);
         await db.SaveChangesAsync();
 
-        var approved = await service.ApproveAsync(otherTeamLater.Id, setup.AdminId);
+        var approved = await service.ApproveCurrentAsync(otherTeamLater.Id, setup.AdminId);
 
         Assert.Equal(1, approved.ApprovedContribution);
         Assert.Null(approved.BlockingSubmission);
@@ -1065,7 +1068,7 @@ public sealed partial class SubmissionWorkflowTests : IAsyncLifetime
 
             async Task<(SubmissionApprovalResult? Result, Exception? Error)> TryApproveAsync(ApplicationDbContext review, Guid id, Guid adminId)
             {
-                try { return (await new SubmissionService(review, new FakeEvidenceStorage(), new FixedTimeProvider(now)).ApproveAsync(id, adminId), null); }
+                try { return (await new SubmissionService(review, new FakeEvidenceStorage(), new FixedTimeProvider(now)).ApproveCurrentAsync(id, adminId), null); }
                 catch (Exception exception) { return (null, exception); }
             }
         }
@@ -1095,10 +1098,10 @@ public sealed partial class SubmissionWorkflowTests : IAsyncLifetime
         var second = await service.CreateAsync(Command(setup) with { ClaimedWeight = 2, DropSnapshotId = alternateDropId });
         clock.Set(now);
 
-        Assert.Equal(1, (await service.ApproveAsync(first.SubmissionId, setup.AdminId)).ApprovedContribution);
-        Assert.Equal(1, (await service.ApproveAsync(second.SubmissionId, setup.AdminId)).ApprovedContribution);
+        Assert.Equal(1, (await service.ApproveCurrentAsync(first.SubmissionId, setup.AdminId)).ApprovedContribution);
+        Assert.Equal(1, (await service.ApproveCurrentAsync(second.SubmissionId, setup.AdminId)).ApprovedContribution);
 
-        await service.ReverseAsync(first.SubmissionId, setup.AdminId, "Approved the wrong screenshot");
+        await service.ReverseCurrentAsync(first.SubmissionId, setup.AdminId, "Approved the wrong screenshot");
 
         Assert.Equal(1, await db.SubmissionContributions.Where(x => x.SubmissionId == second.SubmissionId).Select(x => x.Amount).SingleAsync());
         Assert.Equal(1, await db.SubmissionContributions.Where(x => x.ReversedAt == null).SumAsync(x => x.Amount));
@@ -1113,7 +1116,7 @@ public sealed partial class SubmissionWorkflowTests : IAsyncLifetime
         var service = Service(db);
         var result = await service.CreateAsync(Command(setup));
 
-        await service.ApproveAsync(result.SubmissionId, setup.AdminId);
+        await service.ApproveCurrentAsync(result.SubmissionId, setup.AdminId);
 
         var approved = await db.Submissions.SingleAsync(x => x.Id == result.SubmissionId);
         Assert.Equal(SubmissionStatus.Approved, approved.Status);
@@ -1127,9 +1130,9 @@ public sealed partial class SubmissionWorkflowTests : IAsyncLifetime
         await using var db = new ApplicationDbContext(options);
         var service = Service(db);
         var submission = await service.CreateAsync(Command(setup));
-        await service.ApproveAsync(submission.SubmissionId, setup.AdminId);
+        await service.ApproveCurrentAsync(submission.SubmissionId, setup.AdminId);
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => service.ApproveAsync(submission.SubmissionId, setup.AdminId));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.ApproveCurrentAsync(submission.SubmissionId, setup.AdminId));
 
         Assert.Equal(1, await db.SubmissionContributions.CountAsync(x => x.SubmissionId == submission.SubmissionId));
         Assert.Equal(2, await db.AuditEntries.CountAsync(x => x.TargetId == submission.SubmissionId.ToString("D")));
@@ -1162,7 +1165,7 @@ public sealed partial class SubmissionWorkflowTests : IAsyncLifetime
                     FOR EACH ROW EXECUTE FUNCTION submission_workflow_fail_audit();
                 """);
 
-            var failure = await Record.ExceptionAsync(() => Service(db).ApproveAsync(submission.SubmissionId, setup.AdminId));
+            var failure = await Record.ExceptionAsync(() => Service(db).ApproveCurrentAsync(submission.SubmissionId, setup.AdminId));
             Assert.NotNull(failure);
             Assert.Contains("submission audit failure injection", failure?.ToString() ?? string.Empty, StringComparison.Ordinal);
 
@@ -1195,7 +1198,7 @@ public sealed partial class SubmissionWorkflowTests : IAsyncLifetime
         var service = Service(db);
         var pending = await service.CreateAsync(Command(setup));
         var approved = await service.CreateAsync(Command(setup));
-        await service.ApproveAsync(approved.SubmissionId, setup.AdminId);
+        await service.ApproveCurrentAsync(approved.SubmissionId, setup.AdminId);
         var characterId = await db.EventParticipantCharacters
             .Where(x => x.EventParticipantId == setup.ParticipantId && x.ReleasedAt == null)
             .Select(x => x.OsrsCharacterId)
@@ -1206,12 +1209,12 @@ public sealed partial class SubmissionWorkflowTests : IAsyncLifetime
         eventItem.FinalizeResults(now);
         await db.SaveChangesAsync();
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => service.EditMetadataAsync(new(
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.EditMetadataCurrentAsync(new(
             pending.SubmissionId, setup.AdminId, setup.TileId, setup.RequirementId, setup.DropId,
             characterId, "Closed correction")));
-        await Assert.ThrowsAsync<InvalidOperationException>(() => service.RejectAsync(pending.SubmissionId, setup.AdminId, "Closed rejection"));
-        await Assert.ThrowsAsync<InvalidOperationException>(() => service.ApproveAsync(pending.SubmissionId, setup.AdminId));
-        await Assert.ThrowsAsync<InvalidOperationException>(() => service.ReverseAsync(approved.SubmissionId, setup.AdminId, "Closed reversal"));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.RejectCurrentAsync(pending.SubmissionId, setup.AdminId, "Closed rejection"));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.ApproveCurrentAsync(pending.SubmissionId, setup.AdminId));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.ReverseCurrentAsync(approved.SubmissionId, setup.AdminId, "Closed reversal"));
 
         Assert.Equal(SubmissionStatus.Pending, await db.Submissions.Where(x => x.Id == pending.SubmissionId).Select(x => x.Status).SingleAsync());
         Assert.Equal(SubmissionStatus.Approved, await db.Submissions.Where(x => x.Id == approved.SubmissionId).Select(x => x.Status).SingleAsync());
@@ -1236,7 +1239,7 @@ public sealed partial class SubmissionWorkflowTests : IAsyncLifetime
 
         var service = Service(db);
         var submission = await service.CreateAsync(Command(setup));
-        await service.RejectAsync(submission.SubmissionId, setup.AdminId, "The screenshot does not establish the claimed drop.");
+        await service.RejectCurrentAsync(submission.SubmissionId, setup.AdminId, "The screenshot does not establish the claimed drop.");
 
         var notifications = await db.PersonalNotifications.AsNoTracking().Where(x => x.Title == "evidence.rejected").ToListAsync();
         Assert.Equal(3, notifications.Count);
@@ -1249,7 +1252,7 @@ public sealed partial class SubmissionWorkflowTests : IAsyncLifetime
             Assert.Contains("Manual tile", notification.Detail, StringComparison.Ordinal);
             Assert.Contains("does not establish the claimed drop", notification.Detail, StringComparison.Ordinal);
         });
-        await Assert.ThrowsAsync<InvalidOperationException>(() => service.RejectAsync(submission.SubmissionId, setup.AdminId, "A second decision is not allowed."));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.RejectCurrentAsync(submission.SubmissionId, setup.AdminId, "A second decision is not allowed."));
         Assert.Equal(3, await db.PersonalNotifications.CountAsync(x => x.Title == "evidence.rejected"));
     }
 
@@ -1303,7 +1306,7 @@ public sealed partial class SubmissionWorkflowTests : IAsyncLifetime
         Assert.Equal(editNote, await db.Submissions.Where(x => x.Id == created.SubmissionId).Select(x => x.CaptainNote).SingleAsync());
 
         var rejected = await service.CreateAsync(Command(setup) with { CaptainNote = null });
-        await service.RejectAsync(rejected.SubmissionId, setup.AdminId, rejectionReason);
+        await service.RejectCurrentAsync(rejected.SubmissionId, setup.AdminId, rejectionReason);
         var rejectionAudit = Assert.Single(await db.AuditEntries.Where(x => x.TargetId == rejected.SubmissionId.ToString("D") && x.Action == "submission.rejected").ToListAsync());
         Assert.Equal(rejectionReason, rejectionAudit.Details);
         AssertSnapshot(rejectionAudit.BeforeState, captainNotePresent: false, reviewerNotePresent: false, status: SubmissionStatus.Pending);
@@ -1325,8 +1328,8 @@ public sealed partial class SubmissionWorkflowTests : IAsyncLifetime
         Assert.Equal($"/Submissions/{rejected.SubmissionId}", notification.Route);
 
         var approved = await service.CreateAsync(Command(setup) with { CaptainNote = null });
-        await service.ApproveAsync(approved.SubmissionId, setup.AdminId);
-        await service.ReverseAsync(approved.SubmissionId, setup.AdminId, reversalReason);
+        await service.ApproveCurrentAsync(approved.SubmissionId, setup.AdminId);
+        await service.ReverseCurrentAsync(approved.SubmissionId, setup.AdminId, reversalReason);
         var reversalAudit = Assert.Single(await db.AuditEntries.Where(x => x.TargetId == approved.SubmissionId.ToString("D") && x.Action == "submission.reversed").ToListAsync());
         Assert.Equal(reversalReason, reversalAudit.Details);
         AssertSnapshot(reversalAudit.BeforeState, captainNotePresent: false, reviewerNotePresent: false, status: SubmissionStatus.Approved);
@@ -1423,7 +1426,7 @@ public sealed partial class SubmissionWorkflowTests : IAsyncLifetime
             .Select(x => x.OsrsCharacterId)
             .SingleAsync();
         const string adminReason = "  Retargeted by Admin  ";
-        await service.EditMetadataAsync(new(
+        await service.EditMetadataCurrentAsync(new(
             adminSubmission.SubmissionId, setup.AdminId, setup.TileId, setup.RequirementId, alternateDropId,
             characterId, adminReason));
         Assert.Equal(1, await db.Submissions.Where(x => x.Id == adminSubmission.SubmissionId).Select(x => x.ClaimedWeight).SingleAsync());
@@ -1441,8 +1444,8 @@ public sealed partial class SubmissionWorkflowTests : IAsyncLifetime
         await db.SaveChangesAsync();
         var service = Service(db, clock);
         var predecessor = await service.CreateAsync(Command(setup));
-        await service.ApproveAsync(predecessor.SubmissionId, setup.AdminId);
-        await service.ReverseAsync(predecessor.SubmissionId, setup.AdminId, "Reverse for corrected evidence.");
+        await service.ApproveCurrentAsync(predecessor.SubmissionId, setup.AdminId);
+        await service.ReverseCurrentAsync(predecessor.SubmissionId, setup.AdminId, "Reverse for corrected evidence.");
 
         Assert.Equal(SubmissionStatus.Reversed, await db.Submissions.Where(x => x.Id == predecessor.SubmissionId).Select(x => x.Status).SingleAsync());
         Assert.True(await db.SubmissionContributions.AnyAsync(x => x.SubmissionId == predecessor.SubmissionId && x.ReversedAt != null));
@@ -1461,10 +1464,10 @@ public sealed partial class SubmissionWorkflowTests : IAsyncLifetime
         Assert.Equal(SubmissionStatus.Pending, attempt.Status);
         Assert.Null(await db.Submissions.Where(x => x.Id == attempt.SubmissionId).Select(x => x.ResubmissionOfSubmissionId).SingleAsync());
         Assert.Contains(await db.AuditEntries.Where(x => x.TargetId == attempt.SubmissionId.ToString("D")).ToListAsync(), x => x.Action == "submission.created");
-        await Assert.ThrowsAsync<InvalidOperationException>(() => service.ApproveAsync(predecessor.SubmissionId, setup.AdminId));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.ApproveCurrentAsync(predecessor.SubmissionId, setup.AdminId));
         var attemptSubmittedAt = await db.Submissions.Where(value => value.Id == attempt.SubmissionId).Select(value => value.SubmittedAt).SingleAsync();
         clock.Set(now.AddMinutes(2));
-        await service.ApproveAsync(attempt.SubmissionId, setup.AdminId);
+        await service.ApproveCurrentAsync(attempt.SubmissionId, setup.AdminId);
         Assert.True(await db.SubmissionContributions.AnyAsync(x => x.SubmissionId == attempt.SubmissionId && x.ReversedAt == null));
         Assert.True(await db.SubmissionContributions.AnyAsync(x => x.SubmissionId == predecessor.SubmissionId && x.ReversedAt != null));
         var board = await db.Boards.SingleAsync(value => value.EventId == setup.EventId);
@@ -1489,7 +1492,7 @@ public sealed partial class SubmissionWorkflowTests : IAsyncLifetime
         Assert.Equal(SubmissionStatus.Pending, pendingCopy.Status);
 
         clock.Set(now);
-        await service.ApproveAsync(first.SubmissionId, setup.AdminId);
+        await service.ApproveCurrentAsync(first.SubmissionId, setup.AdminId);
 
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => service.CreateAsync(Command(setup)));
         Assert.Contains("approved contribution limit", exception.Message, StringComparison.OrdinalIgnoreCase);
@@ -1543,7 +1546,7 @@ public sealed partial class SubmissionWorkflowTests : IAsyncLifetime
         await db.SaveChangesAsync();
         var submissions = Service(db);
         var approved = await submissions.CreateAsync(Command(setup));
-        await submissions.ApproveAsync(approved.SubmissionId, setup.AdminId);
+        await submissions.ApproveCurrentAsync(approved.SubmissionId, setup.AdminId);
         await submissions.CreateAsync(Command(setup));
         var publicBoards = new PublicBoardService(db, new FixedTimeProvider(now));
 
@@ -1569,7 +1572,7 @@ public sealed partial class SubmissionWorkflowTests : IAsyncLifetime
         Assert.Equal("Player One", recentDrop.PlayerName);
         Assert.NotNull(recentDrop.EvidenceAssetId);
 
-        await submissions.ReverseAsync(approved.SubmissionId, setup.AdminId, "Wrong evidence");
+        await submissions.ReverseCurrentAsync(approved.SubmissionId, setup.AdminId, "Wrong evidence");
         var reversed = await publicBoards.GetEventBoardAsync($"event-{setup.EventId:N}");
         var reversedTeam = Assert.Single(reversed!.Teams);
         var reversedRosterPlayer = Assert.Single(reversed.RosterPlayers!);
@@ -1680,7 +1683,7 @@ public sealed partial class SubmissionWorkflowTests : IAsyncLifetime
         for (var index = 0; index < 26; index++)
         {
             var submission = await submissions.CreateAsync(Command(setup));
-            await submissions.ApproveAsync(submission.SubmissionId, setup.AdminId);
+            await submissions.ApproveCurrentAsync(submission.SubmissionId, setup.AdminId);
             clock.Set(clock.GetUtcNow().AddMinutes(1));
         }
 
@@ -1704,7 +1707,7 @@ public sealed partial class SubmissionWorkflowTests : IAsyncLifetime
         for (var index = 0; index < 26; index++)
         {
             var submission = await submissions.CreateAsync(Command(setup));
-            await submissions.ApproveAsync(submission.SubmissionId, setup.AdminId);
+            await submissions.ApproveCurrentAsync(submission.SubmissionId, setup.AdminId);
             clock.Set(clock.GetUtcNow().AddMinutes(1));
         }
 
@@ -1730,7 +1733,7 @@ public sealed partial class SubmissionWorkflowTests : IAsyncLifetime
         await db.SaveChangesAsync();
         var submissions = Service(db);
         var first = await submissions.CreateAsync(Command(setup));
-        await submissions.ApproveAsync(first.SubmissionId, setup.AdminId);
+        await submissions.ApproveCurrentAsync(first.SubmissionId, setup.AdminId);
         var publicBoards = new PublicBoardService(db, new FixedTimeProvider(now));
 
         var partial = await publicBoards.GetEventBoardAsync($"event-{setup.EventId:N}");
@@ -1740,7 +1743,7 @@ public sealed partial class SubmissionWorkflowTests : IAsyncLifetime
         Assert.Equal(6, Assert.Single(partial.PlayerLeaderboard).EstimatedEhb);
 
         var second = await submissions.CreateAsync(Command(setup));
-        await submissions.ApproveAsync(second.SubmissionId, setup.AdminId);
+        await submissions.ApproveCurrentAsync(second.SubmissionId, setup.AdminId);
         var complete = await publicBoards.GetEventBoardAsync($"event-{setup.EventId:N}");
 
         var completeTeam = Assert.Single(complete!.Teams);
@@ -1818,7 +1821,7 @@ public sealed partial class SubmissionWorkflowTests : IAsyncLifetime
         await db.SaveChangesAsync();
         var submissions = Service(db);
         var result = await submissions.CreateAsync(Command(setup));
-        await submissions.ApproveAsync(result.SubmissionId, setup.AdminId);
+        await submissions.ApproveCurrentAsync(result.SubmissionId, setup.AdminId);
         var publicBoards = new PublicBoardService(db, new FixedTimeProvider(now));
 
         var board = await publicBoards.GetEventBoardAsync($"event-{setup.EventId:N}");
@@ -1842,7 +1845,7 @@ public sealed partial class SubmissionWorkflowTests : IAsyncLifetime
         await using var db = new ApplicationDbContext(options);
         var service = Service(db);
         var predecessor = await service.CreateAsync(Command(setup));
-        await service.RejectAsync(predecessor.SubmissionId, setup.AdminId, "Show the full game message.");
+        await service.RejectCurrentAsync(predecessor.SubmissionId, setup.AdminId, "Show the full game message.");
         var original = await db.Submissions.SingleAsync(x => x.Id == predecessor.SubmissionId);
 
         var attempt = await service.CreateAsync(Command(setup) with { CaptainNote = "ordinary attempt" });
@@ -2123,7 +2126,7 @@ public sealed partial class SubmissionWorkflowTests : IAsyncLifetime
             submission = await Service(create, clock).CreateAsync(Command(setup) with { ClaimedWeight = claimedWeight });
         clock.Set(submittedAt.AddMinutes(1));
         await using (var review = new ApplicationDbContext(options))
-            await Service(review, clock).ApproveAsync(submission.SubmissionId, setup.AdminId);
+            await Service(review, clock).ApproveCurrentAsync(submission.SubmissionId, setup.AdminId);
         return submission;
     }
 
