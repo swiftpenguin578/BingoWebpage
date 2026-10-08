@@ -267,4 +267,46 @@ public sealed partial class DraftOperationsIntegrationTests
         Assert.NotNull(await verify.DraftPicks.Where(value => value.Id == latest).Select(value => value.UndoneAt).SingleAsync());
         Assert.Null(await verify.DraftPicks.Where(value => value.Id == firstPick).Select(value => value.UndoneAt).SingleAsync());
     }
+
+    // Runs two page commands so the second one is provably blocked on the first one's event-row lock
+    // (the first stops after taking the event and draft locks). Returns both statuses.
+    private async Task<(string? First, string? Second)> RunBlockedPairAsync(Setup setup, Func<DraftModel, Task<Microsoft.AspNetCore.Mvc.IActionResult>> first, Func<DraftModel, Task<Microsoft.AspNetCore.Mvc.IActionResult>> second)
+    {
+        var boundary = new DraftRowLockBoundary();
+        var boundaryOptions = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetConnectionString()).AddInterceptors(boundary).Options;
+        var observer = new DraftEventLockObserver();
+        var observerOptions = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetConnectionString()).AddInterceptors(observer).Options;
+        var firstTask = ExecuteAndReadStatusAsync(setup.EventId, setup.FirstAdminId, first, boundaryOptions);
+        await boundary.Reached.Task.WaitAsync(TimeSpan.FromSeconds(15));
+        var secondTask = ExecuteAndReadStatusAsync(setup.EventId, setup.SecondAdminId, second, observerOptions);
+        await observer.Reached.Task.WaitAsync(TimeSpan.FromSeconds(15));
+        var blocked = await WaitForDatabaseBlockAsync(secondTask, observer.BackendPid.Task.Result, boundary.BackendPid.Task.Result);
+        boundary.Release.TrySetResult();
+        await Task.WhenAll(firstTask, secondTask);
+        Assert.True(blocked, "The second operation must wait for the first one's event-row lock.");
+        return (firstTask.Result, secondTask.Result);
+    }
+
+    // U6 review L2: AddTeam and a rename both check the case-insensitive name under the event lock, so
+    // neither order can leave two active teams whose names differ only by case.
+    [Fact]
+    public async Task U6AddTeamAndRenameCannotCreateACaseVariantDuplicateInEitherOrder()
+    {
+        foreach (var renameFirst in new[] { true, false })
+        {
+            var setup = await SeedAsync();
+            var secondId = await TeamIdAsync(setup.EventId, "Second");
+            long version;
+            await using (var read = new ApplicationDbContext(options)) version = await read.Teams.Where(value => value.Id == secondId).Select(value => value.Version).SingleAsync();
+            Func<DraftModel, Task<Microsoft.AspNetCore.Mvc.IActionResult>> rename = page => page.OnPostUpdateTeamAsync(setup.EventId, secondId, "Bravo", null, null, false, version, CancellationToken.None);
+            Func<DraftModel, Task<Microsoft.AspNetCore.Mvc.IActionResult>> add = page => page.OnPostAddTeamAsync(setup.EventId, "bravo", null, null, CancellationToken.None, false, false);
+            var (_, second) = await RunBlockedPairAsync(setup, renameFirst ? rename : add, renameFirst ? add : rename);
+            Assert.Equal("Another team already has this name.", second);
+            await using var verify = new ApplicationDbContext(options);
+            var names = await verify.Teams.Where(value => value.EventId == setup.EventId && value.Active).Select(value => value.Name).ToListAsync();
+            Assert.Equal(names.Count, names.Select(value => value.ToUpperInvariant()).Distinct().Count());
+            Assert.Single(names, value => string.Equals(value, "bravo", StringComparison.OrdinalIgnoreCase));
+        }
+    }
+
 }

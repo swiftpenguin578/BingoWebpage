@@ -85,7 +85,9 @@ public sealed partial class DraftModel(ApplicationDbContext db, TimeProvider tim
 
     public async Task<IActionResult> OnPostAddTeamAsync(Guid id, string name, TeamFormationType? formationType, string? affiliation, CancellationToken ct, bool confirmed = false, bool includedInDraft = true)
     {
-        await using var tx = await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, ct);
+        // L2: Read Committed under the event-row lock (taken first by every team-structure command), so the
+        // case-insensitive name check below sees a rename that committed while this command waited for the lock.
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
         BingoEvent? ev;
         DraftSession? draft;
         try
