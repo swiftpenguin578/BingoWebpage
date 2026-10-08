@@ -4,14 +4,14 @@ Ideas and fixes to consider later. Nothing here is approved or scheduled; an ite
 becomes work only when the user picks it and it gets a brief. Bugs found in
 production are added under "Bug fixes" as they are noticed.
 
-Priority: **High** = needed before DKL BINGO OKTOBER 2026 goes Live (15 October 2026; draft 14 October), in the order listed · **Normal** · **Maybe** = decide later.
+Priority: **High** = needed before DKL BINGO OKTOBER 2026 goes Live (draft in about 5 days from 8 October 2026), in the order listed · **Normal** · **Maybe** = decide later.
 
 ## Ideas and improvements
 
 | Item | Priority | Notes |
 | --- | --- | --- |
 | **Draft page uses large screens better** | **High** | Readable at 1080p (user check, 8 October 2026) but much of the screen is empty. Draft only: larger player chips and team cards, or a scale-up between today's size and a max width. |
-| **Credited EHB counts only completed tiles** | **High** | Admins' rule (8 October 2026): only EHB from **completed** tiles counts. Today `PublicProgressCalculator` sums every approved contribution, so incomplete tiles add partial EHB (`allocatedContributions.Sum`). Change the ranking EHB to completed tiles only. Decide: for the new placement rule only (`CreditedEhbThenScoreTime`; October was switched to it) — never re-rank past events or official snapshots; whether player/team EHB displays follow the same rule; tests at the PostgreSQL boundary. Must be live before October's results (event 15–22 October), ideally before it goes Live. |
+| **Credited EHB counts only completed tiles** | **High** | Admins' rule (8 October 2026): only EHB from **completed** tiles counts. Today `PublicProgressCalculator` sums every approved contribution, so incomplete tiles add partial EHB (`allocatedContributions.Sum`). Change the ranking EHB to completed tiles only. Decide: for the new placement rule only (`CreditedEhbThenScoreTime`; October was switched to it) — never re-rank past events or official snapshots; whether player/team EHB displays follow the same rule; tests at the PostgreSQL boundary. Must be live before October's results, ideally before it goes Live. |
 | **Tile points on the public board** | **High** | Show each tile's EHB to players as **"Points"**, rounded to the nearest whole number, on the public team board tiles in place of the position label ("R1 · C1" etc.), e.g. "Points: 12" (Danish too). Make that text larger so it reads easily. Should use the same EHB the ranking uses (see the row above). |
 | **Playing account in the header** | **High** | Move the account switcher from its current place into the site header, shown only while the event is Live. It always names the account you are playing on; players with one account see it without a switch option (today they can see "Not active"). Possibly a How To section on switching. |
 | **Public pages: fixes from the last bingo's feedback** | **High** | Mainly text that is too small. |
