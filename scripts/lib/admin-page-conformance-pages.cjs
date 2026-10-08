@@ -1,6 +1,12 @@
 // Add a page here once. The conformance gate uses the real Razor fixture,
 // loading template, family stylesheet, and these page-specific interaction probes.
 module.exports = [
+  // U8: Review queue (Review.dc.html). One module serves queue and workspace; its one POST path is the in-place decision.
+  { family: 'review', postSaveCount: 1, countSummary: { words: ['pending'], wordsDa: ['afventer'], numberItems: [0] },
+    url: f => '/Admin/Review?eventId=' + f.events['autumn-bingo-2027'], fixture: 'autumn-bingo-2027', source: 'Pages/Admin/Review/Index.cshtml', module: 'admin-review.js',
+    textRows: { 'rv-sk-main':['control',1.45], 'rv-sk-sub':['small',1.45] }, reference: 'Review.dc.html', first: '.card', blocks: { first: '.card', toolbar: '.toolbar' },
+    style: ['.rv-toolbar','justify-content','flex-start'], titleDa: 'Review',
+    update: { control: '[data-review-status][value="Pending"]', action: 'click', request: true, selected: '[data-review-status][value="Pending"]:checked' } },
   // U7: Board (Board.dc.html). One shared POST path (ctx.command) serves every Board command.
   // U7-E1 (c): plus one background POST, the edit-lease renewal (no busy state).
   { family: 'board', postSaveCount: 1, backgroundPostCount: 1, url: f => '/Admin/Events/Board/' + f.events['autumn-bingo-2027'], fixture: 'autumn-bingo-2027',

@@ -93,4 +93,10 @@
   <data name="AdminDesign.Confirmed" xml:space="preserve"><value>Confirmed</value></data>
   <data name="AdminDesign.{0} confirmed" xml:space="preserve"><value>{0} confirmed</value></data>
   <data name="AdminDesign.Add playing account" xml:space="preserve"><value>Add playing account</value></data>
+  <data name="AdminDesign.Approved" xml:space="preserve"><value>Approved</value></data>
+  <data name="AdminDesign.Current" xml:space="preserve"><value>Current</value></data>
+  <data name="AdminDesign.from {0}" xml:space="preserve"><value>from {0}</value></data>
+  <data name="AdminDesign.not set" xml:space="preserve"><value>not set</value></data>
+  <data name="AdminDesign.Open" xml:space="preserve"><value>Open</value></data>
+  <data name="AdminDesign.added {0}" xml:space="preserve"><value>added {0}</value></data>
 </root>

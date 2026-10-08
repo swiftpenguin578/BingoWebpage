@@ -4439,4 +4439,230 @@
   <data name="The event could not be changed." xml:space="preserve"><value>Eventet kunne ikke ændres.</value></data>
   <data name="This event window overlaps {0} ({1})." xml:space="preserve"><value>Eventets tidsrum overlapper {0} ({1}).</value></data>
   <data name="The replacement lifecycle window overlaps {0}." xml:space="preserve"><value>Det nye livscyklusvindue overlapper {0}.</value></data>
+  <!-- U8 Review (brief 94) -->
+  <data name="Change at least one detail, or cancel." xml:space="preserve"><value>Ret mindst én oplysning, eller annullér.</value></data>
+  <data name="This decision wasn&#x27;t saved because the page didn&#x27;t say which version you reviewed. Reload the submission and try again." xml:space="preserve"><value>Beslutningen blev ikke gemt, fordi siden ikke angav, hvilken version du gennemgik. Genindlæs indsendelsen, og prøv igen.</value></data>
+  <data name="Confirm this decision before it is saved. Nothing was changed." xml:space="preserve"><value>Bekræft beslutningen, før den gemmes. Intet blev ændret.</value></data>
+  <data name="This evidence changed in another request. Reload it and review the latest version before saving." xml:space="preserve"><value>Dokumentationen blev ændret i en anden anmodning. Genindlæs den, og gennemgå den nyeste version, før du gemmer.</value></data>
+  <data name="Account not found." xml:space="preserve"><value>Kontoen blev ikke fundet.</value></data>
+  <data name="Administrators cannot create evidence submissions." xml:space="preserve"><value>Administratorer kan ikke oprette indsendelser.</value></data>
+  <data name="New submissions are not currently open." xml:space="preserve"><value>Der kan ikke indsendes nyt lige nu.</value></data>
+  <data name="Evidence codes are enabled, but no code is active at the current time. Ask an administrator to activate one before submitting." xml:space="preserve"><value>Dokumentationskoder er slået til, men ingen kode er aktiv lige nu. Bed en administrator om at aktivere en, før du indsender.</value></data>
+  <data name="Submission not found." xml:space="preserve"><value>Indsendelsen blev ikke fundet.</value></data>
+  <data name="Administrators use the review correction path for this submission." xml:space="preserve"><value>Administratorer retter denne indsendelse via gennemgangen.</value></data>
+  <data name="Submissions are not currently open." xml:space="preserve"><value>Indsendelser er ikke åbne lige nu.</value></data>
+  <data name="Only a pending submission can be corrected." xml:space="preserve"><value>Kun en afventende indsendelse kan rettes.</value></data>
+  <data name="Submission metadata corrected." xml:space="preserve"><value>Indsendelsens oplysninger er rettet.</value></data>
+  <data name="Submission evidence replaced." xml:space="preserve"><value>Indsendelsens dokumentation er erstattet.</value></data>
+  <data name="Administrators cannot withdraw submissions through the captain path." xml:space="preserve"><value>Administratorer kan ikke trække indsendelser tilbage via kaptajnens side.</value></data>
+  <data name="Only a pending submission can be withdrawn." xml:space="preserve"><value>Kun en afventende indsendelse kan trækkes tilbage.</value></data>
+  <data name="Only a pending submission can be approved." xml:space="preserve"><value>Kun en afventende indsendelse kan godkendes.</value></data>
+  <data name="The published objective is unavailable." xml:space="preserve"><value>Det offentliggjorte mål er ikke tilgængeligt.</value></data>
+  <data name="This objective has no remaining eligible contribution for this submission. It cannot be approved under the published objective rules." xml:space="preserve"><value>Målet har intet tilbage, som denne indsendelse kan bidrage med. Den kan ikke godkendes efter målets offentliggjorte regler.</value></data>
+  <data name="Only an approved submission can be reversed." xml:space="preserve"><value>Kun en godkendt indsendelse kan tilbageføres.</value></data>
+  <data name="Choose an unambiguous Playing character assigned in this event to a current or former member of this submission&#x27;s team." xml:space="preserve"><value>Vælg en entydig spillende konto, der i dette event er tildelt et nuværende eller tidligere medlem af indsendelsens hold.</value></data>
+  <data name="Evidence can only be reviewed while the event is Live or awaiting final review." xml:space="preserve"><value>Dokumentation kan kun gennemgås, mens eventet er live eller afventer endelig gennemgang.</value></data>
+  <data name="Team not found." xml:space="preserve"><value>Holdet blev ikke fundet.</value></data>
+  <data name="The credited player is not eligible for this team at the evidence time." xml:space="preserve"><value>Den krediterede spiller kunne ikke bidrage til dette hold på dokumentationstidspunktet.</value></data>
+  <data name="Choose a tile from the published event board." xml:space="preserve"><value>Vælg en tile fra eventets offentliggjorte plade.</value></data>
+  <data name="Choose a requirement from that tile." xml:space="preserve"><value>Vælg et mål fra den tile.</value></data>
+  <data name="Manual objectives do not use a drop." xml:space="preserve"><value>Manuelle mål bruger ikke et drop.</value></data>
+  <data name="Choose an eligible drop." xml:space="preserve"><value>Vælg et gyldigt drop.</value></data>
+  <data name="This drop has already reached its approved contribution limit." xml:space="preserve"><value>Dette drop har allerede nået sin grænse for godkendte bidrag.</value></data>
+  <data name="This objective has already been completed." xml:space="preserve"><value>Målet er allerede fuldført.</value></data>
+  <data name="Eligible aliases have inconsistent contribution caps; board approval is required before review can continue." xml:space="preserve"><value>Gyldige aliasser har forskellige bidragsgrænser; pladen skal godkendes, før gennemgangen kan fortsætte.</value></data>
+  <data name="Administrator access is required." xml:space="preserve"><value>Administratoradgang er påkrævet.</value></data>
+  <data name="Reason must be 4000 characters or fewer." xml:space="preserve"><value>Begrundelsen må højst være 4000 tegn.</value></data>
+  <data name="A written correction reason is required." xml:space="preserve"><value>En skriftlig begrundelse er påkrævet.</value></data>
+  <data name="This review was not saved because the event or evidence changed in another request. Reload the submission, review the latest state, and try again." xml:space="preserve"><value>Gennemgangen blev ikke gemt, fordi eventet eller dokumentationen blev ændret i en anden anmodning. Genindlæs indsendelsen, gennemgå den nyeste tilstand, og prøv igen.</value></data>
+  <data name="Live · ends {0}" xml:space="preserve"><value>Live · slutter {0}</value></data>
+  <data name="Ended {0} · uploads closed, review continues" xml:space="preserve"><value>Sluttede {0} · uploads lukket, gennemgangen fortsætter</value></data>
+  <data name="Uploads closed, review continues" xml:space="preserve"><value>Uploads lukket, gennemgangen fortsætter</value></data>
+  <data name="Finished · review is read-only" xml:space="preserve"><value>Afsluttet · gennemgangen er skrivebeskyttet</value></data>
+  <data name="Archived · review is read-only" xml:space="preserve"><value>Arkiveret · gennemgangen er skrivebeskyttet</value></data>
+  <data name="Cancelled · review is read-only" xml:space="preserve"><value>Aflyst · gennemgangen er skrivebeskyttet</value></data>
+  <data name="Review opens when the event goes Live" xml:space="preserve"><value>Gennemgangen åbner, når eventet går live</value></data>
+  <data name="Nothing pending" xml:space="preserve"><value>Intet afventer</value></data>
+  <data name="Times in UTC, with {0} time below" xml:space="preserve"><value>Tider i UTC, med {0}-tid nedenunder</value></data>
+  <data name="Choose an event to review its submissions" xml:space="preserve"><value>Vælg et event for at gennemgå dets indsendelser</value></data>
+  <data name="This event isn’t available" xml:space="preserve"><value>Eventet er ikke tilgængeligt</value></data>
+  <data name="The link may be incomplete, or the event is hidden." xml:space="preserve"><value>Linket kan være ufuldstændigt, eller eventet er skjult.</value></data>
+  <data name="Choose an event" xml:space="preserve"><value>Vælg et event</value></data>
+  <data name="Review shows one event’s submissions. Pick an event in the sidebar, or open Review from its overview." xml:space="preserve"><value>Review viser ét events indsendelser. Vælg et event i sidebjælken, eller åbn Review fra eventets overblik.</value></data>
+  <data name="Search team, account or tile" xml:space="preserve"><value>Søg efter hold, konto eller tile</value></data>
+  <data name="No submissions yet" xml:space="preserve"><value>Ingen indsendelser endnu</value></data>
+  <data name="Evidence appears here as teams submit it." xml:space="preserve"><value>Dokumentation vises her, når holdene indsender den.</value></data>
+  <data name="Teams can submit evidence once {0} is Live." xml:space="preserve"><value>Holdene kan indsende dokumentation, når {0} er live.</value></data>
+  <data name="No submissions match" xml:space="preserve"><value>Ingen indsendelser passer</value></data>
+  <data name="Try another search or status." xml:space="preserve"><value>Prøv en anden søgning eller status.</value></data>
+  <data name="Clear search and status" xml:space="preserve"><value>Ryd søgning og status</value></data>
+  <data name="Submissions, pending first" xml:space="preserve"><value>Indsendelser, afventende først</value></data>
+  <data name="Check" xml:space="preserve"><value>Tjek</value></data>
+  <data name="No screenshot" xml:space="preserve"><value>Intet skærmbillede</value></data>
+  <data name="After end" xml:space="preserve"><value>Efter slut</value></data>
+  <data name="Paused period" xml:space="preserve"><value>Pauseperiode</value></data>
+  <data name="Same image" xml:space="preserve"><value>Samme billede</value></data>
+  <data name="Left team" xml:space="preserve"><value>Forlod holdet</value></data>
+  <data name="No warnings" xml:space="preserve"><value>Ingen advarsler</value></data>
+  <data name="{0} of {1} submissions" xml:space="preserve"><value>{0} af {1} indsendelser</value></data>
+  <data name="1 submission" xml:space="preserve"><value>1 indsendelse</value></data>
+  <data name="{0} submissions" xml:space="preserve"><value>{0} indsendelser</value></data>
+  <data name="Couldn’t load the submissions" xml:space="preserve"><value>Indsendelserne kunne ikke indlæses</value></data>
+  <data name="Your search and status are kept. Check your connection and try again." xml:space="preserve"><value>Din søgning og status er bevaret. Tjek din forbindelse, og prøv igen.</value></data>
+  <data name="Loading submissions" xml:space="preserve"><value>Indlæser indsendelser</value></data>
+  <data name="Couldn’t load this submission" xml:space="preserve"><value>Indsendelsen kunne ikke indlæses</value></data>
+  <data name="Loading the submission" xml:space="preserve"><value>Indlæser indsendelsen</value></data>
+  <data name="Reversed" xml:space="preserve"><value>Tilbageført</value></data>
+  <data name="AdminDesign.Approved" xml:space="preserve"><value>Godkendt</value></data>
+  <data name="AdminDesign.Current" xml:space="preserve"><value>Nuværende</value></data>
+  <data name="AdminDesign.from {0}" xml:space="preserve"><value>fra {0}</value></data>
+  <data name="AdminDesign.not set" xml:space="preserve"><value>ikke angivet</value></data>
+  <data name="AdminDesign.Open" xml:space="preserve"><value>Åbn</value></data>
+  <data name="Submission not found" xml:space="preserve"><value>Indsendelsen blev ikke fundet</value></data>
+  <data name="Submission {0} of {1} in the queue list" xml:space="preserve"><value>Indsendelse {0} af {1} i køens liste</value></data>
+  <data name="Previous submission" xml:space="preserve"><value>Forrige indsendelse</value></data>
+  <data name="Next submission" xml:space="preserve"><value>Næste indsendelse</value></data>
+  <data name="This submission isn’t available" xml:space="preserve"><value>Indsendelsen er ikke tilgængelig</value></data>
+  <data name="Go to the queue" xml:space="preserve"><value>Gå til køen</value></data>
+  <data name="1 minute" xml:space="preserve"><value>1 minut</value></data>
+  <data name="{0} minutes" xml:space="preserve"><value>{0} minutter</value></data>
+  <data name="{0} h {1} min" xml:space="preserve"><value>{0} t {1} min</value></data>
+  <data name="Review starts when the event is Live." xml:space="preserve"><value>Gennemgangen starter, når eventet er live.</value></data>
+  <data name="{0} is finished, so review is read-only." xml:space="preserve"><value>{0} er afsluttet, så gennemgangen er skrivebeskyttet.</value></data>
+  <data name="{0} is archived, so review is read-only." xml:space="preserve"><value>{0} er arkiveret, så gennemgangen er skrivebeskyttet.</value></data>
+  <data name="{0} was cancelled, so review is read-only." xml:space="preserve"><value>{0} blev aflyst, så gennemgangen er skrivebeskyttet.</value></data>
+  <data name="Review is available while the event is Live or in final review." xml:space="preserve"><value>Gennemgang er mulig, mens eventet er live eller i endelig gennemgang.</value></data>
+  <data name="Waiting for an earlier upload" xml:space="preserve"><value>Venter på en tidligere upload</value></data>
+  <data name="An earlier upload for this objective is still pending. Approve or reject it first." xml:space="preserve"><value>En tidligere upload til dette mål afventer stadig. Godkend eller afvis den først.</value></data>
+  <data name="Approving adds {0}" xml:space="preserve"><value>Godkendelse tilføjer {0}</value></data>
+  <data name="Worth {0}, but the drop’s limit allows only {1} more." xml:space="preserve"><value>Værd {0}, men droppets grænse tillader kun {1} mere.</value></data>
+  <data name="Worth {0}, but only 1 remains." xml:space="preserve"><value>Værd {0}, men der er kun 1 tilbage.</value></data>
+  <data name="Worth {0}, but only {1} remain." xml:space="preserve"><value>Værd {0}, men der er kun {1} tilbage.</value></data>
+  <data name="Worth {0}." xml:space="preserve"><value>Værd {0}.</value></data>
+  <data name="Completes the objective ({0} of {0})." xml:space="preserve"><value>Fuldfører målet ({0} af {0}).</value></data>
+  <data name="Objective: {0} of {1} after approval." xml:space="preserve"><value>Mål: {0} af {1} efter godkendelse.</value></data>
+  <data name="The drop’s limit is reached" xml:space="preserve"><value>Droppets grænse er nået</value></data>
+  <data name="This drop can’t add more to the objective ({0} of {1}). If the submission doesn’t count, reject it with a reason." xml:space="preserve"><value>Dette drop kan ikke tilføje mere til målet ({0} af {1}). Hvis indsendelsen ikke tæller, så afvis den med en begrundelse.</value></data>
+  <data name="Nothing left to add" xml:space="preserve"><value>Intet tilbage at tilføje</value></data>
+  <data name="The objective is already complete for {0} ({1} of {2})." xml:space="preserve"><value>Målet er allerede fuldført for {0} ({1} af {2}).</value></data>
+  <data name="Added {0}" xml:space="preserve"><value>Tilføjede {0}</value></data>
+  <data name="Objective progress: {0} of {1}." xml:space="preserve"><value>Målets fremskridt: {0} af {1}.</value></data>
+  <data name="Worth {0}; only {1} remained when approved." xml:space="preserve"><value>Værd {0}; kun {1} var tilbage ved godkendelsen.</value></data>
+  <data name="Removed {0}" xml:space="preserve"><value>Fjernede {0}</value></data>
+  <data name="Not counted since the reversal. Objective progress: {0} of {1}." xml:space="preserve"><value>Tæller ikke siden tilbageførslen. Målets fremskridt: {0} af {1}.</value></data>
+  <data name="Not counted" xml:space="preserve"><value>Tæller ikke</value></data>
+  <data name="The team’s captains and {0} are notified with your reason." xml:space="preserve"><value>Holdets kaptajner og {0} får besked med din begrundelse.</value></data>
+  <data name="Approval reversed" xml:space="preserve"><value>Godkendelse tilbageført</value></data>
+  <data name="{0} removed from {1}; later progress recalculated." xml:space="preserve"><value>{0} fjernet fra {1}; senere fremskridt genberegnet.</value></data>
+  <data name="Details corrected. The submission is still pending." xml:space="preserve"><value>Oplysningerne er rettet. Indsendelsen afventer stadig.</value></data>
+  <data name="approve this submission" xml:space="preserve"><value>godkende indsendelsen</value></data>
+  <data name="reject this submission" xml:space="preserve"><value>afvise indsendelsen</value></data>
+  <data name="reverse the approval" xml:space="preserve"><value>tilbageføre godkendelsen</value></data>
+  <data name="save the correction" xml:space="preserve"><value>gemme rettelsen</value></data>
+  <data name="Couldn’t {0}." xml:space="preserve"><value>Kunne ikke {0}.</value></data>
+  <data name="Open the earlier upload" xml:space="preserve"><value>Åbn den tidligere upload</value></data>
+  <data name="{0} changed this submission while you were reviewing it." xml:space="preserve"><value>{0} ændrede indsendelsen, mens du gennemgik den.</value></data>
+  <data name="This submission changed while you were reviewing it." xml:space="preserve"><value>Indsendelsen blev ændret, mens du gennemgik den.</value></data>
+  <data name="Nothing you did was saved. The current state is shown; check it again before deciding." xml:space="preserve"><value>Intet af det, du gjorde, blev gemt. Den nuværende tilstand vises; tjek den igen, før du beslutter.</value></data>
+  <data name="We couldn’t confirm whether you managed to {0}." xml:space="preserve"><value>Vi kunne ikke bekræfte, om det lykkedes at {0}.</value></data>
+  <data name="It may already have been saved. Check before doing anything else." xml:space="preserve"><value>Det kan allerede være gemt. Tjek, før du gør andet.</value></data>
+  <data name="Check status" xml:space="preserve"><value>Tjek status</value></data>
+  <data name="We still couldn’t check. Your connection may be down; try again." xml:space="preserve"><value>Vi kunne stadig ikke tjekke. Din forbindelse kan være nede; prøv igen.</value></data>
+  <data name="It wasn’t saved." xml:space="preserve"><value>Det blev ikke gemt.</value></data>
+  <data name="The submission is unchanged, so you can decide again." xml:space="preserve"><value>Indsendelsen er uændret, så du kan beslutte igen.</value></data>
+  <data name="We couldn’t confirm your request, but the submission is now {0}." xml:space="preserve"><value>Vi kunne ikke bekræfte din anmodning, men indsendelsen er nu {0}.</value></data>
+  <data name="The current state is shown. Check the history to see who decided it." xml:space="preserve"><value>Den nuværende tilstand vises. Se historikken for, hvem der besluttede det.</value></data>
+  <data name="We couldn’t confirm your last decision, and it may already have been saved. Check now, or leave and check when you come back." xml:space="preserve"><value>Vi kunne ikke bekræfte din seneste beslutning, og den kan allerede være gemt. Tjek nu, eller gå og tjek, når du kommer tilbage.</value></data>
+  <data name="Wait for the current decision to finish." xml:space="preserve"><value>Vent, til den igangværende beslutning er færdig.</value></data>
+  <data name="Enter a reason. The team sees it." xml:space="preserve"><value>Skriv en begrundelse. Holdet kan se den.</value></data>
+  <data name="Enter a reason for the correction." xml:space="preserve"><value>Skriv en begrundelse for rettelsen.</value></data>
+  <data name="Choose the drop shown in the screenshot." xml:space="preserve"><value>Vælg det drop, skærmbilledet viser.</value></data>
+  <data name="Choose a drop to see its weight." xml:space="preserve"><value>Vælg et drop for at se dets vægt.</value></data>
+  <data name="Worth {0}, the same as now." xml:space="preserve"><value>Værd {0}, det samme som nu.</value></data>
+  <data name="Worth {0} after this change (now {1})." xml:space="preserve"><value>Værd {0} efter ændringen (nu {1}).</value></data>
+  <data name="The weight comes from the board." xml:space="preserve"><value>Vægten kommer fra pladen.</value></data>
+  <data name="Released" xml:space="preserve"><value>Frigivet</value></data>
+  <data name="Couldn’t load the accounts. Try again." xml:space="preserve"><value>Kontiene kunne ikke indlæses. Prøv igen.</value></data>
+  <data name="Screenshot controls" xml:space="preserve"><value>Skærmbilledkontroller</value></data>
+  <data name="Zoom out" xml:space="preserve"><value>Zoom ud</value></data>
+  <data name="Zoom out (−)" xml:space="preserve"><value>Zoom ud (−)</value></data>
+  <data name="Zoom in" xml:space="preserve"><value>Zoom ind</value></data>
+  <data name="Zoom in (+)" xml:space="preserve"><value>Zoom ind (+)</value></data>
+  <data name="Fit (0)" xml:space="preserve"><value>Tilpas (0)</value></data>
+  <data name="Fit" xml:space="preserve"><value>Tilpas</value></data>
+  <data name="Actual size (1)" xml:space="preserve"><value>Faktisk størrelse (1)</value></data>
+  <data name="Drag to move · scroll to zoom" xml:space="preserve"><value>Træk for at flytte · rul for at zoome</value></data>
+  <data name="Original" xml:space="preserve"><value>Original</value></data>
+  <data name="Screenshot viewer. Plus and minus zoom, 0 fits, 1 shows actual size, arrow keys move." xml:space="preserve"><value>Skærmbilledfremviser. Plus og minus zoomer, 0 tilpasser, 1 viser faktisk størrelse, piletasterne flytter.</value></data>
+  <data name="Screenshot submitted for {0}, credited to {1}" xml:space="preserve"><value>Skærmbillede indsendt for {0}, krediteret {1}</value></data>
+  <data name="Loading the screenshot" xml:space="preserve"><value>Indlæser skærmbilledet</value></data>
+  <data name="Couldn’t load the screenshot" xml:space="preserve"><value>Skærmbilledet kunne ikke indlæses</value></data>
+  <data name="The file is kept; this was a loading problem." xml:space="preserve"><value>Filen er bevaret; det var et indlæsningsproblem.</value></data>
+  <data name="Open original" xml:space="preserve"><value>Åbn original</value></data>
+  <data name="No screenshot available" xml:space="preserve"><value>Intet skærmbillede</value></data>
+  <data name="No image is attached to this submission." xml:space="preserve"><value>Der er ikke vedhæftet et billede til indsendelsen.</value></data>
+  <data name="Needs a closer look" xml:space="preserve"><value>Kræver et nærmere kig</value></data>
+  <data name="No screenshot is available." xml:space="preserve"><value>Der er intet skærmbillede.</value></data>
+  <data name="There is nothing to compare. Reject it with a reason unless the evidence can be confirmed another way." xml:space="preserve"><value>Der er intet at sammenligne med. Afvis den med en begrundelse, medmindre dokumentationen kan bekræftes på anden måde.</value></data>
+  <data name="Uploaded {0} after the event ended." xml:space="preserve"><value>Uploadet {0} efter eventets slutning.</value></data>
+  <data name="Uploads are allowed until the cutoff, but the drop must happen before {0}. Check the time in the screenshot." xml:space="preserve"><value>Uploads er tilladt indtil fristen, men droppet skal ske før {0}. Tjek tidspunktet i skærmbilledet.</value></data>
+  <data name="Check the in-game time: the event was paused." xml:space="preserve"><value>Tjek tidspunktet i spillet: eventet var sat på pause.</value></data>
+  <data name="The event was ended early and resumed: {0} – {1}. A drop inside that period doesn’t count; an earlier drop uploaded then still can." xml:space="preserve"><value>Eventet blev afsluttet før tid og genoptaget: {0} – {1}. Et drop i den periode tæller ikke; et tidligere drop, der blev uploadet i perioden, kan stadig tælle.</value></data>
+  <data name="{0} left {1} at {2}." xml:space="preserve"><value>{0} forlod {1} {2}.</value></data>
+  <data name="Drops before that time count for the team; later ones don’t." xml:space="preserve"><value>Drops før det tidspunkt tæller for holdet; senere drops gør ikke.</value></data>
+  <data name="The same image is on another submission." xml:space="preserve"><value>Det samme billede findes på en anden indsendelse.</value></data>
+  <data name="The same image is on {0} other submissions." xml:space="preserve"><value>Det samme billede findes på {0} andre indsendelser.</value></data>
+  <data name="Identical files, matched by checksum. Compare them; a match alone doesn’t make this one invalid." xml:space="preserve"><value>Identiske filer, matchet på kontrolsum. Sammenlign dem; et match alene gør ikke denne ugyldig.</value></data>
+  <data name="Correct details" xml:space="preserve"><value>Ret oplysninger</value></data>
+  <data name="Change only what the screenshot shows differently. The screenshot, upload time and contribution can’t be edited." xml:space="preserve"><value>Ret kun det, skærmbilledet viser anderledes. Skærmbillede, uploadtidspunkt og bidrag kan ikke redigeres.</value></data>
+  <data name="{0} · {1} (worth {2})" xml:space="preserve"><value>{0} · {1} (værd {2})</value></data>
+  <data name="Credited account" xml:space="preserve"><value>Krediteret konto</value></data>
+  <data name="Playing accounts on this team at upload time. The player is set from the account." xml:space="preserve"><value>Spillende konti på holdet på uploadtidspunktet. Spilleren følger af kontoen.</value></data>
+  <data name="Reason for the correction" xml:space="preserve"><value>Begrundelse for rettelsen</value></data>
+  <data name="e.g. The chat shows a fish barrel, not a tackle box." xml:space="preserve"><value>F.eks. chatten viser en fish barrel, ikke en tackle box.</value></data>
+  <data name="Required. Kept in the history." xml:space="preserve"><value>Påkrævet. Gemmes i historikken.</value></data>
+  <data name="Compare with the screenshot" xml:space="preserve"><value>Sammenlign med skærmbilledet</value></data>
+  <data name="Active when it was uploaded" xml:space="preserve"><value>Aktiv da den blev uploadet</value></data>
+  <data name="{0} {1} time · recorded by the server" xml:space="preserve"><value>{0} {1}-tid · registreret af serveren</value></data>
+  <data name="Event window" xml:space="preserve"><value>Eventets tidsrum</value></data>
+  <data name="Paused {0} – {1}" xml:space="preserve"><value>Pause {0} – {1}</value></data>
+  <data name="Open the earlier upload ({0})" xml:space="preserve"><value>Åbn den tidligere upload ({0})</value></data>
+  <data name="Submitter’s note" xml:space="preserve"><value>Indsenderens note</value></data>
+  <data name="History and files" xml:space="preserve"><value>Historik og filer</value></data>
+  <data name="Earlier approvals for this objective" xml:space="preserve"><value>Tidligere godkendelser til dette mål</value></data>
+  <data name="None for this team yet." xml:space="preserve"><value>Ingen for dette hold endnu.</value></data>
+  <data name="Files" xml:space="preserve"><value>Filer</value></data>
+  <data name="No files are attached." xml:space="preserve"><value>Der er ingen vedhæftede filer.</value></data>
+  <data name="Current · replaced the original" xml:space="preserve"><value>Nuværende · erstattede originalen</value></data>
+  <data name="Earlier version · kept for history" xml:space="preserve"><value>Tidligere version · gemt i historikken</value></data>
+  <data name="uploaded {0}" xml:space="preserve"><value>uploadet {0}</value></data>
+  <data name="Checksum" xml:space="preserve"><value>Kontrolsum</value></data>
+  <data name="Decision" xml:space="preserve"><value>Beslutning</value></data>
+  <data name="Back to the queue" xml:space="preserve"><value>Tilbage til køen</value></data>
+  <data name="Approve" xml:space="preserve"><value>Godkend</value></data>
+  <data name="Reject…" xml:space="preserve"><value>Afvis…</value></data>
+  <data name="Correct details…" xml:space="preserve"><value>Ret oplysninger…</value></data>
+  <data name="Reason for rejecting" xml:space="preserve"><value>Begrundelse for afvisningen</value></data>
+  <data name="e.g. The drop message isn’t visible in the screenshot." xml:space="preserve"><value>F.eks. dropbeskeden er ikke synlig i skærmbilledet.</value></data>
+  <data name="Required. Sent to the team’s captains and {0}, and kept in the history." xml:space="preserve"><value>Påkrævet. Sendes til holdets kaptajner og {0} og gemmes i historikken.</value></data>
+  <data name="Rejecting…" xml:space="preserve"><value>Afviser…</value></data>
+  <data name="Reject submission" xml:space="preserve"><value>Afvis indsendelsen</value></data>
+  <data name="Correcting details for this submission. It stays pending." xml:space="preserve"><value>Du retter oplysninger for indsendelsen. Den afventer stadig.</value></data>
+  <data name="Save correction" xml:space="preserve"><value>Gem rettelsen</value></data>
+  <data name="Approved by {0} · {1}" xml:space="preserve"><value>Godkendt af {0} · {1}</value></data>
+  <data name="Reverse approval…" xml:space="preserve"><value>Tilbagefør godkendelsen…</value></data>
+  <data name="Reverse this approval?" xml:space="preserve"><value>Tilbagefør denne godkendelse?</value></data>
+  <data name="{0}’s {1} stops counting for {2}." xml:space="preserve"><value>{0}s {1} holder op med at tælle for {2}.</value></data>
+  <data name="Its contribution of {0} is removed, and tile, line, leaderboard and placement progress are recalculated." xml:space="preserve"><value>Bidraget på {0} fjernes, og fremskridt for tiles, linjer, rangliste og placeringer genberegnes.</value></data>
+  <data name="Later approved evidence for this objective may take up the freed amount." xml:space="preserve"><value>Senere godkendt dokumentation til dette mål kan overtage det frigjorte.</value></data>
+  <data name="The submission and its approval stay in the history. It can’t be approved again; the team can upload a new submission while uploads are open." xml:space="preserve"><value>Indsendelsen og godkendelsen bliver i historikken. Den kan ikke godkendes igen; holdet kan uploade en ny indsendelse, mens uploads er åbne.</value></data>
+  <data name="Reason for reversing" xml:space="preserve"><value>Begrundelse for tilbageførslen</value></data>
+  <data name="e.g. The drop was on a different account than the one credited." xml:space="preserve"><value>F.eks. droppet var på en anden konto end den krediterede.</value></data>
+  <data name="Reversing…" xml:space="preserve"><value>Tilbagefører…</value></data>
+  <data name="Withdrawn by the team before review. It stays in the history." xml:space="preserve"><value>Trukket tilbage af holdet før gennemgang. Den bliver i historikken.</value></data>
+  <data name="This attempt stays in the history and can’t be approved again. A new upload is a separate submission." xml:space="preserve"><value>Forsøget bliver i historikken og kan ikke godkendes igen. En ny upload er en separat indsendelse.</value></data>
+  <data name="Rejected by {0} · {1}" xml:space="preserve"><value>Afvist af {0} · {1}</value></data>
+  <data name="Approval reversed by {0} · {1}" xml:space="preserve"><value>Godkendelse tilbageført af {0} · {1}</value></data>
+  <data name="AdminDesign.added {0}" xml:space="preserve"><value>tilføjede {0}</value></data>
+  <data name="No evidence was submitted in {0}." xml:space="preserve"><value>Der blev ikke indsendt dokumentation i {0}.</value></data>
 </root>

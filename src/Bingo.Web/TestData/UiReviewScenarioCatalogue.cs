@@ -51,8 +51,17 @@ public static class UiReviewScenarioCatalogue
             Add("Public board / affiliated teams", item.Name + " — public board", $"/Events/{item.Slug}/Board", "ReviewParticipant");
         }
         Add("Board / Review", "Published board with exceptional working-copy correction", $"/Admin/Events/Board/{current.Id}");
+        var hiddenReview = scenarios.Events.First(value => value.Hidden);
         Add("Board / Review", "Pending evidence queue", $"/Admin/Review/Index?eventId={current.Id}");
         Add("Board / Review", "Blocked approval — approve or reject the earlier upload first", $"/Admin/Review/Details/{scenarios.BlockedSubmissionId}");
+        Add("Board / Review", "Queue — Rejected filter", $"/Admin/Review?eventId={current.Id}&status=Rejected");
+        Add("Board / Review", "Queue — Reversed filter (Reversed approval shows Removed 1)", $"/Admin/Review?eventId={current.Id}&status=Reversed");
+        Add("Board / Review", "Queue — no match / Clear search and status", $"/Admin/Review?eventId={current.Id}&search=nothing-here");
+        Add("Board / Review", "Queue — search by team, account or tile", $"/Admin/Review?eventId={current.Id}&search=Review");
+        Add("Board / Review", "Queue of an Archived event — read-only, review is closed", $"/Admin/Review?eventId={archived.Id}");
+        var draftEvent = scenarios.Events.Single(value => value.Slug == "ur-draft");
+        Add("Board / Review", "Queue of a Draft event — “Review starts when the event is Live.”, empty", $"/Admin/Review?eventId={draftEvent.Id}");
+        Add("Board / Review", "Queue without an event — Choose an event", "/Admin/Review");
         if (current.State == EventState.AwaitingFinalReview)
             Add("Final review / WOM", "Current final review — pending evidence and WOM end update", $"/Admin/Events/Finalize/{current.Id}");
         Add("Final review / WOM", "WOM end update Pending", $"/Admin/Events/WiseOldMan/{current.Id}");
@@ -114,7 +123,6 @@ public static class UiReviewScenarioCatalogue
         Add("Hidden / Audit", "Audit including hidden events", "/Admin/Audit/Index", "ReviewOwner");
         Add("Hidden / Audit", "Plain Admin retained audit — including hidden-event history", "/Admin/Audit/Index");
         // T1 Audit binding scenarios (lane T).
-        var hiddenReview = scenarios.Events.First(value => value.Hidden);
         Add("Audit", "History, newest first — filters, chips and the entry drawer", "/Admin/Audit");
         Add("Audit", "Participants area (S11) — moved team membership keys", "/Admin/Audit?action=participant.");
         Add("Audit", "Signups area (S11) — automatic signup opening failures, Automated", "/Admin/Audit?action=signup.");

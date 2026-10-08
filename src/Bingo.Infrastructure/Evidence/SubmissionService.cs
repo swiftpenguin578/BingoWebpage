@@ -144,13 +144,13 @@ public sealed partial class SubmissionService(
 
     public async Task RejectAsync(Guid submissionId, Guid adminAccountId, string reason, CancellationToken cancellationToken = default, int? expectedVersion = null)
     {
-        var adminName = await EnsureAdmin(adminAccountId, cancellationToken); var normalizedReason = RequireReviewReason(reason); await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken); var s = await LockedAdminReviewSubmissionAsync(submissionId, cancellationToken); EnsureExpectedVersion(s, expectedVersion); var now = time.GetUtcNow(); var before = Snapshot(s); s.Reject(normalizedReason, now); var after = Snapshot(s); db.ReviewActions.Add(Action(s.Id, ReviewActionType.Reject, adminAccountId, now, normalizedReason, before, after)); AddAudit(s, adminAccountId, adminName, "submission.rejected", normalizedReason, before, after, now); await AddRejectionNotificationsAsync(s, normalizedReason, now, cancellationToken); await db.SaveChangesAsync(cancellationToken); await tx.CommitAsync(CancellationToken.None);
+        var adminName = await EnsureAdmin(adminAccountId, cancellationToken); RequireReviewVersion(expectedVersion); var normalizedReason = RequireReviewReason(reason); await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken); var s = await LockedAdminReviewSubmissionAsync(submissionId, cancellationToken); EnsureReviewVersion(s, expectedVersion); var now = time.GetUtcNow(); var before = Snapshot(s); s.Reject(normalizedReason, now); var after = Snapshot(s); db.ReviewActions.Add(Action(s.Id, ReviewActionType.Reject, adminAccountId, now, normalizedReason, before, after)); AddAudit(s, adminAccountId, adminName, "submission.rejected", normalizedReason, before, after, now); await AddRejectionNotificationsAsync(s, normalizedReason, now, cancellationToken); await db.SaveChangesAsync(cancellationToken); await tx.CommitAsync(CancellationToken.None);
     }
 
     public async Task<SubmissionApprovalResult> ApproveAsync(Guid submissionId, Guid adminAccountId, CancellationToken cancellationToken = default, int? expectedVersion = null)
     {
-        var adminName = await EnsureAdmin(adminAccountId, cancellationToken); await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
-        var s = await LockedAdminReviewSubmissionAsync(submissionId, cancellationToken); EnsureExpectedVersion(s, expectedVersion); if (s.Status != SubmissionStatus.Pending) throw new InvalidOperationException("Only a pending submission can be approved.");
+        var adminName = await EnsureAdmin(adminAccountId, cancellationToken); RequireReviewVersion(expectedVersion); await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
+        var s = await LockedAdminReviewSubmissionAsync(submissionId, cancellationToken); EnsureReviewVersion(s, expectedVersion); if (s.Status != SubmissionStatus.Pending) throw new InvalidOperationException("Only a pending submission can be approved.");
         var publication = await LockedPublicationAsync(s.EventId, cancellationToken);
         var requirement = publication.Requirements.SingleOrDefault(x => x.Id == s.RequirementId && x.BoardTileId == s.BoardTileId) ?? throw new InvalidOperationException("The published objective is unavailable.");
         var allocation = await ContributionAsync(s, publication, requirement, cancellationToken);
@@ -175,7 +175,7 @@ public sealed partial class SubmissionService(
 
     public async Task ReverseAsync(Guid submissionId, Guid adminAccountId, string reason, CancellationToken cancellationToken = default, int? expectedVersion = null)
     {
-        var adminName = await EnsureAdmin(adminAccountId, cancellationToken); var normalizedReason = RequireReviewReason(reason); await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken); var s = await LockedAdminReviewSubmissionAsync(submissionId, cancellationToken); EnsureExpectedVersion(s, expectedVersion); if (s.Status != SubmissionStatus.Approved) throw new InvalidOperationException("Only an approved submission can be reversed."); var publication = await LockedPublicationAsync(s.EventId, cancellationToken); var contribution = await db.SubmissionContributions.SingleAsync(x => x.SubmissionId == submissionId && x.ReversedAt == null, cancellationToken); var now = time.GetUtcNow(); var before = Snapshot(s); s.Reverse(normalizedReason, now); contribution.Reverse(now); var after = Snapshot(s); db.ReviewActions.Add(Action(s.Id, ReviewActionType.ReverseApproval, adminAccountId, now, normalizedReason, before, after)); AddAudit(s, adminAccountId, adminName, "submission.reversed", normalizedReason, before, after, now); await RebalanceLaterContributions(s, contribution, publication, adminAccountId, adminName, now, cancellationToken); (await db.Events.SingleAsync(x => x.Id == s.EventId, cancellationToken)).AdvanceStatsEvidenceRevision(); await db.SaveChangesAsync(cancellationToken);
+        var adminName = await EnsureAdmin(adminAccountId, cancellationToken); RequireReviewVersion(expectedVersion); var normalizedReason = RequireReviewReason(reason); await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken); var s = await LockedAdminReviewSubmissionAsync(submissionId, cancellationToken); EnsureReviewVersion(s, expectedVersion); if (s.Status != SubmissionStatus.Approved) throw new InvalidOperationException("Only an approved submission can be reversed."); var publication = await LockedPublicationAsync(s.EventId, cancellationToken); var contribution = await db.SubmissionContributions.SingleAsync(x => x.SubmissionId == submissionId && x.ReversedAt == null, cancellationToken); var now = time.GetUtcNow(); var before = Snapshot(s); s.Reverse(normalizedReason, now); contribution.Reverse(now); var after = Snapshot(s); db.ReviewActions.Add(Action(s.Id, ReviewActionType.ReverseApproval, adminAccountId, now, normalizedReason, before, after)); AddAudit(s, adminAccountId, adminName, "submission.reversed", normalizedReason, before, after, now); await RebalanceLaterContributions(s, contribution, publication, adminAccountId, adminName, now, cancellationToken); (await db.Events.SingleAsync(x => x.Id == s.EventId, cancellationToken)).AdvanceStatsEvidenceRevision(); await db.SaveChangesAsync(cancellationToken);
         await TileCompletionFactReconciler.ReconcileAsync(db, s.EventId, publication, [s.TeamId], now, cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
         var focusCleared = focus is not null && await focus.ClearCompletedTileFocusAsync(s.EventId, s.TeamId, s.BoardTileId, cancellationToken); if (focusCleared) await db.SaveChangesAsync(cancellationToken); await tx.CommitAsync(CancellationToken.None); await Notify(s.EventId, cancellationToken); await NotifyFocus(s.EventId, s.TeamId, focusCleared, cancellationToken);
@@ -184,11 +184,15 @@ public sealed partial class SubmissionService(
     public async Task EditMetadataAsync(EditSubmissionMetadataCommand command, CancellationToken cancellationToken = default)
     {
         var adminName = await EnsureAdmin(command.AdminAccountId, cancellationToken);
+        RequireReviewVersion(command.ExpectedVersion);
         var normalizedReason = RequireReviewReason(command.Reason);
         await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
         var s = await LockedAdminReviewSubmissionAsync(command.SubmissionId, cancellationToken);
-        EnsureExpectedVersion(s, command.ExpectedVersion);
+        EnsureReviewVersion(s, command.ExpectedVersion);
         if (s.Status != SubmissionStatus.Pending) throw new InvalidOperationException("Only a pending submission can be corrected.");
+        // B-Review-2: a correction that changes nothing is refused before any review action or audit entry.
+        if (command.BoardTileId == s.BoardTileId && command.RequirementId == s.RequirementId && command.DropSnapshotId == s.DropSnapshotId && command.CreditedOsrsCharacterId == s.CreditedOsrsCharacterId)
+            throw new InvalidOperationException(NoOpCorrectionMessage);
         var candidates = await CorrectionCharactersAsync(s, cancellationToken);
         var credited = candidates.SingleOrDefault(x => x.CharacterId == command.CreditedOsrsCharacterId)
             ?? throw new InvalidOperationException("Choose an unambiguous Playing character assigned in this event to a current or former member of this submission's team.");
@@ -523,8 +527,17 @@ public sealed partial class SubmissionService(
         return requirementIds.All(x => totals.GetValueOrDefault(x.Id) >= x.TargetContribution);
     }
     private IEvidenceAuthority Authority => authority ??= new EvidenceAuthority(db);
+    public const string NoOpCorrectionMessage = "Change at least one detail, or cancel.";
+    public const string MissingReviewVersionMessage = "This decision wasn't saved because the page didn't say which version you reviewed. Reload the submission and try again.";
+    // RL-1/BR-12: the admin review actions (Approve, Reject, Reverse, Edit) fail closed on a missing or zero
+    // baseline before any write. The player/captain Withdraw and Correct paths keep EnsureExpectedVersion.
+    private static void RequireReviewVersion(int? expectedVersion)
+    { if (expectedVersion is not > 0) throw new InvalidOperationException(MissingReviewVersionMessage); }
+    private static void EnsureReviewVersion(Submission submission, int? expectedVersion)
+    { RequireReviewVersion(expectedVersion); if (submission.Version != expectedVersion) throw new InvalidOperationException(StaleEvidenceMessage); }
+    public const string StaleEvidenceMessage = "This evidence changed in another request. Reload it and review the latest version before saving.";
     private static void EnsureExpectedVersion(Submission submission, int? expectedVersion)
-    { if (expectedVersion is not null && submission.Version != expectedVersion.Value) throw new InvalidOperationException("This evidence changed in another request. Reload it and review the latest version before saving."); }
+    { if (expectedVersion is not null && submission.Version != expectedVersion.Value) throw new InvalidOperationException(StaleEvidenceMessage); }
     private static void EnsureMutationWindow(BingoEvent ev, EvidenceActorKind kind, DateTimeOffset now, string message)
     {
         var open = kind != EvidenceActorKind.EmergencyCaptain && ev.AcceptsNewSubmissions(now);
