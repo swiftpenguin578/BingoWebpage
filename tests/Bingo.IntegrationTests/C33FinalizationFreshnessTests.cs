@@ -391,6 +391,7 @@ public sealed class C33FinalizationFreshnessTests : IAsyncLifetime
     [Fact]
     public async Task FinalizationPageExplainsAndDisplaysScoreTimeInEnglishAndDanish()
     {
+        await ApproveAsync(fixture.First); // gives team A a dated current-score time
         await using var factory = Factory();
         using var english = factory.CreateClient(new() { AllowAutoRedirect = false });
         await LoginAsync(english, "c33-admin");
@@ -398,7 +399,10 @@ public sealed class C33FinalizationFreshnessTests : IAsyncLifetime
         // A10 / AU12: shared table markup, same authoritative score-time values and rule explanation.
         Assert.Contains("Completed boards first, then earlier completion.", englishHtml, StringComparison.Ordinal);
         Assert.Contains(">Score reached</div>", englishHtml, StringComparison.Ordinal);
-        Assert.Matches(@"role=""cell""><span class=""tval[^""]*"">[0-9]{2} [A-Za-z]+ [0-9]{4}", englishHtml);
+        // The 1x1 fixture completes the board, so the Score reached cell (last cell of the row) reads
+        // "At completion" and the dated completion value sits in the Full board cell (second cell).
+        Assert.Matches(@"role=""cell""><span class=""tval[^""]*"">At completion</span></div></div>", englishHtml);
+        Assert.Matches(@"</div></div></div><div class=""td"" role=""cell""><span class=""tval[^""]*"">[0-9]{2} [A-Za-z]+ [0-9]{4}", englishHtml);
 
         using var danish = factory.CreateClient(new() { AllowAutoRedirect = false });
         danish.DefaultRequestHeaders.AcceptLanguage.ParseAdd("da");
@@ -406,7 +410,8 @@ public sealed class C33FinalizationFreshnessTests : IAsyncLifetime
         var danishHtml = WebUtility.HtmlDecode(await danish.GetStringAsync(FinalizeUrl));
         Assert.Contains("Fuldførte plader først, derefter tidligste fuldførelse.", danishHtml, StringComparison.Ordinal);
         Assert.Contains(">Score opnået</div>", danishHtml, StringComparison.Ordinal);
-        Assert.Matches(@"role=""cell""><span class=""tval[^""]*"">[0-9]{2} ", danishHtml);
+        Assert.Matches(@"role=""cell""><span class=""tval[^""]*"">Ved fuldførelse</span></div></div>", danishHtml);
+        Assert.Matches(@"</div></div></div><div class=""td"" role=""cell""><span class=""tval[^""]*"">[0-9]{2} ", danishHtml);
     }
 
     [Fact]
