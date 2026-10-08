@@ -40,8 +40,9 @@ body:not(.using-keyboard) :focus-visible{outline:none}.design-drawer-layer{posit
 .design-notif-empty b{color:var(--dk-text);font-size:var(--dk-fs-control-sm);font-weight:600}
 .design-notif-note{padding:6px 10px;font-size:var(--dk-fs-meta);color:var(--dk-text-3)}
 .design-notif-foot{display:flex;gap:4px}
-.design-notif-foot>*{flex:1;min-width:0}
-.design-notif-foot form{display:flex}
+.design-notif-foot>a{flex:1;min-width:0}
+.design-notif-foot form{display:flex;flex:none;margin-left:auto}
+.design-notif-foot form .menu-item{width:auto;justify-content:flex-end;text-align:right}
 
 .toast-x .ic{width:14px;height:14px}
 .sk-block{padding:var(--dk-space-5) var(--dk-space-6);border-bottom:1px solid var(--dk-border-subtle)}
