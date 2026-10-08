@@ -354,7 +354,9 @@ public sealed partial class Slice1IdentityIntegrationTests
         var disabledHistory = Assert.Single(page.AccountView!.DisableHistory, entry => entry.State == "Disabled");
         Assert.Equal(reason, disabledHistory.Reason);
         Assert.Equal(actor.LoginName, disabledHistory.ActorName);
-        Assert.Equal(disabledAudit.OccurredAt, disabledHistory.OccurredAt);
+        // The tracked entity carries 100 ns ticks; PostgreSQL persists microseconds, so compare with the persisted value.
+        var persistedDisabledAt = await db.AuditEntries.AsNoTracking().Where(x => x.Id == disabledAudit.Id).Select(x => x.OccurredAt).SingleAsync();
+        Assert.Equal(persistedDisabledAt, disabledHistory.OccurredAt);
         Assert.Contains(page.AccountView.DisableHistory, entry => entry.State == "Restored" && entry.ActorName == actor.LoginName);
 
         var savedTarget = await db.Accounts.AsNoTracking().SingleAsync(x => x.Id == target.Id);
