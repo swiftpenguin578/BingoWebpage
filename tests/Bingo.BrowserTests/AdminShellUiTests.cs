@@ -11,7 +11,6 @@ public sealed class AdminShellUiTests
         var layout = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "Pages", "Shared", "_AdminLayout.cshtml"));
         var shellService = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "Navigation", "SharedShellService.cs"));
         var questions = File.ReadAllText(Path.Combine(adminRoot, "Events", "Questions.cshtml"));
-        var overlayLayout = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "Pages", "Shared", "_AdminOverlayLayout.cshtml"));
         var styles = BrowserTestFiles.ReadActiveStyles(root);
 
         Assert.Contains("Layout = \"_AdminLayout\"", viewStart);
@@ -99,9 +98,8 @@ public sealed class AdminShellUiTests
         Assert.DoesNotContain("_AdminOverlayLayout", questions);
         Assert.DoesNotContain("signup-questions-dialog", layout);
         Assert.DoesNotContain("ViewData[\"Layout\"]", questions);
-        Assert.DoesNotContain("admin-header", overlayLayout);
-        Assert.DoesNotContain("admin-sidebar", overlayLayout);
-        Assert.Contains("@RenderBody()", overlayLayout);
+        // U10 item 1: the overlay layout is retired; its absence is pinned.
+        Assert.False(File.Exists(Path.Combine(root, "src", "Bingo.Web", "Pages", "Shared", "_AdminOverlayLayout.cshtml")));
     }
 
     [Fact]
