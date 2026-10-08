@@ -813,10 +813,9 @@ public sealed partial class Slice1IdentityIntegrationTests(PostgreSqlTestFixture
         Assert.NotNull(persisted.ActiveImageAssetId);
         Assert.Equal(persisted.ActiveImageAssetId, await db.TeamImageAssets.Where(item => item.TeamId == team.Id && item.ReplacedAt == null).Select(item => (Guid?)item.Id).SingleAsync());
 
+        // U10 item 3 (A10): the unused Teams "TeamImage" handler and the projection's ImageUrl are retired; the upload itself stays pinned above.
         var projection = Page(storage);
         Assert.IsType<PageResult>(await projection.OnGetAsync(ev.Id, null, CancellationToken.None));
-        Assert.Contains("handler=TeamImage", projection.Teams.Single().ImageUrl);
-        Assert.IsType<FileStreamResult>(await projection.OnGetTeamImageAsync(ev.Id, team.Id, CancellationToken.None));
     }
 
     [Fact]
