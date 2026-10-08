@@ -61,7 +61,7 @@ public sealed partial class WiseOldManModel(
         {
             var result = await competitionSynchronization.ConfigureAsync(id, EventVersion, CompetitionId, Actor, cancellationToken: ct);
             return RedirectWithStatus(id,
-                result.Succeeded ? Localize("Competition linked and validated.") : result.Error ?? Localize("The competition could not be configured."),
+                result.Succeeded ? Localize("Competition linked and validated.") : LocalizeConfigureError(result.Error, "The competition could not be configured."),
                 result.Succeeded ? UiMessageType.Success : UiMessageType.Error);
         }
         catch (UnauthorizedAccessException exception)
@@ -85,7 +85,7 @@ public sealed partial class WiseOldManModel(
                 id, EventVersion, null, Actor, confirmCompetitionClear: true,
                 competitionClearReason: CompetitionClearReason, cancellationToken: ct);
             return RedirectWithStatus(id,
-                result.Succeeded ? Localize("The external WOM link was disconnected. The remote competition was not changed.") : result.Error ?? Localize("The external WOM link could not be disconnected."),
+                result.Succeeded ? Localize("The external WOM link was disconnected. The remote competition was not changed.") : LocalizeConfigureError(result.Error, "The external WOM link could not be disconnected."),
                 result.Succeeded ? UiMessageType.Success : UiMessageType.Error);
         }
         catch (UnauthorizedAccessException exception)
@@ -296,6 +296,35 @@ public sealed partial class WiseOldManModel(
             "Invalid" => Localize("Wise Old Man returned invalid competition details."),
             _ when retryAt is not null => Localize("WOM data is temporarily unavailable. Try again after {0}.", retryAt),
             _ => Localize("WOM data fetch failed.")
+        };
+    }
+
+    private static readonly System.Text.RegularExpressions.Regex ScheduleMismatchPattern = new(
+        @"^The Wise Old Man competition window must match the configured website UTC window exactly\. Website: (.+) to (.+); Wise Old Man: (.+) to (.+)\.$",
+        System.Text.RegularExpressions.RegexOptions.CultureInvariant | System.Text.RegularExpressions.RegexOptions.Compiled);
+
+    // Link/Disconnect refusals come from the integration service in English.
+    // Known service sentences map to localized keys; any other text (including
+    // raw provider text) is replaced by the localized generic fallback.
+    private string LocalizeConfigureError(string? error, string fallback)
+    {
+        if (string.IsNullOrWhiteSpace(error)) return Localize(fallback);
+        var mismatch = ScheduleMismatchPattern.Match(error);
+        if (mismatch.Success)
+            return Localize("The Wise Old Man competition window must match the configured website UTC window exactly. Website: {0} to {1}; Wise Old Man: {2} to {3}.",
+                mismatch.Groups[1].Value, mismatch.Groups[2].Value, mismatch.Groups[3].Value, mismatch.Groups[4].Value);
+        return error switch
+        {
+            "This connection is not an external link. Use its existing management controls." or
+            "Wait for the current WOM operation to finish or be resolved before changing its link." or
+            "Wise Old Man returned a different competition ID." or
+            "The event was not found." or
+            "This event changed in another request. Reload before changing its competition." or
+            "Competition integration is read-only after live play." or
+            "A live event's competition cannot be cleared. Link a validated replacement with a matching event window." or
+            "The competition integration could not be saved safely. Reload and try again." or
+            "The competition could not be validated." => Localize(error),
+            _ => Localize(fallback)
         };
     }
 
