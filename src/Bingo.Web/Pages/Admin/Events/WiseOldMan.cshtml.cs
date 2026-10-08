@@ -118,8 +118,8 @@ public sealed partial class WiseOldManModel(
         {
             var result = await competitionManagement.CreateAsync(id, EventVersion, Actor, ct);
             return RedirectWithStatus(id,
-                result.Succeeded ? Localize(result.Pending ? "Managed WOM competition creation was accepted and queued." : "The WOM competition was created and linked.") : LocalizeManagedError(result.ErrorCode, result.Error, "The managed WOM competition could not be created."),
-                result.Succeeded ? UiMessageType.Success : UiMessageType.Error, result.Pending ? "queued" : result.Succeeded ? "applied" : "refused", result.ErrorCode, retryAt: result.RetryAt, status: result.Status, operationId: result.OperationId);
+                result.Succeeded ? Localize(IsQueued(result, "Succeeded") ? "Managed WOM competition creation was accepted and queued." : "The WOM competition was created and linked.") : LocalizeManagedError(result.ErrorCode, result.Error, "The managed WOM competition could not be created."),
+                result.Succeeded ? UiMessageType.Success : UiMessageType.Error, IsQueued(result, "Succeeded") ? "queued" : result.Succeeded ? "applied" : "refused", result.ErrorCode, retryAt: result.RetryAt, status: result.Status, operationId: result.OperationId);
         }
         catch (UnauthorizedAccessException exception)
         {
@@ -141,7 +141,7 @@ public sealed partial class WiseOldManModel(
                     ? Localize("The management code was stored protected and remains unverified until a legitimate management operation succeeds.")
                     : Localize("The Wise Old Man management code was stored protected.")
                 : LocalizeManagedError(result.ErrorCode, result.Error, "The Wise Old Man management code could not be stored.");
-            return RedirectWithStatus(id, message, result.Succeeded ? UiMessageType.Success : UiMessageType.Error, result.Pending ? "queued" : result.Succeeded ? "applied" : "refused", result.ErrorCode, retryAt: result.RetryAt, status: result.Status, operationId: result.OperationId);
+            return RedirectWithStatus(id, message, result.Succeeded ? UiMessageType.Success : UiMessageType.Error, IsQueued(result, "Valid", "Unverified", "Unchanged") ? "queued" : result.Succeeded ? "applied" : "refused", result.ErrorCode, retryAt: result.RetryAt, status: result.Status, operationId: result.OperationId);
         }
         catch (UnauthorizedAccessException exception)
         {
@@ -166,8 +166,8 @@ public sealed partial class WiseOldManModel(
             var result = await competitionManagement.DeleteAsync(
                 id, EventVersion, ManagedCompetitionDeleteId.Value, ConfirmManagedCompetitionDelete, Actor, ct);
             return RedirectWithStatus(id,
-                result.Succeeded ? Localize(result.Pending ? "Website-created WOM deletion was accepted and queued." : "The website-created WOM competition was deleted.") : LocalizeManagedError(result.ErrorCode, result.Error, "The managed WOM competition could not be deleted."),
-                result.Succeeded ? UiMessageType.Success : UiMessageType.Error, result.Pending ? "queued" : result.Succeeded ? "applied" : "refused", result.ErrorCode, retryAt: result.RetryAt, status: result.Status, operationId: result.OperationId);
+                result.Succeeded ? Localize(IsQueued(result, "Succeeded") ? "Website-created WOM deletion was accepted and queued." : "The website-created WOM competition was deleted.") : LocalizeManagedError(result.ErrorCode, result.Error, "The managed WOM competition could not be deleted."),
+                result.Succeeded ? UiMessageType.Success : UiMessageType.Error, IsQueued(result, "Succeeded") ? "queued" : result.Succeeded ? "applied" : "refused", result.ErrorCode, retryAt: result.RetryAt, status: result.Status, operationId: result.OperationId);
         }
         catch (UnauthorizedAccessException exception)
         {
@@ -190,6 +190,11 @@ public sealed partial class WiseOldManModel(
             return RedirectWithStatus(id, exception.Message, UiMessageType.Error);
         }
     }
+
+    // Only a definitive status is "applied"; any other successful status
+    // (for example an operation already Claimed by a worker) is still queued.
+    private static bool IsQueued(EventCompetitionManagementResult result, params string[] definitiveStatuses) =>
+        result.Pending || result.Succeeded && !definitiveStatuses.Contains(result.Status, StringComparer.Ordinal);
 
     public string FetchStatusLabel => CompetitionIntegration is null || !CompetitionIntegration.Configured
         ? Localize("Configuration")
