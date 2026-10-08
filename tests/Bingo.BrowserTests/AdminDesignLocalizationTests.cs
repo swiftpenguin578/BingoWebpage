@@ -194,4 +194,16 @@ public sealed class AdminDesignLocalizationTests
             if (!entries.TryGetValue(key, out var danish) || string.IsNullOrWhiteSpace(danish)) missing.Add($"pattern: {key}");
         Assert.True(missing.Count == 0, "Missing Danish entries:\n" + string.Join('\n', missing.Distinct().Order()));
     }
+    [Fact]
+    public void OverviewRefusalsLocalizeTheFieldLabelAndTheOverlapWindow()
+    {
+        // U10 item 4: the DST refusal names the localized field label and the overlap window uses the request culture.
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "Bingo.slnx"))) directory = directory.Parent;
+        var manage = File.ReadAllText(Path.Combine(Assert.IsType<DirectoryInfo>(directory).FullName, "src", "Bingo.Web", "Pages", "Admin", "Events", "Manage.cshtml.cs"));
+        Assert.Contains("daylight-saving time. Choose another time.\", Localize(label))", manage);
+        Assert.Contains("LocalizeWindow(overlap.Groups[2].Value)", manage);
+        Assert.DoesNotContain("Reopen cutoff", manage);
+        Assert.DoesNotContain("Activation time", manage);
+    }
 }
