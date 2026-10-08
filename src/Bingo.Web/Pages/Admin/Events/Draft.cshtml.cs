@@ -742,7 +742,7 @@ public sealed partial class DraftModel(ApplicationDbContext db, TimeProvider tim
                 RequireOrAcquireControl(draft, now);
                 var directMembers = await ActiveEventMembersAsync(id, ct);
                 var directBlockers = await ValidateFinalRosterAsync(id, directMembers, ct);
-                if (directBlockers.Count > 0) throw new InvalidOperationException(string.Join(" ", directBlockers));
+                if (directBlockers.Count > 0) throw new RosterBlockersException(directBlockers);
 
                 var nextCycle = (await db.DraftPublicationCycles.Where(x => x.DraftSessionId == draft.Id).Select(x => (int?)x.CycleNumber).MaxAsync(ct) ?? 0) + 1;
                 var cycle = new DraftPublicationCycle(Guid.NewGuid(), draft.Id, nextCycle, now, AdminId, DraftPublicationMethod.DirectRoster);
@@ -793,7 +793,7 @@ public sealed partial class DraftModel(ApplicationDbContext db, TimeProvider tim
                     .Select(x => x.TeamId)
                     .ToListAsync(ct);
                 var derived = await DeriveDraftState(id, draftedTeams, activePickTeams, ct);
-                if (derived.Blockers.Count != 0) throw new InvalidOperationException(string.Join(" ", derived.Blockers));
+                if (derived.Blockers.Count != 0) throw new RosterBlockersException(derived.Blockers);
                 var includedParticipantIds = derived.IncludedParticipantIds;
                 var draftedMembershipIds = await db.TeamMemberships
                     .Where(x => x.LeftAt == null && includedParticipantIds.Contains(x.EventParticipantId) && draftedTeams.Select(t => t.Id).Contains(x.TeamId))
@@ -804,7 +804,7 @@ public sealed partial class DraftModel(ApplicationDbContext db, TimeProvider tim
 
                 var activeMembers = await ActiveEventMembersAsync(id, ct);
                 var blockers = await ValidateFinalRosterAsync(id, activeMembers, ct);
-                if (blockers.Count > 0) throw new InvalidOperationException(string.Join(" ", blockers));
+                if (blockers.Count > 0) throw new RosterBlockersException(blockers);
                 var nextCycle = (await db.DraftPublicationCycles.Where(x => x.DraftSessionId == draft.Id).Select(x => (int?)x.CycleNumber).MaxAsync(ct) ?? 0) + 1;
                 var cycle = new DraftPublicationCycle(Guid.NewGuid(), draft.Id, nextCycle, now, AdminId, DraftPublicationMethod.WebsiteDraft);
                 db.DraftPublicationCycles.Add(cycle);
@@ -834,7 +834,7 @@ public sealed partial class DraftModel(ApplicationDbContext db, TimeProvider tim
                 continue;
             }
             catch (Exception ex) when (IsDraftConflict(ex)) { return DraftConflict(id, ex); }
-            catch (InvalidOperationException ex) { SetStatus(ex.Message, UiMessageType.Error); }
+            catch (InvalidOperationException ex) { SetStatus(LocalizeFailure(ex), UiMessageType.Error); }
             catch (Exception) { SetStatus(Localize("The draft could not be finalized. No roster was published."), UiMessageType.Error); }
             if (published) await NotifyDraft(id, ct);
             // F1: finalizing stays on Teams; the page shows the toast and offers "Open
@@ -1252,15 +1252,16 @@ public sealed partial class DraftModel(ApplicationDbContext db, TimeProvider tim
     private bool RequireControl(DraftSession draft, Guid eventId)
     {
         try { draft.RequireControl(AdminId, time.GetUtcNow()); return true; }
-        catch (InvalidOperationException ex) { SetStatus(ex.Message, UiMessageType.Error); return false; }
+        catch (InvalidOperationException ex) { SetStatus(LocalizeFailure(ex), UiMessageType.Error); return false; }
     }
     private IActionResult DraftConflict(Guid id, Exception exception)
     {
         db.ChangeTracker.Clear();
         if (exception is DbUpdateConcurrencyException) MarkStale();
-        SetStatus(exception is DbUpdateConcurrencyException
-            ? Localize("Another administrator changed the draft first. Nothing from your stale action was saved; the latest draft has been loaded.")
-            : exception.Message, UiMessageType.Error);
+        // Domain refusals carry their own (localizable) message; database conflicts never show raw provider text.
+        SetStatus(exception is InvalidOperationException invalid
+            ? LocalizeFailure(invalid)
+            : Localize("Another administrator changed the draft first. Nothing from your stale action was saved; the latest draft has been loaded."), UiMessageType.Error);
         return Finish(new { id });
     }
     private async Task LoadControllerState(Guid eventId, CancellationToken ct)
@@ -1300,6 +1301,13 @@ public sealed partial class DraftModel(ApplicationDbContext db, TimeProvider tim
     };
 
     private Task Audit(string action, string target, Guid targetId, string details, CancellationToken ct) => audit.WriteAndSaveAsync(User.GetAccountId(), User.Identity!.Name!, action, target, targetId.ToString(), details, ct); private static string RoleLabel(TeamMembershipRole role) => role == TeamMembershipRole.CoCaptain ? "co-captain" : role.ToString().ToLowerInvariant(); private static string? Clean(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    // Domain and service refusals are fixed English sentences used as resource keys; a blocker list is localized per sentence.
+    private string LocalizeFailure(InvalidOperationException exception) =>
+        exception is RosterBlockersException blockers ? string.Join(" ", blockers.Blockers.Select(blocker => Localize(blocker))) : Localize(exception.Message);
+    private sealed class RosterBlockersException(IReadOnlyList<string> blockers) : InvalidOperationException(string.Join(" ", blockers))
+    {
+        public IReadOnlyList<string> Blockers { get; } = blockers;
+    }
     private string Localize(string key, params object[] arguments) => text?[key, arguments].Value ?? string.Format(CultureInfo.CurrentCulture, key, arguments);
     private void SetStatus(string message, UiMessageType type) { statusMessage = message; statusType = type; TempData["StatusMessage"] = message; TempData[UiMessage.TypeKey] = type.ToString(); }
     private void StoreCredentials(IReadOnlyList<GeneratedCaptainCredential> credentials) { if (credentials.Count > 0) TempData["GeneratedCaptainCredentials"] = JsonSerializer.Serialize(credentials); }
