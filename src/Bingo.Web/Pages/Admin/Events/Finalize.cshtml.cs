@@ -57,6 +57,24 @@ public sealed partial class FinalizeModel(IEventFinalizationService finalization
         var current = await finalization.GetReadinessAsync(id, ct);
         return current is null ? NotFound() : new JsonResult(CurrentState(current));
     }
+    private static readonly (System.Text.RegularExpressions.Regex Pattern, string Key)[] CurrentEventRefusals =
+    [
+        (new(@"^(.+) is still live\. End it first, then publish its results before reopening this event\.$", System.Text.RegularExpressions.RegexOptions.CultureInvariant), "{0} is still live. End it first, then publish its results before reopening this event."),
+        (new(@"^(.+) is still live\. End it first, then publish its results before finalizing this event\.$", System.Text.RegularExpressions.RegexOptions.CultureInvariant), "{0} is still live. End it first, then publish its results before finalizing this event."),
+        (new(@"^Publish official results for (.+) before finalizing this event\.$", System.Text.RegularExpressions.RegexOptions.CultureInvariant), "Publish official results for {0} before finalizing this event."),
+        (new(@"^(.+) is still the current event\. Contact the Super Admin to archive it\.$", System.Text.RegularExpressions.RegexOptions.CultureInvariant), "{0} is still the current event. Contact the Super Admin to archive it."),
+        (new(@"^Publish the results of (.+) first\.$", System.Text.RegularExpressions.RegexOptions.CultureInvariant), "Publish the results of {0} first.")
+    ];
+    // The finalization service refuses in English; the U9-Q1 sentences carry the other event's name as a parameter.
+    private string LocalizeRefusal(string message)
+    {
+        foreach (var (pattern, key) in CurrentEventRefusals)
+        {
+            var match = pattern.Match(message);
+            if (match.Success) return Localize(key, match.Groups[1].Value);
+        }
+        return Localize(message);
+    }
     private bool WantsJson => Request.GetTypedHeaders().Accept?.Any(value => value.MediaType.Value == "application/json") == true;
     private static object CurrentState(FinalReviewReadiness value) => new
     {
@@ -79,8 +97,8 @@ public sealed partial class FinalizeModel(IEventFinalizationService finalization
         }
         catch (InvalidOperationException ex)
         {
-            if (WantsJson) return new JsonResult(new { succeeded = false, outcome = "refused", error = Localize(ex.Message) });
-            TempData["StatusMessage"] = ex.Message;
+            if (WantsJson) return new JsonResult(new { succeeded = false, outcome = "refused", error = LocalizeRefusal(ex.Message) });
+            TempData["StatusMessage"] = LocalizeRefusal(ex.Message);
             TempData[UiMessage.TypeKey] = UiMessageType.Error.ToString();
         }
         return RedirectToPage(new { id });

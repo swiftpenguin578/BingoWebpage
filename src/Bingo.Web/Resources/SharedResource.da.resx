@@ -4264,4 +4264,29 @@
   <data name="Account coverage is not available yet" xml:space="preserve"><value>Kontodækning er endnu ikke tilgængelig</value></data>
   <data name="The WOM competition was created and linked." xml:space="preserve"><value>WOM-konkurrencen blev oprettet og tilknyttet.</value></data>
   <data name="The website-created WOM competition was deleted." xml:space="preserve"><value>WOM-konkurrencen oprettet af hjemmesiden blev slettet.</value></data>
+  <data name="This connection is not an external link. Use its existing management controls." xml:space="preserve"><value>Denne forbindelse er ikke et eksternt link. Brug dens eksisterende administrationsværktøjer.</value></data>
+  <data name="Wait for the current WOM operation to finish or be resolved before changing its link." xml:space="preserve"><value>Vent, til den igangværende WOM-handling er afsluttet eller afklaret, før du ændrer linket.</value></data>
+  <data name="Wise Old Man returned a different competition ID." xml:space="preserve"><value>Wise Old Man returnerede et andet konkurrence-ID.</value></data>
+  <data name="This event changed in another request. Reload before changing its competition." xml:space="preserve"><value>Dette event er ændret i en anden forespørgsel. Genindlæs, før du ændrer dets konkurrence.</value></data>
+  <data name="Competition integration is read-only after live play." xml:space="preserve"><value>Konkurrenceintegrationen er skrivebeskyttet efter live-spil.</value></data>
+  <data name="The competition integration could not be saved safely. Reload and try again." xml:space="preserve"><value>Konkurrenceintegrationen kunne ikke gemmes sikkert. Genindlæs og prøv igen.</value></data>
+  <data name="The Wise Old Man competition window must match the configured website UTC window exactly. Website: {0} to {1}; Wise Old Man: {2} to {3}." xml:space="preserve"><value>Wise Old Man-konkurrencens tidsrum skal matche hjemmesidens konfigurerede UTC-tidsrum præcist. Hjemmeside: {0} til {1}; Wise Old Man: {2} til {3}.</value></data>
+  <data name="This event changed in another session. Reload before finalizing." xml:space="preserve"><value>Dette event er ændret i en anden session. Genindlæs, før du offentliggør.</value></data>
+  <data name="This event changed in another session. Reload before reopening it." xml:space="preserve"><value>Dette event er ændret i en anden session. Genindlæs, før du genåbner det.</value></data>
+  <data name="This event changed in another session. Reload before completing its legacy publication." xml:space="preserve"><value>Dette event er ændret i en anden session. Genindlæs, før du gennemfører den ældre offentliggørelse.</value></data>
+  <data name="This final-review form is stale or incomplete. Reload before finalizing." xml:space="preserve"><value>Denne endelige gennemgang er forældet eller ufuldstændig. Genindlæs, før du offentliggør.</value></data>
+  <data name="Only finalized or archived results can be reopened." xml:space="preserve"><value>Kun offentliggjorte eller arkiverede resultater kan genåbnes.</value></data>
+  <data name="A reason is required." xml:space="preserve"><value>En begrundelse er påkrævet.</value></data>
+  <data name="Confirm that you want to reopen the official results." xml:space="preserve"><value>Bekræft, at du vil genåbne de officielle resultater.</value></data>
+  <data name="No active official result exists." xml:space="preserve"><value>Der findes intet aktivt officielt resultat.</value></data>
+  <data name="Only an event in final review can be finalized." xml:space="preserve"><value>Kun et event i endelig gennemgang kan offentliggøres.</value></data>
+  <data name="Resolve every final-review item before finalizing." xml:space="preserve"><value>Afklar alle punkter i den endelige gennemgang, før du offentliggør.</value></data>
+  <data name="The final-review cycle is unavailable." xml:space="preserve"><value>Gennemgangsrunden for den endelige gennemgang er ikke tilgængelig.</value></data>
+  <data name="Final-review overrides are retired. Resolve the underlying blocker before publishing official results." xml:space="preserve"><value>Tilsidesættelser i den endelige gennemgang er udgået. Afklar den underliggende blokering, før du offentliggør de officielle resultater.</value></data>
+  <data name="Completion-time inspection is retired. Calculated completion facts are authoritative." xml:space="preserve"><value>Kontrol af fuldførelsestidspunkt er udgået. De beregnede fuldførelsesdata er gældende.</value></data>
+  <data name="Manual completion-time corrections are retired. Calculated completion facts are authoritative." xml:space="preserve"><value>Manuelle rettelser af fuldførelsestidspunkt er udgået. De beregnede fuldførelsesdata er gældende.</value></data>
+  <data name="The separate Archive action is retired. Publish official results from final review." xml:space="preserve"><value>Den separate arkiveringshandling er udgået. Offentliggør de officielle resultater fra den endelige gennemgang.</value></data>
+  <data name="This legacy Finalized event has no complete official snapshot. Resolve the retained history through the controlled rollout procedure." xml:space="preserve"><value>Dette ældre offentliggjorte event har intet komplet officielt øjebliksbillede. Afklar den bevarede historik via den kontrollerede udrulningsprocedure.</value></data>
+  <data name="{0} is still live. End it first, then publish its results before finalizing this event." xml:space="preserve"><value>{0} er stadig live. Afslut det først, og offentliggør derefter dets resultater, før du offentliggør dette event.</value></data>
+  <data name="Publish official results for {0} before finalizing this event." xml:space="preserve"><value>Offentliggør de officielle resultater for {0}, før du offentliggør dette event.</value></data>
 </root>
