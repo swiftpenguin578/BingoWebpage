@@ -366,6 +366,46 @@ public sealed partial class SubmissionWorkflowTests
         return client;
     }
 
+    // 42e Review section 10: an Archived event opens read-only (GET 200) and every decision is refused with no write (D17).
+    [Theory]
+    [InlineData("Approve")]
+    [InlineData("Reject")]
+    [InlineData("Reverse")]
+    [InlineData("Edit")]
+    public async Task U8ArchivedEventOpensReadOnlyAndEveryDecisionIsRefusedWithoutAWrite(string handler)
+    {
+        var setup = await SeedAsync(3, true);
+        Guid id;
+        await using (var db = new ApplicationDbContext(options))
+            id = (await Service(db).CreateAsync(Command(setup))).SubmissionId;
+        await using var factory = U8Factory();
+        using var client = await U8AdminClientAsync(factory, setup);
+        var token = await U8TokenAsync(client, id);
+        await using (var db = new ApplicationDbContext(options))
+        {
+            var ev = await db.Events.SingleAsync(x => x.Id == setup.EventId);
+            ev.EndEvent(now.AddHours(1)); ev.FinalizeResults(now.AddHours(1)); ev.Archive(now.AddHours(2));
+            await db.SaveChangesAsync();
+        }
+        var before = await U8StateAsync(id);
+        using (var queue = await client.GetAsync($"/Admin/Review?eventId={setup.EventId}"))
+            Assert.Equal(HttpStatusCode.OK, queue.StatusCode);
+        using (var details = await client.GetAsync($"/Admin/Review/Details/{id}"))
+        {
+            Assert.Equal(HttpStatusCode.OK, details.StatusCode);
+            var html = await details.Content.ReadAsStringAsync();
+            Assert.Contains("is archived, so review is read-only.", html, StringComparison.Ordinal);
+        }
+        var fields = new Dictionary<string, string>
+        {
+            ["__RequestVerificationToken"] = token, ["Input.ExpectedVersion"] = before.Version.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            ["Input.Reason"] = "Archived events cannot be reviewed.", ["confirmed"] = "true"
+        };
+        using var response = await client.PostAsync($"/Admin/Review/Details/{id}?handler={handler}", new FormUrlEncodedContent(fields));
+        Assert.NotEqual(HttpStatusCode.InternalServerError, response.StatusCode);
+        Assert.Equal(before, await U8StateAsync(id));
+    }
+
     private static async Task<string> U8TokenAsync(HttpClient client, Guid submissionId) =>
         Regex.Match(await client.GetStringAsync($"/Admin/Review/Details/{submissionId}"), "name=\"__RequestVerificationToken\" type=\"hidden\" value=\"([^\"]+)\"").Groups[1].Value;
 }
