@@ -125,6 +125,51 @@ const { startFixture, login } = require('../../scripts/lib/admin-parity-fixture.
     await page.goto(base + '?participant=' + kiwiId);
     await drawer.locator('[data-d-content]:not([hidden])').waitFor();
     assert.equal(await drawer.locator('[data-d-note]').inputValue(), 'Checked in the U5 browser test.');
+    // Search and filters survive opening and closing a drawer (the retired Add test pinned this context).
+    await page.goto(base + '?q=kiwi');
+    await page.locator('[data-participant-open]', { hasText: /kiwi/i }).first().click();
+    await drawer.locator('[data-d-content]:not([hidden])').waitFor();
+    assert.equal(new URL(page.url()).searchParams.get('q'), 'kiwi', 'the drawer URL keeps the search');
+    assert.equal(await page.locator('#search-input').inputValue(), 'kiwi');
+    await page.keyboard.press('Escape');
+    await page.waitForFunction(() => !document.querySelector('.drawer'));
+    assert.equal(search(), '?q=kiwi', 'closing the drawer leaves the same search, with no participant parameter');
+    assert.equal(await page.locator('#search-input').inputValue(), 'kiwi');
+    assert.ok(await page.locator('[data-participant-open]', { hasText: /kiwi/i }).count() > 0);
+    await page.locator('[data-participant-open]', { hasText: /kiwi/i }).first().click();
+    await drawer.locator('[data-d-content]:not([hidden])').waitFor();
+    await page.goBack(); await page.waitForFunction(() => !document.querySelector('.drawer'));
+    assert.equal(search(), '?q=kiwi', 'Back from a clean drawer keeps the search');
+
+    // Back with unsaved drawer edits asks first (decision B); Keep editing keeps the edits and the drawer.
+    await page.locator('[data-participant-open]', { hasText: /kiwi/i }).first().click();
+    await drawer.locator('[data-d-content]:not([hidden])').waitFor();
+    const savedNote = await drawer.locator('[data-d-note]').inputValue();
+    await drawer.locator('[data-d-note]').fill('Unsaved edit before Back');
+    await page.goBack(); await discard.waitFor();
+    await discard.locator('[data-confirm-cancel]').click();
+    await page.waitForFunction(() => !document.querySelector('.modal'));
+    assert.equal(await drawer.locator('[data-d-note]').inputValue(), 'Unsaved edit before Back', 'Keep editing keeps the edits');
+    assert.equal(new URL(page.url()).searchParams.get('participant'), kiwiId, 'and the drawer URL is restored');
+
+    // Stale Save: the message is shown with the current details; nothing of the edit is kept.
+    const stale = 'This participant changed while you were editing. The current details are shown; nothing was saved.';
+    await page.route(url => url.search.includes('handler=SaveParticipant'), route => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ outcome: 'stale', message: stale }) }));
+    await drawer.locator('[data-d-save]').click();
+    await drawer.locator('[data-d-messages] [data-d-message]', { hasText: stale }).waitFor();
+    await page.unrouteAll({ behavior: 'wait' });
+    assert.equal(await drawer.locator('[data-d-note]').inputValue(), savedNote, 'the current details replace the edit');
+
+    // Lost response on Save: the participant is re-read and the message says it could not be confirmed.
+    await drawer.locator('[data-d-note]').fill('Edit with a lost response');
+    await page.route(url => url.search.includes('handler=SaveParticipant'), route => route.abort());
+    await drawer.locator('[data-d-save]').click();
+    await drawer.locator('[data-d-messages] [data-d-message]', { hasText: 'We couldn’t confirm whether your changes were saved' }).waitFor();
+    await page.unrouteAll({ behavior: 'wait' });
+    assert.equal(await drawer.locator('[data-d-note]').inputValue(), savedNote, 'the re-read shows what is true now');
+    await page.keyboard.press('Escape');
+    await page.waitForFunction(() => !document.querySelector('.drawer'));
+
     // Unknown participant: a clear missing state, no crash.
     await page.goto(base + '?participant=00000000-0000-0000-0000-000000000001');
     await drawer.locator('.empty-title', { hasText: 'Participant not found' }).waitFor();
