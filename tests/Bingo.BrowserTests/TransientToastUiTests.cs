@@ -9,7 +9,8 @@ public sealed class TransientToastUiTests
         var shared = Path.Combine(root, "src", "Bingo.Web", "Pages", "Shared");
         var partial = File.ReadAllText(Path.Combine(shared, "_TransientToast.cshtml"));
 
-        foreach (var layoutName in new[] { "_Layout.cshtml", "_AdminLayout.cshtml" })
+        // A10 (U10 part 2): the old Admin layout is retired; the public layout is the only one rendering this partial.
+        foreach (var layoutName in new[] { "_Layout.cshtml" })
         {
             var layout = File.ReadAllText(Path.Combine(shared, layoutName));
             Assert.Contains("@await Html.PartialAsync(\"_TransientToast\")", layout);
@@ -70,9 +71,8 @@ public sealed class TransientToastUiTests
         Assert.Contains("min-width: 2.75rem", styles);
         Assert.Contains("min-height: 2.75rem", styles);
         Assert.Contains(".app-toast-dismiss svg { width: 1.25rem; height: 1.25rem; }", styles);
-        Assert.Contains(".admin-shell-body .app-toast", layoutStyles);
-        Assert.Contains("background: var(--admin-surface-raised);", layoutStyles);
-        Assert.Contains("border: 1px solid var(--admin-border);", layoutStyles);
+        // A10 (U10 part 2): the old Admin shell's toast skin went with _AdminLayout.
+        Assert.DoesNotContain(".admin-shell-body .app-toast", layoutStyles);
         Assert.Contains("width: min(26rem, calc(100vw - 2rem));", noticeRegionStyles);
         Assert.Contains("html[data-public-theme=\"dark\"] .app-toast", styles);
         Assert.Contains("transition: opacity 140ms ease-out", styles);

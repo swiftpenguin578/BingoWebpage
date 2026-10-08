@@ -61,7 +61,7 @@ const source = fs.readFileSync("src/Bingo.Web/wwwroot/js/site.js", "utf8");
 const popoverStart = source.indexOf("function initializePublicHeaderPopovers()");
 const popoverEnd = source.indexOf("function initializePublicTheme()", popoverStart);
 const start = source.indexOf("const transientToastTypes");
-const end = source.indexOf("function initializeAdminMenu");
+const end = source.indexOf("document.addEventListener(\"bingo:content-updated\", initializeCorrectionDropSelectors);");
 const showStart = source.indexOf("window.showBingoToast =");
 const showEnd = source.indexOf("\n};", showStart) + 3;
 assert.ok(start >= 0 && end > start && showStart > end && showEnd > showStart, "toast implementation boundary is present");
