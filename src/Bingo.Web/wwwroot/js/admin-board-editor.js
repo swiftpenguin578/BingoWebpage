@@ -11,7 +11,18 @@ import { posName, parseTileRef, parseDecimal, parseWhole, artworkConfirmed } fro
 const TILE_SCHEMA = { tile: { default: '', valid: value => /^[A-Ha-h][1-8]$/.test(value) } };
 
 export function install(ctx) {
-  const { ui, t, el, icon, button, on, fmt1, life } = ctx;
+  const { ui, t, el, icon, fmt1, life } = ctx;
+  // U7-L1 (rule 9): a repaint patches the open drawer in place (morph below), so its
+  // controls, focus, scroll and typed values stay. Each element gets one real listener
+  // per event type that calls the element's current handler; a repaint that keeps an
+  // existing element hands it the new paint's handlers. Handlers read their own element
+  // from the event, never from a variable of the paint that created it.
+  const on = (target, type, fn) => {
+    const table = target.bdOn ||= {};
+    if (!(type in table)) ctx.on(target, type, event => target.bdOn[type]?.(event));
+    table[type] = fn;
+  };
+  const button = (cls, text, onClick, id) => { const b = ctx.button(cls, text, null, id); if (onClick) on(b, 'click', onClick); return b; };
   let choices = null; // { revision, bosses, drops }
   let ed = null;       // the open editor
   let pushed = false;
@@ -252,7 +263,7 @@ export function install(ctx) {
     const layer = ui.openLayer({ kind: 'drawer', title: t('Tile'), content, dirty: isDirty, pending: () => !!ed?.busy || !!ed?.checking, onClose: () => onClosed() }); layer.element.dataset.pageFamily = 'board';
     layer.element.classList.add('is-wide');
     ed.layer = layer; ed.content = content;
-    on(content, 'keydown', event => { if (event.key === 'Enter' && event.target.matches('input.input:not([role=combobox])') && !event.target.closest('.drop-row,.count-line')) { event.preventDefault(); void save(); } });
+    ctx.on(content, 'keydown', event => { if (event.key === 'Enter' && event.target.matches('input.input:not([role=combobox])') && !event.target.closest('.drop-row,.count-line')) { event.preventDefault(); void save(); } });
   }
   const fieldErr = (id, text) => { const e = el('div', 'field-err'); e.id = id; e.append(icon('error'), document.createTextNode(text)); return e; };
   const lock = text => { const e = el('div', 'field-lock'); e.append(icon('lock'), document.createTextNode(text)); return e; };
@@ -265,7 +276,9 @@ export function install(ctx) {
   }
   function paint() {
     if (!ed) return;
-    const v = ctx.view, f = ed.f, tile = ed.tileView, ro = !canEditTile(), busy = ed.busy || ed.checking, locked = !!tile?.locked;
+    // U7-L1: a drawer opened for editing keeps its inputs when editing control is lost
+    // (takeover or lapse): they are disabled in place with the draft kept, not replaced.
+    const v = ctx.view, f = ed.f, tile = ed.tileView, ro = ed.viewOnly || !ctx.editable(), lost = !ro && !canEditTile(), saving = ed.busy || ed.checking, busy = saving || lost, locked = !!tile?.locked;
     const errs = ed.showErrors && !ed.loading && !ed.error ? errors() : { objs: [] };
     const scrollTop = ed.content.querySelector('.dr-body')?.scrollTop || 0;
     const head = el('div', 'dr-head'), grow = el('div', 'grow');
@@ -274,7 +287,7 @@ export function install(ctx) {
     const title = el('h2', 'dr-title', ed.tileId ? (f.name.trim() || tile?.name || '') : t('New tile')); title.id = 'ed-title'; title.dataset.confirmTitle = '';
     grow.append(title);
     const badges = [];
-    if (ro) badges.push([v.control?.who === 'other' ? t('{0} is editing', v.control.name || t('Another administrator')) : ctx.editable() ? t('View only') : t('Read-only'), 'badge-neutral']);
+    if (ro || lost) badges.push([v.control?.who === 'other' ? t('{0} is editing', v.control.name || t('Another administrator')) : ctx.editable() ? t('View only') : t('Read-only'), 'badge-neutral']);
     if (locked) badges.push([t('Evidence submitted'), 'badge-warning']);
     if (badges.length) { const bw = el('div', 'dr-badges'); for (const [label, cls] of badges) bw.append(el('span', 'badge ' + cls, label)); grow.append(bw); }
     const closeBtn = button('icon-btn', null, () => void ui.closeLayer(), 'ed-close'); closeBtn.setAttribute('aria-label', t('Close')); closeBtn.append(icon('close')); closeBtn.disabled = busy;
@@ -301,23 +314,49 @@ export function install(ctx) {
     if (isDirty()) { const d = el('span', 'dirty'); d.setAttribute('role', 'status'); d.append(el('span', 'dot'), document.createTextNode(t('Unsaved changes'))); foot.append(d); }
     const cancel = button('btn', ro ? t('Close') : t('Cancel'), () => void ui.closeLayer(), 'ed-cancel'); cancel.disabled = busy; foot.append(cancel);
     if (!ro && !ed.loading && !ed.error) {
-      const s = button('btn btn-primary' + (busy ? ' is-busy' : ''), null, () => void save(), 'ed-save');
-      if (busy) s.append(el('span', 'spin'));
-      s.append(document.createTextNode(busy ? t('Saving…') : ed.tileId ? t('Save tile') : t('Add tile'))); s.disabled = busy;
+      const s = button('btn btn-primary' + (saving ? ' is-busy' : ''), null, () => void save(), 'ed-save');
+      if (saving) s.append(el('span', 'spin'));
+      s.append(document.createTextNode(saving ? t('Saving…') : ed.tileId ? t('Save tile') : t('Add tile'))); s.disabled = busy;
       foot.append(s);
     }
-    const active = document.activeElement?.id;
-    ed.content.replaceChildren(head, body, foot);
-    ed.content.querySelector('.dr-body').scrollTop = scrollTop;
-    if (active && ed.content.querySelector('#' + CSS.escape(active))) ed.content.querySelector('#' + CSS.escape(active)).focus({ preventScroll: true });
+    const active = document.activeElement, activeId = active?.id;
+    const next = el('div'); next.append(head, body, foot);
+    morph(ed.content, next);
+    const bodyNow = ed.content.querySelector('.dr-body');
+    if (bodyNow.scrollTop !== scrollTop) bodyNow.scrollTop = scrollTop;
+    if (active && !active.isConnected && activeId && ed.content.querySelector('#' + CSS.escape(activeId))) ed.content.querySelector('#' + CSS.escape(activeId)).focus({ preventScroll: true });
     ed.layer.markClean();
+  }
+  // Make `current`'s children match `next`'s, keeping every element whose tag, id and
+  // type match in place (attributes, value and checked are patched; handlers move over).
+  // A node that appears (a banner, an error) is inserted and one that goes is removed,
+  // so the siblings after it are still kept.
+  const same = (c, n) => c.nodeType === n.nodeType && (c.nodeType !== 1 || (c.tagName === n.tagName && c.id === n.id && c.type === n.type));
+  function morph(current, next) {
+    const wanted = [...next.childNodes];
+    wanted.forEach((n, k) => {
+      let c = current.childNodes[k];
+      while (c && !same(c, n) && !wanted.slice(k + 1).some(w => same(c, w)) && [...current.childNodes].slice(k + 1).some(o => same(o, n))) { c.remove(); c = current.childNodes[k]; }
+      if (!c) { current.append(n); return; }
+      if (!same(c, n)) { if (wanted.slice(k + 1).some(w => same(c, w))) current.insertBefore(n, c); else current.replaceChild(n, c); return; }
+      if (c.nodeType === 3) { if (c.data !== n.data) c.data = n.data; return; }
+      if (c.nodeType !== 1) { current.replaceChild(n, c); return; }
+      for (const a of [...c.attributes]) if (!n.hasAttribute(a.name)) c.removeAttribute(a.name);
+      for (const a of n.attributes) if (c.getAttribute(a.name) !== a.value) c.setAttribute(a.name, a.value);
+      if ((c.tagName === 'INPUT' && c.type !== 'file') || c.tagName === 'TEXTAREA') { if (c.value !== n.value) c.value = n.value; if (c.checked !== n.checked) c.checked = n.checked; }
+      if (c.disabled !== n.disabled) c.disabled = n.disabled;
+      for (const type of Object.keys(c.bdOn || {})) if (!n.bdOn || !(type in n.bdOn)) c.bdOn[type] = null;
+      for (const [type, fn] of Object.entries(n.bdOn || {})) on(c, type, fn);
+      morph(c, n);
+    });
+    while (current.childNodes.length > wanted.length) current.lastChild.remove();
   }
   const setF = patch => { Object.assign(ed.f, patch); paint(); };
   function input(id, value, onInput, { cls = 'input', invalid, describedBy, disabled, placeholder, inputMode } = {}) {
     const i = el('input', cls + (invalid ? ' is-invalid' : '')); i.id = id; i.type = 'text'; i.value = value ?? ''; i.disabled = !!disabled; i.autocomplete = 'off';
     if (placeholder) i.placeholder = placeholder; if (inputMode) i.inputMode = inputMode;
     if (describedBy) i.setAttribute('aria-describedby', describedBy); i.setAttribute('aria-invalid', invalid ? 'true' : 'false');
-    on(i, 'input', () => onInput(i.value));
+    on(i, 'input', event => onInput(event.currentTarget.value));
     on(i, 'change', () => paint());
     return i;
   }
@@ -349,7 +388,7 @@ export function install(ctx) {
       else {
         const ta = el('textarea', 'textarea bd-desc' + (errs.desc ? ' is-invalid' : '')); ta.id = 'ed-desc'; ta.value = f.desc; ta.disabled = busy;
         ta.setAttribute('aria-labelledby', 'ed-desc-lbl'); ta.setAttribute('aria-describedby', 'ed-desc-hint' + (errs.desc ? ' ed-desc-err' : '')); ta.setAttribute('aria-invalid', errs.desc ? 'true' : 'false');
-        on(ta, 'input', () => { ed.f.desc = ta.value; refreshFoot(); }); on(ta, 'change', () => paint());
+        on(ta, 'input', event => { ed.f.desc = event.currentTarget.value; refreshFoot(); }); on(ta, 'change', () => paint());
         df.append(ta);
         if (errs.desc) df.append(fieldErr('ed-desc-err', errs.desc));
       }
@@ -366,8 +405,8 @@ export function install(ctx) {
     if (!ro) {
       const actsEl = el('div', 'art-acts'), lbl = el('label', 'btn btn-sm', artUrl ? t('Replace') : t('Upload')); lbl.htmlFor = 'ed-art-file'; lbl.id = 'ed-art-btn'; lbl.tabIndex = 0;
       const file = el('input'); file.type = 'file'; file.id = 'ed-art-file'; file.accept = 'image/png,image/jpeg,image/webp'; file.disabled = busy; file.hidden = true;
-      on(lbl, 'keydown', event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); file.click(); } });
-      on(file, 'change', () => { const chosen = file.files?.[0]; if (!chosen) return; if (ed.preview) URL.revokeObjectURL(ed.preview); ed.preview = null; ed.artErr = chosen.size > 10 * 1024 * 1024 || !/^image\/(png|jpeg|webp)$/.test(chosen.type) ? t('Choose a PNG, JPEG or WebP image up to 10 MB.') : ''; if (!ed.artErr) setF({ file: chosen, removeArt: false }); else paint(); });
+      on(lbl, 'keydown', event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); ed.content.querySelector('#ed-art-file')?.click(); } });
+      on(file, 'change', event => { const chosen = event.currentTarget.files?.[0]; if (!chosen) return; if (ed.preview) URL.revokeObjectURL(ed.preview); ed.preview = null; ed.artErr = chosen.size > 10 * 1024 * 1024 || !/^image\/(png|jpeg|webp)$/.test(chosen.type) ? t('Choose a PNG, JPEG or WebP image up to 10 MB.') : ''; if (!ed.artErr) setF({ file: chosen, removeArt: false }); else paint(); });
       actsEl.append(lbl, file);
       if (artUrl) { const r = button('btn btn-sm btn-quiet-danger', t('Remove'), () => { if (ed.preview) URL.revokeObjectURL(ed.preview); ed.preview = null; setF({ file: null, removeArt: !!ed.f.art }); }, 'ed-art-remove'); r.disabled = busy; actsEl.append(r); }
       side.append(actsEl);
@@ -440,7 +479,7 @@ export function install(ctx) {
         const opts = el('div', 'count-opts');
         for (const [key, titleText, sub] of [['repeats', t('The same drop can count more than once'), t('Off: each chosen drop counts once, so the target needs that many different drops.')], ['weightsOn', t('Some drops count as more than one'), t('Set how much each chosen drop counts toward the target, for example a rare drop counting as 2.')]]) {
           const l = el('label', 'check-row' + (o[key] ? ' is-on' : '')), c = el('input'); c.type = 'checkbox'; c.checked = o[key]; c.disabled = disabledRules;
-          on(c, 'change', () => { o[key] = c.checked; paint(); });
+          on(c, 'change', event => { o[key] = event.currentTarget.checked; paint(); });
           const sp = el('span'); sp.append(el('span', 'choice-title bd-choice-line', titleText), el('span', 'choice-sub bd-choice-line', sub)); l.append(c, sp); opts.append(l);
         }
         cf.append(opts);
@@ -450,7 +489,7 @@ export function install(ctx) {
       const tf = el('div', 'field'), tl = el('label', 'lbl', t('What must be completed?')); tl.htmlFor = id + '-text';
       const ta = el('textarea', 'textarea bd-manual' + (oe.text ? ' is-invalid' : '')); ta.id = id + '-text'; ta.value = o.text; ta.disabled = ro || busy; ta.placeholder = t('e.g. Complete a four-player Theatre of Blood in under 22:00');
       ta.setAttribute('aria-invalid', oe.text ? 'true' : 'false'); if (oe.text) ta.setAttribute('aria-describedby', id + '-text-err');
-      on(ta, 'input', () => { o.text = ta.value; refreshFoot(); }); on(ta, 'change', () => paint());
+      on(ta, 'input', event => { o.text = event.currentTarget.value; refreshFoot(); }); on(ta, 'change', () => paint());
       tf.append(tl, ta); if (oe.text) tf.append(fieldErr(id + '-text-err', oe.text));
       const cf = el('div', 'field'), cl = el('div', 'count-line'), lbl = el('label', null, t('Complete')); lbl.htmlFor = id + '-target';
       cl.append(lbl, input(id + '-target', o.target, value => { o.target = value; refreshFoot(); }, { invalid: !!oe.target, describedBy: oe.target ? id + '-target-err' : null, disabled: disabledRules, inputMode: 'numeric' }), el('span', null, t(target === 1 ? 'time' : 'times')));
@@ -476,35 +515,37 @@ export function install(ctx) {
       if (oe.src) q.setAttribute('aria-describedby', id + '-src-err');
       const options = () => (choices?.bosses || []).filter(b => !o.q.trim() || b.name.toLowerCase().includes(o.q.trim().toLowerCase())).slice(0, 40);
       const pick = boss => { o.sources = o.sources.includes(boss.id) ? o.sources.filter(s => s !== boss.id) : [...o.sources, boss.id]; if (!o.sources.includes(boss.id)) o.drops = o.drops.filter(d => dropById(d)?.bossId !== boss.id); o.q = ''; paint(); requestAnimationFrame(() => ed.content.querySelector('#' + id + '-src')?.focus()); };
-      on(q, 'input', () => { o.q = q.value; o.pop = true; o.active = 0; paintPop(); });
-      on(q, 'focus', () => { o.pop = true; paintPop(); });
-      on(q, 'blur', () => setTimeout(() => { if (q.isConnected && o.pop && document.activeElement !== q) { o.pop = false; paintPop(); } }, 150));
+      // paintPop works on the live combobox it is given (the kept element after a repaint).
+      on(q, 'input', event => { o.q = event.currentTarget.value; o.pop = true; o.active = 0; paintPop(event.currentTarget); });
+      on(q, 'focus', event => { o.pop = true; paintPop(event.currentTarget); });
+      on(q, 'blur', event => { const live = event.currentTarget; setTimeout(() => { if (live.isConnected && o.pop && document.activeElement !== live) { o.pop = false; paintPop(live); } }, 150); });
       on(q, 'keydown', event => {
         const list = options();
-        if (event.key === 'ArrowDown' || event.key === 'ArrowUp') { event.preventDefault(); o.pop = true; o.active = (o.active + (event.key === 'ArrowDown' ? 1 : -1) + list.length) % Math.max(1, list.length); paintPop(); }
+        if (event.key === 'ArrowDown' || event.key === 'ArrowUp') { event.preventDefault(); o.pop = true; o.active = (o.active + (event.key === 'ArrowDown' ? 1 : -1) + list.length) % Math.max(1, list.length); paintPop(event.currentTarget); }
         else if (event.key === 'Enter') { event.preventDefault(); if (o.pop && list[o.active]) pick(list[o.active]); }
-        else if (event.key === 'Escape' && o.pop) { event.preventDefault(); event.stopPropagation(); o.pop = false; paintPop(); }
+        else if (event.key === 'Escape' && o.pop) { event.preventDefault(); event.stopPropagation(); o.pop = false; paintPop(event.currentTarget); }
       });
       search.append(icon('search'), q); combo.append(search);
-      const pop = el('div', 'combo-pop'); pop.id = id + '-pop'; pop.setAttribute('role', 'listbox'); pop.setAttribute('aria-multiselectable', 'true'); pop.setAttribute('aria-labelledby', id + '-src-lbl');
-      function paintPop() {
-        q.setAttribute('aria-expanded', String(o.pop));
+      function paintPop(qEl) {
+        const box = qEl.closest('.combo');
+        let pop = box.querySelector(':scope > .combo-pop');
+        qEl.setAttribute('aria-expanded', String(o.pop));
         // The shared .combo-pop has its own display; an absent listbox is removed, as in the reference.
-        if (!o.pop) { pop.remove(); q.removeAttribute('aria-activedescendant'); return; }
-        if (!pop.isConnected) combo.append(pop);
+        if (!o.pop) { pop?.remove(); qEl.removeAttribute('aria-activedescendant'); return; }
+        if (!pop) { pop = el('div', 'combo-pop'); pop.id = id + '-pop'; pop.setAttribute('role', 'listbox'); pop.setAttribute('aria-multiselectable', 'true'); pop.setAttribute('aria-labelledby', id + '-src-lbl'); box.append(pop); }
         const list = options(); pop.replaceChildren();
         list.forEach((boss, n) => {
           const on_ = o.sources.includes(boss.id), opt = button('combo-opt' + (n === o.active ? ' is-active' : ''), null, null, id + '-opt-' + n);
           opt.setAttribute('role', 'option'); opt.setAttribute('aria-selected', String(on_)); opt.tabIndex = -1;
-          opt.addEventListener('mousedown', event => { event.preventDefault(); pick(boss); });
+          on(opt, 'mousedown', event => { event.preventDefault(); pick(boss); });
           opt.append(el('span', 'grow', boss.name), el('small', null, boss.category || ''));
           if (on_) opt.append(icon('check', 'ic menu-check'));
           pop.append(opt);
         });
         if (!list.length) pop.append(el('div', 'combo-empty', t('No boss or activity matches “{0}”.', o.q.trim())));
-        if (o.pop && list.length) q.setAttribute('aria-activedescendant', id + '-opt-' + o.active); else q.removeAttribute('aria-activedescendant');
+        if (o.pop && list.length) qEl.setAttribute('aria-activedescendant', id + '-opt-' + o.active); else qEl.removeAttribute('aria-activedescendant');
       }
-      paintPop();
+      paintPop(q);
     }
     fieldEl.append(lbl, combo);
     if (oe.src) fieldEl.append(fieldErr(id + '-src-err', oe.src));
@@ -523,7 +564,7 @@ export function install(ctx) {
       const list = el('div', 'drop-list');
       for (const d of drops) {
         const on_ = o.drops.includes(d.id), row = el('div', 'drop-row' + (on_ ? ' is-on' : '')), l = el('label'), c = el('input'); c.type = 'checkbox'; c.id = `${id}-d-${d.id}`; c.checked = on_; c.disabled = disabled;
-        on(c, 'change', () => { o.drops = c.checked ? [...o.drops, d.id] : o.drops.filter(x => x !== d.id); paint(); });
+        on(c, 'change', event => { o.drops = event.currentTarget.checked ? [...o.drops, d.id] : o.drops.filter(x => x !== d.id); paint(); });
         l.append(c, el('span', 'grow', d.itemName));
         const noRate = !d.rate || /no rate/i.test(d.rate) || boss?.efficientRate == null;
         const rate = el('span', 'drop-rate' + (noRate ? ' is-missing' : ''), d.rate || t('No rate')); if (noRate) rate.title = t('No drop rate in the catalogue');

@@ -173,9 +173,6 @@ public interface ISignupService
         FinalizedRosterRemoveRequest request,
         CancellationToken cancellationToken = default)
         => RemoveFinalizedRosterParticipantAsync(request, cancellationToken);
-
-    Task<PromotionFollowUpResult> CompletePromotionFollowUpAsync(Guid eventId, Guid followUpId, Guid adminAccountId, string adminName, CancellationToken cancellationToken = default)
-        => Task.FromException<PromotionFollowUpResult>(new NotSupportedException("Promotion follow-up is not available."));
 }
 
 // D2/P-6: EffectiveParticipantCap and AddedPlace carry the capacity outcome; the
@@ -363,7 +360,6 @@ public sealed record LiveParticipantResult(
     DateTimeOffset? EffectiveAtUtc = null,
     Guid? FollowUpId = null,
     string? WomValidationConfirmationToken = null);
-public sealed record PromotionFollowUpResult(bool Succeeded, string? Error = null, bool Changed = false);
 
 public sealed record FinalizedRosterAddRequest(
     Guid EventId,
