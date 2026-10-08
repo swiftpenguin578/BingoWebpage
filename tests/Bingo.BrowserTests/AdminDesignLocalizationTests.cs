@@ -150,4 +150,48 @@ public sealed class AdminDesignLocalizationTests
         }
         Assert.True(missing.Count == 0, "Missing Danish entries:\n" + string.Join('\n', missing.Distinct().Order()));
     }
+
+    // M3 (U4 review): the Overview JSON outcomes pass service refusal texts through Localize/LocalizeRefusal,
+    // so every user-facing sentence literal in the services behind the Overview dialogs needs a Danish entry.
+    [Fact]
+    public void EveryOverviewRefusalAndOutcomeTextHasADanishEntry()
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "Bingo.slnx"))) directory = directory.Parent;
+        var root = Assert.IsType<DirectoryInfo>(directory).FullName;
+        var entries = XDocument.Load(Path.Combine(root, "src", "Bingo.Web", "Resources", "SharedResource.da.resx"))
+            .Descendants("data").ToDictionary(item => item.Attribute("name")!.Value, item => item.Element("value")?.Value);
+        string[] sources =
+        [
+            Path.Combine("src", "Bingo.Infrastructure", "Events", "EventLifecycleService.cs"),
+            Path.Combine("src", "Bingo.Infrastructure", "Events", "EventDestructiveLifecycleService.cs"),
+            Path.Combine("src", "Bingo.Infrastructure", "Events", "EventSignupLifecycleService.cs"),
+            Path.Combine("src", "Bingo.Infrastructure", "Events", "EventQuarantineService.cs"),
+            Path.Combine("src", "Bingo.Web", "Pages", "Admin", "Events", "Manage.cshtml.cs")
+        ];
+        var missing = new List<string>();
+        foreach (var relative in sources)
+            foreach (var line in File.ReadLines(Path.Combine(root, relative)).Where(line => !line.TrimStart().StartsWith("//", StringComparison.Ordinal)))
+                foreach (Match literal in Regex.Matches(line, "(?<![$@\"])\"(?<text>(?:\\\\.|[^\"\\\\])*)\""))
+                {
+                    var text = literal.Groups["text"].Value;
+                    if (literal.Index > 0 && line[literal.Index - 1] == '$') continue;
+                    // A sentence shown to an admin: capitalised, several words, ends with a full stop or question mark.
+                    if (text.Length > 12 && text.Contains(' ') && char.IsUpper(text[0]) && (text.EndsWith('.') || text.EndsWith('?')) && (!entries.TryGetValue(text, out var value) || string.IsNullOrWhiteSpace(value)))
+                        missing.Add($"{Path.GetFileName(relative)}: {text}");
+                }
+        // Texts the services format with a name or category are localized by pattern in LocalizeRefusal or listed in full.
+        foreach (var key in new[]
+        {
+            "This event window overlaps {0} ({1}).", "The replacement lifecycle window overlaps {0}.",
+            "This event has protected participant history and cannot be discarded. Cancel it instead.",
+            "This event has protected team history and cannot be discarded. Cancel it instead.",
+            "This event has protected event access history and cannot be discarded. Cancel it instead.",
+            "This event has protected evidence history and cannot be discarded. Cancel it instead.",
+            "This event has protected submission history and cannot be discarded. Cancel it instead.",
+            "Publish the results of {0} first.", "{0} is still the current event. Contact the Super Admin to archive it."
+        })
+            if (!entries.TryGetValue(key, out var danish) || string.IsNullOrWhiteSpace(danish)) missing.Add($"pattern: {key}");
+        Assert.True(missing.Count == 0, "Missing Danish entries:\n" + string.Join('\n', missing.Distinct().Order()));
+    }
 }
