@@ -112,6 +112,14 @@ public sealed partial class FinalizeModel
     public IReadOnlyList<FinalReviewDisplayRow> PresentRows(IReadOnlyList<ProvisionalPlacement> rows, PlacementRule rule)
     {
         var shared = rows.GroupBy(x => x.Placement).Where(x => x.Count() > 1).Select(x => x.Key).ToHashSet();
+        // One decimal everywhere; where EHB decided a place and the one-decimal text of the pair is equal,
+        // both values show as many decimals as needed (at most four) so the difference is visible.
+        var expand = new HashSet<int>();
+        for (var i = 0; i < rows.Count && rows.Count > 1; i++)
+        {
+            var other = i == 0 ? 1 : i - 1;
+            if (rows[other].Placement != rows[i].Placement && DecisiveInput(rows[i], rows[other], rule) == "ehb" && Ehb(rows[i].EhbTiebreak) == Ehb(rows[other].EhbTiebreak)) { expand.Add(i); expand.Add(other); }
+        }
         return rows.Select((row, index) =>
         {
             var neighbour = rows.Count < 2 ? null : rows[index == 0 ? 1 : index - 1];
@@ -127,7 +135,7 @@ public sealed partial class FinalizeModel
                     "score" => Localize(index == 0 ? "Reached the tied score before {0}" : "Reached the tied score after {0}", neighbour.TeamName),
                     _ => string.Empty
                 };
-            return new FinalReviewDisplayRow(row, (shared.Contains(row.Placement) ? "=" : "") + row.Placement.ToString(CultureInfo.InvariantCulture), why, key);
+            return new FinalReviewDisplayRow(row, (shared.Contains(row.Placement) ? "=" : "") + row.Placement.ToString(CultureInfo.InvariantCulture), why, key, expand.Contains(index) ? row.EhbTiebreak.ToString("#,##0.0###", CultureInfo.CurrentCulture) : Ehb(row.EhbTiebreak));
         }).ToList();
     }
     public static string? DecisiveInput(ProvisionalPlacement row, ProvisionalPlacement other, PlacementRule rule)
@@ -142,5 +150,5 @@ public sealed partial class FinalizeModel
         return rule == PlacementRule.CreditedEhbThenScoreTime ? ehbDiffers ? "ehb" : scoreDiffers ? "score" : null : scoreDiffers ? "score" : ehbDiffers ? "ehb" : null;
     }
     public sealed record FinalReviewCheck(string Title, string Description, string? Link, string Class);
-    public sealed record FinalReviewDisplayRow(ProvisionalPlacement Value, string Place, string Explanation, string? Decider);
+    public sealed record FinalReviewDisplayRow(ProvisionalPlacement Value, string Place, string Explanation, string? Decider, string EhbText);
 }
