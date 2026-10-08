@@ -49,8 +49,8 @@ public sealed partial class SubmissionWorkflowTests
         finally { CultureInfo.CurrentUICulture = previous; }
     }
 
-    private Bingo.Web.Pages.Captain.SubmitModel DrawerPage(ApplicationDbContext db, Guid actorAccountId, ILogger<Bingo.Web.Pages.Captain.SubmitModel> logger) =>
-        new(db, Service(db), new EvidenceAuthority(db), new FixedTimeProvider(now), SharedResourceLocalizer(), logger)
+    private Bingo.Web.Pages.Captain.SubmitModel DrawerPage(ApplicationDbContext db, Guid actorAccountId, ILogger<Bingo.Web.Pages.Captain.SubmitModel> logger, TimeProvider? clock = null) =>
+        new(db, Service(db, clock), new EvidenceAuthority(db), clock ?? new FixedTimeProvider(now), SharedResourceLocalizer(), logger)
         {
             MetadataProvider = new EmptyModelMetadataProvider(),
             PageContext = new PageContext

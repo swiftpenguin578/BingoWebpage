@@ -1884,12 +1884,12 @@ public sealed partial class SubmissionWorkflowTests : IAsyncLifetime
 
         var authority = new EvidenceAuthority(db);
         var participantScope = await authority.ResolveActorAsync(participantAccount.Id, setup.EventId, setup.TeamId, now, CancellationToken.None);
-        var participantCandidates = await authority.GetCurrentTeamCandidatesAsync(participantScope, CancellationToken.None);
+        var participantCandidates = await authority.GetCurrentTeamCandidatesAsync(participantScope, now, CancellationToken.None);
         Assert.Single(participantCandidates);
         Assert.Equal(setup.ParticipantId, participantCandidates[0].ParticipantId);
 
         var emergencyScope = await authority.ResolveActorAsync(setup.CaptainId, setup.EventId, setup.TeamId, now, CancellationToken.None);
-        var leadershipCandidates = await authority.GetCurrentTeamCandidatesAsync(emergencyScope, CancellationToken.None);
+        var leadershipCandidates = await authority.GetCurrentTeamCandidatesAsync(emergencyScope, now, CancellationToken.None);
         Assert.Equal(2, leadershipCandidates.Count);
     }
 
