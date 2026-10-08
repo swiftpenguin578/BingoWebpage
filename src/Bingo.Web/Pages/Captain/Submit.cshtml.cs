@@ -95,7 +95,7 @@ public sealed class SubmitModel(ApplicationDbContext db, ISubmissionService subm
         if (tileId is null) { Tile = null; Requirements = []; Players = []; return true; }
         if (!boardTiles.Any(value => value.Id == tileId)) return false;
         var tile = publication.Tiles.SingleOrDefault(x => x.Id == tileId); if (tile is null) return false; Tile = new(tile.Id, tile.NameSnapshot, tile.DescriptionSnapshot, tile.EvidenceInstructionsSnapshot); Input.TileId = tile.Id;
-        Players = (await evidenceAuthority.GetCurrentTeamCandidatesAsync(Scope, ct)).Select(player => new PlayerView(player.ParticipantId, player.CharacterName)).ToList();
+        Players = (await evidenceAuthority.GetCurrentTeamCandidatesAsync(Scope, time.GetUtcNow(), ct)).Select(player => new PlayerView(player.ParticipantId, player.CharacterName)).ToList();
         DefaultParticipantId = Scope.CreditedParticipantId;
         if (Input.CreditedParticipantId == Guid.Empty &&
             DefaultParticipantId is Guid participantId &&

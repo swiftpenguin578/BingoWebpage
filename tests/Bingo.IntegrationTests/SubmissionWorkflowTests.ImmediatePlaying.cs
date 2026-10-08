@@ -55,7 +55,7 @@ public sealed partial class SubmissionWorkflowTests
         await db.SaveChangesAsync();
         var authority = new EvidenceAuthority(db);
         var scope = await authority.ResolveActorAsync(setup.CaptainId, setup.EventId, setup.TeamId, now);
-        Assert.DoesNotContain(await authority.GetCurrentTeamCandidatesAsync(scope), x => x.ParticipantId == setup.ParticipantId);
+        Assert.DoesNotContain(await authority.GetCurrentTeamCandidatesAsync(scope, now), x => x.ParticipantId == setup.ParticipantId);
         await Assert.ThrowsAsync<InvalidOperationException>(() => authority.AuthorizeAsync(setup.CaptainId, setup.EventId, setup.TeamId, setup.ParticipantId, now));
     }
 
@@ -100,7 +100,7 @@ public sealed partial class SubmissionWorkflowTests
         await Assert.ThrowsAsync<InvalidOperationException>(() => authority.AuthorizeAsync(setup.AdminId, setup.EventId, setup.TeamId, setup.ParticipantId, now));
         Assert.True(await authority.CanViewPrivateEvidenceAsync(setup.AdminId, setup.EventId, setup.TeamId, setup.ParticipantId, now));
         var scope = await authority.ResolveActorAsync(setup.AdminId, setup.EventId, setup.TeamId, now);
-        await Assert.ThrowsAsync<InvalidOperationException>(() => authority.GetCurrentTeamCandidatesAsync(scope));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => authority.GetCurrentTeamCandidatesAsync(scope, now));
     }
 
     [Fact]
@@ -211,6 +211,46 @@ public sealed partial class SubmissionWorkflowTests
         Assert.Equal(switchFirst ? second : first, saved.CreditedOsrsCharacterId);
         Assert.Equal(now.AddTicks(10), saved.SubmittedAt);
         Assert.Equal(second, (await verify.ActiveCharacterAtAsync(setup.EventId, setup.ParticipantId, now.AddTicks(10)))!.OsrsCharacterId);
+    }
+
+    // Bug report (8 Oct): the submit drawer's Player field named the primary
+    // account after a Live switch, while crediting used the active account.
+    [Fact]
+    public async Task SubmitDrawerNamesTheActivePlayingAccountThatWouldBeCredited()
+    {
+        var setup = await SeedAsync(3, true);
+        await using (var noHistory = new ApplicationDbContext(options))
+        {
+            // No switch history: the drawer and crediting both fall back to the only Playing account.
+            var fallbackAuthority = new EvidenceAuthority(noHistory);
+            Assert.False(await noHistory.EventParticipantCharacterSwaps.AnyAsync(x => x.EventParticipantId == setup.ParticipantId));
+            var fallbackScope = await fallbackAuthority.ResolveActorAsync(setup.CaptainId, setup.EventId, setup.TeamId, now);
+            Assert.Equal("Player One", (await fallbackAuthority.GetCurrentTeamCandidatesAsync(fallbackScope, now)).Single(x => x.ParticipantId == setup.ParticipantId).CharacterName);
+            Assert.Equal("Player One", (await fallbackAuthority.ResolveCreditedCharacterAsync(setup.EventId, setup.ParticipantId, now)).Name);
+        }
+
+        var (first, second) = await AddPlayingSwitchFixtureAsync(setup);
+        var switchAt = now.AddMinutes(10);
+        await using (var seed = new ApplicationDbContext(options))
+        {
+            seed.Add(new EventParticipantCharacterSwap(Guid.NewGuid(), setup.EventId, setup.ParticipantId, first, second, switchAt, now, setup.CaptainId, "switch"));
+            await seed.SaveChangesAsync();
+        }
+
+        await using var db = new ApplicationDbContext(options);
+        var authority = new EvidenceAuthority(db);
+        var scope = await authority.ResolveActorAsync(setup.CaptainId, setup.EventId, setup.TeamId, now);
+        // Non-microsecond-aligned instants on both sides of the switch use the persisted precision.
+        foreach (var (instant, expected) in new[] { (switchAt.AddTicks(-1), "Player One"), (switchAt.AddTicks(7), "Second Playing") })
+        {
+            var candidate = (await authority.GetCurrentTeamCandidatesAsync(scope, instant)).Single(x => x.ParticipantId == setup.ParticipantId);
+            Assert.Equal(expected, candidate.CharacterName);
+            Assert.Equal(expected, (await authority.ResolveCreditedCharacterAsync(setup.EventId, setup.ParticipantId, new DateTimeOffset(instant.UtcTicks - instant.UtcTicks % 10, TimeSpan.Zero))).Name);
+        }
+
+        var page = DrawerPage(db, setup.CaptainId, NullLogger<Bingo.Web.Pages.Captain.SubmitModel>.Instance, new FixedTimeProvider(switchAt.AddSeconds(1)));
+        Assert.IsType<PartialViewResult>(await page.OnGetDrawerAsync(setup.TileId, setup.EventId, setup.TeamId, CancellationToken.None));
+        Assert.Equal("Second Playing", page.Players.Single(x => x.Id == setup.ParticipantId).Name);
     }
 
     private async Task<(Guid First, Guid Second)> AddPlayingSwitchFixtureAsync(Setup setup)
