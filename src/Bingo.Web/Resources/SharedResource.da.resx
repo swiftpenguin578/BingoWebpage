@@ -1488,9 +1488,6 @@
   <data name="The catalogue editor could not be loaded." xml:space="preserve"><value>Katalogeditoren kunne ikke indlæses.</value></data>
   <data name="Kills per hour" xml:space="preserve"><value>Drab pr. time</value></data>
   <data name="Runs per hour" xml:space="preserve"><value>Gennemførelser pr. time</value></data>
-  <data name="Creating a random order…" xml:space="preserve"><value>Opretter en tilfældig rækkefølge…</value></data>
-  <data name="Drawing the team order…" xml:space="preserve"><value>Trækker holdrækkefølgen…</value></data>
-  <data name="Order ready." xml:space="preserve"><value>Rækkefølgen er klar.</value></data>
   <data name="Saving" xml:space="preserve"><value>Gemmer</value></data>
   <data name="The participant details could not be loaded." xml:space="preserve"><value>Deltagerdetaljerne kunne ikke indlæses.</value></data>
   <data name="The participant form could not be loaded." xml:space="preserve"><value>Deltagerformularen kunne ikke indlæses.</value></data>
