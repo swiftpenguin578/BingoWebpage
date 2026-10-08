@@ -41,3 +41,9 @@ body:not(.using-keyboard) :focus-visible{outline:none}.design-drawer-layer{posit
 /* RC03: the shared picker remains usable below its nominal calendar height. */
 body[data-admin-design] .dtp-pop{max-height:calc(100dvh - 16px);overflow-y:auto;overscroll-behavior:contain}
 body[data-admin-design] .dtp-main,body[data-admin-design] .dtp-foot{flex-shrink:0}
+
+/* U10: the sticky name cell fades its hover tint with the row. The shared hover rule swaps a background gradient (not animatable), so on leaving a row the
+   cell dropped to the surface colour at once while the row faded. The tint is a registered colour property the cell transitions instead. */
+@property --sticky-tint{syntax:"<color>";inherits:false;initial-value:transparent}
+.tbl-wrap.is-scroll .tbl.sticky-first .c-name:not(.th){--sticky-tint:transparent;background:linear-gradient(var(--sticky-tint),var(--sticky-tint)),var(--dk-surface);transition:box-shadow var(--dk-dur-hover),--sticky-tint var(--dk-dur-hover)}
+.tbl-wrap.is-scroll .tbl.sticky-first .row:hover .c-name:not(.th){--sticky-tint:var(--dk-row-hover);background:linear-gradient(var(--sticky-tint),var(--sticky-tint)),var(--dk-surface)}
