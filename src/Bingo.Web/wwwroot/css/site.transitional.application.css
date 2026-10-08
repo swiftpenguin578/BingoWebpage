@@ -253,8 +253,6 @@
 .board-cell { display: flex; min-height: 7rem; padding: 0.8rem; flex-direction: column; justify-content: space-between; background: var(--surface); border: 1px solid var(--border); border-radius: 0.55rem; cursor: grab; transition: border-color 120ms ease, box-shadow 120ms ease, background 120ms ease; }
 .board-cell.empty { color: var(--muted); border-style: dashed; cursor: default; }
 .line-stat:hover, .line-stat:focus { color: var(--admin-focus-accent, var(--accent)); background: var(--surface-raised); outline: none; }
-.tile-dialog { width: min(38rem, calc(100vw - 2rem)); color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: 0.7rem; }
-.tile-dialog::backdrop { background: rgba(0, 0, 0, 0.7); }
 .dialog-close { float: right; color: var(--text); background: transparent; border: 0; font-size: 2rem; }
 .catalogue-record { margin: 0.8rem 0; }
 .catalogue-record summary { cursor: pointer; }
@@ -1063,22 +1061,9 @@
   border-radius: 0.6rem;
 }
 .admin-shell-body .draft-page .draft-participant-section { display: grid; gap: 0.65rem; padding: 0; background: transparent; }
-.admin-shell-body .draft-page .draft-participant-controls .admin-search-field { width: min(18rem, 100%); }
 .admin-shell-body .draft-page .draft-participant-table-wrap > .draft-participant-heading {
   padding: 0.85rem 0.9rem 0.3rem;
 }
-.admin-shell-body .draft-page .participant-table { table-layout: fixed; }
-.admin-shell-body .draft-page .participant-sort {
-  min-height: 1.5rem;
-  padding: 0;
-  color: inherit;
-  background: transparent;
-  border: 0;
-  font: inherit;
-  text-align: left;
-}
-.admin-shell-body .draft-page .participant-sort:hover { color: var(--admin-text); }
-.admin-shell-body .draft-page .participant-sort:focus-visible { outline: 2px solid var(--admin-focus-accent-strong); outline-offset: 2px; }
 .admin-shell-body .draft-page .draft-live-shell { display: grid; gap: 0.85rem; }
 .admin-shell-body .draft-page .draft-live-toolbar {
   display: flex;
@@ -1463,27 +1448,6 @@ th {
 .event-control-workspace > .panel { margin-top: 0; }
 .event-admin-controls > header { display: flex; justify-content: space-between; gap: 1rem; align-items: center; }
 .event-admin-control-group { display: grid; grid-template-columns: minmax(9rem, 0.7fr) minmax(15rem, 1.3fr); gap: 0.7rem 1rem; align-items: center; margin-top: 0.8rem; padding-top: 0.8rem; border-top: 1px solid var(--border); }
-.participant-group { position: relative; margin-top: 0; padding: 0; overflow: hidden; }
-.participant-group > summary { display: flex; justify-content: space-between; gap: 1rem; align-items: center; min-height: 3.7rem; padding: 0.8rem 17.5rem 0.8rem 0.9rem; cursor: pointer; list-style: none; }
-.participant-group > summary::-webkit-details-marker { display: none; }
-.participant-group > summary::before { content: "›"; color: var(--muted); font-size: 1.2rem; transition: transform 160ms ease; }
-.participant-group[open] > summary::before { transform: rotate(90deg); }
-.participant-group > summary > span:first-of-type { display: grid; flex: 1; gap: 0.1rem; }
-.participant-group summary strong { font-size: 0.86rem; }
-.participant-group summary small { color: var(--muted); font-size: 0.72rem; }
-.participant-table { width: 100%; }
-.participant-table th { padding: 0.5rem 0.65rem; font-size: 0.64rem; }
-.participant-sort { display: inline-flex; gap: 0.25rem; align-items: center; padding: 0; color: inherit; background: transparent; border: 0; font: inherit; letter-spacing: inherit; text-transform: inherit; cursor: pointer; }
-.participant-sort:hover { color: var(--text); }
-.participant-sort[data-direction="asc"]::after { content: "↑"; color: var(--accent); }
-.participant-sort[data-direction="desc"]::after { content: "↓"; color: var(--accent); }
-.participant-table td { padding: 0.55rem 0.65rem; font-size: 0.76rem; vertical-align: middle; }
-.participant-table td > small { display: block; color: var(--muted); }
-.participant-table a { text-decoration: none; }
-.participant-table a:not(.participant-sort-link):hover { text-decoration: underline; }
-.participant-payment-form { display: flex; align-items: center; }
-.participant-payment-form select { min-width: 7rem; min-height: 1.95rem; padding: 0.28rem 1.65rem 0.28rem 0.4rem; color: var(--text); background: var(--page); border: 1px solid var(--border); border-radius: 0.35rem; font-size: 0.7rem; }
-.participant-search-empty td { padding: 1.25rem !important; color: var(--muted); text-align: center; }
 
 /* Pass 3 event overview: reference structure backed by real lifecycle projections. */
 .event-overview { display: contents; }
@@ -1504,27 +1468,9 @@ th {
 .event-control-status a { display: inline-flex; align-items: center; gap: 0.3rem; color: #aaa9a5; font-weight: 500; text-decoration: none; }
 .event-control-status a::after { content: "↗"; font-size: 0.8rem; line-height: 1; }
 .event-control-status a:hover { color: var(--admin-text); }
-.event-confirmation-actions { display: flex; flex-wrap: wrap; gap: 0.45rem; align-items: center; }
 .action-danger-outline { color: var(--admin-danger) !important; background: transparent !important; border: 1px solid color-mix(in srgb, var(--admin-danger) 70%, var(--admin-border)) !important; }
 .action-danger-outline:hover, .action-danger-outline:focus-visible { background: color-mix(in srgb, var(--admin-danger) 12%, transparent) !important; border-color: var(--admin-danger) !important; }
 /* Pass 4: one compact signup workspace and the shared route-backed editor shell. */
-.admin-shell-body .event-participants-page { width: 100%; max-width: none; }
-.participant-filter-form { display: grid; grid-template-columns: minmax(14rem, 1.5fr) repeat(6, minmax(7rem, 1fr)) auto; gap: 0.75rem; align-items: end; margin-bottom: 1rem; }
-.participant-filter-form .admin-search-field { align-self: end; }
-.participant-group { background: var(--admin-surface); border: 1px solid var(--admin-border); border-radius: 0.75rem; overflow: hidden; }
-.participant-group > summary { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 0.9rem 1rem; cursor: pointer; list-style: none; }
-.participant-group > summary::-webkit-details-marker { display: none; }
-.participant-group > summary > span:first-child { display: grid; gap: 0.2rem; }
-.participant-group > summary strong { color: var(--admin-text); font-family: Cinzel, Georgia, serif; font-size: 0.875rem; }
-.participant-group > summary small { color: var(--admin-muted); font-size: 0.6875rem; line-height: 1.35; }
-.participant-table { width: 100%; min-width: 58rem; border-collapse: collapse; color: var(--admin-text-soft); font-size: 0.6875rem; }
-.participant-table th { padding: 0.6rem 0.75rem; color: var(--admin-muted); font-size: 0.625rem; font-weight: 600; text-align: left; white-space: nowrap; }
-.participant-table td { padding: 0.7rem 0.75rem; border-top: 1px solid var(--admin-border); vertical-align: middle; }
-.participant-table td > a { color: var(--admin-text); }
-.participant-table td small { display: block; margin-top: 0.2rem; color: var(--admin-muted); font-size: 0.625rem; }
-.participant-payment-form { display: flex; align-items: center; gap: 0.45rem; }
-.participant-payment-form select { min-height: 2rem; padding: 0.25rem 1.65rem 0.25rem 0.45rem; color: var(--admin-text); background: var(--admin-surface-raised); border: 1px solid var(--admin-border-strong); border-radius: 0.4rem; font: inherit; }
-.participant-payment-form .save-state { color: var(--admin-muted); font-size: 0.625rem; }
 .admin-route-dialog { box-sizing: border-box; width: min(41rem, calc(100vw - 3rem)); max-width: calc(100vw - 3rem); max-height: calc(100dvh - 3rem); padding: 0; color: var(--admin-text); background: transparent; border: 0; border-radius: 0; box-shadow: none; overflow: visible; }
 .admin-route-dialog::backdrop { background: color-mix(in srgb, #05070b 72%, transparent); backdrop-filter: blur(0.25rem); }
 .admin-route-dialog-close { display: inline-grid; width: 2.25rem; height: 2.25rem; place-items: center; margin: 0; padding: 0; color: var(--admin-muted); background: transparent; border: 0; border-radius: 0.5rem; }
@@ -1532,22 +1478,9 @@ th {
 .admin-route-dialog-close:focus { outline: 0; }
 .admin-route-dialog-close:focus-visible { outline: 0; box-shadow: 0 0 0 2px var(--admin-search), 0 0 0 4px var(--admin-focus-accent-strong); }
 .admin-route-dialog-close svg { width: 0.875rem; height: 0.875rem; pointer-events: none; }
-.admin-route-dialog-content { width: 100%; max-height: min(38rem, calc(100dvh - 7rem)); overflow: auto; background: transparent; }
-.participant-add-dialog { max-width: calc(100vw - 3rem); }
-.admin-route-dialog-open { overflow: hidden; }
-.admin-shell-body .participant-confirmation-box { display: grid; gap: 0.75rem; padding: 0.75rem 0; border-top: 1px solid var(--admin-border); }
-.admin-shell-body .participant-confirmation-box > summary { cursor: pointer; }
-.admin-shell-body .participant-confirmation-box p { margin: 0; color: var(--admin-muted); font-size: 0.6875rem; line-height: 1.4; }
-.admin-shell-body .participant-confirmation-box form { display: grid; gap: 0.6rem; }
-
-@media (max-width: 1100px) {
-  .participant-filter-form { grid-template-columns: minmax(14rem, 2fr) repeat(3, minmax(8rem, 1fr)); }
-}
 
 @media (max-width: 700px) {
-  .participant-filter-form { grid-template-columns: 1fr; }
   .admin-route-dialog { width: 100vw; max-width: none; max-height: 100dvh; }
-  .admin-route-dialog-content { width: 100%; max-height: calc(100dvh - 5rem); }
 }
 
 /* Lower Manage operations consume the shared Admin component and row primitives. */
@@ -1607,18 +1540,6 @@ th {
   .event-manage-page .event-wom-form > .event-create-field { width: 100%; max-width: none; flex-basis: auto; }
   .event-manage-page .event-wom-form > .event-create-field input { width: 100%; max-width: none; }
   .event-manage-page .event-wom-form > button { margin-top: 0; align-self: start; }
-  .participant-group > summary { min-height: 0; padding-right: 0.9rem; }
-  .participant-table thead { display: none; }
-  .participant-table,
-  .participant-table tbody,
-  .participant-table tr,
-  .participant-table td { display: block; width: 100%; }
-  .participant-table tr { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 0.7rem; border-bottom: 1px solid var(--border); }
-  .participant-table tr:last-child { border-bottom: 0; }
-  .participant-table td { display: grid; gap: 0.15rem; padding: 0.3rem; border: 0; }
-  .participant-table td::before { content: attr(data-label); color: var(--muted); font-size: 0.62rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; }
-  .participant-payment-form { align-items: stretch; flex-direction: column; }
-  .participant-payment-form select { width: 100%; }
 }
 
 @media (min-width: 901px) {
@@ -1862,7 +1783,6 @@ body.admin-shell-body {
 .admin-shell-body .admin-sidebar,
 .admin-shell-body .draft-page,
 .admin-shell-body .event-manage-page,
-.admin-shell-body .admin-accounts-page,
 .admin-shell-body .event-create-page,
 .admin-shell-body .schedule-editor-page,
 .admin-shell-body .signup-question-page {
@@ -1959,12 +1879,7 @@ body.admin-shell-body {
 .admin-shell-body .admin-button-create svg { width: 0.875rem; height: 0.875rem; flex: 0 0 auto; }
 
 /* Pass 10 Accounts / Roles */
-.admin-accounts-page { display: grid; gap: 1.5rem; min-width: 0; width: 100%; padding: 1.25rem 0 3rem; }
 .admin-shell-body :is(.admin-account-confirmation-dialog, .board-page .tile-dialog)::backdrop { background: rgb(0 0 0 / 45%); }
-
-@media (max-width: 600px) {
-  .admin-accounts-page { gap: 1.25rem; padding-bottom: 1.5rem; }
-}
 .admin-shell-body .admin-field,
 .admin-shell-body .event-create-field { display: grid; min-width: 0; gap: 0.25rem; }
 .admin-shell-body .admin-field label,
@@ -2002,34 +1917,6 @@ body.admin-shell-body {
 .admin-shell-body .admin-field .form-select:-webkit-autofill,
 .admin-shell-body .event-create-field .form-control:-webkit-autofill,
 .admin-shell-body .event-create-field .form-select:-webkit-autofill { -webkit-text-fill-color: var(--admin-text); box-shadow: 0 0 0 1000px var(--admin-surface-raised) inset; caret-color: var(--admin-text); }
-.admin-shell-body .admin-search-field { position: relative; display: block; min-width: 0; color: var(--admin-muted); }
-.admin-shell-body .admin-search-field > svg { position: absolute; top: 0.625rem; left: 0.75rem; z-index: 1; width: 1rem; height: 1rem; pointer-events: none; }
-.admin-shell-body .admin-search-field-input {
-  width: 100%;
-  min-height: 2.25rem;
-  padding: 0.4rem 2.25rem 0.4rem 2.25rem;
-  color: var(--admin-text);
-  background: var(--admin-search);
-  border: 1px solid transparent;
-  border-radius: 999px;
-  font-size: 0.75rem;
-  line-height: 1.25;
-  transition: none;
-}
-.admin-shell-body .admin-search-field-input::placeholder { color: var(--admin-muted); opacity: 0.75; }
-.admin-shell-body .admin-search-field-input:hover { border-color: var(--admin-border-strong); }
-.admin-shell-body .admin-search-field-input:focus,
-.admin-shell-body .admin-search-field-input:focus-visible { color: var(--admin-text); background: var(--admin-search); border-color: var(--admin-focus-accent); box-shadow: 0 0 0 0.15rem color-mix(in srgb, var(--admin-focus-accent) 20%, transparent); outline: 0; }
-.admin-shell-body .admin-search-field-input:disabled { color: var(--admin-muted); opacity: 0.65; }
-.admin-shell-body .admin-search-field-input::-webkit-search-cancel-button { display: none; }
-.admin-shell-body .admin-accounts-page .admin-search-field-input.form-control:focus,
-.admin-shell-body .admin-accounts-page .admin-search-field-input.form-control:focus-visible { color: var(--admin-text); background: var(--admin-search); border-color: var(--admin-focus-accent); box-shadow: 0 0 0 0.15rem color-mix(in srgb, var(--admin-focus-accent) 20%, transparent); outline: 0; }
-.admin-shell-body .admin-search-clear { position: absolute; top: 50%; right: 0; display: inline-grid; width: 2.25rem; height: 2.25rem; place-items: center; margin: 0; padding: 0; color: var(--admin-muted); background: transparent; border: 0; border-radius: 0.5rem; transform: translateY(-50%); }
-.admin-shell-body .admin-search-clear[hidden] { display: none; }
-.admin-shell-body .admin-search-clear:hover { color: var(--admin-text-soft); }
-.admin-shell-body .admin-search-clear:focus { outline: 0; }
-.admin-shell-body .admin-search-clear:focus-visible { outline: 0; box-shadow: 0 0 0 2px var(--admin-search), 0 0 0 4px var(--admin-focus-accent-strong); }
-.admin-shell-body .admin-search-clear svg { width: 0.75rem; height: 0.75rem; pointer-events: none; }
 .admin-shell-body .admin-section-heading { display: flex; justify-content: space-between; gap: 1rem; align-items: end; margin-bottom: 0.85rem; padding-bottom: 0.7rem; border-bottom: 1px solid var(--admin-border); }
 .admin-shell-body .admin-section-heading h2 { margin: 0; color: var(--admin-text); font-family: Cinzel, Georgia, serif; font-size: 0.875rem; font-weight: 700; line-height: 1.25rem; }
 .admin-shell-body .admin-section-heading > p { max-width: 28rem; color: var(--admin-muted); font-size: 0.6875rem; line-height: 1.4; }
@@ -2181,39 +2068,7 @@ body.admin-shell-body {
   html.admin-menu-enhanced .admin-sidebar { transition: none; }
 }
 
-
-
 /* Participants workspace: compact signup settings, directory toolbar, and shared table cards. */
-.admin-shell-body .event-participants-page { gap: 0.75rem; }
-.participant-add-route-page { display: grid; grid-column: 1 / -1; gap: 0.75rem; width: min(100%, 48rem); margin-inline: auto; }
-.participant-add-route-page .participant-add-dialog-page { margin: 0; }
-.participant-add-route-page .admin-route-dialog-close { display: none; }
-.admin-shell-body .event-participants-page .admin-search-field-input:focus,
-.admin-shell-body .event-participants-page .admin-search-field-input:focus-visible,
-.admin-shell-body .admin-accounts-page .admin-search-field-input:focus,
-.admin-shell-body .admin-accounts-page .admin-search-field-input:focus-visible { color: var(--admin-text); background: var(--admin-search); border-color: var(--admin-focus-accent); box-shadow: 0 0 0 0.15rem color-mix(in srgb, var(--admin-focus-accent) 20%, transparent); outline: 0; }
-.event-participants-page .participant-group { background: var(--admin-surface); border: 0; border-radius: 0.75rem; }
-.event-participants-page .participant-table { min-width: 58rem; }
-.event-participants-page .participant-table th { padding: 0.6rem 1rem; color: var(--admin-text); font-size: 0.6875rem; font-weight: 500; line-height: 1.25; text-align: left; vertical-align: middle; }
-.event-participants-page .participant-table td { padding: 0.75rem 1rem; }
-.participant-sort-icon { display: block; width: 0.75rem; height: 0.75rem; flex: 0 0 0.75rem; align-self: center; color: var(--admin-navigation-accent); }
-.participant-payment-form { display: inline-flex; }
-.participant-edit-action { display: inline-flex; width: 1.75rem; height: 1.75rem; align-items: center; justify-content: center; color: var(--admin-text-soft); }
-.participant-edit-action:hover { color: var(--admin-text); }
-.participant-edit-action:focus-visible { outline: 2px solid var(--admin-focus-accent-strong); outline-offset: 2px; }
-.participant-edit-action svg { width: 0.9rem; height: 0.9rem; }
-.event-participants-page .participant-table td > small { font-family: inherit; }
-.participant-table-empty td { color: var(--admin-muted); text-align: center; }
-
-@media (max-width: 600px) {
-  .event-participants-page .participant-table tr { display: block; padding: 0.875rem; background: var(--admin-surface); border: 0; border-radius: 0.75rem; }
-  .event-participants-page .participant-table td { display: grid; grid-template-columns: minmax(6rem, 7rem) minmax(0, 1fr); gap: 0.65rem; padding: 0.35rem 0; }
-  .event-participants-page .participant-table td::before { color: var(--admin-muted); content: attr(data-label); font-size: 0.625rem; font-weight: 500; line-height: 1.35; }
-  .event-participants-page .participant-table td > strong,
-  .event-participants-page .participant-table td > small,
-  .event-participants-page .participant-table td > span,
-  .event-participants-page .participant-table td > form { grid-column: 2; min-width: 0; }
-}
 
 /* Admin Pass 2: compact five-step event creation. */
 .admin-shell-body .event-create-page { width: min(100%, 42rem); max-width: 42rem; margin-inline: auto; padding: 0.25rem 0 2rem; color: var(--admin-text); font-family: inherit; }
@@ -2340,7 +2195,6 @@ body.admin-shell-body {
 .admin-shell-body .schedule-locked-value strong { color: var(--admin-text-soft); font-size: 0.75rem; font-weight: 600; }
 .admin-shell-body .schedule-confirmation-box { margin-top: 1rem; }
 .admin-shell-body .schedule-confirmation-box > ul { margin: 0.5rem 0 0; padding-left: 1rem; color: var(--admin-muted); font-size: 0.6875rem; line-height: 1.4; }
-.admin-shell-body .schedule-confirmation-box .event-confirmation-actions { justify-content: flex-end; }
 .admin-shell-body .schedule-editor-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.5rem; margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid var(--admin-border); }
 .admin-shell-body .schedule-editor-actions .event-create-cancel { align-self: auto; }
 .admin-shell-body .schedule-waiting-list { display: grid; gap: 0.3rem; margin: 0; padding: 0; }
@@ -2359,12 +2213,7 @@ body.admin-shell-body {
   .admin-shell-body .identity-editor-actions > * { width: 100%; justify-content: center; }
 }
 
-
 /* Add participant is one Manage-style component, not a nested page surface. */
-.admin-shell-body .participant-add-dialog-page { padding: 1.25rem; background: var(--admin-surface); border: 0; border-radius: 0.75rem; }
-.admin-shell-body .participant-add-dialog-page .event-overview-section-heading { padding-bottom: 0; }
-.admin-shell-body .participant-add-dialog-page .event-overview-section-heading h2 { font-size: 17px; font-weight: 600; line-height: 1.25; }
-.admin-shell-body .participant-add-dialog-page .event-overview-section-heading p { margin: 0.35rem 0 0; color: var(--admin-muted); font-size: 0.6875rem; line-height: 1.4; }
 
 /* Questions uses the Manage component hierarchy in both route and dialog views. */
 .admin-shell-body .signup-question-page {
@@ -2513,16 +2362,13 @@ body.admin-shell-body {
 .admin-shell-body .signup-question-page .signup-code-form > .admin-button-secondary { grid-column: auto; grid-row: auto; }
 }
 
-
-
 /* M9-2 Board editor: retain the existing workspace and dialog geometry while
    bringing its controls and surfaces onto the shared Admin primitives. */
 .admin-shell-body .board-page {
   color: var(--admin-text);
   font-family: inherit;
 }
-.admin-shell-body .board-page .panel,
-.admin-shell-body .board-page .tile-dialog {
+.admin-shell-body .board-page .panel {
   color: var(--admin-text);
   background: var(--admin-surface);
   border: 0;
@@ -2535,8 +2381,7 @@ body.admin-shell-body {
   padding: 1.25rem;
   background: var(--admin-surface);
 }
-.admin-shell-body .board-page .admin-board-create-panel h2,
-.admin-shell-body .board-page .tile-dialog h2 {
+.admin-shell-body .board-page .admin-board-create-panel h2 {
   color: var(--admin-text);
   font-family: inherit;
   font-size: 17px;
@@ -2620,27 +2465,6 @@ body.admin-shell-body {
   border-color: var(--admin-focus-accent-strong);
   box-shadow: none;
 }
-.admin-shell-body .board-page .tile-dialog {
-  position: relative;
-  width: min(41rem, calc(100vw - 2rem));
-  max-height: calc(100dvh - 2rem);
-  padding: 1.25rem;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-}
-.admin-shell-body .board-page .tile-dialog:focus { outline: none; }
-.admin-shell-body .board-page .tile-dialog.board-confirmation-dialog {
-  z-index: 30;
-  width: min(24rem, calc(100vw - 2rem));
-  padding: 1rem;
-  border: 1px solid var(--admin-border-strong);
-  box-shadow: 0 1rem 3rem rgb(0 0 0 / 35%);
-}
-.admin-shell-body .board-page .tile-dialog.board-confirmation-dialog h2 {
-  margin: 0;
-  font-size: 0.875rem;
-  line-height: 1.3;
-}
 .admin-shell-body .board-page .board-editor-discard p {
   color: var(--admin-muted);
   font-size: 0.75rem;
@@ -2655,36 +2479,10 @@ body.admin-shell-body {
 body.admin-shell-body.board-dialog-open {
   overflow: hidden;
 }
-.admin-shell-body .board-page .tile-dialog .form-stack {
-  gap: 1.25rem;
-}
-.admin-shell-body .board-page .tile-dialog #requirements {
-  display: grid;
-  gap: 1.25rem;
-}
-.admin-shell-body .board-page .tile-dialog > .admin-route-dialog-close {
-  position: absolute;
-  z-index: 2;
-  top: 0.65rem;
-  right: 0.65rem;
-  float: none;
-}
-.admin-shell-body .board-page .tile-dialog > .admin-route-dialog-close:focus-visible,
 .admin-shell-body .board-page .action-danger-outline:focus-visible {
   outline: 2px solid var(--admin-focus-accent-strong);
   outline-offset: 2px;
   box-shadow: none;
-}
-.admin-shell-body .board-page .tile-dialog :is(.boss-picker, .eligible-drops-section, .objective-counting-options) input[type="checkbox"] {
-  width: 1rem;
-  height: 1rem;
-  flex: 0 0 1rem;
-  margin: 0;
-  accent-color: var(--admin-navigation-accent);
-}
-.admin-shell-body .board-page .tile-dialog :is(.boss-picker, .eligible-drops-section, .objective-counting-options) input[type="checkbox"]:focus-visible {
-  outline: 2px solid var(--admin-focus-accent-strong);
-  outline-offset: 2px;
 }
 .admin-shell-body .board-page .board-select-wrap {
   position: relative;
@@ -2868,22 +2666,6 @@ body.admin-shell-body.board-dialog-open {
     max-width: none;
     text-align: left;
   }
-  .admin-shell-body .board-page .tile-dialog {
-    width: calc(100vw - 2rem);
-    max-height: calc(100dvh - 2rem);
-  }
-}
-
-@media (max-width: 900px) {
-  .admin-shell-body .board-page .tile-dialog {
-    box-sizing: border-box;
-    width: 100vw;
-    max-width: 100vw;
-    height: 100dvh;
-    max-height: 100dvh;
-    margin: 0;
-    border-radius: 0;
-  }
 }
 
 /* Draft owns the route-dialog enhancement; keep its fallback a normal page block. */
@@ -2900,7 +2682,6 @@ body.admin-shell-body.board-dialog-open {
 .admin-shell-body .draft-page .team-roster-dialog .team-role-form .team-role-name { min-width: 0; }
 .admin-shell-body .draft-page .team-roster-dialog .team-role-form .team-member-move-form { display: contents; }
 .admin-shell-body .draft-page .team-roster-dialog .team-role-form .team-role-remove-form { display: block; }
-.admin-shell-body .draft-page .team-roster-dialog .team-role-remove-form .event-confirmation-actions .action-danger-outline { display: inline-flex; min-height: 2rem; align-items: center; justify-content: center; gap: 0.4rem; padding: 0.375rem 0.75rem; border-radius: 0.5rem; font-size: 0.6875rem; font-weight: 600; line-height: 1.25; }
 .admin-shell-body .draft-page .draft-participant-controls { background: var(--admin-surface); }
 .admin-shell-body .draft-page .draft-live-toolbar-copy > strong { color: var(--admin-text-soft); font-size: 0.75rem; font-weight: 500; line-height: 1.25; }
 .admin-shell-body .draft-page .draft-live-toolbar-copy > span { color: var(--admin-muted); font-size: 0.6875rem; font-weight: 400; line-height: 1.4; }
@@ -3113,14 +2894,11 @@ body.public-event-shell .recent-drop-card.private-drop .recent-drop-placeholder 
 /* Add participant keeps one route-backed modal at every viewport. */
 @media (max-width: 900px) {
   .admin-shell-body #participant-add-dialog { width: 100%; max-width: none; height: 100dvh; max-height: none; margin: 0; }
-  .admin-shell-body #participant-add-dialog > .admin-route-dialog-content { height: 100%; max-height: none; }
-  .admin-shell-body .participant-add-dialog-page { min-height: 100%; border-radius: 0; }
 }
 
 /* Participant editor: compact shared Admin hierarchy, inline actions, one modal. */
 @media (max-width: 900px) {
   .admin-shell-body #participant-edit-dialog { width: 100%; max-width: none; height: 100dvh; max-height: none; margin: 0; }
-  .admin-shell-body #participant-edit-dialog > .admin-route-dialog-content { height: 100%; max-height: none; }
 }
 
 /* Accounts adopts the shared editor behavior without changing its directory/detail composition. */
@@ -3128,7 +2906,6 @@ body.public-event-shell .recent-drop-card.private-drop .recent-drop-placeholder 
 .admin-shell-body .account-editor-discard[hidden] { display: none; }
 @media (max-width: 900px) {
   .admin-shell-body .account-manage-route-dialog { width: 100%; max-width: none; height: 100dvh; max-height: none; margin: 0; border-radius: 0; }
-  .admin-shell-body .account-manage-route-dialog > .admin-route-dialog-content { height: 100%; max-height: none; }
 }
 
 /* Catalogue confirmations remain inline inside the existing activity/drop editor. */
@@ -3136,7 +2913,6 @@ body.public-event-shell .recent-drop-card.private-drop .recent-drop-placeholder 
 .admin-shell-body .catalogue-route-dialog .catalogue-editor-heading { position: sticky; top: -1.25rem; z-index: 3; background: var(--admin-surface); }
 @media (max-width: 900px) {
   .admin-shell-body .catalogue-route-dialog { width: 100%; max-width: none; height: 100dvh; max-height: none; margin: 0; }
-  .admin-shell-body .catalogue-route-dialog > .admin-route-dialog-content { height: 100%; max-height: none; }
 }
 
 /* Inline decisions replace their initiating action until dismissed. */

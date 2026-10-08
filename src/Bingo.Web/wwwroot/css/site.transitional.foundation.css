@@ -352,7 +352,6 @@ main h1 {
   line-height: normal;
 }
 
-
 /* Operational subpages default to a compact context label instead of a
    decorative title block. Landing and overview pages may still use a hero. */
 .hero h1,
